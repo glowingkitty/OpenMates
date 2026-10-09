@@ -18,7 +18,8 @@ vi.mock('../projectService', () => ({
 }));
 vi.mock('../ruleDocumentService', () => ({ readActiveProjectMarkdownDocuments: mocks.head }));
 import {
-  collectProjectFocusCatalog, collectPrivateFocusForRequest, loadSelectedProjectFocusDocuments, parseProjectFocusDocument,
+  collectProjectFocusCatalog, collectProjectFocusRoutingCandidates, collectPrivateFocusForRequest,
+  loadAcceptedProjectSpecialistFocusDocument, loadSelectedProjectFocusDocuments, parseProjectFocusDocument,
 } from '../agenticProjectContextService';
 
 const markdown = '---\nname: Project debugging\ndescription: Investigate service failures.\npreprocessor_hint: Debugging Python services.\nphases:\n  - id: investigate\n    name: Investigate\n    instructions: Find the root cause.\n---\nKeep private debugging notes within the approved task.\n';
@@ -50,6 +51,35 @@ describe('Project focus catalog boundaries', () => {
     vi.clearAllMocks();
     expect(await collectProjectFocusCatalog({ chatId: 'chat-1', projectId: 'project-1' })).toEqual([]);
     expect(mocks.project).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=projects.focus.inferred-consent
+  it('discovers bounded metadata before consent without reading Focus instructions', async () => {
+    mocks.focus.mockResolvedValue(null);
+    const candidates = await collectProjectFocusRoutingCandidates([
+      { project_id: 'project-1', name: 'Garden', description: 'Project notes', teamId: null } as never,
+    ], null, 'Please debug the Garden project');
+    expect(candidates).toEqual([{ project_id: 'project-1', name: 'Garden', summary: 'Project notes', focuses: [
+      { item_id: item.project_item_id, revision: expect.stringMatching(/^[a-f0-9]{64}$/),
+        title: 'Project debugging', description: 'Investigate failures.', when_to_use: 'Debug Python.' },
+    ] }]);
+    expect(mocks.contents).toHaveBeenCalledTimes(1);
+    expect(mocks.head).not.toHaveBeenCalled();
+    expect(mocks.focus).not.toHaveBeenCalled();
+    expect(JSON.stringify(candidates)).not.toContain('SKILL.md');
+    const unrelated = await collectProjectFocusRoutingCandidates([
+      { project_id: 'project-3', name: 'Garden', description: 'Project notes', teamId: null } as never,
+    ], null, 'What is the weather?');
+    expect(unrelated).toEqual([{ project_id: 'project-3', name: 'Garden', summary: 'Project notes' }]);
+    expect(mocks.contents).toHaveBeenCalledTimes(1);
+    await collectProjectFocusRoutingCandidates([
+      { project_id: 'project-1', name: 'Garden', description: 'Project notes', teamId: null } as never,
+    ], null, 'Please debug the Garden project');
+    expect(mocks.contents).toHaveBeenCalledTimes(1);
+    mocks.contents.mockRejectedValueOnce(new Error('offline'));
+    expect(await collectProjectFocusRoutingCandidates([
+      { project_id: 'project-2', name: 'Garden', description: 'Project notes', teamId: null } as never,
+    ], null, 'Please debug the Garden project')).toEqual([{ project_id: 'project-2', name: 'Garden', summary: 'Project notes' }]);
   });
 
   // contract-test: supporting surface=gui.web assertions=focus-modes.project-authoring-click
@@ -98,6 +128,18 @@ describe('Project focus catalog boundaries', () => {
       return [{ item_id: item.project_item_id, path: item.metadata.display_path, document: markdown, file_revision: 1 }];
     });
     expect(await loadSelectedProjectFocusDocuments('chat-1', 'project-1', [item.project_item_id])).toEqual([]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=projects.focus.inferred-consent
+  it('loads the exact selected specialist only after activation at its selected revision', async () => {
+    const revision = (await collectProjectFocusCatalog({ chatId: 'chat-1' }))[0].revision;
+    expect(await loadAcceptedProjectSpecialistFocusDocument('chat-1', 'project-1', item.project_item_id, revision))
+      .toEqual({ item_id: item.project_item_id, revision, document: markdown });
+    expect(await loadAcceptedProjectSpecialistFocusDocument('chat-1', 'project-1', item.project_item_id, 'a'.repeat(64)))
+      .toBeNull();
+    mocks.focus.mockResolvedValue(null);
+    expect(await loadAcceptedProjectSpecialistFocusDocument('chat-1', 'project-1', item.project_item_id, revision))
+      .toBeNull();
   });
 
   // contract-test: supporting surface=gui.web assertions=focus-modes.project-authoring-persistence

@@ -48,7 +48,7 @@ export function isProjectFocusId(focusId: string | null | undefined): focusId is
 }
 
 interface ProjectFocusSendDependencies {
-  confirmProjectFocusCountdown?(projectId: string, input: { chat_id: string; activation_request_id: string }, context?: { teamId?: string | null }): Promise<void>;
+  confirmProjectFocusCountdown?(projectId: string, input: { chat_id: string; activation_request_id: string; approved?: boolean }, context?: { teamId?: string | null }): Promise<void>;
   getProject(projectId: string, context?: { teamId?: string | null }): Promise<ProjectViewModel>;
   getProjectSettings(
     project: ProjectViewModel,
@@ -165,11 +165,11 @@ export async function activateProjectFocusForSend(
 }
 
 export async function activateProjectFocusAfterConsent(
-  input: { projectId: string; chatId: string; requestId: string; teamId?: string | null },
+  input: { projectId: string; chatId: string; requestId: string; teamId?: string | null; approved?: boolean },
   dependencies: ProjectFocusSendDependencies = defaultDependencies,
 ): Promise<ProjectFocusActivationPresentation> {
   if (!input.requestId.trim()) throw new ProjectFocusSendPreflightError("CHAT_PREFLIGHT_REQUIRED");
-  return activateProjectDefaultFocus(input.projectId, input, dependencies, input.requestId);
+  return activateProjectDefaultFocus(input.projectId, input, dependencies, input.requestId, input.approved);
 }
 
 async function activateProjectDefaultFocus(
@@ -177,11 +177,13 @@ async function activateProjectDefaultFocus(
   input: { chatId: string; teamId?: string | null },
   dependencies: ProjectFocusSendDependencies,
   requestId?: string,
+  approved = false,
 ): Promise<ProjectFocusActivationPresentation> {
   const context = { teamId: input.teamId ?? null };
   if (requestId) {
     if (!dependencies.confirmProjectFocusCountdown) throw new ProjectFocusSendPreflightError("PROJECT_FOCUS_UNAVAILABLE");
-    await dependencies.confirmProjectFocusCountdown(projectId, { chat_id: input.chatId, activation_request_id: requestId }, context);
+    await dependencies.confirmProjectFocusCountdown(projectId, { chat_id: input.chatId, activation_request_id: requestId,
+      ...(approved ? { approved: true } : {}) }, context);
   }
   const project = await dependencies.getProject(projectId, context);
   const settings = await dependencies.getProjectSettings(project, context);

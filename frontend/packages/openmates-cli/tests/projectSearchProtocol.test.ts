@@ -5,6 +5,7 @@
  */
 
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { chmodSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -31,6 +32,50 @@ function temporaryRepository(label: string): { home: string; root: string } {
 
 describe("Project search protocol", () => {
   // contract-test: supporting surface=cli assertions=projects.files.search-scoped,projects.files.search-consistent
+  it("returns complete small matching files with hashes and explicit bounded omissions", async () => {
+    const { home, root } = temporaryRepository("search-content");
+    const missingRg = async (): Promise<string> => { throw Object.assign(new Error("missing rg"), { code: "ENOENT" }); };
+    writeFileSync(join(root, ".gitignore"), "doc-private.md\n");
+    writeFileSync(join(root, "doc-private.md"), "private\n");
+    writeFileSync(join(root, "doc-big.md"), "b".repeat(24 * 1024 + 1));
+    writeFileSync(join(root, "doc-binary.png"), Buffer.from([0, 1, 2]));
+    writeFileSync(join(root, "doc-readme.md"), "README α\n");
+    writeFileSync(join(root, "doc-unicode.md"), "Another α\n");
+    try {
+      const result = await searchRemoteSource({ sourceRoot: root, query: "doc-", target: "files", includeContent: true, runRg: missingRg });
+      assert.deepEqual(result.matches.map((match) => match.path), ["doc-big.md", "doc-binary.png", "doc-readme.md", "doc-unicode.md"]);
+      assert.deepEqual(result.contents?.map((file) => file.path), ["doc-readme.md", "doc-unicode.md"]);
+      assert.equal(result.contents?.[0]?.content, "README α\n");
+      const hash = createHash("sha256").update("README α\n").digest("hex");
+      assert.equal(result.contents?.[0]?.expected_base, hash);
+      assert.equal(result.matches[2]?.expected_base, hash);
+      assert.deepEqual(result.content_omissions, [
+        { path: "doc-big.md", reason: "file_too_large_or_line_limit" },
+        { path: "doc-binary.png", reason: "binary_or_unsupported" },
+      ]);
+      assert.equal(result.truncated, false);
+      assert.equal(result.content_incomplete, true);
+    } finally { rmSync(home, { recursive: true, force: true }); }
+  });
+
+  // contract-test: supporting surface=cli assertions=projects.files.search-consistent
+  it("enforces aggregate and file count limits without partial file text", async () => {
+    const { home, root } = temporaryRepository("search-content-budgets");
+    const missingRg = async (): Promise<string> => { throw Object.assign(new Error("missing rg"), { code: "ENOENT" }); };
+    for (let index = 0; index < 10; index++) writeFileSync(join(root, `doc-${String(index).padStart(2, "0")}.md`), "x".repeat(20 * 1024));
+    try {
+      const result = await searchRemoteSource({ sourceRoot: root, query: "doc-", target: "files", includeContent: true, runRg: missingRg });
+      assert.equal(result.contents?.length, 4);
+      assert.ok(result.contents?.every((file) => file.content.length === 20 * 1024));
+      assert.equal(result.content_omissions?.length, 6);
+      assert.ok(result.content_omissions?.every((item) => item.reason === "total_bytes_limit"));
+      for (let index = 0; index < 10; index++) writeFileSync(join(root, `doc-${String(index).padStart(2, "0")}.md`), "");
+      const byCount = await searchRemoteSource({ sourceRoot: root, query: "doc-", target: "files", includeContent: true, runRg: missingRg });
+      assert.equal(byCount.contents?.length, 8);
+      assert.deepEqual(byCount.content_omissions?.map((item) => item.reason), ["file_limit", "file_limit"]);
+    } finally { rmSync(home, { recursive: true, force: true }); }
+  });
+  // contract-test: supporting surface=cli assertions=projects.files.search-scoped,projects.files.search-consistent
   it("normalizes the typed wire request and matches bounded literal/glob syntax", () => {
     assert.deepEqual(normalizeProjectSearchRequest({ query: "needle", max_results: 7 }), {
       target: "content",
@@ -38,6 +83,7 @@ describe("Project search protocol", () => {
       query: "needle",
       path: ".",
       maxResults: 7,
+      includeContent: false,
     });
     assert.equal(matchesProjectSearchGlob("src/nested/file.ts", "src/**/*.ts"), true);
     assert.equal(matchesProjectSearchGlob("src/nested/file.js", "src/**/*.ts"), false);
@@ -56,6 +102,14 @@ describe("Project search protocol", () => {
         (error: unknown) => error instanceof ProjectSearchProtocolError && error.code === "invalid_search_glob",
       );
     }
+    assert.throws(
+      () => normalizeProjectSearchRequest({ query: "needle", target: "content", include_content: true }),
+      (error: unknown) => error instanceof ProjectSearchProtocolError && error.code === "invalid_search_content_option",
+    );
+    assert.throws(
+      () => normalizeProjectSearchRequest({ query: "needle", target: "files", include_content: "true" }),
+      (error: unknown) => error instanceof ProjectSearchProtocolError && error.code === "invalid_search_content_option",
+    );
   });
 
   // contract-test: supporting surface=cli assertions=projects.files.search-scoped,projects.files.search-consistent

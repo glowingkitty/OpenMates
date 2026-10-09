@@ -1281,6 +1281,10 @@ class PreprocessingResult(BaseModel):
     enable_subchats: bool = False # Whether sub-chats are enabled for this request.
     ai_model_topics: List[str] = Field(default_factory=list, description="AI model families whose current catalogue context is relevant to this request.")
     selected_app_ids: Optional[List[str]] = Field(None, exclude=True, description="Transient Jev app shortlist plus deterministic tool owners; None means the legacy fallback did not shortlist apps.")
+    pending_project_focus_id: Optional[str] = Field(None, exclude=True, description="Routing-only consent proposal; no main inference or Project authority.")
+    pending_project_catalog_id: Optional[str] = Field(None, exclude=True, description="Selected Project needs minimal owner-client Focus metadata before consent.")
+    pending_project_specialist: Optional[Dict[str, str]] = Field(None, exclude=True, repr=False, description="Validated specialist selection metadata; its body remains hidden until consent.")
+    routing_only: bool = Field(False, exclude=True, description="Consent-only routing must run complete preprocessing before later inference, including after rejection.")
 
     harmful_or_illegal_score: Optional[float] = Field(None, description="Harmfulness score (1-10).")
     category: Optional[str] = Field(None, description="Identified category/topic of the request.")
@@ -1743,6 +1747,21 @@ async def handle_preprocessing(
     if credit_rejection is not None:
         return credit_rejection
 
+    # A structured public Focus mention is consent. Its identity comes from the
+    # current catalogue; no discovery model is needed before activation.
+    if user_overrides and user_overrides.focus_modes and not request_data.active_focus_id:
+        explicit_focus_ids = [f"{app_id}-{focus_id}" for app_id, focus_id in user_overrides.focus_modes
+                              if any(focus.id == focus_id for focus in
+                                     (getattr((discovered_apps_metadata or {}).get(app_id), "focuses", None) or []))]
+        if len(explicit_focus_ids) == 1:
+            return PreprocessingResult(
+                can_proceed=True, routing_only=True, user_requested_focus_only=True,
+                relevant_focus_modes=explicit_focus_ids, relevant_app_skills=[],
+                load_app_settings_and_memories=[], output_language=user_system_language,
+                selected_main_llm_model_id=skill_config.default_llms.main_processing_simple,
+                selected_main_llm_model_name=skill_config.default_llms.main_processing_simple_name,
+            )
+
     # Build the preprocessing-only projection before expensive URL sanitization.
     # The main processor continues to receive request_data.message_history unchanged.
     try:
@@ -1842,6 +1861,106 @@ async def handle_preprocessing(
             rejection_reason="internal_error_missing_instructions",
             error_message="Critical preprocessing instructions are missing."
         )
+
+    # Project consent precedes detailed routing and answer-model setup. Only
+    # bounded public capabilities and owner-validated names enter this call.
+    # The complete scoped safety/skill/memory decisions run after activation.
+    project_candidates_validated = False
+    decision_model = getattr(skill_config.default_llms, "decision_model", None)
+    if (request_data.project_focus_candidates
+            and "project_file_jobs" in (request_data.client_capabilities or [])
+            and not request_data.active_project_focus
+            and not request_data.project_access_declined
+            and not request_data.is_incognito and not request_data.is_external
+            and (request_data.user_preferences or {}).get("apps_enabled") is not False
+            and not (user_overrides and (user_overrides.focus_modes or user_overrides.skills))
+            and (selected_app_ids is None or getattr(request_data, "project_routing_focus_id", None))):
+        from backend.core.api.app.services.project_focus_request_service import validated_project_candidates
+        from backend.core.api.app.services.project_focus_routing import validated_focus_candidates_for_project
+        from backend.apps.ai.processing.jev_preprocessing import decide_app_and_project_routing_with_jev
+        try:
+            request_data.project_focus_candidates = await validated_project_candidates(
+                request_data.project_focus_candidates, directus_service=directus_service,
+                user_id=request_data.user_id, team_id=request_data.team_id,
+            )
+            project_candidates_validated = True
+            if not decision_model:
+                raise RuntimeError("No compact decision model configured")
+            async def focus_catalog(candidate: Dict[str, Any]) -> List[Dict[str, Any]]:
+                return await validated_focus_candidates_for_project(
+                    candidate, directus_service=directus_service,
+                    user_id=request_data.user_id, team_id=request_data.team_id,
+                )
+            public_skills = [
+                f"{app_id}-{skill.id}: {skill.preprocessor_hint or skill.id}"
+                for app_id, metadata in (discovered_apps_metadata or {}).items()
+                for skill in (getattr(metadata, "skills", None) or [])
+                if (app_id, skill.id) not in {("ai", "ask"), ("projects", "search")}
+            ]
+            public_focuses = [f"{app_id}-{focus.id}"
+                              for app_id, metadata in (discovered_apps_metadata or {}).items()
+                              for focus in (getattr(metadata, "focuses", None) or [])]
+            routing = await decide_app_and_project_routing_with_jev(
+                model_id=decision_model, secrets_manager=secrets_manager,
+                telemetry_task_id=f"{request_data.chat_id}_{request_data.message_id}",
+                message_history=sanitized_message_history,
+                available_apps=list(discovered_apps_metadata or {}),
+                available_skills=public_skills, available_focus_modes=public_focuses,
+                project_candidates=request_data.project_focus_candidates,
+                project_focus_catalog_loader=focus_catalog,
+                is_first_message=not request_data.chat_has_title,
+                recent_skill_activity=list(routing_ledger.prompt_rows),
+                conversation_summary=bounded_chat_summary,
+                selected_app_ids=selected_app_ids,
+                project_routing_focus_id=getattr(request_data, "project_routing_focus_id", None),
+            )
+            selected_app_ids = routing["selected_app_ids"]
+            if routing.get("pending_project_focus_id"):
+                logger.info("%s Project consent routed before detailed preprocessing and main setup", log_prefix)
+                return PreprocessingResult(
+                    can_proceed=True, routing_only=True, category="general_knowledge", output_language=user_system_language,
+                    selected_app_ids=selected_app_ids,
+                    selected_main_llm_model_id=skill_config.default_llms.main_processing_simple,
+                    selected_main_llm_model_name=skill_config.default_llms.main_processing_simple_name,
+                    relevant_app_skills=[], load_app_settings_and_memories=[],
+                    relevant_focus_modes=[routing["pending_project_focus_id"]],
+                    pending_project_focus_id=routing["pending_project_focus_id"],
+                    pending_project_catalog_id=routing.get("pending_project_catalog_id"),
+                    pending_project_specialist=routing.get("pending_project_specialist"),
+                )
+        except Exception as exc:
+            logger.warning("%s Compact Project routing unavailable (%s); retaining the Project consent boundary",
+                           log_prefix, type(exc).__name__)
+            from backend.apps.ai.processing.project_file_tools import (
+                requests_project_file_work, uniquely_named_project_focus_id,
+            )
+            named_id = uniquely_named_project_focus_id(
+                request_data.current_user_content or "", request_data.project_focus_candidates,
+                [f"project-{row['project_id']}" for row in request_data.project_focus_candidates],
+            ) if requests_project_file_work(request_data.current_user_content or "") else None
+            # A staged catalogue reply already carries a server-selected target.
+            # Revalidate it against the current eligible owner-scoped candidates;
+            # an optional discovery failure must not bypass its consent boundary.
+            staged_id = getattr(request_data, "project_routing_focus_id", None)
+            if staged_id and any(staged_id == f"project-{row['project_id']}"
+                                 for row in request_data.project_focus_candidates):
+                named_id = staged_id
+            if named_id and project_candidates_validated:
+                candidate = next(row for row in request_data.project_focus_candidates
+                                 if named_id == f"project-{row['project_id']}")
+                return PreprocessingResult(
+                    can_proceed=True, routing_only=True, category="general_knowledge",
+                    output_language=user_system_language, selected_app_ids=None,
+                    selected_main_llm_model_id=skill_config.default_llms.main_processing_simple,
+                    selected_main_llm_model_name=skill_config.default_llms.main_processing_simple_name,
+                    relevant_app_skills=[], load_app_settings_and_memories=[],
+                    relevant_focus_modes=[named_id], pending_project_focus_id=named_id,
+                    pending_project_catalog_id=(candidate["project_id"] if "focuses" not in candidate else None),
+                )
+            if named_id:
+                return PreprocessingResult(can_proceed=False,
+                    rejection_reason="project_routing_unavailable",
+                    error_message="Project access could not be checked. Please try again.")
 
     # Deepcopy the tool definitions to allow modification
     import copy
@@ -2101,7 +2220,7 @@ async def handle_preprocessing(
         explicitly_named_project_focus_ids, validated_project_candidates,
     )
     try:
-        request_data.project_focus_candidates = await validated_project_candidates(
+        request_data.project_focus_candidates = request_data.project_focus_candidates if project_candidates_validated else await validated_project_candidates(
             request_data.project_focus_candidates, directus_service=directus_service,
             user_id=request_data.user_id, team_id=request_data.team_id,
         ) if not request_data.is_incognito else []

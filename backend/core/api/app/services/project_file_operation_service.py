@@ -555,6 +555,7 @@ class ProjectFileOperationService:
             mode = arguments.get("mode", "literal")
             glob = arguments.get("glob")
             max_results = arguments.get("max_results", 20)
+            include_content = arguments.get("include_content", False)
             if (
                 not isinstance(query, str)
                 or not query.strip()
@@ -565,6 +566,8 @@ class ProjectFileOperationService:
                 or not isinstance(max_results, int)
                 or isinstance(max_results, bool)
                 or not 1 <= max_results <= 100
+                or not isinstance(include_content, bool)
+                or (include_content and target != "files")
             ):
                 raise ProjectFileOperationError("invalid_search_arguments")
             if glob is not None:

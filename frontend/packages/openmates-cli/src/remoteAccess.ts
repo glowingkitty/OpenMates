@@ -49,6 +49,9 @@ import {
   matchesProjectSearchGlob,
   matchesProjectSearchQuery,
   normalizeProjectSearchRequest,
+  PROJECT_SEARCH_CONTENT_MAX_FILES,
+  PROJECT_SEARCH_CONTENT_MAX_FILE_BYTES,
+  PROJECT_SEARCH_CONTENT_MAX_TOTAL_BYTES,
   type ProjectSearchMode,
   type ProjectSearchTarget,
 } from "../../ui/src/utils/projectSearchProtocol.js";
@@ -77,13 +80,26 @@ export interface RemoteAccessSearchMatch {
   kind?: "file" | "directory";
   line?: number;
   snippet?: string;
+  expected_base?: string;
+}
+
+export interface RemoteAccessSearchContent {
+  path: string;
+  source_id?: string;
+  content: string;
+  expected_base: string;
+  size_bytes: number;
 }
 
 export interface RemoteAccessSearchResult {
   matches: RemoteAccessSearchMatch[];
+  source_id?: string;
   omitted: number;
   excluded: number;
   truncated: boolean;
+  contents?: RemoteAccessSearchContent[];
+  content_omissions?: Array<{ path: string; reason: string }>;
+  content_incomplete?: boolean;
 }
 
 export interface RemoteAccessSourceRecord {
@@ -109,6 +125,7 @@ export interface RemoteAccessSearchOptions {
   path?: string;
   priorityPath?: string;
   glob?: string;
+  includeContent?: boolean;
   userProtectedPatterns?: string[];
   runRg: RgRunner;
   stateDirectory?: string;
@@ -132,6 +149,7 @@ export interface StoredRemoteAccessSearchOptions {
   path?: string;
   priorityPath?: string;
   glob?: string;
+  includeContent?: boolean;
   homeDirectory?: string;
   userProtectedPatterns?: string[];
   runRg: RgRunner;
@@ -978,6 +996,14 @@ async function handleLiveRemoteAccessRequest(
           authorize,
         });
       } else {
+        if (frame.operation === "search" && bootstrap.arguments.include_content === true) {
+          const context = binding.teamId ? { teamId: binding.teamId } : { personal: true };
+          const currentSources = await client.listProjectSources(frame.project_id, context);
+          const currentSource = currentSources.find((source) => source.source_id === frame.source_id);
+          if (!currentSource?.capabilities?.includes("search") || !currentSource.capabilities.includes("read")) {
+            throw Object.assign(new Error("source_capability_denied"), { code: "source_capability_denied" });
+          }
+        }
         let approvedIgnoredPath: string | null = null;
         const requestedPath = typeof bootstrap.arguments.path === "string" ? bootstrap.arguments.path : ".";
         const ignoredReadContext = bootstrap.ignored_read_context;
@@ -1066,11 +1092,13 @@ async function executeRemoteAccessOperation(
     priorityPath: args.priority_path as string | undefined,
     glob: typeof args.glob === "string" ? args.glob : undefined,
     maxResults: typeof args.max_results === "number" ? args.max_results : undefined,
+    includeContent: args.include_content as boolean | undefined,
     runRg: runRgCommand,
   });
 }
 
 export function remoteAccessOperationErrorCode(error: unknown): string {
+  if ((error as { code?: unknown })?.code === "source_capability_denied") return "source_capability_denied";
   if (error instanceof RemoteFileMutationError) return error.code;
   if (error instanceof RemoteFileTransferError) return error.code;
   if (error instanceof ProjectSearchProtocolError) return error.code;
@@ -1167,7 +1195,7 @@ export async function searchStoredRemoteAccessSource(options: StoredRemoteAccess
   if (!source) {
     throw new Error(`Remote source '${options.sourceId}' is not attached`);
   }
-  return searchRemoteSource({
+  const result = await searchRemoteSource({
     query: options.query,
     sourceRoot: source.rootPath,
     maxResults: options.maxResults,
@@ -1176,9 +1204,15 @@ export async function searchStoredRemoteAccessSource(options: StoredRemoteAccess
     path: options.path,
     priorityPath: options.priorityPath,
     glob: options.glob,
+    includeContent: options.includeContent,
     userProtectedPatterns: options.userProtectedPatterns,
     runRg: options.runRg,
   });
+  return {
+    ...result,
+    source_id: source.sourceId,
+    ...(result.contents ? { contents: result.contents.map((item) => ({ ...item, source_id: source.sourceId })) } : {}),
+  };
 }
 
 export async function searchRemoteSource(options: RemoteAccessSearchOptions): Promise<RemoteAccessSearchResult> {
@@ -1190,6 +1224,7 @@ export async function searchRemoteSource(options: RemoteAccessSearchOptions): Pr
     path: options.path,
     glob: options.glob,
     max_results: options.maxResults,
+    include_content: options.includeContent,
   });
   const policy = loadProjectPathPolicy(sourceRoot, {
     trustedPrivatePaths: options.userProtectedPatterns,
@@ -1224,9 +1259,9 @@ export async function searchRemoteSource(options: RemoteAccessSearchOptions): Pr
   try {
     if (request.target === "files") {
       if (metadataTruncated) {
-        return searchRemoteFileNamesWithoutRg(request, sourceRoot, targetPath, policy, priorityPath, priorityAbsolute);
+        return includeRemoteSearchContent(searchRemoteFileNamesWithoutRg(request, sourceRoot, targetPath, policy, priorityPath, priorityAbsolute), sourceRoot, request);
       }
-      return await searchRemoteFileNamesWithRg(options.runRg, sourceRoot, searchPath, request, policy, hardlinkExclusions, directories, priorityPath);
+      return includeRemoteSearchContent(await searchRemoteFileNamesWithRg(options.runRg, sourceRoot, searchPath, request, policy, hardlinkExclusions, directories, priorityPath), sourceRoot, request);
     }
     const output = await options.runRg(
       buildRgContentSearchArgs(request, searchPath, policy, hardlinkExclusions),
@@ -1238,10 +1273,48 @@ export async function searchRemoteSource(options: RemoteAccessSearchOptions): Pr
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     if (request.mode === "regex") throw new ProjectSearchProtocolError("regex_search_unavailable");
     if (request.target === "files") {
-      return searchRemoteFileNamesWithoutRg(request, sourceRoot, targetPath, policy, priorityPath, priorityAbsolute);
+      return includeRemoteSearchContent(searchRemoteFileNamesWithoutRg(request, sourceRoot, targetPath, policy, priorityPath, priorityAbsolute), sourceRoot, request);
     }
     return searchRemoteSourceWithoutRg(request, sourceRoot, targetPath, policy);
   }
+}
+
+function includeRemoteSearchContent(
+  result: RemoteAccessSearchResult,
+  sourceRoot: string,
+  request: ReturnType<typeof normalizeProjectSearchRequest>,
+): RemoteAccessSearchResult {
+  if (!request.includeContent) return result;
+  const contents: RemoteAccessSearchContent[] = [];
+  const contentOmissions: Array<{ path: string; reason: string }> = [];
+  let totalBytes = 0;
+  // Filename search has applied ignore/private/alias policy. Each read freshly
+  // checks the policy and canonical source root before opening the file.
+  for (const match of result.matches) {
+    let reason: string | undefined;
+    if (match.kind === "directory") reason = "directory";
+    else if (contents.length >= PROJECT_SEARCH_CONTENT_MAX_FILES) reason = "file_limit";
+    else if (isBinaryPath(match.path)) reason = "binary_or_unsupported";
+    else {
+      try {
+        const read = readRemoteAccessTextFile({
+          sourceRoot, relativePath: match.path,
+          maxBytes: PROJECT_SEARCH_CONTENT_MAX_FILE_BYTES,
+          maxLines: DEFAULT_MAX_READ_LINES,
+          isIgnoredReadApproved: () => false,
+        });
+        if (read.truncated || !read.expected_base) reason = "file_too_large_or_line_limit";
+        else if (totalBytes + read.sizeBytes > PROJECT_SEARCH_CONTENT_MAX_TOTAL_BYTES) reason = "total_bytes_limit";
+        else {
+          match.expected_base = read.expected_base;
+          contents.push({ path: match.path, content: read.content, expected_base: read.expected_base, size_bytes: read.sizeBytes });
+          totalBytes += read.sizeBytes;
+        }
+      } catch { reason = "unreadable_or_unsupported"; }
+    }
+    if (reason) contentOmissions.push({ path: match.path, reason });
+  }
+  return { ...result, contents, content_omissions: contentOmissions, content_incomplete: contentOmissions.length > 0 };
 }
 
 function collectRgContentMatches(

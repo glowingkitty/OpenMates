@@ -2921,34 +2921,66 @@ async def _charge_credits(
     if INTERNAL_API_SHARED_TOKEN:
         headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
     
+    started_at = time.monotonic()
+    # A five-second read timeout can expire while the internal API is waiting
+    # for admission or a subject settlement lock. Reuse the charge identity on
+    # one retry: the first request may have committed after the connection closed.
+    timeout = httpx.Timeout(connect=2.0, read=12.0, write=5.0, pool=2.0)
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=timeout) as client:
             url = f"{INTERNAL_API_BASE_URL}{charge_path}"
             logger.info(
                 f"{log_prefix} Charging {credits} credits. "
                 f"Payload summary: keys={sorted(charge_payload.keys())}, "
                 f"usage_detail_keys={sorted(usage_details.keys()) if isinstance(usage_details, dict) else []}"
             )
-            response = await client.post(url, json=charge_payload, headers=headers)
+            for attempt in range(2):
+                request_started_at = time.monotonic()
+                try:
+                    response = await client.post(
+                        url,
+                        json=charge_payload,
+                        headers={**headers, "X-Billing-Sent-At": str(time.time())},
+                    )
+                    break
+                except httpx.ReadTimeout:
+                    logger.warning(
+                        "%s Billing response timed out: attempt=%s elapsed_ms=%.1f; "
+                        "retrying with the same charge identity=%s",
+                        log_prefix, attempt + 1,
+                        (time.monotonic() - request_started_at) * 1000,
+                        attempt == 0,
+                    )
+                    if attempt:
+                        raise
             response.raise_for_status()
             settlement = response.json()
-            state = settlement.get("state", "committed")
+            if not isinstance(settlement, dict):
+                raise RuntimeError("Billing returned an invalid settlement receipt")
+            state = settlement.get("state")
             if state not in {"committed", "retry_scheduled"}:
                 raise RuntimeError("Billing returned an unknown settlement state")
-            actual_debit = settlement.get("charged_credits", credits if state == "committed" else 0)
+            actual_debit = settlement.get("charged_credits")
             if type(actual_debit) is not int or actual_debit < 0 or (state == "retry_scheduled" and actual_debit != 0):
                 raise RuntimeError("Billing returned an invalid committed debit")
+            if settlement.get("requested_credits") != credits:
+                raise RuntimeError("Billing returned a mismatched requested debit")
+            if settlement.get("charge_id") != operation_id:
+                raise RuntimeError("Billing returned a mismatched charge identity")
             logger.info("%s Billing settlement: state=%s, requested=%s, debited=%s",
                         log_prefix, state, credits, actual_debit)
+            logger.info("%s Billing HTTP completed: attempts=%s elapsed_ms=%.1f",
+                        log_prefix, attempt + 1, (time.monotonic() - started_at) * 1000)
             return {
                 "prompt_tokens": usage_details.get("input_tokens", 0),
                 "completion_tokens": usage_details.get("output_tokens", 0),
                 "total_credits": actual_debit,
                 "settlement_state": "settled" if state == "committed" else "pending",
-                "requested_credits": settlement.get("requested_credits", credits),
+                "requested_credits": settlement["requested_credits"],
             }
     except Exception as e:
-        logger.error(f"{log_prefix} Error charging credits: {e}", exc_info=True)
+        logger.error("%s Error charging credits after %.1f ms: %s",
+                     log_prefix, (time.monotonic() - started_at) * 1000, e, exc_info=True)
         raise
 
 

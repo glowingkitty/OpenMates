@@ -1,10 +1,14 @@
 """Focused ownership, current-turn, and explicit Project consent guards."""
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
+from uuid import UUID
 
 import pytest
 
-from backend.core.api.app.services.project_focus_request_service import ProjectFocusRequestService, validated_project_candidates
+from backend.core.api.app.services.project_focus_request_service import (
+    ProjectFocusRequestService, explicitly_named_project_focus_ids, validated_project_candidates,
+)
+from backend.core.api.app.services.directus.project_methods import ProjectMethods, hash_id
 from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationError
 from backend.tests.test_project_write_authorization import MemoryCache
 from backend.tests.test_async_skill_continuation import async_skill_continuation  # noqa: F401
@@ -44,7 +48,70 @@ async def test_candidates_filter_foreign_projects_and_strip_content():
         {"project_id": "33333333-3333-4333-8333-333333333333", "name": "Foreign"},
         {"project_id": PROJECT, "name": "Duplicate"},
     ], directus_service=directus, user_id="user", team_id=None)
-    assert result == [{"project_id": PROJECT, "name": "Garden notes", "summary": "", "auto_selection": True}]
+    assert result == [{"project_id": PROJECT, "name": "Garden notes", "summary": "",
+                       "auto_selection": True, "focus_activation_policy": "delayed"}]
+    assert "focuses" not in result[0]
+
+
+# contract-test: direct surface=rest_api assertions=projects.focus.auto-selection-setting
+@pytest.mark.asyncio
+async def test_project_focus_settings_batch_is_bounded_owner_scoped_and_private():
+    ids = [str(UUID(int=index + 1, version=4)) for index in range(40)]
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[
+        {"hashed_project_id": hash_id(ids[0]), "auto_selection": False, "focus_activation_policy": "immediate",
+         "encrypted_settings": "must not enter the routing projection"},
+        {"hashed_project_id": hash_id("foreign"), "auto_selection": False},
+    ]))
+    methods = ProjectMethods(directus)
+    result = await methods.get_project_settings_for_projects(ids, "owner", team_id=None)
+    assert result == {ids[0]: {"auto_selection": False, "focus_activation_policy": "immediate"}}
+    directus.get_items.assert_awaited_once()
+    collection, = directus.get_items.await_args.args
+    params = directus.get_items.await_args.kwargs["params"]
+    assert collection == "project_settings"
+    assert params == {
+        "filter[hashed_project_id][_in]": ",".join(hash_id(project_id) for project_id in ids),
+        "fields": "hashed_project_id,auto_selection,focus_activation_policy",
+        "limit": 40,
+        "filter[hashed_user_id][_eq]": hash_id("owner"),
+        "filter[hashed_team_id][_null]": True,
+    }
+    assert directus.get_items.await_args.kwargs["no_cache"] is True
+    assert directus.get_items.await_args.kwargs["raise_on_error"] is True
+    with pytest.raises(ValueError, match="Too many"):
+        await methods.get_project_settings_for_projects(ids + ["extra"], "owner")
+    assert directus.get_items.await_count == 1
+    directus.get_items.reset_mock()
+    await methods.get_project_settings_for_projects(ids[:1], "member", team_id="team")
+    team_params = directus.get_items.await_args.kwargs["params"]
+    assert team_params["filter[hashed_team_id][_eq]"] == hash_id("team")
+    assert "filter[hashed_user_id][_eq]" not in team_params
+
+    directus.get_items.side_effect = RuntimeError("Directus unavailable")
+    with pytest.raises(RuntimeError, match="Directus unavailable"):
+        await methods.get_project_settings_for_projects(ids[:1], "owner")
+
+
+# contract-test: direct surface=rest_api assertions=projects.focus.auto-selection-setting
+@pytest.mark.asyncio
+async def test_forty_project_candidates_use_one_settings_query_and_preserve_disabled():
+    ids = [str(UUID(int=index + 1, version=4)) for index in range(40)]
+    project_methods = SimpleNamespace(
+        list_projects=AsyncMock(return_value=[{"project_id": project_id} for project_id in ids]),
+        get_project_settings_for_projects=AsyncMock(return_value={ids[0]: {
+            "auto_selection": False, "focus_activation_policy": "approval"}}),
+        get_project_settings=AsyncMock(side_effect=AssertionError("Per-Project query used")),
+    )
+    result = await validated_project_candidates([{"project_id": project_id, "name": f"Project {index}"}
+                                                 for index, project_id in enumerate(ids)],
+                                                directus_service=SimpleNamespace(project=project_methods),
+                                                user_id="owner", team_id=None)
+    assert len(result) == 40
+    assert result[0]["auto_selection"] is False
+    assert result[0]["focus_activation_policy"] == "approval"
+    assert all(candidate["auto_selection"] is True for candidate in result[1:])
+    project_methods.get_project_settings_for_projects.assert_awaited_once_with(ids, "owner", team_id=None)
+    project_methods.get_project_settings.assert_not_awaited()
 
 
 async def make_pending():
@@ -118,11 +185,60 @@ async def test_auto_selection_uses_owner_settings_and_bounded_metadata():
     result = await validated_project_candidates([{"project_id": PROJECT, "name": "Garden", "summary": "x" * 1000,
                                                 "auto_selection": True}], directus_service=directus, user_id="user", team_id=None)
     assert result[0]["auto_selection"] is False
+    assert result[0]["focus_activation_policy"] == "delayed"
     assert len(result[0]["summary"]) == 640
     from backend.core.api.app.services.project_focus_request_service import explicitly_named_project_focus_ids
     assert explicitly_named_project_focus_ids("Work on Garden", result) == []
     result[0]["auto_selection"] = True
     assert explicitly_named_project_focus_ids("Work on Garden", result) == [f"project-{PROJECT}"]
+
+
+# contract-test: direct surface=rest_api assertions=projects.focus.auto-selection-setting,projects.focus.inferred-consent
+@pytest.mark.asyncio
+async def test_policy_is_owner_authoritative_and_legacy_false_stays_disabled():
+    settings = {"auto_selection": False, "focus_activation_policy": "immediate"}
+    directus = SimpleNamespace(project=SimpleNamespace(list_projects=AsyncMock(return_value=[{"project_id": PROJECT}]),
+                                                      get_project_settings=AsyncMock(return_value=settings)))
+    candidate = {"project_id": PROJECT, "name": "Garden", "auto_selection": True,
+                 "focuses": [{"item_id": REQUEST, "revision": "a" * 64, "title": "Review", "description": "Help", "when_to_use": "When reviewing", "document": "private"}]}
+    result = await validated_project_candidates([candidate], directus_service=directus, user_id="user", team_id=None)
+    assert result[0]["auto_selection"] is False
+    assert result[0]["focus_activation_policy"] == "immediate"
+    assert result[0]["focuses"] == [{"item_id": REQUEST, "revision": "a" * 64, "title": "Review",
+                                    "description": "Help", "when_to_use": "When reviewing"}]
+    assert explicitly_named_project_focus_ids("Garden", result) == []
+
+
+# contract-test: direct surface=rest_api assertions=projects.focus.inferred-consent
+@pytest.mark.asyncio
+async def test_approval_policy_requires_explicit_marker_and_rechecks_current_setting(monkeypatch):
+    cache, service, _ = await make_pending()
+    settings = {"auto_selection": True, "focus_activation_policy": "approval"}
+    service.authorization.directus_service.project.get_project_settings.return_value = settings
+    monkeypatch.setattr("backend.core.api.app.services.project_focus_request_service.time.time", lambda: 100)
+    pending = await service.create_pending(user_id="user", chat_id="chat", request_id=REQUEST,
+                                           project_id=PROJECT, message_id="turn", activation_policy="approval")
+    assert pending["activate_at"] is None
+    assert service.pending_event(pending)["activation_policy"] == "approval"
+    with pytest.raises(ProjectWriteAuthorizationError, match="PROJECT_FOCUS_APPROVAL_REQUIRED"):
+        await service.require_pending(user_id="user", chat_id="chat", request_id=REQUEST, require_completed_countdown=True)
+    await service.approve_pending(user_id="user", chat_id="chat", request_id=REQUEST, project_id=PROJECT)
+    assert await service.require_pending(user_id="user", chat_id="chat", request_id=REQUEST, require_completed_countdown=True) == pending
+    settings["focus_activation_policy"] = "delayed"
+    with pytest.raises(ProjectWriteAuthorizationError, match="PROJECT_FOCUS_SELECTION_DISABLED"):
+        await service.require_pending(user_id="user", chat_id="chat", request_id=REQUEST, require_completed_countdown=True)
+
+
+# contract-test: supporting surface=rest_api assertions=projects.focus.inferred-consent
+@pytest.mark.asyncio
+async def test_pending_event_carries_only_selected_specialist_metadata(monkeypatch):
+    _, service, _ = await make_pending()
+    monkeypatch.setattr("backend.core.api.app.services.project_focus_request_service.time.time", lambda: 100)
+    selected = {"focus_id": f"project-focus:{PROJECT}:{REQUEST}", "item_id": REQUEST,
+                "revision": "a" * 64, "title": "Review", "document": "private instructions"}
+    pending = await service.create_pending(user_id="user", chat_id="chat", request_id=REQUEST,
+                                           project_id=PROJECT, message_id="turn", selected_specialist=selected)
+    assert service.pending_event(pending)["selected_specialist"] == {key: value for key, value in selected.items() if key != "document"}
 
 
 # contract-test: supporting surface=rest_api assertions=projects.focus.inferred-consent

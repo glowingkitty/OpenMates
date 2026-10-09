@@ -19,6 +19,13 @@ PROJECT_FOCUS_REQUEST_TTL = 20 * 60
 PROJECT_CANDIDATE_LIMIT = 40
 PROJECT_FOCUS_PREFIX = "project-"
 PROJECT_FOCUS_COUNTDOWN_SECONDS = 4
+PROJECT_FOCUS_POLICIES = frozenset({"delayed", "immediate", "approval"})
+
+
+def project_focus_activation_policy(settings: dict[str, Any] | None) -> str:
+    """Missing legacy policy remains the cancellable delayed default."""
+    policy = settings.get("focus_activation_policy") if settings else None
+    return policy if policy in PROJECT_FOCUS_POLICIES else "delayed"
 
 
 def explicitly_named_project_focus_ids(text: str, candidates: list[dict[str, Any]]) -> list[str]:
@@ -57,15 +64,44 @@ async def validated_project_candidates(
         name = " ".join(name.split())[:160]
         if name:
             summary = candidate.get("summary", "")
+            focuses = []
+            supplied_focuses = candidate.get("focuses")
+            for focus in supplied_focuses[:20] if isinstance(supplied_focuses, list) else []:
+                if not isinstance(focus, dict):
+                    continue
+                item_id, revision = focus.get("item_id"), focus.get("revision")
+                if not isinstance(item_id, str) or not isinstance(revision, str):
+                    continue
+                try:
+                    UUID(item_id)
+                except (ValueError, TypeError, AttributeError):
+                    continue
+                if not re.fullmatch(r"[a-f0-9]{64}", revision):
+                    continue
+                focuses.append({"item_id": item_id, "revision": revision,
+                                **{field: " ".join(focus.get(field, "").split())[:limit]
+                                   for field, limit in (("title", 180), ("description", 640), ("when_to_use", 640))
+                                   if isinstance(focus.get(field), str)}})
             result.append({"project_id": project_id, "name": name,
-                           "summary": " ".join(summary.split())[:640] if isinstance(summary, str) else ""})
+                           "summary": " ".join(summary.split())[:640] if isinstance(summary, str) else "",
+                           **({"focuses": focuses} if isinstance(supplied_focuses, list) else {})})
             seen.add(project_id)
-    settings_slots = asyncio.Semaphore(8)
-    async def load_preference(candidate: dict[str, Any]) -> None:
-        async with settings_slots:
-            settings = await directus_service.project.get_project_settings(candidate["project_id"], user_id, team_id=team_id)
+    batch_settings = getattr(directus_service.project, "get_project_settings_for_projects", None)
+    if callable(batch_settings):
+        preferences = await batch_settings([candidate["project_id"] for candidate in result], user_id, team_id=team_id)
+        for candidate in result:
+            settings = preferences.get(candidate["project_id"])
             candidate["auto_selection"] = not settings or settings.get("auto_selection") is not False
-    await asyncio.gather(*(load_preference(candidate) for candidate in result))
+            candidate["focus_activation_policy"] = project_focus_activation_policy(settings)
+    else:
+        # Compatibility for lightweight test doubles that predate the bounded query.
+        settings_slots = asyncio.Semaphore(8)
+        async def load_preference(candidate: dict[str, Any]) -> None:
+            async with settings_slots:
+                settings = await directus_service.project.get_project_settings(candidate["project_id"], user_id, team_id=team_id)
+                candidate["auto_selection"] = not settings or settings.get("auto_selection") is not False
+                candidate["focus_activation_policy"] = project_focus_activation_policy(settings)
+        await asyncio.gather(*(load_preference(candidate) for candidate in result))
     return result
 
 
@@ -81,6 +117,10 @@ class ProjectFocusRequestService:
     @staticmethod
     def decision_key(user_id: str, chat_id: str, request_id: str) -> str:
         return ProjectFocusRequestService.key(user_id, chat_id) + ":decision:" + request_id
+
+    @staticmethod
+    def approval_key(user_id: str, chat_id: str, request_id: str) -> str:
+        return ProjectFocusRequestService.key(user_id, chat_id) + ":approval:" + request_id
 
     async def _eval(self, script: str, keys: list[str], arguments: list[Any]) -> Any:
         try:
@@ -105,14 +145,18 @@ class ProjectFocusRequestService:
           or p.chat_id~=ARGV[3] or p.project_id~=ARGV[4] or p.message_id~=ARGV[5]
           or redis.call('GET',KEYS[3])~=ARGV[5] then return 0 end
         local now=tonumber(ARGV[6])
-        if not p.activate_at or tonumber(p.activate_at)>now or tonumber(p.expires_at or 0)<=now then return 0 end
+        if tonumber(p.expires_at or 0)<=now then return 0 end
+        if p.activation_policy=='approval' then
+          if redis.call('GET',KEYS[5])~=ARGV[1] then return 0 end
+        elseif not p.activate_at or tonumber(p.activate_at)>now then return 0 end
         local old=redis.call('GET',KEYS[4]); local old_id=''
         if old then old_id=cjson.decode(old).activation_id or '' end
         if old_id~=(p.expected_base_activation_id or '') then return 0 end
         redis.call('SET',KEYS[4],ARGV[7],'EX',ARGV[8]); return 1
         """
         return bool(await self._eval(script, [pointer + ":" + request_id, pointer,
-            async_skill_latest_user_turn_key(user, chat), self.authorization._focus_key(user, chat)],
+            async_skill_latest_user_turn_key(user, chat), self.authorization._focus_key(user, chat),
+            self.approval_key(user, chat, request_id)],
             [request_id, user, chat, pending["project_id"], pending["message_id"], time.time(),
              json.dumps(binding), PROJECT_FOCUS_TTL_SECONDS]))
 
@@ -156,8 +200,10 @@ class ProjectFocusRequestService:
         local braw=redis.call('GET',KEYS[4]); local b=nil; if braw then b=cjson.decode(braw) end
         local accepted=ARGV[5]=='true'; local activation=''
         if accepted then
-          if not p.activate_at or tonumber(p.activate_at)>tonumber(ARGV[4]) or not b
-            or b.activation_request_id~=ARGV[1] or b.project_id~=p.project_id then return nil end
+          if not b or b.activation_request_id~=ARGV[1] or b.project_id~=p.project_id then return nil end
+          if p.activation_policy=='approval' then
+            if redis.call('GET',KEYS[7])~=ARGV[1] then return nil end
+          elseif not p.activate_at or tonumber(p.activate_at)>tonumber(ARGV[4]) then return nil end
           activation=b.activation_id
         elseif b and b.activation_request_id==ARGV[1] then
           activation=b.activation_id; redis.call('DEL',KEYS[4])
@@ -165,29 +211,53 @@ class ProjectFocusRequestService:
           if specialist and cjson.decode(specialist).base_activation_id==activation then redis.call('DEL',KEYS[6]) end
         end
         redis.call('SET',KEYS[5],cjson.encode({accepted=accepted,activation_id=activation}),'EX',ARGV[6])
-        redis.call('DEL',KEYS[1]); return raw
+        redis.call('DEL',KEYS[1],KEYS[7]); return raw
         """
         raw = await self._eval(script, [pointer + ":" + request_id, pointer,
             async_skill_latest_user_turn_key(user_id, chat_id), self.authorization._focus_key(user_id, chat_id),
-            self.decision_key(user_id, chat_id, request_id), self.authorization._specialist_key(user_id, chat_id)],
+            self.decision_key(user_id, chat_id, request_id), self.authorization._specialist_key(user_id, chat_id),
+            self.approval_key(user_id, chat_id, request_id)],
             [request_id, user_id, chat_id, time.time(), "true" if accepted else "false", PROJECT_FOCUS_TTL_SECONDS])
         return json.loads(raw) if raw else None
 
     async def create_pending(self, *, user_id: str, chat_id: str, request_id: str,
-                             project_id: str, message_id: str, team_id: str | None = None) -> dict[str, Any]:
-        """Start the live countdown once; the request TTL is separate from its deadline."""
+                             project_id: str, message_id: str, team_id: str | None = None,
+                             activation_policy: str = "delayed",
+                             selected_specialist: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Start the policy-specific request; expiry always bounds its lifetime."""
+        if activation_policy not in PROJECT_FOCUS_POLICIES:
+            raise ValueError("Unsupported Project focus activation policy")
         now = time.time()
         previous = await self.cache.get(self.authorization._focus_key(user_id, chat_id))
         pending = {"request_id": request_id, "continuation_id": request_id, "user_id": user_id,
                    "chat_id": chat_id, "project_id": project_id, "message_id": message_id,
-                   "team_id": team_id, "activate_at": now + PROJECT_FOCUS_COUNTDOWN_SECONDS,
+                   "team_id": team_id, "activation_policy": activation_policy,
+                   "activate_at": None if activation_policy == "approval" else now + (PROJECT_FOCUS_COUNTDOWN_SECONDS if activation_policy == "delayed" else 0),
                    "expires_at": now + PROJECT_FOCUS_REQUEST_TTL,
                    "expected_base_activation_id": previous.get("activation_id", "") if isinstance(previous, dict) else ""}
+        if selected_specialist:
+            pending["selected_specialist"] = {field: selected_specialist[field]
+                for field in ("focus_id", "item_id", "revision", "title") if field in selected_specialist}
         key = self.key(user_id, chat_id)
         if not await self.cache.set(key + ":" + request_id, pending, ttl=PROJECT_FOCUS_REQUEST_TTL):
             raise ProjectWriteAuthorizationError("PROJECT_FOCUS_CACHE_UNAVAILABLE", status_code=503)
         if not await self.cache.set(key, pending, ttl=PROJECT_FOCUS_REQUEST_TTL):
             await self.cache.delete(key + ":" + request_id)
+            raise ProjectWriteAuthorizationError("PROJECT_FOCUS_CACHE_UNAVAILABLE", status_code=503)
+        return pending
+
+    async def approve_pending(self, *, user_id: str, chat_id: str, request_id: str,
+                              project_id: str) -> dict[str, Any]:
+        """Record a first-party approval before private focus instructions are loaded."""
+        pending = await self.require_pending(user_id=user_id, chat_id=chat_id, request_id=request_id,
+                                             project_id=project_id)
+        settings = await self.authorization.directus_service.project.get_project_settings(
+            project_id, user_id, team_id=pending.get("team_id"),
+        )
+        if pending.get("activation_policy") != "approval" or project_focus_activation_policy(settings) != "approval" or settings and settings.get("auto_selection") is False:
+            raise ProjectWriteAuthorizationError("PROJECT_FOCUS_SELECTION_DISABLED", status_code=409)
+        if not await self.cache.set(self.approval_key(user_id, chat_id, request_id), request_id,
+                                    ttl=PROJECT_FOCUS_REQUEST_TTL):
             raise ProjectWriteAuthorizationError("PROJECT_FOCUS_CACHE_UNAVAILABLE", status_code=503)
         return pending
 
@@ -218,6 +288,12 @@ class ProjectFocusRequestService:
             )
             if project.get("archived") or settings and settings.get("auto_selection") is False:
                 raise ProjectWriteAuthorizationError("PROJECT_FOCUS_SELECTION_DISABLED", status_code=409)
+            if project_focus_activation_policy(settings) != pending.get("activation_policy", "delayed"):
+                raise ProjectWriteAuthorizationError("PROJECT_FOCUS_SELECTION_DISABLED", status_code=409)
+            if pending.get("activation_policy") == "approval":
+                if await self.cache.get(self.approval_key(user_id, chat_id, request_id)) != request_id:
+                    raise ProjectWriteAuthorizationError("PROJECT_FOCUS_APPROVAL_REQUIRED", status_code=409)
+                return pending
             activate_at = pending.get("activate_at")
             if not isinstance(activate_at, (int, float)) or time.time() < activate_at:
                 raise ProjectWriteAuthorizationError("PROJECT_FOCUS_COUNTDOWN_PENDING", status_code=409)
@@ -225,9 +301,13 @@ class ProjectFocusRequestService:
 
     @staticmethod
     def pending_event(pending: dict[str, Any]) -> dict[str, Any]:
-        return {
+        event = {
             "chat_id": pending["chat_id"],
             "focus_id": PROJECT_FOCUS_PREFIX + pending["project_id"],
             "embed_id": pending["request_id"],
-            "expires_at": pending["activate_at"],
+            "expires_at": pending["activate_at"] if pending.get("activation_policy") == "delayed" else pending["expires_at"],
+            "activation_policy": pending.get("activation_policy", "delayed"),
         }
+        if pending.get("selected_specialist"):
+            event["selected_specialist"] = pending["selected_specialist"]
+        return event

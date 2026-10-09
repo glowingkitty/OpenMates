@@ -1088,6 +1088,30 @@ export class ChatSynchronizationService extends EventTarget {
     // Lifecycle ACK must be observed before the first recovery discovery page.
     prepareRecoveryLifecycleImpl(this);
 
+    webSocketService.on("project_focus_catalog_requested", async (payload) => {
+      const event = payload as { chat_id?: string; request_id?: string; project_id?: string; team_id?: string | null };
+      if (!event?.chat_id || !event.request_id || !event.project_id) return;
+      if (activeChatStore.get() !== event.chat_id) {
+        await webSocketService.sendMessage("project_focus_catalog_result", {
+          chat_id: event.chat_id, request_id: event.request_id, project_id: event.project_id,
+          focuses: null,
+        });
+        return;
+      }
+      try {
+        const { collectSelectedProjectFocusRoutingCatalog } = await import("./agenticProjectContextService");
+        const focuses = await collectSelectedProjectFocusRoutingCatalog(event.project_id, event.team_id);
+        await webSocketService.sendMessage("project_focus_catalog_result", {
+          chat_id: event.chat_id, request_id: event.request_id, project_id: event.project_id, focuses,
+        });
+      } catch {
+        await webSocketService.sendMessage("project_focus_catalog_result", {
+          chat_id: event.chat_id, request_id: event.request_id, project_id: event.project_id,
+          focuses: null,
+        });
+      }
+    });
+
     webSocketService.on("project_file_operation_available", (payload) => {
       void this.forwardProjectFileExecutorEvent("available", payload);
     });
@@ -1927,10 +1951,13 @@ export class ChatSynchronizationService extends EventTarget {
     // Only this live server event authorizes a cancellable countdown. Sync/history
     // embed delivery never populates the transient activation store.
     webSocketService.on("focus_mode_pending", async (payload) => {
-      const event = payload as { chat_id: string; focus_id: string; embed_id: string; expires_at: number };
+      const event = payload as { chat_id: string; focus_id: string; embed_id: string; expires_at: number; activation_policy?: "delayed" | "immediate" | "approval";
+        selected_specialist?: { focus_id: string; item_id: string; revision: string; title: string } };
       const { pendingFocusActivationStore } = await import("../stores/pendingFocusActivationStore");
       pendingFocusActivationStore.set(event.embed_id, {
         chatId: event.chat_id, focusId: event.focus_id, expiresAt: event.expires_at * 1000,
+        activationPolicy: event.activation_policy ?? "delayed",
+        selectedSpecialist: event.selected_specialist,
       });
     });
 
@@ -1955,11 +1982,11 @@ export class ChatSynchronizationService extends EventTarget {
     });
     webSocketService.on("focus_mode_activated", async (payload) => {
       try {
-        const focusPayload = payload as { chat_id?: string; focus_id?: string };
+        const focusPayload = payload as { chat_id?: string; focus_id?: string; focus_mode_name?: string };
         const chatId = focusPayload.chat_id;
         const focusId = focusPayload.focus_id;
         if (!chatId || !focusId) return;
-        await this.applyConfirmedFocusActivation(chatId, focusId);
+        await this.applyConfirmedFocusActivation(chatId, focusId, focusPayload.focus_mode_name);
       } catch (e) {
         console.error(
           "[ChatSyncService] Error handling focus_mode_activated:",

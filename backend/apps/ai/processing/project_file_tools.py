@@ -26,7 +26,7 @@ PROJECT_SOURCE_CAPABILITIES = {"read", "search", "import", "write_request", "run
 UNSCOPED_PROJECT_SEARCH_TOOL = "projects-search"
 PROJECT_READ_INTENT = re.compile(r"\b(?:read|open|inspect|review|summari[sz]e)\b", re.IGNORECASE)
 PROJECT_FILE_ACTION = re.compile(
-    r"\b(?:show|list|search|find|edit|update|write|modify|change|fix|add|remove|delete|create)\b",
+    r"\b(?:show|list|search|find|edit|update|write|modify|change|fix|improve|add|remove|delete|create)\b",
     re.IGNORECASE,
 )
 PROJECT_FILE_NOUN = re.compile(
@@ -132,7 +132,12 @@ def build_project_file_tools() -> list[dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "project_search_files",
-                "description": "Search file names and paths in the active Project.",
+                "description": (
+                    "Search file names and paths in the active Project. Set include_content=true to return "
+                    "complete text for matching small UTF-8 files in this same operation, within fixed file and "
+                    "total byte limits. Use this when asked to read or review a named README or document. "
+                    "The response states why any matched file content was omitted."
+                ),
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -147,6 +152,10 @@ def build_project_file_tools() -> list[dict[str, Any]]:
                             ),
                         },
                         "max_results": {"type": "integer", "minimum": 1, "maximum": 100},
+                        "include_content": {
+                            "type": "boolean",
+                            "description": "Return complete text and base hashes for up to eight matching small files; false by default.",
+                        },
                         "source_id": source_property,
                     },
                     "required": ["query"],

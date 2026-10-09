@@ -3193,6 +3193,218 @@ async def handle_main_processing(
     log_prefix = f"[Celery Task ID: {task_id}, ChatID: {request_data.chat_id}] MainProcessor:"
     logger.info(f"{log_prefix} Starting main processing.")
 
+    # Routing-only Project proposals need consent, not an answer-model prompt.
+    # Keep the normal stream lifecycle so the card is persisted and cancellation
+    # and the original-turn continuation retain their existing atomic fences.
+    pending_project_focus_id = getattr(preprocessing_results, "pending_project_focus_id", None)
+    pending_project_catalog_id = getattr(preprocessing_results, "pending_project_catalog_id", None)
+    if pending_project_catalog_id:
+        from backend.apps.ai.processing.project_focus_orchestration import request_project_focus_catalog
+        await request_project_focus_catalog(
+            request_data=request_data, preprocessing_results=preprocessing_results,
+            cache_service=cache_service, skill_config_dict=skill_config_dict,
+            project_id=pending_project_catalog_id,
+        )
+        yield {"__debug_metadata__": True, "routing_phase": "selected_project_focus_metadata"}
+        return
+    if pending_project_focus_id:
+        from backend.apps.ai.processing.project_focus_orchestration import request_project_focus as propose_project_focus
+        candidate = next((row for row in request_data.project_focus_candidates
+                          if pending_project_focus_id == f"project-{row['project_id']}"), None)
+        if not candidate:
+            raise PermissionError("Project routing candidate is unavailable")
+        embed_reference = await propose_project_focus(
+            task_id=task_id, request_data=request_data, preprocessing_results=preprocessing_results,
+            candidate=candidate, cache_service=cache_service, directus_service=directus_service,
+            encryption_service=encryption_service, user_vault_key_id=user_vault_key_id,
+            skill_config_dict=skill_config_dict, log_prefix=log_prefix,
+        )
+        yield f"```json\n{embed_reference}\n```\n\n"
+        yield {"__awaiting_focus_mode_confirmation__": True,
+               "focus_id": pending_project_focus_id, "chat_id": request_data.chat_id}
+        return
+
+    user_requested_focus_only = getattr(preprocessing_results, "user_requested_focus_only", False)
+    relevant_focus_modes = preprocessing_results.relevant_focus_modes or []
+    has_active_focus_mode = bool(request_data.active_focus_id or getattr(request_data, "active_project_focus", None))
+    project_candidates = {f"project-{row['project_id']}": row for row in getattr(request_data, "project_focus_candidates", [])}
+    # --- User-requested focus mode: bypass LLM + countdown ---
+    # When the user explicitly mentioned a focus mode via @focus:app_id:focus_id in their message,
+    # we skip the normal flow (LLM deciding to call activate_focus_mode, 5s countdown) and
+    # directly activate the focus mode with countdown=0 (immediate).
+    # This mirrors the exact same activation pipeline used in the deferred path, but without delay.
+    if (user_requested_focus_only and relevant_focus_modes and not has_active_focus_mode
+            and relevant_focus_modes[0] not in project_candidates
+            and _trusted_focus_override(user_overrides, relevant_focus_modes[0])):
+        translation_service = TranslationService()
+        focus_id = relevant_focus_modes[0]  # Only one can be selected per the UI constraint
+        logger.info(
+            f"{log_prefix} [FOCUS_MODE_OVERRIDE] User explicitly requested focus mode '{focus_id}' via @mention. "
+            f"Bypassing LLM tool call and countdown — activating immediately."
+        )
+
+        # Create the focus mode activation embed (same as the LLM-initiated path)
+        fm_embed_id = None
+        if cache_service and user_vault_key_id and directus_service:
+            try:
+                from backend.core.api.app.services.embed_service import EmbedService
+                embed_service = EmbedService(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service
+                )
+
+                # Resolve the translated focus mode display name
+                focus_mode_display_name = focus_id  # fallback
+                try:
+                    fm_app_id, fm_mode_id = focus_id.split('-', 1)
+                    user_language = preprocessing_results.output_language or "en"
+                    fm_app_metadata = discovered_apps_metadata.get(fm_app_id)
+                    if fm_app_metadata and fm_app_metadata.focuses:
+                        for fm_def in fm_app_metadata.focuses:
+                            if fm_def.id == fm_mode_id:
+                                focus_mode_display_name = _resolve_focus_mode_display_name(
+                                    translation_service,
+                                    fm_def.name_translation_key,
+                                    fallback=fm_def.name_translation_key,
+                                    user_language=user_language,
+                                )
+                                break
+                except Exception:
+                    pass
+
+                fm_embed_data = await embed_service.create_focus_mode_activation_embed(
+                    focus_id=focus_id,
+                    app_id=focus_id.split('-', 1)[0] if '-' in focus_id else focus_id,
+                    focus_mode_name=focus_mode_display_name,
+                    chat_id=request_data.chat_id,
+                    message_id=request_data.message_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    log_prefix=log_prefix
+                )
+
+                if fm_embed_data:
+                    fm_embed_id = fm_embed_data.get("embed_id")
+                    fm_embed_ref = fm_embed_data.get("embed_reference")
+                    if fm_embed_ref:
+                        yield f"```json\n{fm_embed_ref}\n```\n\n"
+                        logger.info(
+                            f"{log_prefix} [FOCUS_MODE_OVERRIDE] Yielded focus mode activation embed "
+                            f"(embed_id={fm_embed_id})"
+                        )
+            except Exception as embed_error:
+                logger.error(
+                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Error creating focus mode embed: {embed_error}",
+                    exc_info=True
+                )
+
+        # Load focus mode system prompt (same as the LLM-initiated path)
+        focus_prompt_text = ""
+        try:
+            focus_app_id, focus_mode_id = focus_id.split('-', 1)
+            translation_key = f"focus_modes.{focus_app_id}_{focus_mode_id}.systemprompt"
+            user_language = preprocessing_results.output_language or "en"
+            focus_prompt_text = translation_service.get_nested_translation(translation_key, lang=user_language) or ""
+            if not focus_prompt_text and user_language != "en":
+                focus_prompt_text = translation_service.get_nested_translation(translation_key, lang="en") or ""
+                logger.info(
+                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Loaded focus prompt in fallback language (en) "
+                    f"({len(focus_prompt_text)} chars)"
+                )
+            else:
+                logger.info(
+                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Loaded focus prompt in user language ({user_language}) "
+                    f"({len(focus_prompt_text)} chars)"
+                )
+        except Exception as e:
+            logger.error(f"{log_prefix} [FOCUS_MODE_OVERRIDE] Error loading focus prompt: {e}", exc_info=True)
+
+        # Store pending activation context in Redis (same structure as the LLM-initiated path)
+        if cache_service:
+            try:
+                pending_context = {
+                    "focus_id": focus_id,
+                    "focus_prompt": focus_prompt_text,
+                    "user_override": True,
+                    **_forward_agentic_context(request_data),
+                    "embed_id": fm_embed_id,
+                    "chat_id": request_data.chat_id,
+                    "message_id": request_data.message_id,
+                    "user_id": request_data.user_id,
+                    "user_id_hash": request_data.user_id_hash,
+                    "mate_id": preprocessing_results.selected_mate_id or request_data.mate_id,
+                    "chat_has_title": request_data.chat_has_title,
+                    "is_incognito": getattr(request_data, 'is_incognito', False),
+                    "task_id": task_id,
+                    "recovery_inference_task_id": request_data.resolved_recovery_inference_task_id(),
+                    "recovery_preflight_id": request_data.recovery_preflight_id,
+                    "recovery_turn_id": request_data.recovery_turn_id,
+                    "recovery_public_key": request_data.recovery_public_key,
+                    "chat_key_version": request_data.chat_key_version,
+                    "preprocessing_resume_ref": getattr(request_data, "preprocessing_resume_ref", None),
+                    "parent_id": request_data.parent_id,
+                    "is_sub_chat": request_data.is_sub_chat,
+                    "orchestration_id": request_data.orchestration_id,
+                    "root_chat_id": request_data.root_chat_id,
+                    "root_turn_id": request_data.root_turn_id,
+                    "sub_chat_depth": request_data.sub_chat_depth,
+                    "orchestration_dispatch_token": request_data.orchestration_dispatch_token,
+                    "orchestration_descendant_limit": request_data.orchestration_descendant_limit,
+                    "orchestration_credit_limit": request_data.orchestration_credit_limit,
+                    "orchestration_approved": request_data.orchestration_approved,
+                    "budget_limit": request_data.budget_limit,
+                    "budget_spent": request_data.budget_spent,
+                    "team_id": request_data.team_id,
+                    "team_id_hash": request_data.team_id_hash,
+                    "team_workspace_type": request_data.team_workspace_type,
+                    "team_object_id_hash": request_data.team_object_id_hash,
+                }
+                await cache_service.store_pending_focus_activation(
+                    chat_id=request_data.chat_id,
+                    context=pending_context,
+                )
+                logger.info(f"{log_prefix} [FOCUS_MODE_OVERRIDE] Stored pending focus activation context")
+            except Exception as e:
+                logger.error(
+                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Failed to store pending context: {e}",
+                    exc_info=True
+                )
+
+        # Schedule auto-confirm task with countdown=0 (immediate, no user-facing countdown delay)
+        # The standard 5-second countdown is skipped because the user explicitly chose this focus mode.
+        try:
+            from backend.core.api.app.tasks.celery_config import app as celery_app_instance
+            celery_app_instance.send_task(
+                'apps.ai.tasks.focus_mode_auto_confirm',
+                kwargs={
+                    "chat_id": request_data.chat_id,
+                    "request_id": fm_embed_id,
+                },
+                queue='app_ai',
+                countdown=0,  # Immediate — user explicitly requested this focus mode, no countdown needed
+            )
+            logger.info(
+                f"{log_prefix} [FOCUS_MODE_OVERRIDE] Scheduled auto-confirm task with countdown=0 "
+                f"(user-requested focus mode '{focus_id}' bypasses the 5s countdown)"
+            )
+        except Exception as e:
+            logger.error(
+                f"{log_prefix} [FOCUS_MODE_OVERRIDE] Failed to schedule auto-confirm task: {e}",
+                exc_info=True
+            )
+
+        # Yield the same special marker and return — stream_consumer handles this identically
+        # to the LLM-initiated path (no error, awaiting continuation from auto-confirm task)
+        logger.info(
+            f"{log_prefix} [FOCUS_MODE_OVERRIDE] Yielding pending marker and returning — "
+            f"auto-confirm fires immediately for user-requested focus mode '{focus_id}'"
+        )
+        yield {"__awaiting_focus_mode_confirmation__": True, "focus_id": focus_id, "chat_id": request_data.chat_id}
+        return
+
     # Missing or forged child ancestry fails closed at maximum depth.
     chat_depth = resolve_sub_chat_depth(request_data)
     logger.info(
@@ -4885,60 +5097,35 @@ async def handle_main_processing(
     # Only the first + last 3 messages are included to keep the debug entry manageable.
     DEBUG_MSG_HISTORY_HEAD = 1  # First message (usually system context or first user message)
     DEBUG_MSG_HISTORY_TAIL = 3  # Last 3 messages (most recent context)
-    if len(current_message_history) <= DEBUG_MSG_HISTORY_HEAD + DEBUG_MSG_HISTORY_TAIL:
+    # Debug receipts use the request's privacy projection; the answer model
+    # continues to use current_message_history with restored file results.
+    safe_debug_history = [_llm_history_message(message)
+                          for message in request_data.model_dump(mode="json")["message_history"]]
+    safe_debug_history = truncate_message_history_to_token_budget(
+        safe_debug_history, max_tokens=selected_history_budget,
+    )
+    if len(safe_debug_history) <= DEBUG_MSG_HISTORY_HEAD + DEBUG_MSG_HISTORY_TAIL:
         # Snapshot before the tool loop appends provider-only transport state.
-        debug_message_history = list(current_message_history)
+        debug_message_history = list(safe_debug_history)
     else:
         debug_message_history = (
-            current_message_history[:DEBUG_MSG_HISTORY_HEAD]
-            + [{"__truncated__": True, "omitted_messages": len(current_message_history) - DEBUG_MSG_HISTORY_HEAD - DEBUG_MSG_HISTORY_TAIL}]
-            + current_message_history[-DEBUG_MSG_HISTORY_TAIL:]
+            safe_debug_history[:DEBUG_MSG_HISTORY_HEAD]
+            + [{"__truncated__": True, "omitted_messages": len(safe_debug_history) - DEBUG_MSG_HISTORY_HEAD - DEBUG_MSG_HISTORY_TAIL}]
+            + safe_debug_history[-DEBUG_MSG_HISTORY_TAIL:]
         )
     
     async def request_project_focus(focus_id: str) -> str:
-        """Route both named and model-selected Projects through one cancellable request."""
-        from backend.apps.ai.tasks.async_skill_continuation import cache_async_skill_continuation_context
-        from backend.core.api.app.services.embed_service import EmbedService
-        from backend.core.api.app.services.project_focus_request_service import (
-            PROJECT_FOCUS_REQUEST_TTL, ProjectFocusRequestService,
-        )
-
+        from backend.apps.ai.processing.project_focus_orchestration import request_project_focus as propose_project_focus
         if (focus_id not in project_candidates or focus_id not in relevant_focus_modes
-                or not project_file_tools_enabled
-                or project_candidates[focus_id].get("auto_selection", True) is not True):
+                or not project_file_tools_enabled):
             raise PermissionError("Project activation was not offered for this turn")
-        candidate = project_candidates[focus_id]
-        embed = await EmbedService(
-            cache_service=cache_service, directus_service=directus_service,
-            encryption_service=encryption_service,
-        ).create_focus_mode_activation_embed(
-            focus_id=focus_id, app_id="projects",
-            focus_mode_name=f"Work on {candidate['name']}",
-            chat_id=request_data.chat_id, message_id=request_data.message_id,
-            user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
-            user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+        return await propose_project_focus(
+            task_id=task_id, request_data=request_data, preprocessing_results=preprocessing_results,
+            candidate=project_candidates[focus_id], cache_service=cache_service,
+            directus_service=directus_service, encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id, skill_config_dict=skill_config_dict,
+            log_prefix=log_prefix,
         )
-        if not embed:
-            raise RuntimeError("Project access confirmation could not be created")
-        request_id = embed["embed_id"]
-        await cache_async_skill_continuation_context(
-            cache_service=cache_service, async_task_id=request_id,
-            request_data=request_data, skill_config_dict=skill_config_dict,
-            app_id="system", skill_id="activate_focus_mode", tool_name="activate_focus_mode",
-            tool_arguments={"focus_id": focus_id}, preprocessing_result=preprocessing_results,
-            requires_current_turn=True,
-            defer_until_initial_response_complete=True, ttl_seconds=PROJECT_FOCUS_REQUEST_TTL,
-        )
-        pending = await ProjectFocusRequestService(cache_service, directus_service).create_pending(
-            user_id=request_data.user_id, chat_id=request_data.chat_id,
-            request_id=request_id, project_id=candidate["project_id"],
-            message_id=request_data.message_id, team_id=request_data.team_id,
-        )
-        redis_client = await cache_service.client
-        await redis_client.publish(f"user_cache_events:{request_data.user_id}", json.dumps({
-            "event_type": "focus_mode_pending", "payload": ProjectFocusRequestService.pending_event(pending),
-        }))
-        return embed["embed_reference"]
 
     # Build concise tool summaries (name + first 120 chars of description)
     TOOL_DESCRIPTION_PREVIEW_LENGTH = 120
@@ -4983,182 +5170,6 @@ async def handle_main_processing(
         yield f"```json\n{embed_reference}\n```\n\n"
         yield {"__awaiting_focus_mode_confirmation__": True,
                "focus_id": named_project_focus_id, "chat_id": request_data.chat_id}
-        return
-
-    # --- User-requested focus mode: bypass LLM + countdown ---
-    # When the user explicitly mentioned a focus mode via @focus:app_id:focus_id in their message,
-    # we skip the normal flow (LLM deciding to call activate_focus_mode, 5s countdown) and
-    # directly activate the focus mode with countdown=0 (immediate).
-    # This mirrors the exact same activation pipeline used in the deferred path, but without delay.
-    if (user_requested_focus_only and relevant_focus_modes and not has_active_focus_mode
-            and relevant_focus_modes[0] not in project_candidates
-            and _trusted_focus_override(user_overrides, relevant_focus_modes[0])):
-        focus_id = relevant_focus_modes[0]  # Only one can be selected per the UI constraint
-        logger.info(
-            f"{log_prefix} [FOCUS_MODE_OVERRIDE] User explicitly requested focus mode '{focus_id}' via @mention. "
-            f"Bypassing LLM tool call and countdown — activating immediately."
-        )
-
-        # Create the focus mode activation embed (same as the LLM-initiated path)
-        fm_embed_id = None
-        if cache_service and user_vault_key_id and directus_service:
-            try:
-                from backend.core.api.app.services.embed_service import EmbedService
-                embed_service = EmbedService(
-                    cache_service=cache_service,
-                    directus_service=directus_service,
-                    encryption_service=encryption_service
-                )
-
-                # Resolve the translated focus mode display name
-                focus_mode_display_name = focus_id  # fallback
-                try:
-                    fm_app_id, fm_mode_id = focus_id.split('-', 1)
-                    user_language = preprocessing_results.output_language or "en"
-                    fm_app_metadata = discovered_apps_metadata.get(fm_app_id)
-                    if fm_app_metadata and fm_app_metadata.focuses:
-                        for fm_def in fm_app_metadata.focuses:
-                            if fm_def.id == fm_mode_id:
-                                focus_mode_display_name = _resolve_focus_mode_display_name(
-                                    translation_service,
-                                    fm_def.name_translation_key,
-                                    fallback=fm_def.name_translation_key,
-                                    user_language=user_language,
-                                )
-                                break
-                except Exception:
-                    pass
-
-                fm_embed_data = await embed_service.create_focus_mode_activation_embed(
-                    focus_id=focus_id,
-                    app_id=focus_id.split('-', 1)[0] if '-' in focus_id else focus_id,
-                    focus_mode_name=focus_mode_display_name,
-                    chat_id=request_data.chat_id,
-                    message_id=request_data.message_id,
-                    user_id=request_data.user_id,
-                    user_id_hash=request_data.user_id_hash,
-                    user_vault_key_id=user_vault_key_id,
-                    task_id=task_id,
-                    log_prefix=log_prefix
-                )
-
-                if fm_embed_data:
-                    fm_embed_id = fm_embed_data.get("embed_id")
-                    fm_embed_ref = fm_embed_data.get("embed_reference")
-                    if fm_embed_ref:
-                        yield f"```json\n{fm_embed_ref}\n```\n\n"
-                        logger.info(
-                            f"{log_prefix} [FOCUS_MODE_OVERRIDE] Yielded focus mode activation embed "
-                            f"(embed_id={fm_embed_id})"
-                        )
-            except Exception as embed_error:
-                logger.error(
-                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Error creating focus mode embed: {embed_error}",
-                    exc_info=True
-                )
-
-        # Load focus mode system prompt (same as the LLM-initiated path)
-        focus_prompt_text = ""
-        try:
-            focus_app_id, focus_mode_id = focus_id.split('-', 1)
-            translation_key = f"focus_modes.{focus_app_id}_{focus_mode_id}.systemprompt"
-            user_language = preprocessing_results.output_language or "en"
-            focus_prompt_text = translation_service.get_nested_translation(translation_key, lang=user_language) or ""
-            if not focus_prompt_text and user_language != "en":
-                focus_prompt_text = translation_service.get_nested_translation(translation_key, lang="en") or ""
-                logger.info(
-                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Loaded focus prompt in fallback language (en) "
-                    f"({len(focus_prompt_text)} chars)"
-                )
-            else:
-                logger.info(
-                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Loaded focus prompt in user language ({user_language}) "
-                    f"({len(focus_prompt_text)} chars)"
-                )
-        except Exception as e:
-            logger.error(f"{log_prefix} [FOCUS_MODE_OVERRIDE] Error loading focus prompt: {e}", exc_info=True)
-
-        # Store pending activation context in Redis (same structure as the LLM-initiated path)
-        if cache_service:
-            try:
-                pending_context = {
-                    "focus_id": focus_id,
-                    "focus_prompt": focus_prompt_text,
-                    "user_override": True,
-                    **_forward_agentic_context(request_data),
-                    "embed_id": fm_embed_id,
-                    "chat_id": request_data.chat_id,
-                    "message_id": request_data.message_id,
-                    "user_id": request_data.user_id,
-                    "user_id_hash": request_data.user_id_hash,
-                    "mate_id": preprocessing_results.selected_mate_id or request_data.mate_id,
-                    "chat_has_title": request_data.chat_has_title,
-                    "is_incognito": getattr(request_data, 'is_incognito', False),
-                    "task_id": task_id,
-                    "recovery_inference_task_id": request_data.resolved_recovery_inference_task_id(),
-                    "recovery_preflight_id": request_data.recovery_preflight_id,
-                    "recovery_turn_id": request_data.recovery_turn_id,
-                    "recovery_public_key": request_data.recovery_public_key,
-                    "chat_key_version": request_data.chat_key_version,
-                    "preprocessing_resume_ref": getattr(request_data, "preprocessing_resume_ref", None),
-                    "parent_id": request_data.parent_id,
-                    "is_sub_chat": request_data.is_sub_chat,
-                    "orchestration_id": request_data.orchestration_id,
-                    "root_chat_id": request_data.root_chat_id,
-                    "root_turn_id": request_data.root_turn_id,
-                    "sub_chat_depth": request_data.sub_chat_depth,
-                    "orchestration_dispatch_token": request_data.orchestration_dispatch_token,
-                    "orchestration_descendant_limit": request_data.orchestration_descendant_limit,
-                    "orchestration_credit_limit": request_data.orchestration_credit_limit,
-                    "orchestration_approved": request_data.orchestration_approved,
-                    "budget_limit": request_data.budget_limit,
-                    "budget_spent": request_data.budget_spent,
-                    "team_id": request_data.team_id,
-                    "team_id_hash": request_data.team_id_hash,
-                    "team_workspace_type": request_data.team_workspace_type,
-                    "team_object_id_hash": request_data.team_object_id_hash,
-                }
-                await cache_service.store_pending_focus_activation(
-                    chat_id=request_data.chat_id,
-                    context=pending_context,
-                )
-                logger.info(f"{log_prefix} [FOCUS_MODE_OVERRIDE] Stored pending focus activation context")
-            except Exception as e:
-                logger.error(
-                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Failed to store pending context: {e}",
-                    exc_info=True
-                )
-
-        # Schedule auto-confirm task with countdown=0 (immediate, no user-facing countdown delay)
-        # The standard 5-second countdown is skipped because the user explicitly chose this focus mode.
-        try:
-            from backend.core.api.app.tasks.celery_config import app as celery_app_instance
-            celery_app_instance.send_task(
-                'apps.ai.tasks.focus_mode_auto_confirm',
-                kwargs={
-                    "chat_id": request_data.chat_id,
-                    "request_id": fm_embed_id,
-                },
-                queue='app_ai',
-                countdown=0,  # Immediate — user explicitly requested this focus mode, no countdown needed
-            )
-            logger.info(
-                f"{log_prefix} [FOCUS_MODE_OVERRIDE] Scheduled auto-confirm task with countdown=0 "
-                f"(user-requested focus mode '{focus_id}' bypasses the 5s countdown)"
-            )
-        except Exception as e:
-            logger.error(
-                f"{log_prefix} [FOCUS_MODE_OVERRIDE] Failed to schedule auto-confirm task: {e}",
-                exc_info=True
-            )
-
-        # Yield the same special marker and return — stream_consumer handles this identically
-        # to the LLM-initiated path (no error, awaiting continuation from auto-confirm task)
-        logger.info(
-            f"{log_prefix} [FOCUS_MODE_OVERRIDE] Yielding pending marker and returning — "
-            f"auto-confirm fires immediately for user-requested focus mode '{focus_id}'"
-        )
-        yield {"__awaiting_focus_mode_confirmation__": True, "focus_id": focus_id, "chat_id": request_data.chat_id}
         return
 
     # === BUILD MODEL FALLBACK LIST ===
@@ -7717,6 +7728,8 @@ async def handle_main_processing(
                                         not source
                                         or source.get("status") == "revoked"
                                         or required_source_capability not in set(source.get("capabilities") or [])
+                                        or (operation == "search" and operation_arguments.get("include_content") is True
+                                            and "read" not in set(source.get("capabilities") or []))
                                     ):
                                         raise PermissionError("Project source is unavailable or not authorized")
                                     dispatch_focus["source_id"] = str(requested_source_id)

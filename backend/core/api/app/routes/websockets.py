@@ -64,6 +64,7 @@ from .handlers.websocket_handlers.cancel_skill_handler import handle_cancel_skil
 from .handlers.websocket_handlers.focus_mode_deactivate_handler import handle_focus_mode_deactivate # Handler for focus mode deactivation
 from .handlers.websocket_handlers.focus_mode_rejected_handler import handle_focus_mode_rejected # Handler for focus mode rejection during countdown
 from .handlers.websocket_handlers.project_focus_decision_handler import handle_project_focus_decision
+from .handlers.websocket_handlers.project_focus_catalog_handler import handle_project_focus_catalog_result
 from .handlers.websocket_handlers.sub_chat_confirmation_handler import handle_sub_chat_confirmation # Handler for large sub-chat batch approval
 from .handlers.websocket_handlers.sub_chat_stop_handler import handle_sub_chat_stop # Handler for stopping sequential sub-chat queues
 from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
@@ -707,6 +708,18 @@ async def listen_for_cache_events(app: FastAPI):
                                         }},
                                         user_id=user_id, device_fingerprint_hash=device_id,
                                     )
+                    elif event_type == "project_focus_catalog_requested":
+                        # Route the selected Project's metadata request only to an
+                        # owner device that currently holds this chat's executor.
+                        if isinstance(payload, dict) and all(isinstance(payload.get(key), str)
+                                and 0 < len(payload[key]) <= 128 for key in ("chat_id", "request_id", "project_id")):
+                            outbound = {key: payload[key] for key in ("chat_id", "request_id", "project_id")}
+                            outbound["team_id"] = payload.get("team_id") if isinstance(payload.get("team_id"), str) else None
+                            for device_id in manager.get_connections_for_user(user_id):
+                                if manager.can_execute_project_file_job(user_id, device_id, outbound["chat_id"]):
+                                    await manager.send_personal_message(
+                                        {"type": event_type, "payload": outbound}, user_id, device_id,
+                                    )
                     elif event_type in ("focus_mode_activated", "focus_mode_pending"):
                         # Focus mode was auto-confirmed after countdown. Push the activation
                         # event to all connected devices so the client can update its local
@@ -720,13 +733,31 @@ async def listen_for_cache_events(app: FastAPI):
                                 device_ids = list(user_connections.keys())
                                 for device_id in device_ids:
                                     try:
+                                        pending_fields = {}
+                                        if event_type == "focus_mode_pending":
+                                            pending_fields = {"embed_id": payload.get("embed_id"),
+                                                              "expires_at": payload.get("expires_at")}
+                                            policy = payload.get("activation_policy")
+                                            if policy in {"delayed", "immediate", "approval"}:
+                                                pending_fields["activation_policy"] = policy
+                                            selected = payload.get("selected_specialist")
+                                            if (isinstance(selected, dict)
+                                                    and all(isinstance(selected.get(key), str) for key in
+                                                            ("focus_id", "item_id", "revision", "title"))
+                                                    and selected["focus_id"].startswith("project-focus:")
+                                                    and len(selected["focus_id"]) <= 128
+                                                    and len(selected["item_id"]) <= 128
+                                                    and len(selected["revision"]) == 64
+                                                    and len(selected["title"]) <= 180):
+                                                pending_fields["selected_specialist"] = {
+                                                    key: selected[key] for key in ("focus_id", "item_id", "revision", "title")}
                                         await manager.send_personal_message(
                                             {
                                                 "type": event_type,
                                                 "payload": {
                                                     "chat_id": chat_id,
                                                     "focus_id": focus_id,
-                                                    **({"embed_id": payload.get("embed_id"), "expires_at": payload.get("expires_at")} if event_type == "focus_mode_pending" else {}),
+                                                    **pending_fields,
                                                 }
                                             },
                                             user_id,
@@ -3483,6 +3514,12 @@ async def websocket_endpoint(
                 )
             elif message_type == "project_focus_decision":
                 await handle_project_focus_decision(
+                    websocket=websocket, manager=manager, user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                    cache_service=cache_service, directus_service=directus_service,
+                )
+            elif message_type == "project_focus_catalog_result":
+                await handle_project_focus_catalog_result(
                     websocket=websocket, manager=manager, user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash, payload=payload,
                     cache_service=cache_service, directus_service=directus_service,

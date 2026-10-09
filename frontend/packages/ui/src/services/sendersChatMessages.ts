@@ -47,6 +47,7 @@ import {
 	type ProjectFocusSendIntent,
 } from "./projectFocusSendPreflight";
 import { deactivateProjectFocus, listProjects } from "./projectService";
+import { collectProjectFocusRoutingCandidates, type ProjectFocusRoutingCandidate } from "./agenticProjectContextService";
 import { stageTeamNotificationPreview } from "./teamNotificationPreview";
 import { assertNoOmittedTeamTurns, loadLocalSavedHistoryForSend, loadTeamAIHistory } from "./teamAIHistory";
 import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
@@ -1552,7 +1553,7 @@ export async function sendNewMessageImpl(
 		mentioned_settings_memories_cleartext?: Record<string, unknown[]>; // Cleartext for @memory/@memory-entry mentions so backend does not re-request
 		focus_phase_state?: Record<string, unknown>;
 		active_focus_id?: string | null; // Plaintext focus mode ID for AI processing (decrypted from E2E encrypted field)
-		project_focus_candidates?: Array<{ project_id: string; name: string; summary: string }>;
+		project_focus_candidates?: ProjectFocusRoutingCandidate[];
 		custom_memory_documents?: Array<Record<string, unknown>>;
 		project_focus_catalog?: Array<Record<string, unknown>>;
 		project_focus_documents?: Array<Record<string, unknown>>;
@@ -1630,9 +1631,9 @@ export async function sendNewMessageImpl(
 		try {
 			// Names are transient routing data. Instructions and file content are
 			// loaded only after a confirmed Project focus activation.
-			payload.project_focus_candidates = (await listProjects({ teamId: chat?.team_id }))
-				.slice(0, 40).map((project) => ({ project_id: project.project_id,
-					name: project.name.slice(0, 160), summary: project.description.slice(0, 640) }));
+			payload.project_focus_candidates = await collectProjectFocusRoutingCandidates(
+				await listProjects({ teamId: chat?.team_id }), chat?.team_id, contentForServer,
+			);
 		} catch (error) {
 			console.warn("[ChatSyncService:Senders] Project routing metadata unavailable", error);
 		}

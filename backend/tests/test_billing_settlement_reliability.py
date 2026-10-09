@@ -10,11 +10,45 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
 
 from backend.core.api.app.services import billing_settlement_service as billing_settlement_tasks
+
+
+# contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge,billing.credits.retryable-completion-safe
+@pytest.mark.asyncio
+async def test_committed_charge_replays_at_overdraft_floor(monkeypatch: pytest.MonkeyPatch) -> None:
+    pytest.importorskip("celery", reason="billing service imports worker wiring")
+    pytest.importorskip("redis", reason="billing service imports cache wiring")
+    from backend.core.api.app.services.billing_service import BillingService
+    from backend.core.api.app.utils import server_mode
+
+    monkeypatch.setattr(server_mode, "is_payment_enabled", lambda: True)
+    cache = SimpleNamespace(
+        get_user_by_id=AsyncMock(return_value={"vault_key_id": "key-1"}),
+        get_billing_projection=AsyncMock(return_value={
+            "user": {"vault_key_id": "key-1"}, "vault_key_id": "key-1",
+            "encrypted_balance": "encrypted-floor", "credits": -500,
+        }),
+    )
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[{
+        "charge_id": "ai-ask:task-1:main", "hashed_user_id": "owner-hash",
+        "app_id": "ai", "skill_id": "ask", "requested_credits": 25,
+        "charged_credits": 17, "usage_id": "usage-1", "state": "committed",
+    }]))
+    billing = BillingService(cache, directus, SimpleNamespace())
+    result = await billing.charge_user_credits(
+        user_id="user-1", user_id_hash="owner-hash", credits_to_deduct=25,
+        app_id="ai", skill_id="ask", idempotency_key="ai-ask:task-1:main",
+        _settlement_locked=True,
+    )
+    assert result["charged_credits"] == 17
+    assert result["idempotent"] is True
+    directus.get_items.assert_awaited_once()
 
 
 def _charge_source() -> str:

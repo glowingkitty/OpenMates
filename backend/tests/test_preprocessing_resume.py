@@ -18,6 +18,7 @@ class PreprocessingResult(BaseModel):
     selected_main_llm_thinking_level: str | None = None
     relevant_app_skills: list[str] | None = None
     selected_app_ids: list[str] | None = Field(default=None, exclude=True)
+    routing_only: bool = Field(default=False, exclude=True)
     relevant_rules: list[dict] | None = Field(default=None, exclude=True)
     relevant_workflows: list[dict] | None = Field(default=None, exclude=True)
     raw_llm_response: dict | None = None
@@ -157,6 +158,21 @@ async def test_new_project_focus_refreshes_stage_two_using_saved_apps(resume):
     assert loaded is not None
     assert loaded[1] == ["web"]
     assert loaded[2] is True
+
+
+# contract-test: tooling
+@pytest.mark.asyncio
+@pytest.mark.parametrize("focus_id", [None, "code-debug"])
+async def test_consent_only_snapshot_never_authorizes_inference_on_accept_or_rejection(resume, focus_id):
+    cache = _Cache()
+    decision = _decision()
+    decision.routing_only = True
+    ref = await resume.store_preprocessing_resume(cache, _request(), decision)
+    request = _request(is_focus_mode_continuation=True, preprocessing_resume_ref=ref, active_focus_id=focus_id)
+    loaded = await resume.load_preprocessing_resume(cache, request)
+    assert loaded is not None
+    assert loaded[1] == ["web"]
+    assert loaded[2] is True  # Fresh complete decisions before any answer inference.
 
 
 @pytest.mark.asyncio

@@ -183,6 +183,24 @@ test("completed reads carry the resolver-selected remote source for original-fil
   assert.equal((events.at(-1)?.result as Record<string, unknown>).source_id, "selected-remote-source");
 });
 
+// contract-test: supporting surface=cli assertions=projects.files.search-scoped,projects.files.search-consistent
+test("combined search carries the freshly resolved source on each complete file", async () => {
+  const events: Array<Record<string, unknown>> = [];
+  const executor = createProjectFileJobExecutor({
+    isActiveChat: () => true,
+    send: (_event, payload) => { events.push(payload); },
+    resolve: async () => ({
+      projectKey, sourceId: "selected-remote-source", writeMode: "apply_and_show",
+      execute: async () => ({ matches: [{ path: "README.md" }], contents: [{ path: "README.md", content: "complete text", expected_base: "a".repeat(64), size_bytes: 13 }] }),
+    }),
+    approve: async () => {},
+  });
+  await executor.request(job({ operation: "search", arguments: { query: "README", target: "files", include_content: true } }));
+  const result = events.at(-1)?.result as Record<string, unknown>;
+  assert.equal(result.source_id, "selected-remote-source");
+  assert.equal((result.contents as Array<Record<string, unknown>>)[0]?.source_id, "selected-remote-source");
+});
+
 // contract-test: supporting surface=cli assertions=projects.files.commit-replay
 test("hosted committed receipt resolves a retry before stale validation or a second commit", async () => {
   const currentJob = job();
@@ -252,4 +270,45 @@ test("hosted search reports truncation only for a known extra match or an unexam
     arguments: { query: ".ts", target: "files", mode: "literal", path: ".", max_results: 1 },
   }));
   assert.deepEqual({ omitted: extra.omitted, truncated: extra.truncated }, { omitted: 1, truncated: true });
+});
+
+// contract-test: supporting surface=cli assertions=projects.files.search-scoped,projects.files.search-consistent
+test("hosted filename search returns complete bounded text and never decrypts ignored matches", async () => {
+  const read: string[] = [];
+  const contentById: Record<string, string> = {
+    ignore: "README-private.md\n",
+    readme: "Project README\n",
+    big: "x".repeat(24 * 1024 + 1),
+    binary: "unsafe\0bytes",
+    private: "secret",
+  };
+  const adapter: HostedProjectFileAdapter = {
+    projectId, projectKey, chatKey: new Uint8Array(32),
+    listFiles: async () => [
+      { path: "README.md", embedId: "readme" },
+      { path: "README-private.md", embedId: "private" },
+      { path: "README-large.md", embedId: "big" },
+      { path: "README-binary.md", embedId: "binary" },
+      { path: ".gitignore", embedId: "ignore" },
+    ],
+    readHead: async (embedId) => {
+      read.push(embedId);
+      return { embedKey: new Uint8Array(32), content: { code: contentById[embedId] }, revision: 1, hasInitialHistory: true };
+    },
+    encrypt: encryptWithAesGcmCombined, wrap: encryptBytesWithAesGcm, encodeContent: async () => "",
+    commit: async () => assert.fail("Search must not commit"), receipt: async () => null,
+  };
+  const result = await executeHostedProjectFileJob(adapter, job({
+    operation: "search", arguments: { query: "README", target: "files", include_content: true },
+  }));
+  assert.deepEqual((result.contents as Array<Record<string, unknown>>).map((item) => item.path), ["README.md"]);
+  assert.equal((result.contents as Array<Record<string, unknown>>)[0]?.content, "Project README\n");
+  assert.equal((result.contents as Array<Record<string, unknown>>)[0]?.expected_base, await projectFileContentHash("Project README\n"));
+  assert.deepEqual(result.content_omissions, [
+    { path: "README-binary.md", reason: "unreadable_or_unsupported" },
+    { path: "README-large.md", reason: "file_too_large" },
+  ]);
+  assert.equal(result.content_incomplete, true);
+  assert.ok(!read.includes("private"));
+  assert.ok(!JSON.stringify(result).includes("secret"));
 });

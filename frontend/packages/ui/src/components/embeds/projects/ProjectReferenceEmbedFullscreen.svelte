@@ -11,6 +11,7 @@
   import { buildVirtualRemoteFullscreenDetail, classifyRemotePreviewPath, normalizeRemoteFilePreview, type VirtualRemoteFullscreenDetail } from '../../../services/projectRemoteSources';
   import { hasFullscreenComponent, loadFullscreenComponent, resolveRegistryKey } from '../../../services/embedFullscreenResolver';
   import { projectFileReferences, stringField, type ProjectFileReference } from './projectReferenceData';
+  import { connectedReferenceSource, hostedReferenceContentHash, referenceRevisionStatus } from './projectReferenceRevision';
 
   interface Props {
     data: EmbedFullscreenRawData;
@@ -33,6 +34,7 @@
   let remote = $state<VirtualRemoteFullscreenDetail | null>(null);
   let error = $state('');
   let loading = $state(false);
+  let revisionStatus = $state<'same' | 'changed' | 'unknown'>('unknown');
   let controller: AbortController | null = null;
   let openGeneration = 0;
   $effect(() => { currentContent = data.decodedContent || {}; status = String(data.embedData?.status || data.decodedContent?.status || 'finished'); });
@@ -59,12 +61,13 @@
     remote = null;
     error = '';
     loading = true;
+    revisionStatus = 'unknown';
     try {
       const project = await getProject(ref.project_id, { teamId: ref.team_id });
       if (ref.source_id) {
-        const source = (await listProjectSources(project, { teamId: ref.team_id }))
-          .find((item) => item.source_id === ref.source_id);
-        if (!source || source.status !== 'connected') throw new Error($text('embeds.projects.references.source_unavailable'));
+        const source = await connectedReferenceSource(ref.source_id,
+          () => listProjectSources(project, { teamId: ref.team_id }));
+        if (!source) throw new Error($text('embeds.projects.references.source_unavailable'));
         const ownerId = get(userProfile).user_id;
         if (!ownerId) throw new Error($text('embeds.projects.references.source_unavailable'));
         const classification = classifyRemotePreviewPath(ref.path);
@@ -74,6 +77,7 @@
         const result = await requestProjectRemoteAccess<ProjectRemoteTextResult>(
           project, source, { ownerId, teamId: ref.team_id }, 'read_text', { path: ref.path }, controller.signal);
         if (generation !== openGeneration) return;
+        revisionStatus = referenceRevisionStatus(ref.expected_base, result.expectedBase);
         const preview = normalizeRemoteFilePreview({
           sourceId: ref.source_id, path: ref.path, displayName: ref.path.split('/').pop() || ref.path,
           language: classification.language, snippet: result.content.slice(0, 20_000),
@@ -86,6 +90,9 @@
       } else if (ref.embed_id) {
         const file = await readEncryptedProjectFile(project, ref.embed_id, { teamId: ref.team_id });
         if (generation !== openGeneration) return;
+        const currentHash = await hostedReferenceContentHash(file.content);
+        if (generation !== openGeneration) return;
+        revisionStatus = referenceRevisionStatus(ref.expected_base, currentHash);
         const type = stringField(file.content.type) || 'code-code';
         hosted = { embedId: ref.embed_id, type, content: file.content, projectId: ref.project_id, teamId: ref.team_id ?? null };
       }
@@ -106,6 +113,7 @@
     remote = null;
     error = '';
     loading = false;
+    revisionStatus = 'unknown';
   }
   function moveSelection(offset: number): void {
     const next = refs[selectedIndex + offset];
@@ -148,12 +156,14 @@
     {:else if error}
       <div class="child-state" role="alert"><p>{error}</p><button type="button" onclick={closeSelected}>{$text('common.close')}</button></div>
     {:else if remote}
+      {#if revisionStatus === 'changed'}<p class="revision-notice" data-testid="project-reference-changed" role="status">{$text('embeds.projects.references.changed_since_answer')}</p>{/if}
       <CodeEmbedFullscreen data={{ decodedContent: remote.decodedContent, attrs: remote.attrs, embedData: remote.embedData,
           focusLineRange: selected.line ? { start: selected.line, end: selected.line } : null }}
         embedId={remote.embedId} onClose={closeSelected}
         hasPreviousEmbed={selectedIndex > 0} hasNextEmbed={selectedIndex < refs.length - 1}
         onNavigatePrevious={() => moveSelection(-1)} onNavigateNext={() => moveSelection(1)} />
     {:else if hosted}
+      {#if revisionStatus === 'changed'}<p class="revision-notice" data-testid="project-reference-changed" role="status">{$text('embeds.projects.references.changed_since_answer')}</p>{/if}
       {@const registryKey = resolveRegistryKey(hosted.type, hosted.content)}
       {#if registryKey && hasFullscreenComponent(registryKey)}
         {#await loadFullscreenComponent(registryKey) then FullscreenComponent}
@@ -183,5 +193,6 @@
   .empty { padding: var(--spacing-8); text-align: center; color: var(--color-font-secondary); }
   .child-state { min-height: 100%; display: grid; place-content: center; justify-items: center; gap: var(--spacing-4); padding: var(--spacing-6); background: var(--color-grey-0); color: var(--color-font-primary); }
   .child-state button { cursor: pointer; color: var(--color-button-primary); }
+  .revision-notice { position: absolute; z-index: 110; top: 4.5rem; left: 50%; transform: translateX(-50%); max-width: calc(100% - 2rem); margin: 0; padding: var(--spacing-2) var(--spacing-4); border: 1px solid var(--color-warning); border-radius: var(--radius-3); background: var(--color-grey-0); color: var(--color-font-primary); font-size: var(--font-size-sm); box-shadow: 0 2px 12px #0002; }
   @container fullscreen (max-width: 500px) { .reference-list { padding-inline: var(--spacing-3); } }
 </style>

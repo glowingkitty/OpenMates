@@ -100,19 +100,24 @@ def get_server_stats_service(request: Request) -> ServerStatsService:
         return None
     return request.app.state.server_stats_service
 
-def get_billing_service(
-    cache_service: CacheService = Depends(get_cache_service),
-    directus_service: DirectusService = Depends(get_directus_service),
-    encryption_service: EncryptionService = Depends(get_encryption_service),
-    server_stats_service: ServerStatsService = Depends(get_server_stats_service)
+async def get_billing_service(
+    request: Request,
 ) -> BillingService:
-    return BillingService(cache_service, directus_service, encryption_service, server_stats_service)
+    # These getters only read app.state. Resolve them on the event loop so an
+    # internal charge does not queue five sync dependencies in AnyIO's worker
+    # pool before the async route can begin.
+    return BillingService(
+        get_cache_service(request),
+        get_directus_service(request),
+        get_encryption_service(request),
+        get_server_stats_service(request),
+    )
 
 
-def get_team_billing_service(
-    directus_service: DirectusService = Depends(get_directus_service),
+async def get_team_billing_service(
+    request: Request,
 ) -> TeamBillingService:
-    return TeamBillingService(directus_service)
+    return TeamBillingService(get_directus_service(request))
 
 def get_s3_service(request: Request) -> S3UploadService:
     if not hasattr(request.app.state, 's3_service'):
@@ -1078,13 +1083,24 @@ async def record_billing_reservation_intent_route(
 
 @router.post("/billing/charge")
 async def charge_credits_route(
+    request: Request,
     payload: CreditChargePayload,
     billing_service: BillingService = Depends(get_billing_service)
 ) -> Dict[str, Any]:
     """
     Charges credits from a user. Called by app services (e.g., BaseApp).
     """
-    logger.info(f"Internal API: Charging {payload.credits} credits for user '{payload.user_id}', app '{payload.app_id}', skill '{payload.skill_id}'.")
+    route_started_at = time.monotonic()
+    trace_id = hashlib.sha256(payload.idempotency_key.encode()).hexdigest()[:12]
+    pre_route_ms = None
+    try:
+        sent_at = float(request.headers.get("X-Billing-Sent-At", ""))
+        elapsed = (time.time() - sent_at) * 1000
+        if 0 <= elapsed <= 120_000:
+            pre_route_ms = round(elapsed, 1)
+    except (TypeError, ValueError):
+        pass
+    logger.info("Billing route entered: charge_ref=%s pre_route_ms=%s", trace_id, pre_route_ms)
 
     local_self_hosted = bool((payload.usage_details or {}).get("local_self_hosted"))
     if payload.credits <= 0 and not local_self_hosted:
@@ -1104,6 +1120,11 @@ async def charge_credits_route(
             device_hash=payload.device_hash,  # Device hash for tracking which device created this usage
         )
         
+        logger.info(
+            "Billing route completed: charge_ref=%s route_ms=%.1f state=%s",
+            trace_id, (time.monotonic() - route_started_at) * 1000,
+            charge_result.get("state", "committed"),
+        )
         return {
             "status": "pending" if charge_result.get("state") == "retry_scheduled" else "success",
             "state": charge_result.get("state", "committed"),
@@ -1116,8 +1137,12 @@ async def charge_credits_route(
         }
     except HTTPException as e:
         # Forward HTTP exceptions from the service
+        logger.warning("Billing route failed: charge_ref=%s route_ms=%.1f status=%s",
+                       trace_id, (time.monotonic() - route_started_at) * 1000, e.status_code)
         raise e
     except Exception as e:
+        logger.error("Billing route failed: charge_ref=%s route_ms=%.1f",
+                     trace_id, (time.monotonic() - route_started_at) * 1000)
         logger.error(f"Error charging credits for user {payload.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error charging credits: {str(e)}")
 
@@ -1152,6 +1177,7 @@ async def charge_team_credits_route(
         return {
             "status": "success",
             "state": "committed",
+            "charge_id": event_id,
             "charged_credits": result.get("usage_event", {}).get("credit_amount", payload.credits),
             "requested_credits": payload.credits,
             "team_usage_event_id": result["usage_event"].get("id"),

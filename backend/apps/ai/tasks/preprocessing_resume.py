@@ -113,6 +113,7 @@ async def store_preprocessing_resume(
             and len(row["workflow_id"]) <= 256 and len(row["current_version_id"]) <= 128
         ],
         "stored_at": int(time.time()),
+        "routing_only": bool(getattr(result, "routing_only", False)),
     }
     try:
         stored = await cache_service.set(_key(ref), record, ttl=PREPROCESSING_RESUME_TTL_SECONDS)
@@ -211,4 +212,4 @@ async def load_preprocessing_resume(
             for focus_id in (old_focus_id, new_focus_id)
         )
     )
-    return result, selected_apps, project_context_changed
+    return result, selected_apps, project_context_changed or record.get("routing_only") is True

@@ -8,7 +8,7 @@ import type { Page } from '@playwright/test';
 const { spawn, spawnSync } = require('node:child_process');
 const { createRequire } = require('node:module');
 const { pathToFileURL } = require('node:url');
-const { chmodSync, mkdtempSync, rmSync } = require('node:fs');
+const { chmodSync, mkdtempSync, readFileSync, rmSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join, resolve } = require('node:path');
 const { randomUUID } = require('node:crypto');
@@ -30,8 +30,17 @@ const API_BASE_URL = process.env.PLAYWRIGHT_TEST_API_URL
   || BASE_URL.replace('://app.dev.', '://api.dev.').replace('://app.', '://api.');
 const REPO_ROOT = resolve(__dirname, '../../../..');
 const CLI_DIR = resolve(REPO_ROOT, 'frontend/packages/openmates-cli');
-const PROMPT = 'can you read the readme from my OpenMates project?';
-const README_CONTENT = '# Connected project\n\n![Connected diagram](docs/readme-image.png)\n\n[External docs](https://openmates.org)\n';
+const README_PROMPTS = {
+  original: 'can you read the readme from my OpenMates project?',
+  suggestions: 'suggestions how to improve the readme of my OpenMates project?',
+  staged: 'Can you read the README from the Project I just connected?',
+} as const;
+const PROMPT_VARIANT = process.env.OPENMATES_README_CATALOG_VARIANT === 'staged' ? 'staged'
+  : process.env.OPENMATES_README_PROMPT_VARIANT === 'original' ? 'original' : 'suggestions';
+const PROMPT = README_PROMPTS[PROMPT_VARIANT];
+const README_FIXTURE_VARIANT = process.env.OPENMATES_README_FIXTURE_VARIANT === 'repository' ? 'repository' : 'small';
+const README_CONTENT = '# Connected project\n\n![Connected diagram](docs/readme-image.png)\n\n[External docs](https://openmates.org)\n'
+  + (README_FIXTURE_VARIANT === 'repository' ? `\n${readFileSync(resolve(REPO_ROOT, 'README.md'), 'utf8')}` : '');
 
 interface FixtureEvent {
   event: string;
@@ -50,13 +59,21 @@ interface SocketEvent {
     embed_id?: string;
     content?: string;
     chat_id?: string;
+    request_id?: string;
+    project_id?: string;
+    focuses?: unknown[] | null;
     tombstone?: boolean;
-    arguments?: { path?: string; query?: string; target?: string };
+    arguments?: { path?: string; query?: string; target?: string; include_content?: boolean };
     status?: string;
     is_final_chunk?: boolean;
     awaiting_async_skill_continuation?: boolean;
     awaiting_focus_mode_continuation?: boolean;
-    result?: { content?: string; matches?: Array<{ path?: string }>; entries?: Array<{ path?: string }> };
+    result?: {
+      content?: string;
+      matches?: Array<{ path?: string }>;
+      contents?: Array<{ path?: string; source_id?: string; content?: string; expected_base?: string; size_bytes?: number }>;
+      entries?: Array<{ path?: string }>;
+    };
     inference_request?: { project_focus_candidates?: Array<{ project_id?: string }> };
   };
 }
@@ -67,12 +84,38 @@ interface RetrievalEvent {
   direction: 'sent' | 'received';
   type: string;
   operation?: string;
+  operation_id?: string;
   target?: string;
   status?: string;
   final_chunk?: boolean;
   awaiting_async_skill_continuation?: boolean;
   task_id?: string;
   embed_id?: string;
+  content_present?: boolean;
+}
+
+function extractSafeEmbedFenceMetadata(content: string) {
+  const safeToken = (value: unknown) => typeof value === 'string' && /^[A-Za-z0-9_:.-]{1,128}$/.test(value) ? value : null;
+  return [...content.matchAll(/```([A-Za-z][A-Za-z0-9_-]{0,63})\s*\n([\s\S]*?)```/g)]
+    .slice(0, 12)
+    .flatMap(match => {
+      const body = match[2];
+      let json: Record<string, unknown> | null = null;
+      if (match[1] === 'json') {
+        try {
+          const parsed: unknown = JSON.parse(body);
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) json = parsed as Record<string, unknown>;
+        } catch { /* A diagnostic must not fail on malformed model output. */ }
+      }
+      const toonField = (name: string) => body.match(new RegExp(`^[ \\t]*${name}[ \\t]*[:=][ \\t]*["']?([A-Za-z0-9_:.-]{1,128})["']?[ \\t]*$`, 'm'))?.[1] ?? null;
+      const metadata = {
+        type: safeToken(json?.type) ?? (match[1] === 'json' ? null : safeToken(match[1])),
+        embed_id: safeToken(json?.embed_id) ?? toonField('embed_id'),
+        app_id: safeToken(json?.app_id) ?? toonField('app_id'),
+        skill_id: safeToken(json?.skill_id) ?? toonField('skill_id'),
+      };
+      return /embed/i.test(match[1]) || metadata.embed_id ? [metadata] : [];
+    });
 }
 
 function extractSafeEmbedFenceMetadata(content: string) {
@@ -109,7 +152,7 @@ const RETRIEVAL_BASELINE = {
   main_output_tokens: 3180,
   preprocessing_input_tokens: 67364,
   preprocessing_output_tokens: 10247,
-  combined_reported_input_tokens: 166229,
+  combined_reported_input_tokens: 187806,
   main_model_iterations: 6,
   continuation_count: 3,
 };
@@ -254,8 +297,8 @@ test.describe('Plain-language Project README access (real inference, dev only)',
     await loginToTestAccount(page, (message: string) => console.log(`[login] ${message}`));
   });
 
-  // contract-test: direct surface=gui.web assertions=projects.focus.inferred-consent,projects.files.chat-focus-required,projects.files.no-server-decryption-authority
-  test('ordinary README request waits for consent, reads after activation, and stays blocked after rejection', async ({ page }: { page: Page }) => {
+  // contract-test: direct surface=gui.web assertions=projects.focus.inferred-consent,projects.files.chat-focus-required,projects.files.search-consistent,projects.files.search-result-lifecycle,projects.files.no-server-decryption-authority
+  test('ordinary README request waits for consent, searches with bounded content after activation, and stays blocked after rejection', async ({ page }: { page: Page }) => {
     const stateDir = mkdtempSync(join(tmpdir(), 'openmates-readme-focus-'));
     const deviceIdentity = `cli:readme-focus:${randomUUID()}`;
     chmodSync(stateDir, 0o700);
@@ -292,6 +335,8 @@ test.describe('Plain-language Project README access (real inference, dev only)',
     let turnCompletedAt: number | null = null;
     let acceptedChatId: string | null = null;
     let projectReferenceEmbedId: string | null = null;
+    let firstAnswerAt: number | null = null;
+    let trueFinalAt: number | null = null;
     const browserErrors: Array<{ source: 'console' | 'pageerror'; name: string | null; code: string | null }> = [];
     const safeErrorCode = (value: unknown) => typeof value === 'string' && /^[A-Z][A-Z0-9_]{0,48}$/.test(value) ? value : null;
     page.on('console', message => {
@@ -318,15 +363,23 @@ test.describe('Plain-language Project README access (real inference, dev only)',
         'ai_typing_ended', 'post_processing_completed',
       ].includes(event.type)) return;
       const at = Date.now();
+      if (direction === 'received' && event.payload?.chat_id === acceptedChatId
+        && (event.type === 'ai_message_update' || event.type === 'ai_background_response_completed')) {
+        if (firstAnswerAt === null && typeof event.payload.content === 'string' && event.payload.content.trim()) firstAnswerAt = at;
+        if (event.payload.is_final_chunk && !event.payload.awaiting_async_skill_continuation
+          && !event.payload.awaiting_focus_mode_continuation) trueFinalAt = at;
+      }
       retrievalEvents.push({
         at_utc: new Date(at).toISOString(), at_epoch_ms: at, direction, type: event.type,
         ...(event.payload?.operation ? { operation: event.payload.operation } : {}),
+        ...(event.payload?.operation_id ? { operation_id: event.payload.operation_id } : {}),
         ...(event.payload?.arguments?.target ? { target: event.payload.arguments.target } : {}),
         ...(event.payload?.status ? { status: event.payload.status } : {}),
         ...(event.payload?.is_final_chunk ? { final_chunk: true } : {}),
         ...(event.payload?.awaiting_async_skill_continuation ? { awaiting_async_skill_continuation: true } : {}),
         ...(event.payload?.task_id ? { task_id: event.payload.task_id } : {}),
         ...(event.payload?.embed_id ? { embed_id: event.payload.embed_id } : {}),
+        ...(typeof event.payload?.content === 'string' && event.payload.content.trim() ? { content_present: true } : {}),
       });
     };
     const cdp = await page.context().newCDPSession(page);
@@ -417,6 +470,14 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       const preflight = sent.filter(event => event.type === 'chat_turn_preflight').at(-1);
       expect(preflight?.payload?.inference_request?.project_focus_candidates?.some(candidate => candidate.project_id === fixture.project_id)).toBe(true);
       await expect(page.getByTestId('focus-progress-bar')).toBeVisible({ timeout: 240_000 });
+      if (PROMPT_VARIANT === 'staged') {
+        const catalogRequest = received.find(event => event.type === 'project_focus_catalog_requested'
+          && event.payload?.chat_id === rejectedChatId && event.payload.project_id === fixture.project_id);
+        expect(catalogRequest?.payload?.request_id).toBeTruthy();
+        expect(sent.some(event => event.type === 'project_focus_catalog_result'
+          && event.payload?.request_id === catalogRequest?.payload?.request_id
+          && Array.isArray(event.payload.focuses))).toBe(true);
+      }
       await expect(page.getByTestId('focus-reject-hint')).toBeVisible();
       expect(await currentAuthority(page)).toBeNull();
       expect(received.filter(event => event.type === 'project_file_operation_request')).toHaveLength(0);
@@ -489,6 +550,14 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       const secondPreflight = sent.filter(event => event.type === 'chat_turn_preflight').at(-1);
       expect(secondPreflight?.payload?.inference_request?.project_focus_candidates?.some(candidate => candidate.project_id === fixture.project_id)).toBe(true);
       await expect(page.getByTestId('focus-progress-bar')).toBeVisible({ timeout: 240_000 });
+      if (PROMPT_VARIANT === 'staged') {
+        const catalogRequest = received.find(event => event.type === 'project_focus_catalog_requested'
+          && event.payload?.chat_id === acceptedChatId && event.payload.project_id === fixture.project_id);
+        expect(catalogRequest?.payload?.request_id).toBeTruthy();
+        expect(sent.some(event => event.type === 'project_focus_catalog_result'
+          && event.payload?.request_id === catalogRequest?.payload?.request_id
+          && Array.isArray(event.payload.focuses))).toBe(true);
+      }
       await expect(page.getByTestId('focus-pill')).toHaveCount(0);
       expect(await currentAuthority(page)).toBeNull();
       expect(received.filter(event => event.type === 'project_file_operation_request')).toHaveLength(0);
@@ -497,22 +566,30 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       focusActivatedAt = Date.now();
       console.log('[README] Countdown activated the selected Project.');
       await expect.poll(() => received.some(event => event.type === 'project_file_operation_request'
-        && event.payload?.operation === 'read_text' && event.payload.arguments?.path === 'README.md'), {
-        message: 'the assistant must read the matched README from the selected Project', timeout: 180_000,
+        && event.payload?.operation === 'search' && event.payload.arguments?.target === 'files'
+        && event.payload.arguments.include_content === true
+        && /readme/i.test(event.payload.arguments.query ?? '')), {
+        message: 'the assistant must request README text in one bounded filename search', timeout: 180_000,
       }).toBe(true);
-      const filenameSearches = received.filter(event => event.type === 'project_file_operation_request'
-        && event.payload?.operation === 'search');
-      expect(filenameSearches.every(event => event.payload?.arguments?.target === 'files')).toBe(true);
-      expect(filenameSearches.every(event => /readme/i.test(event.payload?.arguments?.query ?? ''))).toBe(true);
-      await expect.poll(() => {
-        const read = received.find(event => event.type === 'project_file_operation_request'
-          && event.payload?.operation === 'read_text' && event.payload.arguments?.path === 'README.md');
-        return sent.find(event => event.type === 'project_file_operation_result'
-          && event.payload?.operation_id === read?.payload?.operation_id && event.payload?.status === 'completed')
-          ?.payload?.result?.content;
-      }, { message: 'the remote README must be read successfully', timeout: 180_000 }).toBe(README_CONTENT);
+      const filenameSearch = received.find(event => event.type === 'project_file_operation_request'
+        && event.payload?.operation === 'search' && event.payload.arguments?.target === 'files'
+        && event.payload.arguments.include_content === true
+        && /readme/i.test(event.payload.arguments.query ?? ''));
+      expect(filenameSearch?.payload?.operation_id).toBeTruthy();
+      await expect.poll(() => sent.find(event => event.type === 'project_file_operation_result'
+        && event.payload?.operation_id === filenameSearch?.payload?.operation_id
+        && event.payload?.status === 'completed')?.payload?.result?.contents?.find(row => row.path === 'README.md')?.content,
+      { message: 'the single search result must include the bounded README text', timeout: 180_000 }).toBe(README_CONTENT);
+      const searchResult = sent.find(event => event.type === 'project_file_operation_result'
+        && event.payload?.operation_id === filenameSearch?.payload?.operation_id
+        && event.payload?.status === 'completed')?.payload?.result;
+      const readmeContent = searchResult?.contents?.find(row => row.path === 'README.md');
+      expect(readmeContent).toMatchObject({ path: 'README.md', source_id: fixture.source_id, content: README_CONTENT });
+      expect(readmeContent?.expected_base).toMatch(/^[a-f0-9]{64}$/);
+      expect(readmeContent?.size_bytes).toBe(Buffer.byteLength(README_CONTENT));
+      expect(searchResult?.matches?.some(row => row.path === 'README.md')).toBe(true);
       expect(await page.evaluate(() => (window as Window & { projectProgressLabels?: string[] }).projectProgressLabels ?? []))
-        .toEqual(expect.arrayContaining([expect.stringMatching(/(?:Listing|Searching|Reading) Project (?:files?|text)/)]));
+        .toEqual(expect.arrayContaining([expect.stringMatching(/(?:Listing|Searching) Project files?/)]));
       const toonModule = createRequire(resolve(REPO_ROOT, 'frontend/packages/ui/package.json')).resolve('@toon-format/toon');
       const { decode: decodeToon } = await import(pathToFileURL(toonModule).href);
       const finishedProjectEmbeds = () => received.flatMap(event => {
@@ -522,7 +599,7 @@ test.describe('Plain-language Project README access (real inference, dev only)',
         if (decoded.app_id !== 'projects' || !['search', 'read'].includes(String(decoded.skill_id))) return [];
         const rows = Array.isArray(decoded.results) ? decoded.results as Array<Record<string, unknown>> : [];
         const allowedTopLevel = new Set(['app_id', 'skill_id', 'results', 'result_count', 'status', 'embed_ref', 'query', 'search_target']);
-        const allowedReference = new Set(['project_id', 'project_name', 'source_id', 'path', 'embed_id', 'line', 'team_id']);
+        const allowedReference = new Set(['project_id', 'project_name', 'source_id', 'path', 'embed_id', 'line', 'team_id', 'expected_base']);
         return [{
           skill: String(decoded.skill_id),
           embedId: event.payload.embed_id,
@@ -535,26 +612,26 @@ test.describe('Plain-language Project README access (real inference, dev only)',
             && rows.every(row => Object.keys(row).every(key => allowedReference.has(key))
               && typeof row.path === 'string' && Boolean(row.source_id || row.embed_id)),
           readmeReference: rows.some(row => row.project_id === fixture.project_id
-            && row.source_id === fixture.source_id && row.path === 'README.md'),
+            && row.source_id === fixture.source_id && row.path === 'README.md'
+            && row.expected_base === readmeContent?.expected_base),
           properQuery: /readme/i.test(String(decoded.query ?? '')),
           properSearchTarget: decoded.skill_id !== 'search' || decoded.search_target === 'files',
           containsFileBytes: JSON.stringify(decoded).includes('# Connected project')
             || JSON.stringify(decoded).includes('Connected diagram'),
         }];
       });
-      await expect.poll(() => finishedProjectEmbeds().some(summary => summary.skill === 'read'), {
-        message: 'the completed README read must publish a reference card', timeout: 180_000,
+      await expect.poll(() => finishedProjectEmbeds().some(summary => summary.skill === 'search'), {
+        message: 'the completed README search must publish a reference card', timeout: 180_000,
       }).toBe(true);
-      const readRequestIndex = received.findIndex(event => event.type === 'project_file_operation_request'
-        && event.payload?.operation === 'read_text' && event.payload.arguments?.path === 'README.md');
-      expect(readRequestIndex).toBeGreaterThanOrEqual(0);
-      await expect.poll(() => received.slice(readRequestIndex + 1).some(event =>
+      const searchRequestIndex = received.indexOf(filenameSearch as SocketEvent);
+      expect(searchRequestIndex).toBeGreaterThanOrEqual(0);
+      await expect.poll(() => received.slice(searchRequestIndex + 1).some(event =>
         (event.type === 'ai_message_update' || event.type === 'ai_background_response_completed')
         && event.payload?.chat_id === acceptedChatId
         && event.payload?.is_final_chunk === true
         && !event.payload.awaiting_async_skill_continuation
         && !event.payload.awaiting_focus_mode_continuation), {
-        message: 'the assistant must finish after the README read, not pause for another async continuation',
+        message: 'the assistant must finish after the README search, not pause for another async continuation',
         timeout: 300_000,
       }).toBe(true);
       await waitForTurnCompletion(page);
@@ -568,7 +645,10 @@ test.describe('Plain-language Project README access (real inference, dev only)',
         expect(JSON.stringify(decoded)).not.toContain('Connected diagram');
       }
       const projectEmbedSummaries = finishedProjectEmbeds();
-      expect(projectEmbedSummaries.map(summary => summary.skill)).toContain('read');
+      expect(projectEmbedSummaries.map(summary => summary.skill)).toContain('search');
+      expect(received.filter(event => event.type === 'project_file_operation_request')).toHaveLength(1);
+      expect(received.filter(event => event.type === 'project_file_operation_request'
+        && event.payload?.operation === 'read_text')).toHaveLength(0);
       const invalidReferenceSummaries = projectEmbedSummaries.flatMap((summary, index) =>
         summary.allowedFields && summary.readmeReference && summary.properQuery
           && summary.properSearchTarget && !summary.containsFileBytes ? [] : [{
@@ -579,7 +659,7 @@ test.describe('Plain-language Project README access (real inference, dev only)',
             properSearchTarget: summary.properSearchTarget, containsFileBytes: summary.containsFileBytes,
           }]);
       expect(invalidReferenceSummaries, 'Project reference shape and privacy checks (field names only)').toEqual([]);
-      const referenceEmbedId = projectEmbedSummaries.find(summary => summary.skill === 'read')?.embedId;
+      const referenceEmbedId = projectEmbedSummaries.find(summary => summary.skill === 'search')?.embedId;
       expect(referenceEmbedId).toBeTruthy();
       projectReferenceEmbedId = referenceEmbedId ?? null;
       const referencePreview = page.locator(`[data-embed-id="${referenceEmbedId}"]`).getByTestId('project-reference-preview');
@@ -587,7 +667,7 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       await expect(referencePreview).toBeVisible({ timeout: 30_000 });
       await expect(referencePreview).toContainText('OpenMates');
       await expect(referencePreview).toContainText(/readme/i);
-      console.log('[README] Original README read and reference card visible.');
+      console.log('[README] Single bounded search returned README text and its original reference card.');
       const storedReference = await page.evaluate(async (embedId: string) => {
         const open = indexedDB.open('chats_db');
         const db = await new Promise<IDBDatabase>((resolvePromise, reject) => {
@@ -610,6 +690,11 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       expect(storedReference).toEqual({ encrypted: true, hasPlainContent: false, containsReadmeBytes: false });
       console.log('[README] Saved embed contains encrypted references without file bytes.');
       await expect(page.getByTestId('message-assistant').last()).toContainText(/readme|connected project/i);
+      if (PROMPT_VARIANT === 'suggestions') {
+        await expect(page.getByTestId('message-assistant').last())
+          .toContainText(/(?:add|improv|clarif|includ|updat|explain|document)/i);
+      }
+      expect(trueFinalAt).not.toBeNull();
 
       // The saved card is a location reference. Opening it reads the original
       // connected source on demand, without importing another Project item.
@@ -663,31 +748,41 @@ test.describe('Plain-language Project README access (real inference, dev only)',
         const first = (type: string, direction: RetrievalEvent['direction'], operation?: string) =>
           retrievalEvents.find(event => event.type === type && event.direction === direction
             && (!operation || event.operation === operation))?.at_epoch_ms ?? null;
+        const searchRequest = retrievalEvents.find(event => event.type === 'project_file_operation_request'
+          && event.direction === 'received' && event.operation === 'search');
+        const searchResultAt = retrievalEvents.find(event => event.type === 'project_file_operation_result'
+          && event.direction === 'sent' && event.operation_id === searchRequest?.operation_id)?.at_epoch_ms ?? null;
         const referenceAt = retrievalEvents.find(event => event.type === 'send_embed_data'
           && event.direction === 'received' && event.embed_id === projectReferenceEmbedId)?.at_epoch_ms ?? null;
         await test.info().attach('readme-retrieval-metrics', {
           body: JSON.stringify({
-            schema: 'openmates.readme_retrieval_metrics.v1',
+            schema: 'openmates.readme_retrieval_metrics.v2',
             measurement_basis: 'Baseline milestones came from dev backend logs; after milestones use browser receipt and observed WebSocket frames.',
             baseline: RETRIEVAL_BASELINE,
             after: {
+              prompt_variant: PROMPT_VARIANT,
+              fixture_variant: README_FIXTURE_VARIANT,
+              fixture_bytes: Buffer.byteLength(README_CONTENT),
               accepted_turn_started_at_utc: acceptedTurnStartedAt === null ? null : new Date(acceptedTurnStartedAt).toISOString(),
               focus_activated_at_utc: focusActivatedAt === null ? null : new Date(focusActivatedAt).toISOString(),
               filename_search_requested_at_utc: first('project_file_operation_request', 'received', 'search') === null
                 ? null : new Date(first('project_file_operation_request', 'received', 'search') as number).toISOString(),
-              read_requested_at_utc: first('project_file_operation_request', 'received', 'read_text') === null
-                ? null : new Date(first('project_file_operation_request', 'received', 'read_text') as number).toISOString(),
+              search_result_at_utc: searchResultAt === null ? null : new Date(searchResultAt).toISOString(),
               first_reference_at_utc: referenceAt === null ? null : new Date(referenceAt).toISOString(),
+              first_answer_at_utc: firstAnswerAt === null ? null : new Date(firstAnswerAt).toISOString(),
+              true_final_at_utc: trueFinalAt === null ? null : new Date(trueFinalAt).toISOString(),
               turn_completed_at_utc: turnCompletedAt === null ? null : new Date(turnCompletedAt).toISOString(),
               focus_to_reference_ms: focusActivatedAt !== null && referenceAt !== null ? referenceAt - focusActivatedAt : null,
               focus_to_completion_ms: focusActivatedAt !== null && turnCompletedAt !== null ? turnCompletedAt - focusActivatedAt : null,
+              file_job_count: retrievalEvents.filter(event => event.type === 'project_file_operation_request' && event.direction === 'received').length,
+              main_model_call_count: null,
               model_token_totals: null,
               combined_reported_input_tokens: null,
             },
             backend_token_lookup: {
               chat_id: acceptedChatId,
               task_ids: [...new Set(retrievalEvents.map(event => event.task_id).filter(Boolean))],
-              note: 'Collect actual model and preprocessing token totals from this dev run’s correlated backend usage logs; they are not sent to the browser.',
+              note: 'Collect actual main-model call count and model/preprocessing token totals from this dev run’s correlated backend usage logs; they are not sent to the browser.',
             },
             fixture_audit: {
               project_id: fixtureAudit?.project_id ?? null,

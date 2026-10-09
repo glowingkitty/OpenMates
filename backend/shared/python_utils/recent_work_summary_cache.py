@@ -256,6 +256,8 @@ PRIVATE_CONTEXT_FIELDS = frozenset({
     "accepted_plan_context",
     "custom_rule_documents", "project_focus_catalog", "project_focus_documents",
     "project_context_documents", "related_task_candidates",
+    "async_tool_completion",
+    "async_tool_history",
 })
 
 

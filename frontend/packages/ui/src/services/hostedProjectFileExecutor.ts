@@ -2,7 +2,7 @@
 import { applyProjectFilePatch } from "../utils/projectFilePatch";
 import { projectFileMutationDigest, type ProjectFileMutation } from "../utils/projectFileMutationProtocol";
 import type { ProjectFileJob } from "./projectFileJobExecutor";
-import { isProtectedProjectReadPath, normalizeProjectSearchRequest, matchesProjectSearchGlob, matchesProjectSearchQuery } from "../utils/projectSearchProtocol";
+import { isProtectedProjectReadPath, normalizeProjectSearchRequest, matchesProjectSearchGlob, matchesProjectSearchQuery, PROJECT_SEARCH_CONTENT_MAX_FILES, PROJECT_SEARCH_CONTENT_MAX_FILE_BYTES, PROJECT_SEARCH_CONTENT_MAX_TOTAL_BYTES } from "../utils/projectSearchProtocol";
 import { createProjectPathPolicy, type ProjectIgnoreFile, type ProjectPathPolicy } from "../utils/projectPathPolicy";
 import { parse } from "yaml";
 
@@ -253,16 +253,43 @@ export async function executeHostedProjectFileJob(adapter: HostedProjectFileAdap
       }
     }
     const matches: Record<string, unknown>[] = [];
+    const contents: Record<string, unknown>[] = [];
+    const contentOmissions: Record<string, string>[] = [];
+    let contentBytes = 0;
     const limit = search.maxResults;
     const byName = search.target === "files";
     let examined = 0;
     let omitted = 0;
     let incomplete = false;
-    for (const file of candidates.slice(0, 100)) {
+    for (const file of (search.includeContent ? candidates.sort((a, b) => a.path.localeCompare(b.path)) : candidates).slice(0, 100)) {
       examined++;
       if (byName) {
         if (matchesProjectSearchQuery(file.path, search)) {
-          if (matches.length < limit) matches.push({ path: file.path, embed_id: file.embedId });
+          if (matches.length < limit) {
+            const match: Record<string, unknown> = { path: file.path, embed_id: file.embedId };
+            matches.push(match);
+            if (search.includeContent) {
+              let reason: string | undefined;
+              if (contents.length >= PROJECT_SEARCH_CONTENT_MAX_FILES) reason = "file_limit";
+              else {
+                try {
+                  // The policy was loaded for this operation. Never use a cached
+                  // result or silently trim a file to satisfy a response budget.
+                  const content = textContent(await adapter.readHead(file.embedId));
+                  const size = bytes(content).length;
+                  if (size > PROJECT_SEARCH_CONTENT_MAX_FILE_BYTES) reason = "file_too_large";
+                  else if (contentBytes + size > PROJECT_SEARCH_CONTENT_MAX_TOTAL_BYTES) reason = "total_bytes_limit";
+                  else {
+                    const expectedBase = await projectFileContentHash(content);
+                    match.expected_base = expectedBase;
+                    contents.push({ path: file.path, embed_id: file.embedId, content, expected_base: expectedBase, size_bytes: size });
+                    contentBytes += size;
+                  }
+                } catch { reason = "unreadable_or_unsupported"; }
+              }
+              if (reason) contentOmissions.push({ path: file.path, reason });
+            }
+          }
           else omitted++;
         }
       }
@@ -284,6 +311,7 @@ export async function executeHostedProjectFileJob(adapter: HostedProjectFileAdap
     }
     return {
       matches,
+      ...(search.includeContent ? { contents, content_omissions: contentOmissions, content_incomplete: contentOmissions.length > 0 } : {}),
       excluded,
       omitted,
       truncated: omitted > 0 || incomplete || candidates.length > examined,

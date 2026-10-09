@@ -12,7 +12,27 @@ manage_rules:
   verified_by_human: []
 auto_selection_description:
   context: Explain automatic Project focus countdown and manual mention access
-  en: Suggested Project work starts after a cancellable four-second countdown. When off, mention the Project to activate it yourself.
+  en: When off, inferred Project mentions do not activate focus. A direct Project mention can still activate it.
+  verified_by_human: []
+focus_activation_policy_label:
+  context: Label for the inferred Project focus activation setting
+  en: Inferred Project focus
+  verified_by_human: []
+focus_activation_policy_delayed:
+  context: Project focus activation option with a cancellable countdown
+  en: After a four-second countdown
+  verified_by_human: []
+focus_activation_policy_immediate:
+  context: Project focus activation option without a countdown
+  en: Immediately
+  verified_by_human: []
+focus_activation_policy_approval:
+  context: Project focus activation option requiring a user click
+  en: Ask me to approve
+  verified_by_human: []
+focus_activation_policy_description:
+  context: Explain that the Project setting controls inferred requests only
+  en: Choose how a suggested Project focus starts. A direct Project mention activates it when you send the message.
   verified_by_human: []
 auto_selection_saved:
   context: Acknowledgement after saving Project automatic selection
@@ -45,6 +65,14 @@ focus_access_explanation:
 focus_access_grant:
   context: Explicitly approve an inferred Project focus activation
   en: Grant access
+  verified_by_human: []
+focus_access_decline:
+  context: Decline an inferred Project focus request
+  en: Decline
+  verified_by_human: []
+focus_access_activating:
+  context: Immediate Project focus activation is in progress
+  en: Activating…
   verified_by_human: []
 focus_access_failed:
   context: A Project focus activation failed or its pending request expired

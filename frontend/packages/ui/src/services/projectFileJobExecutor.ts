@@ -185,11 +185,18 @@ export function createProjectFileJobExecutor(options: ProjectFileJobExecutorOpti
       }
       approved.delete(job.operation_id);
       const safeOutput = context.privacy ? await context.privacy.redactResult(output) : output;
+      const sourceId = context.sourceId !== undefined ? context.sourceId : job.source_id ?? null;
+      const resultBody: Record<string, unknown> = safeOutput && typeof safeOutput === "object" && !Array.isArray(safeOutput)
+        ? { ...safeOutput } : { value: safeOutput };
+      if (job.operation === "search" && job.arguments.include_content === true && Array.isArray(resultBody.contents)) {
+        resultBody.contents = resultBody.contents.map((item) => item && typeof item === "object" && !Array.isArray(item)
+          ? { ...item, source_id: sourceId } : item);
+      }
       await result("completed", {
-        ...(safeOutput && typeof safeOutput === "object" ? safeOutput : { value: safeOutput }),
+        ...resultBody,
         // Preserve the resolver-selected source so a chat can reopen the
         // original remote file without uploading its contents as an embed.
-        source_id: context.sourceId !== undefined ? context.sourceId : job.source_id ?? null,
+        source_id: sourceId,
         ...(proposalCommitment ? { proposal_commitment: proposalCommitment } : {}),
       });
       if (mutation) {

@@ -886,7 +886,10 @@ async function runServeFixture(client, fixture) {
   if (mode === "serve" || mode === "serve-team" || mode === "serve-workflow") {
     mkdirSync(join(rootPath, "docs"));
     writeFileSync(join(rootPath, "docs", "readme-image.png"), largeValidPngFixture());
-    writeFileSync(join(rootPath, "README.md"), "# Connected project\n\n![Connected diagram](docs/readme-image.png)\n\n[External docs](https://openmates.org)\n");
+    const readme = "# Connected project\n\n![Connected diagram](docs/readme-image.png)\n\n[External docs](https://openmates.org)\n"
+      + (process.env.OPENMATES_README_FIXTURE_VARIANT === "repository"
+        ? `\n${readFileSync(new URL("../README.md", import.meta.url), "utf8")}` : "");
+    writeFileSync(join(rootPath, "README.md"), readme);
     writeFileSync(join(rootPath, "diagram.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00]));
     writeFileSync(join(rootPath, "mystery.dat"), Buffer.from([0x41, 0x00, 0x42, 0x43]));
     writeFileSync(join(rootPath, "empty.dat"), Buffer.alloc(0));

@@ -327,11 +327,12 @@ def test_internal_charge_response_reports_committed_debit(monkeypatch, state, ac
 
     def respond(request):
         return httpx.Response(200, json={
-            "state": state, "charged_credits": actual, "requested_credits": 20,
+            "state": state, "charge_id": "ai-ask:disposable-task:main",
+            "charged_credits": actual, "requested_credits": 20,
         })
 
     transport = httpx.MockTransport(respond)
-    monkeypatch.setattr(stream_consumer.httpx, "AsyncClient", lambda: async_client(transport=transport))
+    monkeypatch.setattr(stream_consumer.httpx, "AsyncClient", lambda **kwargs: async_client(transport=transport, **kwargs))
     request = AskSkillRequest(
         chat_id="disposable-chat", message_id="disposable-message", user_id="disposable-user",
         user_id_hash="disposable-user-hash", message_history=[],
@@ -342,3 +343,58 @@ def test_internal_charge_response_reports_committed_debit(monkeypatch, state, ac
     assert result["total_credits"] == actual
     assert result["requested_credits"] == 20
     assert result["settlement_state"] == ("settled" if state == "committed" else "pending")
+
+
+# contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge,billing.credits.retryable-completion-safe
+def test_internal_charge_retries_timeout_with_same_identity(monkeypatch) -> None:
+    import httpx
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest
+
+    async_client = httpx.AsyncClient
+    charge_ids = []
+
+    def respond(request):
+        charge_ids.append(request.read().decode())
+        if len(charge_ids) == 1:
+            raise httpx.ReadTimeout("charge outcome unknown")
+        return httpx.Response(200, json={
+            "state": "committed", "charge_id": "ai-ask:disposable-task:main",
+            "charged_credits": 7, "requested_credits": 20,
+        })
+
+    transport = httpx.MockTransport(respond)
+    monkeypatch.setattr(stream_consumer.httpx, "AsyncClient", lambda **kwargs: async_client(transport=transport, **kwargs))
+    request = AskSkillRequest(
+        chat_id="disposable-chat", message_id="disposable-message", user_id="disposable-user",
+        user_id_hash="disposable-user-hash", message_history=[],
+    )
+    result = asyncio.run(stream_consumer._charge_credits(
+        "disposable-task", request, 20, {"input_tokens": 10}, "[charge-test]",
+    ))
+    assert len(charge_ids) == 2
+    assert charge_ids[0] == charge_ids[1]
+    assert '"idempotency_key":"ai-ask:disposable-task:main"' in charge_ids[0]
+    assert result["total_credits"] == 7
+
+
+# contract-test: direct surface=rest_api assertions=billing.credits.retryable-completion-safe
+def test_internal_charge_rejects_empty_receipt(monkeypatch) -> None:
+    import httpx
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest
+
+    async_client = httpx.AsyncClient
+    monkeypatch.setattr(
+        stream_consumer.httpx, "AsyncClient",
+        lambda **kwargs: async_client(
+            transport=httpx.MockTransport(lambda _request: httpx.Response(200, json={})),
+            **kwargs,
+        ),
+    )
+    request = AskSkillRequest(
+        chat_id="disposable-chat", message_id="disposable-message", user_id="disposable-user",
+        user_id_hash="disposable-user-hash", message_history=[],
+    )
+    with pytest.raises(RuntimeError, match="settlement state"):
+        asyncio.run(stream_consumer._charge_credits(
+            "disposable-task", request, 20, {}, "[charge-test]",
+        ))

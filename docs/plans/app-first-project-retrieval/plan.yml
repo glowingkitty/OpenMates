@@ -8,13 +8,17 @@ goal: >-
   drastically improved and token usage reduced, and give a numerical before/after
   comparison and video proof of the original Project README request.
 authorization:
-  source: Five sequential questions answered in this Codex chat on 2026-10-08.
+  source: Five sequential questions answered on 2026-10-08, followed by explicit architecture approval on 2026-10-09 in the same Codex chat.
   decisions:
     - Apply app-first preprocessing across all apps; stage 1 can select multiple relevant apps and stage 2 selects their skills plus other required preprocessing outputs.
     - Repeat affected selection when focus activation introduces new authorized context; Project-specific context remains hidden before consent.
     - Remove all separate AI injection-scanning requests for Project file results, preserving local privacy masking and deterministic access controls.
     - Expose separate Search files and Search text tools backed by the existing bounded client search executor; remove unfinished legacy Projects search execution.
     - Show UI progress during file jobs and resume the model on results without waiting-only model calls.
+    - Move inferred Project Focus before main-model setup. Keep explicit @Project/@focus selection authoritative, three per-Project activation policies, and legacy disabled compatibility.
+    - Route using optional custom Focus names and descriptions before consent; expose full instructions and memories only after activation. Skip custom Focus selection when its catalog is empty.
+    - Include bounded small text in one Search files result and keep saved cards as references to current originals, with content-change notices.
+    - Preserve accurate, idempotent durable billing while optimizing the simple README path.
   task: 6c2b7b9e-e472-421c-9f1f-0c76bfa51723
   session: 6aa3
 scope:
@@ -23,6 +27,7 @@ scope:
     - Trusted reuse within the same user turn and targeted refresh after newly authorized focus context.
     - Focus-scoped typed file operations and reference-only result previews.
     - Exact README scenario, rejection and offline checks, latency/token measurements and retained recordings.
+    - User-approved second optimization pass: pre-main Focus routing, optional custom Focus choice, single-search small-text retrieval, reference freshness, and reliable billing settlement.
   out:
     - Terminal risk-review or explanation redesign.
     - New providers, changing answer models, production deployment, and broad unrelated privacy/UI repairs.
@@ -34,12 +39,15 @@ references:
     - projects.files.chat-focus-required
     - projects.focus.inferred-consent
     - projects.files.no-server-decryption-authority
+    - projects.files.search-result-lifecycle
+    - projects.focus.auto-selection-setting
+    - projects.focus.custom-catalog-privacy
     - ai-model-routing.precedence.chat-over-tier-over-auto
   contract_note: >-
-    Existing contracts define bounded filename/content search, consent, encryption,
-    and no model tokens for waiting. These changes implement internal routing and
-    execution tactics without editing Specification semantics. The earlier single-stage
-    optimization Plan remains historical; this chat explicitly approved app-first routing.
+    Projects owns the user-visible search, consent, Focus setting, and saved-result
+    semantics. The 2026-10-09 approval adds those outcomes to the owning draft
+    bundle; this Plan records the implementation and measured performance target.
+    The earlier single-stage optimization Plan remains historical.
 checks:
   required:
     - Focused backend tests for app routing, trusted continuation, scope freshness, target mapping and absence of output scanning.
@@ -47,16 +55,17 @@ checks:
     - Scoped dev deployment followed by the exact real-inference README request using disposable fixtures and leased runtime/account.
     - Compare post-focus latency, main-model iterations and reported Jev/main token usage with the retained baseline; do not sum overlapping phases.
     - Deliver all retained browser recordings, including failures and retries, with a concise numerical comparison.
+    - Add focused routing, policy, custom Focus, search-content, card-freshness and billing tests; preserve the exact real-AI prompt "suggestions how to improve the readme of my OpenMates project?" as a user-observable regression.
 processing_flow:
-  - Jev selects relevant apps from a compact public catalogue; several apps can be selected.
-  - Jev selects skills, focus and memory metadata from those apps, alongside required global decisions. Private Project context is included only when its Project focus is active.
-  - Inferred Project focus shows the normal cancellable countdown. Activation authorizes Project context and refreshes stage two using the existing app shortlist.
-  - The main model dispatches a bounded file operation. The UI shows progress while the client or connected source executes it; the model pauses until results arrive.
-  - Client privacy masking precedes model access. Results are untrusted data, with deterministic access checks and no separate AI content scan.
-  - Same-turn continuations reuse server-owned routing decisions after fresh scope and credit checks. Changed Project context refreshes selection.
-  - Saved result embeds contain original file references only. Cloud references open the existing embed; remote references read the authorized source while it is online.
-  - Apply the already approved thinking profile for the automatically selected Google Flash model; explicit model choices and different actual provider models retain their own policy.
-  - Read independent current authorization records concurrently, then preserve ordered validation and the final activation freshness check.
+  - Structured @Project or @Focus starts the explicitly chosen Focus without inferred routing.
+  - For inferred requests, compact Jev routing selects relevant apps and an eligible Project before main-model setup.
+  - Only a selected Project with a nonempty custom Focus catalog needs optional Jev selection from names and descriptions. Full instructions and memories remain hidden before consent.
+  - Current Project policy controls delayed, immediate, or approval activation. After activation, scoped preprocessing selects skills and other authorized context using the existing app shortlist.
+  - The main model dispatches one bounded Search files request that can include small full text, path, source and hash. WebSocket progress continues while the executor runs and the model pauses.
+  - Client privacy masking and deterministic access controls precede model access; there is no separate AI content scan.
+  - Same-turn continuations reuse server-owned routing decisions after fresh scope and credit checks. Private file text crosses the worker boundary through transient encrypted memory and is available only to answer inference.
+  - Saved result embeds contain original references only. Cloud references open the existing embed; remote references fetch the current authorized original while its source is online. Changed hashes show a notice.
+  - Durable idempotent billing remains required; asynchronous dependency admission removes blocking thread queues without treating a failed settlement as success.
 evidence:
   baseline:
     environment: dev
@@ -115,7 +124,7 @@ evidence:
       recordings remain retained and delivered. The latest passing run still
       takes too long for a simple README request.
   remaining_speed_work:
-    status: recommendations-for-discussion
+    status: approved-architecture-to-implement
     measured_latest_run:
       first_task_to_search_request_ms: 5924.594
       search_request_to_result_ms: 2035
@@ -129,16 +138,21 @@ evidence:
       final_task_billing_ms: 5048
       final_task_billing_outcome: error
       final_task_billing_error: httpx.ReadTimeout
-    recommendations:
-      - Execute a bounded named-file retrieval plan after authorization, avoiding model-mediated search then read decisions.
-      - Reuse revision-checked agentic context while preserving current access checks.
-      - Diagnose the read and reference-publication stages independently.
-      - Instrument billing API admission, durable settlement and response; repair the internal HTTP timeout before assessing durable pending settlement acknowledgements.
+    approved_design:
+      - Compact app and Project routing chooses relevant apps and eligible Project Focus before main setup, while explicit @Project or @focus bypasses inferred discovery.
+      - Each Project supports delayed default, immediate, or approval activation; legacy auto_selection:false remains disabled. Consent guards every full Focus instruction and Memory load.
+      - Optional custom Focus selection sees eligible names and short descriptions before consent, runs only for a nonempty custom catalog, and reuses the app shortlist after activation for skills and other context.
+      - A single bounded Search files request may return small text with path, source and hash for inference; result cards persist original references only and reopen the current authorized original with a changed-hash notice.
+      - Diagnose and repair final billing timeout with durable idempotent settlement and accurate token/credit receipts before treating the request as successful.
+    acceptance_target:
+      main_model_calls_after_focus: 2
+      measured_latest_main_model_calls_after_focus: 3
+      comparison_rule: Compare only completed passing runs against the same baseline scope; report post-focus time, main and Jev tokens, and whole accepted-turn reported input without double-counting nested phases.
     note: >-
       Stage setup, model windows and finalization are nested in the nonoverlapping
       task timeline and must not be added to end-to-end time. The user rejects
       the remaining latency as unsuitable for everyday use; this Plan and Task
-      remain in progress for the next agreed optimization. The timed-out billing
+      remain in progress for the approved optimization. The timed-out billing
       request already uses an idempotency key, but the final token/credit receipt
       can be absent after a timeout while server settlement may still finish.
       Shortening the timeout or treating this as harmless asynchronous billing

@@ -1250,17 +1250,7 @@ async def _compress_for_selected_model(
     if not request_data.message_history or request_data.is_external:
         return False
 
-    history = [
-        {
-            "role": msg.role,
-            "content": msg.content,
-            "created_at": msg.created_at,
-            "message_id": getattr(msg, "message_id", None),
-            "category": getattr(msg, "category", None),
-            "sender_name": getattr(msg, "sender_name", None),
-        }
-        for msg in request_data.message_history
-    ]
+    history = request_data.model_dump(mode="json")["message_history"]
     admin_threshold = await get_admin_compression_threshold(cache_service, request_data.user_id)
     threshold = model_compression_threshold(
         selected_model_id, celery_config.config_manager, threshold_override=admin_threshold
@@ -1409,6 +1399,7 @@ async def _compress_for_selected_model(
             content=recent_content,
             role=recent.get("role", "user"),
             category=recent.get("category"),
+            sender_name=recent.get("sender_name"),
             created_at=recent.get("created_at", summary_timestamp),
         ))
 
@@ -1446,7 +1437,10 @@ async def _compress_for_selected_model(
         if summary_billing and summary_billing.intent_recorded:
             raise RecoveryCheckpointPersistenceError("Summary checkpoint application failed after billing intent") from exc
         raise
-    request_data.message_history = compressed_history
+    from backend.shared.python_utils.recent_work_summary_client import rebind_private_async_tool_history_after_compression
+    request_data.message_history = rebind_private_async_tool_history_after_compression(
+        request_data, compressed_history,
+    )
     if summary_billing and summary_receipt is not None:
         try:
             await summary_billing.settle(receipt=summary_receipt)
@@ -1542,11 +1536,14 @@ async def _async_process_ai_skill_ask_task(
             )
             logger.info(f"[Task ID: {task_id}] DirectusService initialized.")
 
-        from backend.shared.python_utils.recent_work_summary_client import restore_private_context_payload, bind_restored_context_turn
+        from backend.shared.python_utils.recent_work_summary_client import restore_private_context_payload, bind_restored_context_turn, restore_async_tool_completion_message
         from backend.shared.python_utils.recent_work_summary_cache import PRIVATE_CONTEXT_FIELDS
         transient = await restore_private_context_payload(request_data.model_dump())
         bind_restored_context_turn(request_data, transient)
+        restore_async_tool_completion_message(request_data, transient)
         for field in PRIVATE_CONTEXT_FIELDS:
+            if field in {"async_tool_completion", "async_tool_history"}:
+                continue
             setattr(request_data, field, transient.get(field, None if field == "accepted_plan_context" else []))
 
         if request_data.is_sub_chat_continuation and request_data.recovery_consumed_child_ids:
@@ -1996,10 +1993,8 @@ async def _async_process_ai_skill_ask_task(
     try:
         if request_data.message_history:
             # Convert AIHistoryMessage objects to dicts for parsing
-            message_dicts = [
-                {"role": msg.role, "content": msg.content}
-                for msg in request_data.message_history
-            ]
+            from backend.shared.python_utils.recent_work_summary_client import override_safe_message_dicts
+            message_dicts = override_safe_message_dicts(request_data.message_history)
             user_overrides, cleaned_messages = parse_overrides_from_messages(
                 message_dicts,
                 log_prefix=f"[Task ID: {task_id}]"
@@ -2019,7 +2014,8 @@ async def _async_process_ai_skill_ask_task(
                 # This ensures the LLM sees the actual query without the override commands
                 if cleaned_messages:
                     for i in range(len(request_data.message_history) - 1, -1, -1):
-                        if request_data.message_history[i].role == "user":
+                        if (request_data.message_history[i].role == "user"
+                                and request_data.message_history[i].sender_name != "async_tool_result"):
                             # Update the content of the Pydantic model directly
                             request_data.message_history[i].content = cleaned_messages[i]["content"]
                             logger.debug(
@@ -2062,7 +2058,8 @@ async def _async_process_ai_skill_ask_task(
         from backend.apps.ai.testing.mock_replay import detect_marker, strip_marker
         if request_data.message_history:
             last_user_msg = next(
-                (m for m in reversed(request_data.message_history) if m.role == "user"),
+                (m for m in reversed(request_data.message_history)
+                 if m.role == "user" and m.sender_name != "async_tool_result"),
                 None,
             )
             if last_user_msg:
@@ -2090,7 +2087,8 @@ async def _async_process_ai_skill_ask_task(
 
     if request_data.message_history:
         last_user_msg = next(
-            (m for m in reversed(request_data.message_history) if m.role == "user"),
+            (m for m in reversed(request_data.message_history)
+             if m.role == "user" and m.sender_name != "async_tool_result"),
             None,
         )
         if last_user_msg:
@@ -2263,18 +2261,12 @@ async def _async_process_ai_skill_ask_task(
             # IMPORTANT: Store FULL content to enable proper debugging of the AI decision process
             try:
                 if cache_service_instance and encryption_service_instance:
-                    # Prepare preprocessor input data with FULL message history for debugging
-                    # Convert message history to serializable format
-                    message_history_serialized = None
-                    if request_data.message_history:
-                        message_history_serialized = [
-                            msg.model_dump() if hasattr(msg, 'model_dump') else (
-                                {"role": msg.role, "content": msg.content, "created_at": msg.created_at, 
-                                 "sender_name": getattr(msg, 'sender_name', None), "category": getattr(msg, 'category', None)}
-                                if hasattr(msg, 'role') else msg
-                            )
-                            for msg in request_data.message_history
-                        ]
+                    # Reuse the request's private-history projection, which keeps
+                    # restored Project file results out of debug cache entries.
+                    message_history_serialized = (
+                        request_data.model_dump(mode="json")["message_history"]
+                        if request_data.message_history else None
+                    )
                 
                     preprocessor_input = {
                         "chat_id": request_data.chat_id,
@@ -2956,22 +2948,7 @@ async def _async_process_ai_skill_ask_task(
                 # Get updated message history including the just-completed AI response
                 # This ensures the combined message has full context
                 # Start with the original request's message history
-                updated_message_history = []
-                if request_data.message_history:
-                    # Convert AIHistoryMessage objects to dicts for easier manipulation
-                    for msg in request_data.message_history:
-                        if isinstance(msg, dict):
-                            updated_message_history.append(msg)
-                        else:
-                            # AIHistoryMessage Pydantic model - convert to dict
-                            updated_message_history.append({
-                                "role": msg.role,
-                                "message_id": getattr(msg, "message_id", None),
-                                "content": msg.content,
-                                "created_at": msg.created_at,
-                                "sender_name": getattr(msg, 'sender_name', msg.role),
-                                "category": getattr(msg, 'category', None)
-                            })
+                updated_message_history = request_data.model_dump(mode="json")["message_history"]
                 
                 # Add the completed AI response to history
                 if aggregated_final_response:
@@ -3241,7 +3218,7 @@ async def _async_process_ai_skill_ask_task(
             # Find the last user message in history
             # Note: message_history contains AIHistoryMessage Pydantic models, not dicts
             for msg in reversed(request_data.message_history):
-                if msg.role == "user":
+                if msg.role == "user" and msg.sender_name != "async_tool_result":
                     last_user_message = msg.content
                     break
 
@@ -3300,15 +3277,11 @@ async def _async_process_ai_skill_ask_task(
                 "for post-processing suggestion context"
             )
 
-            # Build full message history for post-processing (same format as preprocessing)
-            # This allows post-processing to generate summaries from the full chat history
-            # instead of relying on a condensed 20-word summary from preprocessing
+            # Post-processing sees the projected history, never restored private
+            # Project file text from the main answer's in-memory history.
             postprocessing_message_history = []
             if request_data.message_history:
-                postprocessing_message_history = [
-                    msg.model_dump() if hasattr(msg, 'model_dump') else msg
-                    for msg in request_data.message_history
-                ]
+                postprocessing_message_history = request_data.model_dump(mode="json")["message_history"]
 
             # Extract language info for suggestion generation:
             # - output_language: the conversation/chat language detected by preprocessor (for follow-up suggestions)

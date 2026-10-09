@@ -268,6 +268,7 @@ describe("Project remote-access bridge primitives", () => {
       });
 
       assert.equal(result.matches[0]?.path, "src/App.ts");
+      assert.equal(result.source_id, "source-1");
     } finally {
       rmSync(home, { recursive: true, force: true });
     }

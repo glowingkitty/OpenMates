@@ -346,16 +346,16 @@ async def test_summary_intent_precedes_charge_with_same_identity_and_pending_rec
 
 
 def _task_request():
-    message = SimpleNamespace(
-        role="user", content="history", created_at=1,
-        message_id="source-id", category=None, sender_name=None,
-    )
-    return SimpleNamespace(
-        message_history=[message], is_external=False,
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest
+    from backend.core.api.app.schemas.chat import AIHistoryMessage
+
+    return AskSkillRequest(
+        message_history=[AIHistoryMessage(
+            role="user", content="history", created_at=1,
+            message_id="source-id",
+        )],
         user_id="user-id", user_id_hash="user-hash",
         chat_id="chat-id", message_id="message-id",
-        is_anonymous=False, orchestration_id=None,
-        resolved_recovery_inference_task_id=lambda: None,
     )
 
 
@@ -458,6 +458,74 @@ async def test_workflow_and_subchat_compression_stays_bundled(monkeypatch, exclu
         cache_service=Cache(), encryption_service=MagicMock(),
         user_vault_key_id="key", secrets_manager=MagicMock(),
     )
+
+
+@pytest.mark.parametrize("retain_placeholder", [False, True])
+# contract-test: supporting surface=rest_api assertions=projects.focus.custom-catalog-privacy
+async def test_compression_keeps_private_project_file_text_only_in_answer_memory(monkeypatch, retain_placeholder):
+    from backend.core.api.app.schemas.chat import AIHistoryMessage
+    from backend.shared.python_utils.recent_work_summary_client import (
+        PRIVATE_ASYNC_TOOL_RESULT_PLACEHOLDER, restore_async_tool_completion_message,
+    )
+
+    request = _task_request()
+    request.is_async_skill_continuation = True
+    request.async_skill_task_id = "read-1"
+    request.message_history.append(AIHistoryMessage(
+        role="user", sender_name="async_tool_result", message_id="read-1",
+        content=PRIVATE_ASYNC_TOOL_RESULT_PLACEHOLDER, created_at=2,
+    ))
+    restore_async_tool_completion_message(request, {"async_tool_history": [{
+        "index": 1, "project_id": "11111111-1111-4111-8111-111111111111",
+        "content": "SECRET README CONTENT @ai-model:gpt-5.4",
+    }]})
+    assert "SECRET README CONTENT" in request.message_history[-1].content
+
+    async def compression(**kwargs):
+        assert "SECRET README CONTENT" not in str(kwargs["message_history"])
+        recent = [kwargs["message_history"][-1]] if retain_placeholder else []
+        return chat_compressor.CompressionResult(
+            was_compressed=True, summary_content="Summary without file bodies",
+            compressed_up_to_timestamp=1, compressed_up_to_message_id="source-id",
+            recent_messages=recent,
+        )
+
+    class Cache:
+        stored = None
+
+        async def publish_event(self, *_args):
+            pass
+
+        async def set_ai_messages_history(self, **kwargs):
+            self.stored = kwargs["encrypted_messages_json_list"]
+
+    class Encryption:
+        plaintexts = []
+
+        async def encrypt_with_user_key(self, plaintext, *_args):
+            self.plaintexts.append(plaintext)
+            return "ciphertext", None
+
+    cache, encryption = Cache(), Encryption()
+    async def admin_threshold(*_args):
+        return 1
+
+    monkeypatch.setattr(ask_skill_task, "get_admin_compression_threshold", admin_threshold)
+    monkeypatch.setattr(ask_skill_task, "model_compression_threshold", lambda *_args, **_kwargs: 1)
+    monkeypatch.setattr(ask_skill_task, "should_compress", lambda *_args: True)
+    monkeypatch.setattr(ask_skill_task, "selected_main_cache_tariff_active", lambda *_args: False)
+    monkeypatch.setattr(ask_skill_task, "compress_chat_history", compression)
+    assert await ask_skill_task._compress_for_selected_model(
+        task_id="task-private-read", request_data=request, selected_model_id="google/model",
+        cache_service=cache, encryption_service=encryption,
+        user_vault_key_id="key", secrets_manager=MagicMock(),
+    )
+    assert "SECRET README CONTENT" not in str(cache.stored)
+    assert "SECRET README CONTENT" not in str(encryption.plaintexts)
+    assert "SECRET README CONTENT" in request.message_history[-1].content
+    assert request.message_history[-1].sender_name == "async_tool_result"
+    assert request.message_history[-1].message_id == "read-1"
+    assert "SECRET README CONTENT" not in str(request.model_dump(mode="json"))
 
 
 # contract-test: supporting surface=rest_api assertions=billing.usage.receipt-token-breakdown

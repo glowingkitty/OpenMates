@@ -16,7 +16,7 @@ export interface AcceptedPlanContext {
 export interface CliJevContext {
   /** Fresh server-approved current Plan, derived from existing chat/Task linkage. */
   accepted_plan_context?: AcceptedPlanContext | null;
-  project_focus_candidates?: Array<{ project_id: string; name: string; summary: string; auto_selection: boolean }>;
+  project_focus_candidates?: Array<{ project_id: string; name: string; summary: string; auto_selection: boolean; focus_activation_policy: "delayed" | "immediate" | "approval" }>;
   custom_memory_documents?: CustomRuleDocument[];
   /** Legacy input alias, never a personal consent bypass. */
   custom_rule_documents?: CustomRuleDocument[];
@@ -48,7 +48,9 @@ export async function discoverCliProjectCandidates(client: OpenMatesClient, opti
         typeof record.encrypted_name === "string" ? decryptWithAesGcmCombined(record.encrypted_name, key) : null,
         typeof record.encrypted_description === "string" ? decryptWithAesGcmCombined(record.encrypted_description, key) : null,
       ]);
-      return name ? { project_id: record.project_id, name: name.slice(0, 160), summary: (summary ?? "").slice(0, 640), auto_selection: settings.auto_selection !== false } : null;
+      return name ? { project_id: record.project_id, name: name.slice(0, 160), summary: (summary ?? "").slice(0, 640),
+        auto_selection: settings.auto_selection !== false,
+        focus_activation_policy: (settings.focus_activation_policy === "immediate" || settings.focus_activation_policy === "approval" ? settings.focus_activation_policy : "delayed") as "delayed" | "immediate" | "approval" } : null;
     } catch { return null; }
   }));
   return entries.filter((entry): entry is NonNullable<typeof entry> => entry !== null);

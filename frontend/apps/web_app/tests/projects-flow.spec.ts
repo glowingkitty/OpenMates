@@ -35,8 +35,17 @@ test.describe('Projects v1 flow', () => {
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
     await expect(page.getByTestId('projects-load-error')).toHaveCount(0);
-    await expect(page.getByTestId('chats-nav-link')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByTestId('projects-nav-link')).toBeVisible({ timeout: 30000 });
+    if ((page.viewportSize()?.width ?? 1440) < 768) {
+      const workspaceSelect = page.getByTestId('workspace-mobile-select');
+      await expect(workspaceSelect).toBeVisible({ timeout: 30000 });
+      await expect(workspaceSelect).toHaveValue('/#projects');
+      expect(await workspaceSelect.locator('option').evaluateAll((options: HTMLOptionElement[]) => options.map(option => option.value))).toEqual([
+        '/', '/#apps', '/#projects', '/#tasks', '/#workflows',
+      ]);
+    } else {
+      await expect(page.getByTestId('chats-nav-link')).toBeVisible({ timeout: 30000 });
+      await expect(page.getByTestId('projects-nav-link')).toBeVisible({ timeout: 30000 });
+    }
     await expect(page.getByTestId('projects-start-screen')).toBeVisible();
     await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
     await expect(page.getByTestId('project-input-composer')).toBeVisible();
@@ -125,6 +134,19 @@ test.describe('Projects v1 flow', () => {
     expect((await savedAutoSelection).request().postDataJSON()).toMatchObject({ auto_selection: false });
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(autoSelection).toHaveAttribute('aria-checked', 'false');
+    await expect(page.getByTestId('project-settings-focus-activation-policy')).toBeDisabled();
+    const restoredAutoSelection = page.waitForResponse((response) => response.request().method() === 'PATCH'
+      && new URL(response.url()).pathname.endsWith(`/v1/projects/${projectId}/settings`) && response.ok());
+    await autoSelection.click();
+    expect((await restoredAutoSelection).request().postDataJSON()).toMatchObject({ auto_selection: true });
+    const policySelect = page.getByTestId('project-settings-focus-activation-policy');
+    await expect(policySelect).toHaveValue('delayed');
+    const savedPolicy = page.waitForResponse((response) => response.request().method() === 'PATCH'
+      && new URL(response.url()).pathname.endsWith(`/v1/projects/${projectId}/settings`) && response.ok());
+    await policySelect.selectOption('approval');
+    expect((await savedPolicy).request().postDataJSON()).toMatchObject({ focus_activation_policy: 'approval' });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(policySelect).toHaveValue('approval');
 
     const savedAlwaysAsk = page.waitForResponse(
       (response) => response.request().method() === 'PATCH'

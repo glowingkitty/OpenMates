@@ -40,7 +40,7 @@ SOURCE_FIELDS = (
     "created_at,updated_at,last_indexed_at"
 )
 PROJECT_SETTINGS_FIELDS = (
-    "id,hashed_project_id,hashed_user_id,hashed_team_id,updated_by_user_hash,write_mode,auto_selection,default_focus_id_hash,"
+    "id,hashed_project_id,hashed_user_id,hashed_team_id,updated_by_user_hash,write_mode,auto_selection,focus_activation_policy,default_focus_id_hash,"
     "encrypted_settings,updated_at"
 )
 PROJECT_KEY_WRAPPER_FIELDS = (
@@ -471,6 +471,35 @@ class ProjectMethods:
             return rows[0]
         return None
 
+    async def get_project_settings_for_projects(
+        self,
+        project_ids: list[str],
+        user_id: str,
+        team_id: str | None = None,
+    ) -> dict[str, dict[str, Any]]:
+        """Read only owner-scoped focus routing preferences for at most 40 Projects."""
+        if len(project_ids) > 40:
+            raise ValueError("Too many Project settings requested")
+        project_by_hash = {hash_id(project_id): project_id for project_id in project_ids}
+        if not project_by_hash:
+            return {}
+        params = {
+            "filter[hashed_project_id][_in]": ",".join(project_by_hash),
+            "fields": "hashed_project_id,auto_selection,focus_activation_policy",
+            "limit": len(project_by_hash),
+        }
+        params.update(_owner_params(user_id, team_id))
+        rows = await self.directus_service.get_items("project_settings", params=params, no_cache=True, raise_on_error=True)
+        if not isinstance(rows, list):
+            raise RuntimeError("Failed to read Project focus preferences")
+        return {
+            project_by_hash[row["hashed_project_id"]]: {
+                "auto_selection": row.get("auto_selection"),
+                "focus_activation_policy": row.get("focus_activation_policy"),
+            }
+            for row in rows if isinstance(row, dict) and row.get("hashed_project_id") in project_by_hash
+        }
+
     async def upsert_project_settings(
         self,
         project_id: str,
@@ -499,6 +528,10 @@ class ProjectMethods:
         if "auto_selection" in payload and type(payload["auto_selection"]) is not bool:
             return None
         record["auto_selection"] = payload.get("auto_selection", (existing or {}).get("auto_selection", True)) is not False
+        policy = payload.get("focus_activation_policy", (existing or {}).get("focus_activation_policy") or "delayed")
+        if policy not in {"delayed", "immediate", "approval"}:
+            return None
+        record["focus_activation_policy"] = policy
         if "default_focus_id" in payload:
             canonical_focus_id = str(uuid.UUID(str(payload["default_focus_id"])))
             record["default_focus_id_hash"] = hash_id(canonical_focus_id)

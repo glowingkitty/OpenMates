@@ -28,9 +28,11 @@
         getProjectSettings,
         updateProjectSettings,
         type ProjectSourceViewModel,
+        type ProjectFocusActivationPolicy,
         type ProjectViewModel,
     } from '../../services/projectService';
     import FocusModePhases from './FocusModePhases.svelte';
+    import ProjectFocusPolicySelector from './ProjectFocusPolicySelector.svelte';
     import RuleDocumentManager from '../projects/RuleDocumentManager.svelte';
     import { projectFocusPhases } from '../../types/focusPhases';
     import type { FocusPhaseDefinition } from '../../types/apps';
@@ -44,6 +46,7 @@
     let sources = $state<ProjectSourceViewModel[]>([]);
     let writeMode = $state<ProjectWriteMode | null>(null);
     let autoSelection = $state(true);
+    let focusActivationPolicy = $state<ProjectFocusActivationPolicy>('delayed');
     let focusPhases = $state<FocusPhaseDefinition[]>([]);
     let isLoading = $state(true);
     let isSavingSettings = $state(false);
@@ -81,6 +84,7 @@
                 sources = projectSources;
                 writeMode = projectSettings.writeMode;
                 autoSelection = projectSettings.autoSelection;
+                focusActivationPolicy = projectSettings.focusActivationPolicy;
                 const defaultFocus = projectSettings.settings.default_focus as { instructions?: string } | undefined;
                 focusPhases = projectFocusPhases(defaultFocus?.instructions);
             } else {
@@ -125,6 +129,24 @@
             saveMessage = $text('projects.auto_selection_saved');
         } catch {
             autoSelection = !enabled;
+            saveError = $text('projects.auto_selection_failed');
+        } finally {
+            isSavingSettings = false;
+        }
+    }
+
+    async function saveFocusActivationPolicy(value: string): Promise<void> {
+        if (!selectedProject || isSavingSettings || !['delayed', 'immediate', 'approval'].includes(value)) return;
+        const previous = focusActivationPolicy;
+        isSavingSettings = true;
+        saveError = '';
+        saveMessage = '';
+        try {
+            const updated = await updateProjectSettings(selectedProject, null, {}, undefined, value as ProjectFocusActivationPolicy);
+            focusActivationPolicy = updated.focusActivationPolicy;
+            saveMessage = $text('projects.auto_selection_saved');
+        } catch {
+            focusActivationPolicy = previous;
             saveError = $text('projects.auto_selection_failed');
         } finally {
             isSavingSettings = false;
@@ -183,6 +205,12 @@
                 onChange={(enabled) => void saveAutoSelection(enabled)}
             />
             <SettingsInfoBox type="info"><p>{$text('projects.auto_selection_description')}</p></SettingsInfoBox>
+            <ProjectFocusPolicySelector
+                value={focusActivationPolicy}
+                disabled={isSavingSettings || !autoSelection}
+                onChange={(value) => void saveFocusActivationPolicy(value)}
+            />
+            <SettingsInfoBox type="info"><p>{$text('projects.focus_activation_policy_description')}</p></SettingsInfoBox>
             <SettingsButtonGroup align="left">
                 <SettingsButton
                     variant={writeMode === 'apply_and_show' ? 'primary' : 'secondary'}

@@ -165,14 +165,19 @@ class ProjectWriteAuthorizationService:
             "activated_at": int(time.time()),
         }
         if activation_request_id:
-            from backend.core.api.app.services.project_focus_request_service import ProjectFocusRequestService
+            from backend.core.api.app.services.project_focus_request_service import ProjectFocusRequestService, project_focus_activation_policy
             service = ProjectFocusRequestService(self.cache_service, self.directus_service)
             pending = await self.cache_service.get(service.key(user_id, chat_id) + ":" + activation_request_id)
             if (not isinstance(pending, dict) or pending.get("request_id") != activation_request_id
                     or pending.get("project_id") != project_id or pending.get("user_id") != user_id
                     or pending.get("chat_id") != chat_id or pending.get("team_id") != team_id
-                    or project.get("archived") or settings.get("auto_selection") is False):
+                    or project.get("archived") or not settings or settings.get("auto_selection") is False
+                    or project_focus_activation_policy(settings) != pending.get("activation_policy", "delayed")):
                 raise ProjectWriteAuthorizationError("PROJECT_FOCUS_REQUEST_EXPIRED", status_code=409)
+            await service.require_pending(
+                user_id=user_id, chat_id=chat_id, request_id=activation_request_id,
+                project_id=project_id, require_completed_countdown=True,
+            )
             binding.update(activation_request_id=activation_request_id, activation_message_id=pending.get("message_id"))
             if not await service.write_activation(pending, binding):
                 raise ProjectWriteAuthorizationError("PROJECT_FOCUS_REQUEST_STALE", status_code=409)

@@ -1,5 +1,6 @@
 """Fail-closed synthetic capacity replay and direct compression dispatch tests."""
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -339,7 +340,11 @@ async def test_signed_isolated_capacity_allows_only_exact_internal_http_transpor
     async def fake_async(_transport, request):
         dispatched.append(str(request.url))
         if request.url.path in {"/internal/billing/charge", "/internal/billing/team/charge"}:
-            return httpx.Response(200, json={"state": "committed", "charged_credits": 1}, request=request)
+            payload = json.loads(request.content) if request.content else {}
+            return httpx.Response(200, json={
+                "state": "committed", "charge_id": payload.get("idempotency_key"),
+                "charged_credits": 1, "requested_credits": payload.get("credits"),
+            }, request=request)
         return httpx.Response(204, request=request)
 
     def fake_sync(_transport, request):

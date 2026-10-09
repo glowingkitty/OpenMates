@@ -436,6 +436,7 @@ class ProjectSettingsUpdateRequest(BaseModel):
 
     write_mode: Optional[Literal["apply_and_show", "always_ask"]] = None
     auto_selection: bool | None = None
+    focus_activation_policy: Optional[Literal["delayed", "immediate", "approval"]] = None
     default_focus_id: Optional[str] = Field(default=None, min_length=36, max_length=36)
     encrypted_settings: Optional[str] = Field(default=None, min_length=1, max_length=350_000)
     updated_at: Optional[int] = None
@@ -447,6 +448,8 @@ class ProjectSettingsUpdateRequest(BaseModel):
             raise ValueError("At least one Project setting must be supplied")
         if "auto_selection" in supplied and self.auto_selection is None:
             raise ValueError("auto_selection cannot be cleared")
+        if "focus_activation_policy" in supplied and self.focus_activation_policy is None:
+            raise ValueError("focus_activation_policy cannot be cleared")
         if "encrypted_settings" in self.model_fields_set and self.encrypted_settings is None:
             raise ValueError("encrypted_settings cannot be cleared")
         if self.default_focus_id is not None and "encrypted_settings" not in self.model_fields_set:
@@ -476,6 +479,7 @@ class ProjectFocusDeactivateRequest(BaseModel):
 
 class ProjectFocusCountdownRequest(ProjectFocusDeactivateRequest):
     activation_request_id: str = Field(min_length=36, max_length=36)
+    approved: bool = False
 
 
 class ProjectWriteApprovalRequest(BaseModel):
@@ -491,6 +495,7 @@ def serialize_project_settings(settings: Optional[Dict[str, Any]]) -> Dict[str, 
         return {
             "write_mode": None,
             "auto_selection": True,
+            "focus_activation_policy": "delayed",
             "selection_required": True,
             "default_focus_id_hash": None,
             "encrypted_settings": None,
@@ -503,6 +508,7 @@ def serialize_project_settings(settings: Optional[Dict[str, Any]]) -> Dict[str, 
     return {
         "write_mode": write_mode,
         "auto_selection": settings.get("auto_selection") is not False,
+        "focus_activation_policy": settings.get("focus_activation_policy") if settings.get("focus_activation_policy") in {"delayed", "immediate", "approval"} else "delayed",
         "selection_required": write_mode is None,
         "default_focus_id_hash": settings.get("default_focus_id_hash"),
         "encrypted_settings": settings.get("encrypted_settings"),
@@ -1334,10 +1340,17 @@ async def confirm_project_focus_countdown(
     """
     from backend.core.api.app.services.project_focus_request_service import ProjectFocusRequestService
     try:
-        pending = await ProjectFocusRequestService(request.app.state.cache_service, directus_service).require_pending(
-            user_id=current_user.id, chat_id=body.chat_id, request_id=body.activation_request_id,
-            project_id=project_id, require_completed_countdown=True,
-        )
+        focus_requests = ProjectFocusRequestService(request.app.state.cache_service, directus_service)
+        if body.approved:
+            pending = await focus_requests.approve_pending(
+                user_id=current_user.id, chat_id=body.chat_id,
+                request_id=body.activation_request_id, project_id=project_id,
+            )
+        else:
+            pending = await focus_requests.require_pending(
+                user_id=current_user.id, chat_id=body.chat_id, request_id=body.activation_request_id,
+                project_id=project_id, require_completed_countdown=True,
+            )
         if pending.get("team_id") != team_id:
             raise ProjectWriteAuthorizationError("PROJECT_FOCUS_MISMATCH")
     except ProjectWriteAuthorizationError as exc:

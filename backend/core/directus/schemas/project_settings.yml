@@ -41,7 +41,12 @@ project_settings:
     auto_selection:
       type: boolean
       default: true
-      note: "Allow automatic Project focus suggestions with the standard cancellable countdown. Explicit mentions remain available when false."
+      note: "Allow inferred Project focus suggestions. False retains the legacy disabled behavior."
+
+    focus_activation_policy:
+      type: string
+      nullable: true
+      note: "Inferred focus activation: delayed (default), immediate, or approval. Missing legacy values mean delayed."
 
     encrypted_settings:
       type: text

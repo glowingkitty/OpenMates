@@ -935,6 +935,7 @@ export interface ProjectSettingsRecord {
   encrypted_settings: string | null;
   updated_at: number | null;
   auto_selection?: boolean;
+  focus_activation_policy?: "delayed" | "immediate" | "approval";
 }
 
 export interface ActiveProjectFocus {
@@ -11390,6 +11391,7 @@ export class OpenMatesClient {
     encrypted_settings?: string;
     updated_at?: number;
     auto_selection?: boolean;
+    focus_activation_policy?: "delayed" | "immediate" | "approval";
   }, options: TeamContextOptions = {}): Promise<ProjectSettingsRecord> {
     this.requireSession();
     const response = await this.http.patch<{ settings: ProjectSettingsRecord }>(

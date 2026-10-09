@@ -21,6 +21,19 @@ import {
 } from "../src/remoteAccessCrypto.ts";
 
 describe("Project requester", () => {
+  // contract-test: supporting surface=cli assertions=projects.files.search-scoped
+  it("requires read capability before a combined search request", async () => {
+    await assert.rejects(requestProjectRemoteOperation({
+      client: { createProjectRemoteAccessRequest: async () => assert.fail("Unauthorized request sent") } as never,
+      projectId: "project-1", projectKey: randomBytes(32),
+      source: {
+        source_id: "source-1", source_type: "local_folder", encrypted_display_name: "cipher-name",
+        encrypted_metadata: "cipher-metadata", status: "connected", capabilities: ["search"],
+      },
+      operation: "search", arguments: { query: "README", target: "files", include_content: true }, context: { personal: true },
+    }), { code: "source_capability_denied" });
+  });
+  // contract-test: supporting surface=cli assertions=projects.files.no-server-decryption-authority
   it("performs a Personal encrypted operation without exposing arguments to transport", async () => {
     const projectKey = randomBytes(32);
     const sourceSessionId = "source-session-1";
@@ -77,6 +90,7 @@ describe("Project requester", () => {
     assert.doesNotMatch(encryptedRequest, /src|path/);
   });
 
+  // contract-test: supporting surface=cli assertions=projects.files.no-server-decryption-authority
   it("completes bounded Team routing discovery before a v2 request", async () => {
     const projectKey = randomBytes(32);
     const sourceSessionId = "source-session-team";

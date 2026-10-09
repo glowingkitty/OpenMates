@@ -8775,6 +8775,9 @@
         "source_unavailable": {
           "text": "Connected source is unavailable. Open it when the source is online."
         },
+        "changed_since_answer": {
+          "text": "This file changed since the answer. Showing the current version."
+        },
         "preview_unavailable": {
           "text": "A preview is unavailable for this file."
         },
@@ -15179,7 +15182,22 @@
       "text": "Manage Rule guides"
     },
     "auto_selection_description": {
-      "text": "Suggested Project work starts after a cancellable four-second countdown. When off, mention the Project to activate it yourself."
+      "text": "When off, inferred Project mentions do not activate focus. A direct Project mention can still activate it."
+    },
+    "focus_activation_policy_label": {
+      "text": "Inferred Project focus"
+    },
+    "focus_activation_policy_delayed": {
+      "text": "After a four-second countdown"
+    },
+    "focus_activation_policy_immediate": {
+      "text": "Immediately"
+    },
+    "focus_activation_policy_approval": {
+      "text": "Ask me to approve"
+    },
+    "focus_activation_policy_description": {
+      "text": "Choose how a suggested Project focus starts. A direct Project mention activates it when you send the message."
     },
     "auto_selection_saved": {
       "text": "Project focus preference saved."
@@ -15204,6 +15222,12 @@
     },
     "focus_access_grant": {
       "text": "Grant access"
+    },
+    "focus_access_decline": {
+      "text": "Decline"
+    },
+    "focus_access_activating": {
+      "text": "Activating…"
     },
     "focus_access_failed": {
       "text": "Access could not be activated. Check your connection or send a new request."

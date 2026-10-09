@@ -72,7 +72,33 @@ class AskSkillRequest(BaseModel):
     @field_serializer("message_history")
     def _serialize_content_free_context_receipts(self, value):
         from backend.shared.python_utils.agent_context_history import project_agent_context_history
-        return project_agent_context_history(value)
+        from backend.shared.python_utils.recent_work_summary_client import PRIVATE_ASYNC_TOOL_RESULT_PLACEHOLDER
+        projected = project_agent_context_history(value)
+        for marker in getattr(self, "_private_async_tool_history", []):
+            index = marker.get("index")
+            if (isinstance(index, int) and not isinstance(index, bool)
+                    and 0 <= index < len(projected)
+                    and getattr(projected[index], "sender_name", None) == "async_tool_result"):
+                projected[index] = projected[index].model_copy(
+                    update={"content": PRIVATE_ASYNC_TOOL_RESULT_PLACEHOLDER},
+                )
+        return projected
+
+    @field_serializer("active_project_focus")
+    def _serialize_project_focus_identity(self, value):
+        """Queue only routing identity; workers reload the live Focus instruction."""
+        if not isinstance(value, dict):
+            return None
+        allowed = (
+            "project_id", "project_id_hash", "focus_id", "focus_id_hash",
+            "team_id", "team_id_hash", "instruction_revision", "activation_id",
+            "specialist_focus_id",
+        )
+        result = {key: value[key] for key in allowed
+                  if isinstance(value.get(key), str) and len(value[key]) <= 256}
+        if isinstance(value.get("activated_at"), int) and not isinstance(value["activated_at"], bool):
+            result["activated_at"] = value["activated_at"]
+        return result or None
 
     chat_id: str = Field(..., description="The ID of the chat session.")
     message_id: str = Field(..., description="The ID of the user's most recent message in the history.") # Clarified
@@ -98,6 +124,7 @@ class AskSkillRequest(BaseModel):
     focus_phase_state: Optional[Dict[str, Any]] = Field(default=None, description="Client-decrypted phase state; transient inference context only.")
     current_project: Optional[Dict[str, Any]] = Field(default=None, description="Server-derived current Project routing metadata for this chat.")
     project_focus_candidates: List[Dict[str, Any]] = Field(default_factory=list, max_length=40, description="Client-decrypted Project names for routing only; server ownership checks precede selection. No file contents or instructions.")
+    project_routing_focus_id: Optional[str] = Field(default=None, description="Server-only Project identity retained across the selected catalog handoff; not an access grant.")
     accepted_plan_context: Optional[Dict[str, Any]] = Field(default=None, repr=False, exclude=True, description="Bounded client-decrypted accepted existing Plan snapshot; fresh server approval/version/linkage required.")
     custom_rule_documents: List[Dict[str, Any]] = Field(validation_alias=AliasChoices("custom_memory_documents", "custom_rule_documents"), default_factory=list, exclude=True, repr=False, max_length=24, description="Transient client-decrypted Project Memory Markdown (legacy Rule alias accepted); fresh first-party and Project authority required before selection.")
     project_focus_catalog: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, max_length=20, description="Private Project Focus metadata only; full definitions are loaded separately after selection.")

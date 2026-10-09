@@ -723,6 +723,7 @@ async def test_settings_missing_state_and_explicit_setup_contract() -> None:
     assert missing["settings"] == {
         "write_mode": None,
         "auto_selection": True,
+        "focus_activation_policy": "delayed",
         "selection_required": True,
         "default_focus_id_hash": None,
         "encrypted_settings": None,

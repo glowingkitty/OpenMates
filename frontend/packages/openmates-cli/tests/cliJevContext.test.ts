@@ -95,7 +95,8 @@ it('discovery includes OFF metadata for explicit mentions without loading privat
   const candidates = await discoverCliProjectCandidates({ async listProjects() { return [{ project_id: 'project', encrypted_name: encryptedName, encrypted_description: encryptedDescription }]; },
     async decryptProjectKey() { return key; }, async getProjectSettings() { return { auto_selection: false }; },
     async readEncryptedProjectFile() { throw new Error('No private reads during discovery'); } } as never, {});
-  assert.deepEqual(candidates, [{ project_id: 'project', name: 'Explicit Project', summary: 'Small summary', auto_selection: false }]);
+  assert.deepEqual(candidates, [{ project_id: 'project', name: 'Explicit Project', summary: 'Small summary',
+    auto_selection: false, focus_activation_policy: 'delayed' }]);
 });
 
 // contract-test: supporting surface=cli assertions=focus-modes.project-recommendation-full-assessment

@@ -7,6 +7,7 @@ export interface ProjectFileReference {
   path: string;
   embed_id?: string;
   line?: number;
+  expected_base?: string;
 }
 
 export function projectFileReferences(content: Record<string, unknown>): ProjectFileReference[] {
@@ -22,9 +23,11 @@ export function projectFileReferences(content: Record<string, unknown>): Project
     if (!projectId || !path || (!sourceId && !embedId)) return [];
     const line = typeof row.line === 'number' && Number.isInteger(row.line) && row.line > 0 ? row.line : undefined;
     const teamId = stringField(row.team_id) || stringField(content.team_id);
+    const revisionHash = stringField(row.expected_base);
     return [{ project_id: projectId, project_name: projectName, path,
       ...(sourceId ? { source_id: sourceId } : {}), ...(embedId ? { embed_id: embedId } : {}),
-      ...(teamId ? { team_id: teamId } : {}), ...(line ? { line } : {}) }];
+      ...(teamId ? { team_id: teamId } : {}), ...(line ? { line } : {}),
+      ...(revisionHash && /^[a-f0-9]{64}$/.test(revisionHash) ? { expected_base: revisionHash } : {}) }];
   });
 }
 

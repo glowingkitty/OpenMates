@@ -38,12 +38,37 @@ ASYNC_SKILL_COMPLETION_KEY_PREFIX = "async_skill_completion"
 ASYNC_SKILL_LATEST_USER_TURN_KEY_PREFIX = "async_skill_latest_user_turn"
 ASYNC_SKILL_DEFERRED_COMPLETION_KEY_PREFIX = "async_skill_deferred_completion"
 ASYNC_SKILL_DEFERRED_INDEX_KEY_PREFIX = "async_skill_deferred_index"
+PRIVATE_ASYNC_CONTEXT_BUDGET_BYTES = 180_000
 ASYNC_EMBED_REFERENCE_INSTRUCTION = (
     "When referencing a specific completed result that has an embed_ref field, "
     "link it with Markdown like [human-readable title](embed:the_embed_ref). "
     "For web sources, use natural short attribution such as according to CNBC followed by and WIRED; keep full headlines in previews. For other results use a short description; never show the embed_ref or its random suffix."
 )
 celery_app = None
+
+
+def _private_project_completion(context: dict[str, Any]) -> bool:
+    from backend.apps.ai.processing.project_file_tools import PROJECT_FILE_TOOL_TO_OPERATION
+    return (context.get("app_id") == "system"
+            and context.get("skill_id") in PROJECT_FILE_TOOL_TO_OPERATION)
+
+
+def _fit_private_async_tool_history(payload: dict[str, Any], private_fields: frozenset[str]) -> None:
+    """Keep the current file result; expire older bodies before the IPC size limit."""
+    history = payload.get("async_tool_history")
+    if not isinstance(history, list):
+        return
+    while True:
+        fields = {key: payload[key] for key in private_fields if payload.get(key)}
+        try:
+            size = len(json.dumps(fields, ensure_ascii=False).encode("utf-8"))
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError("Private continuation context is not serializable") from exc
+        if size <= PRIVATE_ASYNC_CONTEXT_BUDGET_BYTES:
+            return
+        if len(history) <= 1:
+            raise RuntimeError("Current private Project result exceeds transient handoff budget")
+        history.pop(0)
 
 
 def _project_file_reference_preview(
@@ -132,6 +157,11 @@ async def dispatch_async_skill_continuation(
     completed_results: list[dict[str, Any]],
     result_status: str = "finished",
     request_metadata: Optional[dict[str, Any]] = None,
+    project_focus_documents: Optional[list[dict[str, Any]]] = None,
+    selected_specialist_focus_id: str | None = None,
+    selected_specialist_title: str | None = None,
+    project_routing_focus_id: str | None = None,
+    selected_project_focus_candidates: Optional[list[dict[str, Any]]] = None,
 ) -> Optional[str]:
     """Dispatch a normal AI ask task to interpret completed async skill results."""
     if not cache_service or not async_task_id:
@@ -145,14 +175,38 @@ async def dispatch_async_skill_continuation(
 
     inline_wait_deadline = context.get("inline_wait_deadline")
     if isinstance(inline_wait_deadline, (int, float)) and time.time() <= inline_wait_deadline:
+        inline_payload = _build_completed_tool_result_payload(
+            context=context, completed_results=completed_results,
+            result_status=result_status, request_metadata=request_metadata or {},
+        )
+        if _private_project_completion(context):
+            from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload
+            original = context.get("request_data") or {}
+            try:
+                project_id = (original.get("active_project_focus") or {}).get("project_id")
+                if not project_id:
+                    raise RuntimeError("Project binding unavailable")
+                sealed = await seal_private_context_payload({
+                    "user_id": original["user_id"], "chat_id": original["chat_id"],
+                    "message_id": original["message_id"],
+                    "async_tool_completion": {
+                        "inline_payload": inline_payload,
+                        "project_id": project_id,
+                    },
+                }, request_id=async_task_id)
+                inline_payload = {
+                    "agentic_context_ref": sealed["agentic_context_ref"],
+                    "user_id": original["user_id"], "chat_id": original["chat_id"],
+                    "message_id": original["message_id"],
+                    "agentic_context_turn_id": original["message_id"],
+                    "agentic_context_request_id": async_task_id,
+                }
+            except (KeyError, RuntimeError):
+                inline_payload = {"status": "content_unavailable", "results": [],
+                                  "message": "Private Project tool content is unavailable."}
         await cache_service.set(
             async_skill_completion_key(async_task_id),
-            _build_completed_tool_result_payload(
-                context=context,
-                completed_results=completed_results,
-                result_status=result_status,
-                request_metadata=request_metadata or {},
-            ),
+            inline_payload,
             ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
         )
         logger.info("Cached async skill completion for inline wait: %s", async_task_id)
@@ -177,35 +231,6 @@ async def dispatch_async_skill_continuation(
                 async_task_id,
             )
             return None
-    if context.get("defer_until_initial_response_complete"):
-        get_active_task = getattr(cache_service, "get_active_ai_task", None)
-        active_task = await get_active_task(original_request.chat_id) if get_active_task else None
-        if active_task:
-            await cache_service.set(
-                async_skill_deferred_completion_key(async_task_id),
-                {
-                    "completed_results": completed_results,
-                    "result_status": result_status,
-                    "request_metadata": request_metadata or {},
-                },
-                ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
-            )
-            index_key = async_skill_deferred_index_key(
-                original_request.user_id, original_request.chat_id
-            )
-            pending = list(await cache_service.get(index_key) or [])
-            if async_task_id not in pending:
-                pending.append(async_task_id)
-                await cache_service.set(
-                    index_key,
-                    pending,
-                    ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
-                )
-            logger.info(
-                "Deferred async continuation %s until the initial response finishes",
-                async_task_id,
-            )
-            return None
     skill_config_payload = context.get("skill_config_dict")
     if not isinstance(skill_config_payload, dict):
         logger.warning("Async skill continuation context has invalid skill_config_dict for task %s", async_task_id)
@@ -218,6 +243,12 @@ async def dispatch_async_skill_continuation(
         AIHistoryMessage(**(message.model_dump(mode="json") if hasattr(message, "model_dump") else message))
         for message in original_request.message_history
     ]
+    private_project_completion = _private_project_completion(context)
+    completed_message = _build_completed_tool_result_message(
+        context=context, completed_results=completed_results,
+        result_status=result_status, request_metadata=request_metadata or {},
+    )
+    from backend.shared.python_utils.recent_work_summary_client import PRIVATE_ASYNC_TOOL_RESULT_PLACEHOLDER
     continuation_history.append(
         AIHistoryMessage(
             # This is completion data, not a new system instruction. A user-side
@@ -225,12 +256,9 @@ async def dispatch_async_skill_continuation(
             # turn (Gemini rejects requests ending in a model turn).
             role="user",
             sender_name="async_tool_result",
-            content=_build_completed_tool_result_message(
-                context=context,
-                completed_results=completed_results,
-                result_status=result_status,
-                request_metadata=request_metadata or {},
-            ),
+            message_id=async_task_id,
+            content=(PRIVATE_ASYNC_TOOL_RESULT_PLACEHOLDER if private_project_completion
+                     else completed_message),
             created_at=int(time.time()),
         )
     )
@@ -253,9 +281,18 @@ async def dispatch_async_skill_continuation(
         is_external=original_request.is_external,
         mate_id=original_request.mate_id,
         client_capabilities=original_request.client_capabilities,
-        active_focus_id=None if project_focus_accepted else original_request.active_focus_id,
+        active_focus_id=selected_specialist_focus_id or (
+            None if project_focus_accepted else original_request.active_focus_id),
         current_project=original_request.current_project,
-        project_focus_candidates=original_request.project_focus_candidates,
+        project_focus_candidates=selected_project_focus_candidates or original_request.project_focus_candidates,
+        project_routing_focus_id=project_routing_focus_id,
+        project_focus_catalog=([{"id": project_focus_documents[0]["item_id"],
+                                "title": selected_specialist_title or "Project specialist",
+                                "summary": "Selected with Project consent",
+                                "revision": project_focus_documents[0]["revision"]}]
+                               if selected_specialist_focus_id and project_focus_documents
+                               else original_request.project_focus_catalog),
+        project_focus_documents=project_focus_documents or original_request.project_focus_documents,
         project_access_declined=original_request.project_access_declined or (
             context.get("skill_id") == "activate_focus_mode"
             and any(result.get("access_granted") is False for result in completed_results)
@@ -307,10 +344,65 @@ async def dispatch_async_skill_continuation(
     )
 
     app = _get_celery_app()
+    request_payload = continuation_request.model_dump(mode="json")
+    if private_project_completion or (selected_specialist_focus_id and project_focus_documents):
+        from backend.shared.python_utils.recent_work_summary_cache import PRIVATE_CONTEXT_FIELDS
+        from backend.shared.python_utils.recent_work_summary_client import (
+            restore_private_context_payload, seal_private_context_payload,
+        )
+        restored = await restore_private_context_payload(request_payload)
+        request_payload.update({field: restored[field] for field in PRIVATE_CONTEXT_FIELDS
+                                if restored.get(field)})
+        project_id = (original_request.active_project_focus or {}).get("project_id")
+        if private_project_completion and project_id:
+            previous = restored.get("async_tool_history")
+            previous = list(previous[-19:]) if isinstance(previous, list) else []
+            request_payload["async_tool_history"] = previous + [{
+                "index": len(continuation_history) - 1,
+                "content": completed_message,
+                "project_id": project_id,
+            }]
+        if selected_specialist_focus_id and project_focus_documents:
+            request_payload["project_focus_catalog"] = continuation_request.project_focus_catalog
+            request_payload["project_focus_documents"] = project_focus_documents
+        try:
+            if private_project_completion and not project_id:
+                raise RuntimeError("Project binding unavailable")
+            if private_project_completion:
+                _fit_private_async_tool_history(request_payload, PRIVATE_CONTEXT_FIELDS)
+            request_payload = await seal_private_context_payload(request_payload, request_id=async_task_id)
+        except RuntimeError:
+            logger.warning("Private Project continuation context could not be sealed; continuing without private content")
+            # Restoring the previous handoff may have materialized other private
+            # context. Keep its original opaque reference, never those bodies.
+            for field in PRIVATE_CONTEXT_FIELDS:
+                request_payload.pop(field, None)
+            if selected_specialist_focus_id:
+                request_payload["active_focus_id"] = None
+    if context.get("defer_until_initial_response_complete"):
+        get_active_task = getattr(cache_service, "get_active_ai_task", None)
+        active_task = await get_active_task(original_request.chat_id) if get_active_task else None
+        if active_task:
+            # This is a ready-to-send, content-safe request. Never cache raw
+            # Project completion rows or selected specialist documents here.
+            await cache_service.set(
+                async_skill_deferred_completion_key(async_task_id),
+                {"request_data_dict": request_payload, "skill_config_dict": skill_config_payload},
+                ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+            )
+            index_key = async_skill_deferred_index_key(
+                original_request.user_id, original_request.chat_id
+            )
+            pending = list(await cache_service.get(index_key) or [])
+            if async_task_id not in pending:
+                pending.append(async_task_id)
+                await cache_service.set(index_key, pending, ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS)
+            logger.info("Deferred async continuation %s until the initial response finishes", async_task_id)
+            return None
     task_result = app.send_task(
         name="apps.ai.tasks.skill_ask",
         kwargs={
-            "request_data_dict": continuation_request.model_dump(mode="json"),
+            "request_data_dict": request_payload,
             "skill_config_dict": skill_config_payload,
         },
         queue="app_ai",
@@ -336,13 +428,33 @@ async def dispatch_deferred_async_skill_continuations(
         completion = await cache_service.get(result_key)
         if not isinstance(completion, dict):
             continue
-        continuation_id = await dispatch_async_skill_continuation(
-            cache_service=cache_service,
-            async_task_id=str(async_task_id),
-            completed_results=list(completion.get("completed_results") or []),
-            result_status=str(completion.get("result_status") or "finished"),
-            request_metadata=completion.get("request_metadata") or {},
+        request_payload = completion.get("request_data_dict")
+        context_key = async_skill_continuation_key(str(async_task_id))
+        context = await cache_service.get(context_key)
+        if (not isinstance(request_payload, dict) or not isinstance(context, dict)
+                or request_payload.get("user_id") != user_id
+                or request_payload.get("chat_id") != chat_id
+                or (context.get("request_data") or {}).get("message_id") != request_payload.get("message_id")):
+            await cache_service.delete(result_key)
+            continue
+        if context.get("requires_current_turn"):
+            latest = await cache_service.get(async_skill_latest_user_turn_key(user_id, chat_id))
+            if latest != request_payload.get("message_id"):
+                await cache_service.delete(result_key)
+                await cache_service.delete(context_key)
+                continue
+        if get_active_task and await get_active_task(chat_id):
+            retained.append(str(async_task_id))
+            continue
+        app = _get_celery_app()
+        result = app.send_task(
+            name="apps.ai.tasks.skill_ask",
+            kwargs={"request_data_dict": request_payload,
+                    "skill_config_dict": completion.get("skill_config_dict") or {}},
+            queue="app_ai",
         )
+        continuation_id = result.id
+        await cache_service.delete(context_key)
         if continuation_id:
             await cache_service.delete(result_key)
             dispatched.append(continuation_id)
@@ -378,6 +490,15 @@ async def wait_for_async_skill_completion(
             if isinstance(completion, dict):
                 await cache_service.delete(cache_key)
                 await cache_service.delete(async_skill_continuation_key(async_task_id))
+                if completion.get("agentic_context_ref"):
+                    from backend.shared.python_utils.recent_work_summary_client import restore_private_context_payload
+                    restored = await restore_private_context_payload(completion)
+                    private = restored.get("async_tool_completion")
+                    result = private.get("inline_payload") if isinstance(private, dict) else None
+                    if isinstance(result, dict):
+                        return result
+                    return {"status": "content_unavailable", "results": [],
+                            "message": "Private Project tool content is unavailable."}
                 return completion
         await asyncio.sleep(poll_interval_seconds)
 

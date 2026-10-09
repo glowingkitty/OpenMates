@@ -244,6 +244,7 @@
         "feature-availability.spec.ts",
         "finance-check-accounts.spec.ts",
         "components/focus-mode-activation.spec.ts",
+        "components/project-focus-policy.spec.ts",
         "components/focus-phases.spec.ts",
         "focus-mode-example-chats.spec.ts",
         "guest-interest-smart-selection.spec.ts",
@@ -1426,7 +1427,7 @@
     },
     "projects-readme-focus.spec.ts": {
       "dependency": "original_live_inference",
-      "next_action": "Run directly against dev with a leased isolated test account, disposable Project and CLI state. Uses real inference for the exact no-mention README request; never run in CI or substitute replay.",
+      "next_action": "Run directly against dev with a leased isolated test account, disposable Project and CLI state. Default real-inference prompt requests README improvement suggestions; set OPENMATES_README_PROMPT_VARIANT=original for the retained original read request. Both variants verify one bounded Search files content result, the final answer, reference-only cards, offline behavior and strict cleanup; never run in CI or substitute replay.",
       "user_input_required": false,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_EMAIL",

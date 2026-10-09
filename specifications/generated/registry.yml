@@ -572,7 +572,7 @@ specifications:
     version: 3
     status: draft
     path: features/projects
-    fingerprint: 6bcfcac3c6bff67ce0b6a0391b5bbfb0fb549f11c25923e9232ff56892b7047c
+    fingerprint: 34a8df3e2ec65e35d2343a7e087c3c2c670c2346404b33037073f852cc1c457d
     required_applies_to:
     - rest_api
     - cli
@@ -7012,7 +7012,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: security
-    fingerprint: 387be96a53cf0a3ba15c3e7002e2709d295b92b9a005ed44507da073c50cd4dc
+    fingerprint: 1b6e5578b4242fd686316860f93d2e1cb60a99c73b2b007ee2d9fa06eef196d4
     required_applies_to:
     - rest_api
     - cli
@@ -7024,7 +7024,19 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: behavior
-    fingerprint: e6532869579dff7ea5674bc46a495a2118504516a760022dcb854cdeb879d68c
+    fingerprint: c0e6bd06952785adba97f908bf38e3fe47a49e6d148984556283ad9d9e8f7cff
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.search-result-lifecycle:
+    specification: feature.projects@3
+    specification_id: feature.projects
+    type: privacy
+    fingerprint: 0fc94ade2798b2a40b325526e797b8c2122347d786b9989c7c8a0cf222168bca
     required_applies_to:
     - rest_api
     - cli
@@ -7036,7 +7048,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: security
-    fingerprint: d197487a04b66b9737fd6851b07e497a5f492f5cc09807d32749ceb9b233162b
+    fingerprint: 65b1b5af7b08e3ecf437ff1f4813fa7630cc8937e2a74041a66ceeae0dcd7cd0
     required_applies_to:
     - rest_api
     - cli
@@ -7048,7 +7060,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: privacy
-    fingerprint: c6d18f825165beb97154daf1cc1cce85702e4b9e99392667c1131518bfcf8c33
+    fingerprint: 9ee9f17c97897aff81e77aef7e1bdcc588bbe6a99f25db5d2a64d56eb976bea2
     required_applies_to:
     - rest_api
     - cli
@@ -7060,7 +7072,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: behavior
-    fingerprint: 60751c171c33be0bd415e418167ee3601bb7fca4e402178f1ed0d8929cace3f5
+    fingerprint: 90407004d09303ad0e1d058fa095a27f7040d0e31f8690fbfc650d6e46b56973
     required_applies_to:
     - rest_api
     - cli
@@ -7072,7 +7084,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: invariant
-    fingerprint: 392ee86b7e379f8a8043aa27f095359e85413b38689cc5c1d5fbe67d307068db
+    fingerprint: 3afd94547fd3ccade954a77828f39db417efae7acafa3b18a5455c5ae483bae6
     required_applies_to:
     - rest_api
     - cli
@@ -7084,7 +7096,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: privacy
-    fingerprint: 074b1b0fd01e380f450ad52daa4b654e0b3681d0aecc062a827e60c68b1e8da9
+    fingerprint: 842b2ce9d963a5b513548e4373eca8ae0e2b6ee943f2358c1b58b5c7a764bafe
     required_applies_to:
     - rest_api
     - cli
@@ -7096,7 +7108,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: behavior
-    fingerprint: 44c9f2bc8ffe52218b1c81fa601c3024d754d0a3bb1096aaedb932fc6d60cb8a
+    fingerprint: fa6bbb07ac07c31b1231b77a170546eaf2de0723cd1de199fb4165c15bb95507
     required_applies_to:
     - rest_api
     - cli
@@ -7108,7 +7120,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: invariant
-    fingerprint: 018cf69511bf3a0fafc9de6d9473efe7c36e95c57c6b1f25afe632de0ef6541b
+    fingerprint: 1bc211184ef44133ef147fe3f377a72207e24b6ea0416dd567614b21c9d5c4fd
     required_applies_to:
     - rest_api
     - cli
@@ -7120,7 +7132,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: invariant
-    fingerprint: 29298e61994e5b8a3e5cd531d56f8997094fccb4d6c871afc876b249255c3483
+    fingerprint: 235ef5538d0ca5de65c499e36b26751de19a9f7afea5fdf063faa75233b5bc8b
     required_applies_to:
     - rest_api
     - cli
@@ -7132,7 +7144,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: invariant
-    fingerprint: 5744a3fbd590cbb12aa0dfa865cab8723db1d896c0c04c615ca12d65a897d611
+    fingerprint: 28f0ed33e287b91c699aa6ff62ac029606be2805f874c55fbb8b40a4b711fe56
     required_applies_to:
     - rest_api
     - cli
@@ -7144,7 +7156,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: privacy
-    fingerprint: b8953d8c420beb2e4387773dc1f7cab6d699f01d455a045efd3f237dc77e3fab
+    fingerprint: 294513e4aff1a2742a405d48b6640a7224c456126d5804f4c12ad5b5cd942dd0
     required_applies_to:
     - rest_api
     - cli
@@ -7156,7 +7168,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: invariant
-    fingerprint: 2bf3f50eb79d042ff335f0b5e61c4b38e50098bfec64d0dc7340910d7a7f000b
+    fingerprint: 9b4b1989dc13fa774bfade8c2b4f4f2bc5dcbce83e5e84fa69ab42f548c3bf09
     required_applies_to:
     - rest_api
     - cli
@@ -7168,7 +7180,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: invariant
-    fingerprint: 5cbfd06e5f5b833b2ea9a4a730d26d61b81832f4640d4b3db580ab4340d5cfe1
+    fingerprint: 79ed4a0a7cec3c91da85a2eadef4aa855714362fac22d66280582bc47b0b3559
     required_applies_to:
     - rest_api
     - cli
@@ -7180,7 +7192,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: invariant
-    fingerprint: b6d2879aa63da6d266d0b4fdd1b494c9e2ab948a01d555c8cdf56c1788577238
+    fingerprint: 28895ccbf58525a39f72cd2053d46476c903a0c1b1cebea0eccb47548acd3d39
     required_applies_to:
     - rest_api
     - cli
@@ -7192,7 +7204,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: behavior
-    fingerprint: 66d8d31e929711b0554a0474499049c837cfb848839f82fb02d76517743e9c8b
+    fingerprint: 56973cf6a352e00f2720c36e44eba5a41ef65190a7436b25d5fc0eb18740319e
     required_applies_to:
     - rest_api
     - cli
@@ -7204,7 +7216,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: failure
-    fingerprint: f9defd0208b7a33552c389b557a552a7baf3469ad9353967ff87a9533ea2945e
+    fingerprint: 88a4bb0ecae962702f17dd5b6690a8612bcdcfa57112f7e4ab0e8ed0ee88dd35
     required_applies_to:
     - rest_api
     - cli
@@ -7216,7 +7228,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: security
-    fingerprint: 7d39c506b3c3bef5eb7886216838a18c1b018868f5738bf80ea9fce48133e175
+    fingerprint: 929559b2194fa439b0d3165c5da37cef75ca0e545500593f29536435392c361f
     required_applies_to:
     - rest_api
     - cli
@@ -7228,7 +7240,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: invariant
-    fingerprint: 6a18ed439a3be190ba55de6aeac2670f64b7d2ba4149347f5470d2fd9fd0718e
+    fingerprint: be34f794272ed68294a8fe788964917ed90f00768f06c864987fa66142895c6d
     required_applies_to:
     - rest_api
     - cli
@@ -7240,7 +7252,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: behavior
-    fingerprint: 4b6148e0c177029755c9a0c0efcb27fef4bc3135f415a8abebaa6c39537dab7a
+    fingerprint: 2b6efedef4e6c657ce4b85625def9104cf9022696a3871da509ff78823766564
     required_applies_to:
     - rest_api
     - cli
@@ -7252,7 +7264,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: security
-    fingerprint: 37a04c8137cf2e7353e06dd3c2f192ab2714695c0b7cfa8c098222ae8e64ad4f
+    fingerprint: 67498f2b4ee0aebd42749e76146ee716df5e8e0a64f3b3419979711c560246a8
     required_applies_to:
     - rest_api
     - cli
@@ -7276,7 +7288,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: behavior
-    fingerprint: 03c62f4fb11673c7193148c94c90e20e34f5420ffe367188915557fd0b9fd713
+    fingerprint: 0c85bdd343a1c4b4e9119ea1e9c86d6c2a7271c256d74ac947b7f09db82c67a4
     required_applies_to:
     - rest_api
     - cli
@@ -7288,7 +7300,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: behavior
-    fingerprint: e254885359f40f6243b1bbaade16697643cd71a88a4435bfd06a7830d0ccc461
+    fingerprint: 92d8850c50a44d3fa6df2dabdd25fa43400160492eef7b555b4afe4483227768
     required_applies_to:
     - rest_api
     - cli
@@ -7300,7 +7312,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: behavior
-    fingerprint: 65213535fd67159310b75892654fce4b82f85c80444f52c32f802b2534195f88
+    fingerprint: 537a8b506c7b512fcc27b0c67d3b879fa29d3e90b99b6da6c4ca050bdc0938d7
     required_applies_to:
     - rest_api
     - cli
@@ -7312,7 +7324,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: security
-    fingerprint: 0188d1e102e028b3a1393c03b61ea56d3387b3e20f8e957098e72eb13f09bec3
+    fingerprint: 070132f92084116a104d55d79368132d6167e4684dee0990a54289040852e008
     required_applies_to:
     - rest_api
     - cli
@@ -7324,7 +7336,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: behavior
-    fingerprint: df07ba9dd9e6c39f25820fc5259520ecc0b7dc1b2d50ce87baf51a0276ba1aff
+    fingerprint: 9467d90fd4c469120a35aec094c9e12f6a908e82fa9ea26374cbb137d4cee8c6
     required_applies_to:
     - rest_api
     - cli
@@ -7336,7 +7348,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: security
-    fingerprint: c9d2d6e22c57bcb250f2f4842694165489b018a1b9b2ae00619d57ea0d458628
+    fingerprint: 964d1bc45340499f2da31394c0258588524fc5e833da3d01833f181d1e8148f9
     required_applies_to:
     - rest_api
     - cli
@@ -7480,7 +7492,7 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: parity
-    fingerprint: 2c917d106960d89df90ef572235fecbcdf96c348ee1be4e53ff0cf807c60339c
+    fingerprint: 90ad892cef967d19d8e51223f9030f8f680847eee30fc3a73069f3fcc10df73c
     required_applies_to:
     - rest_api
     - cli
@@ -7504,7 +7516,19 @@ assertions:
     specification: feature.projects@3
     specification_id: feature.projects
     type: behavior
-    fingerprint: 1006a11a103f091e09f9abfb61e1bb81b6aea8d06e9968424ae3b98e5e298e45
+    fingerprint: a96af44b1d6c90453f9675f16a820991b3cb2d46d6ba07cabc05567c2ab1b86f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.focus.custom-catalog-privacy:
+    specification: feature.projects@3
+    specification_id: feature.projects
+    type: privacy
+    fingerprint: 9f53216367aff4cefd66d5343bc4956d041f89b4576d22fd56a6bb32a06ad54e
     required_applies_to:
     - rest_api
     - cli

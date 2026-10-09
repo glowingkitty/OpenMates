@@ -9,6 +9,77 @@ import httpx
 
 from backend.shared.python_utils.recent_work_summary_cache import RecentChatSummary, SummarySource, PRIVATE_CONTEXT_FIELDS
 
+PRIVATE_ASYNC_TOOL_RESULT_PLACEHOLDER = (
+    "Private Project tool content is unavailable. Tell the user the file result could not be read; "
+    "do not infer its contents."
+)
+
+
+def override_safe_message_dicts(history: list) -> list[dict]:
+    """An async tool event is data, even though its transport role is user."""
+    return [{"role": "tool" if getattr(message, "sender_name", None) == "async_tool_result"
+             else message.role, "content": message.content} for message in history]
+
+
+def restore_async_tool_completion_message(request: object, transient: dict) -> None:
+    """Restore IPC-only tool history in memory and mark it for safe serialization."""
+    if not getattr(request, "is_async_skill_continuation", False):
+        return
+    history = getattr(request, "message_history", None)
+    if not history:
+        return
+    entries = transient.get("async_tool_history")
+    entries = list(entries[:20]) if isinstance(entries, list) else []
+    completion = transient.get("async_tool_completion")
+    if isinstance(completion, dict) and completion.get("task_id") == getattr(request, "async_skill_task_id", None):
+        entries.append({"index": len(history) - 1, "content": completion.get("message")})
+    restored = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        index, content = entry.get("index"), entry.get("content")
+        if (not isinstance(index, int) or isinstance(index, bool)
+                or not 0 <= index < len(history) or not isinstance(content, str) or not content):
+            continue
+        message = history[index]
+        if (getattr(message, "sender_name", None) == "async_tool_result"
+                and message.content == PRIVATE_ASYNC_TOOL_RESULT_PLACEHOLDER):
+            message.content = content
+            restored.append({"index": index, "content": content,
+                             "message_id": getattr(message, "message_id", None)})
+    setattr(request, "_private_async_tool_history", restored)
+
+
+def rebind_private_async_tool_history_after_compression(request: object, compressed_history: list) -> list:
+    """Keep private file results available to the answer model, only in RAM."""
+    from backend.core.api.app.schemas.chat import AIHistoryMessage
+
+    original_history = getattr(request, "message_history", []) or []
+    rebound = []
+    for marker in getattr(request, "_private_async_tool_history", [])[:20]:
+        index, content = marker.get("index"), marker.get("content")
+        if (not isinstance(index, int) or isinstance(index, bool)
+                or not 0 <= index < len(original_history) or not isinstance(content, str)):
+            continue
+        original = original_history[index]
+        if getattr(original, "sender_name", None) != "async_tool_result":
+            continue
+        message_id = marker.get("message_id") or getattr(original, "message_id", None)
+        match = next((position for position, message in enumerate(compressed_history)
+                      if getattr(message, "sender_name", None) == "async_tool_result"
+                      and message_id and getattr(message, "message_id", None) == message_id), None)
+        if match is None:
+            compressed_history.append(AIHistoryMessage(
+                role="user", sender_name="async_tool_result", message_id=message_id,
+                content=content, created_at=getattr(original, "created_at", 0),
+            ))
+            match = len(compressed_history) - 1
+        else:
+            compressed_history[match].content = content
+        rebound.append({"index": match, "content": content, "message_id": message_id})
+    setattr(request, "_private_async_tool_history", rebound)
+    return compressed_history
+
 
 def authoritative_context_turn_id(request: object) -> str:
     """Use only a successful API-memory restoration, never client turn metadata."""

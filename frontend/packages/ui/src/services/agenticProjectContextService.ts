@@ -9,9 +9,11 @@ import { projectRecordRevision } from '../utils/projectContextRevision';
 import { getApiEndpoint } from '../config/api';
 import {
   getActiveProjectFocus, getProject, getProjectContents,
-  type ProjectItemViewModel,
+  type ProjectItemViewModel, type ProjectViewModel,
 } from './projectService';
 import { readActiveProjectMarkdownDocuments } from './ruleDocumentService';
+import { WorkspaceQueryCache } from './workspaceQueryCache';
+import { PROJECTS_CHANGED_EVENT } from './projectBrowserEvents';
 
 export interface ProjectFocusCatalogEntry {
   kind: 'focus';
@@ -21,6 +23,44 @@ export interface ProjectFocusCatalogEntry {
   when_to_use: string;
   revision: string;
   display_path: string;
+}
+
+/** Transient routing metadata. File paths and instructions stay on the client. */
+export interface ProjectFocusCandidateMetadata {
+  item_id: string;
+  revision: string;
+  title: string;
+  description: string;
+  when_to_use: string;
+}
+
+export interface ProjectFocusRoutingCandidate {
+  project_id: string;
+  name: string;
+  summary: string;
+  /** Absent means uninspected, while [] means inspected with no Focus files. */
+  focuses?: ProjectFocusCandidateMetadata[];
+}
+
+const routingFocusMetadataCache = new WorkspaceQueryCache<ProjectFocusCandidateMetadata[]>({
+  ttlMs: 30_000, maxEntries: 40, maxBytes: 1024 * 1024,
+});
+if (typeof window !== 'undefined') {
+  window.addEventListener(PROJECTS_CHANGED_EVENT, () => routingFocusMetadataCache.invalidate());
+}
+
+async function focusRoutingMetadataForProject(project: ProjectViewModel, teamId?: string | null): Promise<ProjectFocusCandidateMetadata[]> {
+  const key = JSON.stringify([teamId ?? null, project.project_id, project.encrypted?.version ?? 0]);
+  return routingFocusMetadataCache.load(key, async () => {
+    const items = (await getProjectContents(project, { teamId })).items.filter(focusItem).slice(0, 20);
+    return Promise.all(items.map(async (item) => ({
+      item_id: item.project_item_id,
+      revision: await projectItemRevision(item),
+      title: String(item.metadata.focus_title).slice(0, 180),
+      description: String(item.metadata.focus_description).slice(0, 640),
+      when_to_use: String(item.metadata.focus_when_to_use).slice(0, 640),
+    })));
+  });
 }
 
 
@@ -54,6 +94,48 @@ function focusItem(item: ProjectItemViewModel): boolean {
 function specialistItemId(projectId: string, focusId?: string | null): string | undefined {
   const prefix = `project-focus:${projectId}:`;
   return focusId?.startsWith(prefix) ? focusId.slice(prefix.length) : focusId ?? undefined;
+}
+
+/** Get only encrypted-list metadata for Projects visible to this account. No file body is read. */
+export async function collectProjectFocusRoutingCandidates(
+  projects: readonly ProjectViewModel[], teamId?: string | null, text = '',
+): Promise<ProjectFocusRoutingCandidate[]> {
+  const owner = get(userProfile).user_id;
+  if (!get(authStore).isAuthenticated || !owner) return [];
+  const candidates = projects.slice(0, 40);
+  const visible = candidates.filter((project) => project.teamId == null || project.teamId === (teamId ?? null));
+  const normalized = ` ${text.replace(/\s+/g, ' ')} `;
+  const named = visible.filter((project) => project.name.trim() && new RegExp(
+    `(^|[^\\p{L}\\p{N}_])${project.name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}\\p{N}_])`, 'iu',
+  ).test(normalized));
+  const selectedId = named.length === 1 ? named[0].project_id : null;
+  const result: ProjectFocusRoutingCandidate[] = visible.map((project) => ({
+    project_id: project.project_id,
+    name: project.name.slice(0, 160),
+    summary: project.description.slice(0, 640),
+  }));
+  if (selectedId) {
+    const project = visible.find((value) => value.project_id === selectedId)!;
+    try {
+      result.find((value) => value.project_id === selectedId)!.focuses = await focusRoutingMetadataForProject(project, teamId);
+    } catch {
+      // An unavailable list stays unknown; it cannot suppress the Project.
+    }
+  }
+  return get(authStore).isAuthenticated && get(userProfile).user_id === owner
+    ? result.filter((candidate): candidate is ProjectFocusRoutingCandidate => !!candidate) : [];
+}
+
+/** Stage two: one server-selected Project's encrypted list, still before consent. */
+export async function collectSelectedProjectFocusRoutingCatalog(
+  projectId: string, teamId?: string | null,
+): Promise<ProjectFocusCandidateMetadata[]> {
+  const owner = get(userProfile).user_id;
+  if (!get(authStore).isAuthenticated || !owner) throw new Error('project_catalog_unavailable');
+  const project = await getProject(projectId, { teamId });
+  const focuses = await focusRoutingMetadataForProject(project, teamId);
+  if (!get(authStore).isAuthenticated || get(userProfile).user_id !== owner) throw new Error('project_catalog_stale');
+  return focuses;
 }
 
 export async function collectProjectFocusCatalog(input: { chatId: string; projectId?: string | null }): Promise<ProjectFocusCatalogEntry[]> {
@@ -114,6 +196,15 @@ export async function loadSelectedProjectFocusDocuments(
     if (current && await projectItemRevision(current) === entry.revision) retained.push(entry);
   }
   return get(authStore).isAuthenticated && get(userProfile).user_id === workspace.owner ? retained : [];
+}
+
+/** Resolve one discovery choice only after the base Project became active. */
+export async function loadAcceptedProjectSpecialistFocusDocument(
+  chatId: string, projectId: string, itemId: string, revision: string,
+): Promise<{ item_id: string; revision: string; document: string } | null> {
+  const selected = await loadSelectedProjectFocusDocuments(chatId, projectId, [itemId]);
+  const current = selected.find((entry) => entry.id === itemId && entry.revision === revision);
+  return current ? { item_id: current.id, revision: current.revision, document: current.markdown } : null;
 }
 
 export async function collectPrivateFocusForRequest(input: {

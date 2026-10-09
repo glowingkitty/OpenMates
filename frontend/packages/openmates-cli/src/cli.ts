@@ -3495,24 +3495,29 @@ async function handleProjects(
       else console.log(`Project focus activated for ${project.name} in chat ${chatId}.`);
       return;
     }
-    if (flags["write-policy"] === undefined && flags["auto-selection"] === undefined) {
+    if (flags["write-policy"] === undefined && flags["auto-selection"] === undefined && flags["focus-activation"] === undefined) {
       const settings = await client.getProjectSettings(project.projectId, context);
       if (flags.json === true) printJson({ project_id: project.projectId, settings });
-      else console.log(`Write policy: ${settings.write_mode ?? "selection required"}\nAutomatic focus selection: ${settings.auto_selection === false ? "off" : "on"}`);
+      else console.log(`Write policy: ${settings.write_mode ?? "selection required"}\nAutomatic focus selection: ${settings.auto_selection === false ? "off" : "on"}\nFocus activation: ${settings.focus_activation_policy ?? "delayed"}`);
       return;
     }
     const autoSelectionFlag = flags["auto-selection"];
     if (autoSelectionFlag !== undefined && autoSelectionFlag !== "on" && autoSelectionFlag !== "off") {
       throw new CliContractError("invalid_auto_selection", "--auto-selection must be on or off.");
     }
+    const focusActivationFlag = flags["focus-activation"];
+    if (focusActivationFlag !== undefined && focusActivationFlag !== "delayed" && focusActivationFlag !== "immediate" && focusActivationFlag !== "approval") {
+      throw new CliContractError("invalid_focus_activation", "--focus-activation must be delayed, immediate, or approval.");
+    }
     const writeMode = flags["write-policy"] === undefined ? undefined : await resolveProjectWriteMode(flags, "Choose the Project write policy:");
     const settings = await client.updateProjectSettings(project.projectId, {
       ...(writeMode === undefined ? {} : { write_mode: writeMode }),
       ...(autoSelectionFlag === undefined ? {} : { auto_selection: autoSelectionFlag === "on" }),
+      ...(focusActivationFlag === undefined ? {} : { focus_activation_policy: focusActivationFlag }),
       updated_at: nowSeconds(),
     }, context);
     if (flags.json === true) printJson({ project_id: project.projectId, settings });
-    else console.log(`Project settings saved. Write policy: ${settings.write_mode}; automatic focus selection: ${settings.auto_selection === false ? "off" : "on"}.`);
+    else console.log(`Project settings saved. Write policy: ${settings.write_mode}; automatic focus selection: ${settings.auto_selection === false ? "off" : "on"}; focus activation: ${settings.focus_activation_policy ?? "delayed"}.`);
     return;
   }
 
@@ -3714,6 +3719,9 @@ async function handleProjectFiles(
   if (flags["include-ignored"] === true && action !== "read") {
     throw new CliContractError("include_ignored_read_only", "--include-ignored is allowed only for one exact file read.");
   }
+  if (flags["include-content"] === true && action !== "search") {
+    throw new CliContractError("include_content_search_only", "--include-content is allowed only for filename search.");
+  }
   const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "project"), flags, context);
   const sources = await client.listProjectSources(project.projectId, context);
   const source = await selectProjectSource(sources, flags);
@@ -3728,7 +3736,7 @@ async function handleProjectFiles(
     operation = "search";
     const query = requiredStringFlag(rest[2], "search query");
     if (Buffer.byteLength(query, "utf8") > 256) throw new CliContractError("query_too_large", "Search query exceeds 256 bytes.");
-    argumentsValue = { query, target: "files", mode: "literal", path: "." };
+    argumentsValue = { query, target: "files", mode: "literal", path: ".", include_content: flags["include-content"] === true };
   } else {
     operation = "read_text";
     argumentsValue = { path: safeRelativeProjectPath(requiredStringFlag(rest[2], "relative path")) };
@@ -14989,7 +14997,7 @@ function printProjectsHelp(): void {
   openmates projects show <project> [--personal|--team <team>] [--json]
   openmates projects open <project> [--personal|--team <team>] [--json]
   openmates projects create <name> [--write-policy apply_and_show|always_ask] [--description <text>] [--icon <name>] [--color <token>] [--pinned] [--personal|--team <team>] [--json]
-  openmates projects settings <project> [--write-policy apply_and_show|always_ask] [--auto-selection on|off] [--personal|--team <team>] [--json]
+  openmates projects settings <project> [--write-policy apply_and_show|always_ask] [--auto-selection on|off] [--focus-activation delayed|immediate|approval] [--personal|--team <team>] [--json]
   openmates projects settings <project> focus activate|deactivate --chat <chat-id> [--personal|--team <team>] [--json]
   openmates projects settings <project> command-presets list|enable|disable [<preset-id>] [--source <source-id>|--path <folder>] [--json]
   openmates projects settings <project> command-resources list [--source <source-id>|--path <folder>] [--json]

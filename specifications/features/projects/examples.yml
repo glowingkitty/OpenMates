@@ -10,12 +10,12 @@ project_focus_routing:
   - id: inferred-project-countdown
     assertion_ids:
     - projects.focus.inferred-consent
-    given: Alice asks to update Garden notes without selecting a mention; Project auto-selection is enabled.
-    when: The preprocessor shortlists its permitted title/summary and the main processor requests that Project
-      Focus.
+    given: Alice asks, "suggestions how to improve the readme of my OpenMates project?" without selecting a mention; Project auto-selection is enabled.
+    when: The preprocessor proposes the permitted Project Focus before main-model setup.
     then: The usual cancellable Focus countdown appears. Instructions and Project-specific processing wait until
-      authoritative completion. Interruption loads neither; successful completion activates Work on Garden notes
-      with the existing encrypted file guards.
+      authoritative completion. Interruption loads neither; successful completion activates Work on OpenMates
+      with the existing encrypted file guards. A selected @Project or @focus mention uses that explicit choice
+      without another inferred-Focus search.
   - id: old-or-unauthorized-request
     assertion_ids: [projects.focus.inferred-consent]
     given: An access request belongs to an earlier user turn, another chat, an expired request, or a Project whose permission was revoked.
@@ -24,7 +24,7 @@ project_focus_routing:
 
 project_search:
   - id: scoped-read-search
-    assertion_ids: [projects.files.search-scoped, projects.files.search-consistent]
+    assertion_ids: [projects.files.search-scoped]
     given: The chat has Project access but no command grant.
     when: It finds **/package.json or searches refreshToken in src/auth with a declared query mode.
     then: Bounded ordinary-file results need no per-search approval and do not grant command or credential access.
@@ -38,6 +38,21 @@ project_search:
     given: rg is unavailable on the executor.
     when: A regex query is requested.
     then: A fallback preserves declared semantics and scope or returns a clear capability error; it does not reinterpret the regex as a literal query.
+  - id: find-readme-with-content
+    assertion_ids: [projects.files.search-consistent]
+    given: Work on OpenMates is active and the Project contains a small README.md, a large binary archive, and an ignored local note.
+    when: The assistant uses Search files to find README.md with small text content included.
+    then: It receives a bounded excerpt with README.md's relative path, source and content hash. The binary and ignored note contribute no content, and any omitted or shortened text is marked honestly.
+
+project_search_result_lifecycle:
+  - id: reopen-original-after-change
+    given: The assistant found a README.md excerpt and the user later edited that original file.
+    when: The user opens the saved result card.
+    then: The card opens the current original through authorized Project access, shows that its hash changed, and does not display a stale copied body as current content.
+  - id: connected-source-offline
+    given: A saved card refers to a connected repository file and the repository source is offline.
+    when: The user opens the card.
+    then: The original is unavailable until the source returns; the card does not contain a private file copy.
 
 project_file_access_policy:
   - id: ignored-local-notes-hidden-until-exactly-included
@@ -51,7 +66,7 @@ project_file_access_policy:
     when: The agent lists, searches, or reads the tracked file.
     then: It remains filtered like an untracked matching sibling and requires its own exact-file user grant for direct access; Git index state does not create a discovery or read-policy exception.
   - id: nested-plain-and-fallback-ignore-parity
-    assertion_ids: [projects.files.ignored-exact-inclusion, projects.files.search-consistent]
+    assertion_ids: [projects.files.ignored-exact-inclusion]
     given: Equivalent ignored fixtures exist in a Git root, a nested repository, and a connected plain folder, and one executor lacks rg.
     when: Native and fallback list, search, and exact-read paths evaluate them.
     then: They produce the same filtered set and honor only a current exact-file client grant; losing rg or crossing a nested root cannot expose an ignored name or content.
@@ -433,6 +448,21 @@ focus_auto_selection:
   when: A later CLI/chat request discusses SocialHub without mentioning it, then Alice explicitly selects @SocialHub.
   then: No automatic proposal is made while disabled. The setting is visible in CLI settings and the explicit
     mention activates its permitted Project Focus.
+- id: three-project-modes
+  assertion_ids: [projects.focus.auto-selection-setting]
+  given: Alice owns Garden notes and sees the Project's Focus selection setting in web and CLI.
+  when: She leaves the default, then tries immediate and approval modes on later requests.
+  then: The default shows a cancellable countdown, immediate mode activates the eligible Focus directly, and approval mode waits for Alice's explicit decision. A legacy disabled value stays disabled until she chooses a mode.
+
+project_custom_focus:
+- id: custom-focus-before-consent
+  given: Garden notes has a custom Review drafts Focus with a short description and a private instruction document and Project Memory.
+  when: Alice asks to review a draft without naming a Focus.
+  then: Routing may see the Focus name and short description, while its instructions and Project Memory stay hidden until activation; afterward the assistant selects relevant skills and context using the current Project scope.
+- id: no-custom-focus-call
+  given: Garden notes has a Project Memory but no custom Focus.
+  when: Alice asks about the Project.
+  then: No custom-Focus selection call runs merely because the Memory exists.
 
 project_memories:
 - id: active-project-memory

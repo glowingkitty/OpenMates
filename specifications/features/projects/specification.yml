@@ -126,7 +126,11 @@ assertions:
     must: Authorized Project filename and content search use dedicated bounded tools without per-search approval. Inputs express path, filename glob and literal or regex query; deterministic execution constructs controlled filesystem operations or rg arguments. Search cannot execute shell strings, preprocessors or user-controlled tool configuration, escape roots, follow disallowed links or broaden credential access. Remote search runs at the source and hosted search uses an authorized client, without server plaintext filesystem search or bulk remote repository upload.
   - id: projects.files.search-consistent
     type: behavior
-    must: Filename and content search return bounded relative paths, line numbers and snippets with honest truncation/omission status. Literal/regex, ignore and protected-path behavior is consistent across supported search implementations; a missing rg binary cannot silently change query semantics or broaden access. Ordinary source and configuration are distinguishable from credential restrictions, and search permission never implies terminal execution or file-write permission.
+    must: Filename and content search return bounded relative paths, line numbers and snippets with honest truncation/omission status. A single Search files request may ask to include bounded small-text content for matching authorized files, returning source identity and content hash alongside each path; oversized, binary, ignored, and protected files are not silently included. Literal/regex, ignore and protected-path behavior is consistent across supported search implementations; a missing rg binary cannot silently change query semantics or broaden access. Ordinary source and configuration are distinguishable from credential restrictions, and search permission never implies terminal execution or file-write permission.
+  - id: projects.files.search-result-lifecycle
+    type: privacy
+    must: Text returned for inference by Search files remains transient. Durable result cards store only a reference to the original Project file, its source and path, and the observed content hash, never a copied file body. Opening a card reopens the current original through existing authorized cloud embed access or, for a connected source, only while that source is available online. If the current content hash differs from the observed hash, the user sees a change notice rather than an unchanged-result claim. Current access and private-path checks apply again when opening.
+    depends_on: [examples.project_search_result_lifecycle]
   - id: projects.files.ignored-exact-inclusion
     type: security
     must: Git-ignore patterns are a discovery and direct-file-access filter, not a secrecy boundary. Matching files are absent from Project list and search results and cannot be directly read, previewed, imported, or edited until the client obtains explicit user confirmation for that exact normalized source-relative file. The resulting signed ephemeral grant is bound to Project, source, chat, request, path, and expiry; it accepts files only, never directories or globs, cannot be supplied or persisted by the model or Project files, and never overrides a private-path denial. Pattern matching applies consistently regardless of Git index state and across Git roots, nested repositories, hosted or plain folders, native rg, and fallback traversal.
@@ -202,7 +206,9 @@ assertions:
   - id: projects.focus.inferred-consent
     type: security
     must: 'An authorized client may supply bounded Project titles and summaries as transient routing metadata.
-      The preprocessor shortlists eligible Project Focuses and main processing may propose one. Use the standard
+      Before main-model setup, the preprocessor may shortlist eligible Project Focuses and propose one through the
+      normal Focus activation path. A structured @Project or @focus selection bypasses inferred Focus discovery.
+      Use the standard
       live cancellable Focus countdown: only authoritative completion without rejection activates the Project
       and permits loading its full instructions and Project-specific context or running Project-specific selection.
       Rejection, expiry, a changed user turn, another chat, or permission loss cannot activate or resume a stale
@@ -270,12 +276,22 @@ assertions:
 
   - id: projects.focus.auto-selection-setting
     type: behavior
-    must: Project auto-selection defaults to enabled and is configurable per Project through web and CLI settings.
-      Disabled Projects cannot be automatically shortlisted or activated; a current structured Project mention
-      remains available under existing access checks. Existing Projects receive the same default without weakening
-      client encryption.
+    must: Each Project offers three auto-selection choices through web and CLI settings. The default proposes its
+      Focus through the normal cancellable countdown; immediate activation may be selected explicitly; approval
+      mode waits for an explicit user decision. A previously stored auto_selection:false value remains disabled for
+      compatibility until the owner chooses a new mode. Disabled Projects cannot be automatically shortlisted or
+      activated; a current structured Project mention remains available under existing access checks. Existing
+      Projects receive the default without weakening client encryption.
     depends_on:
     - examples.focus_auto_selection
+  - id: projects.focus.custom-catalog-privacy
+    type: privacy
+    must: An eligible Project's optional custom Focus names and short descriptions may appear in transient
+      pre-consent routing metadata. Full Focus instructions and Project Memories stay hidden until authoritative
+      activation. If no custom Focus is available, custom-Focus selection makes no model call; the presence of
+      Project Memories alone does not trigger it. Once activation succeeds, selection reuses the relevant app
+      shortlist and chooses authorized skills and other required context within the active Project scope.
+    depends_on: [examples.project_custom_focus]
   - id: projects.memories.active-access
     type: privacy
     must: Project Memories provide relevant facts, preferences and reusable guidance automatically only within current
@@ -357,4 +373,6 @@ examples:
   - project_uploads
   - project_surface_parity
   - focus_auto_selection
+  - project_custom_focus
+  - project_search_result_lifecycle
   - project_memories

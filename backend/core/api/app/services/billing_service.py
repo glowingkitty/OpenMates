@@ -359,7 +359,13 @@ class BillingService:
 
         if not _settlement_locked:
             billing_subject = user_id_hash
+            lock_started_at = time.monotonic()
             async with self.settlement_lock.hold(billing_subject) as lease:
+                logger.info(
+                    "Billing settlement lock acquired: charge_ref=%s wait_ms=%.1f",
+                    hashlib.sha256(idempotency_key.encode()).hexdigest()[:12],
+                    (time.monotonic() - lock_started_at) * 1000,
+                )
                 result = await self.charge_user_credits(
                     user_id=user_id,
                     credits_to_deduct=credits_to_deduct,
@@ -384,6 +390,8 @@ class BillingService:
             return result
 
         from backend.core.api.app.utils.server_mode import is_payment_enabled
+        settlement_started_at = time.monotonic()
+        charge_ref = hashlib.sha256(idempotency_key.encode()).hexdigest()[:12]
         payment_enabled = is_payment_enabled()
         expected_encrypted_balance: str | None = None
         requested_credits = credits_to_deduct
@@ -497,6 +505,13 @@ class BillingService:
                         "Credits will be deducted in cache; Directus balance update and usage entry will be skipped."
                     )
 
+            profile_finished_at = time.monotonic()
+            logger.info(
+                "Billing profile ready: charge_ref=%s profile_ms=%.1f projection_hit=%s",
+                charge_ref, (profile_finished_at - settlement_started_at) * 1000,
+                projection is not None if payment_enabled else None,
+            )
+
             # Ensure credits are treated as integers, matching preprocessor logic
             current_credits = user.get("credits", 0)
             if not isinstance(current_credits, int):
@@ -517,6 +532,40 @@ class BillingService:
                 # This prevents multi-skill requests (which start concurrently) from failing
                 # mid-flight just because the user is a few credits short.
                 if current_credits <= OVERDRAFT_LIMIT:
+                    # A timed-out caller may retry after its first charge took
+                    # the wallet exactly to the floor. Check the durable charge
+                    # identity before refusing a new debit. This read is only
+                    # needed at the floor; normal charges keep the cache-first
+                    # path and the transaction's idempotency check.
+                    existing_charges = await self.directus_service.get_items(
+                        "billing_charge_identities",
+                        params={
+                            "filter[charge_id][_eq]": idempotency_key,
+                            "fields": "charge_id,hashed_user_id,app_id,skill_id,requested_credits,charged_credits,usage_id,state",
+                            "limit": 1,
+                        },
+                        no_cache=True,
+                        admin_required=True,
+                    )
+                    if isinstance(existing_charges, list) and existing_charges:
+                        existing = existing_charges[0]
+                        if (
+                            existing.get("hashed_user_id") != user_id_hash
+                            or existing.get("app_id") != app_id.strip()
+                            or existing.get("skill_id") != skill_id.strip()
+                            or existing.get("requested_credits") != requested_credits
+                        ):
+                            raise HTTPException(status_code=409, detail="charge_identity_mismatch")
+                        if existing.get("state") == "committed":
+                            logger.info("Billing floor replayed committed charge: charge_ref=%s", charge_ref)
+                            return {
+                                "charge_id": idempotency_key,
+                                "charged_credits": existing["charged_credits"],
+                                "requested_credits": requested_credits,
+                                "usage_id": existing.get("usage_id"),
+                                "state": "committed",
+                                "idempotent": True,
+                            }
                     # Hard stop: user is already at or beyond the overdraft limit.
                     logger.warning(
                         f"User {user_id} has exceeded overdraft limit "
@@ -629,6 +678,7 @@ class BillingService:
                     key_id=vault_key_id,
                 )
                 encrypted_new_credits = encrypted_new_credits_tuple[0]
+                commit_started_at = time.monotonic()
                 charge_result = await SubChatOrchestrationService(self.directus_service).execute(
                     "commit_personal_charge",
                     {
@@ -648,6 +698,13 @@ class BillingService:
                     },
                 )
                 durable_charge_result = charge_result
+                logger.info(
+                    "Billing durable charge completed: charge_ref=%s preparation_ms=%.1f commit_ms=%.1f idempotent=%s",
+                    charge_ref,
+                    (commit_started_at - profile_finished_at) * 1000,
+                    (time.monotonic() - commit_started_at) * 1000,
+                    bool(charge_result.get("idempotent")),
+                )
                 if charge_result.get("idempotent"):
                     committed_balance = await self.encryption_service.decrypt_with_user_key(
                         charge_result["encrypted_balance_after"],
@@ -660,10 +717,15 @@ class BillingService:
                         encrypted_balance=charge_result["encrypted_balance_after"],
                         vault_key_id=vault_key_id,
                     )
+                    logger.info(
+                        "Billing idempotent projection completed: charge_ref=%s total_ms=%.1f",
+                        charge_ref, (time.monotonic() - settlement_started_at) * 1000,
+                    )
                     return charge_result
             else:
                 logger.debug(f"Payment disabled (self-hosted mode). Skipping Directus credit balance update for user {user_id}.")
 
+            postcommit_started_at = time.monotonic()
             # Cache, stats, notifications, and top-up happen only after durable commit.
             if self.server_stats_service:
                 await self.server_stats_service.increment_stat("credits_used", credits_to_deduct)
@@ -839,6 +901,12 @@ class BillingService:
                     llm_usage_breakdown=charged_usage_details.get("llm_usage_breakdown") if charged_usage_details else None,
                 )
 
+            logger.info(
+                "Billing projections completed: charge_ref=%s postcommit_ms=%.1f total_ms=%.1f",
+                charge_ref,
+                (time.monotonic() - postcommit_started_at) * 1000,
+                (time.monotonic() - settlement_started_at) * 1000,
+            )
             return charge_result
 
         except SubChatOrchestrationProtocolError as e:

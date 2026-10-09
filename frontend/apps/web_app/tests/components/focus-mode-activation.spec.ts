@@ -42,6 +42,17 @@ test.describe('Focus activation component history', () => {
         await page.waitForTimeout(4_100);
         await expect(page.getByTestId('focus-mode-bar')).toHaveCount(0);
     });
+    // contract-test: direct surface=gui.web assertions=projects.focus.inferred-consent
+    test('Project approval waits for a Grant access click', async ({ page }) => {
+        await page.goto('/dev/preview/embeds/focus_mode/FocusModeActivationEmbed?chrome=0&variant=projectApproval');
+        await waitForComponentPreview(page);
+        await expect(page.getByTestId('focus-status-value')).toHaveText('Waiting for your permission');
+        await expect(page.getByTestId('focus-progress-bar')).toHaveCount(0);
+        await page.waitForTimeout(4_100);
+        await expect(page.getByTestId('focus-status-value')).toHaveText('Waiting for your permission');
+        await page.getByTestId('project-focus-grant-access').click();
+        await expect(page.getByTestId('focus-status-value')).toHaveText('Focus activated');
+    });
     // contract-test: direct surface=gui.web assertions=projects.focus.inferred-consent,focus-modes.history-side-effects
     test('historical Project request does not expose a grant action', async ({ page }) => {
         const query = new URLSearchParams({ chrome: '0', props: JSON.stringify({

@@ -8730,6 +8730,9 @@
         "source_unavailable": {
           "text": "Die verbundene Quelle ist nicht verfügbar. Öffne sie, sobald sie online ist."
         },
+        "changed_since_answer": {
+          "text": "Diese Datei wurde seit der Antwort geändert. Die aktuelle Version wird angezeigt."
+        },
         "preview_unavailable": {
           "text": "Für diese Datei ist keine Vorschau verfügbar."
         },

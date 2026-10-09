@@ -10,6 +10,7 @@ export interface ProjectSearchRequest {
   path: string;
   glob?: string;
   maxResults: number;
+  includeContent: boolean;
 }
 
 export class ProjectSearchProtocolError extends Error {
@@ -26,6 +27,9 @@ export const PROJECT_SEARCH_DEFAULT_MAX_RESULTS = 20;
 export const PROJECT_SEARCH_MAX_RESULTS = 100;
 export const PROJECT_SEARCH_MAX_QUERY_CHARS = 2_000;
 export const PROJECT_SEARCH_MAX_GLOB_CHARS = 512;
+export const PROJECT_SEARCH_CONTENT_MAX_FILES = 8;
+export const PROJECT_SEARCH_CONTENT_MAX_FILE_BYTES = 24 * 1024;
+export const PROJECT_SEARCH_CONTENT_MAX_TOTAL_BYTES = 96 * 1024;
 
 /** Negative rg globs that prevent the search process from opening credentials. */
 export const PROJECT_CREDENTIAL_GLOBS = [
@@ -90,8 +94,10 @@ export function normalizeProjectSearchRequest(args: Record<string, unknown>): Pr
   const path = args.path ?? ".";
   const glob = args.glob;
   const maxResults = args.max_results ?? PROJECT_SEARCH_DEFAULT_MAX_RESULTS;
+  const includeContent = args.include_content ?? false;
 
   if (target !== "files" && target !== "content") fail("invalid_search_target");
+  if (typeof includeContent !== "boolean" || (includeContent && target !== "files")) fail("invalid_search_content_option");
   if (mode !== "literal" && mode !== "regex") fail("invalid_search_mode");
   if (
     typeof query !== "string"
@@ -129,6 +135,7 @@ export function normalizeProjectSearchRequest(args: Record<string, unknown>): Pr
     path: normalizedPath,
     ...(typeof glob === "string" ? { glob } : {}),
     maxResults,
+    includeContent,
   };
 }
 

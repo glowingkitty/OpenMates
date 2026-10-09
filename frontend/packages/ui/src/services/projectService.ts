@@ -122,6 +122,7 @@ export interface ProjectSourceRecord extends ProjectSourceCreatePayload {
 
 export interface ProjectSettingsRecord {
   auto_selection?: boolean;
+  focus_activation_policy?: ProjectFocusActivationPolicy;
   write_mode?: ProjectWriteMode | null;
   selection_required?: boolean;
   default_focus_id_hash?: string | null;
@@ -131,11 +132,14 @@ export interface ProjectSettingsRecord {
 
 export interface ProjectSettingsViewModel {
   autoSelection: boolean;
+  focusActivationPolicy: ProjectFocusActivationPolicy;
   writeMode: ProjectWriteMode | null;
   selectionRequired: boolean;
   settings: Record<string, unknown>;
   encrypted: ProjectSettingsRecord;
 }
+
+export type ProjectFocusActivationPolicy = "delayed" | "immediate" | "approval";
 
 export interface ProjectSourceViewModel {
   source_id: string;
@@ -593,6 +597,9 @@ export async function requestProjectRemoteAccess<T>(
   };
   if (source.status !== "connected") {
     throw new ProjectRemoteAccessError("source_offline", "This Project source is offline");
+  }
+  if (operation === "search" && args.include_content === true && !source.capabilities.includes("read")) {
+    throw new ProjectRemoteAccessError("source_capability_denied", "This Project source does not allow file reads");
   }
   if (!requestContext.ownerId)
     throw new ProjectRemoteAccessError("requester_identity_unavailable", "Authenticated user identity is unavailable");
@@ -1111,16 +1118,18 @@ export async function updateProjectSettings(
   writeMode: ProjectWriteMode | null,
   context: ProjectApiContext = {},
   autoSelection?: boolean,
+  focusActivationPolicy?: ProjectFocusActivationPolicy,
 ): Promise<ProjectSettingsViewModel> {
   const data = await requestJson<{ settings: ProjectSettingsRecord }>(
     withProjectRemoteQuery(`/v1/projects/${project.project_id}/settings`, {
-      team_id: context.teamId,
+      team_id: context.teamId ?? project.teamId,
     }),
     {
       method: "PATCH",
       body: JSON.stringify({
         ...(writeMode ? { write_mode: writeMode } : {}),
         ...(autoSelection === undefined ? {} : { auto_selection: autoSelection }),
+        ...(focusActivationPolicy === undefined ? {} : { focus_activation_policy: focusActivationPolicy }),
         updated_at: nowSeconds(),
       }),
     },
@@ -1129,7 +1138,7 @@ export async function updateProjectSettings(
 }
 
 export async function confirmProjectFocusCountdown(
-  projectId: string, input: { chat_id: string; activation_request_id: string }, context: ProjectApiContext = {},
+  projectId: string, input: { chat_id: string; activation_request_id: string; approved?: boolean }, context: ProjectApiContext = {},
 ): Promise<void> {
   await requestJson(withProjectRemoteQuery(`/v1/projects/${projectId}/focus/countdown`, { team_id: context.teamId }), {
     method: "POST", body: JSON.stringify(input),
@@ -1300,6 +1309,7 @@ async function decryptProjectSettings(settings: ProjectSettingsRecord, projectKe
   const settingsText = await decryptOptional(settings.encrypted_settings, projectKey);
   return {
     autoSelection: settings.auto_selection !== false,
+    focusActivationPolicy: settings.focus_activation_policy === "immediate" || settings.focus_activation_policy === "approval" ? settings.focus_activation_policy : "delayed",
     writeMode: normalizeProjectWriteMode(settings.write_mode),
     selectionRequired: settings.selection_required === true || normalizeProjectWriteMode(settings.write_mode) === null,
     settings: parseProjectMetadata(settingsText, "settings"),

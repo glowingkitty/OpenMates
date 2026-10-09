@@ -76,7 +76,7 @@ test('content search and legacy Project references retain distinct skill labels'
   await expect(page.getByTestId('embed-basic-infos-bar')).toContainText('Search Projects');
 });
 
-// contract-test: supporting surface=gui.web assertions=projects.files.no-server-decryption-authority,projects.files.connected-embed-previews
+// contract-test: supporting surface=gui.web assertions=projects.files.no-server-decryption-authority,projects.files.connected-embed-previews,projects.files.search-result-lifecycle
 test('fullscreen lists original file references without copied content', async ({ page }) => {
   await open(page, 'ProjectReferenceEmbedFullscreen');
   const fullscreen = page.getByTestId('project-reference-fullscreen');
@@ -87,10 +87,12 @@ test('fullscreen lists original file references without copied content', async (
   await expect(rows.first()).toContainText('L12');
   await expect(rows.nth(1)).toContainText('docs/architecture.md');
   await expect(fullscreen).not.toContainText('This preview is loaded from the connected source');
+  await expect(fullscreen).not.toContainText('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
   await rows.first().focus();
   await expect(rows.first()).toBeFocused();
   await rows.first().click();
   await expect(page.locator('.child-state[role="alert"]')).toBeVisible();
+  await expect(page.getByTestId('project-reference-changed')).toHaveCount(0);
   await page.locator('.child-state button').click();
   await expect(rows.first()).toBeVisible();
   await open(page, 'ProjectReferenceEmbedFullscreen', 'empty');

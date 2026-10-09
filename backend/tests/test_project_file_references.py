@@ -63,6 +63,26 @@ def test_content_search_uses_same_reference_embed_without_snippet() -> None:
     assert "PRIVATE_MATCH" not in json.dumps(preview)
 
 
+# contract-test: supporting surface=gui.web assertions=projects.files.search-consistent,projects.files.search-result-lifecycle
+def test_combined_search_keeps_only_valid_revision_and_location():
+    fingerprint = "a" * 64
+    preview = build_project_file_reference_preview(
+        context=context(), result_status="completed",
+        completed_results=[{"status": "completed", "source_id": "remote-source",
+                            "contents": [{"path": "README.md", "content": "PRIVATE_FULL_TEXT", "expected_base": fingerprint}],
+                            "matches": [{"path": "README.md", "expected_base": fingerprint,
+                                         "snippet": "PRIVATE_SNIPPET"},
+                                        {"path": "other.md", "expected_base": "invalid"}]}],
+    )
+    assert preview["results"] == [
+        {"project_id": "project", "project_name": "OpenMates", "source_id": "remote-source",
+         "path": "README.md", "expected_base": fingerprint},
+        {"project_id": "project", "project_name": "OpenMates", "source_id": "remote-source",
+         "path": "other.md"},
+    ]
+    assert "PRIVATE_" not in json.dumps(preview)
+
+
 # contract-test: supporting surface=gui.web assertions=projects.files.no-server-decryption-authority,projects.files.search-scoped
 @pytest.mark.asyncio
 @pytest.mark.parametrize("skill,target,expected_target", [
@@ -193,7 +213,8 @@ async def test_publication_rechecks_current_project_and_strips_unexpected_fields
                               chat_id="chat", message_id="message", user_id="owner", user_id_hash="owner-hash")
     preview = {"project_id": "other-project", "skill_id": "read", "query": "README.md",
                "results": [{"project_id": "project", "path": "README.md", "embed_id": "original",
-                            "content": "DO_NOT_COPY", "snippet": "DO_NOT_COPY"}]}
+                            "content": "DO_NOT_COPY", "snippet": "DO_NOT_COPY",
+                            "expected_base": "DO_NOT_COPY"}]}
     class Cache:
         async def get(self, _key):
             return "message"
@@ -206,10 +227,13 @@ async def test_publication_rechecks_current_project_and_strips_unexpected_fields
     assert await publish_project_file_reference_preview(**args) == "reference"
     assert calls[0]["results"] == [{"project_id": "project", "path": "README.md", "embed_id": "original"}]
     assert "DO_NOT_COPY" not in json.dumps(calls[0])
+    preview["results"][0]["expected_base"] = "b" * 64
+    assert await publish_project_file_reference_preview(**args) == "reference"
+    assert calls[1]["results"][0]["expected_base"] == "b" * 64
     preview.update(skill_id="search", search_target="content", query="needle")
     assert await publish_project_file_reference_preview(**args) == "reference"
-    assert calls[1]["request_metadata"] == {"query": "needle", "search_target": "content"}
-    assert "DO_NOT_COPY" not in json.dumps(calls[1])
+    assert calls[2]["request_metadata"] == {"query": "needle", "search_target": "content"}
+    assert "DO_NOT_COPY" not in json.dumps(calls[2])
 
 
 # contract-test: supporting surface=gui.web assertions=projects.focus.inferred-consent,projects.files.search-scoped

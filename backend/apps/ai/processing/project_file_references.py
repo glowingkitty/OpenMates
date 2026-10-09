@@ -9,6 +9,11 @@ from __future__ import annotations
 from typing import Any
 
 
+def _valid_revision_hash(value: Any) -> str | None:
+    """Only a full SHA-256 fingerprint may cross the durable boundary."""
+    return value if isinstance(value, str) and len(value) == 64 and all(c in "0123456789abcdef" for c in value) else None
+
+
 def build_project_file_reference_preview(
     *, context: dict[str, Any], completed_results: list[dict[str, Any]], result_status: str,
 ) -> dict[str, Any] | None:
@@ -69,6 +74,9 @@ def build_project_file_reference_preview(
                 reference["embed_id"] = embed_id
             if line:
                 reference["line"] = line
+            revision_hash = _valid_revision_hash(row.get("expected_base"))
+            if revision_hash:
+                reference["expected_base"] = revision_hash
             if request.get("team_id"):
                 reference["team_id"] = request["team_id"]
             references.append(reference)
@@ -97,11 +105,18 @@ async def publish_project_file_reference_preview(
             or not cache_service or not directus_service or not user_vault_key_id):
         return None
     # Reapply the field allowlist at publication: no model/client-supplied
-    # content, snippets, keys, revision hashes or nested arbitrary metadata.
+    # content, snippets, keys or nested arbitrary metadata. Revalidate the
+    # revision marker separately so caller-supplied text cannot be published.
     allowed = {"project_id", "project_name", "path", "source_id", "embed_id", "line", "team_id"}
-    results = [{key: value for key, value in row.items() if key in allowed}
-               for row in preview.get("results", [])[:100]
-               if isinstance(row, dict) and row.get("project_id") == focus["project_id"]]
+    results = []
+    for row in preview.get("results", [])[:100]:
+        if not isinstance(row, dict) or row.get("project_id") != focus["project_id"]:
+            continue
+        reference = {key: value for key, value in row.items() if key in allowed}
+        revision_hash = _valid_revision_hash(row.get("expected_base"))
+        if revision_hash:
+            reference["expected_base"] = revision_hash
+        results.append(reference)
     if not results or preview.get("skill_id") not in {"search", "read"}:
         return None
     # Dispatch-time fencing cannot cover time spent queued in Celery. Recheck

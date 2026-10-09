@@ -143,12 +143,39 @@ async def _validate_context_projects(payload, fields, directus, cache):
     from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationService
     service = ProjectWriteAuthorizationService(directus, cache)
     project_fields = ("project_focus_catalog", "project_focus_documents", "project_context_documents")
-    ids = {row.get("project_id") for values in fields.values() if isinstance(values, list)
+    ids = {row.get("project_id") for key, values in fields.items()
+           if key != "async_tool_history" and isinstance(values, list)
            for row in values if isinstance(row, dict) and row.get("project_id")}
+    private_completion = fields.get("async_tool_completion")
+    if private_completion is not None and (
+        not isinstance(private_completion, dict)
+        or not isinstance(private_completion.get("project_id"), str)
+        or not private_completion["project_id"]
+    ):
+        raise HTTPException(status_code=403, detail="Private tool result Project binding required")
+    if private_completion:
+        ids.add(private_completion["project_id"])
+    private_history = fields.get("async_tool_history")
+    if private_history is not None:
+        if (not isinstance(private_history, list)
+                or any(not isinstance(entry, dict)
+                       or not isinstance(entry.get("project_id"), str)
+                       or not entry["project_id"] for entry in private_history)):
+            raise HTTPException(status_code=403, detail="Private tool history Project binding required")
+        for entry in private_history:
+            ids.add(entry["project_id"])
     if not ids and not any(fields.get(key) for key in project_fields):
         return
     try:
         binding = await service.get_active_focus(user_id=payload.owner_id, chat_id=payload.current_chat_id)
+        if (isinstance(private_completion, dict) and private_completion.get("project_id")
+                and (not binding or binding.get("project_id") != private_completion["project_id"])):
+            raise ValueError("Private tool result Project focus changed")
+        if isinstance(private_history, list) and any(
+            isinstance(entry, dict) and entry.get("project_id") != (binding or {}).get("project_id")
+            for entry in private_history
+        ):
+            raise ValueError("Private tool history Project focus changed")
         if any(fields.get(key) for key in project_fields) and not binding:
             raise ValueError("Missing current Project")
         if binding:

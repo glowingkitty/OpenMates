@@ -11478,6 +11478,11 @@ projects.references.source_unavailable:
   en: Connected source is unavailable. Open it when the source is online.
   de: Die verbundene Quelle ist nicht verfügbar. Öffne sie, sobald sie online ist.
   verified_by_human: []
+projects.references.changed_since_answer:
+  context: Notice above an original Project file preview when its current text differs from the version used in the answer
+  en: This file changed since the answer. Showing the current version.
+  de: Diese Datei wurde seit der Antwort geändert. Die aktuelle Version wird angezeigt.
+  verified_by_human: []
 projects.references.preview_unavailable:
   context: The referenced file has no supported fullscreen preview
   en: A preview is unavailable for this file.

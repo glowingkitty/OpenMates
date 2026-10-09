@@ -28,6 +28,7 @@ import { activateProjectFocusAfterConsent } from "../../../../services/projectFo
 import { deactivateProjectFocus, getActiveProjectFocus } from "../../../../services/projectService";
 import { webSocketService } from "../../../../services/websocketService";
 import { pendingFocusActivationStore } from "../../../../stores/pendingFocusActivationStore";
+import { loadAcceptedProjectSpecialistFocusDocument } from "../../../../services/agenticProjectContextService";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -127,11 +128,27 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
             const chat = await chatDB.getChat(chatId);
             const activation = await activateProjectFocusAfterConsent({
               projectId, chatId, requestId: attrs.id || "", teamId: chat?.team_id,
+              approved: pendingFocusActivationStore.getPolicy(attrs.id || "") === "approval",
             });
             const { chatSyncService } = await import("../../../../services/chatSyncService");
             try {
               await chatSyncService.applyConfirmedFocusActivation(chatId, activation.focus_id, activation.project_name);
-              await webSocketService.sendMessage("project_focus_decision", { chat_id: chatId, request_id: attrs.id, accepted: true });
+              const selected = pendingFocusActivationStore.getSelectedSpecialist(attrs.id || "");
+              let specialistDocument: { focus_id: string; item_id: string; revision: string; document: string } | undefined;
+              if (selected?.focus_id === `project-focus:${projectId}:${selected.item_id}`) {
+                try {
+                  const document = await loadAcceptedProjectSpecialistFocusDocument(
+                    chatId, projectId, selected.item_id, selected.revision,
+                  );
+                  if (document) specialistDocument = { focus_id: selected.focus_id, ...document };
+                } catch {
+                  // A stale or invalid optional specialist must not block accepted Project access.
+                }
+              }
+              await webSocketService.sendMessage("project_focus_decision", {
+                chat_id: chatId, request_id: attrs.id, accepted: true,
+                ...(specialistDocument ? { specialist_document: specialistDocument } : {}),
+              });
             } catch (error) {
               await deactivateProjectFocus(chatId).catch(() => undefined);
               throw error;

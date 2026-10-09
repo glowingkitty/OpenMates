@@ -70,6 +70,8 @@ def test_search_tools_have_distinct_targets_and_keep_read_write_tools() -> None:
     for name in ("project_search_files", "project_search_text"):
         assert "target" not in tools[name]["parameters"]["properties"]
         assert tools[name]["parameters"]["required"] == ["query"]
+    assert tools["project_search_files"]["parameters"]["properties"]["include_content"]["type"] == "boolean"
+    assert "include_content" not in tools["project_search_text"]["parameters"]["properties"]
     assert {"project_list_files", "project_read_text", "project_create_file",
             "project_update_file"} <= set(tools)
 
@@ -608,6 +610,8 @@ def test_search_protocol_validates_target_mode_and_glob() -> None:
         {"query": "x", "target": "both"},
         {"query": "x", "mode": "fuzzy"},
         {"query": "x", "glob": "../*.py"},
+        {"query": "x", "target": "content", "include_content": True},
+        {"query": "x", "target": "files", "include_content": "true"},
     ):
         with pytest.raises(ProjectFileOperationError, match="invalid_search_arguments"):
             ProjectFileOperationService._validate_arguments("search", arguments)

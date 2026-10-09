@@ -56,6 +56,16 @@ const source = {
 describe("Project browser remote-access transport", () => {
   beforeEach(() => { vi.restoreAllMocks(); vi.clearAllMocks(); });
 
+  // contract-test: supporting surface=gui.web assertions=projects.files.search-scoped,projects.files.search-consistent
+  it("requires read capability before a combined filename search", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    await expect(requestProjectRemoteAccess(
+      project, { ...source, capabilities: ["search"] }, { ownerId: "user-1" },
+      "search", { query: "README", target: "files", include_content: true },
+    )).rejects.toMatchObject({ code: "source_capability_denied" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   // contract-test: direct surface=gui.web assertions=projects.files.write-policy-setup,projects.focus.default-owned,projects.files.no-server-decryption-authority
   it("initializes legacy Project settings with the apply-and-show default and encrypted focus", async () => {
     const calls: Array<{ url: string; method: string; body: Record<string, unknown> }> = [];
