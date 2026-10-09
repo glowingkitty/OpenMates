@@ -67,6 +67,8 @@ const {
   buildAppSettingsMemoryRequestSystemMessage,
   buildAppSettingsMemoryResponseSystemMessage,
 	buildInferenceHistoryMessage,
+  buildSavedChatMessageHistory,
+  canonicalSavedChatMessageId,
   buildTaskEventSystemMessage,
   buildTaskUpdateJobPersistPayload,
   messageExplicitlyRequestsTasksAppSkill,
@@ -3139,6 +3141,39 @@ describe("CLI saved-chat recovery preflight", () => {
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
+  });
+});
+
+describe("CLI saved chat history identities", () => {
+  // contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted
+  it("replays canonical client IDs while retaining storage IDs for saved-message lookup", () => {
+    const messages = [
+      { id: "stored-user", clientMessageId: "client-user", chatId: "chat-1", role: "user",
+        content: "Earlier private request", senderName: "User", category: "news", modelName: null,
+        createdAt: 100, embedIds: [], piiMappings: [{ placeholder: "[EMAIL_1]", original: "private@example.test" }] },
+      { id: "stored-assistant", clientMessageId: "client-assistant", chatId: "chat-1", role: "assistant",
+        content: "Earlier answer", senderName: "Assistant", category: "news", modelName: "model",
+        createdAt: 101, embedIds: [] },
+      { id: "legacy-stored", chatId: "chat-1", role: "system", content: "Earlier context",
+        senderName: null, category: null, modelName: null, createdAt: 102, embedIds: [] },
+    ];
+    const history = buildSavedChatMessageHistory(messages, "chat-1");
+    assert.deepEqual(history.map((message) => message.message_id), [
+      "client-user", "client-assistant", "legacy-stored",
+    ]);
+    assert.deepEqual(messages.map(canonicalSavedChatMessageId), [
+      "client-user", "client-assistant", "legacy-stored",
+    ]);
+    assert.deepEqual(history.map((message) => buildInferenceHistoryMessage(message, "chat-1")), [
+      { message_id: "client-user", chat_id: "chat-1", role: "user", sender_name: "User",
+        content: "Earlier private request", created_at: 100, category: undefined },
+      { message_id: "client-assistant", chat_id: "chat-1", role: "assistant", sender_name: "Assistant",
+        content: "Earlier answer", created_at: 101, category: "news" },
+      { message_id: "legacy-stored", chat_id: "chat-1", role: "system", sender_name: "system",
+        content: "Earlier context", created_at: 102, category: undefined },
+    ]);
+    assert.equal(JSON.stringify(history).includes("private@example.test"), false);
+    assert.equal(messages[0].id, "stored-user");
   });
 });
 

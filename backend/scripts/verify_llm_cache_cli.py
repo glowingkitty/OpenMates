@@ -122,6 +122,17 @@ def executed_tool_names(rows: list[dict]) -> list[str]:
     return sorted({f'{row["app_id"]}.{row["skill_id"]}' for row in rows})
 
 
+def held_credits_delta(overview: dict, baseline: int) -> int:
+    """Reject holds added by this run while preserving pre-existing account holds."""
+    actual = overview.get("held_credits")
+    if type(actual) is not int or actual < 0 or type(baseline) is not int or baseline < 0:
+        raise RuntimeError("Billing overview or retained hold baseline is invalid")
+    delta = actual - baseline
+    if delta != 0:
+        raise RuntimeError("Completed requests changed held credits from retained baseline")
+    return delta
+
+
 def ai_events_news_tool_evidence(messages: list[dict], tool_rows: list[dict],
                                  completed_turns: int) -> list[dict]:
     """Bind paid skills to the exact saved user requests that caused them."""
@@ -416,6 +427,9 @@ def main() -> None:
                 raise RuntimeError("Retained proof belongs to another chat")
             if prior.get("scenario", "knowledge") != args.scenario:
                 raise RuntimeError("Retained proof belongs to another scenario")
+            baseline_held_credits = prior.get("baseline_held_credits", 0)
+            if type(baseline_held_credits) is not int or baseline_held_credits < 0:
+                raise RuntimeError("Retained hold baseline is invalid")
             chat = args.resume_chat
             saved = run_cli(["chats", "show", chat], model + "-saved-first", True)
             answers = [message for message in saved.get("messages", [])
@@ -431,6 +445,10 @@ def main() -> None:
                 raise RuntimeError("Saved first answer did not use the requested model")
             after_first = before
         else:
+            baseline_overview = run_cli(["settings", "billing", "overview"], model + "-holds-before")
+            baseline_held_credits = baseline_overview.get("held_credits")
+            if type(baseline_held_credits) is not int or baseline_held_credits < 0:
+                raise RuntimeError("Billing overview hold baseline is invalid")
             first = run_cli(["chats", "new", f"@{model} {first_prompt}", "--project", project, "--response-timeout-seconds", "180"], model + "-first", True)
             if first.get("status") != "completed" or not first.get("assistant"):
                 raise RuntimeError("First turn did not produce a completed answer")
@@ -473,6 +491,7 @@ def main() -> None:
             if initial_balance - current_balance != sum(int(row["credits"]) for row in all_rows) + project_credits:
                 raise RuntimeError("Checkpoint does not reconcile the full paid conversation")
             proof = {"chat_id": chat, "scenario": args.scenario, "paid_turns": completed_turns,
+                     "baseline_held_credits": baseline_held_credits,
                      "charges": [{"id": row["id"], "credits": int(row["credits"])} for row in paid_rows],
                      "tool_charges": [{"id": row["id"], "credits": int(row["credits"])}
                                       for row in tool_rows],
@@ -538,8 +557,7 @@ def main() -> None:
                                 expected_tariffs=expected_tariffs,
                                 requested_model_id=requested_model_id)
         overview = run_cli(["settings", "billing", "overview"], model + "-holds")
-        if overview.get("held_credits", 0) != 0:
-            raise RuntimeError("Completed requests left held credits")
+        new_held_credits = held_credits_delta(overview, baseline_held_credits)
         prior_count = prior.get("paid_turns", 1) if prior else 0
         measured = {"model": model, "scenario": args.scenario, "chat_id": chat,
                     "first_credits": turns[0]["actual_credits"],
@@ -560,7 +578,9 @@ def main() -> None:
                     "followup_wallet_debit": sum(wallet_debits[1:]),
                     "turn_wallet_debits": wallet_debits,
                     "full_wallet_debit": (prior["wallet_before"] if prior else before) - after,
-                    "usage_entries": len(all_rows), "held_credits": overview.get("held_credits"),
+                    "usage_entries": len(all_rows), "held_credits": overview["held_credits"],
+                    "baseline_held_credits": baseline_held_credits,
+                    "new_held_credits": new_held_credits,
                     "first_model": first.get("modelName"), "followup_models": followup_models,
                     "resumed_paid_turns": prior_count, "reconciliation": reconciled,
                     "turns": turns,

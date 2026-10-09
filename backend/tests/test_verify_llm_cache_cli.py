@@ -9,7 +9,7 @@ import pytest
 
 from backend.scripts.verify_llm_cache_cli import (
     AI_EVENTS_NEWS_MODELS, MODELS, REQUESTED_MODEL_IDS, ai_events_news_tool_evidence,
-    executed_tool_names, full_input_flat_estimate,
+    executed_tool_names, full_input_flat_estimate, held_credits_delta,
     parse_cli_json, reconcile_new_usage, scenario_prompts, split_chat_rows, summarize_turns,
 )
 from backend.scripts import verify_llm_cache_cli
@@ -298,6 +298,20 @@ def test_ai_events_news_rejects_unlinked_or_wrong_turn_tool_charges():
 
 
 # contract-test: supporting surface=cli assertions=billing.usage.receipt-token-breakdown
+def test_hold_check_preserves_baseline_and_rejects_new_or_invalid_holds():
+    assert held_credits_delta({"held_credits": 1626}, 1626) == 0
+    assert held_credits_delta({"held_credits": 0}, 0) == 0
+    with pytest.raises(RuntimeError, match="changed held credits"):
+        held_credits_delta({"held_credits": 1627}, 1626)
+    with pytest.raises(RuntimeError, match="changed held credits"):
+        held_credits_delta({"held_credits": 1625}, 1626)
+    for overview, baseline in [({}, 0), ({"held_credits": "1626"}, 1626),
+                               ({"held_credits": 0}, -1)]:
+        with pytest.raises(RuntimeError, match="invalid"):
+            held_credits_delta(overview, baseline)
+
+
+# contract-test: supporting surface=cli assertions=billing.usage.receipt-token-breakdown
 def test_five_turn_receipts_reject_nonreconciling_cache_categories():
     rows = [{**_chat(f"turn-{index}", 7), "created_at": f"2026-10-08T00:00:0{index}Z",
              "llm_usage_breakdown": _receipt()} for index in range(5)]
@@ -317,7 +331,7 @@ def test_verify_only_finishes_retained_chat_without_paid_cli_calls(tmp_path, mon
     proof_path.write_text(json.dumps({
         "chat_id": "chat", "paid_turns": 1, "charges": [{"id": "first", "credits": 7}],
         "project_recommendation": {"credits": 1}, "wallet_before": 775,
-        "wallet_after": 767, "turn_wallet_debits": [8],
+        "wallet_after": 767, "turn_wallet_debits": [8], "baseline_held_credits": 1626,
     }))
     rows = []
     for index, identifier in enumerate(("first", "second")):
@@ -343,7 +357,7 @@ def test_verify_only_finishes_retained_chat_without_paid_cli_calls(tmp_path, mon
             elif args[:3] == ["settings", "billing", "usage"]:
                 result = {"usage": rows + [search, project]}
             elif args[:3] == ["settings", "billing", "overview"]:
-                result = {"held_credits": 0}
+                result = {"held_credits": 1626}
             elif args == ["whoami"]:
                 result = {"credits": 750}
             else:
@@ -367,3 +381,5 @@ def test_verify_only_finishes_retained_chat_without_paid_cli_calls(tmp_path, mon
     assert report["tool_credits"] == 10
     assert report["project_recommendation_credits"] == 1
     assert report["wallet_before"] - report["wallet_after"] == 25
+    assert (report["held_credits"], report["baseline_held_credits"],
+            report["new_held_credits"]) == (1626, 1626, 0)

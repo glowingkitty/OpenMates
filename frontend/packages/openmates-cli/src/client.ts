@@ -2566,6 +2566,22 @@ export interface DecryptedMessage {
   piiMappings?: Array<{ placeholder: string; original: string; type?: string }>;
 }
 
+export function canonicalSavedChatMessageId(message: Pick<DecryptedMessage, "id" | "clientMessageId">): string {
+  return message.clientMessageId || message.id;
+}
+
+export function buildSavedChatMessageHistory(messages: DecryptedMessage[], chatId: string): BenchmarkHistoryMessage[] {
+  return messages.map((message) => ({
+    message_id: canonicalSavedChatMessageId(message),
+    chat_id: chatId,
+    role: message.role as BenchmarkHistoryMessage["role"],
+    sender_name: message.senderName ?? message.role,
+    content: message.content,
+    created_at: message.createdAt,
+    category: message.category,
+  }));
+}
+
 interface AssistantSpeechStatus {
   segment_id?: string;
   status?: string;
@@ -8092,15 +8108,7 @@ export class OpenMatesClient {
     let messageHistoryForRequest = params.messageHistory;
     if (!params.incognito && !isNewChat && !messageHistoryForRequest) {
       const { messages } = savedPrivacyHistory!;
-      messageHistoryForRequest = messages.map((message) => ({
-        message_id: message.id,
-        chat_id: chatId,
-        role: message.role as "user" | "assistant" | "system",
-        sender_name: message.senderName ?? message.role,
-        content: message.content,
-        created_at: message.createdAt,
-        category: message.category,
-      }));
+      messageHistoryForRequest = buildSavedChatMessageHistory(messages, chatId);
     }
     // Mark this chat as active so the server streams incremental chunks
     // rather than sending a single background-completion event.
@@ -8203,7 +8211,7 @@ export class OpenMatesClient {
     let focusPersistenceError: unknown = null;
     const chatContextEvents = !params.incognito && chatKeyBytes ? registerChatContextEvents({
       ws, chatId, chatKey: chatKeyBytes,
-      existingMessageIds: savedPrivacyHistory?.messages.map(message => message.id) ?? [],
+      existingMessageIds: savedPrivacyHistory?.messages.map(canonicalSavedChatMessageId) ?? [],
       previousRulesSetKey: savedPrivacyHistory?.messages.filter(message => message.role === "system")
         .map(message => parseChatContextContent(message.content))
         .filter((event): event is Extract<ChatContextEvent, { type: "rules_loaded" }> => event?.type === "rules_loaded")
