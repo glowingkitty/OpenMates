@@ -214,7 +214,7 @@ async def test_optional_focus_failure_preserves_selected_project_without_another
 
 # contract-test: supporting surface=gui.web assertions=projects.focus.inferred-consent,projects.focus.custom-catalog-privacy
 @pytest.mark.asyncio
-@pytest.mark.parametrize("confidence,focuses", [(.99, []), (.4, []), (.99, None)])
+@pytest.mark.parametrize("confidence,focuses", [(.4, []), (.4, None)])
 async def test_named_readme_fallback_exits_before_detailed_preprocessing(
     monkeypatch, caplog, confidence, focuses,
 ):
@@ -261,6 +261,61 @@ async def test_named_readme_fallback_exits_before_detailed_preprocessing(
     private_catalog.assert_not_awaited()
     assert "Compact Project named-file fallback outcome=selected" in caplog.text
     assert "Compact Project target task=chat_turn outcome=" in caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("text", [
+    PROMPT,
+    "Do not read my OpenMates README; give general advice.",
+    "Don't open the OpenMates files; just explain Markdown.",
+])
+# contract-test: supporting surface=gui.web assertions=projects.focus.inferred-consent,projects.memories.active-access
+async def test_confident_none_or_refusal_cannot_be_reselected_by_detailed_routing(monkeypatch, text):
+    from backend.apps.ai.processing import agentic_context, context_preselection
+    from backend.core.api.app.services import project_focus_request_service
+    from backend.core.api.app.utils import server_mode
+
+    candidate = {"project_id": PROJECT, "name": "OpenMates", "focuses": [],
+                 "focus_activation_policy": "immediate"}
+    request = AskSkillRequest(chat_id="chat", message_id="turn", user_id="user", user_id_hash="hash",
+        message_history=[{"role": "user", "content": text, "created_at": 1}], current_user_content=text,
+        client_capabilities=["project_file_jobs"], project_focus_candidates=[candidate])
+    monkeypatch.setattr(server_mode, "is_payment_enabled", lambda: False)
+    monkeypatch.setattr(preprocessor, "load_skill_ledger", AsyncMock(return_value=preprocessor.RoutingLedgerSnapshot(available=True, prompt_rows=())))
+    monkeypatch.setattr(project_focus_request_service, "validated_project_candidates", AsyncMock(return_value=[candidate]))
+    compact = AsyncMock(side_effect=lambda **kwargs: answers_for(kwargs["questions"], project=False))
+    monkeypatch.setattr(jev_preprocessing, "_evaluate_preprocessing_questions", compact)
+    monkeypatch.setattr(agentic_context, "private_focus_candidates", AsyncMock(return_value=[]))
+    monkeypatch.setattr(agentic_context, "fresh_project", AsyncMock(return_value=None))
+    monkeypatch.setattr(context_preselection, "discover_workflow_metadata", AsyncMock(return_value=[]))
+
+    async def detailed(**kwargs):
+        assert not any(f"project-{PROJECT}" in focus for focus in kwargs["available_focus_modes"])
+        # Even a contradictory detailed-model suggestion must be filtered.
+        return {"harmful_or_illegal": 0, "misuse_risk": 0, "complexity": "simple",
+                "topic_area": "general", "topic_shift": "same_topic", "output_language": "en",
+                "china_model_sensitive": False, "relevant_focus_modes": [f"project-{PROJECT}"],
+                "relevant_app_skills": [], "selected_app_ids": []}
+
+    detail = AsyncMock(side_effect=detailed)
+    monkeypatch.setattr(preprocessor, "decide_preprocessing_with_jev", detail)
+    result = await preprocessor.handle_preprocessing(
+        request_data=request, base_instructions={"preprocess_request_tool": {}},
+        skill_config=SimpleNamespace(default_llms=SimpleNamespace(
+            decision_model="test/jev", preprocessing_model="test/preprocess",
+            main_processing_simple="test/main", main_processing_simple_name="Main"),
+            preprocessing_thresholds=SimpleNamespace(harmful_content_score=7, misuse_risk_score=7),
+            enable_auto_model_selection=False),
+        cache_service=SimpleNamespace(get_user_by_id=AsyncMock(return_value={}),
+            get_mates_configs=AsyncMock(return_value=[SimpleNamespace(id="sophia", name="Sophia",
+                category="general_knowledge", description="General help")])),
+        secrets_manager=None, directus_service=None, encryption_service=None, discovered_apps_metadata={},
+    )
+    assert result.can_proceed and not result.routing_only
+    assert result.pending_project_focus_id is None
+    assert result.relevant_focus_modes == []
+    detail.assert_awaited_once()
+    assert compact.await_count == (1 if text == PROMPT else 0)
 
 
 @pytest.mark.asyncio

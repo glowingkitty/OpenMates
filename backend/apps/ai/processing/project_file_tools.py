@@ -33,12 +33,24 @@ PROJECT_FILE_NOUN = re.compile(
     r"\b(?:files?|readme|folders?|directories|directory|documents?|source|code|repositories|repository|paths?)\b",
     re.IGNORECASE,
 )
+PROJECT_FILE_REFUSAL = re.compile(
+    r"\b(?:do\s+not|don['’]?t|never|avoid|without|no\s+need\s+to)\b"
+    r"[^.!?;\n]{0,100}\b(?:read|open|inspect|review|summari[sz]e|show|list|search|find|"
+    r"edit|update|write|modify|change|fix|improve|add|remove|delete|create)\b",
+    re.IGNORECASE,
+)
+
+
+def declines_project_file_work(text: str) -> bool:
+    """Conservatively prevent implicit activation for explicit file-work refusals."""
+
+    return bool(PROJECT_FILE_REFUSAL.search(text))
 
 
 def requests_project_file_work(text: str) -> bool:
     """Recognize explicit file work; other named Project uses keep model selection."""
 
-    return bool(PROJECT_READ_INTENT.search(text) or
+    return not declines_project_file_work(text) and bool(PROJECT_READ_INTENT.search(text) or
                 PROJECT_FILE_ACTION.search(text) and PROJECT_FILE_NOUN.search(text))
 
 

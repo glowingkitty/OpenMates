@@ -1866,6 +1866,12 @@ async def handle_preprocessing(
     # bounded public capabilities and owner-validated names enter this call.
     # The complete scoped safety/skill/memory decisions run after activation.
     project_candidates_validated = False
+    from backend.apps.ai.processing.project_file_tools import declines_project_file_work
+    suppress_implicit_project_focus = (
+        not request_data.active_project_focus
+        and not (user_overrides and user_overrides.focus_modes)
+        and declines_project_file_work(request_data.current_user_content or "")
+    )
     decision_model = getattr(skill_config.default_llms, "decision_model", None)
     logger.info(
         "%s Compact Project routing gate candidates=%d capability=%s active=%s declined=%s "
@@ -1884,6 +1890,7 @@ async def handle_preprocessing(
     if (request_data.project_focus_candidates
             and "project_file_jobs" in (request_data.client_capabilities or [])
             and not request_data.active_project_focus
+            and not suppress_implicit_project_focus
             and not request_data.project_access_declined
             and not request_data.is_incognito and not request_data.is_external
             and (request_data.user_preferences or {}).get("apps_enabled") is not False
@@ -1934,7 +1941,11 @@ async def handle_preprocessing(
                 project_routing_focus_id=getattr(request_data, "project_routing_focus_id", None),
             )
             selected_app_ids = routing["selected_app_ids"]
-            if not routing.get("pending_project_focus_id"):
+            # A confident none is a decision, not a routing failure. Keep its
+            # Project candidates out of later detailed Focus selection too.
+            suppress_implicit_project_focus = routing.get("project_target_outcome") == "none"
+            if (not routing.get("pending_project_focus_id")
+                    and routing.get("project_target_outcome") in {"missing", "low_confidence"}):
                 from backend.apps.ai.processing.project_file_tools import (
                     requests_project_file_work, uniquely_named_project_focus_id,
                 )
@@ -2269,7 +2280,8 @@ async def handle_preprocessing(
     except Exception:
         logger.warning("%s Project candidate discovery failed closed", log_prefix)
         request_data.project_focus_candidates = []
-    if "project_file_jobs" in (request_data.client_capabilities or []):
+    if (not suppress_implicit_project_focus
+            and "project_file_jobs" in (request_data.client_capabilities or [])):
         for candidate in request_data.project_focus_candidates:
             if candidate.get("auto_selection", True) is not True:
                 continue
@@ -3487,7 +3499,8 @@ async def handle_preprocessing(
     # Plain Project-name matches are shortlists. Main processing routes a unique
     # eligible match through the standard cancellable countdown. Structured
     # @Project sends activate through the first-party preflight.
-    if (not user_requested_focus_only and not request_data.project_access_declined
+    if (not user_requested_focus_only and not suppress_implicit_project_focus
+            and not request_data.project_access_declined
             and "project_file_jobs" in (request_data.client_capabilities or [])):
         named_project_focus_ids = explicitly_named_project_focus_ids(
             request_data.current_user_content or _latest_user_text_from_history(request_data.message_history),

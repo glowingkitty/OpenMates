@@ -516,6 +516,29 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       await expect.poll(() => page.evaluate(() => document.hasFocus()), { timeout: 5_000 }).toBe(true);
       await page.evaluate(() => window.dispatchEvent(new Event('focus')));
 
+      if (process.env.OPENMATES_README_REFUSAL_PROBE === '1') {
+        await sendMessage(page, 'Do not read my OpenMates README; give general advice.');
+        chatUrl = page.url();
+        const refusedChatId = await currentChatId(page);
+        await waitForTurnCompletion(page);
+        await expect(page.getByTestId('focus-progress-bar')).toHaveCount(0);
+        await expect(page.getByTestId('focus-pill')).toHaveCount(0);
+        expect(await currentAuthority(page)).toBeNull();
+        expect(received.filter(event => event.type === 'project_file_operation_request')).toHaveLength(0);
+        console.log('[README] Explicit refusal kept Project authority and file access blocked.');
+        await deleteObservedChatAndWaitForAck(page, refusedChatId, received);
+        chatUrl = null;
+        await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+        await waitForChatReady(page);
+        const sidebar = page.locator('.sidebar:not(.closed)');
+        if (await sidebar.count()) {
+          await sidebar.getByTestId('activity-history-wrapper')
+            .locator('button.icon_close.top-button.right').click();
+        }
+        await startNewChat(page);
+        await waitForChatReady(page);
+      }
+
       // Reject one ordinary request during the standard countdown. Its chat
       // must never gain authority or issue Project file jobs afterwards.
       try {

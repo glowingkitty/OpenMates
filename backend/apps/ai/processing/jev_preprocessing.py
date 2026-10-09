@@ -244,7 +244,8 @@ async def decide_app_and_project_routing_with_jev(
                  if response is not None and noul_value(response, question) >= .65]
                 if selected_app_ids is None else [app for app in selected_app_ids if app in valid_apps])
     selected.extend(app for app in (forced_app_ids or []) if app in valid_apps)
-    result: dict[str, Any] = {"selected_app_ids": list(dict.fromkeys(selected))}
+    result: dict[str, Any] = {"selected_app_ids": list(dict.fromkeys(selected)),
+                              "project_target_outcome": "no_eligible_candidate"}
     if not candidates:
         logger.info("Compact Project target task=%s outcome=no_eligible_candidate eligible_candidates=0 confidence=n/a",
                     telemetry_task_id)
@@ -262,6 +263,7 @@ async def decide_app_and_project_routing_with_jev(
             "selected" if candidate is not None else
             "none" if target == "none" else "unmatched"
         )
+        result["project_target_outcome"] = outcome
         logger.info(
             "Compact Project target task=%s outcome=%s eligible_candidates=%d confidence=%s",
             telemetry_task_id, outcome, len(candidates),
