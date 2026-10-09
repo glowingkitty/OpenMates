@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: video-call-experiment
 title: Gemini Voice And H3 Turbo Experiment
-status: implementing
+status: verified
 goal: >
   Implement a first test to see how well such a system can actually work, before
   spending more time on it: a basic /experiment/videocall page for Gemini voice
@@ -123,6 +123,10 @@ verification_evidence:
   gemini_planned_rollover:
     result: Mocked backend coverage preserves one call ledger, held-frame continuation and tool deduplication through planned rollover; four well-spaced quiet rollovers succeed without a lifetime reconnect cap. Old sockets close and Hangup cancels pending resumption.
     bounds: No real Google or fal requests were made for this revision. Provider rollout behavior during long real calls remains for the user's manual evaluation.
+  deployment:
+    code_commit: 936d566f21e3676e2e689a162eb0ab39f3d1f69a
+    backend: The dev API and dependent workers refreshed together with the duration cutoff removed, renewable owner-scoped leases and planned session resumption; all services running and healthy (docker-0c1bf530).
+    frontend: Exact code deployment succeeded; https://app.dev.openmates.org/experiment/videocall now shows elapsed time without a countdown, including hour formatting, and retains Hangup cleanup (Vercel DHyqyRNmAgz2AKviSGUMrLWyCNdd).
   previous_component:
     source: a552992084c83a512a4a364910ef1150919f419c
     request: 301fe08dec12178ce8bedfd3225571e29bc20a7702eaeac81a959936027b540f
