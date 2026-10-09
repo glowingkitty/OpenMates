@@ -87,7 +87,6 @@ async def _require_chat_embed_read(
     chat_id: str, team_id: str | None, current_user: User,
     directus_service: DirectusService,
 ) -> None:
-    chat = directus_service.chat
     if team_id:
         try:
             await directus_service.team.require_team_role(
@@ -95,10 +94,21 @@ async def _require_chat_embed_read(
             )
         except TeamPermissionError as exc:
             raise HTTPException(status_code=404, detail="Chat not found") from exc
-        metadata = await chat.get_chat_metadata(chat_id, admin_required=True)
-        if not metadata or metadata.get("hashed_team_id") != _hash_value(team_id):
-            raise HTTPException(status_code=404, detail="Chat not found")
-    elif not await chat.check_chat_ownership(chat_id, current_user.id):
+    try:
+        rows = await directus_service.get_items(
+            "chats", params={"filter": {"id": {"_eq": chat_id}},
+                             "fields": "id,hashed_user_id,hashed_team_id,storage_state", "limit": 2},
+            no_cache=True, admin_required=True, raise_on_error=True,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Chat authorization unavailable") from exc
+    if not isinstance(rows, list) or len(rows) > 1:
+        raise HTTPException(status_code=503, detail="Chat authorization unavailable")
+    metadata = rows[0] if rows else None
+    if (not metadata or metadata.get("id") != chat_id
+            or metadata.get("storage_state") == "deleting"
+            or (metadata.get("hashed_team_id") or None) != (_hash_value(team_id) if team_id else None)
+            or not team_id and metadata.get("hashed_user_id") != _hash_value(current_user.id)):
         raise HTTPException(status_code=404, detail="Chat not found")
 
 
@@ -308,6 +318,7 @@ async def get_chat_embed_window(
               for row in rows if row.get("embed_id")]
     key_page = await directus_service.embed.get_sync_embed_key_window_for_page(
         hashed_chat_id, _hash_value(current_user.id), hashes,
+        include_master_keys=not bool(team_id),
     )
     return {
         "chat_id": chat_id,
@@ -379,6 +390,7 @@ async def get_chat_embed_key_window(
     if key_id:
         key = await directus_service.embed.get_sync_embed_key_by_id(
             hashed_chat_id, _hash_value(current_user.id), hashes, key_id,
+            include_master_keys=not bool(team_id),
         )
         if not key:
             raise HTTPException(status_code=404, detail="Embed key not found")
@@ -387,6 +399,7 @@ async def get_chat_embed_key_window(
     page = await directus_service.embed.get_sync_embed_key_window_for_page(
         hashed_chat_id, _hash_value(current_user.id), hashes,
         after_key_id=after_key_id,
+        include_master_keys=not bool(team_id),
     )
     return {"embed_keys": page["embed_keys"], "has_more_after": page["has_more_after"],
             "end_cursor": page["end_cursor"], "oversized_key_id": page["oversized_key_id"]}

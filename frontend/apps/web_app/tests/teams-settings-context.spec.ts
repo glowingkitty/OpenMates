@@ -75,9 +75,21 @@ function captureProtocol(page: Page, frames: ProtocolFrame[], apiUrl: string): v
 	});
 }
 
-async function installOneTeamPreflightAckDrop(page: Page): Promise<void> {
-	await page.addInitScript(() => {
+async function installOneTeamPreflightAckDrop(page: Page, apiUrl: string): Promise<void> {
+	await page.addInitScript((apiHost: string) => {
 		const NativeWebSocket = window.WebSocket;
+		const transports = new Set<WebSocket>();
+		(window as Window & {
+			__teamEmbedAccessProbe?: { request: (payload: Record<string, string>) => void };
+		}).__teamEmbedAccessProbe = {
+			request(payload) {
+				const socket = [...transports].find((candidate) =>
+					candidate.readyState === NativeWebSocket.OPEN && new URL(candidate.url).host === apiHost
+				);
+				if (!socket) throw new Error('Authenticated Team transport is unavailable');
+				socket.send(JSON.stringify({ type: 'request_embed', payload }));
+			}
+		};
 		const state = { armedTeamId: null as string | null, turnId: null as string | null, dropped: 0 };
 		(
 			window as Window & {
@@ -96,6 +108,8 @@ async function installOneTeamPreflightAckDrop(page: Page): Promise<void> {
 
 		function TestWebSocket(this: WebSocket, ...args: ConstructorParameters<typeof WebSocket>) {
 			const socket = new NativeWebSocket(...args);
+			transports.add(socket);
+			socket.addEventListener('close', () => transports.delete(socket));
 			const nativeSend = socket.send.bind(socket);
 			socket.send = (data: string | ArrayBufferLike | Blob | ArrayBufferView) => {
 				if (typeof data === 'string' && state.armedTeamId && !state.turnId) {
@@ -134,7 +148,17 @@ async function installOneTeamPreflightAckDrop(page: Page): Promise<void> {
 		Object.setPrototypeOf(TestWebSocket, NativeWebSocket);
 		TestWebSocket.prototype = NativeWebSocket.prototype;
 		window.WebSocket = TestWebSocket as typeof WebSocket;
-	});
+	}, new URL(apiUrl).host);
+}
+
+async function requestEmbedProbe(page: Page, payload: Record<string, string>): Promise<void> {
+	await page.evaluate((requestPayload) => {
+		const probe = (window as Window & {
+			__teamEmbedAccessProbe?: { request: (payload: Record<string, string>) => void };
+		}).__teamEmbedAccessProbe;
+		if (!probe) throw new Error('Team embed access fixture was not installed');
+		probe.request(requestPayload);
+	}, payload);
 }
 
 async function waitForFrame(
@@ -267,7 +291,7 @@ async function expectChatTeamIdentity(page: Page): Promise<void> {
 }
 
 test.describe('Teams V1 context isolation', () => {
-	// contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,teams.chat.encrypted-until-invoked,notifications.surface.semantic-parity,drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
+	// contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,teams.chat.encrypted-until-invoked,notifications.surface.semantic-parity,drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative,storage.cold.shared-team-authorized,storage.privacy.ciphertext-boundary
 	test('isolates Team chats and sends ordinary Team turns as scoped ciphertext', async ({
 		page
 	}: {
@@ -311,7 +335,7 @@ test.describe('Teams V1 context isolation', () => {
 		page.on('pageerror', onPageError);
 		page.on('console', onConsole);
 		captureProtocol(page, frames, apiUrl);
-		await installOneTeamPreflightAckDrop(page);
+		await installOneTeamPreflightAckDrop(page, apiUrl);
 
 		try {
 			await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
@@ -553,7 +577,7 @@ test.describe('Teams V1 context isolation', () => {
 			await expect(page.getByTestId('chat-header-banner')).not.toContainText('Creating new chat', {
 				timeout: 15000
 			});
-			await expect(page.getByTestId('chat-header-banner')).toContainText('New team chat', {
+			await expect(page.getByTestId('chat-header-banner')).toContainText(ordinaryMessage, {
 				timeout: 15000
 			});
 			// Canonical history must retain Team speaker identity for a later reload.
@@ -746,6 +770,45 @@ test.describe('Teams V1 context isolation', () => {
 				`A code embed request failed after the fenced Team turn: ${JSON.stringify(embedProtocolDiagnostics)}`
 			).toEqual([]);
 
+			// Exercise the real recovery transport, including deliberately omitted
+			// context. The embed author must not fall back to a Personal ACL for a
+			// Team-owned source chat or receive an account master-key wrapper.
+			const recoveryStart = frames.length;
+			await requestEmbedProbe(page, {
+				embed_id: fencedEmbedId, chat_id: String(fencedSend.payload.chat_id), team_id: teamId
+			});
+			const recoveredEmbed = await waitForFrame(frames, recoveryStart, 'received', 'send_embed_data',
+				(payload) => payload.embed_id === fencedEmbedId && payload.already_encrypted === true);
+			expect(recoveredEmbed.payload.content).toBe(persistedEmbedBody.embed.encrypted_content);
+			expect(recoveredEmbed.payload.embed_keys.length).toBeGreaterThan(0);
+			expect(recoveredEmbed.payload.embed_keys.every((key: { key_type: string }) => key.key_type === 'chat')).toBe(true);
+			const deniedEmbedRequests: Array<Record<string, string>> = [
+				{ embed_id: fencedEmbedId, chat_id: String(fencedSend.payload.chat_id) },
+				{ embed_id: fencedEmbedId, team_id: teamId },
+				{ embed_id: fencedEmbedId }
+			];
+			for (const payload of deniedEmbedRequests) {
+				const deniedStart = frames.length;
+				await requestEmbedProbe(page, payload);
+				await waitForFrame(frames, deniedStart, 'received', 'error',
+					(reply) => reply.status === 404 && reply.message === 'Embed not found');
+				expect(frames.slice(deniedStart).some((frame) => frame.direction === 'received' &&
+					frame.type === 'send_embed_data' && frame.payload.embed_id === fencedEmbedId)).toBe(false);
+			}
+			for (const suffix of ['window', `keys/window?embed_ids=${encodeURIComponent(fencedEmbedId)}`]) {
+				const unscoped = await page.context().request.get(
+					`${apiUrl}/v1/embeds/chats/${encodeURIComponent(String(fencedSend.payload.chat_id))}/${suffix}`
+				);
+				expect(unscoped.status()).toBe(404);
+				const scoped = await page.context().request.get(
+					`${apiUrl}/v1/embeds/chats/${encodeURIComponent(String(fencedSend.payload.chat_id))}/${suffix}${suffix.includes('?') ? '&' : '?'}team_id=${encodeURIComponent(teamId)}`
+				);
+				expect(scoped.ok()).toBe(true);
+				const scopedBody = await scoped.json();
+				expect(scopedBody.embed_keys.length).toBeGreaterThan(0);
+				expect(scopedBody.embed_keys.every((key: { key_type: string }) => key.key_type === 'chat')).toBe(true);
+			}
+
 			// A committed ordinary Team turn must survive losing its first preflight
 			// acknowledgement. The browser may replay the exact packet or recover
 			// the committed row through authoritative phased sync on reconnect.
@@ -898,7 +961,7 @@ test.describe('Teams V1 context isolation', () => {
 				`[data-testid="chat-item-wrapper"][data-chat-id="${teamChatId}"]`
 			);
 			await expect(visibleTeamChat).toBeVisible({ timeout: 30000 });
-			await expect(visibleTeamChat).toContainText('New team chat', { timeout: 15000 });
+			await expect(visibleTeamChat).toContainText(ordinaryMessage, { timeout: 15000 });
 			await expect(visibleTeamChat).not.toContainText('Processing...', { timeout: 30000 });
 			// Desktop history narrows the still-visible chat, so assert its floating
 			// controls cannot overlap the message. Phone history is a full-screen

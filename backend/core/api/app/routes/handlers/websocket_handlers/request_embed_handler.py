@@ -68,6 +68,21 @@ async def handle_request_embed(
                 user_id, device_fingerprint_hash,
             )
 
+        async def source_chat(source_id: str) -> Optional[Dict[str, Any]]:
+            """Read one live principal from Directus, including deletion state."""
+            try:
+                rows = await directus_service.get_items(
+                    "chats", params={"filter": {"id": {"_eq": source_id}},
+                                     "fields": "id,hashed_user_id,hashed_team_id,storage_state", "limit": 2},
+                    no_cache=True, admin_required=True, raise_on_error=True,
+                )
+            except Exception:
+                logger.error(f"{log_prefix}Failed to verify source chat", exc_info=True)
+                return None
+            return (rows[0] if isinstance(rows, list) and len(rows) == 1
+                    and isinstance(rows[0], dict)
+                    and rows[0].get("id") == source_id else None)
+
         # A requested ID alone is not authority to read cached plaintext or
         # persisted ciphertext. Verify the current chat and principal first.
         chat_id = payload.get("chat_id")
@@ -76,8 +91,17 @@ async def handle_request_embed(
         directus_embed = None
         if chat_id:
             hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-            if team_id:
+            # Ownership cache entries and creator hashes can outlive Team access.
+            # Classify the live source chat before choosing Personal or Team ACL.
+            chat = await source_chat(chat_id)
+            if not chat or chat.get("storage_state") == "deleting":
+                await not_found()
+                return
+            if chat.get("hashed_team_id"):
                 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
+                if not team_id or chat["hashed_team_id"] != hash_id(team_id):
+                    await not_found()
+                    return
                 try:
                     await directus_service.team.require_team_role(
                         team_id, user_id, {"owner", "admin", "member", "viewer"},
@@ -85,11 +109,7 @@ async def handle_request_embed(
                 except TeamPermissionError:
                     await not_found()
                     return
-                chat = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
-                if not chat or chat.get("hashed_team_id") != hash_id(team_id):
-                    await not_found()
-                    return
-            elif not await directus_service.chat.check_chat_ownership(chat_id, user_id):
+            elif team_id or chat.get("hashed_user_id") != hashed_user_id:
                 await not_found()
                 return
             directus_embed = await directus_service.embed.get_embed_by_id(embed_id)
@@ -102,8 +122,12 @@ async def handle_request_embed(
                     await not_found()
                     return
         else:
-            # Legacy clients omit chat_id. Restrict their fallback to a
-            # persisted embed explicitly owned by this account.
+            # Legacy clients omit chat_id. Resolve the hashed source against
+            # fresh, Personal-only chat IDs; an embed author hash alone does not
+            # prove current access to a Team chat.
+            if team_id:
+                await not_found()
+                return
             directus_embed = await directus_service.embed.get_embed_by_id(embed_id)
             if not directus_embed or directus_embed.get("hashed_user_id") != hashed_user_id:
                 await not_found()
@@ -112,6 +136,21 @@ async def handle_request_embed(
             if not hashed_chat_id:
                 await not_found()
                 return
+            try:
+                personal_chats = await directus_service.chat.get_chat_activity_candidates(user_id)
+            except Exception:
+                logger.error(f"{log_prefix}Failed to verify legacy Personal source", exc_info=True)
+                await not_found()
+                return
+            source_id = next((row.get("id") for row in personal_chats
+                              if isinstance(row, dict) and isinstance(row.get("id"), str)
+                              and hashlib.sha256(row["id"].encode()).hexdigest() == hashed_chat_id), None)
+            chat = await source_chat(source_id) if source_id else None
+            if (not chat or chat.get("storage_state") == "deleting"
+                    or chat.get("hashed_team_id") or chat.get("hashed_user_id") != hashed_user_id):
+                await not_found()
+                return
+            chat_id = source_id
 
         # A completed chat embed is the canonical client-encrypted record. Upload
         # cache entries are operational metadata and have no chat binding; reading
