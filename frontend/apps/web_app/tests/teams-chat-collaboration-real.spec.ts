@@ -284,12 +284,11 @@ test('two Team members exchange encrypted messages and invoke OpenMates with the
     }
     await expect(memberPage.getByTestId('settings-menu')).not.toBeVisible();
     await expect(memberPage.getByTestId('message-user').filter({ hasText: lines[0] })).toBeVisible({ timeout: 45_000 });
-    await expect(memberPage.getByTestId('remote-human-message').filter({ hasText: lines[0] })
-      .getByTestId('remote-human-name')).not.toBeEmpty();
-    const ownerName = await memberPage.getByTestId('remote-human-message').filter({ hasText: lines[0] })
-      .getByTestId('remote-human-name').innerText();
-    await memberPage.getByTestId('remote-human-message').filter({ hasText: lines[0] })
-      .getByTestId('remote-human-name').click();
+    const ownerNameButton = memberPage.getByTestId('remote-human-message').filter({ hasText: lines[0] })
+      .locator('button[data-testid="remote-human-name"]');
+    await expect(ownerNameButton).toBeVisible({ timeout: 30_000 });
+    const ownerName = await ownerNameButton.innerText();
+    await ownerNameButton.click();
     await expect(memberPage.getByTestId('team-member-detail')).toBeVisible();
     await expect(memberPage.getByTestId('team-settings-header')).toContainText(ownerName);
     await expect.poll(() => new URL(memberPage!.url()).hash).toMatch(/settings\/teams\/[^/]+\/members\//);

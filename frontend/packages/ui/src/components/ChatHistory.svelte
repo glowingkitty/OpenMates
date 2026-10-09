@@ -133,12 +133,24 @@ import { storageArchiveFetch } from "../config/api";
         const entries = await Promise.all(members.map(async (member) => {
           const hash = member.hashed_user_id || (member.user_id ? await computeSHA256(member.user_id) : null);
           if (!hash) return null;
-          const avatarUrl = await loadTeamMemberAvatar(teamId, member).catch(() => null);
-          if (avatarUrl && cancelled) URL.revokeObjectURL(avatarUrl);
-          else if (avatarUrl) avatarUrls.push(avatarUrl);
-          return [hash, { userId: member.user_id, displayName: member.profile?.display_name, avatarUrl: avatarUrl ?? undefined }] as const;
+          return [hash, { userId: member.user_id, displayName: member.profile?.display_name }] as const;
         }));
-        if (!cancelled) teamMemberProfiles = Object.fromEntries(entries.filter((entry): entry is NonNullable<typeof entry> => entry !== null));
+        if (cancelled) return;
+        // Member links become usable as soon as identity arrives; an optional
+        // profile-image download must not delay navigation for every member.
+        teamMemberProfiles = Object.fromEntries(entries.filter((entry): entry is NonNullable<typeof entry> => entry !== null));
+        await Promise.all(members.map(async (member, index) => {
+          const entry = entries[index];
+          if (!entry) return;
+          const avatarUrl = await loadTeamMemberAvatar(teamId, member).catch(() => null);
+          if (!avatarUrl) return;
+          if (cancelled) { URL.revokeObjectURL(avatarUrl); return; }
+          avatarUrls.push(avatarUrl);
+          teamMemberProfiles = {
+            ...teamMemberProfiles,
+            [entry[0]]: { ...teamMemberProfiles[entry[0]], avatarUrl },
+          };
+        }));
       } catch { /* The encrypted per-message sender name remains the fallback. */ }
     })();
     return () => {
