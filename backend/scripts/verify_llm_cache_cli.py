@@ -132,7 +132,10 @@ def ai_events_news_tool_evidence(messages: list[dict], tool_rows: list[dict],
         raise RuntimeError("Saved user requests differ from completed turns")
     ids = []
     for message, prompt in zip(users, prompts):
-        identifier = message.get("id")
+        # Saved CLI messages expose a storage id and, for current chats, the
+        # original client id used by persisted usage rows.
+        identifier = (message.get("clientMessageId") if "clientMessageId" in message
+                      else message.get("id"))
         if (not isinstance(identifier, str) or not identifier
                 or not isinstance(message.get("content"), str)
                 or not message["content"].endswith(prompt)):
@@ -151,6 +154,7 @@ def ai_events_news_tool_evidence(messages: list[dict], tool_rows: list[dict],
         if index == 1 and not {"news.search", "web.search"}.intersection(names):
             raise RuntimeError("OpenAI news request did not execute news.search or web.search")
         evidence.append({"turn": index + 1, "user_message_id": identifier,
+                         "saved_message_id": users[index].get("id"),
                          "request": prompts[index], "executed_tool_names": names,
                          "tool_usage_ids": [row["id"] for row in linked]})
     return evidence

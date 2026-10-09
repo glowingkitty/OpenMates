@@ -246,7 +246,7 @@ def test_ai_events_news_four_requests_bind_persisted_skills_to_user_message_ids(
     assert "AI events in Berlin" in first and "under 200 words" in first
     assert "latest OpenAI news" in followups[0] and "under 200 words" in followups[0]
     assert "date and location" in followups[1] and "verify" in followups[2]
-    messages = [{"id": f"user-{index}", "role": "user",
+    messages = [{"id": f"stored-{index}", "clientMessageId": f"user-{index}", "role": "user",
                  "content": f"@GPT-6-Luna {prompt}"}
                 for index, prompt in enumerate([first, *followups])]
     rows = [{"id": "event-usage", "app_id": "events", "skill_id": "search",
@@ -260,6 +260,7 @@ def test_ai_events_news_four_requests_bind_persisted_skills_to_user_message_ids(
                 ("user-1", ["news.search"], ["news-usage"]),
                 ("user-2", [], []), ("user-3", [], []),
             ]
+    assert [turn["saved_message_id"] for turn in evidence] == [f"stored-{index}" for index in range(4)]
     web_rows = [{**rows[1], "app_id": "web"}, rows[0]]
     assert ai_events_news_tool_evidence(messages, web_rows, 4)[1]["executed_tool_names"] == ["web.search"]
 
@@ -283,6 +284,17 @@ def test_ai_events_news_rejects_unlinked_or_wrong_turn_tool_charges():
         ai_events_news_tool_evidence(users, [event, {**news, "message_id": "assistant-id"}], 2)
     with pytest.raises(RuntimeError, match="identity or prompt"):
         ai_events_news_tool_evidence([{**users[0], "content": followups[0]}], [event], 1)
+    with pytest.raises(RuntimeError, match="not linked"):
+        ai_events_news_tool_evidence(
+            [{**users[0], "id": "stored-event", "clientMessageId": "event-user"}],
+            [{**event, "message_id": "stored-event"}], 1)
+    with pytest.raises(RuntimeError, match="identity or prompt"):
+        ai_events_news_tool_evidence(
+            [{**users[0], "clientMessageId": ""}], [event], 1)
+    with pytest.raises(RuntimeError, match="not unique"):
+        ai_events_news_tool_evidence(
+            [{**users[0], "clientMessageId": "same"},
+             {**users[1], "clientMessageId": "same"}], [], 2)
 
 
 # contract-test: supporting surface=cli assertions=billing.usage.receipt-token-breakdown

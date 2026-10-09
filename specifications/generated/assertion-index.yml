@@ -49357,17 +49357,17 @@ assertions:
       surface: cli
     - &id6139
       path: backend/tests/test_verify_llm_cache_cli.py
-      line: 268
+      line: 269
       name: test_ai_events_news_rejects_unlinked_or_wrong_turn_tool_charges
       surface: cli
     - &id6140
       path: backend/tests/test_verify_llm_cache_cli.py
-      line: 289
+      line: 301
       name: test_five_turn_receipts_reject_nonreconciling_cache_categories
       surface: cli
     - &id6141
       path: backend/tests/test_verify_llm_cache_cli.py
-      line: 302
+      line: 314
       name: test_verify_only_finishes_retained_chat_without_paid_cli_calls
       surface: cli
     - &id6149
