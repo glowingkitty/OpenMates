@@ -263,15 +263,25 @@ async def test_async_audio_charge_uses_team_ledger(monkeypatch: pytest.MonkeyPat
 async def test_team_member_refreshes_original_owners_asset_url(monkeypatch: pytest.MonkeyPatch) -> None:
     from backend.core.api.app.routes import generated_assets_api
 
+    chat_hash = hashlib.sha256(b"chat-1").hexdigest()
+    team_hash = hashlib.sha256(b"team-1").hexdigest()
+
     async def get_items(collection, **_kwargs):
         assert collection == "upload_files"
         return [{"user_id": "user-1", "files_metadata": {"original": {"s3_key": "private"}}}]
 
     async def get_embed(_asset_id):
         return {
+            "embed_id": "asset-1",
             "hashed_user_id": hashlib.sha256(b"user-1").hexdigest(),
-            "hashed_team_id": hashlib.sha256(b"team-1").hexdigest(),
+            "hashed_team_id": team_hash,
+            "hashed_chat_id": chat_hash,
         }
+
+    async def resolve_chat(_self, operation, data):
+        assert operation == "resolve_chat_hashes" and data == {"hashes": [chat_hash]}
+        return {"chats": [{"hashed_chat_id": chat_hash,
+                           "hashed_team_id": team_hash, "storage_state": "hot"}]}
 
     async def require_team_role(team_id, user_id, allowed_roles):
         assert (team_id, user_id) == ("team-1", "user-2")
@@ -288,6 +298,7 @@ async def test_team_member_refreshes_original_owners_asset_url(monkeypatch: pyte
         "scheme": "https", "server": ("api.dev.openmates.org", 443),
     })
     monkeypatch.setattr(generated_assets_api, "create_download_token", lambda **kwargs: f"owner:{kwargs['user_id']}")
+    monkeypatch.setattr(generated_assets_api.ChatMessageArchiveService, "transaction", resolve_chat)
     response = await generated_assets_api.refresh_generated_asset_download_url(
         "asset-1", "original", request, team_id="team-1",
         current_user=SimpleNamespace(id="user-2"), directus_service=directus,
@@ -301,3 +312,87 @@ async def test_team_member_refreshes_original_owners_asset_url(monkeypatch: pyte
             current_user=SimpleNamespace(id="user-2"), directus_service=directus,
         )
     assert exc.value.status_code == 404
+
+
+# contract-test: direct surface=rest_api assertions=apps.library.embeds-account-paginated,storage.cold.shared-team-authorized
+@pytest.mark.anyio
+async def test_team_asset_url_rejects_revoked_or_unreferenced_media(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.core.api.app.routes import generated_assets_api
+
+    team_hash = hashlib.sha256(b"team-1").hexdigest()
+    chat_hash = hashlib.sha256(b"chat-1").hexdigest()
+    owner_hash = hashlib.sha256(b"user-1").hexdigest()
+    embed = {"embed_id": "asset-1", "hashed_user_id": owner_hash,
+             "hashed_team_id": team_hash, "hashed_chat_id": chat_hash}
+    chat = {"hashed_chat_id": chat_hash, "hashed_team_id": team_hash,
+            "storage_state": "hot"}
+    member = {"active": True}
+
+    async def get_items(collection, **_kwargs):
+        assert collection == "upload_files"
+        return [{"user_id": "user-1", "files_metadata": {"original": {"s3_key": "private"}}}]
+
+    async def get_embed(_asset_id):
+        return embed
+
+    async def require_team_role(_team_id, _user_id, _roles):
+        if not member["active"]:
+            raise TeamPermissionError("removed")
+        return {"role": "viewer"}
+
+    async def resolve_chat(_self, _operation, _data):
+        return {"chats": [chat] if chat else []}
+
+    directus = SimpleNamespace(get_items=get_items,
+        embed=SimpleNamespace(get_embed_by_id=get_embed),
+        team=SimpleNamespace(require_team_role=require_team_role))
+    request = Request({"type": "http", "method": "GET", "path": "/", "headers": [],
+                       "scheme": "https", "server": ("api.dev.openmates.org", 443)})
+    monkeypatch.setattr(generated_assets_api.ChatMessageArchiveService, "transaction", resolve_chat)
+    monkeypatch.setattr(generated_assets_api, "create_download_token", lambda **_kwargs: "signed")
+
+    async def mint():
+        return await generated_assets_api.refresh_generated_asset_download_url(
+            "asset-1", "original", request, team_id="team-1",
+            current_user=SimpleNamespace(id="user-2"), directus_service=directus)
+
+    assert "token=signed" in (await mint())["download_url"]
+    member["active"] = False
+    with pytest.raises(generated_assets_api.HTTPException) as revoked:
+        await mint()
+    assert revoked.value.status_code == 403
+    member["active"] = True
+    for invalid_chat in ({"hashed_chat_id": chat_hash,
+                          "hashed_team_id": hashlib.sha256(b"other-team").hexdigest(),
+                          "storage_state": "hot"},
+                         {"hashed_chat_id": chat_hash, "hashed_team_id": team_hash,
+                          "storage_state": "deleting"}, {}):
+        chat.clear()
+        chat.update(invalid_chat)
+        with pytest.raises(generated_assets_api.HTTPException) as denied:
+            await mint()
+        assert denied.value.status_code == 404
+
+
+# contract-test: direct surface=rest_api assertions=apps.library.embeds-account-paginated,storage.cold.shared-team-authorized
+@pytest.mark.anyio
+async def test_team_apps_asset_url_requires_saved_root_reference() -> None:
+    from backend.core.api.app.routes.generated_assets_api import _require_live_team_asset_reference
+
+    team_hash = hashlib.sha256(b"team-1").hexdigest()
+    owner_hash = hashlib.sha256(b"user-1").hexdigest()
+    root = {"embed_id": "root-1", "workspace_origin": "web_apps",
+            "hashed_team_id": team_hash, "hashed_user_id": owner_hash,
+            "root_embed_id": "root-1", "parent_embed_id": None,
+            "embed_ids": ["asset-1"]}
+    child = {"root_embed_id": "root-1", "parent_embed_id": "root-1"}
+
+    async def get_embed(_embed_id):
+        return root
+
+    directus = SimpleNamespace(embed=SimpleNamespace(get_embed_by_id=get_embed))
+    await _require_live_team_asset_reference("asset-1", child, team_hash, owner_hash, directus)
+    root["embed_ids"] = []
+    with pytest.raises(apps_api.HTTPException) as unreferenced:
+        await _require_live_team_asset_reference("asset-1", child, team_hash, owner_hash, directus)
+    assert unreferenced.value.status_code == 404

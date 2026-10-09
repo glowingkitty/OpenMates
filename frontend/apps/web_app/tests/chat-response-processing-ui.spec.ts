@@ -84,8 +84,8 @@ async function installLifecycleSocketHarness(page: any, fixtureChatId: string): 
 	}, { chatId: fixtureChatId });
 }
 
-async function seedFixtureChat(page: any): Promise<void> {
-	await page.evaluate(async ({ fixture }) => {
+async function seedFixtureChat(page: any, userContent = FIXTURE.seed.user_content): Promise<void> {
+	await page.evaluate(async ({ fixture, content }) => {
 		const seedChat = (window as any).__openmatesE2ESeedChat;
 		if (!seedChat) throw new Error('E2E chat seed helper is unavailable');
 		const now = Math.floor(Date.now() / 1000);
@@ -105,10 +105,10 @@ async function seedFixtureChat(page: any): Promise<void> {
 				role: 'user',
 				created_at: now,
 				status: 'synced',
-				content: fixture.seed.user_content
+				content
 			}]
 		});
-	}, { fixture: FIXTURE });
+	}, { fixture: FIXTURE, content: userContent });
 }
 
 async function emitStage(page: any, stageId: string): Promise<void> {
@@ -121,14 +121,14 @@ async function emitStage(page: any, stageId: string): Promise<void> {
 	}, { events: stage.events });
 }
 
-async function openFixtureChat(page: any): Promise<void> {
+async function openFixtureChat(page: any, userContent = FIXTURE.seed.user_content): Promise<void> {
 	const log = createSignupLogger('CHAT_RESPONSE_PROCESSING_UI');
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'chat-response-processing-ui' });
 	await loginToTestAccount(page, log, screenshot);
-	await seedFixtureChat(page);
+	await seedFixtureChat(page, userContent);
 	await page.goto(getE2EDebugUrl(`/#chat-id=${FIXTURE.chat_id}`), { waitUntil: 'domcontentloaded' });
 	await waitForChatReady(page, log);
-	await expect(page.getByTestId('message-user')).toContainText(FIXTURE.seed.user_content, {
+	await expect(page.getByTestId('message-user')).toContainText(userContent.replace('@mate:software_development', '@sophia'), {
 		timeout: 20000
 	});
 }
@@ -139,6 +139,34 @@ test.describe('Assistant response processing rendered contract', () => {
 
 	test.beforeEach(async ({ page }: { page: any }) => {
 		await installLifecycleSocketHarness(page, FIXTURE.chat_id);
+	});
+
+	// contract-test: direct surface=gui.web assertions=chat-processing-feedback.selection-after-acceptance,chat-processing-feedback.selected-mate-identity
+	test('keeps an explicitly selected Mate through acceptance and skips Mate selection feedback', async ({ page }: { page: any }) => {
+		await openFixtureChat(page, '@mate:software_development Please review this deterministic fixture.');
+		await emitStage(page, 'task-initiated');
+		const indicator = page.getByTestId('chat-processing-indicator');
+		await expect(indicator).toContainText('Selecting AI model');
+		await expect(indicator).not.toContainText('Selecting mate');
+		await page.evaluate(({ fixture }) => {
+			(window as any).__openmatesE2ELifecycle.emit('preprocessing_step', {
+				chat_id: fixture.chat_id, step: 'mate_selected', skipped: true,
+				skip_reason: 'user_override', data: {
+					mate_id: 'software_development', mate_name: 'Sophia', mate_category: 'software_development'
+				}
+			});
+		}, { fixture: FIXTURE });
+		await expect(indicator).toContainText('Selecting AI model');
+		await expect(indicator).not.toContainText('Selecting mate');
+		await page.evaluate(({ fixture }) => {
+			(window as any).__openmatesE2ELifecycle.emit('ai_typing_started', {
+				chat_id: fixture.chat_id, message_id: fixture.task_id, task_id: fixture.task_id,
+				user_message_id: fixture.user_message_id, category: 'software_development',
+				model_name: 'Synthetic Reasoning Model', provider_name: 'Synthetic Provider', server_region: 'EU'
+			});
+		}, { fixture: FIXTURE });
+		await expect(page.getByTestId('chat-processing-mate-name')).toHaveText('Sophia');
+		await expect(indicator).not.toContainText('Selecting mate');
 	});
 
 	// contract-test: direct surface=gui.web assertions=chat-processing-feedback.turn-lifecycle

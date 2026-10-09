@@ -32,7 +32,7 @@ vi.mock('../../stores/userProfile', async () => {
 	return { userProfile: writable({ user_id: 'team-cache-test-user', username: 'Mira' }) };
 });
 
-import { createTeam, createTeamEmailInvite, deleteTeam, getTeam, getTeamKey, isTeamAIInvocation, listTeams, loadTeamBilling, loadTeamMembers, TeamRequestCancelledError, type TeamViewModel } from '../teamService';
+import { createTeam, createTeamEmailInvite, deleteTeam, getTeam, getTeamKey, isTeamAIInvocation, listTeams, loadTeamBilling, loadTeamMembers, loadTeamMemberAvatar, TeamRequestCancelledError, type TeamViewModel } from '../teamService';
 import { invalidateWorkspaceCaches } from '../workspaceCacheLifecycle';
 import { getActiveTeamContextSnapshot, setActiveTeamContext, TEAMS_UPDATED_EVENT } from '../../stores/teamStore';
 
@@ -224,5 +224,48 @@ describe('teamService', () => {
 		const members = await loadTeamMembers('team-1');
 		expect(members[0].profile?.display_name).toBe('Alex');
 		expect(members[0]).not.toHaveProperty('username');
+	});
+
+	// contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local
+	it('discards member identities arriving after a workspace transition', async () => {
+		let releaseResponse!: (response: Response) => void;
+		vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise(resolve => { releaseResponse = resolve; }));
+		const pending = loadTeamMembers('team-old');
+		invalidateWorkspaceCaches();
+		releaseResponse(new Response(JSON.stringify({ members: [{ user_id: 'member-1', encrypted_member_profile: 'enc:{"display_name":"Alex"}' }] }), { status: 200 }));
+		await expect(pending).rejects.toBeInstanceOf(TeamRequestCancelledError);
+		expect(cryptoMocks.decryptWithEmbedKey).not.toHaveBeenCalled();
+	});
+
+	// contract-test: supporting surface=gui.web assertions=teams.membership.role-gated
+	it('loads a member image only through its authenticated Team profile endpoint', async () => {
+		const createUrl = vi.fn(() => 'blob:team-member');
+		vi.stubGlobal('URL', class extends URL { static createObjectURL = createUrl; });
+		try {
+			const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('image', { status: 200, headers: { 'content-type': 'image/png' } }));
+			await expect(loadTeamMemberAvatar('team-1', { user_id: 'member-1', profile_image_url: '/v1/teams/team-other/members/member-1/profile-image' } as Parameters<typeof loadTeamMemberAvatar>[1])).resolves.toBeNull();
+			expect(fetchMock).not.toHaveBeenCalled();
+			await expect(loadTeamMemberAvatar('team-1', { user_id: 'member-1', profile_image_url: '/v1/teams/team-1/members/member-1/profile-image' } as Parameters<typeof loadTeamMemberAvatar>[1])).resolves.toBe('blob:team-member');
+			expect(fetchMock).toHaveBeenCalledWith('https://api.test/v1/teams/team-1/members/member-1/profile-image', { credentials: 'include' });
+			expect(createUrl).toHaveBeenCalledOnce();
+		} finally { vi.unstubAllGlobals(); }
+	});
+
+	// contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local
+	it('does not create a decrypted image URL when image bytes arrive after switching context', async () => {
+		const createUrl = vi.fn(() => 'blob:stale-member');
+		vi.stubGlobal('URL', class extends URL { static createObjectURL = createUrl; });
+		try {
+			let releaseBlob!: (blob: Blob) => void;
+			const response = new Response('image', { status: 200, headers: { 'content-type': 'image/png' } });
+			vi.spyOn(response, 'blob').mockImplementation(() => new Promise(resolve => { releaseBlob = resolve; }));
+			vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
+			const pending = loadTeamMemberAvatar('team-1', { user_id: 'member-1', profile_image_url: '/v1/teams/team-1/members/member-1/profile-image' } as Parameters<typeof loadTeamMemberAvatar>[1]);
+			await vi.waitFor(() => expect(response.blob).toHaveBeenCalledOnce());
+			invalidateWorkspaceCaches();
+			releaseBlob(new Blob(['image']));
+			await expect(pending).rejects.toBeInstanceOf(TeamRequestCancelledError);
+			expect(createUrl).not.toHaveBeenCalled();
+		} finally { vi.unstubAllGlobals(); }
 	});
 });

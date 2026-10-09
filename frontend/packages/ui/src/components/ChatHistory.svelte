@@ -91,6 +91,7 @@ import { storageArchiveFetch } from "../config/api";
   import { authStore } from '../stores/authStore';
   import { userProfile } from '../stores/userProfile';
   import { activeTeamId } from '../stores/teamStore';
+  import TeamChatReminder from './teams/TeamChatReminder.svelte';
   import { computeSHA256 } from '../message_parsing/utils';
   import { loadTeamMembers, loadTeamMemberAvatar } from '../services/teamService';
   import { webSocketService } from '../services/websocketService';
@@ -107,7 +108,7 @@ import { storageArchiveFetch } from "../config/api";
 
   const FORGOTTEN_MESSAGE_PAGE_LIMIT = NORMAL_MESSAGE_PAGE_LIMIT;
   let currentUserHash = $state<string | null>(null);
-  let teamMemberProfiles = $state<Record<string, { displayName?: string; avatarUrl?: string }>>({});
+  let teamMemberProfiles = $state<Record<string, { userId?: string; displayName?: string; avatarUrl?: string }>>({});
   $effect(() => {
     const userId = $userProfile.user_id;
     currentUserHash = null;
@@ -121,8 +122,9 @@ import { storageArchiveFetch } from "../config/api";
   $effect(() => {
     const teamId = $activeTeamId;
     const chatId = currentChatId;
+    const accountId = $userProfile.user_id;
     teamMemberProfiles = {};
-    if (!teamId || !chatId) return;
+    if (!teamId || !chatId || !accountId) return;
     let cancelled = false;
     const avatarUrls: string[] = [];
     void (async () => {
@@ -134,7 +136,7 @@ import { storageArchiveFetch } from "../config/api";
           const avatarUrl = await loadTeamMemberAvatar(teamId, member).catch(() => null);
           if (avatarUrl && cancelled) URL.revokeObjectURL(avatarUrl);
           else if (avatarUrl) avatarUrls.push(avatarUrl);
-          return [hash, { displayName: member.profile?.display_name, avatarUrl: avatarUrl ?? undefined }] as const;
+          return [hash, { userId: member.user_id, displayName: member.profile?.display_name, avatarUrl: avatarUrl ?? undefined }] as const;
         }));
         if (!cancelled) teamMemberProfiles = Object.fromEntries(entries.filter((entry): entry is NonNullable<typeof entry> => entry !== null));
       } catch { /* The encrypted per-message sender name remains the fallback. */ }
@@ -2930,6 +2932,10 @@ import { storageArchiveFetch } from "../config/api";
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
 
+            {#if $activeTeamId && !isExampleChat && !isSharedChat}
+              <TeamChatReminder />
+            {/if}
+
             {#if isSharedChat && hasOlderMessages}
               <button
                 type="button"
@@ -3008,6 +3014,9 @@ import { storageArchiveFetch } from "../config/api";
                     {:else}
                     <ChatMessage
                         role={msg.role}
+                        teamId={$activeTeamId ?? undefined}
+                        senderUserId={msg.original_message?.hashed_user_id
+                          ? teamMemberProfiles[msg.original_message.hashed_user_id]?.userId : undefined}
                         category={msg.category}
                         sender_name={msg.role === 'user' && msg.original_message?.hashed_user_id
                           ? teamMemberProfiles[msg.original_message.hashed_user_id]?.displayName || msg.sender_name

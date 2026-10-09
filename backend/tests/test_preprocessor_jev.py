@@ -97,6 +97,50 @@ async def test_maps_bounded_decisions_without_generating_title(monkeypatch: pyte
 
 
 @pytest.mark.asyncio
+async def test_explicit_mate_skips_routing_after_app_shortlist_and_keeps_telemetry(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = []
+
+    async def fake_evaluate(**kwargs):
+        calls.append(kwargs)
+        answers = {}
+        for question_id, question in kwargs["questions"].items():
+            if question["type"] == "noul":
+                answers[question_id] = {"type": "noul", "noul": 0.05}
+            elif question["type"] == "score":
+                answers[question_id] = {"type": "score", "score": 0.1,
+                    "legend": {str(i): label for i, label in enumerate(question["criteria"])},
+                    "probabilities": {str(i): 1.0 if i == 0 else 0.0 for i in range(len(question["criteria"]))},
+                    "confidence": 0.99}
+            else:
+                choice = next(iter(question["criteria"]))
+                answers[question_id] = {"type": "choice", "choice": choice,
+                    "probabilities": {key: 1.0 if key == choice else 0.0 for key in question["criteria"]},
+                    "confidence": 0.99}
+        return DecisionResponse.model_validate({"model": "jev", "answers": answers, "usage": {}})
+
+    monkeypatch.setattr(jev_preprocessing, "evaluate_jev_decisions", fake_evaluate)
+    result = await jev_preprocessing.decide_preprocessing_with_jev(
+        model_id="typesafe/jev-1.13", telemetry_task_id="chat_message",
+        secrets_manager=None,
+        message_history=[{"role": "user", "content": "@mate:software_development Help"}],
+        topic_areas=["software_development: Code", "general_misc: Other"],
+        available_apps=["web"], available_skills=["web-search: Search"],
+        available_focus_modes=[], available_settings_and_memories=None,
+        recent_skill_activity=[], conversation_summary=None, previous_category=None,
+        is_first_message=True, skip_mate_routing=True,
+    )
+
+    assert len(calls) == 2
+    assert all(call["telemetry_task_id"] == "chat_message" for call in calls)
+    assert set(calls[0]["questions"]) == {"app_0"}
+    stage_two_questions = set(calls[1]["questions"])
+    assert {"topic_area", "topic_shift"}.isdisjoint(stage_two_questions)
+    assert {"harmful", "misuse", "task_area", "complexity", "language", "icon"} <= stage_two_questions
+    assert result["topic_area"] is None
+    assert result["topic_shift"] is None
+
+
+@pytest.mark.asyncio
 async def test_app_shortlist_selects_multiple_apps_without_unrelated_stage_two_catalogues(monkeypatch):
     calls = []
 

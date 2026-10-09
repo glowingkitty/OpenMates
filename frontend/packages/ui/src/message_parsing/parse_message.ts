@@ -83,6 +83,35 @@ function createMarkedTextNode(text: string, sourceNode: any): any | null {
   return textNode;
 }
 
+/** Render the public @openmates handle with the same node and gradient as Mate mentions. */
+function convertOpenMatesMentionsInTextNode(node: any): any | any[] {
+  if (node.type !== "text" || typeof node.text !== "string" || hasCodeOrLinkMark(node)) return node;
+  const pattern = /(^|[^\w@])(@openmates)(?![\w-]|\.[a-z0-9])/gi;
+  const output: any[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(node.text)) !== null) {
+    const start = match.index + match[1].length;
+    const before = createMarkedTextNode(node.text.slice(lastIndex, start), node);
+    if (before) output.push(before);
+    output.push({
+      type: "mate",
+      attrs: {
+        name: "openmates",
+        displayName: match[2].slice(1),
+        id: crypto.randomUUID(),
+        colorStart: "var(--color-primary-start)",
+        colorEnd: "var(--color-primary-end)",
+      },
+    });
+    lastIndex = start + match[2].length;
+  }
+  if (!output.length) return node;
+  const after = createMarkedTextNode(node.text.slice(lastIndex), node);
+  if (after) output.push(after);
+  return output;
+}
+
 function createInlineEmbedNodeFromRawRef(
   rawRef: string,
   fallbackAppId: string | null,
@@ -471,6 +500,9 @@ function convertEmbedLinksInNode(
   ) {
     return unbracketedSourceRefConversion;
   }
+
+  const openMatesMentionConversion = convertOpenMatesMentionsInTextNode(node);
+  if (Array.isArray(openMatesMentionConversion)) return openMatesMentionConversion;
 
   // Recurse into children
   if (node.content && Array.isArray(node.content)) {

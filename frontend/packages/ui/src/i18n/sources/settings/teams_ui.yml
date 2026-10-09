@@ -650,3 +650,8 @@ untitled_team:
   context: Fallback label when a team name is unavailable
   en: Untitled team
   de: Unbenanntes Team
+
+chat_ai_reminder:
+  context: Persistent info above Team chat messages, OpenMates token is a link to Mates settings
+  en: "Mention @openmates or a specific Mate to involve AI in this conversation."
+  de: "Erwähne @openmates oder einen bestimmten Mate, um KI in dieses Gespräch einzubeziehen."

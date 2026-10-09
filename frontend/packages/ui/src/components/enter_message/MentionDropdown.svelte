@@ -35,6 +35,8 @@
         show?: boolean;
         /** Search query (text after @) */
         query?: string;
+        /** Whether the composer belongs to a Team chat. */
+        teamActive?: boolean;
         /** Y position for the dropdown (top of input) */
         positionY?: number;
         /** Position direction: 'above' (default) or 'below' the input */
@@ -54,6 +56,7 @@
     let {
         show = $bindable(false),
         query = '',
+        teamActive = false,
         positionY = 0,
         positionDirection = 'above',
         onselect,
@@ -87,7 +90,10 @@
     function mergeMentionResults(baseResults: AnyMentionResult[], projectResults: AnyMentionResult[]): AnyMentionResult[] {
         const seen = new Set<string>();
         const merged: AnyMentionResult[] = [];
-        for (const result of [...projectResults, ...baseResults]) {
+        const orderedResults = teamActive && baseResults[0]?.type === 'openmates'
+            ? [baseResults[0], ...projectResults, ...baseResults.slice(1)]
+            : [...projectResults, ...baseResults];
+        for (const result of orderedResults) {
             const key = `${result.type}:${result.id}`;
             if (seen.has(key)) continue;
             seen.add(key);
@@ -144,7 +150,7 @@
         wikipediaError = false;
         wikipediaSearched = false;
         wikipediaDisambiguation = false;
-        const baseResults = source.search(currentQuery);
+        const baseResults = source.search(currentQuery, undefined, teamActive);
         results = baseResults;
         selectedIndex = 0; // Reset selection when results change
         // Collapse all expanded categories when query changes
@@ -326,6 +332,7 @@
      * Get translated type label for a result.
      */
     function getTypeLabel(type: MentionType): string {
+        if (type === 'openmates') return 'OpenMates';
         if (type === 'settings_memory_entry') {
             return $text('enter_message.mention_dropdown.type_labels.settings_memory');
         }
@@ -372,6 +379,9 @@
      * Get translated subtitle for a result.
      */
     function getSubtitle(result: AnyMentionResult): string {
+        if (result.type === 'openmates') {
+            return $text('enter_message.mention_dropdown.openmates_description');
+        }
         if (result.type === 'wikipedia' || result.type === 'wikipedia_source') {
             return result.subtitle;
         }
@@ -407,6 +417,8 @@
      */
     function getSettingsPath(result: AnyMentionResult): string {
         switch (result.type) {
+            case 'openmates':
+                return 'mates';
             case 'model':
                 return `ai/model/${result.id}`;
             case 'model_alias': {
@@ -528,6 +540,10 @@
                             {/if}
                         {:else if result.type === 'wikipedia_source'}
                             <div class="wikipedia-icon" aria-hidden="true">W</div>
+                        {:else if result.type === 'openmates'}
+                            <div class="app-icon openmates-icon" aria-hidden="true">
+                                <span class="mention-icon icon_ai"></span>
+                            </div>
                         {:else if result.type === 'model_alias'}
                             <!-- Model alias icon (crown for best, lightning for fast) -->
                             {@const aliasResult = result as ModelAliasMentionResult}
@@ -894,6 +910,15 @@
     .mention-icon.icon_search {
         -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
         mask-image: url('@openmates/ui/static/icons/search.svg');
+    }
+
+    .openmates-icon {
+        background: linear-gradient(135deg, var(--color-app-ai-start), var(--color-app-ai-end));
+    }
+
+    .mention-icon.icon_ai {
+        -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
+        mask-image: url('@openmates/ui/static/icons/ai.svg');
     }
 
     .mention-icon.icon_filter {

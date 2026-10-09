@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import type { APIResponse, Browser, Page, Response, TestInfo } from '@playwright/test';
 
 const { expect, test } = require('./helpers/cookie-audit');
@@ -87,6 +88,16 @@ async function sendSelectedMate(page: Page, content: string): Promise<void> {
   await field.locator('[data-action="send-message"]').click();
 }
 
+async function sendOpenMatesSuggestion(page: Page, content: string): Promise<void> {
+  // An empty query proves that typing just @ offers the Team AI invocation.
+  await selectMentionResult(page, '', 'OpenMates');
+  const field = page.getByTestId('message-field').last();
+  await expect(field.locator('[data-mention-type="openmates"]')).toHaveText('@openmates');
+  await page.keyboard.press('End');
+  await page.keyboard.insertText(` ${content}`);
+  await field.locator('[data-action="send-message"]').click();
+}
+
 async function readTeamCredits(page: Page, teamId: string): Promise<number> {
   const response = await page.request.get(`${API_URL}/v1/teams/${teamId}/billing`);
   expect(response.ok()).toBe(true);
@@ -153,7 +164,7 @@ async function assertTeamWindow(page: Page, teamId: string, chatId: string, priv
 test.beforeAll(() => requireDirectDevRealInference());
 
 // contract-test: direct surface=gui.web assertions=teams.collaboration.realtime-team-sync,teams.chat.encrypted-until-invoked,teams.chat.sender-identity-layout,teams.chat-billing.team-credit-boundary,teams.context.full-switch-local
-test('two Team members collaborate privately and invoke OpenMates with their full attributed history', async (
+test('two Team members exchange encrypted messages and invoke OpenMates with their full attributed history', async (
   { page, browser }: { page: Page; browser: Browser }, testInfo: TestInfo,
 ) => {
   test.setTimeout(600_000);
@@ -256,6 +267,13 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
     await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', /.+/, { timeout: 30_000 });
     chatId = await page.getByTestId('active-chat-container').getAttribute('data-current-chat-id');
     expect(chatId).toBeTruthy();
+    await expect(page.getByTestId('team-chat-ai-reminder')).toContainText('@openmates');
+    await page.getByTestId('sidebar-toggle').click();
+    await expect(page.getByTestId('activity-history-wrapper')).toBeVisible();
+    await expect(page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`)
+      .getByTestId('chat-title')).toHaveText(lines[0]);
+    await page.getByTestId('activity-history-wrapper').getByRole('button', {name: /close/i}).click();
+    await expect(page.getByTestId('activity-history-wrapper')).not.toBeVisible();
     await waitForFrame(ownerFrames, ordinaryStart, 'sent', 'chat_message_added',
       (payload) => payload.team_id === teamId);
     await memberPage.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId!)}&team-id=${encodeURIComponent(teamId)}`));
@@ -268,6 +286,15 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
     await expect(memberPage.getByTestId('message-user').filter({ hasText: lines[0] })).toBeVisible({ timeout: 45_000 });
     await expect(memberPage.getByTestId('remote-human-message').filter({ hasText: lines[0] })
       .getByTestId('remote-human-name')).not.toBeEmpty();
+    const ownerName = await memberPage.getByTestId('remote-human-message').filter({ hasText: lines[0] })
+      .getByTestId('remote-human-name').innerText();
+    await memberPage.getByTestId('remote-human-message').filter({ hasText: lines[0] })
+      .getByTestId('remote-human-name').click();
+    await expect(memberPage.getByTestId('team-member-detail')).toBeVisible();
+    await expect(memberPage.getByTestId('team-settings-header')).toContainText(ownerName);
+    await expect.poll(() => new URL(memberPage!.url()).hash).toMatch(/settings\/teams\/[^/]+\/members\//);
+    await memberPage.getByTestId('icon-button-close').click();
+    await expect(memberPage.getByTestId('settings-menu')).not.toBeVisible();
     // A member's draft is private to that account and uses the Team chat scope.
     const memberDraftStart = memberFrames.length;
     const ownerPrivateDraftStart = ownerFrames.length;
@@ -345,7 +372,7 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
         .getByTestId('remote-human-name')).toContainText(humanNames[1]);
     }
     const aiStart = memberFrames.length;
-    await sendText(memberPage, '@openmates, who proposed the venue and who offered to invite volunteers for our Berlin event? Please name both teammates.');
+    await sendOpenMatesSuggestion(memberPage, 'who proposed the venue and who offered to invite volunteers for our Berlin event? Please name both teammates.');
     const aiPreflight = await waitForFrame(memberFrames, aiStart, 'sent', 'chat_turn_preflight',
       (payload) => payload.inference_request?.team_ai_invocation?.history?.length >= 5);
     const history = aiPreflight.payload.inference_request.team_ai_invocation.history as Array<{ role: string; content: string; sender_name?: string }>;
@@ -441,6 +468,36 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
     expect([...ownerFrames, ...memberFrames].filter((frame) => frame.direction === 'received' &&
       frame.type === 'error' && frame.payload.chat_id === chatId && /permission/i.test(String(frame.payload.message))))
       .toHaveLength(0);
+
+    // A normal image message is shared with members, including after cache loss,
+    // without invoking AI or charging either account for an inference turn.
+    const imageStart = ownerFrames.length;
+    const imageCaption = 'Here is the group photo for our planning conversation.';
+    await page.locator('input[type="file"][multiple]').setInputFiles(resolve(__dirname, 'fixtures/humans_group.jpg'));
+    const field = page.getByTestId('message-field').last();
+    await expect(field.locator('.image-content.clickable')).toBeVisible({ timeout: 90_000 });
+    const editor = field.getByTestId('message-editor');
+    await editor.press('Control+End');
+    await page.keyboard.insertText(imageCaption);
+    await field.locator('[data-action="send-message"]').click();
+    const imageSend = await waitForFrame(ownerFrames, imageStart, 'sent', 'chat_message_added',
+      payload => payload.chat_id === chatId && payload.team_id === teamId);
+    const imageMessageId = proofId(imageSend.payload.message?.message_id ?? imageSend.payload.message_id);
+    if (imageMessageId) laterOrdinaryMessageIds.push(imageMessageId);
+    expect(imageSend.payload.team_ai_invocation).toBeUndefined();
+    const ownerImage = page.getByTestId('message-user').filter({hasText: imageCaption}).locator('img.preview-image');
+    const memberImage = memberPage.getByTestId('remote-human-message').filter({hasText: imageCaption}).locator('img.preview-image');
+    for (const image of [ownerImage, memberImage]) {
+      await expect(image).toBeVisible({ timeout: 60_000 });
+      await expect.poll(() => image.evaluate((node: HTMLImageElement) => node.naturalWidth)).toBeGreaterThan(0);
+    }
+    await memberPage.reload({ waitUntil: 'domcontentloaded' });
+    await waitForChatReady(memberPage);
+    await expect(memberImage).toBeVisible({ timeout: 60_000 });
+    await expect.poll(() => memberImage.evaluate((node: HTMLImageElement) => node.naturalWidth)).toBeGreaterThan(0);
+    expect(ownerFrames.slice(imageStart).some(frame => frame.type === 'team_ai_processing' && frame.payload.chat_id === chatId)).toBe(false);
+    expect(await readPersonalCredits(page)).toBe(personalCreditsBefore);
+    expect(await readPersonalCredits(memberPage)).toBe(memberPersonalCreditsBefore);
   } catch (error) {
     runError = error;
   } finally {

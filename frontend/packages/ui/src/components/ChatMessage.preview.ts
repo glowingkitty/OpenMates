@@ -9,6 +9,14 @@
  */
 
 import { embedStore } from '../services/embedStore';
+import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
+
+// Preview-only navigation observation for focused click tests.
+if (typeof document !== 'undefined') {
+	settingsDeepLink.subscribe((path) => {
+		document.documentElement.dataset.previewSettingsDeepLink = path ?? '';
+	});
+}
 
 // Fictional, local-only event data exercises the real results node renderer.
 const widthEventId = 'preview-message-width-event';
@@ -198,19 +206,28 @@ export const variants = {
 		content: 'I can invite the Berlin volunteers.',
 		sender_name: 'Sam',
 		isOwnUserMessage: false,
+		teamId: 'preview-team',
+		senderUserId: 'member-preview',
 	},
 	teamRemoteWithAvatar: {
 		...defaultProps,
 		content: 'I uploaded my profile image for the team.',
 		sender_name: 'Sam',
 		isOwnUserMessage: false,
+		teamId: 'preview-team',
+		senderUserId: 'member-preview',
 		remoteHumanAvatarUrl: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="64"%3E%3Ccircle cx="32" cy="32" r="32" fill="%234d73ff"/%3E%3C/svg%3E',
+	},
+	teamOpenMatesMention: {
+		...defaultProps,
+		content: 'Please ask @openmates about the Team settings.',
 	},
 	teamAssistant: {
 		...defaultProps,
 		role: 'assistant' as const,
 		content: 'Alex proposed checking the venue; Sam offered to invite volunteers.',
 		sender_name: 'Sophia',
+		category: 'general_knowledge',
 	},
 
 	/** Assistant message with category */

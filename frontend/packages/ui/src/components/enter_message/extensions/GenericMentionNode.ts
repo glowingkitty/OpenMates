@@ -9,6 +9,7 @@ import { Node, mergeAttributes } from "@tiptap/core";
 export interface GenericMentionNodeOptions {}
 
 export type GenericMentionType =
+  | "openmates"
   | "skill"
   | "focus_mode"
   | "settings_memory"
@@ -126,6 +127,8 @@ export const GenericMentionNode = Node.create<GenericMentionNodeOptions>({
     const style =
       HTMLAttributes.colorStart && HTMLAttributes.colorEnd
         ? `--mention-color-start: ${HTMLAttributes.colorStart}; --mention-color-end: ${HTMLAttributes.colorEnd};`
+        : HTMLAttributes.mentionType === "openmates"
+          ? "--mention-color-start: var(--color-app-ai-start); --mention-color-end: var(--color-app-ai-end); cursor: pointer;"
         : HTMLAttributes.mentionType === "wikipedia"
           ? "--mention-color-start: var(--color-app-study-start); --mention-color-end: var(--color-app-study-end);"
         : "";

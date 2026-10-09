@@ -18,6 +18,7 @@ from fastapi.responses import Response, StreamingResponse
 
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.services.s3.service import S3UploadService
@@ -59,6 +60,56 @@ def get_encryption_service(request: Request) -> EncryptionService:
     if not hasattr(request.app.state, "encryption_service"):
         raise HTTPException(status_code=500, detail="Encryption service unavailable")
     return request.app.state.encryption_service
+
+
+async def _require_live_team_asset_reference(
+    asset_id: str,
+    embed: Dict[str, Any],
+    team_hash: str,
+    owner_hash: str,
+    directus_service: DirectusService,
+) -> None:
+    """Bind a Team asset to a current chat or a saved Team Apps result graph."""
+    chat_hash = embed.get("hashed_chat_id")
+    if chat_hash:
+        if (not isinstance(chat_hash, str) or len(chat_hash) != 64
+                or any(character not in "0123456789abcdef" for character in chat_hash)):
+            raise HTTPException(status_code=404, detail="Generated asset not found")
+        try:
+            result = await ChatMessageArchiveService(
+                directus_service=directus_service, s3_service=None,
+            ).transaction("resolve_chat_hashes", {"hashes": [chat_hash]})
+        except Exception as exc:
+            logger.error("Could not resolve generated asset chat scope", exc_info=True)
+            raise HTTPException(status_code=503, detail="Generated asset authorization unavailable") from exc
+        chats = result.get("chats") if isinstance(result, dict) else None
+        if (not isinstance(chats, list) or len(chats) != 1
+                or not isinstance(chats[0], dict)
+                or chats[0].get("hashed_chat_id") != chat_hash
+                or chats[0].get("hashed_team_id") != team_hash
+                or "storage_state" not in chats[0]
+                or chats[0].get("storage_state") == "deleting"):
+            raise HTTPException(status_code=404, detail="Generated asset not found")
+        return
+
+    root_id = embed.get("root_embed_id")
+    if not isinstance(root_id, str) or not root_id:
+        raise HTTPException(status_code=404, detail="Generated asset not found")
+    root = embed if root_id == asset_id else await directus_service.embed.get_embed_by_id(root_id)
+    if (not root or root.get("embed_id") != root_id
+            or root.get("workspace_origin") != "web_apps"
+            or root.get("hashed_team_id") != team_hash
+            or root.get("hashed_user_id") != owner_hash
+            or root.get("root_embed_id") != root_id
+            or root.get("parent_embed_id")):
+        raise HTTPException(status_code=404, detail="Generated asset not found")
+    child_ids = root.get("embed_ids")
+    if asset_id != root_id and (
+        embed.get("parent_embed_id") != root_id
+        or not isinstance(child_ids, list)
+        or asset_id not in child_ids
+    ):
+        raise HTTPException(status_code=404, detail="Generated asset not found")
 
 
 @router.get("/{asset_id}/files/{variant}/download-url")
@@ -109,6 +160,9 @@ async def refresh_generated_asset_download_url(
             )
         except TeamPermissionError as exc:
             raise HTTPException(status_code=403, detail="Team permission denied") from exc
+        await _require_live_team_asset_reference(
+            asset_id, embed, team_hash, owner_hash, directus_service,
+        )
     elif owner_id != current_user.id or (embed and embed.get("hashed_team_id")):
         raise HTTPException(status_code=404, detail="Generated asset not found")
 

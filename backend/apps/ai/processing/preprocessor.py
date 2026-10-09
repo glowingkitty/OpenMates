@@ -1560,6 +1560,23 @@ async def _emit_preprocessing_step(
         logger.warning(f"{log_prefix} Failed to emit preprocessing_step '{step}': {e}")
 
 
+def _resolve_explicit_mate(
+    all_mates: List[MateConfig], override_mate_id: Optional[str], request_mate_id: Optional[str]
+) -> tuple[Optional[MateConfig], Optional[str]]:
+    """Resolve an existing Mate and the source that actually matched it."""
+    if override_mate_id:
+        mate = next((mate for mate in all_mates if mate.id == override_mate_id), None)
+        if mate is None:
+            mate = next((mate for mate in all_mates if mate.category == override_mate_id), None)
+        if mate:
+            return mate, "user_override"
+    if request_mate_id:
+        mate = next((mate for mate in all_mates if mate.id == request_mate_id), None)
+        if mate:
+            return mate, "predefined"
+    return None, None
+
+
 async def check_preprocessing_credits(
     request_data: AskSkillRequest,
     cache_service: CacheService,
@@ -1894,6 +1911,32 @@ async def handle_preprocessing(
             rejection_reason="internal_error_missing_mates_config",
             error_message="Mate configuration is missing or empty, cannot determine categories for LLM."
         )
+
+    # Resolve explicit Mate selection before any topic decision. Other task,
+    # safety, title, skill and model preprocessing still runs.
+    override_mate_id = user_overrides.mate_id if user_overrides else None
+    explicit_mate, explicit_mate_source = _resolve_explicit_mate(
+        all_mates, override_mate_id, request_data.mate_id
+    )
+    if override_mate_id and explicit_mate_source != "user_override":
+        logger.warning(f"{log_prefix} Unknown Mate override '{override_mate_id}'; using request or automatic selection.")
+    if request_data.mate_id and explicit_mate_source is None:
+        logger.warning(f"{log_prefix} Unknown request mate_id '{request_data.mate_id}'; using automatic selection.")
+    if explicit_mate:
+        # The generative fallback must not ask for automatic Mate routing.
+        tool_function = tool_definition_for_llm.get("function", {})
+        parameters = tool_function.get("parameters", {})
+        for field in ("topic_area", "topic_shift"):
+            parameters.get("properties", {}).pop(field, None)
+        parameters["required"] = [
+            field for field in parameters.get("required", [])
+            if field not in ("topic_area", "topic_shift")
+        ]
+        description = tool_function.get("description", "")
+        description = re.sub(r"\nTopic catalogue \(return one ID\):\n\{TOPIC_AREAS_LIST\}\n", "", description)
+        description = re.sub(r"\n- Choose the most specific topic\.[^\n]*\n  textiles_sewing[^\n]*", "", description)
+        description = re.sub(r"\n- On a first message topic_shift[^\n]*\n  same_topic;[^\n]*", "", description)
+        tool_function["description"] = description
     
     # Build a deduplicated map of category -> description from mate configs.
     # Each category corresponds to exactly one mate; we use the mate's description field
@@ -2259,6 +2302,7 @@ async def handle_preprocessing(
                 conversation_summary=bounded_chat_summary,
                 previous_category=previous_category,
                 is_first_message=is_first_message,
+                skip_mate_routing=explicit_mate is not None,
                 available_rules_loader=load_scoped_rule_metadata,
                 available_workflows=initial_workflow_metadata,
                 effective_focus={"id": request_data.active_focus_id,
@@ -2835,24 +2879,28 @@ async def handle_preprocessing(
     # --- Derive mate category from topic_area ---
     # The LLM no longer owns mate category selection. It classifies the message into a
     # granular topic_area, and backend code maps that topic_area to the canonical mate category.
-    raw_topic_shift = llm_analysis_args.get("topic_shift")
-    if previous_category and _news_follow_up_repeats_prior_topic(request_data.message_history):
-        raw_topic_shift = "same_topic"
-        llm_analysis_args["topic_shift"] = raw_topic_shift
-        logger.info(
-            f"{log_prefix} TOPIC_ROUTING: Preserving previous category because the latest "
-            "two user turns repeat a distinctive topic token."
+    if explicit_mate:
+        validated_category = explicit_mate.category
+        logger.info(f"{log_prefix} Using explicit Mate '{explicit_mate.id}' without automatic category routing.")
+    else:
+        raw_topic_shift = llm_analysis_args.get("topic_shift")
+        if previous_category and _news_follow_up_repeats_prior_topic(request_data.message_history):
+            raw_topic_shift = "same_topic"
+            llm_analysis_args["topic_shift"] = raw_topic_shift
+            logger.info(
+                f"{log_prefix} TOPIC_ROUTING: Preserving previous category because the latest "
+                "two user turns repeat a distinctive topic token."
+            )
+
+        validated_category = _resolve_category_from_topic_area(
+            raw_topic_area=llm_analysis_args.get("topic_area"),
+            raw_topic_shift=raw_topic_shift,
+            raw_task_area=llm_analysis_args.get("task_area"),
+            previous_category=previous_category,
+            available_category_ids=available_category_ids,
         )
 
-    validated_category = _resolve_category_from_topic_area(
-        raw_topic_area=llm_analysis_args.get("topic_area"),
-        raw_topic_shift=raw_topic_shift,
-        raw_task_area=llm_analysis_args.get("task_area"),
-        previous_category=previous_category,
-        available_category_ids=available_category_ids,
-    )
-
-    if validated_category:
+    if validated_category and not explicit_mate:
         if (
             _normalize_task_area(llm_analysis_args.get("task_area")) == "code"
             and validated_category == SOFTWARE_DEVELOPMENT_CATEGORY
@@ -2871,57 +2919,20 @@ async def handle_preprocessing(
                 f"topic_shift='{llm_analysis_args.get('topic_shift')}', previous_category='{previous_category}'."
             )
         llm_analysis_args["category"] = validated_category
-    else:
+    elif not validated_category:
         logger.warning(
             f"{log_prefix} TOPIC_ROUTING: Missing or unmapped topic_area "
             f"'{llm_analysis_args.get('topic_area')}'. Using 'general_knowledge' fallback category."
         )
         validated_category = "general_knowledge"
         llm_analysis_args["category"] = validated_category
+    else:
+        llm_analysis_args["category"] = validated_category
 
     # --- Mate selection: user override first, then explicit request_data, then category-based ---
     # When the user specified @mate:..., we use only that and do not run automatic selection
     # (consistent with model and skill/focus overrides).
-    selected_mate_id: Optional[str] = None
-
-    if user_overrides and user_overrides.mate_id:
-        # --- Apply User Mate Override (@mate:...) — skip automatic selection ---
-        # User can force a specific mate/persona using @mate:{mate_id} or @mate:{category}
-        override_value = user_overrides.mate_id
-        override_mate = next((mate for mate in all_mates if mate.id == override_value), None) if all_mates else None
-        if not override_mate:
-            override_mate = next((mate for mate in all_mates if mate.category == override_value), None) if all_mates else None
-            if override_mate:
-                logger.info(
-                    f"{log_prefix} USER_OVERRIDE: Matched override value '{override_value}' by category. "
-                    f"Resolved to mate_id='{override_mate.id}'"
-                )
-        if override_mate:
-            selected_mate_id = override_mate.id
-            if override_mate.category:
-                validated_category = override_mate.category
-                llm_analysis_args["category"] = validated_category
-            logger.info(
-                f"{log_prefix} USER_OVERRIDE: Using user-requested mate (skipping automatic selection). "
-                f"mate_id={selected_mate_id}, category={validated_category} (user specified: @mate:{override_value})"
-            )
-        else:
-            logger.warning(
-                f"{log_prefix} USER_OVERRIDE: Invalid mate override '{override_value}' (not found as mate ID or category). "
-                f"Falling back to automatic selection. Available: mates={[m.id for m in all_mates]}, categories={[m.category for m in all_mates]}."
-            )
-
-    if not selected_mate_id and request_data.mate_id:
-        # Mate_id from request (e.g., focus mode continuation or follow-up queue) — respect it
-        explicit_mate = next((mate for mate in all_mates if mate.id == request_data.mate_id), None) if all_mates else None
-        if explicit_mate:
-            selected_mate_id = explicit_mate.id
-            logger.info(f"{log_prefix} Using explicitly provided mate_id '{selected_mate_id}' (skipping category-based selection).")
-        else:
-            logger.warning(
-                f"{log_prefix} Explicit mate_id '{request_data.mate_id}' not found in mates list. "
-                f"Falling back to category-based selection."
-            )
+    selected_mate_id: Optional[str] = explicit_mate.id if explicit_mate else None
 
     if not selected_mate_id and validated_category:
         # Automatic selection based on LLM-detected category
@@ -3789,10 +3800,7 @@ async def handle_preprocessing(
         try:
             # Step 2: Mate selection
             # Skipped if user provided @mate: override or request_data had an explicit mate_id
-            mate_was_user_override = bool(user_overrides and user_overrides.mate_id)
-            mate_was_predefined = bool(request_data.mate_id and not mate_was_user_override)
-            if mate_was_user_override or mate_was_predefined:
-                skip_reason_mate = "user_override" if mate_was_user_override else "predefined"
+            if explicit_mate:
                 await _emit_preprocessing_step(
                     cache_service=cache_service,
                     channel=preprocessing_stream_channel,
@@ -3800,7 +3808,9 @@ async def handle_preprocessing(
                     skipped=True,
                     user_id_uuid=user_id_uuid_for_events,
                     chat_id=chat_id_for_events,
-                    skip_reason=skip_reason_mate,
+                    skip_reason=explicit_mate_source,
+                    data={"mate_id": explicit_mate.id, "mate_name": explicit_mate.name,
+                          "mate_category": explicit_mate.category},
                     log_prefix=log_prefix
                 )
             elif final_result.selected_mate_id and final_result.category:

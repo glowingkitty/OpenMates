@@ -31,7 +31,7 @@
 
     // Bump this when parse/render semantics change so stale in-memory parsed docs
     // (cached by markdown text) are invalidated and re-parsed with new logic.
-    const READ_ONLY_PARSE_CACHE_VERSION = 'v5-project-mentions';
+    const READ_ONLY_PARSE_CACHE_VERSION = 'v6-openmates-mentions';
 
     // Props using Svelte 5 runes mode
     // _embedUpdateTimestamp is used to force re-render when embed data becomes available
@@ -529,7 +529,7 @@
         else if (mentionEl.classList.contains('mate-mention')) {
             const mateName = mentionEl.getAttribute('data-name');
             if (mateName) {
-                deepLinkPath = `mates/${mateName}`;
+                deepLinkPath = mateName === 'openmates' ? 'mates' : `mates/${mateName}`;
             }
         }
         // --- Generic mention (skill / focus_mode / settings_memory / settings_memory_entry) ---

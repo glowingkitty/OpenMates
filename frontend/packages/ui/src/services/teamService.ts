@@ -490,9 +490,12 @@ export async function uploadTeamProfileImage(team: TeamViewModel, file: File): P
 }
 
 export async function loadTeamMembers(teamId: string): Promise<TeamMember[]> {
+  const scope = ensureTeamKeyScope();
   const data = await requestJson<{ members: TeamMember[] }>(`/v1/teams/${encodeURIComponent(teamId)}/members`);
+  assertTeamKeyScope(scope);
   const teamKey = await getTeamKey(teamId);
-  return Promise.all((data.members ?? []).map(async member => {
+  assertTeamKeyScope(scope);
+  const members = await Promise.all((data.members ?? []).map(async member => {
     if (!member.encrypted_member_profile) return member;
     try {
       const profileText = await decryptWithEmbedKey(member.encrypted_member_profile, teamKey);
@@ -501,13 +504,19 @@ export async function loadTeamMembers(teamId: string): Promise<TeamMember[]> {
       return { ...member, profile: { display_name: parsed.display_name, avatar: parsed.avatar ?? ownTeamMemberProfile().avatar } };
     } catch { return member; }
   }));
+  assertTeamKeyScope(scope);
+  return members;
 }
 
 export async function loadTeamMemberAvatar(teamId: string, member: TeamMember): Promise<string | null> {
+  const scope = ensureTeamKeyScope();
   if (!member.user_id || member.profile_image_url !== `/v1/teams/${teamId}/members/${member.user_id}/profile-image`) return null;
   const response = await fetch(getApiEndpoint(member.profile_image_url), { credentials: "include" });
+  assertTeamKeyScope(scope);
   if (!response.ok || !response.headers.get("content-type")?.startsWith("image/")) return null;
-  return URL.createObjectURL(await response.blob());
+  const blob = await response.blob();
+  assertTeamKeyScope(scope);
+  return URL.createObjectURL(blob);
 }
 
 export async function updateTeamMemberRole(teamId: string, userId: string, role: InviteRole): Promise<void> {

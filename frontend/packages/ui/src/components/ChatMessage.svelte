@@ -118,6 +118,8 @@
     sender_name = undefined,
     isOwnUserMessage = true,
     remoteHumanAvatarUrl = undefined,
+    teamId = undefined,
+    senderUserId = undefined,
     model_name = undefined,
     status = undefined,
     messageParts = [],
@@ -153,6 +155,8 @@
     sender_name?: string;
     isOwnUserMessage?: boolean;
     remoteHumanAvatarUrl?: string;
+    teamId?: string;
+    senderUserId?: string;
     model_name?: string;
     status?: MessageStatus;
     messageParts?: MessagePart[];
@@ -1114,6 +1118,13 @@
   let assistantDisplayName = $derived(importedProvider?.displayName ?? displayName);
   let remoteHumanName = $derived(sender_name?.trim() || $text('settings.teams_ui.team_member'));
   let isRemoteHuman = $derived(role === 'user' && !isOwnUserMessage);
+  let hasRemoteHumanIdentity = $derived(isRemoteHuman && !!teamId && !!senderUserId);
+
+  function openRemoteHumanSettings() {
+      if (!hasRemoteHumanIdentity || !teamId || !senderUserId) return;
+      settingsDeepLink.set(`teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(senderUserId)}`);
+      panelState.openSettings();
+  }
 
   // animated prop is now included in the main $props() call above
 
@@ -3137,7 +3148,7 @@
     {/if}
   </div>
 {:else}
-<div class="chat-message {effectiveRole}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={effectiveRole === 'assistant'} class:user={effectiveRole === 'user'} class:remote-human={isRemoteHuman} class:mobile-stacked={effectiveRole === 'assistant' && shouldStackMobile} data-testid={isRemoteHuman ? 'remote-human-message' : undefined}>
+<div class="chat-message {effectiveRole}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={effectiveRole === 'assistant'} class:user={effectiveRole === 'user'} class:remote-human={isRemoteHuman} class:mobile-stacked={(effectiveRole === 'assistant' || isRemoteHuman) && shouldStackMobile} data-testid={isRemoteHuman ? 'remote-human-message' : undefined}>
   {#if effectiveRole === 'assistant'}
     <!-- Mate profile image: clickable for real mates (opens mate detail in settings) -->
     {#if importedProvider}
@@ -3166,16 +3177,18 @@
     {/if}
   {/if}
   {#if isRemoteHuman}
-    <div class="remote-human-profile" data-testid="remote-human-profile" role="img" aria-label={remoteHumanName}>
-      {#if remoteHumanAvatarUrl}
-        <img src={remoteHumanAvatarUrl} alt="" data-testid="remote-human-avatar-image" />
-      {:else}
-        {remoteHumanName.slice(0, 1).toLocaleUpperCase()}
-      {/if}
-    </div>
+    {#if hasRemoteHumanIdentity}
+      <button type="button" class="remote-human-profile remote-human-profile-link" class:remote-human-profile-small-mobile={shouldStackMobile} data-testid="remote-human-profile" aria-label={remoteHumanName} onclick={openRemoteHumanSettings}>
+        {#if remoteHumanAvatarUrl}<img src={remoteHumanAvatarUrl} alt="" data-testid="remote-human-avatar-image" />{:else}{remoteHumanName.slice(0, 1).toLocaleUpperCase()}{/if}
+      </button>
+    {:else}
+      <div class="remote-human-profile" class:remote-human-profile-small-mobile={shouldStackMobile} data-testid="remote-human-profile" role="img" aria-label={remoteHumanName}>
+        {#if remoteHumanAvatarUrl}<img src={remoteHumanAvatarUrl} alt="" data-testid="remote-human-avatar-image" />{:else}{remoteHumanName.slice(0, 1).toLocaleUpperCase()}{/if}
+      </div>
+    {/if}
   {/if}
 
-  <div class="message-align-{role === 'user' && !isRemoteHuman ? 'right' : 'left'}" class:mobile-full-width={role === 'assistant' && shouldStackMobile} class:mobile-compact={role === 'user' && !isRemoteHuman && shouldStackMobile}>
+  <div class="message-align-{role === 'user' && !isRemoteHuman ? 'right' : 'left'}" class:mobile-full-width={(role === 'assistant' || isRemoteHuman) && shouldStackMobile} class:mobile-compact={role === 'user' && !isRemoteHuman && shouldStackMobile}>
     <div 
       bind:this={messageContentElement}
       class="{role === 'user' && !isRemoteHuman ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''}"
@@ -3227,7 +3240,11 @@
           {/if}
         </div>
       {:else if isRemoteHuman}
-        <div class="remote-human-name" data-testid="remote-human-name">{remoteHumanName}</div>
+        {#if hasRemoteHumanIdentity}
+          <button type="button" class="chat-mate-name chat-mate-name-link" data-testid="remote-human-name" onclick={openRemoteHumanSettings}>{remoteHumanName}</button>
+        {:else}
+          <div class="chat-mate-name" data-testid="remote-human-name">{remoteHumanName}</div>
+        {/if}
       {/if}
 
       <div class="chat-message-text">
@@ -3721,28 +3738,35 @@
 
 <style>
   .remote-human-profile {
-    width: 3.75rem;
-    height: 3.75rem;
+    width: 60px;
+    height: 60px;
     margin: var(--mate-profile-margin);
     border-radius: var(--radius-full);
     background: var(--color-grey-blue);
     color: var(--color-grey-100);
+    box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
     display: grid;
     place-items: center;
     font-weight: 700;
     flex-shrink: 0;
+    overflow: hidden;
+    padding: 0;
   }
+  .remote-human-profile-link { border: 0; cursor: pointer; min-width: 0; filter: none; }
+  .remote-human-profile-link:hover { opacity: 0.8; scale: 1; background: var(--color-grey-blue); }
+  .remote-human-profile-link:active { scale: 1; background: var(--color-grey-blue); filter: none; }
+  .remote-human-profile-link:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+  .remote-human-profile-small-mobile { width: 25px; height: 25px; margin-block: 0 8px; margin-inline: 0; }
+  .chat-message.remote-human.mobile-stacked { flex-direction: column; align-items: flex-start; }
+  .chat-message.remote-human.mobile-stacked .message-align-left.mobile-full-width { max-width: 100%; padding-inline-end: 0; margin-inline-start: 0; }
+  .chat-message.remote-human.mobile-stacked .mate-message-content { margin-right: 0; margin-top: 0; }
+  .chat-message.remote-human.mobile-stacked .mate-message-content::before { transform: rotate(90deg); left: 20px; top: -12px; right: auto; bottom: auto; }
   .remote-human-profile img {
     width: 100%;
     height: 100%;
     object-fit: cover;
   }
 
-  .remote-human-name {
-    font-size: var(--font-size-small);
-    font-weight: 700;
-    margin-bottom: var(--spacing-2);
-  }
   .imported-provider-profile {
     width: 3.75rem;
     height: 3.75rem;

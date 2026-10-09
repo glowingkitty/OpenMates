@@ -24,6 +24,7 @@ import { text } from "../../../i18n/translations";
 import { createEmbedFromUrl } from "../services/urlMetadataService"; // Import URL-to-embed creation
 import { authStore } from "../../../stores/authStore"; // Import authStore for authentication check
 import { userProfile } from "../../../stores/userProfile";
+import { teamChatTitleFromMessage } from "../../../utils/teamChatTitle";
 import { computeSHA256 } from "../../../message_parsing/utils";
 import { appSettingsMemoriesPermissionStore } from "../../../stores/appSettingsMemoriesPermissionStore"; // For auto-dismissing permission dialog
 import { forcedLogoutInProgress } from "../../../stores/signupState";
@@ -791,7 +792,7 @@ export async function handleSend(
               );
               if (isOrdinaryDeferredTeamChat) {
                 newChatForDeferred.encrypted_title = await encryptWithChatKey(
-                  "New team chat",
+                  teamChatTitleFromMessage(editor.getText()),
                   chatKey,
                 );
               }
@@ -1738,7 +1739,7 @@ export async function handleSend(
         );
         if (isOrdinaryTeamChat) {
           newChatData.encrypted_title = await encryptWithChatKey(
-            "New team chat",
+            teamChatTitleFromMessage(markdown),
             chatKey,
           );
         }

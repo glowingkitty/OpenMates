@@ -200,6 +200,7 @@ async def decide_preprocessing_with_jev(
     conversation_summary: Optional[str],
     previous_category: Optional[str],
     is_first_message: bool,
+    skip_mate_routing: bool = False,
     available_rules: list[dict[str, Any]] | None = None,
     available_rules_loader: Callable[[list[str]], Awaitable[list[dict[str, Any]]]] | None = None,
     available_workflows: list[dict[str, Any]] | None = None,
@@ -356,6 +357,11 @@ async def decide_preprocessing_with_jev(
             "instructions": "Choose one common Lucide icon representing the conversation topic.",
             "criteria": ICONS,
         }
+    if skip_mate_routing:
+        # An explicit, validated Mate fixes the category. Preserve task, safety,
+        # language, app, skill and model decisions without asking for Mate routing.
+        questions.pop("topic_area")
+        questions.pop("topic_shift")
 
     skill_map = _add_multi_select_questions(
         questions, "skill", available_skills,
@@ -426,8 +432,10 @@ async def decide_preprocessing_with_jev(
         "relevant_workflows": [{"workflow_id": row["workflow_id"], "current_version_id": row["current_version_id"]} for row in workflow_candidates if row['workflow_id'] in {
             key for question, key in workflow_map.items() if noul_value(response, question) >= 0.8}][:3],
         "relevant_embedded_previews": [] if preview == "none" else [preview],
-        "topic_area": choice_value(response, "topic_area", min_confidence=0.02),
-        "topic_shift": "noticeable_shift" if is_first_message else choice_value(response, "topic_shift"),
+        "topic_area": None if skip_mate_routing else choice_value(response, "topic_area", min_confidence=0.02),
+        "topic_shift": None if skip_mate_routing else (
+            "noticeable_shift" if is_first_message else choice_value(response, "topic_shift")
+        ),
         "harmful_or_illegal": round(noul_value(response, "harmful") * 10.0, 2),
         "misuse_risk": round(noul_value(response, "misuse") * 10.0),
         "output_language": choice_value(response, "language"),

@@ -21,6 +21,11 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+    explicitMateSelectingModel: {
+        lines: ['Selecting AI model...'],
+        mateCategory: null,
+        statusType: 'processing',
+    },
     selecting: {
         lines: ['Selecting mate & AI model...'],
         mateCategory: null,

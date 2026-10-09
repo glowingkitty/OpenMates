@@ -354,9 +354,12 @@ test.describe('Teams settings component', () => {
 		await expect(page.getByTestId('team-member-detail-role')).toHaveCount(0);
 		await expect(page.getByTestId('team-invite-email-input')).toBeVisible();
 		await expect(page.getByTestId('team-invite-revoke-preview-invite')).toBeVisible();
-		await expect(page.getByTestId('team-pending-invite-row')).toContainText(
+		const pendingInvites = page.getByTestId('team-pending-invite-row');
+		await expect(pendingInvites).toHaveCount(2);
+		await expect(pendingInvites.filter({ hasText: 'alex@example.org' })).toContainText(
 			'Invite ready; awaiting acceptance'
 		);
+		await expect(pendingInvites.filter({ hasText: 'Invite link' })).toContainText('Awaiting acceptance');
 		await test.step('members: member controls and pending invite fit the phone', async () => {
 			await expect(page.getByTestId('team-member-row')).toHaveCount(2);
 			await expectPhonePreviewFits(page);
@@ -420,7 +423,7 @@ test.describe('Teams settings component', () => {
 		await expect(page.getByTestId('team-member-role-member-preview')).toHaveCount(0);
 		await page.goto(preview('viewerMemberDetail'));
 		await waitForComponentPreview(page);
-		await expect(page.getByText('Alex', { exact: true })).toBeVisible();
+		await expect(page.getByTestId('team-settings-header')).toContainText('Alex');
 		await expect(page.getByTestId('team-member-remove')).toHaveCount(0);
 	});
 

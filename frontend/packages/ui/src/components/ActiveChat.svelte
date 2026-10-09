@@ -4233,7 +4233,9 @@ import { storageArchiveFetch } from "../config/api";
     // The composer indicator starts only after the server accepts this exact turn.
     // Keep it separate from the centered step-card phase so both surfaces can evolve
     // without a delayed acknowledgement replacing known typing information.
-    let processingFeedbackTurn = $state<{ chatId: string; userMessageId: string; taskId: string } | null>(null);
+    let processingFeedbackTurn = $state<{
+        chatId: string; userMessageId: string; taskId: string; explicitMateCategory: string | null;
+    } | null>(null);
     const terminalProcessingFeedbackTurns = new Set<string>();
     // Whether the current message being processed is for a new chat (no title yet).
     // Determines the initial spinner text (new chat starts with "Generating chat title...").
@@ -4688,6 +4690,11 @@ import { storageArchiveFetch } from "../config/api";
     }
 
     const processingMatesById = getMatesById();
+
+    function explicitMateCategoryForMessage(message: ChatMessageModel | undefined): string | null {
+        const mateId = message?.content?.match(/@mate:([a-zA-Z0-9_-]+)/)?.[1];
+        return mateId && processingMatesById[mateId] ? mateId : null;
+    }
 
     function openProcessingMateDetails() {
         const feedbackTurn = processingFeedbackTurn;
@@ -6455,7 +6462,9 @@ import { storageArchiveFetch } from "../config/api";
         // arrives, it replaces selection there even while centered step cards remain.
         // Require an accepted turn: two missing chat IDs also compare equal on the landing page.
         if (processingFeedbackTurn && processingFeedbackTurn.chatId === currentChat?.chat_id && !typingStatusMatchesProcessingFeedback) {
-            return [$text('enter_message.status.selecting_mate_and_model')];
+            return [$text(processingFeedbackTurn.explicitMateCategory
+                ? 'enter_message.status.selecting_model'
+                : 'enter_message.status.selecting_mate_and_model')];
         }
 
         // When the centered indicator is active (processingPhase is not null),
@@ -12566,7 +12575,12 @@ import { storageArchiveFetch } from "../config/api";
                         chatId: chat_id,
                         userMessageId: user_message_id,
                         taskId: event.detail.ai_task_id,
+                        explicitMateCategory: explicitMateCategoryForMessage(
+                            currentMessages.find((message) => message.message_id === user_message_id),
+                        ),
                     };
+                    selectedPreprocessingMateName = processingFeedbackTurn.explicitMateCategory
+                        ? $text('mates.' + processingFeedbackTurn.explicitMateCategory) : null;
                     startProcessingStepProgression(isNewChatProcessing);
                 }
 
@@ -13126,9 +13140,26 @@ import { storageArchiveFetch } from "../config/api";
 
             // Only update if we're still in the processing phase (not yet typing or null)
             if (processingPhase?.phase !== 'processing') return;
+            if (step.chat_id && step.chat_id !== currentChat?.chat_id) return;
 
             // Skipped steps are silently ignored — no card rendered
             if (step.skipped) {
+                if (step.step === 'mate_selected'
+                    && (step.skip_reason === 'user_override' || step.skip_reason === 'predefined')
+                    && step.data?.mate_category) {
+                    selectedPreprocessingMateName = step.data.mate_name
+                        || $text('mates.' + step.data.mate_category);
+                    if (processingFeedbackTurn?.chatId === currentChat?.chat_id) {
+                        processingFeedbackTurn = {
+                            ...processingFeedbackTurn,
+                            explicitMateCategory: step.data.mate_category,
+                        };
+                    }
+                    processingPhase = {
+                        ...processingPhase,
+                        statusLines: [$text('enter_message.status.selecting_model')],
+                    };
+                }
                 console.debug('[ActiveChat] Skipping preprocessing step (skipped=true):', step.step);
                 return;
             }
@@ -13145,7 +13176,9 @@ import { storageArchiveFetch } from "../config/api";
             const nextStepText = (() => {
                 switch (step.step) {
                     case 'title_generated':
-                        return $text('enter_message.status.selecting_mate');
+                        return $text(processingFeedbackTurn?.explicitMateCategory
+                            ? 'enter_message.status.selecting_model'
+                            : 'enter_message.status.selecting_mate');
                     case 'mate_selected':
                         return $text('enter_message.status.selecting_model');
                     case 'model_selected': {

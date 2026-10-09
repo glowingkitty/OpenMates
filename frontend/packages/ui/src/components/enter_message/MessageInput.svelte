@@ -2495,6 +2495,12 @@
                     },
                     click: (view, event) => {
                         const target = event.target as HTMLElement;
+                        if (target.closest('[data-mention-type="openmates"]')) {
+                            event.preventDefault();
+                            settingsDeepLink.set('mates');
+                            panelState.openSettings();
+                            return true;
+                        }
                         if (target.closest('[data-testid="project-access-chip"]')) {
                             handleMessageWrapperClick(event);
                             return true;
@@ -6779,6 +6785,7 @@
     <MentionDropdown
         bind:show={showMentionDropdown}
         query={mentionQuery}
+        teamActive={!!$activeTeamId}
         positionY={mentionDropdownY}
         onselect={handleMentionSelectCallback}
         onclose={handleMentionClose}

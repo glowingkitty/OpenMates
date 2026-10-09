@@ -23,10 +23,16 @@ class _StubLimiter:
 
 
 auth_deps_stub = types.ModuleType("backend.core.api.app.routes.auth_routes.auth_dependencies")
+auth_deps_stub.get_current_user = lambda: None
 auth_deps_stub.get_current_user_optional = lambda: None
 auth_deps_stub.get_current_user_or_api_key = lambda: None
 directus_stub = types.ModuleType("backend.core.api.app.services.directus")
 directus_stub.DirectusService = object
+team_methods_stub = types.ModuleType("backend.core.api.app.services.directus.team_methods")
+team_methods_stub.TeamPermissionError = type("TeamPermissionError", (PermissionError,), {})
+project_auth_stub = types.ModuleType("backend.core.api.app.services.project_write_authorization_service")
+project_auth_stub.ProjectWriteAuthorizationError = type("ProjectWriteAuthorizationError", (Exception,), {})
+project_auth_stub.ProjectWriteAuthorizationService = object
 encryption_stub = types.ModuleType("backend.core.api.app.utils.encryption")
 encryption_stub.EncryptionService = object
 s3_service_stub = types.ModuleType("backend.core.api.app.services.s3.service")
@@ -41,6 +47,8 @@ user_stub.User = object
 _STUB_MODULES = {
     "backend.core.api.app.routes.auth_routes.auth_dependencies": auth_deps_stub,
     "backend.core.api.app.services.directus": directus_stub,
+    "backend.core.api.app.services.directus.team_methods": team_methods_stub,
+    "backend.core.api.app.services.project_write_authorization_service": project_auth_stub,
     "backend.core.api.app.utils.encryption": encryption_stub,
     "backend.core.api.app.services.s3.service": s3_service_stub,
     "backend.core.api.app.services.s3.config": s3_config_stub,
@@ -91,6 +99,7 @@ class FakeS3Service:
         "chatfiles/shared/code-artifact.zip.enc",
     ],
 )
+# contract-test: supporting surface=rest_api assertions=chat-share-settings.shared-link-open
 async def test_presigned_url_allows_logged_out_shared_embed_asset_access(monkeypatch, s3_key):
     monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
     monkeypatch.setattr(
@@ -115,6 +124,7 @@ async def test_presigned_url_allows_logged_out_shared_embed_asset_access(monkeyp
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=chat-share-settings.shared-link-open
 @pytest.mark.parametrize("s3_key", ["../secret", "/absolute/key", "https://example.com/key"])
 async def test_presigned_url_rejects_suspicious_s3_keys(s3_key):
     s3_service = FakeS3Service()

@@ -36,6 +36,7 @@ import { buildProjectMentionSyntax } from "./projectMentionSyntax";
  * Types of mentionable items in the @ dropdown.
  */
 export type MentionType =
+  | "openmates"
   | "model"
   | "model_alias"
   | "mate"
@@ -120,6 +121,23 @@ export interface MateMentionResult extends MentionResult {
   colorStart: string;
   /** Color gradient end for the mate */
   colorEnd: string;
+}
+
+export interface OpenMatesMentionResult extends MentionResult {
+  type: "openmates";
+}
+
+export function getOpenMatesMentionResult(): OpenMatesMentionResult {
+  return {
+    id: "openmates",
+    type: "openmates",
+    displayName: "OpenMates",
+    mentionDisplayName: "openmates",
+    subtitle: "OpenMates AI",
+    icon: "ai",
+    mentionSyntax: "@openmates",
+    searchTerms: ["openmates", "open mates"],
+  };
 }
 
 /**
@@ -222,6 +240,7 @@ export interface WikipediaMentionResult extends MentionResult {
  * Union type for all mention results.
  */
 export type AnyMentionResult =
+  | OpenMatesMentionResult
   | ModelMentionResult
   | ModelAliasMentionResult
   | MateMentionResult
@@ -1085,12 +1104,17 @@ const SEARCH_RESULT_LIMIT = 8;
 export function searchMentions(
   query: string,
   limit: number = SEARCH_RESULT_LIMIT,
+  teamActive = false,
 ): AnyMentionResult[] {
   if (!query || query.trim() === "") {
-    return getDefaultMentionResults();
+    return teamActive
+      ? [getOpenMatesMentionResult(), ...getDefaultMentionResults()]
+      : getDefaultMentionResults();
   }
 
-  const allResults = getAllMentionResults(true);
+  const allResults = teamActive
+    ? [getOpenMatesMentionResult(), ...getAllMentionResults(true)]
+    : getAllMentionResults(true);
 
   // Score and filter results (settings_memory / settings_memory_entry get a boost when they match)
   const scoredResults = allResults

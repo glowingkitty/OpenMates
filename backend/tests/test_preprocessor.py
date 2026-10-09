@@ -8,6 +8,7 @@
 # Run: python -m pytest backend/tests/test_preprocessor.py -v
 
 import pytest
+from types import SimpleNamespace
 
 try:
     from backend.apps.ai.processing.preprocessor import (
@@ -20,6 +21,7 @@ try:
         _contains_repo_search_intent_in_user_history,
         _request_has_image_upload_embed,
         _resolve_override_model_provider,
+        _resolve_explicit_mate,
         _usable_chat_model_reference,
         IMAGE_CHAT_SAFE_MODEL_ID,
         IMAGE_CHAT_SAFE_MODEL_NAME,
@@ -132,6 +134,18 @@ def test_resolve_override_model_provider_keeps_direct_provider_id():
     )
 
     assert result == "openai"
+
+
+def test_explicit_mate_resolution_only_skips_selection_for_known_mates():
+    sophia = SimpleNamespace(id="sophia", category="software_development")
+    george = SimpleNamespace(id="george", category="general_knowledge")
+    mates = [sophia, george]
+
+    assert _resolve_explicit_mate(mates, "sophia", None) == (sophia, "user_override")
+    assert _resolve_explicit_mate(mates, "software_development", None) == (sophia, "user_override")
+    assert _resolve_explicit_mate(mates, "unknown", None) == (None, None)
+    assert _resolve_explicit_mate(mates, None, "george") == (george, "predefined")
+    assert _resolve_explicit_mate(mates, "unknown", "george") == (george, "predefined")
 
 
 # contract-test: supporting surface=rest_api assertions=ai-model-routing.preferences.exclusive-tier-defaults,ai-model-routing.catalog.capability-recommendation-variants

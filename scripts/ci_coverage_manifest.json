@@ -311,7 +311,9 @@
         "components/app-skill-model-cache-pricing.spec.ts",
         "components/settings-usage-cache-receipt.spec.ts",
         "components/chat-message-team-attribution.spec.ts",
-        "website-public-routes.spec.ts"
+        "website-public-routes.spec.ts",
+        "components/team-openmates-mention-dropdown.spec.ts",
+        "components/team-chat-reminder.spec.ts"
       ],
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "execution": "e2e"
