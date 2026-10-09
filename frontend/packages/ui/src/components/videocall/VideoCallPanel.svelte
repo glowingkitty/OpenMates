@@ -30,7 +30,6 @@
   let audioRate = $derived(state.usage?.audio_credits_per_minute ?? 27.6);
   let videoRate = $derived(state.usage?.video_credits_per_minute ?? fallbackVideoRate);
   let activeRate = $derived(audioRate + (!state.visualsAllowed || state.videoStatus === 'off' ? 0 : videoRate));
-  let remaining = $derived(Math.max(0, state.maxDurationSeconds - state.elapsedSeconds));
 
   $effect(() => {
     controller.setVideoElement(visibleVideo);
@@ -160,7 +159,13 @@
     try { await visibleVideo?.play(); playbackBlocked = false; }
     catch { playbackBlocked = true; }
   }
-  function seconds(value: number): string { return `${Math.floor(value / 60)}:${String(Math.floor(value % 60)).padStart(2, '0')}`; }
+  function seconds(value: number): string {
+    const total = Math.max(0, Math.floor(value));
+    const minutes = Math.floor(total / 60);
+    const seconds = String(total % 60).padStart(2, '0');
+    if (minutes < 60) return `${minutes}:${seconds}`;
+    return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}:${seconds}`;
+  }
   function number(value: number): string { return new Intl.NumberFormat(undefined, { maximumFractionDigits: 3 }).format(value); }
   function roundedRate(perMinute: number): string { return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(perMinute); }
 </script>
@@ -175,7 +180,7 @@
 
   <div class="heading" data-testid="call-heading">
     <div><p class="eyebrow">{$text('videocall.provider')}</p><h1>{$text('videocall.title')}</h1><p class="subtitle">{$text('videocall.subtitle')}</p></div>
-    <div class="timer" data-testid="call-timer"><span>{$text('videocall.elapsed', { values: { time: seconds(state.elapsedSeconds) } })}</span><span>{$text('videocall.remaining', { values: { time: seconds(remaining) } })}</span></div>
+    <div class="timer" data-testid="call-timer"><span>{$text('videocall.elapsed', { values: { time: seconds(state.elapsedSeconds) } })}</span></div>
   </div>
   {#if state.error && state.status === 'live'}<p class="notice" role="status">{state.error}</p>{/if}
 
@@ -230,7 +235,7 @@
 
   {#if state.status === 'idle' || state.status === 'ended' || state.status === 'error'}
     <div class="start-area">
-      {#if state.status === 'ended'}<p role="status">{$text(state.endReason === 'time_limit' ? 'videocall.time_limit_reached' : 'videocall.ended')}</p>{/if}
+      {#if state.status === 'ended'}<p role="status">{$text('videocall.ended')}</p>{/if}
       {#if state.error}<p class="error" role="alert">{state.error}</p>{/if}
       <button class="start-button" type="button" onclick={() => void controller.start()} data-testid="call-start">{state.status === 'idle' ? $text('videocall.start') : $text('videocall.restart')}</button>
       <p class="privacy">{$text('videocall.privacy')}</p>

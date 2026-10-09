@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import base64
 from collections import deque
+from contextlib import AsyncExitStack
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_CEILING
 import hashlib
@@ -36,8 +37,10 @@ router = APIRouter(prefix="/v1/experiment")
 
 GEMINI_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
 GEMINI_MODEL = "gemini-3.8-live"
-MAX_SECONDS = 120
-LOCK_TTL_SECONDS = MAX_SECONDS + 120
+LOCK_TTL_SECONDS = 90
+LOCK_RENEW_SECONDS = 30
+MIN_HANDOFF_INTERVAL_SECONDS = 15
+MAX_QUEUED_PROVIDER_INPUT = 2 * 1024 * 1024
 MAX_AUDIO_CHUNK = 128 * 1024
 MAX_FRAME = 256 * 1024
 MAX_PROMPT = 1800
@@ -295,11 +298,24 @@ async def _acquire_lock(websocket: WebSocket, user_hash: str) -> tuple[Any, str,
 
 async def _release_lock(client: Any, key: str, token: str) -> None:
     try:
-        value = await client.get(key)
-        if (value.decode() if isinstance(value, bytes) else value) == token:
-            await client.delete(key)
+        await client.eval(
+            "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) else return 0 end",
+            1, key, token,
+        )
     except Exception:
         logger.warning("Video-call lock release failed", exc_info=True)
+
+
+async def _renew_lock(client: Any, key: str, token: str) -> None:
+    """Refresh only this call's lease; loss of ownership stops paid work."""
+    while True:
+        await asyncio.sleep(LOCK_RENEW_SECONDS)
+        renewed = await client.eval(
+            "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('EXPIRE', KEYS[1], ARGV[2]) else return 0 end",
+            1, key, token, LOCK_TTL_SECONDS,
+        )
+        if renewed != 1:
+            raise RuntimeError("Video-call lease lost")
 
 
 async def _finish_accepted_job(task: asyncio.Task[None]) -> None:
@@ -383,7 +399,7 @@ def _decode_gemini_event(message: aiohttp.WSMessage) -> dict[str, Any]:
     return event
 
 
-def _gemini_setup() -> dict[str, Any]:
+def _gemini_setup(resume_handle: str | None = None) -> dict[str, Any]:
     return {
         "setup": {
             "model": f"models/{GEMINI_MODEL}",
@@ -413,6 +429,7 @@ def _gemini_setup() -> dict[str, Any]:
             "inputAudioTranscription": {},
             "outputAudioTranscription": {},
             "contextWindowCompression": {"triggerTokens": 8000, "slidingWindow": {"targetTokens": 4000}},
+            "sessionResumption": {"handle": resume_handle} if resume_handle else {},
         }
     }
 
@@ -422,6 +439,49 @@ def _tool_response(call: dict[str, Any], result: str) -> dict[str, Any]:
         "id": call.get("id"), "name": "generate_visual_clip",
         "response": {"result": result}, "scheduling": "WHEN_IDLE",
     }]}}
+
+
+class _GeminiConnection:
+    """Own one Live socket at a time, closing the old context after resumption."""
+
+    def __init__(self, session: aiohttp.ClientSession, key: str) -> None:
+        self.session = session
+        self.key = key
+        self.socket: aiohttp.ClientWebSocketResponse
+        self.stack: AsyncExitStack
+
+    async def _open(self, handle: str | None) -> tuple[aiohttp.ClientWebSocketResponse, AsyncExitStack]:
+        stack = AsyncExitStack()
+        try:
+            socket = await stack.enter_async_context(self.session.ws_connect(
+                GEMINI_URL, headers={"x-goog-api-key": self.key}, heartbeat=15,
+                max_msg_size=3 * 1024 * 1024,
+            ))
+            await socket.send_json(_gemini_setup(handle))
+            reply = _decode_gemini_event(await asyncio.wait_for(socket.receive(), timeout=10))
+            if "setupComplete" not in reply:
+                raise RuntimeError("Gemini Live setup failed")
+            return socket, stack
+        except BaseException:
+            await stack.aclose()
+            raise
+
+    async def __aenter__(self) -> _GeminiConnection:
+        self.socket, self.stack = await self._open(None)
+        return self
+
+    async def resume(self, handle: str) -> aiohttp.ClientWebSocketResponse:
+        socket, stack = await self._open(handle)
+        try:
+            await self.stack.aclose()
+        except BaseException:
+            await stack.aclose()
+            raise
+        self.socket, self.stack = socket, stack
+        return socket
+
+    async def __aexit__(self, *_: Any) -> None:
+        await self.stack.aclose()
 
 
 @router.websocket("/videocall")
@@ -454,6 +514,7 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     except Exception:
         await _release_lock(lock_client, lock_key, lock_token)
         raise
+    lease_task = asyncio.create_task(_renew_lock(lock_client, lock_key, lock_token))
     started = time.monotonic()
     call_id = uuid.uuid4().hex
     ledger = UsageLedger()
@@ -474,6 +535,9 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     socket_send_lock = asyncio.Lock()
     billing_lock = asyncio.Lock()
     disconnected = False
+    resume_task: asyncio.Task[aiohttp.ClientWebSocketResponse] | None = None
+    queued_provider_input: deque[dict[str, Any]] = deque()
+    queued_provider_bytes = 0
 
     async def send(event: dict[str, Any]) -> None:
         if not disconnected:
@@ -492,6 +556,14 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
             await send({**metadata, "data": base64.b64encode(media).decode("ascii")})
 
     async def send_provider(provider: aiohttp.ClientWebSocketResponse, event: dict[str, Any]) -> None:
+        nonlocal queued_provider_bytes
+        if resume_task is not None:
+            size = len(json.dumps(event))
+            if queued_provider_bytes + size > MAX_QUEUED_PROVIDER_INPUT:
+                raise RuntimeError("Provider handoff input overflow")
+            queued_provider_input.append(event)
+            queued_provider_bytes += size
+            return
         async with provider_send_lock:
             await provider.send_json(event)
 
@@ -518,27 +590,29 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         async with httpx.AsyncClient(timeout=httpx.Timeout(20, read=80), follow_redirects=False) as fal_client:
             timeout = aiohttp.ClientTimeout(total=None, sock_connect=10)
             async with aiohttp.ClientSession(timeout=timeout) as http_session:
-                async with http_session.ws_connect(
-                    GEMINI_URL, headers={"x-goog-api-key": google_key}, heartbeat=15,
-                    max_msg_size=3 * 1024 * 1024,
-                ) as gemini:
-                    await send_provider(gemini, _gemini_setup())
-                    setup_reply = _decode_gemini_event(await asyncio.wait_for(gemini.receive(), timeout=10))
-                    if "setupComplete" not in setup_reply:
-                        raise RuntimeError("Gemini Live setup failed")
+                async with _GeminiConnection(http_session, google_key) as connection:
+                    gemini = connection.socket
                     started = time.monotonic()
                     await send({
                         "type": "ready", "model": GEMINI_MODEL,
                         "input_sample_rate": 16000, "output_sample_rate": 24000,
-                        "max_duration_seconds": MAX_SECONDS,
                         "audio_credits_per_minute": 27.6,
                         "video_credits_per_minute": float(_video_rate() * Decimal(60) * MARKUP / USD_PER_CREDIT),
                     })
                     last_auth_check = 0.0
+                    resume_handle: str | None = None
+                    last_handoff_at = float("-inf")
+                    handoff_pending = False
+                    handoff_deadline = 0.0
+
+                    async def connect_resume(handle: str) -> aiohttp.ClientWebSocketResponse:
+                        return await connection.resume(handle)
 
                     async def generate_visual(prompt: str, epoch: int) -> None:
                         nonlocal active_job, continuation_jpeg, continuation_for_clip, latest_clip_id, video_serial, billing_fault
-                        if not visuals_allowed or epoch != segment_epoch or time.monotonic() - started >= MAX_SECONDS:
+                        if lease_task.done():
+                            await lease_task
+                        if not visuals_allowed or epoch != segment_epoch:
                             return
                         # The browser sends the final displayed frame at playback
                         # end. Wait briefly if the next instruction arrives while
@@ -547,7 +621,7 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                             deadline = time.monotonic() + CONTINUATION_WAIT_SECONDS
                             while continuation_for_clip != latest_clip_id and visuals_allowed and epoch == segment_epoch and time.monotonic() < deadline:
                                 await asyncio.sleep(min(0.1, deadline - time.monotonic()))
-                        if not visuals_allowed or epoch != segment_epoch or time.monotonic() - started >= MAX_SECONDS:
+                        if not visuals_allowed or epoch != segment_epoch:
                             return
                         if latest_clip_id is not None and (continuation_for_clip != latest_clip_id or continuation_jpeg is None):
                             await send({"type": "error", "code": "video_unavailable", "message": "The previous clip's final frame is unavailable. Voice can continue."})
@@ -555,6 +629,8 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                         job: FalJob | None = None
                         try:
                             await require_headroom(_credits_for(_video_rate() * VIDEO_RESERVE_SECONDS) + MIN_VOICE_HEADROOM)
+                            if lease_task.done():
+                                await lease_task
                             # A matching retained frame is the only accepted
                             # continuation source for this explicit instruction.
                             image = continuation_jpeg if continuation_for_clip == latest_clip_id else None
@@ -580,7 +656,7 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                             except Exception:
                                 billing_fault = True
                                 raise
-                            if epoch != segment_epoch or time.monotonic() - started >= MAX_SECONDS:
+                            if epoch != segment_epoch:
                                 return
                             ready_at = time.monotonic()
                             await send_video_ready({
@@ -621,25 +697,32 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     try:
                         while True:
                             now = time.monotonic()
+                            if lease_task.done():
+                                await lease_task
+                            if handoff_pending and now >= handoff_deadline:
+                                raise RuntimeError("Gemini Live handoff expired")
                             if billing_fault:
                                 raise RuntimeError("Video-call billing could not settle")
                             if now - last_auth_check >= 5:
                                 if not await _session_still_valid(websocket, auth_data):
                                     raise RuntimeError("Session expired or revoked")
                                 last_auth_check = now
-                            if now - started >= MAX_SECONDS:
-                                await send({"type": "ended", "reason": "time_limit"})
-                                logger.info("Video call ended reason=time_limit elapsed=%.1fs call_id=%s", now - started, call_id)
-                                break
                             if visuals_allowed and pending_prompts and (active_video is None or active_video.done()):
                                 active_video = asyncio.create_task(generate_visual(pending_prompts.popleft(), segment_epoch))
                             # Fail closed as projected balance is consumed. This
                             # catches quiet/long turns before another fal submit.
                             await require_headroom(MIN_VOICE_HEADROOM)
+                            waiting = {client_receive, lease_task}
+                            if provider_receive is not None:
+                                waiting.add(provider_receive)
+                            if resume_task is not None:
+                                waiting.add(resume_task)
                             done, _ = await asyncio.wait(
-                                {client_receive, provider_receive}, timeout=1,
+                                waiting, timeout=1,
                                 return_when=asyncio.FIRST_COMPLETED,
                             )
+                            if lease_task in done:
+                                await lease_task
                             if client_receive in done:
                                 incoming = json.loads(client_receive.result())
                                 if not isinstance(incoming, dict):
@@ -694,9 +777,35 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                 else:
                                     raise ValueError("Unknown call event")
                                 client_receive = asyncio.create_task(websocket.receive_text())
-                            if provider_receive in done:
+                            if resume_task is not None and resume_task in done:
+                                gemini = resume_task.result()
+                                resume_task = None
+                                async with provider_send_lock:
+                                    while queued_provider_input:
+                                        await gemini.send_json(queued_provider_input.popleft())
+                                queued_provider_bytes = 0
+                                provider_receive = asyncio.create_task(gemini.receive())
+                            if provider_receive is not None and provider_receive in done:
                                 msg = provider_receive.result()
                                 event = _decode_gemini_event(msg)
+                                if "goAway" in event:
+                                    if (handoff_pending or resume_task is not None
+                                            or time.monotonic() - last_handoff_at < MIN_HANDOFF_INTERVAL_SECONDS):
+                                        raise RuntimeError("Gemini Live handoff unavailable")
+                                    go_away = event["goAway"]
+                                    time_left = go_away.get("timeLeft") if isinstance(go_away, dict) else None
+                                    match = re.fullmatch(r"(\d+(?:\.\d+)?)s", time_left) if isinstance(time_left, str) else None
+                                    if match is None or float(match.group(1)) <= 0:
+                                        raise RuntimeError("Gemini Live handoff deadline unavailable")
+                                    handoff_pending = True
+                                    last_handoff_at = time.monotonic()
+                                    handoff_deadline = time.monotonic() + float(match.group(1))
+                                update = event.get("sessionResumptionUpdate")
+                                if isinstance(update, dict):
+                                    if update.get("resumable") is False:
+                                        resume_handle = None
+                                    elif update.get("resumable") is True and isinstance(update.get("newHandle"), str) and update["newHandle"]:
+                                        resume_handle = update["newHandle"]
                                 ledger.observe_gemini_output(event)
                                 usage = event.get("usageMetadata")
                                 if isinstance(usage, dict):
@@ -742,7 +851,15 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                         await send_provider(gemini, _tool_response(call, "visual direction accepted; voice may continue"))
                                         if active_video is None or active_video.done():
                                             active_video = asyncio.create_task(generate_visual(pending_prompts.popleft(), segment_epoch))
-                                provider_receive = asyncio.create_task(gemini.receive())
+                                if handoff_pending and resume_handle:
+                                    resume_task = asyncio.create_task(asyncio.wait_for(
+                                        connect_resume(resume_handle),
+                                        timeout=max(0.1, handoff_deadline - time.monotonic()),
+                                    ))
+                                    handoff_pending = False
+                                    provider_receive = None
+                                else:
+                                    provider_receive = asyncio.create_task(gemini.receive())
                     finally:
                         # Fence every late result before waiting for accepted
                         # work to settle; never start another clip after exit.
@@ -751,8 +868,14 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                         pending_prompts.clear()
                         disconnected = True
                         client_receive.cancel()
-                        provider_receive.cancel()
-                        await asyncio.gather(client_receive, provider_receive, return_exceptions=True)
+                        pending_tasks = [client_receive]
+                        if provider_receive is not None:
+                            provider_receive.cancel()
+                            pending_tasks.append(provider_receive)
+                        if resume_task is not None:
+                            resume_task.cancel()
+                            pending_tasks.append(resume_task)
+                        await asyncio.gather(*pending_tasks, return_exceptions=True)
                         if active_video is not None:
                             if active_job is not None:
                                 await cancel_clip(fal_client, key=fal_key, job=active_job)
@@ -783,6 +906,8 @@ async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
             pass
     finally:
         await _settle_final_usage(websocket, ledger, user_id=user_id, user_hash=user_hash, call_id=call_id)
+        lease_task.cancel()
+        await asyncio.gather(lease_task, return_exceptions=True)
         await _release_lock(lock_client, lock_key, lock_token)
         try:
             await websocket.close()

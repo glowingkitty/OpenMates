@@ -2,7 +2,7 @@
  * Browser session controller for the standalone video call experiment.
  * It uses the existing OpenMates auth token and a first-party WebSocket.
  * Video clips live only as revocable Blob URLs in this process.
- * The server owns billing figures, duration limits and visual generation.
+ * The server owns billing figures and visual generation.
  */
 import { get, writable, type Readable } from 'svelte/store';
 import { text } from '../../i18n/translations';
@@ -31,10 +31,8 @@ export interface CallUsage {
 }
 export interface CallState {
   status: CallStatus;
-  endReason: 'time_limit' | null;
   error: string | null;
   elapsedSeconds: number;
-  maxDurationSeconds: number;
   visualsAllowed: boolean;
   videoStatus: 'off' | 'queued' | 'playing';
   videoPending: boolean;
@@ -59,7 +57,7 @@ export interface CallControllerLike extends Readable<CallState> {
 }
 
 export const initialCallState: CallState = {
-  status: 'idle', endReason: null, error: null, elapsedSeconds: 0, maxDurationSeconds: 120,
+  status: 'idle', error: null, elapsedSeconds: 0,
   visualsAllowed: true, videoStatus: 'off', videoPending: false, videoDraining: false, clips: [], transcripts: [], usage: null,
   userSpeaking: false, modelSpeaking: false,
 };
@@ -181,10 +179,9 @@ export class VideoCallController implements CallControllerLike {
   private handleMessage(message: Record<string, unknown>): void {
     switch (message.type) {
       case 'ready': {
-        const max = Number(message.max_duration_seconds);
-        this.startedAt = Date.now();
+        this.startedAt = performance.now();
         this.update({
-          status: 'live', maxDurationSeconds: Number.isFinite(max) && max > 0 ? max : 120,
+          status: 'live',
           usage: {
             ...EMPTY_USAGE,
             audio_credits_per_minute: Number(message.audio_credits_per_minute) || 0,
@@ -192,7 +189,7 @@ export class VideoCallController implements CallControllerLike {
           },
         });
         if (this.ticker) clearInterval(this.ticker);
-        this.ticker = setInterval(() => this.update({ elapsedSeconds: Math.min(this.state.maxDurationSeconds, Math.floor((Date.now() - this.startedAt) / 1000)) }), 250);
+        this.ticker = setInterval(() => this.update({ elapsedSeconds: Math.floor((performance.now() - this.startedAt) / 1000) }), 250);
         break;
       }
       case 'audio_chunk':
@@ -269,7 +266,7 @@ export class VideoCallController implements CallControllerLike {
         this.finish('error');
         break;
       case 'ended':
-        this.finish('ended', message.reason === 'time_limit' ? 'time_limit' : null);
+        this.finish('ended');
         break;
     }
   }
@@ -328,7 +325,8 @@ export class VideoCallController implements CallControllerLike {
     this.send({ type: 'allow_visuals' });
   }
 
-  private finish(status: 'ended' | 'error', endReason: 'time_limit' | null = null): void {
+  private finish(status: 'ended' | 'error'): void {
+    const elapsedSeconds = this.state.status === 'live' ? Math.floor((performance.now() - this.startedAt) / 1000) : this.state.elapsedSeconds;
     if (this.ticker) clearInterval(this.ticker);
     this.ticker = null;
     this.audio?.stop();
@@ -338,8 +336,7 @@ export class VideoCallController implements CallControllerLike {
     this.socket = null;
     this.clearVisuals();
     this.update({
-      status, endReason, error: status === 'ended' ? null : this.state.error,
-      elapsedSeconds: endReason === 'time_limit' ? this.state.maxDurationSeconds : this.state.elapsedSeconds,
+      status, error: status === 'ended' ? null : this.state.error, elapsedSeconds,
       userSpeaking: false, modelSpeaking: false,
     });
   }

@@ -85,17 +85,22 @@ test.describe('Video call experiment panel', () => {
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.experiment.live-voice,video-call.experiment.user-stop
-  test('shows a normal two-minute limit notice and releases live controls', async ({ page }) => {
+  test('shows elapsed time beyond two minutes and keeps the call live until Hang up', async ({ page }) => {
     await page.goto(preview());
     await waitForComponentPreview(page);
     await page.getByTestId('call-start').click();
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'unavailable' } })));
     await expect(page.getByText('A visual is unavailable. Voice continues.')).toBeVisible();
-    await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'time_limit' } })));
-    await expect(page.getByText('The two-minute experiment limit was reached. Your call has ended.')).toBeVisible();
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'elapsed', elapsedSeconds: 125 } })));
+    await expect(page.getByTestId('call-timer')).toContainText('2:05 elapsed');
+    await expect(page.getByTestId('call-timer')).not.toContainText('left');
+    await expect(page.getByTestId('call-hangup')).toBeVisible();
+    await expect(page.getByText('A visual is unavailable. Voice continues.')).toBeVisible();
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('video-call-preview-event', { detail: { type: 'elapsed', elapsedSeconds: 3661 } })));
+    await expect(page.getByTestId('call-timer')).toContainText('1:01:01 elapsed');
+    await page.getByTestId('call-hangup').click();
+    await expect(page.getByText('Call ended. Your audio and visuals were released.')).toBeVisible();
     await expect(page.getByText('A visual is unavailable. Voice continues.')).toHaveCount(0);
-    await expect(page.getByTestId('call-timer')).toContainText('2:00');
-    await expect(page.getByTestId('call-hangup')).toHaveCount(0);
     await expect(page.getByTestId('call-stop-video')).toHaveCount(0);
     await expect(page.getByTestId('call-video')).toHaveCount(0);
     await expect(page.getByTestId('call-start')).toBeVisible();

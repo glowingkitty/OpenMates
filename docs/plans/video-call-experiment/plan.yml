@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: video-call-experiment
 title: Gemini Voice And H3 Turbo Experiment
-status: verified
+status: implementing
 goal: >
   Implement a first test to see how well such a system can actually work, before
   spending more time on it: a basic /experiment/videocall page for Gemini voice
@@ -17,12 +17,12 @@ scope:
     - Clearly audible Gemini speech, quieter video ambience/effects and automatic ducking.
     - Wide side-by-side transcript/video and narrow fullscreen video with transcript access.
     - Authoritative proportional billing, 1.2 multiplier, visible rates/time/credits and bounded spend.
-    - Two-minute experimental session limit, one pending video job and deterministic cleanup.
+    - No application duration limit, continuously visible elapsed time, renewable call ownership, planned provider resumption and deterministic hangup cleanup.
     - Focused backend and frontend checks plus component and route evidence in isolated CI.
   out:
     - Normal chat/sidebar integration, ordinary app skills, app-skill result rendering and native clients.
     - S3 recording, replay and download, including whole-call recording composition.
-    - Automatic paid reconnect, unlimited sessions and production deployment.
+    - Automatic new calls after hangup, client disconnect or terminal provider failure; production deployment.
 
 decisions:
   - User approved the limited experiment after five sequential clarification answers.
@@ -44,6 +44,7 @@ decisions:
   - Optimize the existing Turbo completed-clip API with prompt expansion disabled, retained-frame continuation, binary media delivery and no server frame extraction before playback.
   - WHEN_IDLE tool acknowledgements resume speech without interrupting narration; each fresh visual request generates one clip and repeated tool IDs cannot duplicate paid work.
   - User declined Director because of its sixty-second billing minimum; the experiment stays Turbo only.
+  - On 2026-10-09 the user requested removing the two-minute cap, clearly displaying elapsed duration and ending the call when they press Hangup. Planned provider rollover resumes the existing connected call; authorization, balance and ownership checks remain active.
 
 draft_contract:
   path: specifications/features/video-call/specification.yml
@@ -59,7 +60,7 @@ experimental_contract:
   path: specifications/features/video-call-experiment/specification.yml
   id: feature.video-call-experiment
   status: draft
-  approval: Both initial drafts were approved and committed as 7b8ab00b10a375bb6df89d4dd12a0d73a98804ff; the user explicitly approved the held-frame revision 7ff700f739f17936316b71662b61367e03f531ab560fbd109958caee38321291 on 2026-10-08.
+  approval: Both initial drafts were approved and committed as 7b8ab00b10a375bb6df89d4dd12a0d73a98804ff; the user approved the held-frame revision on 2026-10-08 and explicitly approved removing the application time limit with fingerprint 101229a26b34045d27d166cc8113175d5d3d541ccba5007fccea4d813eca2658 on 2026-10-09. The contract remains a draft.
 
 acceptance_criteria:
   - id: AC-1
@@ -78,13 +79,16 @@ acceptance_criteria:
     text: Auth/origin, balance failure, packet limits and concurrent admission reject paid work safely.
     coverage_status: covered
   - id: AC-6
-    text: Browser unmount, hangup and session expiry stop tracks, sources, provider jobs and future paid work.
+    text: Browser unmount, hangup, authorization loss and disconnect stop tracks, sources, provider jobs, pending resumption and future paid work.
     coverage_status: covered
   - id: AC-7
     text: Usage settlement is proportional, bounded and idempotent; current rates and accrued credits are visible.
     coverage_status: covered
   - id: AC-8
     text: Both screen layouts retain usable controls; no recording or ordinary chat persistence occurs.
+    coverage_status: covered
+  - id: AC-9
+    text: Calls and their visible timer continue beyond two minutes without an application cap; planned Gemini rollover preserves the conversation, elapsed time, metered usage and held-frame continuation until the user hangs up.
     coverage_status: covered
 
 verification:
@@ -107,10 +111,19 @@ verification:
     - Never issue real fal/H3 requests in automated verification; a bounded Gemini-only provider probe is authorized.
 
 verification_evidence:
-  backend: 38 focused mocked route/provider/billing tests passed, including request-driven clips, repeated tool IDs, held-frame reuse after failure, missing-frame refusal without a paid fallback, continuous voice, binary delivery and stop fencing; Ruff passed.
-  frontend: Thirteen focused audio/controller tests passed, including held frames across requests, audio-only state after completion or failure, independent decoded ambience, binary delivery, explicit-stop fencing, clear time-limit completion and recovery from a stale visual warning; changed-path ESLint, translation generation and panel compilation passed.
-  termination_diagnostics: Normal time-limit and user-hangup paths now log reason, elapsed time and ephemeral call ID. Sanitized terminal failure logs include elapsed time and call ID for correlation. This logging-only backend update passed compilation, Ruff and diff checks; provider behavior, billing and the two-minute limit are unchanged.
+  backend: Forty-four focused mocked route/provider/billing tests passed, including audio and visuals beyond two minutes, owner-checked lease renewal through accepted-job settlement, lost-lease refusal, planned resumption with the same ledger and held-frame continuation, four well-spaced quiet rollovers, old-socket cleanup and hangup during resumption; existing billing, media and stop cases remain covered. Ruff and diff checks passed. No real provider requests were made for this revision.
+  frontend: Fourteen focused audio/controller tests passed, including advancing elapsed time through one hour and Hangup stopping socket, audio, video resources and timer; held-frame continuity, independent ambience and stale-warning recovery remain covered. Changed-path ESLint, translation generation and panel compilation passed.
+  termination_diagnostics: User-hangup paths log reason, elapsed time and ephemeral call ID. Sanitized terminal failure logs include elapsed time and call ID for correlation. Time-limit termination is removed in the current revision.
   component:
+    source: aef9e9f6c8b9441a0253def89ac0ac4fbd5706f7
+    request: c61cc13fb513870f4fd80522a90816693d84fe0012d39f9b612490530c8360d3
+    run: 37903981988
+    result: Six desktop cases passed without retries, skips or flaky results with synthetic clips. The changed case exercises elapsed time at 2:05 and 1:01:01, continued call controls and Hangup cleanup; existing autoplay, independent controls and held-frame continuity cases pass. The long-duration capture was reviewed, showing the elapsed timer after Hangup; all six recordings were uploaded with the receipt's evidence command.
+    source_scope: Backend, controller, panel and desktop coverage stayed frozen after this candidate. Integration preserves the upstream unused time-limit translation entry to reconcile the stale worktree safely; it has no remaining product references. Other later changes only record verification and deployment evidence.
+  gemini_planned_rollover:
+    result: Mocked backend coverage preserves one call ledger, held-frame continuation and tool deduplication through planned rollover; four well-spaced quiet rollovers succeed without a lifetime reconnect cap. Old sockets close and Hangup cancels pending resumption.
+    bounds: No real Google or fal requests were made for this revision. Provider rollout behavior during long real calls remains for the user's manual evaluation.
+  previous_component:
     source: a552992084c83a512a4a364910ef1150919f419c
     request: 301fe08dec12178ce8bedfd3225571e29bc20a7702eaeac81a959936027b540f
     run: 37822271234
@@ -124,7 +137,7 @@ verification_evidence:
     request: 161d14ea435eb0176f723f0058d13e28b05763f8b6df92879a3983e0d32880ae
     result: Failed during test collection in the existing module loader; no route tests or recordings ran. The user waived this run as a deployment gate.
     retrieval: Artifact download hit the host disk-budget limit; the GitHub failure log confirms no tests executed.
-  deployment:
+  previous_deployment:
     code_commit: bcc78bc1bbad1b042f534402ed01882b10322236
     backend: Dev API and dependent workers refreshed together with sanitized termination diagnostics; all services running and healthy (docker-d85810fb).
     frontend: Exact code deployment succeeded; https://app.dev.openmates.org/experiment/videocall is published with clear two-minute expiry messaging and recovered visual warning cleanup (Vercel DpyucU4wESAFKVt1uC549RDvEkgo). The web prebuild regenerates locales from the committed YAML source.

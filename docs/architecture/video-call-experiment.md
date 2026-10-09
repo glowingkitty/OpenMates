@@ -65,10 +65,19 @@ and new prompt; a failed request preserves the frame for a subsequent attempt.
 If a previous frame is unavailable after a bounded wait, the route reports the
 visual failure and continues voice without submitting a text-only paid fallback.
 User Close video clears the held scene, fences late results and blocks new visual
-requests until explicitly re-enabled. Hangup, expiry and disconnect release
-retained media and stop further paid work. The experiment ends after two minutes and does not reconnect
-automatically. Normal expiry shows an explicit two-minute-limit completion notice;
-successful visual delivery clears any earlier recoverable visual warning. Normal
+requests until explicitly re-enabled. Hangup, authorization loss and disconnect release
+retained media and stop further paid work. Calls have no application duration limit.
+The visible elapsed timer continues beyond two minutes and displays hours for longer
+calls; Hangup stops microphone capture, speech, video playback and the timer.
+Context-window compression and planned Gemini session resumption keep one call
+active across provider connection rollover without resetting elapsed time, visual
+continuation or its usage ledger. A rollover waits for a fresh resumable provider
+state, is cancelled by client hangup/disconnect and never starts a replacement call
+after a terminal failure. The per-user Redis admission lease is renewed while the
+call is active and accepted provider work settles; ownership loss stops further
+paid requests, and release cannot delete another call's lease.
+See [Google's session-management guidance](https://ai.google.dev/gemini-api/docs/live-api/session-management).
+Successful visual delivery clears any earlier recoverable visual warning. Normal
 termination logs record the reason, elapsed time and ephemeral call ID; terminal
 failure logs retain those fields with the exception type and origin, without
 transcripts, media or provider payloads. Wide screens show transcript and video together; narrow screens

@@ -3,12 +3,12 @@ id: feature.video-call-experiment
 version: 1
 status: draft
 title: Experimental Gemini Voice And H3 Turbo Video Calls
-summary: An authenticated two-minute web experiment evaluates native Gemini voice and automatically
+summary: An authenticated web experiment evaluates native Gemini voice and automatically
   directed short H3 Turbo visuals with user controls and metered billing.
 scope:
   includes:
   - The standalone /experiment/videocall web page and its private authenticated WebSocket.
-  - Gemini 3.8 Live voice, transient transcript, interruption and visible two-minute session limit.
+  - Gemini 3.8 Live voice, transient transcript, interruption and clearly visible elapsed call duration without an application time limit.
   - Gemini-triggered five-second H3 Max Turbo 480p clips, a held final frame and request-driven
     continuation across the same voice conversation.
   - Independent user Close video and Hangup controls, narrator-first audio mix and responsive transcript/video
@@ -19,8 +19,8 @@ scope:
   excludes:
   - Normal chat/sidebar integration, persisted chat messages, ordinary app skills and result displays.
   - Recording, S3 storage, replay, download and audio-gap composition.
-  - Public/developer-key APIs, Apple/CLI/SDK call clients, unlimited sessions and automatic paid
-    reconnect.
+  - Public/developer-key APIs, Apple/CLI/SDK call clients and automatic new calls after hangup,
+    client disconnect or a terminal provider failure.
   - Guaranteed seamless real-time video or scientific accuracy before real-provider evaluation.
 models:
   ExperimentSession:
@@ -58,8 +58,12 @@ assertions:
   type: behavior
   must: '/experiment/videocall provides a minimal authenticated voice-call interface with via Google
     Gemini attribution, microphone permission handling, live user/Gemini transcript, interruption
-    and hangup. Native Gemini speech is streamed without a separate TTS provider. A visible two-minute
-    experimental limit ends and cleans up the call without automatic paid reconnect.
+    and hangup. Native Gemini speech is streamed without a separate TTS provider. Calls have no
+    application-imposed duration limit; a clearly visible elapsed timer keeps advancing until the
+    call ends. Planned Gemini connection rollover resumes the existing conversation while the
+    client remains connected, preserving the call timer and usage ledger. Hangup ends the call,
+    releases microphone and playback resources, and prevents later provider resumption. Authorization
+    loss, insufficient credits, disconnect or a terminal provider failure still end the call safely.
 
     '
   depends_on:
@@ -82,7 +86,7 @@ assertions:
     playback and retains the last frame while voice continues. Natural completion does not disable
     later visual requests in the same call. User Close video stops queued generation immediately and
     clears the retained frame; late clips cannot reopen it until visual permission is explicitly
-    re-enabled. Hangup, expiry and disconnect stop further paid work and release retained media.
+    re-enabled. Hangup, authorization loss and disconnect stop further paid work and release retained media.
 
     '
   depends_on:
@@ -136,7 +140,9 @@ assertions:
 - id: video-call.experiment.privacy
   type: invariant
   must: 'Paid live connections are first-party, authenticated, owner-scoped and origin-bound with
-    bounded message sizes, session limits, admission credit checks and spend controls. Provider keys
+    bounded message sizes, ongoing authorization checks, a renewable owner-scoped active-call lock,
+    admission credit checks and spend controls. Losing authorization or ownership of the lock stops
+    further paid work. Provider keys
     remain server-side; no client provider prompts or arbitrary remote URLs grant a paid operation.
     Media and transcript plaintext are not logged or durably retained. Unavailable authorization
     or admission control does not open a paid provider session.

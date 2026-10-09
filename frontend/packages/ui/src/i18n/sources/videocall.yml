@@ -33,11 +33,6 @@ elapsed:
   en: '{time} elapsed'
   de: '{time} vergangen'
   verified_by_human: []
-remaining:
-  context: Call timer remaining time
-  en: '{time} left'
-  de: 'Noch {time}'
-  verified_by_human: []
 visual:
   context: Accessibility label for generated video stage
   en: Call visual

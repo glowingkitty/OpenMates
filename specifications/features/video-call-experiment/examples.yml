@@ -2,10 +2,9 @@ schema_version: 1
 specification: feature.video-call-experiment@1
 voice:
 - id: speak-and-interrupt
-  given: Maya is signed in on /experiment/videocall and has allowed microphone access.
-  when: She starts a call and interrupts Gemini's answer with another question.
-  then: Google Gemini attribution and live transcript remain visible, queued speech clears and the
-    conversation continues.
+  given: Maya has been talking to Gemini for four minutes on /experiment/videocall with microphone access allowed.
+  when: She interrupts an answer, continues through a planned provider connection rollover, then presses Hangup.
+  then: Google Gemini attribution and transcript stay visible, the elapsed timer continues beyond four minutes without resetting, and the conversation continues until Hangup stops microphone and playback; no later provider connection opens.
 - id: microphone-denied
   given: Maya has not granted microphone access.
   when: She tries to start the experimental call and denies permission.
@@ -32,7 +31,7 @@ stop:
   given: A visual clip is still generating.
   when: Maya closes video.
   then: The retained scene clears, no queued request starts or late clip reopens the panel until
-    she re-enables visuals; already accepted provider usage remains accounted for.
+    she re-enables visuals; already accepted provider usage remains accounted for. If she then presses Hangup, microphone and playback stop and no later visual request starts.
 audio:
 - id: narrator-over-ambience
   given: A generated clip is playing background sound during the experimental call.
@@ -74,7 +73,6 @@ privacy:
   when: They connect to the experimental live endpoint.
   then: The connection is refused before a paid provider session opens.
 - id: admission-unavailable
-  given: Authoritative credit admission or the concurrent-call lock is unavailable.
-  when: Maya tries to start a paid experimental call.
-  then: The call is refused visibly without spending provider credit or exposing keys or private
-    media.
+  given: Maya's ongoing call loses ownership of its renewable active-call lock.
+  when: The next ownership check fails.
+  then: The call ends and stops further paid requests; cleanup cannot delete a lock belonging to another call or expose keys or private media.

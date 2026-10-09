@@ -673,7 +673,7 @@ specifications:
     version: 1
     status: draft
     path: features/video-call-experiment
-    fingerprint: 7ff700f739f17936316b71662b61367e03f531ab560fbd109958caee38321291
+    fingerprint: 101229a26b34045d27d166cc8113175d5d3d541ccba5007fccea4d813eca2658
     required_applies_to:
     - gui.web
   feature.wikipedia-mentions:
@@ -8480,7 +8480,7 @@ assertions:
     specification: feature.video-call-experiment@1
     specification_id: feature.video-call-experiment
     type: behavior
-    fingerprint: 852b4f802e45f4c68e80d5999c906ad89b93282606e4d68cfa712a96ffc42c66
+    fingerprint: dc231149233cc0a337899ac9d1fbfd254d090474b4e63811191365e67ba37a25
     required_applies_to:
     - gui.web
   video-call.experiment.generated-visuals:
@@ -8494,7 +8494,7 @@ assertions:
     specification: feature.video-call-experiment@1
     specification_id: feature.video-call-experiment
     type: behavior
-    fingerprint: 153a43f82a34dcd2efe2193327153f532561285308d85820b5e6076cabff7dc6
+    fingerprint: 78008a107f39b27ce891d9ace7c7ef83a2e36457a6acc190a78487ff8e9d87ae
     required_applies_to:
     - gui.web
   video-call.experiment.audio-mix:
@@ -8529,7 +8529,7 @@ assertions:
     specification: feature.video-call-experiment@1
     specification_id: feature.video-call-experiment
     type: invariant
-    fingerprint: a8f47080b2f1c7d84d0407d8510ae59c84d0a4349eda0044e3b0c8e0729ce8e2
+    fingerprint: 684bc5f353ff807f1957231aa8e0fdd62a01e753cba7ecb3f238a21b791f52fe
     required_applies_to:
     - gui.web
   wikipedia-mentions.syntax.explicit-trigger:

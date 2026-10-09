@@ -55,7 +55,7 @@ describe('video call session state', () => {
   // contract-test: direct surface=gui.web assertions=video-call.experiment.live-voice,video-call.experiment.billing
   it('shows admission rates before usage and accrues only authoritative server usage', () => {
     const controller = new VideoCallController();
-    emit(controller, { type: 'ready', max_duration_seconds: 120, audio_credits_per_minute: 27.6, video_credits_per_minute: 1080 });
+    emit(controller, { type: 'ready', audio_credits_per_minute: 27.6, video_credits_per_minute: 1080 });
     expect(get(controller).usage?.audio_credits_per_minute).toBe(27.6);
     expect(get(controller).usage?.video_credits_per_minute).toBe(1080);
     emit(controller, { type: 'usage', credits_accrued: 12.5, credits_charged: 13, audio_credits: 2, video_credits: 10.5, elapsed_seconds: 15, h3_generated_seconds: 5, gemini_input_tokens: 24, gemini_output_tokens: 11, gemini_context_tokens: 24, audio_credits_per_minute: 27.6, video_credits_per_minute: 1080 });
@@ -65,23 +65,40 @@ describe('video call session state', () => {
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.experiment.live-voice,video-call.experiment.user-stop
-  it('marks the two-minute limit as normal completion while preserving terminal errors', () => {
-    const expired = new VideoCallController();
-    emit(expired, { type: 'ready', max_duration_seconds: 120 });
-    emit(expired, { type: 'error', code: 'video_unavailable' });
-    expect(get(expired).error).toBe('A visual is unavailable. Voice continues.');
-    emit(expired, { type: 'ended', reason: 'time_limit' });
-    expect(get(expired)).toMatchObject({ status: 'ended', endReason: 'time_limit', elapsedSeconds: 120, error: null, clips: [] });
+  it('keeps counting past two minutes and one hour until Hang up releases the call', () => {
+    vi.useFakeTimers();
+    try {
+      const ongoing = new VideoCallController();
+      emit(ongoing, { type: 'ready' });
+      const socket = { readyState: WebSocket.OPEN, send: vi.fn(), close: vi.fn(), onclose: null };
+      const audio = { stop: vi.fn() };
+      Object.assign(ongoing, { socket, audio });
+      emit(ongoing, { type: 'video.ready', clip_id: 'long-call', data: btoa('abcd') });
+      emit(ongoing, { type: 'error', code: 'video_unavailable' });
+      vi.advanceTimersByTime(3_661_000);
+      expect(get(ongoing)).toMatchObject({ status: 'live', elapsedSeconds: 3661, error: 'A visual is unavailable. Voice continues.' });
+      ongoing.hangup();
+      expect(get(ongoing)).toMatchObject({ status: 'ended', elapsedSeconds: 3661, error: null, clips: [] });
+      expect(socket.send).toHaveBeenCalledWith(JSON.stringify({ type: 'hangup' }));
+      expect(socket.close).toHaveBeenCalledOnce();
+      expect(audio.stop).toHaveBeenCalledOnce();
+      expect(revokeUrl).toHaveBeenCalledWith('blob:clip-1');
+      vi.advanceTimersByTime(10_000);
+      expect(get(ongoing).elapsedSeconds).toBe(3661);
+    } finally { vi.useRealTimers(); }
+  });
 
+  // contract-test: direct surface=gui.web assertions=video-call.experiment.live-voice,video-call.experiment.user-stop
+  it('preserves terminal errors and allows Hang up', () => {
     const failed = new VideoCallController();
-    emit(failed, { type: 'ready', max_duration_seconds: 120 });
+    emit(failed, { type: 'ready' });
     emit(failed, { type: 'error', code: 'provider_failure' });
-    expect(get(failed)).toMatchObject({ status: 'error', endReason: null, error: 'The call is unavailable right now. Please try again.' });
+    expect(get(failed)).toMatchObject({ status: 'error', error: 'The call is unavailable right now. Please try again.' });
 
     const hungUp = new VideoCallController();
-    emit(hungUp, { type: 'ready', max_duration_seconds: 120 });
+    emit(hungUp, { type: 'ready' });
     hungUp.hangup();
-    expect(get(hungUp)).toMatchObject({ status: 'ended', endReason: null, error: null });
+    expect(get(hungUp)).toMatchObject({ status: 'ended', error: null });
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.experiment.generated-visuals,video-call.experiment.live-voice
@@ -99,7 +116,7 @@ describe('video call session state', () => {
   // contract-test: direct surface=gui.web assertions=video-call.experiment.live-voice,video-call.experiment.generated-visuals
   it('accumulates streamed transcript fragments, keeps voice live on visual failure, and releases clips', () => {
     const controller = new VideoCallController();
-    emit(controller, { type: 'ready', max_duration_seconds: 120 });
+    emit(controller, { type: 'ready' });
     emit(controller, { type: 'transcript', role: 'model', text: 'Charged ', final: false });
     emit(controller, { type: 'transcript', role: 'model', text: 'particles', final: false });
     emit(controller, { type: 'transcript', role: 'model', text: '', final: true });

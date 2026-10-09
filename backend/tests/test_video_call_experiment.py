@@ -55,15 +55,20 @@ class _RouteSocket:
 
 
 class _RouteProvider:
-    def __init__(self):
+    def __init__(self, enter_gate=None):
+        self.enter_gate = enter_gate
         self.incoming: asyncio.Queue[dict] = asyncio.Queue()
         self.incoming.put_nowait({"setupComplete": {}})
         self.sent: list[dict] = []
+        self.closed = False
 
     async def __aenter__(self):
+        if self.enter_gate is not None:
+            await self.enter_gate.wait()
         return self
 
     async def __aexit__(self, *args):
+        self.closed = True
         return None
 
     async def send_json(self, event):
@@ -91,10 +96,18 @@ def route_harness(monkeypatch):
     async def redis_get(key):
         return redis.values.get(key)
 
-    async def redis_delete(key):
-        redis.values.pop(key, None)
+    async def redis_eval(script, number_of_keys, key, token, *args):
+        assert number_of_keys == 1
+        if redis.values.get(key) != token:
+            return 0
+        if "EXPIRE" in script:
+            redis.renewals += 1
+            return 1
+        del redis.values[key]
+        return 1
 
-    redis.set, redis.get, redis.delete = redis_set, redis_get, redis_delete
+    redis.renewals = 0
+    redis.set, redis.get, redis.eval = redis_set, redis_get, redis_eval
     class FakeCache:
         SESSION_KEY_PREFIX = "session:"
 
@@ -116,6 +129,7 @@ def route_harness(monkeypatch):
         secrets_manager=SimpleNamespace(get_secret=get_secret),
     ))
     providers = []
+    controls = SimpleNamespace(resume_gate=None)
 
     class FakeHttpClient:
         def __init__(self, **kwargs):
@@ -141,7 +155,7 @@ def route_harness(monkeypatch):
             return None
 
         def ws_connect(self, *args, **kwargs):
-            provider = _RouteProvider()
+            provider = _RouteProvider(controls.resume_gate if providers else None)
             providers.append(provider)
             return provider
 
@@ -156,7 +170,7 @@ def route_harness(monkeypatch):
     monkeypatch.setattr(call, "is_payment_enabled", lambda: False)
     monkeypatch.setattr(call, "_session_still_valid", valid_session)
     monkeypatch.setattr(call, "_charge", no_charge)
-    return SimpleNamespace(app=app, redis=redis, providers=providers, socket=lambda **kwargs: _RouteSocket(app, **kwargs))
+    return SimpleNamespace(app=app, redis=redis, providers=providers, controls=controls, socket=lambda **kwargs: _RouteSocket(app, **kwargs))
 
 
 def _visual_instruction(call_id="visual-1"):
@@ -232,6 +246,235 @@ async def test_binary_gemini_setup_and_speech_reach_the_caller(route_harness) ->
     socket.send({"type": "hangup"})
     await asyncio.wait_for(task, timeout=2)
     assert not route_harness.redis.values
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.experiment.live-voice,video-call.experiment.generated-visuals
+@pytest.mark.asyncio
+async def test_call_continues_audio_and_visuals_beyond_two_minutes(route_harness, monkeypatch) -> None:
+    offset = [0.0]
+    monkeypatch.setattr(call, "time", SimpleNamespace(monotonic=lambda: time.monotonic() + offset[0], time=time.time))
+
+    async def submit(*args, **kwargs):
+        return h3_turbo.FalJob("long-call-clip", "status", "result", "cancel")
+
+    async def complete(*args, **kwargs):
+        return h3_turbo.FalClip(b"mp4", 5.0, 5.0, "long-call-clip")
+
+    monkeypatch.setattr(call, "submit_clip", submit)
+    monkeypatch.setattr(call, "await_clip", complete)
+    socket = route_harness.socket()
+    task = asyncio.create_task(call.video_call(socket, auth_data={"user_id": "user-1"}))
+    ready = await socket.expect("ready")
+    assert "max_duration_seconds" not in ready
+    offset[0] = 125
+    socket.send({"type": "mic_audio", "data": base64.b64encode(b"\x00\x01").decode()})
+    provider = route_harness.providers[0]
+
+    async def audio_forwarded():
+        while not any("audio" in event.get("realtimeInput", {}) for event in provider.sent):
+            await asyncio.sleep(0.001)
+
+    await asyncio.wait_for(audio_forwarded(), timeout=2)
+    provider.send(_visual_instruction())
+    assert (await socket.expect("video.ready"))["clip_id"] == "1"
+    provider.send({"serverContent": {"outputTranscription": {"text": "Still here."}}})
+    assert (await socket.expect("transcript"))["text"] == "Still here."
+    assert not task.done()
+    assert not any(event.get("reason") == "time_limit" for event in socket.sent)
+    socket.send({"type": "hangup"})
+    await asyncio.wait_for(task, timeout=2)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.experiment.live-voice
+@pytest.mark.asyncio
+async def test_lease_renews_and_ownership_loss_ends_call_without_releasing_foreign_lock(route_harness, monkeypatch) -> None:
+    monkeypatch.setattr(call, "LOCK_RENEW_SECONDS", 0.01)
+    socket = route_harness.socket()
+    task = asyncio.create_task(call.video_call(socket, auth_data={"user_id": "user-1"}))
+    await socket.expect("ready")
+    key = next(iter(route_harness.redis.values))
+    for _ in range(100):
+        if route_harness.redis.renewals:
+            break
+        await asyncio.sleep(0.005)
+    assert route_harness.redis.renewals > 0
+    route_harness.redis.values[key] = "new-owner"
+    assert (await socket.expect("error"))["code"] == "call_unavailable"
+    await asyncio.wait_for(task, timeout=2)
+    assert route_harness.redis.values[key] == "new-owner"
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.experiment.generated-visuals
+@pytest.mark.asyncio
+async def test_lease_stays_live_while_accepted_job_settles_after_hangup(route_harness, monkeypatch) -> None:
+    monkeypatch.setattr(call, "LOCK_RENEW_SECONDS", 0.01)
+    finish_job = asyncio.Event()
+
+    async def submit(*args, **kwargs):
+        return h3_turbo.FalJob("settling-clip", "status", "result", "cancel")
+
+    async def complete(*args, **kwargs):
+        await finish_job.wait()
+        return h3_turbo.FalClip(b"mp4", 5.0, 5.0, "settling-clip")
+
+    monkeypatch.setattr(call, "submit_clip", submit)
+    monkeypatch.setattr(call, "await_clip", complete)
+    socket = route_harness.socket()
+    task = asyncio.create_task(call.video_call(socket, auth_data={"user_id": "user-1"}))
+    await socket.expect("ready")
+    route_harness.providers[0].send(_visual_instruction())
+    await socket.expect("video.queued")
+    socket.send({"type": "hangup"})
+    await socket.expect("ended", reason="user")
+    assert not task.done()
+    key = next(iter(route_harness.redis.values))
+    for _ in range(100):
+        if route_harness.redis.renewals:
+            break
+        await asyncio.sleep(0.005)
+    assert route_harness.redis.renewals > 0
+    assert key in route_harness.redis.values
+    finish_job.set()
+    await asyncio.wait_for(task, timeout=2)
+    assert not route_harness.redis.values
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.experiment.live-voice,video-call.experiment.generated-visuals
+@pytest.mark.asyncio
+async def test_planned_handoff_resumes_same_ledger_and_tool_dedup(route_harness, monkeypatch) -> None:
+    route_harness.controls.resume_gate = asyncio.Event()
+    charges = []
+    submissions = []
+
+    async def charge(websocket, ledger, *, user_id, user_hash, call_id):
+        charges.append((id(ledger), call_id, ledger.prompt_tokens))
+
+    async def submit(*args, **kwargs):
+        submissions.append(kwargs["prompt"])
+        return h3_turbo.FalJob(f"clip-{len(submissions)}", "status", "result", "cancel")
+
+    async def complete(*args, **kwargs):
+        return h3_turbo.FalClip(b"mp4", 5.0, 5.0, kwargs["job"].request_id)
+
+    monkeypatch.setattr(call, "_charge", charge)
+    monkeypatch.setattr(call, "submit_clip", submit)
+    monkeypatch.setattr(call, "await_clip", complete)
+    socket = route_harness.socket()
+    task = asyncio.create_task(call.video_call(socket, auth_data={"user_id": "user-1"}))
+    await socket.expect("ready")
+    first = route_harness.providers[0]
+    first.send(_visual_instruction())
+    await socket.expect("video.ready")
+    socket.send({
+        "type": "continuation_frame", "clip_id": "1", "source": "continuation",
+        "data": base64.b64encode(b"\xff\xd8last\xff\xd9").decode(),
+    })
+    first.send({"goAway": {"timeLeft": "5s"}})
+    first.send({"sessionResumptionUpdate": {"resumable": False, "newHandle": ""}})
+    first.send({"serverContent": {"outputTranscription": {"text": "Waiting for a safe handoff."}}})
+    assert (await socket.expect("transcript"))["text"] == "Waiting for a safe handoff."
+    assert len(route_harness.providers) == 1
+    first.send({"sessionResumptionUpdate": {"resumable": True, "newHandle": "secret-handle"}})
+
+    async def reconnect_started():
+        while len(route_harness.providers) < 2:
+            await asyncio.sleep(0.001)
+
+    await asyncio.wait_for(reconnect_started(), timeout=2)
+    socket.send({"type": "mic_audio", "data": base64.b64encode(b"\x00\x01").decode()})
+
+    async def input_consumed():
+        while not socket.incoming.empty():
+            await asyncio.sleep(0.001)
+
+    await asyncio.wait_for(input_consumed(), timeout=2)
+    route_harness.controls.resume_gate.set()
+
+    async def resumed():
+        while not route_harness.providers[1].sent:
+            await asyncio.sleep(0.001)
+
+    await asyncio.wait_for(resumed(), timeout=2)
+    second = route_harness.providers[1]
+    assert second.sent[0]["setup"]["sessionResumption"] == {"handle": "secret-handle"}
+
+    async def audio_forwarded():
+        while not any("audio" in event.get("realtimeInput", {}) for event in second.sent):
+            await asyncio.sleep(0.001)
+
+    await asyncio.wait_for(audio_forwarded(), timeout=2)
+    second.send(_visual_instruction())
+    await asyncio.wait_for(_expect_tool_result(second, "visual-1", "already accepted"), timeout=2)
+    second.send(_visual_instruction("visual-2"))
+    await asyncio.wait_for(_expect_tool_result(second, "visual-2", "accepted"), timeout=2)
+    await socket.expect("video.ready")
+    second.send({"usageMetadata": {
+        "promptTokenCount": 2, "responseTokenCount": 1, "totalTokenCount": 3,
+        "promptTokensDetails": [{"modality": "TEXT", "tokenCount": 2}],
+        "responseTokensDetails": [{"modality": "TEXT", "tokenCount": 1}],
+    }, "serverContent": {"turnComplete": True}})
+    await socket.expect("usage")
+    assert len(submissions) == 2
+    assert charges and len({entry[0] for entry in charges}) == 1
+    assert len({entry[1] for entry in charges}) == 1
+    assert charges[-1][2] == 2
+    socket.send({"type": "hangup"})
+    await asyncio.wait_for(task, timeout=2)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.experiment.live-voice
+@pytest.mark.asyncio
+async def test_quiet_call_uses_latest_safe_handle_for_repeated_rollovers(route_harness, monkeypatch) -> None:
+    offset = [0.0]
+    monkeypatch.setattr(call, "time", SimpleNamespace(monotonic=lambda: time.monotonic() + offset[0], time=time.time))
+    socket = route_harness.socket()
+    task = asyncio.create_task(call.video_call(socket, auth_data={"user_id": "user-1"}))
+    await socket.expect("ready")
+
+    for rollover in range(4):
+        current = route_harness.providers[-1]
+        handle = f"quiet-handle-{rollover}"
+        current.send({"sessionResumptionUpdate": {"resumable": True, "newHandle": handle}})
+        current.send({"goAway": {"timeLeft": "5s"}})
+
+        async def next_connection_ready():
+            while len(route_harness.providers) < rollover + 2 or not current.closed:
+                await asyncio.sleep(0.001)
+
+        await asyncio.wait_for(next_connection_ready(), timeout=2)
+        assert route_harness.providers[-1].sent[0]["setup"]["sessionResumption"] == {"handle": handle}
+        assert not task.done()
+        offset[0] += call.MIN_HANDOFF_INTERVAL_SECONDS + 1
+
+    assert len(route_harness.providers) == 5
+    socket.send({"type": "hangup"})
+    await asyncio.wait_for(task, timeout=2)
+    assert all(provider.closed for provider in route_harness.providers)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.experiment.live-voice
+@pytest.mark.asyncio
+async def test_hangup_cancels_pending_provider_reconnect(route_harness) -> None:
+    route_harness.controls.resume_gate = asyncio.Event()
+    socket = route_harness.socket()
+    task = asyncio.create_task(call.video_call(socket, auth_data={"user_id": "user-1"}))
+    await socket.expect("ready")
+    first = route_harness.providers[0]
+    first.send({"goAway": {"timeLeft": "5s"}})
+    first.send({"sessionResumptionUpdate": {"resumable": True, "newHandle": "secret-handle"}})
+
+    async def reconnect_started():
+        while len(route_harness.providers) < 2:
+            await asyncio.sleep(0.001)
+
+    await asyncio.wait_for(reconnect_started(), timeout=2)
+    socket.send({"type": "hangup"})
+    await socket.expect("ended", reason="user")
+    await asyncio.wait_for(task, timeout=2)
+    route_harness.controls.resume_gate.set()
+    await asyncio.sleep(0)
+    assert route_harness.providers[1].sent == []
+    assert len(route_harness.providers) == 2
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.experiment.generated-visuals
