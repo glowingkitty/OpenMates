@@ -82449,7 +82449,7 @@ assertions:
     direct_tests:
     - &id10423
       path: frontend/apps/web_app/tests/projects-readme-focus.spec.ts
-      line: 277
+      line: 290
       name: ordinary README request waits for consent, searches with bounded content
         after activation, and stays blocked after rejection
       surface: gui.web
@@ -82612,7 +82612,7 @@ assertions:
     direct_tests:
     - &id10443
       path: frontend/apps/web_app/tests/projects-readme-focus.spec.ts
-      line: 277
+      line: 290
       name: ordinary README request waits for consent, searches with bounded content
         after activation, and stays blocked after rejection
       surface: gui.web
@@ -83561,7 +83561,7 @@ assertions:
       surface: gui.web
     - &id10581
       path: frontend/apps/web_app/tests/projects-readme-focus.spec.ts
-      line: 277
+      line: 290
       name: ordinary README request waits for consent, searches with bounded content
         after activation, and stays blocked after rejection
       surface: gui.web
@@ -85287,7 +85287,7 @@ assertions:
       surface: gui.web
     - &id10802
       path: frontend/apps/web_app/tests/projects-readme-focus.spec.ts
-      line: 277
+      line: 290
       name: ordinary README request waits for consent, searches with bounded content
         after activation, and stays blocked after rejection
       surface: gui.web
@@ -85693,7 +85693,7 @@ assertions:
       surface: gui.web
     - &id10820
       path: frontend/apps/web_app/tests/projects-readme-focus.spec.ts
-      line: 277
+      line: 290
       name: ordinary README request waits for consent, searches with bounded content
         after activation, and stays blocked after rejection
       surface: gui.web

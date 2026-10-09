@@ -11,7 +11,7 @@ const { pathToFileURL } = require('node:url');
 const { chmodSync, mkdtempSync, readFileSync, rmSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join, resolve } = require('node:path');
-const { randomUUID } = require('node:crypto');
+const { createHash, randomUUID } = require('node:crypto');
 const { test, expect } = require('./helpers/cookie-audit');
 const {
   loginToTestAccount,
@@ -41,6 +41,15 @@ const PROMPT = README_PROMPTS[PROMPT_VARIANT];
 const README_FIXTURE_VARIANT = process.env.OPENMATES_README_FIXTURE_VARIANT === 'repository' ? 'repository' : 'small';
 const README_CONTENT = '# Connected project\n\n![Connected diagram](docs/readme-image.png)\n\n[External docs](https://openmates.org)\n'
   + (README_FIXTURE_VARIANT === 'repository' ? `\n${readFileSync(resolve(REPO_ROOT, 'README.md'), 'utf8')}` : '');
+// Public fixture examples recognized by the existing client privacy filter.
+// Restore only these exact ordered spans for comparison: no arbitrary wildcard
+// or implementation-derived detector output can hide missing/changed file text.
+const README_PRIVACY_SPANS = README_FIXTURE_VARIANT === 'repository'
+  ? ['apiKey: process.env.OPENMATES_API_KEY', 'pnpm@10.27.0'] : [];
+function restoreKnownFixturePrivacySpans(content: string | undefined): string | undefined {
+  let index = 0;
+  return content?.replace(/\[OM_PII_[A-F0-9]{32}\]/g, token => README_PRIVACY_SPANS[index++] ?? token);
+}
 
 interface FixtureEvent {
   event: string;
@@ -58,6 +67,8 @@ interface SocketEvent {
     operation_id?: string;
     embed_id?: string;
     content?: string;
+    full_content_so_far?: string;
+    full_content?: string;
     chat_id?: string;
     request_id?: string;
     project_id?: string;
@@ -68,6 +79,8 @@ interface SocketEvent {
     is_final_chunk?: boolean;
     awaiting_async_skill_continuation?: boolean;
     awaiting_focus_mode_continuation?: boolean;
+    is_foreground?: boolean;
+    source?: string;
     result?: {
       content?: string;
       matches?: Array<{ path?: string }>;
@@ -394,7 +407,11 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       const at = Date.now();
       if (direction === 'received' && event.payload?.chat_id === acceptedChatId
         && (event.type === 'ai_message_update' || event.type === 'ai_background_response_completed')) {
-        if (firstAnswerAt === null && typeof event.payload.content === 'string' && event.payload.content.trim()) firstAnswerAt = at;
+        const responseText = event.payload.full_content_so_far ?? event.payload.full_content ?? event.payload.content;
+        const fileResultArrived = retrievalEvents.some(row => row.direction === 'sent'
+          && row.type === 'project_file_operation_result' && row.status === 'completed');
+        if (firstAnswerAt === null && fileResultArrived && typeof responseText === 'string'
+          && responseText.replace(/```[\s\S]*?```/g, '').trim()) firstAnswerAt = at;
         if (event.payload.is_final_chunk && !event.payload.awaiting_async_skill_continuation
           && !event.payload.awaiting_focus_mode_continuation) trueFinalAt = at;
       }
@@ -432,7 +449,7 @@ test.describe('Plain-language Project README access (real inference, dev only)',
         (event.type === 'ai_message_update' || event.type === 'ai_background_response_completed')
         && event.payload?.chat_id === acceptedChatId && event.payload.is_final_chunk === true)
         .flatMap(event => {
-          const content = event.payload?.content;
+          const content = event.payload?.full_content_so_far ?? event.payload?.full_content ?? event.payload?.content;
           return typeof content === 'string' ? extractSafeEmbedFenceMetadata(content) : [];
         });
       const mounted = await page.evaluate(() => {
@@ -475,6 +492,23 @@ test.describe('Plain-language Project README access (real inference, dev only)',
           activation_failures: activationFailures,
           focus_console_errors: focusConsoleErrors,
           focus_api_responses: focusApiResponses,
+          client_lifecycle: sent.filter(event => event.type === 'native_client_lifecycle').map(event => ({
+            is_foreground: event.payload?.is_foreground,
+            source: typeof event.payload?.source === 'string'
+              && /^[a-z_]{1,64}$/.test(event.payload.source) ? event.payload.source : null,
+          })),
+          send_state: await page.evaluate(() => {
+            const state = window as Window & {
+              __openmatesLastSendDebug?: { step?: unknown };
+              __openmatesLastPreflightDebug?: { step?: unknown };
+            };
+            const safeStep = (value: unknown) => typeof value === 'string' && /^[a-z_]{1,80}$/.test(value) ? value : null;
+            return {
+              foreground: document.visibilityState === 'visible' && document.hasFocus(),
+              send_step: safeStep(state.__openmatesLastSendDebug?.step),
+              preflight_step: safeStep(state.__openmatesLastPreflightDebug?.step),
+            };
+          }).catch(() => null),
         }, null, 2),
         contentType: 'application/json',
       });
@@ -586,7 +620,13 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       await waitForChatReady(page);
       console.log('[README] Accepted chat editor ready.');
       await page.bringToFront();
+      await expect.poll(() => page.evaluate(() => document.visibilityState === 'visible' && document.hasFocus()), {
+        message: 'the accepted consent scenario requires a foreground browser', timeout: 5_000,
+      }).toBe(true);
       await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+      await expect.poll(() => sent.filter(event => event.type === 'native_client_lifecycle').at(-1)?.payload?.is_foreground, {
+        message: 'the real browser must announce that it can receive the consent frame', timeout: 5_000,
+      }).toBe(true);
       await page.evaluate(() => {
         const progressWindow = window as Window & { projectProgressLabels?: string[] };
         progressWindow.projectProgressLabels = [];
@@ -640,16 +680,20 @@ test.describe('Plain-language Project README access (real inference, dev only)',
         && event.payload.arguments.include_content === true
         && /readme/i.test(event.payload.arguments.query ?? ''));
       expect(filenameSearch?.payload?.operation_id).toBeTruthy();
-      await expect.poll(() => sent.find(event => event.type === 'project_file_operation_result'
+      await expect.poll(() => restoreKnownFixturePrivacySpans(sent.find(event => event.type === 'project_file_operation_result'
         && event.payload?.operation_id === filenameSearch?.payload?.operation_id
-        && event.payload?.status === 'completed')?.payload?.result?.contents?.find(row => row.path === 'README.md')?.content,
-      { message: 'the single search result must include the bounded README text', timeout: 180_000 }).toBe(README_CONTENT);
+        && event.payload?.status === 'completed')?.payload?.result?.contents?.find(row => row.path === 'README.md')?.content),
+      { message: 'the single search must include complete README text with only the known fixture privacy redactions', timeout: 180_000 }).toBe(README_CONTENT);
       const searchResult = sent.find(event => event.type === 'project_file_operation_result'
         && event.payload?.operation_id === filenameSearch?.payload?.operation_id
         && event.payload?.status === 'completed')?.payload?.result;
       const readmeContent = searchResult?.contents?.find(row => row.path === 'README.md');
-      expect(readmeContent).toMatchObject({ path: 'README.md', source_id: fixture.source_id, content: README_CONTENT });
-      expect(readmeContent?.expected_base).toMatch(/^[a-f0-9]{64}$/);
+      expect(readmeContent).toMatchObject({ path: 'README.md', source_id: fixture.source_id });
+      const privacyTokens = readmeContent?.content?.match(/\[OM_PII_[A-F0-9]{32}\]/g) ?? [];
+      expect(privacyTokens).toHaveLength(README_PRIVACY_SPANS.length);
+      expect(new Set(privacyTokens).size).toBe(README_PRIVACY_SPANS.length);
+      for (const privateSpan of README_PRIVACY_SPANS) expect(readmeContent?.content).not.toContain(privateSpan);
+      expect(readmeContent?.expected_base).toBe(createHash('sha256').update(README_CONTENT).digest('hex'));
       expect(readmeContent?.size_bytes).toBe(Buffer.byteLength(README_CONTENT));
       expect(searchResult?.matches?.some(row => row.path === 'README.md')).toBe(true);
       expect(await page.evaluate(() => (window as Window & { projectProgressLabels?: string[] }).projectProgressLabels ?? []))

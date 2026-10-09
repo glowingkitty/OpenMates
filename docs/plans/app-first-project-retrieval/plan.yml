@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: app-first-project-retrieval
 title: App-first preprocessing and fast Project retrieval
-status: implementing
+status: verified
 goal: >-
   Implement and test the agreed processing changes, ensure processing speed is
   drastically improved and token usage reduced, and give a numerical before/after
@@ -103,9 +103,9 @@ evidence:
     main_output_tokens: 357
     preprocessing_input_tokens: 17355
     preprocessing_output_tokens: 3676
-    whole_accepted_turn_reported_input_tokens: 56283
-    whole_accepted_turn_reported_output_tokens: 4360
-    reported_input_token_reduction_percent: 70.03
+    whole_accepted_turn_routing_and_main_input_tokens: 49133
+    whole_accepted_turn_routing_and_main_output_tokens: 4033
+    routing_and_main_input_token_reduction_percent: 73.84
     checks:
       - Rejection preserves unavailable Project tools and clean chat deletion.
       - Cancellable countdown activates the intended Project before retrieval.
@@ -116,15 +116,18 @@ evidence:
       - Disposable chat and source cleanup succeed.
     note: >-
       One full passing real-inference replay. Token comparison includes pre-focus
-      primary, preprocessing and main calls, including cached input; auxiliary
+      Jev routing and post-focus main calls, including cached input; auxiliary
       title/processing and postprocessing calls are excluded consistently with
-      baseline. These are reported usage counts, not provider invoice totals.
+      baseline. The earlier 56,283 total incorrectly classified a 7,150-input,
+      327-output title/summary call as main inference. Correlated retained logs
+      confirm it was postprocessing. These are reported usage counts, not
+      provider invoice totals.
       Earlier optimized replays completed processing in 29.574 and 26.579 seconds
       but failed cleanup and reference-card visibility respectively; their
       recordings remain retained and delivered. The latest passing run still
       takes too long for a simple README request.
   remaining_speed_work:
-    status: approved-architecture-to-implement
+    status: implemented-and-verified
     measured_latest_run:
       first_task_to_search_request_ms: 5924.594
       search_request_to_result_ms: 2035
@@ -146,14 +149,101 @@ evidence:
       - Diagnose and repair final billing timeout with durable idempotent settlement and accurate token/credit receipts before treating the request as successful.
     acceptance_target:
       main_model_calls_after_focus: 2
-      measured_latest_main_model_calls_after_focus: 3
+      measured_latest_main_model_calls_after_focus: 2
       comparison_rule: Compare only completed passing runs against the same baseline scope; report post-focus time, main and Jev tokens, and whole accepted-turn reported input without double-counting nested phases.
     note: >-
       Stage setup, model windows and finalization are nested in the nonoverlapping
-      task timeline and must not be added to end-to-end time. The user rejects
-      the remaining latency as unsuitable for everyday use; this Plan and Task
-      remain in progress for the approved optimization. The timed-out billing
+      task timeline and must not be added to end-to-end time. This subsection
+      retains the first-round diagnosis; the approved architecture is now
+      implemented and measured below. The timed-out billing
       request already uses an idempotency key, but the final token/credit receipt
       can be absent after a timeout while server settlement may still finish.
       Shortening the timeout or treating this as harmless asynchronous billing
       would not preserve correct settlement semantics.
+  final_implementation:
+    product_revision: ec2be7aa8f6a2701ebcb22e77d2befedbf44765e
+    target: dev
+    canonical_branch: dev
+    source_identity_receipt: /tmp/openmates-6aa3-live17-runtime-byte-identity.json
+    readiness_receipt: /tmp/openmates-6aa3-live14-source.json
+    source_note: >-
+      Vercel reports the exact product revision READY. Later dev revisions retain
+      identical implementation bytes for this feature. Runtime hashes match the
+      verified revision for preprocessing, main processing, orchestration and
+      Project tools. Final changes update proof coverage and this evidence only.
+    original_readme:
+      prompt: can you read the readme from my OpenMates project?
+      result: passed
+      fixture_bytes: 105
+      receipt: /tmp/openmates-readme-optimized-6aa3-results-17/run-receipt.json
+      telemetry: /tmp/openmates-6aa3-live17-telemetry.json
+      recording_receipt: /tmp/openmates-6aa3-evidence-live17.md
+      post_focus_browser_completion_ms: 19557
+      post_focus_backend_task_to_final_ms: 19881.302
+      browser_latency_reduction_percent: 67.39
+      main_calls_after_focus: 2
+      main_input_tokens: 20978
+      main_output_tokens: 295
+      jev_routing_calls_whole_turn: 2
+      jev_routing_input_tokens_whole_turn: 11348
+      jev_routing_output_tokens_whole_turn: 2260
+      routing_and_main_input_tokens_whole_turn: 32326
+      routing_and_main_input_reduction_percent: 82.79
+      file_jobs: 1
+      file_job_round_trip_ms: 2999
+      final_billing_http_ms: 1065.3
+      final_billing_state: committed
+    readme_improvements:
+      prompt: suggestions how to improve the readme of my OpenMates project?
+      result: passed
+      fixture_bytes: 11396
+      receipt: /tmp/openmates-readme-optimized-6aa3-results-20/run-receipt.json
+      telemetry: /tmp/openmates-6aa3-live20-telemetry.json
+      recording_receipt: /tmp/openmates-6aa3-evidence-live20.md
+      post_focus_browser_completion_ms: 37634
+      post_focus_backend_task_to_final_ms: 36877.027
+      main_calls_after_focus: 2
+      main_input_tokens: 22683
+      main_output_tokens: 1186
+      jev_routing_calls_whole_turn: 2
+      jev_routing_input_tokens_whole_turn: 9443
+      jev_routing_output_tokens_whole_turn: 2038
+      routing_and_main_input_tokens_whole_turn: 32126
+      file_jobs: 1
+      file_job_round_trip_ms: 6256
+      main_provider_windows_ms: [3563.932, 12288.141]
+      billing_http_ms: [4185.6, 3183.6]
+      final_billing_state: committed
+      note: >-
+        Larger file and improvement response are a different workload, not a
+        same-prompt latency comparison. The original hash and byte size are
+        preserved. Two public fixture spans match existing client PII rules;
+        coverage permits only those exact redactions and requires every other
+        byte unchanged. It also requires unique privacy tokens and absence of
+        the recognized originals in model-bound content.
+    verification:
+      - Both passing live runs verify cancellation, delayed activation, one combined Search files result, translated preview and original-reference storage.
+      - Both verify reopening without a new file/embed, changed-original notice, disconnected-source handling and server-confirmed fixture/chat cleanup.
+      - Explicit refusal passed in replay 13; isolated backend tests prevent later detailed selection from overriding refusal, confident no-Project decisions or ambiguous names.
+      - Personal-credit cache loss falls back to the durable balance; both measured main calls settle once with committed receipts.
+      - Isolated routing, privacy, scope, billing, Project-flow, policy and component checks passed; all recordings, including failures and retries, were uploaded.
+    ci_receipts:
+      - /tmp/openmates-6aa3-evidence-e8ffd522.md
+      - /tmp/openmates-6aa3-evidence-daf1c151.md
+      - /tmp/openmates-6aa3-evidence-aa06aa71.md
+      - /tmp/openmates-6aa3-evidence-7ff09968.md
+      - /tmp/openmates-6aa3-evidence-081c7cf9.md
+    recording_index: /tmp/openmates-6aa3-video-links-oct9.json
+    limits_and_next_improvements:
+      - These are individual successful observations, not a p95 latency guarantee or provider-invoice reconciliation. Routing/main token totals include cached input and exclude auxiliary metadata calls consistently with the baseline.
+      - The 37.6-second larger improvement request remains too slow for everyday use; the architecture reduces serial calls but does not establish an acceptable general latency SLO.
+      - Keep accurate durable billing, but move recoverable postcommit projections/notifications behind a durable outbox; observed waits still vary from 1.1 to 4.2 seconds.
+      - Reuse authorized same-turn context with fresh identity/scope fences and parallelize independent metadata reads; both main calls still assemble context.
+      - Bound response verbosity and preserve streaming; the larger answer produced 1154 tokens and its provider window was 12.3 seconds. Changing answer models remains outside the approved scope.
+      - Instrument executor, transport and local privacy stages separately; the measured 3.0-6.3-second file-job window includes all three and is not a file-I/O-only or privacy-only measurement.
+    retry_notes: >-
+      Retained failures include browser setup, message submission, optional
+      specialist dereference, and one missing consent message before file access.
+      Foreground browser/lifecycle checks now guard the accepted replay. The
+      larger-file assertion initially rejected intended client privacy redactions;
+      it was corrected to verify exact unaffected content and the original hash.
