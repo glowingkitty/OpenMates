@@ -117,8 +117,10 @@ function readChatIdFromHash(): string | null {
  * Also syncs with URL hash for shareable/bookmarkable chat links
  */
 function createActiveChatStore() {
-  // Initialize with chat ID from URL hash if present
-  const initialChatId = readChatIdFromHash();
+  // A Team chat link is only a request to open the chat. The page must verify
+  // current membership and chat scope before cached content can be selected.
+  const hasUnverifiedTeamScope = browser && getHashParam(window.location.hash, "team-id") !== null;
+  const initialChatId = hasUnverifiedTeamScope ? null : readChatIdFromHash();
   const { subscribe, set } = writable<string | null>(initialChatId);
 
   return {

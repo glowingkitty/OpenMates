@@ -414,6 +414,25 @@ test('two Team members collaborate privately and invoke OpenMates with their ful
       .toBeGreaterThan(assistantCountBeforeMate);
     await expect.poll(() => memberPage!.getByTestId('message-assistant').count(), { timeout: 60_000 })
       .toBeGreaterThan(assistantCountBeforeMate);
+    // A streaming placeholder also counts as an assistant bubble. Prove the
+    // configured Mate's completed body actually renders identically for both humans.
+    const ownerMateBody = page.getByTestId('message-assistant').last().locator('.chat-message-text').first();
+    const memberMateBody = memberPage.getByTestId('message-assistant').last().locator('.chat-message-text').first();
+    await expect(ownerMateBody).toBeVisible({ timeout: 60_000 });
+    await expect.poll(async () => (await ownerMateBody.innerText()).trim().length, { timeout: 60_000 })
+      .toBeGreaterThan(40);
+    const mateAnswer = (await ownerMateBody.innerText()).replace(/\s+/g, ' ').trim();
+    expect(mateAnswer).not.toMatch(/\[(?:Decrypting\.{3}|Content decryption failed)\]/);
+    await expect.poll(async () => (await memberMateBody.innerText()).replace(/\s+/g, ' ').trim(), { timeout: 60_000 })
+      .toBe(mateAnswer);
+    const mateWindow = await assertTeamWindow(memberPage, teamId, chatId!, lines);
+    const completedAssistants = mateWindow.filter((row) => row.role === 'assistant');
+    expect(completedAssistants.length).toBeGreaterThanOrEqual(2);
+    for (const row of completedAssistants) {
+      expect(row.encrypted_content).toBeTruthy();
+      expect(row.content).toBeUndefined();
+    }
+    expect(JSON.stringify(mateWindow)).not.toContain(mateAnswer);
     await expect.poll(async () => (await readTeamUsage(page, teamId!)).length, { timeout: 60_000 })
       .toBeGreaterThan(usageCountAfterAI);
     expect(await readTeamCredits(page, teamId)).toBeLessThan(teamCreditsAfterAI);

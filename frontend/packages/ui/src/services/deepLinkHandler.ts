@@ -89,10 +89,13 @@ export function parseDeepLink(
   const settingsParamPath = getSettingsPathFromHash(normalizedHash);
 
   const chatMatch = normalizedHash.match(/^#chat[-_]?id=([^&]+)(.*)$/);
-  if (chatMatch) {
-    const chatId = chatMatch[1];
-    const extraParams = chatMatch[2] || "";
-    const params = new URLSearchParams(extraParams.startsWith("&") ? extraParams.slice(1) : extraParams);
+  // Team context can be retained first in the hash when chat-id is added later.
+  const teamFirstParams = normalizedHash.startsWith("#team-id=")
+    ? new URLSearchParams(normalizedHash.slice(1)) : null;
+  const chatId = chatMatch?.[1] ?? teamFirstParams?.get("chat-id");
+  if (chatId) {
+    const extraParams = chatMatch?.[2] || "";
+    const params = teamFirstParams ?? new URLSearchParams(extraParams.startsWith("&") ? extraParams.slice(1) : extraParams);
 
     // Extract optional message-id param
     const messageId = params.get("message-id") ?? params.get("message_id") ?? params.get("messageid");

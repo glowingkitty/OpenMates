@@ -979,7 +979,7 @@ test.describe('Teams V1 context isolation', () => {
 			const teamLinkFrameIndex = frames.length;
 			await page.goto(
 				getE2EDebugUrl(
-					`/#chat-id=${encodeURIComponent(teamChatId)}&team-id=${encodeURIComponent(teamId)}`
+					`/#team-id=${encodeURIComponent(teamId)}&chat-id=${encodeURIComponent(teamChatId)}`
 				),
 				{ waitUntil: 'domcontentloaded' }
 			);
@@ -998,6 +998,34 @@ test.describe('Teams V1 context isolation', () => {
 			await expect(
 				page.getByTestId('message-user').filter({ hasText: lostAckMessage })
 			).toBeVisible({ timeout: 30000 });
+			// An active Team chat may retain team-id before chat-id in the fragment.
+			// A cold reload must restore that same authorized chat, not the welcome card.
+			await page.evaluate(({ teamId, chatId }) => {
+				window.history.replaceState(null, '',
+					`/#team-id=${encodeURIComponent(teamId)}&chat-id=${encodeURIComponent(chatId)}`);
+			}, { teamId, chatId: teamChatId });
+			await expect.poll(() => new URL(page.url()).hash.startsWith('#team-id=')).toBe(true);
+			await page.reload({ waitUntil: 'domcontentloaded' });
+			await waitForChatReady(page);
+			await expectProfileTeamBadge(page, teamName);
+			await expect(page.getByTestId('active-chat-container')).toHaveAttribute(
+				'data-current-chat-id', teamChatId, { timeout: 30000 }
+			);
+			await expect(page.getByTestId('message-user').filter({ hasText: ordinaryMessage }))
+				.toBeVisible({ timeout: 30000 });
+			// A retained local chat must stay hidden if authoritative Team access
+			// is denied during the next cold-load validation.
+			await page.route(
+				(url) => url.pathname === `/v1/chats/${teamChatId}/messages/window` &&
+					url.searchParams.get('team_id') === teamId,
+				(route) => route.fulfill({ status: 403, contentType: 'application/json', body: '{}' })
+			);
+			await page.reload({ waitUntil: 'domcontentloaded' });
+			await expect(page.getByTestId('active-chat-container')).toHaveAttribute(
+				'data-current-chat-id', '', { timeout: 30000 }
+			);
+			await expect(page.getByTestId('message-user').filter({ hasText: ordinaryMessage }))
+				.toHaveCount(0);
 		} catch (error) {
 			flowError = error;
 		} finally {

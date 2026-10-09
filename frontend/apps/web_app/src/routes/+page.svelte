@@ -74,6 +74,7 @@
 		getPendingGiftCardRedemptionCode,
 		markPendingGiftCardRedemption,
 		buildSettingsHash,
+		getHashParam,
 		getSettingsPathFromHash,
 		getApiEndpoint
 	} from '@repo/ui';
@@ -1480,8 +1481,8 @@
 			);
 		} else if (browser) {
 			// Fallback: check current hash (might have been modified)
-			hashChatIdToLoad = window.location.hash.startsWith('#chat-id=')
-				? window.location.hash.substring('#chat-id='.length)
+			hashChatIdToLoad = readWorkspaceHashRoute(window.location.hash).workspace === 'chats'
+				? getHashParam(window.location.hash, 'chat-id')
 				: null;
 			console.debug('[+page.svelte] Using CURRENT hash chat ID (fallback):', hashChatIdToLoad);
 		}
@@ -2031,13 +2032,15 @@
 		// store starts clean. This prevents stale hash values (e.g. browser restoring a
 		// previous fragment) or module-level readChatIdFromHash() from pre-populating the
 		// store with an old chat ID, which would cause it to auto-open without user intent.
-		const hashChatMatch = originalHash.match(/^#chat-id=(.+)/);
-		if (!hashChatMatch) {
+		const hashChatId = originalWorkspaceHashRoute.workspace === 'chats'
+			? getHashParam(originalHash, 'chat-id')
+			: null;
+		if (!hashChatId || teamChatLinkNeedsValidation(hashChatId)) {
 			// Reset stale chat state while preserving the original deep-link hash.
-			// Workspace routes and legacy Apps links need it during startup.
+			// Workspace routes and unverified Team links need it during startup.
 			activeChatStore.setWithoutHashUpdate(null);
 			console.debug(
-				'[+page.svelte] [INIT] No chat hash in URL — cleared activeChatStore to prevent stale auto-open'
+				'[+page.svelte] [INIT] No authorized chat hash — cleared activeChatStore to prevent stale auto-open'
 			);
 		}
 
@@ -2261,13 +2264,7 @@
 				// Check if URL hash points to an encrypted chat (not demo-/legal-)
 				// If so, clear the hash and return to new chat to prevent loading broken chat
 				if (originalHash) {
-					let hashChatId: string | null = null;
-					if (originalHash.startsWith('#chat-id=')) {
-						// Extract only the chat ID — stop at '&' to avoid including key= parameters
-						const rawValue = originalHash.substring('#chat-id='.length);
-						const ampPos = rawValue.indexOf('&');
-						hashChatId = ampPos !== -1 ? rawValue.substring(0, ampPos) : rawValue;
-					}
+					const hashChatId = getHashParam(originalHash, 'chat-id');
 
 					// SHARE-LINK GUARD: If the hash contains '&key=', this is a share link redirect
 					// from the old +server.ts format (#chat-id={chatId}&key={blob}).
@@ -2323,18 +2320,12 @@
 			let shouldSuppressForcedLogoutHash = false;
 
 			// Extract originalHashChatId for chat hashes (needed for other logic)
-			if (
-				originalHash &&
-				(originalHash.startsWith('#chat-id=') || originalHash.startsWith('#chat-id='))
-			) {
-				// CRITICAL: Extract only the chat ID, stopping at '&' to avoid including
-				// &messageid= or &embed-id= parameters. This ensures comparisons with
-				// sharedChatRedirectId (which is just a clean UUID) work correctly.
-				const rawHashChatId = originalHash.startsWith('#chat-id=')
-					? originalHash.substring('#chat-id='.length)
-					: originalHash.substring('#chat-id='.length);
-				const ampIdx = rawHashChatId.indexOf('&');
-				originalHashChatId = ampIdx !== -1 ? rawHashChatId.substring(0, ampIdx) : rawHashChatId;
+			const chatIdFromHash = originalWorkspaceHashRoute.workspace === 'chats'
+				? getHashParam(originalHash, 'chat-id')
+				: null;
+			if (chatIdFromHash) {
+				// Hash parameters may retain Team context before the chat ID.
+				originalHashChatId = chatIdFromHash;
 
 				// CRITICAL: Don't set active chat to encrypted chat ID during forced logout
 				// The encrypted chat can't be decrypted without master key
@@ -2932,7 +2923,9 @@
 					);
 					// Load the hash chat instead of last opened chat
 					isProcessingInitialHash = true;
-					await handleChatDeepLink(originalHashChatId);
+					if (!teamChatLinkNeedsValidation(originalHashChatId)) {
+						await handleChatDeepLink(originalHashChatId);
+					}
 					isProcessingInitialHash = false;
 				} else {
 					// Check if hash is settings - if so, we already processed it, now load last_opened chat
@@ -3060,7 +3053,7 @@
 			if (!event.persisted) return;
 
 			const currentHash = window.location.hash;
-			const hasHashChat = currentHash.startsWith('#chat-id=');
+			const hasHashChat = !!getHashParam(currentHash, 'chat-id');
 
 			console.info(
 				'[+page.svelte] [BFCACHE] Page restored from BFCache — clearing stale active chat',
@@ -3390,8 +3383,7 @@
 			processWorkspaceSettingsPath(newHash);
 			return;
 		}
-		const hashChatIdMatch = newHash.match(/^#chat-id=([^&]+)/);
-		const hashChatId = hashChatIdMatch ? decodeURIComponent(hashChatIdMatch[1]) : null;
+		const hashChatId = getHashParam(newHash, 'chat-id');
 
 		if (isProgrammaticHashUpdate() || isProgrammaticEmbedHashUpdate()) {
 			if (!hashChatId || lastLoadedChatId === hashChatId) {
@@ -3417,9 +3409,7 @@
 		// the visible open→close→open glitch.
 		// Fix: if the new hash encodes a chat that is already active AND includes an embed-id,
 		// this is purely the embed opening — not a real navigation.  Skip it entirely.
-		const combinedEmbedMatch = newHash.match(/^#chat-id=([^&]+)&embed-id=(.+)$/);
-		if (combinedEmbedMatch) {
-			const hashChatId = combinedEmbedMatch[1];
+		if (hashChatId && (getHashParam(newHash, 'embed-id') || getHashParam(newHash, 'embed_id'))) {
 			if ($activeChatStore === hashChatId) {
 				console.debug(
 					'[+page.svelte] Ignoring embed-open hash change for already-active chat:',
@@ -3429,7 +3419,7 @@
 			}
 		}
 
-		if (hashChatId && $activeChatStore !== hashChatId) {
+		if (hashChatId && $activeChatStore !== hashChatId && !teamChatLinkNeedsValidation(hashChatId)) {
 			activeChatStore.setWithoutHashUpdate(hashChatId);
 		}
 
@@ -3442,8 +3432,10 @@
 			processSettingsDeepLink(buildSettingsHash(settingsPathFromCombinedHash));
 		}
 
+		const hashTeamId = getHashParam(newHash, 'team-id');
 		if (
 			hashChatId &&
+			(!hashTeamId || authorizedTeamDeepLink === `${hashChatId}/${hashTeamId}`) &&
 			activeChat &&
 			$authStore.isAuthenticated &&
 			lastLoadedChatId !== hashChatId &&
