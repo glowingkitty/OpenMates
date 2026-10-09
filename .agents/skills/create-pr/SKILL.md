@@ -15,6 +15,14 @@ a visible user turn and loads this skill through the `skill` tool. Keep this
 file static: execute commands explicitly during the workflow rather than using
 Claude command-template shell expansion in `SKILL.md`.
 
+Before the Step 0 changelog summary, read the private deployment handoff at
+`~/.openmates/deployment-notes/pr-dev-to-main.md` (expand `~` at runtime).
+Use its current status and unresolved gates when preparing this PR and the
+private production handoff. If the file is unavailable, report that gap before
+release decisions; do not infer that its rollout gates are complete. Keep
+deployment sequence, approvals, and operational details out of the public PR
+body. A PR request does not authorize a production domain cutover.
+
 ### Step 0 — Summarize Changelog Markdown Before Asking Questions (CRITICAL)
 
 Identify the most recent **merged** `dev` → `main` PR using `--state merged` and
