@@ -1,6 +1,6 @@
 from typing import List, Dict, Any, Optional, Literal
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # --- Core Message/Chat Models ---
 
@@ -29,6 +29,11 @@ class AIHistoryMessage(MessageBase):
     sender_name: Optional[str] = None
     message_id: Optional[str] = None  # Canonical client ID; synthetic summaries have no source ID
     created_at: int # Integer Unix timestamp
+    encrypted_native_cache_context: Optional[str] = Field(
+        default=None, repr=False, exclude_if=lambda value: value is None,
+    )
+    native_cache_canonical_content_sha256: Optional[str] = Field(default=None, repr=False, pattern=r"^[0-9a-f]{64}$")
+    native_cache_context: Optional[Dict[str, Any]] = Field(default=None, exclude=True, repr=False)
 
 class ChatBase(BaseModel):
     title: Optional[str] = None  # Decrypted title
@@ -150,6 +155,9 @@ class MessageInCache(BaseModel):
     category: Optional[str] = None
     sender_name: Optional[str] = None
     encrypted_content: str  # Content encrypted with encryption_key_user_server (Vault)
+    encrypted_native_cache_context: Optional[str] = Field(
+        default=None, repr=False, exclude_if=lambda value: value is None,
+    )
     model_name: Optional[str] = None  # Added: AI model name for assistant messages
     status: Literal['sending', 'sent', 'error', 'streaming', 'delivered', 'synced']
     created_at: int

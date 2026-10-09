@@ -1,14 +1,20 @@
 import { expect, test } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
+import type { Page } from '@playwright/test';
 
 // playwright-account: not_required reason=isolated_component_preview
+
+async function waitForModelPricingPreview(page: Page) {
+  await waitForComponentPreview(page);
+  await expect(page.getByTestId('ai-model-description'), 'pricing preview must load a catalog model').toBeVisible();
+}
 
 test.describe('AI model cache pricing preview', () => {
   for (const provider of ['google', 'openai', 'anthropic', 'mistral']) {
     // contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
     test(`published ${provider} catalog shows active customer cache prices`, async ({ page }) => {
       await page.goto(`/dev/preview/settings/AiAskModelDetails?variant=catalog-${provider}&theme=light&background=%23dbeafe&width=768&chrome=0`);
-      await waitForComponentPreview(page);
+      await waitForModelPricingPreview(page);
 
       await expect(page.getByTestId('ai-model-pricing-input-row')).toContainText('Uncached input');
       await expect(page.getByTestId('ai-model-pricing-cache-read-row')).not.toContainText('Unavailable');
@@ -18,6 +24,10 @@ test.describe('AI model cache pricing preview', () => {
       if (provider === 'anthropic') {
         await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('Cache write (5 min)');
         await expect(page.getByTestId('ai-model-pricing-cache-write-1h-row')).toHaveCount(0);
+      } else if (provider === 'openai') {
+        await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('Cache write');
+        await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('132');
+        await expect(page.getByTestId('ai-model-pricing-cache-write-row')).not.toContainText('5 min');
       } else {
         await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('Included in ordinary input');
       }
@@ -30,7 +40,7 @@ test.describe('AI model cache pricing preview', () => {
   // contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
   test('Haiku catalog shows standard rates and its over-100k tier on Anthropic', async ({ page }) => {
     await page.goto('/dev/preview/settings/AiAskModelDetails?variant=catalog-haiku&theme=light&background=%23dbeafe&width=768&chrome=0');
-    await waitForComponentPreview(page);
+    await waitForModelPricingPreview(page);
 
     await expect(page.getByTestId('ai-model-pricing-input-row')).toContainText('3300');
     await expect(page.getByTestId('ai-model-pricing-section')).toContainText('Standard');
@@ -50,7 +60,7 @@ test.describe('AI model cache pricing preview', () => {
   // contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
   test('shows separate read and write rates only for an active fixture', async ({ page }) => {
     await page.goto('/dev/preview/settings/AiAskModelDetails?variant=cache-active&theme=light&background=%23dbeafe&width=768&chrome=0');
-    await waitForComponentPreview(page);
+    await waitForModelPricingPreview(page);
 
     await expect(page.getByTestId('ai-model-pricing-input-row')).toContainText('Uncached input');
     await expect(page.getByTestId('ai-model-pricing-cache-read-row')).toContainText('1400');
@@ -75,9 +85,23 @@ test.describe('AI model cache pricing preview', () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
+  test('labels OpenAI separate writes without a five-minute retention claim', async ({ page }) => {
+    await page.goto('/dev/preview/settings/AiAskModelDetails?variant=cache-active-openai-separate&theme=light&background=%23dbeafe&width=768&chrome=0');
+    await waitForModelPricingPreview(page);
+
+    await expect(page.getByTestId('ai-model-pricing-cache-read-row')).not.toContainText('Unavailable');
+    await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('Cache write');
+    await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('2640');
+    await expect(page.getByTestId('ai-model-pricing-cache-write-row')).not.toContainText('5 min');
+    await expect(page.getByTestId('ai-model-long-context-cache-write-row')).toContainText('Cache write');
+    await expect(page.getByTestId('ai-model-long-context-cache-write-row')).not.toContainText('5 min');
+    await expect(page.getByTestId('ai-model-pricing-cache-write-1h-row')).toHaveCount(0);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
   test('shows the active long-context tier and labels implicit writes without a fixed retention tier', async ({ page }) => {
     await page.goto('/dev/preview/settings/AiAskModelDetails?variant=cache-active-included&theme=light&background=%23dbeafe&width=768&chrome=0');
-    await waitForComponentPreview(page);
+    await waitForModelPricingPreview(page);
 
     await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('Cache write');
     await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('Included in ordinary input');
@@ -96,7 +120,7 @@ test.describe('AI model cache pricing preview', () => {
   // contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
   test('does not advertise an expired cache tariff', async ({ page }) => {
     await page.goto('/dev/preview/settings/AiAskModelDetails?variant=cache-expired&theme=light&background=%23dbeafe&width=768&chrome=0');
-    await waitForComponentPreview(page);
+    await waitForModelPricingPreview(page);
 
     await expect(page.getByTestId('ai-model-pricing-cache-read-row')).toContainText('Unavailable');
     await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('Unavailable');

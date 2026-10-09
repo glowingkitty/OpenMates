@@ -1,6 +1,7 @@
 // frontend/packages/ui/src/services/chatSyncService.ts
 // Handles chat data synchronization between client and server via WebSockets.
 import { chatDB } from "./db";
+import { clearPersonalChatTurnBarriers, failPersonalChatMessage, failPersonalChatTurn, reservePersonalChatTurn } from "./personalChatTurnBarrier";
 import { getApiEndpoint } from '../config/api';
 import { getWorkspaceCacheIdentity } from './workspaceQueryCache';
 import { chatKeyManager } from "./encryption/ChatKeyManager";
@@ -326,6 +327,11 @@ export class ChatSynchronizationService extends EventTarget {
 
   constructor() {
     super();
+    this.addEventListener('aiTaskEnded', (event) => {
+      const detail = (event as CustomEvent<{ chatId?: string; userMessageId?: string; status?: string }>).detail;
+      if (detail?.status === 'completed' || !detail?.chatId || !detail?.userMessageId) return;
+      failPersonalChatMessage(detail.chatId, detail.userMessageId, new Error('The prior AI task ended before encrypted reply persistence.'));
+    });
     this.registerWebSocketHandlers();
     // The connection event can precede chat-key hydration. Retry again after
     // real phased sync, when the saved local keys and chat metadata are ready.
@@ -586,6 +592,10 @@ export class ChatSynchronizationService extends EventTarget {
           }, this.CACHE_STATUS_REQUEST_DELAY);
         }
       } else {
+        // A lost transport cannot prove whether a terminal recovery ACK reached
+        // this device. Reject queued dependents; they can retry after sync with
+        // a fresh authoritative version instead of waiting indefinitely.
+        if (wasWebSocketConnected) clearPersonalChatTurnBarriers();
         this.resetCacheStatusCountEvidence();
         console.warn(
           "[ChatSyncService] WebSocket disconnected or error.",
@@ -2624,6 +2634,10 @@ export class ChatSynchronizationService extends EventTarget {
     projectFocusIntent?: ProjectFocusSendIntent,
     newLocalChat?: boolean,
   ): Promise<void> {
+    // Reserve synchronously: connected-account preparation may await before the
+    // sender starts, while another local send can already be in progress.
+    const turn = reservePersonalChatTurn(message.chat_id, message.message_id);
+    try {
     const context = connectedAccountContext ?? await this.buildDefaultConnectedAccountSendContext();
     let preparedConnectedAccountContext: PreparedConnectedAccountSendContext | undefined;
     try {
@@ -2645,7 +2659,13 @@ export class ChatSynchronizationService extends EventTarget {
       preparedConnectedAccountContext,
       projectFocusIntent,
       newLocalChat,
+      turn,
     );
+    if (!turn.turnId) failPersonalChatTurn(turn, new Error('The encrypted chat turn was not dispatched.'));
+    } catch (error) {
+      failPersonalChatTurn(turn, error);
+      throw error;
+    }
   }
 
   private async buildDefaultConnectedAccountSendContext(): Promise<ConnectedAccountSendContext | undefined> {

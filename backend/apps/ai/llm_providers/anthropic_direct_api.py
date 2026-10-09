@@ -3,6 +3,7 @@
 
 import logging
 import json
+import copy
 from typing import Dict, Any, List, Optional, Union, AsyncIterator
 import tiktoken
 import anthropic
@@ -16,8 +17,43 @@ from .anthropic_shared import (
     _map_tools_to_anthropic_format
 )
 from .openai_shared import calculate_token_breakdown
+from .native_cache_context import (
+    NativeCacheProviderOutput, safe_native_provider_error, validate_native_cache_context,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _raw_anthropic_block(block: Any) -> Dict[str, Any]:
+    """Copy a provider block without publishing private thinking/signatures."""
+    if isinstance(block, dict):
+        return copy.deepcopy(block)
+    if hasattr(block, "model_dump"):
+        return block.model_dump(exclude_none=True)
+    return copy.deepcopy(vars(block))
+
+
+def _append_anthropic_delta(raw_blocks: Dict[int, Dict[str, Any]], event: Any) -> None:
+    """Assemble replayable Anthropic content from its streamed deltas."""
+    index = getattr(event, "index", None)
+    if index not in raw_blocks:
+        raise ValueError("Anthropic content delta has no preceding block")
+    delta = event.delta
+    kind = delta.type
+    block = raw_blocks[index]
+    if kind == "text_delta":
+        block["text"] = block.get("text", "") + delta.text
+    elif kind == "thinking_delta":
+        block["thinking"] = block.get("thinking", "") + delta.thinking
+    elif kind == "signature_delta":
+        block["signature"] = block.get("signature", "") + delta.signature
+    elif kind == "input_json_delta":
+        # Parsed at content_block_stop, after all partial JSON has arrived.
+        pass
+    elif kind == "citations_delta":
+        block.setdefault("citations", []).append(_raw_anthropic_block(delta.citation))
+    else:
+        raise ValueError(f"Unsupported Anthropic replay delta type: {kind}")
 
 
 def _cache_creation_ttl_tokens(usage: Any) -> Dict[str, int]:
@@ -42,13 +78,23 @@ async def invoke_direct_api(
     tool_choice: Optional[str] = None,
     stream: bool = False,
     cacheable_system_prefix: Optional[str] = None,
+    native_cache_context: Optional[Dict[str, Any]] = None,
 ) -> Union[UnifiedAnthropicResponse, AsyncIterator[Union[str, ParsedAnthropicToolCall, AnthropicUsageMetadata]]]:
     """Handle requests using Anthropic's direct API"""
     log_prefix = f"[{task_id}] Anthropic Direct API ({model_id}):"
     logger.info(f"{log_prefix} Attempting chat completion. Stream: {stream}. Tools: {'Yes' if tools else 'No'}. Choice: {tool_choice}")
 
     try:
-        system_prompt, anthropic_messages = _prepare_messages_for_anthropic(messages, cacheable_system_prefix)
+        native_events = None
+        if native_cache_context is not None:
+            baseline, native_events, _active_names = validate_native_cache_context(native_cache_context, messages)
+            if not model_id.startswith(("claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5")):
+                raise ValueError("Anthropic inline tools require a direct Claude 5.5 model")
+        system_prompt, anthropic_messages = _prepare_messages_for_anthropic(
+            messages,
+            None if native_cache_context is not None else cacheable_system_prefix,
+            native_events=native_events,
+        )
         
         if not anthropic_messages:
             err_msg = "Message history is empty after processing."
@@ -56,7 +102,7 @@ async def invoke_direct_api(
                 raise ValueError(err_msg)
             return UnifiedAnthropicResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
 
-        anthropic_tools = _map_tools_to_anthropic_format(tools)
+        anthropic_tools = _map_tools_to_anthropic_format(baseline if native_cache_context is not None else tools)
         
         # Prepare the request for direct API
         request_kwargs = {
@@ -82,8 +128,13 @@ async def invoke_direct_api(
         if system_prompt:
             request_kwargs["system"] = system_prompt
             
-        if anthropic_tools:
+        if native_cache_context is not None:
+            # An empty, immutable baseline is valid for conversations that
+            # start without tools. Later selected tools arrive inline by value.
+            request_kwargs["tools"] = anthropic_tools or []
+        elif anthropic_tools:
             request_kwargs["tools"] = anthropic_tools
+        if anthropic_tools:
             if tool_choice and tool_choice != "auto":
                 if tool_choice == "required":
                     # Sonnet 5.5 rejects forced tool choice. Enforce the
@@ -93,14 +144,21 @@ async def invoke_direct_api(
                 elif tool_choice == "none":
                     request_kwargs["tool_choice"] = {"type": "auto"}
 
+        if native_cache_context is not None:
+            request_kwargs["betas"] = ["inline-tools-2026-09-15"]
+            # The pinned Anthropic SDK accepts beta headers but predates the
+            # top-level automatic cache_control parameter. extra_body merges it
+            # into the wire JSON without changing legacy request typing.
+            request_kwargs["extra_body"] = {"cache_control": {"type": "ephemeral"}}
+
         logger.debug(f"{log_prefix} Request prepared with caching optimizations.")
 
         require_tool = bool(anthropic_tools and tool_choice == "required" and bare_model.startswith("claude-sonnet-5-5"))
         if stream:
-            response_stream = _iterate_direct_api_stream(task_id, model_id, request_kwargs, anthropic_client, messages, log_prefix, tools=tools)
+            response_stream = _iterate_direct_api_stream(task_id, model_id, request_kwargs, anthropic_client, messages, log_prefix, tools=tools, native_cache_context=native_cache_context)
             return _require_tool_call_stream(response_stream) if require_tool else response_stream
         else:
-            response = await _process_direct_api_response(task_id, model_id, request_kwargs, anthropic_client, messages, log_prefix, tools=tools)
+            response = await _process_direct_api_response(task_id, model_id, request_kwargs, anthropic_client, messages, log_prefix, tools=tools, native_cache_context=native_cache_context)
             if require_tool and response.success and not response.tool_calls_made:
                 response.success = False
                 response.direct_message_content = None
@@ -108,6 +166,15 @@ async def invoke_direct_api(
             return response
 
     except Exception as e:
+        if native_cache_context is not None:
+            safe_error = safe_native_provider_error(e)
+            logger.error("%s Direct API preparation failed: %s", log_prefix, safe_error)
+            if stream:
+                raise ValueError(safe_error) from None
+            return UnifiedAnthropicResponse(
+                task_id=task_id, model_id=model_id, success=False,
+                error_message=safe_error,
+            )
         err_msg = f"Error during direct API request preparation: {e}"
         logger.error(f"{log_prefix} {err_msg}", exc_info=True)
         if stream:
@@ -148,12 +215,14 @@ async def _process_direct_api_response(
     messages: List[Dict[str, str]],
     log_prefix: str,
     tools: Optional[List[Dict[str, Any]]] = None,
+    native_cache_context: Optional[Dict[str, Any]] = None,
 ) -> UnifiedAnthropicResponse:
     """Process non-streaming response from Anthropic direct API"""
     try:
         # Log the actual request details for debugging
         logger.info(f"{log_prefix} Making request to Anthropic API with model '{model_id}'")
-        response = anthropic_client.messages.create(**request_kwargs)
+        endpoint = anthropic_client.beta.messages if native_cache_context is not None else anthropic_client.messages
+        response = endpoint.create(**request_kwargs)
         logger.info(f"{log_prefix} Received non-streamed response from Anthropic direct API.")
         
         # Calculate token breakdown from input messages (estimate)
@@ -182,6 +251,10 @@ async def _process_direct_api_response(
             task_id=task_id, model_id=model_id, success=True,
             raw_response=raw_response_pydantic, usage=usage_metadata
         )
+        if native_cache_context is not None:
+            unified_resp.provider_transport_state = [
+                _raw_anthropic_block(block) for block in response.content
+            ]
         
         # Process content blocks
         text_content = []
@@ -227,6 +300,13 @@ async def _process_direct_api_response(
         return unified_resp
         
     except Exception as e:
+        if native_cache_context is not None:
+            safe_error = safe_native_provider_error(e)
+            logger.error("%s Direct API response failed: %s", log_prefix, safe_error)
+            return UnifiedAnthropicResponse(
+                task_id=task_id, model_id=model_id, success=False,
+                error_message=safe_error,
+            )
         logger.error(f"{log_prefix} Failed to process direct API response: {e}", exc_info=True)
         return UnifiedAnthropicResponse(task_id=task_id, model_id=model_id, success=False, error_message=str(e))
 
@@ -239,6 +319,7 @@ async def _iterate_direct_api_stream(
     messages: List[Dict[str, str]],
     log_prefix: str,
     tools: Optional[List[Dict[str, Any]]] = None,
+    native_cache_context: Optional[Dict[str, Any]] = None,
 ) -> AsyncIterator[Union[str, ParsedAnthropicToolCall, AnthropicUsageMetadata]]:
     """Handle streaming response from Anthropic direct API"""
     logger.info(f"{log_prefix} Stream connection initiated.")
@@ -248,10 +329,13 @@ async def _iterate_direct_api_stream(
     usage_parts: Dict[str, Any] = {}
     provider_request_id = None
     current_tool_calls: Dict[int, Dict[str, Any]] = {}
+    raw_blocks: Dict[int, Dict[str, Any]] = {}
+    native_output_complete = False
     
     try:
         request_kwargs["stream"] = True
-        stream = anthropic_client.messages.create(**request_kwargs)
+        endpoint = anthropic_client.beta.messages if native_cache_context is not None else anthropic_client.messages
+        stream = endpoint.create(**request_kwargs)
         
         # Calculate token breakdown from input messages (estimate)
         token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
@@ -268,6 +352,8 @@ async def _iterate_direct_api_stream(
                             usage_parts[field] = value
                     usage_parts.update(_cache_creation_ttl_tokens(start_usage))
             elif event.type == "content_block_delta":
+                if native_cache_context is not None:
+                    _append_anthropic_delta(raw_blocks, event)
                 if event.delta.type == "text_delta":
                     text_chunk = event.delta.text
                     output_buffer += text_chunk
@@ -284,6 +370,11 @@ async def _iterate_direct_api_stream(
                     )
             
             elif event.type == "content_block_start":
+                if native_cache_context is not None:
+                    block_index = getattr(event, "index", None)
+                    if block_index is None or block_index in raw_blocks:
+                        raise ValueError("Anthropic content block has an invalid stream index")
+                    raw_blocks[block_index] = _raw_anthropic_block(event.content_block)
                 if event.content_block.type == "tool_use":
                     block_index = getattr(event, "index", None)
                     if block_index is None:
@@ -321,6 +412,9 @@ async def _iterate_direct_api_stream(
                             f"Anthropic tool '{tool_call['name']}' arguments must decode to an object"
                         )
 
+                    if native_cache_context is not None:
+                        raw_blocks[block_index]["input"] = copy.deepcopy(args_dict)
+
                     parsed_tool_call = ParsedAnthropicToolCall(
                         tool_call_id=tool_call["id"],
                         function_name=tool_call["name"],
@@ -335,6 +429,8 @@ async def _iterate_direct_api_stream(
                 # Anthropic sends stop_reason in message_delta: "end_turn", "max_tokens",
                 # "stop_sequence", or "tool_use". If max_tokens, the response was truncated.
                 stop_reason = getattr(event.delta, 'stop_reason', None)
+                if native_cache_context is not None and stop_reason in ("end_turn", "tool_use"):
+                    native_output_complete = True
                 if stop_reason and stop_reason not in ("end_turn", "tool_use"):
                     logger.warning(f"{log_prefix} Response ended with stop_reason='{stop_reason}'")
                     if stop_reason == "max_tokens":
@@ -349,6 +445,14 @@ async def _iterate_direct_api_stream(
                         if value is not None:
                             usage_parts[field] = value
                     usage_parts.update(_cache_creation_ttl_tokens(usage_data))
+
+        if native_cache_context is not None:
+            if not native_output_complete:
+                raise ValueError("Anthropic native stream ended without a complete response")
+            yield NativeCacheProviderOutput(
+                provider_prefix="anthropic", model_id=model_id,
+                output=[raw_blocks[index] for index in sorted(raw_blocks)],
+            )
 
         if usage_parts:
             input_tokens = int(usage_parts.get("input_tokens") or 0)
@@ -394,11 +498,19 @@ async def _iterate_direct_api_stream(
                 )
                 yield usage
             except Exception as e:
-                logger.error(f"{log_prefix} Failed to estimate tokens with tiktoken: {e}", exc_info=True)
+                if native_cache_context is not None:
+                    logger.error("%s Usage estimate failed: %s", log_prefix,
+                                 safe_native_provider_error(e))
+                else:
+                    logger.error(f"{log_prefix} Failed to estimate tokens with tiktoken: {e}", exc_info=True)
 
         logger.info(f"{log_prefix} Stream finished.")
 
     except Exception as e_stream:
+        if native_cache_context is not None:
+            safe_error = safe_native_provider_error(e_stream)
+            logger.error("%s Direct API stream failed: %s", log_prefix, safe_error)
+            raise IOError(safe_error) from None
         err_msg = f"Unexpected error during direct API streaming: {e_stream}"
         logger.error(f"{log_prefix} {err_msg}", exc_info=True)
         raise IOError(f"Anthropic Direct API Streaming Error: {e_stream}") from e_stream

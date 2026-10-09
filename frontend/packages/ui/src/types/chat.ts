@@ -763,6 +763,7 @@ export interface AIMessageUpdatePayload {
   rejection_reason?: string | null; // e.g., "insufficient_credits" - indicates this is a system error, not an AI response
   recovery_job_id?: string | null;
   recovery_protocol_version?: number | null;
+  recovery_turn_id?: string | null;
 }
 
 export interface AITypingStartedPayload {
@@ -810,6 +811,7 @@ export interface AIBackgroundResponseCompletedPayload {
   rejection_reason?: string | null; // e.g., "insufficient_credits" - indicates this is a system error, not an AI response
   recovery_job_id?: string | null;
   recovery_protocol_version?: number | null;
+  recovery_turn_id?: string | null;
 }
 
 // --- Thinking/Reasoning Payloads (Server to Client) ---

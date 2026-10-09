@@ -186,6 +186,7 @@ def test_final_chunk_orders_recovery_discovery_before_completion_frames() -> Non
     assert '"awaiting_focus_mode_continuation": redis_payload.get("awaiting_focus_mode_continuation", False)' in background_branch
     assert '"is_focus_mode_continuation": redis_payload.get("is_focus_mode_continuation", False)' in background_branch
     assert '"is_sub_chat_continuation": redis_payload.get("is_sub_chat_continuation", False)' in background_branch
+    assert '"recovery_turn_id": redis_payload.get("recovery_turn_id")' in background_branch
 
 
 def test_legacy_cutover_is_authorized_before_final_stream_marker() -> None:

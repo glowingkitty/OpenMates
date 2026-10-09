@@ -60,7 +60,18 @@ from backend.apps.ai.utils.llm_utils import (
     truncate_message_history_to_token_budget,
     AllServersFailedError,
     _transform_message_history_for_llm,
+    native_cache_route,
+    native_cache_quote_payload,
+    prepare_native_cache_context,
 )
+from backend.apps.ai.llm_providers.native_cache_context import NativeCacheProviderOutput, NativeCacheSchemaChanged
+from backend.apps.ai.processing.native_history_cache import (
+    add_dispatch_event, append_provider_output, append_tool_results,
+    collect_server_embed_provenance,
+    native_replay_fits_budget, new_native_segment, resume_native_segment,
+    validate_native_embed_fingerprints,
+)
+from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
 from backend.apps.ai.processing import agentic_context
 from backend.apps.ai.processing.rule_context import applied_rule_receipt
 from backend.shared.python_utils.rule_loader import applied_rule_set_key
@@ -146,7 +157,7 @@ from backend.apps.ai.processing.task_tool_executor import (
     task_tool_name_variants,
 )
 from backend.apps.ai.processing.model_usage_tracker import ModelUsageTracker, calculate_model_usage_credits
-from backend.apps.ai.processing.chat_compressor import model_history_token_budget
+from backend.apps.ai.processing.chat_compressor import model_history_token_budget, model_total_input_token_budget
 from backend.apps.ai.processing.audio_recording_guard import (
     AUDIO_TRANSCRIBE_SKILL_ID,
     has_transcribed_web_audio_recording,
@@ -470,6 +481,11 @@ def _llm_history_message(message: Any) -> Dict[str, Any]:
         payload = dict(message)
     else:
         payload = {}
+    # Vault ciphertext is carried only for local replay restoration. It must
+    # never enter provider history, token quotes, or diagnostic projections.
+    payload.pop("encrypted_native_cache_context", None)
+    payload.pop("native_cache_context", None)
+    payload.pop("native_cache_canonical_content_sha256", None)
     llm_role = task_queue_llm_history_role(payload.get("role"), payload.get("content"))
     if llm_role != payload.get("role"):
         payload["role"] = llm_role
@@ -2090,10 +2106,39 @@ def _normal_chat_cache_pricing_scope(request_data: AskSkillRequest) -> bool:
     )
 
 
+_NATIVE_FIXTURE_ADMISSION_REASONS = frozenset({
+    "accepted", "route_unavailable", "fallback_model", "answer_recovery",
+    "protocol_recovery", "prefix_empty", "history_truncated", "prompt_sanitized",
+    "prepare_rejected", "budget_rejected", "schema_changed", "cold_reset",
+})
+_NATIVE_FIXTURE_PRIOR_REASONS = frozenset({
+    "scope_off", "no_vault_key", "no_assistant", "no_ciphertext",
+    "fingerprint_rejected", "decrypt_failed", "retained",
+})
+
+
+def _log_native_fixture_admission(
+    admission: str, prior: str, *, history_count: int, visible_count: int,
+) -> None:
+    """Expose only fixed predicates for the signed isolated replay fixture."""
+    if (admission not in _NATIVE_FIXTURE_ADMISSION_REASONS
+            or prior not in _NATIVE_FIXTURE_PRIOR_REASONS
+            or os.getenv("CI") != "true"
+            or os.getenv("OPENMATES_CI_ISOLATED") != "1"):
+        return
+    from backend.shared.testing.mock_context import get_mock_group
+    if get_mock_group() != "native_cache_tools_v1":
+        return
+    logger.info(
+        "Native fixture admission: admission=%s prior=%s history_count=%d visible_count=%d",
+        admission, prior, history_count, visible_count,
+    )
+
+
 def _has_remote_image_url(value: Any) -> bool:
     """Find provider image blocks whose token cost cannot be inferred from the URL."""
     if isinstance(value, dict):
-        if value.get("type") == "image_url":
+        if value.get("type") in {"image_url", "input_image"}:
             image = value.get("image_url")
             url = image.get("url") if isinstance(image, dict) else image
             if isinstance(url, str) and url.lower().startswith(("https://", "http://")):
@@ -2522,6 +2567,69 @@ def _orchestrated_ai_output_token_limit(
     if isinstance(configured_limit, int) and configured_limit > 0:
         return min(configured_limit, hard_limit)
     return hard_limit
+
+
+def _personal_chat_output_token_limit(model_id: str) -> int:
+    """Keep the provider output cap independently of customer credit holds."""
+    if "/" not in model_id:
+        raise ValueError("Personal chat model must be provider-qualified")
+    provider_id, model_suffix = model_id.split("/", 1)
+    configured = config_manager.get_model_pricing(provider_id, model_suffix) or {}
+    limit = (configured.get("features") or {}).get("max_output_tokens")
+    if limit is None:
+        limit = ORCHESTRATED_AI_MAX_OUTPUT_TOKENS
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
+        raise ValueError("Personal chat model has no valid output token limit")
+    return limit
+
+
+async def _fit_personal_chat_output_token_limit(
+    *,
+    request_data: AskSkillRequest,
+    cache_service: Optional[CacheService],
+    model_usage_tracker: ModelUsageTracker,
+    model_id: str,
+    system_prompt: str,
+    message_history: List[Dict[str, Any]],
+    tools: Optional[List[Dict[str, Any]]],
+    requested_output_token_limit: Optional[int],
+    inference_host: str,
+) -> int:
+    """Bound one unreserved dispatch to the remaining personal-wallet capacity."""
+    if not request_data.user_id or cache_service is None:
+        raise AuthenticatedReservationError("Personal inference balance is unavailable")
+    if (isinstance(requested_output_token_limit, bool)
+            or not isinstance(requested_output_token_limit, int)
+            or requested_output_token_limit <= 0):
+        raise AuthenticatedReservationError("Personal inference needs a bounded output limit")
+    try:
+        user = await cache_service.get_user_by_id(request_data.user_id)
+    except Exception as exc:
+        raise AuthenticatedReservationError("Personal inference balance is unavailable") from exc
+    balance = user.get("credits") if isinstance(user, dict) else None
+    if isinstance(balance, bool) or not isinstance(balance, int):
+        raise AuthenticatedReservationError("Personal inference balance is unavailable")
+    try:
+        observed_credits = (
+            calculate_model_usage_credits(model_usage_tracker.usage_by_model, config_manager.get_model_pricing)
+            if model_usage_tracker.usage_by_model else 0
+        )
+        fitted = _max_affordable_ai_output_tokens(
+            model_id=model_id,
+            system_prompt=system_prompt,
+            message_history=message_history,
+            tools=tools,
+            requested_output_token_limit=requested_output_token_limit,
+            available_credits=balance + 500 - observed_credits,
+            credit_rounding_headroom=1,
+            inference_host=inference_host,
+            customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+        )
+    except Exception as exc:
+        raise AuthenticatedReservationError("Personal inference quote is unavailable") from exc
+    if fitted is None:
+        raise AuthenticatedReservationLimitError("Personal inference input exceeds remaining credits")
+    return fitted
 
 
 async def _reserve_ai_iteration(
@@ -3421,14 +3529,15 @@ async def handle_main_processing(
 
     if user_timezone:
         # Include both local time and timezone name so the LLM never needs to convert
-        prompt_parts.append(
+        clock_instruction = (
             f"Current date and time (in user's timezone): {date_time_str}\n"
             f"User's timezone: {user_timezone}"
         )
     else:
         # No timezone info — fall back to UTC and note it
         date_time_str_utc = now_utc.strftime("%Y-%m-%d %H:%M:%S %Z")
-        prompt_parts.append(f"Current date and time: {date_time_str_utc} (user timezone unknown)")
+        clock_instruction = f"Current date and time: {date_time_str_utc} (user timezone unknown)"
+    prompt_parts.append(clock_instruction)
     # Add temporal awareness instruction right after the date to emphasize its importance
     # This ensures the LLM properly filters past vs future events based on the current date
     prompt_parts.append(base_instructions.get("base_temporal_awareness_instruction", ""))
@@ -4716,6 +4825,41 @@ async def handle_main_processing(
         current_message_history,
         max_tokens=selected_history_budget,
     )
+    # Native replay is an optional optimization for ordinary direct-provider
+    # chats. The task queue carries only Vault ciphertext; decrypt here and keep
+    # the provider transcript in process memory until the final private marker.
+    native_prior_state: Optional[Dict[str, Any]] = None
+    native_scope = _normal_chat_cache_pricing_scope(request_data) and not request_data.is_incognito
+    native_prior_reason = (
+        "scope_off" if not native_scope else
+        "no_vault_key" if not user_vault_key_id else "no_assistant"
+    )
+    if native_scope and request_data.message_history and user_vault_key_id:
+        prior_assistant = next(
+            (message for message in reversed(request_data.message_history[:-1])
+             if message.role == "assistant"), None,
+        )
+        ciphertext = getattr(prior_assistant, "encrypted_native_cache_context", None) if prior_assistant else None
+        native_prior_reason = "no_ciphertext" if prior_assistant else "no_assistant"
+        if isinstance(ciphertext, str) and ciphertext.startswith("vault:v"):
+            try:
+                plaintext = await encryption_service.decrypt_with_user_key(ciphertext, user_vault_key_id)
+                decoded = json.loads(plaintext)
+                if (isinstance(decoded, dict) and await validate_native_embed_fingerprints(
+                        decoded, cache_service, request_data.user_id_hash)):
+                    native_prior_state = decoded
+                    native_prior_reason = "retained"
+                else:
+                    native_prior_reason = "fingerprint_rejected"
+            except Exception as exc:
+                native_prior_reason = "decrypt_failed"
+                logger.info("%s Native history cold reset after decrypt failure (%s)", log_prefix, type(exc).__name__)
+    native_state: Optional[Dict[str, Any]] = None
+    native_main_cursor: Optional[int] = None
+    native_main_snapshot: Optional[List[Dict[str, Any]]] = None
+    native_raw_final_output: Optional[List[Dict[str, Any]]] = None
+    native_raw_final_text = ""
+    native_terminal_ready = False
     logger.info(
         "%s Model-aware history budget for %s: %s tokens",
         log_prefix,
@@ -5462,6 +5606,12 @@ async def handle_main_processing(
                     requested_output_token_limit=current_output_token_limit,
                     request_data=request_data,
                 )
+                personal_normal_chat = (
+                    _normal_chat_cache_pricing_scope(request_data)
+                    and not getattr(request_data, "team_id", None)
+                )
+                if personal_normal_chat and current_output_token_limit is None:
+                    current_output_token_limit = _personal_chat_output_token_limit(current_model_id)
 
                 if model_fallback_attempts > 1:
                     logger.warning(
@@ -5519,13 +5669,140 @@ async def handle_main_processing(
                     if receipt:
                         yield {"__chat_context_applied__": True,
                                "receipt": agentic_context.receipt_event(request_data, receipt)}
-                if not getattr(request_data, "is_anonymous", False) and not request_data.orchestration_id:
+                native_prepared_context = None
+                reservation_system_prompt = iteration_system_prompt
+                reservation_history = current_message_history
+                reservation_tools = iteration_tools
+                native_route = native_cache_route(current_model_id) if native_scope else None
+                native_admission_reason = "route_unavailable"
+                if (
+                    native_route and current_model_index == 0 and not answer_recovery.active
+                    # Answer-only recovery replaces the provider transcript
+                    # and is excluded by the answer_recovery.active guard.
+                    and cacheable_system_prefix
+                    and len(current_message_history) >= len(request_data.message_history)
+                    and sanitize_text_simple(iteration_system_prompt) == iteration_system_prompt
+                ):
+                    native_host, native_server_model = native_route
+                    try:
+                        if native_state is None:
+                            new_user_message = _transform_message_history_for_llm(
+                                [_llm_history_message(request_data.message_history[-1])]
+                            )[0]
+                            native_state = (
+                                resume_native_segment(
+                                    native_prior_state, model_id=current_model_id,
+                                    server_model_id=native_server_model,
+                                    provider_prefix=native_host,
+                                    cacheable_system_prefix=cacheable_system_prefix,
+                                    visible_history=request_data.message_history,
+                                    new_user_message=new_user_message,
+                                ) if native_prior_state else None
+                            )
+                            if native_state is None:
+                                native_state = new_native_segment(
+                                    model_id=current_model_id, server_model_id=native_server_model,
+                                    provider_prefix=native_host,
+                                    cacheable_system_prefix=cacheable_system_prefix,
+                                    selected_tools=iteration_tools or [],
+                                    messages=[{"role": "system", "content": cacheable_system_prefix},
+                                              *_transform_message_history_for_llm(current_message_history)],
+                                    visible_history=request_data.message_history,
+                                )
+                            native_main_cursor = len(current_message_history)
+                            native_main_snapshot = copy.deepcopy(current_message_history)
+                        elif native_main_cursor is not None:
+                            delta = current_message_history[native_main_cursor:]
+                            unexpected_delta = bool(delta) and (
+                                delta[0].get("role") != "assistant"
+                                or any(item.get("role") != "tool" for item in delta[1:])
+                            )
+                            if (len(current_message_history) < native_main_cursor
+                                    or current_message_history[:native_main_cursor] != native_main_snapshot
+                                    or unexpected_delta):
+                                raise ValueError("Native history diverged from the current tool turn")
+                            if delta:
+                                append_tool_results(
+                                    native_state,
+                                    _transform_message_history_for_llm(delta[1:]),
+                                )
+                            native_main_cursor = len(current_message_history)
+                            native_main_snapshot = copy.deepcopy(current_message_history)
+                        add_dispatch_event(
+                            native_state, system_prompt=iteration_system_prompt,
+                            selected_tools=iteration_tools or [], openai=native_host == "openai",
+                            clock_instruction=clock_instruction,
+                        )
+                        candidate = prepare_native_cache_context(
+                            native_state, logical_model_id=current_model_id,
+                            server_model_id=native_server_model,
+                            provider_prefix=native_host,
+                            customer_cache_pricing_enabled=native_scope,
+                        )
+                        if candidate is not None:
+                            quote_system, quote_history, quote_tools = native_cache_quote_payload(candidate, native_host)
+                            if native_replay_fits_budget(
+                                candidate, quote_system=quote_system,
+                                quote_history=quote_history, quote_tools=quote_tools,
+                                input_token_budget=model_total_input_token_budget(
+                                    current_model_id, config_manager,
+                                ),
+                            ):
+                                # Persist the provider-sanitized schemas that
+                                # were actually sent, preserving old prefixes.
+                                native_state = candidate
+                                native_prepared_context = candidate
+                                reservation_system_prompt = quote_system
+                                reservation_history = quote_history
+                                reservation_tools = quote_tools
+                                native_admission_reason = "accepted"
+                            else:
+                                native_admission_reason = "budget_rejected"
+                        else:
+                            native_admission_reason = "prepare_rejected"
+                    except NativeCacheSchemaChanged:
+                        # OpenAI cannot mutate a previously introduced schema
+                        # in-place. Run this turn cold; the next one can start
+                        # a fresh segment with the current definitions.
+                        native_state = None
+                        native_prior_state = None
+                        native_admission_reason = "schema_changed"
+                    except (KeyError, TypeError, ValueError, IndexError) as exc:
+                        native_state = None
+                        native_admission_reason = "cold_reset"
+                        logger.info("%s Native history cold reset (%s)", log_prefix, type(exc).__name__)
+                    if native_prepared_context is None:
+                        native_state = None
+                elif native_route:
+                    native_admission_reason = (
+                        "fallback_model" if current_model_index != 0 else
+                        "answer_recovery" if answer_recovery.active else
+                        "prefix_empty" if not cacheable_system_prefix else
+                        "history_truncated" if len(current_message_history) < len(request_data.message_history) else
+                        "prompt_sanitized"
+                    )
+                if iteration == 0 and current_model_index == 0:
+                    _log_native_fixture_admission(
+                        native_admission_reason, native_prior_reason,
+                        history_count=len(current_message_history),
+                        visible_count=len(request_data.message_history),
+                    )
+                # Personal standalone chats were admitted by the preprocessor's
+                # positive-balance check. Bound each dispatch to the remaining
+                # wallet capacity without creating a monetary hold. Teams and
+                # other authenticated scopes retain their reservation path.
+                needs_authenticated_hold = (
+                    not getattr(request_data, "is_anonymous", False)
+                    and not request_data.orchestration_id
+                    and not personal_normal_chat
+                )
+                if needs_authenticated_hold:
                     current_output_token_limit = await _reserve_authenticated_ai_turn(
                         task_id=task_id, request_data=request_data,
                         model_id=current_model_id,
-                        system_prompt=iteration_system_prompt,
-                        message_history=current_message_history,
-                        tools=iteration_tools,
+                        system_prompt=reservation_system_prompt,
+                        message_history=reservation_history,
+                        tools=reservation_tools,
                         requested_output_token_limit=current_output_token_limit,
                         model_usage_tracker=model_usage_tracker,
                         reservation_state=ordinary_reservation_state,
@@ -5534,12 +5811,25 @@ async def handle_main_processing(
                         return await _reserve_authenticated_ai_turn(
                             task_id=task_id, request_data=request_data,
                             model_id=current_model_id,
-                            system_prompt=iteration_system_prompt,
-                            message_history=current_message_history,
-                            tools=iteration_tools,
+                            system_prompt=reservation_system_prompt,
+                            message_history=reservation_history,
+                            tools=reservation_tools,
                             requested_output_token_limit=dispatch_limit,
                             model_usage_tracker=model_usage_tracker,
                             reservation_state=ordinary_reservation_state,
+                            inference_host=_server_model_id.split("/", 1)[0],
+                        )
+                elif personal_normal_chat:
+                    async def admit_actual_provider(_server_model_id: str, dispatch_limit: Optional[int]) -> int:
+                        return await _fit_personal_chat_output_token_limit(
+                            request_data=request_data,
+                            cache_service=cache_service,
+                            model_usage_tracker=model_usage_tracker,
+                            model_id=current_model_id,
+                            system_prompt=reservation_system_prompt,
+                            message_history=reservation_history,
+                            tools=reservation_tools,
+                            requested_output_token_limit=dispatch_limit,
                             inference_host=_server_model_id.split("/", 1)[0],
                         )
                 else:
@@ -5572,6 +5862,7 @@ async def handle_main_processing(
                     prompt_cache_key=_mistral_prompt_cache_key(request_data),
                     pre_dispatch_admission=admit_actual_provider,
                     customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+                    native_cache_context=native_prepared_context,
                 )
                 # Stream created successfully - break out of retry loop
                 break
@@ -5664,6 +5955,8 @@ async def handle_main_processing(
         iteration_input_tokens = 0
         iteration_output_tokens = 0
         iteration_normalized_usage_by_attempt: Dict[str, Any] = {}
+        iteration_native_output: Optional[NativeCacheProviderOutput] = None
+        native_terminal_ready = False
         try:
           with ai_phase_span("main.iteration"):
            # Observe raw provider delivery before paragraph aggregation so
@@ -5675,6 +5968,11 @@ async def handle_main_processing(
                provider_purpose="main",
            )
            async for chunk in protocol_guard.filter(observed_llm_stream):
+            if isinstance(chunk, NativeCacheProviderOutput):
+                # Provider reasoning/output is private replay state. It is
+                # neither a product stream event nor a debug/usage payload.
+                iteration_native_output = chunk
+                continue
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata)):
                 iteration_usage = chunk
                 last_reported_usage = chunk
@@ -6366,6 +6664,30 @@ async def handle_main_processing(
             )
 
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
+        if native_prepared_context is not None:
+            if (
+                iteration_native_output is not None and native_state is not None
+                and iteration_native_output.provider_prefix == native_prepared_context.get("provider_prefix")
+                and iteration_native_output.model_id == native_prepared_context.get("server_model_id")
+                and not protocol_guard.detected
+            ):
+                try:
+                    append_provider_output(
+                        native_state, iteration_native_output.output,
+                        final_buffered_text_for_turn,
+                    )
+                    native_raw_final_output = copy.deepcopy(iteration_native_output.output)
+                    native_raw_final_text = final_buffered_text_for_turn
+                    native_terminal_ready = bool(
+                        iteration_usage is not None and llm_turn_had_content
+                        and not tool_calls_for_this_turn and not hallucinated_tool_calls_this_turn
+                    )
+                except (TypeError, ValueError):
+                    native_state = None
+            else:
+                native_state = None
+        else:
+            native_state = None
 
         if protocol_guard.detected:
             logger.warning(
@@ -10062,24 +10384,10 @@ async def handle_main_processing(
                 # NOTE: With new embeds architecture, embed references are streamed as chunks
                 # We still track tool_call_info for TOON code block (for backward compatibility and follow-up questions)
                 # For multiple requests, track all embed references
-                embed_references = []
-                embed_ids = []
-                if updated_embed_data_list:
-                    for embed_data in updated_embed_data_list:
-                        embed_ref = embed_data.get("embed_reference")
-                        embed_id = embed_data.get("parent_embed_id") or embed_data.get("embed_id")
-                        if embed_ref:
-                            embed_references.append(embed_ref)
-                        if embed_id:
-                            embed_ids.append(embed_id)
-                elif placeholder_embed_data:
-                    # Fallback to placeholder for single request
-                    embed_ref = placeholder_embed_data.get("embed_reference")
-                    embed_id = placeholder_embed_data.get("embed_id")
-                    if embed_ref:
-                        embed_references.append(embed_ref)
-                    if embed_id:
-                        embed_ids.append(embed_id)
+                embed_references, embed_ids = collect_server_embed_provenance(
+                    updated_embed_data_list, placeholder_embed_data,
+                    app_id=app_id, skill_id=skill_id,
+                )
                 
                 tool_call_info = {
                     "app_id": app_id,
@@ -10425,6 +10733,18 @@ async def handle_main_processing(
             break
 
     final_billing_events = billing_usage_events()
+    if (
+        native_terminal_ready and native_state is not None and native_raw_final_output
+        and successful_model_id == native_state.get("model_id")
+        and not answer_recovery.active
+    ):
+        native_state["expected_visible_response"] = "".join(published_answer_text)
+        native_state["raw_final_text"] = native_raw_final_text
+        yield {
+            "__native_cache_context__": True,
+            "state": native_state,
+            "raw_final_output": native_raw_final_output,
+        }
     if final_billing_events:
         for billing_event in final_billing_events:
             yield billing_event

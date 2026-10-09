@@ -41,35 +41,37 @@ models:
         name: "Mistral"
         model_id: "mistral-large-4"
         region: "EU"
-    # Current Standard direct-API rates, verified 2026-10-06:
-    # https://docs.mistral.ai/models/mistral-large-4-0
-    # Original rates: $1.36 input, $0.14 cached input, $4.18 output / M.
-    # No reduction expiry is published; recheck when the preview changes.
+    # Regular direct-API supplier rates, verified 2026-10-08:
+    # https://docs.mistral.ai/models/mistral-large
+    # The page currently advertises a half-price sale without an expiry.
+    # Customer rates and cost coverage use regular prices so the tariff remains
+    # viable when that sale ends.
     pricing:
       tokens:
         input:
-          per_credit_unit: 490 # About 3x $0.68/M at $0.001 per credit.
+          per_credit_unit: 245 # About 3x regular $1.36/M at $0.001 per credit.
         cache_read:
-          per_credit_unit: 4760
+          per_credit_unit: 2380 # About 3x regular $0.14/M.
         output:
-          per_credit_unit: 155 # About 3x $2.09/M, including reasoning tokens.
+          per_credit_unit: 79 # About 3x regular $4.18/M, including reasoning tokens.
     cache_pricing:
-      enabled: false
+      enabled: true
       write_billing: included_in_input
       eligible_hosts: [mistral]
-      source_url: https://docs.mistral.ai/studio/conversations/advanced/prompt-caching
-      reviewed_on: "2026-10-06"
-      status: proposed_pending_provider_evidence
+      source_url: https://docs.mistral.ai/models/mistral-large
+      reviewed_on: "2026-10-08"
+      status: verified_for_activation
+      expires_on: "2026-11-08"
     costs:
       input_per_million_token:
-        price: 0.68
+        price: 1.36
         currency: USD
         max_context: 1000000
       cached_input_per_million_token:
-        price: 0.07
+        price: 0.14
         currency: USD
       output_per_million_token:
-        price: 2.09
+        price: 4.18
         currency: USD
         max_context: 1000000
     features:

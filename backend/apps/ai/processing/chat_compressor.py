@@ -140,8 +140,16 @@ def model_history_token_budget(
     """Budget history after actual prompt/tools plus output and safety reserves."""
     return max(
         MINIMUM_HISTORY_BUDGET_TOKENS,
+        model_total_input_token_budget(model_id, config_manager)
+        - estimate_prompt_and_tools_tokens(system_prompt, tools),
+    )
+
+
+def model_total_input_token_budget(model_id: str, config_manager: Any) -> int:
+    """Bound the complete provider input, including replayed prompts and tools."""
+    return max(
+        0,
         min(model_context_window(model_id, config_manager), MAX_INFERENCE_CONTEXT_TOKENS)
-        - estimate_prompt_and_tools_tokens(system_prompt, tools)
         - expected_output_reserve(model_id, config_manager)
         - CONTEXT_SAFETY_RESERVE_TOKENS,
     )

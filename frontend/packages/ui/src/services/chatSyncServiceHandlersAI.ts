@@ -14,6 +14,7 @@ import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { webSocketService } from "./websocketService"; // For notifying data activity during AI streaming
 import { normalizeToUnixSeconds } from "./timestampUtils";
+import { recordRecoveryFinalTimestamp } from "./recoveryAssistantTimestamp";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import {
@@ -694,6 +695,7 @@ export function handleAIMessageUpdateImpl(
   // Notify the WebSocket service so it doesn't fire a pong timeout mid-stream
   // (the server may delay its pong response while busy pushing chunks).
   webSocketService.notifyDataActivity();
+  recordRecoveryFinalTimestamp(payload);
 
   // 🔍 STREAMING DEBUG: Log chunk reception with detailed info
   const contentLength = payload.full_content_so_far?.length || 0;
@@ -927,6 +929,7 @@ export async function handleAIBackgroundResponseCompletedImpl(
 
   try {
     if (payload.recovery_protocol_version === 1 && payload.recovery_job_id) {
+      recordRecoveryFinalTimestamp({ ...payload, is_final_chunk: true });
       console.info(
         `[ChatSyncService:AI] Deferring epoch-1 background completion ${payload.message_id} to sealed recovery job ${payload.recovery_job_id}`,
       );

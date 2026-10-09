@@ -132,6 +132,20 @@ def wrap_provider_with_cache(
         # Cache miss
         if not is_record_mode():
             record_blocked_provider_call()
+            native_diagnostic = _safe_native_fixture_miss_diagnostic(category, kwargs)
+            if native_diagnostic is not None:
+                # This exact signed fixture is the only source of these fixed
+                # enums/counts. Do not log the cassette fingerprint, provider
+                # request, tool arguments, or private native transcript.
+                logger.warning("[LiveMock] Native signed fixture miss %s", json.dumps(
+                    native_diagnostic, sort_keys=True, separators=(",", ":"),
+                ))
+                miss = MockCacheMiss(
+                    category="llm/native-fixture", fingerprint="rejected",
+                    details=f"reason={native_diagnostic['reason']}",
+                )
+                miss.safe_native_diagnostic = native_diagnostic
+                raise miss
             raise MockCacheMiss(
                 category=category,
                 fingerprint=fingerprint,
@@ -535,9 +549,37 @@ def _model_from_kwargs(kwargs: dict[str, Any]) -> str:
     return str(model)
 
 
+def _safe_native_fixture_miss_diagnostic(
+    category: str, kwargs: dict[str, Any],
+) -> dict[str, str | int | bool] | None:
+    """Only classify the isolated signed native fixture's known main requests."""
+    import os
+
+    if (get_mock_group() != "native_cache_tools_v1"
+            or os.getenv("OPENMATES_CI_ISOLATED") != "1"
+            or os.getenv("CI") != "true"):
+        return None
+    from backend.apps.ai.testing.native_cache_tools_fixture import safe_native_main_miss_diagnostic
+
+    try:
+        return safe_native_main_miss_diagnostic(category, kwargs)
+    except (KeyError, TypeError, ValueError):
+        # A malformed private request must still fail closed without echoing it.
+        return {"reason": "diagnostic_invalid"}
+
+
 def _generated_capacity_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
     """Use only explicitly supported synthetic capacity phases after cache miss."""
     import os
+    if (get_mock_group() == "native_cache_tools_v1"
+            and os.getenv("OPENMATES_CI_ISOLATED") == "1"
+            and os.getenv("CI") == "true"):
+        from backend.apps.ai.testing.native_cache_tools_fixture import generate_fixture
+
+        response = generate_fixture(category, kwargs)
+        if response is not None:
+            record_cache_hit()
+        return response
     if (not get_mock_group().startswith("storage_capacity_")
             or os.getenv("OPENMATES_STORAGE_CAPACITY_FIXTURES") != "true"):
         return None

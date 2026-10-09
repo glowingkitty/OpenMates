@@ -31,7 +31,7 @@ def _mock_client(monkeypatch, handler):
     ))
 
 
-def test_catalog_routes_preview_with_authoritative_discounted_costs():
+def test_catalog_routes_preview_with_regular_costs_and_customer_rates():
     model = _model()
     assert model["name"] == "Mistral Large 4"
     assert model["release_date"] == "2026-10-06"
@@ -41,12 +41,15 @@ def test_catalog_routes_preview_with_authoritative_discounted_costs():
     assert model["input_types"] == ["text", "image"]
     assert model["default_server"] == "mistral"
     assert model["servers"] == [{"id": "mistral", "name": "Mistral", "model_id": "mistral-large-4", "region": "EU"}]
-    for direction, expected in [("input", 0.68), ("output", 2.09)]:
+    for direction, expected, units in [("input", 1.36, 245), ("output", 4.18, 79)]:
         cost = model["costs"][f"{direction}_per_million_token"]
         assert cost["price"] == expected
         assert cost["max_context"] == 1000000
+        assert model["pricing"]["tokens"][direction]["per_credit_unit"] == units
         charged = 1000 / model["pricing"]["tokens"][direction]["per_credit_unit"]
         assert 3 <= charged / expected <= 3.1
+    assert model["costs"]["cached_input_per_million_token"]["price"] == 0.14
+    assert model["pricing"]["tokens"]["cache_read"]["per_credit_unit"] == 2380
 
 
 def test_reasoning_setting_preserves_legacy_models_and_rejects_invalid_values(monkeypatch):

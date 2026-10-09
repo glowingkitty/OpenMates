@@ -9,6 +9,7 @@ import pytest
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest as WorkerAsk
 from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as CoreAsk
+from backend.core.api.app.services.cache_chat_mixin import ChatCacheMixin
 
 
 class ReceiptEmbedService:
@@ -63,9 +64,23 @@ async def test_next_turn_handler_recache_and_queued_worker_transport_remove_priv
         cached_rows.insert(0, message_data.model_dump_json())
         return {'messages_v': 5, 'last_edited_overall_timestamp': 5}
 
-    async def clear_history(*_args):
-        cached_rows.clear()
-        return True
+    # Redis may have evicted the list between the current-row write and the
+    # client-history rebuild. Exercise the real idempotent delete contract.
+    redis = SimpleNamespace(
+        delete=AsyncMock(return_value=0), zrem=AsyncMock(return_value=0),
+        hdel=AsyncMock(return_value=0),
+    )
+
+    class DeleteCache(ChatCacheMixin):
+        @property
+        async def client(self):
+            return redis
+
+    async def clear_history(user_id, chat_id):
+        deleted = await DeleteCache().delete_ai_messages_history(user_id, chat_id)
+        if deleted:
+            cached_rows.clear()
+        return deleted
 
     async def add_history(_user, _chat, serialized):
         cached_rows.insert(0, serialized)
@@ -77,7 +92,7 @@ async def test_next_turn_handler_recache_and_queued_worker_transport_remove_priv
         save_chat_message_and_update_versions=AsyncMock(side_effect=save_current),
         increment_and_tombstone_user_draft=AsyncMock(return_value=1),
         get_ai_messages_history=AsyncMock(side_effect=lambda *_: list(cached_rows)),
-        delete_chat_messages_history=AsyncMock(side_effect=clear_history),
+        delete_ai_messages_history=AsyncMock(side_effect=clear_history),
         add_message_to_chat_history=AsyncMock(side_effect=add_history),
         get_user_by_id=AsyncMock(return_value={'language': 'en'}), get_chat_list_item_data=AsyncMock(return_value={}),
         get_active_ai_task=AsyncMock(return_value='existing-task'), queue_message=AsyncMock(return_value=True),
@@ -104,6 +119,7 @@ async def test_next_turn_handler_recache_and_queued_worker_transport_remove_priv
     await handler.handle_message_received(websocket=SimpleNamespace(), manager=manager, cache_service=cache,
         directus_service=directus, encryption_service=encryption, user_id='owner', device_fingerprint_hash='device', payload=payload)
     cache.queue_message.assert_awaited_once()
+    redis.delete.assert_awaited_once()
     cache.add_message_to_chat_history.assert_awaited()
     current_saved = cache.save_chat_message_and_update_versions.await_args.kwargs['message_data']
     assert cached_rows[0] == current_saved.model_dump_json()
@@ -131,7 +147,7 @@ async def test_next_turn_handler_recache_and_queued_worker_transport_remove_priv
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('write_failure', ['false', 'exception'])
+@pytest.mark.parametrize('write_failure', ['false', 'exception', 'delete_unavailable'])
 @pytest.mark.parametrize('error_delivery_fails', [False, True])
 async def test_client_history_current_turn_cache_write_failure_stops_inference(
     monkeypatch, write_failure, error_delivery_fails,
@@ -157,7 +173,7 @@ async def test_client_history_current_turn_cache_write_failure_stops_inference(
         }),
         increment_and_tombstone_user_draft=AsyncMock(return_value=1),
         get_ai_messages_history=AsyncMock(return_value=[]),
-        delete_chat_messages_history=AsyncMock(return_value=True),
+        delete_ai_messages_history=AsyncMock(return_value=write_failure != 'delete_unavailable'),
         add_message_to_chat_history=AsyncMock(side_effect=add_history),
         get_user_by_id=AsyncMock(return_value={'language': 'en'}),
         get_chat_list_item_data=AsyncMock(return_value={}),
@@ -194,7 +210,8 @@ async def test_client_history_current_turn_cache_write_failure_stops_inference(
             'created_at': 5, 'chat_has_title': False,
         }},
     )
-    assert writes == 2
+    assert writes == (0 if write_failure == 'delete_unavailable' else 2)
+    cache.delete_ai_messages_history.assert_awaited_once_with('owner', 'chat')
     cache.queue_message.assert_not_awaited()
     manager.dispatch_skill.assert_not_awaited()
     errors = [call.args[0] for call in manager.send_personal_message.await_args_list

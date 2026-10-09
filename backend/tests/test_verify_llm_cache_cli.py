@@ -8,8 +8,9 @@ import sys
 import pytest
 
 from backend.scripts.verify_llm_cache_cli import (
-    full_input_flat_estimate, parse_cli_json, reconcile_new_usage, split_chat_rows,
-    summarize_turns,
+    AI_EVENTS_NEWS_MODELS, MODELS, REQUESTED_MODEL_IDS, ai_events_news_tool_evidence,
+    executed_tool_names, full_input_flat_estimate,
+    parse_cli_json, reconcile_new_usage, scenario_prompts, split_chat_rows, summarize_turns,
 )
 from backend.scripts import verify_llm_cache_cli
 
@@ -121,6 +122,7 @@ def test_three_paid_turns_reconcile_and_use_frozen_receipt_rates():
     assert [turn["actual_credits"] for turn in turns] == [7, 7, 7]
     assert [turn["flat_full_input_estimate_credits"] for turn in turns] == [12, 12, 12]
     assert turns[0]["frozen_rates"][0]["rates"]["input"] == "10"
+    assert turns[0]["cache_hit_ratio"] == 0.5
     assessment = {"id": "assessment", "credits": 1, "app_id": "ai",
                   "skill_id": "project-recommendation", "source": "direct"}
     assert reconcile_new_usage([], rows + [assessment], "chat", rows, 22)["project_recommendation_credits"] == 1
@@ -220,6 +222,83 @@ def test_receipt_attempt_must_match_requested_model_even_if_tariff_map_has_both(
 
 
 # contract-test: supporting surface=cli assertions=billing.usage.receipt-token-breakdown
+def test_five_turn_scenarios_and_executed_skill_evidence():
+    assert len(MODELS) == len(REQUESTED_MODEL_IDS) == 8
+    assert len(set(REQUESTED_MODEL_IDS.values())) == 8
+    for scenario in ("knowledge", "city-outing"):
+        first, followups = scenario_prompts(scenario)
+        assert first and len(followups) == 4 and len(set(followups)) == 4
+    city_first, city_followups = scenario_prompts("city-outing")
+    assert "current" in city_first
+    assert "events" in city_followups[0] and "location" in city_followups[1]
+    assert executed_tool_names([
+        {"app_id": "web", "skill_id": "search"},
+        {"app_id": "maps", "skill_id": "search"},
+        {"app_id": "web", "skill_id": "search"},
+    ]) == ["maps.search", "web.search"]
+
+
+# contract-test: supporting surface=cli assertions=billing.usage.receipt-token-breakdown
+def test_ai_events_news_four_requests_bind_persisted_skills_to_user_message_ids():
+    assert AI_EVENTS_NEWS_MODELS == ("Claude-Sonnet-5.5", "GPT-6-Luna", "Mistral-Large-4")
+    first, followups = scenario_prompts("ai-events-news")
+    assert len(followups) == 3
+    assert "AI events in Berlin" in first and "under 200 words" in first
+    assert "latest OpenAI news" in followups[0] and "under 200 words" in followups[0]
+    assert "date and location" in followups[1] and "verify" in followups[2]
+    messages = [{"id": f"user-{index}", "role": "user",
+                 "content": f"@GPT-6-Luna {prompt}"}
+                for index, prompt in enumerate([first, *followups])]
+    rows = [{"id": "event-usage", "app_id": "events", "skill_id": "search",
+             "message_id": "user-0"},
+            {"id": "news-usage", "app_id": "news", "skill_id": "search",
+             "message_id": "user-1"}]
+    evidence = ai_events_news_tool_evidence(messages, rows, 4)
+    assert [(turn["user_message_id"], turn["executed_tool_names"], turn["tool_usage_ids"])
+            for turn in evidence] == [
+                ("user-0", ["events.search"], ["event-usage"]),
+                ("user-1", ["news.search"], ["news-usage"]),
+                ("user-2", [], []), ("user-3", [], []),
+            ]
+    web_rows = [{**rows[1], "app_id": "web"}, rows[0]]
+    assert ai_events_news_tool_evidence(messages, web_rows, 4)[1]["executed_tool_names"] == ["web.search"]
+
+
+# contract-test: supporting surface=cli assertions=billing.usage.receipt-token-breakdown
+def test_ai_events_news_rejects_unlinked_or_wrong_turn_tool_charges():
+    first, followups = scenario_prompts("ai-events-news")
+    users = [{"id": "event-user", "role": "user", "content": first},
+             {"id": "news-user", "role": "user", "content": followups[0]}]
+    event = {"id": "event", "app_id": "events", "skill_id": "search",
+             "message_id": "event-user"}
+    news = {"id": "news", "app_id": "news", "skill_id": "search",
+            "message_id": "news-user"}
+    with pytest.raises(RuntimeError, match="not linked"):
+        ai_events_news_tool_evidence(users[:1], [{**event, "message_id": "news-user"}], 1)
+    with pytest.raises(RuntimeError, match="Berlin AI events request"):
+        ai_events_news_tool_evidence(users[:1], [], 1)
+    with pytest.raises(RuntimeError, match="OpenAI news request"):
+        ai_events_news_tool_evidence(users, [event, {**news, "message_id": "event-user"}], 2)
+    with pytest.raises(RuntimeError, match="not linked"):
+        ai_events_news_tool_evidence(users, [event, {**news, "message_id": "assistant-id"}], 2)
+    with pytest.raises(RuntimeError, match="identity or prompt"):
+        ai_events_news_tool_evidence([{**users[0], "content": followups[0]}], [event], 1)
+
+
+# contract-test: supporting surface=cli assertions=billing.usage.receipt-token-breakdown
+def test_five_turn_receipts_reject_nonreconciling_cache_categories():
+    rows = [{**_chat(f"turn-{index}", 7), "created_at": f"2026-10-08T00:00:0{index}Z",
+             "llm_usage_breakdown": _receipt()} for index in range(5)]
+    turns = summarize_turns(rows, require_receipts=True, requested_model_id="test/model")
+    assert len(turns) == 5
+    assert [turn["cache_hit_ratio"] for turn in turns] == [0.5] * 5
+    broken = deepcopy(rows[2])
+    broken["llm_usage_breakdown"]["entries"][0]["billed_input_tokens"] = 49
+    with pytest.raises(RuntimeError, match="read/write/ordinary input"):
+        summarize_turns([broken], require_receipts=True)
+
+
+# contract-test: supporting surface=cli assertions=billing.usage.receipt-token-breakdown
 def test_verify_only_finishes_retained_chat_without_paid_cli_calls(tmp_path, monkeypatch):
     (tmp_path / "test-project.private.json").write_text(json.dumps({"project": {"project_id": "project"}}))
     proof_path = tmp_path / "prior.json"
@@ -245,8 +324,8 @@ def test_verify_only_finishes_retained_chat_without_paid_cli_calls(tmp_path, mon
             args = invocation[invocation.index("https://api.dev.openmates.org") + 1:-1]
             calls.append(args)
             if args[:2] == ["chats", "show"]:
-                result = {"messages": [{"role": "assistant", "content": "answer"},
-                                       {"role": "assistant", "content": "follow-up"}]}
+                result = {"messages": [{"role": "assistant", "content": "answer", "modelName": "GPT-6.1 Sol"},
+                                       {"role": "assistant", "content": "follow-up", "modelName": "GPT-6.1 Sol"}]}
             elif args[:4] == ["settings", "billing", "usage", "details"]:
                 result = {"entries": rows + [search]}
             elif args[:3] == ["settings", "billing", "usage"]:

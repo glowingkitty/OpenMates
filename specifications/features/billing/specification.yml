@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.billing
-version: 8
+version: 9
 status: draft
 title: Billing And Payments
 summary: >
@@ -162,6 +162,10 @@ assertions:
     type: invariant
     must: Paid work serializes balance mutations per personal or team billing subject, charges exactly once per immutable stable charge id under concurrent calls and retries, preserves the approved personal credit floor of -500, and never changes the balance when reservation or settlement fails.
     depends_on: [models.CreditBalance, models.CreditSettlement, examples.credit_charges, examples.settlement_concurrency]
+  - id: billing.credits.personal-chat-admission
+    type: behavior
+    must: A normal first-party personal chat request checks a verified positive credit balance before paid processing, without reserving credits for its main model call. The admitted request may continue into personal overdraft down to -500 under the existing settlement rules. A new request at zero or a negative balance requires added credits before it can run. Missing or unreadable balance information is recovered from the encrypted billing authority or rejects paid processing without guessing available credits. Separate anonymous, Team, workflow and subchat budget rules remain in force.
+    depends_on: [models.CreditBalance, examples.personal_chat_admission]
   - id: billing.credits.encrypted-authority-cache-projection
     type: invariant
     must: For personal wallets, the Vault-encrypted Directus balance and transactional charge ledger remain the durable billing authority. Team wallets retain their existing server-authoritative numeric balance, version and atomic credit ledger; an optional client-encrypted snapshot may lag after a system charge and cannot authorize spending or overwrite a concurrent debit. Dragonfly is the primary operational read, distributed-lock, deduplication-hint and post-commit projection target, but cache loss or restart cannot lose or invent credits, charges, usage or retry work.

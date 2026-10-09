@@ -46,6 +46,28 @@ const pendingReceipt = {
   credits_charged: 0,
 };
 
+const openAiSeparateWriteReceipt = {
+  ...settledReceipt,
+  cache_read_input_tokens: null,
+  cache_creation_input_tokens: 40,
+  entries: [{
+    ...settledReceipt.entries[0],
+    model_id: 'gpt-5.6-sol',
+    inference_host: 'openai',
+    pricing_version: 'openai-cache-v1',
+    cache_read_input_tokens: null,
+    cache_creation_input_tokens: 40,
+    cache_creation_5m_input_tokens: null,
+    cache_creation_1h_input_tokens: null,
+    rates: { input: '100', cache_read: null, cache_write: '80', cache_write_1h: null, output: '20' },
+    category_credits: { input: '0.6', cache_read: '0', cache_write: '0.5', cache_write_1h: '0', output: '0.25' },
+    raw_credits: '1.35'
+  }],
+  raw_credits: '1.35',
+  rounding_adjustment: '-0.35',
+  credits_charged: 1
+};
+
 const ordinaryInputReceipt = {
   ...settledReceipt,
   input_tokens: 150,
@@ -143,9 +165,9 @@ test.describe('Usage cache receipt component preview', () => {
   test('shows immutable cache rates and reconciles a settled debit', async ({ page }) => {
     await page.route('**/v1/settings/usage/daily-overview**', async route => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
-        days: [{ date: today, total_credits: 4195, items: [{
+        days: [{ date: today, total_credits: 4196, items: [{
           type: 'chat', chat_id: 'cache-receipt-chat', api_key_hash: null,
-          total_credits: 4195, entry_count: 6, updated_at: now
+          total_credits: 4196, entry_count: 7, updated_at: now
         }] }],
         requested_days: 7, total_days: 1, has_more_days: false
       }) });
@@ -157,14 +179,15 @@ test.describe('Usage cache receipt component preview', () => {
         { id: 'ordinary-partial', type: 'ai.ask', source: 'chat', chat_id: 'cache-receipt-chat', app_id: 'ai', skill_id: 'ask', model_used: 'cache-fixture-model', created_at: now - 2, credits: 1, input_tokens: 150, output_tokens: 5, llm_usage_breakdown: ordinaryInputReceipt },
         { id: 'ordinary-all-known', type: 'ai.ask', source: 'chat', chat_id: 'cache-receipt-chat', app_id: 'ai', skill_id: 'ask', model_used: 'cache-fixture-model', created_at: now - 3, credits: 1, input_tokens: 100, output_tokens: 5, llm_usage_breakdown: ordinaryAllKnownReceipt },
         { id: 'long-context', type: 'ai.ask', source: 'chat', chat_id: 'cache-receipt-chat', app_id: 'ai', skill_id: 'ask', model_used: 'cache-fixture-model', created_at: now - 4, credits: 4190, input_tokens: 272001, output_tokens: 5, llm_usage_breakdown: longContextReceipt },
-        { id: 'summary', type: 'ai.ask', source: 'chat', chat_id: 'cache-receipt-chat', app_id: 'ai', skill_id: 'ask', model_used: 'gemini-3.5-flash-lite', created_at: now - 5, credits: 2, input_tokens: 1100, output_tokens: 130, llm_usage_breakdown: automaticSummaryReceipt }
+        { id: 'openai-write', type: 'ai.ask', source: 'chat', chat_id: 'cache-receipt-chat', app_id: 'ai', skill_id: 'ask', model_used: 'gpt-5.6-sol', created_at: now - 5, credits: 1, input_tokens: 100, output_tokens: 5, llm_usage_breakdown: openAiSeparateWriteReceipt },
+        { id: 'summary', type: 'ai.ask', source: 'chat', chat_id: 'cache-receipt-chat', app_id: 'ai', skill_id: 'ask', model_used: 'gemini-3.5-flash-lite', created_at: now - 6, credits: 2, input_tokens: 1100, output_tokens: 130, llm_usage_breakdown: automaticSummaryReceipt }
       ] }) });
     });
 
     await page.goto('/dev/preview/settings/SettingsUsage?theme=light&background=%23dbeafe&width=768&chrome=0');
     await waitForComponentPreview(page);
     await page.getByTestId('usage-overview-chat-row').click();
-    await expect(page.getByTestId('usage-chat-entry')).toHaveCount(6);
+    await expect(page.getByTestId('usage-chat-entry')).toHaveCount(7);
     await expect(page.getByTestId('usage-chat-entry').last()).toContainText('Automatic long-chat summary');
     await page.getByTestId('usage-chat-entry').first().click();
 
@@ -236,6 +259,19 @@ test.describe('Usage cache receipt component preview', () => {
     expect(decimalCredits(await page.getByTestId('usage-llm-raw-credits').textContent())).toBe(4190.525);
     expect(decimalCredits(await page.getByTestId('usage-llm-rounding-adjustment').textContent())).toBe(-0.525);
     expect(decimalCredits(await page.getByTestId('usage-llm-credits-charged').textContent())).toBe(4190);
+
+    await page.getByTestId('usage-entry-detail-back-button').click();
+    await page.getByTestId('usage-chat-entry').nth(5).click();
+    await expect(page.getByTestId('usage-llm-entry')).toContainText('gpt-5.6-sol · openai');
+    await expect(page.getByTestId('usage-llm-input-categories')).toContainText('Cache read: Unavailable');
+    await expect(page.getByTestId('usage-llm-category-cache_read')).toContainText('Unavailable tokens');
+    await expect(page.getByTestId('usage-llm-category-cache_write')).toContainText('Cache write');
+    await expect(page.getByTestId('usage-llm-category-cache_write')).not.toContainText('5 min');
+    await expect(page.getByTestId('usage-llm-category-cache_write')).toContainText('40 tokens · 0.5 credits · 1 credits per 80');
+    await expect(page.getByTestId('usage-llm-cache-creation-generic')).toHaveCount(0);
+    expect(decimalCredits(await page.getByTestId('usage-llm-raw-credits').textContent())).toBe(1.35);
+    expect(decimalCredits(await page.getByTestId('usage-llm-rounding-adjustment').textContent())).toBe(-0.35);
+    expect(decimalCredits(await page.getByTestId('usage-llm-credits-charged').textContent())).toBe(1);
 
     await page.getByTestId('usage-entry-detail-back-button').click();
     await page.getByTestId('usage-chat-entry').last().click();

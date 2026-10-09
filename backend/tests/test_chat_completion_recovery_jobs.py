@@ -54,8 +54,13 @@ def test_successful_completion_is_sealed_before_transaction() -> None:
         key_version=7,
     )
     payload = json.loads(plaintext)
+    assert set(payload) == {
+        "assistant_message_id", "category", "chat_id", "content", "job_id",
+        "key_version", "model_name", "turn_id",
+    }
     assert payload["content"] == "Recovered hello"
     assert payload["assistant_message_id"] == task_id
+    assert "native_cache_context" not in json.dumps(data)
 
 
 def test_recovery_job_identity_is_stable_across_retries() -> None:

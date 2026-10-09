@@ -2428,6 +2428,18 @@ class ChatCacheMixin:
                 message_json_str,
                 max_history_length=max_history_length if max_history_length is not None else 100
             )
+            if not save_success and message_data.encrypted_native_cache_context:
+                # Admission measures the entire encrypted row. Optional replay
+                # can exceed the existing context byte cap; retry only at this
+                # admission boundary, before versions are mutated, without it.
+                logger.info("CACHE_OP: Dropping optional provider replay to admit assistant message %s", message_data.id)
+                message_json_str = message_data.model_copy(
+                    update={"encrypted_native_cache_context": None},
+                ).model_dump_json()
+                save_success = await self.add_ai_message_to_history(
+                    user_id, chat_id, message_json_str,
+                    max_history_length=max_history_length if max_history_length is not None else 100,
+                )
             if not save_success:
                 logger.error(f"CACHE_OP_ERROR: Failed to save vault-encrypted message to AI cache for user {user_id}, chat {chat_id}, msg_id {message_data.id}.")
                 return None

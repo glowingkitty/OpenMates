@@ -740,9 +740,16 @@ def test_main_stream_attaches_frozen_route_usage_to_native_chunks(monkeypatch: p
 
 
 def test_main_stream_forwards_cache_hints_only_to_direct_hosts(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.apps.ai.llm_providers.anthropic_shared import AnthropicUsageMetadata
+
     async def provider(**_kwargs: Any) -> Any:
         async def stream() -> Any:
             yield "ok"
+            if _kwargs["task_id"] == "anthropic":
+                yield AnthropicUsageMetadata(
+                    input_tokens=1, output_tokens=1, total_tokens=2,
+                    cache_creation_input_tokens=0, cache_read_input_tokens=0,
+                )
         return stream()
 
     llm_utils = _load_llm_utils_with_stubs(monkeypatch, provider)
@@ -770,7 +777,14 @@ def test_main_stream_forwards_cache_hints_only_to_direct_hosts(monkeypatch: pyte
             prompt_cache_key="opaque-conversation-key",
             customer_cache_pricing_enabled=True,
         )]
-        assert result == ["ok"]
+        if host == "anthropic":
+            assert result[0] == "ok"
+            assert len(result) == 2
+            assert isinstance(result[1], AnthropicUsageMetadata)
+            assert result[1].cache_creation_input_tokens == 0
+            assert result[1].cache_read_input_tokens == 0
+        else:
+            assert result == ["ok"]
 
     async def run() -> None:
         for host in ("anthropic", "aws_bedrock", "openai", "mistral", "openrouter"):

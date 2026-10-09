@@ -62,6 +62,7 @@ const { WebSocketServer } = require("ws");
 
 const {
   OpenMatesClient,
+  nextPersonalUserCreatedAt,
   MEMORY_TYPE_REGISTRY,
   buildAppSettingsMemoryRequestSystemMessage,
   buildAppSettingsMemoryResponseSystemMessage,
@@ -2309,6 +2310,14 @@ describe("task update job helpers", () => {
 });
 
 describe("CLI saved-chat recovery preflight", () => {
+  // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
+  it("orders immediate personal follow-ups after committed replies", () => {
+    assert.equal(nextPersonalUserCreatedAt(100, [100, 101]), 102);
+    assert.equal(nextPersonalUserCreatedAt(100, [100, 101, 102, 103]), 104);
+    assert.equal(nextPersonalUserCreatedAt(200, [100, 101, 103]), 200);
+    assert.equal(nextPersonalUserCreatedAt(100, [100, Number.NaN, -1]), 101);
+  });
+
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("stops before inference when saved-chat preflight requires a client update", async () => {
     const captured: { frameTypes: string[] } = { frameTypes: [] };
@@ -2333,6 +2342,7 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string };
           captured.frameTypes.push(frame.type);
@@ -2409,6 +2419,7 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         ws.on("message", async (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           captured.frameTypes.push(frame.type);
@@ -2476,6 +2487,8 @@ describe("CLI saved-chat recovery preflight", () => {
                   model_name: "test-model",
                   recovery_job_id: recoveryJobId,
                   recovery_protocol_version: 1,
+                  recovery_turn_id: captured.preflightPayload?.turn_id,
+                  created_at: Number((captured.preflightPayload?.encrypted_user_message as Record<string, unknown>).created_at) + 2,
                 },
               }));
               ws.send(JSON.stringify({
@@ -2631,6 +2644,7 @@ describe("CLI saved-chat recovery preflight", () => {
       assert.equal(captured.persistPayload.expected_messages_v, 1);
       const encryptedAssistant = captured.persistPayload.encrypted_assistant_message as Record<string, unknown>;
       assert.equal(encryptedAssistant.client_message_id, assistantMessageId);
+      assert.equal(encryptedAssistant.created_at, Number(encryptedUserMessage.created_at) + 2);
       assert.equal(
         await decryptWithAesGcmCombined(String(encryptedAssistant.encrypted_content), chatKey),
         "ok",
@@ -2694,6 +2708,7 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           captured.frameTypes.push(frame.type);
@@ -2869,14 +2884,23 @@ describe("CLI saved-chat recovery preflight", () => {
         response.end(JSON.stringify({ data: { app_settings_memories: [] } }));
         return;
       }
+      if (request.method === "GET" && request.url?.startsWith(`/v1/chats/${chatId}/messages/window?`)) {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ messages: [], has_more_before: false, start_cursor: null }));
+        return;
+      }
       response.writeHead(404);
       response.end();
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         ws.on("message", async (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           captured.frameTypes.push(frame.type);
+          if (frame.type === "phased_sync_request") {
+            ws.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+          }
           if (frame.type === "chat_turn_preflight") {
             captured.preflightPayload = frame.payload;
             sealedPayloadForTest = JSON.stringify(await sealChatCompletionRecoveryPayload(
@@ -2977,7 +3001,7 @@ describe("CLI saved-chat recovery preflight", () => {
     try {
       writeLegacySession(`http://127.0.0.1:${address.port}`);
       const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
-      // This fixture tests request/recovery metadata; it has no phased-sync history server.
+      // This fixture tests request/recovery metadata with an empty phased-sync response.
       await client.sendMessage({ message: "Continue this old chat", chatId, messageHistory: [] });
 
       assert.equal(captured.messagePayload?.active_focus_id, restoredFocus);
@@ -3033,6 +3057,11 @@ describe("CLI saved-chat recovery preflight", () => {
           response.end(JSON.stringify({ memories: [] }));
           return;
         }
+        if (request.method === "POST" && request.url === "/v1/teams/name-approval") {
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(JSON.stringify({ approval_token: "approved-team-no-ai" }));
+          return;
+        }
         if (request.method === "POST" && request.url === "/v1/teams") {
           response.writeHead(200, { "content-type": "application/json" });
           response.end(JSON.stringify({ team: { team_id: teamId, ...(raw ? JSON.parse(raw) as Record<string, unknown> : {}) } }));
@@ -3044,6 +3073,7 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           captured.frameTypes.push(frame.type);

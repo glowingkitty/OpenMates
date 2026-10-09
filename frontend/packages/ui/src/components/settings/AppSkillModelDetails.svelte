@@ -22,7 +22,7 @@
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
-    import { isCachePricingDisplayActive, isLongContextPricingDisplayActive, supportsOneHourCacheWrites } from '../../utils/cachePricingAvailability';
+    import { cacheWriteLabelKey, isCachePricingDisplayActive, isLongContextPricingDisplayActive, supportsOneHourCacheWrites } from '../../utils/cachePricingAvailability';
     import { getAutomaticSummaryPricing } from '../../utils/automaticSummaryPricing';
     import { providersMetadata } from '../../data/providersMetadata';
     import { appSkillsStore } from '../../stores/appSkillsStore';
@@ -299,7 +299,7 @@
                         </div>
                         <div class="pricing-row" data-testid="app-model-pricing-cache-write-row">
                             <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
-                            <span class="pricing-type">{$text(`settings.ai_ask.ai_ask_model_details.${model.cache_pricing?.write_billing === 'included_in_input' ? 'cache_write' : 'cache_write_5m'}`)}</span>
+                            <span class="pricing-type">{$text(`settings.ai_ask.ai_ask_model_details.${cacheWriteLabelKey(model.cache_pricing, model.default_server)}`)}</span>
                             <span class="pricing-value">{cachePricingActive ? model.cache_pricing?.write_billing === 'included_in_input' ? $text('settings.ai_ask.ai_ask_model_details.included_in_input') : model.pricing.cache_write_tokens_per_credit ? `1 ${$text('common.credits')} ${$text('settings.ai_ask.ai_ask_settings.per')} ${model.pricing.cache_write_tokens_per_credit} ${$text('settings.ai_ask.ai_ask_settings.tokens')}` : $text('settings.ai_ask.ai_ask_model_details.unavailable') : $text('settings.ai_ask.ai_ask_model_details.unavailable')}</span>
                         </div>
                         {#if cachePricingActive && supportsOneHourCacheWrites(model.cache_pricing, model.default_server) && model.pricing.cache_write_1h_tokens_per_credit}
@@ -328,7 +328,7 @@
                             <p class="cache-pricing-note">{$text(`settings.ai_ask.ai_ask_model_details.${longContextBandKey}_explanation`)}</p>
                             <div class="pricing-row"><span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.uncached_input')}</span><span class="pricing-value">{tokenPrice(longContextBand.input_tokens_per_credit)}</span></div>
                             <div class="pricing-row"><span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.cache_read')}</span><span class="pricing-value">{tokenPrice(longContextBand.cache_read_tokens_per_credit)}</span></div>
-                            <div class="pricing-row"><span class="pricing-type">{$text(`settings.ai_ask.ai_ask_model_details.${model.cache_pricing?.write_billing === 'included_in_input' ? 'cache_write' : 'cache_write_5m'}`)}</span><span class="pricing-value">{model.cache_pricing?.write_billing === 'included_in_input' ? $text('settings.ai_ask.ai_ask_model_details.included_in_input') : tokenPrice(longContextBand.cache_write_tokens_per_credit)}</span></div>
+                            <div class="pricing-row"><span class="pricing-type">{$text(`settings.ai_ask.ai_ask_model_details.${cacheWriteLabelKey(model.cache_pricing, model.default_server)}`)}</span><span class="pricing-value">{model.cache_pricing?.write_billing === 'included_in_input' ? $text('settings.ai_ask.ai_ask_model_details.included_in_input') : tokenPrice(longContextBand.cache_write_tokens_per_credit)}</span></div>
                             <div class="pricing-row"><span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.billable_output')}</span><span class="pricing-value">{tokenPrice(longContextBand.output_tokens_per_credit)}</span></div>
                         </div>
                     {/if}

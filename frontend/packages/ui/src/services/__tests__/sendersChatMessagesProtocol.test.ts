@@ -30,6 +30,8 @@ import {
 	buildTeamMessageTransport,
 	canonicalUserMessageForSend,
 	reconcileOptimisticUserCiphertext,
+	reconcileOptimisticUserCreatedAt,
+	nextPersonalUserCreatedAt,
 	stableMessageEmbedId,
 	applyTeamPreflightScope,
   requireEmbedOwnerId,
@@ -138,6 +140,46 @@ describe("sendersChatMessages protocol fences", () => {
 		expect(row.pending_encrypted_turn_preflight_v1).toBe("sealed-turn");
 		// A phased-sync delivered row cannot repair a stale synced local row.
 		expect(shouldUpdateMessage(row as never, { ...row, status: "delivered" } as never)).toBe(false);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.message.identity-idempotent
+	it("orders immediate personal follow-ups after committed replies without changing later wall time", async () => {
+		const rows = [
+			{ message_id: "user-1", status: "synced", created_at: 100 },
+			{ message_id: "assistant-1", status: "synced", created_at: 101 },
+			{ message_id: "user-2", status: "sending", created_at: 100 },
+		] as const;
+		const second = nextPersonalUserCreatedAt(100, 100, [...rows], "user-2");
+		expect(second).toBe(102);
+		const third = nextPersonalUserCreatedAt(100, 100, [
+			...rows, { message_id: "assistant-2", status: "synced", created_at: 103 },
+		], "user-3");
+		expect(third).toBe(104);
+		expect(nextPersonalUserCreatedAt(200, 200, [...rows], "user-later")).toBe(200);
+
+		const row = { message_id: "user-2", chat_id: "chat-1", role: "user", status: "sending",
+			created_at: 100, encrypted_content: "sealed-user", pending_encrypted_turn_preflight_v1: "sealed-turn" };
+		const transaction = {
+			error: null, oncomplete: null as (() => void) | null, onabort: null as (() => void) | null,
+			onerror: null as (() => void) | null,
+			abort() { queueMicrotask(() => this.onabort?.()); },
+			objectStore: () => ({
+				get: () => {
+					const request = { result: row, error: null, onsuccess: null as (() => void) | null,
+						onerror: null as (() => void) | null };
+					queueMicrotask(() => request.onsuccess?.());
+					return request;
+				},
+				put: (next: typeof row) => {
+					Object.assign(row, next);
+					queueMicrotask(() => transaction.oncomplete?.());
+				},
+			}),
+		};
+		await reconcileOptimisticUserCreatedAt("chat-1", "user-2", 100, second,
+			async () => transaction as unknown as IDBTransaction);
+		expect(row).toMatchObject({ created_at: 102, encrypted_content: "sealed-user",
+			pending_encrypted_turn_preflight_v1: "sealed-turn" });
 	});
 
 	// contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.persistence.client-encrypted

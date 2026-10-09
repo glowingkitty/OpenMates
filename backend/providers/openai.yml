@@ -105,12 +105,13 @@ models:
             cache_write: { per_credit_unit: 13 }
             output: { per_credit_unit: 4 }
     cache_pricing:
-      enabled: false
+      enabled: true
       write_billing: separate
       eligible_hosts: [openai]
       source_url: https://developers.openai.com/api/docs/guides/prompt-caching
-      reviewed_on: "2026-10-06"
-      status: proposed_pending_provider_evidence
+      reviewed_on: "2026-10-08"
+      status: verified_for_activation
+      expires_on: "2026-11-08"
       requires_cache_write_metric: true
     costs:
       input_per_million_token:
@@ -173,6 +174,8 @@ models:
           per_credit_unit: 165 # 333.33 / 2.00 = 166.67 (conservative round-down)
         cache_read:
           per_credit_unit: 3300
+        cache_write:
+          per_credit_unit: 132
         output:
           per_credit_unit: 30 # 333.33 / 10.00 = 33.33 (conservative round-down)
       context_bands:
@@ -182,15 +185,17 @@ models:
           tokens:
             input: { per_credit_unit: 82.5 }
             cache_read: { per_credit_unit: 1650 }
+            cache_write: { per_credit_unit: 66 }
             output: { per_credit_unit: 20 }
     cache_pricing:
       enabled: true
-      write_billing: included_in_input
+      write_billing: separate
       eligible_hosts: [openai]
-      source_url: https://developers.openai.com/api/docs/models/gpt-6.1-sol
+      source_url: https://developers.openai.com/api/docs/guides/prompt-caching
       reviewed_on: "2026-10-08"
       status: verified_for_activation
       expires_on: "2026-11-08"
+      requires_cache_write_metric: true
     costs:
       input_per_million_token:
         price: 2.00
@@ -253,6 +258,8 @@ models:
           per_credit_unit: 3300 # 333.33 / 0.10 = 3333.30 -> 3300 (conservative round-down)
         cache_read:
           per_credit_unit: 33000
+        cache_write:
+          per_credit_unit: 2640
         output:
           per_credit_unit: 650 # 333.33 / 0.50 = 666.66 -> 650 (conservative round-down)
       context_bands:
@@ -262,15 +269,17 @@ models:
           tokens:
             input: { per_credit_unit: 1650 }
             cache_read: { per_credit_unit: 16500 }
+            cache_write: { per_credit_unit: 1320 }
             output: { per_credit_unit: 433 }
     cache_pricing:
       enabled: true
-      write_billing: included_in_input
+      write_billing: separate
       eligible_hosts: [openai]
-      source_url: https://developers.openai.com/api/docs/models/gpt-6-luna
+      source_url: https://developers.openai.com/api/docs/guides/prompt-caching
       reviewed_on: "2026-10-08"
       status: verified_for_activation
       expires_on: "2026-11-08"
+      requires_cache_write_metric: true
     costs:
       input_per_million_token:
         price: 0.10
@@ -343,12 +352,13 @@ models:
             cache_write: { per_credit_unit: 66 }
             output: { per_credit_unit: 16 }
     cache_pricing:
-      enabled: false
+      enabled: true
       write_billing: separate
       eligible_hosts: [openai]
       source_url: https://developers.openai.com/api/docs/guides/prompt-caching
-      reviewed_on: "2026-10-06"
-      status: proposed_pending_provider_evidence
+      reviewed_on: "2026-10-08"
+      status: verified_for_activation
+      expires_on: "2026-11-08"
       requires_cache_write_metric: true
     costs:
       input_per_million_token:

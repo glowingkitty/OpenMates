@@ -35,6 +35,9 @@ import { computeSHA256 } from "../message_parsing/utils";
 import { reconstructEncryptedVersionRows, type EmbedVersionMeta } from "./embedDiffStore";
 import { catalogContextFromSealedEmbed, historySourceFromSealedEmbed, isUnwrittenInitialDiffRead } from "./recoveryEmbedSource";
 import { refreshRecoveryChatVersion } from "./chatRecoveryVersionRefresh";
+import { chatAfterRecoveredReply } from "./chatRecoveryVersionApply";
+import { clearRecoveryFinalTimestamps, waitForRecoveryFinalTimestamp } from "./recoveryAssistantTimestamp";
+import { clearPersonalChatTurnBarriers, completePersonalChatTurn, failMatchingPersonalChatTurn } from "./personalChatTurnBarrier";
 import {
   hasAcknowledgedRecoveredEmbed, markAcknowledgedRecoveredEmbed, withCanonicalEmbedWrite,
   type CanonicalEmbedWriteLease,
@@ -99,6 +102,8 @@ function assertRecoverySession(generation: number): void {
 }
 
 export function resetRecoveryLifecycleImpl(): void {
+  clearPersonalChatTurnBarriers();
+  clearRecoveryFinalTimestamps();
   recoveryLifecycleGeneration += 1;
   recoveryLifecycleTeardown?.();
   recoveryLifecycleTeardown = null;
@@ -900,6 +905,17 @@ export async function handleRecoveryJobsAvailableImpl(
         claim.chat_key_version === job.chat_key_version;
       if (claim.state === "TERMINAL" && claimMatchesJob) {
         await serviceInstance.requestChatContentBatch_FOR_HANDLERS_ONLY([job.chat_id]);
+        const terminalMessage = await chatDB.getMessage(job.assistant_message_id);
+        const terminalChat = terminalMessage?.chat_id === job.chat_id
+          ? await refreshRecoveryChatVersion(chat)
+          : null;
+        if (terminalChat) {
+          const currentChat = await chatDB.getChat(job.chat_id);
+          await chatDB.updateChat(chatAfterRecoveredReply(currentChat, terminalChat, terminalChat.messages_v, Math.floor(Date.now() / 1000)));
+          completePersonalChatTurn(job.chat_id, job.turn_id, terminalChat.messages_v);
+        } else {
+          failMatchingPersonalChatTurn(job.chat_id, job.turn_id, new Error('Terminal reply has not hydrated locally.'));
+        }
         const taskInfo = serviceInstance.activeAITasks?.get(job.chat_id);
         if (taskInfo && taskInfo.taskId === job.assistant_message_id) {
           serviceInstance.activeAITasks?.delete(job.chat_id);
@@ -964,6 +980,12 @@ export async function handleRecoveryJobsAvailableImpl(
         ? existingAssistantMessage.user_message_id
         : undefined;
       const now = Math.floor(Date.now() / 1000);
+      // The authenticated final stream marker shares the AI-cache timestamp.
+      // A takeover device that missed it still completes recovery with a cold cache boundary.
+      const assistantCreatedAt = await waitForRecoveryFinalTimestamp(
+        job.chat_id, job.assistant_message_id, job.job_id, job.turn_id,
+      ) ?? now;
+      assertRecoverySession(generation);
       const aiMessage = {
         message_id: job.assistant_message_id,
         chat_id: job.chat_id,
@@ -972,7 +994,7 @@ export async function handleRecoveryJobsAvailableImpl(
         category: recovered.category ?? undefined,
         model_name: recovered.model_name ?? undefined,
         status: "synced",
-        created_at: now,
+        created_at: assistantCreatedAt,
       } as Message;
       const encryptedFields = await chatDB.getEncryptedFields(aiMessage, job.chat_id);
       assertRecoverySession(generation);
@@ -994,7 +1016,7 @@ export async function handleRecoveryJobsAvailableImpl(
             encrypted_sender_name: encryptedFields.encrypted_sender_name,
             encrypted_category: encryptedFields.encrypted_category,
             encrypted_model_name: encryptedFields.encrypted_model_name,
-            created_at: now,
+            created_at: assistantCreatedAt,
             updated_at: now,
           },
         },
@@ -1021,17 +1043,21 @@ export async function handleRecoveryJobsAvailableImpl(
       }
       assertRecoverySession(generation);
 
+      // An idempotent terminal receipt may omit the version. Read the
+      // authoritative value rather than guessing from an optimistic local row.
+      if (typeof persistedResult.committed_messages_v !== "number") {
+        const refreshedChat = await refreshRecoveryChatVersion(persistBaseChat);
+        if (!refreshedChat) throw new Error(`Recovery job ${job.job_id} has no authoritative version.`);
+        persistBaseChat = refreshedChat;
+      }
+
       await chatDB.saveMessage(aiMessage);
-      const updatedChat = {
-        ...persistBaseChat,
-        messages_v:
-          typeof persistedResult.committed_messages_v === "number"
-            ? persistedResult.committed_messages_v
-            : persistBaseChat.messages_v + 1,
-        last_edited_overall_timestamp: now,
-        updated_at: now,
-      };
+      const committedVersion = typeof persistedResult.committed_messages_v === "number"
+        ? persistedResult.committed_messages_v : persistBaseChat.messages_v;
+      const currentChat = await chatDB.getChat(job.chat_id);
+      const updatedChat = chatAfterRecoveredReply(currentChat, persistBaseChat, committedVersion, now);
       await chatDB.updateChat(updatedChat);
+      completePersonalChatTurn(job.chat_id, job.turn_id, committedVersion);
       const taskInfo = serviceInstance.activeAITasks?.get(job.chat_id);
       const taskMatchesRecoveryMessage = taskInfo?.taskId === job.assistant_message_id;
       if (taskMatchesRecoveryMessage) {
@@ -1083,6 +1109,7 @@ export async function handleRecoveryJobsAvailableImpl(
         return;
       }
       console.error(`[ChatSyncService:Recovery] Failed recovery job ${job.job_id}:`, error);
+      failMatchingPersonalChatTurn(job.chat_id, job.turn_id, error);
     } finally {
       recoveryJobsInProgress.delete(job.job_id);
     }

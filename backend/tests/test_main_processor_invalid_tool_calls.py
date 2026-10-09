@@ -12,6 +12,7 @@ import importlib.util
 import ast
 import inspect
 import json
+import logging
 import sys
 import types
 from pathlib import Path
@@ -278,6 +279,9 @@ async def _run_mocked_protocol_guard_main_processor(
     directus_service=None,
     discovered_apps_metadata=None,
     history_budget=100_000,
+    base_instructions=None,
+    reservation_hook=None,
+    admit_on_stream=False,
 ):
     """Run the real main processor loop with only external integrations mocked."""
     for name in (
@@ -307,7 +311,22 @@ async def _run_mocked_protocol_guard_main_processor(
         chunks = streams[len(calls) - 1]
 
         async def provider_stream():
+            if admit_on_stream and kwargs["pre_dispatch_admission"] is not None:
+                kwargs["admitted_max_tokens"] = await kwargs["pre_dispatch_admission"](
+                    kwargs["model_id"], kwargs["max_tokens"],
+                )
             for chunk in chunks:
+                if isinstance(chunk, BaseException):
+                    raise chunk
+                if isinstance(chunk, dict) and "fake_google_usage" in chunk:
+                    counts = chunk["fake_google_usage"]
+                    usage = main_processor.GoogleUsageMetadata()
+                    usage.prompt_token_count = counts[0]
+                    usage.candidates_token_count = counts[1]
+                    usage.user_input_tokens = None
+                    usage.system_prompt_tokens = None
+                    yield usage
+                    continue
                 if isinstance(chunk, dict) and "fake_google_tool_call" in chunk:
                     tool_call = main_processor.ParsedGoogleToolCall()
                     tool_call.function_name = chunk["fake_google_tool_call"]
@@ -338,7 +357,10 @@ async def _run_mocked_protocol_guard_main_processor(
     async def reserved_for_protocol_test(**kwargs):
         return kwargs.get("requested_output_token_limit") or 1024
 
-    monkeypatch.setattr(main_processor, "_reserve_authenticated_ai_turn", reserved_for_protocol_test)
+    monkeypatch.setattr(
+        main_processor, "_reserve_authenticated_ai_turn",
+        reservation_hook or reserved_for_protocol_test,
+    )
     monkeypatch.setattr(main_processor, "observe_ai_stream", lambda stream, *_args, **_kwargs: stream)
     monkeypatch.setattr(
         main_processor,
@@ -433,7 +455,7 @@ async def _run_mocked_protocol_guard_main_processor(
             "task-1",
             request_data,
             preprocessing_results,
-            {},
+            base_instructions or {},
             directus_service,
             None,
             None,
@@ -825,6 +847,230 @@ async def test_main_processor_continues_safe_text_after_fabricated_protocol(monk
         isinstance(chunk, dict) and chunk.get("__main_processing_failure__") is True
         for chunk in output
     )
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_native_preparation_uses_normal_first_turn_and_skips_protocol_recovery(monkeypatch) -> None:
+    """The real processor prepares native replay without failing before dispatch."""
+    protocol = "```toon\napp_id: news\nskill_id: search\nstatus: finished\n```"
+    answer = "I cannot verify a result from the available conversation."
+    preparation_events = []
+
+    def route(model):
+        preparation_events.append(("route", model))
+        return "openai", "gpt-6.1-sol"
+
+    def prepare(state, **_kwargs):
+        preparation_events.append(("prepared", len(state["messages"])))
+        return state
+
+    monkeypatch.setattr(main_processor, "native_cache_route", route)
+    monkeypatch.setattr(main_processor, "prepare_native_cache_context", prepare)
+    monkeypatch.setattr(main_processor, "native_replay_fits_budget", lambda *_args, **_kwargs: True)
+    def identity_sanitize(text):
+        preparation_events.append(("sanitize", len(text)))
+        return text
+
+    monkeypatch.setattr(main_processor, "sanitize_text_simple", identity_sanitize)
+
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [[protocol], [answer]],
+        preprocessing_overrides={"selected_main_llm_model_id": "openai/gpt-6.1-sol"},
+        base_instructions={"base_ethics_instruction": "Stable provider instruction."},
+        request_overrides={"message_history": [{
+            "role": "user", "message_id": "message-1", "content": "Compare the options.",
+        }]},
+    )
+
+    assert len(calls) == 2
+    assert calls[0]["native_cache_context"] is not None, preparation_events
+    assert calls[0]["native_cache_context"]["messages"][-1]["role"] == "user"
+    assert calls[1]["tool_choice"] == "none"
+    assert calls[1]["native_cache_context"] is None
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == answer
+    assert not any(
+        isinstance(chunk, dict) and chunk.get("__main_processing_failure__") is True
+        for chunk in output
+    )
+
+
+# contract-test: supporting surface=cli assertions=ai-model-routing.catalog.capability-recommendation-variants
+async def test_native_preparation_keeps_ordinary_forced_answer_turn_tool_free(monkeypatch) -> None:
+    monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", 1)
+    monkeypatch.setattr(main_processor, "native_cache_route", lambda _model: ("openai", "gpt-6.1-sol"))
+    monkeypatch.setattr(main_processor, "prepare_native_cache_context", lambda state, **_kwargs: state)
+    monkeypatch.setattr(main_processor, "native_replay_fits_budget", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(main_processor, "sanitize_text_simple", lambda text: text)
+
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["Final answer."]],
+        preprocessing_overrides={"selected_main_llm_model_id": "openai/gpt-6.1-sol"},
+        base_instructions={"base_ethics_instruction": "Stable provider instruction."},
+        request_overrides={"message_history": [{
+            "role": "user", "message_id": "message-1", "content": "Compare the options.",
+        }]},
+    )
+    assert len(calls) == 1
+    assert calls[0]["tool_choice"] == "none"
+    assert calls[0]["tools"] is None
+    assert calls[0]["native_cache_context"] is not None
+    assert calls[0]["native_cache_context"]["baseline_tools"] == []
+    assert "".join(item for item in output if isinstance(item, str)) == "Final answer."
+
+
+# contract-test: supporting surface=gui.web assertions=billing.usage.receipt-token-breakdown
+def test_personal_main_usage_has_no_hold_and_other_scopes_keep_reservation(monkeypatch) -> None:
+    import asyncio
+
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: {
+        "features": {"max_output_tokens": 321},
+    })
+    holds = []
+
+    async def reserve(**kwargs):
+        holds.append(kwargs)
+        kwargs["reservation_state"].update(active=True, charge_id="team-hold")
+        return kwargs.get("requested_output_token_limit") or 321
+
+    async def run(request_overrides):
+        return await _run_mocked_protocol_guard_main_processor(
+            monkeypatch, [["Answer.", {"fake_google_usage": (17, 5)}]],
+            request_overrides=request_overrides,
+            reservation_hook=reserve,
+        )
+
+    personal_output, personal_calls = asyncio.run(run({"team_id": None}))
+    personal_usage = next(item for item in personal_output if isinstance(item, dict)
+                          and item.get("__cumulative_llm_usage__"))
+    assert holds == []
+    assert personal_calls[0]["pre_dispatch_admission"] is not None
+    assert personal_calls[0]["max_tokens"] == 321
+    assert personal_usage["total_input_tokens"] == 17
+    assert personal_usage["total_output_tokens"] == 5
+    assert personal_usage["usage_by_model"][0]["model_id"] == "google/test-model"
+    assert "billing_reservation_required" not in personal_usage
+
+    incognito_output, incognito_calls = asyncio.run(run({"team_id": None, "is_incognito": True}))
+    assert holds == []
+    assert incognito_calls[0]["pre_dispatch_admission"] is not None
+    assert any(isinstance(item, dict) and item.get("__cumulative_llm_usage__")
+               for item in incognito_output)
+
+    for protected_scope in (
+        {"team_id": "team-1"},
+        {"team_id": None, "is_external": True},
+        {"team_id": None, "user_preferences": {"workflow_ai": True}},
+    ):
+        holds.clear()
+        scope_output, scope_calls = asyncio.run(run(protected_scope))
+        scope_usage = next(item for item in scope_output if isinstance(item, dict)
+                           and item.get("__cumulative_llm_usage__"))
+        assert len(holds) == 1
+        assert scope_calls[0]["pre_dispatch_admission"] is not None
+        assert scope_usage["billing_reservation_required"] is True
+        assert scope_usage["billing_reservation_charge_id"] == "team-hold"
+
+
+# contract-test: supporting surface=gui.web assertions=billing.usage.receipt-token-breakdown
+def test_personal_main_dispatch_applies_read_only_wallet_fit_before_provider(monkeypatch) -> None:
+    import asyncio
+
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: {
+        "features": {"max_output_tokens": 1_000},
+        "pricing": {"tokens": {
+            "input": {"per_credit_unit": 100_000},
+            "output": {"per_credit_unit": 1},
+        }},
+    })
+
+    class BalanceCache:
+        def __init__(self, credits):
+            self.credits = credits
+
+        @property
+        def client(self):
+            async def unavailable_redis():
+                return None
+            return unavailable_redis()
+
+        async def get_pending_app_settings_memories_request(self, _chat_id):
+            return None
+
+        async def get_user_by_id(self, _user_id):
+            return {"credits": self.credits}
+
+    async def no_hold(**_kwargs):
+        raise AssertionError("Personal inference must not reserve credits")
+
+    output, calls = asyncio.run(_run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["Within budget.", {"fake_google_usage": (10, 5)}]],
+        reservation_hook=no_hold, cache_service=BalanceCache(1), admit_on_stream=True,
+    ))
+    assert len(calls) == 1
+    assert 0 < calls[0]["admitted_max_tokens"] < calls[0]["max_tokens"] == 1_000
+    assert "".join(item for item in output if isinstance(item, str)) == "Within budget."
+
+    exhausted_output, exhausted_calls = asyncio.run(_run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["Must not reach provider."]],
+        reservation_hook=no_hold, cache_service=BalanceCache(-500), admit_on_stream=True,
+    ))
+    assert "admitted_max_tokens" not in exhausted_calls[0]
+    assert "Must not reach provider." not in exhausted_output
+    assert exhausted_output[-1] == {"__main_processing_failure__": True, "reason": "stream_error"}
+
+
+# contract-test: supporting surface=gui.web assertions=billing.usage.receipt-token-breakdown
+def test_failed_personal_provider_reports_supplier_usage_without_hold(monkeypatch) -> None:
+    import asyncio
+
+    async def unexpected_hold(**_kwargs):
+        raise AssertionError("Personal provider failure must not create a credit hold")
+
+    failure = main_processor.AllServersFailedError(
+        "google/test-model", ["google/test-model"], "synthetic failure",
+    )
+    output, calls = asyncio.run(_run_mocked_protocol_guard_main_processor(
+        monkeypatch, [[{"fake_google_usage": (19, 3)}, failure]],
+        request_overrides={"team_id": None}, reservation_hook=unexpected_hold,
+    ))
+    supplier_usage = next(item for item in output if isinstance(item, dict)
+                          and item.get("__cumulative_llm_usage__"))
+    assert calls[0]["pre_dispatch_admission"] is not None
+    assert supplier_usage["total_input_tokens"] == 19
+    assert supplier_usage["total_output_tokens"] == 3
+    assert supplier_usage["successful_model_id"] is None
+    assert "billing_reservation_required" not in supplier_usage
+    assert output[-1] == {"__main_processing_failure__": True, "reason": "provider_exhausted"}
+
+
+# contract-test: supporting surface=gui.web assertions=billing.usage.receipt-token-breakdown
+def test_personal_fallback_aggregates_both_provider_attempts_without_hold(monkeypatch) -> None:
+    import asyncio
+
+    async def unexpected_hold(**_kwargs):
+        raise AssertionError("Personal fallback must not create a credit hold")
+
+    failure = main_processor.AllServersFailedError(
+        "google/test-model", ["google/test-model"], "synthetic failure",
+    )
+    output, calls = asyncio.run(_run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[{"fake_google_usage": (19, 3)}, failure],
+         ["Recovered.", {"fake_google_usage": (11, 5)}]],
+        preprocessing_overrides={"selected_secondary_model_id": "google/fallback-model"},
+        request_overrides={"team_id": None}, reservation_hook=unexpected_hold,
+    ))
+    aggregate = next(item for item in output if isinstance(item, dict)
+                     and item.get("__cumulative_llm_usage__"))
+    assert len(calls) == 2
+    assert all(call["pre_dispatch_admission"] is not None for call in calls)
+    assert aggregate["total_input_tokens"] == 30
+    assert aggregate["total_output_tokens"] == 8
+    assert aggregate["successful_model_id"] == "google/fallback-model"
+    assert {item["model_id"] for item in aggregate["usage_by_model"]} == {
+        "google/test-model", "google/fallback-model",
+    }
+    assert "billing_reservation_required" not in aggregate
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
@@ -1397,6 +1643,46 @@ async def test_image_reroute_clears_automatic_profile_level(monkeypatch) -> None
     assert len(calls) == 1
     assert calls[0]["model_id"] == main_processor.IMAGE_CHAT_SAFE_MODEL_ID
     assert calls[0]["thinking_level"] is None
+
+
+def test_native_admission_diagnostic_is_fixed_and_signed_fixture_only(monkeypatch) -> None:
+    from backend.shared.testing import mock_context
+
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setenv("OPENMATES_CI_ISOLATED", "1")
+    monkeypatch.setattr(mock_context, "get_mock_group", lambda: "native_cache_tools_v1")
+    # Capture this logger directly: production JSON logging may disable propagation.
+    records = []
+    handler = logging.Handler()
+    handler.emit = records.append
+    prior_level = main_processor.logger.level
+    main_processor.logger.setLevel(logging.INFO)
+    main_processor.logger.addHandler(handler)
+    try:
+        main_processor._log_native_fixture_admission(
+            "budget_rejected", "retained", history_count=7, visible_count=7,
+        )
+        main_processor._log_native_fixture_admission(
+            "PRIVATE_CONTENT", "retained", history_count=7, visible_count=7,
+        )
+        monkeypatch.setattr(mock_context, "get_mock_group", lambda: "other_group")
+        main_processor._log_native_fixture_admission(
+            "prepare_rejected", "retained", history_count=7, visible_count=7,
+        )
+        monkeypatch.setattr(mock_context, "get_mock_group", lambda: "native_cache_tools_v1")
+        monkeypatch.delenv("OPENMATES_CI_ISOLATED")
+        main_processor._log_native_fixture_admission(
+            "accepted", "retained", history_count=7, visible_count=7,
+        )
+    finally:
+        main_processor.logger.removeHandler(handler)
+        main_processor.logger.setLevel(prior_level)
+    diagnostic_logs = [record.getMessage() for record in records
+                       if "Native fixture admission:" in record.getMessage()]
+    assert diagnostic_logs == [
+        "Native fixture admission: admission=budget_rejected prior=retained "
+        "history_count=7 visible_count=7"
+    ]
 
 
 # contract-test: supporting surface=rest_api assertions=app-memories.transparency.loaded-set,app-memories.privacy.client-encrypted

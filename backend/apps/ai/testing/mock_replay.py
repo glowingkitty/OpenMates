@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import re
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -407,6 +408,8 @@ async def replay_fixture(
     total_chunks = len(cumulative_chunks)
     model_name = usage.get("model_name") or preprocessing_result.selected_main_llm_model_name
     category = preprocessing_result.category
+    from backend.apps.ai.tasks.stream_consumer import _assistant_response_created_at
+    assistant_created_at = _assistant_response_created_at(request_data, int(time.time()))
     recovery_job = None
     if not _contains_focus_mode_activation_embed(full_response):
         recovery_job = await _persist_mock_replay_recovery_job(
@@ -440,6 +443,7 @@ async def replay_fixture(
             "user_id_hash": request_data.user_id_hash,
             "message_id": assistant_message_id,
             "user_message_id": request_data.message_id,
+            "created_at": assistant_created_at,
             "full_content_so_far": content_so_far if not is_final else full_response,
             "sequence": sequence,
             "is_final_chunk": is_final,

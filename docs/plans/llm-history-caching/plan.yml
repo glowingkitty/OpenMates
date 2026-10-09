@@ -1,0 +1,49 @@
+schema_version: 2
+profile: concise
+id: llm-history-caching
+title: Selected-tool history caching and exact usage billing
+status: approved
+goal: >
+  Ensure caching is properly implemented, properly billed and transparent in usage
+  entries, and verify longer four-to-five-turn conversations, including natural
+  questions that trigger app skills, without breaking chat processing.
+scope:
+  - Normal authenticated personal/team chats; existing workflow/subchat scope stays unchanged.
+  - Native selected-tool updates for direct Claude Sonnet/Haiku/Opus 5.5 and supported OpenAI Responses models.
+  - Only preprocessor-selected schemas are loaded; execution continues to enforce the current selection.
+  - Provider-reported ordinary input, writes, reads and output use frozen attempt tariffs and reconcile to the debit.
+  - Usage and model pricing disclose separate writes without inventing missing counters or retention guarantees.
+  - Google and Mistral retain measured implicit caching; no speculative dispatcher or explicit storage-charge rollout.
+  - Include the user-approved rapid-follow-up repair: await encrypted canonical persistence before preparing the next personal chat send, without relaxing version checks.
+  - Preserve the canonical assistant timestamp from authenticated terminal stream metadata through local persistence and follow-up history so exact replay validation succeeds, while retaining the existing sealed recovery payload format.
+contracts:
+  - feature.billing@9
+  - feature.ai-model-routing
+  - feature.chats@3
+decisions:
+  - User approved implementation and scoped dev activation on 2026-10-08.
+  - Reuse Claude lineup source ccad3a472564d3c0319f8643a48e009771bbd894 from session 7270.
+  - Ordinary preprocessing/postprocessing remain bundled; applied summaries retain their separately approved billing.
+  - OpenAI reported cache writes replace the prior included-in-input fallback prospectively; missing metrics receive no inferred discount.
+  - User chose existing temporary Vault-encrypted AI history on 2026-10-08; permanent client-encrypted messages and client events carry no replay state. Cache loss starts a fresh segment without blocking chat.
+  - User approved Mistral Large 4 rates based on regular supplier costs rather than its temporary half-price sale. Report this base-rate change separately from cache savings.
+  - User clarified that real inference verification remains required after deterministic checks pass, with four user messages per provider and no unnecessary repetitions.
+  - User chose normal-chat balance admission without credit reservations: a new request needs remaining credits; an admitted personal request may reach -500, and a new request is rejected while the balance is negative. Preserve separate workflow/subchat and anonymous budget rules.
+  - User approved the scoped rapid-follow-up repair on 2026-10-08 after provider-free tests exposed a send-before-persistence race.
+  - User resolved the auxiliary-cost hold on 2026-10-09: keep preprocessing and generated follow-up suggestions bundled, charge main inference accurately, and proceed to dev activation and the agreed real tests without adding a processing fee.
+  - Claude native history caching must also support conversations without selected tools. The first tool introduced later may cause one cold cache miss, as documented by the provider; do not add unused tool schemas to avoid that miss.
+  - Existing recovery clients retain the exact eight-field sealed payload. Active web/CLI replies reuse the canonical terminal-stream timestamp after identity validation; cold recovery without that metadata retains the existing completion fallback and may start a fresh cache segment.
+verification:
+  required:
+    - Focused adapter and accounting checks cover exact selected tools, schema updates, missing metrics, inclusive input and cumulative usage.
+    - Relevant isolated GitHub product and usage/pricing component E2E checks pass on the candidate source.
+    - A rapid follow-up cannot prepare its encrypted preflight from a version preceding the prior assistant persistence acknowledgement; cover delayed acknowledgement and failure behavior without fixed sleeps.
+    - Recovery preserves the server's canonical assistant timestamp; mismatched history metadata still discards replay state.
+    - Recorded real dev CLI chats run four user messages each (initial request plus three follow-ups), prioritizing the requested Sonnet 5.5, GPT-6 Luna and Mistral Large 4, with linked natural questions and actual app-skill calls; do not automatically repeat paid chats.
+    - Receipts, per-attempt model identity, tool costs, wallet changes and zero remaining holds reconcile.
+    - Compare category charges with full-input flat estimates using the same measured usage, and report cold writes and unavailable cache metrics honestly.
+    - Retain and deliver all existing CLI/component recordings, including failed attempts, without repeating paid calls to repair evidence delivery.
+evidence:
+  - OpenAI documentation now exposes input_tokens_details.cache_write_tokens; the provider extraction and tariffs are being updated.
+  - Current durable messages remain client-encrypted; new replay storage must respect that boundary.
+  - Provider-free browser diagnostics and a local retention reproduction found that recovery's wall-clock assistant timestamp differs from the cached canonical timestamp, causing follow-ups to discard replay state.

@@ -91,7 +91,7 @@ def test_mock_focus_activation_context_uses_deferred_production_contract() -> No
     assert context["embed_id"] == "33333333-3333-4333-8333-333333333333"
 
 
-def test_mock_focus_activation_parent_seals_recovery_job(monkeypatch) -> None:
+def test_mock_focus_activation_parent_defers_recovery_seal(monkeypatch) -> None:
     task_id = "66666666-6666-4666-8666-666666666666"
     chat_id = "22222222-2222-4222-8222-222222222222"
     _, public_key = derive_recovery_keypair(
@@ -142,8 +142,11 @@ def test_mock_focus_activation_parent_seals_recovery_job(monkeypatch) -> None:
         if payload.get("type") == "ai_message_chunk" and payload.get("is_final_chunk")
     ]
     assert len(final_chunks) == 1
-    assert final_chunks[0]["recovery_protocol_version"] == 1
-    assert final_chunks[0]["recovery_job_id"] == directus_service.requests[0]["data"]["job_id"]
+    assert final_chunks[0]["recovery_turn_id"] == request_data.recovery_turn_id
+    assert final_chunks[0]["recovery_provisional"] is False
+    assert "recovery_job_id" not in final_chunks[0]
+    assert "recovery_protocol_version" not in final_chunks[0]
+    assert directus_service.requests == []
 
 
 def test_travel_train_web_fixture_has_renderable_connection_results() -> None:
@@ -244,6 +247,9 @@ def test_replay_fixture_recovery_final_chunk_includes_sealed_job_metadata(
     final_chunk = final_chunks[0]
     assert final_chunk["recovery_provisional"] is False
     assert final_chunk["recovery_turn_id"] == "33333333-3333-4333-8333-333333333333"
+    assert final_chunk["created_at"] == 2
+    assert all(payload["created_at"] == final_chunk["created_at"] for _channel, payload
+               in cache_service.events if payload.get("type") == "ai_message_chunk")
     assert final_chunk["chat_key_version"] == 7
     assert final_chunk["recovery_protocol_version"] == 1
     assert final_chunk["recovery_job_id"] == directus_service.requests[0]["data"]["job_id"]

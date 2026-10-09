@@ -17,12 +17,28 @@ import shlex
 import subprocess
 import time
 
-MODELS = ["Gemini-3.8-Flash", "GPT-6.1-Sol", "Claude-Sonnet-5", "Mistral-Small-4"]
+MODELS = ["GPT-6.1-Sol", "GPT-6-Astra", "GPT-6-Luna", "Claude-Sonnet-5.5",
+          "Claude-Haiku-5.5", "Claude-Opus-5.5", "Mistral-Large-4", "Gemini-3.8-Flash"]
+AI_EVENTS_NEWS_MODELS = ("Claude-Sonnet-5.5", "GPT-6-Luna", "Mistral-Large-4")
 REQUESTED_MODEL_IDS = {
     "Gemini-3.8-Flash": "google/gemini-3.8-flash",
     "GPT-6.1-Sol": "openai/gpt-6.1-sol",
-    "Claude-Sonnet-5": "anthropic/claude-sonnet-5",
-    "Mistral-Small-4": "mistral/mistral-small-latest",
+    "GPT-6-Astra": "openai/gpt-6-astra",
+    "GPT-6-Luna": "openai/gpt-6-luna",
+    "Claude-Sonnet-5.5": "anthropic/claude-sonnet-5-5",
+    "Claude-Haiku-5.5": "anthropic/claude-haiku-5-5",
+    "Claude-Opus-5.5": "anthropic/claude-opus-5-5",
+    "Mistral-Large-4": "mistral/mistral-large-4",
+}
+REQUESTED_MODEL_NAMES = {
+    "Gemini-3.8-Flash": "Gemini 3.8 Flash",
+    "GPT-6.1-Sol": "GPT-6.1 Sol",
+    "GPT-6-Astra": "GPT-6 Astra",
+    "GPT-6-Luna": "GPT-6 Luna",
+    "Claude-Sonnet-5.5": "Claude Sonnet 5.5",
+    "Claude-Haiku-5.5": "Claude Haiku 5.5",
+    "Claude-Opus-5.5": "Claude Opus 5.5",
+    "Mistral-Large-4": "Mistral Large 4",
 }
 _NODE_WARNING = re.compile(r"^\(node:\d+\) MaxListenersExceededWarning: .*$")
 
@@ -69,6 +85,77 @@ def full_input_flat_estimate(receipt: dict) -> int:
     return max(1, raw.numerator // raw.denominator)
 
 
+def scenario_prompts(scenario: str) -> tuple[str, list[str]]:
+    """Short, connected requests; the tool scenario leaves tool choice to AI."""
+    if scenario == "ai-events-news":
+        return (
+            "Find upcoming AI events in Berlin. Use current information, include dates and source links, and keep your answer under 200 words.",
+            [
+                "Summarize the latest OpenAI news with current sources and links. Keep it under 200 words.",
+                "For one Berlin AI event you found, check its date and location. Link the source and keep this short.",
+                "How might that OpenAI news matter to someone attending the Berlin AI event, and what should they verify before acting? Keep this short.",
+            ],
+        )
+    if scenario == "city-outing":
+        return (
+            "I'm planning a relaxed afternoon in Berlin this weekend. What should I check about current opening hours and weather before choosing a neighborhood? Please use current information and keep each reply under 350 words.",
+            [
+                "Are there any public cultural events in Berlin this weekend that would fit that plan? Give me up to two options and their dates.",
+                "Which nearby cafe or indoor place would make a useful fallback around one of those events? Please check the location and keep it to two options.",
+                "Which of those options is easier for a visitor using public transit, and what uncertainty should I check before leaving?",
+                "Put this together as a short afternoon plan, with one fallback. Mention what I still need to verify myself.",
+            ],
+        )
+    return (
+        "Explain in two short sentences why Earth has seasons. Use your existing knowledge.",
+        [
+            "How does that explain opposite seasons in the northern and southern hemispheres? Use your existing knowledge; do not search. Answer in two short sentences.",
+            "Give me one simple example using June and December that I could tell a child. Use your existing knowledge; do not search. Keep it to two sentences.",
+            "Would the seasons disappear if Earth's orbit were perfectly circular? Explain briefly using what we discussed.",
+            "Summarize the explanation as three short points I can remember.",
+        ],
+    )
+
+
+def executed_tool_names(rows: list[dict]) -> list[str]:
+    """Report only persisted billable app skills, never infer execution from prose."""
+    return sorted({f'{row["app_id"]}.{row["skill_id"]}' for row in rows})
+
+
+def ai_events_news_tool_evidence(messages: list[dict], tool_rows: list[dict],
+                                 completed_turns: int) -> list[dict]:
+    """Bind paid skills to the exact saved user requests that caused them."""
+    first, followups = scenario_prompts("ai-events-news")
+    prompts = [first, *followups][:completed_turns]
+    users = [message for message in messages if message.get("role") == "user"]
+    if len(users) != completed_turns:
+        raise RuntimeError("Saved user requests differ from completed turns")
+    ids = []
+    for message, prompt in zip(users, prompts):
+        identifier = message.get("id")
+        if (not isinstance(identifier, str) or not identifier
+                or not isinstance(message.get("content"), str)
+                or not message["content"].endswith(prompt)):
+            raise RuntimeError("Saved user request identity or prompt differs from scenario")
+        ids.append(identifier)
+    if len(set(ids)) != len(ids):
+        raise RuntimeError("Saved user request IDs are not unique")
+    if any(row.get("message_id") not in ids for row in tool_rows):
+        raise RuntimeError("Tool charge is not linked to a saved user request")
+    evidence = []
+    for index, identifier in enumerate(ids):
+        linked = [row for row in tool_rows if row["message_id"] == identifier]
+        names = executed_tool_names(linked)
+        if index == 0 and "events.search" not in names:
+            raise RuntimeError("Berlin AI events request did not execute events.search")
+        if index == 1 and not {"news.search", "web.search"}.intersection(names):
+            raise RuntimeError("OpenAI news request did not execute news.search or web.search")
+        evidence.append({"turn": index + 1, "user_message_id": identifier,
+                         "request": prompts[index], "executed_tool_names": names,
+                         "tool_usage_ids": [row["id"] for row in linked]})
+    return evidence
+
+
 def summarize_turns(rows: list[dict], *, require_receipts: bool,
                     expected_tariffs: dict | None = None,
                     requested_model_id: str | None = None) -> list[dict]:
@@ -88,6 +175,17 @@ def summarize_turns(rows: list[dict], *, require_receipts: bool,
                 or expected_receipt_credits(receipt) != credits):
             raise RuntimeError("Receipt category arithmetic differs from committed debit")
         entries = receipt["entries"]
+        if (sum(entry["input_tokens"] for entry in entries) != receipt["input_tokens"]
+                or sum(entry["output_tokens"] for entry in entries) != receipt["output_tokens"]):
+            raise RuntimeError("Receipt attempt tokens differ from receipt totals")
+        for entry in entries:
+            if entry["billing_mode"] == "cache_aware":
+                read = entry["cache_read_input_tokens"]
+                write = entry.get("cache_creation_input_tokens") or 0
+                charged_write = write if entry.get("write_billing") == "separate" else 0
+                if (read is None or entry["input_tokens"] != entry["billed_input_tokens"] + read + charged_write
+                        or (entry.get("cache_creation_1h_input_tokens") or 0) > write):
+                    raise RuntimeError("Receipt read/write/ordinary input categories do not reconcile")
         if requested_model_id and any(entry["model_id"] != requested_model_id for entry in entries):
             raise RuntimeError("Frozen attempt did not use the requested model")
         if expected_tariffs is not None:
@@ -97,7 +195,9 @@ def summarize_turns(rows: list[dict], *, require_receipts: bool,
                 expected = expected_tariffs.get(entry["model_id"])
                 if (not isinstance(expected, dict)
                         or entry.get("pricing_version") != expected.get("pricing_version")
-                        or entry.get("inference_host") not in expected.get("eligible_hosts", [])):
+                        or entry.get("inference_host") not in expected.get("eligible_hosts", [])
+                        or (expected.get("required_host") is not None
+                            and entry.get("inference_host") != expected["required_host"])):
                     raise RuntimeError("Frozen attempt differs from expected activated tariff or eligible host")
                 if entry["billing_mode"] == "ordinary_input":
                     if (entry.get("cache_read_input_tokens") is not None
@@ -114,12 +214,21 @@ def summarize_turns(rows: list[dict], *, require_receipts: bool,
             "input_tokens": receipt["input_tokens"], "output_tokens": receipt["output_tokens"],
             "cache_read_input_tokens": receipt.get("cache_read_input_tokens"),
             "cache_creation_input_tokens": receipt.get("cache_creation_input_tokens"),
+            "cache_hit_ratio": (round(receipt["cache_read_input_tokens"] / receipt["input_tokens"], 6)
+                                if receipt.get("cache_read_input_tokens") is not None
+                                and receipt["input_tokens"] > 0 else None),
             "pricing_versions": sorted({entry["pricing_version"] for entry in entries}),
             "billing_modes": sorted({entry["billing_mode"] for entry in entries}),
             "ordinary_input_missing_cache_metric_attempts": sum(
                 entry["billing_mode"] == "ordinary_input" for entry in entries),
             "frozen_rates": [{"model_id": entry["model_id"], "rates": entry["rates"]}
                              for entry in entries],
+            "attempts": [{"model_id": entry["model_id"], "inference_host": entry.get("inference_host"),
+                          "billing_mode": entry["billing_mode"], "input_tokens": entry["input_tokens"],
+                          "ordinary_input_tokens": entry["billed_input_tokens"],
+                          "cache_read_tokens": entry.get("cache_read_input_tokens"),
+                          "cache_write_tokens": entry.get("cache_creation_input_tokens"),
+                          "output_tokens": entry["output_tokens"]} for entry in entries],
         })
     return turns
 
@@ -185,7 +294,8 @@ def main() -> None:
     parser.add_argument("--expected-tariffs", type=Path,
                         help="JSON map of model IDs to deployed frozen pricing_version and eligible_hosts")
     parser.add_argument("--model", choices=MODELS)
-    parser.add_argument("--followup-count", type=int, choices=(1, 2), default=2)
+    parser.add_argument("--followup-count", type=int, choices=(1, 2, 3, 4), default=3)
+    parser.add_argument("--scenario", choices=("knowledge", "city-outing", "ai-events-news"), default="knowledge")
     parser.add_argument("--resume-chat", help="Continue an already paid partial conversation")
     parser.add_argument("--prior-proof", type=Path, help="Retained numeric proof of its paid turns")
     parser.add_argument("--verify-only", action="store_true",
@@ -200,6 +310,12 @@ def main() -> None:
         parser.error("--resume-chat requires --prior-proof and --model")
     if args.verify_only and not args.resume_chat:
         parser.error("--verify-only requires --resume-chat and --prior-proof")
+    if args.scenario == "ai-events-news":
+        if args.followup_count != 3:
+            parser.error("ai-events-news requires exactly four messages (--followup-count 3)")
+        if args.model and args.model not in AI_EVENTS_NEWS_MODELS:
+            parser.error("ai-events-news supports only Sonnet 5.5, GPT-6 Luna, and Mistral Large 4")
+    first_prompt, followups = scenario_prompts(args.scenario)
     expected_tariffs = json.loads(args.expected_tariffs.read_text()) if args.expected_tariffs else None
     if expected_tariffs is not None and not isinstance(expected_tariffs, dict):
         parser.error("--expected-tariffs must contain a model-ID object map")
@@ -283,8 +399,10 @@ def main() -> None:
 
     starting = balance("phase-start-balance")
     report: dict = {"phase": args.phase, "starting_credits": starting, "models": []}
-    for model in ([args.model] if args.model else MODELS):
+    selected_models = AI_EVENTS_NEWS_MODELS if args.scenario == "ai-events-news" else MODELS
+    for model in ([args.model] if args.model else selected_models):
         requested_model_id = REQUESTED_MODEL_IDS[model]
+        requested_model_name = REQUESTED_MODEL_NAMES[model]
         before = balance(model + "-before")
         history_before = run_cli(["settings", "billing", "usage"], model + "-history-before")["usage"]
         prior = None
@@ -292,6 +410,8 @@ def main() -> None:
             prior = json.loads(args.prior_proof.read_text())
             if prior["chat_id"] != args.resume_chat:
                 raise RuntimeError("Retained proof belongs to another chat")
+            if prior.get("scenario", "knowledge") != args.scenario:
+                raise RuntimeError("Retained proof belongs to another scenario")
             chat = args.resume_chat
             saved = run_cli(["chats", "show", chat], model + "-saved-first", True)
             answers = [message for message in saved.get("messages", [])
@@ -303,17 +423,21 @@ def main() -> None:
             if args.verify_only and paid_turns < expected_answers - 1:
                 raise RuntimeError("Verify-only needs proof of all but at most one paid turn")
             first = {"modelName": answers[0].get("modelName")}
+            if first["modelName"] != requested_model_name:
+                raise RuntimeError("Saved first answer did not use the requested model")
             after_first = before
         else:
-            first = run_cli(["chats", "new", f"@{model} Explain in two short sentences why Earth has seasons. Use your existing knowledge.", "--project", project, "--response-timeout-seconds", "180"], model + "-first", True)
+            first = run_cli(["chats", "new", f"@{model} {first_prompt}", "--project", project, "--response-timeout-seconds", "180"], model + "-first", True)
             if first.get("status") != "completed" or not first.get("assistant"):
                 raise RuntimeError("First turn did not produce a completed answer")
+            if first.get("modelName") != requested_model_name:
+                raise RuntimeError("First CLI answer did not use the requested model")
             chat = first["chatId"]
             after_first = balance(model + "-after-first")
             paid_turns = 1
         month = time.strftime("%Y-%m", time.gmtime())
 
-        def checkpoint(completed_turns: int, current_balance: int, wallet_debits: list[int]) -> None:
+        def checkpoint(completed_turns: int, current_balance: int, wallet_debits: list[int]) -> list[dict]:
             """Retain numeric proof before another paid request can begin."""
             detail = run_cli(["settings", "billing", "usage", "details", "--type", "chat",
                               "--identifier", chat, "--month", month],
@@ -322,6 +446,12 @@ def main() -> None:
             paid_rows, tool_rows = split_chat_rows(all_rows, chat)
             if len(paid_rows) != completed_turns:
                 raise RuntimeError("Completed chat has missing persisted charges")
+            tool_evidence = []
+            if args.scenario == "ai-events-news":
+                saved_turns = run_cli(["chats", "show", chat, "--all"],
+                                      model + f"-saved-{completed_turns}")
+                tool_evidence = ai_events_news_tool_evidence(
+                    saved_turns.get("messages", []), tool_rows, completed_turns)
             summarize_turns(paid_rows, require_receipts=require_receipts,
                             expected_tariffs=expected_tariffs,
                             requested_model_id=requested_model_id)
@@ -338,7 +468,7 @@ def main() -> None:
             initial_balance = prior["wallet_before"] if prior else before
             if initial_balance - current_balance != sum(int(row["credits"]) for row in all_rows) + project_credits:
                 raise RuntimeError("Checkpoint does not reconcile the full paid conversation")
-            proof = {"chat_id": chat, "paid_turns": completed_turns,
+            proof = {"chat_id": chat, "scenario": args.scenario, "paid_turns": completed_turns,
                      "charges": [{"id": row["id"], "credits": int(row["credits"])} for row in paid_rows],
                      "tool_charges": [{"id": row["id"], "credits": int(row["credits"])}
                                       for row in tool_rows],
@@ -348,17 +478,17 @@ def main() -> None:
             path = output / (model + "-resume-proof.private.json")
             path.write_text(json.dumps(proof, indent=2) + "\n")
             path.chmod(0o600)
+            return tool_evidence
 
-        followups = [
-            "How does that explain opposite seasons in the northern and southern hemispheres? Use your existing knowledge; do not search. Answer in two short sentences.",
-            "Give me one simple example using June and December that I could tell a child. Use your existing knowledge; do not search. Keep it to two sentences.",
-        ]
         wallet_positions = [before, after_first] if not prior else [before]
         wallet_debits = ((prior.get("turn_wallet_debits") or
                           [prior["wallet_before"] - prior["wallet_after"]]) if prior else
                          [before - after_first])
+        tool_evidence: list[dict] = []
         if not prior:
-            checkpoint(1, after_first, wallet_debits)
+            tool_evidence = checkpoint(1, after_first, wallet_debits)
+            if before - after_first > 1000:
+                raise RuntimeError("Test credit budget exceeded after first turn; stopping further calls")
         followup_models = []
         for index in range(paid_turns - 1, args.followup_count if not args.verify_only else paid_turns - 1):
             followup = run_cli(["chats", "send", "--chat", chat, f"@{model} {followups[index]}",
@@ -366,16 +496,18 @@ def main() -> None:
                                model + f"-followup-{index + 1}", True)
             if followup.get("status") != "completed" or not followup.get("assistant"):
                 raise RuntimeError("Follow-up did not produce a completed answer")
+            if followup.get("modelName") != requested_model_name:
+                raise RuntimeError("Follow-up CLI answer did not use the requested model")
             followup_models.append(followup.get("modelName"))
             wallet_positions.append(balance(model + f"-after-followup-{index + 1}"))
             wallet_debits.append(wallet_positions[-2] - wallet_positions[-1])
-            checkpoint(index + 2, wallet_positions[-1], wallet_debits)
+            tool_evidence = checkpoint(index + 2, wallet_positions[-1], wallet_debits)
             if (prior["wallet_before"] if prior else starting) - wallet_positions[-1] > 1000:
                 raise RuntimeError("Test credit budget exceeded; stopping further calls")
         if args.verify_only:
             if paid_turns < args.followup_count + 1:
                 wallet_debits.append(prior["wallet_after"] - before)
-            checkpoint(args.followup_count + 1, before, wallet_debits)
+            tool_evidence = checkpoint(args.followup_count + 1, before, wallet_debits)
         after = wallet_positions[-1]
         details = run_cli(["settings", "billing", "usage", "details", "--type", "chat", "--identifier", chat, "--month", month], model + "-usage")
         all_rows = details.get("entries", [])
@@ -405,10 +537,16 @@ def main() -> None:
         if overview.get("held_credits", 0) != 0:
             raise RuntimeError("Completed requests left held credits")
         prior_count = prior.get("paid_turns", 1) if prior else 0
-        measured = {"model": model, "chat_id": chat,
+        measured = {"model": model, "scenario": args.scenario, "chat_id": chat,
                     "first_credits": turns[0]["actual_credits"],
                     "followup_credits": turns[1]["actual_credits"], "persisted_credits": total,
                     "tool_credits": tool_total,
+                    "executed_tool_names": executed_tool_names(tool_rows),
+                    "per_turn_tool_evidence": tool_evidence,
+                    "executed_tool_charges": [
+                        {"name": f'{row["app_id"]}.{row["skill_id"]}', "credits": int(row["credits"])}
+                        for row in tool_rows
+                    ],
                     "persisted_chat_credits": total + tool_total,
                     "project_recommendation_credits": ((prior["project_recommendation"]["credits"] if prior else 0)
                                                        + reconciled["project_recommendation_credits"]),

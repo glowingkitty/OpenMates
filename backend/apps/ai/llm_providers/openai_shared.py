@@ -174,11 +174,19 @@ class OpenAIUsageMetadata(BaseModel):
     provider_request_id: Optional[str] = None
 
 
-def openai_cache_read_tokens(usage: Dict[str, Any], *, responses: bool = False) -> Optional[int]:
-    """Return provider-reported cached input, preserving missing versus zero."""
+def _openai_cache_tokens(usage: Dict[str, Any], field: str, *, responses: bool = False) -> Optional[int]:
+    """Return a reported cache counter without treating a missing value as zero."""
     details_key = "input_tokens_details" if responses else "prompt_tokens_details"
     details = usage.get(details_key) or {}
-    return details.get("cached_tokens") if isinstance(details, dict) else None
+    return details.get(field) if isinstance(details, dict) else None
+
+
+def openai_cache_read_tokens(usage: Dict[str, Any], *, responses: bool = False) -> Optional[int]:
+    return _openai_cache_tokens(usage, "cached_tokens", responses=responses)
+
+
+def openai_cache_write_tokens(usage: Dict[str, Any], *, responses: bool = False) -> Optional[int]:
+    return _openai_cache_tokens(usage, "cache_write_tokens", responses=responses)
 
 class RawOpenAIChatCompletionResponse(BaseModel):
     """

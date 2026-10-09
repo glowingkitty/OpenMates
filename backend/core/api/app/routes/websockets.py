@@ -1110,6 +1110,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     "interrupted_by_revocation": redis_payload.get("interrupted_by_revocation", False),
                                     "rejection_reason": redis_payload.get("rejection_reason"),
                                     "recovery_job_id": redis_payload.get("recovery_job_id"),
+                                    "recovery_turn_id": redis_payload.get("recovery_turn_id"),
                                     "recovery_protocol_version": redis_payload.get("recovery_protocol_version"),
                                     "awaiting_focus_mode_continuation": redis_payload.get("awaiting_focus_mode_continuation", False),
                                     "is_focus_mode_continuation": redis_payload.get("is_focus_mode_continuation", False),

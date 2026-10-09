@@ -118,6 +118,7 @@ import {
   handlePendingAIResponseImpl,
 } from "../chatSyncServiceHandlersAppSettings";
 import { handleRecoveryJobsAvailableImpl } from "../chatSyncServiceHandlersRecovery";
+import { clearRecoveryFinalTimestamps, recordRecoveryFinalTimestamp } from "../recoveryAssistantTimestamp";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -374,6 +375,13 @@ describe("handlePendingAIResponseImpl", () => {
 describe("handleRecoveryJobsAvailableImpl", () => {
   beforeEach(() => {
     resetHoistedMocks();
+    clearRecoveryFinalTimestamps();
+    for (const index of [1, 2]) recordRecoveryFinalTimestamp({
+      chat_id: `chat-${index}`, message_id: `assistant-${index}`, user_message_id: `user-${index}`,
+      recovery_job_id: `job-${index}`, recovery_turn_id: `turn-${index}`,
+      recovery_protocol_version: 1, created_at: 1_700_000_001, is_final_chunk: true,
+    });
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
     Object.defineProperty(window, "setTimeout", {
       value: globalThis.setTimeout,
       configurable: true,
@@ -1035,7 +1043,12 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     let claimRequestId: string | undefined;
     const persistRequestIds: string[] = [];
     const persistExpectedVersions: unknown[] = [];
+    const persistCreatedAts: unknown[] = [];
     let currentMessagesV = 2;
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(
+      JSON.stringify({ chat_id: "chat-1", messages_v: 4 }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ));
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     mocks.webSocketService.on.mockImplementation((type: string, handler: (payload: unknown) => void) => {
       const set = handlers.get(type) ?? new Set();
@@ -1055,6 +1068,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
       if (type === "recovery_job_persist") {
         persistRequestIds.push(payload.request_id as string);
         persistExpectedVersions.push(payload.expected_messages_v);
+        persistCreatedAts.push((payload.encrypted_assistant_message as Record<string, unknown>).created_at);
       }
     });
     mocks.chatDB.getChat.mockImplementation(async () => ({
@@ -1138,15 +1152,16 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     await recovery;
 
     expect(persistExpectedVersions).toEqual([2, 4]);
+    expect(persistCreatedAts).toEqual([1_700_000_001, 1_700_000_001]);
     expect(mocks.ensureChatKeySafeForWrite).toHaveBeenCalledWith(
       "chat-1",
       new Uint8Array([1, 2, 3]),
       "completion recovery",
       { reportFailure: false },
     );
-    expect(service.requestChatContentBatch_FOR_HANDLERS_ONLY).toHaveBeenCalledTimes(2);
+    expect(service.requestChatContentBatch_FOR_HANDLERS_ONLY).toHaveBeenCalledTimes(1);
     expect(mocks.chatDB.saveMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ message_id: "assistant-1", status: "synced" }),
+      expect.objectContaining({ message_id: "assistant-1", status: "synced", created_at: 1_700_000_001 }),
     );
     expect(mocks.chatDB.updateChat).toHaveBeenCalledWith(
       expect.objectContaining({ messages_v: 5 }),

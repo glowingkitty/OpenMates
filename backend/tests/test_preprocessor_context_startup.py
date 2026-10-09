@@ -10,6 +10,7 @@ import pytest
 from backend.apps.ai.processing import agentic_context, context_preselection, preprocessor
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.core.api.app.services import project_focus_request_service
+from backend.core.api.app.services.billing_service import BillingService
 from backend.core.api.app.utils import server_mode
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
 from backend.tests.test_teams_lifecycle import FakeDirectus
@@ -102,6 +103,8 @@ async def test_normal_account_discovers_rules_only_after_app_selection(monkeypat
         raise DecisionBoundaryReached
 
     monkeypatch.setattr(server_mode, "is_payment_enabled", lambda: True)
+    admitted_balance = AsyncMock(return_value=10)
+    monkeypatch.setattr(BillingService, "get_authoritative_personal_balance", admitted_balance)
     monkeypatch.setattr(preprocessor, "load_skill_ledger", AsyncMock(return_value=preprocessor.RoutingLedgerSnapshot(
         available=False, prompt_rows=(),
     )))
@@ -122,7 +125,8 @@ async def test_normal_account_discovers_rules_only_after_app_selection(monkeypat
             discovered_apps_metadata={"code": SimpleNamespace(skills=[], focuses=[])},
         )
 
-    cache.get_user_by_id.assert_awaited_once_with("user-test")
+    admitted_balance.assert_awaited_once_with(user_id="user-test", user_id_hash="hash-test")
+    cache.get_user_by_id.assert_not_awaited()
     discover_rules.assert_awaited_once_with(request, None, cache, ["code"])
     discover_workflows.assert_awaited_once_with(request, cache)
     assert len(decision_calls) == 1

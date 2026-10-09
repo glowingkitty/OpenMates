@@ -229,6 +229,14 @@ function normalizeUnixSeconds(value: unknown, fallback: number): number {
   return value > 10_000_000_000 ? Math.floor(value / 1000) : Math.floor(value);
 }
 
+export function nextPersonalUserCreatedAt(nowSeconds: number, predecessorTimestamps: number[]): number {
+  if (!Number.isSafeInteger(nowSeconds) || nowSeconds <= 0) throw new Error("Personal chat timestamp is invalid.");
+  const latest = predecessorTimestamps.reduce((max, value) =>
+    Number.isSafeInteger(value) && value > 0 ? Math.max(max, value) : max, 0);
+  if (latest >= Number.MAX_SAFE_INTEGER) throw new Error("Personal chat timestamp is exhausted.");
+  return Math.max(nowSeconds, latest + 1);
+}
+
 function defaultIdeaBucketProcessingWindowId(date = new Date()): string {
   return date.toISOString().slice(0, 10);
 }
@@ -8076,7 +8084,10 @@ export class OpenMatesClient {
     }
 
     const messageId = randomUUID();
-    const createdAt = Math.floor(Date.now() / 1000);
+    const wallCreatedAt = Math.floor(Date.now() / 1000);
+    const createdAt = !teamId && !params.incognito && params.chatId
+      ? nextPersonalUserCreatedAt(wallCreatedAt, savedPrivacyHistory?.messages.map((row) => row.createdAt) ?? [])
+      : wallCreatedAt;
     const isNewChat = !params.chatId;
     let messageHistoryForRequest = params.messageHistory;
     if (!params.incognito && !isNewChat && !messageHistoryForRequest) {
@@ -9168,7 +9179,9 @@ export class OpenMatesClient {
           category = recovered.category as string | null;
           modelName = recovered.model_name as string | null;
 
-          const completedAt = Math.floor(Date.now() / 1000);
+          // The matched final stream marker uses the AI-cache timestamp. A client
+          // that missed it can still persist the encrypted reply with a cold cache boundary.
+          const completedAt = resp.recoveryCreatedAt ?? Math.floor(Date.now() / 1000);
           const encryptedAssistantContent = await encryptWithAesGcmCombined(
             assistant,
             chatKeyBytes,

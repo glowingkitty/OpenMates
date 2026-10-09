@@ -5,7 +5,7 @@ import copy
 import json
 import logging
 from typing import Dict, Any, List, Optional, Tuple, Union
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +50,9 @@ class UnifiedAnthropicResponse(BaseModel):
     tool_calls_made: Optional[List[ParsedAnthropicToolCall]] = None
     raw_response: Optional[RawAnthropicChatCompletionResponse] = None
     usage: Optional[AnthropicUsageMetadata] = None
+    provider_transport_state: Optional[List[Dict[str, Any]]] = Field(
+        default=None, repr=False, exclude=True,
+    )
 
 
 def _should_cache_content(content: str) -> bool:
@@ -115,7 +118,11 @@ def _prepare_system_with_caching(system_prompt: str, cacheable_system_prefix: Op
         return system_prompt
 
 
-def _prepare_messages_with_caching(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _prepare_messages_with_caching(
+    messages: List[Dict[str, Any]],
+    native_events: Optional[Dict[int, List[Dict[str, Any]]]] = None,
+    index_offset: int = 0,
+) -> List[Dict[str, Any]]:
     """Convert canonical history to Anthropic messages without mutating it.
 
     Canonical tool history uses an assistant message with ``tool_calls`` followed
@@ -125,6 +132,25 @@ def _prepare_messages_with_caching(messages: List[Dict[str, Any]]) -> List[Dict[
     """
     anthropic_messages: List[Dict[str, Any]] = []
     pending_tool_results: List[Dict[str, Any]] = []
+
+    def append_native_events(original_index: int) -> None:
+        for event in (native_events or {}).get(original_index, []):
+            flush_tool_results()
+            blocks: List[Dict[str, Any]] = []
+            if event.get("system_suffix"):
+                blocks.append({"type": "text", "text": event["system_suffix"]})
+            for name in event.get("remove_tools", []):
+                blocks.append({
+                    "type": "tool_removal",
+                    "tool": {"type": "tool_reference", "name": name},
+                })
+            for tool in event.get("add_tools", []):
+                definition = _map_tools_to_anthropic_format([tool])[0]
+                blocks.append({
+                    "type": "tool_addition",
+                    "tool": {"type": "tool_definition", "definition": definition},
+                })
+            anthropic_messages.append({"role": "system", "content": blocks})
 
     def flush_tool_results() -> None:
         if not pending_tool_results:
@@ -156,7 +182,8 @@ def _prepare_messages_with_caching(messages: List[Dict[str, Any]]) -> List[Dict[
             f"Tool call '{tool_call.get('id', '')}' arguments must be an object or JSON string"
         )
     
-    for msg in messages:
+    for local_index, msg in enumerate(messages):
+        original_index = local_index + index_offset
         role = msg.get("role", "user")
         content = msg.get("content", "")
         
@@ -219,11 +246,21 @@ def _prepare_messages_with_caching(messages: List[Dict[str, Any]]) -> List[Dict[
                 "tool_use_id": tool_call_id,
                 "content": anthropic_tool_content,
             })
+            append_native_events(original_index)
             continue
 
         flush_tool_results()
 
         tool_calls = msg.get("tool_calls")
+        if role == "assistant" and native_events is not None:
+            state = msg.get("provider_transport_state") or next(
+                (call.get("provider_transport_state") for call in (tool_calls or [])
+                 if call.get("provider_transport_state")), None,
+            )
+            if isinstance(state, list) and state and all(isinstance(block, dict) for block in state):
+                anthropic_messages.append({"role": "assistant", "content": copy.deepcopy(state)})
+                append_native_events(original_index)
+                continue
         if role == "assistant" and isinstance(tool_calls, list) and tool_calls:
             assistant_content: List[Dict[str, Any]] = []
             if isinstance(content, str) and content:
@@ -247,6 +284,7 @@ def _prepare_messages_with_caching(messages: List[Dict[str, Any]]) -> List[Dict[
                 "role": "assistant",
                 "content": assistant_content,
             })
+            append_native_events(original_index)
             continue
         
         # Apply selective caching based on content length
@@ -268,23 +306,44 @@ def _prepare_messages_with_caching(messages: List[Dict[str, Any]]) -> List[Dict[
                 "role": role,
                 "content": content
             })
+        append_native_events(original_index)
             
     flush_tool_results()
     return anthropic_messages
 
 
-def _prepare_messages_for_anthropic(messages: List[Dict[str, Any]], cacheable_system_prefix: Optional[str] = None) -> Tuple[Optional[Union[str, List[Dict[str, Any]]]], List[Dict[str, Any]]]:
+def _prepare_messages_for_anthropic(
+    messages: List[Dict[str, Any]], cacheable_system_prefix: Optional[str] = None,
+    native_events: Optional[Dict[int, List[Dict[str, Any]]]] = None,
+) -> Tuple[Optional[Union[str, List[Dict[str, Any]]]], List[Dict[str, Any]]]:
     """Prepare messages for Anthropic API with caching support"""
     system_prompt = None
     processed_messages = list(messages)
+    index_offset = 0
     
     # Extract system prompt if present
     if processed_messages and processed_messages[0].get("role") == "system":
         system_prompt_content = processed_messages.pop(0)["content"]
         system_prompt = _prepare_system_with_caching(system_prompt_content, cacheable_system_prefix)
+        index_offset = 1
 
     # Process remaining messages with selective caching
-    anthropic_messages = _prepare_messages_with_caching(processed_messages)
+    anthropic_messages = _prepare_messages_with_caching(
+        processed_messages, native_events=native_events, index_offset=index_offset,
+    )
+    if native_events is not None:
+        # Automatic caching chooses the latest stable breakpoint. The legacy
+        # rolling four-marker policy edits old messages as history grows.
+        if isinstance(system_prompt, list):
+            for block in system_prompt:
+                block.pop("cache_control", None)
+        for message in anthropic_messages:
+            content = message.get("content")
+            if isinstance(content, list):
+                for block in content:
+                    if isinstance(block, dict):
+                        block.pop("cache_control", None)
+        return system_prompt, anthropic_messages
     # Claude accepts at most four explicit breakpoints. Keep the system marker
     # and the latest history markers, where a later turn has the best reuse odds.
     markers: List[Dict[str, Any]] = []

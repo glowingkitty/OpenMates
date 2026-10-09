@@ -1601,189 +1601,66 @@ async def check_preprocessing_credits(
             )
         logger.info(f"{log_prefix} Team credit precheck passed for team_id: {request_data.team_id}.")
     elif payment_enabled:
-        MINIMUM_REQUEST_COST = 1
-        logger.info(f"{log_prefix} Performing credit check for user_id: {request_data.user_id}. Minimum cost: {MINIMUM_REQUEST_COST}")
-        
-        if not request_data.user_id:
-            logger.error(f"{log_prefix} user_id is missing in request_data. Cannot perform credit check.")
+        if not request_data.user_id or not request_data.user_id_hash:
             return PreprocessingResult(
                 can_proceed=False,
                 rejection_reason="internal_error_missing_user_id",
-                error_message="User identification is missing. Cannot proceed."
+                error_message="User identification is missing. Cannot proceed.",
             )
 
-        cached_user = await cache_service.get_user_by_id(request_data.user_id)
+        from backend.core.api.app.services.billing_service import BillingService
 
-        if not cached_user:
-            logger.error(f"{log_prefix} Could not retrieve cached user data for user_id: {request_data.user_id}.")
-            
-            # For all billable requests (internal or external), we MUST have user data to proceed.
-            # External requests should have been warmed by the task worker before calling preprocessor.
+        billing_service = BillingService(
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+        )
+        try:
+            user_credits = await billing_service.get_authoritative_personal_balance(
+                user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+            )
+        except Exception as exc:
+            logger.warning("%s Personal credit admission unavailable: %s", log_prefix, type(exc).__name__)
             return PreprocessingResult(
                 can_proceed=False,
-                rejection_reason="internal_error_user_data_not_found",
-                error_message="User information could not be retrieved for credit verification. Please ensure your account is valid."
+                rejection_reason="credit_balance_unavailable",
+                error_message="Your credit balance could not be verified. Please try again later.",
             )
 
-        # CRITICAL: Distinguish between "credits = 0" (genuinely empty) and
-        # "credits key absent" (decryption failure / cache miss). If the credits
-        # field was never populated (Vault decryption failed during cache warming),
-        # defaulting to 0 would falsely reject the request.
-        user_credits_raw = cached_user.get("credits")
-        if user_credits_raw is None:
-            logger.warning(
-                f"{log_prefix} 'credits' field missing from cached user data for {request_data.user_id}. "
-                f"This usually means encrypted_credit_balance decryption failed during cache warming. "
-                f"Allowing request to proceed (benefit of the doubt)."
-            )
-            user_credits = MINIMUM_REQUEST_COST  # Allow the request — credits will be checked post-hoc during billing
-        elif not isinstance(user_credits_raw, int):
-            logger.error(f"{log_prefix} User credits for {request_data.user_id} is not an integer: {user_credits_raw}. Treating as 0.")
-            user_credits = 0
-        else:
-            user_credits = user_credits_raw
-        
-        logger.info(f"{log_prefix} User {request_data.user_id} has {user_credits} credits (raw: {user_credits_raw!r}).")
-
-        if user_credits < MINIMUM_REQUEST_COST:
-            logger.warning(f"{log_prefix} User {request_data.user_id} has insufficient credits ({user_credits}) for minimum cost ({MINIMUM_REQUEST_COST}).") # Log actual user_id
-
-            # CRITICAL: Check if user has auto top-up enabled AND a payment method
-            # Auto top-up should only be attempted if BOTH conditions are met:
-            # 1. User has auto top-up enabled
-            # 2. User has a payment method saved
-            # NOTE: All checks use cached_user data (from cache_service.get_user_by_id above)
-            # No Directus requests are made - we only read from the cached user dict
-            auto_topup_enabled = cached_user.get('auto_topup_low_balance_enabled', False)
-            
-            # Check if user has a payment method before attempting auto top-up
-            # Import billing service to check payment method
-            from backend.core.api.app.services.billing_service import BillingService
-
-            # Use passed-in service instances instead of creating new ones
-            # This avoids redundant initializations and improves performance
-            billing_service = BillingService(
-                cache_service=cache_service,
-                directus_service=directus_service,
-                encryption_service=encryption_service
-            )
-
-            # Check if user has a payment method (reads from cached_user dict - no Directus call)
-            # _get_decrypted_payment_method only reads encrypted_payment_method_id from the cached user dict
-            # and decrypts it using the vault key. No database queries are made.
-            payment_method_id = await billing_service._get_decrypted_payment_method(cached_user)
-            has_payment_method = payment_method_id is not None and payment_method_id != ""
-
-            # Only attempt auto top-up if both conditions are met
-            if auto_topup_enabled and has_payment_method:
-                logger.info(f"{log_prefix} User {request_data.user_id} has auto top-up enabled and a payment method. Attempting to top up before processing...")
-
+        if user_credits <= 0:
+            # Payment settings are cached, but admission always checks the
+            # durable Vault-encrypted balance. A missing cache profile cannot
+            # authorize inference or an auto top-up.
+            cached_user = await cache_service.get_user_by_id(request_data.user_id)
+            auto_topup_enabled = bool(cached_user and cached_user.get("auto_topup_low_balance_enabled"))
+            if auto_topup_enabled:
                 try:
-                    # Trigger low balance auto top-up synchronously.
-                    # Returns True only if a Stripe charge was actually initiated.
-                    # Returns False if the top-up was skipped (cooldown, missing config, etc.),
-                    # in which case we must NOT sleep — the credits haven't changed.
-                    charge_initiated = await billing_service._trigger_low_balance_topup(request_data.user_id, cached_user)
-
-                    if charge_initiated:
-                        # Wait for the Stripe webhook to process the payment and add credits
-                        # to the user's cache entry before we re-check the balance.
-                        await asyncio.sleep(2)
-                    else:
-                        logger.info(f"{log_prefix} Auto top-up was skipped (no charge initiated) — not waiting for credits update.")
-
-                    # Refresh user credits from cache after top-up
-                    refreshed_user = await cache_service.get_user_by_id(request_data.user_id)
-                    if refreshed_user:
-                        new_credits_raw = refreshed_user.get("credits")
-                        new_credits = new_credits_raw if isinstance(new_credits_raw, int) else 0
-                        logger.info(f"{log_prefix} After auto top-up: User {request_data.user_id} now has {new_credits} credits.")
-
-                        if new_credits >= MINIMUM_REQUEST_COST:
-                            logger.info(f"{log_prefix} Auto top-up successful! Proceeding with message processing.")
-                            # Update user_credits to proceed with processing
-                            user_credits = new_credits
-                            cached_user = refreshed_user
-                        else:
-                            logger.warning(f"{log_prefix} Auto top-up completed but still insufficient credits ({new_credits}). Rejecting request.")
-                            # Return unified insufficient_credits error message from translations
-                            return PreprocessingResult(
-                                can_proceed=False,
-                                rejection_reason="insufficient_credits",
-                                error_message=_get_insufficient_credits_error_message(),
-                                harmful_or_illegal_score=None,
-                                category=None,
-                                llm_response_temp=None,
-                                complexity=None,
-                                misuse_risk_score=None,
-                                load_app_settings_and_memories=None,
-                                selected_mate_id=None,
-                                selected_main_llm_model_id=None,
-                                selected_main_llm_model_name=None,
-                                raw_llm_response=None
-                            )
-                    else:
-                        logger.error(f"{log_prefix} Failed to refresh user data after auto top-up.")
-                        # Return unified insufficient_credits error message from translations
-                        return PreprocessingResult(
-                            can_proceed=False,
-                            rejection_reason="insufficient_credits",
-                            error_message=_get_insufficient_credits_error_message(),
-                            harmful_or_illegal_score=None,
-                            category=None,
-                            llm_response_temp=None,
-                            complexity=None,
-                            misuse_risk_score=None,
-                            load_app_settings_and_memories=None,
-                            selected_mate_id=None,
-                            selected_main_llm_model_id=None,
-                            selected_main_llm_model_name=None,
-                            raw_llm_response=None
+                    payment_method_id = await billing_service._get_decrypted_payment_method(cached_user)
+                    if payment_method_id:
+                        initiated = await billing_service._trigger_low_balance_topup(
+                            request_data.user_id, cached_user
                         )
-
-                except Exception as e:
-                    logger.error(f"{log_prefix} Auto top-up failed with error: {e}", exc_info=True)
-                    # Return unified insufficient_credits error message from translations
+                        if initiated:
+                            await asyncio.sleep(2)
+                        # The webhook may have updated the wallet; a cached
+                        # profile read alone is insufficient to admit the turn.
+                        user_credits = await billing_service.get_authoritative_personal_balance(
+                            user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                        )
+                except Exception as exc:
+                    logger.warning("%s Personal auto top-up admission failed: %s", log_prefix, type(exc).__name__)
                     return PreprocessingResult(
                         can_proceed=False,
-                        rejection_reason="insufficient_credits",
-                        error_message=_get_insufficient_credits_error_message(),
-                        harmful_or_illegal_score=None,
-                        category=None,
-                        llm_response_temp=None,
-                        complexity=None,
-                        misuse_risk_score=None,
-                        load_app_settings_and_memories=None,
-                        selected_mate_id=None,
-                        selected_main_llm_model_id=None,
-                        selected_main_llm_model_name=None,
-                        raw_llm_response=None
+                        rejection_reason="credit_balance_unavailable",
+                        error_message="Your credit balance could not be verified. Please try again later.",
                     )
-            else:
-                # No auto top-up enabled OR no payment method - reject with unified message
-                if auto_topup_enabled and not has_payment_method:
-                    logger.warning(f"{log_prefix} User {request_data.user_id} has auto top-up enabled but no payment method. Cannot trigger auto top-up.")
-                else:
-                    logger.info(f"{log_prefix} User {request_data.user_id} does not have auto top-up enabled or no payment method. Rejecting request.")
-                
-                # Return unified insufficient_credits error message from translations
+            if user_credits <= 0:
                 return PreprocessingResult(
                     can_proceed=False,
                     rejection_reason="insufficient_credits",
                     error_message=_get_insufficient_credits_error_message(),
-                    harmful_or_illegal_score=None,
-                    category=None,
-                    llm_response_temp=None,
-                    complexity=None,
-                    misuse_risk_score=None,
-                    load_app_settings_and_memories=None,
-                    selected_mate_id=None,
-                    selected_main_llm_model_id=None,
-                    selected_main_llm_model_name=None,
-                    raw_llm_response=None
                 )
-        logger.info(f"{log_prefix} Credit check passed for user {request_data.user_id}.") # Log actual user_id
-        # --- End Credit Check ---
+        logger.info("%s Personal credit admission passed", log_prefix)
     else:
         # Payment disabled (self-hosted mode) - skip credit check
         logger.info(f"{log_prefix} Payment disabled (self-hosted mode). Skipping credit check - allowing request to proceed.")

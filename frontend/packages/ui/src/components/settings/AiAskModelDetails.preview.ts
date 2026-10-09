@@ -2,11 +2,15 @@ import { modelsMetadata } from '../../data/modelsMetadata';
 
 const model = modelsMetadata.find(candidate => candidate.id === 'claude-fable-5-1');
 const includedModel = modelsMetadata.find(candidate => candidate.id === 'gpt-6.1-sol');
+const separateOpenAiModel = modelsMetadata.find(candidate => candidate.id === 'gpt-6-luna');
 if (!model?.default_server || !model.pricing?.cache_read_tokens_per_credit || !model.pricing.cache_write_tokens_per_credit) {
   throw new Error('Cache pricing preview model is missing proposed rates');
 }
 if (!includedModel?.default_server || !includedModel.pricing?.cache_read_tokens_per_credit) {
   throw new Error('Included-write cache pricing preview model is missing proposed rates');
+}
+if (!separateOpenAiModel?.default_server || !separateOpenAiModel.pricing?.cache_write_tokens_per_credit) {
+  throw new Error('Separate-write OpenAI pricing preview model is missing proposed rates');
 }
 
 export default { modelId: model.id };
@@ -62,6 +66,22 @@ export const variants = {
         expires_on: '2099-12-31',
         eligible_hosts: [includedModel.default_server],
         write_billing: 'included_in_input' as const,
+      },
+    },
+  },
+  'cache-active-openai-separate': {
+    modelId: separateOpenAiModel.id,
+    modelOverride: {
+      ...separateOpenAiModel,
+      pricing: { ...separateOpenAiModel.pricing },
+      cache_pricing: {
+        ...separateOpenAiModel.cache_pricing,
+        enabled: true,
+        status: 'verified_for_activation',
+        reviewed_on: '2026-10-06',
+        expires_on: '2099-12-31',
+        eligible_hosts: [separateOpenAiModel.default_server],
+        write_billing: 'separate' as const,
       },
     },
   },

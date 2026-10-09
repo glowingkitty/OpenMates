@@ -1,5 +1,5 @@
 # contract-test-file: infrastructure
-"""Main inference holds use the final charge identity and fit to durable capacity."""
+"""Scoped inference holds and independent personal output limits."""
 
 import json
 from types import SimpleNamespace
@@ -184,6 +184,113 @@ async def test_ordinary_reservation_uses_model_output_cap_when_unspecified(monke
     kwargs = _kwargs(_request(), ModelUsageTracker(), {})
     kwargs["requested_output_token_limit"] = None
     assert await main_processor._reserve_authenticated_ai_turn(**kwargs) == 1_000
+
+
+def test_personal_output_cap_is_independent_of_customer_hold(monkeypatch):
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: _pricing())
+    assert main_processor._personal_chat_output_token_limit("provider/model") == 1_000
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: {})
+    assert main_processor._personal_chat_output_token_limit("provider/model") == main_processor.ORCHESTRATED_AI_MAX_OUTPUT_TOKENS
+    with pytest.raises(ValueError, match="provider-qualified"):
+        main_processor._personal_chat_output_token_limit("model")
+
+
+async def test_unreserved_personal_dispatch_fits_low_wallet_without_a_hold(monkeypatch):
+    pricing = _pricing()
+    pricing["pricing"]["tokens"]["output"]["per_credit_unit"] = 1
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: pricing)
+    async def forbidden_write(*_args, **_kwargs):
+        raise AssertionError("An informational fit must not reserve credits")
+    monkeypatch.setattr(main_processor, "_make_internal_api_request", forbidden_write)
+
+    class Cache:
+        async def get_user_by_id(self, user_id):
+            assert user_id == "user-id"
+            return {"credits": 1}
+
+    kwargs = dict(
+        request_data=_request(), cache_service=Cache(), model_usage_tracker=ModelUsageTracker(),
+        model_id="provider/model", system_prompt="system",
+        message_history=[{"role": "user", "content": "hello"}], tools=None,
+        requested_output_token_limit=1_000, inference_host="provider",
+    )
+    fitted = await main_processor._fit_personal_chat_output_token_limit(**kwargs)
+    assert 0 < fitted < 1_000
+    assert main_processor._quote_ai_iteration_credits(
+        model_id="provider/model", system_prompt="system", message_history=kwargs["message_history"],
+        tools=None, output_token_limit=fitted, credit_rounding_headroom=1,
+        inference_host="provider",
+    ) <= 501
+
+    # A skill charge can put the wallet below zero within an admitted turn.
+    class NegativeCache(Cache):
+        async def get_user_by_id(self, user_id):
+            return {"credits": -450}
+    negative_fitted = await main_processor._fit_personal_chat_output_token_limit(
+        **{**kwargs, "cache_service": NegativeCache()},
+    )
+    assert 0 < negative_fitted < fitted
+
+    tracker = ModelUsageTracker()
+    tracker.record_reported_usage(
+        model_id="provider/model", attempt_id="earlier-host",
+        normalized_usage=NormalizedLLMUsage(
+            model_id="provider/model", input_total=0, input_uncached=0,
+            output_billable=25, attempt_id="earlier-host", inference_host="provider",
+            tariff_snapshot=snapshot_model_tariff(pricing),
+        ),
+    )
+    usage_fitted = await main_processor._fit_personal_chat_output_token_limit(
+        **{**kwargs, "model_usage_tracker": tracker},
+    )
+    assert 0 < usage_fitted < fitted
+
+
+async def test_unreserved_personal_dispatch_rejects_unaffordable_or_unknown_input(monkeypatch):
+    pricing = _pricing()
+    pricing["pricing"]["tokens"]["input"]["per_credit_unit"] = 1
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: pricing)
+
+    class Cache:
+        def __init__(self, profile):
+            self.profile = profile
+        async def get_user_by_id(self, _user_id):
+            return self.profile
+
+    kwargs = dict(
+        request_data=_request(), cache_service=Cache({"credits": 1}),
+        model_usage_tracker=ModelUsageTracker(), model_id="provider/model",
+        system_prompt="x" * 600, message_history=[], tools=None,
+        requested_output_token_limit=100, inference_host="provider",
+    )
+    with pytest.raises(main_processor.AuthenticatedReservationLimitError):
+        await main_processor._fit_personal_chat_output_token_limit(**kwargs)
+    for profile in ({}, {"credits": None}, {"credits": True}):
+        with pytest.raises(main_processor.AuthenticatedReservationError):
+            await main_processor._fit_personal_chat_output_token_limit(
+                **{**kwargs, "cache_service": Cache(profile), "system_prompt": "short"},
+            )
+
+
+async def test_unreserved_personal_dispatch_requotes_each_actual_fallback_host(monkeypatch):
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: _long_context_pricing())
+    class Cache:
+        async def get_user_by_id(self, _user_id):
+            return {"credits": 185}
+
+    kwargs = dict(
+        request_data=_request(), cache_service=Cache(), model_usage_tracker=ModelUsageTracker(),
+        model_id="openai/model", system_prompt=_system_prompt_for_serialized_input_bytes(272_001),
+        message_history=[], tools=None, requested_output_token_limit=60,
+    )
+    cheap_host_limit = await main_processor._fit_personal_chat_output_token_limit(
+        **kwargs, inference_host="mistral",
+    )
+    expensive_fallback_limit = await main_processor._fit_personal_chat_output_token_limit(
+        **kwargs, inference_host="openai",
+    )
+    assert cheap_host_limit == 60
+    assert 0 < expensive_fallback_limit < cheap_host_limit
 
 
 async def test_openai_long_context_quote_switches_cold_input_and_output_units_at_boundary(monkeypatch):

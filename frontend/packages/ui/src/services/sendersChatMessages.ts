@@ -54,6 +54,7 @@ import { getActiveTeamContextSnapshot } from "../stores/teamStore";
 import { activeChatStore } from "../stores/activeChatStore";
 import { ordinaryTeamPreflightStorageKey, retainOrReuseOrdinaryTeamPreflight } from "./ordinaryTeamPreflightRetry";
 import { PreflightRejectionError, isPreflightAcknowledgementTimeout, waitForPreflightAcknowledgement } from "./preflightAcknowledgement";
+import { awaitPersonalChatPredecessor, bindPersonalChatTurn, failPersonalChatTurn, reservePersonalChatTurn, type PersonalChatTurn } from "./personalChatTurnBarrier";
 export { isPreflightAcknowledgementTimeout } from "./preflightAcknowledgement";
 
 const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
@@ -217,6 +218,50 @@ export async function reconcileOptimisticUserCiphertext(
 			// journals while replacing the original editor fence with the ref.
 			row.encrypted_content = canonicalCiphertext;
 			store.put(row);
+		};
+	});
+}
+
+export function nextPersonalUserCreatedAt(
+	nowSeconds: number, currentCreatedAt: number, messages: Pick<Message, "message_id" | "created_at" | "status">[],
+	currentMessageId: string,
+): number {
+	if (!Number.isSafeInteger(nowSeconds) || nowSeconds <= 0
+		|| !Number.isSafeInteger(currentCreatedAt) || currentCreatedAt <= 0) {
+		throw new Error("Personal chat timestamp is invalid.");
+	}
+	const latestCommitted = messages.reduce((latest, row) =>
+		row.message_id !== currentMessageId && row.status === "synced"
+			&& Number.isSafeInteger(row.created_at) && row.created_at > 0
+			? Math.max(latest, row.created_at) : latest, 0);
+	if (latestCommitted >= Number.MAX_SAFE_INTEGER) throw new Error("Personal chat timestamp is exhausted.");
+	return Math.max(nowSeconds, currentCreatedAt, latestCommitted + 1);
+}
+
+export async function reconcileOptimisticUserCreatedAt(
+	chatId: string, messageId: string, priorCreatedAt: number, createdAt: number,
+	openTransaction: () => Promise<IDBTransaction> = () => chatDB.getTransaction("messages", "readwrite"),
+): Promise<void> {
+	if (!Number.isSafeInteger(createdAt) || createdAt <= 0 || createdAt < priorCreatedAt) {
+		throw new Error("Personal chat timestamp is invalid.");
+	}
+	if (createdAt === priorCreatedAt) return;
+	const transaction = await openTransaction();
+	const store = transaction.objectStore("messages");
+	return new Promise<void>((resolve, reject) => {
+		transaction.oncomplete = () => resolve();
+		transaction.onabort = () => reject(transaction.error ?? new Error("Optimistic timestamp update aborted."));
+		transaction.onerror = () => reject(transaction.error ?? new Error("Optimistic timestamp update failed."));
+		const request = store.get(messageId);
+		request.onerror = () => reject(request.error);
+		request.onsuccess = () => {
+			const row = request.result as Message | undefined;
+			if (!row || row.chat_id !== chatId || row.message_id !== messageId || row.role !== "user"
+				|| row.created_at !== priorCreatedAt || row.status !== "sending") {
+				transaction.abort();
+				return;
+			}
+			store.put({ ...row, created_at: createdAt });
 		};
 	});
 }
@@ -754,7 +799,9 @@ export async function sendNewMessageImpl(
 	connectedAccountContext?: PreparedConnectedAccountSendContext,
 	projectFocusIntent?: ProjectFocusSendIntent,
 	newLocalChat?: boolean,
+	reservedTurn?: PersonalChatTurn,
 ): Promise<void> {
+	const personalTurn = reservedTurn ?? reservePersonalChatTurn(message.chat_id, message.message_id);
 	const testMockMarker = ((message as unknown) as { testMockMarker?: unknown }).testMockMarker;
 	// Check WebSocket connection status using public getter
 	const isConnected = serviceInstance.webSocketConnected_FOR_SENDERS_ONLY;
@@ -803,10 +850,11 @@ export async function sendNewMessageImpl(
 			}
 		}
 
+		failPersonalChatTurn(personalTurn, new Error('Encrypted chat turn is waiting for a connection.'));
 		return;
 	}
 
-	// OTel instrumentation: trace the entire sendNewMessageImpl pipeline
+	// Get the chat: trace the entire sendNewMessageImpl pipeline
 	const tracer = getTracer();
 	const implSpan = tracer.startSpan('message.send.sendNewMessageImpl', {
 		attributes: { 'message.chat_id': message.chat_id }
@@ -857,8 +905,34 @@ export async function sendNewMessageImpl(
 		}
 	};
 
+	// A visible assistant reply may still be awaiting its encrypted canonical
+	// storage acknowledgement. The next preflight must use that committed
+	// version, never the optimistic IndexedDB message count.
+	const usesPersonalRecovery = !!chat && !chat.team_id && !isIncognitoChat
+		&& !chat.is_sub_chat && !chat.parent_id;
+	let predecessorVersion: number | null = null;
+	if (usesPersonalRecovery) {
+		try {
+			predecessorVersion = await awaitPersonalChatPredecessor(personalTurn);
+			const committedMessages = await chatDB.getMessagesForChat(message.chat_id);
+			const createdAt = nextPersonalUserCreatedAt(
+				Math.floor(Date.now() / 1000), message.created_at, committedMessages, message.message_id,
+			);
+			await reconcileOptimisticUserCreatedAt(
+				message.chat_id, message.message_id, message.created_at, createdAt,
+			);
+			message.created_at = createdAt;
+		} catch (error) {
+			await updateMessageStatusForSendRetry(serviceInstance, message, "failed");
+			throw error;
+		}
+	}
+
 	// Personal and incognito turns always invoke AI; preserve their early gate.
-	if ((!chat?.team_id || isIncognitoChat) && await blockSendWithoutConfiguredAiModels(serviceInstance, message)) return;
+	if ((!chat?.team_id || isIncognitoChat) && await blockSendWithoutConfiguredAiModels(serviceInstance, message)) {
+		failPersonalChatTurn(personalTurn, new Error('AI model admission blocked this chat turn.'));
+		return;
+	}
 
 	// Use title_v to determine if the chat already has a title generated.
 	// Previously used (messages_v > 1) as a proxy, but this was unreliable due to race conditions:
@@ -2183,7 +2257,7 @@ export async function sendNewMessageImpl(
 			recovery_public_key: recoveryKeypair.publicKey,
 			// The local user row is saved before this sender runs, so messages_v is
 			// already one ahead of the server version the atomic preflight expects.
-			expected_messages_v: preflightExpectedMessagesVersion(chat?.messages_v),
+			expected_messages_v: predecessorVersion ?? preflightExpectedMessagesVersion(chat?.messages_v),
 			encrypted_user_message: {
 				client_message_id: message.message_id,
 				chat_id: message.chat_id,
@@ -2245,8 +2319,13 @@ export async function sendNewMessageImpl(
 					),
 				});
 				preflightPayload = retained.payload;
+				if (usesPersonalRecovery && predecessorVersion !== null &&
+					preflightPayload.expected_messages_v !== predecessorVersion) {
+					throw new Error('Retained encrypted turn preflight has a stale canonical version.');
+				}
 				payload = preflightPayload.inference_request as SendMessagePayload;
 				turnId = preflightPayload.turn_id as string;
+				if (usesPersonalRecovery) bindPersonalChatTurn(personalTurn, turnId);
 				watchDurableTurnPreflightConfirmation(
 					message.chat_id, message.message_id,
 					Number(preflightPayload.expected_messages_v) + 1,

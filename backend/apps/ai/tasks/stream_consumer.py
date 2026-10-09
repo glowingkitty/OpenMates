@@ -2699,9 +2699,10 @@ def _create_redis_payload(
     rejection_reason: Optional[str] = None,
     awaiting_focus_mode_continuation: bool = False,
     llm_usage_breakdown: Optional[Dict[str, Any]] = None,
+    assistant_created_at: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Create standardized Redis payload for streaming chunks."""
-    created_at = _assistant_response_created_at(request_data, int(time.time()))
+    created_at = assistant_created_at if assistant_created_at is not None else _assistant_response_created_at(request_data, int(time.time()))
     assistant_message_id = _assistant_message_id(task_id, request_data)
     payload = {
         "type": "ai_message_chunk",
@@ -2968,6 +2969,28 @@ async def _settle_anonymous_ai_credits(task_id: str, request_data: AskSkillReque
         response.raise_for_status()
 
 
+async def _encrypt_optional_native_cache_context(
+    native_cache_context: Optional[Dict[str, Any]], *, request_data: AskSkillRequest,
+    rejection_reason: Optional[str], encryption_service: EncryptionService,
+    user_vault_key_id: str, log_prefix: str,
+) -> Optional[str]:
+    """Seal provider replay for temporary AI cache only; failure is a cold reset."""
+    if (native_cache_context is None or rejection_reason
+            or request_data.is_incognito or request_data.is_external):
+        return None
+    try:
+        ciphertext, _ = await encryption_service.encrypt_with_user_key(
+            json.dumps(native_cache_context, separators=(",", ":")), user_vault_key_id,
+        )
+        return ciphertext
+    except Exception as replay_error:
+        logger.warning(
+            "%s Could not encrypt optional provider replay: %s; next request starts a fresh segment",
+            log_prefix, type(replay_error).__name__,
+        )
+        return None
+
+
 async def _update_chat_metadata(
     request_data: AskSkillRequest,
     category: str,
@@ -2982,6 +3005,7 @@ async def _update_chat_metadata(
     log_prefix: str,
     model_name: Optional[str] = None,
     rejection_reason: Optional[str] = None,
+    native_cache_context: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Update chat metadata and save assistant response to cache.
 
@@ -3033,6 +3057,11 @@ async def _update_chat_metadata(
                     content_markdown,
                     user_vault_key_id,
                 )
+                encrypted_native_context = await _encrypt_optional_native_cache_context(
+                    native_cache_context, request_data=request_data,
+                    rejection_reason=rejection_reason, encryption_service=encryption_service,
+                    user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
+                )
                 ai_message_for_cache = MessageInCache(
                     id=assistant_message_id,
                     chat_id=request_data.chat_id,
@@ -3043,12 +3072,22 @@ async def _update_chat_metadata(
                     created_at=timestamp,
                     status="synced",
                     model_name=model_name,
+                    encrypted_native_cache_context=encrypted_native_context,
                 )
                 cached = await cache_service.add_ai_message_to_history(
                     request_data.user_id,
                     request_data.chat_id,
                     ai_message_for_cache.model_dump_json(),
                 )
+                if not cached and encrypted_native_context:
+                    # Replay is an optional optimization. Preserve the canonical
+                    # Vault-encrypted response when its larger row is refused.
+                    ai_message_for_cache.encrypted_native_cache_context = None
+                    cached = await cache_service.add_ai_message_to_history(
+                        request_data.user_id,
+                        request_data.chat_id,
+                        ai_message_for_cache.model_dump_json(),
+                    )
                 if cached:
                     logger.info(
                         f"{log_prefix} Saved recovery assistant response to AI cache "
@@ -3141,6 +3180,7 @@ async def _update_chat_metadata(
             content_markdown, log_prefix,
             model_name=model_name,
             rejection_reason=rejection_reason,
+            native_cache_context=native_cache_context,
         )
 
 
@@ -3217,6 +3257,7 @@ async def _save_to_cache_and_publish(
     log_prefix: str,
     model_name: Optional[str] = None,
     rejection_reason: Optional[str] = None,
+    native_cache_context: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Save message to cache and publish persistence event.
 
@@ -3268,6 +3309,15 @@ async def _save_to_cache_and_publish(
         # send "waiting_for_user" in the client-facing event payload.
         cache_role = "system" if rejection_reason else "assistant"
 
+        # Provider replay is private, temporary AI context. Encrypt it with the
+        # same user Vault key as this cache row; never add it to Directus, client
+        # events or debug metadata. Losing optional replay must not lose a reply.
+        encrypted_native_context = await _encrypt_optional_native_cache_context(
+            native_cache_context, request_data=request_data,
+            rejection_reason=rejection_reason, encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
+        )
+
         # Store encrypted markdown content in cache (server-side encrypted with encryption_key_user_server)
         ai_message_for_cache = MessageInCache(
             id=assistant_message_id,
@@ -3278,7 +3328,8 @@ async def _save_to_cache_and_publish(
             encrypted_content=encrypted_content_for_cache,  # Server-side encrypted content
             created_at=timestamp,
             status="synced",  # Server cache only accepts "synced" — client-only statuses excluded
-            model_name=model_name  # Ensure model_name is in cache object if schema supports it
+            model_name=model_name,
+            encrypted_native_cache_context=encrypted_native_context,
         )
         
         await cache_service.save_chat_message_and_update_versions(
@@ -3693,6 +3744,7 @@ async def _generate_fake_stream_for_harmful_content(
         # Continue with response even if billing fails
     
     category = "general_knowledge"  # Default category for harmful content responses
+    canonical_assistant_created_at = _assistant_response_created_at(request_data, int(time.time()))
     recovery_job = None
     if _recovery_inference_task_id(request_data):
         if directus_service is None:
@@ -3714,6 +3766,7 @@ async def _generate_fake_stream_for_harmful_content(
         completion_tokens=billing_info.get("completion_tokens"),
         total_credits=billing_info.get("total_credits"),
         category=category,
+        assistant_created_at=canonical_assistant_created_at,
     )
     if recovery_job:
         if "output_id" in recovery_job:
@@ -3732,7 +3785,7 @@ async def _generate_fake_stream_for_harmful_content(
     # CRITICAL: This is non-blocking - if metadata update fails, the error message should still reach the user
     # EXTERNAL REQUESTS skip this.
     if not request_data.is_external and directus_service and cache_service and predefined_response:
-        timestamp = _assistant_response_created_at(request_data, int(time.time()))
+        timestamp = canonical_assistant_created_at
         content_tiptap = predefined_response  # Send as markdown
 
         try:
@@ -3824,6 +3877,7 @@ async def _generate_fake_stream_for_simple_message(
     # The client persists ciphertext only after receiving a recovery job identifier.
     # See docs/architecture/core/chat-encryption-implementation.md.
     category = "general_knowledge"
+    canonical_assistant_created_at = _assistant_response_created_at(request_data, int(time.time()))
     recovery_job = None
     if _recovery_inference_task_id(request_data):
         if directus_service is None:
@@ -3845,6 +3899,7 @@ async def _generate_fake_stream_for_simple_message(
         total_credits=billing_info.get("total_credits", 0),
         rejection_reason=rejection_reason,
         category=category,
+        assistant_created_at=canonical_assistant_created_at,
     )
     if recovery_job:
         if "output_id" in recovery_job:
@@ -3863,7 +3918,7 @@ async def _generate_fake_stream_for_simple_message(
     # CRITICAL: This is non-blocking - if metadata update fails, the error message should still reach the user
     # EXTERNAL REQUESTS skip this.
     if not request_data.is_external and directus_service and cache_service and message_text:
-        timestamp = _assistant_response_created_at(request_data, int(time.time()))
+        timestamp = canonical_assistant_created_at
         content_tiptap = message_text  # Send as markdown
 
         try:
@@ -5499,6 +5554,9 @@ async def _consume_main_processing_stream(
     successful_model_id: Optional[str] = None
     usage_by_model: List[Dict[str, Any]] = []
     billing_reservation_required = False
+    # Captured privately and validated against the final rendered answer before
+    # encryption. This never enters the returned debug metadata or client stream.
+    native_cache_completion: Optional[Dict[str, Any]] = None
 
     redis_channel_name = f"chat_stream::{request_data.chat_id}"
     thinking_channel_name = f"chat_stream_thinking::{request_data.chat_id}"  # Separate channel for thinking content
@@ -5769,6 +5827,9 @@ async def _consume_main_processing_stream(
             if pre_main_open:
                 pre_main_scope.__exit__(None, None, None)
                 pre_main_open = False
+            if isinstance(chunk, dict) and chunk.get("__native_cache_context__") is True:
+                native_cache_completion = chunk
+                continue
             if not isinstance(chunk, str):
                 await content_publisher.flush()
             if isinstance(chunk, dict) and chunk.get("__project_file_reference_output__") is True:
@@ -10044,6 +10105,7 @@ async def _consume_main_processing_stream(
         not is_server_error
     )
 
+    canonical_assistant_created_at = _assistant_response_created_at(request_data, int(time.time()))
     recovery_job = None
     with _project_file_finalization_stage("recovery", project_file_reference_output, log_prefix=log_prefix):
         if (
@@ -10104,6 +10166,35 @@ async def _consume_main_processing_stream(
     elif not usage:
         logger.info(f"{log_prefix} No usage metadata available. Skipping billing.")
 
+    final_native_cache_context = None
+    if (native_cache_completion is not None and not is_error and not is_server_error
+            and stream_exception is None and terminal_failure_reason is None
+            and not was_revoked_during_stream and not was_soft_limited_during_stream
+            and not request_data.is_incognito and not request_data.is_external):
+        from backend.apps.ai.processing.native_history_cache import (
+            finalize_native_cache_state, seal_native_embed_fingerprints,
+        )
+
+        try:
+            final_native_cache_context = finalize_native_cache_state(
+                native_cache_completion.get("state"),
+                raw_final_output=native_cache_completion.get("raw_final_output"),
+                content_markdown=aggregated_response,
+                assistant_message_id=assistant_message_id,
+                assistant_category=preprocessing_result.category or "general_knowledge",
+                assistant_created_at=canonical_assistant_created_at,
+                tool_calls_info=tool_calls_info,
+            )
+            if final_native_cache_context is not None:
+                final_native_cache_context = await seal_native_embed_fingerprints(
+                    final_native_cache_context, tool_calls_info, cache_service,
+                    request_data.user_id_hash,
+                )
+            if final_native_cache_context is None:
+                logger.info("%s Replay boundary could not be verified; next request starts a fresh cache segment", log_prefix)
+        except Exception as replay_error:
+            logger.warning("%s Could not finalize optional provider replay: %s", log_prefix, type(replay_error).__name__)
+
     # Save assistant response to cache for follow-up message context
     # This is CRITICAL for the architecture where last 3 chats are cached in memory
     # Even partial responses (due to revocation/soft limit) should be saved for context
@@ -10115,7 +10206,7 @@ async def _consume_main_processing_stream(
         if not preprocessing_result.category:
             logger.warning(f"{log_prefix} Preprocessing result category is None. Using 'general_knowledge'.")
         
-        timestamp = _assistant_response_created_at(request_data, int(time.time()))
+        timestamp = canonical_assistant_created_at
         
         # Convert markdown response to TipTap JSON for client event
         # For now, we'll send markdown as-is since the client handles markdown parsing
@@ -10139,7 +10230,8 @@ async def _consume_main_processing_stream(
                     user_vault_key_id=user_vault_key_id,
                     task_id=task_id,
                     log_prefix=log_prefix,
-                    model_name=stream_model_name
+                    model_name=stream_model_name,
+                    native_cache_context=final_native_cache_context,
                 )
             logger.info(
                 f"{log_prefix} Assistant response saved to AI cache for future follow-up context. "
@@ -10158,7 +10250,7 @@ async def _consume_main_processing_stream(
         if directus_service and cache_service and encryption_service and user_vault_key_id:
             try:
                 category = preprocessing_result.category or "general_knowledge"
-                timestamp = _assistant_response_created_at(request_data, int(time.time()))
+                timestamp = canonical_assistant_created_at
                 await _update_chat_metadata(
                     request_data=request_data,
                     category=category,
@@ -10219,6 +10311,7 @@ async def _consume_main_processing_stream(
         total_credits=billing_info.get("total_credits"),
         category=preprocessing_result.category or "general_knowledge",
         llm_usage_breakdown=billing_info.get("llm_usage_breakdown"),
+        assistant_created_at=canonical_assistant_created_at,
     )
     # This is the title already supplied/generated for this inference. It is
     # never recovered by decrypting the permanently stored chat title.

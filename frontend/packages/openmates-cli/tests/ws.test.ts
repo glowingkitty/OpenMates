@@ -442,7 +442,9 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
               category: "general_knowledge",
               model_name: "Gemini 3 Flash",
               recovery_job_id: "11111111-1111-4111-8111-111111111111",
+              recovery_turn_id: "turn-current",
               recovery_protocol_version: 1,
+              created_at: 1_700_000_001,
             },
           }),
         );
@@ -471,12 +473,14 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     try {
       const response = await client.collectAiResponse(userMessageId, chatId, {
         timeoutMs: 1_000,
+        recoveryTurnId: "turn-current",
       });
 
       assert.equal(response.messageId, "assistant-message-2");
       assert.equal(response.content, "Here are the listings I found.");
       assert.equal(response.category, "general_knowledge");
       assert.equal(response.recoveryJobId, "11111111-1111-4111-8111-111111111111");
+      assert.equal(response.recoveryCreatedAt, null);
     } finally {
       client.close();
     }
@@ -1158,6 +1162,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       assert.equal(response.content, "## Short Answer\n\nFinal sourced synthesis.");
       assert.equal(response.messageId, "assistant-final");
       assert.equal(response.recoveryJobId, "recovery-job-final");
+      assert.equal(response.recoveryCreatedAt, null);
       assert.equal(response.subChatEvents.find((event) => event.type === "sub_chat_completed")?.payload.chat_id, "child-recovery");
     } finally {
       client.close();

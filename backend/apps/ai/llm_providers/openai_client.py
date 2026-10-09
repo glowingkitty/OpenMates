@@ -18,8 +18,10 @@ from .openai_shared import (
     _map_tools_to_openai_format,
     calculate_token_breakdown,
     openai_cache_read_tokens,
+    openai_cache_write_tokens,
 )
 from .openai_openrouter import invoke_openrouter_chat_completions
+from .native_cache_context import NativeCacheSchemaChanged, safe_native_provider_error
 
 try:
     from openai import AsyncOpenAI  # type: ignore
@@ -241,6 +243,7 @@ def _build_unified_response(
                     output_tokens=int(usage_raw.get("completion_tokens") or 0),
                     total_tokens=int(usage_raw.get("total_tokens") or 0),
                     cache_read_input_tokens=openai_cache_read_tokens(usage_raw),
+                    cache_creation_input_tokens=openai_cache_write_tokens(usage_raw),
                     inference_host="openai",
                     provider_request_id=response_json.get("id"),
                     user_input_tokens=breakdown.get("user_input_tokens"),
@@ -280,6 +283,7 @@ async def _invoke_openai_direct_api(
     stream: bool = False,
     catalog_model_id: Optional[str] = None,
     cacheable_system_prefix: Optional[str] = None,
+    native_cache_context: Optional[Dict[str, Any]] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     if not _openai_direct_client:
         error_msg = "OpenAI direct client is not initialized."
@@ -289,21 +293,56 @@ async def _invoke_openai_direct_api(
         return UnifiedOpenAIResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
 
     request_model_id = _get_openai_request_model_id(model_id, catalog_model_id)
-    request_messages = _openai_cache_messages(messages, request_model_id, cacheable_system_prefix)
+    # Native replay already contains the complete frozen provider history.
+    # A legacy explicit marker would change the first input item and make the
+    # reservation quote differ from the actual request.
+    request_messages = (
+        messages if native_cache_context is not None
+        else _openai_cache_messages(messages, request_model_id, cacheable_system_prefix)
+    )
+    native_model_ids = {"gpt-6-astra", "gpt-6.1-sol", "gpt-6-luna", "gpt-5.6-terra"}
+    normalized_model_id = _normalize_openai_model_id(catalog_model_id or model_id)
+    if native_cache_context is not None and normalized_model_id not in native_model_ids:
+        raise ValueError("Native cache context is unsupported for this OpenAI model")
     # Older Pro models require Responses; GPT-6 Sol also needs it for tools
     # when reasoning is enabled.
-    if _normalize_openai_model_id(catalog_model_id or model_id) in {
+    if native_cache_context is not None or normalized_model_id in {
         "gpt-6-astra", "gpt-6.1-sol", "gpt-6-sol",
         "gpt-5.5-pro", "gpt-5.4-pro", "gpt-5.2-pro",
     }:
         from .openai_responses import invoke_responses
-        return await invoke_responses(
-            client=_openai_direct_client, task_id=task_id,
-            model_id=request_model_id,
-            messages=request_messages, reasoning_effort=_get_openai_reasoning_effort(model_id, catalog_model_id),
-            tools=_map_tools_to_openai_format(tools) if tools else None,
-            tool_choice=tool_choice, max_tokens=max_tokens, stream=stream,
-        )
+        try:
+            response = await invoke_responses(
+                client=_openai_direct_client, task_id=task_id,
+                model_id=request_model_id,
+                messages=request_messages, reasoning_effort=_get_openai_reasoning_effort(model_id, catalog_model_id),
+                tools=_map_tools_to_openai_format(tools) if tools else None,
+                tool_choice=tool_choice, max_tokens=max_tokens, stream=stream,
+                native_cache_context=native_cache_context,
+            )
+        except Exception as exc:
+            if native_cache_context is None:
+                raise
+            if isinstance(exc, NativeCacheSchemaChanged):
+                raise NativeCacheSchemaChanged(
+                    "OpenAI native tool schema changed; start a new cache segment"
+                ) from None
+            safe_error = safe_native_provider_error(exc)
+            logger.error("[%s] OpenAI native request failed: %s", task_id, safe_error)
+            raise RuntimeError(safe_error) from None
+        if native_cache_context is None or not stream:
+            return response
+
+        async def _redacted_native_responses_stream():
+            try:
+                async for item in response:
+                    yield item
+            except Exception as exc:
+                safe_error = safe_native_provider_error(exc)
+                logger.error("[%s] OpenAI native stream failed: %s", task_id, safe_error)
+                raise RuntimeError(safe_error) from None
+
+        return _redacted_native_responses_stream()
 
     # Other models retain the existing Chat Completions transport.
     # NOTE: About OpenAI Responses API (not used for other models here yet)
@@ -343,6 +382,7 @@ async def _invoke_openai_direct_api(
             "total_tokens": 0,
         }
         cached_input_tokens: Optional[int] = None
+        cache_write_input_tokens: Optional[int] = None
         provider_request_id: Optional[str] = None
         provider_usage_reported = False
 
@@ -410,6 +450,7 @@ async def _invoke_openai_direct_api(
                         cumulative_usage["output_tokens"] = int(getattr(usage_obj, "completion_tokens", 0) or 0)
                         cumulative_usage["total_tokens"] = int(getattr(usage_obj, "total_tokens", 0) or 0)
                         cached_input_tokens = openai_cache_read_tokens(usage_dict)
+                        cache_write_input_tokens = openai_cache_write_tokens(usage_dict)
                         provider_usage_reported = True
                     choices = getattr(chunk, "choices", None) or []
                     if not choices:
@@ -539,6 +580,7 @@ async def _invoke_openai_direct_api(
                 output_tokens=cumulative_usage["output_tokens"],
                 total_tokens=cumulative_usage["total_tokens"],
                 cache_read_input_tokens=cached_input_tokens,
+                cache_creation_input_tokens=cache_write_input_tokens,
                 usage_source="provider_reported" if provider_usage_reported else "estimated",
                 inference_host="openai",
                 provider_request_id=provider_request_id,
@@ -619,12 +661,15 @@ async def invoke_openai_chat_completions(
     stream: bool = False,
     catalog_model_id: Optional[str] = None,
     cacheable_system_prefix: Optional[str] = None,
+    native_cache_context: Optional[Dict[str, Any]] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     if secrets_manager and not _openai_client_initialized:
         await initialize_openai_client(secrets_manager)
 
     catalog_lookup_model_id = catalog_model_id or model_id
     server_choice = _select_server_for_model(catalog_lookup_model_id)
+    if native_cache_context is not None and server_choice != "openai":
+        raise ValueError("Native cache context requires the direct OpenAI API")
     logger.info("[%s] OpenAI Client: server=%s, stream=%s", task_id, server_choice, stream)
 
     # Try the primary server choice first
@@ -653,10 +698,11 @@ async def invoke_openai_chat_completions(
             stream=stream,
             catalog_model_id=catalog_lookup_model_id,
             cacheable_system_prefix=cacheable_system_prefix,
+            native_cache_context=native_cache_context,
         )
 
     # AUTOMATIC FALLBACK: If primary failed (non-streaming only), try other available servers
-    if not stream and isinstance(response, UnifiedOpenAIResponse) and not response.success:
+    if native_cache_context is None and not stream and isinstance(response, UnifiedOpenAIResponse) and not response.success:
         logger.warning("[%s] OpenAI Client: Primary server '%s' failed: %s. Checking for fallback servers...", 
                        task_id, server_choice, response.error_message)
         

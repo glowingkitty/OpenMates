@@ -35,6 +35,11 @@ from backend.core.api.app.services.directus.team_methods import TeamPermissionEr
 from backend.core.api.app.services.team_realtime_service import broadcast_team_event
 from backend.core.api.app.services.team_member_mention_service import TeamMemberMentionNotificationSink, notify_team_member_mentions
 from backend.shared.python_utils.team_log_correlation import team_correlation_fields
+from backend.shared.python_utils.native_cache_history import (
+    add_history_with_optional_native_context, canonical_content_sha256, canonical_history_content,
+    canonical_history_content_sha256,
+    history_message_id, history_sender_name, retained_native_cache_contexts,
+)
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -1636,23 +1641,39 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             if client_provided_history and isinstance(client_provided_history, list):
                 # Client provided full history - use it directly and re-cache
                 logger.info(f"Client provided {len(client_provided_history)} messages for chat {chat_id}. Using client history and re-caching.")
+                retained_native_contexts: Dict[str, str] = {}
+                if not (is_incognito or is_duplication):
+                    try:
+                        previous_ai_rows = await cache_service.get_ai_messages_history(user_id, chat_id)
+                    except Exception:
+                        previous_ai_rows = []
+                    retained_native_contexts = await retained_native_cache_contexts(
+                        client_provided_history, previous_ai_rows,
+                        current_message_id=message_id, chat_id=chat_id,
+                        encryption_service=encryption_service, user_vault_key_id=user_vault_key_id,
+                    )
                 
                 # The current turn was already admitted to the AI cache above.
                 # Preserve that exact ID and Vault ciphertext when replacing the
                 # earlier history supplied by the client.
+                recache_step = "delete"
                 try:
-                    deleted = await cache_service.delete_chat_messages_history(user_id, chat_id)
+                    deleted = await cache_service.delete_ai_messages_history(user_id, chat_id)
                     if not deleted and not is_incognito:
                         raise RuntimeError("ai_history_delete_failed")
 
                     for hist_msg in client_provided_history:
-                        hist_message_id = (
-                            hist_msg.get("message_id") or hist_msg.get("client_message_id") or hist_msg.get("id")
-                        )
+                        recache_step = "prior_row_prepare"
+                        hist_message_id = history_message_id(hist_msg)
                         if hist_message_id == message_id:
                             continue
+                        retained_context = (
+                            retained_native_contexts.get(hist_message_id)
+                            if isinstance(hist_message_id, str) and hist_msg.get("role") == "assistant"
+                            else None
+                        )
                         # Resolve embed references before adding client history to AI context.
-                        hist_content = hist_msg.get("content", "")
+                        hist_content = canonical_history_content(hist_msg)
                         resolved_hist_content = hist_content
                         try:
                             from backend.core.api.app.services.embed_service import EmbedService
@@ -1678,17 +1699,18 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                                 message_id=hist_message_id,
                                 role=hist_msg.get("role", "user"),
                                 category=hist_msg.get("category"),
-                                sender_name=hist_msg.get("sender_name", "user"),
+                                sender_name=history_sender_name(hist_msg),
                                 content=resolved_hist_content,
-                                created_at=int(hist_msg.get("created_at", datetime.now(timezone.utc).timestamp()))
+                                created_at=int(hist_msg.get("created_at", datetime.now(timezone.utc).timestamp())),
+                                encrypted_native_cache_context=retained_context,
+                                native_cache_canonical_content_sha256=canonical_history_content_sha256(hist_msg),
                             )
                         )
                     
                         # Re-encrypt and cache for future use
-                        content_str = hist_msg.get("content", "")
-                        if isinstance(content_str, dict):
-                            content_str = json.dumps(content_str)
+                        content_str = hist_content
                         
+                        recache_step = "prior_row_encrypt"
                         encrypted_hist_content, _ = await encryption_service.encrypt_with_user_key(
                             content_str,
                             user_vault_key_id
@@ -1699,28 +1721,33 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                             chat_id=chat_id,
                             role=hist_msg.get("role", "user"),
                             category=hist_msg.get("category"),
-                            sender_name=hist_msg.get("sender_name", "user"),
+                            sender_name=history_sender_name(hist_msg),
                             encrypted_content=encrypted_hist_content,
+                            encrypted_native_cache_context=retained_context,
                             created_at=int(hist_msg.get("created_at", datetime.now(timezone.utc).timestamp())),
                             status="delivered"
                         )
                         
-                        cached = await cache_service.add_message_to_chat_history(
-                            user_id,
-                            chat_id,
-                            cached_msg.model_dump_json()
+                        recache_step = "prior_row_append"
+                        cached = await add_history_with_optional_native_context(
+                            cache_service, user_id, chat_id, cached_msg,
+                            message_history_for_ai[-1],
                         )
                         if not cached:
                             raise RuntimeError("ai_history_write_failed")
 
                     if not is_incognito:
+                        recache_step = "current_row_append"
                         cached = await cache_service.add_message_to_chat_history(
                             user_id, chat_id, message_for_cache.model_dump_json(),
                         )
                         if not cached:
                             raise RuntimeError("ai_history_write_failed")
                 except Exception as e_recache:
-                    logger.warning("Failed to replace AI history for chat %s: %s", chat_id, type(e_recache).__name__)
+                    logger.warning(
+                        "Failed to replace AI history for chat %s: %s; operation=%s",
+                        chat_id, type(e_recache).__name__, recache_step,
+                    )
                     try:
                         await manager.send_personal_message(
                             {"type": "error", "payload": {"message": "Failed to process message due to cache error.",
@@ -1795,7 +1822,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                             # Determine role and category for history messages
                             history_role = msg_cache_data.get("role", "user" if msg_cache_data.get("sender_name") == final_sender_name else "assistant")
                             history_category = msg_cache_data.get("category")
-                            history_sender_name = msg_cache_data.get("sender_name", "user" if history_role == "user" else "assistant")
+                            cached_sender_name = msg_cache_data.get("sender_name", "user" if history_role == "user" else "assistant")
 
                             # Ensure timestamp is an int
                             history_timestamp_val: int
@@ -1808,6 +1835,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                             # CRITICAL: Resolve embed references in message content before adding to AI history
                             # According to embeds architecture, messages contain embed references (JSON blocks)
                             # that need to be replaced with actual embed content for LLM context
+                            canonical_content_digest = canonical_content_sha256(decrypted_content)
                             decrypted_content = sanitize_agent_context_message({
                                 "role": history_role, "category": history_category, "content": decrypted_content,
                             })["content"]
@@ -1862,9 +1890,14 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                                     message_id=msg_cache_data.get("id") or msg_cache_data.get("message_id"),
                                     role=history_role,
                                     category=history_category,
-                                    sender_name=history_sender_name,
+                                    sender_name=cached_sender_name,
                                     content=resolved_content, # Resolved content with embeds replaced
-                                    created_at=history_timestamp_val
+                                    created_at=history_timestamp_val,
+                                    encrypted_native_cache_context=(
+                                        msg_cache_data.get("encrypted_native_cache_context")
+                                        if history_role == "assistant" else None
+                                    ),
+                                    native_cache_canonical_content_sha256=canonical_content_digest,
                                 )
                             )
                         except json.JSONDecodeError:
@@ -2099,7 +2132,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         role=role, # Current message's role
                         sender_name=final_sender_name, # Current message's sender_name
                         content=resolved_current_content, # Resolved content with embeds replaced
-                        created_at=client_timestamp_unix
+                        created_at=client_timestamp_unix,
+                        native_cache_canonical_content_sha256=canonical_content_sha256(content_plain),
                     )
                 )
             # Ensure the current message is the last one if it was added or already present
@@ -2123,7 +2157,9 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 raise
             # Proceed with at least the current message if history construction failed
             message_history_for_ai = [
-                AIHistoryMessage(role=role, message_id=message_id, sender_name="user", content=content_plain, created_at=client_timestamp_unix)
+                AIHistoryMessage(role=role, message_id=message_id, sender_name="user", content=content_plain,
+                                 created_at=client_timestamp_unix,
+                                 native_cache_canonical_content_sha256=canonical_content_sha256(content_plain))
             ]
 
 

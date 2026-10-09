@@ -76,10 +76,15 @@ Usage Settings - View usage statistics and export usage data
             : `1 ${$text('common.credits')} ${$text('settings.ai_ask.ai_ask_settings.per')} ${rate} ${$text('settings.ai_ask.ai_ask_settings.tokens')}`;
     }
 
+    function hasGenericCacheWrite(entry: LlmUsageBreakdownEntry): boolean {
+        return entry.cache_creation_5m_input_tokens == null &&
+            (entry.cache_creation_1h_input_tokens == null || entry.cache_creation_1h_input_tokens === 0);
+    }
+
     function receiptTokens(entry: LlmUsageBreakdownEntry, key: typeof receiptCategories[number]['tokenKey']): string {
         const count = key === 'uncached_input_tokens'
             ? entry.billed_input_tokens ?? (entry.billing_mode === 'ordinary_input' ? entry.input_tokens : entry.uncached_input_tokens)
-            : key === 'cache_creation_5m_input_tokens' && entry.write_billing === 'included_in_input'
+            : key === 'cache_creation_5m_input_tokens' && hasGenericCacheWrite(entry)
             ? entry.cache_creation_input_tokens
             : entry[key];
         return count == null ? $text('settings.ai_ask.ai_ask_model_details.unavailable') : count.toLocaleString();
@@ -101,7 +106,7 @@ Usage Settings - View usage statistics and export usage data
         if (category.key === 'input' && (entry.billing_mode === 'ordinary_input' || inputBilledBeyondUncached)) {
             return $text('settings.usage.cache_receipt_standard_input');
         }
-        if (category.key === 'cache_write' && entry.write_billing === 'included_in_input') {
+        if (category.key === 'cache_write' && (entry.write_billing === 'included_in_input' || hasGenericCacheWrite(entry))) {
             return $text('settings.ai_ask.ai_ask_model_details.cache_write');
         }
         return $text(`settings.ai_ask.ai_ask_model_details.${category.label}`);
@@ -1934,12 +1939,6 @@ Usage Settings - View usage statistics and export usage data
                                     <span class="entry-detail-value">{receiptTokens(llmEntry, category.tokenKey)} {$text('settings.ai_ask.ai_ask_settings.tokens')} · {llmEntry.category_credits[category.key]} {$text('common.credits')} · {receiptCategoryRate(llmEntry, category.key)}</span>
                                 </div>
                             {/each}
-                            {#if llmEntry.cache_creation_input_tokens != null && llmEntry.cache_creation_5m_input_tokens == null && llmEntry.cache_creation_1h_input_tokens == null}
-                                <div class="entry-detail-row entry-detail-sub" data-testid="usage-llm-cache-creation-generic">
-                                    <span class="entry-detail-label">{$text('settings.usage.cache_receipt_cache_creation')}</span>
-                                    <span class="entry-detail-value">{llmEntry.cache_creation_input_tokens.toLocaleString()} {$text('settings.ai_ask.ai_ask_settings.tokens')}</span>
-                                </div>
-                            {/if}
                             <div class="entry-detail-row entry-detail-sub" data-testid="usage-llm-entry-raw-credits">
                                 <span class="entry-detail-label">{$text('settings.usage.cache_receipt_raw')}</span>
                                 <span class="entry-detail-value">{llmEntry.raw_credits} {$text('common.credits')}</span>

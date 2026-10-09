@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.billing@8
+specification: feature.billing@9
 
 anonymous_free_use:
   - id: web-and-cli-share-the-same-allowance
@@ -35,24 +35,28 @@ anonymous_storage:
 
 credit_charges:
   - id: personal-ai-charge
-    subject: personal
-    charge_id: chat-turn-1
-    reserved_credits: 20
-    settled_credits: 17
-    expect: {charged_once: true, unused_reserved_credits_refunded: true}
+    given: A signed-in user has 20 personal credits and sends an ordinary chat request.
+    when: The provider reports usage costing 17 credits and settlement is retried for the same request.
+    then: The main model call uses no credit hold, exactly 17 credits are deducted once, and the balance is 3 credits.
   - id: team-member-charge
     subject: team
     charge_id: team-chat-turn-1
     settled_credits: 9
     expect: {team_balance_charged: true, personal_balance_untouched: true}
   - id: approved-personal-overdraft
-    subject: personal
-    charge_id: chat-turn-low-balance
-    balance_before: 5
-    reserved_credits: 12
-    settled_credits: 12
-    overdraft_floor: -500
-    expect: {balance_after: -7, floor_preserved: true, charged_once: true}
+    given: A signed-in user has 5 personal credits when their ordinary chat request starts.
+    when: That request's completed model and tool usage costs 12 credits.
+    then: The request is charged once and the balance becomes -7 credits, with the existing -500 credit floor preserved.
+
+personal_chat_admission:
+  - id: admitted-request-can-overdraw-next-request-cannot
+    given: A signed-in user has 5 personal credits.
+    when: They send a chat request that costs 12 credits and then send a follow-up before buying more credits.
+    then: The first request runs without a main-model credit hold and leaves -7 credits; the follow-up is rejected before paid processing until credits are added.
+  - id: missing-cache-balance-requires-encrypted-recovery
+    given: The user's cached credit balance is missing and their encrypted billing record holds zero credits.
+    when: They send a new personal chat request.
+    then: The server recovers the encrypted balance and rejects paid processing; it never assumes a positive balance or creates a main-model credit hold.
 
 settlement_concurrency:
   - id: distinct-parallel-tool-charges

@@ -11,6 +11,7 @@ from backend.shared.python_utils.billing_utils import snapshot_model_tariff
 
 try:
     from backend.apps.ai.llm_providers.anthropic_shared import AnthropicUsageMetadata
+    from backend.apps.ai.processing import main_processor
     from backend.apps.ai.tasks import stream_consumer
 except ImportError:
     pytestmark = pytest.mark.skip(reason="Backend AI dependencies not installed")
@@ -167,6 +168,69 @@ def test_billing_prices_each_successful_model_bucket_after_cross_provider_fallba
         "total_credits": 5,
     }
     assert "llm_usage_breakdown" not in result  # Disabled tariffs remain a private shadow ledger.
+    assert "reservation_required" not in captured["usage_details"]
+
+
+def test_paid_skill_and_reported_main_usage_charge_without_personal_hold(monkeypatch) -> None:
+    """An admitted personal turn settles each paid part by actual usage."""
+    config_manager = FakeConfigManager()
+    balance = 1
+    charges: list[tuple[str, int]] = []
+
+    async def skill_config(**_kwargs):
+        return SimpleNamespace(full_model_reference=None, providers=[]), {"per_unit": {"credits": 2}}
+
+    class SkillResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"state": "committed"}
+
+    class SkillClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def post(self, _url, *, json, **_kwargs):
+            nonlocal balance
+            charges.append((json["app_id"], json["credits"]))
+            balance -= json["credits"]
+            return SkillResponse()
+
+    async def charge_main(_task_id, _request_data, credits, usage_details, _log_prefix):
+        nonlocal balance
+        assert "reservation_required" not in usage_details
+        charges.append(("ai", credits))
+        balance -= credits
+        return {"total_credits": credits, "settlement_state": "committed"}
+
+    monkeypatch.setattr(main_processor, "_resolve_skill_billing_config", skill_config)
+    monkeypatch.setattr(main_processor, "resolve_skill_usage_provider_id", lambda *_args: None)
+    monkeypatch.setattr(main_processor.httpx, "AsyncClient", SkillClient)
+    monkeypatch.setattr(stream_consumer.celery_config, "config_manager", config_manager)
+    monkeypatch.setattr(stream_consumer, "_charge_credits", charge_main)
+    request = SimpleNamespace(
+        **vars(_request()), user_id="user", user_id_hash="hash",
+        root_chat_id=None, root_turn_id=None, orchestration_id=None,
+        sub_chat_depth=0, is_incognito=False,
+    )
+
+    asyncio.run(main_processor._charge_skill_credits(
+        "task", "execution", request, "math", "calculate", {},
+        [{"status": "success", "result_numeric": 12}], {"expression": "sqrt(144)"},
+        "[billing-test]",
+    ))
+    main = asyncio.run(stream_consumer._handle_normal_billing(
+        _usage(), _preprocessing(), request, "task", "[billing-test]",
+        successful_model_id="anthropic/claude-fallback",
+    ))
+
+    assert charges == [("math", 2), ("ai", 3)]
+    assert main["total_credits"] == 3
+    assert balance == -4  # One admitted turn can settle below zero; the next precheck blocks it.
 
 
 def test_cross_provider_billing_rounds_fractional_credits_once(monkeypatch) -> None:

@@ -393,10 +393,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.billing:
-    version: 8
+    version: 9
     status: draft
     path: features/billing
-    fingerprint: 5bf7f83dfbb70254431bd3ef2ffbe5a5d0201d7cb59351f667060e6e6b6ca3ca
+    fingerprint: 73fb13602662459011402416398f9741b403c8baf4eb3f800e523b557b5c5a4a
     required_applies_to:
     - rest_api
     - cli
@@ -5112,7 +5112,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.access.authenticated-first-party:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: security
     fingerprint: ea81d29ace06f6ec09ab147e8225e7d4905707ad20329e491a7873810fc758f0
@@ -5124,10 +5124,22 @@ assertions:
     - gui.web
     - gui.apple
   billing.credits.idempotent-charge:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: invariant
-    fingerprint: 982b62fc285fdd08fba467ebf7976255599f2f4805cdb4814d21e31fac658c8d
+    fingerprint: b6f88250e89ac474a061d257a286db36badf43dc482b959bfc669359d588dd79
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  billing.credits.personal-chat-admission:
+    specification: feature.billing@9
+    specification_id: feature.billing
+    type: behavior
+    fingerprint: 6a7250cf75f77ab9c0b2e3493f68e7e997c2ccc01f506a7cfdf92b9b9899534a
     required_applies_to:
     - rest_api
     - cli
@@ -5136,7 +5148,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.credits.encrypted-authority-cache-projection:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: invariant
     fingerprint: c63c3fc39ee9add5afbad3ff84e76e84597135604696347f5414d39dbf525940
@@ -5148,7 +5160,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.credits.retryable-completion-safe:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: failure
     fingerprint: fe44b5648a14e02a8ca0300e49c165c737299d41098f167f4750f02bf931191b
@@ -5160,7 +5172,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.credits.minimal-durable-io:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: invariant
     fingerprint: 83881aeabcc714f50b34cc40d38ba7c2c010c918052cac200875a7368c9cf7a6
@@ -5172,7 +5184,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.anonymous.hard-capped-provider-metering:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: security
     fingerprint: 1b8802f421a92b231ea275455e7aff1cf0347ce1da655f57b535993bfa10d2a6
@@ -5184,7 +5196,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.anonymous.paid-users-unaffected:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: behavior
     fingerprint: 3b14f960636b1bbebcaa3f9d8ff3946406f4b9cd37685f0a08b2306b38070c63
@@ -5196,7 +5208,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.anonymous.daily-remaining-percent:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: behavior
     fingerprint: 0da1220e00e8a5915692c3b700796db15ccb8ed17c0b438709211d0373f3fb56
@@ -5208,7 +5220,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.anonymous.local-only-content:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: privacy
     fingerprint: 1b666f59da0f3f3e7af1adc697cbab3920f4bb26489c849d8fe213185130edc5
@@ -5220,7 +5232,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.purchase.provider-routing:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: behavior
     fingerprint: 56ec0aa527a77dfb773342710b892f41ad20410be767e3efc5d80f75d79eed74
@@ -5232,7 +5244,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.documents.visible-downloadable:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: behavior
     fingerprint: 87fa9e3b2eec4f4c87961f75f790213fa574a87aa3c1eadf7a5809036dbcac7d
@@ -5244,7 +5256,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.documents.storage-degradation-resilient:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: behavior
     fingerprint: f4e5cc0e6447e49d7374d4c1a24b3cd2137fe2db8d1fad0ffea30cbbb5509fe6
@@ -5256,7 +5268,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.bank-transfer.pending-visible:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: behavior
     fingerprint: 86add96bf1e4368121702728d49213af83732e1f61c30db7eaee157490b78865
@@ -5268,7 +5280,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.usage.receipt-token-breakdown:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: behavior
     fingerprint: b91de382cbe58589cdf4c309b71e56e48cfa3f70acdcf25e371da22ab73330ee
@@ -5280,7 +5292,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.usage.landing-complete:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: invariant
     fingerprint: cea46c1989d431d6c1e01482deb808592371be974a7fdacf628cc9ffb07adc32
@@ -5292,7 +5304,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.self-host.cloud-guard:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: invariant
     fingerprint: 019fab68b931527429aaeb8eb8a8d417947c4a4b81ad37a4d76141fab7c975ba
@@ -5304,10 +5316,10 @@ assertions:
     - gui.web
     - gui.apple
   billing.surface.semantic-parity:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: parity
-    fingerprint: 5222c041d1f922448a5b4d80fa0f36bf2a5f4b61d09d08920d955ae9524583ff
+    fingerprint: 308f96d242f9a7971b7d22d7d28079e3d90e3c48311db7af5e0f239b5c14538d
     required_applies_to:
     - rest_api
     - cli
@@ -5316,7 +5328,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.storage.logical-usage:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: invariant
     fingerprint: 91d92fbb31f01ba11795b54a2bc613b358ccd2af20960db7eb50798df26c4892
@@ -5328,7 +5340,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.storage.weekly-quote:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: behavior
     fingerprint: 76fe0d2ab2d8f1797e62ee4862a2269a0885c77cfa36d68e05ac1254e18e1770
@@ -5340,7 +5352,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.storage.exact-settlement:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: invariant
     fingerprint: ce59e4fa7476048912d9ee487999c68a80e60d9ec9280a10f0136f3fe66236ea
@@ -5352,7 +5364,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.storage.four-warning-expiry:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: security
     fingerprint: c3fba48b481c463fe0bc1e7cca51ba15c4c157263ca76b1050dad2268364a1aa
@@ -5364,7 +5376,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.storage.legacy-cutover-safe:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: invariant
     fingerprint: bfb4786e43c2f6e6b5926f7edc0c71aefedbfdc0884d6c73732646027bf4c638
@@ -5376,7 +5388,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.storage.personal-expiry-selection:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: security
     fingerprint: eb524425f6bae9b69dde1278bfdfda24c8d4b65d93610b9bd12d3cf865b45712
@@ -5388,7 +5400,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.storage.expiry-invoice-closure:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: invariant
     fingerprint: b5d32f1c1a3bc94fe875ad502f2bb0f013568dc336289004dbc056d69449dba5
@@ -5400,7 +5412,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.storage.disclosures:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: behavior
     fingerprint: 303afd3b4bd817a6f335bc8a0139ee5399dfb5c0cae749f52b019b5e1ae94ac6
@@ -5412,7 +5424,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.storage.team-policy-gate:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: security
     fingerprint: 2c867aef3dc4c2f70e0a3b02b5ca7f64c0ad6aa8ba4fafb70dc6ca180772fdce
@@ -5424,7 +5436,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.storage.team-warning-expiry:
-    specification: feature.billing@8
+    specification: feature.billing@9
     specification_id: feature.billing
     type: security
     fingerprint: 7612eb1fed747ca88acd5e0da004e035afd081a6ac0bed95c6e63c6b9b7542fa

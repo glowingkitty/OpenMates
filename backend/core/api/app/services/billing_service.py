@@ -93,6 +93,56 @@ class BillingService:
         # Tasks remove themselves via add_done_callback.
         self._pending_topup_tasks: set[asyncio.Task] = set()
 
+    async def get_authoritative_personal_balance(self, *, user_id: str, user_id_hash: str) -> int:
+        """Read the current personal wallet for admission without placing a hold.
+
+        Cached plaintext alone cannot prove the durable encrypted balance. Read
+        and decrypt the current Directus ciphertext under the settlement lock so
+        a missing or stale cache entry cannot admit an unfunded request.
+        """
+        if not user_id or hashlib.sha256(user_id.encode("utf-8")).hexdigest() != user_id_hash:
+            raise ValueError("Billing admission identity is invalid")
+        async with self.settlement_lock.hold(user_id_hash) as lease:
+            rows = await self.directus_service.get_items(
+                "directus_users",
+                params={"filter[id][_eq]": user_id,
+                        "fields": "id,vault_key_id,encrypted_credit_balance", "limit": 1},
+                no_cache=True,
+                admin_required=True,
+            )
+            if not isinstance(rows, list) or len(rows) != 1 or rows[0].get("id") != user_id:
+                raise ValueError("Billing admission profile is unavailable")
+            row = rows[0]
+            vault_key_id = row.get("vault_key_id")
+            encrypted_balance = row.get("encrypted_credit_balance")
+            if (not isinstance(vault_key_id, str) or not vault_key_id
+                    or not isinstance(encrypted_balance, str) or not encrypted_balance):
+                raise ValueError("Billing admission profile is incomplete")
+            decrypted = await self.encryption_service.decrypt_with_user_key(
+                encrypted_balance, vault_key_id
+            )
+            try:
+                if decrypted is None or isinstance(decrypted, bool):
+                    raise ValueError
+                balance = int(decrypted)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("Billing admission balance is invalid") from exc
+            if lease.acquired and not lease.lock_lost:
+                try:
+                    projection = await self.cache_service.get_billing_projection(user_id)
+                    if (projection is None or projection["credits"] != balance
+                            or projection["encrypted_balance"] != encrypted_balance
+                            or projection["vault_key_id"] != vault_key_id):
+                        await self.cache_service.set_billing_projection(
+                            user_id, credits=balance, encrypted_balance=encrypted_balance,
+                            vault_key_id=vault_key_id,
+                        )
+                except Exception:
+                    # The durable wallet was verified; a cache repair failure
+                    # must not turn an otherwise valid admission into an error.
+                    logger.warning("Personal admission projection refresh unavailable")
+            return balance
+
     async def reserve_user_credits(
         self, *, user_id: str, user_id_hash: str, charge_id: str,
         quoted_credits: int, app_id: str, skill_id: str,

@@ -581,12 +581,14 @@ def test_openai_long_context_uses_actual_attempt_total_and_frozen_rates() -> Non
     frozen = snapshot_model_tariff(model)
     tracker = ModelUsageTracker()
     first = normalize_provider_usage(
-        {"input_tokens": 272_000, "output_tokens": 30, "cache_read_input_tokens": 0},
+        {"input_tokens": 272_000, "output_tokens": 30,
+         "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0},
         model_id="openai/gpt-6.1-sol", provider_kind="openai", inference_host="openai",
         attempt_id="one-attempt", tariff_snapshot=frozen,
     )
     second = normalize_provider_usage(
-        {"input_tokens": 272_001, "output_tokens": 30, "cache_read_input_tokens": 100_000},
+        {"input_tokens": 272_001, "output_tokens": 30,
+         "cache_read_input_tokens": 100_000, "cache_creation_input_tokens": 0},
         model_id="openai/gpt-6.1-sol", provider_kind="openai", inference_host="openai",
         attempt_id="one-attempt", tariff_snapshot=frozen,
     )

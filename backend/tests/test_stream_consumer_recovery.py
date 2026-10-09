@@ -172,6 +172,50 @@ class _Encryption:
         return f"encrypted:{value}", {}
 
 
+def test_native_replay_is_encrypted_only_in_ai_cache_and_absent_from_client_events() -> None:
+    cache = _PersistCache()
+    request = _ask_request()
+    state = {"messages": [{"role": "assistant", "provider_transport_state": [{"thinking": "private-reasoning"}]}]}
+    asyncio.run(stream_consumer._save_to_cache_and_publish(
+        request, "task", "general_knowledge", 101, 2, cache, _Encryption(),
+        "user-vault-key", "public answer", "test", native_cache_context=state,
+    ))
+    assert len(cache.saved_messages) == 1
+    row = cache.saved_messages[0]["message_data"]
+    assert row.encrypted_native_cache_context.startswith("encrypted:")
+    assert json.loads(row.encrypted_native_cache_context.removeprefix("encrypted:")) == state
+    assert "private-reasoning" not in json.dumps(cache.events)
+    assert "native_cache_context" not in json.dumps(cache.events)
+
+
+def test_optional_replay_encryption_failure_still_saves_and_publishes_reply() -> None:
+    class ReplayEncryptionFailure(_Encryption):
+        async def encrypt_with_user_key(self, value: str, key_id: str):
+            if value.startswith("{"):
+                raise ValueError("replay unavailable")
+            return await super().encrypt_with_user_key(value, key_id)
+
+    cache = _PersistCache()
+    asyncio.run(stream_consumer._save_to_cache_and_publish(
+        _ask_request(), "task", "general_knowledge", 101, 2, cache,
+        ReplayEncryptionFailure(), "user-vault-key", "public answer", "test",
+        native_cache_context={"messages": []},
+    ))
+    assert cache.saved_messages[0]["message_data"].encrypted_native_cache_context is None
+    assert cache.events[0][1]["message"]["content"] == "public answer"
+
+
+def test_incognito_reply_does_not_seal_provider_replay_state() -> None:
+    cache = _PersistCache()
+    request = _ask_request()
+    request.is_incognito = True
+    asyncio.run(stream_consumer._save_to_cache_and_publish(
+        request, "task", "general_knowledge", 101, 2, cache, _Encryption(),
+        "user-vault-key", "answer", "test", native_cache_context={"messages": []},
+    ))
+    assert cache.saved_messages[0]["message_data"].encrypted_native_cache_context is None
+
+
 def _ask_request(message_history: list[AIHistoryMessage] | None = None) -> AskSkillRequest:
     return AskSkillRequest(
         chat_id="22222222-2222-4222-8222-222222222222",
@@ -387,6 +431,7 @@ def test_fake_stream_includes_recovery_job_before_final_marker(monkeypatch, resp
         rejection_reason="misuse_detected",
     )
     cache_service = _StubCacheService()
+    cached_timestamps: list[int] = []
 
     async def fake_charge(*_args, **_kwargs) -> dict:
         return {"prompt_tokens": 0, "completion_tokens": 4, "total_credits": 1}
@@ -397,7 +442,8 @@ def test_fake_stream_includes_recovery_job_before_final_marker(monkeypatch, resp
         assert kwargs["category"] == "general_knowledge"
         return {"job_id": "77777777-7777-4777-8777-777777777777"}
 
-    async def fake_update_metadata(*_args, **_kwargs) -> None:
+    async def fake_update_metadata(*_args, **kwargs) -> None:
+        cached_timestamps.append(kwargs["timestamp"])
         return None
 
     monkeypatch.setattr(stream_consumer, "_charge_credits", fake_charge)
@@ -437,6 +483,7 @@ def test_fake_stream_includes_recovery_job_before_final_marker(monkeypatch, resp
     assert final_chunks[0]["recovery_job_id"] == "77777777-7777-4777-8777-777777777777"
     assert final_chunks[0]["recovery_protocol_version"] == 1
     assert final_chunks[0]["category"] == "general_knowledge"
+    assert final_chunks[0]["created_at"] == cached_timestamps[0] == 2
 
 
 def test_recovery_metadata_update_caches_ai_context_without_terminal_persistence() -> None:
@@ -465,6 +512,7 @@ def test_recovery_metadata_update_caches_ai_context_without_terminal_persistence
             task_id="11111111-1111-4111-8111-111111111111",
             log_prefix="test",
             model_name="Gemini 3.5 Flash-Lite",
+            native_cache_context={"messages": [{"provider_transport_state": [{"thinking": "private"}]}]},
         )
     )
 
@@ -477,6 +525,11 @@ def test_recovery_metadata_update_caches_ai_context_without_terminal_persistence
     assert cached_chat_id == request_data.chat_id
     assert "encrypted:assistant response" in cached_message_json
     assert "Gemini 3.5 Flash-Lite" in cached_message_json
+    cached_row = json.loads(cached_message_json)
+    assert json.loads(cached_row["encrypted_native_cache_context"].removeprefix("encrypted:")) == {
+        "messages": [{"provider_transport_state": [{"thinking": "private"}]}],
+    }
+    assert "private" not in json.dumps(cache.events)
     assert directus.updates == [{
         "last_edited_overall_timestamp": 1234,
         "last_mate_category": "software_development",
@@ -484,6 +537,56 @@ def test_recovery_metadata_update_caches_ai_context_without_terminal_persistence
     }]
     assert "messages_v" not in directus.updates[0]
     assert "last_message_timestamp" not in directus.updates[0]
+
+
+def test_recovery_native_replay_encryption_failure_keeps_canonical_reply() -> None:
+    class ReplayEncryptionFailure(_Encryption):
+        async def encrypt_with_user_key(self, value: str, key_id: str):
+            if value.startswith("{"):
+                raise ValueError("replay unavailable")
+            return await super().encrypt_with_user_key(value, key_id)
+
+    request = _ask_request()
+    request.recovery_task_id = "11111111-1111-4111-8111-111111111111"
+    cache = _RecoveryCache()
+    asyncio.run(stream_consumer._update_chat_metadata(
+        request_data=request, category="general_knowledge", timestamp=1234,
+        content_markdown="assistant response", content_tiptap="assistant response",
+        directus_service=_MetadataDirectus(), cache_service=cache,
+        encryption_service=ReplayEncryptionFailure(), user_vault_key_id="vault-key",
+        task_id=request.recovery_task_id, log_prefix="test",
+        native_cache_context={"messages": [{"private": "state"}]},
+    ))
+    assert len(cache.ai_messages) == 1
+    row = json.loads(cache.ai_messages[0][2])
+    assert row["encrypted_content"] == "encrypted:assistant response"
+    assert row.get("encrypted_native_cache_context") is None
+    assert cache.version_increments == cache.version_sets == cache.events == []
+
+
+def test_recovery_native_replay_admission_failure_retries_without_optional_state() -> None:
+    class ReplayRefusingCache(_RecoveryCache):
+        async def add_ai_message_to_history(self, user_id, chat_id, message_json, max_history_length=100):
+            self.ai_messages.append((user_id, chat_id, message_json))
+            return json.loads(message_json).get("encrypted_native_cache_context") is None
+
+    request = _ask_request()
+    request.recovery_task_id = "11111111-1111-4111-8111-111111111111"
+    cache = ReplayRefusingCache()
+    asyncio.run(stream_consumer._update_chat_metadata(
+        request_data=request, category="general_knowledge", timestamp=1234,
+        content_markdown="assistant response", content_tiptap="assistant response",
+        directus_service=_MetadataDirectus(), cache_service=cache,
+        encryption_service=_Encryption(), user_vault_key_id="vault-key",
+        task_id=request.recovery_task_id, log_prefix="test",
+        native_cache_context={"messages": [{"private": "state"}]},
+    ))
+    assert len(cache.ai_messages) == 2
+    assert json.loads(cache.ai_messages[0][2])["encrypted_native_cache_context"]
+    final_row = json.loads(cache.ai_messages[1][2])
+    assert final_row["encrypted_content"] == "encrypted:assistant response"
+    assert final_row.get("encrypted_native_cache_context") is None
+    assert cache.version_increments == cache.version_sets == cache.events == []
 
 
 def test_sub_chat_continuation_uses_recovery_only_metadata_path() -> None:

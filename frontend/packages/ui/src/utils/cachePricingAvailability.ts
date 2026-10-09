@@ -21,6 +21,16 @@ export function supportsOneHourCacheWrites(
   return Boolean(defaultHost && policy?.cache_write_1h_hosts?.includes(defaultHost));
 }
 
+/** Only Anthropic routes publish a five-minute retention tier. */
+export function cacheWriteLabelKey(
+  policy: CachePricingAvailability | null | undefined,
+  defaultHost?: string,
+): 'cache_write' | 'cache_write_5m' {
+  return policy?.write_billing === 'separate' && ['anthropic', 'aws_bedrock'].includes(defaultHost ?? '')
+    ? 'cache_write_5m'
+    : 'cache_write';
+}
+
 export interface CachePricingRates {
   input?: number;
   cache_read?: number;

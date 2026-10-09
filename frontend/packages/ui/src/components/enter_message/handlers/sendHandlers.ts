@@ -7,6 +7,7 @@ import { Extension } from "@tiptap/core";
 import { chatDB } from "../../../services/db";
 import { chatKeyManager } from "../../../services/encryption/ChatKeyManager";
 import { chatSyncService } from "../../../services/chatSyncService"; // Import chatSyncService
+import { failPersonalChatTurn, reservePersonalChatTurn, type PersonalChatTurn } from "../../../services/personalChatTurnBarrier";
 import type { Chat, Message, PIIMapping } from "../../../types/chat"; // Import Message type
 import { draftEditorUIState } from "../../../services/drafts/draftState";
 import {
@@ -1459,6 +1460,7 @@ export async function handleSend(
   let didCreateMessagePayload = false;
   let sendAccepted = false;
   let messagePayload: Message; // Defined here to be accessible for sendNewMessage
+  let reservedPersonalTurn: PersonalChatTurn | null = null;
 
   try {
     if (!isAuthenticatedForSend) {
@@ -1668,6 +1670,12 @@ export async function handleSend(
     );
     messagePayload.hashed_user_id = teamAuthorHash;
     didCreateMessagePayload = true;
+    // Reserve before the optimistic IndexedDB write. A second click can start
+    // while this one is still doing local work, but may not preflight first.
+    if (!existingChatCheck?.team_id && !existingChatCheck?.is_incognito
+      && !existingChatCheck?.is_sub_chat && !existingChatCheck?.parent_id) {
+      reservedPersonalTurn = reservePersonalChatTurn(chatIdToUse, messagePayload.message_id);
+    }
     if (options.preserveDraft) messagePayload.preserve_draft = true;
     ((messagePayload as unknown) as Record<string, unknown>).broadcast = broadcastToSiblings;
 
@@ -2288,6 +2296,9 @@ export async function handleSend(
     }
     vibrateMessageField();
   } finally {
+    if (!sendAccepted && reservedPersonalTurn) {
+      failPersonalChatTurn(reservedPersonalTurn, new Error('Local chat send did not dispatch.'));
+    }
     // CRITICAL: Always release the send guard, even on error,
     // so the user can retry sending after a failure.
     sendInProgress = false;
@@ -2319,6 +2330,8 @@ export async function handleSend(
 export async function executeDeferredSend(
   readyCtx: import("../../../stores/pendingUploadStore").PendingSendContext,
 ): Promise<void> {
+  const reservedTurn = reservePersonalChatTurn(readyCtx.chatId, readyCtx.messageId);
+  try {
   console.info(
     `[executeDeferredSend] Starting for pending ${readyCtx.pendingId} in chat ${readyCtx.chatId.slice(-6)}`,
   );
@@ -2643,6 +2656,9 @@ export async function executeDeferredSend(
       "[executeDeferredSend] Failed to clear draft after deferred send:",
       clearError,
     );
+  }
+  } finally {
+    if (!reservedTurn.turnId) failPersonalChatTurn(reservedTurn, new Error('Deferred encrypted chat turn did not dispatch.'));
   }
 }
 

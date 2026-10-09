@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isCachePricingDisplayActive, isLongContextPricingDisplayActive, supportsOneHourCacheWrites } from './cachePricingAvailability';
+import { cacheWriteLabelKey, isCachePricingDisplayActive, isLongContextPricingDisplayActive, supportsOneHourCacheWrites } from './cachePricingAvailability';
 
 const verified = {
   enabled: true,
@@ -13,6 +13,12 @@ const verified = {
 const rates = { cache_read: 1000, cache_write: 80, cache_write_1h: 50 };
 
 describe('cache pricing catalog admission', () => {
+  // contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
+  it('does not claim a five-minute retention tier for separate OpenAI writes', () => {
+    expect(cacheWriteLabelKey(verified, 'openai')).toBe('cache_write');
+    expect(cacheWriteLabelKey(verified, 'anthropic')).toBe('cache_write_5m');
+    expect(cacheWriteLabelKey({ ...verified, write_billing: 'included_in_input' }, 'openai')).toBe('cache_write');
+  });
   // contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
   it('shows rates only on the verified, current default host', () => {
     expect(isCachePricingDisplayActive(verified, 'anthropic', rates, '2026-10-07')).toBe(true);

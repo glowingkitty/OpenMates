@@ -1011,6 +1011,7 @@ export class OpenMatesWsClient {
     embeds: SendEmbedDataFrame[];
     subChatEvents: SubChatEvent[];
     recoveryJobId: string | null;
+    recoveryCreatedAt: number | null;
     compressionCheckpoints: ChatCompressionCheckpointEvent[];
     tokenUsage: AiResponseTokenUsage | null;
     promptBudget: AiResponsePromptBudget | null;
@@ -1028,6 +1029,10 @@ export class OpenMatesWsClient {
       let tokenUsage: AiResponseTokenUsage | null = null;
       let promptBudget: AiResponsePromptBudget | null = null;
       let recoveryJobId: string | null = null;
+      let recoveryFinal: { assistantId: string; jobId: string; turnId: string; createdAt: number } | null = null;
+      const recoveryCreatedAt = () => recoveryFinal && recoveryJobId === recoveryFinal.jobId
+        && messageId === recoveryFinal.assistantId && options?.recoveryTurnId === recoveryFinal.turnId
+        ? recoveryFinal.createdAt : null;
       const compressionCheckpoints: ChatCompressionCheckpointEvent[] = [];
       let followUpSuggestions: string[] = [];
       let newChatSuggestions: string[] = [];
@@ -1130,6 +1135,19 @@ export class OpenMatesWsClient {
           recoveryJobId = p.recovery_job_id;
       };
 
+      const captureRecoveryFinal = (p: Record<string, unknown>) => {
+        if (p.chat_id !== chatId || p.user_message_id !== userMessageId
+          || p.recovery_protocol_version !== 1 || typeof p.message_id !== "string"
+          || !p.message_id || typeof p.recovery_job_id !== "string" || !p.recovery_job_id
+          || typeof p.recovery_turn_id !== "string" || !p.recovery_turn_id
+          || p.recovery_turn_id !== options?.recoveryTurnId
+          || !Number.isSafeInteger(p.created_at) || Number(p.created_at) <= 0) return;
+        recoveryFinal = {
+          assistantId: p.message_id, jobId: p.recovery_job_id,
+          turnId: p.recovery_turn_id, createdAt: Number(p.created_at),
+        };
+      };
+
       const extractMessageContent = (message: Record<string, unknown>): string => {
         if (typeof message.content === "string") return message.content;
         const content = message.content;
@@ -1178,6 +1196,7 @@ export class OpenMatesWsClient {
             embeds: [...embeds.values()],
             subChatEvents,
             recoveryJobId,
+            recoveryCreatedAt: recoveryCreatedAt(),
             compressionCheckpoints,
             tokenUsage,
             promptBudget,
@@ -1215,6 +1234,7 @@ export class OpenMatesWsClient {
               embeds: [...embeds.values()],
               subChatEvents,
               recoveryJobId,
+              recoveryCreatedAt: recoveryCreatedAt(),
               compressionCheckpoints,
               tokenUsage,
               promptBudget,
@@ -1247,6 +1267,7 @@ export class OpenMatesWsClient {
           embeds: [...embeds.values()],
           subChatEvents,
           recoveryJobId,
+          recoveryCreatedAt: recoveryCreatedAt(),
           compressionCheckpoints,
           tokenUsage,
           promptBudget,
@@ -1402,6 +1423,7 @@ export class OpenMatesWsClient {
         aiResponseDone = false;
         postProcessingDone = false;
         recoveryJobId = null;
+        recoveryFinal = null;
         latestContent = "";
         if (postProcessingTimer) { clearTimeout(postProcessingTimer); postProcessingTimer = null; }
         resetTimeout(timeoutMs);
@@ -1567,6 +1589,7 @@ export class OpenMatesWsClient {
               latestContent = p.full_content_so_far;
             }
             if (p.is_final_chunk === true) {
+              captureRecoveryFinal(p);
               if (p.awaiting_async_skill_continuation === true) {
                 awaitingUnidentifiedAsyncContinuation = true;
                 resetTimeout(Math.max(timeoutMs, 20 * 60_000 + 5_000));
@@ -1604,6 +1627,7 @@ export class OpenMatesWsClient {
             if (p.is_focus_mode_continuation === true) beginFocusModeContinuation();
             beginSubChatContinuation(p);
             capture(p);
+            captureRecoveryFinal(p);
             const content =
               typeof p.full_content === "string"
                 ? p.full_content
@@ -1747,6 +1771,7 @@ export class OpenMatesWsClient {
             embeds: [...embeds.values()],
             subChatEvents,
             recoveryJobId,
+            recoveryCreatedAt: recoveryCreatedAt(),
             compressionCheckpoints,
             tokenUsage,
             promptBudget,

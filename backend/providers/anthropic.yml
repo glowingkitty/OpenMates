@@ -127,14 +127,16 @@ models:
         output:
           per_credit_unit: 15 # 333.33 / 20.00 = 16.67 -> 15 (conservative round-down)
     cache_pricing:
-      enabled: false
+      enabled: true
       write_billing: separate
       eligible_hosts: [anthropic]
-      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
-      reviewed_on: "2026-10-06"
-      status: proposed_pending_provider_evidence
+      source_url: https://platform.claude.com/docs/en/models/opus-5-5/overview
+      reviewed_on: "2026-10-08"
+      status: verified_for_activation
+      expires_on: "2026-11-08"
       requires_cache_write_metric: true
       requires_cache_retention_metric: true
+      cache_write_1h_hosts: [] # Current direct-API controls create only 5m entries.
     costs:
       input_per_million_token:
         price: 4.00

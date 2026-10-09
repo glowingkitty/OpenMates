@@ -46,6 +46,9 @@ class FakeManager:
         self.calls = []
         self.broadcasts = []
 
+    def get_volatile_session_nonce(self, user_id, device_fingerprint_hash):
+        return "test-live-session-nonce"
+
     def set_active_chat(self, user_id, device_fingerprint_hash, chat_id):
         self.calls.append(("set_active_chat", user_id, device_fingerprint_hash, chat_id))
 
@@ -219,6 +222,7 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
         get_user_by_id=AsyncMock(return_value={"language": "en"}),
         get_chat_list_item_data=AsyncMock(return_value={}),
         get_active_ai_task=AsyncMock(return_value=None),
+        has_queued_messages=AsyncMock(return_value=False),
         set_active_ai_task=AsyncMock(),
         update_user=AsyncMock(),
     )
@@ -333,6 +337,7 @@ def test_message_send_forwards_client_embed_ref_index(monkeypatch):
         get_user_by_id=AsyncMock(return_value={"language": "en"}),
         get_chat_list_item_data=AsyncMock(return_value={}),
         get_active_ai_task=AsyncMock(return_value=None),
+        has_queued_messages=AsyncMock(return_value=False),
         set_active_ai_task=AsyncMock(),
         update_user=AsyncMock(),
     )
@@ -483,11 +488,12 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch):
         ),
         increment_and_tombstone_user_draft=AsyncMock(return_value=1),
         get_ai_messages_history=AsyncMock(return_value=cached_messages),
-        delete_chat_messages_history=AsyncMock(),
+        delete_ai_messages_history=AsyncMock(),
         add_message_to_chat_history=AsyncMock(),
         get_user_by_id=AsyncMock(return_value={"language": "en"}),
         get_chat_list_item_data=AsyncMock(return_value={}),
         get_active_ai_task=AsyncMock(return_value=None),
+        has_queued_messages=AsyncMock(return_value=False),
         set_active_ai_task=AsyncMock(),
         update_user=AsyncMock(),
     )
@@ -623,6 +629,7 @@ def test_recovery_send_marks_enqueue_failed_when_dispatch_returns_no_task(monkey
         get_user_by_id=AsyncMock(return_value={"language": "en"}),
         get_chat_list_item_data=AsyncMock(return_value={}),
         get_active_ai_task=AsyncMock(return_value=None),
+        has_queued_messages=AsyncMock(return_value=False),
         set_active_ai_task=AsyncMock(),
         update_user=AsyncMock(),
     )
@@ -725,12 +732,13 @@ def test_incognito_send_skips_durable_cutover_lookup(monkeypatch):
         set=AsyncMock(return_value=True),
         get=AsyncMock(return_value=None),
         get_user_vault_key_id=AsyncMock(return_value="vault-key-123"),
-        delete_chat_messages_history=AsyncMock(),
+        delete_ai_messages_history=AsyncMock(),
         add_message_to_chat_history=AsyncMock(),
         get_ai_messages_history=AsyncMock(return_value=[]),
         get_user_by_id=AsyncMock(return_value={"language": "en"}),
         get_chat_list_item_data=AsyncMock(return_value={}),
         get_active_ai_task=AsyncMock(return_value=None),
+        has_queued_messages=AsyncMock(return_value=False),
         set_active_ai_task=AsyncMock(),
         update_user=AsyncMock(),
     )
@@ -816,6 +824,7 @@ def test_contextual_pdf_processing_preserves_embed_ref(monkeypatch):
         get_user_by_id=AsyncMock(return_value={"language": "en"}),
         get_chat_list_item_data=AsyncMock(return_value={}),
         get_active_ai_task=AsyncMock(return_value=None),
+        has_queued_messages=AsyncMock(return_value=False),
         set_active_ai_task=AsyncMock(),
         update_user=AsyncMock(),
         set_embed_in_cache=AsyncMock(),
@@ -956,6 +965,7 @@ def test_existing_personal_chat_rejects_user_user_ai_cache_history(monkeypatch):
         get_user_by_id=AsyncMock(return_value={"language": "en"}),
         get_chat_list_item_data=AsyncMock(return_value={}),
         get_active_ai_task=AsyncMock(return_value=None),
+        has_queued_messages=AsyncMock(return_value=False),
         set_active_ai_task=AsyncMock(),
         update_user=AsyncMock(),
     )
