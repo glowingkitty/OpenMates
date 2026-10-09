@@ -102,14 +102,18 @@ export async function collectProjectFocusRoutingCandidates(
 ): Promise<ProjectFocusRoutingCandidate[]> {
   const owner = get(userProfile).user_id;
   if (!get(authStore).isAuthenticated || !owner) return [];
-  const candidates = projects.slice(0, 40);
-  const visible = candidates.filter((project) => project.teamId == null || project.teamId === (teamId ?? null));
+  const visible = projects.filter((project) => project.teamId == null || project.teamId === (teamId ?? null));
   const normalized = ` ${text.replace(/\s+/g, ' ')} `;
   const named = visible.filter((project) => project.name.trim() && new RegExp(
     `(^|[^\\p{L}\\p{N}_])${project.name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}\\p{N}_])`, 'iu',
   ).test(normalized));
   const selectedId = named.length === 1 ? named[0].project_id : null;
-  const result: ProjectFocusRoutingCandidate[] = visible.map((project) => ({
+  // A unique full-name mention narrows discovery metadata, while activation
+  // still requires server validation and the Project's consent policy.
+  const namedIds = new Set(named.map(project => project.project_id));
+  const routingProjects = selectedId ? named
+    : [...named, ...visible.filter(project => !namedIds.has(project.project_id))].slice(0, 40);
+  const result: ProjectFocusRoutingCandidate[] = routingProjects.map((project) => ({
     project_id: project.project_id,
     name: project.name.slice(0, 160),
     summary: project.description.slice(0, 640),

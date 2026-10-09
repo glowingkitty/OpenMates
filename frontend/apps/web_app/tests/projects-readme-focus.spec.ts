@@ -74,7 +74,7 @@ interface SocketEvent {
       contents?: Array<{ path?: string; source_id?: string; content?: string; expected_base?: string; size_bytes?: number }>;
       entries?: Array<{ path?: string }>;
     };
-    inference_request?: { project_focus_candidates?: Array<{ project_id?: string }> };
+    inference_request?: { project_focus_candidates?: Array<{ project_id?: string; name?: string }> };
   };
 }
 
@@ -525,6 +525,10 @@ test.describe('Plain-language Project README access (real inference, dev only)',
       const rejectedChatId = await currentChatId(page);
       const preflight = sent.filter(event => event.type === 'chat_turn_preflight').at(-1);
       expect(preflight?.payload?.inference_request?.project_focus_candidates?.some(candidate => candidate.project_id === fixture.project_id)).toBe(true);
+      if (PROMPT_VARIANT !== 'staged') {
+        expect(preflight?.payload?.inference_request?.project_focus_candidates)
+          .toEqual([{ project_id: fixture.project_id, name: 'OpenMates', summary: '', focuses: [] }]);
+      }
       await expect(page.getByTestId('focus-progress-bar')).toBeVisible({ timeout: 240_000 });
       if (PROMPT_VARIANT === 'staged') {
         const catalogRequest = received.find(event => event.type === 'project_focus_catalog_requested'

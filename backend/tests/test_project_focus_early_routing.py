@@ -264,26 +264,31 @@ async def test_named_readme_fallback_exits_before_detailed_preprocessing(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("text", [
-    PROMPT,
-    "Do not read my OpenMates README; give general advice.",
-    "Don't open the OpenMates files; just explain Markdown.",
+@pytest.mark.parametrize("text,ambiguous", [
+    (PROMPT, False),
+    ("Do not read my OpenMates README; give general advice.", False),
+    ("Don't open the OpenMates files; just explain Markdown.", False),
+    (PROMPT, True),
 ])
 # contract-test: supporting surface=gui.web assertions=projects.focus.inferred-consent,projects.memories.active-access
-async def test_confident_none_or_refusal_cannot_be_reselected_by_detailed_routing(monkeypatch, text):
+async def test_confident_none_or_refusal_cannot_be_reselected_by_detailed_routing(monkeypatch, text, ambiguous):
     from backend.apps.ai.processing import agentic_context, context_preselection
     from backend.core.api.app.services import project_focus_request_service
     from backend.core.api.app.utils import server_mode
 
     candidate = {"project_id": PROJECT, "name": "OpenMates", "focuses": [],
                  "focus_activation_policy": "immediate"}
+    candidates = [candidate]
+    if ambiguous:
+        candidates.append({**candidate, "project_id": "33333333-3333-4333-8333-333333333333"})
     request = AskSkillRequest(chat_id="chat", message_id="turn", user_id="user", user_id_hash="hash",
         message_history=[{"role": "user", "content": text, "created_at": 1}], current_user_content=text,
-        client_capabilities=["project_file_jobs"], project_focus_candidates=[candidate])
+        client_capabilities=["project_file_jobs"], project_focus_candidates=candidates)
     monkeypatch.setattr(server_mode, "is_payment_enabled", lambda: False)
     monkeypatch.setattr(preprocessor, "load_skill_ledger", AsyncMock(return_value=preprocessor.RoutingLedgerSnapshot(available=True, prompt_rows=())))
-    monkeypatch.setattr(project_focus_request_service, "validated_project_candidates", AsyncMock(return_value=[candidate]))
-    compact = AsyncMock(side_effect=lambda **kwargs: answers_for(kwargs["questions"], project=False))
+    monkeypatch.setattr(project_focus_request_service, "validated_project_candidates", AsyncMock(return_value=candidates))
+    compact = AsyncMock(side_effect=lambda **kwargs: answers_for(kwargs["questions"], project=ambiguous,
+        project_confidence=.4 if ambiguous else .99))
     monkeypatch.setattr(jev_preprocessing, "_evaluate_preprocessing_questions", compact)
     monkeypatch.setattr(agentic_context, "private_focus_candidates", AsyncMock(return_value=[]))
     monkeypatch.setattr(agentic_context, "fresh_project", AsyncMock(return_value=None))

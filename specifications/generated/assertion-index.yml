@@ -70720,13 +70720,13 @@ assertions:
       surface: cli
     - &id8970
       path: frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
-      line: 160
+      line: 162
       name: preserves complete versioned phase definitions and ordered requirements
         in the selected private document
       surface: gui.web
     - &id8971
       path: frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
-      line: 173
+      line: 175
       name: rejects unsupported or incomplete canonical phases instead of silently
         converting them to legacy
       surface: gui.web
@@ -71406,25 +71406,25 @@ assertions:
       surface: gui.web
     - &id9044
       path: frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
-      line: 86
+      line: 88
       name: selects metadata on the server before reading only authorized exact Markdown
         bodies
       surface: gui.web
     - &id9045
       path: frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
-      line: 101
+      line: 103
       name: retains the canonical active specialist when optional metadata selection
         fails
       surface: gui.web
     - &id9046
       path: frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
-      line: 112
+      line: 114
       name: rejects incomplete recommendation catalogs rather than implying no existing
         Focus overlaps
       surface: gui.web
     - &id9047
       path: frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
-      line: 119
+      line: 121
       name: drops selected bodies if Project activation or metadata revision changes
         during loading
       surface: gui.web
@@ -71742,19 +71742,19 @@ assertions:
       surface: cli
     - &id9088
       path: frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
-      line: 146
+      line: 148
       name: validates complete saved Focus metadata and ordered phases without accepting
         aliases
       surface: gui.web
     - &id9089
       path: frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
-      line: 160
+      line: 162
       name: preserves complete versioned phase definitions and ordered requirements
         in the selected private document
       surface: gui.web
     - &id9090
       path: frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
-      line: 173
+      line: 175
       name: rejects unsupported or incomplete canonical phases instead of silently
         converting them to legacy
       surface: gui.web
@@ -85030,13 +85030,13 @@ assertions:
       surface: gui.web
     - &id10731
       path: frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
-      line: 101
+      line: 103
       name: retains the canonical active specialist when optional metadata selection
         fails
       surface: gui.web
     - &id10732
       path: frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
-      line: 119
+      line: 121
       name: drops selected bodies if Project activation or metadata revision changes
         during loading
       surface: gui.web
@@ -85363,12 +85363,12 @@ assertions:
       surface: gui.web
     - &id10768
       path: backend/tests/test_project_focus_early_routing.py
-      line: 273
+      line: 274
       name: test_confident_none_or_refusal_cannot_be_reselected_by_detailed_routing
       surface: gui.web
     - &id10769
       path: backend/tests/test_project_focus_early_routing.py
-      line: 337
+      line: 342
       name: test_named_file_fallback_requires_intent_unique_eligible_project_and_capability
       surface: gui.web
     - &id10770
@@ -85433,7 +85433,7 @@ assertions:
       surface: gui.web
     - &id10795
       path: frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
-      line: 134
+      line: 136
       name: loads the exact selected specialist only after activation at its selected
         revision
       surface: gui.web
@@ -88831,7 +88831,7 @@ assertions:
       surface: gui.web
     - &id11209
       path: backend/tests/test_project_focus_early_routing.py
-      line: 337
+      line: 342
       name: test_named_file_fallback_requires_intent_unique_eligible_project_and_capability
       surface: gui.web
     tests:
@@ -89018,7 +89018,7 @@ assertions:
       surface: gui.web
     - &id11237
       path: backend/tests/test_project_focus_early_routing.py
-      line: 273
+      line: 274
       name: test_confident_none_or_refusal_cannot_be_reselected_by_detailed_routing
       surface: gui.web
     tests:

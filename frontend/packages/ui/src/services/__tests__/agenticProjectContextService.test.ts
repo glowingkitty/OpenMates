@@ -57,6 +57,8 @@ describe('Project focus catalog boundaries', () => {
   it('discovers bounded metadata before consent without reading Focus instructions', async () => {
     mocks.focus.mockResolvedValue(null);
     const candidates = await collectProjectFocusRoutingCandidates([
+      ...Array.from({ length: 40 }, (_, index) => ({ project_id: `other-${index}`,
+        name: `Unrelated ${index}`, description: 'Other notes', teamId: null } as never)),
       { project_id: 'project-1', name: 'Garden', description: 'Project notes', teamId: null } as never,
     ], null, 'Please debug the Garden project');
     expect(candidates).toEqual([{ project_id: 'project-1', name: 'Garden', summary: 'Project notes', focuses: [

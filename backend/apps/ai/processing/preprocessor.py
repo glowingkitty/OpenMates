@@ -1951,6 +1951,12 @@ async def handle_preprocessing(
                 )
                 current_text = request_data.current_user_content or ""
                 file_intent = requests_project_file_work(current_text)
+                from backend.core.api.app.services.project_focus_request_service import explicitly_named_project_focus_ids
+                named_matches = explicitly_named_project_focus_ids(current_text, request_data.project_focus_candidates)
+                # Uncertain routing cannot resolve identical names by repeating
+                # detailed selection or letting main processing pick arbitrarily.
+                if len(set(named_matches)) > 1:
+                    suppress_implicit_project_focus = True
                 named_id = uniquely_named_project_focus_id(
                     current_text, request_data.project_focus_candidates,
                     [f"project-{row['project_id']}" for row in request_data.project_focus_candidates
