@@ -1,0 +1,34 @@
+schema_version: 2
+profile: concise
+id: anonymous-chat-recovery
+title: Anonymous chat reliability and tab-local recovery
+status: implementing
+goal: >-
+  Fix anonymous code embeds, German follow-up suggestions, generated chat titles
+  and summaries, and same-tab reload/history recovery on dev while preserving
+  transient server content and tab-scoped browser decryption. Replace the notice
+  with a signup text link. Temporarily enable dev free usage for live verification
+  and disable it afterwards.
+scope:
+  - Reuse anonymous budget admission and content-free operation accounting.
+  - Deliver generated embeds and metadata directly to the anonymous client.
+  - Preserve encrypted local chat rows with a tab-session wrapping key.
+  - Populate guest Continue cards and sidebar from accessible local chats.
+contracts:
+  - billing.anonymous.local-only-content
+  - billing.anonymous.hard-capped-provider-metering
+  - chats.streaming.ordered-final
+decisions:
+  - >-
+    IndexedDB rows are origin-wide, so a guest tab never deletes rows it cannot
+    unwrap. Closing a tab normally discards its session wrapping key; remaining
+    ciphertext is inaccessible to the application. Browser-managed closed-tab
+    or session restore can retain sessionStorage and is outside a web app's
+    deletion guarantee; this limitation was disclosed in chat.
+verification:
+  required:
+    - Focused storage and backend unit tests.
+    - Isolated component preview and deterministic anonymous browser regression.
+    - Deployed dev German code generation, metadata and reload live-inference check.
+    - Confirm anonymous free usage disabled after verification.
+  evidence: Existing browser recordings are delivered in the final chat.

@@ -3692,6 +3692,12 @@
       "feature_notice": {
         "text": "Du verwendest kostenlose anonyme Credits. Datei-Uploads, Erinnerungen, Chat-Synchronisierung und einige weitere Funktionen erfordern ein Konto."
       },
+      "signup_now": {
+        "text": "Jetzt registrieren"
+      },
+      "signup_benefits": {
+        "text": "um alle Funktionen freizuschalten, deine Chats zu behalten und auf allen deinen Geräten darauf zuzugreifen."
+      },
       "daily_credits_exhausted": {
         "text": "Du hast deine kostenlosen Tagescredits aufgebraucht. Registriere dich und kaufe Credits, um OpenMates vollständig zu nutzen."
       }

@@ -1201,15 +1201,21 @@ class ChatDatabase {
                 "readonly",
               );
               const store = transaction.objectStore(this.CHATS_STORE_NAME);
-              const countRequest = store.count();
+              const orphanRequest = store.openCursor();
 
-              countRequest.onsuccess = () => {
-                const chatCount = countRequest.result;
-                if (chatCount > 0) {
+              orphanRequest.onsuccess = () => {
+                const cursor = orphanRequest.result;
+                // Anonymous rows use a tab-session wrapping key, never the
+                // account master key. A generic early init() must not erase
+                // them before anonymousChatStorage can restore or purge them.
+                if (cursor?.value?.is_anonymous === true) {
+                  cursor.continue();
+                  return;
+                }
+                if (cursor) {
                   console.warn(
                     "[ChatDatabase] ORPHANED DATABASE DETECTED: No master key but found",
-                    chatCount,
-                    "encrypted chats",
+                    "account-encrypted chats",
                   );
                   console.warn(
                     "[ChatDatabase] Setting cleanup marker and forcedLogoutInProgress=true",
@@ -1222,7 +1228,7 @@ class ChatDatabase {
                 db.close();
               };
 
-              countRequest.onerror = () => {
+              orphanRequest.onerror = () => {
                 db.close();
               };
             } catch (e) {

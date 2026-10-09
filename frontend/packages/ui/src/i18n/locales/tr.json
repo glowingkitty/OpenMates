@@ -3196,6 +3196,12 @@
       "feature_notice": {
         "text": "Ücretsiz anonim krediler kullanıyorsunuz. Dosya yüklemeleri, hafızalar, sohbet senkronizasyonu ve bazı diğer özellikler için hesap oluşturmanız gerekir."
       },
+      "signup_now": {
+        "text": "Şimdi kaydol"
+      },
+      "signup_benefits": {
+        "text": "tüm özelliklerin kilidini açmak, sohbetlerini saklamak ve onlara tüm cihazlarından erişmek için."
+      },
       "daily_credits_exhausted": {
         "text": "Ücretsiz günlük kredilerinizi kullandınız. OpenMates'ten tam olarak yararlanmak için kaydolun ve kredi satın alın."
       }

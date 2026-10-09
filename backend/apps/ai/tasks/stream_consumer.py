@@ -67,6 +67,10 @@ from backend.apps.ai.utils.embed_display_text import (
     is_bad_embed_display_text as _is_bad_embed_display_text,
 )
 from backend.apps.ai.utils.tool_protocol_guard import is_internal_tool_protocol
+from backend.apps.ai.utils.code_embed_policy import (
+    _is_code_block_too_short_for_embed as _is_code_block_too_short_for_embed,
+    _should_skip_code_block_for_embed,
+)
 from backend.apps.ai.utils.app_skill_json_cleanup import (
     canonicalize_app_skill_json_blocks,
     strip_failed_app_skill_json_blocks,
@@ -4038,7 +4042,6 @@ async def _validate_paragraph_urls(
 # to an embed. Below this threshold, the code block is kept as-is in the response
 # (not converted to a code embed). Prevents broken/empty embeds from example code
 # fences or garbled output.
-MIN_CODE_EMBED_CONTENT_LENGTH = 20
 APPLICATION_PREVIEW_MANIFEST_FILENAMES = {"package.json"}
 APPLICATION_PREVIEW_SOURCE_EXTENSIONS = (
     ".svelte",
@@ -4507,41 +4510,6 @@ def _should_process_chunk_as_code_block(
             return False
 
     return True
-
-
-def _is_code_block_too_short_for_embed(code_content: str) -> bool:
-    """Return True if the code block content is too short to create an embed.
-
-    Prevents creating broken/empty embeds from example code fences or garbled
-    output. The threshold is MIN_CODE_EMBED_CONTENT_LENGTH (20 chars).
-    Fix for issue 6a948813.
-    """
-    return len(code_content.strip()) < MIN_CODE_EMBED_CONTENT_LENGTH
-
-
-def _is_example_only_code_block(code_content: str) -> bool:
-    stripped = code_content.strip()
-    if not stripped:
-        return False
-
-    lowered = stripped.lower()
-    if "example usage" in lowered and not re.search(r"\b(def|class)\b", lowered):
-        return True
-
-    non_comment_lines = [
-        line.strip()
-        for line in stripped.splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
-    ]
-    return (
-        len(non_comment_lines) <= 2
-        and any("print(" in line for line in non_comment_lines)
-        and not any(re.search(r"\b(def|class)\b", line) for line in non_comment_lines)
-    )
-
-
-def _should_skip_code_block_for_embed(code_content: str) -> bool:
-    return _is_code_block_too_short_for_embed(code_content) or _is_example_only_code_block(code_content)
 
 
 _EDIT_EXISTING_ARTIFACT_RE = re.compile(
@@ -6240,10 +6208,10 @@ async def _consume_main_processing_stream(
                         )
                         continue
 
-                if project_file_reference_output:
-                    # Preserve the server-issued reference JSON and later model
-                    # fences as ordinary message text. Bypass all code, document,
-                    # diagram and table embed creation for this result stream.
+                if project_file_reference_output or request_data.is_anonymous:
+                    # Anonymous fences are converted to response-only embeds by
+                    # the API adapter. Neither path may create persisted embeds.
+                    # Preserve server-issued references as ordinary message text.
                     final_response_chunks.append(chunk)
                     stream_chunk_count += 1
                     if cache_service:
@@ -6255,7 +6223,7 @@ async def _consume_main_processing_stream(
                         await content_publisher.flush()
                         await _publish_to_redis(
                             cache_service, redis_channel_name, payload, log_prefix,
-                            "Published Project file reference response text",
+                            "Published unpersisted response text",
                         )
                         if completion_timing:
                             completion_timing.mark_first_visible_content()
@@ -10351,6 +10319,11 @@ async def _consume_main_processing_stream(
     if notification_title:
         final_payload["chat_title"] = notification_title
     if getattr(request_data, "is_anonymous", False):
+        final_payload["anonymous_metadata"] = {
+            "title": getattr(preprocessing_result, "title", None),
+            "output_language": getattr(preprocessing_result, "output_language", None),
+            "chat_summary": getattr(preprocessing_result, "chat_summary", None),
+        }
         # The anonymous SSE adapter must not present a failed answer as a
         # completed task. Only this public, non-diagnostic limit code is sent
         # to the client; other failure details remain server-side.

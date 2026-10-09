@@ -3196,6 +3196,12 @@
       "feature_notice": {
         "text": "Stai usando crediti anonimi gratuiti. Caricamenti di file, memorie, sincronizzazione delle chat e alcune altre funzionalità richiedono la creazione di un account."
       },
+      "signup_now": {
+        "text": "Registrati ora"
+      },
+      "signup_benefits": {
+        "text": "per sbloccare tutte le funzionalità, conservare le chat e accedervi da tutti i tuoi dispositivi."
+      },
       "daily_credits_exhausted": {
         "text": "Hai esaurito i crediti gratuiti giornalieri. Registrati e acquista crediti per usare OpenMates al meglio."
       }

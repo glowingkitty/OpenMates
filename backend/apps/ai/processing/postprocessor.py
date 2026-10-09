@@ -10,7 +10,7 @@
 import copy
 import json
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Callable, Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 import datetime
 
@@ -246,6 +246,7 @@ class PostProcessingResult(BaseModel):
     harmful_response: float = Field(default=0.0, description="Score 0-10 for harmful response detection")
     top_recommended_apps_for_user: List[str] = Field(default_factory=list, description="Top 5 recommended app IDs for this user based on conversation context")
     chat_summary: Optional[str] = Field(None, description="Updated chat summary (max 20 words) including the latest exchange")
+    usage_telemetry: Optional[Dict[str, Any]] = Field(default=None, exclude=True, repr=False)
     chat_tags: List[str] = Field(default_factory=list, description="Up to 10 search and categorization tags for the completed conversation")
     share_cta_text: Optional[str] = Field(None, description="Short call-to-open text for shared chat previews and OG images")
     # Updated chat title: only set when the conversation has evolved significantly beyond the original title.
@@ -294,6 +295,10 @@ async def handle_postprocessing(
     learning_mode_context: Optional[Dict[str, Any]] = None,
     learning_focus_context: Optional[Dict[str, Any]] = None,
     decision_model_id: Optional[str] = None,
+    translate_ui_metadata: bool = True,
+    usage_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+    allow_model_fallbacks: bool = True,
+    max_output_tokens: Optional[int] = None,
 ) -> Optional[PostProcessingResult]:
     """
     Generate post-processing suggestions using LLM.
@@ -552,8 +557,9 @@ async def handle_postprocessing(
 
     # Use independent Mistral recovery before the alternate Google server, with
     # the same deadline and attempt count as foreground routing.
-    postprocess_fallbacks = utility_model_fallbacks(
-        model_id, resolve_fallback_servers_from_provider_config(model_id)
+    postprocess_fallbacks = (
+        utility_model_fallbacks(model_id, resolve_fallback_servers_from_provider_config(model_id))
+        if allow_model_fallbacks else []
     )
 
     # Call the LLM with function calling
@@ -567,6 +573,8 @@ async def handle_postprocessing(
         dynamic_context=None,  # No dynamic context needed
         fallback_models=postprocess_fallbacks,
         observability_purpose="postprocess",
+        usage_callback=usage_callback,
+        max_output_tokens=max_output_tokens,
     )
 
     # CRITICAL FIX: Handle LLM errors gracefully instead of crashing the entire task
@@ -582,7 +590,8 @@ async def handle_postprocessing(
             follow_up_request_suggestions=[],
             new_chat_request_suggestions=[],
             harmful_response=0.0,
-            top_recommended_apps_for_user=[]
+            top_recommended_apps_for_user=[],
+            usage_telemetry=llm_result.usage_telemetry,
         )
 
     # Handle case where LLM returns empty arguments (might be valid - LLM chose not to generate suggestions)
@@ -702,14 +711,22 @@ async def handle_postprocessing(
 
     # Enforce the UI language in one isolated request. This preserves the reliable
     # language-bleed guard while avoiding three or four sequential translation calls.
-    translated_metadata = await translate_postprocessing_metadata(
-        task_id=task_id,
-        chat_summary=postproc_chat_summary,
-        share_cta_text=share_cta_text,
-        updated_chat_title=postproc_updated_title,
-        new_chat_suggestions=sanitized_new_chat,
-        target_language=user_system_language,
-        secrets_manager=secrets_manager,
+    translated_metadata = (
+        await translate_postprocessing_metadata(
+            task_id=task_id,
+            chat_summary=postproc_chat_summary,
+            share_cta_text=share_cta_text,
+            updated_chat_title=postproc_updated_title,
+            new_chat_suggestions=sanitized_new_chat,
+            target_language=user_system_language,
+            secrets_manager=secrets_manager,
+        )
+        if translate_ui_metadata else {
+            "chat_summary": postproc_chat_summary,
+            "share_cta_text": share_cta_text,
+            "updated_chat_title": postproc_updated_title,
+            "new_chat_suggestions": sanitized_new_chat,
+        }
     )
     postproc_chat_summary = translated_metadata["chat_summary"]
     share_cta_text = translated_metadata["share_cta_text"]
@@ -762,6 +779,7 @@ async def handle_postprocessing(
         ),
         top_recommended_apps_for_user=validated_app_ids[:5],  # Limit to 5 and use validated IDs
         chat_summary=postproc_chat_summary,  # Updated summary including latest exchange (may be None)
+        usage_telemetry=llm_result.usage_telemetry,
         chat_tags=postproc_chat_tags,
         share_cta_text=share_cta_text,
         updated_chat_title=postproc_updated_title,  # New title if conversation drifted (may be None)

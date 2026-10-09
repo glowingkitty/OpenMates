@@ -3196,6 +3196,12 @@
       "feature_notice": {
         "text": "Du använder gratis anonyma krediter. Filuppladdningar, minnen, chattsynkronisering och vissa andra funktioner kräver att du skapar ett konto."
       },
+      "signup_now": {
+        "text": "Registrera dig nu"
+      },
+      "signup_benefits": {
+        "text": "för att låsa upp alla funktioner, behålla dina chattar och komma åt dem på alla dina enheter."
+      },
       "daily_credits_exhausted": {
         "text": "Du har använt upp dina kostnadsfria dagliga krediter. Registrera dig och köp krediter för att använda OpenMates fullt ut."
       }

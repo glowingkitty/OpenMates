@@ -3196,6 +3196,12 @@
       "feature_notice": {
         "text": "Używasz bezpłatnych anonimowych kredytów. Przesyłanie plików, pamięć, synchronizacja czatów i niektóre inne funkcje wymagają utworzenia konta."
       },
+      "signup_now": {
+        "text": "Zarejestruj się teraz"
+      },
+      "signup_benefits": {
+        "text": "aby odblokować wszystkie funkcje, zachować czaty i mieć do nich dostęp na wszystkich swoich urządzeniach."
+      },
       "daily_credits_exhausted": {
         "text": "Wykorzystałeś bezpłatne dzienne kredyty. Zarejestruj się i kup kredyty, aby w pełni korzystać z OpenMates."
       }

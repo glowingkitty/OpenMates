@@ -3196,6 +3196,12 @@
       "feature_notice": {
         "text": "Anda menggunakan kredit anonim gratis. Unggahan file, memori, sinkronisasi chat, dan beberapa fitur lain memerlukan pembuatan akun."
       },
+      "signup_now": {
+        "text": "Daftar sekarang"
+      },
+      "signup_benefits": {
+        "text": "untuk membuka semua fitur, menyimpan chat, dan mengaksesnya di semua perangkat Anda."
+      },
       "daily_credits_exhausted": {
         "text": "Anda telah menghabiskan kredit harian gratis. Daftar dan beli kredit untuk menggunakan OpenMates sepenuhnya."
       }

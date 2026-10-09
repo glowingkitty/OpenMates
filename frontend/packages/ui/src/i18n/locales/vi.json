@@ -3196,6 +3196,12 @@
       "feature_notice": {
         "text": "Bạn đang dùng tín dụng ẩn danh miễn phí. Tải tệp lên, bộ nhớ, đồng bộ trò chuyện và một số tính năng khác yêu cầu tạo tài khoản."
       },
+      "signup_now": {
+        "text": "Đăng ký ngay"
+      },
+      "signup_benefits": {
+        "text": "để mở khóa mọi tính năng, lưu giữ các cuộc trò chuyện và truy cập chúng trên các thiết bị của bạn."
+      },
       "daily_credits_exhausted": {
         "text": "Bạn đã dùng hết tín dụng miễn phí hằng ngày. Hãy đăng ký và mua tín dụng để sử dụng đầy đủ OpenMates."
       }

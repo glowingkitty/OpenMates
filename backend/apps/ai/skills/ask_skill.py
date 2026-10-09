@@ -171,6 +171,9 @@ class AskSkillRequest(BaseModel):
     recovery_consumed_child_ids: List[str] = Field(default_factory=list, description="Internal child identities whose sealed synthesis inputs are carried by this continuation.")
     is_anonymous: bool = Field(default=False, description="True for official-cloud anonymous free usage. Skips user-vault lookup and user-balance charging.")
     anonymous_reservation_id: Optional[str] = Field(default=None, description="Anonymous budget reservation ID for server-side reconciliation.")
+    anonymous_current_chat_title: Optional[str] = Field(default=None, max_length=200)
+    anonymous_current_chat_summary: Optional[str] = Field(default=None, max_length=4000)
+    anonymous_system_language: Optional[str] = Field(default=None, max_length=8)
     continuation_message_id: Optional[str] = Field(default=None, description="When set, the continuation task reuses this as the AI message_id instead of generating a new one from the Celery task_id. This ensures the continuation response is appended to the same message bubble as the focus mode embed.")
     api_key_hash: Optional[str] = Field(default=None, alias="_api_key_hash", description="SHA-256 hash of the API key for usage tracking.")
     device_hash: Optional[str] = Field(default=None, alias="_device_hash", description="SHA-256 hash of the device for usage tracking.")
@@ -327,6 +330,7 @@ class OpenAIStreamResponse(BaseModel):
     # internal adapters use it to apply stream-time prefix rewrites safely.
     full_content: Optional[str] = Field(default=None, description="Authoritative final response snapshot (OpenMates extension).")
     failure_reason: Optional[str] = Field(default=None, description="Safe anonymous failure code (OpenMates extension).")
+    anonymous_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Transient anonymous chat metadata (OpenMates extension).")
     
     # Exclude null fields from JSON output
     model_config = {"from_attributes": True}
@@ -678,7 +682,11 @@ class AskSkill(BaseSkill):
             user_id=user_id,
             user_id_hash=user_id_hash,
             message_history=message_history,
-            chat_has_title=False,  # Always generate new metadata for API requests
+            chat_has_title=bool(openai_request.anonymous_current_chat_title) if openai_request.is_anonymous else False,
+            current_chat_title=openai_request.anonymous_current_chat_title if openai_request.is_anonymous else None,
+            current_chat_summary=openai_request.anonymous_current_chat_summary if openai_request.is_anonymous else None,
+            current_chat_summary_v=1 if openai_request.is_anonymous and openai_request.anonymous_current_chat_summary else None,
+            current_chat_metadata_v=1 if openai_request.is_anonymous and openai_request.anonymous_current_chat_summary else None,
             is_incognito=openai_request.is_incognito or False,
             is_anonymous=openai_request.is_anonymous or False,
             anonymous_reservation_id=openai_request.anonymous_reservation_id,
@@ -699,6 +707,7 @@ class AskSkill(BaseSkill):
                 "presence_penalty": openai_request.presence_penalty,
                 "stop": openai_request.stop,
                 "apps_enabled": openai_request.apps_enabled,
+                "language": openai_request.anonymous_system_language or "en" if openai_request.is_anonymous else "en",
                 "allowed_apps": openai_request.allowed_apps,
                 "workflow_ai": openai_request.workflow_ai,
                 "workflow_credit_allowance": workflow_credit_allowance,
@@ -858,6 +867,7 @@ class AskSkill(BaseSkill):
                         usage=usage_data,
                         full_content=full_response_content,
                         failure_reason=chunk_info.get("failure_reason") if is_error else None,
+                        anonymous_metadata=chunk_info.get("anonymous_metadata") if internal_request.is_anonymous else None,
                     )
                     yield f"data: {final_chunk.model_dump_json(exclude_none=True)}\n\n"
                     yield "data: [DONE]\n\n"
@@ -968,6 +978,7 @@ class AskSkill(BaseSkill):
                                     "total_credits": data.get("total_credits"),
                                     "category": data.get("category"),
                                     "anonymous_embeds": data.get("anonymous_embeds"),
+                                    "anonymous_metadata": data.get("anonymous_metadata"),
                                     "failure_reason": data.get("failure_reason") if is_error else None,
                                 }
                                 task_completed = True

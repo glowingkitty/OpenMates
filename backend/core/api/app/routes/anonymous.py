@@ -12,6 +12,7 @@ import re
 import uuid
 import json
 import logging
+import time
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -46,6 +47,7 @@ ANONYMOUS_INFERENCE_ERROR_MESSAGE = "Anonymous inference failed. Please try agai
 ANONYMOUS_USAGE_LIMIT_MESSAGE = "Create an account to keep using OpenMates."
 ANONYMOUS_STATUS_LOCAL_RATE_LIMIT_PER_MINUTE = 60
 ANONYMOUS_CHAT_LOCAL_RATE_LIMIT_PER_MINUTE = 20
+ANONYMOUS_POSTPROCESS_MAX_OUTPUT_TOKENS = 2048
 MAX_ANONYMOUS_SKILL_BODY_BYTES = 20_000
 
 EMBED_REFERENCE_PATTERN = re.compile(
@@ -58,6 +60,11 @@ ANONYMOUS_SKILL_DISPLAY_PATTERN = re.compile(
 )
 ANONYMOUS_SKILL_DISPLAY_FIELDS = frozenset({"type", "embed_id", "app_id", "skill_id"})
 ANONYMOUS_SKILL_DISPLAY_TYPE = "app_skill_use"
+ANONYMOUS_GENERATED_DISPLAY_TYPES = frozenset({"code", "math-plot"})
+ANONYMOUS_FENCE_PATTERN = re.compile(
+    r"(?m)^[ \t]*```(?P<header>[^\r\n]*)\r?\n(?P<body>.*?)\r?\n[ \t]*```[ \t]*(?=\r?$)",
+    re.DOTALL,
+)
 
 
 class AnonymousHistoryMessage(BaseModel):
@@ -79,6 +86,9 @@ class AnonymousChatStreamRequest(BaseModel):
     requested_skill_ids: Optional[list[str]] = None
     learning_mode: Optional[dict[str, Any]] = None
     encrypted_context_metadata: Optional[dict[str, Any]] = None
+    current_chat_title: Optional[str] = Field(default=None, max_length=200)
+    current_chat_summary: Optional[str] = Field(default=None, max_length=4000)
+    system_language: str = Field(default="en", pattern=r"^[a-z]{2}$")
     files: Optional[list[dict[str, Any]]] = None
     embeds: Optional[list[dict[str, Any]]] = None
 
@@ -151,9 +161,13 @@ def _anonymous_history_content(message: AnonymousHistoryMessage | dict[str, Any]
             return match.group(0)
         if (
             isinstance(reference, dict)
-            and reference.keys() == ANONYMOUS_SKILL_DISPLAY_FIELDS
-            and reference["type"] == ANONYMOUS_SKILL_DISPLAY_TYPE
             and all(isinstance(value, str) for value in reference.values())
+            and (
+                (reference.keys() == ANONYMOUS_SKILL_DISPLAY_FIELDS
+                 and reference["type"] == ANONYMOUS_SKILL_DISPLAY_TYPE)
+                or (reference.keys() == {"type", "embed_id"}
+                    and reference["type"] in ANONYMOUS_GENERATED_DISPLAY_TYPES)
+            )
         ):
             return ""
         return match.group(0)
@@ -475,6 +489,56 @@ def _anonymous_title_from_message(message: str) -> str:
     return first_line if len(first_line) <= 50 else f"{first_line[:50]}..."
 
 
+def _transient_anonymous_fence_embeds(content: str) -> tuple[str, list[dict[str, Any]]]:
+    """Make generated code and plot cards for the client without server embed writes."""
+    from toon_format import encode
+    from backend.apps.ai.utils.code_embed_policy import _should_skip_code_block_for_embed
+
+    embeds: list[dict[str, Any]] = []
+
+    def replace(match: re.Match[str]) -> str:
+        header = match.group("header").strip()
+        language, separator, filename = header.partition(":")
+        language = language.strip().lower()
+        filename = filename.strip() if separator else ""
+        body = match.group("body")
+        if language in {"json_embed", "tool_code", "toon", "interactive_question", "interactive_response"}:
+            return match.group(0)
+        if language == "json":
+            try:
+                parsed = json.loads(body)
+                if isinstance(parsed, dict) and (parsed.get("embed_id") or parsed.get("tool")):
+                    return match.group(0)
+            except json.JSONDecodeError:
+                pass
+        if language != "plot" and _should_skip_code_block_for_embed(body):
+            return match.group(0)
+        if not body.strip():
+            return match.group(0)
+
+        embed_id = str(uuid.uuid4())
+        now = int(time.time())
+        embed_type = "math-plot" if language == "plot" else "code"
+        if embed_type == "code":
+            embed_content = {
+                "type": "code", "app_id": "code", "skill_id": "code",
+                "language": language, "filename": filename or None,
+                "code": body, "line_count": len(body.splitlines()), "status": "finished",
+            }
+        else:
+            embed_content = {
+                "type": "math-plot", "app_id": "math", "skill_id": "plot",
+                "plot_spec": body, "status": "finished",
+            }
+        embeds.append({
+            "embed_id": embed_id, "type": embed_type, "content": encode(embed_content),
+            "status": "finished", "created_at": now, "updated_at": now,
+        })
+        return f'```json\n{json.dumps({"type": embed_type, "embed_id": embed_id})}\n```'
+
+    return ANONYMOUS_FENCE_PATTERN.sub(replace, content), embeds
+
+
 async def _iter_openai_sse_payloads(streaming_response: Any):
     buffer = ""
     async for chunk in streaming_response.body_iterator:
@@ -562,6 +626,9 @@ async def anonymous_chat_stream(
                     "_message_id": payload.client_message_id,
                     "apps_enabled": True,
                     "learning_mode": learning_mode_context,
+                    "anonymous_current_chat_title": payload.current_chat_title,
+                    "anonymous_current_chat_summary": payload.current_chat_summary,
+                    "anonymous_system_language": payload.system_language,
                 },
             )
             choice = (result.get("choices") or [{}])[0] if isinstance(result, dict) else {}
@@ -607,6 +674,7 @@ async def anonymous_chat_stream(
         upstream_error_frame = False
         upstream_error_snapshot = None
         upstream_failure_reason = None
+        generated_metadata: dict[str, Any] = {}
 
         yield _anonymous_sse_event({
             "type": "ai_task_initiated",
@@ -624,7 +692,7 @@ async def anonymous_chat_stream(
             "model_name": model_name,
             "provider_name": None,
             "server_region": None,
-            "title": _anonymous_title_from_message(payload.plaintext_message),
+            "title": payload.current_chat_title or _anonymous_title_from_message(payload.plaintext_message),
             "icon_names": ["ai"],
             "task_id": task_id,
         })
@@ -669,6 +737,9 @@ async def anonymous_chat_stream(
                     "_message_id": payload.client_message_id,
                     "apps_enabled": True,
                     "learning_mode": learning_mode_context,
+                    "anonymous_current_chat_title": payload.current_chat_title,
+                    "anonymous_current_chat_summary": payload.current_chat_summary,
+                    "anonymous_system_language": payload.system_language,
                 },
             )
             if isinstance(result, dict):
@@ -680,6 +751,8 @@ async def anonymous_chat_stream(
                 async for openai_payload in _iter_openai_sse_payloads(result):
                     if isinstance(openai_payload.get("model"), str):
                         model_name = openai_payload["model"]
+                    if isinstance(openai_payload.get("anonymous_metadata"), dict):
+                        generated_metadata = openai_payload["anonymous_metadata"]
                     # OpenMates streaming extension: the final top-level snapshot
                     # is authoritative when upstream cumulative content was
                     # rewritten and could not be represented by OpenAI deltas.
@@ -728,6 +801,19 @@ async def anonymous_chat_stream(
                                 "model_name": model_name,
                             })
             _require_anonymous_answer(full_content)
+            answer_for_postprocessing = full_content
+            full_content, transient_embeds = _transient_anonymous_fence_embeds(full_content)
+            for embed in transient_embeds:
+                yield _anonymous_sse_event({
+                    "type": "send_embed_data",
+                    "payload": {
+                        **embed,
+                        "chat_id": payload.client_chat_id,
+                        "message_id": assistant_message_id,
+                        "user_id": payload.anonymous_id,
+                        "task_id": task_id,
+                    },
+                })
             sequence += 1
             yield _anonymous_sse_event({
                 "type": "ai_message_chunk",
@@ -746,12 +832,20 @@ async def anonymous_chat_stream(
                 "taskId": task_id,
                 "status": "completed",
             })
-            yield _anonymous_sse_event(_anonymous_post_processing_event(
-                chat_id=payload.client_chat_id,
-                task_id=task_id,
-                user_message=payload.plaintext_message,
-                assistant=full_content,
-            ))
+            try:
+                post_event = await _anonymous_post_processing_event(
+                    chat_id=payload.client_chat_id,
+                    task_id=task_id,
+                    payload=payload,
+                    assistant=answer_for_postprocessing,
+                    generated_metadata=generated_metadata,
+                    cache_service=cache_service,
+                    usage_service=service,
+                    parent_request_id=reservation.request_id,
+                )
+                yield _anonymous_sse_event(post_event)
+            except Exception:
+                logger.exception("Anonymous metadata generation failed")
         except Exception:
             logger.exception("Anonymous streaming inference failed")
             if reservation is not None and reservation.accepted and not upstream_error_frame:
@@ -794,51 +888,167 @@ async def anonymous_chat_stream(
     )
 
 
-def _anonymous_post_processing_event(
+async def _anonymous_post_processing_event(
     *,
     chat_id: str,
     task_id: str,
-    user_message: str,
+    payload: AnonymousChatStreamRequest,
     assistant: str,
+    generated_metadata: dict[str, Any],
+    cache_service: Any,
+    usage_service: AnonymousFreeUsageService,
+    parent_request_id: str,
 ) -> dict[str, Any]:
-    """Return local-only anonymous post-processing metadata for the web client."""
-    summary = _anonymous_summary_from_turn(user_message=user_message, assistant=assistant)
-    return {
+    """Generate normal chat metadata, charging its own anonymous operation."""
+    from backend.apps.ai.processing.postprocessor import (
+        POSTPROCESSING_MODEL_ID, extract_available_skills, handle_postprocessing,
+    )
+    from backend.apps.ai.processing.main_processor import _quote_ai_iteration_credits
+    from backend.apps.ai.processing.model_usage_tracker import calculate_model_usage_credits
+    from backend.apps.ai.utils.instruction_loader import load_base_instructions
+    from backend.core.api.app.utils.config_manager import config_manager
+    from backend.core.api.app.utils.secrets_manager import SecretsManager
+    from backend.shared.python_utils.anonymous_skill_policy import is_anonymous_inline_skill
+
+    title = generated_metadata.get("title") or payload.current_chat_title
+    summary = generated_metadata.get("chat_summary") or payload.current_chat_summary or ""
+    output_language = generated_metadata.get("output_language") or payload.system_language
+    event = {
         "type": "post_processing_completed",
         "event_for_client": "post_processing_completed",
         "chat_id": chat_id,
         "task_id": task_id,
-        "follow_up_request_suggestions": _anonymous_follow_up_suggestions(user_message),
+        "follow_up_request_suggestions": [],
         "new_chat_request_suggestions": [],
         "chat_summary": summary,
         "chat_tags": [],
         "harmful_response": 0,
         "quick_tip_slugs": [],
     }
+    if title and title != payload.current_chat_title:
+        event["updated_chat_title"] = title
 
-
-def _anonymous_summary_from_turn(*, user_message: str, assistant: str) -> str:
-    compact_user = " ".join(user_message.split())
-    compact_assistant = " ".join(assistant.split())
-    if compact_assistant:
-        first_sentence = compact_assistant.split(". ", 1)[0].strip().rstrip(".")
-        summary = first_sentence or compact_user
-    else:
-        summary = compact_user or "Anonymous chat"
-    return summary[:180]
-
-
-def _anonymous_follow_up_suggestions(user_message: str) -> list[str]:
-    topic = " ".join(user_message.split()).strip().rstrip("?.!") or "this topic"
-    short_topic = topic[:80]
-    return [
-        f"Explain {short_topic} in simpler terms",
-        f"Give me practical examples about {short_topic}",
-        f"What should I know next about {short_topic}",
-        f"Compare different perspectives on {short_topic}",
-        f"Summarize the key facts about {short_topic}",
-        f"Ask a follow-up question about {short_topic}",
-    ]
+    # The main answer is already complete. An unavailable metadata model must
+    # never turn a successful answer into an inference failure.
+    operation_id = f"anonymous-postprocess:{task_id}"
+    usage_events: list[dict[str, Any]] = []
+    reservation_accepted = False
+    try:
+        base_instructions = load_base_instructions()
+        metadata_getter = getattr(cache_service, "get_discovered_apps_metadata", None)
+        discovered_apps = await metadata_getter() if metadata_getter else None
+        discovered_apps = discovered_apps or {}
+        allowed_skill_ids = {
+            f"{app_id}-{skill.id}"
+            for app_id, app_metadata in discovered_apps.items()
+            for skill in (app_metadata.skills or [])
+            if is_anonymous_inline_skill(app_id, skill)
+        }
+        available_skills = [
+            skill for skill in extract_available_skills(discovered_apps)
+            if skill["id"] in allowed_skill_ids
+        ]
+        available_app_ids = sorted({
+            app_id for app_id, app_metadata in discovered_apps.items()
+            if any(is_anonymous_inline_skill(app_id, skill) for skill in (app_metadata.skills or []))
+        })
+        history = [
+            {"role": message.role, "content": _anonymous_history_content(message), "sender_name": message.sender_name}
+            for message in payload.message_history[-12:]
+        ]
+        history.append({"role": "user", "content": payload.plaintext_message, "sender_name": "User"})
+        # Keep the auxiliary operation within a predictable quote and context.
+        for message in history:
+            message["content"] = message["content"][:4000]
+        bounded_assistant = assistant[:8000]
+        # The quote counts UTF-8 bytes as tokens. The extra envelope covers
+        # static instructions, skill hints and provider framing generated by
+        # the normal postprocessor in addition to the bounded history below.
+        quote = _quote_ai_iteration_credits(
+            model_id=POSTPROCESSING_MODEL_ID,
+            system_prompt=json.dumps(available_skills, default=str),
+            message_history=history + [{"role": "assistant", "content": bounded_assistant}],
+            tools=[base_instructions.get("postprocess_response_tool") or {}],
+            input_envelope_tokens=32_768,
+            output_token_limit=ANONYMOUS_POSTPROCESS_MAX_OUTPUT_TOKENS,
+            credit_rounding_headroom=1,
+        )
+        if quote < 1:
+            return event
+        reservation = await usage_service.reserve_operation(
+            parent_request_id=parent_request_id,
+            operation_id=operation_id,
+            charge_id=operation_id,
+            quoted_credits=quote,
+        )
+        if not reservation.accepted:
+            return event
+        reservation_accepted = True
+        result = await handle_postprocessing(
+            task_id=task_id,
+            user_message=payload.plaintext_message[:4000],
+            assistant_response=bounded_assistant,
+            chat_summary=summary,
+            chat_tags=[],
+            message_history=history,
+            base_instructions=base_instructions,
+            secrets_manager=SecretsManager(cache_service),
+            cache_service=cache_service,
+            available_app_ids=available_app_ids,
+            available_skills=available_skills,
+            is_incognito=False,
+            output_language=output_language,
+            user_system_language=payload.system_language,
+            current_chat_title=title,
+            quick_tips_enabled=False,
+            learning_mode_context=payload.learning_mode,
+            translate_ui_metadata=False,
+            allow_model_fallbacks=False,
+            usage_callback=usage_events.append,
+            max_output_tokens=ANONYMOUS_POSTPROCESS_MAX_OUTPUT_TOKENS,
+        )
+        if result is None:
+            return event
+        if not usage_events and result.usage_telemetry:
+            usage_events.append(result.usage_telemetry)
+        event["follow_up_request_suggestions"] = result.follow_up_request_suggestions
+        event["chat_summary"] = result.chat_summary or summary
+        event["chat_tags"] = result.chat_tags
+        event["harmful_response"] = result.harmful_response
+        if result.updated_chat_title:
+            event["updated_chat_title"] = result.updated_chat_title
+    except Exception:
+        logger.exception("Anonymous post-processing failed")
+    finally:
+        if reservation_accepted and usage_events:
+            priced_events = []
+            for telemetry in usage_events:
+                input_tokens = telemetry.get("input_tokens")
+                output_tokens = telemetry.get("output_tokens")
+                if (isinstance(input_tokens, int) and not isinstance(input_tokens, bool)
+                        and isinstance(output_tokens, int) and not isinstance(output_tokens, bool)
+                        and input_tokens >= 0 and output_tokens >= 0
+                        and input_tokens + output_tokens > 0):
+                    priced_events.append({
+                        "model_id": telemetry.get("model_id") or POSTPROCESSING_MODEL_ID,
+                        "inference_host": telemetry.get("inference_host"),
+                        "input_tokens": input_tokens,
+                        "output_tokens": output_tokens,
+                        "uncached_input_tokens": telemetry.get("uncached_input_tokens"),
+                        "cache_read_input_tokens": telemetry.get("cache_read_input_tokens"),
+                        "cache_creation_input_tokens": telemetry.get("cache_creation_input_tokens"),
+                    })
+            if priced_events:
+                try:
+                    actual_credits = calculate_model_usage_credits(
+                        priced_events, config_manager.get_model_pricing,
+                    )
+                    await usage_service.finalize_charge(operation_id, actual_credits=actual_credits)
+                except Exception:
+                    # Keep the hold when settlement is ambiguous. The ledger's
+                    # expiration policy resolves it without exceeding the cap.
+                    logger.exception("Anonymous metadata usage settlement failed")
+    return event
 
 
 def _contains_embed_reference(content: str) -> bool:

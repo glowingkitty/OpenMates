@@ -78,6 +78,12 @@ The `sanitize_suggestions()` function validates every suggestion's prefix agains
 
 Post-processing is skipped entirely for incognito chats -- no suggestions are generated or stored.
 
+Anonymous free-usage chats use a separate response-only metadata call after the
+answer. It generates follow-ups in the detected conversation language and titles
+and summaries in the UI language, with only anonymous-eligible inline skills.
+The call has its own bounded budget reservation and settlement. Its results are
+encrypted locally by the browser; no server chat or metadata record is created.
+
 ### Storage and Encryption
 
 **Follow-up suggestions**: Stored encrypted in the chat message record under `encrypted_follow_up_request_suggestions`. Encrypted with the chat-specific key client-side. Replaced when the next assistant response completes.

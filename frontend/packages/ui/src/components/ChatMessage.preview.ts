@@ -60,6 +60,11 @@ export default defaultProps;
 
 /** Named variants for different message types and states */
 export const variants = {
+	anonymousFeatureNotice: {
+		...defaultProps,
+		role: 'system' as const,
+		content: JSON.stringify({ type: 'anonymous_feature_notice' }),
+	},
 	resultsOnly: {
 		...defaultProps, role: 'assistant' as const, content: widthResults,
 	},

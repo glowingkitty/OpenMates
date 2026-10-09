@@ -3196,6 +3196,12 @@
       "feature_notice": {
         "text": "Je gebruikt gratis anonieme credits. Bestandsuploads, herinneringen, chatsynchronisatie en sommige andere functies vereisen het aanmaken van een account."
       },
+      "signup_now": {
+        "text": "Meld je nu aan"
+      },
+      "signup_benefits": {
+        "text": "om alle functies te ontgrendelen, je chats te bewaren en ze op al je apparaten te openen."
+      },
       "daily_credits_exhausted": {
         "text": "Je hebt je gratis dagelijkse credits opgebruikt. Meld je aan en koop credits om OpenMates volledig te gebruiken."
       }

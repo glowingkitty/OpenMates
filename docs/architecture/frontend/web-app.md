@@ -94,7 +94,22 @@ When a visitor loads `openmates.org` without being logged in:
 2. **Demo chats** remain available in the sidebar and from welcome cards with fixed chat IDs (for deep-linkable URLs like `/chat/stay-up-to-date-contribute`). These are precompiled into the static bundle for SEO and fast load times.
 3. **Legal chats** (Privacy Policy, Terms of Use, Imprint) are always shown alongside demo chats using the same static-bundle infrastructure.
 4. Logged-out visitors see OpenMates product explainer daily inspirations and a local interest tag rail. Selected guest tags are stored only in `sessionStorage` under `openmates.guest_interest_tags.v1` and locally reorder inspirations, demo/example chats, and new-chat suggestions.
-5. The message input shows a **"Signup to send"** button instead of "Send", which opens the signup flow and saves the draft message.
+5. When the official-cloud anonymous budget is active, visitors can send text
+   without an account. Otherwise, **"Signup to send"** opens signup and preserves
+   the draft.
+
+Anonymous chats, generated code embeds, titles, summaries and follow-up suggestions
+are encrypted in browser IndexedDB. A wrapping key in the current tab's
+`sessionStorage` makes the chats recoverable on same-tab reload and visible in
+the guest sidebar and **Continue where you left off** cards. Other tabs must
+leave inaccessible encrypted rows intact; account orphan-key cleanup excludes
+anonymous rows. The anonymous API returns content and generated metadata in its
+response stream without storing chat, message or embed records on the server.
+
+Normal tab closure discards the wrapping key, so a fresh tab cannot decrypt those
+chats. Browser-managed closed-tab or session restore can preserve `sessionStorage`;
+the application cannot guarantee erasure from those browser recovery features.
+The guest notice links to signup to retain chats and use them across devices.
 
 ### Topic Preferences
 

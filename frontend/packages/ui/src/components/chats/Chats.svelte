@@ -1807,23 +1807,32 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	}
 
 	let anonymousChatsLoading = $state(false);
+	let anonymousChatsRefreshPending = false;
 
 	async function loadAnonymousChats() {
-		if (anonymousChatsLoading) return;
+		if (anonymousChatsLoading) {
+			anonymousChatsRefreshPending = true;
+			return;
+		}
 		anonymousChatsLoading = true;
 		try {
-			if (!$authStore.isAuthenticated) {
-				await anonymousChatStorage.init();
-				anonymousChats = await anonymousChatStorage.getAllChats();
-			} else {
-				anonymousChats = [];
-			}
-			anonymousChatsTrigger++;
-			console.debug('[Chats] Loaded anonymous chats:', anonymousChats.length);
-		} catch (error) {
-			console.error('[Chats] Error loading anonymous chats:', error);
-			anonymousChats = [];
-			anonymousChatsTrigger++;
+			do {
+				anonymousChatsRefreshPending = false;
+				try {
+					if (!$authStore.isAuthenticated) {
+						await anonymousChatStorage.init();
+						anonymousChats = await anonymousChatStorage.getAllChats();
+					} else {
+						anonymousChats = [];
+					}
+					anonymousChatsTrigger++;
+					console.debug('[Chats] Loaded anonymous chats:', anonymousChats.length);
+				} catch (error) {
+					console.error('[Chats] Error loading anonymous chats:', error);
+					anonymousChats = [];
+					anonymousChatsTrigger++;
+				}
+			} while (anonymousChatsRefreshPending);
 		} finally {
 			anonymousChatsLoading = false;
 		}

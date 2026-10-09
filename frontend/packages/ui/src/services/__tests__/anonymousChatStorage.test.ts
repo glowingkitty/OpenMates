@@ -10,15 +10,10 @@ vi.mock("../../config/api", () => ({
   getApiEndpoint: (path: string) => `https://api.test${path}`,
 }));
 
-const FEATURE_NOTICE = "You are using free anonymous credits.";
+const FEATURE_NOTICE = JSON.stringify({ type: "anonymous_feature_notice" });
 
-vi.mock("../../i18n/translations", () => ({
-  text: {
-    subscribe: (run: (translate: (key: string) => string) => void) => {
-      run((key: string) => key === "chat.anonymous_free_usage.feature_notice" ? FEATURE_NOTICE : `[T:${key}]`);
-      return () => undefined;
-    },
-  },
+vi.mock("../../i18n/setup", () => ({
+  getCurrentLanguage: () => "de",
 }));
 
 const mockChatSyncService = vi.hoisted(() => ({
@@ -240,6 +235,8 @@ describe("anonymousChatStorage", () => {
 
     const request = requestBody(fetchMock, 0);
     expect(request.plaintext_message).toBe("Hello anonymously");
+    expect(request.system_language).toBe("de");
+    expect(request.current_chat_title).toBeNull();
     expect(request.message_history).toEqual([]);
 
     vi.resetModules();
@@ -262,6 +259,7 @@ describe("anonymousChatStorage", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const secondRequest = requestBody(fetchMock, 1);
+    expect(secondRequest.current_chat_title).toBe("First question");
     expect(secondRequest.message_history).toEqual([
       expect.objectContaining({ role: "user", content: "First question" }),
       expect.objectContaining({ role: "assistant", content: "First answer" }),
@@ -521,7 +519,7 @@ describe("anonymousChatStorage", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=billing.anonymous.local-only-content,auth.session.isolation
-  it("purges anonymous chat rows when the tab session key is missing", async () => {
+  it("cannot recover anonymous chats without the tab key and preserves another tab's encrypted rows", async () => {
     mockDbState.chats.set("anonymous-stale", {
       chat_id: "anonymous-stale",
       encrypted_title: "encrypted:Stale",
@@ -541,7 +539,53 @@ describe("anonymousChatStorage", () => {
 
     expect(localStorage.getItem("openmates_anonymous_chats_v1")).toBeNull();
     expect(await storage.getAllChats()).toEqual([]);
-    expect(mockDbState.chats.has("anonymous-stale")).toBe(false);
+    expect(await storage.getChat("anonymous-stale")).toBeNull();
+    expect(await storage.getMessagesForChat("anonymous-stale")).toEqual([]);
+    expect(mockDbState.chats.has("anonymous-stale")).toBe(true);
+    expect(mockChatDB.deleteChat).not.toHaveBeenCalled();
+    const updates = vi.mocked(window.dispatchEvent).mock.calls.length;
+    expect(await storage.getAllChats()).toEqual([]);
+    expect(window.dispatchEvent).toHaveBeenCalledTimes(updates);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=billing.anonymous.local-only-content,auth.session.isolation
+  it("lists and clears only chats wrapped for this tab", async () => {
+    mockAnonymousFetch({ messageId: "local-assistant", assistant: "Local answer" });
+    const storage = await loadStorage();
+    const local = await storage.sendTextMessage({ markdown: "Local question" });
+    const foreign = { ...mockDbState.chats.get(local.chat.chat_id)!, chat_id: "anonymous-other-tab", anonymous_encrypted_chat_key: "other-session:key" };
+    mockDbState.chats.set(foreign.chat_id, foreign);
+    // Even a cached key must not override the wrapping key's tab ownership.
+    mockKeyState.keys.set(foreign.chat_id, new Uint8Array([1, 2, 3]));
+    expect((await storage.getAllChats()).map((chat) => chat.chat_id)).toEqual([local.chat.chat_id]);
+    expect(await storage.getChat(foreign.chat_id)).toBeNull();
+    await storage.clearAll();
+    expect(mockDbState.chats.has(local.chat.chat_id)).toBe(false);
+    expect(mockDbState.chats.has(foreign.chat_id)).toBe(true);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=billing.anonymous.local-only-content
+  it("hydrates encrypted metadata after reload and sends the existing title and summary on follow-up", async () => {
+    const fetchMock = mockAnonymousFetch({ messageId: "assistant-message", assistant: "Erste Antwort" });
+    const storage = await loadStorage();
+    const first = await storage.sendTextMessage({ markdown: "Was ist Proxmox?" });
+    const storedChat = mockDbState.chats.get(first.chat.chat_id)!;
+    mockDbState.chats.set(first.chat.chat_id, {
+      ...storedChat,
+      encrypted_title: "encrypted:Proxmox verstehen",
+      encrypted_chat_summary: "encrypted:Virtuelle Maschinen und Container im Homelab",
+    });
+
+    vi.resetModules();
+    const reloadedStorage = await loadStorage();
+    const reloadedChat = await reloadedStorage.getChat(first.chat.chat_id);
+    expect(reloadedChat?.title).toBe("Proxmox verstehen");
+    expect(reloadedChat?.chat_summary).toBe("Virtuelle Maschinen und Container im Homelab");
+    await reloadedStorage.sendTextMessage({ markdown: "Zeige mir Beispiele", currentChatId: first.chat.chat_id });
+    const request = requestBody(fetchMock, 1);
+    expect(request.current_chat_title).toBe("Proxmox verstehen");
+    expect(request.current_chat_summary).toBe("Virtuelle Maschinen und Container im Homelab");
+    expect(mockDbState.chats.get(first.chat.chat_id)?.chat_summary).toBeUndefined();
   });
 
   // contract-test: supporting surface=gui.web assertions=billing.anonymous.hard-capped-provider-metering

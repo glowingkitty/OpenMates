@@ -3196,6 +3196,12 @@
       "feature_notice": {
         "text": "您正在使用免费的匿名额度。文件上传、记忆、聊天同步以及其他一些功能需要创建账户。"
       },
+      "signup_now": {
+        "text": "立即注册"
+      },
+      "signup_benefits": {
+        "text": "解锁所有功能，保存聊天记录并在不同设备上访问。"
+      },
       "daily_credits_exhausted": {
         "text": "你已用完今日免费匿名额度。注册并购买积分，即可完整使用 OpenMates。"
       }

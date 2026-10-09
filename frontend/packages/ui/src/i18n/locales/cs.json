@@ -3196,6 +3196,12 @@
       "feature_notice": {
         "text": "Používáte bezplatné anonymní kredity. Nahrávání souborů, paměti, synchronizace chatů a některé další funkce vyžadují vytvoření účtu."
       },
+      "signup_now": {
+        "text": "Zaregistruj se nyní"
+      },
+      "signup_benefits": {
+        "text": "odemkneš všechny funkce, uchováš si chaty a získáš k nim přístup na všech svých zařízeních."
+      },
       "daily_credits_exhausted": {
         "text": "Vyčerpali jste své bezplatné denní kredity. Zaregistrujte se a kupte kredity, abyste mohli OpenMates využívat naplno."
       }

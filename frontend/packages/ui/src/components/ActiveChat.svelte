@@ -3546,6 +3546,35 @@ import { storageArchiveFetch } from "../config/api";
             }
         }
 
+        if (chat.is_anonymous) {
+            // The anonymous storage API hydrates title/category/icon after unwrapping
+            // the tab key. The summary stays encrypted in the local chat row.
+            let summary = chat.chat_summary ?? null;
+            if (!summary && chat.encrypted_chat_summary) {
+                try {
+                    const chatKey = await chatKeyManager.getKey(chat.chat_id);
+                    if (chatKey) {
+                        const { decryptWithChatKey } = await import('../services/cryptoService');
+                        summary = await decryptWithChatKey(chat.encrypted_chat_summary, chatKey, {
+                            chatId: chat.chat_id,
+                            fieldName: 'encrypted_chat_summary',
+                        });
+                    }
+                } catch {
+                    summary = null;
+                }
+            }
+            return {
+                chat,
+                title: chat.title ?? null,
+                category: chat.category ?? null,
+                icon: chat.icon ?? null,
+                summary,
+                imageBubbles: null,
+                draftPreview: null,
+            };
+        }
+
         if (chat.title) {
             const imageBubbles = chat.resume_card_image_bubbles ?? null;
             return { chat, title: chat.title, category: chat.category ?? null, icon: chat.icon ?? null, summary: chat.chat_summary ?? null, imageBubbles, draftPreview };
@@ -3717,10 +3746,20 @@ import { storageArchiveFetch } from "../config/api";
         activeInspirationId = GUEST_DEFAULT_INTRO_INSPIRATION_ID,
         preserveInterestRanking = false,
     ): Promise<RecentChatMeta[]> {
+        let anonymousMetas: RecentChatMeta[] = [];
+        try {
+            const anonymousChats = sortChats(await anonymousChatStorage.getAllChats(), []);
+            anonymousMetas = await Promise.all(
+                anonymousChats.slice(0, RECENT_CHATS_TOTAL).map(buildRecentChatMeta)
+            );
+        } catch (err) {
+            console.warn('[ActiveChat] Failed to load anonymous chats for guest carousel:', err);
+        }
         const sharedMetas = await loadSharedByOthersRecentChats();
+        const localMetas = [...anonymousMetas, ...sharedMetas];
 
         if (!includeGuestExamples) {
-            return sharedMetas;
+            return localMetas;
         }
 
         // Example chats are static and always available; intro chats stay reachable
@@ -3732,17 +3771,17 @@ import { storageArchiveFetch } from "../config/api";
                 communityMetas.map((meta) => meta.chat.chat_id),
                 selectedTagIds
             ).slice(0, RECENT_CHATS_TOTAL);
-            return [...sharedMetas, ...orderMetasByPreferredIds(communityMetas, rankedExampleIds)];
+            return [...localMetas, ...orderMetasByPreferredIds(communityMetas, rankedExampleIds)];
         }
 
         const slideExampleIds = GUEST_LANDING_EXAMPLE_CHAT_IDS_BY_INSPIRATION[activeInspirationId];
         if (slideExampleIds) {
             const slideMetas = orderMetasByPreferredIds(communityMetas, slideExampleIds);
-            return [...sharedMetas, ...slideMetas];
+            return [...localMetas, ...slideMetas];
         }
 
         if (selectedTagIds.length === 0) {
-            return sharedMetas;
+            return localMetas;
         }
 
         const rankedExampleIds = rankExampleChatIdsByInterests(
@@ -3754,11 +3793,12 @@ import { storageArchiveFetch } from "../config/api";
             .map((id) => metaById.get(id))
             .filter((meta): meta is RecentChatMeta => Boolean(meta));
 
-        return [...sharedMetas, ...rankedCommunityMetas];
+        return [...localMetas, ...rankedCommunityMetas];
     }
 
     // State for non-authenticated users' example chats scroll list
     let nonAuthRecentChats = $state<RecentChatMeta[]>([]);
+    let hasAnonymousRecentChats = $derived(nonAuthRecentChats.some((meta) => meta.chat.is_anonymous));
     let nonAuthRecentChatsRequestId = 0;
 
     /**
@@ -3840,6 +3880,14 @@ import { storageArchiveFetch } from "../config/api";
                 centerFirstRecentChat();
             });
         }
+    });
+
+    onMount(() => {
+        const refreshAnonymousCarousel = () => {
+            if (!$authStore.isAuthenticated && showWelcome) carouselInvalidationCounter++;
+        };
+        window.addEventListener('anonymousChatsUpdated', refreshAnonymousCarousel);
+        return () => window.removeEventListener('anonymousChatsUpdated', refreshAnonymousCarousel);
     });
 
     // Center when the scroll element or data first becomes available.
@@ -10300,18 +10348,33 @@ import { storageArchiveFetch } from "../config/api";
                       console.debug('[ActiveChat] loadChat: Restored chat header for public chat:', t, c, ic);
                   }
               } else if (chatForHeader.is_incognito || chatForHeader.is_anonymous) {
-                  // Session-only chats: category and icon are plaintext; title may be blank on new ones
+                  // Local chats have hydrated title/category/icon; anonymous summaries
+                  // are encrypted with the chat key and survive a same-tab reload.
                   const t = typeof chatForHeader.title === 'string' ? chatForHeader.title : '';
                   const c = chatForHeader.category || null;
                   const rawIcon = chatForHeader.icon || null;
                   const ic = rawIcon ? (rawIcon.split(',')[0]?.trim() || null) : null;
-                  // Show header whenever we have at least a category (title can be empty early on)
-                  if (c) {
+                  let summary: string | null = chatForHeader.is_anonymous ? chatForHeader.chat_summary ?? null : null;
+                  if (chatForHeader.is_anonymous && !summary && chatForHeader.encrypted_chat_summary) {
+                      try {
+                          const chatKey = await chatKeyManager.getKey(chatForHeader.chat_id);
+                          if (chatKey) {
+                              const { decryptWithChatKey } = await import('../services/cryptoService');
+                              summary = await decryptWithChatKey(chatForHeader.encrypted_chat_summary, chatKey, {
+                                  chatId: chatForHeader.chat_id,
+                                  fieldName: 'encrypted_chat_summary',
+                              });
+                          }
+                      } catch (error) {
+                          console.warn('[ActiveChat] Could not restore anonymous chat summary:', error);
+                      }
+                  }
+                  if (c || t) {
+                      if (!isCurrentLoadTarget()) return;
                       activeChatDecryptedTitle = t;
                       activeChatDecryptedCategory = c;
                       activeChatDecryptedIcon = ic;
-                      // Session-only chats do not persist a summary
-                      activeChatDecryptedSummary = null;
+                      activeChatDecryptedSummary = summary;
                       console.debug('[ActiveChat] loadChat: Restored chat header for session-only chat:', t, c, ic);
                   }
               } else {
@@ -14062,9 +14125,13 @@ import { storageArchiveFetch } from "../config/api";
                                     {/if}
                                     {#if !$authStore.isAuthenticated}
                                         <p class="guest-interest-prompt" data-testid="guest-interest-prompt" transition:fade={fadeParams}>
-                                            {#each guestInterestHeadingParts as part, index}
-                                                <span>{part}</span>{#if index < guestInterestHeadingParts.length - 1}<br>{/if}
-                                            {/each}
+                                            {#if hasAnonymousRecentChats && !guestInterestSelectorVisible}
+                                                {$text('chats.resume_last_chat.title')}
+                                            {:else}
+                                                {#each guestInterestHeadingParts as part, index}
+                                                    <span>{part}</span>{#if index < guestInterestHeadingParts.length - 1}<br>{/if}
+                                                {/each}
+                                            {/if}
                                         </p>
                                     {/if}
                                     <!-- Subtitle: decrypting indicator while Phase 1 metadata is syncing, then "Continue where you left off" when cards are ready. -->
@@ -14477,7 +14544,7 @@ import { storageArchiveFetch } from "../config/api";
                                     {/if}
                                 </div>
                             <!-- Non-auth: scrollable list of example chats (same card design as auth recent chats) -->
-                            {:else if !$authStore.isAuthenticated && (guestInterestContinueConfirmed || nonAuthRecentChats.some((meta) => meta.chat.is_shared_by_others)) && nonAuthRecentChats.length > 0}
+                            {:else if !$authStore.isAuthenticated && (guestInterestContinueConfirmed || hasAnonymousRecentChats || nonAuthRecentChats.some((meta) => meta.chat.is_shared_by_others)) && nonAuthRecentChats.length > 0}
                                 <div
                                     class="recent-chats-scroll-container"
                                     class:large-continue-cards={isTallViewport}

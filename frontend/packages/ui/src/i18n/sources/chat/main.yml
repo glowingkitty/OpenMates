@@ -310,6 +310,54 @@ anonymous_free_usage.feature_notice:
   sv: Du använder gratis anonyma krediter. Filuppladdningar, minnen, chattsynkronisering och vissa andra funktioner kräver att du skapar ett konto.
   he: אתם משתמשים בקרדיטים אנונימיים בחינם. העלאות קבצים, זיכרונות, סנכרון צ'אטים וחלק מהתכונות האחרות דורשים יצירת חשבון.
   verified_by_human: []
+anonymous_free_usage.signup_now:
+  context: Link at the start of the anonymous chat notice that opens the signup flow
+  en: Signup now
+  de: Jetzt registrieren
+  zh: 立即注册
+  es: Regístrate ahora
+  fr: Inscris-toi maintenant
+  pt: Regista-te agora
+  ru: Зарегистрируйтесь сейчас
+  ja: 今すぐ登録
+  ko: 지금 가입하기
+  it: Registrati ora
+  tr: Şimdi kaydol
+  vi: Đăng ký ngay
+  id: Daftar sekarang
+  pl: Zarejestruj się teraz
+  nl: Meld je nu aan
+  ar: سجّل الآن
+  hi: अभी साइन अप करें
+  th: สมัครเลย
+  cs: Zaregistruj se nyní
+  sv: Registrera dig nu
+  he: הירשמו עכשיו
+  verified_by_human: []
+anonymous_free_usage.signup_benefits:
+  context: Sentence following the signup link in anonymous chat; explains account benefits
+  en: to unlock all features and to keep your chats and access them across your devices.
+  de: um alle Funktionen freizuschalten, deine Chats zu behalten und auf allen deinen Geräten darauf zuzugreifen.
+  zh: 解锁所有功能，保存聊天记录并在不同设备上访问。
+  es: para desbloquear todas las funciones, conservar tus chats y acceder a ellos desde todos tus dispositivos.
+  fr: pour débloquer toutes les fonctionnalités, conserver tes conversations et y accéder depuis tous tes appareils.
+  pt: para desbloquear todas as funcionalidades, guardar as tuas conversas e aceder a elas em todos os teus dispositivos.
+  ru: чтобы открыть все функции, сохранить чаты и получать к ним доступ на всех ваших устройствах.
+  ja: すると、すべての機能が使えるようになり、チャットを保存して複数のデバイスからアクセスできます。
+  ko: 모든 기능을 사용하고 채팅을 보관하여 여러 기기에서 이용하세요.
+  it: per sbloccare tutte le funzionalità, conservare le chat e accedervi da tutti i tuoi dispositivi.
+  tr: tüm özelliklerin kilidini açmak, sohbetlerini saklamak ve onlara tüm cihazlarından erişmek için.
+  vi: để mở khóa mọi tính năng, lưu giữ các cuộc trò chuyện và truy cập chúng trên các thiết bị của bạn.
+  id: untuk membuka semua fitur, menyimpan chat, dan mengaksesnya di semua perangkat Anda.
+  pl: aby odblokować wszystkie funkcje, zachować czaty i mieć do nich dostęp na wszystkich swoich urządzeniach.
+  nl: om alle functies te ontgrendelen, je chats te bewaren en ze op al je apparaten te openen.
+  ar: لفتح جميع الميزات والاحتفاظ بمحادثاتك والوصول إليها من جميع أجهزتك.
+  hi: सभी सुविधाएँ पाने, अपनी चैट सहेजने और उन्हें अपने सभी डिवाइस पर खोलने के लिए।
+  th: เพื่อปลดล็อกฟีเจอร์ทั้งหมด เก็บแชทของคุณไว้ และเข้าถึงได้จากทุกอุปกรณ์
+  cs: odemkneš všechny funkce, uchováš si chaty a získáš k nim přístup na všech svých zařízeních.
+  sv: för att låsa upp alla funktioner, behålla dina chattar och komma åt dem på alla dina enheter.
+  he: כדי לפתוח את כל התכונות, לשמור את הצ׳אטים שלכם ולגשת אליהם מכל המכשירים שלכם.
+  verified_by_human: []
 anonymous_free_usage.daily_credits_exhausted:
   context: Notification shown when an anonymous user tries to send after the free daily credits are used up
   en: You used up your free daily credits. Sign up & buy credits to make full use of OpenMates.

@@ -62,6 +62,8 @@ CORE_SPECS = frozenset({
     "embed-preview-backfill-replay.spec.ts",
     # Guest eligibility and stream are browser stubs; no private cloud or inference.
     "anonymous-child-embeds.spec.ts",
+    # Static guest notice preview and local signup event; no server or inference.
+    "components/chat-anonymous-signup-notice.spec.ts",
     # Browser media fixtures; real first-turn preflight/metadata ACKs, no TTS.
     "voice-first-preflight-order.spec.ts",
     "tasks-flow.spec.ts",

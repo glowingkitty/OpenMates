@@ -1034,6 +1034,23 @@
       : (typeof original_message?.content === 'string' ? original_message.content : '');
   }
 
+  function isAnonymousFeatureNotice(rawContent: string): boolean {
+    if (!rawContent.startsWith('{')) return false;
+    try {
+      const parsed = JSON.parse(rawContent);
+      return parsed?.type === 'anonymous_feature_notice';
+    } catch {
+      return false;
+    }
+  }
+
+  function openAnonymousSignup(event: MouseEvent): void {
+    event.preventDefault();
+    window.dispatchEvent(new CustomEvent('openSignupInterface'));
+  }
+
+  let anonymousFeatureNotice = $derived(role === 'system' && isAnonymousFeatureNotice(systemRawContent()));
+
   let connectedAccountReceipt = $derived.by(() => parseConnectedAccountReceipt(systemRawContent()));
   let connectedAccountUndoLoading = $state(false);
   let connectedAccountUndoError = $state('');
@@ -3104,6 +3121,10 @@
       {:else}
         <!-- Normal system message (e.g., credit rejection notice) -->
         {#if phaseEvent}<FocusPhaseNotice event={phaseEvent} />
+        {:else if anonymousFeatureNotice}
+          <span class="system-message-text" data-testid="anonymous-feature-notice">
+            <a href="/#signup/basics" class="anonymous-signup-link" data-testid="anonymous-signup-link" onclick={openAnonymousSignup}>{$text('chat.anonymous_free_usage.signup_now')}</a>{' '}{$text('chat.anonymous_free_usage.signup_benefits')}
+          </span>
         {:else}<span class="system-message-text" data-testid="system-message-text">{systemMessageText}</span>{/if}
         {#if canCancelConnectedAccountReceipt}
           <button
@@ -3806,6 +3827,22 @@
     font-size: var(--font-size-xs);
     line-height: 1.4;
     color: var(--color-grey-60, #888);
+  }
+
+  .anonymous-signup-link {
+    color: var(--color-button-primary);
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
+
+  .anonymous-signup-link:hover {
+    color: var(--color-button-primary-hover);
+  }
+
+  .anonymous-signup-link:focus-visible {
+    outline: 2px solid var(--color-button-primary);
+    outline-offset: 2px;
+    border-radius: var(--radius-2);
   }
 
   /* Action button inside system message notices (e.g., "Buy Credits" for insufficient credits).

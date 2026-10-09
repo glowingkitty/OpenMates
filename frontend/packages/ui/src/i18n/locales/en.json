@@ -3713,6 +3713,12 @@
       "feature_notice": {
         "text": "You are using free anonymous credits. File uploads, memories, chat sync, and some other features require creating an account."
       },
+      "signup_now": {
+        "text": "Signup now"
+      },
+      "signup_benefits": {
+        "text": "to unlock all features and to keep your chats and access them across your devices."
+      },
       "daily_credits_exhausted": {
         "text": "You used up your free daily credits. Sign up & buy credits to make full use of OpenMates."
       }

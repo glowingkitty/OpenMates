@@ -1246,6 +1246,8 @@ async def call_preprocessing_llm(
     reasoning_effort: Optional[str] = None,
     temperature: Optional[float] = None,
     observability_purpose: str = "preprocess",
+    usage_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+    max_output_tokens: Optional[int] = None,
 ) -> LLMPreprocessingCallResult:
     if reasoning_effort not in {None, "low", "medium", "high"}:
         raise ValueError("reasoning_effort must be one of: low, medium, high")
@@ -1255,6 +1257,11 @@ async def call_preprocessing_llm(
         or not 0.0 <= temperature <= 2.0
     ):
         raise ValueError("temperature must be a number between 0.0 and 2.0")
+    if max_output_tokens is not None and (
+        isinstance(max_output_tokens, bool) or not isinstance(max_output_tokens, int)
+        or max_output_tokens < 1
+    ):
+        raise ValueError("max_output_tokens must be a positive integer")
 
     logger.info(f"[{task_id}] LLM Utils: Calling preprocessing LLM {model_id}.")
 
@@ -1542,6 +1549,7 @@ async def call_preprocessing_llm(
         is_primary_model: bool = False,
     ) -> LLMPreprocessingCallResult:
         """Calls a single provider with the given model_id. Returns result with error if provider fails."""
+        requested_model_id = provider_model_id
         provider_prefix = ""
         actual_model_id = provider_model_id
         
@@ -1636,6 +1644,8 @@ async def call_preprocessing_llm(
                         provider_request_kwargs["reasoning_effort"] = reasoning_effort
                     if temperature is not None:
                         provider_request_kwargs["temperature"] = temperature
+                    if max_output_tokens is not None:
+                        provider_request_kwargs["max_tokens"] = max_output_tokens
                     effective_timeout = PREPROCESSING_TIMEOUT_SECONDS
                     if timeout_seconds is not None:
                         effective_timeout = min(PREPROCESSING_TIMEOUT_SECONDS, max(0.0, timeout_seconds))
@@ -1677,6 +1687,12 @@ async def call_preprocessing_llm(
                         usage, logical_model_id=model_id, route_id=provider_prefix,
                         server_model_id=actual_model_id,
                     )
+                    result.usage_telemetry["model_id"] = requested_model_id
+                    if usage is not None and usage_callback is not None:
+                        try:
+                            usage_callback(dict(result.usage_telemetry))
+                        except Exception as usage_error:
+                            logger.warning("Auxiliary usage callback failed: %s", type(usage_error).__name__)
                     return result
                 except asyncio.TimeoutError:
                     remaining_budget = _remaining_preprocessing_budget_seconds()
