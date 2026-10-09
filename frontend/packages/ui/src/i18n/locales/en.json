@@ -21306,6 +21306,30 @@
       "description": {
         "text": "Choose which types of newsletter emails you'd like to get. You can change these anytime."
       },
+      "openmates_events": {
+        "title": {
+          "text": "OpenMates events"
+        },
+        "description": {
+          "text": "Invitations and updates about free OpenMates events."
+        }
+      },
+      "software_updates": {
+        "title": {
+          "text": "Software updates"
+        },
+        "description": {
+          "text": "New features, product news, and important changes."
+        }
+      },
+      "apple_beta_updates": {
+        "title": {
+          "text": "Apple app beta updates (including TestFlight)"
+        },
+        "description": {
+          "text": "Invitations and news about beta testing OpenMates on Apple devices."
+        }
+      },
       "updates_and_announcements": {
         "title": {
           "text": "Updates & Announcements"
@@ -21339,6 +21363,69 @@
       "save_error": {
         "text": "We couldn't save your preferences. Please try again."
       }
+    },
+    "newsletter_public_title": {
+      "text": "Sign up for our newsletter"
+    },
+    "newsletter_public_intro": {
+      "text": "Choose the OpenMates updates you would like to receive. We will email a confirmation link before your choices take effect."
+    },
+    "newsletter_public_choices": {
+      "text": "What would you like to receive?"
+    },
+    "newsletter_public_events": {
+      "text": "OpenMates events"
+    },
+    "newsletter_public_software": {
+      "text": "Software updates"
+    },
+    "newsletter_public_apple_beta": {
+      "text": "Apple app beta updates (including TestFlight)"
+    },
+    "newsletter_public_email": {
+      "text": "Email address"
+    },
+    "newsletter_public_email_placeholder": {
+      "text": "you@example.com"
+    },
+    "newsletter_public_subscribe": {
+      "text": "Subscribe"
+    },
+    "newsletter_public_sending": {
+      "text": "Sending…"
+    },
+    "newsletter_public_neutral": {
+      "text": "If this address is eligible, please check your email to confirm your subscription."
+    },
+    "newsletter_public_request_error": {
+      "text": "Could not request newsletter signup. Please try again."
+    },
+    "newsletter_public_privacy_note": {
+      "text": "You can unsubscribe at any time."
+    },
+    "newsletter_public_privacy_link": {
+      "text": "Privacy policy"
+    },
+    "newsletter_public_confirmation_title": {
+      "text": "Newsletter confirmation"
+    },
+    "newsletter_public_confirmation_intro": {
+      "text": "Confirm your subscription to activate your selected updates."
+    },
+    "newsletter_public_confirm_button": {
+      "text": "Confirm subscription"
+    },
+    "newsletter_public_confirming": {
+      "text": "Confirming your subscription…"
+    },
+    "newsletter_public_confirmed": {
+      "text": "Your newsletter subscription is confirmed. Thank you!"
+    },
+    "newsletter_public_signal": {
+      "text": "Join the OpenMates Signal group"
+    },
+    "newsletter_public_invalid": {
+      "text": "This confirmation link is invalid or expired. Please subscribe again."
     },
     "support": {
       "description": {
@@ -24836,6 +24923,9 @@
     },
     "ended": {
       "text": "Call ended. Your audio and visuals were released."
+    },
+    "time_limit_reached": {
+      "text": "The two-minute experiment limit was reached. Your call has ended."
     },
     "start": {
       "text": "Start call"

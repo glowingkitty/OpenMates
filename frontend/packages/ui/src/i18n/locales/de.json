@@ -20486,6 +20486,30 @@
       "description": {
         "text": "Wähle aus, welche Newsletter-E-Mails du erhalten möchtest. Du kannst das jederzeit ändern."
       },
+      "openmates_events": {
+        "title": {
+          "text": "OpenMates-Veranstaltungen"
+        },
+        "description": {
+          "text": "Einladungen und Neuigkeiten zu kostenlosen OpenMates-Veranstaltungen."
+        }
+      },
+      "software_updates": {
+        "title": {
+          "text": "Software-Updates"
+        },
+        "description": {
+          "text": "Neue Funktionen, Produktneuigkeiten und wichtige Änderungen."
+        }
+      },
+      "apple_beta_updates": {
+        "title": {
+          "text": "Updates zu Apple-App-Betas (einschließlich TestFlight)"
+        },
+        "description": {
+          "text": "Einladungen und Neuigkeiten zum Beta-Test von OpenMates auf Apple-Geräten."
+        }
+      },
       "updates_and_announcements": {
         "title": {
           "text": "Updates & Ankündigungen"
@@ -20519,6 +20543,69 @@
       "save_error": {
         "text": "Deine Einstellungen konnten nicht gespeichert werden. Bitte versuche es erneut."
       }
+    },
+    "newsletter_public_title": {
+      "text": "Für unseren Newsletter anmelden"
+    },
+    "newsletter_public_intro": {
+      "text": "Wähle die OpenMates-Neuigkeiten, die du erhalten möchtest. Deine Auswahl wird erst wirksam, nachdem du den Link in unserer Bestätigungs-E-Mail geöffnet hast."
+    },
+    "newsletter_public_choices": {
+      "text": "Was möchtest du erhalten?"
+    },
+    "newsletter_public_events": {
+      "text": "OpenMates-Veranstaltungen"
+    },
+    "newsletter_public_software": {
+      "text": "Software-Updates"
+    },
+    "newsletter_public_apple_beta": {
+      "text": "Beta-Neuigkeiten zur Apple-App (einschließlich TestFlight)"
+    },
+    "newsletter_public_email": {
+      "text": "E-Mail-Adresse"
+    },
+    "newsletter_public_email_placeholder": {
+      "text": "du@beispiel.de"
+    },
+    "newsletter_public_subscribe": {
+      "text": "Anmelden"
+    },
+    "newsletter_public_sending": {
+      "text": "Wird gesendet…"
+    },
+    "newsletter_public_neutral": {
+      "text": "Falls diese Adresse berechtigt ist, prüfe bitte deine E-Mails und bestätige deine Anmeldung."
+    },
+    "newsletter_public_request_error": {
+      "text": "Die Newsletter-Anmeldung konnte nicht angefordert werden. Bitte versuche es erneut."
+    },
+    "newsletter_public_privacy_note": {
+      "text": "Du kannst dich jederzeit abmelden."
+    },
+    "newsletter_public_privacy_link": {
+      "text": "Datenschutzerklärung"
+    },
+    "newsletter_public_confirmation_title": {
+      "text": "Newsletter-Bestätigung"
+    },
+    "newsletter_public_confirmation_intro": {
+      "text": "Bestätige deine Anmeldung, um deine ausgewählten Neuigkeiten zu aktivieren."
+    },
+    "newsletter_public_confirm_button": {
+      "text": "Anmeldung bestätigen"
+    },
+    "newsletter_public_confirming": {
+      "text": "Deine Anmeldung wird bestätigt…"
+    },
+    "newsletter_public_confirmed": {
+      "text": "Deine Newsletter-Anmeldung ist bestätigt. Vielen Dank!"
+    },
+    "newsletter_public_signal": {
+      "text": "Der OpenMates-Signal-Gruppe beitreten"
+    },
+    "newsletter_public_invalid": {
+      "text": "Dieser Bestätigungslink ist ungültig oder abgelaufen. Bitte melde dich erneut an."
     },
     "support": {
       "description": {
@@ -23974,6 +24061,9 @@
     },
     "ended": {
       "text": "Anruf beendet. Audio und Video wurden freigegeben."
+    },
+    "time_limit_reached": {
+      "text": "Das Zwei-Minuten-Limit des Experiments wurde erreicht. Dein Anruf ist beendet."
     },
     "start": {
       "text": "Anruf starten"
