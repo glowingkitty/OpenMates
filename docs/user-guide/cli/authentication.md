@@ -48,7 +48,8 @@ This initiates the pair-auth flow:
 3. Scan the QR code or enter the pair PIN to authorize the CLI session.
 4. The CLI receives a session token and stores it locally.
 
-After login, all subsequent commands use the stored session automatically.
+After login, the CLI confirms success and returns to your shell. Run `openmates`
+to open the chat workspace. All subsequent commands use the stored session automatically.
 
 If a saved OS keyring entry becomes unavailable, unlock your OS keyring or run
 `openmates login` to start fresh pairing. Login uses the saved server address

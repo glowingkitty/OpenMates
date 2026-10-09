@@ -15481,6 +15481,7 @@ export class OpenMatesClient {
       return { canceled: false, cleanup: () => undefined };
     }
     const wasRaw = stdin.isRaw === true;
+    const wasFlowing = stdin.readableFlowing === true;
     stdin.setRawMode(true);
     stdin.resume();
 
@@ -15492,13 +15493,19 @@ export class OpenMatesClient {
     };
 
     stdin.on("data", onData);
+    let cleanedUp = false;
     return {
       get canceled() {
         return state.canceled;
       },
       cleanup: () => {
+        if (cleanedUp) return;
+        cleanedUp = true;
         stdin.off("data", onData);
         stdin.setRawMode(wasRaw);
+        // Resuming a TTY keeps Node alive even after its data listener is gone.
+        // Leave an existing reader flowing, but release input we resumed.
+        if (!wasFlowing) stdin.pause();
       },
     };
   }

@@ -558,6 +558,9 @@ async function main(): Promise<void> {
     console.log(storageMode === "os-keyring"
       ? "Credential storage: OS keyring."
       : "Credential storage: owner-only local file (this host can read chat keys).");
+    const profile = process.env.OPENMATES_PROFILE?.trim();
+    const nextCommand = profile ? `openmates --profile ${profile}` : "openmates";
+    console.log(`Run \`${nextCommand}\` to start chatting.`);
     return;
   }
 

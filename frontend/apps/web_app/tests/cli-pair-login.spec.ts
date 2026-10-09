@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 // @privacy-promise: cli-no-credential-prompts
 export {};
+import type {TestInfo} from '@playwright/test';
 
 /**
  * CLI Pair Login E2E Test
@@ -25,12 +26,12 @@ export {};
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
-const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { createHash } = require('node:crypto');
 const { runCli } = require('./helpers/cli-test-helpers');
+const { recordPairLogin } = require('./helpers/cli-pair-terminal-helpers');
 const {
 	createSignupLogger,
 	createStepScreenshotter,
@@ -145,101 +146,9 @@ function deriveApiUrl(baseUrl: string): string {
 	return 'https://api.openmates.org';
 }
 
-/**
- * Spawn the CLI login command and return helpers to interact with it.
- * The process runs with OPENMATES_API_URL pointing at the same backend
- * as the Playwright web app.
- */
-function spawnCliLogin(
-	apiUrl: string,
-	homeDir: string
-): {
-	process: any;
-	stdout: string[];
-	stderr: string[];
-	waitForToken: () => Promise<string>;
-	sendPin: (pin: string) => void;
-	waitForExit: () => Promise<{ code: number | null; output: string }>;
-	kill: () => void;
-} {
-	const stdout: string[] = [];
-	const stderr: string[] = [];
-
-	const child = spawn('node', [CLI_DIST, 'login'], {
-		env: cliEnvironment(apiUrl, homeDir),
-		stdio: ['pipe', 'pipe', 'pipe']
-	});
-
-	child.stdout.on('data', (data: Buffer) => {
-		const line = data.toString();
-		stdout.push(line);
-	});
-
-	child.stderr.on('data', (data: Buffer) => {
-		const line = data.toString();
-		stderr.push(line);
-	});
-
-	return {
-		process: child,
-		stdout,
-		stderr,
-
-		/** Wait for the pair token to appear in CLI stdout (up to 15s). */
-		waitForToken(): Promise<string> {
-			return new Promise((resolve, reject) => {
-				const timeout = setTimeout(() => {
-					reject(
-						new Error(`CLI did not output a pair token within 15s. stdout: ${stdout.join('')}`)
-					);
-				}, 15_000);
-
-				const check = () => {
-					const combined = stdout.join('');
-					const match = combined.match(/pair=([A-Z0-9]{6})/);
-					if (match) {
-						clearTimeout(timeout);
-						resolve(match[1]);
-					}
-				};
-
-				// Check periodically
-				const interval = setInterval(check, 300);
-				child.stdout.on('data', () => check());
-
-				// Clean up on timeout/resolve
-				const origResolve = resolve;
-				resolve = ((val: string) => {
-					clearInterval(interval);
-					origResolve(val);
-				}) as any;
-			});
-		},
-
-		/** Write the PIN to the CLI's stdin. */
-		sendPin(pin: string) {
-			child.stdin.write(pin + '\n');
-		},
-
-		/** Wait for the CLI process to exit (up to 30s). */
-		waitForExit(): Promise<{ code: number | null; output: string }> {
-			return new Promise((resolve) => {
-				const timeout = setTimeout(() => {
-					child.kill('SIGTERM');
-					resolve({ code: null, output: stdout.join('') + stderr.join('') });
-				}, 30_000);
-
-				child.on('close', (code: number | null) => {
-					clearTimeout(timeout);
-					resolve({ code, output: stdout.join('') + stderr.join('') });
-				});
-			});
-		},
-
-		kill() {
-			child.kill('SIGTERM');
-		}
-	};
+/** Pair in a real terminal so successful login must exit with stdin still open. */
+function spawnCliLogin(apiUrl: string, homeDir: string, testInfo: TestInfo) {
+	return recordPairLogin(CLI_DIST, cliEnvironment(apiUrl, homeDir), apiUrl, testInfo);
 }
 
 /**
@@ -269,7 +178,7 @@ test.describe('CLI Pair Login', () => {
 		page
 	}: {
 		page: any;
-	}) => {
+	}, testInfo: TestInfo) => {
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 		const logCheckpoint = createSignupLogger('CLI_PAIR');
@@ -280,6 +189,7 @@ test.describe('CLI Pair Login', () => {
 		const apiUrl = deriveApiUrl(baseUrl);
 		const cliHome = fs.mkdtempSync(path.join(os.tmpdir(), 'openmates-pair-e2e-'));
 		let draftChatId: string | null = null;
+		let cli: ReturnType<typeof spawnCliLogin> | null = null;
 		const pairRequests: Array<{ url: string; body: string }> = [];
 		page.on('request', (request: any) => {
 			if (request.url().includes('/v1/auth/pair/')) {
@@ -343,15 +253,9 @@ test.describe('CLI Pair Login', () => {
 			// Step 2: Start CLI login in background → capture pair token
 			// ---------------------------------------------------------------
 			logCheckpoint('Step 2: Starting CLI login process...');
-			const cli = spawnCliLogin(apiUrl, cliHome);
+			cli = spawnCliLogin(apiUrl, cliHome, testInfo);
 
-			let token: string;
-			try {
-				token = await cli.waitForToken();
-			} catch (err) {
-				cli.kill();
-				throw err;
-			}
+			const token = await cli.waitForToken();
 			logCheckpoint('CLI received a pair token.');
 			expect(fs.readFileSync(sessionFile, 'utf8')).toBe(preservedSession);
 			await takeStepScreenshot(page, 'cli-token-received');
@@ -397,7 +301,7 @@ test.describe('CLI Pair Login', () => {
 			);
 
 			// Send PIN to CLI stdin
-			cli.sendPin(pin);
+			await cli.sendPin(pin);
 			logCheckpoint('Sent PIN to CLI.');
 
 			// ---------------------------------------------------------------
@@ -408,6 +312,7 @@ test.describe('CLI Pair Login', () => {
 			logCheckpoint(`CLI exited with code ${loginCode}.`);
 
 			expect(loginOutput).toContain('Login successful');
+			expect(loginOutput).toContain('Run `openmates` to start chatting.');
 			expect(loginCode).toBe(0);
 			const recovered = JSON.parse(fs.readFileSync(sessionFile, 'utf8'));
 			expect(recovered.masterKeyStorage).toBe('keychain');
@@ -478,6 +383,7 @@ test.describe('CLI Pair Login', () => {
 			logCheckpoint(`logout exit=${logout.code}`);
 			expect(logout.code).toBe(0);
 		} finally {
+			await cli?.dispose();
 			if (draftChatId) {
 				await runCliCommand(apiUrl, cliHome, ['drafts', 'clear', draftChatId], 10_000).catch(
 					() => undefined
@@ -492,7 +398,7 @@ test.describe('CLI Pair Login', () => {
 		page
 	}: {
 		page: any;
-	}) => {
+	}, testInfo: TestInfo) => {
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 		const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || '';
 		const apiUrl = deriveApiUrl(baseUrl);
@@ -511,7 +417,7 @@ test.describe('CLI Pair Login', () => {
 				async () => undefined
 			);
 			const senderId = await browserSessionUserId(page, apiUrl);
-			cli = spawnCliLogin(apiUrl, cliHome);
+			cli = spawnCliLogin(apiUrl, cliHome, testInfo);
 			const token = await cli.waitForToken();
 			await page.goto(`${baseUrl}/#pair=${token}`);
 			await page.getByTestId('pair-allow-button').click();
@@ -520,17 +426,17 @@ test.describe('CLI Pair Login', () => {
 			const pin = ((await pinDisplay.textContent()) || '').replace(/\s/g, '').trim();
 			expect(pin).toMatch(/^[A-Z0-9]{6}$/);
 			const wrongPin = `${pin[0] === 'A' ? 'B' : 'A'}${pin.slice(1)}`;
-			cli.sendPin(wrongPin);
+			await cli.sendPin(wrongPin);
 			const result = await cli.waitForExit();
-			expect(result.code).not.toBe(0);
-			expect(result.code).not.toBeNull();
+			expect(result.code).toBe(1);
+			expect(result.output).toContain('Pairing authentication failed');
 			expect(
 				pairPaths.some((path) => path.includes('/v1/auth/pair/v2/authorize/')),
 				'No encrypted master bundle should be released after a wrong PIN'
 			).toBe(false);
 			expect(await browserSessionUserId(page, apiUrl)).toBe(senderId);
 		} finally {
-			cli?.kill();
+			await cli?.dispose();
 			fs.rmSync(cliHome, { recursive: true, force: true });
 		}
 	});

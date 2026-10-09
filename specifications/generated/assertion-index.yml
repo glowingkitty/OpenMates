@@ -43277,13 +43277,13 @@ assertions:
       surface: rest_api
     - &id5326
       path: frontend/apps/web_app/tests/cli-pair-login.spec.ts
-      line: 268
+      line: 177
       name: "full pair-auth flow recovers an unavailable keyring session: CLI login\
         \ \u2192 web approve \u2192 PIN \u2192 whoami"
       surface: cli
     - &id5327
       path: frontend/apps/web_app/tests/cli-pair-login.spec.ts
-      line: 491
+      line: 397
       name: wrong local PIN fails before bundle release and preserves the sender session
       surface: cli
     - &id5332
@@ -43503,13 +43503,13 @@ assertions:
       surface: rest_api
     - &id5353
       path: frontend/apps/web_app/tests/cli-pair-login.spec.ts
-      line: 268
+      line: 177
       name: "full pair-auth flow recovers an unavailable keyring session: CLI login\
         \ \u2192 web approve \u2192 PIN \u2192 whoami"
       surface: cli
     - &id5354
       path: frontend/apps/web_app/tests/cli-pair-login.spec.ts
-      line: 491
+      line: 397
       name: wrong local PIN fails before bundle release and preserves the sender session
       surface: cli
     - &id5355
@@ -45461,13 +45461,13 @@ assertions:
       surface: rest_api
     - &id5661
       path: frontend/apps/web_app/tests/cli-pair-login.spec.ts
-      line: 268
+      line: 177
       name: "full pair-auth flow recovers an unavailable keyring session: CLI login\
         \ \u2192 web approve \u2192 PIN \u2192 whoami"
       surface: cli
     - &id5662
       path: frontend/apps/web_app/tests/cli-pair-login.spec.ts
-      line: 491
+      line: 397
       name: wrong local PIN fails before bundle release and preserves the sender session
       surface: cli
     - &id5664
@@ -118209,7 +118209,7 @@ assertions:
     direct_tests:
     - &id14862
       path: frontend/apps/web_app/tests/cli-pair-login.spec.ts
-      line: 268
+      line: 177
       name: "full pair-auth flow recovers an unavailable keyring session: CLI login\
         \ \u2192 web approve \u2192 PIN \u2192 whoami"
       surface: cli
