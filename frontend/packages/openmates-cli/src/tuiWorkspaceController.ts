@@ -13,7 +13,8 @@ import { boundedAuthoringHistory, startCliProjectAuthoring, type AuthoringRecomm
 import { buildTaskForm, filterTasks, loadTaskContext, submitTaskForm } from "./tuiTasksWorkspace.js";
 import { loadTuiProjects, loadTuiProject, loadTuiProjectFiles, readTuiProjectFile, buildProjectForm, submitProjectForm, filteredProjects, filteredProjectFiles, parentTuiProjectFolderId } from "./tuiProjectsWorkspace.js";
 import { buildWorkflowNodeForm, orderedWorkflowNodes, submitWorkflowNodeForm } from "./tuiWorkflowWorkspace.js";
-import { decryptUserTasks, TASK_STATUSES } from "./tasksCli.js";
+import { TASK_STATUSES } from "./tasksCli.js";
+import { loadTuiTaskList } from "./tuiTaskList.js";
 import { formValue } from "./tuiForms.js";
 import { WORKSPACES } from "./tuiLayout.js";
 import { tuiChatSidebarRows, refreshTuiChatSidebar, placeTuiChats, createTuiChatProject, moveTuiChatSidebarSelection, updateTuiChatSidebar } from './tuiChatSidebar.js';
@@ -30,6 +31,7 @@ import { currentInspiration, homeContinueItems, isWorkspaceHome, loadHomeData, w
 import { loadTuiApps, homeTuiApps, loadTuiAppsSkill, buildTuiAppsSkillForm, prepareTuiAppsSkillRun, buildTuiAppsRunConfirmation, executeTuiAppsSkill, loadTuiAppsResults, loadTuiAppsResult, loadTuiAppsWorkflows } from "./tuiAppsWorkspace.js";
 import { loadCachedTuiWorkspace, invalidateCachedTuiWorkspace, writeCachedTuiWorkspace, readCachedTuiWorkspace, captureTuiWorkspaceOwner } from './tuiCachedWorkspaces.js';
 import {isTuiAiComposer,type TuiModelSelectorShell} from './tuiModelSelectorShell.js';
+import { tuiChatMessages } from './tuiTeamChat.js';
 
 export type WorkspaceContext = {
   state: TuiState; client: OpenMatesClient; terminal: TuiTerminal; render: () => void;
@@ -99,7 +101,7 @@ export async function openSavedChat(context: WorkspaceContext, id: string): Prom
     ownedChatId = result.chat.id;
     state.activeChatId = result.chat.id; state.activeChat = result.chat; state.activeExample = null;
     state.selectedProjectId = null;
-    state.messages = result.messages.map((m) => ({id: m.id, role: m.role === "user" ? "user" : m.role === "system" ? "system" : "assistant", content: m.content, title: m.senderName, category:m.category, embedIds: m.embedIds}));
+    state.messages = tuiChatMessages(result.messages, client.getActiveTeamId?.() ?? null, state.username, state.currentUserHash);
     registerChatEmbedAliases(state);
     if(typeof client.getEmbed==='function')void hydrateChatEmbedPreviews(state,client,render);
     state.projectFocusPending = null;
@@ -176,13 +178,17 @@ async function projectFiles(context:WorkspaceContext,project:NonNullable<TuiStat
 }
 async function projectTasks(context:WorkspaceContext,id:string):Promise<void> {
   const {state,client,render}=context,request=state.routeVersion;
-  await loadCachedTuiWorkspace(client,`project:${id}:tasks`,async()=>decryptUserTasks(await client.listUserTasks({projectId:id}),client.getMasterKeyBytes()),tasks=>{
+  await loadTuiTaskList(client,`project:${id}:tasks`,{projectId:id},(tasks,source,complete)=>{
     if(request!==state.routeVersion||state.activeProject?.id!==id||state.projectTab!=='tasks')return;
     const selected=filterTasks(state.tasks,state.filter)[state.selectedIndex]?.taskId;
     state.tasks=tasks;
     if(selected){const index=filterTasks(tasks,state.filter).findIndex(task=>task.taskId===selected);if(index>=0)state.selectedIndex=index;}
-    state.status=null;render();
-  },(error,cached)=>workspaceLoadError(context,request,'Project Tasks',error,cached));
+    state.status=complete?null:source==='cache'?'Showing saved Project Tasks. Syncing…':`Loading more Project Tasks… ${tasks.length} available.`;render();
+  },(error,cached)=>{
+    if(request!==state.routeVersion||state.activeProject?.id!==id||state.projectTab!=='tasks')return;
+    state.status=cached?'Showing saved or partially synced Project Tasks. Refresh failed.':`Could not load Project Tasks: ${error instanceof Error?error.message:String(error)}`;
+    render();
+  });
 }
 async function refreshOpenProject(context: WorkspaceContext): Promise<void> {
   const {state, client, render} = context, id = state.activeProject!.id;

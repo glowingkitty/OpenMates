@@ -41,14 +41,29 @@ const settingsContract={
 		{id:'terminal-chrome.share.explicit-and-private',checkpoint:'share-open',visual:'Share initially shows expiration, password, sensitive-data choices and Generate Link, followed by explicit link actions.',devices:[PROFILE]},
 		{id:'terminal-pointer.viewport-coherent',checkpoint:'share-qr-open',visual:'Share shows a complete QR matrix with Back and Copy controls; the narrow view offers resize or copy guidance.',devices:[PROFILE]},
 		{id:'terminal-settings.navigation.web-hierarchy-and-capabilities',checkpoint:'devices',visual:'Devices explains browser approval and provides Open web destination.',devices:[PROFILE]},
-		{id:'terminal-settings.shell.responsive-and-restorable',checkpoint:'settings-closed',visual:'The settled full-width chat is restored with Keep this unsent draft in its composer.',devices:[PROFILE]},
+		{id:'terminal-settings.shell.responsive-and-restorable',checkpoint:'settings-closed',visual:'Settings occupies the right pane beside the chat at wide widths, fills a narrow terminal, and closing it restores the full-width chat with Keep this unsent draft.',devices:[PROFILE]},
 		{id:'terminal-settings.operations.validated-and-owner-scoped',checkpoint:'logout-cleared',visual:'The signed-out examples view says Session ended and no longer shows the private chat or draft.',devices:[PROFILE]},
 	],tutorial:contract.tutorial,
 };
 
 function frame(recording:any,name:string):string{return recording.frame(name).join('\n');}
 function settingsPanelText(recording:any,name:string):string {
-	return recording.frame(name).map((row:string)=>row.split('│')[0].trim()).join('');
+	const rows:string[]=recording.frame(name),width=rows[0]?.length??0;
+	if(width<120)return rows.map(row=>row.trim()).join(' ');
+	const divider=width-2-44;
+	return rows.filter(row=>row[divider]==='│').map(row=>row.slice(divider+2,width-2).trim()).join(' ');
+}
+function expectRightSettingsPane(recording:any,name:string,chatTitle:string):void {
+	const rows:string[]=recording.frame(name),width=rows[0]?.length??0;
+	expect(width,`${name} has a split Settings viewport`).toBeGreaterThanOrEqual(120);
+	const divider=width-2-44;
+	const settingsRow=rows.find(row=>row.includes('Settings  /'));
+	expect(settingsRow,`${name} shows Settings in the right pane`).toBeTruthy();
+	expect(settingsRow![divider]).toBe('│');
+	expect(settingsRow!.indexOf('Settings  /')).toBeGreaterThan(divider);
+	const chatRow=rows.find(row=>row.includes(chatTitle));
+	expect(chatRow,`${name} retains the chat at left`).toBeTruthy();
+	expect(chatRow!.indexOf(chatTitle)).toBeLessThan(divider);
 }
 function centeredHeader(recording:any,name:string,title:string,subtitle:string,meta?:string):{columns:number;rows:number} {
 	const frameRows:string[]=recording.frame(name),columns=frameRows[0]?.length ?? 0,rows=frameRows.length;
@@ -218,6 +233,8 @@ test('records real fullscreen header and Settings clicks on an owner-encrypted c
 			{name:'settings-for-devices',click:{text:'Settings'},wait_for:'Settings  /  Settings',hold_ms:200},
 			{name:'developers',click:{text:'Developers'},wait_for:'Settings  /  Developers',hold_ms:200},
 			{name:'devices',click:{text:'Devices'},wait_for:'Settings  /  Devices',hold_ms:2500},
+			{name:'devices-narrow',resize:{width:640,height:600},wait_for:'Settings  /  Devices',wait_for_absent:chat.title,hold_ms:2000},
+			{name:'devices-wide',resize:{width:1280,height:720},wait_for:chat.title,hold_ms:500},
 			{name:'settings-close-action',click:{text:'Close Settings'},wait_for:'Keep this unsent draft',wait_for_absent:'Settings  /',hold_ms:400},
 			{name:'settings-closed',hold_ms:2500},
 			{name:'logout-settings',click:{text:'Settings'},wait_for:'Settings  /  Settings',hold_ms:200},
@@ -250,6 +267,7 @@ test('records real fullscreen header and Settings clicks on an owner-encrypted c
 		expect(frame(settingsRecording,'settings-root')).toContain('Developers');
 		expect(frame(settingsRecording,'settings-root')).not.toMatch(/\d+\.\s+Account\b/);
 		expect(frame(settingsRecording,'settings-root')).toContain(chat.title);
+		for(const name of ['settings-root','language','wide-again','devices'])expectRightSettingsPane(settingsRecording,name,chat.title);
 		expect(frame(settingsRecording,'language')).toContain('Changes the web app language.');
 		for(const name of ['language','field-edit','narrow','wide-again']) {
 			expect(settingsPanelText(settingsRecording,name)).not.toMatch(/account id:|is admin:|key iv:|credential version:|user email salt:|invoice counter:|auto topup/i);
@@ -261,16 +279,25 @@ test('records real fullscreen header and Settings clicks on an owner-encrypted c
 		expect(frame(settingsRecording,'wide-again')).toContain('invalid');
 		expect(settingsPanelText(settingsRecording,'invalid-save')).toContain('Error: Use a language code such as en or de.');
 		expect(settingsPanelText(settingsRecording,'devices')).toContain('Device approval is available in the browser.');
+		expect(settingsPanelText(settingsRecording,'devices')).toMatch(/\bbrowser\b/);
+		expect(settingsPanelText(settingsRecording,'language')).toMatch(/\bscroll\b/);
 		expect(frame(settingsRecording,'devices')).toContain('Open web destination');
+		expect(frame(settingsRecording,'devices-narrow')).toContain('Open web destination');
+		expect(frame(settingsRecording,'devices-narrow')).not.toContain(chat.title);
+		expect(frame(settingsRecording,'devices-narrow')).not.toContain('Keep this unsent draft');
+		expectRightSettingsPane(settingsRecording,'devices-wide',chat.title);
 		expect(frame(settingsRecording,'settings-closed')).toContain('Keep this unsent draft');
-		const oldDivider=settingsRecording.frame('language')[2].indexOf('│');
-		expect(oldDivider).toBeGreaterThan(0);
+		const oldDivider=settingsRecording.frame('language')[0].length-2-44;
+		expect(settingsRecording.frame('language')[2][oldDivider]).toBe('│');
 		for(const row of settingsRecording.frame('settings-closed'))expect(row[oldDivider]).not.toBe('│');
 		expect(frame(settingsRecording,'logout-confirmation')).toContain('Confirm');
 		expect(frame(settingsRecording,'logout-confirmation')).toContain('Cancel');
 		expect(frame(settingsRecording,'logout-cleared')).toContain('Session ended. Sign in to reopen your work.');
 		expect(frame(settingsRecording,'logout-cleared')).not.toContain(chat.title);
 		expect(frame(settingsRecording,'logout-cleared')).not.toContain('Keep this unsent draft');
+		expect(frame(settingsRecording,'logout-cleared')).toContain('Explore example chats');
+		expect(frame(settingsRecording,'logout-cleared')).toContain('Chat 1 of');
+		expect(frame(settingsRecording,'logout-cleared')).not.toContain('Start a chat below.');
 		expect(fs.readFileSync(downloadPath,'utf8')).toContain('Show the safe code snippet.');
 		expect(chromeShareState(chat)).toEqual({isShared:true,sharePii:false});
 		await settingsRecording.attest();

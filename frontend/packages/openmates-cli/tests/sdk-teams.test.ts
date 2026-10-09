@@ -18,6 +18,7 @@ import {
   decryptBytesWithAesGcm,
   decryptWithAesGcmCombined,
   encryptBytesWithAesGcm,
+  encryptWithAesGcmCombined,
   splitApiKeyCredential,
 } from "../src/crypto.ts";
 
@@ -86,6 +87,29 @@ async function withServer(
 }
 
 describe("OpenMates SDK Teams", () => {
+  // contract-test: direct surface=sdks.npm assertions=teams.lifecycle.encrypted-profiled
+  it("decrypts Team members and encrypts own profile edits", async () => {
+    const masterKey = Buffer.alloc(32, 11), teamKey = Buffer.alloc(32, 12);
+    const material = await createApiKeyCryptoMaterial("sdk member profile", bytesToBase64(masterKey));
+    const encryptedTeamKey = await encryptBytesWithAesGcm(teamKey, masterKey);
+    const encryptedProfile = await encryptWithAesGcmCombined(JSON.stringify({ display_name: "Alice", avatar: "sun" }), teamKey);
+    await withServer((request, body) => {
+      if (request.url === "/v1/sdk/session") return { key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } };
+      if (request.url === "/v1/teams/team-1") return { team: { team_id: "team-1", encrypted_team_key: encryptedTeamKey } };
+      if (request.url === "/v1/teams/team-1/members" && request.method === "GET") return { members: [{ user_id: "alice", role: "owner", encrypted_member_profile: encryptedProfile }] };
+      if (request.url === "/v1/teams/team-1/members/alice") return { member: { user_id: "alice", role: "owner", encrypted_member_profile: encryptedProfile } };
+      if (request.url === "/v1/teams/team-1/members/me/profile" && request.method === "PATCH") return { member: { user_id: "alice", role: "owner", encrypted_member_profile: (body as Record<string, unknown>).encrypted_member_profile } };
+      throw new Error(`Unexpected request ${request.method} ${request.url}`);
+    }, async (apiUrl, seen) => {
+      const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
+      assert.equal((await client.teams.listMembers("team-1"))[0]?.profile?.display_name, "Alice");
+      assert.equal((await client.teams.getMember("team-1", "alice")).profile?.avatar, "sun");
+      assert.equal((await client.teams.updateOwnMemberProfile("team-1", { display_name: "Alice B", avatar: "star" })).profile?.display_name, "Alice B");
+      const payload = seen.find((row) => row.method === "PATCH")?.body as Record<string, unknown>;
+      assert.deepEqual(Object.keys(payload), ["encrypted_member_profile"]);
+      assert.doesNotMatch(JSON.stringify(payload), /Alice B|star|display_name/);
+    }, `Bearer ${splitApiKeyCredential(material.apiKey).bearer}`);
+  });
   // contract-test: direct surface=sdks.npm assertions=billing.storage.weekly-quote,billing.storage.team-warning-expiry
   it("reads a team storage quote and paginated notice without a mutation", async () => {
     const cursor = "a".repeat(64);

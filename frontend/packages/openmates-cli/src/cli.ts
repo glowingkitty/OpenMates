@@ -41,6 +41,7 @@ import {
   type TeamStorageSummary,
   type TeamStorageNotice,
   type TeamRecord,
+  type TeamMemberRecord,
   type TopicPreferencesPayload,
   type WorkflowCapability,
   type WorkflowDetail,
@@ -4042,6 +4043,12 @@ function buyerAddressFromFlags(flags: Record<string, string | boolean>): BuyerAd
   return { ...address, country: String(address.country).toUpperCase() } as unknown as BuyerAddress;
 }
 
+function publicTeamMember(member: TeamMemberRecord): { user_id: string; hashed_user_id?: string; display_name: string; avatar: string | null; role: string; status: string; joined_at: number | null } {
+  return { user_id: member.user_id, hashed_user_id: member.hashed_user_id,
+    display_name: member.profile?.display_name ?? "", avatar: member.profile?.avatar ?? null,
+    role: member.role, status: member.status ?? "", joined_at: member.joined_at ?? null };
+}
+
 async function handleTeams(
   client: OpenMatesClient,
   subcommand: string | undefined,
@@ -4080,6 +4087,51 @@ async function handleTeams(
     if (flags.json === true) printJson({ team, active_team_id: client.getActiveTeamId() });
     else printTeamRecord(team, client.getActiveTeamId());
     return;
+  }
+
+  if (subcommand === "members") {
+    const action = rest[0];
+    const teamId = requiredStringFlag(rest[1], "<team-id>");
+    if (action === "list") {
+      const members = (await client.listTeamMembers(teamId)).map(publicTeamMember);
+      if (flags.json === true) printJson({ members });
+      else if (!members.length) console.log("No Team members.");
+      else for (const member of members) console.log(`${member.display_name || member.user_id}  ${member.role}  ${member.status || ""}  ${member.user_id}`.trim());
+      return;
+    }
+    if (action === "show") {
+      const userId = requiredStringFlag(rest[2], "<member-user-id>");
+      const member = publicTeamMember(await client.getTeamMember(teamId, userId));
+      if (flags.json === true) printJson({ member });
+      else console.log(`${member.display_name || member.user_id}  ${member.role}  ${member.status || ""}  ${member.user_id}`.trim());
+      return;
+    }
+    throw new Error("Use teams members list <team-id> or teams members show <team-id> <member-user-id>.");
+  }
+
+  if (subcommand === "profile") {
+    const action = rest[0];
+    const teamId = requiredStringFlag(rest[1], "<team-id>");
+    const identity = await client.whoAmI();
+    const ownUserId = requiredStringFlag(typeof identity.id === "string" ? identity.id : undefined, "authenticated user ID");
+    if (action === "show" || action === "get") {
+      const member = publicTeamMember(await client.getTeamMember(teamId, ownUserId));
+      if (flags.json === true) printJson({ member });
+      else console.log(`${member.display_name || member.user_id}  ${member.role}  ${member.user_id}`);
+      return;
+    }
+    if (action === "edit") {
+      const current = await client.getTeamMember(teamId, ownUserId);
+      if (typeof flags.name !== "string" && typeof flags.avatar !== "string") throw new Error("Provide --name or --avatar.");
+      const member = publicTeamMember(await client.updateOwnTeamMemberProfile(teamId, {
+        display_name: typeof flags.name === "string" ? flags.name : current.profile?.display_name,
+        avatar: typeof flags.avatar === "string" ? flags.avatar : current.profile?.avatar,
+      }));
+      if (flags.json === true) printJson({ member });
+      else console.log(`Team profile saved: ${member.display_name || member.user_id}`);
+      return;
+    }
+    throw new Error("Use teams profile show <team-id> or teams profile edit <team-id> [--name <name>] [--avatar <value>].");
   }
 
   if (subcommand === "create") {
@@ -15061,6 +15113,10 @@ function printTeamsHelp(): void {
   openmates teams approve-access <team-id> <access-request-id> [--encrypted-team-key <value>] [--json]
   openmates teams reject-access <team-id> <access-request-id> [--json]
   openmates teams role <team-id> --user <user-id> --role admin|member|viewer [--json]
+  openmates teams members list <team-id> [--json]
+  openmates teams members show <team-id> <member-user-id> [--json]
+  openmates teams profile show <team-id> [--json]
+  openmates teams profile edit <team-id> [--name <display-name>] [--avatar <value>] [--json]
   openmates teams remove-member <team-id> --user <user-id> [--json]
   openmates teams billing <team-id> [--json]
   openmates teams storage <team-id> [--json]

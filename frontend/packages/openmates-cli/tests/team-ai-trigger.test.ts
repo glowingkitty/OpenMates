@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { shouldWaitForTeamAi } from "../src/client.ts";
+import { shouldWaitForTeamAi, teamChatTitleFromMessage } from "../src/client.ts";
 
 describe("Team chat AI trigger", () => {
   // contract-test: direct surface=cli assertions=teams.chat.encrypted-until-invoked
@@ -14,5 +14,11 @@ describe("Team chat AI trigger", () => {
     assert.equal(shouldWaitForTeamAi("email@openmates.org", "team-1"), false);
     assert.equal(shouldWaitForTeamAi("@openmates_fake", "team-1"), false);
     assert.equal(shouldWaitForTeamAi("ordinary personal discussion", null), true);
+  });
+
+  // contract-test: direct surface=cli assertions=teams.chat.encrypted-until-invoked
+  it("derives ordinary Team chat titles from the first human message", () => {
+    assert.equal(teamChatTitleFromMessage("  Lunch   plan\nfor Friday  "), "Lunch plan for Friday");
+    assert.equal(teamChatTitleFromMessage("🙂".repeat(90)), "🙂".repeat(80));
   });
 });

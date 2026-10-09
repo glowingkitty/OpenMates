@@ -6266,12 +6266,52 @@ class OpenMatesFinance:
 class OpenMatesTeams:
     def __init__(self, client: OpenMates): self._client = client
 
+    @staticmethod
+    def _decrypt_member_profile(team_key: bytes, member: dict[str, Any]) -> dict[str, Any]:
+        encrypted = member.get("encrypted_member_profile")
+        if not isinstance(encrypted, str) or not encrypted:
+            return {**member, "profile": None}
+        plaintext = _decrypt_aes_gcm_text(encrypted, team_key)
+        if plaintext is None:
+            raise OpenMatesConfigError("Failed to decrypt Team member profile")
+        parsed = json.loads(plaintext)
+        return {**member, "profile": {
+            "display_name": parsed.get("display_name") if isinstance(parsed.get("display_name"), str) else None,
+            "avatar": parsed.get("avatar") if isinstance(parsed.get("avatar"), str) else None,
+        }}
+
     def list(self) -> list[dict[str, Any]]:
         return list(self._client._get("/v1/teams").get("teams") or [])
 
     def get(self, team_id: str) -> dict[str, Any]:
         result = self._client._get(f"/v1/teams/{_quote(team_id)}")
         return dict(result.get("team") or result)
+
+    def list_members(self, team_id: str) -> list[dict[str, Any]]:
+        team_key = _team_key_from_record(self._client, self.get(team_id))
+        result = self._client._get(f"/v1/teams/{_quote(team_id)}/members")
+        return [self._decrypt_member_profile(team_key, member) for member in result.get("members") or []]
+
+    def get_member(self, team_id: str, member_user_id: str) -> dict[str, Any]:
+        team_key = _team_key_from_record(self._client, self.get(team_id))
+        result = self._client._get(f"/v1/teams/{_quote(team_id)}/members/{_quote(member_user_id)}")
+        if not isinstance(result.get("member"), dict):
+            raise OpenMatesConfigError("Team member response is missing member")
+        return self._decrypt_member_profile(team_key, result["member"])
+
+    def update_own_member_profile(self, team_id: str, *, display_name: str | None = None, avatar: str | None = None) -> dict[str, Any]:
+        team_key = _team_key_from_record(self._client, self.get(team_id))
+        encrypted = _encrypt_aes_gcm_text(json.dumps({
+            "display_name": display_name.strip() if isinstance(display_name, str) else "",
+            "avatar": avatar if isinstance(avatar, str) else None,
+        }), team_key)
+        result = self._client._patch(
+            f"/v1/teams/{_quote(team_id)}/members/me/profile",
+            {"encrypted_member_profile": encrypted},
+        )
+        if not isinstance(result.get("member"), dict):
+            raise OpenMatesConfigError("Team profile response is missing member")
+        return self._decrypt_member_profile(team_key, result["member"])
 
     def create(self, payload: dict[str, Any]) -> dict[str, Any]:
         result = self._client._post("/v1/teams", payload)

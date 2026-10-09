@@ -1,7 +1,7 @@
 /** Settings panel model and controller. No settings protocol or secrets are put in commands. */
 import type { OpenMatesClient } from "./client.js";
 import { SETTINGS_PAGES, settingsChildren, settingsPage, type SettingsField, type SettingsPage } from "./tuiSettingsCatalog.js";
-import { eraseGrapheme, terminalText, truncateCells, wrapCells, type TuiLine } from "./tuiText.js";
+import { eraseGrapheme, terminalText, truncateCells, wrapCells, wrapWords, type TuiLine } from "./tuiText.js";
 
 export type TuiSettingsState = {
   route: string;
@@ -11,6 +11,7 @@ export type TuiSettingsState = {
   authenticated: boolean;
   restricted: boolean;
   isAdmin: boolean;
+  teamRole: string;
   paymentEnabled: boolean;
   paymentChecked: boolean;
   features?: ReadonlySet<string>;
@@ -72,7 +73,7 @@ function settingsWebUrl(ctx: TuiSettingsContext): string {
 
 export function createTuiSettingsState(owner: string, options: { authenticated?: boolean; restricted?: boolean; paymentEnabled?: boolean; webUrl?: string; features?: ReadonlySet<string> } = {}): TuiSettingsState {
   return { route: "main", owner, ownerStale: false, generation: 0, authenticated: options.authenticated ?? true,
-    restricted: options.restricted ?? false, isAdmin: false, paymentEnabled: options.paymentEnabled ?? false, paymentChecked: false, features: options.features, webUrl: options.webUrl ?? "",
+    restricted: options.restricted ?? false, isAdmin: false, teamRole: "", paymentEnabled: options.paymentEnabled ?? false, paymentChecked: false, features: options.features, webUrl: options.webUrl ?? "",
     profile: { username: "", email: "", account: "", team: "" }, data: {}, lastResult: {}, drafts: {}, dirty: {}, dirtyFields: {}, selection: 0,
     scrollOffset: 0, followSelection: true, editing: null, confirmation: null, confirmationChoice: "confirm", busy: false, loading: false, message: null, error: null, oneTimeSecret: null, secretRevealed: false };
 }
@@ -115,10 +116,11 @@ export function syncTuiSettingsOwner(ctx: TuiSettingsContext): boolean {
 function available(page: SettingsPage, state: TuiSettingsState): boolean {
   if (page.auth && !state.authenticated) return false;
   if (page.admin && !state.isAdmin) return false;
-  if (state.restricted && ["account", "teams", "settings_memories", "billing"].includes(page.route.split("/")[0])) return false;
+  if (page.teamRoles && !page.teamRoles.includes(state.teamRole)) return false;
+  if (state.restricted && ["account", "settings_memories", "billing"].includes(page.route.split("/")[0])) return false;
   if (page.billing && !state.paymentEnabled) return false;
   if (page.route === "projects" && state.features?.has("projects") === false) return false;
-  if (page.route === "teams" && state.features?.has("teams") === false) return false;
+  if (page.route.startsWith("teams") && state.features?.has("teams") === false) return false;
   return true;
 }
 
@@ -141,8 +143,13 @@ async function loadPage(ctx: TuiSettingsContext, page: SettingsPage): Promise<vo
   state.busy = true; state.loading = true; state.error = null; ctx.render();
   try {
     const value = await page.load(ctx.client);
-    if (!ownerValid(ctx, owner) || state.generation !== generation) return;
+    if (!ownerValid(ctx, owner)) { ctx.render(); return; }
+    if (state.generation !== generation) return;
     state.data[page.route] = value;
+    if (page.route === "teams") {
+      const teams = asObject(value).teams;
+      state.teamRole = Array.isArray(teams) ? String(asObject(teams.find((team) => asObject(team).team_id === asObject(value).active_team_id)).role ?? "") : "";
+    }
     if (page.defaults) {
       const defaults = page.defaults(value);
       const changed = state.dirtyFields[page.route];
@@ -217,6 +224,19 @@ function validateField(field: SettingsField, value: string): string | null {
   return field.validate?.(value) ?? null;
 }
 
+function visibleActions(page: SettingsPage, state: TuiSettingsState) {
+  const loaded = asObject(state.data[page.route]);
+  return (page.actions ?? []).filter((action) =>
+    (!action.authenticatedOnly || state.authenticated) &&
+    (!action.roles || action.roles.includes(String(loaded.role ?? ""))));
+}
+function visibleSave(page: SettingsPage, state: TuiSettingsState): boolean {
+  return Boolean(page.save) && (!page.saveRoles || page.saveRoles.includes(String(asObject(state.data[page.route]).role ?? "")));
+}
+function editableFields(page: SettingsPage, state: TuiSettingsState): readonly SettingsField[] {
+  return page.saveRoles && !visibleSave(page, state) ? [] : page.fields ?? [];
+}
+
 export function validateTuiSettingsDraft(page: SettingsPage, draft: Record<string, string>): string | null {
   for (const field of page.fields ?? []) {
     const error = validateField(field, draft[field.id] ?? "");
@@ -224,6 +244,12 @@ export function validateTuiSettingsDraft(page: SettingsPage, draft: Record<strin
   }
   if (page.route === "billing/auto-topup/low-balance" && draft.enabled === "on" && !draft.email) return "Email is required when auto top-up is enabled.";
   if (page.route === "billing/auto-topup/low-balance" && draft.enabled === "on" && Number(draft.amount) <= 0) return "Credit amount must be positive when auto top-up is enabled.";
+  if (page.route === "teams/security") {
+    const domains = draft.allowed_email_domains?.split(",").map((value) => value.trim().toLowerCase()).filter(Boolean) ?? [];
+    if (draft.restrict_email_domains === "on" && !domains.length) return "Add at least one allowed email domain before enabling restrictions.";
+    if (domains.length > 50) return "Use at most 50 allowed email domains.";
+    if (domains.some((domain) => !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/.test(domain))) return "Enter valid comma-separated email domains.";
+  }
   return null;
 }
 
@@ -233,21 +259,24 @@ async function runMutation(ctx: TuiSettingsContext, actionId: string): Promise<v
   const page = settingsPage(state.route);
   if (!page || !available(page, state) || page.webOnly) return;
   if (page.requiresLoad && state.data[page.route] === undefined) { state.error = "Current settings unavailable. Reopen this page to retry."; ctx.render(); return; }
-  const action = page.actions?.find((item) => item.id === actionId);
+  const action = visibleActions(page, state).find((item) => item.id === actionId);
+  if (actionId === "save" && !visibleSave(page, state)) return;
   if (actionId !== "save" && !action || action?.authenticatedOnly && !state.authenticated) return;
   const draft = state.drafts[page.route] ?? {};
   const requiredForAction: Record<string, string> = { create: "name", redeem: "code", revoke: "key_id", delete: page.route === "settings_memories/list" ? "memory_id" : "file_id", refund: "invoice_id", "create-order": "credits" };
   const fieldId = requiredForAction[actionId];
   const field = fieldId ? page.fields?.find((item) => item.id === fieldId) : undefined;
   const validation = actionId === "save" ? validateTuiSettingsDraft(page, draft)
-    : field ? validateField({ ...field, required: true }, draft[field.id] ?? "") : null;
+    : action?.requiredFields?.map((id) => page.fields?.find((candidate) => candidate.id === id)).filter((item): item is SettingsField => Boolean(item))
+      .map((item) => validateField({ ...item, required: true }, draft[item.id] ?? "")).find(Boolean)
+      ?? (field ? validateField({ ...field, required: true }, draft[field.id] ?? "") : null);
   if (validation) { state.error = validation; ctx.render(); return; }
-  if (action?.confirm && state.confirmation !== actionId) { state.confirmation = actionId; state.confirmationChoice = "confirm"; state.error = null; ctx.render(); return; }
+  if ((action?.confirm || actionId === "save" && page.saveConfirm) && state.confirmation !== actionId) { state.confirmation = actionId; state.confirmationChoice = "confirm"; state.error = null; ctx.render(); return; }
   const owner = currentOwner(ctx), generation = ++state.generation;
   state.busy = true; state.error = null; state.message = null; state.confirmation = null; ctx.render();
   try {
     const result = await (action ? action.run(ctx.client, { ...draft }) : page.save!(ctx.client, { ...draft }));
-    if (actionId === "logout") {
+    if (actionId === "logout" || page.route === "teams/select" && (actionId === "select" || actionId === "personal")) {
       // Logout changes the owner. Let the TUI render fence clear all private
       // workspace state before the stale-owner guard discards this response.
       ctx.render();
@@ -277,8 +306,9 @@ async function runMutation(ctx: TuiSettingsContext, actionId: string): Promise<v
 function actionIds(state: TuiSettingsState): string[] {
   const page = settingsPage(state.route)!;
   return [...settingsChildren(state.route, state).map((child) => `route:${child.route}`),
-    ...(page.fields ?? []).map((field) => `field:${field.id}`),
-    ...(page.save ? ["save"] : []), ...(page.actions ?? []).filter(action=>!action.authenticatedOnly||state.authenticated).map((action) => `action:${action.id}`),
+    ...(page.rows?.(state.data[page.route]) ?? []).map((row) => `row:${row.id}`),
+    ...editableFields(page, state).map((field) => `field:${field.id}`),
+    ...(visibleSave(page, state) ? ["save"] : []), ...visibleActions(page, state).map((action) => `action:${action.id}`),
     ...(state.oneTimeSecret ? ["reveal-secret"] : []),
     ...(page.webOnly ? ["web"] : [])];
 }
@@ -298,9 +328,39 @@ export async function handleTuiSettingsCommand(ctx: TuiSettingsContext, arg: str
   if (arg === "cancel") { state.confirmation = null; state.editing = null; ctx.render(); return true; }
   if (arg === "reveal-secret") { state.secretRevealed = !state.secretRevealed; ctx.render(); return true; }
   if (arg.startsWith("route:")) { await openTuiSettingsPage(state, arg.slice(6), ctx); return true; }
+  if (arg.startsWith("row:")) {
+    const page = settingsPage(state.route);
+    const row = page?.rows?.(state.data[page.route]).find((candidate) => candidate.id === arg.slice(4));
+    if (!row) return true;
+    if (row.switchTeam) {
+      if (ctx.client.getActiveTeamId() === row.switchTeam) await openTuiSettingsPage(state, "teams/details", ctx);
+      else {
+        const owner = currentOwner(ctx), generation = ++state.generation;
+        state.busy = true; state.error = null; ctx.render();
+        try {
+          const team = await ctx.client.getTeam(row.switchTeam);
+          if (!ownerValid(ctx, owner) || state.generation !== generation) return true;
+          ctx.client.setActiveTeamId(team.team_id ?? row.switchTeam);
+          ctx.render();
+        } catch (error) {
+          if (ownerValid(ctx, owner) && state.generation === generation) state.error = safeText(error instanceof Error ? error.message : error);
+        } finally {
+          if (ownerValid(ctx, owner) && state.generation === generation) { state.busy = false; ctx.render(); }
+        }
+      }
+      return true;
+    }
+    if (row.route) {
+      await openTuiSettingsPage(state, row.route, ctx);
+      if (row.field && row.value !== undefined) (state.drafts[row.route] ??= {})[row.field] = row.value;
+      if (row.details) state.data[row.route] = { ...asObject(state.data[row.route]), ...row.details };
+      ctx.render();
+    }
+    return true;
+  }
   if (arg.startsWith("field:")) {
     const id = arg.slice(6), page = settingsPage(state.route)!;
-    const field = page.fields?.find((item) => item.id === id);
+    const field = editableFields(page, state).find((item) => item.id === id);
     if (!field) return true;
     // A placeholder value cannot be safely inverted before its server value arrives.
     if (state.loading && (field.kind === "boolean" || field.kind === "choice")) return true;
@@ -388,6 +448,10 @@ const summaryFields: Record<string, readonly [string, string][]> = {
   "account/chats": [["chat_count", "Chats"], ["message_count", "Messages"]],
   "billing/overview": [["credits", "Credits"], ["balance", "Balance"], ["currency", "Currency"]],
   "billing/usage": [["total_credits", "Credits used"], ["total_cost", "Total cost"], ["currency", "Currency"]],
+  "teams/details": [["team_id", "Team ID"], ["name", "Name"], ["description", "Description"], ["role", "Your role"]],
+  "teams/profile": [["user_id", "User ID"], ["display_name", "Display name"], ["role", "Role"]],
+  "teams/member": [["selected_name", "Name"], ["selected_user_id", "User ID"], ["selected_role", "Role"]],
+  "teams/billing": [["team_id", "Team ID"], ["balance_credits", "Team credits"]],
 };
 const listFields: Record<string, { key: string; fields: readonly [string, string][] }> = {
   "account/storage/files": { key: "files", fields: [["filename", "File"], ["id", "File ID"], ["size", "Bytes"]] },
@@ -397,11 +461,17 @@ const listFields: Record<string, { key: string; fields: readonly [string, string
   "billing/gift-cards/bank-transfer": { key: "orders", fields: [["id", "Order ID"], ["status", "Status"], ["credits", "Credits"]] },
   "developers/api-keys": { key: "api_keys", fields: [["name", "Name"], ["id", "Key ID"], ["full_access", "Full access"], ["expires_at", "Expires"]] },
   "settings_memories/list": { key: "memories", fields: [["title", "Title"], ["id", "Memory ID"]] },
+  "teams": { key: "teams", fields: [["name", "Team"], ["team_id", "Team ID"], ["role", "Your role"]] },
+  "teams/members": { key: "members", fields: [["display_name", "Name"], ["user_id", "User ID"], ["role", "Role"], ["status", "Status"]] },
+  "teams/access": { key: "requests", fields: [["access_request_id", "Request ID"], ["status", "Status"]] },
+  "teams/billing/usage": { key: "usage", fields: [["workspace_type", "Workspace"], ["credit_amount", "Credits"], ["created_at", "Time"]] },
 };
 const resultFields: Record<string, readonly [string, string][]> = {
   "billing/bank-transfer": [["order_id", "Order ID"], ["payment_reference", "Reference"], ["iban", "IBAN"], ["recipient", "Recipient"], ["amount", "Amount"], ["currency", "Currency"]],
   "billing/gift-cards/bank-transfer": [["order_id", "Order ID"], ["payment_reference", "Reference"], ["iban", "IBAN"], ["recipient", "Recipient"], ["amount", "Amount"], ["currency", "Currency"]],
   "billing/gift-cards": [["credits", "Credits redeemed"]],
+  "teams/create": [["team_id", "Team ID"]],
+  "teams/invite": [["invite_id", "Invite ID"], ["invite_url", "Invite link"]],
 };
 function scalarValue(value: unknown): string | null {
   if (typeof value === "boolean") return value ? "Yes" : "No";
@@ -417,6 +487,7 @@ function allowedRows(value: unknown, fields: readonly [string, string][], width:
 }
 function settingsDataLines(page: SettingsPage, value: unknown, width: number, result = false): string[] {
   if (result) return allowedRows(value, resultFields[page.route] ?? [], width);
+  if (page.rows) return [];
   if (page.save && page.defaults && page.fields) {
     const defaults = page.defaults(value);
     return allowedRows(defaults, page.fields.map(({ id, label }) => [id, label]), width);
@@ -447,41 +518,50 @@ export function renderTuiSettings(state: TuiSettingsState, width: number): TuiLi
   lines.push(line("[Close Settings]", "close"), "");
   if (state.ownerStale) return [line("Settings"), line("Account or team changed. Reopen Settings."), line("Close Settings", "close")];
   if (state.confirmation) {
-    lines.push(...wrapCells(page.actions?.find((action) => action.id === state.confirmation)?.confirm ?? "Confirm operation?", width), "",
+    lines.push(...wrapWords((state.confirmation === "save" ? page.saveConfirm : page.actions?.find((action) => action.id === state.confirmation)?.confirm) ?? "Confirm operation?", width), "",
       line(state.confirmationChoice === "confirm" ? "› Confirm" : "  Confirm", "confirm", state.confirmationChoice === "confirm"),
       line(state.confirmationChoice === "cancel" ? "› Cancel" : "  Cancel", "cancel", state.confirmationChoice === "cancel"),
-      "", ...wrapCells("Tab choose · Enter select · Esc cancel", width));
+      "", ...wrapWords("Tab choose · Enter select · Esc cancel", width));
     return lines;
   }
   if (state.route === "main") {
     const profile = state.authenticated ? [state.profile.username || "Signed in", state.profile.team || "Personal", state.restricted ? "Paired session" : "", state.profile.email].filter(Boolean).join(" · ") : "Signed out";
-    lines.push(...wrapCells(profile, width), "");
+    const profileLines = wrapWords(profile, width);
+    // Profile hydration can lengthen this text while a pointer is over the menu.
+    // Reserve both rows so its menu actions keep the same screen coordinates.
+    lines.push(profileLines[0] ?? "", profileLines.length > 2 ? truncateCells(profileLines.slice(1).join(" "), width) : profileLines[1] ?? "", "");
   }
-  if (page.description) lines.push(...wrapCells(page.description, width), "");
-  if (state.message) lines.push(...wrapCells(`✓ ${state.message}`, width), "");
-  if (state.error) lines.push(...wrapCells(`Error: ${state.error}`, width), "");
+  if (page.description) lines.push(...wrapWords(page.description, width), "");
+  if (state.message) lines.push(...wrapWords(`✓ ${state.message}`, width), "");
+  if (state.error) lines.push(...wrapWords(`Error: ${state.error}`, width), "");
   if (state.busy) lines.push("Working…", "");
   const ids = actionIds(state);
   for (const child of settingsChildren(state.route, state)) {
     const id = `route:${child.route}`, index = ids.indexOf(id);
     lines.push(line(truncateCells(`${index + 1}. ${state.selection === index ? "› " : "  "}${child.title}${child.webOnly ? "  [Web]" : ""}`, width), id, state.selection === index));
   }
+  const rows = page.rows?.(state.data[page.route]) ?? [];
+  if (rows.length) {
+    lines.push("", "Select an item:");
+    for (const row of rows) { const id = `row:${row.id}`, index = ids.indexOf(id);
+      lines.push(line(truncateCells(`${index + 1}. ${state.selection === index ? "› " : "  "}${safeText(row.label)}`, width), id, state.selection === index)); }
+  }
   const draft = state.drafts[page.route] ?? {};
-  if (page.fields?.length) {
+  if (editableFields(page, state).length) {
     lines.push("", "Edit fields, then Save:");
-    for (const field of page.fields) {
+    for (const field of editableFields(page, state)) {
       const id = `field:${field.id}`, index = ids.indexOf(id), value = draft[field.id] ?? "";
       const pendingChoice = state.loading && (field.kind === "boolean" || field.kind === "choice");
       const visibleValue = pendingChoice && state.data[page.route] === undefined ? "Loading…" : value || "—";
       const suffix = pendingChoice ? "" : field.kind === "boolean" || field.kind === "choice" ? "  ↻" : state.editing === field.id ? "  [edit]" : "";
       lines.push(line(truncateCells(`${index + 1}. ${state.selection === index ? "› " : "  "}${field.label}: ${visibleValue}${suffix}`, width), pendingChoice ? undefined : id, state.selection === index));
-      if (field.hint && state.editing === field.id) lines.push(...wrapCells(`   ${field.hint}`, width));
+      if (field.hint && state.editing === field.id) lines.push(...wrapWords(`   ${field.hint}`, width));
     }
   }
-  if (page.save) { const index = ids.indexOf("save"); lines.push("", line(`${index + 1}. Save${state.dirty[page.route] ? " changes" : ""}`, "save", state.selection === index)); }
-  for (const action of (page.actions ?? []).filter(action=>!action.authenticatedOnly||state.authenticated)) { const id = `action:${action.id}`, index = ids.indexOf(id); lines.push(line(`${index + 1}. ${action.label}`, id, state.selection === index)); }
+  if (visibleSave(page, state)) { const index = ids.indexOf("save"); lines.push("", line(`${index + 1}. Save${state.dirty[page.route] ? " changes" : ""}`, "save", state.selection === index)); }
+  for (const action of visibleActions(page, state)) { const id = `action:${action.id}`, index = ids.indexOf(id); lines.push(line(`${index + 1}. ${action.label}`, id, state.selection === index)); }
   if (page.webOnly) {
-    lines.push("", ...wrapCells(page.webReason ?? "This action requires the browser.", width));
+    lines.push("", ...wrapWords(page.webReason ?? "This action requires the browser.", width));
     const index = ids.indexOf("web"); lines.push(line(`${index + 1}. Open web destination`, "web", state.selection === index), ...wrapCells(settingsWebDestination(state.webUrl, page.webOnly), width));
   }
   if (state.data[page.route] !== undefined && !page.webOnly) {
@@ -497,7 +577,7 @@ export function renderTuiSettings(state: TuiSettingsState, width: number): TuiLi
     lines.push("", line(`${index + 1}. ${state.secretRevealed ? "Hide" : "Reveal"} new API key`, "reveal-secret", state.selection === index));
     if (state.secretRevealed) lines.push("Shown once; store securely:", ...wrapCells(state.oneTimeSecret, width));
   }
-  lines.push("", ...wrapCells("↑/↓ or Tab select · Enter open/edit · Ctrl+S save · Ctrl+U clear field · PgUp/PgDn scroll · Esc back/close", width));
+  lines.push("", ...wrapWords("↑/↓ or Tab select · Enter open/edit · Ctrl+S save · Ctrl+U clear field · PgUp/PgDn scroll · Esc back/close", width));
   return lines;
 }
 

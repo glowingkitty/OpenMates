@@ -347,12 +347,14 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.teams.declineInvite()` | `om.teams.decline_invite()` | `invite_id, input` | `invite_id, input` | `object` |
 | `om.teams.export()` | `om.teams.export()` | `id, input` | `id, input` | `object` |
 | `om.teams.get()` | `om.teams.get()` | `id` | `id` | `object` |
+| `om.teams.getMember()` | `om.teams.get_member()` | `id, member_user_id` | `id, member_user_id` | `object` |
 | `om.teams.getProfileImage()` | `om.teams.get_profile_image()` | `id` | `id` | `object` |
 | `om.teams.import()` | `om.teams.import_team()` | `input` | `input` | `object` |
 | `om.teams.invite()` | `om.teams.invite()` | `id, input` | `id, input` | `object` |
 | `om.teams.invites()` | `om.teams.invites()` | `id` | `id` | `object` |
 | `om.teams.list()` | `om.teams.list()` | `none` | `none` | `list` |
 | `om.teams.listBankTransferOrders()` | `om.teams.list_bank_transfer_orders()` | `id` | `id` | `object` |
+| `om.teams.listMembers()` | `om.teams.list_members()` | `id` | `id` | `list` |
 | `om.teams.members()` | `om.teams.members()` | `id` | `id` | `object` |
 | `om.teams.memories()` | `om.teams.memories()` | `id` | `id` | `list` |
 | `om.teams.previewInvite()` | `om.teams.preview_invite()` | `invite_id, verified_email` | `invite_id, verified_email` | `object` |
@@ -365,6 +367,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.teams.storageNotice()` | `om.teams.storage_notice()` | `id, limit, after_unit_id` | `id, limit, after_unit_id` | `object` |
 | `om.teams.update()` | `om.teams.update()` | `id, input` | `id, input` | `object` |
 | `om.teams.updateGeneratedProfileImage()` | `om.teams.update_generated_profile_image()` | `id, icon_name, background_color` | `id, input, input` | `object` |
+| `om.teams.updateOwnMemberProfile()` | `om.teams.update_own_member_profile()` | `id, display_name, avatar` | `id, display_name, avatar` | `object` |
 | `om.teams.updateSecurity()` | `om.teams.update_security()` | `id, policy` | `id, policy` | `object` |
 | `om.teams.usage()` | `om.teams.usage()` | `id, member_user_id` | `id, member_user_id` | `list` |
 

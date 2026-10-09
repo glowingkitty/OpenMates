@@ -1,0 +1,39 @@
+schema_version: 2
+profile: concise
+id: terminal-ui-teams-parity
+title: Team collaboration and management in the terminal
+status: implementing
+goal: Fill Team creation, management and chat parity gaps in the TUI; Settings is
+  on the right and the chat sidebar remains on the left.
+specifications:
+- feature.terminal-ui@1
+- feature.teams@3
+task: abc52374-f643-411e-adc8-db0072b51cc8
+scope:
+  in:
+  - Ordinary human Team messages without implicit AI or assistant placeholders; accurate
+    participant identity.
+  - Fenced live active-chat synchronization and complete Personal/Team context replacement.
+  - Team lifecycle, member and self-profile CLI operations and role-aware native Teams
+    pages under Settings.
+  - Local first-message titles, explicit AI mention suggestions and visible AI-involvement
+    reminder.
+  - Authorized shared-attachment decryption, revoked online access and separate Team/Personal
+    usage.
+  out:
+  - Participant-private Team DMs until the web/backend owner supplies authoritative
+    participant ACLs and recipient key distribution.
+  - Web components, Team API changes, explicit-Mate backend preprocessing/status,
+    production changes and destructive real-account operations.
+decisions:
+- Keep one active TUI Specification; existing Teams Specification owns lifecycle,
+  encryption, permission and billing semantics.
+- Teams belongs inside Settings, with no additional workspace tab.
+- Web/backend coordination belongs to TASK-2788, Codex 01a110ee-9d82-7222-b2cd-8bd1fbe887c3.
+verification:
+- Focused CLI/TUI unit tests, relevant lint, ESM/DTS build and zero newly introduced
+  type diagnostics.
+- Isolated GitHub real CLI/TUI two-member conversation and two-account outsider/member/removal attachment/access
+  checks using fresh disposable Teams.
+- Deliver every existing recording, including failed attempts and retries; install
+  the exact scoped deployed CLI build.

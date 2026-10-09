@@ -65,6 +65,33 @@ export function wrapCells(value: string, width: number): string[] {
   }
   return result;
 }
+/** Wrap readable text at word boundaries, preserving explicit paragraph breaks. */
+export function wrapWords(value: string, width: number): string[] {
+  width = Math.max(1, width);
+  return terminalText(value).split("\n").flatMap((paragraph) => {
+    const words = paragraph.trim().split(/\s+/u).filter(Boolean);
+    if (!words.length) return [""];
+    // Keep intentional hint indentation while leaving room for content.
+    const indent = (paragraph.match(/^ */u)?.[0] ?? "").slice(0, Math.max(0, width - 2));
+    const available = width - cells(indent);
+    const lines: string[] = [];
+    let line = indent;
+    for (const word of words) {
+      const separator = line.length > indent.length ? " " : "";
+      if (cells(line + separator + word) <= width) {
+        line += separator + word;
+        continue;
+      }
+      if (line.length > indent.length) { lines.push(line); line = indent; }
+      if (cells(word) <= available) { line += word; continue; }
+      const parts = wrapCells(word, available);
+      lines.push(...parts.slice(0, -1).map((part) => indent + part));
+      line = indent + parts[parts.length - 1];
+    }
+    lines.push(line);
+    return lines;
+  });
+}
 export function eraseGrapheme(value: string): string {
   const items = [...segments.segment(value)];
   return items.length ? value.slice(0, items[items.length - 1].index) : "";

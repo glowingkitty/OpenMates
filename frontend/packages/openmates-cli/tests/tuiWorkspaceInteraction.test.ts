@@ -1,14 +1,28 @@
 // contract-test-file: infrastructure
 /** Synthetic TUI interaction coverage. No real terminal, account, or network. */
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
-import { afterEach, test } from "node:test";
+import { createHash, randomUUID } from "node:crypto";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { after, afterEach, test } from "node:test";
 import type { DecryptedUserTask } from "../src/tasksCli.js";
 import { loadHomeData } from "../src/tuiHome.js";
 import { runTui as runProductTui } from "../src/tui.js";
 import { createInitialTuiState } from "../src/tuiRenderer.js";
 import { handleWorkspaceKey, handleWorkspaceCommand, openSavedChat, type WorkspaceContext } from "../src/tuiWorkspaceController.js";
 import { noStartupPrompts } from "./tuiTestServices.js";
+
+// Synthetic clients supply their own session owner. Keep the encrypted local
+// preference store from reading a real CLI session owned by another account.
+const previousStateDir=process.env.OPENMATES_STATE_DIR;
+const syntheticStateDir=mkdtempSync(join(tmpdir(),"openmates-tui-workspace-"));
+process.env.OPENMATES_STATE_DIR=syntheticStateDir;
+after(()=>{
+  if(previousStateDir===undefined)delete process.env.OPENMATES_STATE_DIR;
+  else process.env.OPENMATES_STATE_DIR=previousStateDir;
+  rmSync(syntheticStateDir,{recursive:true,force:true});
+});
 
 const activeTuis = new Set<{ terminal: FakeTerminal; run: ReturnType<typeof runProductTui> }>();
 const runTui = (client: Parameters<typeof runProductTui>[0], terminal: FakeTerminal) => {
@@ -56,6 +70,26 @@ test("session loss clears decrypted chat state before the next frame", async () 
   signedIn=false;terminal.press("\u0002",{ctrl:true,name:"b"});await tick();
   assert.doesNotMatch(terminal.latest(),/Private title|Private content/);
   assert.match(terminal.latest(),/Session ended/);
+  terminal.press("\u0003",{ctrl:true,name:"c"});await run;
+});
+
+// contract-test: supporting surface=cli assertions=teams.context.full-switch-local,terminal-ui.workspaces.web-aligned
+test("logout keeps the session-ended notice after clearing Team chat, draft, and model state", async () => {
+  const terminal=new FakeTerminal();let signedIn=true;
+  const session={apiUrl:"https://team.example",hashedEmail:"member",activeTeamId:"team-1",createdAt:1,masterKeyExportedB64:"key"};
+  const {client}=fakeClient({apiUrl:session.apiUrl,hasSession:()=>signedIn,getSession:()=>session,
+    getActiveTeamId:()=>session.activeTeamId,resolveTeamContext:()=>session.activeTeamId,
+    getTeamDetails:async()=>({name:"Private Team"}),whoAmI:async()=>({id:"member-1",username:"Alex"}),
+    getChatMessages:async(id:string)=>({chat:chat(id,"Private title"),messages:[{id:"private",role:"user",content:"Private content",senderName:"Alex",embedIds:[]}]})});
+  const run=runTui(client as never,terminal as never);
+  await tick();terminal.type("/chat saved");terminal.enterKey();await new Promise(resolve=>setTimeout(resolve,150));
+  assert.match(terminal.latest(),/Private content/);
+  terminal.type("Unsent Team draft");await tick();assert.match(terminal.latest(),/Unsent Team draft/);
+  signedIn=false;terminal.press("\u0002",{ctrl:true,name:"b"});await tick();
+  const frame=terminal.latest();
+  assert.match(frame,/Session ended\. Sign in to reopen your work\./);
+  assert.doesNotMatch(frame,/Private Team|Private title|Private content|Unsent Team draft|Model: Loading/);
+  assert.match(frame,/Model: Auto/);
   terminal.press("\u0003",{ctrl:true,name:"c"});await run;
 });
 
@@ -130,6 +164,137 @@ test("chat viewer presence starts with the TUI and clears on workspace navigatio
   assert.ok(events.slice(navigationStart).includes("clear"));
   terminal.press("\u0003", {ctrl:true,name:"c"}); await run;
   assert.equal(events.at(-1), "end");
+});
+
+// contract-test: supporting surface=cli assertions=teams.chat.encrypted-until-invoked,teams.chat-billing.team-credit-boundary
+test("ordinary Team TUI send shows only the human message and no AI typing", async () => {
+  const terminal=new FakeTerminal();
+  const session={apiUrl:"https://team.example",hashedEmail:"member",activeTeamId:"team-1",createdAt:1,masterKeyExportedB64:"key"};
+  let sent=0;
+  const {client}=fakeClient({apiUrl:session.apiUrl,getSession:()=>session,getActiveTeamId:()=>session.activeTeamId,
+    resolveTeamContext:()=>session.activeTeamId,whoAmI:async()=>({id:"member-1",username:"Alex"}),
+    sendMessage:async(params:Record<string,unknown>)=>{sent++;return {chatId:String(params.chatId??params.newChatId),assistant:"",followUpSuggestions:[]};}});
+  const run=runTui(client as never,terminal as never);
+  await tick();const first=terminal.frames.length;
+  terminal.type("Hello team");await tick();assert.match(terminal.latest(),/Hello team/);terminal.enterKey();await new Promise(resolve=>setTimeout(resolve,250));
+  assert.equal(sent,1,terminal.latest());
+  assert.match(terminal.latest(),/Hello team/);
+  assert.doesNotMatch(terminal.frames.slice(first).join("\n"),/Assistant is typing/);
+  assert.doesNotMatch(terminal.latest(),/Assistant\s*\n/);
+  terminal.press("\u0003",{ctrl:true,name:"c"});await run;
+});
+
+// contract-test: supporting surface=cli assertions=teams.context.full-switch-local
+test("Team switch clears old chat and keeps new-chat drafts in their own scope", async () => {
+  const terminal=new FakeTerminal();
+  const session={apiUrl:"https://team.example",hashedEmail:"member",activeTeamId:"team-1",createdAt:1,masterKeyExportedB64:"key"};
+  const {client}=fakeClient({apiUrl:session.apiUrl,getSession:()=>session,getActiveTeamId:()=>session.activeTeamId,
+    resolveTeamContext:()=>session.activeTeamId,whoAmI:async()=>({id:"member-1",username:"Alex"}),
+    getChatMessages:async(id:string)=>({chat:chat(id,"Old Team title"),messages:[{id:"old",role:"user",content:"Old Team secret",senderName:"Alex",embedIds:[]}]})});
+  const run=runTui(client as never,terminal as never);
+  await tick();terminal.type("/chat saved");await tick();terminal.enterKey();await new Promise(resolve=>setTimeout(resolve,150));
+  assert.match(terminal.latest(),/Old Team secret/);
+  session.activeTeamId="team-2";terminal.press("\u0002",{ctrl:true,name:"b"});await tick();
+  assert.doesNotMatch(terminal.latest(),/Old Team secret|Old Team title/);
+  assert.match(terminal.latest(),/DAILY INSPIRATION/);
+  terminal.type("team two draft");await tick();
+  session.activeTeamId="team-1";terminal.press("\u0002",{ctrl:true,name:"b"});await tick();
+  assert.doesNotMatch(terminal.latest(),/team two draft|Old Team secret/);
+  session.activeTeamId="team-2";terminal.press("\u0002",{ctrl:true,name:"b"});await tick();
+  assert.match(terminal.latest(),/team two draft/);
+  terminal.press("\u0003",{ctrl:true,name:"c"});await run;
+});
+
+// contract-test: supporting surface=cli assertions=teams.collaboration.realtime-team-sync
+test("open Team chat polls independently while sidebar activity never resolves", async () => {
+  const terminal=new FakeTerminal();
+  const session={apiUrl:"https://team.example",hashedEmail:"member",activeTeamId:"team-1",createdAt:1,masterKeyExportedB64:"key"};
+  let chatReads=0;
+  const {client}=fakeClient({apiUrl:session.apiUrl,getSession:()=>session,
+    getActiveTeamId:()=>session.activeTeamId,resolveTeamContext:()=>session.activeTeamId,
+    getTeamDetails:async()=>({name:"Private Team"}),whoAmI:async()=>({id:"member-1",username:"Alex"}),
+    getChatActivity:()=>new Promise(()=>{}),
+    getChatMessages:async(id:string)=>{
+      chatReads++;
+      return {chat:chat(id,"Team conversation"),messages:[
+        {id:"first",role:"user",content:"Existing Team message",senderName:"Alex",embedIds:[]},
+        ...(chatReads>1?[{id:"inbound",role:"user",content:"Remote Team reply",senderName:"Maya",embedIds:[]}]:[]),
+      ]};
+    }});
+  const run=runTui(client as never,terminal as never);
+  await tick();terminal.type("/chat saved");terminal.enterKey();await tick();
+  assert.match(terminal.latest(),/Existing Team message/);
+  terminal.type("Keep this draft");
+  const deadline=Date.now()+7_000;
+  while(Date.now()<deadline&&!terminal.latest().includes("Remote Team reply"))
+    await new Promise(resolve=>setTimeout(resolve,50));
+  assert.equal(chatReads,2);
+  assert.match(terminal.latest(),/Remote Team reply/);
+  assert.match(terminal.latest(),/Keep this draft/);
+  terminal.press("\u0003",{ctrl:true,name:"c"});await run;
+});
+
+// contract-test: supporting surface=cli assertions=teams.context.full-switch-local,teams.chat.sender-identity-layout
+test("Team identity reloads after the login lifetime changes within the same Team", async () => {
+  const terminal=new FakeTerminal();
+  const session={apiUrl:"https://team.example",hashedEmail:"member",activeTeamId:"team-1",createdAt:1,masterKeyExportedB64:"key"};
+  let identityReads=0;
+  const {client}=fakeClient({apiUrl:session.apiUrl,getSession:()=>session,getActiveTeamId:()=>session.activeTeamId,
+    whoAmI:async()=>{identityReads++;return {id:session.createdAt===1?"member-1":"member-2",username:"Alex"};},
+    getTeamDetails:async()=>({name:session.createdAt===1?"First lifetime":"Second lifetime"})});
+  const run=runTui(client as never,terminal as never);
+  await tick();assert.ok(identityReads>=1);assert.match(terminal.latest(),/First lifetime/);
+  const initialReads=identityReads;
+  session.createdAt=2;terminal.press("\u0002",{ctrl:true,name:"b"});await tick();
+  assert.ok(identityReads>initialReads);assert.match(terminal.latest(),/Second lifetime/);
+  assert.doesNotMatch(terminal.latest(),/First lifetime/);
+  terminal.press("\u0003",{ctrl:true,name:"c"});await run;
+});
+
+// contract-test: supporting surface=cli assertions=teams.chat.sender-identity-layout,teams.collaboration.realtime-team-sync
+test("Team identity retries a transient whoAmI failure and corrects the sender label", async () => {
+  const terminal=new FakeTerminal();
+  const session={apiUrl:"https://team.example",hashedEmail:"member",activeTeamId:"team-1",createdAt:1,masterKeyExportedB64:"key"};
+  let identityReads=0;
+  const {client}=fakeClient({apiUrl:session.apiUrl,getSession:()=>session,getActiveTeamId:()=>session.activeTeamId,
+    whoAmI:async()=>{identityReads++;if(identityReads===1)throw new Error("Transient profile failure");return {id:"member-1",username:"Alex"};},
+    getTeamDetails:async()=>({name:"Retry Team"}),
+    getChatMessages:async(id:string)=>({chat:chat(id),messages:[{id:"own",chatId:id,role:"user",content:"Saved secret",
+      senderName:"Alex",hashedSenderUserId:createHash("sha256").update("member-1").digest("hex"),embedIds:[]}]})});
+  const run=runTui(client as never,terminal as never);
+  await tick();terminal.type("/chat saved");terminal.enterKey();await new Promise(resolve=>setTimeout(resolve,150));
+  assert.match(terminal.latest(),/\[A\] Alex/);
+  const initialReads=identityReads;
+  await new Promise(resolve=>setTimeout(resolve,1100));
+  assert.ok(identityReads>initialReads);assert.doesNotMatch(terminal.latest(),/\[A\] Alex/);
+  assert.match(terminal.latest(),/You/);
+  terminal.press("\u0003",{ctrl:true,name:"c"});await run;
+});
+
+// contract-test: supporting surface=cli assertions=teams.chat.sender-identity-layout,teams.collaboration.realtime-team-sync
+test("Team identity arriving during a human send relabels the prior message on completion", async () => {
+  const terminal=new FakeTerminal();
+  const session={apiUrl:"https://team.example",hashedEmail:"member",activeTeamId:"team-1",createdAt:1,masterKeyExportedB64:"key"};
+  const identity=deferred<{id:string;username:string}>();
+  const sent=deferred<{chatId:string;assistant:string;followUpSuggestions:string[]}>();
+  let sendStarted=false;
+  const {client}=fakeClient({apiUrl:session.apiUrl,getSession:()=>session,getActiveTeamId:()=>session.activeTeamId,
+    resolveTeamContext:()=>session.activeTeamId,whoAmI:()=>identity.promise,
+    getTeamDetails:async()=>({name:"Pending identity Team"}),
+    getChatMessages:async(id:string)=>({chat:chat(id),messages:[{id:"own",chatId:id,role:"user",content:"Prior private note",
+      senderName:"Alex",hashedSenderUserId:createHash("sha256").update("member-1").digest("hex"),embedIds:[]}]}),
+    sendMessage:()=>{sendStarted=true;return sent.promise;}});
+  const run=runTui(client as never,terminal as never);
+  await tick();terminal.type("/chat saved");terminal.enterKey();await new Promise(resolve=>setTimeout(resolve,150));
+  assert.match(terminal.latest(),/\[A\] Alex/);
+  terminal.type("Another private note");terminal.enterKey();await new Promise(resolve=>setTimeout(resolve,100));
+  assert.equal(sendStarted,true);assert.match(terminal.latest(),/\[A\] Alex/);
+  identity.resolve({id:"member-1",username:"Alex"});await tick();
+  assert.match(terminal.latest(),/\[A\] Alex/);
+  sent.resolve({chatId:"saved",assistant:"",followUpSuggestions:[]});await new Promise(resolve=>setTimeout(resolve,100));
+  assert.match(terminal.latest(),/Prior private note/);assert.doesNotMatch(terminal.latest(),/\[A\] Alex/);
+  assert.match(terminal.latest(),/You/);
+  terminal.press("\u0003",{ctrl:true,name:"c"});await run;
 });
 
 // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity

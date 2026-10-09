@@ -105,8 +105,8 @@ settings_layout:
   - terminal-settings.shell.responsive-and-restorable
   given: A 160-column terminal shows an open chat with an unsent draft and the chat sidebar open.
   when: I click Settings at the top right, browse a page, and close settings.
-  then: Settings occupies the left panel with the chat beside it, replaces the overlapping chat sidebar,
-    and closing restores the chat context and draft. The input keeps its current maximum width.
+  then: Settings occupies the right panel with the chat beside it, temporarily closes the left chat sidebar,
+    and closing restores the left sidebar, chat context and draft. Settings descriptions and shortcut hints wrap at word boundaries when words fit, and the input keeps its current maximum width.
 - id: narrow-settings-and-live-resize
   assertion_ids:
   - terminal-settings.shell.responsive-and-restorable

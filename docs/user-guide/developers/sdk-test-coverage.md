@@ -225,12 +225,14 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `teams` | `om.teams.declineInvite()` | `om.teams.decline_invite()` | direct | direct |
 | `teams` | `om.teams.export()` | `om.teams.export()` | direct | direct |
 | `teams` | `om.teams.get()` | `om.teams.get()` | direct | direct |
+| `teams` | `om.teams.getMember()` | `om.teams.get_member()` | direct | direct |
 | `teams` | `om.teams.getProfileImage()` | `om.teams.get_profile_image()` | direct | direct |
 | `teams` | `om.teams.import()` | `om.teams.import_team()` | direct | direct |
 | `teams` | `om.teams.invite()` | `om.teams.invite()` | direct | direct |
 | `teams` | `om.teams.invites()` | `om.teams.invites()` | direct | direct |
 | `teams` | `om.teams.list()` | `om.teams.list()` | direct | direct |
 | `teams` | `om.teams.listBankTransferOrders()` | `om.teams.list_bank_transfer_orders()` | direct | direct |
+| `teams` | `om.teams.listMembers()` | `om.teams.list_members()` | direct | direct |
 | `teams` | `om.teams.members()` | `om.teams.members()` | direct | direct |
 | `teams` | `om.teams.memories()` | `om.teams.memories()` | direct | direct |
 | `teams` | `om.teams.previewInvite()` | `om.teams.preview_invite()` | namespace smoke: sdk-teams.test.ts | namespace smoke: test_teams.py |
@@ -243,6 +245,7 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `teams` | `om.teams.storageNotice()` | `om.teams.storage_notice()` | direct | direct |
 | `teams` | `om.teams.update()` | `om.teams.update()` | direct | direct |
 | `teams` | `om.teams.updateGeneratedProfileImage()` | `om.teams.update_generated_profile_image()` | direct | direct |
+| `teams` | `om.teams.updateOwnMemberProfile()` | `om.teams.update_own_member_profile()` | direct | direct |
 | `teams` | `om.teams.updateSecurity()` | `om.teams.update_security()` | namespace smoke: sdk-teams.test.ts | namespace smoke: test_teams.py |
 | `teams` | `om.teams.usage()` | `om.teams.usage()` | direct | direct |
 | `wikipedia` | `om.wikipedia.article()` | `om.wikipedia.article()` | direct | direct |

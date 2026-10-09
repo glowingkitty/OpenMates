@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import type { WorkflowCapability, WorkflowDetail, WorkflowGraph, WorkflowRunDetail } from "../src/client.js";
 import { cells, lineText, type TuiLine } from "../src/tuiText.js";
 import { buildWorkflowNodeForm, loadWorkflowRunGraph, orderedWorkflowNodes, renderWorkflowCarousel, renderWorkflowIdentity, renderWorkflowPreviewCard, renderWorkflowWorkspace, submitWorkflowNodeForm, workflowIdentityColor, workflowNodeColor } from "../src/tuiWorkflowWorkspace.js";
-import { PRIMARY_GRADIENT } from "../../appGradientTheme.js";
 
 const graph: WorkflowGraph = {
   version: 1,
@@ -45,7 +44,7 @@ const textOf = (lines: TuiLine[]) => lines.map(lineText).join("\n");
 describe("workflow workspace", () => {
   // contract-test: direct surface=cli assertions=workflows.surface.semantic-parity
   it("centers selected Workflow cards with trigger, status, and bounded rows", () => {
-    const workflows = [{ ...workflow, title: "First" }, { ...workflow, id: "second", title: "Forecast",
+    const workflows = [{ ...workflow, title: "First", category: "science" }, { ...workflow, id: "second", title: "Forecast", category: "finance",
       description: "Weather report", trigger_summary: "Daily 09:00", last_run_status: "completed" as const },
     { ...workflow, id: "third", title: "Third", enabled: false }];
     const lines = renderWorkflowCarousel(workflows, 110, 1, true);
@@ -57,7 +56,9 @@ describe("workflow workspace", () => {
     assert.match(text, /Daily 09:00/);
     assert.match(text, /Enabled · Last: completed/);
     assert.equal((rows[0] as Exclude<typeof rows[number], string>).text.indexOf("╭", 20), 37);
-    assert.equal((rows[0] as Exclude<typeof rows[number], string>).spans?.find((span) => span.bold)?.background, PRIMARY_GRADIENT.start);
+    assert.equal((rows[0] as Exclude<typeof rows[number], string>).spans?.find((span) => span.bold)?.background, workflowIdentityColor(workflows[1]));
+    const backgrounds = new Set(rows.flatMap(line => typeof line === 'string' ? [] : line.spans?.map(span => span.background).filter(Boolean) ?? []));
+    for (const card of workflows) assert.ok(backgrounds.has(workflowIdentityColor(card)));
     assert.match(String(lines.at(-1)), /Workflow 2 of 3 · ←\/→ choose workflow · Enter open/);
     for (const width of [1, 4, 17, 36]) {
       const narrow = renderWorkflowCarousel(workflows, width, 1, false);

@@ -1,8 +1,8 @@
 /** Chat-local settings tabs, using the same encrypted task and plan records as CLI commands. */
 import type { WorkspaceContext } from './tuiWorkspaceController.js';
 import type { TuiState } from './tuiRenderer.js';
-import { decryptUserTasks } from './tasksCli.js';
 import { buildCreateUserTaskInput, buildUpdateUserTaskInput, decryptUserTask, type DecryptedUserTask } from './tasksCli.js';
+import { loadTuiTaskList } from './tuiTaskList.js';
 import { decryptUserPlans } from './plansCli.js';
 import { aliasForEmbed, chatEmbedReferences, exampleEmbedMap } from './tuiEmbeds.js';
 import { collectGeneratedFiles } from './generatedFiles.js';
@@ -61,17 +61,33 @@ export async function loadTuiChatSettings(context:WorkspaceContext,dialog:TuiCha
   if (!['plan','tasks','usage'].includes(dialog.tab) || context.state.screen==='example') return;
   const tab=dialog.tab,request=++dialog.request;
   dialog.loading=true;dialog.items=[];dialog.error=undefined;context.render();
+  if(tab==='tasks'){
+    const current=()=>dialog.ownerCurrent()&&context.state.chrome===dialog&&dialog.tab===tab&&dialog.request===request&&context.state.activeChatId===dialog.chatId;
+    await loadTuiTaskList(context.client,`chat:${dialog.chatId}:tasks`,{chatId:dialog.chatId},(tasks,source,complete)=>{
+      if(!current())return;
+      const tabs=visibleChatSettingsTabs(context.state),selectedCommand=dialog.field>=tabs.length
+        ?chatSettingsActions(dialog,context.state)[dialog.field-tabs.length]?.command:undefined;
+      dialog.tasks=tasks;dialog.loading=!complete;
+      dialog.error=complete?undefined:source==='cache'?'Showing saved tasks. Syncing…':`Loading more tasks… ${tasks.length} available.`;
+      if(selectedCommand){const index=chatSettingsActions(dialog,context.state).findIndex(action=>action.command===selectedCommand);if(index>=0)dialog.field=tabs.length+index;}
+      context.render();
+    },(_error,hasUsable)=>{
+      if(!current())return;
+      dialog.loading=false;
+      dialog.error=hasUsable?'Showing saved or partially synced tasks. Refresh failed.':'Could not load tasks. Retry when connected.';
+      context.render();
+    });
+    return;
+  }
   try {
     const key=tab==='usage'?null:context.client.getMasterKeyBytes();
     const plans=tab==='plan'?await decryptUserPlans(await context.client.listUserPlans({chatId:dialog.chatId}),key!):null;
-    const tasks=tab==='tasks'?await decryptUserTasks(await context.client.listUserTasks({chatId:dialog.chatId}),key!):null;
     const usage=tab==='usage'?await Promise.all([
       context.client.settingsGet(`usage/chat-entries?${new URLSearchParams({chat_id:dialog.chatId,limit:'500'})}`),
       context.client.settingsGet(`usage/chat-total?${new URLSearchParams({chat_id:dialog.chatId})}`),
     ]):null;
     if (!dialog.ownerCurrent() || context.state.chrome!==dialog || dialog.tab!==tab || dialog.request!==request || context.state.activeChatId!==dialog.chatId) return;
     if(plans)dialog.items=plans.map(plan=>`${plan.title} · ${plan.status}${plan.goal?` · ${plan.goal}`:''}`);
-    if(tasks)dialog.tasks=tasks;
     if(usage){
       const [entries,total]=usage as [{entries?:ChatUsageEntry[]},{total_credits?:number}];
       if(!Array.isArray(entries?.entries)||!entries.entries.every(item=>item&&typeof item==='object'))throw Error('Invalid usage rows.');
@@ -93,20 +109,26 @@ export async function submitTuiChatTask(context:WorkspaceContext,dialog:TuiChatS
   const task=taskId?dialog.tasks.find(item=>item.taskId===taskId):undefined;
   if(taskId&&(!task||task.readOnly)){dialog.error='This task cannot be changed here.';context.render();return;}
   dialog.busy=true;dialog.error=undefined;context.render();
+  let phase:'prepare'|'save'|'decrypt'='prepare';
   try{
     const key=context.client.getMasterKeyBytes();
     const input=task?await buildUpdateUserTaskInput(task,key,{status:task.status==='done'?'todo':'done'})
       :await buildCreateUserTaskInput(key,{title,chatId:dialog.chatId,assign:'user'});
     if(!dialog.ownerCurrent()||context.state.chrome!==dialog||context.state.activeChatId!==dialog.chatId)return;
+    phase='save';
     const record=task?await context.client.updateUserTask(task.taskId,input as Parameters<typeof context.client.updateUserTask>[1])
       :await context.client.createUserTask(input as Parameters<typeof context.client.createUserTask>[0]);
+    phase='decrypt';
     const updated=await decryptUserTask(record,key);
     if(!dialog.ownerCurrent()||context.state.chrome!==dialog||context.state.activeChatId!==dialog.chatId)return;
     dialog.tasks=[updated,...dialog.tasks.filter(item=>item.taskId!==updated.taskId)];
     context.state.tasks=[updated,...(context.state.tasks??[]).filter(item=>item.taskId!==updated.taskId)];
     dialog.editingTask=false;dialog.taskTitle='';dialog.field=visibleChatSettingsTabs(context.state).length;
-  }catch{
-    if(dialog.ownerCurrent()&&context.state.chrome===dialog)dialog.error=task?'Could not update task. Retry.':'Could not create task. Review the title and retry.';
+  }catch(error){
+    // Expose only fixed operation names and numeric status, never server messages or encrypted payloads.
+    const status=error&&typeof error==='object'&&'status' in error?error.status:undefined;
+    const detail=typeof status==='number'&&Number.isInteger(status)&&status>=100&&status<=599?`${phase}: HTTP ${status}`:phase;
+    if(dialog.ownerCurrent()&&context.state.chrome===dialog)dialog.error=task?`Could not update task (${detail}). Retry.`:`Could not create task (${detail}). Review the title and retry.`;
   }finally{dialog.busy=false;if(dialog.ownerCurrent()&&context.state.chrome===dialog)context.render();}
 }
 
@@ -120,7 +142,7 @@ export function chatSettingsActions(dialog:TuiChatSettingsState,state:TuiState):
     const downloadable=loaded&&(hasText||collectGeneratedFiles(data).length>0);
     return [{label:`Open ${alias}`,command:`/header-action settings-file ${alias}`},...(downloadable?[{label:`Download ${alias}`,command:`/header-action settings-file-download ${alias}`}]:[])];
   }),{label:'Copy web settings link',command:'/header-action settings-web'}];}
-  if(dialog.tab==='tasks')return dialog.loading?[]:dialog.editingTask?[{label:'Save task',command:'/header-action settings-task-save'},{label:'Cancel task',command:'/header-action settings-task-cancel'}]
+  if(dialog.tab==='tasks')return dialog.loading&&!dialog.tasks.length?[]:dialog.editingTask?[{label:'Save task',command:'/header-action settings-task-save'},{label:'Cancel task',command:'/header-action settings-task-cancel'}]
     :[{label:'Create task',command:'/header-action settings-task-create'},...dialog.tasks.slice(0,20).flatMap(task=>[
       {label:`Open task ${task.title}`,command:`/header-action settings-task-open ${task.taskId}`},
       ...(task.readOnly?[]:[{label:`${task.status==='done'?'Undo done':'Mark done'} · ${task.title}`,command:`/header-action settings-task-toggle ${task.taskId}`}]),
@@ -141,7 +163,7 @@ export function renderTuiChatSettings(dialog:TuiChatSettingsState,state:TuiState
     else if (!dialog.items.length) lines.push(row('No plans linked to this chat.'));
     else for(const item of dialog.items.slice(0,20))lines.push(...wrapCells(`• ${item}`,max).map(line=>row(line)));
   }else if(dialog.tab==='tasks'){
-    if(dialog.loading)lines.push(row('Loading tasks…'));
+    if(dialog.loading)lines.push(row(dialog.error??'Loading tasks…'));
     else if(dialog.error&&!dialog.editingTask)lines.push(row(dialog.error));
     else lines.push(row(`${dialog.tasks.filter(task=>task.status==='done').length}/${dialog.tasks.length} tasks done`));
     if(dialog.editingTask)lines.push(row(`Task title: ${truncateCells(dialog.taskTitle,max-14)}_`,'/header-action settings-task-focus'));

@@ -31,7 +31,7 @@ export function renderWorkflowCarousel(workflows: WorkflowSummary[], width: numb
     description: [workflow.description ? truncateCells(clean(workflow.description), 32) : "",
       truncateCells(clean(workflow.trigger_summary || "Manual"), 32)].filter(Boolean).join("\n"),
     footer: `${workflow.enabled ? "Enabled" : "Paused"}${workflow.last_run_status ? ` · Last: ${clean(workflow.last_run_status)}` : ""}`,
-    background: PRIMARY_GRADIENT.start,
+    background: workflowIdentityColor(workflow),
     action: {kind:"command" as const,command:`/workflow ${workflow.id}`},
   }));
   return [...renderCardCarousel(cards, width, selected, focused), "",

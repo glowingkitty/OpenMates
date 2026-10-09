@@ -114,7 +114,7 @@ describe("OpenMatesClient user tasks", () => {
     }));
     await withServer(
       (request) => {
-        if (request.method === "GET" && request.url === `/v1/user-tasks?limit=500&team_id=${teamId}`) return { tasks };
+        if (request.method === "GET" && request.url === `/v1/user-tasks?limit=100&paginate=true&team_id=${teamId}`) return { tasks };
         throw new Error(`Unexpected per-Task request ${request.method} ${request.url}`);
       },
       async (apiUrl, seen) => {
@@ -235,7 +235,7 @@ describe("OpenMatesClient user tasks", () => {
         })).task_id, "task-1");
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
-          ["GET", "/v1/user-tasks?status=todo&chat_id=chat-1&project_id=project-1&limit=500"],
+          ["GET", "/v1/user-tasks?status=todo&chat_id=chat-1&project_id=project-1&limit=100&paginate=true"],
           ["POST", "/v1/user-tasks"],
           ["PATCH", "/v1/user-tasks/task-1"],
           ["PATCH", "/v1/user-tasks/team-task?team_id=team-1"],
@@ -378,7 +378,7 @@ describe("OpenMatesClient user tasks", () => {
 
         assert.equal(
           seen[0]?.url,
-          `/v1/user-tasks?external_chat_provider=codex&external_chat_lookup_hash=${lookupHash}&limit=500`,
+          `/v1/user-tasks?external_chat_provider=codex&external_chat_lookup_hash=${lookupHash}&limit=100&paginate=true`,
         );
         assert.doesNotMatch(seen[0]?.url ?? "", /ses_private_456/);
       },

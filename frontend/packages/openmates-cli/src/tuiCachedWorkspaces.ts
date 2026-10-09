@@ -20,7 +20,10 @@ interface PendingFetch {
   generation: number;
   globalGeneration: number;
   promise: Promise<unknown>;
+  progressListeners?: Set<(value: unknown, complete: boolean) => Promise<void>>;
 }
+
+type ProgressPublish<T> = (value: T, source: TuiWorkspaceSource, complete: boolean) => void | Promise<void>;
 interface ClientState {
   pending: Map<string, PendingFetch>;
   generations: Map<string, number>;
@@ -188,6 +191,95 @@ export async function loadCachedTuiWorkspace<T>(
     void deliver();
     return cached;
   }
+  return deliver();
+}
+
+/** Persist page snapshots without invalidating the generation of their own fetch. */
+export async function loadProgressiveCachedTuiWorkspace<T>(
+  client: TuiCacheClient,
+  key: string,
+  fetch: (progress: (value: T, complete: boolean) => Promise<void>) => Promise<T>,
+  publish: ProgressPublish<T>,
+  onError?: OnError,
+  mergePartial: (previous: T | null, page: T) => T = (_previous, page) => page,
+): Promise<T | null> {
+  const context = contextFor(client);
+  const state = stateFor(client);
+  let cached: T | null = null;
+  if (context.cache) {
+    try { cached = await context.cache.get<T>(key); }
+    catch { /* A damaged cache is handled as a cold fetch. */ }
+  }
+  if (!context.isCurrent()) return null;
+  if (cached !== null) {
+    try { await publish(cached, "cache", false); }
+    catch (error) { reportError(onError, error, true); }
+  }
+
+  const generation = state.generations.get(key) ?? 0;
+  const globalGeneration = state.globalGeneration;
+  const token = `${context.token}\0${key}`;
+  const isCurrent = () => context.isCurrent() &&
+    (state.generations.get(key) ?? 0) === generation && state.globalGeneration === globalGeneration;
+  let hasUsable = cached !== null;
+  let finalPublished = false;
+  const listener = async (value: unknown, complete: boolean) => {
+    if (!isCurrent()) return;
+    hasUsable = true;
+    finalPublished = complete;
+    try { await publish(value as T, "sync", complete); }
+    catch (error) { reportError(onError, error, true); }
+  };
+  let pending = state.pending.get(token);
+  if (!pending || pending.generation !== generation || pending.globalGeneration !== globalGeneration || !isCurrent()) {
+    const listeners = new Set<(value: unknown, complete: boolean) => Promise<void>>();
+    let latest: T | null = cached;
+    const progress = async (page: T, complete: boolean): Promise<void> => {
+      if (!isCurrent()) return;
+      const value = complete ? page : mergePartial(latest, page);
+      latest = value;
+      if (context.cache) {
+        try {
+          await queueCacheOperation(state, () => isCurrent()
+            ? context.cache!.set(key, value)
+            : Promise.resolve(false));
+        } catch { /* A usable page still renders when disk persistence fails. */ }
+      }
+      if (isCurrent()) await Promise.all([...listeners].map(notify => notify(value, complete)));
+    };
+    const promise = Promise.resolve().then(() => fetch(progress)).then(async value => {
+      if (isCurrent() && context.cache) {
+        try {
+          await queueCacheOperation(state, () => isCurrent()
+            ? context.cache!.set(key, value)
+            : Promise.resolve(false));
+        } catch { /* The final network result still renders. */ }
+      }
+      return value;
+    });
+    pending = { key, context: context.token, generation, globalGeneration, promise, progressListeners: listeners };
+    state.pending.set(token, pending);
+    const created = pending;
+    void promise.then(
+      () => { if (state.pending.get(token) === created) state.pending.delete(token); },
+      () => { if (state.pending.get(token) === created) state.pending.delete(token); },
+    );
+  }
+  pending.progressListeners?.add(listener);
+  const deliver = async (): Promise<T | null> => {
+    try {
+      const value = await pending!.promise as T;
+      if (!isCurrent()) return null;
+      if (!finalPublished) await publish(value, "sync", true);
+      return value;
+    } catch (error) {
+      if (isCurrent()) reportError(onError, error, hasUsable);
+      return null;
+    } finally {
+      pending!.progressListeners?.delete(listener);
+    }
+  };
+  if (cached !== null) { void deliver(); return cached; }
   return deliver();
 }
 

@@ -631,7 +631,9 @@
         "billing-reservation-summary.spec.ts",
         "landing-auth-links.spec.ts",
         "teams-resource-context.spec.ts",
-        "cli-team-tasks-real.spec.ts"
+        "cli-team-tasks-real.spec.ts",
+        "cli-tui-team-collaboration.spec.ts",
+        "cli-team-artifacts-parity.spec.ts"
       ],
       "enabling_work": "Run against existing core stack and fresh real accounts; report missing fixture or product assertion failures without restoring shared accounts."
     },

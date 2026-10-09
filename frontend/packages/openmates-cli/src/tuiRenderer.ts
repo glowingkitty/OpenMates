@@ -19,7 +19,7 @@ import { renderProjectCarousel, renderProjectDetail, renderProjectIdentity, rend
 import { renderTaskBoard, renderTaskDetails, filterTasks, type TaskContext } from "./tuiTasksWorkspace.js";
 import { renderWorkflowWorkspace, renderWorkflowCarousel, renderWorkflowIdentity } from "./tuiWorkflowWorkspace.js";
 import { chatBackground, renderWorkspaceFrame, workspaceGeometry } from "./tuiLayout.js";
-import { cells, wrapCells, truncateCells, padCells, foreground, lineText, type TuiColorMode, type TuiLine } from "./tuiText.js";
+import { cells, wrapCells, truncateCells, padCells, foreground, lineText, terminalText, type TuiColorMode, type TuiLine } from "./tuiText.js";
 import type { TuiStartupScreen } from "./tuiStartup.js";
 import { centeredCarouselText, renderLineCarousel } from "./tuiCarousel.js";
 import { homeHeader, renderHomeChatCards } from "./tuiHome.js";
@@ -50,6 +50,8 @@ export type TuiMessage = {
   role: "user" | "assistant" | "system";
   content: string;
   title?: string | null;
+  remoteUser?: boolean;
+  senderUserHash?: string | null;
   category?: string | null;
   embedIds?: string[];
 };
@@ -78,6 +80,9 @@ export type TuiState = {
   activeResultsView: number | null;
   resultsViewOrigin: TuiState["embedOrigin"];
   username: string | null;
+  currentUserHash: string | null;
+  activeTeamId: string | null;
+  activeTeamName: string | null;
   inspirations: DailyInspiration[];
   inspirationIndices: Partial<Record<TuiWorkspace,number>>;
   homeLoading: boolean;
@@ -175,6 +180,7 @@ export type TuiState = {
   chatContextAuthoringJobs: Record<string, { projectId: string; jobId: string | null; status: string; approvalDigest?: string }>;
   status: string | null;
   isBusy: boolean;
+  isAwaitingAi: boolean;
 };
 
 const CONTENT_PREVIEW_LINES = 12;
@@ -199,7 +205,7 @@ export function createInitialTuiState(): TuiState {
     modelSelector:null,
     settings:null,settingsOwnerCurrent:null,settingsRestore:null,chrome:null,chatOrigin:null,headerActionIndex:0,
     questionEditor:null,
-    textSelection:false,chatEmbeds:{},chatEmbedLoads:new Set(),embedAliases:{},chatSelectedEmbedId:null,username:null,inspirations:[],inspirationIndices:{},homeLoading:false,homeChatsLoading:false,homeAbortController:null,homeError:null,homeLoadVersion:0,homeShowAll:false,homeSelectionMoved:false,homeContextKey:null,continueData:null,detailEmbed:null,embedOrigin:null,embedChoices:[],
+    textSelection:false,chatEmbeds:{},chatEmbedLoads:new Set(),embedAliases:{},chatSelectedEmbedId:null,username:null,currentUserHash:null,activeTeamId:null,activeTeamName:null,inspirations:[],inspirationIndices:{},homeLoading:false,homeChatsLoading:false,homeAbortController:null,homeError:null,homeLoadVersion:0,homeShowAll:false,homeSelectionMoved:false,homeContextKey:null,continueData:null,detailEmbed:null,embedOrigin:null,embedChoices:[],
     apps:[],activeApp:null,activeAppSkill:null,appTab:"skills",appSkillTab:"overview",appResults:{items:[],hasMore:false,offset:0},
     appWorkflows:{items:[],hasMore:false,offset:0},activeAppResult:null,appPreparedRun:null,
     workspace: "chats", sidebarOpen: false, sidebarIndex: 0, navigationIndex: 0,
@@ -236,6 +242,7 @@ export function createInitialTuiState(): TuiState {
     projectFocusPending: null, chatContextAuthoringJobs: {}, chatContextAuthoringControls: {},
     status: null,
     isBusy: false,
+    isAwaitingAi: false,
   };
 }
 
@@ -292,12 +299,13 @@ export function rankExamples(
 }
 
 /** Invalidate private views and pending responses when an interactive session ends. */
+export const TUI_SESSION_ENDED_STATUS = "Session ended. Sign in to reopen your work.";
 export function resetEndedTuiSession(state: TuiState, hasSession: boolean): boolean {
   if (!state.signedIn || hasSession) return false;
   state.homeAbortController?.abort();
   Object.values(state.chatContextAuthoringControls).forEach(control => control.stop());
   const routeVersion = state.routeVersion + 1, homeLoadVersion = state.homeLoadVersion + 1;
-  Object.assign(state, createInitialTuiState(), {routeVersion, homeLoadVersion, status: "Session ended. Sign in to reopen your work."});
+  Object.assign(state, createInitialTuiState(), {routeVersion, homeLoadVersion, status: TUI_SESSION_ENDED_STATUS});
   return true;
 }
 
@@ -307,13 +315,19 @@ export function renderTuiFrame(state: TuiState, width: number, height: number, o
   if (state.startup || state.privacyOffer) return renderStartupFrame(state, width, height, options.colorMode ?? "none");
   const bodyWidth = workspaceGeometry(state, width).contentWidth;
   const header=fullscreenHeaderLines(state,bodyWidth);
+  const teamBanner=state.signedIn&&state.activeTeamId ? [{text:teamIdentityLabel(state),color:'#5a85eb',bold:true} satisfies TuiLine] : [];
   const embedHero=state.screen==="embed"?renderEmbedHero(state,bodyWidth,height):null;
   const stickyRows=state.screen==="embed"?embedHero!.length+1:state.screen==="results-view"?2:state.screen==="project"&&state.activeProject?renderProjectIdentity(state.activeProject,{width:bodyWidth}).length+renderProjectTabs(state.projectTab,bodyWidth).length:
     state.screen==="app"&&state.activeApp?renderTuiAppIdentity(state.activeApp,bodyWidth).length+renderTuiAppTabs(state.appTab,bodyWidth).length:
     state.screen==="app-skill"&&state.activeAppSkill?renderTuiAppsSkillIdentity(state.activeAppSkill,bodyWidth).length+renderTuiAppsSkillTabs(state.appSkillTab,bodyWidth).length:
     state.screen==="workflow"&&state.activeWorkflow?renderWorkflowIdentity(state.activeWorkflow,{width:bodyWidth,run:state.workflowTab==="runs"?state.workflowRuns[state.selectedWorkflowRunIndex]:undefined}).length+(bodyWidth<36?7:4):0;
-  return renderWorkspaceFrame(state, width, height, [...header,...renderBody(state, bodyWidth,height,embedHero??undefined)],
-    { ...options,stickyRows:stickyRows+header.length,stickyFallbackRows:embedHero?header.length:undefined });
+  return renderWorkspaceFrame(state, width, height, [...header,...teamBanner,...renderBody(state, bodyWidth,height,embedHero??undefined)],
+    { ...options,stickyRows:stickyRows+header.length+teamBanner.length,stickyFallbackRows:embedHero?header.length+teamBanner.length:undefined });
+}
+
+function teamIdentityLabel(state:TuiState):string {
+  const name=terminalText(state.activeTeamName?.trim()||'Team').replace(/\s+/g,' ').slice(0,80);
+  return `[${Array.from(name)[0]?.toLocaleUpperCase()||'?'}] Team · ${name}`;
 }
 
 function renderStartupFrame(state: TuiState, width: number, height: number, colorMode: TuiColorMode): string {
@@ -384,7 +398,7 @@ function renderScreenBody(state: TuiState, width: number,height:number,embedHero
     case "chat":
       return renderChat(state, width, height);
     case "chats":
-      return renderHomeChatCards(state,width,height);
+      return [...renderHomeChatCards(state,width,height),...(state.signedIn && state.activeTeamId ? ['',teamAiReminder()] : [])];
     case "apps": {
       const apps=homeTuiApps(state.apps,state.filter,state.homeShowAll);
       return [...homeHeader(state,width,height),...renderTuiAppsHome(apps,{width,selectedIndex:state.selectedIndex,selectedId:state.focus==="content"?apps[state.selectedIndex]?.id:undefined}),"",
@@ -441,7 +455,7 @@ function renderScreenBody(state: TuiState, width: number,height:number,embedHero
       return renderTaskDetail(state, width);
     case "start":
     default:
-      return renderHomeChatCards(state,width,height);
+      return [...renderHomeChatCards(state,width,height),...(state.signedIn && state.activeTeamId ? ['',teamAiReminder()] : [])];
   }
 }
 
@@ -602,7 +616,7 @@ function renderChat(state: TuiState, width: number, height: number): TuiLine[] {
       lines.push("");
       continue;
     }
-    lines.push({text:messageLabel(message.role,message.title,message.category,state.activeChat),color:'#5a85eb',bold:true});
+    lines.push({text:messageLabel(message.role,message.title,message.category,state.activeChat,message.remoteUser),color:'#5a85eb',bold:true});
     const embeds = new Map(Object.entries(state.chatEmbeds));
     lines.push(...renderMessageContentStyled(message.content, width, embeds,state,message.role==='assistant'?message.embedIds:undefined,viewOffset,questionOffset,message.role==='assistant'));
     viewOffset += messageResultsViews(message.content).length;
@@ -610,11 +624,14 @@ function renderChat(state: TuiState, width: number, height: number): TuiLine[] {
     lines.push("");
   }
   if (state.projectFocusPending) lines.push("Project access starts after the countdown. /project-focus-reject to cancel.");
-  if (state.isBusy) lines.push(`${messageLabel('assistant',null,null,state.activeChat)} is typing...`);
+  if (state.isAwaitingAi) lines.push(`${messageLabel('assistant',null,null,state.activeChat)} is typing...`);
+  if (state.signedIn && state.activeTeamId) lines.push(teamAiReminder());
   if (state.followUpSuggestions.length) lines.push("", "Suggestions", ...state.followUpSuggestions.slice(0, 3).map((s, i) => `  ${i + 1}. ${s}`));
   if (state.status) lines.push("", state.status);
   return lines.flatMap<TuiLine>(line=>typeof line==='string'?wrap(line,width):[line]);
 }
+
+function teamAiReminder(): string { return 'To ask AI, mention @openmates or a configured Mate.'; }
 
 function renderEmbedHero(state:TuiState,width:number,height:number):TuiLine[] {
   const app=state.detailEmbed?.appId??"",gradient=APP_GRADIENTS[app]??PRIMARY_GRADIENT;
@@ -754,8 +771,13 @@ function interestScore(haystack: string, interest: string): number {
   return score;
 }
 
-function messageLabel(role: string, sender?:string|null, category?:string|null, chat?:ChatListItem|null): string {
-  if (role === "user") return "You";
+function messageLabel(role: string, sender?:string|null, category?:string|null, chat?:ChatListItem|null, remoteUser=false): string {
+  if (role === "user") {
+    if (!remoteUser) return "You";
+    const name = terminalText(sender?.trim() || 'Team member').replace(/\s+/g,' ').slice(0,80);
+    const initial = Array.from(name)[0]?.toLocaleUpperCase() || '?';
+    return `[${initial}] ${name}`;
+  }
   if (role === "system") return "System";
   if(sender&&!/^(assistant|ai assistant|ai|openmates)$/i.test(sender.trim()))return sender;
   return MATE_NAMES[category??''] || chat?.mateName || MATE_NAMES[chat?.category??''] || 'Assistant';

@@ -349,6 +349,20 @@ test('chat task validation keeps typed title on failure and never posts after ow
 });
 
 // contract-test: supporting surface=cli assertions=terminal-chrome.actions.contextual-and-functional,terminal-chrome.share.explicit-and-private
+test('chat task save reports its operation and HTTP status without private response text',async()=>{
+  const owner=ownedClient({getMasterKeyBytes:()=>new Uint8Array(32).fill(9),listUserPlans:async()=>[],listUserTasks:async()=>[],
+    createUserTask:async()=>{throw Object.assign(Error('password=private-secret encrypted_task_key=hidden'),{status:503});}});
+  const {state,context}=setup(owner.client);state.tasks=[];
+  openHeaderAction(context,'settings');await handleHeaderCommand(context,'settings-tab tasks');await new Promise(resolve=>setImmediate(resolve));
+  await handleHeaderCommand(context,'settings-task-create');await handleHeaderKey(context,'Preserve this task',{name:'paste'});
+  await handleHeaderCommand(context,'settings-task-save');
+  const dialog=state.chrome as Extract<TuiChromeState,{kind:'chat-settings'}>;
+  assert.match(dialog.error??'',/save: HTTP 503/);
+  assert.doesNotMatch(dialog.error??'',/private-secret|encrypted_task_key|hidden/);
+  assert.equal(dialog.taskTitle,'Preserve this task');assert.equal(dialog.editingTask,true);
+});
+
+// contract-test: supporting surface=cli assertions=terminal-chrome.actions.contextual-and-functional,terminal-chrome.share.explicit-and-private
 test('chat usage reads existing settings endpoints and offers reviewed CSV/YAML destination',async()=>{
   const reads:string[]=[];
   const {state,context}=setup({settingsGet:async(path:string)=>{reads.push(path);return path.includes('chat-entries')?{entries:[{id:'entry-1',type:'ai',model_used:'model',credits:3,created_at:1}]}:{total_credits:3};}});

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { OpenMatesClient } from "../src/client.js";
-import { lineText } from "../src/tuiText.js";
+import { cells, lineText, wrapWords } from "../src/tuiText.js";
 import { createTuiSettingsState, handleTuiSettingsCommand, handleTuiSettingsKey, openTuiSettingsPage, renderTuiSettings, type TuiSettingsContext } from "../src/tuiSettings.js";
-import { settingsChildren } from "../src/tuiSettingsCatalog.js";
+import { settingsChildren, settingsPage } from "../src/tuiSettingsCatalog.js";
 
 const client = (overrides: Record<string, unknown> = {}) => ({
   apiUrl: "https://api.openmates.org", hasSession: () => true,
@@ -18,6 +18,66 @@ const setup = (c: OpenMatesClient = client(), owner = "account-a:personal") => {
   return { state, ctx, draws: () => draws };
 };
 const shown = (state: ReturnType<typeof createTuiSettingsState>) => renderTuiSettings(state, 48).map(lineText).join("\n");
+
+// contract-test: supporting surface=cli assertions=terminal-settings.shell.responsive-and-restorable
+test("root menu rows stay fixed while profile text hydrates and changes length", async () => {
+  let finishProfile!: (profile: unknown) => void;
+  const { state, ctx } = setup(client({
+    getSession: () => ({ authorizerDeviceName: "Safari" }),
+    whoAmI: () => new Promise((resolve) => { finishProfile = resolve; }),
+  }));
+  const opening = openTuiSettingsPage(state, "main", ctx);
+  const menuIndex = (width: number) => renderTuiSettings(state, width).findIndex((row) =>
+    typeof row !== "string" && row.action?.command?.startsWith("/settings-action route:"));
+  const interfaceIndex = (width: number) => renderTuiSettings(state, width).findIndex((row) =>
+    typeof row !== "string" && row.action?.command === "/settings-action route:interface");
+  const before = [24, 42, 54].map(interfaceIndex);
+  assert.ok(before.every((index) => index > 0));
+  finishProfile({ username: "cibc-very-long-user-name", active_team_name: "A Long Team Label With More Words", email: "person@example.org" });
+  await opening;
+  for (const [i, width] of [24, 42, 54].entries()) {
+    const lines = renderTuiSettings(state, width).map(lineText);
+    assert.equal(interfaceIndex(width), before[i], `Interface stays at the same row at ${width} columns`);
+    assert.ok(lines.every((line) => cells(line) <= width));
+    assert.match(lines.slice(0, before[i]).join(" "), /cibc-very-long-user-name|cibc-very-long/);
+  }
+  const firstMenu = menuIndex(42);
+  state.profile = { username: "", team: "", email: "", account: "" };
+  assert.equal(interfaceIndex(42), before[1], "signed-in fallback uses the same two profile rows");
+  state.authenticated = false;
+  assert.equal(menuIndex(42), firstMenu, "signed-out fallback uses the same two profile rows");
+});
+
+// contract-test: supporting surface=cli assertions=terminal-settings.shell.responsive-and-restorable
+test("settings prose wraps at words within narrow cell widths", async () => {
+  const { state, ctx } = setup();
+  await openTuiSettingsPage(state, "developers/devices", ctx);
+  const description = settingsPage("developers/devices")!.webReason!;
+  for (const width of [32, 42, 54]) {
+    const lines = renderTuiSettings(state, width).map(lineText);
+    assert.ok(lines.every((line) => cells(line) <= width), `every line fits ${width} cells`);
+    const end = lines.findIndex((line) => line.includes("Open web destination"));
+    const start = lines.lastIndexOf("", end) + 1;
+    assert.equal(lines.slice(start, end).join(" ").replace(/\s+/gu, " ").trim(), description);
+    assert.ok(lines.slice(start, end).some((line) => line.includes("browser")));
+    assert.ok(lines.slice(lines.lastIndexOf("") + 1).some((line) => line.includes("scroll")));
+    assert.doesNotMatch(lines.join("\n"), /browse\nr|s\ncroll/);
+  }
+});
+
+// contract-test: supporting surface=cli assertions=terminal-settings.shell.responsive-and-restorable
+test("word wrapping sanitizes ANSI, preserves paragraphs and wide Unicode, and retains long tokens", () => {
+  const token = "https://example.org/" + "long-path-segment-".repeat(4);
+  const lines = wrapWords(`  \x1b[31mWide 界🙂 text\x1b[0m\n\n${token}\nID_ABCDEFGHIJKLMN`, 12);
+  assert.ok(lines.every((line) => cells(line) <= 12));
+  assert.deepEqual(lines.slice(0, 3), ["  Wide 界🙂", "  text", ""]);
+  assert.ok(!lines.join("").includes("\x1b"));
+  const idLines = wrapWords("ID_ABCDEFGHIJKLMN", 12);
+  const tokenLines = lines.slice(3, -idLines.length);
+  assert.equal(tokenLines.join(""), token);
+  assert.equal(lines.slice(-idLines.length).join(""), "ID_ABCDEFGHIJKLMN");
+  assert.deepEqual(wrapWords("  界🙂", 2), ["界", "🙂"]);
+});
 
 // contract-test: supporting surface=cli assertions=terminal-settings.operations.validated-and-owner-scoped
 test("settings displays only route-relevant account and operation values", async () => {
@@ -83,7 +143,8 @@ test("paired sessions and self-hosted instances expose only supported settings",
   await openTuiSettingsPage(state, "main", ctx);
   assert.equal(state.restricted, true);
   assert.equal(state.paymentEnabled, false);
-  assert.ok(settingsChildren("main", state).every((page) => !["billing", "account", "teams", "settings_memories"].includes(page.route)));
+  assert.ok(settingsChildren("main", state).every((page) => !["billing", "account", "settings_memories"].includes(page.route)));
+  assert.ok(settingsChildren("main", state).some((page) => page.route === "teams"));
   assert.match(shown(state), /Paired session/);
   await openTuiSettingsPage(state, "account/timezone", ctx);
   assert.equal(state.route, "main");
@@ -94,7 +155,8 @@ test("unlimited paired sessions remain restricted while ordinary sessions with n
   const paired = setup(client({ getSession: () => ({ pairedSessionExpiresAt: null, authorizerDeviceName: "Safari on tablet" }) }));
   await openTuiSettingsPage(paired.state, "main", paired.ctx);
   assert.equal(paired.state.restricted, true);
-  assert.ok(settingsChildren("main", paired.state).every((page) => !["billing", "account", "teams", "settings_memories"].includes(page.route)));
+  assert.ok(settingsChildren("main", paired.state).every((page) => !["billing", "account", "settings_memories"].includes(page.route)));
+  assert.ok(settingsChildren("main", paired.state).some((page) => page.route === "teams"));
   await openTuiSettingsPage(paired.state, "account/timezone", paired.ctx);
   assert.equal(paired.state.route, "main");
   const ordinary = setup(client({ getSession: () => ({ pairedSessionExpiresAt: null, authorizerDeviceName: null }) }));

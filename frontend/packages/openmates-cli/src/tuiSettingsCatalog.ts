@@ -1,20 +1,25 @@
 import type { OpenMatesClient } from "./client.js";
+import { TEAM_SETTINGS_PAGES } from "./tuiTeamsSettings.js";
 
 export type SettingsField = {
   id: string; label: string; kind: "text" | "number" | "boolean" | "choice";
   required?: boolean; options?: readonly string[]; hint?: string;
   validate?: (value: string) => string | null;
 };
-export type SettingsAction = { id: string; label: string; authenticatedOnly?: boolean; confirm?: string; run: (client: OpenMatesClient, draft: Record<string, string>) => Promise<unknown> };
+export type SettingsAction = { id: string; label: string; authenticatedOnly?: boolean; confirm?: string; roles?: readonly string[]; requiredFields?: readonly string[]; run: (client: OpenMatesClient, draft: Record<string, string>) => Promise<unknown> };
+export type SettingsRow = { id: string; label: string; switchTeam?: string; route?: string; field?: string; value?: string; details?: Record<string, unknown> };
 export type SettingsPage = {
   route: string; title: string; parent: string | null; description?: string;
-  auth?: boolean; billing?: boolean; admin?: boolean; webOnly?: string; webReason?: string;
+  auth?: boolean; billing?: boolean; admin?: boolean; teamRoles?: readonly string[]; webOnly?: string; webReason?: string;
   fields?: SettingsField[];
   requiresLoad?: boolean;
   load?: (client: OpenMatesClient) => Promise<unknown>;
   defaults?: (value: unknown) => Record<string, string>;
   save?: (client: OpenMatesClient, draft: Record<string, string>) => Promise<unknown>;
+  saveConfirm?: string;
+  saveRoles?: readonly string[];
   actions?: SettingsAction[];
+  rows?: (value: unknown) => SettingsRow[];
 };
 
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -35,7 +40,7 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
   branch("ai", "AI", "main"),
   branch("privacy", "Privacy", "main"),
   web("projects", "Projects", "main", "Project settings are available in the browser."),
-  web("teams", "Teams", "main", "Team settings and roles are available in the browser."),
+  ...TEAM_SETTINGS_PAGES,
   branch("mates", "Mates", "main"),
   branch("billing", "Billing & Usage", "main"),
   branch("notifications", "Notifications", "main"),
@@ -146,11 +151,12 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
 ];
 
 export const settingsPage = (route: string): SettingsPage | undefined => SETTINGS_PAGES.find((page) => page.route === route);
-export function settingsChildren(route: string, options: { authenticated: boolean; restricted?: boolean; paymentEnabled: boolean; isAdmin?: boolean; features?: ReadonlySet<string> }): SettingsPage[] {
+export function settingsChildren(route: string, options: { authenticated: boolean; restricted?: boolean; paymentEnabled: boolean; isAdmin?: boolean; teamRole?: string; features?: ReadonlySet<string> }): SettingsPage[] {
   return SETTINGS_PAGES.filter((page) => page.parent === route && (!page.auth || options.authenticated) && (!page.billing || options.paymentEnabled)
     && (!page.admin || options.isAdmin === true)
-    && (!options.restricted || !["account", "teams", "settings_memories", "billing"].includes(page.route.split("/")[0]))
+    && (!options.restricted || !["account", "settings_memories", "billing"].includes(page.route.split("/")[0]))
     && (page.route !== "pricing" || !options.authenticated)
     && (page.route !== "projects" || options.features?.has("projects") !== false)
-    && (page.route !== "teams" || options.features?.has("teams") !== false));
+    && (!page.route.startsWith("teams") || options.features?.has("teams") !== false)
+    && (!page.teamRoles || page.teamRoles.includes(options.teamRole ?? "")));
 }

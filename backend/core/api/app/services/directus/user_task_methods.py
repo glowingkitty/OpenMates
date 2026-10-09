@@ -378,7 +378,7 @@ class UserTaskMethods:
         params: dict[str, Any] = {
             "fields": USER_TASK_FIELDS,
             "sort": "task_id" if paginate else "position,created_at",
-            "limit": requested_limit + 1 if paginate else (-1 if project_id else requested_limit),
+            "limit": 100 if paginate else (-1 if project_id else requested_limit),
         }
         if status:
             filter_terms.append({"status": {"_eq": status}})
@@ -395,34 +395,56 @@ class UserTaskMethods:
             filter_terms.append({"label_hashes": {"_contains": label_hash}})
         if due_before is not None:
             filter_terms.append({"due_at": {"_lte": due_before}})
-        if paginate and cursor is not None:
-            filter_terms.append({"task_id": {"_gt": cursor}})
         params["filter"] = {"_and": filter_terms} if len(filter_terms) > 1 else filter_terms[0]
 
-        response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True,
-            **({"raise_on_error": True} if paginate else {}))
-        if paginate and not isinstance(response, list):
-            raise RuntimeError("Workspace inventory page did not return items")
-        tasks = response if isinstance(response, list) else []
-        if project_id:
-            project_hash = hash_id(project_id)
-            tasks = [task for task in tasks if project_hash in _coerce_hashes(task.get("linked_project_hashes"))]
-            if paginate:
-                batch = response if isinstance(response, list) else []
-                last_cursor = cursor
-                while len(tasks) < requested_limit + 1 and len(batch) == requested_limit + 1:
-                    next_cursor = batch[-1].get("task_id")
-                    if not isinstance(next_cursor, str) or not next_cursor or next_cursor == last_cursor:
-                        raise RuntimeError("Workspace inventory cursor did not advance")
-                    last_cursor = next_cursor
-                    params["filter"] = {"_and": [*filter_terms, {"task_id": {"_gt": next_cursor}}]}
-                    response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True, raise_on_error=True)
-                    if not isinstance(response, list):
-                        raise RuntimeError("Workspace inventory page did not return items")
-                    batch = response
-                    tasks.extend(row for row in batch if project_hash in _coerce_hashes(row.get("linked_project_hashes")))
-                tasks = tasks[:requested_limit + 1]
+        if paginate:
+            # Directus 11.5 rejects `_gt` on string fields, including task_id.
+            # Keep the public task_id cursor while scanning owner-scoped rows in
+            # bounded sorted blocks and applying the cursor in Python. An
+            # overlapping boundary detects offset shifts during concurrent edits.
+            project_hash = hash_id(project_id) if project_id else None
+            for _scan_attempt in range(3):
+                tasks: list[dict[str, Any]] = []
+                offset = 0
+                last_task_id: str | None = None
+                restart = False
+                while len(tasks) < requested_limit + 1:
+                    params["offset"] = offset
+                    response = await self.directus_service.get_items(
+                        "user_tasks", params=params, no_cache=True, raise_on_error=True,
+                    )
+                    if not isinstance(response, list) or len(response) > 100:
+                        raise RuntimeError("Workspace inventory page did not return a bounded item list")
+                    if last_task_id is not None:
+                        boundary = response[0].get("task_id") if response and isinstance(response[0], dict) else None
+                        if not isinstance(boundary, str) or not boundary:
+                            raise RuntimeError("Workspace inventory storage boundary is invalid")
+                        if boundary != last_task_id:
+                            restart = True
+                            break
+                    for task in response[1:] if last_task_id is not None else response:
+                        task_id = task.get("task_id") if isinstance(task, dict) else None
+                        if not isinstance(task_id, str) or not task_id or (last_task_id is not None and task_id <= last_task_id):
+                            raise RuntimeError("Workspace inventory storage order did not advance")
+                        last_task_id = task_id
+                        if cursor is not None and task_id <= cursor:
+                            continue
+                        if project_hash is None or project_hash in _coerce_hashes(task.get("linked_project_hashes")):
+                            if len(tasks) < requested_limit + 1:
+                                tasks.append(task)
+                    if len(tasks) == requested_limit + 1 or len(response) < 100:
+                        break
+                    offset += len(response) - 1
+                if not restart:
+                    break
             else:
+                raise RuntimeError("Workspace inventory changed during every scan")
+        else:
+            response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True)
+            tasks = response if isinstance(response, list) else []
+            if project_id:
+                project_hash = hash_id(project_id)
+                tasks = [task for task in tasks if project_hash in _coerce_hashes(task.get("linked_project_hashes"))]
                 tasks = tasks[:requested_limit]
         return [_with_short_id(task) for task in tasks]
 

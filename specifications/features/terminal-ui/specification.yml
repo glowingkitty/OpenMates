@@ -13,7 +13,7 @@ scope:
   - Composer focus, accurate targets after scrolling or resizing, keyboard fallback, and native text selection.
   - Chat and embed fullscreen breadcrumbs, back, close, and contextual action menus.
   - Capability-aware Share, Copy, Download, and More controls with keyboard and pointer access.
-  - A top-right Settings entry and a left-side split or fullscreen settings panel.
+  - A top-right Settings entry and a right-side split or fullscreen settings panel.
   - Web-equivalent settings groups, nested navigation, and terminal-native views and controls for existing
     supported CLI settings operations.
   - Existing web-aligned workspace homes, horizontal cards, project tabs, workflow graph and runs, and
@@ -170,9 +170,9 @@ assertions:
   type: behavior
   surfaces:
   - cli
-  must: 'Settings is a clickable and keyboard-reachable entry at the top right. It opens on the left alongside
+  must: 'Settings is a clickable and keyboard-reachable entry at the top right. It opens on the right alongside
     the existing view when both areas remain readable, and occupies the available view at narrower terminal
-    widths. The settings panel replaces an overlapping chat sidebar rather than stacking two left menus.
+    widths. The chat sidebar remains on the left. Settings temporarily closes the sidebar in the split layout and restores it when closed.
     Resizing preserves the settings route and draft fields while rebuilding visible click targets. Narrow
     fullscreen settings blocks interactions with obscured content. Back and Close remain usable; closing
     restores the prior view, composer draft, and usable focus and scroll context. The message input retains

@@ -607,16 +607,24 @@ async def list_user_tasks(
     priority_value = _unwrap_query_default(priority)
     external_chat_lookup_hash = _unwrap_query_default(external_chat_lookup_hash)
     cursor = _unwrap_query_default(cursor)
+    projection_prefix = "workflow-tasks:"
+    projection_phase = paginate and isinstance(cursor, str) and cursor.startswith(projection_prefix)
+    include_projections = team_id is None and not any((
+        chat_id, external_chat_provider, external_chat_lookup_hash, project_id,
+        assignee_hash, label_hash_values, priority_value is not None, due_before is not None,
+    ))
     try:
         if cursor is not None and not paginate:
             raise ValueError("Workspace cursor requires paginate=true")
         if paginate and (not 1 <= limit <= 500 or (cursor is not None and (not isinstance(cursor, str) or not 1 <= len(cursor) <= 512))):
             raise ValueError("Invalid workspace page limit or cursor")
+        if projection_phase and not include_projections:
+            raise ValueError("Workflow Task cursor requires unfiltered personal inventory")
         if team_id:
             await request.app.state.directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
         if (external_chat_provider is None) != (external_chat_lookup_hash is None):
             raise ValueError("Task external chat filters require both provider and lookup hash")
-        tasks = await service.list_tasks(
+        tasks = [] if projection_phase else await service.list_tasks(
             current_user.id,
             status=status,
             project_id=project_id,
@@ -634,20 +642,41 @@ async def list_user_tasks(
         eligible = await service.task_methods.eligible_external_ai(current_user.id)
     except Exception as exc:
         _handle_task_error(exc)
-    complete = not paginate or len(tasks) <= limit
+    canonical_complete = not paginate or len(tasks) <= limit
     if paginate:
         tasks = tasks[:limit]
-    next_cursor = tasks[-1]["task_id"] if paginate and not complete else None
+    complete = canonical_complete
+    next_cursor = tasks[-1]["task_id"] if paginate and not canonical_complete else None
     if team_id:
         wrappers_by_task = await service.task_methods.list_team_task_key_wrappers(
             team_id, [task["task_id"] for task in tasks],
         )
         tasks = [{**task, "encrypted_task_key": None, "key_wrappers": wrappers_by_task.get(task["task_id"], [])} for task in tasks]
     projections = []
-    if team_id is None and (not paginate or cursor is None) and not any((chat_id, external_chat_provider, external_chat_lookup_hash, project_id, assignee_hash, label_hash_values, priority_value is not None, due_before is not None)):
+    if include_projections and (not paginate or canonical_complete):
         projections = await run_in_threadpool(workflow_projection_service.list_projections, current_user.id)
         if status is not None:
             projections = [projection for projection in projections if projection.status == status]
+        if paginate:
+            projection_ids = [projection.task_id for projection in projections]
+            if any(not isinstance(task_id, str) or not task_id for task_id in projection_ids) or len(set(projection_ids)) != len(projection_ids):
+                raise RuntimeError("Workflow Task inventory contains invalid or duplicate IDs")
+            projections = sorted(projections, key=lambda projection: projection.task_id)
+            projection_ids = [projection.task_id for projection in projections]
+            if projection_phase:
+                last_projection_id = cursor[len(projection_prefix):]
+                if last_projection_id:
+                    if last_projection_id not in projection_ids:
+                        _handle_task_error(ValueError("Invalid Workflow Task cursor"))
+                    projections = projections[projection_ids.index(last_projection_id) + 1:]
+            available = limit - len(tasks)
+            remaining = len(projections) > available
+            projections = projections[:available]
+            if remaining:
+                complete = False
+                next_cursor = projection_prefix + (projections[-1].task_id if projections else "")
+                if len(next_cursor) > 512:
+                    raise RuntimeError("Workflow Task cursor exceeds maximum length")
     result = {"tasks": tasks + [projection.model_dump(mode="json") for projection in projections], "eligible_external_ai": eligible}
     if paginate:
         result.update(next_cursor=next_cursor, complete=complete)

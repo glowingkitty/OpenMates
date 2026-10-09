@@ -23,13 +23,14 @@ export function workspaceGeometry(state: TuiState, rawWidth: number) {
   const dialog=Boolean(state.form||state.paletteOpen||state.questionEditor||state.chrome);
   const settingsSplit=Boolean(state.settings&&width>=120&&!dialog);
   const settingsFullscreen=Boolean(state.settings&&width<120&&!dialog);
-  const sidebarWidth = settingsSplit?44:state.sidebarOpen && width >= 90 && !dialog && !state.settings ? 27 : 0;
-  const paneWidth = Math.max(1, width - gutter * 2 - sidebarWidth);
+  const sidebarWidth = state.sidebarOpen && width >= 90 && !dialog && !state.settings ? 27 : 0;
+  const settingsWidth = settingsSplit ? 44 : 0;
+  const paneWidth = Math.max(1, width - gutter * 2 - sidebarWidth - settingsWidth);
   const contentWidth = Math.min(WORKSPACE_MAX_COLUMNS, paneWidth);
   const inset = Math.floor((paneWidth - contentWidth) / 2);
   const composerWidth = Math.min(CONTENT_MAX_COLUMNS, paneWidth);
   const composerInset = Math.floor((paneWidth - composerWidth) / 2);
-  return { width, gutter, sidebarWidth, paneWidth, contentWidth, inset, composerWidth, composerInset,settingsSplit,settingsFullscreen };
+  return { width, gutter, sidebarWidth, paneWidth, contentWidth, inset, composerWidth, composerInset, settingsWidth, settingsSplit, settingsFullscreen };
 }
 
 /** Keep the edit caret and its surrounding lines in the same composer viewport. */
@@ -178,7 +179,7 @@ function overlayLines(state: TuiState, width: number, height: number): TuiLine[]
 }
 
 export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeight: number, body: TuiLine[], options: {colorMode?: TuiColorMode; ascii?: boolean; headerRows?: number; stickyRows?:number;stickyFallbackRows?:number} = {}): string {
-  const { width, gutter, sidebarWidth, paneWidth, contentWidth, inset, composerWidth, composerInset,settingsSplit,settingsFullscreen } = workspaceGeometry(state, rawWidth);
+  const { width, gutter, sidebarWidth, paneWidth, contentWidth, inset, composerWidth, composerInset, settingsWidth, settingsSplit, settingsFullscreen } = workspaceGeometry(state, rawWidth);
   const height = Math.max(1, Math.floor(rawHeight));
   beginPointerFrame(state,Math.max(1,Math.floor(rawWidth)),height);
   const modal=Boolean(state.form||state.paletteOpen||state.questionEditor||state.chrome);
@@ -186,8 +187,8 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
   const mode = options.colorMode ?? "none";
   const ascii = options.ascii ?? false;
   const line = ascii ? "-" : "─", vertical = ascii ? "|" : "│";
-  const place = (rendered: string, side = " ".repeat(sidebarWidth)) =>
-    " ".repeat(gutter) + side + " ".repeat(inset) + rendered + " ".repeat(paneWidth - inset - contentWidth + gutter);
+  const place = (rendered: string, side = " ".repeat(sidebarWidth), settings = " ".repeat(settingsWidth)) =>
+    " ".repeat(gutter) + side + " ".repeat(inset) + rendered + " ".repeat(paneWidth - inset - contentWidth) + settings + " ".repeat(gutter);
   const navParts:Array<{text:string;color:string;bold:boolean;action?:TuiPointerAction}> = [{text:'OpenMates  ',color:'#cfcfcf',bold:true,action:{kind:'command',command:'/chats'}},...WORKSPACES.map((workspace,index)=>{
     const focused=state.focus==='navigation'&&index===state.navigationIndex;
     const label=state.workspace===workspace?`[${titleCase(workspace)}]`:titleCase(workspace);
@@ -268,19 +269,22 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
   const heroRows = options.headerRows ?? 0;
   const category = state.screen === "example" ? state.activeExample?.chat.category : state.activeChat?.category;
   const background = chatBackground(category);
-  const allSide = settingsSplit?renderTuiSettings(state.settings!,sidebarWidth-2):sidebarWidth ? pointerSidebarLines(state) : [];
+  const allSide = sidebarWidth ? pointerSidebarLines(state) : [];
+  const allSettings = settingsSplit ? renderTuiSettings(state.settings!,settingsWidth-2) : [];
   const sideMarker = allSide.findIndex((row) => /(?:^|\s)› /.test(lineText(row))||lineText(row).startsWith("> "));
   let sideStart = Math.max(0, sideMarker - bodyHeight + 3);
-  let side = sideStart ? [allSide[0], "", ...allSide.slice(sideStart)] : allSide;
+  const side = sideStart ? [allSide[0], "", ...allSide.slice(sideStart)] : allSide;
+  let settingsRows:TuiLine[]=[];
   if(settingsSplit){
-    const panel=state.settings!,fixed=allSide.slice(0,4),scrolling=allSide.slice(4),available=Math.max(1,bodyHeight-fixed.length);
+    const panel=state.settings!,fixed=allSettings.slice(0,4),scrolling=allSettings.slice(4),available=Math.max(1,bodyHeight-fixed.length);
+    const settingsMarker=allSettings.findIndex(row=>/(?:^|\s)› /.test(lineText(row)));
     sideStart=Math.min(Math.max(0,scrolling.length-available),Math.max(0,panel.scrollOffset));
     if(panel.followSelection){
-      const marker=Math.max(-1,sideMarker-4);
+      const marker=Math.max(-1,settingsMarker-4);
       if(marker>=sideStart+available)sideStart=Math.min(Math.max(0,scrolling.length-available),Math.max(0,marker-available+3));
       if(marker>=0&&marker<sideStart)sideStart=marker;
     }
-    panel.scrollOffset=sideStart;panel.followSelection=false;side=[...fixed,...scrolling.slice(sideStart)];
+    panel.scrollOffset=sideStart;panel.followSelection=false;settingsRows=[...fixed,...scrolling.slice(sideStart)];
   }
   const rows: string[] = [];
   for (let i = 0; i < bodyHeight; i++) {
@@ -311,23 +315,28 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
     else if (!overlay && !sidebarOverlay && index < heroRows) rendered = backgroundLine(raw, contentWidth, background, mode);
     else if (raw.startsWith("> ") || raw.includes("›")) rendered = foreground(rendered, "#ff553b", mode, true);
     else if (/^(You|Sophia|Tasks|Projects|Workflows|Recent chats|Suggestions|Actions)$/.test(raw)) rendered = foreground(rendered, "#5a85eb", mode, true);
-    const sideValue=side[i],sideText=sideValue?lineText(sideValue):'';
-    let sidebarRow:string|undefined;
-    if(sidebarWidth){
-      const style=typeof sideValue==='string'?undefined:sideValue;
-      if(style?.action)addPointerTarget(state,gutter,i+2,Math.min(cells(sideText),sidebarWidth-2),style.action);
+    const renderSide = (value:TuiLine|undefined, sideWidth:number, column:number, dividerAtEnd:boolean):string => {
+      const text=value?lineText(value):'';
+      const style=typeof value==='string'?undefined:value;
+      const usable=sideWidth-2;
+      if(style?.action)addPointerTarget(state,column,i+2,Math.min(cells(text),usable),style.action);
+      let renderedSide='';
       if(style?.spans){
-        let used=0;sidebarRow='';
+        let used=0;
         for(const part of style.spans){
-          const text=truncateCells(part.text,Math.max(0,sidebarWidth-2-used)),size=cells(text);
-          if(part.action)addPointerTarget(state,gutter+used,i+2,size,part.action);
-          sidebarRow+=foreground(text,part.color??'#cfcfcf',mode,part.bold);used+=size;
+          const partText=truncateCells(part.text,Math.max(0,usable-used)),size=cells(partText);
+          if(part.action)addPointerTarget(state,column+used,i+2,size,part.action);
+          renderedSide+=foreground(partText,part.color??'#cfcfcf',mode,part.bold);used+=size;
         }
-        sidebarRow+=' '.repeat(Math.max(0,sidebarWidth-2-used));
-      }else sidebarRow=foreground(padCells(sideText,sidebarWidth-2),style?.color??'#cfcfcf',mode,style?.bold);
-      sidebarRow+=foreground(`${vertical} `,'#626878',mode);
-    }
-    rows.push(place(rendered, sidebarRow));
+        renderedSide+=' '.repeat(Math.max(0,usable-used));
+      }else renderedSide=foreground(padCells(text,usable),style?.color??'#cfcfcf',mode,style?.bold);
+      const border=foreground(`${vertical} `,'#626878',mode);
+      return dividerAtEnd ? renderedSide+border : border+renderedSide;
+    };
+    const sidebarRow=sidebarWidth ? renderSide(side[i],sidebarWidth,gutter,true) : undefined;
+    const settingsColumn=gutter+sidebarWidth+paneWidth+2;
+    const settingsRow=settingsWidth ? renderSide(settingsRows[i],settingsWidth,settingsColumn,false) : undefined;
+    rows.push(place(rendered,sidebarRow,settingsRow));
   }
   if(state.modelSelector?.open && showComposer && aiComposer && !modal && !settingsFullscreen && bodyHeight>0){
     const popWidth=Math.max(1,Math.min(46,composerWidth));
@@ -358,9 +367,9 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
   const hintColor = state.focus === "composer" ? "#a0a0a0" : "#ff553b";
   const composer: string[] = [];
   if (showComposer) {
-    if(!modal&&!sidebarOverlay)for(let i=0;i<input.count;i++)addPointerTarget(state,gutter+sidebarWidth+composerInset+(composerWidth<6?0:2),
+    if(!modal&&!sidebarOverlay&&!state.settings)for(let i=0;i<input.count;i++)addPointerTarget(state,gutter+sidebarWidth+composerInset+(composerWidth<6?0:2),
       2+bodyHeight+(composerWidth<6?0:1)+i,Math.max(1,composerWidth-(composerWidth<6?0:4)),{kind:'focus',focus:'composer'});
-    const placeInput = (rendered: string) => ' '.repeat(gutter + sidebarWidth + composerInset) + rendered + ' '.repeat(paneWidth - composerInset - composerWidth + gutter);
+    const placeInput = (rendered: string) => ' '.repeat(gutter + sidebarWidth + composerInset) + rendered + ' '.repeat(paneWidth - composerInset - composerWidth + settingsWidth + gutter);
     const inputRows = input.lines.map((text, i) => `${i ? "  " : "> "}${text || (!state.input ? placeholder : "")}`);
     if (composerWidth < 6) composer.push(...inputRows.map((text) => placeInput(padCells(text, composerWidth))), ...(aiComposer?[placeInput(padCells('AI',composerWidth))]:[]),placeInput(foreground(padCells(hint, composerWidth), hintColor, mode)), placeInput(" ".repeat(composerWidth)), placeInput(" ".repeat(composerWidth)));
     else {

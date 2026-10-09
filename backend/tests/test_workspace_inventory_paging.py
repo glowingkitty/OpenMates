@@ -63,7 +63,7 @@ class TestWorkspaceInventoryPaging(unittest.IsolatedAsyncioTestCase):
     # contract-test: supporting surface=rest_api assertions=apple-workspaces.offline-complete,apple-workspaces.isolation
     async def test_keyset_lookahead_keeps_owner_filters_and_stable_order(self):
         for kind in ["task", "plan"]:
-            rows = [{f"{kind}_id": f"id-{n}", "key_wrappers": []} for n in range(3)]
+            rows = [{f"{kind}_id": f"id-{n}", "key_wrappers": []} for n in range(4 if kind == "task" else 3)]
             get_items = AsyncMock(return_value=rows)
             methods = repository(kind, get_items)
             result = await methods.list_items("owner", paginate=True, cursor="id-0", limit=2, chat_id="chat", status="todo")
@@ -71,13 +71,14 @@ class TestWorkspaceInventoryPaging(unittest.IsolatedAsyncioTestCase):
             params = get_items.await_args.kwargs["params"]
             self.assertTrue(get_items.await_args.kwargs["raise_on_error"])
             self.assertEqual(params["sort"], f"{kind}_id")
-            self.assertEqual(params["limit"], 3)
+            self.assertEqual(params["limit"], 100 if kind == "task" else 3)
             owner = hashlib.sha256(b"owner").hexdigest()
             if kind == "task":
                 terms = params["filter"]["_and"]
                 self.assertIn({"hashed_user_id": {"_eq": owner}}, terms)
                 self.assertIn({"hashed_team_id": {"_null": True}}, terms)
-                self.assertIn({"task_id": {"_gt": "id-0"}}, terms)
+                self.assertFalse(any("task_id" in term for term in terms))
+                self.assertEqual(params["offset"], 0)
                 self.assertIn({"status": {"_eq": "todo"}}, terms)
                 self.assertIn({"hashed_primary_chat_id": {"_eq": hashlib.sha256(b"chat").hexdigest()}}, terms)
             else:
@@ -93,7 +94,7 @@ class TestWorkspaceInventoryPaging(unittest.IsolatedAsyncioTestCase):
             get_items = AsyncMock(return_value=[])
             await repository(kind, get_items).list_items("owner", team_id="team", paginate=True, limit=500)
             params = get_items.await_args.kwargs["params"]
-            self.assertEqual(params["limit"], 501)
+            self.assertEqual(params["limit"], 100 if kind == "task" else 501)
             team_hash = hashlib.sha256(b"team").hexdigest()
             if kind == "task":
                 self.assertEqual(params["filter"], {"hashed_team_id": {"_eq": team_hash}})
@@ -106,21 +107,145 @@ class TestWorkspaceInventoryPaging(unittest.IsolatedAsyncioTestCase):
         project_hash = hashlib.sha256(b"project").hexdigest()
         for kind in ["task", "plan"]:
             def row(n, match=False):
-                return {f"{kind}_id": f"id-{n}", "linked_project_hashes": [project_hash] if match else [], "key_wrappers": []}
+                return {f"{kind}_id": f"id-{n:03d}" if kind == "task" else f"id-{n}", "linked_project_hashes": [project_hash] if match else [], "key_wrappers": []}
             calls = []
-            batches = [[row(1), row(2, True), row(3)], [row(4), row(5, True), row(6, True)]]
+            batches = (
+                [[row(n, n == 2) for n in range(1, 101)], [row(100), row(101), row(102, True), row(103, True)]]
+                if kind == "task" else
+                [[row(1), row(2, True), row(3)], [row(4), row(5, True), row(6, True)]]
+            )
             async def get_items(_collection, *, params, no_cache, raise_on_error):
                 import copy
                 calls.append(copy.deepcopy(params))
                 return batches[len(calls) - 1]
             result = await repository(kind, AsyncMock(side_effect=get_items)).list_items("owner", paginate=True, limit=2, project_id="project")
-            self.assertEqual([v[f"{kind}_id"] for v in result], ["id-2", "id-5", "id-6"])
-            self.assertTrue(all(call["limit"] == 3 for call in calls))
+            self.assertEqual([v[f"{kind}_id"] for v in result], ["id-002", "id-102", "id-103"] if kind == "task" else ["id-2", "id-5", "id-6"])
+            self.assertTrue(all(call["limit"] == (100 if kind == "task" else 3) for call in calls))
             self.assertEqual(len(calls), 2)
             if kind == "task":
-                self.assertIn({"task_id": {"_gt": "id-3"}}, calls[1]["filter"]["_and"])
+                self.assertEqual([call["offset"] for call in calls], [0, 99])
+                self.assertFalse(any("task_id" in term for call in calls for term in call["filter"]["_and"]))
             else:
                 self.assertEqual(calls[1]["filter[plan_id][_gt]"], "id-3")
+
+    # contract-test: supporting surface=rest_api assertions=apple-workspaces.offline-complete,apple-workspaces.isolation
+    async def test_sparse_project_one_item_pages_use_bounded_owner_scans(self):
+        project_hash = hashlib.sha256(b"project").hexdigest()
+        owner_hash = hashlib.sha256(b"owner").hexdigest()
+        rows = [
+            {"task_id": f"id-{n:04d}", "linked_project_hashes": [project_hash] if n in {150, 203} else []}
+            for n in range(1, 206)
+        ]
+        calls = []
+
+        async def get_items(_collection, *, params, no_cache, raise_on_error):
+            import copy
+            calls.append(copy.deepcopy(params))
+            self.assertTrue(no_cache)
+            self.assertTrue(raise_on_error)
+            terms = params["filter"]["_and"]
+            self.assertIn({"hashed_user_id": {"_eq": owner_hash}}, terms)
+            self.assertIn({"hashed_team_id": {"_null": True}}, terms)
+            self.assertFalse(any("task_id" in term for term in terms))
+            return rows[params["offset"]:params["offset"] + params["limit"]]
+
+        methods = repository("task", AsyncMock(side_effect=get_items))
+        first = await methods.list_items("owner", paginate=True, limit=1, project_id="project")
+        self.assertEqual([task["task_id"] for task in first], ["id-0150", "id-0203"])
+        self.assertEqual(len(calls), 3)
+        self.assertTrue(all(call["limit"] == 100 for call in calls))
+        second = await methods.list_items("owner", paginate=True, limit=1, project_id="project", cursor="id-0150")
+        self.assertEqual([task["task_id"] for task in second], ["id-0203"])
+        self.assertEqual(len(calls), 6)
+        self.assertEqual([call["offset"] for call in calls], [0, 99, 198, 0, 99, 198])
+
+    # contract-test: supporting surface=rest_api assertions=apple-workspaces.offline-complete,apple-workspaces.isolation
+    async def test_task_pages_over_500_use_supported_filters_and_keep_owner_or_team_scope(self):
+        rows = [{"task_id": f"id-{n:04d}"} for n in range(1, 522)]
+        owner_hash = hashlib.sha256(b"owner").hexdigest()
+        team_hash = hashlib.sha256(b"team").hexdigest()
+        for team_id in [None, "team"]:
+            calls = []
+
+            async def get_items(_collection, *, params, no_cache, raise_on_error):
+                import copy
+                calls.append(copy.deepcopy(params))
+                self.assertTrue(no_cache)
+                self.assertTrue(raise_on_error)
+                self.assertEqual(params["sort"], "task_id")
+                self.assertEqual(params["limit"], 100)
+                terms = params["filter"]["_and"] if "_and" in params["filter"] else [params["filter"]]
+                self.assertFalse(any("task_id" in term for term in terms), "Directus rejects _gt on string task_id")
+                if team_id:
+                    self.assertEqual(terms, [{"hashed_team_id": {"_eq": team_hash}}])
+                else:
+                    self.assertIn({"hashed_user_id": {"_eq": owner_hash}}, terms)
+                    self.assertIn({"hashed_team_id": {"_null": True}}, terms)
+                return rows[params["offset"]:params["offset"] + params["limit"]]
+
+            methods = repository("task", AsyncMock(side_effect=get_items))
+            first = await methods.list_items("owner", team_id=team_id, paginate=True, limit=500)
+            second = await methods.list_items("owner", team_id=team_id, paginate=True, limit=500, cursor=first[499]["task_id"])
+            self.assertEqual(len(first), 501)
+            self.assertEqual(first[0]["task_id"], "id-0001")
+            self.assertEqual(first[-1]["task_id"], "id-0501")
+            self.assertEqual([row["task_id"] for row in second], [f"id-{n:04d}" for n in range(501, 522)])
+            self.assertEqual([call["offset"] for call in calls], [0, 99, 198, 297, 396, 495, 0, 99, 198, 297, 396, 495])
+
+    # contract-test: supporting surface=rest_api assertions=apple-workspaces.offline-complete,apple-workspaces.isolation
+    async def test_task_scan_restarts_after_concurrent_deletion_without_skipping_matches(self):
+        project_hash = hashlib.sha256(b"project").hexdigest()
+        rows = [
+            {"task_id": f"id-{n:04d}", "linked_project_hashes": [project_hash] if n in {101, 150} else []}
+            for n in range(1, 151)
+        ]
+        offsets = []
+
+        async def get_items(_collection, *, params, no_cache, raise_on_error):
+            offsets.append(params["offset"])
+            if offsets == [0, 99]:
+                rows.pop(0)  # Earlier deletion shifts the overlap boundary left.
+            return rows[params["offset"]:params["offset"] + params["limit"]]
+
+        result = await repository("task", AsyncMock(side_effect=get_items)).list_items(
+            "owner", paginate=True, project_id="project", limit=1,
+        )
+        self.assertEqual([row["task_id"] for row in result], ["id-0101", "id-0150"])
+        self.assertEqual(offsets, [0, 99, 0, 99])
+
+    # contract-test: supporting surface=rest_api assertions=apple-workspaces.offline-complete
+    async def test_task_scan_fails_explicitly_after_sustained_storage_churn(self):
+        rows = [{"task_id": f"id-{n:04d}"} for n in range(1, 151)]
+        offsets = []
+
+        async def get_items(_collection, *, params, no_cache, raise_on_error):
+            offsets.append(params["offset"])
+            if params["offset"] == 99:
+                rows.pop(0)
+            return rows[params["offset"]:params["offset"] + params["limit"]]
+
+        with self.assertRaisesRegex(RuntimeError, "changed during every scan"):
+            await repository("task", AsyncMock(side_effect=get_items)).list_items("owner", paginate=True, limit=500)
+        self.assertEqual(offsets, [0, 99, 0, 99, 0, 99])
+
+    # contract-test: supporting surface=rest_api assertions=apple-workspaces.offline-complete
+    async def test_task_scan_rejects_invalid_duplicate_or_unsorted_storage_batches(self):
+        valid_first = [{"task_id": f"id-{n:04d}"} for n in range(100)]
+        cases = [
+            {"error": "unavailable"},
+            [{"task_id": "id-0001"}, {"task_id": "id-0001"}],
+            [{"task_id": "id-0002"}, {"task_id": "id-0001"}],
+            [{"task_id": ""}],
+            [{"task_id": "id-0001"}] * 101,
+        ]
+        for batch in cases:
+            with self.subTest(batch=str(batch)[:50]):
+                with self.assertRaises(RuntimeError):
+                    await repository("task", AsyncMock(return_value=batch)).list_items("owner", paginate=True)
+        async def repeated(_collection, *, params, no_cache, raise_on_error):
+            return valid_first
+        with self.assertRaises(RuntimeError):
+            await repository("task", AsyncMock(side_effect=repeated)).list_items("owner", paginate=True, limit=100)
 
     # contract-test: supporting surface=rest_api assertions=apple-workspaces.offline-complete,apple-workspaces.isolation
     async def test_routes_return_cursor_completeness_and_projections_only_once(self):
@@ -130,12 +255,12 @@ class TestWorkspaceInventoryPaging(unittest.IsolatedAsyncioTestCase):
                 [{f"{kind}_id": "a"}, {f"{kind}_id": "b"}, {f"{kind}_id": "c"}], [{f"{kind}_id": "c"}]
             ])}, task_methods=SimpleNamespace(eligible_external_ai=AsyncMock(return_value=True)))
             projection_calls = []
-            projection = SimpleNamespace(model_dump=lambda **_: {"task_id": "workflow-projection", "source": "workflow_run"})
             def list_projections(user):
                 projection_calls.append(user)
-                return [projection]
+                return []
             kwargs = {"service": service, "paginate": True, "limit": 2}
-            if kind == "task": kwargs["workflow_projection_service"] = SimpleNamespace(list_projections=list_projections)
+            if kind == "task":
+                kwargs["workflow_projection_service"] = SimpleNamespace(list_projections=list_projections)
             first = await namespace[f"list_user_{kind}s"](SimpleNamespace(), SimpleNamespace(), **kwargs)
             self.assertFalse(first["complete"])
             self.assertEqual(first["next_cursor"], "b")
@@ -143,7 +268,105 @@ class TestWorkspaceInventoryPaging(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(second["complete"])
             self.assertIsNone(second["next_cursor"])
             self.assertEqual([v[f"{kind}_id"] for v in second[f"{kind}s"]], ["c"])
-            if kind == "task": self.assertEqual(projection_calls, ["owner"])
+            if kind == "task":
+                self.assertEqual(projection_calls, ["owner"])
+
+    # contract-test: supporting surface=rest_api assertions=apple-workspaces.offline-complete,apple-workspaces.isolation
+    async def test_task_route_pages_canonical_then_more_than_500_workflow_projections(self):
+        namespace = route("task")
+        canonical = [{"task_id": f"00000000-0000-4000-8000-{n:012d}"} for n in range(1, 502)]
+        projections = [SimpleNamespace(
+            task_id=f"workflow-run:{n:04d}", status="todo",
+            model_dump=lambda n=n, **_: {"task_id": f"workflow-run:{n:04d}", "source": "workflow_run"},
+        ) for n in range(1, 522)]
+        read = AsyncMock(side_effect=[canonical[:501], canonical[500:]])
+        projection_read = []
+
+        def list_projections(user):
+            projection_read.append(user)
+            return list(reversed(projections))  # The service's display order is not keyset order.
+
+        service = SimpleNamespace(list_tasks=read, task_methods=SimpleNamespace(eligible_external_ai=AsyncMock(return_value=True)))
+        kwargs = {"service": service, "workflow_projection_service": SimpleNamespace(list_projections=list_projections), "paginate": True, "limit": 500}
+        pages = []
+        cursor = None
+        while True:
+            page = await namespace["list_user_tasks"](SimpleNamespace(), SimpleNamespace(), cursor=cursor, **kwargs)
+            pages.append(page)
+            self.assertLessEqual(len(page["tasks"]), 500)
+            if page["complete"]:
+                self.assertIsNone(page["next_cursor"])
+                break
+            self.assertTrue(page["next_cursor"])
+            cursor = page["next_cursor"]
+        self.assertEqual([len(page["tasks"]) for page in pages], [500, 500, 22])
+        self.assertEqual(pages[0]["next_cursor"], canonical[499]["task_id"])
+        self.assertEqual(pages[1]["next_cursor"], "workflow-tasks:workflow-run:0499")
+        all_ids = [task["task_id"] for page in pages for task in page["tasks"]]
+        self.assertEqual(all_ids, [task["task_id"] for task in canonical] + [projection.task_id for projection in projections])
+        self.assertEqual(len(all_ids), len(set(all_ids)))
+        self.assertEqual(read.await_count, 2)  # Projection phase never rereads canonical Tasks.
+        self.assertEqual(projection_read, ["owner", "owner"])
+
+    # contract-test: supporting surface=rest_api assertions=apple-workspaces.offline-complete,apple-workspaces.isolation
+    async def test_task_route_projection_cursor_status_and_scope_guards(self):
+        namespace = route("task")
+        projections = [SimpleNamespace(
+            task_id=f"workflow-run:{n:04d}", status="todo" if n % 2 else "done",
+            model_dump=lambda n=n, **_: {"task_id": f"workflow-run:{n:04d}"},
+        ) for n in range(1, 6)]
+        read = AsyncMock(return_value=[])
+        projection_read = []
+
+        def list_projections(user):
+            projection_read.append(user)
+            return projections
+
+        service = SimpleNamespace(list_tasks=read, task_methods=SimpleNamespace(
+            eligible_external_ai=AsyncMock(return_value=True), list_team_task_key_wrappers=AsyncMock(return_value={}),
+        ))
+        kwargs = {"service": service, "workflow_projection_service": SimpleNamespace(list_projections=list_projections), "paginate": True, "limit": 2}
+        first = await namespace["list_user_tasks"](SimpleNamespace(), SimpleNamespace(), status="todo", **kwargs)
+        self.assertEqual([task["task_id"] for task in first["tasks"]], ["workflow-run:0001", "workflow-run:0003"])
+        self.assertEqual(first["next_cursor"], "workflow-tasks:workflow-run:0003")
+        second = await namespace["list_user_tasks"](SimpleNamespace(), SimpleNamespace(), status="todo", cursor=first["next_cursor"], **kwargs)
+        self.assertEqual([task["task_id"] for task in second["tasks"]], ["workflow-run:0005"])
+        self.assertTrue(second["complete"])
+        self.assertEqual(read.await_count, 1)
+        with self.assertRaises(ValueError):
+            await namespace["list_user_tasks"](SimpleNamespace(), SimpleNamespace(), cursor="workflow-tasks:bogus", **kwargs)
+        with self.assertRaises(ValueError):
+            await namespace["list_user_tasks"](SimpleNamespace(), SimpleNamespace(), cursor="workflow-tasks:", project_id="project", **kwargs)
+        request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(directus_service=SimpleNamespace(
+            team=SimpleNamespace(require_team_role=AsyncMock()),
+        ))))
+        team = await namespace["list_user_tasks"](request, SimpleNamespace(), team_id="team", **kwargs)
+        project = await namespace["list_user_tasks"](SimpleNamespace(), SimpleNamespace(), project_id="project", **kwargs)
+        self.assertEqual(team["tasks"], [])
+        self.assertEqual(project["tasks"], [])
+        self.assertEqual(projection_read, ["owner", "owner", "owner"])
+
+    # contract-test: supporting surface=rest_api assertions=apple-workspaces.offline-complete
+    async def test_task_route_full_canonical_tail_transitions_to_projection_phase(self):
+        namespace = route("task")
+        canonical = {"task_id": "00000000-0000-4000-8000-000000000001"}
+        projection = SimpleNamespace(task_id="workflow-run:one", status="todo",
+                                     model_dump=lambda **_: {"task_id": "workflow-run:one"})
+        read = AsyncMock(return_value=[canonical])
+        service = SimpleNamespace(list_tasks=read, task_methods=SimpleNamespace(eligible_external_ai=AsyncMock(return_value=True)))
+        kwargs = {"service": service, "workflow_projection_service": SimpleNamespace(list_projections=lambda _: [projection]),
+                  "paginate": True, "limit": 1}
+        first = await namespace["list_user_tasks"](SimpleNamespace(), SimpleNamespace(), **kwargs)
+        self.assertEqual(first["tasks"], [canonical])
+        self.assertEqual(first["next_cursor"], "workflow-tasks:")
+        self.assertFalse(first["complete"])
+        second = await namespace["list_user_tasks"](SimpleNamespace(), SimpleNamespace(), cursor=first["next_cursor"], **kwargs)
+        self.assertEqual(second["tasks"], [{"task_id": "workflow-run:one"}])
+        self.assertTrue(second["complete"])
+        self.assertEqual(read.await_count, 1)
+        legacy = await namespace["list_user_tasks"](SimpleNamespace(), SimpleNamespace(), **{**kwargs, "paginate": False})
+        self.assertEqual(legacy["tasks"], [canonical, {"task_id": "workflow-run:one"}])
+        self.assertNotIn("complete", legacy)
 
     # contract-test: supporting surface=rest_api assertions=apple-workspaces.isolation
     async def test_team_route_requires_role_before_read_and_excludes_personal_projections(self):
@@ -151,11 +374,15 @@ class TestWorkspaceInventoryPaging(unittest.IsolatedAsyncioTestCase):
             namespace = route(kind)
             require_role = AsyncMock(side_effect=PermissionError("forbidden"))
             request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(directus_service=SimpleNamespace(team=SimpleNamespace(require_team_role=require_role)))))
-            service = SimpleNamespace(**{f"list_{kind}s": AsyncMock(return_value=[])}, task_methods=SimpleNamespace(eligible_external_ai=AsyncMock(return_value=True)))
+            service = SimpleNamespace(**{f"list_{kind}s": AsyncMock(return_value=[])}, task_methods=SimpleNamespace(
+                eligible_external_ai=AsyncMock(return_value=True), list_team_task_key_wrappers=AsyncMock(return_value={}),
+            ))
             projection_service = SimpleNamespace(list_projections=lambda _: self.fail("Personal projections leaked into team page"))
             kwargs = {"service": service, "team_id": "team", "paginate": True}
-            if kind == "task": kwargs["workflow_projection_service"] = projection_service
-            with self.assertRaises(PermissionError): await namespace[f"list_user_{kind}s"](request, SimpleNamespace(), **kwargs)
+            if kind == "task":
+                kwargs["workflow_projection_service"] = projection_service
+            with self.assertRaises(PermissionError):
+                await namespace[f"list_user_{kind}s"](request, SimpleNamespace(), **kwargs)
             getattr(service, f"list_{kind}s").assert_not_awaited()
             require_role.side_effect = None
             result = await namespace[f"list_user_{kind}s"](request, SimpleNamespace(), **kwargs)
@@ -174,13 +401,15 @@ class TestWorkspaceInventoryPaging(unittest.IsolatedAsyncioTestCase):
             namespace = route(kind)
             service = SimpleNamespace(**{f"list_{kind}s": AsyncMock(return_value=[])}, task_methods=SimpleNamespace(eligible_external_ai=AsyncMock(return_value=True)))
             kwargs = {"service": service}
-            if kind == "task": kwargs["workflow_projection_service"] = SimpleNamespace(list_projections=lambda _: [])
+            if kind == "task":
+                kwargs["workflow_projection_service"] = SimpleNamespace(list_projections=lambda _: [])
             result = await namespace[f"list_user_{kind}s"](SimpleNamespace(), SimpleNamespace(), **kwargs)
             self.assertNotIn("complete", result)
             self.assertNotIn("next_cursor", result)
             self.assertNotIn("paginate", getattr(service, f"list_{kind}s").await_args.kwargs)
             for bad in [dict(cursor="a"), dict(paginate=True, limit=501), dict(paginate=True, cursor="")]:
-                with self.assertRaises(ValueError): await namespace[f"list_user_{kind}s"](SimpleNamespace(), SimpleNamespace(), **kwargs, **bad)
+                with self.assertRaises(ValueError):
+                    await namespace[f"list_user_{kind}s"](SimpleNamespace(), SimpleNamespace(), **kwargs, **bad)
 
 
 class TestPlanChildInventoryPaging(unittest.IsolatedAsyncioTestCase):
@@ -220,7 +449,8 @@ class TestPlanChildInventoryPaging(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn("limit", database.await_args.kwargs["params"])
             self.assertNotIn("raise_on_error", database.await_args.kwargs)
             database.return_value = {"error": "unavailable"}
-            with self.assertRaises(RuntimeError): await method("parent", paginate=True)
+            with self.assertRaises(RuntimeError):
+                await method("parent", paginate=True)
 
     # contract-test: supporting surface=rest_api assertions=apple-workspaces.offline-complete,apple-workspaces.isolation
     async def test_child_route_completes_only_after_last_page_in_exact_team_context(self):
@@ -254,18 +484,24 @@ class TestPlanChildInventoryPaging(unittest.IsolatedAsyncioTestCase):
             guard = AsyncMock()
             request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(directus_service=SimpleNamespace(team=SimpleNamespace(require_team_role=guard)))))
             namespace["_current_user"].side_effect = PermissionError("unauthorized")
-            with self.assertRaises(PermissionError): await endpoint(request, None, "parent", service=service, paginate=True)
-            read.assert_not_awaited(); service.ensure_plan_owner.assert_not_awaited()
+            with self.assertRaises(PermissionError):
+                await endpoint(request, None, "parent", service=service, paginate=True)
+            read.assert_not_awaited()
+            service.ensure_plan_owner.assert_not_awaited()
             namespace["_current_user"].side_effect = None
             guard.side_effect = PermissionError("foreign team")
-            with self.assertRaises(PermissionError): await endpoint(request, None, "parent", service=service, paginate=True, team_id="foreign")
-            read.assert_not_awaited(); service.get_plan.assert_not_awaited()
+            with self.assertRaises(PermissionError):
+                await endpoint(request, None, "parent", service=service, paginate=True, team_id="foreign")
+            read.assert_not_awaited()
+            service.get_plan.assert_not_awaited()
             guard.side_effect = None
             service.get_plan.side_effect = LookupError("parent outside this team")
-            with self.assertRaises(LookupError): await endpoint(request, None, "outside", service=service, paginate=True, team_id="team")
+            with self.assertRaises(LookupError):
+                await endpoint(request, None, "outside", service=service, paginate=True, team_id="team")
             read.assert_not_awaited()
             service.ensure_plan_owner.side_effect = LookupError("other owner")
-            with self.assertRaises(LookupError): await endpoint(request, None, "other", service=service, paginate=True)
+            with self.assertRaises(LookupError):
+                await endpoint(request, None, "other", service=service, paginate=True)
             read.assert_not_awaited()
 
     # contract-test: supporting surface=rest_api assertions=apple-workspaces.offline-complete,apple-workspaces.isolation
@@ -280,9 +516,11 @@ class TestPlanChildInventoryPaging(unittest.IsolatedAsyncioTestCase):
             service.ensure_plan_owner.assert_awaited_once_with("parent", "owner")
             read.reset_mock()
             for kwargs in [dict(cursor=self.IDS[0]), dict(paginate=True, limit=501), dict(paginate=True, limit=0), dict(paginate=True, cursor="not-a-uuid")]:
-                with self.assertRaises(ValueError): await endpoint(None, None, "parent", service=service, **kwargs)
+                with self.assertRaises(ValueError):
+                    await endpoint(None, None, "parent", service=service, **kwargs)
             read.assert_not_awaited()
 
+    # contract-test: infrastructure
     def test_plan_route_query_defaults_are_imported_at_module_load(self):
         tree = ast.parse((ROOT / "backend/core/api/app/routes/user_plans.py").read_text())
         fastapi_names = {alias.name for node in tree.body if isinstance(node, ast.ImportFrom) and node.module == "fastapi" for alias in node.names}

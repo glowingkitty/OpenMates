@@ -16,6 +16,7 @@ from openmates.sdk import (
     _decrypt_aes_gcm_bytes,
     _decrypt_aes_gcm_text,
     _encrypt_aes_gcm_bytes,
+    _encrypt_aes_gcm_text,
 )
 
 
@@ -253,6 +254,74 @@ def test_pip_sdk_team_profile_image_helpers_encrypt_generated_metadata(monkeypat
         ("PATCH", "/v1/teams/team-1"),
         ("GET", "/v1/teams/team-1/profile-image"),
     ]
+
+
+# contract-test: direct surface=sdks.pip assertions=teams.workspace.surface-parity
+def test_pip_sdk_team_member_profiles_use_team_key_and_ciphertext(monkeypatch):
+    master_key = bytes([19]) * 32
+    team_key = bytes([23]) * 32
+    encrypted_team_key = _encrypt_aes_gcm_bytes(team_key, master_key)
+    encrypted_member_profile = _encrypt_aes_gcm_text(json.dumps({"display_name": "Alice", "avatar": "cat"}), team_key)
+    client = OpenMates(api_key="x")
+    requests_seen = []
+
+    def fake_get(path):
+        requests_seen.append(("GET", path))
+        if path == "/v1/teams/team-1":
+            return {"team": {"encrypted_team_key": encrypted_team_key}}
+        if path == "/v1/teams/team-1/members":
+            return {"members": [
+                {"user_id": "user-1", "encrypted_member_profile": encrypted_member_profile},
+                {"user_id": "user-2", "encrypted_member_profile": None},
+            ]}
+        if path == "/v1/teams/team-1/members/user-1":
+            return {"member": {"user_id": "user-1", "encrypted_member_profile": encrypted_member_profile}}
+        raise AssertionError(path)
+
+    def fake_patch(path, payload):
+        requests_seen.append(("PATCH", path, payload))
+        assert path == "/v1/teams/team-1/members/me/profile"
+        assert set(payload) == {"encrypted_member_profile"}
+        assert _decrypt_aes_gcm_text(payload["encrypted_member_profile"], team_key) == json.dumps({"display_name": "Alice", "avatar": None})
+        return {"member": {"user_id": "user-1", **payload}}
+
+    monkeypatch.setattr(client, "_get_master_key", lambda: master_key)
+    monkeypatch.setattr(client, "_get", fake_get)
+    monkeypatch.setattr(client, "_patch", fake_patch)
+
+    members = client.teams.list_members("team-1")
+    assert members[0]["profile"] == {"display_name": "Alice", "avatar": "cat"}
+    assert members[1]["profile"] is None
+    assert client.teams.get_member("team-1", "user-1")["profile"]["display_name"] == "Alice"
+    assert client.teams.update_own_member_profile("team-1", display_name=" Alice ")["profile"] == {"display_name": "Alice", "avatar": None}
+    assert [entry[:2] for entry in requests_seen] == [
+        ("GET", "/v1/teams/team-1"), ("GET", "/v1/teams/team-1/members"),
+        ("GET", "/v1/teams/team-1"), ("GET", "/v1/teams/team-1/members/user-1"),
+        ("GET", "/v1/teams/team-1"), ("PATCH", "/v1/teams/team-1/members/me/profile"),
+    ]
+
+
+# contract-test: direct surface=sdks.pip assertions=teams.workspace.surface-parity
+def test_pip_sdk_team_member_profile_rejects_bad_ciphertext_and_missing_member(monkeypatch):
+    master_key = bytes([29]) * 32
+    team_key = bytes([31]) * 32
+    client = OpenMates(api_key="x")
+    monkeypatch.setattr(client, "_get_master_key", lambda: master_key)
+
+    def fake_get(path):
+        if path == "/v1/teams/team-1":
+            return {"team": {"encrypted_team_key": _encrypt_aes_gcm_bytes(team_key, master_key)}}
+        if path.endswith("/members/user-1"):
+            return {"member": {"encrypted_member_profile": _encrypt_aes_gcm_text("secret", bytes([32]) * 32)}}
+        raise AssertionError(path)
+
+    monkeypatch.setattr(client, "_get", fake_get)
+    with pytest.raises(OpenMatesConfigError, match="Failed to decrypt Team member profile"):
+        client.teams.get_member("team-1", "user-1")
+
+    monkeypatch.setattr(client, "_get", lambda path: {"team": {"encrypted_team_key": _encrypt_aes_gcm_bytes(team_key, master_key)}} if path == "/v1/teams/team-1" else {})
+    with pytest.raises(OpenMatesConfigError, match="Team member response is missing member"):
+        client.teams.get_member("team-1", "user-1")
 
 
 # contract-test: direct surface=sdks.pip assertions=teams.chat.encrypted-until-invoked,teams.workspace.surface-parity

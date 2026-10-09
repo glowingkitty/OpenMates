@@ -515,6 +515,8 @@ export type TeamPlainCreateOptions = {
   profile?: TeamGeneratedProfileImageOptions;
   createdAt?: number;
 };
+
+export type SdkTeamMember = Record<string, unknown> & { profile: { display_name?: string; avatar?: string | null } | null };
 export type ProjectRecordPlain = {
   projectId: string;
   slug: string;
@@ -5382,6 +5384,40 @@ export class OpenMatesTeams {
 
   async members(teamId: string): Promise<Record<string, unknown>> {
     return this.client.get(`/v1/teams/${encodeURIComponent(teamId)}/members`);
+  }
+
+  private async decryptMemberProfile(teamKey: Uint8Array, member: Record<string, unknown>): Promise<SdkTeamMember> {
+    const encrypted = member.encrypted_member_profile;
+    if (typeof encrypted !== "string" || !encrypted) return { ...member, profile: null };
+    const plaintext = await decryptWithAesGcmCombined(encrypted, teamKey);
+    if (!plaintext) throw new OpenMatesConfigError("Failed to decrypt Team member profile");
+    const parsed = JSON.parse(plaintext) as Record<string, unknown>;
+    return { ...member, profile: {
+      display_name: typeof parsed.display_name === "string" ? parsed.display_name : undefined,
+      avatar: typeof parsed.avatar === "string" ? parsed.avatar : null,
+    } };
+  }
+
+  async listMembers(teamId: string): Promise<SdkTeamMember[]> {
+    const teamKey = await teamKeyForRecord(this.client, await this.get(teamId));
+    const response = await this.client.get<{ members?: Record<string, unknown>[] }>(`/v1/teams/${encodeURIComponent(teamId)}/members`);
+    return Promise.all((response.members ?? []).map((member) => this.decryptMemberProfile(teamKey, member)));
+  }
+
+  async getMember(teamId: string, memberUserId: string): Promise<SdkTeamMember> {
+    const teamKey = await teamKeyForRecord(this.client, await this.get(teamId));
+    const response = await this.client.get<{ member?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(memberUserId)}`);
+    if (!response.member) throw new OpenMatesConfigError("Team member response is missing member");
+    return this.decryptMemberProfile(teamKey, response.member);
+  }
+
+  async updateOwnMemberProfile(teamId: string, profile: { display_name?: string; avatar?: string | null }): Promise<SdkTeamMember> {
+    const teamKey = await teamKeyForRecord(this.client, await this.get(teamId));
+    const response = await this.client.patch<{ member?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/members/me/profile`, {
+      encrypted_member_profile: await encryptWithAesGcmCombined(JSON.stringify({ display_name: profile.display_name?.trim() ?? "", avatar: profile.avatar ?? null }), teamKey),
+    });
+    if (!response.member) throw new OpenMatesConfigError("Team profile response is missing member");
+    return this.decryptMemberProfile(teamKey, response.member);
   }
 
   async invites(teamId: string): Promise<Record<string, unknown>> {

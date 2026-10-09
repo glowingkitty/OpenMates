@@ -201,6 +201,12 @@ export function selectNewChatSlugValue(input: {
   return `${prefix}-${normalizedChatId}`;
 }
 
+/** A local title for ordinary Team chat, derived from the first human message. */
+export function teamChatTitleFromMessage(message: string): string {
+  const normalized = message.replace(/\s+/g, " ").trim();
+  return Array.from(normalized).slice(0, 80).join("") || "New team chat";
+}
+
 function normalizeObjectSelectorLabel(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
@@ -538,6 +544,29 @@ export interface TeamRecord {
   role?: TeamRole;
   status?: string;
   [key: string]: unknown;
+}
+
+export interface TeamMemberProfile {
+  display_name?: string;
+  avatar?: string | null;
+}
+
+export interface TeamMemberRecord {
+  user_id: string;
+  hashed_user_id?: string;
+  encrypted_member_profile?: string | null;
+  role: TeamRole;
+  status?: string;
+  joined_at?: number | null;
+  profile_image_url?: string;
+  profile?: TeamMemberProfile | null;
+}
+
+export interface TeamSecurityPolicy {
+  restrict_email_domains: boolean;
+  allowed_email_domains: string[];
+  require_invite_link_approval: boolean;
+  require_strong_auth: boolean;
 }
 
 export interface TeamBillingSummary {
@@ -2573,6 +2602,8 @@ export interface DecryptedMessage {
   role: string;
   content: string;
   senderName: string | null;
+  /** Opaque authenticated sender identity from the encrypted message row. */
+  hashedSenderUserId?: string | null;
   category: string | null;
   modelName: string | null;
   createdAt: number;
@@ -2621,6 +2652,8 @@ interface RawChatMessageWindowResponse {
 }
 
 export interface ChatMessageWindowOptions extends TeamContextOptions {
+  /** Use local encrypted chat metadata for a bounded active-chat REST refresh. */
+  preferCache?: boolean;
   direction?: ChatMessageWindowDirection;
   limit?: number;
   beforeTimestamp?: number;
@@ -3292,6 +3325,7 @@ export async function persistCompressionCheckpoints(
 
 export class OpenMatesClient {
   private readonly workflowDeliveriesBySocket = new WeakMap<OpenMatesWsClient, Map<string, WorkflowDeliveryDiscovery>>();
+  private readonly ownTeamDisplayNames = new Map<string, { name: string; expiresAt: number }>();
   readonly apiUrl: string;
   private session: OpenMatesSession | null;
   private readonly http: OpenMatesHttpClient;
@@ -3317,6 +3351,25 @@ export class OpenMatesClient {
       onRefreshCookieRotated: (sessionId, sentToken, newToken) =>
         this.persistOrdinaryRefreshCookie(sessionId, sentToken, newToken),
     });
+  }
+
+  private captureTeamMutationOwner(): () => boolean {
+    const session = this.requireSession();
+    const { sessionId, hashedEmail, activeTeamId, masterKeyExportedB64 } = session;
+    return () => Boolean(this.session && this.session.sessionId === sessionId && this.session.hashedEmail === hashedEmail
+      && this.session.activeTeamId === activeTeamId && this.session.masterKeyExportedB64 === masterKeyExportedB64);
+  }
+
+  private requireTeamMutationOwner(isCurrent: () => boolean): void {
+    if (!isCurrent()) throw new Error("Account or Team changed before the operation could be sent.");
+  }
+
+  private captureTeamAccountOwner(): { hashedEmail: string; isCurrent: () => boolean } {
+    const session = this.requireSession();
+    const { apiUrl, sessionId, hashedEmail, masterKeyExportedB64, createdAt } = session;
+    return { hashedEmail, isCurrent: () => Boolean(this.session && this.session.sessionId === sessionId
+      && this.session.hashedEmail === hashedEmail && this.session.masterKeyExportedB64 === masterKeyExportedB64
+      && this.session.createdAt === createdAt && this.session.apiUrl === apiUrl) };
   }
 
   private async persistOrdinaryRefreshCookie(sessionId: string, sentToken: string, newToken: string): Promise<void> {
@@ -3594,13 +3647,15 @@ export class OpenMatesClient {
   }
 
   async listTeams(): Promise<TeamRecord[]> {
-    this.requireSession();
+    const owner = this.captureTeamAccountOwner();
     const response = await this.http.get<{ teams?: TeamRecord[] }>("/v1/teams", this.getCliRequestHeaders());
     if (!response.ok) throw new Error(`Team list failed with HTTP ${response.status}`);
+    if (!owner.isCurrent()) throw new Error("Account changed while loading Teams.");
     const teams = response.data.teams ?? [];
-    await Promise.all(teams.map((team) => this.cacheTeamKeyFromRecord(team)));
+    await Promise.all(teams.map((team) => this.cacheTeamKeyFromRecord(team, owner.isCurrent)));
+    if (!owner.isCurrent()) throw new Error("Account changed while loading Teams.");
     const teamIds = teams.map((team) => team.team_id).filter((teamId): teamId is string => typeof teamId === "string" && teamId.length > 0);
-    pruneLocalTeamArtifacts(this.requireSession().hashedEmail, teamIds);
+    pruneLocalTeamArtifacts(owner.hashedEmail, teamIds);
     if (this.session?.activeTeamId && !teamIds.includes(this.session.activeTeamId)) {
       this.setActiveTeamId(null);
     }
@@ -3622,6 +3677,7 @@ export class OpenMatesClient {
 
   async createTeam(input: TeamCreateInput): Promise<TeamRecord> {
     this.requireSession();
+    const isCurrent = this.captureTeamMutationOwner();
     const name = input.name?.trim() || "Untitled team";
     if (input.encryptedName && !input.name && !input.nameApprovalToken) {
       throw new Error("Encrypted team creation requires a name approval token.");
@@ -3645,8 +3701,10 @@ export class OpenMatesClient {
       created_at: input.createdAt ?? now,
       updated_at: input.createdAt ?? now,
     };
+    this.requireTeamMutationOwner(isCurrent);
     const response = await this.http.post<{ team?: TeamRecord }>("/v1/teams", payload, this.getCliRequestHeaders());
     if (!response.ok || !response.data.team) throw new Error(`Team create failed with HTTP ${response.status}`);
+    this.requireTeamMutationOwner(isCurrent);
     if (!input.encryptedTeamKey) {
       saveLocalTeamKey(this.requireSession().hashedEmail, teamId, bytesToBase64(teamKeyBytes));
     }
@@ -3654,24 +3712,125 @@ export class OpenMatesClient {
   }
 
   async getTeam(teamId: string): Promise<TeamRecord> {
-    this.requireSession();
+    const owner = this.captureTeamAccountOwner();
     const response = await this.http.get<{ team?: TeamRecord }>(`/v1/teams/${encodeURIComponent(teamId)}`, this.getCliRequestHeaders());
     if (!response.ok || !response.data.team) throw new Error(`Team get failed with HTTP ${response.status}`);
-    await this.cacheTeamKeyFromRecord(response.data.team);
+    if (!owner.isCurrent()) throw new Error("Account changed while loading Team.");
+    await this.cacheTeamKeyFromRecord(response.data.team, owner.isCurrent);
+    if (!owner.isCurrent()) throw new Error("Account changed while loading Team.");
     return response.data.team;
   }
 
-  private async cacheTeamKeyFromRecord(team: TeamRecord): Promise<void> {
+  /** Team names and descriptions are decrypted only on this device. */
+  async getTeamDetails(teamId: string): Promise<TeamRecord & { name: string; description: string }> {
+    const team = await this.getTeam(teamId);
+    const key = await this.loadTeamKeyBytes(teamId);
+    if (!key) throw new Error("Unable to decrypt Team details.");
+    const name = typeof team.encrypted_name === "string" ? await decryptWithAesGcmCombined(team.encrypted_name, key) : null;
+    const description = typeof team.encrypted_description === "string" ? await decryptWithAesGcmCombined(team.encrypted_description, key) : null;
+    return { ...team, name: name ?? "", description: description ?? "" };
+  }
+
+  async getTeamSecurity(teamId: string): Promise<TeamSecurityPolicy> {
+    this.requireSession();
+    const response = await this.http.get<{ security_policy?: Partial<TeamSecurityPolicy> }>(`/v1/teams/${encodeURIComponent(teamId)}/security`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team security failed with HTTP ${response.status}`);
+    const policy = response.data.security_policy ?? {};
+    return {
+      restrict_email_domains: policy.restrict_email_domains === true,
+      allowed_email_domains: Array.isArray(policy.allowed_email_domains) ? policy.allowed_email_domains : [],
+      require_invite_link_approval: policy.require_invite_link_approval !== false,
+      require_strong_auth: policy.require_strong_auth === true,
+    };
+  }
+
+  async updateTeamSecurity(teamId: string, policy: TeamSecurityPolicy): Promise<TeamSecurityPolicy> {
+    this.requireSession();
+    const response = await this.http.patch<{ security_policy?: TeamSecurityPolicy }>(`/v1/teams/${encodeURIComponent(teamId)}/security`, policy, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.security_policy) throw new Error(`Team security update failed with HTTP ${response.status}`);
+    return response.data.security_policy;
+  }
+
+  private async decryptTeamMember(teamId: string, member: TeamMemberRecord): Promise<TeamMemberRecord> {
+    if (!member.encrypted_member_profile) return { ...member, profile: null };
+    const key = await this.loadTeamKeyBytes(teamId);
+    if (!key) throw new Error("Unable to decrypt Team member profile.");
+    const plaintext = await decryptWithAesGcmCombined(member.encrypted_member_profile, key);
+    if (!plaintext) throw new Error("Unable to decrypt Team member profile.");
+    const parsed = JSON.parse(plaintext) as TeamMemberProfile;
+    return { ...member, profile: {
+      display_name: typeof parsed.display_name === "string" ? parsed.display_name : undefined,
+      avatar: typeof parsed.avatar === "string" ? parsed.avatar : null,
+    } };
+  }
+
+  async listTeamMembers(teamId: string): Promise<TeamMemberRecord[]> {
+    this.requireSession();
+    const response = await this.http.get<{ members?: TeamMemberRecord[] }>(`/v1/teams/${encodeURIComponent(teamId)}/members`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team members failed with HTTP ${response.status}`);
+    return Promise.all((response.data.members ?? []).map((member) => this.decryptTeamMember(teamId, member)));
+  }
+
+  async getTeamMember(teamId: string, memberUserId: string): Promise<TeamMemberRecord> {
+    this.requireSession();
+    const response = await this.http.get<{ member?: TeamMemberRecord }>(`/v1/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(memberUserId)}`, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.member) throw new Error(`Team member failed with HTTP ${response.status}`);
+    return this.decryptTeamMember(teamId, response.data.member);
+  }
+
+  async updateOwnTeamMemberProfile(teamId: string, profile: TeamMemberProfile): Promise<TeamMemberRecord> {
+    this.requireSession();
+    const isCurrent = this.captureTeamMutationOwner();
+    const key = await this.loadTeamKeyBytes(teamId);
+    if (!key) throw new Error("Unable to encrypt Team member profile.");
+    const encrypted = await encryptWithAesGcmCombined(JSON.stringify({
+      display_name: profile.display_name?.trim() ?? "",
+      avatar: profile.avatar ?? null,
+    }), key);
+    this.requireTeamMutationOwner(isCurrent);
+    const response = await this.http.patch<{ member?: TeamMemberRecord }>(`/v1/teams/${encodeURIComponent(teamId)}/members/me/profile`, { encrypted_member_profile: encrypted }, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.member) throw new Error(`Team profile update failed with HTTP ${response.status}`);
+    this.requireTeamMutationOwner(isCurrent);
+    this.ownTeamDisplayNames.delete(`${this.requireSession().hashedEmail}:${teamId}`);
+    return this.decryptTeamMember(teamId, response.data.member);
+  }
+
+  private async ownTeamSenderName(teamId: string): Promise<string> {
+    const isCurrent = this.captureTeamMutationOwner();
+    const identity = await this.whoAmI();
+    this.requireTeamMutationOwner(isCurrent);
+    const fallback = typeof identity.username === "string" && identity.username.trim() ? identity.username.trim() : "Team member";
+    if (typeof identity.id !== "string" || !identity.id) return fallback;
+    const cacheKey = `${this.requireSession().hashedEmail}:${teamId}`;
+    const cached = this.ownTeamDisplayNames.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.name;
+    let name = fallback;
+    try {
+      const member = await this.getTeamMember(teamId, identity.id);
+      this.requireTeamMutationOwner(isCurrent);
+      if (member.profile?.display_name?.trim()) name = member.profile.display_name.trim();
+    } catch { /* A stale profile must not prevent a Team message. */ }
+    this.requireTeamMutationOwner(isCurrent);
+    this.ownTeamDisplayNames.delete(cacheKey);
+    if (this.ownTeamDisplayNames.size >= 16) this.ownTeamDisplayNames.delete(this.ownTeamDisplayNames.keys().next().value!);
+    this.ownTeamDisplayNames.set(cacheKey, { name, expiresAt: Date.now() + 5 * 60_000 });
+    return name;
+  }
+
+  private async cacheTeamKeyFromRecord(team: TeamRecord, ownerCurrent: () => boolean = this.captureTeamAccountOwner().isCurrent): Promise<void> {
+    if (!ownerCurrent()) throw new Error("Account changed while caching Team key.");
     const session = this.requireSession();
     const teamId = typeof team.team_id === "string" ? team.team_id : null;
     const encryptedTeamKey = typeof team.encrypted_team_key === "string" ? team.encrypted_team_key : null;
     if (!teamId || !encryptedTeamKey || loadLocalTeamKey(session.hashedEmail, teamId)) return;
     const teamKey = await decryptBytesWithAesGcm(encryptedTeamKey, this.getMasterKeyBytes());
+    if (!ownerCurrent()) throw new Error("Account changed while caching Team key.");
     if (teamKey) saveLocalTeamKey(session.hashedEmail, teamId, bytesToBase64(teamKey));
   }
 
   async updateTeam(teamId: string, input: Record<string, unknown>): Promise<TeamRecord> {
     this.requireSession();
+    const isCurrent = this.captureTeamMutationOwner();
     const payload: Record<string, unknown> = {
       updated_at: input.updated_at ?? Math.floor(Date.now() / 1000),
       ...input,
@@ -3696,6 +3855,7 @@ export class OpenMatesClient {
       payload.encrypted_profile_image_metadata = await encryptWithAesGcmCombined(JSON.stringify(input.profileImageMetadata), teamKey);
       delete payload.profileImageMetadata;
     }
+    this.requireTeamMutationOwner(isCurrent);
     const response = await this.http.patch<{ team?: TeamRecord }>(`/v1/teams/${encodeURIComponent(teamId)}`, {
       ...payload,
     }, this.getCliRequestHeaders());
@@ -3763,6 +3923,7 @@ export class OpenMatesClient {
 
   async createTeamInvite(teamId: string, input: TeamInviteCreateInput): Promise<Record<string, unknown>> {
     this.requireSession();
+    const isCurrent = this.captureTeamMutationOwner();
     const inviteId = typeof input.invite_id === "string" ? input.invite_id : randomUUID();
     const payload: Record<string, unknown> = {
       invite_id: inviteId,
@@ -3787,6 +3948,7 @@ export class OpenMatesClient {
           origin,
         };
     }
+    this.requireTeamMutationOwner(isCurrent);
     const response = await this.http.post<{ invite?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/invites`, {
       ...payload,
       invite_secret: undefined,
@@ -5516,10 +5678,67 @@ export class OpenMatesClient {
 
   /** Observe lifecycle metadata without claiming or collecting AI responses. */
   async observeChatActivity(onChange: () => void): Promise<() => void> {
-    const { ws } = await this.openWsClient({ taskUpdateJobs: false });
-    const types = ['ai_task_initiated', 'ai_typing_started', 'ai_typing_ended', 'ai_background_response_completed', 'ai_task_cancel_requested', 'ai_task_error', 'pending_ai_response'];
-    const cleanup = types.map(type => ws.onMessageType(type, onChange));
-    return () => { cleanup.forEach(remove => remove()); ws.close(); };
+    const session = this.requireSession();
+    // Activity is account-wide. A Team switch changes the view, but does not
+    // invalidate this subscription; an account or session switch does.
+    const owner = [session.apiUrl, session.hashedEmail, session.sessionId,
+      session.createdAt, session.masterKeyExportedB64] as const;
+    const ownerCurrent = () => {
+      const current = this.session;
+      return !!current && current.apiUrl === owner[0] && current.hashedEmail === owner[1]
+        && current.sessionId === owner[2] && current.createdAt === owner[3]
+        && current.masterKeyExportedB64 === owner[4];
+    };
+    const types = ['ai_task_initiated', 'ai_typing_started', 'ai_typing_ended', 'ai_background_response_completed', 'ai_task_cancel_requested', 'ai_task_error', 'pending_ai_response', 'team_chat_message_created'];
+    let stopped = false;
+    let socket: OpenMatesWsClient | null = null;
+    let removeHandlers: Array<() => void> = [];
+    let retry: ReturnType<typeof setTimeout> | null = null;
+    let retryAttempt = 0;
+    const stop = () => {
+      stopped = true;
+      if (retry) clearTimeout(retry);
+      retry = null;
+      removeHandlers.forEach(remove => remove());
+      removeHandlers = [];
+      const active = socket;
+      socket = null;
+      active?.close();
+    };
+    const scheduleReconnect = () => {
+      if (stopped || !ownerCurrent() || retry) return;
+      const delay = Math.min(10_000, 250 * 2 ** Math.min(retryAttempt++, 6));
+      retry = setTimeout(() => {
+        retry = null;
+        void connect();
+      }, delay);
+      retry.unref?.();
+    };
+    const connect = async () => {
+      if (stopped || !ownerCurrent()) return;
+      let opened: OpenMatesWsClient;
+      try {
+        opened = (await this.openWsClient({ taskUpdateJobs: false })).ws;
+      } catch {
+        scheduleReconnect();
+        return;
+      }
+      if (stopped || !ownerCurrent()) { opened.close(); return; }
+      socket = opened;
+      removeHandlers = types.map(type => opened.onMessageType(type, () => {
+        if (!ownerCurrent()) { stop(); return; }
+        if (!stopped) { retryAttempt = 0; onChange(); }
+      }));
+      removeHandlers.push(opened.onClose(() => {
+        if (socket !== opened) return;
+        socket = null;
+        removeHandlers.forEach(remove => remove());
+        removeHandlers = [];
+        scheduleReconnect();
+      }));
+    };
+    await connect();
+    return stop;
   }
 
   /** Read encrypted local history without refreshing or opening a connection. */
@@ -6301,6 +6520,7 @@ export class OpenMatesClient {
         role: String(m.role ?? "unknown"),
         content: content ?? "",
         senderName,
+        hashedSenderUserId: typeof m.hashed_user_id === "string" ? m.hashed_user_id : null,
         category: msgCategory,
         modelName,
         createdAt: typeof m.created_at === "number" ? m.created_at : 0,
@@ -6628,12 +6848,33 @@ export class OpenMatesClient {
 
   async getChatMessagesWindow(query: string, options: ChatMessageWindowOptions = {}): Promise<ChatMessageWindowResult> {
     const teamId = this.resolveTeamContext(options);
-    const cache = await this.ensureSynced(false, [], options);
-    const masterKey = this.getMasterKeyBytes();
-    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
+    const session = this.requireSession();
+    const owner = [session.apiUrl, session.hashedEmail, session.sessionId,
+      session.createdAt, session.masterKeyExportedB64] as const;
+    const masterKey = Buffer.from(this.getMasterKeyBytes());
+    const selectedTeamId = this.getActiveTeamId();
+    const current = () => {
+      const active = this.session;
+      if (!active || active.apiUrl !== owner[0] || active.hashedEmail !== owner[1]
+        || active.sessionId !== owner[2] || active.createdAt !== owner[3]
+        || active.masterKeyExportedB64 !== owner[4]
+        || (options.preferCache && this.getActiveTeamId() !== selectedTeamId))
+        throw new Error('Chat workspace changed');
+    };
+    const cache = options.preferCache ? loadSyncCache(teamId) : await this.ensureSynced(false, [], options);
+    current();
+    if (!cache) throw new Error('Chat cache unavailable. Open the chat to refresh it.');
+    const localTeamKey = options.preferCache && teamId ? loadLocalTeamKey(owner[1], teamId) : null;
+    if (options.preferCache && teamId && !localTeamKey) throw new Error('Team key unavailable offline. Reconnect to refresh Team access.');
+    const wrappingKey = localTeamKey ? base64ToBytes(localTeamKey) : await this.getChatWrappingKey(teamId, masterKey);
+    current();
     const found = await this.resolveCachedChatForQuery(query, cache, wrappingKey, teamId);
+    current();
     const chatItem = await this.decryptChatListItem(found, wrappingKey, cache, teamId);
+    current();
     const chatKeyBytes = await this.resolveChatKey(cache, found, wrappingKey, teamId);
+    current();
+    if (!chatKeyBytes) throw new Error('Chat key unavailable. Use /refresh to retry.');
     const chatId = String(found.details.id ?? chatItem.id);
     const params = new URLSearchParams({
       direction: options.direction ?? "latest",
@@ -6646,6 +6887,7 @@ export class OpenMatesClient {
     if (options.anchorMessageId) params.set("anchor_message_id", options.anchorMessageId);
     if (options.respectCompressionBoundary === false) params.set("respect_compression_boundary", "false");
 
+    current();
     const response = await this.http.get<{
       messages?: Array<string | Record<string, unknown>>;
       has_more_before?: boolean;
@@ -6661,9 +6903,43 @@ export class OpenMatesClient {
       this.appendTeamQuery(`/v1/chats/${encodeURIComponent(chatId)}/messages/window?${params.toString()}`, { teamId }),
       this.getCliRequestHeaders(),
     );
+    current();
     if (!response.ok) throw new Error(`Chat message window failed with HTTP ${response.status}`);
     const rawMessages = Array.isArray(response.data.messages) ? response.data.messages : [];
     const messages = await this.decryptRawChatMessages(rawMessages, chatItem, chatKeyBytes, cache.embeds);
+    current();
+    if (options.preferCache && teamId && (options.direction ?? 'latest') === 'latest') {
+      const latestCache = loadSyncCache(teamId);
+      const row = latestCache?.chats.find(chat => String(chat.details.id) === chatId);
+      // Do not restore a deleted chat or overwrite a concurrent key rotation/edit.
+      if (row && row.details.messages_v === found.details.messages_v
+        && row.details.encrypted_chat_key === found.details.encrypted_chat_key
+        && row.messages.length === found.messages.length
+        && row.messages.every((raw,index) => raw === found.messages[index])) {
+        const canonicalId = (raw: string | Record<string,unknown>) => {
+          const value = typeof raw === 'string' ? JSON.parse(raw) as Record<string,unknown> : raw;
+          return String(value.client_message_id ?? value.id ?? value.message_id ?? '');
+        };
+        const existingById = new Map(row.messages.map((raw,index) => [canonicalId(raw),index]));
+        const overlap = rawMessages.find(raw => !!canonicalId(raw) && existingById.has(canonicalId(raw)));
+        // A complete window is authoritative. For a partial window retain only
+        // the history before its overlap; omitted confirmed tail rows are deleted.
+        const older = response.data.has_more_before !== true ? [] : overlap
+          ? row.messages.slice(0,existingById.get(canonicalId(overlap))!) : row.messages;
+        const byId = new Map<string, {raw:string;createdAt:number}>();
+        for (const raw of [...older, ...rawMessages]) {
+          const value = typeof raw === 'string' ? JSON.parse(raw) as Record<string, unknown> : raw;
+          const id = String(value.client_message_id ?? value.id ?? value.message_id ?? '');
+          const serialized = typeof raw === 'string' ? raw : JSON.stringify(raw);
+          byId.set(id || `unidentified:${serialized}`, {raw:serialized,createdAt:Number(value.created_at ?? 0)});
+        }
+        const merged = [...byId.values()].sort((a,b) => a.createdAt-b.createdAt).map(message => message.raw);
+        current();
+        if (merged.length !== row.messages.length || merged.some((raw,index) => raw !== row.messages[index]))
+          saveSyncCache({...latestCache!,chats:latestCache!.chats.map(chat => chat === row
+            ? {...row,messages:merged} : chat)},teamId);
+      }
+    }
     return {
       chat: chatItem,
       messages,
@@ -7974,6 +8250,8 @@ export class OpenMatesClient {
     status: "completed" | "waiting_for_user";
     chatId: string;
     messageId: string | null;
+    /** Canonical ID of the persisted human turn, including sends that skip AI. */
+    userMessageId?: string;
     assistant: string;
     category: string | null;
     modelName: string | null;
@@ -8003,9 +8281,7 @@ export class OpenMatesClient {
     promptBudget: AiResponsePromptBudget | null;
   }> {
     const teamId = this.resolveTeamContext({ teamId: params.teamId, personal: params.personal });
-    const teamSenderName = teamId
-      ? String((await this.whoAmI()).username ?? "").trim() || "Team member"
-      : "User";
+    const teamSenderName = teamId ? await this.ownTeamSenderName(teamId) : "User";
     // Resolve short IDs (8-char prefix) to full UUIDs via sync cache.
     // Full UUIDs and undefined (new chat) pass through unchanged.
     if (params.chatId && params.newChatId) {
@@ -8543,7 +8819,7 @@ export class OpenMatesClient {
         if (!chatSlugLookupKey) {
           throw new Error("Encrypted chat slug lookup key was not initialized.");
         }
-        const initialTitle = teamId && !shouldWaitForAi ? "New team chat" : "";
+        const initialTitle = teamId && !shouldWaitForAi ? teamChatTitleFromMessage(params.message) : "";
         const slugMetadata = await buildEncryptedObjectSlugMetadata({
           value: selectNewChatSlugValue({
             message: finalMessage,
@@ -8651,7 +8927,10 @@ export class OpenMatesClient {
     ) {
       terminalExpectedMessagesV = confirmedPayload.new_messages_v;
     }
-    if (!params.incognito) {
+    // Ordinary Team turns already have a durable ciphertext confirmation.
+    // Keep the encrypted chat metadata/key for bounded REST window refresh;
+    // the window supplies authoritative rows without inventing local IDs.
+    if (!params.incognito && (!teamId || shouldWaitForAi)) {
       clearSyncCache(teamId);
     }
 
@@ -9360,6 +9639,7 @@ export class OpenMatesClient {
       status: "completed",
       chatId,
       messageId: assistantMessageId,
+      userMessageId: messageId,
       assistant,
       category,
       modelName,
@@ -12004,8 +12284,17 @@ export class OpenMatesClient {
   // User tasks
   // -------------------------------------------------------------------------
 
-  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; labelHashes?: string[]; externalChatProvider?: "codex"; externalChatLookupHash?: string; priority?: number; limit?: number; teamId?: string | null; personal?: boolean } = {}): Promise<UserTaskRecord[]> {
-    this.requireSession();
+  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; labelHashes?: string[]; externalChatProvider?: "codex"; externalChatLookupHash?: string; priority?: number; limit?: number; teamId?: string | null; personal?: boolean } = {}, options: { onPage?: (tasks: UserTaskRecord[], complete: boolean) => Promise<void> | void } = {}): Promise<UserTaskRecord[]> {
+    const session = this.requireSession();
+    const owner = [session.apiUrl, session.hashedEmail, session.sessionId,
+      session.createdAt, session.masterKeyExportedB64, session.activeTeamId] as const;
+    const current = () => {
+      const active = this.session;
+      if (!active || active.apiUrl !== owner[0] || active.hashedEmail !== owner[1]
+        || active.sessionId !== owner[2] || active.createdAt !== owner[3]
+        || active.masterKeyExportedB64 !== owner[4] || active.activeTeamId !== owner[5])
+        throw new Error('Task workspace changed');
+    };
     const params = new URLSearchParams();
     if (filters.status) params.set("status", filters.status);
     if (filters.chatId) params.set("chat_id", filters.chatId);
@@ -12014,25 +12303,110 @@ export class OpenMatesClient {
     if (filters.externalChatProvider) params.set("external_chat_provider", filters.externalChatProvider);
     if (filters.externalChatLookupHash) params.set("external_chat_lookup_hash", filters.externalChatLookupHash);
     if (filters.priority !== undefined) params.set("priority", String(filters.priority));
-    const maximumTaskListPage = 500;
+    const maximumTaskListPage = 100;
     const limit = Math.min(filters.limit ?? maximumTaskListPage, maximumTaskListPage);
     if (!Number.isSafeInteger(limit) || limit <= 0) throw new Error("Invalid task list limit");
-    if (Number.isSafeInteger(limit) && limit !== undefined && limit > 0) params.set("limit", String(limit));
+    params.set("limit", String(limit));
+    params.set("paginate", "true");
     const teamId = this.resolveTeamContext({ teamId: filters.teamId, personal: filters.personal });
     if (teamId) params.set("team_id", teamId);
-    const query = params.toString();
-    const response = await this.http.get<{ tasks?: UserTaskRecord[] }>(
-      `/v1/user-tasks${query ? `?${query}` : ""}`,
-      this.getCliRequestHeaders(),
-    );
-    if (!response.ok) {
-      throw new Error(`User task list failed with HTTP ${response.status}`);
+    const mayPageProjections = !teamId && !filters.chatId && !filters.projectId
+      && !filters.externalChatProvider && !filters.externalChatLookupHash
+      && !(filters.labelHashes?.length) && filters.priority === undefined;
+    const projectionCursorPrefix = 'workflow-tasks:';
+    const isProjection = (task: UserTaskRecord) => {
+      const projection = task as UserTaskRecord & { source?: string; read_only?: boolean };
+      return projection.source === 'workflow_run' && projection.read_only === true;
+    };
+    const allTasks: UserTaskRecord[] = [];
+    const seenTaskIds = new Set<string>();
+    const seenCursors = new Set<string>();
+    let cursor: string | null = null;
+    while (true) {
+      current();
+      const pageParams = new URLSearchParams(params);
+      if (cursor) pageParams.set('cursor', cursor);
+      const response = await this.http.get<{ tasks?: UserTaskRecord[]; complete?: boolean; next_cursor?: string | null }>(
+        `/v1/user-tasks?${pageParams.toString()}`,
+        this.getCliRequestHeaders(),
+      );
+      current();
+      if (!response.ok) throw new Error(`User task list failed with HTTP ${response.status}`);
+      if (!response.data || typeof response.data !== 'object')
+        throw new Error('TASK_LIST_INCOMPLETE: invalid task response.');
+      const page = response.data.tasks;
+      if (!Array.isArray(page) || page.some(task => !task || typeof task.task_id !== 'string' || !task.task_id))
+        throw new Error('TASK_LIST_INCOMPLETE: invalid task page.');
+      const hasPaging = Object.hasOwn(response.data, 'complete') || Object.hasOwn(response.data, 'next_cursor');
+      let complete: boolean;
+      let nextCursor: string | null;
+      if (!hasPaging) {
+        // Older servers have no completion marker. Only an underfilled first
+        // page can safely establish that the inventory is exhaustive.
+        if (cursor || page.length >= limit)
+          throw new Error('TASK_LIST_INCOMPLETE: legacy task page cannot prove completeness.');
+        complete = true;
+        nextCursor = null;
+      } else {
+        if (typeof response.data.complete !== 'boolean' || !Object.hasOwn(response.data, 'next_cursor'))
+          throw new Error('TASK_LIST_INCOMPLETE: invalid task paging metadata.');
+        complete = response.data.complete;
+        nextCursor = response.data.next_cursor ?? null;
+        if (response.data.next_cursor !== null && typeof response.data.next_cursor !== 'string')
+          throw new Error('TASK_LIST_INCOMPLETE: invalid task cursor.');
+        if (complete && nextCursor !== null)
+          throw new Error('TASK_LIST_INCOMPLETE: completed task page has a cursor.');
+        if (!complete) {
+          if (page.length !== limit || !nextCursor || nextCursor.length > 512 || seenCursors.has(nextCursor))
+            throw new Error('TASK_LIST_INCOMPLETE: task cursor did not advance.');
+          const inProjections = cursor?.startsWith(projectionCursorPrefix) ?? false;
+          if (nextCursor.startsWith(projectionCursorPrefix)) {
+            const last = page.at(-1)!;
+            const nextId = nextCursor.slice(projectionCursorPrefix.length);
+            if (!mayPageProjections || (isProjection(last)
+              ? nextId !== last.task_id
+              : inProjections || nextId !== '' || page.some(isProjection))
+              || (inProjections && nextId <= cursor!.slice(projectionCursorPrefix.length)))
+              throw new Error('TASK_LIST_INCOMPLETE: workflow task cursor did not advance.');
+          } else if (inProjections || page.some(isProjection)
+            || nextCursor !== page.at(-1)?.task_id || (cursor !== null && nextCursor <= cursor)) {
+            throw new Error('TASK_LIST_INCOMPLETE: task cursor did not advance.');
+          }
+        }
+      }
+      const inProjections = cursor?.startsWith(projectionCursorPrefix) ?? false;
+      if (!mayPageProjections && page.some(isProjection))
+        throw new Error('TASK_LIST_INCOMPLETE: workflow tasks in a filtered inventory.');
+      if (inProjections && (!mayPageProjections || page.some(task => !isProjection(task))))
+        throw new Error('TASK_LIST_INCOMPLETE: invalid workflow task phase.');
+      const priorId = inProjections ? cursor!.slice(projectionCursorPrefix.length) : cursor;
+      if (priorId !== null && page.length && page[0]!.task_id <= priorId)
+        throw new Error('TASK_LIST_INCOMPLETE: task page repeated an earlier cursor.');
+      if (page.length > limit)
+        throw new Error('TASK_LIST_INCOMPLETE: task page exceeded its limit.');
+      let projectionRows = inProjections;
+      let previousId = priorId;
+      for (const task of page) {
+        if (isProjection(task) && !projectionRows) {
+          projectionRows = true;
+          previousId = null;
+        } else if (projectionRows && !isProjection(task)) {
+          throw new Error('TASK_LIST_INCOMPLETE: canonical task after workflow task phase.');
+        }
+        if (hasPaging && previousId !== null && task.task_id <= previousId)
+          throw new Error('TASK_LIST_INCOMPLETE: task page is not ordered.');
+        previousId = task.task_id;
+        if (seenTaskIds.has(task.task_id)) throw new Error('TASK_LIST_INCOMPLETE: duplicate task in inventory.');
+        seenTaskIds.add(task.task_id);
+      }
+      allTasks.push(...page);
+      current();
+      await options.onPage?.([...allTasks], complete);
+      current();
+      if (complete) return allTasks;
+      seenCursors.add(nextCursor!);
+      cursor = nextCursor;
     }
-    const tasks = response.data.tasks ?? [];
-    if (tasks.length >= limit) {
-      throw new Error(`TASK_LIST_INCOMPLETE: server limit ${limit} reached; refusing a truncated task inventory.`);
-    }
-    return tasks;
   }
 
   /** Submit a confirmed Codex runtime deletion, never a missing-list inference. */

@@ -16,7 +16,7 @@ import { createInterface } from "node:readline/promises";
 import { stdin as nodeStdin, stdout as nodeStdout } from "node:process";
 import { randomUUID } from "node:crypto";
 
-import type { OpenMatesClient, WorkflowGraph, WorkflowRunDetail } from "./client.js";
+import { shouldWaitForTeamAi, type OpenMatesClient, type WorkflowGraph, type WorkflowRunDetail } from "./client.js";
 import type { StreamEvent } from "./ws.js";
 import { getExampleChatConversation, listExampleChats } from "./exampleChats.js";
 import { buildExampleContinuationHistory } from "./tuiExampleContinuation.js";
@@ -28,9 +28,11 @@ import {
   renderTuiFrame,
   resetEndedTuiSession,
   TUI_INTERESTS,
+  TUI_SESSION_ENDED_STATUS,
+  type TuiMessage,
   type TuiState,
 } from "./tuiRenderer.js";
-import { decryptUserTasks } from "./tasksCli.js";
+import { loadTuiTaskList } from "./tuiTaskList.js";
 import { handleWorkspaceKey, handleWorkspaceCommand, rememberDraft, route, type WorkspaceContext } from "./tuiWorkspaceController.js";
 import { loadWorkflowRunGraph, orderedWorkflowNodes } from "./tuiWorkflowWorkspace.js";
 import { loadTuiProjects } from "./tuiProjectsWorkspace.js";
@@ -45,6 +47,7 @@ import {handleTuiPointer} from './tuiPointerActions.js';
 import { registerChatEmbedAliases, hydrateChatEmbedPreviews } from './tuiEmbeds.js';
 import {createChatModelPreferences} from './chatModelPreferences.js';
 import {createTuiModelSelectorShell,isTuiAiComposer,type TuiModelSelectorShell} from './tuiModelSelectorShell.js';
+import {createTuiTeamChatRefresh,loadTuiTeamIdentity,reconcileTuiTeamSenderLabels} from './tuiTeamChat.js';
 
 export type CliDefaultMode = "tui" | "quickstart";
 export type TuiResult = { action: "exit" | "signup" | "restart" };
@@ -73,11 +76,18 @@ export async function runTui(
   let stopActivity: (() => void) | undefined;
   let activityTimer: ReturnType<typeof setTimeout> | undefined;
   let refreshingActivity = false;
+  let identityScope = '';
+  let identityEpoch = 0;
+  let identityRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  let workspaceScope: string | null = null;
+  const scopedDrafts = new Map<string, Record<string,string>>();
+  let teamChatRefresh: ReturnType<typeof createTuiTeamChatRefresh> | null = null;
   let modelShell:TuiModelSelectorShell|null=null;
   const modelPreferences=createChatModelPreferences(client);
   const refreshActivity = async () => {
     if (closed || state.startup || refreshingActivity || !state.signedIn) return;
     refreshingActivity = true;
+    teamChatRefresh?.request();
     try { await refreshTuiChatSidebar(state, client, render); }
     catch {
       // Polling is fire-and-forget. Keep the TUI alive on a transient failure;
@@ -104,6 +114,54 @@ export async function runTui(
   const render = () => {
     if (closed) return;
     syncSessionView();
+    const teamId = state.signedIn ? client.getActiveTeamId?.() ?? null : null;
+    const session = state.signedIn && typeof client.getSession === 'function' ? client.getSession() : null;
+    const nextScope = session ? JSON.stringify([session.apiUrl,session.hashedEmail,session.createdAt,session.masterKeyExportedB64,teamId]) : null;
+    if (workspaceScope !== null && nextScope !== workspaceScope) {
+      const endedStatus = !session && state.status===TUI_SESSION_ENDED_STATUS ? TUI_SESSION_ENDED_STATUS : null;
+      identityEpoch++;
+      identityScope='';
+      if (identityRetryTimer) clearTimeout(identityRetryTimer);
+      identityRetryTimer=null;
+      if (session) {rememberDraft(state);scopedDrafts.set(workspaceScope,{...state.drafts});}
+      else scopedDrafts.clear();
+      state.homeAbortController?.abort();
+      Object.values(state.chatContextAuthoringControls).forEach(control => control.stop());
+      client.clearInteractiveChatViewer();
+      const routeVersion=state.routeVersion+1,homeLoadVersion=state.homeLoadVersion+1;
+      Object.assign(state,createInitialTuiState(),{signedIn:!!session,activeTeamId:teamId,
+        drafts:nextScope?{...(scopedDrafts.get(nextScope)??{})}:{},routeVersion,homeLoadVersion,status:endedStatus});
+      state.input=state.drafts.new??'';
+      // The private-scope reset must not erase the public offline examples.
+      if (!session) hydrateExamples(state);
+      if (session) queueMicrotask(() => {
+        if (closed || workspaceScope!==nextScope) return;
+        void loadHomeData(state,client,render);
+        void refreshTuiChatSidebar(state,client,render,true).catch(()=>{});
+      });
+    }
+    workspaceScope=nextScope;
+    state.activeTeamId = teamId;
+    if (teamId && state.signedIn && nextScope) {
+      if (nextScope !== identityScope) {
+        identityScope=nextScope;
+        const epoch=++identityEpoch;
+        const loadIdentity=(attempt:number) => {
+          void loadTuiTeamIdentity(state,client,render,()=>!closed && identityEpoch===epoch && workspaceScope===nextScope).then(result=>{
+            if (!result || closed || identityEpoch!==epoch || workspaceScope!==nextScope) return;
+            if ((!result.profileLoaded || !result.teamLoaded) && attempt<2) {
+              identityRetryTimer=setTimeout(()=>{identityRetryTimer=null;loadIdentity(attempt+1);},attempt===0?1000:4000);
+            }
+          });
+        };
+        loadIdentity(0);
+      }
+    } else {
+      identityScope='';
+      identityEpoch++;
+      if (identityRetryTimer) clearTimeout(identityRetryTimer);
+      identityRetryTimer=null;
+    }
     modelShell?.sync();
     if (state.screen !== "chat") client.clearInteractiveChatViewer();
     if (renderTimer) return;
@@ -115,6 +173,7 @@ export async function runTui(
     }, 16);
   };
 
+  teamChatRefresh=createTuiTeamChatRefresh(state,client,render);
   modelShell=createTuiModelSelectorShell({state,client,preferences:modelPreferences,render});
 
   const stopHomeSync=startHomeSync(state,client,render,()=>closed);
@@ -123,7 +182,8 @@ export async function runTui(
     closed = true;
     state.homeAbortController?.abort();
     Object.values(state.chatContextAuthoringControls).forEach(control => control.stop());
-    stopHomeSync();stopActivity?.(); clearTimeout(activityTimer); clearInterval(activityPoll); clearInterval(activityAnimation);
+    stopHomeSync();stopActivity?.(); teamChatRefresh?.dispose(); clearTimeout(activityTimer); clearInterval(activityPoll); clearInterval(activityAnimation);
+    if (identityRetryTimer) clearTimeout(identityRetryTimer);
     modelShell?.dispose();
     client.endInteractiveViewerSession();
     if (renderTimer) clearTimeout(renderTimer);
@@ -141,6 +201,7 @@ export async function runTui(
       warmTuiWorkspaceLists(client);
       if (state.signedIn && typeof client.observeChatActivity === 'function') {
         void client.observeChatActivity(() => {
+          teamChatRefresh?.request();
           clearTimeout(activityTimer); activityTimer = setTimeout(() => { void refreshActivity(); }, 300);
         }).then(stop => { if (closed) stop(); else stopActivity = stop; }).catch(() => { /* Polling still repairs activity state. */ });
       }
@@ -488,7 +549,7 @@ async function handleCommand(params: {
   render();
 }
 
-async function sendTuiMessage(params: {
+export async function sendTuiMessage(params: {
   questionAnswer?:boolean;
   message: string;
   state: TuiState;
@@ -498,56 +559,80 @@ async function sendTuiMessage(params: {
 }): Promise<void> {
   const { state, client, render } = params;
   if (state.isBusy) return;
+  const preparingOwner = client.hasSession()
+    ? captureTuiWorkspaceOwner(client)
+    : () => !client.hasSession();
+  const preparingRoute = state.routeVersion;
+  const preparingMessages = state.messages;
+  const preparingChatId = state.activeChatId;
+  const ownsPreparation = () => preparingOwner() && state.routeVersion === preparingRoute
+    && state.messages === preparingMessages && state.activeChatId === preparingChatId;
   const resolved = !params.questionAnswer && params.modelShell
     ? await params.modelShell.consumeMention(params.message, true) : { message: params.message, blocked: false };
-  if (resolved.blocked) return;
+  if (resolved.blocked || !ownsPreparation() || state.isBusy) return;
   const message = resolved.message.trim();
   if (!message) return;
-  const modelSelection=!params.questionAnswer&&isTuiAiComposer(state)&&client.hasSession()
-    ? params.modelShell?.selectionForSend()??null : "auto";
-  if(modelSelection===null){state.status="Model selection is loading. Retry or choose Auto before sending.";render();return;}
-  const separator=modelSelection.indexOf('/');
-  const modelDirective=separator>0?`@ai-model:${modelSelection.slice(separator+1)}:${modelSelection.slice(0,separator)} `:"";
   client.clearInteractiveChatViewer();
   state.isBusy = true;
   state.status = "Preparing message…"; render();
-  const preparingRoute = state.routeVersion;
+  if (!ownsPreparation()) return;
   let prepared: Awaited<ReturnType<typeof prepareTuiMessage>>;
   try {
     prepared = params.questionAnswer ? {message,preparedEmbeds:[],displayNames:[]} : await prepareTuiMessage(client, message);
   } catch (error) {
-    state.isBusy = false;
-    if (preparingRoute === state.routeVersion) {
+    if (ownsPreparation()) {
+      state.isBusy = false;
+      if (client.getActiveTeamId?.()) reconcileTuiTeamSenderLabels(state);
       state.input = message; state.inputCursor = null; rememberDraft(state);
       state.status = error instanceof Error ? error.message : String(error);
+      render();
     }
-    render(); return;
+    return;
   }
-  if (preparingRoute !== state.routeVersion) {state.isBusy = false; render(); return;}
+  if (!ownsPreparation()) return;
+  const sendTeamId=client.getActiveTeamId?.() ?? null;
+  const waitForAi = !client.hasSession() || shouldWaitForTeamAi(prepared.message, sendTeamId);
+  const modelSelection = waitForAi && !params.questionAnswer && isTuiAiComposer(state) && client.hasSession()
+    ? params.modelShell?.selectionForSend() ?? null : 'auto';
+  if (modelSelection === null) {
+    if (ownsPreparation()) {
+      state.isBusy = false; state.input = message; state.inputCursor = null; rememberDraft(state);
+      if (sendTeamId) reconcileTuiTeamSenderLabels(state);
+      state.status = 'Model selection is loading. Retry or choose Auto before sending.'; render();
+    }
+    return;
+  }
+  const separator = modelSelection.indexOf('/');
+  const modelDirective = separator > 0 ? `@ai-model:${modelSelection.slice(separator+1)}:${modelSelection.slice(0,separator)} ` : '';
   const previousMessages = state.messages, previousActiveChat = state.activeChat, previousHeaderState = state.headerState;
+  const previousScreen = state.screen;
   const sourceExample = state.screen === "example" ? state.activeExample : null;
   const history = sourceExample ? buildExampleContinuationHistory(sourceExample) : undefined;
   if (sourceExample) state.messages = sourceExample.messages.map((m) => ({role:m.role === "user" ? "user" : "assistant",content:m.content,title:m.senderName}));
   const messages = state.messages;
   const existingChatId = sourceExample ? null : state.activeChatId;
   const chatId = existingChatId ?? randomUUID();
+  let ownedMessages = messages, ownedChatId: string | null = chatId;
+  const ownsSend = () => preparingOwner() && state.routeVersion === preparingRoute
+    && state.messages === ownedMessages && state.activeChatId === ownedChatId;
   const draftKey = sourceExample ? `example:${sourceExample.chat.id}` : existingChatId ?? "new";
   state.drafts[draftKey] = ""; state.input = ""; state.inputCursor = null;
   const anonymousHistory = history ?? messages.filter((m) => m.role !== "system").map((m) => ({message_id:randomUUID(),role:m.role as "user"|"assistant",content:m.content,sender_name:m.title??(m.role==="user"?"User":"Assistant"),created_at:Math.floor(Date.now()/1000)}));
   state.activeChatId = chatId; state.headerState = existingChatId ? "ready" : "loading"; state.headerError = null;
-  if(!existingChatId)params.modelShell?.adoptNewChat(chatId);
+  if(!existingChatId && waitForAi)params.modelShell?.adoptNewChat(chatId);
   if (!existingChatId) state.activeChat = null;
   state.screen = "chat";
   state.aiTaskId = null;
   state.status = prepared.displayNames.length ? `Attached: ${prepared.displayNames.join(", ")}` : null;
-  const userMessage = { role: "user" as const, content: prepared.message, embedIds: prepared.preparedEmbeds.map((embed) => embed.embedId) };
+  const userMessage: TuiMessage = { role: "user", content: prepared.message, embedIds: prepared.preparedEmbeds.map((embed) => embed.embedId) };
   state.messages.push(userMessage);
   const privacyCallbacks = {
-    onPrivacyPrepared: (safe: string) => { userMessage.content = safe.replace(/^@ai-model:[^\s]+\s*/,""); render(); },
-    onPrivacyProgress: (done: number, total: number) => { if (state.messages === messages) { state.status = `Offline personal-data scan: ${Math.floor(done * 100 / total)}%`; render(); } },
+    onPrivacyPrepared: (safe: string) => { if (ownsSend()) { userMessage.content = safe.replace(/^@ai-model:[^\s]+\s*/,""); render(); } },
+    onPrivacyProgress: (done: number, total: number) => { if (ownsSend()) { state.status = `Offline personal-data scan: ${Math.floor(done * 100 / total)}%`; render(); } },
   };
-  const assistantMessage = { role: "assistant" as const, content: "", title: "Assistant" };
-  state.messages.push(assistantMessage);
+  const assistantMessage = waitForAi ? { role: "assistant" as const, content: "", title: "Assistant" } : null;
+  if (assistantMessage) state.messages.push(assistantMessage);
+  state.isAwaitingAi = waitForAi;
   render();
   let questionSendError: Error | null = null;
   try {
@@ -557,12 +642,12 @@ async function sendTuiMessage(params: {
         ...privacyCallbacks,
         messageHistory: anonymousHistory,
       });
-      assistantMessage.content = result.assistant;
-      if (state.messages === messages) {
-        state.activeChatId = result.chatId;
+      if (assistantMessage) assistantMessage.content = result.assistant;
+      if (ownsSend()) {
+        ownedChatId = result.chatId; state.activeChatId = result.chatId;
         state.activeChat = {id:result.chatId,shortId:result.chatId.slice(0,8),title:null,summary:null,updatedAt:null,createdAt:Math.floor(Date.now()/1000),category:result.category,mateName:result.mateName};
         state.followUpSuggestions = result.followUpSuggestions ?? [];
-        if (result.mateName) assistantMessage.title = result.mateName;
+        if (result.mateName && assistantMessage) assistantMessage.title = result.mateName;
       }
     } else {
       const result = await client.sendMessage({
@@ -576,34 +661,35 @@ async function sendTuiMessage(params: {
         preparedEmbeds: prepared.preparedEmbeds,
         messageHistory: history,
         onProjectFocusPending: (countdown) => {
-          if (state.messages === messages) { state.projectFocusPending = countdown; render(); }
+          if (ownsSend()) { state.projectFocusPending = countdown; render(); }
         },
         onChatContextApplied: (event) => {
-          if (state.messages !== messages || messages.some(message => message.id === event.event_id
+          if (!ownsSend() || messages.some(message => message.id === event.event_id
               || (message.role === "system" && parseChatContextContent(message.content)?.event_id === event.event_id))) return;
           messages.push({ id: event.event_id, role: "system", content: JSON.stringify(event) });
           render();
         },
         onStream: (event: StreamEvent) => {
-          if (state.messages === messages && event.taskId) state.aiTaskId = event.taskId;
-          if (event.kind === "chunk" || event.kind === "done") {
+          if (!ownsSend()) return;
+          if (event.taskId) state.aiTaskId = event.taskId;
+          if (assistantMessage && (event.kind === "chunk" || event.kind === "done")) {
             assistantMessage.content = event.content;
-            if (state.messages === messages && event.category) state.activeChat = {id:chatId,shortId:chatId.slice(0,8),title:state.activeChat?.title??null,summary:state.activeChat?.summary??null,updatedAt:null,createdAt:state.activeChat?.createdAt??Math.floor(Date.now()/1000),category:event.category,mateName:null};
+            if (event.category) state.activeChat = {id:chatId,shortId:chatId.slice(0,8),title:state.activeChat?.title??null,summary:state.activeChat?.summary??null,updatedAt:null,createdAt:state.activeChat?.createdAt??Math.floor(Date.now()/1000),category:event.category,mateName:null};
             render();
           }
         },
       });
-      assistantMessage.content = result.assistant;
-      if (state.messages === messages) {
-        state.activeChatId = result.chatId; state.followUpSuggestions = result.followUpSuggestions ?? [];
+      if (assistantMessage) assistantMessage.content = result.assistant;
+      if (ownsSend()) {
+        ownedChatId = result.chatId; state.activeChatId = result.chatId; state.followUpSuggestions = result.followUpSuggestions ?? [];
+        if (result.userMessageId) userMessage.id = result.userMessageId;
         if(!existingChatId)void params.modelShell?.persistCreatedChat(result.chatId,modelSelection);
         // A completed reply must release send controls even if viewer sync is offline.
         if (state.screen === "chat") void client.setInteractiveChatViewer(result.chatId).catch(() => {});
-        if (result.mateName) assistantMessage.title = result.mateName;
+        if (result.mateName && assistantMessage) assistantMessage.title = result.mateName;
         if (typeof client.getChatMetadata === "function") {
           const completedLength = messages.length;
-          const ownsMetadata = () => state.routeVersion === preparingRoute && state.messages === messages
-            && state.activeChatId === result.chatId && messages.length === completedLength;
+          const ownsMetadata = () => ownsSend() && state.activeChatId === result.chatId && messages.length === completedLength;
           void (async () => {
             try {
               const metadata = await client.getChatMetadata(result.chatId);
@@ -614,29 +700,40 @@ async function sendTuiMessage(params: {
         }
       }
     }
-    if (state.messages === messages) {state.status = null;state.headerState="ready";}
+    if (ownsSend()) {state.status = null;state.headerState="ready";}
   } catch (error) {
     if (params.questionAnswer) {
       questionSendError = error instanceof Error ? error : new Error(String(error));
-      for (const optimistic of [userMessage, assistantMessage]) {
+      for (const optimistic of [userMessage, assistantMessage].filter((item): item is NonNullable<typeof item> => item !== null)) {
         const index = messages.indexOf(optimistic); if (index >= 0) messages.splice(index, 1);
       }
-      if (state.messages === messages && state.routeVersion === preparingRoute) {
+      if (ownsSend()) {
         state.messages = previousMessages; state.activeChatId = existingChatId; state.activeChat = previousActiveChat;
+        ownedMessages = previousMessages; ownedChatId = existingChatId;
         state.headerState = previousHeaderState; state.screen = sourceExample ? "example" : "chat"; state.status = null;
       }
-    } else {
+    } else if (assistantMessage) {
       assistantMessage.title = "Error";
       assistantMessage.content = error instanceof Error ? error.message : String(error);
-      if (state.messages === messages) {state.headerState="error";state.headerError=/credit/i.test(assistantMessage.content)?"Not enough credits":assistantMessage.content;}
+      if (ownsSend()) {state.headerState="error";state.headerError=/credit/i.test(assistantMessage.content)?"Not enough credits":assistantMessage.content;}
+    } else if (ownsSend()) {
+      state.messages = previousMessages; state.activeChatId = existingChatId; state.activeChat = previousActiveChat;
+      ownedMessages = previousMessages; ownedChatId = existingChatId;
+      state.headerState = previousHeaderState; state.screen = previousScreen;
+      state.input = message; state.inputCursor = null; rememberDraft(state);
+      state.status = error instanceof Error ? error.message : String(error);
     }
   } finally {
-    state.isBusy = false;
-    state.projectFocusPending = null;
-    state.aiTaskId = null;
-    registerChatEmbedAliases(state);
-    if(state.screen==='chat'&&typeof client.getEmbed==='function')void hydrateChatEmbedPreviews(state,client,render);
-    render();
+    if (ownsSend()) {
+      state.isBusy = false;
+      if (sendTeamId) reconcileTuiTeamSenderLabels(state);
+      state.isAwaitingAi = false;
+      state.projectFocusPending = null;
+      state.aiTaskId = null;
+      registerChatEmbedAliases(state);
+      if(state.screen==='chat'&&typeof client.getEmbed==='function')void hydrateChatEmbedPreviews(state,client,render);
+      render();
+    }
   }
   if (questionSendError) throw questionSendError;
 }
@@ -728,8 +825,7 @@ function warmTuiWorkspaceLists(client: OpenMatesClient): void {
   if (typeof client.getSession !== "function" || !client.hasSession()) return;
   void Promise.allSettled([
     loadCachedTuiWorkspace(client, "projects:list", () => loadTuiProjects(client), () => {}),
-    loadCachedTuiWorkspace(client, tasksListCacheKey,
-      async () => decryptUserTasks(await client.listUserTasks(), client.getMasterKeyBytes()), () => {}),
+    loadTuiTaskList(client, tasksListCacheKey, {}, () => {}),
     loadCachedTuiWorkspace(client, workflowsListCacheKey, () => client.listWorkflows(), () => {}),
   ]);
 }
@@ -779,9 +875,9 @@ async function openTaskList(params: {
   state.screen = "status";
   state.status = "Loading tasks...";
   render();
-  const current = () => state.routeVersion === routeVersion && (state.screen === "status" || state.screen === "tasks");
-  await loadCachedTuiWorkspace(client, tasksListCacheKey,
-    async () => decryptUserTasks(await client.listUserTasks(), client.getMasterKeyBytes()), (tasks) => {
+  const ownerCurrent = captureTuiWorkspaceOwner(client);
+  const current = () => ownerCurrent() && state.routeVersion === routeVersion && (state.screen === "status" || state.screen === "tasks");
+  await loadTuiTaskList(client, tasksListCacheKey, {}, (tasks, source, complete) => {
     if (!current()) return;
     const opening = state.screen === "status";
     const selectedId = opening ? null : state.tasks[state.selectedIndex]?.taskId;
@@ -789,12 +885,13 @@ async function openTaskList(params: {
     const selectedIndex = selectedId ? tasks.findIndex(task => task.taskId === selectedId) : -1;
     state.selectedIndex = selectedIndex >= 0 ? selectedIndex : clamp(state.selectedIndex, 0, Math.max(0, tasks.length - 1));
     if (opening) { state.scrollOffset = 0; state.activeTask = null; }
-    state.status = null;
+    state.status = complete ? null : source === "cache" ? "Showing saved tasks. Syncing…" : `Loading more tasks… ${tasks.length} available.`;
     state.screen = "tasks";
     render();
   }, (error, hasCached) => {
     if (!current()) return;
-    state.status = hasCached ? "Showing cached tasks. Refresh failed." : workflowError(error, "Could not load tasks. Use /login first if you are not signed in.");
+    state.status = hasCached ? "Showing saved or partially synced tasks. Refresh failed." : workflowError(error,
+      client.hasSession() ? "Could not load tasks. Use /refresh to retry." : "Could not load tasks. Use /login first.");
     if (!hasCached) state.screen = "status";
     render();
   });

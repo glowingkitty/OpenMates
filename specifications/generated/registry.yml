@@ -659,7 +659,7 @@ specifications:
     version: 1
     status: draft
     path: features/terminal-ui
-    fingerprint: 420322edd75dabe3dab613df781d4e04ce994fd4d9423fc0fd290e34c5fb2cd7
+    fingerprint: 85b9e144892ebf4519f7d558f5100c09548f8eb53b1276a2b5860225b074261c
     required_applies_to:
     - cli
   feature.video-call:
@@ -8477,7 +8477,7 @@ assertions:
     specification: feature.terminal-ui@1
     specification_id: feature.terminal-ui
     type: behavior
-    fingerprint: 6a747f0bbdfbde974c17ffd1cc27dff64e37a39a8ab2a14d04b172eaf8be7f79
+    fingerprint: 3d889c486855937489b3145d6f334780c2c01c3281a862fd081dd5fed778bd52
     required_applies_to:
     - cli
   terminal-settings.navigation.web-hierarchy-and-capabilities:
