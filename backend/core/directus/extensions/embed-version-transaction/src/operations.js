@@ -11,6 +11,10 @@ const MEMBERSHIPS = 'team_memberships';
 const TEAMS = 'teams';
 const CHATS = 'chats';
 const PREFLIGHTS = 'chat_turn_preflights';
+const RECOVERY_OUTPUTS = 'chat_recovery_outputs';
+const OUTPUT_PRODUCERS = 'chat_recovery_output_producers';
+const OUTPUT_CHILDREN = 'chat_recovery_output_producer_children';
+const ACCOUNT_FENCES = 'chat_recovery_account_fences';
 const ARCHIVE_ROLLOUT = 'embed_version_archive_rollout';
 const RECENT_VERSION_WINDOW = 32;
 const MAX_CIPHERTEXT_BYTES = 4 * 1024 * 1024;
@@ -213,6 +217,73 @@ async function lockIdentity(trx, value) {
   await trx.raw('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [value]);
 }
 
+/** A UUIDv5 legacy head is allowed only when a sealed AI child owns this exact identity. */
+async function requireRegisteredChildWrite(trx, embedId, actor, payload) {
+  const version = Number(payload.version_number ?? 1);
+  if (!Number.isSafeInteger(version) || version < 1 || payload.hashed_user_id !== actor
+      || !payload.parent_embed_id
+      || typeof payload.hashed_chat_id !== 'string'
+      || typeof payload.hashed_message_id !== 'string') fail(403, 'project_context_required');
+  const outputScope = {
+    subject_id: embedId, hashed_user_id: actor, output_kind: 'embed', output_version: version,
+  };
+  const candidate = await trx(RECOVERY_OUTPUTS).where(outputScope)
+    .whereIn('state', ['PENDING', 'ACKNOWLEDGED']).first();
+  if (!candidate) fail(403, 'project_context_required');
+  const chats = new Map();
+  for (const chatId of [...new Set([candidate.root_chat_id, candidate.target_chat_id])].sort()) {
+    chats.set(chatId, await trx(CHATS).where({ id: chatId }).forShare().first());
+  }
+  const output = await trx(RECOVERY_OUTPUTS).where(outputScope)
+    .whereIn('state', ['PENDING', 'ACKNOWLEDGED']).forShare().first();
+  if (!output || output.deleted_at || !output.producer_intent_id
+      || output.id !== candidate.id
+      || output.root_chat_id !== candidate.root_chat_id
+      || output.target_chat_id !== candidate.target_chat_id
+      || !Number.isSafeInteger(Number(output.producer_ordinal))
+      || Number(output.producer_ordinal) < 1) fail(403, 'project_context_required');
+  const producer = await trx(OUTPUT_PRODUCERS).where({ id: output.producer_intent_id })
+    .forShare().first();
+  const child = await trx(OUTPUT_CHILDREN).where({
+    producer_intent_id: output.producer_intent_id,
+    ordinal: Number(output.producer_ordinal), subject_id: embedId,
+    output_kind: 'embed', output_version: version,
+  }).forShare().first();
+  if (!producer || !child || !['PENDING', 'COMPLETED'].includes(producer.state)
+      || producer.invalidated_at || producer.hashed_user_id !== actor
+      || producer.primary_embed_id !== payload.parent_embed_id
+      || producer.target_chat_id !== output.target_chat_id
+      || producer.root_chat_id !== output.root_chat_id
+      || output.hashed_user_id !== actor
+      || payload.hashed_chat_id !== sha256(output.target_chat_id)
+      || payload.hashed_message_id !== sha256(producer.primary_message_id)
+      || (payload.root_embed_id != null && payload.root_embed_id !== producer.primary_embed_id)) {
+    fail(403, 'project_context_required');
+  }
+  const chat = chats.get(output.target_chat_id);
+  const root = chats.get(output.root_chat_id);
+  if (!chat || !root || chat.storage_state === 'deleting' || root.storage_state === 'deleting'
+      || (chat.hashed_team_id ?? null) !== (producer.hashed_team_id ?? null)
+      || (root.hashed_team_id ?? null) !== (chat.hashed_team_id ?? null)
+      || (payload.hashed_team_id != null && payload.hashed_team_id !== chat.hashed_team_id)) {
+    fail(403, 'project_context_required');
+  }
+  if (chat.hashed_team_id) {
+    const membership = await trx(MEMBERSHIPS).where({
+      hashed_team_id: chat.hashed_team_id, hashed_user_id: actor, status: 'active',
+    }).forShare().first();
+    const team = await trx(TEAMS).where({
+      hashed_team_id: chat.hashed_team_id, status: 'active',
+    }).forShare().first();
+    if (!team || !membership || !['owner', 'admin', 'member'].includes(membership.role)) {
+      fail(403, 'project_context_required');
+    }
+  } else if (chat.hashed_user_id !== actor || root.hashed_user_id !== actor) {
+    fail(403, 'project_context_required');
+  }
+  return chat.hashed_team_id ?? null;
+}
+
 /** Serialize a legacy client ciphertext write with Project revision publication. */
 export async function writeLegacyEmbed(database, raw) {
   const input = exactFields(raw, new Set(['embed_id', 'actor_user_hash', 'payload', 'bundle_context']), [
@@ -220,7 +291,6 @@ export async function writeLegacyEmbed(database, raw) {
   ]);
   const embedId = boundedString(input.embed_id, 'invalid_embed_id', 512);
   const actor = hexDigest(input.actor_user_hash, 'invalid_actor');
-  if (UUID_V5_RE.test(embedId)) fail(403, 'project_context_required');
   const payload = exactFields(input.payload, LEGACY_EMBED_FIELDS, [
     'embed_id', 'hashed_user_id',
   ]);
@@ -291,6 +361,12 @@ export async function writeLegacyEmbed(database, raw) {
     if (storedPayload[field] != null) storedPayload[field] = JSON.stringify(storedPayload[field]);
   }
   return database.transaction(async (trx) => {
+    if (UUID_V5_RE.test(embedId)) {
+      await lockIdentity(trx, `account-recovery:${actor}`);
+      if (await trx(ACCOUNT_FENCES).where({ id: actor }).forShare().first()) {
+        fail(403, 'project_context_required');
+      }
+    }
     await lockIdentity(trx, `embed:${embedId}`);
     let bundlePreflightState = null;
     if (bundle) {
@@ -331,6 +407,11 @@ export async function writeLegacyEmbed(database, raw) {
     const linked = await trx(PROJECT_ITEMS).where({ target_id_hash: sha256(embedId) })
       .whereIn('item_type', ['embed', 'upload']).first();
     if (linked) fail(403, 'project_context_required');
+    if (UUID_V5_RE.test(embedId)) {
+      // CLI recovery carries no catalog context. Scope this row from the
+      // verified current chat, never from a client-supplied Team claim.
+      storedPayload.hashed_team_id = await requireRegisteredChildWrite(trx, embedId, actor, payload);
+    }
     const embed = await trx(EMBEDS).where({ embed_id: embedId }).forUpdate().first();
     if (embed) {
       if (embed.hashed_user_id !== actor) fail(403, 'embed_access_denied');
@@ -352,7 +433,7 @@ export async function writeLegacyEmbed(database, raw) {
         return { status: 'idempotent', embed_id: embedId };
       }
       if (embed.workspace_origin === 'web_apps'
-        || (embed.hashed_team_id != null && embed.hashed_team_id !== payload.hashed_team_id)
+        || (embed.hashed_team_id != null && embed.hashed_team_id !== storedPayload.hashed_team_id)
         || (payload.app_id != null && embed.app_id != null && embed.app_id !== payload.app_id)
         || (payload.skill_id != null && embed.skill_id != null && embed.skill_id !== payload.skill_id)
         || (embed.workspace_origin === 'chat' && payload.app_id == null)

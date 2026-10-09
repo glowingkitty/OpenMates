@@ -48,7 +48,9 @@ def _with_hashed_embed_id(payload: Dict[str, Any], embed_id: str) -> Dict[str, A
     return updated_payload
 
 
-def _validate_client_encrypted_embed_content(embed_id: str, payload: Dict[str, Any]) -> None:
+def _validate_client_encrypted_embed_content(
+    embed_id: str, payload: Dict[str, Any], *, transactional_write: bool = False,
+) -> None:
     """Block server-side Vault ciphertext from being persisted as chat embed content."""
     encrypted_content = payload.get("encrypted_content")
     if isinstance(encrypted_content, str) and encrypted_content.startswith(_VAULT_CIPHERTEXT_PREFIX):
@@ -65,7 +67,9 @@ def _validate_client_encrypted_embed_content(embed_id: str, payload: Dict[str, A
         is_hosted_project_embed_id,
     )
 
-    if is_hosted_project_embed_id(embed_id):
+    # The legacy transaction checks durable registered-child provenance and
+    # Project links under the embed lock. Direct CRUD and bundles stay fenced.
+    if is_hosted_project_embed_id(embed_id) and not transactional_write:
         raise ValueError(
             f"Embed {embed_id} is a hosted Project file and requires atomic revision commit"
         )

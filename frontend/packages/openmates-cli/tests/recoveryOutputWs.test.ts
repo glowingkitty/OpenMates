@@ -1,12 +1,51 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
+import { matchesRecoveryEmbedReceipt } from "../src/client.ts";
 import { OpenMatesWsClient } from "../src/ws.ts";
 
 const require = createRequire(import.meta.url);
 const { WebSocketServer } = require("ws") as typeof import("ws");
 
 describe("CLI recovery output discovery", () => {
+  // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.sync.key-gated-recovery
+  it("rejects a request-scoped embed storage error without waiting for a receipt", async () => {
+    const server = new WebSocketServer({ port: 0 });
+    await new Promise<void>((resolve) => server.once("listening", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address !== "string");
+    server.on("connection", (socket) => socket.on("message", (raw) => {
+      const frame = JSON.parse(raw.toString()) as { type: string };
+      if (frame.type !== "test_receipt_probe") return;
+      socket.send(JSON.stringify({ type: "error", payload: {
+        code: "unrelated_write_failed", request_id: "other-request", message: "Unrelated write failed",
+      } }));
+      socket.send(JSON.stringify({ type: "error", payload: {
+        code: "embed_storage_failed", request_id: "wanted-request", message: "Embed write failed",
+      } }));
+    }));
+    const client = new OpenMatesWsClient({
+      apiUrl: `http://127.0.0.1:${address.port}`, sessionId: "session", wsToken: "token", refreshToken: null,
+    });
+    try {
+      await client.open();
+      const receipt = client.waitForMessage("store_embed_confirmed",
+        (value) => matchesRecoveryEmbedReceipt(value, "wanted-request", "embed-1", 3), 500);
+      client.send("test_receipt_probe", {});
+      await assert.rejects(receipt, (error: unknown) =>
+        error instanceof Error && "code" in error && error.code === "embed_storage_failed");
+      assert.equal(matchesRecoveryEmbedReceipt({ request_id: "wanted-request", embed_id: "embed-1", version_number: 3 },
+        "wanted-request", "embed-1", 3), true);
+      assert.equal(matchesRecoveryEmbedReceipt({ request_id: "wanted-request", embed_id: "other", version_number: 3 },
+        "wanted-request", "embed-1", 3), false);
+      assert.equal(matchesRecoveryEmbedReceipt({ request_id: "wanted-request", embed_id: "embed-1", version_number: 2 },
+        "wanted-request", "embed-1", 3), false);
+    } finally {
+      client.close();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.sync.key-gated-recovery
   it("announces foreground for a noninteractive CLI before awaiting discovery and releases it on close", { timeout: 2_000 }, async () => {
     const server = new WebSocketServer({ port: 0 });

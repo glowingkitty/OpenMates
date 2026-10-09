@@ -351,6 +351,19 @@ function normalizeSyncedMessages(messages: unknown[]): string[] {
   );
 }
 
+/** Match a receipt strictly, while allowing a request-scoped protocol error to reject it. */
+export function matchesRecoveryEmbedReceipt(
+  value: unknown, requestId: string, embedId: string, version?: number,
+): boolean {
+  if (!value || typeof value !== "object") return false;
+  const frame = value as Record<string, unknown>;
+  if (frame.request_id !== requestId) return false;
+  // Failed embed writes carry request_id and code but no embed_id.
+  if (typeof frame.code === "string") return true;
+  return frame.embed_id === embedId
+    && (version === undefined || frame.version_number === version);
+}
+
 export function getClientMessagesVersionForSync(cached: CachedChat): number {
   if (cached.messages.length === 0) return 0;
   const messagesVersion =
@@ -7310,11 +7323,8 @@ export class OpenMatesClient {
       recoveryRecordId: string, version?: number,
     ): Promise<Record<string, unknown>> => {
       const requestId = randomUUID();
-      const receipt = ws.waitForMessage(responseType, (value) => {
-        const frame = value as Record<string, unknown>;
-        return frame.request_id === requestId && frame.embed_id === embedId
-          && (version === undefined || frame.version_number === version);
-      }, 30_000);
+      const receipt = ws.waitForMessage(responseType,
+        (value) => matchesRecoveryEmbedReceipt(value, requestId, embedId, version), 30_000);
       void receipt.catch(() => {});
       await ws.sendAsync(type, { ...payload, request_id: requestId, recovery_record_id: recoveryRecordId });
       return (await receipt).payload as Record<string, unknown>;

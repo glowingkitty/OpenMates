@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 """Disposable isolated DB/S3 archive transaction probe before capacity traffic.
 
 Run inside the CI API container. This seeds only synthetic encrypted-shaped
@@ -825,6 +826,188 @@ async def _probe_legacy_embed_json_columns(directus, owner_hash: str) -> None:
     finally:
         if created_id and not await directus.delete_item("embeds", created_id, admin_required=True):
             raise RuntimeError("Synthetic legacy embed fixture cleanup failed")
+
+
+async def _probe_registered_child_embed_write(directus, now: int) -> None:
+    """Exercise first-party store_embed against real durable child provenance and Project fences."""
+    from backend.core.api.app.routes.handlers.websocket_handlers.store_embed_handler import handle_store_embed
+
+    owner_id, team_id, chat_id, root_id, parent_id, message_id = (str(uuid.uuid4()) for _ in range(6))
+    producer_id, turn_id, preflight_id, task_id = (str(uuid.uuid4()) for _ in range(4))
+    child_id = str(uuid.uuid5(uuid.UUID(producer_id), "embed-child:0"))
+    ordinary_v5_id = str(uuid.uuid5(uuid.uuid4(), "unregistered"))
+    owner_hash = hashlib.sha256(owner_id.encode()).hexdigest()
+    team_hash = hashlib.sha256(team_id.encode()).hexdigest()
+    chat_hash = hashlib.sha256(chat_id.encode()).hexdigest()
+    message_hash = hashlib.sha256(message_id.encode()).hexdigest()
+    cipher = base64.b64encode(secrets.token_bytes(96)).decode()
+    output_id = str(uuid.uuid4())
+    member_id = str(uuid.uuid4())
+    team_row_id = str(uuid.uuid4())
+    link_id = str(uuid.uuid4())
+    created: list[tuple[str, str]] = []
+    actor_created = False
+
+    class CaptureManager:
+        def __init__(self):
+            self.personal = []
+
+        async def send_personal_message(self, message, _user_id, _device_hash):
+            self.personal.append(message)
+
+        async def broadcast_to_user(self, **_kwargs):
+            return None
+
+    class EmptyCache:
+        @property
+        async def client(self):
+            return None
+
+        async def remove_pending_embed(self, _user_id, _embed_id):
+            return None
+
+    async def write(collection: str, row: dict) -> None:
+        created_row = await _write(directus, collection, row)
+        created.append((collection, str(created_row["id"])))
+
+    async def store(candidate_id: str, content: str, request_id: str) -> str:
+        manager = CaptureManager()
+        await handle_store_embed(
+            websocket=None, manager=manager, cache_service=EmptyCache(),
+            directus_service=directus, user_id=owner_id,
+            device_fingerprint_hash="isolated-child-device",
+            payload={
+                "embed_id": candidate_id, "parent_embed_id": parent_id,
+                "hashed_chat_id": chat_hash, "hashed_message_id": message_hash,
+                "hashed_user_id": owner_hash, "encrypted_type": cipher,
+                "encrypted_content": content, "status": "finished",
+                "encryption_mode": "client", "version_number": 1,
+                "created_at": now, "updated_at": now,
+                "request_id": request_id,
+            },
+        )
+        if len(manager.personal) != 1:
+            raise RuntimeError("Registered child WebSocket write returned ambiguous receipt")
+        receipt = manager.personal[0]
+        if receipt.get("payload", {}).get("request_id") != request_id:
+            raise RuntimeError("Registered child WebSocket receipt lost correlation")
+        return receipt.get("type") + ":" + str(receipt.get("payload", {}).get("code") or "")
+
+    try:
+        await _legacy_claim_fixture_user(directus, owner_id)
+        actor_created = True
+        await write("teams", {
+            "id": team_row_id, "team_id": team_id, "hashed_team_id": team_hash,
+            "slug": f"ci-child-{chat_id}", "encrypted_name": cipher,
+            "encrypted_profile_image_metadata": cipher,
+            "created_by_user_hash": owner_hash, "status": "active",
+            "created_at": now, "updated_at": now,
+        })
+        await write("team_memberships", {
+            "id": member_id, "hashed_team_id": team_hash,
+            "hashed_user_id": owner_hash, "role": "member", "status": "active",
+            "created_at": now, "updated_at": now,
+        })
+        for identity in (root_id, chat_id):
+            await write("chats", {
+                "id": identity, "hashed_user_id": owner_hash, "hashed_team_id": team_hash,
+                "storage_state": "hot", "encrypted_title": cipher,
+                "encrypted_chat_key": cipher, "messages_v": 0, "title_v": 1,
+                "created_at": now, "updated_at": now,
+            })
+        await write("chat_recovery_output_producers", {
+            "id": producer_id, "task_name": "ci.registered-child",
+            "kwargs_binding": hashlib.sha256(producer_id.encode()).hexdigest(),
+            "hashed_user_id": owner_hash, "hashed_team_id": team_hash,
+            "root_chat_id": root_id, "target_chat_id": chat_id,
+            "turn_id": turn_id, "preflight_id": preflight_id,
+            "inference_task_id": task_id, "chat_key_version": 1,
+            "recovery_public_key": base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip("="),
+            "primary_embed_id": parent_id, "primary_message_id": message_id,
+            "primary_output_kind": "embed", "primary_output_version": 1,
+            "max_children": 1, "state": "PENDING", "registered_at": datetime.now(timezone.utc).isoformat(),
+        })
+        await write("chat_recovery_output_producer_children", {
+            "id": str(uuid.uuid4()), "producer_intent_id": producer_id,
+            "ordinal": 1, "subject_id": child_id, "output_kind": "embed",
+            "output_version": 1, "registered_at": datetime.now(timezone.utc).isoformat(),
+        })
+        await write("chat_recovery_outputs", {
+            "id": output_id, "hashed_user_id": owner_hash,
+            "root_chat_id": root_id, "root_hashed_team_id": team_hash,
+            "target_chat_id": chat_id, "turn_id": turn_id,
+            "preflight_id": preflight_id, "inference_task_id": task_id,
+            "producer_intent_id": producer_id, "producer_ordinal": 1,
+            "subject_id": child_id, "output_kind": "embed", "output_version": 1,
+            "chat_key_version": 1, "sealed_payload": cipher,
+            "sealed_payload_digest": hashlib.sha256(cipher.encode()).hexdigest(),
+            "payload_storage": "inline", "payload_size_bytes": len(cipher),
+            "state": "PENDING", "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        if await store(child_id, cipher, "registered-valid") != "store_embed_confirmed:":
+            raise RuntimeError("Registered child WebSocket write was rejected")
+        if await store(ordinary_v5_id, cipher, "ordinary-v5") != "error:embed_write_denied":
+            raise RuntimeError("Unregistered UUIDv5 WebSocket write escaped Project fence")
+        await write("project_items", {
+            "id": link_id, "project_item_id": str(uuid.uuid4()),
+            "hashed_project_id": hashlib.sha256(team_id.encode()).hexdigest(),
+            "hashed_team_id": team_hash, "attached_by_user_hash": owner_hash,
+            "item_type": "embed", "target_id_hash": hashlib.sha256(child_id.encode()).hexdigest(),
+            "target_id_encrypted": cipher, "created_at": now, "updated_at": now,
+        })
+        if await store(child_id, cipher, "project-linked") != "error:embed_write_denied":
+            raise RuntimeError("Project-linked registered child escaped atomic revision fence")
+        if not await directus.delete_item("project_items", link_id, admin_required=True):
+            raise RuntimeError("Registered child Project link cleanup failed")
+        created.remove(("project_items", link_id))
+        await _patch(directus, "team_memberships", member_id, {"status": "inactive"})
+        if await store(child_id, cipher, "team-revoked") not in {
+            "error:embed_write_denied", "error:embed_storage_failed",
+        }:
+            raise RuntimeError("Revoked Team member stored registered child")
+        await _patch(directus, "team_memberships", member_id, {"status": "active"})
+        await _patch(directus, "chat_recovery_outputs", output_id, {
+            "state": "ACKNOWLEDGED", "acknowledged_at": datetime.now(timezone.utc).isoformat(),
+        })
+        await _patch(directus, "chats", root_id, {"hashed_team_id": None})
+        if await store(child_id, cipher, "root-scope-moved") != "error:embed_write_denied":
+            raise RuntimeError("Moved root chat permitted registered child write")
+        await _patch(directus, "chats", root_id, {"hashed_team_id": team_hash})
+        await write("chat_recovery_account_fences", {
+            "id": owner_hash, "fenced_at": datetime.now(timezone.utc).isoformat(),
+        })
+        if await store(child_id, cipher, "account-fenced") != "error:embed_write_denied":
+            raise RuntimeError("Account-fenced Team output permitted registered child write")
+        rows = await directus.get_items("embeds", params={
+            "filter": {"embed_id": {"_eq": child_id}}, "fields": "id,encrypted_content", "limit": 1,
+        }, admin_required=True, no_cache=True, raise_on_error=True)
+        if len(rows) != 1 or rows[0]["encrypted_content"] != cipher:
+            raise RuntimeError("Rejected registered child writes changed canonical ciphertext")
+    finally:
+        for collection in ("project_items", "chat_recovery_account_fences", "chat_recovery_outputs", "chat_recovery_output_producer_children",
+                           "chat_recovery_output_producers"):
+            for name, identity in list(created):
+                if name == collection:
+                    if not await directus.delete_item(name, identity, admin_required=True):
+                        raise RuntimeError("Registered child fixture cleanup failed")
+                    created.remove((name, identity))
+        rows = await directus.get_items("embeds", params={
+            "filter": {"embed_id": {"_eq": child_id}}, "fields": "id", "limit": 1,
+        }, admin_required=True, no_cache=True, raise_on_error=True)
+        for row in rows:
+            if not await directus.delete_item("embeds", row["id"], admin_required=True):
+                raise RuntimeError("Registered child canonical cleanup failed")
+        for collection, identity in reversed(created):
+            if not await directus.delete_item(collection, identity, admin_required=True):
+                raise RuntimeError("Registered child fixture cleanup failed")
+        if actor_created:
+            token = await directus.ensure_auth_token(admin_required=True)
+            response = await directus._make_api_request(
+                "DELETE", f"{directus.base_url.rstrip('/')}/users/{owner_id}",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            if response.status_code not in {200, 204}:
+                raise RuntimeError("Registered child actor cleanup failed")
 
 
 async def _probe_team_archive(directus, archive, now: int) -> dict:
@@ -1811,6 +1994,7 @@ async def probe(*, lifecycle_ciphertexts: list[str] | None = None) -> dict:
         chat_id = str(uuid.uuid4())
         owner_hash = hashlib.sha256(chat_id.encode()).hexdigest()
         await _probe_legacy_embed_json_columns(directus, owner_hash)
+        await _probe_registered_child_embed_write(directus, now)
         checkpoint_id = str(uuid.uuid4())
         synthetic_ciphertexts = (lifecycle_ciphertexts if lifecycle_ciphertexts is not None else
                                  [base64.b64encode(secrets.token_bytes(96)).decode() for _ in range(20)])

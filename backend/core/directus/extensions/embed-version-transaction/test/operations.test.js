@@ -203,6 +203,129 @@ test('legacy embed write checks current Project link inside the serialized write
   assert.equal(database.rows.embeds[1].encrypted_content, 'legacy-update');
 });
 
+function registeredChildFixture({ team = false } = {}) {
+  const seed = existingSeed();
+  const childId = '33333333-3333-5333-8333-333333333333';
+  const parentId = 'parent-embed';
+  const chatId = 'registered-chat';
+  const messageId = 'registered-message';
+  const teamHash = team ? 'c'.repeat(64) : null;
+  const producerId = '44444444-4444-4444-8444-444444444444';
+  seed.project_items = [];
+  seed.chats.push({ id: chatId, hashed_user_id: ACTOR,
+    hashed_team_id: teamHash, storage_state: 'hot' });
+  seed.chat_recovery_output_producers = [{
+    id: producerId, hashed_user_id: ACTOR, hashed_team_id: teamHash,
+    primary_embed_id: parentId, primary_message_id: messageId,
+    target_chat_id: chatId, root_chat_id: chatId, state: 'PENDING', invalidated_at: null,
+  }];
+  seed.chat_recovery_output_producer_children = [{
+    producer_intent_id: producerId, ordinal: 1, subject_id: childId,
+    output_kind: 'embed', output_version: 1,
+  }];
+  seed.chat_recovery_outputs = [{
+    id: 'recovery-child-output',
+    subject_id: childId, hashed_user_id: ACTOR, output_kind: 'embed', output_version: 1,
+    producer_intent_id: producerId, producer_ordinal: 1,
+    target_chat_id: chatId, root_chat_id: chatId, state: 'PENDING', deleted_at: null,
+  }];
+  if (team) {
+    seed.team_memberships.push({ hashed_team_id: teamHash, hashed_user_id: ACTOR,
+      status: 'active', role: 'member' });
+    seed.teams.push({ hashed_team_id: teamHash, status: 'active' });
+  }
+  const body = { embed_id: childId, actor_user_hash: ACTOR, payload: {
+    embed_id: childId, hashed_user_id: ACTOR,
+    hashed_chat_id: createHash('sha256').update(chatId).digest('hex'),
+    hashed_message_id: createHash('sha256').update(messageId).digest('hex'),
+    hashed_team_id: teamHash, parent_embed_id: parentId,
+    app_id: 'web', skill_id: 'search', root_embed_id: parentId,
+    encrypted_content: 'cipher-child', version_number: 1,
+  } };
+  return { seed, body, childId };
+}
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,projects.files.concurrent-chat-safety
+test('legacy transaction admits only durable registered AI child heads in the UUIDv5 namespace', async () => {
+  const { seed, body, childId } = registeredChildFixture();
+  const database = fakeDatabase(seed);
+  assert.equal((await writeLegacyEmbed(database, body)).status, 'created');
+  assert.equal(database.rows.embeds.at(-1).embed_id, childId);
+  assert.equal((await writeLegacyEmbed(database, { ...body,
+    payload: { ...body.payload, encrypted_content: 'cipher-updated' },
+  })).status, 'updated');
+  assert.equal(database.rows.embeds.at(-1).encrypted_content, 'cipher-updated');
+
+  const ordinary = registeredChildFixture();
+  ordinary.seed.chat_recovery_outputs = [];
+  await assert.rejects(writeLegacyEmbed(fakeDatabase(ordinary.seed), ordinary.body),
+    (error) => error instanceof ProtocolError && error.code === 'project_context_required');
+  for (const mutation of [
+    (fixture) => { fixture.body.payload.parent_embed_id = 'forged-parent';
+      fixture.body.payload.root_embed_id = 'forged-parent'; },
+    (fixture) => { fixture.body.payload.hashed_chat_id = 'b'.repeat(64); },
+    (fixture) => { fixture.body.actor_user_hash = 'b'.repeat(64); fixture.body.payload.hashed_user_id = 'b'.repeat(64); },
+    (fixture) => { fixture.seed.chat_recovery_outputs[0].deleted_at = 1; },
+    (fixture) => { fixture.seed.chat_recovery_output_producer_children = []; },
+    (fixture) => { fixture.seed.project_items.push({ item_type: 'embed',
+      target_id_hash: createHash('sha256').update(childId).digest('hex') }); },
+  ]) {
+    const fixture = registeredChildFixture();
+    mutation(fixture);
+    await assert.rejects(writeLegacyEmbed(fakeDatabase(fixture.seed), fixture.body),
+      (error) => error instanceof ProtocolError && error.code === 'project_context_required');
+  }
+});
+
+// contract-test: direct surface=rest_api assertions=teams.chat.encrypted-until-invoked,projects.files.concurrent-chat-safety
+test('registered child write rechecks current Team access and chat scope', async () => {
+  const { seed, body } = registeredChildFixture({ team: true });
+  const database = fakeDatabase(seed);
+  assert.equal((await writeLegacyEmbed(database, body)).status, 'created');
+  database.rows.team_memberships[0].status = 'inactive';
+  await assert.rejects(writeLegacyEmbed(database, body),
+    (error) => error instanceof ProtocolError && error.code === 'project_context_required');
+  database.rows.team_memberships[0].status = 'active';
+  database.rows.chats.at(-1).hashed_team_id = 'd'.repeat(64);
+  await assert.rejects(writeLegacyEmbed(database, body),
+    (error) => error instanceof ProtocolError && error.code === 'project_context_required');
+});
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,teams.chat.encrypted-until-invoked
+test('registered Team child without CLI catalog fields receives verified chat Team scope', async () => {
+  const { seed, body } = registeredChildFixture({ team: true });
+  delete body.payload.app_id;
+  delete body.payload.skill_id;
+  delete body.payload.root_embed_id;
+  delete body.payload.hashed_team_id;
+  const database = fakeDatabase(seed);
+  assert.equal((await writeLegacyEmbed(database, body)).status, 'created');
+  assert.equal(database.rows.embeds.at(-1).hashed_team_id, 'c'.repeat(64));
+  assert.equal((await writeLegacyEmbed(database, { ...body,
+    payload: { ...body.payload, encrypted_content: 'cipher-cli-replay' },
+  })).status, 'updated');
+  assert.equal(database.rows.embeds.at(-1).encrypted_content, 'cipher-cli-replay');
+});
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,teams.chat.encrypted-until-invoked
+test('registered child write rejects changed root scope and account deletion fence', async () => {
+  const { seed, body } = registeredChildFixture({ team: true });
+  const rootId = 'registered-root';
+  seed.chats.push({ id: rootId, hashed_user_id: ACTOR,
+    hashed_team_id: 'c'.repeat(64), storage_state: 'hot' });
+  seed.chat_recovery_output_producers[0].root_chat_id = rootId;
+  seed.chat_recovery_outputs[0].root_chat_id = rootId;
+  const database = fakeDatabase(seed);
+  assert.equal((await writeLegacyEmbed(database, body)).status, 'created');
+  database.rows.chats.at(-1).hashed_team_id = 'd'.repeat(64);
+  await assert.rejects(writeLegacyEmbed(database, body),
+    (error) => error instanceof ProtocolError && error.code === 'project_context_required');
+  database.rows.chats.at(-1).hashed_team_id = 'c'.repeat(64);
+  database.rows.chat_recovery_account_fences = [{ id: ACTOR }];
+  await assert.rejects(writeLegacyEmbed(database, body),
+    (error) => error instanceof ProtocolError && error.code === 'project_context_required');
+});
+
 // contract-test: direct surface=rest_api assertions=projects.files.concurrent-chat-safety
 test('legacy write cannot overwrite a committed Project revision head', async () => {
   const database = fakeDatabase(existingSeed());

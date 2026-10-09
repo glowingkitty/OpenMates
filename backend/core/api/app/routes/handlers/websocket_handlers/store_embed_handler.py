@@ -11,6 +11,7 @@ from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.services.embed_version_transaction_service import (
     EmbedVersionTransactionError,
     EmbedVersionTransactionService,
+    is_hosted_project_embed_id,
     requires_atomic_project_embed_write,
 )
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
@@ -235,7 +236,11 @@ async def handle_store_embed(
                         payload["root_embed_id"] = embed_id
                         payload["workspace_origin"] = "chat"
 
-            if await requires_atomic_project_embed_write(directus_service, embed_id):
+            # UUIDv5 candidates are checked against durable registered-child
+            # provenance by the serialized Directus transaction. Its default
+            # denial still protects initial Project-file creates.
+            if (not is_hosted_project_embed_id(embed_id)
+                    and await requires_atomic_project_embed_write(directus_service, embed_id)):
                 await _reject_store_embed_write(
                     manager,
                     user_id,
@@ -278,7 +283,7 @@ async def handle_store_embed(
             from backend.core.api.app.services.directus.embed_methods import (
                 _validate_client_encrypted_embed_content,
             )
-            _validate_client_encrypted_embed_content(embed_id, payload)
+            _validate_client_encrypted_embed_content(embed_id, payload, transactional_write=True)
             try:
                 write_result = await EmbedVersionTransactionService(
                     directus_service,

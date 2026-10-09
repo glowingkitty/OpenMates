@@ -9,6 +9,7 @@ server can enforce it regardless of what the frontend sends.
 import hashlib
 import sys
 import types
+import uuid
 
 import pytest
 
@@ -67,9 +68,10 @@ class FakeEmbedMethods:
 
 
 class FakeDirectusService:
-    def __init__(self, existing_embed=None, *, project_linked=False, chats=None):
+    def __init__(self, existing_embed=None, *, project_linked=False, chats=None, registered_child=False):
         self.embed = FakeEmbedMethods(existing_embed)
         self.project_linked = project_linked
+        self.registered_child = registered_child
         self.chats = chats or {}
         self.recovery_calls = []
         self.manager = None
@@ -98,6 +100,12 @@ class FakeDirectusService:
         embed_id = json["embed_id"]
         actor_hash = json["actor_user_hash"]
         if self.project_linked:
+            return FakeResponse(403, {"error": {"code": "project_context_required"}})
+        try:
+            reserved_id = uuid.UUID(embed_id).version == 5
+        except ValueError:
+            reserved_id = False
+        if reserved_id and not self.registered_child:
             return FakeResponse(403, {"error": {"code": "project_context_required"}})
         if self.embed.existing_embed:
             if self.embed.existing_embed.get("hashed_user_id") != actor_hash:
@@ -180,6 +188,33 @@ async def test_store_embed_rejects_existing_embed_update_from_non_owner():
     assert directus.embed.created == []
     assert manager.broadcasts == []
     assert manager.personal_messages[0][0]["payload"]["message"] == "Not authorized to store embed"
+
+
+# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery,projects.files.concurrent-chat-safety
+@pytest.mark.asyncio
+async def test_store_embed_routes_registered_uuidv5_child_to_provenance_checked_transaction():
+    manager = FakeConnectionManager()
+    chat_id = "registered-chat"
+    parent_id = "parent-embed"
+    child_id = "33333333-3333-5333-8333-333333333333"
+    directus = FakeDirectusService(
+        registered_child=True,
+        chats={chat_id: {"id": chat_id, "hashed_user_id": OWNER_HASH, "hashed_team_id": None}},
+    )
+    await get_handle_store_embed()(
+        websocket=None, manager=manager, cache_service=FakeCacheService(),
+        directus_service=directus, user_id=OWNER_ID,
+        device_fingerprint_hash="device-1",
+        payload=store_payload(
+            embed_id=child_id, parent_embed_id=parent_id, chat_id=chat_id,
+            hashed_chat_id=hashlib.sha256(chat_id.encode()).hexdigest(),
+            app_id="web", skill_id="search", request_id="registered-child-1",
+        ),
+    )
+    assert len(directus.embed.created) == 1
+    assert directus.embed.created[0]["parent_embed_id"] == parent_id
+    assert manager.personal_messages[0][0]["type"] == "store_embed_confirmed"
+    assert len(manager.broadcasts) == 1
 
 
 # contract-test: supporting surface=rest_api assertions=projects.files.hosted-ciphertext-commit
