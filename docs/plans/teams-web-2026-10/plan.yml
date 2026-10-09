@@ -1,6 +1,6 @@
 schema_version: 2
 profile: concise
-status: implementing
+status: verified
 id: teams-web-2026-10
 title: Teams web implementation from updated Figma
 goal: "Implement and test the teams web app implementation after reviewing the updated Figma, CLI and team specification and resolving the user’s clarifying questions."
@@ -36,6 +36,20 @@ verification:
     - Isolated Teams REST/client/browser coverage for creation, invites, roles, billing and cache boundaries.
     - Inspect Figma/component visual differences and deployed laptop/mobile visual smoke after scoped dev deployment.
     - Download and privately upload all existing E2E recordings, including failures and retries, and deliver links in the final chat.
+  outcomes:
+    - "Final product source ac509c07e36af0b95c65d27006e7aeeb4b733868: normal publication gates and independent review passed."
+    - "Focused isolated CI: backend completion relay 55 tests, Team message handlers/history 51 tests, Team-first link guards 3 tests; Team context browser reload and denied-cache checks passed."
+    - "Chats, Projects, Tasks and Workflows loading/creation ownership verified with isolated API, CLI/SDK and laptop/mobile browser coverage."
+    - "Two real dev accounts: five ordinary messages dispatch no AI; OpenMates and Sophia complete all six pre/main/post stages, preserve human attribution and render completed replies for both humans."
+    - "Member reload restores Team ciphertext; both AI replies persist encrypted, Team credits/usage change and both Personal balances remain unchanged."
+    - "All 115 retained recordings and two screenshots uploaded privately, including failures, retries and duplicate raw captures; final chat delivers their links."
+  remaining:
+    - "Apple implementation and production publication await the user's separate approval."
+    - "Team Workflow execution/scheduling and AI-created Team Tasks remain unsupported and fail closed."
+    - "Legacy Team Tasks lacking Team-wrapped keys need migration; generic AI Project client authoring remains pending."
+    - "Storage billing remains disabled pending validation; cache retention and cold-start offline availability are best effort."
+    - "Live payment-provider settlement and outbound email delivery need separate end-to-end validation."
+    - "Broader unchanged type/fixture failures remain outside the focused passing checks; three early CLI terminal captures were unavailable."
 references:
   task: TASK-2788
   prior_plan: docs/plans/teams-v1/plan.yml
