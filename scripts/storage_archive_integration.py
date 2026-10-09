@@ -2242,6 +2242,10 @@ async def probe(*, lifecycle_ciphertexts: list[str] | None = None) -> dict:
 
 
 if __name__ == "__main__":
+    if os.getenv("OPENMATES_CI_TASK_JOB_WS_PROBE"):
+        from scripts.task_job_ws_integration import main as task_job_ws_main
+        task_job_ws_main()
+        raise SystemExit(0)
     if os.getenv("OPENMATES_CI_TEAM_PORTABILITY_PROBE") == "1":
         result = asyncio.run(_team_portability_cli_result())
         print(json.dumps(result, sort_keys=True))
