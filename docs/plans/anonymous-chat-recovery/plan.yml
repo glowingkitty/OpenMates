@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: anonymous-chat-recovery
 title: Anonymous chat reliability and tab-local recovery
-status: implementing
+status: verified
 goal: >-
   Fix anonymous code embeds, German follow-up suggestions, generated chat titles
   and summaries, and same-tab reload/history recovery on dev while preserving
@@ -31,4 +31,13 @@ verification:
     - Isolated component preview and deterministic anonymous browser regression.
     - Deployed dev German code generation, metadata and reload live-inference check.
     - Confirm anonymous free usage disabled after verification.
-  evidence: Existing browser recordings are delivered in the final chat.
+  evidence: >-
+    Blocking deploy lint, translation validation and 11 backend test files passed.
+    The four focused browser-storage test files passed all 23 tests. Isolated
+    component proof passed in GitHub run 37907989402, and all four anonymous
+    browser regressions passed without retries in run 37910914060. Dev frontend
+    and backend revision bfb525f05d403aa674e736494e0c297d6b518fd9 passed the real
+    two-turn German Proxmox code, metadata, reload and signup test on 2026-10-09.
+    Its receipt is /tmp/openmates-c5a2-live/20261009-094447/receipt.json: 73 credits
+    spent within unchanged caps, followed by enabled=false and active=false.
+    Existing browser recordings were uploaded for delivery in the final chat.
