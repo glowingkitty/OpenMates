@@ -9,7 +9,7 @@ const path=require('node:path');
 const profile='cli-terminal';
 const contract={id:'cli-tui-synthetic-stream-real-terminal',title:'Synthetic response in the real terminal TUI',surface:'cli',devices:[profile],
   transcript:[
-    {id:'thinking',text:'A deterministic SDK stream exercises immediate user rendering and transient centered Thinking.',checkpoint:'thinking-animation',devices:[profile]},
+    {id:'thinking',text:'A deterministic SDK stream exercises immediate user message rendering and transient centered Thinking.',checkpoint:'thinking-animation',devices:[profile]},
     {id:'writing',text:'The bottom inside rainbow remains animated while ordered paragraphs appear.',checkpoint:'writing-animation',devices:[profile]},
     {id:'complete',text:'Completion removes the transient indicator and retains one user and one assistant response.',checkpoint:'complete',devices:[profile]},
   ],assertions:[
