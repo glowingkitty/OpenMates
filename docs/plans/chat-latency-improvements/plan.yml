@@ -1,0 +1,63 @@
+schema_version: 2
+profile: concise
+id: chat-latency-improvements
+title: Make chat submission immediate and reduce time to the first answer
+status: draft
+goal: >-
+  The current web app chat is super slow and we need to find out why and plan out
+  how to drastically improve it.
+task_id: 12fb2012-be42-46f1-958c-babc378f1d02
+review: report.md
+baseline: baseline-summary.json
+scope:
+  in:
+    - Diagnose composer clearing and shared backend latency using source and retained dev evidence.
+    - Specify the first Jev stage for complexity, Mate, apps and Projects, followed by scoped skill and Focus selection.
+    - Evaluate typing-time preprocessing, including cost, quotas, privacy and invalidation.
+    - Compare web, authenticated CLI, API-key SDK and Apple send paths.
+  out:
+    - Product implementation, provider benchmarks, new inference calls or shared runtime changes during this review.
+    - Production diagnosis or rollout without a production-specific request.
+recommendations:
+  - id: R1
+    outcome: Show the pending user message and clear the submitted composer without awaiting server preflight.
+    scope: Web and Apple, preserving encrypted retry state and newer drafts.
+    proposed_checks:
+      - Delayed preflight, failed persistence or send, newer typing, late draft restoration, reconnect and duplicate-click cases.
+      - Relevant composer unit tests and component/browser coverage; Apple send pipeline and composer parity tests.
+  - id: R2
+    outcome: Bound saved Workflow discovery before hydration and batch encrypted metadata retrieval.
+    scope: Shared first-party AI preprocessing; preserve owner/Team authorization and Workflow selection quality.
+    proposed_checks:
+      - Zero, few and many Workflows; bounded HTTP/decrypt counts; stale versions; cross-owner/Team access; selected body reauthorization.
+      - Focused unit coverage and isolated product CI, followed by a comparable retained latency sample.
+  - id: R3
+    outcome: Move complexity and Mate decisions into stage one and overlap independent preparation with stage two.
+    depends_on_recommendations: [R2]
+    scope: Existing two-stage Jev routing, model override precedence and Project consent boundaries.
+    proposed_checks:
+      - Stage-one decision schema, model/Mate precedence, no repeated shortlist after consent, safety and fallback behavior.
+      - Shared phase timings, CLI send coverage, web send/stream coverage and Apple affected-path checks.
+  - id: R4
+    outcome: Keep web chat rendering responsive while long histories stream.
+    scope: Incremental message updates, retained virtualization and bounded cumulative-content scanning.
+    proposed_checks:
+      - Real ActiveChat with a long history, mixed embeds and frequent chunks; typing latency, frame stalls and final content convergence.
+      - Reuse existing streaming render and scroll coverage and sanitized render metrics.
+optional_experiment:
+  id: E1
+  outcome: Determine whether a bounded, opt-in stage-one draft preview produces useful latency savings.
+  prerequisite: Measure stage-one duration after R2/R3 and review the unsent-draft processing contract.
+  limits:
+    - First-party only, explicit feature preference, no anonymous or incognito requests initially.
+    - Stage one only; no private Project bodies, tools, chat creation, titles, compression or generative fallback.
+    - One request in flight, debounce and token/call budgets; foreground sends receive capacity first.
+    - Exact canonical input and context-version match; stale results are discarded.
+  decision_metric: Compare first-answer latency with incremental supplier spend, exact-match hit rate and foreground quota pressure.
+proposed_targets:
+  - Composer handoff visible within 100 ms at p95 on agreed web and Apple test devices, without waiting for remote acceptance.
+  - Warm preprocessing below 1 second at p95 on a matched simple-text cohort, preserving routing quality; this is a target, not a measured gain.
+  - No loss of submitted content, duplicate execution, newer draft overwrite or change to encrypted storage and consent boundaries.
+validation_for_this_review:
+  - python3 scripts/plan_validate.py docs/plans/chat-latency-improvements/plan.yml
+  - git diff --check
