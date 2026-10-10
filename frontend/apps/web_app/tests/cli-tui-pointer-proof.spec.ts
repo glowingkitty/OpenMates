@@ -265,7 +265,7 @@ test('records real pointer navigation, linked content, and an explicit question 
 				{name:'palette-open',key:'ctrl+p',wait_for:'Actions',hold_ms:250},
 				{name:'palette-filter',text:'Projects',wait_for:'Projects  /projects',hold_ms:250},
 				{name:'palette-click',click:{text:'Projects  /projects'},wait_for:workspace.projectName,hold_ms:350},
-				{name:'projects-tab',click:{text:'Projects'},wait_for:workspace.projectName,hold_ms:450},
+				{name:'projects-tab',click:{text:'Projects',occurrence:0},wait_for:workspace.projectName,hold_ms:450},
 				{name:'project-open',click:{text:workspace.projectName},wait_for:'[Overview · 1]',hold_ms:350},
 				{name:'project-files',click:{text:'Files · 2'},wait_for:'[Files · 2]',hold_ms:250},
 				{name:'project-tasks',click:{text:'Tasks · 3'},wait_for:workspace.taskTitle,hold_ms:250},
@@ -287,7 +287,7 @@ test('records real pointer navigation, linked content, and an explicit question 
 				{name:'apps-tab',click:{text:'Apps'},wait_for:'Browse websites',hold_ms:350},
 				{name:'apps-scroll',key:'End',wait_for:'Show all',hold_ms:250},
 				{name:'narrow',resize:{width:900,height:600},wait_for:'Show all',hold_ms:400},
-				{name:'resized-projects',click:{text:'Projects'},wait_for:workspace.projectName,hold_ms:400},
+				{name:'resized-projects',click:{text:'Projects',occurrence:0},wait_for:workspace.projectName,hold_ms:400},
 				{name:'exit-command',text:'/exit'},
 				{name:'exit',key:'Return'},
 			];
@@ -310,6 +310,7 @@ test('records real pointer navigation, linked content, and an explicit question 
 			expect(pointers.length).toBeGreaterThanOrEqual(14);
 			const before=recording.manifest.input_checkpoints.find((point:any)=>point.name==='projects-tab').pointer;
 			const after=recording.manifest.input_checkpoints.find((point:any)=>point.name==='resized-projects').pointer;
+			expect(before.row).toBe(1);expect(after.row).toBe(1);
 			expect(before.window_width).toBe(1280);expect(after.window_width).toBeLessThan(before.window_width);
 			expect(after.columns).toBeLessThan(before.columns);
 			const calls=fs.readFileSync(adapter.captureFile,'utf8').trim().split('\n').map((line:string)=>JSON.parse(line));

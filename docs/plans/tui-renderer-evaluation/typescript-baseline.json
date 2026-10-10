@@ -1,0 +1,188 @@
+{
+  "schemaVersion": 1,
+  "node": "v24.20.0",
+  "arch": "arm64",
+  "cpu": "Neoverse-N1",
+  "samples": 10,
+  "measurement": "Synchronous frame construction and emitted ANSI bytes; excludes network, decryption, real terminal/SSH latency and input scheduling.",
+  "memory": {
+    "rss": 816586752,
+    "heapTotal": 193273856,
+    "heapUsed": 58232344,
+    "external": 21891927,
+    "arrayBuffers": 280682
+  },
+  "workloads": [
+    {
+      "messages": 20,
+      "viewport": "80x24",
+      "textBytes": 10000,
+      "coldMs": 333.277,
+      "draft": {
+        "medianMs": 228.312,
+        "p95Ms": 279.077
+      },
+      "scroll": {
+        "medianMs": 235.032,
+        "p95Ms": 274.572
+      },
+      "coldAnsiBytes": 3905,
+      "draftAnsiBytes": 3905,
+      "scrollAnsiBytes": 4252,
+      "unchangedAnsiBytes": 4384,
+      "sharedProjectionMs": 45.902
+    },
+    {
+      "messages": 20,
+      "viewport": "160x50",
+      "textBytes": 10000,
+      "coldMs": 271.651,
+      "draft": {
+        "medianMs": 220.896,
+        "p95Ms": 319.341
+      },
+      "scroll": {
+        "medianMs": 231.087,
+        "p95Ms": 316.744
+      },
+      "coldAnsiBytes": 11914,
+      "draftAnsiBytes": 11914,
+      "scrollAnsiBytes": 11918,
+      "unchangedAnsiBytes": 11893,
+      "sharedProjectionMs": 131.092
+    },
+    {
+      "messages": 20,
+      "viewport": "240x70",
+      "textBytes": 10000,
+      "coldMs": 232.126,
+      "draft": {
+        "medianMs": 229.764,
+        "p95Ms": 301.758
+      },
+      "scroll": {
+        "medianMs": 225.262,
+        "p95Ms": 299.113
+      },
+      "coldAnsiBytes": 21845,
+      "draftAnsiBytes": 21845,
+      "scrollAnsiBytes": 21837,
+      "unchangedAnsiBytes": 21798,
+      "sharedProjectionMs": 43.933
+    },
+    {
+      "messages": 100,
+      "viewport": "80x24",
+      "textBytes": 50040,
+      "coldMs": 1187.681,
+      "draft": {
+        "medianMs": 1191.066,
+        "p95Ms": 1247.547
+      },
+      "scroll": {
+        "medianMs": 1209.683,
+        "p95Ms": 1331.788
+      },
+      "coldAnsiBytes": 3905,
+      "draftAnsiBytes": 3905,
+      "scrollAnsiBytes": 4252,
+      "unchangedAnsiBytes": 4384,
+      "sharedProjectionMs": 421.336
+    },
+    {
+      "messages": 100,
+      "viewport": "160x50",
+      "textBytes": 50040,
+      "coldMs": 1249.698,
+      "draft": {
+        "medianMs": 1210.59,
+        "p95Ms": 1244.629
+      },
+      "scroll": {
+        "medianMs": 1225.407,
+        "p95Ms": 1253.897
+      },
+      "coldAnsiBytes": 11914,
+      "draftAnsiBytes": 11914,
+      "scrollAnsiBytes": 11918,
+      "unchangedAnsiBytes": 11893,
+      "sharedProjectionMs": 407.932
+    },
+    {
+      "messages": 100,
+      "viewport": "240x70",
+      "textBytes": 50040,
+      "coldMs": 1014.104,
+      "draft": {
+        "medianMs": 1200.263,
+        "p95Ms": 1219.349
+      },
+      "scroll": {
+        "medianMs": 1184.786,
+        "p95Ms": 1199.927
+      },
+      "coldAnsiBytes": 21845,
+      "draftAnsiBytes": 21845,
+      "scrollAnsiBytes": 21837,
+      "unchangedAnsiBytes": 21798,
+      "sharedProjectionMs": 407.048
+    },
+    {
+      "messages": 500,
+      "viewport": "80x24",
+      "textBytes": 250640,
+      "coldMs": 5800.065,
+      "draft": {
+        "medianMs": 5718.304,
+        "p95Ms": 6050.748
+      },
+      "scroll": {
+        "medianMs": 5790.637,
+        "p95Ms": 5900.186
+      },
+      "coldAnsiBytes": 3905,
+      "draftAnsiBytes": 3905,
+      "scrollAnsiBytes": 4252,
+      "unchangedAnsiBytes": 4384,
+      "sharedProjectionMs": 1842.035
+    },
+    {
+      "messages": 500,
+      "viewport": "160x50",
+      "textBytes": 250640,
+      "coldMs": 5857.898,
+      "draft": {
+        "medianMs": 5832.49,
+        "p95Ms": 6125.369
+      },
+      "scroll": {
+        "medianMs": 5775.759,
+        "p95Ms": 6128.604
+      },
+      "coldAnsiBytes": 11914,
+      "draftAnsiBytes": 11914,
+      "scrollAnsiBytes": 11918,
+      "unchangedAnsiBytes": 11893,
+      "sharedProjectionMs": 1826.61
+    },
+    {
+      "messages": 500,
+      "viewport": "240x70",
+      "textBytes": 250640,
+      "coldMs": 5815.73,
+      "draft": {
+        "medianMs": 5768.362,
+        "p95Ms": 5987.413
+      },
+      "scroll": {
+        "medianMs": 5798.948,
+        "p95Ms": 6095.875
+      },
+      "coldAnsiBytes": 21845,
+      "draftAnsiBytes": 21845,
+      "scrollAnsiBytes": 21837,
+      "unchangedAnsiBytes": 21798,
+      "sharedProjectionMs": 2058.273
+    }
+  ]
+}

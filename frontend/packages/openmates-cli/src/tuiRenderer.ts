@@ -28,7 +28,9 @@ import { homeTuiApps, renderTuiAppsHome, renderTuiApp, renderTuiAppIdentity, ren
 import { parseMessageSegments } from "./messageSegments.js";
 import { aliasForEmbed, chatEmbedReferences, exampleEmbedMap, type TuiEmbedTarget } from './tuiEmbeds.js';
 import { renderTuiEmbedPreview } from './tuiEmbedPreviews.js';
-import { parseTuiMarkdown } from './tuiMarkdown.js';
+import { parseTuiMarkdown, type TuiMarkdownBlock } from './tuiMarkdown.js';
+import { cachedChatLayout, chatLayoutWeight, clearChatRenderCache,
+  CHAT_RENDER_CACHE_MAX_CHARS, CHAT_RENDER_CACHE_MAX_MESSAGES } from './tuiRenderCache.js';
 import { buildTuiResultsViewData, renderTuiResultsViewLines, type TuiResultsViewDescriptor, type TuiResultsViewMode } from './tuiResultsViews.js';
 import { chatResultsViews, messageResultsViews } from './tuiChatResults.js';
 import { parseChatContextContent, chatContextSummary } from "./chatContextEvents.js";
@@ -302,6 +304,7 @@ export function rankExamples(
 export const TUI_SESSION_ENDED_STATUS = "Session ended. Sign in to reopen your work.";
 export function resetEndedTuiSession(state: TuiState, hasSession: boolean): boolean {
   if (!state.signedIn || hasSession) return false;
+  clearChatRenderCache(state);
   state.homeAbortController?.abort();
   Object.values(state.chatContextAuthoringControls).forEach(control => control.stop());
   const routeVersion = state.routeVersion + 1, homeLoadVersion = state.homeLoadVersion + 1;
@@ -310,6 +313,7 @@ export function resetEndedTuiSession(state: TuiState, hasSession: boolean): bool
 }
 
 export function renderTuiFrame(state: TuiState, width: number, height: number, options: { colorMode?: TuiColorMode; ascii?: boolean } = {}): string {
+  if(state.screen!=='chat')clearChatRenderCache(state);
   fenceTuiSettingsView(state);
   beginPointerFrame(state,width,height);
   if (state.startup || state.privacyOffer) return renderStartupFrame(state, width, height, options.colorMode ?? "none");
@@ -602,8 +606,23 @@ function renderExampleChat(state: TuiState, width: number, height: number): TuiL
 
 function renderChat(state: TuiState, width: number, height: number): TuiLine[] {
   const lines = renderChatHeader(state, width, height);
+  const embeds = new Map(Object.entries(state.chatEmbeds));
+  const cacheContext={owner:JSON.stringify([state.signedIn,state.currentUserHash,state.activeTeamId,state.activeChatId,state.routeVersion]),
+    width,aliases:JSON.stringify(state.embedAliases),embeds,frame:{}};
+  const cacheable=new Set<number>();let cachedWeight=0;
+  for(let index=state.messages.length-1;index>=0&&cacheable.size<CHAT_RENDER_CACHE_MAX_MESSAGES;index--){
+    const weight=chatLayoutWeight(state.messages[index].content);
+    if(weight>CHAT_RENDER_CACHE_MAX_CHARS/4)continue;
+    if(cachedWeight+weight>CHAT_RENDER_CACHE_MAX_CHARS)break;
+    cachedWeight+=weight;cacheable.add(index);
+  }
+  let firstEmbedId:string|undefined,firstEmbedChecked=false;
+  const defaultEmbedId=()=>{
+    if(!firstEmbedChecked){firstEmbedId=chatEmbedReferences(state)[0]?.value;firstEmbedChecked=true;}
+    return firstEmbedId;
+  };
   let contextIndex = 0, viewOffset = 0, questionOffset=0;
-  for (const message of state.messages) {
+  for (const [index,message] of state.messages.entries()) {
     const event = message.role === "system" ? parseChatContextContent(message.content) : null;
     if (event) {
       contextIndex++;
@@ -617,10 +636,14 @@ function renderChat(state: TuiState, width: number, height: number): TuiLine[] {
       continue;
     }
     lines.push({text:messageLabel(message.role,message.title,message.category,state.activeChat,message.remoteUser),color:'#5a85eb',bold:true});
-    const embeds = new Map(Object.entries(state.chatEmbeds));
-    lines.push(...renderMessageContentStyled(message.content, width, embeds,state,message.role==='assistant'?message.embedIds:undefined,viewOffset,questionOffset,message.role==='assistant'));
-    viewOffset += messageResultsViews(message.content).length;
-    if(message.role==='assistant')questionOffset+=messageQuestions(message.content).length;
+    const questionBlocks=message.role==='assistant';
+    const prepared=cachedChatLayout(state,message,message.content,
+      {...cacheContext,variant:questionBlocks?'questions':'literal-questions',cacheable:cacheable.has(index)},
+      ()=>prepareMessageContent(message.content,width,state,questionBlocks,true));
+    lines.push(...renderPreparedMessageContent(prepared,width,embeds,state,questionBlocks?message.embedIds:undefined,
+      viewOffset,questionOffset,defaultEmbedId));
+    viewOffset += prepared.viewCount;
+    if(questionBlocks)questionOffset+=prepared.questionCount;
     lines.push("");
   }
   if (state.projectFocusPending) lines.push("Project access starts after the countdown. /project-focus-reject to cancel.");
@@ -692,13 +715,30 @@ function renderStatus(state: TuiState, width: number): string[] {
 export function renderMessageContent(content: string, width: number, embeds: Map<string, DecryptedEmbed> = new Map()): string[] {
   return renderMessageContentStyled(content,width,embeds).map(lineText);
 }
+type PreparedMessageSegment = {type:'embed';value:string;meta?:Record<string,unknown>}
+  | {type:'text';value:string;blocks:TuiMarkdownBlock[]};
+type PreparedMessageContent = {segments:PreparedMessageSegment[];viewCount:number;questionCount:number};
+function prepareMessageContent(content:string,width:number,state?:TuiState,questionBlocks=true,countQuestions=false):PreparedMessageContent {
+  const segments:PreparedMessageSegment[]=parseMessageSegments(content,{preserveCodeFences:true}).map(segment=>
+    segment.type==='embed'?segment:{type:'text',value:segment.value,
+      blocks:parseTuiMarkdown(segment.value,width,{resolveEmbedAlias:id=>state?aliasForEmbed(state,id):id,questionBlocks})});
+  // Question numbering follows the protocol parser's whole-message interpretation.
+  return {segments,viewCount:segments.reduce((count,segment)=>count+(segment.type==='text'
+    ?segment.blocks.filter(block=>block.type==='results-view').length:0),0),
+    questionCount:countQuestions&&questionBlocks?messageQuestions(content).length:0};
+}
 export function renderMessageContentStyled(content: string, width: number, embeds: Map<string, DecryptedEmbed> = new Map(), state?:TuiState,extraIds:string[]=[],viewOffset=0,questionOffset=0,questionBlocks=true): TuiLine[] {
-  const lines:TuiLine[]=[],segments=parseMessageSegments(content,{preserveCodeFences:true});
+  return renderPreparedMessageContent(prepareMessageContent(content,width,state,questionBlocks),width,embeds,state,
+    extraIds,viewOffset,questionOffset);
+}
+function renderPreparedMessageContent(prepared:PreparedMessageContent,width:number,embeds:Map<string,DecryptedEmbed>,
+  state?:TuiState,extraIds:string[]=[],viewOffset=0,questionOffset=0,getDefaultEmbedId?:()=>string|undefined):TuiLine[] {
+  const lines:TuiLine[]=[],segments=prepared.segments;
   let pending:Array<{value:string;meta?:Record<string,unknown>}>=[], viewIndex=viewOffset, questionIndex=questionOffset;
   const flush=()=>{
     if(!pending.length)return;
     const unique=pending.filter((ref,index)=>pending.findIndex(other=>other.value===ref.value)===index);
-    const id=state?.chatSelectedEmbedId??(state?chatEmbedReferences(state)[0]?.value:undefined);
+    const id=state?.chatSelectedEmbedId??(state?(getDefaultEmbedId?getDefaultEmbedId():chatEmbedReferences(state)[0]?.value):undefined);
     const selected=unique.findIndex(ref=>ref.value===id),cardWidth=Math.min(width,62);
     const rawCards=unique.map(ref=>renderEmbedReference(ref,cardWidth,embeds,state));
     const height=Math.max(...rawCards.map(card=>card.length));
@@ -710,8 +750,8 @@ export function renderMessageContentStyled(content: string, width: number, embed
       {kind:'command',command:`/embed ${aliasForEmbed(state,id!)}`}));
     pending=[];
   };
-  const text=(value:string)=>{
-    for(const block of parseTuiMarkdown(value,width,{resolveEmbedAlias:id=>state?aliasForEmbed(state,id):id,questionBlocks})) {
+  const text=(blocks:TuiMarkdownBlock[])=>{
+    for(const block of blocks) {
       if(block.type==='line')lines.push(block.line);
       else if(block.type==='question'){
         const key=++questionIndex;
@@ -727,8 +767,8 @@ export function renderMessageContentStyled(content: string, width: number, embed
   };
   for(const segment of segments){
     if(segment.type==='embed')pending.push(segment);
-    else if(segment.value.trim()){flush();text(segment.value);}
-    else if(!pending.length)text(segment.value);
+    else if(segment.value.trim()){flush();text(segment.blocks);}
+    else if(!pending.length)text(segment.blocks);
   }
   const inline=new Set(segments.filter(segment=>segment.type==='embed').map(segment=>segment.value));
   pending.push(...extraIds.filter(id=>!inline.has(id)).map(value=>({value})));

@@ -1,5 +1,5 @@
 /** Small, terminal-safe Markdown renderer for chat text. No browser or ANSI input is trusted. */
-import {cells, terminalText, type TuiLine, type TuiSpan} from './tuiText.js';
+import {graphemeCellWidth, terminalText, type TuiLine, type TuiSpan} from './tuiText.js';
 import {isInteractiveQuestionPayload, type InteractiveQuestionPayload, type InteractiveQuestionAnswer} from './interactiveQuestions.js';
 
 export type TuiResultsViewBlock = {
@@ -17,15 +17,20 @@ const ACCENT = '#80caff';
 const LINK = '#85c9e8';
 const CODE = '#b8b8b8';
 const segmenter = new Intl.Segmenter(undefined, {granularity: 'grapheme'});
+// eslint-disable-next-line no-control-regex -- ESC is an intentional text-run boundary.
+const INLINE_BOUNDARY = /[\\`[*_\x1b]/;
 type Styled = TuiSpan;
 
-function append(out: Styled[], value: string, style: Omit<Styled, 'text'> = {}): void {
-  const text = terminalText(value);
+function appendSanitized(out: Styled[], text: string, style: Omit<Styled, 'text'> = {}): void {
   if (!text) return;
   const last = out.at(-1);
   if (last && last.bold === style.bold && last.color === style.color && last.background === style.background &&
-    JSON.stringify(last.action) === JSON.stringify(style.action)) last.text += text;
+    (last.action === style.action || (!last.action && !style.action) ||
+      Boolean(last.action && style.action && JSON.stringify(last.action) === JSON.stringify(style.action)))) last.text += text;
   else out.push({text, bold: style.bold, color: style.color, background: style.background, action:style.action});
+}
+function append(out: Styled[], value: string, style: Omit<Styled, 'text'> = {}): void {
+  appendSanitized(out,terminalText(value),style);
 }
 
 function closing(source: string, from: number, delimiter: string): number {
@@ -59,6 +64,13 @@ function safeReference(value: string): boolean {return /^[\p{L}\p{N}_.:()-]+$/u.
 function inline(source: string, options: TuiMarkdownOptions, base: Omit<Styled, 'text'> = {}): Styled[] {
   const out: Styled[] = [];
   for (let i = 0; i < source.length;) {
+    // Ordinary text is one sanitized run; ESC remains a boundary to preserve the
+    // existing character-by-character treatment of terminal control sequences.
+    if(!INLINE_BOUNDARY.test(source[i])){
+      let end=i+1;
+      while(end<source.length&&!INLINE_BOUNDARY.test(source[end]))end++;
+      append(out,source.slice(i,end),base);i=end;continue;
+    }
     if (source[i] === '\\' && i + 1 < source.length) {append(out, source[i + 1], base); i += 2; continue;}
     if (source[i] === '`') {
       const ticks = /^`+/.exec(source.slice(i))![0];
@@ -89,7 +101,7 @@ function inline(source: string, options: TuiMarkdownOptions, base: Omit<Styled, 
     if (delimiter && source[i + delimiter.length] && !/\s/.test(source[i + delimiter.length])) {
       const end = closing(source, i + delimiter.length, delimiter);
       if (end > i + delimiter.length && !/\s/.test(source[end - 1])) {
-        for (const span of inline(source.slice(i + delimiter.length, end), options, {...base, bold: delimiter.length === 2 || base.bold})) append(out, span.text, span);
+        for (const span of inline(source.slice(i + delimiter.length, end), options, {...base, bold: delimiter.length === 2 || base.bold})) appendSanitized(out, span.text, span);
         i = end + delimiter.length; continue;
       }
     }
@@ -106,10 +118,10 @@ function wrapped(spans: Styled[], width: number, lineStyle: {bold?: boolean; col
     parts = []; used = 0;
   };
   for (const span of spans) for (const {segment} of segmenter.segment(span.text)) {
-    const size = cells(segment);
+    const size = graphemeCellWidth(segment);
     if (used && used + size > width) flush();
-    if (size > width) {append(parts, '?', span); used += 1; continue;}
-    append(parts, segment, span); used += size;
+    if (size > width) {appendSanitized(parts, '?', span); used += 1; continue;}
+    appendSanitized(parts, segment, span); used += size;
   }
   flush();
   return rows;

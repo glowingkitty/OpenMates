@@ -171,13 +171,13 @@ const contract = {
 	id: 'cli-tui-rich-chat-real-terminal', title: 'Encrypted Markdown chat, linked views, and Fitness preview',
 	surface: 'cli', devices: [PROFILE],
 	transcript: [
-		{id: 'markdown', text: 'The saved assistant answer renders a styled heading, bold text, a wiki link, and a finished Fitness result below the text-only request.', checkpoint: 'chat-open', devices: [PROFILE]},
+		{id: 'markdown', text: 'Scrolling upward shows the text-only request and the saved assistant answer with a styled heading, bold text, a wiki link, and a finished Fitness result.', checkpoint: 'render-scroll-up', devices: [PROFILE]},
 		{id: 'views', text: 'The first result switches between calendar, map, and list without losing its saved chat.', checkpoint: 'view-list', devices: [PROFILE]},
 		{id: 'wiki', text: 'The exact wiki target opens and Escape returns to the chat.', checkpoint: 'wiki-return', devices: [PROFILE]},
 		{id: 'fitness', text: 'The short Fitness alias opens the saved result and its real dated classes.', checkpoint: 'fitness-open', devices: [PROFILE]}
 	],
 	assertions: [
-		{id: 'chats.rendering.inline-entity-interaction', checkpoint: 'chat-open', visual: 'A text-only user message remains plain, while the assistant Markdown and finished Fitness result render with a bottom preview bar.', devices: [PROFILE]},
+		{id: 'chats.rendering.inline-entity-interaction', checkpoint: 'render-scroll-up', visual: 'After scrolling upward, the text-only user message remains plain, while the assistant Markdown and finished Fitness result render with a bottom preview bar.', devices: [PROFILE]},
 		{id: 'cli.output.actionable-readable', checkpoint: 'view-list', visual: 'The saved class results can switch among calendar, text map, and list presentations.', devices: [PROFILE]},
 		{id: 'cli.surface.semantic-parity', checkpoint: 'wiki-return', visual: 'The exact wiki target opens and Escape returns to the saved chat.', devices: [PROFILE]}
 	],
@@ -219,7 +219,11 @@ test('records saved Markdown, linked Fitness views, wiki navigation, and offline
 		const steps: ProofStep[] = [
 			{name: 'landing', wait_for: 'DAILY INSPIRATION', hold_ms: 250},
 			{name: 'chat-command', text: '/chat ' + chat.chatId},
-			{name: 'chat-open', key: 'Return', wait_for: 'Dance studio Mitte', hold_ms: 900},
+			{name: 'chat-open', key: 'Return', wait_for: 'Dance studio Mitte', wait_timeout_ms: 30_000, hold_ms: 900},
+			{name: 'render-draft', text: 'render probe', wait_for: 'render probe', hold_ms: 150},
+			{name: 'render-scroll-up', key: 'Page_Up', repeat: 2, wait_for: 'Find local classes with a map and calendar.', hold_ms: 150},
+			{name: 'render-scroll-down', key: 'Page_Down', repeat: 2, hold_ms: 150},
+			{name: 'render-draft-cleared', key: 'BackSpace', repeat: 12, wait_for: 'Ask a follow-up', wait_for_absent: 'render probe', hold_ms: 150},
 			{name: 'view-calendar-command', text: '/view 1 calendar'},
 			{name: 'view-calendar', key: 'Return', wait_for: 'Mapped results · Calendar · 2 results', hold_ms: 500},
 			{name: 'view-map-key', text: 'm', wait_for: 'Mapped results · Map · 2 results', hold_ms: 350},
@@ -242,7 +246,14 @@ test('records saved Markdown, linked Fitness views, wiki navigation, and offline
 		];
 		const recording = await captureProof(apiUrl, home, cli, steps, contract, testInfo);
 		const frame = (name: string) => recording.frame(name).join('\n');
-		const opened = frame('chat-open');
+		// A saved chat opens at the bottom. Assert the request and assistant
+		// attribution in the explicitly scrolled viewport, not an initial frame
+		// that may place the first message above the screen.
+		const opened = frame('render-scroll-up');
+		expect(frame('render-draft')).toContain('render probe');
+		expect(frame('render-scroll-down')).toContain('render probe');
+		expect(frame('render-scroll-down')).toContain('Dance studio Mitte');
+		expect(frame('render-draft-cleared')).not.toContain('render probe');
 		expect(opened).toContain('Find local classes with a map and calendar.');
 		expect(opened).toContain('Saved answer');
 		expect(opened).not.toContain('### Saved answer');
@@ -265,11 +276,14 @@ test('records saved Markdown, linked Fitness views, wiki navigation, and offline
 		expect(assistantStart).toBeGreaterThan(userStart);
 		expect(opened.slice(userStart, assistantStart)).not.toMatch(/Search classes|\/embed fit-s_c-1/);
 		const before = Buffer.from(recording.transcript, 'utf8');
-		const offset = recording.manifest.input_checkpoints.find((point: {name: string}) => point.name === 'chat-open')!.transcript_offset;
+		const offset = recording.manifest.input_checkpoints.find((point: {name: string}) => point.name === 'render-scroll-up')!.transcript_offset;
 		const raw = before.subarray(0, offset).toString('utf8');
 		const end = raw.lastIndexOf('\x1b[?2026l'), start = raw.lastIndexOf('\x1b[?2026h', end);
 		expect(start).toBeGreaterThanOrEqual(0);
-		const richFrame = raw.slice(start, end);
+		// Incremental paints may update only the composer at the last checkpoint.
+		// Inspect paints in this terminal session; the visible-row assertions above
+		// establish that the styled heading is still on screen.
+		const richFrame = raw.slice(Math.max(0, raw.lastIndexOf('\x1b[?1049h')), end);
 		// eslint-disable-next-line no-control-regex -- Match real terminal bold on the assistant's Markdown, not the chat header.
 		expect(richFrame).toMatch(/\x1b\[1m\x1b\[38;2;\d+;\d+;\d+mNearby classes/);
 		expect(frame('view-calendar')).toContain('Dance fundamentals');
@@ -296,7 +310,7 @@ test('records saved Markdown, linked Fitness views, wiki navigation, and offline
 		const offlineSteps: ProofStep[] = [
 			{name: 'offline-landing', wait_for: 'DAILY INSPIRATION'},
 			{name: 'offline-chat-command', text: '/chat ' + chat.chatId},
-			{name: 'offline-chat-open', key: 'Return', wait_for: 'Dance studio Mitte', hold_ms: 700},
+			{name: 'offline-chat-open', key: 'Return', wait_for: 'Dance studio Mitte', wait_timeout_ms: 30_000, hold_ms: 700},
 			{name: 'offline-map-command', text: '/view 1 map'},
 			{name: 'offline-map', key: 'Return', wait_for: 'Mapped results · Map · 2 results', hold_ms: 500},
 			{name: 'offline-calendar', text: 'c', wait_for: 'Mapped results · Calendar · 2 results', hold_ms: 400},

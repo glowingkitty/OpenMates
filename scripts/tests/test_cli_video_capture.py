@@ -80,64 +80,6 @@ def test_interactive_plan_runs_cli_directly_and_validates_bounded_inputs(tmp_pat
         module.load_input_plan(path)
 
 
-
-def test_settled_screen_markers_preserve_bounded_hold_without_synthetic_input(tmp_path: Path) -> None:
-    module = load_module()
-    path = tmp_path / "settled-input.json"
-    steps = [
-        {"name": "share-open-action", "key": "Return", "wait_for": "Share settings"},
-        {"name": "share-open", "hold_ms": 4000},
-        {"name": "share-qr-open", "hold_ms": 2000},
-        {"name": "settings-closed", "hold_ms": 2500},
-        {"name": "logout-cleared", "hold_ms": 2500},
-    ]
-    path.write_text(json.dumps({"steps": steps}), encoding="utf-8")
-    assert module.load_input_plan(path) == steps
-
-
-
-def test_settled_screen_driver_records_hold_without_new_output_or_synthetic_input(tmp_path: Path, monkeypatch) -> None:
-    from types import SimpleNamespace
-
-    module = load_module()
-    plan = tmp_path / "hold-plan.json"
-    plan.write_text(json.dumps({"steps": [{"name": "settled", "hold_ms": 2500}]}), encoding="utf-8")
-    transcript = tmp_path / "transcript.txt"
-    transcript.write_text("Share settings\n", encoding="utf-8")
-    before = transcript.read_bytes()
-    commands: list[list[str]] = []
-    sleeps: list[float] = []
-
-    def fake_run(argv, **_kwargs):
-        commands.append(argv)
-        return SimpleNamespace(returncode=0, stdout="42\n" if "search" in argv else "", stderr="")
-
-    monkeypatch.setattr(module.subprocess, "run", fake_run)
-    monkeypatch.setattr(module.time, "sleep", sleeps.append)
-    checkpoints = module.drive_terminal_inputs(
-        steps=module.load_input_plan(plan), transcript_path=transcript, display=":91",
-        terminal=SimpleNamespace(poll=lambda: None), started_at=module.time.monotonic(),
-        xdotool_binary="xdotool",
-    )
-    assert 2.5 in sleeps
-    assert transcript.read_bytes() == before
-    assert [(point["name"], point["transcript_offset"]) for point in checkpoints] == [("settled", len(before))]
-    assert not any(action in command for command in commands for action in ["key", "type", "click", "mousedown", "mouseup"])
-    assert sum("windowsize" in command for command in commands) == 1, "only the initial window setup may resize"
-
-
-@pytest.mark.parametrize("hold", [None, 0, -1, True, "4000", 100_000])
-def test_settled_screen_markers_reject_missing_invalid_or_unbounded_holds(tmp_path: Path, hold) -> None:
-    module = load_module()
-    path = tmp_path / "invalid-hold.json"
-    step = {"name": "settled"}
-    if hold is not None:
-        step["hold_ms"] = hold
-    path.write_text(json.dumps({"steps": [step]}), encoding="utf-8")
-    with pytest.raises(module.CliCaptureError):
-        module.load_input_plan(path)
-
-
 def test_pointer_proof_key_sequence_passes_recorder_validation(tmp_path: Path) -> None:
     module = load_module()
     path = tmp_path / "pointer-input.json"
@@ -147,6 +89,21 @@ def test_pointer_proof_key_sequence_passes_recorder_validation(tmp_path: Path) -
         for index, key in enumerate(keys)
     ]}), encoding="utf-8")
     assert [step["key"] for step in module.load_input_plan(path)] == keys
+
+
+def test_render_probe_backspace_repeat_passes_recorder_validation(tmp_path: Path) -> None:
+    module = load_module()
+    path = tmp_path / "render-input.json"
+    path.write_text(json.dumps({"steps": [
+        {"name": "render-draft", "text": "render probe", "wait_for": "render probe"},
+        {"name": "render-scroll-up", "key": "Page_Up", "repeat": 2},
+        {"name": "render-scroll-down", "key": "Page_Down", "repeat": 2},
+        {"name": "render-draft-cleared", "key": "BackSpace", "repeat": 12,
+         "wait_for": "Ask a follow-up", "wait_for_absent": "render probe"},
+    ]}), encoding="utf-8")
+    assert [step["name"] for step in module.load_input_plan(path)] == [
+        "render-draft", "render-scroll-up", "render-scroll-down", "render-draft-cleared",
+    ]
 
 
 def test_interactive_capture_prefers_zutty_and_uses_software_renderer(tmp_path: Path, monkeypatch) -> None:
@@ -297,6 +254,34 @@ def test_click_plan_resolves_visible_cells_and_rejects_ambiguous_targets(tmp_pat
         module.resolve_click_cell(frame[:-8], {"text": "Projects"})
 
 
+def test_click_targets_use_accumulated_rows_after_incremental_and_style_only_paints() -> None:
+    module = load_module()
+    initial = "\x1b[?1049h\x1b[2J" + _screen("漢 Projects".ljust(19), "Style".ljust(20),
+                                           "Card".ljust(20), *([" " * 20] * 2))
+    style = "\x1b[?2026h\x1b[2;1H\x1b[2K\x1b[32mStyle\x1b[0m" + " " * 15 + "\x1b[?2026l"
+    assert module.resolve_click_cell(initial + style, {"text": "Projects"}) == (1, 7, 20, 5)
+    assert module.resolve_click_cell(initial + style, {"text": "Style"}) == (2, 3, 20, 5)
+    assert module.resolve_click_cell(initial + style, {"text": "Card"}) == (3, 2, 20, 5)
+
+
+def test_click_screen_erases_removed_rows_and_resets_on_alt_reentry() -> None:
+    module = load_module()
+    initial = "\x1b[?1049h\x1b[2J" + _screen(*(["Old target".ljust(20)] + [" " * 20] * 5))
+    smaller = _screen(*(["New target".ljust(20)] + [" " * 20] * 4))
+    tail = "\x1b[?2026h\x1b[6;1H\x1b[J\x1b[?2026l"
+    rows, width, height = module._latest_screen(initial + smaller + tail)
+    assert (width, height) == (20, 5)
+    assert rows[0].startswith("New target")
+    repaint = smaller.replace("\x1b[?2026h", "\x1b[?2026h\x1b[2J", 1)
+    repainted_rows, repainted_width, repainted_height = module._latest_screen(initial + repaint)
+    assert (repainted_width, repainted_height) == (20, 5)
+    assert repainted_rows[-1] == " " * 20
+    with pytest.raises(module.CliCaptureError, match="not found"):
+        module.resolve_click_cell(initial + smaller + tail, {"text": "Old target"})
+    reentered = initial + "\x1b[?1049l\x1b[?1049h\x1b[2J" + smaller
+    assert module.resolve_click_cell(reentered, {"text": "New target"}) == (1, 5, 20, 5)
+
+
 @pytest.mark.parametrize("click", [
     {"text": ""}, {"text": "Projects", "occurrence": -1},
     {"text": "Projects", "occurrence": True}, {"text": "Projects", "row": 1},
@@ -437,6 +422,48 @@ def test_interactive_driver_sends_repeated_real_tab_keys(tmp_path: Path, monkeyp
 def test_loading_absence_requires_latest_complete_tui_frame(output: str, ready: bool) -> None:
     module = load_module()
     assert module.input_step_ready(output, "Files", "Refreshing Project…") is ready
+
+
+def test_loading_absence_uses_accumulated_screen_when_only_other_rows_change() -> None:
+    module = load_module()
+    initial = "\x1b[?1049h\x1b[2J" + _screen("Files".ljust(20), "Refreshing Project… ",
+                                           *([" " * 20] * 3))
+    unrelated = "\x1b[?2026h\x1b[3;1H\x1b[2KUpdated" + " " * 13 + "\x1b[?2026l"
+    assert not module.input_step_ready(initial + unrelated, "Files", "Refreshing Project…")
+    settled = "\x1b[?2026h\x1b[2;1H\x1b[2KReady" + " " * 15 + "\x1b[?2026l"
+    assert module.input_step_ready(initial + unrelated + settled, "Files", "Refreshing Project…")
+
+
+def test_current_screen_marker_survives_noop_and_rejects_stale_history() -> None:
+    module = load_module()
+    projects = "\x1b[?1049h\x1b[2J" + _screen("Projects".ljust(20), *([" " * 20] * 4))
+    assert module.input_step_ready(projects, "Projects")
+    apps = "\x1b[?2026h\x1b[1;1H\x1b[2KApps" + " " * 16 + "\x1b[?2026l"
+    assert not module.input_step_ready(projects + apps, "Projects")
+    assert module.input_step_ready(projects + apps, "Apps")
+
+
+def test_interactive_driver_accepts_current_screen_after_noop_input(tmp_path: Path, monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    module = load_module()
+    transcript = tmp_path / "transcript.txt"
+    transcript.write_text("\x1b[?1049h\x1b[2J" + _screen("Projects".ljust(20), *([" " * 20] * 4)), encoding="utf-8")
+
+    def fake_run(argv, **_kwargs):
+        if "search" in argv:
+            return SimpleNamespace(returncode=0, stdout="42\n", stderr="")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+    monkeypatch.setattr(module.time, "sleep", lambda _seconds: None)
+    checkpoints = module.drive_terminal_inputs(
+        steps=[{"name": "ready", "wait_for": "Projects"},
+               {"name": "noop", "key": "Return", "wait_for": "Projects"}],
+        transcript_path=transcript, display=":91", terminal=SimpleNamespace(poll=lambda: None),
+        started_at=module.time.monotonic(), xdotool_binary="xdotool",
+    )
+    assert [checkpoint["name"] for checkpoint in checkpoints] == ["ready", "noop"]
 
 
 def test_interactive_driver_waits_until_loading_disappears(tmp_path: Path, monkeypatch) -> None:

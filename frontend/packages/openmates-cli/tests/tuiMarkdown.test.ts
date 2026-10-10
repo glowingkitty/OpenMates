@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {parseTuiMarkdown, renderTuiMarkdownLines} from '../src/tuiMarkdown.js';
-import {cells, lineText} from '../src/tuiText.js';
+import {cells, graphemeCellWidth, lineText} from '../src/tuiText.js';
 
 const lines = (content:string,width=80,resolveEmbedAlias?: (id:string)=>string|undefined) =>
   renderTuiMarkdownLines(content,width,{resolveEmbedAlias});
@@ -62,4 +62,22 @@ test('invalid references and hostile terminal bytes remain plain safe text',()=>
   assert.ok(output.includes('site (https://example.org/a)'));
   assert.ok(!output.includes('\x1b'));
   assert.ok(!output.includes('\x07'));
+});
+
+// contract-test: supporting surface=cli assertions=terminal-ui.chat.rich-content,terminal-pointer.visible-action-parity
+test('wide graphemes and nested escaped Markdown retain cell widths and trusted actions',()=>{
+  const graphemes:[string,number][]=[['👩‍💻',2],['🇩🇪',2],['1️⃣',2],['e\u0301',1],['漢',2],['\u0301',0]];
+  for(const [grapheme,width] of graphemes){
+    assert.equal(graphemeCellWidth(grapheme),width);
+    assert.equal(cells(grapheme),width);
+  }
+  const content='**👩‍💻🇩🇪1️⃣e\u0301漢 *nested* \\*literal\\*** [Open](wiki:guide) \\[inert](wiki:guide)';
+  const rendered=lines(content,8);
+  assert.ok(rendered.every(line=>cells(lineText(line))<=8));
+  assert.equal(rendered.map(lineText).join(''),'👩‍💻🇩🇪1️⃣e\u0301漢 nested *literal* Open (/wiki guide) [inert](wiki:guide)');
+  const actions=rendered.flatMap(line=>typeof line==='string'?[]:(line.spans??[]).flatMap(span=>span.action?[span.action]:[]));
+  assert.ok(actions.length>0);
+  assert.ok(actions.every(action=>action.kind==='command'&&action.command==='/wiki guide'));
+  assert.equal(lines('```text\n[Open](wiki:guide) 👩‍💻\n```',8).flatMap(line=>
+    typeof line==='string'?[]:(line.spans??[]).filter(span=>span.action)).length,0);
 });

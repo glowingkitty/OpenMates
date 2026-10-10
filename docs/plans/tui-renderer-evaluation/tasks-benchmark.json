@@ -1,0 +1,21 @@
+{
+  "measurement": "Synthetic five-column board frame construction; full feature-equivalent TypeScript before/after; no Rust Kanban comparison.",
+  "results": [
+    {
+      "renderer": "baseline",
+      "tasks": 500,
+      "viewport": "240x70",
+      "coldMs": 194.02,
+      "medianDraftMs": 128.091,
+      "maxDraftMs": 135.741
+    },
+    {
+      "renderer": "optimized",
+      "tasks": 500,
+      "viewport": "240x70",
+      "coldMs": 145.586,
+      "medianDraftMs": 125.714,
+      "maxDraftMs": 146.334
+    }
+  ]
+}

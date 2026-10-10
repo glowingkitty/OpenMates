@@ -35,7 +35,7 @@ KEY_REPEAT_DELAY_MS = 120
 MAX_STEP_WAIT_MS = 30_000
 MAX_STEP_HOLD_MS = 5_000
 MIN_RESIZE_WIDTH, MIN_RESIZE_HEIGHT = 640, 360
-ALLOWED_KEYS = {"Return", "Escape", "Tab", "Up", "Down", "Left", "Right", "space", "alt+h", "ctrl+b", "ctrl+s", "ctrl+c", "ctrl+g", "ctrl+o", "ctrl+p", "ctrl+q", "ctrl+u", "ctrl+y", "shift+Tab", "Home", "End", "Page_Up", "Page_Down"}
+ALLOWED_KEYS = {"Return", "Escape", "Tab", "BackSpace", "Up", "Down", "Left", "Right", "space", "ctrl+b", "ctrl+s", "ctrl+c", "ctrl+g", "ctrl+o", "ctrl+p", "ctrl+q", "ctrl+u", "ctrl+y", "shift+Tab", "Home", "End", "Page_Up", "Page_Down"}
 SECRET_FLAGS = {"--api-key", "--password", "--token", "--secret", "--otp", "--totp"}
 TERMINAL_GEOMETRY = "160x48"
 TERMINAL_FONT_SIZE = "14"
@@ -83,12 +83,8 @@ def load_input_plan(path: Path) -> list[dict[str, Any]]:
             raise CliCaptureError("Terminal input step names must be unique slugs")
         names.add(name)
         input_count = sum(field in step for field in ("text", "key", "wheel", "click", "resize"))
-        # A named hold after a ready action records a settled screen without
-        # requiring output to be emitted again or sending a synthetic input.
-        hold = step.get("hold_ms")
-        hold_marker = isinstance(hold, int) and not isinstance(hold, bool) and hold > 0
-        if input_count != 1 and not (input_count == 0 and ("wait_for" in step or hold_marker)):
-            raise CliCaptureError(f"Step {name} needs exactly one input, a wait_for marker or a positive bounded hold")
+        if input_count != 1 and not (input_count == 0 and "wait_for" in step):
+            raise CliCaptureError(f"Step {name} needs exactly one input, or only a wait_for marker")
         if "text" in step:
             value = step["text"]
             if not isinstance(value, str) or not value or len(value) > 256 or "\n" in value or "\r" in value:
@@ -134,12 +130,22 @@ def load_input_plan(path: Path) -> list[dict[str, Any]]:
 
 
 def input_step_ready(output: str, marker: str, absent_marker: str | None = None) -> bool:
-    """Check loading-state absence only in the latest complete TUI frame.
+    """Check markers against the current TUI screen, not historical row writes.
 
     Historical output still contains earlier loading messages, and an unfinished
     synchronized paint must never count as a ready screen.
     """
-    if absent_marker is not None:
+    if re.search(r"\x1b\[\d+;1H\x1b\[2K", output):
+        start = output.rfind("\x1b[?2026h")
+        end = output.rfind("\x1b[?2026l")
+        if start < 0 or end < start:
+            return False
+        try:
+            rows, _, _ = _latest_screen(output)
+        except CliCaptureError:
+            return False
+        output = "\n".join(rows)
+    elif absent_marker is not None:
         start = output.rfind("\x1b[?2026h")
         end = output.rfind("\x1b[?2026l")
         if start < 0 or end < start:
@@ -160,19 +166,62 @@ def _cell_width(text: str) -> int:
 
 
 def _latest_screen(output: str) -> tuple[list[str], int, int]:
-    """Read a complete synchronized terminal paint as padded visible rows."""
-    end = output.rfind("\x1b[?2026l")
-    start = output.rfind("\x1b[?2026h", 0, end)
-    if start < 0 or end < start:
+    """Reconstruct visible rows from completed paints on the current alternate screen."""
+    reset_at = output.rfind("\x1b[?1049h")
+    output = output[max(0, reset_at):]
+    frames = list(re.finditer(r"\x1b\[\?2026h(.*?)\x1b\[\?2026l", output, re.DOTALL))
+    if not frames:
         raise CliCaptureError("Click target requires a complete terminal frame")
-    writes = re.findall(r"\x1b\[(\d+);1H\x1b\[2K([\s\S]*?)(?=\x1b\[\d+;1H|$)", output[start + 8:end])
-    if not writes:
+    screen: dict[int, str] = {}
+    previous_end = 0
+    for frame in frames:
+        if "\x1b[2J" in output[previous_end:frame.start()]:
+            screen.clear()
+        body = frame.group(1)
+        row = 0
+        writing = False
+        content = ""
+        offset = 0
+
+        def finish_row() -> None:
+            nonlocal writing, content
+            if writing and row > 0:
+                screen[row] = content
+            writing = False
+            content = ""
+
+        for control in re.finditer(r"\x1b\[[0-?]*[ -/]*[@-~]", body):
+            code = control.group()
+            if writing:
+                content += body[offset:control.start()]
+            address = re.fullmatch(r"\x1b\[(\d+);(\d+)H", code)
+            if address:
+                finish_row()
+                row = int(address.group(1)) if int(address.group(2)) == 1 else 0
+            elif code == "\x1b[2K" and row > 0:
+                writing = True
+                content = ""
+            elif code == "\x1b[J" and row > 0:
+                finish_row()
+                screen = {number: value for number, value in screen.items() if number < row}
+                row = 0
+            elif code == "\x1b[2J":
+                finish_row()
+                screen.clear()
+                row = 0
+            elif writing:
+                content += code
+            offset = control.end()
+        if writing:
+            content += body[offset:]
+        finish_row()
+        previous_end = frame.end()
+    if not screen:
         raise CliCaptureError("Click target frame has no terminal rows")
-    rows_by_number = {int(number): ANSI_ESCAPE_RE.sub("", content).replace("\r", "") for number, content in writes}
-    height = max(rows_by_number)
-    if sorted(rows_by_number) != list(range(1, height + 1)):
+    height = max(screen)
+    if sorted(screen) != list(range(1, height + 1)):
         raise CliCaptureError("Click target frame is missing terminal rows")
-    rows = [rows_by_number[number] for number in range(1, height + 1)]
+    rows = [ANSI_ESCAPE_RE.sub("", screen[number]).replace("\r", "") for number in range(1, height + 1)]
     width = max(map(_cell_width, rows))
     if width < 20 or height < 5 or any(_cell_width(row) != width for row in rows):
         raise CliCaptureError("Click target frame has inconsistent terminal geometry")
@@ -258,8 +307,9 @@ def drive_terminal_inputs(
         if time.monotonic() >= capture_deadline:
             raise CliCaptureError(f"Terminal input budget expired before step {step['name']}")
         # The first readiness marker may have been rendered while the X window
-        # was discovered and focused. Inputs and later markers must still see
-        # only output produced after their step begins.
+        # was discovered and focused. Plain-output steps use only fresh bytes;
+        # a TUI step checks the current reconstructed screen so a no-op click
+        # can retain its already-visible marker without matching stale history.
         initial_readiness = index == 0 and "wait_for" in step and all(field not in step for field in ("text", "key", "wheel", "click", "resize"))
         start_offset = 0 if initial_readiness else (transcript_path.stat().st_size if transcript_path.exists() else 0)
         pointer_details: dict[str, Any] | None = None
@@ -312,8 +362,9 @@ def drive_terminal_inputs(
                     raise CliCaptureError(f"Terminal exited while waiting for {step['name']}")
                 if transcript_path.exists():
                     with transcript_path.open("rb") as handle:
-                        handle.seek(start_offset)
-                        output = handle.read().decode("utf-8", errors="replace")
+                        transcript = handle.read()
+                    current_screen = b"\x1b[?2026h" in transcript and b"\x1b[2K" in transcript
+                    output = (transcript if current_screen else transcript[start_offset:]).decode("utf-8", errors="replace")
                     if input_step_ready(output, marker, absent_marker):
                         break
                 time.sleep(0.05)

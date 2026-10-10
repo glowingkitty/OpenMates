@@ -1,0 +1,21 @@
+schema_version: 2
+profile: concise
+id: tui-renderer-evaluation
+title: TUI renderer performance and Ratatui experiment
+status: implementing
+goal: "Optimize the current TUI, build a small Ratatui prototype, compare both on the same workloads, then recommend next steps."
+scope:
+  - Preserve feature.terminal-ui behavior and the default TypeScript client.
+  - Bound chat Markdown/layout caching to the active owner and invalidate on relevant changes.
+  - Incremental terminal painting with bounded backpressure and correct lifecycle cleanup.
+  - Experimental Ratatui chat, composer, sidebar and embed carousel through private process pipes.
+  - Synthetic repeatable benchmarks; report scope and limitations without extrapolating a full-port speedup.
+checks:
+  - Focused TypeScript render, lifecycle, pointer and cache regression checks.
+  - Rust formatting, lint, unit tests and release build.
+  - Existing rich-chat isolated GitHub TUI proof with added rapid input/scroll coverage.
+  - Shared-workload benchmark covering cold and warm rendering, output bytes and process memory.
+decisions:
+  - Existing authentication, encryption and offline-cache authority remain in TypeScript.
+  - Rust remains an opt-in developer experiment, outside the default npm CLI.
+  - No new product specification or backend semantics are introduced.

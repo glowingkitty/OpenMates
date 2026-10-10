@@ -6,7 +6,8 @@ export function stripAnsi(value: string): string { return value.replace(/\x1b(?:
 export function terminalText(value: string): string {
   return stripAnsi(value).replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, "").replace(/\t/g, "  ");
 }
-function graphemeWidth(value: string): number {
+/** Width of one already-segmented grapheme. Callers must segment full text first. */
+export function graphemeCellWidth(value: string): number {
   if (/^[\p{Mark}\p{Cf}]+$/u.test(value)) return 0;
   const cp = value.codePointAt(0) ?? 0;
   if (/\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20e3/u.test(value)) return 2;
@@ -17,7 +18,9 @@ function graphemeWidth(value: string): number {
     (cp >= 0xffe0 && cp <= 0xffe6) || (cp >= 0x20000 && cp <= 0x3fffd)) ? 2 : 1;
 }
 export function cells(value: string): number {
-  return [...segments.segment(stripAnsi(value))].reduce((n, item) => n + graphemeWidth(item.segment), 0);
+  let width=0;
+  for(const {segment} of segments.segment(stripAnsi(value)))width+=graphemeCellWidth(segment);
+  return width;
 }
 export function truncateCells(value: string, width: number, ellipsis = "…"): string {
   const clean = terminalText(value).replace(/\n/g, " ");
@@ -25,7 +28,7 @@ export function truncateCells(value: string, width: number, ellipsis = "…"): s
   const available = Math.max(0, width - cells(ellipsis));
   let result = "", used = 0;
   for (const { segment } of segments.segment(clean)) {
-    const size = graphemeWidth(segment);
+    const size = graphemeCellWidth(segment);
     if (used + size > available) break;
     result += segment; used += size;
   }
@@ -41,7 +44,7 @@ export function sliceCells(value: string, start: number, width: number): string 
   const end = start + width;
   let position = 0, result = "";
   for (const { segment } of segments.segment(terminalText(value).replace(/\n/g, " "))) {
-    const size = graphemeWidth(segment), next = position + size;
+    const size = graphemeCellWidth(segment), next = position + size;
     if (next > start && position < end) {
       result += position >= start && next <= end ? segment : " ".repeat(Math.min(end, next) - Math.max(start, position));
     }
@@ -56,7 +59,7 @@ export function wrapCells(value: string, width: number): string[] {
   for (const line of terminalText(value).split("\n")) {
     let text = "", used = 0;
     for (const { segment } of segments.segment(line)) {
-      const size = graphemeWidth(segment);
+      const size = graphemeCellWidth(segment);
       if (size > width) { if (text) result.push(text); result.push("?"); text = ""; used = 0; continue; }
       if (used + size > width) { result.push(text); text = ""; used = 0; }
       text += segment; used += size;

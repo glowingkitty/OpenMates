@@ -9,6 +9,7 @@ const {createHash, randomUUID} = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const {getTestAccount} = require('./signup-flow-helpers');
+const {terminalRowsAtCheckpoint} = require('./helpers/terminal-frame');
 const {skipWithoutCredentials} = require('./helpers/env-guard');
 const {
 	createWorkflowCliHome, deleteWorkflowQuietly, loginWorkflowCliViaPair,
@@ -139,12 +140,7 @@ async function captureProof(apiUrl: string, home: string, candidateCli: string, 
 	const segment = (name: string, prior: string) => plain(transcriptBytes.subarray(checkpoint(prior).transcript_offset, checkpoint(name).transcript_offset).toString('utf8'));
 	const frame = (name: string): string[] => {
 		const output = transcriptBytes.subarray(0, checkpoint(name).transcript_offset).toString('utf8');
-		const end = output.lastIndexOf('\x1b[?2026l'), start = output.lastIndexOf('\x1b[?2026h', end);
-		if (start < 0 || end < start) throw new Error(`No complete terminal frame at ${name}`);
-		// eslint-disable-next-line no-control-regex -- Inspect actual synchronized terminal row writes.
-		const rows = [...output.slice(start + 8, end).matchAll(/\x1b\[(\d+);1H\x1b\[2K([\s\S]*?)(?=\x1b\[\d+;1H|$)/g)];
-		if (!rows.length) throw new Error(`No terminal rows at ${name}`);
-		return rows.map((row) => plain(row[2]));
+		return terminalRowsAtCheckpoint(output);
 	};
 	expect(manifest.capture_kind).toBe('real_terminal_screen');
 	expect(manifest.reconstructed).toBe(false);
