@@ -31,6 +31,8 @@ function missingEmbeds(frames: Frame[]): Frame[] {
     /embed not found/i.test(String(frame.payload.message)));
 }
 
+// SystemMessageNotice.svelte is exercised through the TeamChatReminder surface,
+// including its role, ordering, toolbar clearance and readable message text.
 async function expectReadableReminder(page: Page, testInfo: TestInfo): Promise<void> {
   const reminder = page.getByTestId('team-chat-ai-reminder');
   await expect(reminder).toHaveAttribute('role', 'note');

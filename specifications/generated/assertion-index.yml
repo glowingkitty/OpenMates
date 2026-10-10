@@ -99255,7 +99255,7 @@ assertions:
       surface: gui.web
     - &id12605
       path: frontend/apps/web_app/tests/teams-image-upload.spec.ts
-      line: 62
+      line: 64
       name: keeps a pending Team image local, then shares the encrypted image with
         a member after reload
       surface: gui.web
@@ -100464,7 +100464,7 @@ assertions:
       surface: gui.web
     - &id12709
       path: frontend/apps/web_app/tests/teams-image-upload.spec.ts
-      line: 62
+      line: 64
       name: keeps a pending Team image local, then shares the encrypted image with
         a member after reload
       surface: gui.web
@@ -101060,7 +101060,7 @@ assertions:
       surface: gui.web
     - &id12814
       path: frontend/apps/web_app/tests/teams-image-upload.spec.ts
-      line: 62
+      line: 64
       name: keeps a pending Team image local, then shares the encrypted image with
         a member after reload
       surface: gui.web
