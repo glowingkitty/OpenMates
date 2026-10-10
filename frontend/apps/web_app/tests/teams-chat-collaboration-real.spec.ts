@@ -475,10 +475,14 @@ test('two Team members exchange encrypted messages and invoke OpenMates with the
     // A normal image message is shared with members, including after cache loss,
     // without invoking AI or charging either account for an inference turn.
     const imageStart = ownerFrames.length;
+    const memberImageStart = memberFrames.length;
     const imageCaption = 'Here is the group photo for our planning conversation.';
     await page.locator('input[type="file"][multiple]').setInputFiles(resolve(__dirname, 'fixtures/humans_group.jpg'));
     const field = page.getByTestId('message-field').last();
     await expect(field.locator('.image-content.clickable')).toBeVisible({ timeout: 90_000 });
+    expect(ownerFrames.slice(imageStart).filter(frame => frame.direction === 'received' &&
+      frame.type === 'error' && /embed not found/i.test(String(frame.payload.message)))).toEqual([]);
+    await expect(page.getByText(/server error: embed not found/i)).not.toBeVisible();
     const editor = field.getByTestId('message-editor');
     await editor.press('Control+End');
     await page.keyboard.insertText(imageCaption);
@@ -498,6 +502,10 @@ test('two Team members exchange encrypted messages and invoke OpenMates with the
     await waitForChatReady(memberPage);
     await expect(memberImage).toBeVisible({ timeout: 60_000 });
     await expect.poll(() => memberImage.evaluate((node: HTMLImageElement) => node.naturalWidth)).toBeGreaterThan(0);
+    for (const [frames, from] of [[ownerFrames, imageStart], [memberFrames, memberImageStart]] as const) {
+      expect(frames.slice(from).filter(frame => frame.direction === 'received' &&
+        frame.type === 'error' && /embed not found/i.test(String(frame.payload.message)))).toEqual([]);
+    }
     expect(ownerFrames.slice(imageStart).some(frame => frame.type === 'team_ai_processing' && frame.payload.chat_id === chatId)).toBe(false);
     expect(await readPersonalCredits(page)).toBe(personalCreditsBefore);
     expect(await readPersonalCredits(memberPage)).toBe(memberPersonalCreditsBefore);
@@ -526,7 +534,7 @@ test('two Team members exchange encrypted messages and invoke OpenMates with the
       // ciphertext, invitation fragments, keys, or complete protocol payloads.
       const relevantTypes = new Set([
         'chat_message_added', 'chat_message_confirmed', 'team_chat_message_created',
-        'chat_turn_preflight', 'team_ai_processing', 'team_ai_response_completed', 'error',
+        'chat_turn_preflight', 'team_ai_processing', 'team_ai_response_completed', 'request_embed', 'error',
         'update_draft', 'delete_draft', 'draft_update_receipt', 'draft_delete_receipt',
         'chat_draft_updated', 'draft_deleted',
       ]);
@@ -542,9 +550,12 @@ test('two Team members exchange encrypted messages and invoke OpenMates with the
           role: frame.payload.message?.role ?? frame.payload.role ?? null,
           sender_hash_present: /^[0-9a-f]{64}$/.test(String(frame.payload.message?.hashed_user_id ?? frame.payload.hashed_user_id ?? '')),
           encrypted_content_present: Boolean(frame.payload.message?.encrypted_content ?? frame.payload.encrypted_content),
+          embed_id_hash: proofId(frame.payload.embed_id)
+            ? createHash('sha256').update(String(frame.payload.embed_id)).digest('hex') : null,
           ai_invocation_present: Boolean(frame.payload.team_ai_invocation ?? frame.payload.inference_request?.team_ai_invocation),
           error_kind: frame.type === 'error'
-            ? (/permission/i.test(String(frame.payload.message)) ? 'permission' : 'other') : null,
+            ? (/embed not found/i.test(String(frame.payload.message)) ? 'embed_not_found'
+              : /permission/i.test(String(frame.payload.message)) ? 'permission' : 'other') : null,
         })),
       );
       await writeFile(protocolPath, JSON.stringify({ schema_version: 1, events: summaries }), { mode: 0o600, flag: 'wx' });

@@ -428,11 +428,16 @@ export class ImageRenderer implements EmbedRenderer {
       // This ensures the subtitle shows "JPEG · 1.2 MB" in both upload and received contexts.
       const fileSize = attrs.originalFile?.size ?? attrs.fileSize;
       const fileType = attrs.originalFile?.type ?? attrs.fileType;
+      // attrs.id identifies the editor node. Once upload finishes, the embed
+      // record lives under uploadEmbedId/contentRef instead of that local UUID.
+      const persistedEmbedId = attrs.uploadEmbedId ||
+        (attrs.contentRef?.startsWith("embed:") ? attrs.contentRef.slice("embed:".length) : null);
 
       const component = mount(ImageEmbedPreview, {
         target: content,
         props: {
-          id: attrs.id || "",
+          id: persistedEmbedId || attrs.id || "",
+          localOnly: Boolean(attrs.src || attrs.needsSignup),
           filename: attrs.filename,
           status: (attrs.status || "finished") as
             | "uploading"

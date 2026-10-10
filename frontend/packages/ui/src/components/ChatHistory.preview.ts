@@ -5,6 +5,14 @@
  * Toggling selection is local; fixtures must never confirm or reject remotely.
  * Architecture: docs/plans/memory-consent-convergence/plan.yml
  */
+import { activeTeamContext } from '../stores/teamStore';
+
+export const layout = 'fill';
+
+if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('variant') === 'teamReminder') {
+  activeTeamContext.set({ team: null, teamId: 'preview-team-reminder', epoch: 1 });
+}
+
 const chatId = "preview-memory-consent";
 const requestId = "preview-memory-request";
 const userId = "preview-memory-user";
@@ -18,6 +26,10 @@ const known = request("preview-web-request", 1);
 const props = { currentChatId: chatId, chatTitle: "Writing preferences", chatCategory: "general_knowledge", canAnnotate: false, isExampleChat: true, sourceMessages: [user, unknown, known] };
 export default props;
 export const variants = {
+  teamReminder: { ...props, isExampleChat: false, chatTitle: 'Volunteer planning', sourceMessages: [
+    { ...user, sender_name: 'Alex', content: 'I will check the venue near Alexanderplatz.' },
+    { ...user, message_id: 'preview-second-human', sender_name: 'Bea', content: 'I will prepare the invitation for our volunteers.', created_at: timestamp + 1 },
+  ] },
   reversed: { ...props, sourceMessages: [user, known, unknown] },
   draftOnly: { ...props, isDraftOnly: true, chatTitle: '{"type":"image","embed_id":"fictional-image"}', sourceMessages: [] },
   titlePending: { ...props, chatTitle: '', provisionalChatTitle: user.content, isNewChatGeneratingTitle: true, sourceMessages: [user] },

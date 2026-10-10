@@ -2,7 +2,7 @@
   import { text } from '../../i18n/translations';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
   import { panelState } from '../../stores/panelStateStore';
-  import SettingsInfoBox from '../settings/elements/SettingsInfoBox.svelte';
+  import SystemMessageNotice from '../SystemMessageNotice.svelte';
 
   const parts = $derived($text('settings.teams_ui.chat_ai_reminder').split('@openmates'));
   function openMates(): void {
@@ -11,12 +11,15 @@
   }
 </script>
 
-<SettingsInfoBox type="info" plain data-testid="team-chat-ai-reminder">
-  <p>{parts[0]}<button type="button" class="mate-link" data-testid="team-reminder-openmates" onclick={openMates}>@openmates</button>{parts.slice(1).join('@openmates')}</p>
-</SettingsInfoBox>
+<div class="chat-message system">
+  <SystemMessageNotice testId="team-chat-ai-reminder">
+    <p>{parts[0]}<button type="button" class="mate-link" data-testid="team-reminder-openmates" onclick={openMates}>@openmates</button>{parts.slice(1).join('@openmates')}</p>
+  </SystemMessageNotice>
+</div>
 
 <style>
   p { margin: 0; }
+  .chat-message.system { display: flex; justify-content: center; padding: var(--spacing-4) 0; }
   .mate-link {
     border: 0;
     padding: 0;

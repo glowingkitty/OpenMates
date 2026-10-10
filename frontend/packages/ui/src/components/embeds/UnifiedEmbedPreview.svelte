@@ -50,6 +50,8 @@
     id: string;
     /** Reuse card rendering for parent-owned content without an embed record or sync. */
     presentationOnly?: boolean;
+    /** Draft content can be read locally but has no server record to recover yet. */
+    localOnly?: boolean;
     /** App identifier (e.g., 'web', 'videos', 'code') - used for gradient color */
     appId: string;
     /** Skill identifier (e.g., 'search', 'get_transcript') */
@@ -101,6 +103,7 @@
   let {
     id,
     presentationOnly = false,
+    localOnly = false,
     appId,
     skillId,
     skillIconName,
@@ -237,8 +240,10 @@
     try {
       // Use resolveEmbed() which checks both regular embedStore AND exampleChatStore
       // This is essential for demo chats where embeds are stored in a separate store
-      const embedData = await resolveEmbed(id);
-      if (embedData) {
+      const embedData = localOnly
+        ? await (await import('../../services/embedStore')).embedStore.get(`embed:${id}`)
+        : await resolveEmbed(id);
+      if (embedData && typeof embedData !== 'string') {
         
         // Update status from fetched data.
         // CRITICAL: Don't regress from a terminal status back to "processing".
@@ -262,12 +267,12 @@
         if (storeResolved && embedData.status === 'processing') {
           return;
         }
-        if (onEmbedDataUpdated && embedData.content) {
+        if (onEmbedDataUpdated && embedData.content && typeof embedData.content === 'string') {
           const decodedContent = await decodeToonContent(embedData.content);
           if (decodedContent) {
             needsContentRecovery = false; // Content delivered — cancel pending retries
             onEmbedDataUpdated({
-              status: embedData.status || status,
+              status: typeof embedData.status === 'string' ? embedData.status : status,
               decodedContent
             });
           }
@@ -278,7 +283,7 @@
           // Also handles the editor→read mode transition where the in-memory cache
           // may have been replaced with an encrypted IDB entry that hasn't decrypted yet.
           needsContentRecovery = true;
-          await requestEmbedFromServerOnce(id, 'preview-content-recovery');
+          if (!localOnly) await requestEmbedFromServerOnce(id, 'preview-content-recovery');
         }
       }
     } catch (error) {
@@ -296,7 +301,7 @@
    */
   async function requestStaleEmbedUpdate() {
     // Only request if still processing and not a legacy/synthetic ID
-    if (presentationOnly || status !== 'processing' || id.startsWith('legacy-')) return;
+    if (presentationOnly || localOnly || status !== 'processing' || id.startsWith('legacy-')) return;
 
     await requestEmbedFromServerOnce(id, 'preview-stale-recovery');
   }

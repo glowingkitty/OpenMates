@@ -1,4 +1,4 @@
-import type { Editor } from "@tiptap/core";
+import type { Editor, JSONContent } from "@tiptap/core";
 import { get } from "svelte/store"; // Import get
 import { getTracer } from '../../../services/tracing/setup';
 import { isDesktop } from "../../../utils/platform";
@@ -381,6 +381,17 @@ function resetEditorContent(editor: Editor, shouldKeepFocus?: boolean) {
   }
 }
 
+function setSubmittedEmbedContentRef(
+  document: JSONContent, uploadEmbedId: string, localEmbedId: unknown,
+): void {
+  const attrs = document.attrs;
+  if (document.type === "embed" && attrs &&
+    (attrs.uploadEmbedId === uploadEmbedId || (localEmbedId && attrs.id === localEmbedId))) {
+    attrs.contentRef = `embed:${uploadEmbedId}`;
+  }
+  document.content?.forEach((node) => setSubmittedEmbedContentRef(node, uploadEmbedId, localEmbedId));
+}
+
 /**
  * Guard flag to prevent double-sends on mobile.
  * Mobile browsers (especially Firefox iOS) can fire click/touchend events in rapid succession,
@@ -578,7 +589,10 @@ export async function handleSend(
     return;
   }
   sendInProgress = true;
-  const submittedEditorDoc = editor.state.doc;
+  let submittedEditorDoc = editor.state.doc;
+  // getJSON returns plain content. Keep the click's content separate from later
+  // composer edits, while allowing our own upload metadata to be added below.
+  const submittedEditorContent = structuredClone(editor.getJSON());
   recordSendDebugStep("send_guard_acquired", { currentChatId });
 
   // OTel instrumentation: root span covering the entire send pipeline
@@ -1048,14 +1062,17 @@ export async function handleSend(
       console.debug(
         `[handleSend] Registered uploaded image embed ${uploadEmbedId} in EmbedStore`,
       );
+      setSubmittedEmbedContentRef(submittedEditorContent, uploadEmbedId, attrs.id);
 
       // Update the embed node's contentRef so the serializer emits a proper embed reference
       const { state, dispatch } = editor.view;
       const tr = state.tr;
+      const ownsDocumentBeforeRewrite = state.doc === submittedEditorDoc;
       state.doc.descendants((node, nodePos) => {
         if (
           node.type.name === "embed" &&
-          node.attrs.uploadEmbedId === uploadEmbedId
+          node.attrs.uploadEmbedId === uploadEmbedId &&
+          node.attrs.contentRef !== `embed:${uploadEmbedId}`
         ) {
           tr.setNodeMarkup(nodePos, undefined, {
             ...node.attrs,
@@ -1065,7 +1082,14 @@ export async function handleSend(
         }
         return true;
       });
-      dispatch(tr);
+      if (tr.docChanged) {
+        dispatch(tr);
+        // This transaction is part of preparing the submitted message. Retain
+        // ownership only if no other edit arrived before or during the rewrite.
+        if (ownsDocumentBeforeRewrite && editor.state.doc === tr.doc) {
+          submittedEditorDoc = tr.doc;
+        }
+      }
       }
     }
   } catch (embedRegError) {
@@ -1176,14 +1200,17 @@ export async function handleSend(
       console.debug(
         `[handleSend] Registered audio recording embed ${uploadEmbedId} in EmbedStore`,
       );
+      setSubmittedEmbedContentRef(submittedEditorContent, uploadEmbedId, attrs.id);
 
       // Update the embed node's contentRef so the serializer emits a proper embed reference
       const { state: recState, dispatch: recDispatch } = editor.view;
       const recTr = recState.tr;
+      const ownsDocumentBeforeRewrite = recState.doc === submittedEditorDoc;
       recState.doc.descendants((node, nodePos) => {
         if (
           node.type.name === "embed" &&
-          node.attrs.uploadEmbedId === uploadEmbedId
+          node.attrs.uploadEmbedId === uploadEmbedId &&
+          node.attrs.contentRef !== `embed:${uploadEmbedId}`
         ) {
           recTr.setNodeMarkup(nodePos, undefined, {
             ...node.attrs,
@@ -1193,7 +1220,12 @@ export async function handleSend(
         }
         return true;
       });
-      recDispatch(recTr);
+      if (recTr.docChanged) {
+        recDispatch(recTr);
+        if (ownsDocumentBeforeRewrite && editor.state.doc === recTr.doc) {
+          submittedEditorDoc = recTr.doc;
+        }
+      }
       }
     }
   } catch (recEmbedRegError) {
@@ -1210,8 +1242,8 @@ export async function handleSend(
   // a minimal TOON here would overwrite the full OCR cache on the server.
   embedRegSpan.end();
 
-  // Get the TipTap editor content as JSON
-  const editorContent = editor.getJSON();
+  // Serialize the submitted content, excluding edits typed during registration.
+  const editorContent = submittedEditorContent;
   if (
     !editorContent ||
     !editorContent.content ||

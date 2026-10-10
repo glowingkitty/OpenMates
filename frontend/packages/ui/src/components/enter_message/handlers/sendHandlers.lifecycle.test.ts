@@ -43,8 +43,9 @@ const mocks = vi.hoisted(() => {
     hasActualContent: vi.fn(() => true),
     sendTextMessage: vi.fn(),
     clearCurrentDraft: vi.fn(async () => undefined),
+    embedStorePut: vi.fn(async () => undefined),
     refreshAnonymousFreeUsageStatus: vi.fn(async () => ({ active: true, can_send_text: true })),
-    tipTapToCanonicalMarkdown: vi.fn(() => 'Send these attachments'),
+    tipTapToCanonicalMarkdown: vi.fn((_content: unknown) => 'Send these attachments'),
     consumeClickedSuggestion: vi.fn(() => null),
     extractProjectFocusSendIntent: vi.fn(() => null),
     wrapTeamChatKey: vi.fn(async () => 'team-wrapped-key'),
@@ -67,6 +68,7 @@ vi.mock('../../../stores/websocketStatusStore', () => ({ websocketStatus: mocks.
 vi.mock('../utils', () => ({ hasActualContent: mocks.hasActualContent, vibrateMessageField: vi.fn() }));
 vi.mock('../../../services/drafts/draftState', () => ({ draftEditorUIState: { subscribe(run: (state: typeof mocks.draftState) => void) { run(mocks.draftState); return () => undefined; }, update: vi.fn() } }));
 vi.mock('../../../services/drafts/draftSave', () => ({ clearCurrentDraft: mocks.clearCurrentDraft, saveDraftDebounced: { cancel: vi.fn() } }));
+vi.mock('../../../services/embedStore', () => ({ embedStore: { put: mocks.embedStorePut, registerEmbedRef: vi.fn() } }));
 vi.mock('../../../message_parsing/serializers', () => ({ tipTapToCanonicalMarkdown: mocks.tipTapToCanonicalMarkdown }));
 vi.mock('../../../services/anonymousChatStorage', () => ({
   AnonymousFreeUsageExhaustedError: class AnonymousFreeUsageExhaustedError extends Error {},
@@ -129,6 +131,52 @@ function makeEditor() {
     commands: { clearContent, blur, focus: vi.fn() },
   };
   return { editor: editor as unknown as Editor, document, clearContent, blur };
+}
+
+function makeUploadedImageEditor(contentRef: string | null = null) {
+  type Node = { type: string; attrs?: Record<string, unknown>; content?: Array<{ type: string; text: string }> };
+  type Document = { type: string; content: Node[]; descendants: (callback: (node: { type: { name: string }; attrs: Record<string, unknown> }, pos: number) => boolean) => void };
+  const makeDocument = (content: Node[]): Document => ({
+    type: 'doc', content,
+    descendants(callback) {
+      this.content.forEach((node, pos) => {
+        if (node.type === 'embed') callback({ type: { name: node.type }, attrs: node.attrs ?? {} }, pos);
+      });
+    },
+  });
+  const initialDocument = makeDocument([
+    { type: 'paragraph', content: [{ type: 'text', text: 'Team photo' }] },
+    { type: 'embed', attrs: { id: 'local-image', type: 'image', status: 'finished', uploadEmbedId: 'uploaded-image', contentRef } },
+  ]);
+  const state = { doc: initialDocument };
+  const clearContent = vi.fn(() => { state.doc = makeDocument([]); });
+  const blur = vi.fn();
+  const viewDispatch = vi.fn((tr: { doc: Document }) => { state.doc = tr.doc; });
+  const editor = {
+    isDestroyed: false, isEmpty: false, state,
+    getText: vi.fn(() => 'Team photo'),
+    getJSON: vi.fn(() => ({ type: 'doc', content: structuredClone(state.doc.content) })),
+    view: {
+      get state() {
+        const tr = {
+          doc: state.doc, docChanged: false,
+          setNodeMarkup(pos: number, _type: unknown, attrs: Record<string, unknown>) {
+            const content = this.doc.content.map((node, index) => index === pos ? { ...node, attrs } : node);
+            this.doc = makeDocument(content);
+            this.docChanged = true;
+          },
+        };
+        return { doc: state.doc, tr };
+      },
+      dispatch: viewDispatch,
+    },
+    commands: { clearContent, blur, focus: vi.fn() },
+  };
+  const editDocument = () => {
+    state.doc = makeDocument([...state.doc.content,
+      { type: 'paragraph', content: [{ type: 'text', text: 'New thought while sending' }] }]);
+  };
+  return { editor: editor as unknown as Editor, state, clearContent, blur, editDocument, viewDispatch };
 }
 
 async function waitForTransportCall() {
@@ -286,6 +334,61 @@ describe('handleSend authenticated acceptance lifecycle', () => {
     expect(blur).toHaveBeenCalledOnce();
     expect(setHasContent).toHaveBeenCalledWith(false);
     expect(mocks.clearCurrentDraft).toHaveBeenCalledOnce();
+  });
+
+  // contract-test: direct surface=gui.web assertions=message-input.send.ownership
+  it('clears an uploaded image after its own metadata rewrite and accepted send', async () => {
+    mocks.chatSyncService.sendNewMessage.mockResolvedValue(undefined);
+    mocks.tipTapToCanonicalMarkdown.mockImplementation((content) =>
+      String((content as { content: Array<{ attrs?: Record<string, unknown> }> }).content[1].attrs?.contentRef));
+    const { editor, clearContent, blur, viewDispatch } = makeUploadedImageEditor();
+
+    expect(await handleSend(editor, vi.fn(), vi.fn(), 'chat-auth')).toBe(true);
+
+    expect(mocks.embedStorePut).toHaveBeenCalledOnce();
+    expect(viewDispatch).toHaveBeenCalledOnce();
+    expect(mocks.chatSyncService.sendNewMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ content: 'embed:uploaded-image' }),
+      null, undefined, undefined, false,
+    );
+    expect(clearContent).toHaveBeenCalledWith(false);
+    expect(blur).toHaveBeenCalledOnce();
+    expect(mocks.clearCurrentDraft).toHaveBeenCalledOnce();
+  });
+
+  // contract-test: direct surface=gui.web assertions=message-input.send.ownership
+  it('does not rewrite an image node whose submitted contentRef is already current', async () => {
+    mocks.chatSyncService.sendNewMessage.mockResolvedValue(undefined);
+    const { editor, clearContent, viewDispatch } = makeUploadedImageEditor('embed:uploaded-image');
+
+    expect(await handleSend(editor, vi.fn(), vi.fn(), 'chat-auth')).toBe(true);
+    expect(viewDispatch).not.toHaveBeenCalled();
+    expect(clearContent).toHaveBeenCalledWith(false);
+  });
+
+  // contract-test: direct surface=gui.web assertions=message-input.send.ownership
+  it('keeps a user edit made during image registration after the accepted send', async () => {
+    let finishRegistration!: () => void;
+    mocks.embedStorePut.mockImplementationOnce(() => new Promise<void>((resolve) => { finishRegistration = resolve; }));
+    mocks.chatSyncService.sendNewMessage.mockResolvedValue(undefined);
+    mocks.tipTapToCanonicalMarkdown.mockImplementation((content) =>
+      (content as { content: Array<{ content?: Array<{ text: string }> }> }).content
+        .map((node) => node.content?.map((part) => part.text).join('') ?? '').join(''));
+    const { editor, state, clearContent, blur, editDocument } = makeUploadedImageEditor();
+    const pending = handleSend(editor, vi.fn(), vi.fn(), 'chat-auth');
+    await vi.waitFor(() => expect(finishRegistration).toBeDefined());
+    editDocument();
+    finishRegistration();
+
+    expect(await pending).toBe(true);
+    expect(mocks.chatSyncService.sendNewMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ content: 'Team photo' }),
+      null, undefined, undefined, false,
+    );
+    expect(state.doc.content[state.doc.content.length - 1]?.content?.[0].text).toBe('New thought while sending');
+    expect(clearContent).not.toHaveBeenCalled();
+    expect(blur).not.toHaveBeenCalled();
+    expect(mocks.clearCurrentDraft).not.toHaveBeenCalled();
   });
 
   // contract-test: direct surface=gui.web assertions=message-input.send.ownership

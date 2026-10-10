@@ -323,7 +323,8 @@
         "website-public-routes.spec.ts",
         "components/team-openmates-mention-dropdown.spec.ts",
         "components/team-chat-reminder.spec.ts",
-        "components/team-settings-header-member.spec.ts"
+        "components/team-settings-header-member.spec.ts",
+        "components/image-upload-preview.spec.ts"
       ],
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "execution": "e2e"
@@ -341,7 +342,8 @@
       "specs": [
         "apple-ui-contracts.spec.ts",
         "profile-image-recovery.spec.ts",
-        "teams-management-flow.spec.ts"
+        "teams-management-flow.spec.ts",
+        "teams-image-upload.spec.ts"
       ]
     },
     "credential_free_domains": {
@@ -1458,6 +1460,17 @@
         "OPENMATES_TEST_ACCOUNT_OTP_KEY",
         "PLAYWRIGHT_TEST_BASE_URL",
         "PLAYWRIGHT_TEST_API_URL"
+      ]
+    },
+    "teams-stripe-card-dev.spec.ts": {
+      "dependency": "real_stripe_sandbox_settlement",
+      "next_action": "Run directly on dev with an explicitly authorized Stripe sandbox card, a leased disposable Team account and live provider test-mode keys. Refuses CI and verifies exactly-once Team crediting and an invoice PDF; never substitute mocked settlement.",
+      "user_input_required": true,
+      "source_environment_names": [
+        "OPENMATES_TEAM_STRIPE_DEV_PROOF",
+        "OPENMATES_TEST_ACCOUNT_EMAIL",
+        "OPENMATES_TEST_ACCOUNT_PASSWORD",
+        "OPENMATES_TEST_ACCOUNT_OTP_KEY"
       ]
     }
   }

@@ -15,6 +15,13 @@ const defaultProps = {
   onFullscreen: () => {},
 };
 
+const draftImage = {
+  src: "/images/examples/group1.jpg",
+  localOnly: true,
+  fileType: "image/jpeg",
+  fileSize: 27545,
+};
+
 const MEDIA_TEST_KEY = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
 const MEDIA_TEST_NONCE = "AAECAwQFBgcICQoL";
 const mediaFile = {
@@ -63,13 +70,23 @@ export const variants = {
   /** Uploading state */
   uploading: {
     ...defaultProps,
+    ...draftImage,
     id: "preview-image-embed-uploading",
     status: "uploading" as const,
+    onStop: () => {},
+  },
+
+  /** Upload complete in the composer, before its message is persisted. */
+  uploadedDraft: {
+    ...defaultProps,
+    ...draftImage,
+    id: "preview-image-embed-uploaded-draft",
   },
 
   /** Upload error */
   error: {
     ...defaultProps,
+    ...draftImage,
     id: "preview-image-embed-error",
     status: "error" as const,
     uploadError: "Upload failed: file too large (max 10 MB)",

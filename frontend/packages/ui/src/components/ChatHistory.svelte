@@ -2568,7 +2568,7 @@ import { storageArchiveFetch } from "../config/api";
 
   // Scroll position tracking for cross-device sync
   let scrollDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-  let isRestoringScroll = false;
+  let isRestoringScroll = $state(false);
   let scrollFrame: number | null = null;
 
   // Track scroll position with optimized performance using requestAnimationFrame
@@ -2880,6 +2880,7 @@ import { storageArchiveFetch } from "../config/api";
 <div 
     class="chat-history-container"
     data-testid="chat-history-container"
+    data-scroll-state={isRestoringScroll || isScrolling || shouldScrollToNewUserMessage || pendingNewChatScrollMessageId ? 'busy' : 'ready'}
     class:empty={displayMessages.length === 0}
     class:is-at-top={isAtTop}
     bind:this={container}
@@ -2938,6 +2939,7 @@ import { storageArchiveFetch } from "../config/api";
              data-testid="chat-history-content"
               class:has-messages={displayMessages.length > 0}
               class:has-header={showChatHeader}
+              class:has-team-reminder={Boolean($activeTeamId && !isExampleChat && !isSharedChat)}
               data-virtualized={shouldVirtualizeMessages ? 'true' : 'false'}
               data-source-message-count={sourceMessages.length}
               data-rendered-message-count={virtualizedDisplayMessages.length}
@@ -2945,7 +2947,9 @@ import { storageArchiveFetch } from "../config/api";
              onoutroend={handleOutroEnd}>
 
             {#if $activeTeamId && !isExampleChat && !isSharedChat}
-              <TeamChatReminder />
+              <div class="message-wrapper system" data-testid="team-reminder-wrapper">
+                <TeamChatReminder />
+              </div>
             {/if}
 
             {#if isSharedChat && hasOlderMessages}
@@ -3368,7 +3372,7 @@ import { storageArchiveFetch } from "../config/api";
      The banner itself is positioned in-flow (not absolute) so the content's padding-top
      stacks on top of it — we only need the extra padding-top offset removed since
      the banner already occupies the top space. */
-  .chat-history-content.has-messages.has-header {
+  .chat-history-content.has-messages.has-header:not(.has-team-reminder) {
     padding-top: calc(var(--spacing-6) + var(--assistant-speech-overlay-reserve, 0px));
   }
 
@@ -3378,11 +3382,10 @@ import { storageArchiveFetch } from "../config/api";
       padding-inline: 0;
     }
 
-    .chat-history-content.has-messages.has-header {
+    .chat-history-content.has-messages.has-header:not(.has-team-reminder) {
       padding-top: calc(var(--spacing-6) + var(--assistant-speech-overlay-reserve, 0px));
     }
   }
-
 
   /* Permission dialog wrapper - renders as part of chat history */
   /* This allows users to scroll the chat while the dialog is visible */

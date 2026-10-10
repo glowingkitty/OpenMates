@@ -48,7 +48,7 @@ verification:
     - "Team Workflow execution/scheduling and AI-created Team Tasks remain unsupported and fail closed."
     - "Legacy Team Tasks lacking Team-wrapped keys need migration; generic AI Project client authoring remains pending."
     - "Storage billing remains disabled pending validation; cache retention and cold-start offline availability are best effort."
-    - "Live payment-provider settlement and outbound email delivery need separate end-to-end validation."
+    - "Team Stripe test-mode card settlement, exactly-once Team crediting, invoice PDF and outbound email provider acceptance verified on 2026-10-10; recipient inbox delivery and bank-transfer settlement still need live validation."
     - "Broader unchanged type/fixture failures remain outside the focused passing checks; three early CLI terminal captures were unavailable."
 references:
   task: TASK-2788

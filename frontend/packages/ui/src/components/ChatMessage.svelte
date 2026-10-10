@@ -27,6 +27,7 @@
   import Icon from './Icon.svelte';
   import type { MessageStatus, MessageRole, Message } from '../types/chat';
   import FocusPhaseNotice from './FocusPhaseNotice.svelte';
+  import SystemMessageNotice from './SystemMessageNotice.svelte';
   import { parseFocusPhaseEvent } from '../types/focusPhases';
   import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
   import { getModelDisplayName, getModelByNameOrId } from '../utils/modelDisplayName';
@@ -3105,7 +3106,7 @@
         {/if}
       </div>
     {:else}
-    <div class="system-message-notice">
+    <SystemMessageNotice>
       {#if status === 'waiting_for_user' && isCreditsRestored}
         <!-- Credits restored: show positive message + Resend button.
              The original rejection text is replaced so the chat looks clean after recovery. -->
@@ -3165,7 +3166,7 @@
           </button>
         {/if}
       {/if}
-    </div>
+    </SystemMessageNotice>
     {/if}
   </div>
 {:else}
@@ -3813,14 +3814,6 @@
     display: flex;
     justify-content: center;
     padding: 8px 0;
-  }
-
-  .system-message-notice {
-    max-width: 80%;
-    text-align: center;
-    padding: var(--spacing-4) var(--spacing-8);
-    border-radius: var(--radius-5);
-    background: var(--color-grey-10, rgba(255, 255, 255, 0.05));
   }
 
   .system-message-text {
