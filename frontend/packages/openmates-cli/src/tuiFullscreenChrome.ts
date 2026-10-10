@@ -1,3 +1,4 @@
+import {clearTuiSendState} from './tuiStreamingRender.js';
 /** Contextual navigation uses view state, never deletes the underlying object. */
 import type {TuiState, TuiFocus, TuiScreen, TuiWorkspace} from './tuiRenderer.js';
 import type {TuiLine, TuiSpan} from './tuiText.js';
@@ -15,6 +16,7 @@ export function captureTuiView(state:TuiState):TuiViewOrigin {
     input:state.input,inputCursor:state.inputCursor,sidebarOpen:state.sidebarOpen};
 }
 export function restoreTuiView(state:TuiState,origin:TuiViewOrigin):void {
+  clearTuiSendState(state);
   Object.assign(state,origin);state.inputCursor=origin.inputCursor??null;
   state.navigationIndex=['chats','apps','projects','workflows','tasks'].indexOf(state.workspace);
   state.status=null;state.followSelection=false;state.headerActionIndex=0;++state.routeVersion;
@@ -32,6 +34,7 @@ export function closeTuiFullscreen(state:TuiState):boolean {
     return true;
   }
   if(state.screen==='chat'||state.screen==='example'){
+    clearTuiSendState(state);
     if(!state.input.startsWith('/'))state.drafts[state.screen==='example'?`example:${state.activeExample?.chat.id}`:state.activeChatId??'new']=state.input;
     const origin=state.chatOrigin;state.chatOrigin=null;
     state.activeChatId=null;state.activeChat=null;state.activeExample=null;state.messages=[];

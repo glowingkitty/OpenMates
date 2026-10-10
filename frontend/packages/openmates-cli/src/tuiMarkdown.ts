@@ -11,7 +11,9 @@ export type TuiResultsViewBlock = {
 };
 export type TuiMarkdownBlock = {type: 'line'; line: TuiLine} | TuiResultsViewBlock
   | {type:'question';payload:InteractiveQuestionPayload} | {type:'response';payload:InteractiveQuestionAnswer};
-export type TuiMarkdownOptions = {resolveEmbedAlias?: (canonicalId: string) => string | undefined;questionBlocks?:boolean};
+export type TuiMarkdownOptions = {resolveEmbedAlias?: (canonicalId: string) => string | undefined;questionBlocks?:boolean;
+  /** Protocol discovery does not need styled/wrapped ordinary text. */
+  semanticOnly?:boolean};
 
 const ACCENT = '#80caff';
 const LINK = '#85c9e8';
@@ -166,10 +168,11 @@ export function parseTuiMarkdown(content: string, width: number, options: TuiMar
         output.push(resultView(body)); index = next; continue;
       }
       // Ordinary and malformed code fences stay literal, including their delimiters.
-      for (const line of rows.slice(index, Math.min(next + 1, rows.length)))
+      for (const line of options.semanticOnly?[]:rows.slice(index, Math.min(next + 1, rows.length)))
         output.push(...wrapped([{text: terminalText(line), color: CODE}], width).map(line => ({type: 'line' as const, line})));
       index = next; continue;
     }
+    if(options.semanticOnly)continue;
     const heading = /^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$/.exec(row);
     if (heading && output.length && output.at(-1)?.type === 'line' && (output.at(-1) as {line:TuiLine}).line !== '') {
       const previous = output.at(-1) as {line:TuiLine};

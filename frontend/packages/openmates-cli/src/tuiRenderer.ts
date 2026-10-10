@@ -42,6 +42,8 @@ import type {TuiModelSelectorState} from './tuiModelSelector.js';
 import type {TuiChromeState} from './tuiHeaderActions.js';
 import {fullscreenHeaderLines,type TuiViewOrigin} from './tuiFullscreenChrome.js';
 import {beginPointerFrame,pointerLine} from './tuiPointer.js';
+import {clearTuiStreamingFrame,isTuiStreamingGlow,rememberTuiStreamingFrame,renderTuiThinking,renderTuiStreamingGlow,tuiResponsePhase} from './tuiStreamingRender.js';
+export {renderTuiStreamingAnimationFrame} from './tuiStreamingRender.js';
 
 export type TuiScreen = "start" | "help" | "interests" | "examples" | "example" | "chats" | "chat" | "embed" | "results-view" | "apps" | "app" | "app-skill" | "app-result" | "projects" | "project" | "workflows" | "workflow" | "tasks" | "task" | "status";
 export type TuiWorkspace = "chats" | "apps" | "projects" | "tasks" | "workflows";
@@ -51,6 +53,10 @@ export type TuiMessage = {
   id?: string;
   role: "user" | "assistant" | "system";
   content: string;
+  modelName?: string | null;
+  thinkingContent?:string;
+  thinkingActive?:boolean;
+  thinkingExpanded?:boolean;
   title?: string | null;
   remoteUser?: boolean;
   senderUserHash?: string | null;
@@ -183,6 +189,8 @@ export type TuiState = {
   status: string | null;
   isBusy: boolean;
   isAwaitingAi: boolean;
+  streamingMessage: TuiMessage | null;
+  streamingPhase: number;
 };
 
 const CONTENT_PREVIEW_LINES = 12;
@@ -245,6 +253,8 @@ export function createInitialTuiState(): TuiState {
     status: null,
     isBusy: false,
     isAwaitingAi: false,
+    streamingMessage: null,
+    streamingPhase: 0,
   };
 }
 
@@ -312,7 +322,8 @@ export function resetEndedTuiSession(state: TuiState, hasSession: boolean): bool
   return true;
 }
 
-export function renderTuiFrame(state: TuiState, width: number, height: number, options: { colorMode?: TuiColorMode; ascii?: boolean } = {}): string {
+export function renderTuiFrame(state: TuiState, width: number, height: number, options: { colorMode?: TuiColorMode; ascii?: boolean; reducedMotion?:boolean } = {}): string {
+  clearTuiStreamingFrame(state);
   if(state.screen!=='chat')clearChatRenderCache(state);
   fenceTuiSettingsView(state);
   beginPointerFrame(state,width,height);
@@ -325,8 +336,12 @@ export function renderTuiFrame(state: TuiState, width: number, height: number, o
     state.screen==="app"&&state.activeApp?renderTuiAppIdentity(state.activeApp,bodyWidth).length+renderTuiAppTabs(state.appTab,bodyWidth).length:
     state.screen==="app-skill"&&state.activeAppSkill?renderTuiAppsSkillIdentity(state.activeAppSkill,bodyWidth).length+renderTuiAppsSkillTabs(state.appSkillTab,bodyWidth).length:
     state.screen==="workflow"&&state.activeWorkflow?renderWorkflowIdentity(state.activeWorkflow,{width:bodyWidth,run:state.workflowTab==="runs"?state.workflowRuns[state.selectedWorkflowRunIndex]:undefined}).length+(bodyWidth<36?7:4):0;
-  return renderWorkspaceFrame(state, width, height, [...header,...teamBanner,...renderBody(state, bodyWidth,height,embedHero??undefined)],
-    { ...options,stickyRows:stickyRows+header.length+teamBanner.length,stickyFallbackRows:embedHero?header.length+teamBanner.length:undefined });
+  let glow:{row:number;rendered:string;line:string}|undefined;
+  const frame=renderWorkspaceFrame(state, width, height, [...header,...teamBanner,...renderBody(state, bodyWidth,height,embedHero??undefined)],
+    { ...options,stickyRows:stickyRows+header.length+teamBanner.length,stickyFallbackRows:embedHero?header.length+teamBanner.length:undefined,
+      onBodyLine:(value,row,rendered,line)=>{if(isTuiStreamingGlow(value))glow={row,rendered,line};} });
+  rememberTuiStreamingFrame(state,frame,width,height,bodyWidth,glow,options);
+  return frame;
 }
 
 function teamIdentityLabel(state:TuiState):string {
@@ -427,7 +442,7 @@ function renderScreenBody(state: TuiState, width: number,height:number,embedHero
       return [...homeHeader(state,width,height),...renderProjectCarousel(filteredProjects(state.projects,state.filter),width,state.selectedIndex,state.focus==='content')];
     case "project":
       return state.activeProject ? state.projectTab === "tasks"
-        ? [...renderProjectIdentity(state.activeProject,{width}),...renderProjectPointerTabs("tasks",width),"",...renderTaskBoard(state.tasks, { width, selectedTaskId: filterTasks(state.tasks, state.filter)[state.selectedIndex]?.taskId, query: state.filter })]
+        ? [...renderProjectIdentity(state.activeProject,{width}),...renderProjectPointerTabs("tasks",width),"",...renderTaskBoard(state.tasks, { width, selectedTaskId: filterTasks(state.tasks, state.filter)[state.selectedIndex]?.taskId, query: state.filter, viewport: taskViewport(state,height,renderProjectIdentity(state.activeProject,{width}).length+renderProjectPointerTabs("tasks",width).length+1) })]
         : renderProjectDetail(state.activeProject, { width, tab: state.projectTab, files: state.projectFiles, selectedFileId: filteredProjectFiles(state.projectFiles,state.filter)[state.selectedIndex]?.id, query: state.filter, folderId:state.projectFolderId??undefined, sourceId:state.projectSourceId??undefined, path:state.projectPath }) : ["Projects", "Loading project…"];
     case "status":
       return renderStatus(state, width);
@@ -454,9 +469,9 @@ function renderScreenBody(state: TuiState, width: number,height:number,embedHero
     case "workflow":
       return renderWorkflowDetail(state, width);
     case "tasks":
-      return [...homeHeader(state,width,height),...renderTasks(state, width)];
+      return [...homeHeader(state,width,height),...renderTasks(state, width,height,homeHeader(state,width,height).length)];
     case "task":
-      return renderTaskDetail(state, width);
+      return renderTaskDetail(state, width,height);
     case "start":
     default:
       return [...renderHomeChatCards(state,width,height),...(state.signedIn && state.activeTeamId ? ['',teamAiReminder()] : [])];
@@ -498,12 +513,19 @@ function renderHelp(width: number): string[] {
   ].flatMap((line) => wrap(line, width));
 }
 
-function renderTasks(state: TuiState, width: number): TuiLine[] {
-  return renderTaskBoard(state.tasks, { width, selectedTaskId: filterTasks(state.tasks, state.filter, (state.taskStatusFilter || undefined) as UserTaskStatus | undefined)[state.selectedIndex]?.taskId, query: state.filter, status: (state.taskStatusFilter || undefined) as UserTaskStatus | undefined });
+// Board coordinates exclude the workspace intro. Small overdraw covers frame
+// chrome; selection jumps explicitly request their own distant card window.
+function taskViewport(state:TuiState,height:number,prefixRows=0):{start:number;end:number;followSelection:boolean} {
+  return {start:Math.max(0,state.scrollOffset-prefixRows-4),end:state.scrollOffset+height+4,
+    followSelection:state.followSelection&&state.focus==="content"};
 }
 
-function renderTaskDetail(state: TuiState, width: number): TuiLine[] {
-  if (!state.activeTask) return renderTasks(state, width);
+function renderTasks(state: TuiState, width: number,height:number,prefixRows=0): TuiLine[] {
+  return renderTaskBoard(state.tasks, { width, selectedTaskId: filterTasks(state.tasks, state.filter, (state.taskStatusFilter || undefined) as UserTaskStatus | undefined)[state.selectedIndex]?.taskId, query: state.filter, status: (state.taskStatusFilter || undefined) as UserTaskStatus | undefined, viewport:taskViewport(state,height,prefixRows) });
+}
+
+function renderTaskDetail(state: TuiState, width: number,height:number): TuiLine[] {
+  if (!state.activeTask) return renderTasks(state, width,height);
   return renderTaskDetails(state.activeTask, { width, activity: state.taskContext?.activity,
     dependencies: state.taskContext?.dependencies, pointer:true });
 }
@@ -604,8 +626,9 @@ function renderExampleChat(state: TuiState, width: number, height: number): TuiL
   return lines.flatMap<TuiLine>(line=>typeof line==='string'?wrap(line,width):[line]);
 }
 
-function renderChat(state: TuiState, width: number, height: number): TuiLine[] {
-  const lines = renderChatHeader(state, width, height);
+/** Tail-first layout keeps cold opens proportional to the viewport. Full history is
+ * available for diagnostics; selection jumps retain the complete marker search. */
+export function renderChat(state: TuiState, width: number, height: number, fullHistory=false): TuiLine[] {
   const embeds = new Map(Object.entries(state.chatEmbeds));
   const cacheContext={owner:JSON.stringify([state.signedIn,state.currentUserHash,state.activeTeamId,state.activeChatId,state.routeVersion]),
     width,aliases:JSON.stringify(state.embedAliases),embeds,frame:{}};
@@ -621,37 +644,74 @@ function renderChat(state: TuiState, width: number, height: number): TuiLine[] {
     if(!firstEmbedChecked){firstEmbedId=chatEmbedReferences(state)[0]?.value;firstEmbedChecked=true;}
     return firstEmbedId;
   };
-  let contextIndex = 0, viewOffset = 0, questionOffset=0;
-  for (const [index,message] of state.messages.entries()) {
-    const event = message.role === "system" ? parseChatContextContent(message.content) : null;
-    if (event) {
-      contextIndex++;
-      lines.push(`${chatContextSummary(event)} · /context ${contextIndex}`);
-      if (event.type === "project_authoring_recommendation") {
-        const job = state.chatContextAuthoringJobs[event.event_id];
-        lines.push(job ? `Authoring: ${job.status} · ${job.status === "needs_write_approval" ? "/authoring-save" : "/authoring-refresh"} ${contextIndex}`
-          : `[${event.action === "create" ? "Create" : "Update"} ${event.kind === "focus" ? "Focus" : "Workflow"}] /focus-author ${contextIndex}`);
-      }
-      lines.push("");
-      continue;
+  // Only protocol discovery touches offscreen messages. It skips text styling and
+  // wrapping, while preserving global /view, /question and /context numbering.
+  let contextIndex=0,viewOffset=0,questionOffset=0;
+  const offsets=state.messages.map(message=>{
+    const event=message.role==='system'?parseChatContextContent(message.content):null;
+    const offset={event,contextIndex:contextIndex+(event?1:0),viewOffset,questionOffset};
+    if(event)contextIndex++;
+    else {
+      viewOffset+=messageResultsViews(message.content).length;
+      if(message.role==='assistant')questionOffset+=messageQuestions(message.content).length;
     }
-    lines.push({text:messageLabel(message.role,message.title,message.category,state.activeChat,message.remoteUser),color:'#5a85eb',bold:true});
-    const questionBlocks=message.role==='assistant';
-    const prepared=cachedChatLayout(state,message,message.content,
-      {...cacheContext,variant:questionBlocks?'questions':'literal-questions',cacheable:cacheable.has(index)},
-      ()=>prepareMessageContent(message.content,width,state,questionBlocks,true));
-    lines.push(...renderPreparedMessageContent(prepared,width,embeds,state,questionBlocks?message.embedIds:undefined,
-      viewOffset,questionOffset,defaultEmbedId));
-    viewOffset += prepared.viewCount;
-    if(questionBlocks)questionOffset+=prepared.questionCount;
-    lines.push("");
+    return offset;
+  });
+  const footer:TuiLine[]=[];
+  if (state.projectFocusPending) footer.push("Project access starts after the countdown. /project-focus-reject to cancel.");
+  if (state.signedIn && state.activeTeamId) footer.push(teamAiReminder());
+  if (state.followUpSuggestions.length) footer.push("", "Suggestions", ...state.followUpSuggestions.slice(0, 3).map((s, i) => `  ${i + 1}. ${s}`));
+  if (state.status) footer.push("", state.status);
+  const wrappedFooter=footer.flatMap<TuiLine>(line=>typeof line==='string'?wrap(line,width):[line]);
+  const blocks:TuiLine[][]=[];
+  let rowCount=wrappedFooter.length;
+  if(state.isAwaitingAi&&!state.streamingMessage?.content.trim()){
+    const mate=messageLabel('assistant',state.streamingMessage?.title,state.streamingMessage?.category,state.activeChat);
+    const waiting=[...renderTuiThinking(mate,width,state.streamingMessage?.modelName),...renderTuiReasoning(state.streamingMessage,width),renderTuiStreamingGlow(width,state.streamingPhase),''];
+    blocks.push(waiting);rowCount+=waiting.length;
   }
-  if (state.projectFocusPending) lines.push("Project access starts after the countdown. /project-focus-reject to cancel.");
-  if (state.isAwaitingAi) lines.push(`${messageLabel('assistant',null,null,state.activeChat)} is typing...`);
-  if (state.signedIn && state.activeTeamId) lines.push(teamAiReminder());
-  if (state.followUpSuggestions.length) lines.push("", "Suggestions", ...state.followUpSuggestions.slice(0, 3).map((s, i) => `  ${i + 1}. ${s}`));
-  if (state.status) lines.push("", state.status);
-  return lines.flatMap<TuiLine>(line=>typeof line==='string'?wrap(line,width):[line]);
+  const budget=Math.max(0,state.scrollOffset)+height+1;
+  for(let index=state.messages.length-1;index>=0;index--){
+    const message=state.messages[index],offset=offsets[index],rows:TuiLine[]=[];
+    if(offset.event){
+      const event=offset.event;
+      rows.push(`${chatContextSummary(event)} · /context ${offset.contextIndex}`);
+      if(event.type==='project_authoring_recommendation'){
+        const job=state.chatContextAuthoringJobs[event.event_id];
+        rows.push(job ? `Authoring: ${job.status} · ${job.status === "needs_write_approval" ? "/authoring-save" : "/authoring-refresh"} ${offset.contextIndex}`
+          : `[${event.action === "create" ? "Create" : "Update"} ${event.kind === "focus" ? "Focus" : "Workflow"}] /focus-author ${offset.contextIndex}`);
+      }
+    }else{
+      if(message===state.streamingMessage&&!message.content.trim())continue;
+      const questionBlocks=message.role==='assistant';
+      const prepared=cachedChatLayout(state,message,message.content,
+        {...cacheContext,variant:questionBlocks?'questions':'literal-questions',cacheable:cacheable.has(index)},
+        ()=>prepareMessageContent(message.content,width,state,questionBlocks));
+      const label=messageLabel(message.role,message.title,message.category,state.activeChat,message.remoteUser);
+      if(state.isAwaitingAi&&message===state.streamingMessage)rows.push(...renderTuiThinking(label,width,message.modelName,message.thinkingActive?'Thinking':tuiResponsePhase(prepared.segments)));
+      else {rows.push({text:label,color:'#5a85eb',bold:true});
+        if(message.role==='assistant'&&message.modelName)rows.push({text:message.modelName,color:'#808080'});}
+      if(message.role==='assistant')rows.push(...renderTuiReasoning(message,width));
+      rows.push(...renderPreparedMessageContent(prepared,width,embeds,state,questionBlocks?message.embedIds:undefined,
+        offset.viewOffset,offset.questionOffset,defaultEmbedId));
+      if(state.isAwaitingAi&&message===state.streamingMessage)rows.push(renderTuiStreamingGlow(width,state.streamingPhase));
+    }
+    rows.push('');
+    const wrapped=rows.flatMap<TuiLine>(line=>typeof line==='string'?wrap(line,width):[line]);
+    blocks.push(wrapped);rowCount+=wrapped.length;
+    // Scroll is measured from the end. An exact suffix longer than this budget
+    // has the same visible rows and offset as the complete transcript.
+    if(!fullHistory&&!(state.followSelection&&state.focus==='content')&&rowCount>=budget)break;
+  }
+  return [...renderChatHeader(state,width,height),...blocks.reverse().flat(),...wrappedFooter];
+}
+
+/** Actual response-wide reasoning is disclosed once, never attributed to a tool cycle. */
+function renderTuiReasoning(message:TuiMessage|null,width:number):TuiLine[] {
+  if(!message?.thinkingContent?.trim())return [];
+  const summary=pointerLine(`✦ Thinking for this response ${message.thinkingExpanded?'▾':'▸'} /thinking`,
+    {kind:'command',command:`/thinking${message.id?' '+message.id:''}`});
+  return [summary,...message.thinkingExpanded?wrap(message.thinkingContent,width).map(text=>({text,color:'#a0a0a0'})):[]];
 }
 
 function teamAiReminder(): string { return 'To ask AI, mention @openmates or a configured Mate.'; }
@@ -717,15 +777,12 @@ export function renderMessageContent(content: string, width: number, embeds: Map
 }
 type PreparedMessageSegment = {type:'embed';value:string;meta?:Record<string,unknown>}
   | {type:'text';value:string;blocks:TuiMarkdownBlock[]};
-type PreparedMessageContent = {segments:PreparedMessageSegment[];viewCount:number;questionCount:number};
-function prepareMessageContent(content:string,width:number,state?:TuiState,questionBlocks=true,countQuestions=false):PreparedMessageContent {
+type PreparedMessageContent = {segments:PreparedMessageSegment[]};
+function prepareMessageContent(content:string,width:number,state?:TuiState,questionBlocks=true):PreparedMessageContent {
   const segments:PreparedMessageSegment[]=parseMessageSegments(content,{preserveCodeFences:true}).map(segment=>
     segment.type==='embed'?segment:{type:'text',value:segment.value,
       blocks:parseTuiMarkdown(segment.value,width,{resolveEmbedAlias:id=>state?aliasForEmbed(state,id):id,questionBlocks})});
-  // Question numbering follows the protocol parser's whole-message interpretation.
-  return {segments,viewCount:segments.reduce((count,segment)=>count+(segment.type==='text'
-    ?segment.blocks.filter(block=>block.type==='results-view').length:0),0),
-    questionCount:countQuestions&&questionBlocks?messageQuestions(content).length:0};
+  return {segments};
 }
 export function renderMessageContentStyled(content: string, width: number, embeds: Map<string, DecryptedEmbed> = new Map(), state?:TuiState,extraIds:string[]=[],viewOffset=0,questionOffset=0,questionBlocks=true): TuiLine[] {
   return renderPreparedMessageContent(prepareMessageContent(content,width,state,questionBlocks),width,embeds,state,

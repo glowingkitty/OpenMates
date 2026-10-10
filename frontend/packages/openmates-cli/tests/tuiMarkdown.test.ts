@@ -81,3 +81,18 @@ test('wide graphemes and nested escaped Markdown retain cell widths and trusted 
   assert.equal(lines('```text\n[Open](wiki:guide) 👩‍💻\n```',8).flatMap(line=>
     typeof line==='string'?[]:(line.spans??[]).filter(span=>span.action)).length,0);
 });
+
+// contract-test: supporting surface=cli assertions=terminal-ui.chat.rich-content
+test('semantic discovery equals the protocol blocks of complete Markdown without wrapping prose',()=>{
+  const samples=[
+    'Text **bold**\n```embeds_results_view\nembeds: one\n```\nAfter',
+    '~~~text\n```interactive_question\n{}\n```\n~~~',
+    '```interactive_question\n'+JSON.stringify({type:'choice',id:'q',question:'Pick',options:[{id:'a',text:'A'}]})+'\n```',
+    '```interactive_response\n{"id":"q","selection":["a"]}\n```',
+    '```interactive_question\nmalformed\n```\n~~~embeds_map_view\nembeds: two',
+    '```interactive_question\n{"id":"q"}',
+  ];
+  for(const content of samples)for(const questionBlocks of [true,false])
+    assert.deepEqual(parseTuiMarkdown(content,8,{semanticOnly:true,questionBlocks}),
+      parseTuiMarkdown(content,8,{questionBlocks}).filter(block=>block.type!=='line'));
+});

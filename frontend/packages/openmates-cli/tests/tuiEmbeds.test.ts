@@ -75,12 +75,15 @@ test('a temporary child hydration failure can be retried using the same shortcut
   let reads=0;const retried=await hydrateFitnessResults(failed,{getEmbed:async()=>{reads++;return {...embed,content:{name:'Recovered class'}};}} as never);
   assert.equal(reads,1);assert.match(JSON.stringify(retried.content),/Recovered class/);assert.ok(!JSON.stringify(retried.content).includes('_tuiUnavailable'));
 });
-test('Escape during a previous reply preserves a new draft when Enter cannot send yet',async()=>{
+test('Escape preserves the old draft and releases send controls for the next chat',async()=>{
   const state=createInitialTuiState();state.screen='chat';state.workspace='chats';state.activeChatId='busy-chat';state.isBusy=true;
-  const ctx=context(state);let sends=0;ctx.send=async()=>{sends++;};
-  await handleWorkspaceKey(ctx,'',{name:'escape'});state.screen='chats';state.focus='composer';state.input='My next question';
-  await handleWorkspaceKey(ctx,'',{name:'return'});assert.equal(sends,0);assert.equal(state.input,'My next question');assert.equal(state.drafts.new,'My next question');
-  state.isBusy=false;await handleWorkspaceKey(ctx,'',{name:'return'});assert.equal(sends,1);
+  state.input='Keep old draft';state.isAwaitingAi=true;state.streamingMessage={role:'assistant',content:'',title:'Old Mate'};
+  const ctx=context(state);const sent:string[]=[];ctx.send=async(message)=>{sent.push(message);};
+  await handleWorkspaceKey(ctx,'',{name:'escape'});
+  assert.equal(state.drafts['busy-chat'],'Keep old draft');assert.equal(state.isBusy,false);
+  assert.equal(state.isAwaitingAi,false);assert.equal(state.streamingMessage,null);
+  state.screen='chats';state.focus='composer';state.input='My next question';
+  await handleWorkspaceKey(ctx,'',{name:'return'});assert.deepEqual(sent,['My next question']);
 });
 test('header title is bold, nav omits chat title and active workspace has a color',()=>{
   const state=createInitialTuiState();state.screen='chat';state.activeChat={id:'saved',title:'Dance plans',category:'medical_health',mateName:'Melvin'} as never;

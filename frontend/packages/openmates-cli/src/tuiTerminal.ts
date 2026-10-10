@@ -42,6 +42,8 @@ export class TuiTerminal {
   private paintedWidth = 0;
   private paintedHeight = 0;
   private outputBlocked = false;
+  /** Animation ticks must not add work while stdout is awaiting drain. */
+  get isOutputBlocked(): boolean { return this.outputBlocked; }
   private pendingFrame: PendingFrame | null = null;
   private readonly outputDrained = () => {
     this.output.off("drain", this.outputDrained);
@@ -88,6 +90,8 @@ export class TuiTerminal {
     const depth = (this.output as WriteStream).getColorDepth?.() ?? 8;
     return depth >= 24 ? "truecolor" : depth >= 8 ? "ansi256" : depth >= 4 ? "ansi16" : "none";
   }
+  /** Explicit terminal preference; GUI OS motion preferences are not available over SSH. */
+  get reducedMotion(): boolean { return process.env.OPENMATES_REDUCED_MOTION === "1"; }
   get ascii(): boolean { return process.env.OPENMATES_ASCII === "1" || process.env.TERM === "dumb"; }
 
   enter(): void {

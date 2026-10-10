@@ -223,6 +223,8 @@ test('records saved Markdown, linked Fitness views, wiki navigation, and offline
 			{name: 'render-draft', text: 'render probe', wait_for: 'render probe', hold_ms: 150},
 			{name: 'render-scroll-up', key: 'Page_Up', repeat: 2, wait_for: 'Find local classes with a map and calendar.', hold_ms: 150},
 			{name: 'render-scroll-down', key: 'Page_Down', repeat: 2, hold_ms: 150},
+			{name: 'render-history-home', key: 'Home', wait_for: 'Find local classes with a map and calendar.', hold_ms: 150},
+			{name: 'render-history-end', key: 'End', wait_for: 'Dance studio Mitte', hold_ms: 150},
 			{name: 'render-draft-cleared', key: 'BackSpace', repeat: 12, wait_for: 'Ask a follow-up', wait_for_absent: 'render probe', hold_ms: 150},
 			{name: 'view-calendar-command', text: '/view 1 calendar'},
 			{name: 'view-calendar', key: 'Return', wait_for: 'Mapped results · Calendar · 2 results', hold_ms: 500},
@@ -253,6 +255,9 @@ test('records saved Markdown, linked Fitness views, wiki navigation, and offline
 		expect(frame('render-draft')).toContain('render probe');
 		expect(frame('render-scroll-down')).toContain('render probe');
 		expect(frame('render-scroll-down')).toContain('Dance studio Mitte');
+		expect(frame('render-history-home')).toContain('Find local classes with a map and calendar.');
+		expect(frame('render-history-end')).toContain('Dance studio Mitte');
+		expect(frame('render-history-end')).toContain('render probe');
 		expect(frame('render-draft-cleared')).not.toContain('render probe');
 		expect(opened).toContain('Find local classes with a map and calendar.');
 		expect(opened).toContain('Saved answer');

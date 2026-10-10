@@ -120,6 +120,85 @@ test("only the selected card has the accented border, background, and title mark
   assert.deepEqual(firstTitle.action,{kind:"select",target:"task",column:1,index:0,id:"task-1",activate:true});
 });
 
+// contract-test: supporting surface=cli assertions=tasks.lifecycle.visible,cli.output.actionable-readable
+test("board viewport preserves row positions, visible styling, and pointer actions at every width", () => {
+  const statuses = ["backlog", "todo", "in_progress", "blocked", "done"] as const;
+  const records = Array.from({length: 60}, (_, index) => task({
+    taskId: `task-${index}`, shortId: `T-${index}`, position: index,
+    status: statuses[index % statuses.length], title: index % 3 === 0 ? `確認 🧪 long task ${index} with wrapped title` : `Task ${index}`,
+    linkedProjectIds: index % 4 === 0 ? ["project"] : [], dueAt: index % 5 === 0 ? 1767225600 : null,
+    priority: index % 7 === 0 ? 2 : 0, priorityLevel: index % 7 === 0 ? "high" : "none",
+    queueState: index % 6 === 0 ? "waiting_for_user" : "none",
+  }));
+  for (const width of [55, 80, 100, 125]) {
+    const options = {width, selectedTaskId: "task-56"};
+    const full = renderTaskBoard(records, options);
+    const viewport = {start: 8, end: 23};
+    const windowed = renderTaskBoard(records, {...options, viewport});
+    assert.equal(windowed.length, full.length, `row count at width ${width}`);
+    assert.deepEqual(windowed.slice(viewport.start, viewport.end), full.slice(viewport.start, viewport.end), `visible rows at width ${width}`);
+    const selectedRow = full.findIndex((line) => lineText(line).includes("› Task 56"));
+    assert.ok(selectedRow > viewport.end, `selected task is outside initial viewport at width ${width}`);
+    assert.deepEqual(windowed.slice(selectedRow - 10, selectedRow + 10), full.slice(selectedRow - 10, selectedRow + 10), `selection scroll rows at width ${width}`);
+    assert.ok(windowed.slice(viewport.end, selectedRow - 15).some((line) => line === ""), `distant rows are placeholders at width ${width}`);
+
+    const scrolling = renderTaskBoard(records, {...options, viewport: {...viewport, followSelection: false}});
+    assert.equal(scrolling.length, full.length);
+    assert.deepEqual(scrolling.slice(viewport.start, viewport.end), full.slice(viewport.start, viewport.end), `scroll rows at width ${width}`);
+    assert.equal(scrolling[selectedRow], "", `offscreen selection is deferred at width ${width}`);
+  }
+});
+
+// contract-test: supporting surface=cli assertions=tasks.lifecycle.visible,cli.output.actionable-readable
+test("board viewport reflects in-place task edits, reordering, filtering, and fresh actions", () => {
+  const records = Array.from({length: 24}, (_, index) => task({taskId: `task-${index}`, shortId: `T-${index}`, title: `Task ${index}`, position: index}));
+  const options = {width: 55, selectedTaskId: "task-20", viewport: {start: 0, end: 12}};
+  const before = renderTaskBoard(records, options);
+  assert.equal(before.length, renderTaskBoard(records, {width: 55, selectedTaskId: "task-20"}).length);
+  records[20].title = "確認 🧪 edited title across cells and enough extra words to wrap onto a second row";
+  records[20].position = -1;
+  records[20].queueState = "waiting_for_user";
+  const full = renderTaskBoard(records, {width: 55, selectedTaskId: "task-20"});
+  const windowed = renderTaskBoard(records, options);
+  assert.ok(full.length > before.length, "in-place title and queue changes update cached card height");
+  assert.equal(windowed.length, full.length);
+  assert.deepEqual(windowed.slice(0, 12), full.slice(0, 12));
+  const selected = windowed.find((line) => lineText(line).includes("› 確認 🧪"));
+  assert.ok(selected && typeof selected !== "string");
+  assert.deepEqual(selected.action, {kind:"select",target:"task",column:1,index:0,id:"task-20",activate:true});
+  assert.match(boardText(windowed), /Q waiting_for_user/);
+  const filtered = renderTaskBoard(records, {...options, query:"edited"});
+  assert.deepEqual(filtered, renderTaskBoard(records, {width:55,selectedTaskId:"task-20",query:"edited"}));
+  assert.ok(filtered.length < before.length);
+});
+
+// contract-test: supporting surface=cli assertions=tasks.lifecycle.visible,cli.output.actionable-readable
+test("board viewport clamps End jumps to complete tail rows", () => {
+  const records = Array.from({length: 34}, (_, index) => task({
+    taskId: `task-${index}`, shortId: `T-${index}`, title: index % 2 ? `確認 🧪 task ${index}` : `Task ${index}`,
+    position: index, queueState: index % 3 === 0 ? "waiting_for_user" : "none",
+  }));
+  for (const width of [55, 125]) {
+    const full = renderTaskBoard(records, {width});
+    const span = 18;
+    assert.ok(full.length > span);
+    const atEnd = renderTaskBoard(records, {width, viewport: {start: 10000, end: 10000 + span}});
+    assert.equal(atEnd.length, full.length);
+    assert.deepEqual(atEnd.slice(-span), full.slice(-span), `tail at width ${width}`);
+    assert.ok(atEnd.slice(8, -span).some((line) => line === ""), `distant rows at width ${width}`);
+
+    const beforeTop = renderTaskBoard(records, {width, viewport: {start: -10, end: 5}});
+    assert.equal(beforeTop.length, full.length);
+    assert.deepEqual(beforeTop.slice(0, 15), full.slice(0, 15), `negative start at width ${width}`);
+  }
+
+  for (const width of [55, 125]) {
+    const full = renderTaskBoard([task()], {width});
+    const atEnd = renderTaskBoard([task()], {width, viewport: {start: 10000, end: 10050}});
+    assert.deepEqual(atEnd, full, `short board at width ${width}`);
+  }
+});
+
 // contract-test: supporting surface=cli assertions=tasks.structure.flat-dependencies,tasks.activity.single-final-section
 test("detail leads with readable task context, relations, and activity", () => {
   const lines = renderTaskDetails(task(), {width: 80, dependencies: {dependencies: [{source_ref: "task:task-1", target_ref: "plan:plan-2"}], blockers: []}, activity: [{entryId: "a", taskId: "task-1", kind: "comment", actorType: "user", actorHash: "", actorIdentity: null, actorDisplayName: "Alice", actorProfileImageUrl: null, authorHash: null, eventType: "", sourceSurface: "", previousStatus: null, nextStatus: null, createdAt: 1, deletedAt: null, deletedByHash: null, deletedByDisplayName: null, message: "Started", embedRefs: []}]}).join("\n");

@@ -63,6 +63,10 @@ export interface StreamEvent {
   modelName: string | null;
   /** Server AI task ID, when present in the stream. Used to request cancellation. */
   taskId?: string;
+  /** Cumulative thinking text received for this response. */
+  thinkingContent?: string;
+  /** Whether the server is currently streaming thinking text. */
+  thinkingActive?: boolean;
 }
 
 export type AiLlmUsageBreakdown = {
@@ -1022,6 +1026,7 @@ export class OpenMatesWsClient {
 
     return new Promise((resolve, reject) => {
       let latestContent = "";
+      let thinkingContent = "";
       let messageId: string | null = null;
       let taskId: string | null = null;
       let category: string | null = null;
@@ -1429,6 +1434,19 @@ export class OpenMatesWsClient {
         resetTimeout(timeoutMs);
       };
 
+      const belongsToResponseTurn = (p: Record<string, unknown>) => {
+        if (p.chat_id !== chatId) return false;
+        const ids = [p.user_message_id, p.userMessageId].filter((id) => id !== undefined);
+        if (ids.length === 0 || ids.every((id) => id === userMessageId)) return true;
+        if (awaitingSubChatsCompletion && p.is_sub_chat_continuation === true) return true;
+        if (awaitingFocusModeContinuation && p.is_focus_mode_continuation === true) return true;
+        if (p.is_async_skill_continuation === true
+          && p.original_user_message_id === userMessageId
+          && typeof p.async_skill_task_id === "string"
+          && (pendingProjectOperations.has(p.async_skill_task_id) || awaitingUnidentifiedAsyncContinuation)) return true;
+        return Boolean(options?.recoveryTurnId && p.recovery_turn_id === options.recoveryTurnId);
+      };
+
       const onMessage = (rawData: RawData) => {
         try {
           const parsed = JSON.parse(rawData.toString()) as WsEnvelope<
@@ -1577,9 +1595,29 @@ export class OpenMatesWsClient {
           }
 
           // Active-chat streaming: incremental chunks
+          if (type === "thinking_chunk" || type === "thinking_complete") {
+            // Thinking is broadcast to every device, so only forward the task
+            // owned by this collector. A continuation can replace that task.
+            if (p.chat_id !== chatId || !taskId || p.task_id !== taskId) return;
+            if (type === "thinking_chunk") {
+              if (typeof p.content !== "string" || !p.content) return;
+              thinkingContent += p.content;
+            }
+            onStream?.({
+              kind: "typing",
+              content: latestContent,
+              category,
+              modelName,
+              taskId,
+              thinkingContent,
+              thinkingActive: type === "thinking_chunk",
+            });
+            return;
+          }
+
+          // Active-chat streaming: incremental chunks
           if (type === "ai_message_update") {
-            const msgId = p.user_message_id ?? p.userMessageId;
-            if (msgId !== userMessageId && p.chat_id !== chatId) return;
+            if (!belongsToResponseTurn(p)) return;
             beginProjectContinuation(p);
             if (activeProjectContinuation && (p.is_async_skill_continuation !== true || p.async_skill_task_id !== activeProjectContinuation)) return;
             if (p.is_focus_mode_continuation === true) beginFocusModeContinuation();
@@ -1603,6 +1641,8 @@ export class OpenMatesWsClient {
                 category,
                 modelName,
                 taskId: taskId ?? undefined,
+                thinkingContent,
+                thinkingActive: false,
               });
               scheduleResolve(latestContent);
             } else {
@@ -1612,6 +1652,8 @@ export class OpenMatesWsClient {
                 category,
                 modelName,
                 taskId: taskId ?? undefined,
+                thinkingContent,
+                thinkingActive: false,
               });
             }
             return;
@@ -1619,9 +1661,7 @@ export class OpenMatesWsClient {
 
           // Background path: single completion event
           if (type === "ai_background_response_completed") {
-            const msgId = p.user_message_id ?? p.userMessageId;
-            if (msgId && msgId !== userMessageId && p.chat_id !== chatId) return;
-            if (!msgId && p.chat_id !== chatId) return;
+            if (!belongsToResponseTurn(p)) return;
             beginProjectContinuation(p);
             if (activeProjectContinuation && (p.is_async_skill_continuation !== true || p.async_skill_task_id !== activeProjectContinuation)) return;
             if (p.is_focus_mode_continuation === true) beginFocusModeContinuation();
@@ -1639,7 +1679,7 @@ export class OpenMatesWsClient {
               awaitingUnidentifiedAsyncContinuation = true;
               resetTimeout(Math.max(timeoutMs, 20 * 60_000 + 5_000));
             }
-            onStream?.({ kind: "done", content, category, modelName, taskId: taskId ?? undefined });
+            onStream?.({ kind: "done", content, category, modelName, taskId: taskId ?? undefined, thinkingContent, thinkingActive: false });
             scheduleResolve(content);
             return;
           }
@@ -1662,16 +1702,22 @@ export class OpenMatesWsClient {
             if (typeof message.model_name === "string" && message.model_name) {
               modelName = message.model_name;
             }
-            onStream?.({ kind: "done", content, category, modelName, taskId: taskId ?? undefined });
+            onStream?.({ kind: "done", content, category, modelName, taskId: taskId ?? undefined, thinkingContent, thinkingActive: false });
             scheduleResolve(content);
             return;
           }
 
           // Typing started — fires before content chunks arrive
           if (type === "ai_typing_started") {
-            if (p.chat_id !== chatId) return;
+            if (p.chat_id !== chatId
+              || (p.user_message_id !== undefined && p.user_message_id !== userMessageId)
+              || (p.userMessageId !== undefined && p.userMessageId !== userMessageId)) return;
             beginProjectContinuation(p);
             capture(p);
+            // The typing broadcast carries the task ID as message_id.
+            if (typeof p.task_id !== "string" && typeof p.message_id === "string" && p.message_id) {
+              taskId = p.message_id;
+            }
             // Preprocessing owns the initial title; post-processing only retitles
             // conversations that drift. Preserve both until encrypted persistence.
             if (typeof p.title === "string" && p.title.trim()) generatedTitle = p.title.trim();
@@ -1684,6 +1730,8 @@ export class OpenMatesWsClient {
               category,
               modelName,
               taskId: taskId ?? undefined,
+              thinkingContent,
+              thinkingActive: false,
             });
             return;
           }

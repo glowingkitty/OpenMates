@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createRequire } from "node:module";
 
-import { OpenMatesWsClient, WebSocketProtocolError } from "../src/ws.ts";
+import { OpenMatesWsClient, WebSocketProtocolError, type StreamEvent } from "../src/ws.ts";
 
 const require = createRequire(import.meta.url);
 const { WebSocketServer } = require("ws");
@@ -31,6 +31,130 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
 
   after(async () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  it("forwards only the owned task's cumulative thinking and keeps authored text separate", async () => {
+    const chatId = "thinking-chat";
+    const userMessageId = "thinking-user";
+    const events: StreamEvent[] = [];
+    server.once("connection", (socket) => {
+      const send = (type: string, payload: Record<string, unknown>) => socket.send(JSON.stringify({ type, payload }));
+      setTimeout(() => {
+        send("ai_typing_started", { chat_id: "other-chat", user_message_id: userMessageId, message_id: "other-task" });
+        send("ai_typing_started", { chat_id: chatId, user_message_id: "other-user", message_id: "other-task" });
+        send("ai_typing_started", { chat_id: chatId, user_message_id: userMessageId, message_id: "owned-task", category: "general_knowledge", model_name: "Test model" });
+        send("thinking_chunk", { chat_id: "other-chat", task_id: "owned-task", message_id: "owned-task", content: "wrong chat" });
+        send("thinking_chunk", { chat_id: chatId, task_id: "other-task", message_id: "other-task", content: "wrong task" });
+        send("thinking_chunk", { chat_id: chatId, task_id: "owned-task", message_id: "owned-task", content: "First " });
+        send("thinking_chunk", { chat_id: chatId, task_id: "owned-task", message_id: "owned-task", content: "second." });
+        send("thinking_complete", { chat_id: chatId, task_id: "other-task", message_id: "other-task" });
+        send("thinking_complete", { chat_id: chatId, task_id: "owned-task", message_id: "owned-task" });
+        send("ai_message_update", { chat_id: chatId, user_message_id: userMessageId, task_id: "owned-task", message_id: "owned-task", full_content_so_far: "Answer", is_final_chunk: false });
+        send("ai_message_update", { chat_id: chatId, user_message_id: userMessageId, task_id: "owned-task", message_id: "owned-task", full_content_so_far: "Answer complete.", is_final_chunk: true });
+        send("post_processing_completed", { chat_id: chatId });
+      }, 5);
+    });
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    try {
+      await client.open();
+      const result = await client.collectAiResponse(userMessageId, chatId, { timeoutMs: 1_000, onStream: (event) => events.push(event) });
+      assert.equal(result.content, "Answer complete.");
+      assert.deepEqual(events.map(({ kind, content, thinkingContent, thinkingActive }) => ({ kind, content, thinkingContent, thinkingActive })), [
+        { kind: "typing", content: "", thinkingContent: "", thinkingActive: false },
+        { kind: "typing", content: "", thinkingContent: "First ", thinkingActive: true },
+        { kind: "typing", content: "", thinkingContent: "First second.", thinkingActive: true },
+        { kind: "typing", content: "", thinkingContent: "First second.", thinkingActive: false },
+        { kind: "chunk", content: "Answer", thinkingContent: "First second.", thinkingActive: false },
+        { kind: "done", content: "Answer complete.", thinkingContent: "First second.", thinkingActive: false },
+      ]);
+      assert.ok(events.every((event) => event.taskId === "owned-task" && event.category === "general_knowledge" && event.modelName === "Test model"));
+    } finally { client.close(); }
+  });
+
+  it("keeps legacy typing task IDs and accepts matching camel case user IDs", async () => {
+    const chatId = "typing-legacy-chat";
+    const userMessageId = "typing-legacy-user";
+    const events: StreamEvent[] = [];
+    server.once("connection", (socket) => {
+      const send = (type: string, payload: Record<string, unknown>) => socket.send(JSON.stringify({ type, payload }));
+      setTimeout(() => {
+        send("ai_typing_started", { chat_id: chatId, message_id: "legacy-task" });
+        send("ai_typing_started", { chat_id: chatId, userMessageId, message_id: "legacy-task" });
+        send("ai_typing_started", { chat_id: chatId, userMessageId: "other-user", message_id: "wrong-task" });
+        send("ai_typing_started", { chat_id: chatId, user_message_id: "other-user", message_id: "wrong-task" });
+        send("thinking_chunk", { chat_id: chatId, task_id: "legacy-task", content: "A thought." });
+        send("ai_message_update", { chat_id: chatId, user_message_id: userMessageId, message_id: "legacy-task", full_content_so_far: "Answer", is_final_chunk: false });
+        send("ai_message_update", { chat_id: chatId, user_message_id: userMessageId, message_id: "legacy-task", full_content_so_far: "Answer.", is_final_chunk: true });
+        send("post_processing_completed", { chat_id: chatId });
+      }, 5);
+    });
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    try {
+      await client.open();
+      await client.collectAiResponse(userMessageId, chatId, { timeoutMs: 1_000, onStream: (event) => events.push(event) });
+      assert.deepEqual(events.map((event) => [event.kind, event.taskId]), [
+        ["typing", "legacy-task"], ["typing", "legacy-task"],
+        ["typing", "legacy-task"], ["chunk", "legacy-task"], ["done", "legacy-task"],
+      ]);
+      assert.equal(events.at(-1)?.thinkingContent, "A thought.");
+    } finally { client.close(); }
+  });
+
+  it("does not retarget thinking when another turn streams in the same chat", async () => {
+    const chatId = "interleaved-chat";
+    const userMessageId = "owned-user";
+    const events: StreamEvent[] = [];
+    server.once("connection", (socket) => {
+      const send = (type: string, payload: Record<string, unknown>) => socket.send(JSON.stringify({ type, payload }));
+      setTimeout(() => {
+        send("ai_typing_started", { chat_id: chatId, user_message_id: userMessageId, message_id: "owned-task" });
+        send("ai_message_update", { chat_id: chatId, user_message_id: "other-user", task_id: "other-task", message_id: "other-task", full_content_so_far: "Other answer", is_final_chunk: false });
+        send("thinking_chunk", { chat_id: chatId, task_id: "other-task", content: "Other thought" });
+        send("ai_background_response_completed", { chat_id: chatId, userMessageId: "other-user", task_id: "other-task", message_id: "other-task", full_content: "Other complete" });
+        send("thinking_chunk", { chat_id: chatId, task_id: "owned-task", content: "Owned thought" });
+        send("ai_message_update", { chat_id: chatId, user_message_id: userMessageId, message_id: "owned-task", full_content_so_far: "Owned answer", is_final_chunk: true });
+        send("post_processing_completed", { chat_id: chatId });
+      }, 5);
+    });
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    try {
+      await client.open();
+      const result = await client.collectAiResponse(userMessageId, chatId, { timeoutMs: 1_000, onStream: (event) => events.push(event) });
+      assert.equal(result.content, "Owned answer");
+      assert.equal(result.taskId, "owned-task");
+      assert.deepEqual(events.map((event) => event.kind), ["typing", "typing", "done"]);
+      assert.ok(events.every((event) => event.taskId === "owned-task"));
+      assert.equal(events.at(-1)?.thinkingContent, "Owned thought");
+    } finally { client.close(); }
+  });
+
+  it("preserves response thinking across a continuation while rejecting the old task", async () => {
+    const chatId = "thinking-continuation-chat";
+    const userMessageId = "thinking-continuation-user";
+    const events: StreamEvent[] = [];
+    server.once("connection", (socket) => {
+      const send = (type: string, payload: Record<string, unknown>) => socket.send(JSON.stringify({ type, payload }));
+      setTimeout(() => {
+        send("ai_typing_started", { chat_id: chatId, user_message_id: userMessageId, message_id: "first-task" });
+        send("thinking_chunk", { chat_id: chatId, task_id: "first-task", content: "Before. " });
+        send("ai_message_update", { chat_id: chatId, user_message_id: userMessageId, task_id: "first-task", message_id: "first-task", full_content_so_far: "Interim", is_final_chunk: true, awaiting_focus_mode_continuation: true });
+        send("ai_typing_started", { chat_id: chatId, user_message_id: userMessageId, message_id: "second-task" });
+        send("thinking_chunk", { chat_id: chatId, task_id: "first-task", content: "Stale." });
+        send("thinking_chunk", { chat_id: chatId, task_id: "second-task", content: "After." });
+        send("ai_message_update", { chat_id: chatId, user_message_id: userMessageId, task_id: "second-task", message_id: "second-task", is_focus_mode_continuation: true, full_content_so_far: "Final answer", is_final_chunk: true });
+        send("post_processing_completed", { chat_id: chatId });
+      }, 5);
+    });
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    try {
+      await client.open();
+      const result = await client.collectAiResponse(userMessageId, chatId, { timeoutMs: 1_000, onStream: (event) => events.push(event) });
+      assert.equal(result.content, "Final answer");
+      assert.deepEqual(events.filter((event) => event.thinkingActive).map((event) => event.thinkingContent), ["Before. ", "Before. After."]);
+      assert.equal(events.at(-1)?.thinkingContent, "Before. After.");
+      assert.equal(events.at(-1)?.thinkingActive, false);
+      assert.equal(events.at(-1)?.taskId, "second-task");
+    } finally { client.close(); }
   });
 
   // contract-test: supporting surface=cli assertions=chat-navigation.open.local-first-coherent

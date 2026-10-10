@@ -103,6 +103,8 @@ test('records the real terminal Chats, Tasks, Projects, Workflows, and Apps home
 			{name: 'sidebar-closed', key: 'ctrl+b', hold_ms: 150},
 			{name: 'tasks-command', text: '/tasks'},
 			{name: 'tasks-home', key: 'Return', wait_for: fixture.taskTitle, hold_ms: 1000},
+			{name: 'tasks-scroll-end', key: 'End', wait_for: fixture.taskTitle, hold_ms: 250},
+			{name: 'tasks-scroll-home', key: 'Home', wait_for: 'DAILY INSPIRATION', hold_ms: 250},
 			{name: 'tasks-backlog', key: 'Left', wait_for: 'Backlog 1/5', hold_ms: 150},
 			{name: 'tasks-todo', key: 'Right', wait_for: 'Todo 2/5', hold_ms: 150},
 			{name: 'tasks-in-progress', key: 'Right', wait_for: 'In progress 3/5', hold_ms: 150},
@@ -128,13 +130,22 @@ test('records the real terminal Chats, Tasks, Projects, Workflows, and Apps home
 		expect(recording.frame('sidebar-open').some((row: string) => row.indexOf('+ New chat') >= 0 && row.indexOf('+ New chat') < 27)).toBe(true);
 		expect(recording.segment('chat-fourth', 'chat-third')).toContain('Chat 4 of 5');
 		expect(recording.segment('chat-open', 'chat-fourth')).toMatch(/Plan a weekend|Review a project|Learn a concept|Organize a trip|Write a story/);
-		expect(recording.segment('scroll-top', 'scroll-bottom')).toContain('DAILY INSPIRATION');
-		expect(recording.segment('apps-scroll-bottom', 'apps-home')).toContain('Show all');
-		expect(recording.segment('apps-scroll-bottom', 'apps-home')).toContain('DAILY INSPIRATION');
-		expect(recording.segment('apps-scroll-bottom', 'apps-home')).toContain('App 1 of 6');
-		expect(recording.segment('apps-scroll-top', 'apps-scroll-bottom')).toContain('DAILY INSPIRATION');
+		// Fitted homes may emit no new rows at Home/End. Inspect the painted frame.
+		for (const checkpoint of ['scroll-bottom', 'scroll-top']) {
+			const frame=recording.frame(checkpoint).join('\n');
+			expect(frame).toContain('DAILY INSPIRATION');
+			expect(frame).toContain('/search Search chats');
+		}
+		for (const checkpoint of ['apps-home', 'apps-scroll-bottom', 'apps-scroll-top']) {
+			const frame=recording.frame(checkpoint).join('\n');
+			expect(frame).toContain('Show all');
+			expect(frame).toContain('DAILY INSPIRATION');
+			expect(frame).toContain('App 1 of 6');
+		}
 		expect(recording.segment('tasks-home', 'tasks-command')).toContain(fixture.taskTitle);
 		expect(recording.segment('tasks-home', 'tasks-command')).toContain('DAILY INSPIRATION');
+		expect(recording.frame('tasks-scroll-end').join('\n')).toContain(fixture.taskTitle);
+		expect(recording.frame('tasks-scroll-home').join('\n')).toContain(fixture.taskTitle);
 		for (const status of ['Backlog', 'Todo', 'In progress', 'Blocked', 'Done'])
 			expect(recording.segment('tasks-done', 'tasks-command')).toContain(status);
 		expect(recording.segment('projects-home', 'projects-command')).toContain(fixture.projectName);

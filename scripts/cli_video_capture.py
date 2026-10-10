@@ -402,8 +402,11 @@ def _is_openmates_cli(argv: list[str]) -> bool:
 
 
 def _validate_argv(argv: list[str]) -> None:
-    if not _is_openmates_cli(argv):
-        raise CliCaptureError("Real terminal proof capture requires the OpenMates CLI product command")
+    fixture = Path(__file__).resolve().parents[1] / "frontend/packages/openmates-cli/tests/fixtures/tui-streaming-proof.mjs"
+    synthetic_stream = (len(argv) == 2 and Path(argv[0]).name in {"node", "nodejs"}
+                        and Path(argv[1]).resolve() == fixture and fixture.is_file())
+    if not _is_openmates_cli(argv) and not synthetic_stream:
+        raise CliCaptureError("Real terminal proof capture requires the OpenMates CLI product command or the fixed synthetic streaming fixture")
     if any(
         value in SECRET_FLAGS or any(value.startswith(f"{flag}=") for flag in SECRET_FLAGS)
         for value in argv

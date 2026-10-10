@@ -7,8 +7,9 @@ import { aliasForEmbed, exampleEmbedMap } from './tuiEmbeds.js';
 import { wrapCells, type TuiLine } from './tuiText.js';
 
 export function messageResultsViews(content: string): TuiResultsViewDescriptor[] {
+  if(!/embeds_(?:results|map)_view/i.test(content))return [];
   return parseMessageSegments(content, {preserveCodeFences:true}).flatMap(segment => segment.type === 'text'
-    ? parseTuiMarkdown(segment.value, 160).filter(block => block.type === 'results-view') : []);
+    ? parseTuiMarkdown(segment.value, 160, {semanticOnly:true}).filter(block => block.type === 'results-view') : []);
 }
 
 /** Inline links and virtual sources need aliases/hydration, but are not preview cards. */

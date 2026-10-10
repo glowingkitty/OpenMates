@@ -9,7 +9,24 @@ Recommendation: keep the optimized TypeScript TUI as the default. Continue the s
 - Incremental ANSI row painting, latest-frame backpressure, cursor/selection handling, and full repaint on resize/resume. Mouse packets are ignored while output is blocked, including packets spanning a drain, so clicks cannot use undisplayed targets. Terminal proof readers now reconstruct incremental frames.
 - Opt-in Ratatui/Crossterm developer prototype for chat history, composer, closed-by-default sidebar and embed carousel, with keyboard/mouse interaction and private fd3/fd4 presentation pipes. Existing TypeScript owns authentication, keys, sync and authority. The installed CLI does not launch Rust.
 
-## Measurements
+## TypeScript follow-up: visible rows and streaming
+
+The default remains TypeScript. Chat opening now lays out an exact suffix sufficient for the viewport and scroll offset; offscreen protocol discovery preserves global question, results-view and context numbering. Selection jumps retain the full marker search. Task boards compute exact row positions and build only visible cards, with bounded scalar title-height caching; distant selected cards are deferred while manually scrolling. Double-bordered selected tasks remain visible after jumps.
+
+Sending publishes one optimistic user row and clears the draft before asynchronous setup. Preparation failure rolls back only the original unchanged draft/context. AI waiting uses a transient centered Thinking row and known Mate/model metadata. Canonical trailing skill groups classify as Researching or Working, with actions taking precedence; actual reasoning stays response-wide and is disclosed once. Ordinary Team messages retain the human-only gate. The bottom response rainbow moves left to right in a 3-second cycle. Its timer recolors one cached visible row without Markdown parsing, history traversal or pointer reconstruction, and refuses stale owner/context/viewport frames. Monochrome output and `OPENMATES_REDUCED_MOTION=1` keep a static indicator. Navigation clears transient state and stale preparation/stream completions cannot touch a newer send. The current SDK does not expose resolved region metadata, so none is invented; the existing one-send-at-a-time composer does not gain queued followups or steer support.
+
+| Synthetic workload | Before | After |
+|---|---:|---:|
+| Cold 500-message chat, 160×50 | 300.2 ms | 17.3 ms |
+| Warm chat draft redraw, 160×50 | 7.1 ms | 4.9 ms |
+| 500-task draft redraw, 160×50 | 124.5 ms | 29.0 ms |
+| 500-task scroll redraw, 160×50 | 122.2 ms | 28.6 ms |
+
+Warm values are medians of ten samples; cold values are one measured first frame per workload. ANSI output byte counts for the chat workload are unchanged. These figures exclude initialization, disk, sync, decryption, network and inference. [Portable before/after data](typescript-visible-viewport.json).
+
+404 TUI unit tests, 32 WebSocket tests, 58 recorder tests, focused lint and the CLI declaration/bundle build pass. The new real-terminal streaming proof uses the actual TUI loop and terminal with a deterministic synthetic SDK, explicitly separate from authenticated isolated workspace and saved-chat checks. Source-bound CI outcomes and recordings are reported in the task chat.
+
+## Original renderer comparison
 
 Synthetic alternating human/assistant messages include headings, bold text, wiki links, lists and code. Same Linux ARM64 Neoverse-N1 host, Node 24.20.0, 10 draft and 10 scroll samples per TypeScript workload. Baseline is published source `64c9ff539162308ce50ee0d03c1f7d438f7f0770`. The TypeScript column measures synchronous complete frame construction. ANSI output is counted separately. These are renderer measurements, not end-to-end user latency or network/sync benchmarks.
 
@@ -48,7 +65,7 @@ The Rust fixture and private-pipe modes were exercised in a real terminal/PTY. T
 ## Next steps
 
 1. Ship the TypeScript optimizations and measure real input-to-paint, chat-open, resize, task-board and embed timings on macOS, tablet SSH and slower connections. Separate SDK initialization, disk, decryption and sync from drawing.
-2. Improve cold opening by parsing visible history first and preparing older rows on demand; construct only visible Kanban task cards rather than the complete board on every input update. Keep selection, scroll anchors, live sync and owner fences correct.
+2. Measure the deployed visible-history and task-board changes on those devices; next address any measured SDK, cache or decryption bottleneck while retaining owner fences and exact scroll behavior.
 3. If Rust still offers useful value, add message/layout deltas, a cached TypeScript projection, and bounded coalescing. Repeat the full parent-to-visible-frame comparison. Target whole-path latency and memory, not native draw timing alone.
 4. Only then consider a staged renderer migration using the existing single `feature.terminal-ui@1` specification: composer editing, focus/mouse, Markdown/actions, embed previews/fullscreen, sidebar hierarchy, Tasks/Projects/Workflows, settings/Teams, offline/cache and cross-platform packaging. Keep one authoritative encrypted client rather than duplicating it in Rust prematurely.
 

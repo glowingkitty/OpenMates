@@ -12,7 +12,8 @@ export type TuiQuestion = { key:number; messageIndex:number; payload:Interactive
 export type TuiQuestionEditor = { question:TuiQuestion; answer:InteractiveQuestionAnswer; fieldIndex:number; touched:boolean; error?:string; busy?:boolean };
 
 export function messageQuestions(content:string): InteractiveQuestionPayload[] {
-  return parseTuiMarkdown(content,160).flatMap(block=>block.type==='question'?[block.payload]:[]);
+  if(!/interactive_question/i.test(content))return [];
+  return parseTuiMarkdown(content,160,{semanticOnly:true}).flatMap(block=>block.type==='question'?[block.payload]:[]);
 }
 export function chatQuestions(state:TuiState):TuiQuestion[] {
   const messages=state.screen==='example'&&state.activeExample?state.activeExample.messages:state.messages;
@@ -25,7 +26,8 @@ export function chatQuestions(state:TuiState):TuiQuestion[] {
     const latest=questions.filter(item=>item.payload.id===question.payload.id).at(-1)!;
     for(let index=messages.length-1;index>latest.messageIndex;index--){
       if(messages[index].role!=='user')continue;
-      const response=parseTuiMarkdown(messages[index].content,160).find(block=>block.type==='response'&&block.payload.id===question.payload.id);
+      if(!/interactive_response/i.test(messages[index].content))continue;
+      const response=parseTuiMarkdown(messages[index].content,160,{semanticOnly:true}).find(block=>block.type==='response'&&block.payload.id===question.payload.id);
       if(response?.type==='response'&&!validateInteractiveQuestionAnswer(question.payload,response.payload)){
         question.response=formatInteractiveQuestionAnswer(question.payload,response.payload).responsePayload;break;
       }

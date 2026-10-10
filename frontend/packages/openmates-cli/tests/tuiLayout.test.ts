@@ -7,6 +7,11 @@ import { createInitialTuiState, renderTuiFrame } from "../src/tuiRenderer.js";
 import { handleWorkspaceKey, type WorkspaceContext } from "../src/tuiWorkspaceController.js";
 import { tuiChatSidebarRows } from "../src/tuiChatSidebar.js";
 import { cells, stripAnsi } from "../src/tuiText.js";
+import { renderTaskBoard, filterTasks } from '../src/tuiTasksWorkspace.js';
+import { homeHeader } from '../src/tuiHome.js';
+import { workspaceGeometry } from '../src/tuiLayout.js';
+import { beginPointerFrame, pointerTargetAt } from '../src/tuiPointer.js';
+import type { DecryptedUserTask } from '../src/tasksCli.js';
 
 test("sidebar starts closed at wide and narrow widths", () => {
   const state = createInitialTuiState();
@@ -198,5 +203,27 @@ test("centered task boards keep every column keyboard reachable at large termina
       await handleWorkspaceKey(context, "", {name: "left"});
       assert.equal(state.taskStatusFilter, "done");
     }
+  }
+});
+
+// contract-test: supporting surface=cli assertions=tasks.surface.semantic-parity,terminal-pointer.viewport-coherent
+test("windowed task frames equal complete boards through selection jumps, End and resize",()=>{
+  const tasks=Array.from({length:200},(_,index)=>({taskId:`task-${index}`,shortId:`TASK-${index}`,slug:'',title:`Task ${index} 漢👩‍💻`,
+    description:'',labels:[],tags:[],status:['backlog','todo','in_progress','blocked','done'][index%5],position:index,
+    linkedProjectIds:[],assigneeType:'user',assigneeIdentity:null,assigneeHash:null,queueState:'none',dueAt:null,priority:0
+  })) as DecryptedUserTask[];
+  for(const [width,height] of [[72,18],[125,50],[240,70]])for(const offset of [0,50,500,10000])for(const follow of [false,true]){
+    const state=createInitialTuiState(),reference=createInitialTuiState();
+    for(const target of [state,reference])Object.assign(target,{screen:'tasks',workspace:'tasks',focus:'content',tasks,
+      selectedIndex:190,scrollOffset:offset,followSelection:follow});
+    const bodyWidth=workspaceGeometry(reference,width).contentWidth;
+    beginPointerFrame(reference,width,height);
+    const full=renderWorkspaceFrame(reference,width,height,[...homeHeader(reference,bodyWidth,height),
+      ...renderTaskBoard(tasks,{width:bodyWidth,selectedTaskId:filterTasks(tasks,'')[190].taskId})]);
+    assert.equal(renderTuiFrame(state,width,height),full,`${width}x${height} offset ${offset} follow ${follow}`);
+    assert.equal(state.scrollOffset,reference.scrollOffset);
+    if(follow)assert.match(full,/Task 190/);
+    for(let row=0;row<height;row++)for(let col=0;col<width;col++)
+      assert.deepEqual(pointerTargetAt(state,col,row,width,height),pointerTargetAt(reference,col,row,width,height));
   }
 });

@@ -12050,6 +12050,8 @@ async function sendMessageStreaming(
     if (params.json) return;
 
     if (event.kind === "typing") {
+      // Visible reasoning is handled by the TUI; keep line-mode typing compact.
+      if (event.thinkingContent) return;
       const mateName =
         event.category && MATE_NAMES[event.category]
           ? MATE_NAMES[event.category]

@@ -178,7 +178,8 @@ function overlayLines(state: TuiState, width: number, height: number): TuiLine[]
   return rows;
 }
 
-export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeight: number, body: TuiLine[], options: {colorMode?: TuiColorMode; ascii?: boolean; headerRows?: number; stickyRows?:number;stickyFallbackRows?:number} = {}): string {
+export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeight: number, body: TuiLine[], options: {colorMode?: TuiColorMode; ascii?: boolean; headerRows?: number; stickyRows?:number;stickyFallbackRows?:number;
+  onBodyLine?:(value:TuiLine,row:number,rendered:string,line:string)=>void} = {}): string {
   const { width, gutter, sidebarWidth, paneWidth, contentWidth, inset, composerWidth, composerInset, settingsWidth, settingsSplit, settingsFullscreen } = workspaceGeometry(state, rawWidth);
   const height = Math.max(1, Math.floor(rawHeight));
   beginPointerFrame(state,Math.max(1,Math.floor(rawWidth)),height);
@@ -253,12 +254,16 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
     const marker = content.findIndex((row) => /^[>›] /.test(lineText(row).trimStart()));
     start = marker >= bodyHeight-4 ? Math.max(0, marker - bodyHeight + 6) : 0;
   } else if (state.followSelection && ["start", "tasks", "projects", "project", "chat", "chats", "example", "examples", "workflow", "workflows", "apps", "app", "app-skill"].includes(state.screen) && state.focus === "content") {
-    const markers=content.map((row,index)=>/(?:^|[│|])\s*[>›] /.test(lineText(row))?index:-1).filter((index)=>index>=0);
+    const markers=content.map((row,index)=>/(?:^|[│║|])\s*[>›] /.test(lineText(row))?index:-1).filter((index)=>index>=0);
     const marker=state.screen==="workflow" ? markers.at(-1)??-1 : markers[0]??-1;
     let selectionEnd=marker;
     if(["workflow","start","chats","apps","projects","workflows"].includes(state.screen)&&marker>=0){
       const closing=content.findIndex((row,index)=>index>marker&&lineText(row).includes("╰"));
       selectionEnd=Math.min(marker+10,closing<0?marker:closing);
+    }
+    if((state.screen==='tasks'||state.screen==='project'&&state.projectTab==='tasks')&&marker>=0){
+      const closing=content.findIndex((row,index)=>index>marker&&lineText(row).includes('╚'));
+      selectionEnd=closing<0?marker:closing;
     }
     if (selectionEnd >= start + viewportHeight) start = Math.min(maxStart, selectionEnd - viewportHeight + 1);
     if (marker >= 0 && marker < start) start = marker;
@@ -336,7 +341,9 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
     const sidebarRow=sidebarWidth ? renderSide(side[i],sidebarWidth,gutter,true) : undefined;
     const settingsColumn=gutter+sidebarWidth+paneWidth+2;
     const settingsRow=settingsWidth ? renderSide(settingsRows[i],settingsWidth,settingsColumn,false) : undefined;
-    rows.push(place(rendered,sidebarRow,settingsRow));
+    const painted=place(rendered,sidebarRow,settingsRow);
+    rows.push(painted);
+    options.onBodyLine?.(value,i+2,rendered,painted);
   }
   if(state.modelSelector?.open && showComposer && aiComposer && !modal && !settingsFullscreen && bodyHeight>0){
     const popWidth=Math.max(1,Math.min(46,composerWidth));

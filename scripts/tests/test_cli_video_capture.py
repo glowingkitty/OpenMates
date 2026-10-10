@@ -746,3 +746,13 @@ def test_workspace_navigation_keys_are_recordable(tmp_path, key):
     path = tmp_path / "navigation.json"
     path.write_text(json.dumps({"steps": [{"name": "navigate", "key": key}]}))
     assert module.load_input_plan(path)[0]["key"] == key
+
+
+def test_only_fixed_synthetic_stream_fixture_is_admitted(tmp_path: Path) -> None:
+    module = load_module()
+    fixture = ROOT / "frontend/packages/openmates-cli/tests/fixtures/tui-streaming-proof.mjs"
+    module._validate_argv(["node", str(fixture)])
+    for argv in (["node", str(tmp_path / "tui-streaming-proof.mjs")],
+                 ["node", str(fixture), "--extra"], ["python3", str(fixture)]):
+        with pytest.raises(module.CliCaptureError, match="requires"):
+            module._validate_argv(argv)

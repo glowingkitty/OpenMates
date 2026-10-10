@@ -66,12 +66,79 @@ export function filterTasks(tasks: DecryptedUserTask[], query: string, status?: 
   const words = query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
   return sorted(tasks.filter((task) => {
     if (status && task.status !== status) return false;
+    if (!words.length) return true;
     const haystack = [task.shortId, task.slug, task.title, task.description, task.labels.join(" "), task.tags.join(" "), task.status, task.assigneeIdentity ?? "", task.assigneeHash ?? "", task.queueState].join(" ").toLocaleLowerCase();
     return words.every((word) => haystack.includes(word));
   }));
 }
 
-export function renderTaskBoard(tasks: DecryptedUserTask[], options: { width: number; selectedTaskId?: string; query?: string; status?: UserTaskStatus }): TuiLine[] {
+/** Complete board row indices, start inclusive and end exclusive. */
+type BoardViewport = { start: number; end: number; followSelection?: boolean };
+type BoardCard = { task: DecryptedUserTask; index: number; start: number; end: number };
+type TitleHeightCache = { title: string; widths: Map<number, { selected?: number; unselected?: number }> };
+const titleHeightCache = new WeakMap<DecryptedUserTask, TitleHeightCache>();
+
+function taskTitleLines(task: DecryptedUserTask, width: number, selected: boolean): string[] {
+  return wrapCells(`${selected ? "› " : "  "}${task.title || "Untitled task"}`, Math.max(8, width - 2)).slice(0, 2);
+}
+
+/** Retain only a title row count; card content and pointer actions are always fresh. */
+function taskTitleHeight(task: DecryptedUserTask, width: number, selected: boolean): number {
+  let cache = titleHeightCache.get(task);
+  if (!cache || cache.title !== task.title) {
+    cache = {title: task.title, widths: new Map()};
+    titleHeightCache.set(task, cache);
+  }
+  let counts = cache.widths.get(width);
+  if (!counts) {
+    if (cache.widths.size >= 3) {
+      const oldest = cache.widths.keys().next().value;
+      if (oldest !== undefined) cache.widths.delete(oldest);
+    }
+    counts = {};
+    cache.widths.set(width, counts);
+  }
+  const key = selected ? "selected" : "unselected";
+  return counts[key] ?? (counts[key] = taskTitleLines(task, width, selected).length);
+}
+
+/** Card height must use the same cell-aware title wrapping as taskCard. */
+function taskCardHeight(task: DecryptedUserTask, width: number, selected: boolean): number {
+  const titleRows = taskTitleHeight(task, width, selected);
+  return 2 + titleRows + 1 + 1 + Number(task.linkedProjectIds.length > 0) + Number(Boolean(task.dueAt))
+    + Number(task.priority > 1) + Number(Boolean(task.queueState && task.queueState !== "none"));
+}
+
+function cardPositions(group: DecryptedUserTask[], width: number, selectedTaskId: string | undefined, separatorRows: number): { cards: BoardCard[]; height: number } {
+  let height = 0;
+  const cards = group.map((task, index) => {
+    const start = height;
+    const end = start + taskCardHeight(task, width, task.taskId === selectedTaskId);
+    height = end + separatorRows;
+    return { task, index, start, end };
+  });
+  return {cards, height};
+}
+
+/** Clamp End jumps to the real tail and keep selection's neighboring rows ready. */
+function boardWindows(viewport: BoardViewport, fullHeight: number, stackStart: number, selected?: BoardCard): BoardViewport[] {
+  const requestedStart = Math.floor(viewport.start);
+  const span = Math.min(fullHeight, Math.max(0, Math.ceil(viewport.end) - requestedStart));
+  const start = Math.min(Math.max(0, requestedStart), Math.max(0, fullHeight - span));
+  const end = start + span;
+  const windows = [{start, end}];
+  if (selected && viewport.followSelection !== false) {
+    const padding = Math.max(1, end - start);
+    windows.push({start: Math.max(0, stackStart + selected.start - padding), end: stackStart + selected.end + padding});
+  }
+  return windows;
+}
+
+function intersects(start: number, end: number, windows: BoardViewport[]): boolean {
+  return windows.some((window) => start < window.end && end > window.start);
+}
+
+export function renderTaskBoard(tasks: DecryptedUserTask[], options: { width: number; selectedTaskId?: string; query?: string; status?: UserTaskStatus; viewport?: BoardViewport }): TuiLine[] {
   const width = Math.max(18, options.width);
   const visible = filterTasks(tasks, options.query ?? "");
   const chips = [...new Set(tasks.flatMap((task) => task.labels))].filter(Boolean).slice(0, 3);
@@ -98,12 +165,35 @@ export function renderTaskBoard(tasks: DecryptedUserTask[], options: { width: nu
     lines.push(joinColumns(shown.map(({status, tasks}) => pointerLine(columnHeader(status, tasks.length, colWidth),
       {kind:"select",target:"task",column:TASK_STATUSES.indexOf(status),index:0})), colWidth, gap));
     lines.push(shown.map(() => "─".repeat(colWidth)).join(gap));
-    const stacks = shown.map(({tasks: group}) => group.length
-      ? group.flatMap((task, index) => [...taskCard(task, colWidth, task.taskId === options.selectedTaskId,
-          {kind:"select",target:"task",column:TASK_STATUSES.indexOf(task.status),index,id:task.taskId,activate:true}), ""])
-      : [padCells("No tasks here.", colWidth)]);
-    for (let row = 0; row < Math.max(...stacks.map((stack) => stack.length)); row++) {
-      lines.push(joinColumns(stacks.map((stack) => stack[row] ?? ""), colWidth, gap));
+    if (!options.viewport) {
+      const stacks = shown.map(({tasks: group}) => group.length
+        ? group.flatMap((task, index) => [...taskCard(task, colWidth, task.taskId === options.selectedTaskId,
+            {kind:"select",target:"task",column:TASK_STATUSES.indexOf(task.status),index,id:task.taskId,activate:true}), ""])
+        : [padCells("No tasks here.", colWidth)]);
+      for (let row = 0; row < Math.max(...stacks.map((stack) => stack.length)); row++) {
+        lines.push(joinColumns(stacks.map((stack) => stack[row] ?? ""), colWidth, gap));
+      }
+    } else {
+      const stackStart = lines.length;
+      const positions = shown.map(({tasks: group}) => cardPositions(group, colWidth, options.selectedTaskId, 1));
+      const selectedCard = positions.flatMap(({cards}) => cards).find(({task}) => task.taskId === options.selectedTaskId);
+      const totalRows = Math.max(...positions.map(({cards, height}) => cards.length ? height : 1));
+      const windows = boardWindows(options.viewport, stackStart + totalRows, stackStart, selectedCard);
+      const stacks = positions.map(({cards}) => {
+        const rows = new Map<number, TuiLine>();
+        if (!cards.length && intersects(stackStart, stackStart + 1, windows)) rows.set(0, padCells("No tasks here.", colWidth));
+        for (const card of cards) {
+          if (!intersects(stackStart + card.start, stackStart + card.end, windows)) continue;
+          const rendered = taskCard(card.task, colWidth, card.task.taskId === options.selectedTaskId,
+            {kind:"select",target:"task",column:TASK_STATUSES.indexOf(card.task.status),index:card.index,id:card.task.taskId,activate:true});
+          rendered.forEach((line, offset) => rows.set(card.start + offset, line));
+        }
+        return rows;
+      });
+      for (let row = 0; row < totalRows; row++) {
+        lines.push(intersects(stackStart + row, stackStart + row + 1, windows)
+          ? joinColumns(stacks.map((stack) => stack.get(row) ?? ""), colWidth, gap) : "");
+      }
     }
   } else {
     const group = columns[focusedIndex]?.tasks ?? [];
@@ -111,9 +201,23 @@ export function renderTaskBoard(tasks: DecryptedUserTask[], options: { width: nu
     lines.push(pointerLine(columnHeader(focused, group.length, Math.min(width, 52)),
       {kind:"select",target:"task",column:focusedIndex,index:0}), "─".repeat(Math.min(width, 52)));
     if (!group.length) lines.push("  No tasks here.");
-    for (const [index, task] of group.entries()) {
-      lines.push(...taskCard(task, Math.min(width, 52), task.taskId === options.selectedTaskId,
-        {kind:"select",target:"task",column:focusedIndex,index,id:task.taskId,activate:true}));
+    if (!options.viewport) {
+      for (const [index, task] of group.entries()) {
+        lines.push(...taskCard(task, Math.min(width, 52), task.taskId === options.selectedTaskId,
+          {kind:"select",target:"task",column:focusedIndex,index,id:task.taskId,activate:true}));
+      }
+    } else {
+      const stackStart = lines.length;
+      const {cards, height} = cardPositions(group, Math.min(width, 52), options.selectedTaskId, 0);
+      const windows = boardWindows(options.viewport, stackStart + height, stackStart, cards.find(({task}) => task.taskId === options.selectedTaskId));
+      const rows: TuiLine[] = Array(height).fill("");
+      for (const card of cards) {
+        if (!intersects(stackStart + card.start, stackStart + card.end, windows)) continue;
+        const rendered = taskCard(card.task, Math.min(width, 52), card.task.taskId === options.selectedTaskId,
+          {kind:"select",target:"task",column:focusedIndex,index:card.index,id:card.task.taskId,activate:true});
+        rendered.forEach((line, offset) => { rows[card.start + offset] = line; });
+      }
+      lines.push(...rows);
     }
   }
   return lines;
@@ -135,7 +239,7 @@ function taskCard(task: DecryptedUserTask, width: number, selected: boolean, act
     if (!selected) return top ? `╭${edge}╮` : `╰${edge}╯`;
     return styledLine([{text: top ? `╔${edge}╗` : `╚${edge}╝`, color: STATUS_COLORS[task.status], background: SELECTED_BACKGROUND, bold: true}]);
   };
-  const titleLines = wrapCells(`${selected ? "› " : "  "}${task.title || "Untitled task"}`, inside).slice(0, 2);
+  const titleLines = taskTitleLines(task, width, selected);
   const metadata = [task.linkedProjectIds.length ? "Project" : "", assignee(task), task.dueAt ? `Due ${new Date(task.dueAt * 1000).toISOString().slice(0, 10)}` : "", task.priority > 1 ? task.priorityLevel : ""].filter(Boolean);
   return [
     border(true),

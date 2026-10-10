@@ -9,13 +9,17 @@ scope:
   - Bound chat Markdown/layout caching to the active owner and invalidate on relevant changes.
   - Incremental terminal painting with bounded backpressure and correct lifecycle cleanup.
   - Experimental Ratatui chat, composer, sidebar and embed carousel through private process pipes.
+  - Tail-first chat layout and viewport task cards; retain exact scroll, protocol numbering and fresh actions.
+  - Immediate optimistic send, transient centered Thinking and a bounded bottom response rainbow independent of history parsing.
   - Synthetic repeatable benchmarks; report scope and limitations without extrapolating a full-port speedup.
 checks:
   - Focused TypeScript render, lifecycle, pointer and cache regression checks.
   - Rust formatting, lint, unit tests and release build.
   - Existing rich-chat isolated GitHub TUI proof with added rapid input/scroll coverage.
+  - Real terminal synthetic streaming proof, plus authenticated task-board and saved rich-chat regressions.
   - Shared-workload benchmark covering cold and warm rendering, output bytes and process memory.
 decisions:
   - Existing authentication, encryption and offline-cache authority remain in TypeScript.
   - Rust remains an opt-in developer experiment, outside the default npm CLI.
+  - User approved continued TypeScript optimization and scoped dev publication on 2026-10-10.
   - No new product specification or backend semantics are introduced.

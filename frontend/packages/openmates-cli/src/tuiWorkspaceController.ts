@@ -1,3 +1,4 @@
+import {clearTuiSendState} from './tuiStreamingRender.js';
 /** Workspace navigation and forms reuse the encrypted client contracts. */
 import { parseEmbedContentObject, type OpenMatesClient, type UserTaskStatus } from "./client.js";
 import {captureTuiView,closeTuiFullscreen,fullscreenHeaderControls,isTuiFullscreen} from './tuiFullscreenChrome.js';
@@ -49,6 +50,7 @@ export function rememberDraft(state: TuiState): void {
   if (state.workspace === "chats" && !state.input.startsWith("/")) state.drafts[chatDraftKey(state)] = state.input;
 }
 export function route(state: TuiState, workspace: TuiWorkspace, screen: TuiScreen): number {
+  clearTuiSendState(state);
   if(state.settings)closeTuiSettings(state);
   if (state.input) rememberDraft(state);
   state.workspace = workspace; state.screen = screen;
@@ -374,6 +376,14 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
         throw error;
       } finally { render(); }
       return true;
+    }
+    case '/thinking': {
+      const messages=[...state.messages,...state.streamingMessage&&!state.messages.includes(state.streamingMessage)?[state.streamingMessage]:[]];
+      const message=arg?messages.find(message=>message.id===arg):messages.findLast(message=>message.role==='assistant'&&message.thinkingContent?.trim());
+      if(state.input.trim()===command){state.input='';state.inputCursor=null;}
+      if(message?.thinkingContent?.trim())message.thinkingExpanded=!message.thinkingExpanded;
+      else state.status='No visible thinking is available for this response.';
+      render();return true;
     }
     case "/browse": state.homeShowAll=!state.homeShowAll;state.selectedIndex=0;state.scrollOffset=0;state.focus="content";render();return true;
     case "/inspiration-next": {

@@ -25,6 +25,7 @@ import {
   createInitialTuiState,
   programmaticQuickstart,
   rankExamples,
+  renderTuiStreamingAnimationFrame,
   renderTuiFrame,
   resetEndedTuiSession,
   TUI_INTERESTS,
@@ -71,6 +72,7 @@ export async function runTui(
   hydrateExamples(state);
   let resolveResult: ((result: TuiResult) => void) | null = null;
   let renderTimer: NodeJS.Timeout | null = null;
+  let lastFrameOwner: (() => boolean) | null = null;
 
   let closed = false;
   let stopActivity: (() => void) | undefined;
@@ -103,7 +105,20 @@ export async function runTui(
   };
   const activityPoll = setInterval(() => { void refreshActivity(); }, 30_000);
   const activityAnimation = setInterval(() => {
-    if (!closed && state.runningChatIds.length) { state.activityFrame = (state.activityFrame + 1) % 4; render(); }
+    if (closed) return;
+    const sidebarActivity = state.runningChatIds.length > 0;
+    if (sidebarActivity) state.activityFrame = (state.activityFrame + 1) % 4;
+    const streaming = state.screen === 'chat' && state.isAwaitingAi && state.streamingMessage && !state.textSelection
+      && !terminal.reducedMotion && !terminal.isOutputBlocked && lastFrameOwner?.();
+    if (streaming) {
+      state.streamingPhase = (state.streamingPhase + 1) % 12;
+    }
+    if (sidebarActivity) { render(); return; }
+    if (streaming && !renderTimer) {
+      const frame = renderTuiStreamingAnimationFrame(state,terminal.width,terminal.height,
+        {colorMode:terminal.colorMode,ascii:terminal.ascii,reducedMotion:terminal.reducedMotion});
+      if (frame) terminal.render(frame,tuiComposerCursor(state,terminal.width,terminal.height),state.textSelection);
+    }
   }, 250);
   const syncSessionView = () => {
     if (typeof client.hasSession === "function" && resetEndedTuiSession(state, client.hasSession())) {
@@ -169,7 +184,8 @@ export async function runTui(
       renderTimer = null;
       if (closed) return;
       syncSessionView();
-      terminal.render(renderTuiFrame(state, terminal.width, terminal.height, { colorMode: terminal.colorMode, ascii: terminal.ascii }),tuiComposerCursor(state,terminal.width,terminal.height),state.textSelection);
+      lastFrameOwner = client.hasSession() ? captureTuiWorkspaceOwner(client) : () => !client.hasSession();
+      terminal.render(renderTuiFrame(state, terminal.width, terminal.height, { colorMode: terminal.colorMode, ascii: terminal.ascii,reducedMotion:terminal.reducedMotion }),tuiComposerCursor(state,terminal.width,terminal.height),state.textSelection);
     }, 16);
   };
 
@@ -430,7 +446,7 @@ async function handleCommand(params: {
   modelShell?:TuiModelSelectorShell;
 }): Promise<void> {
   const { command, state, client, terminal, render, finish, modelShell } = params;
-  client.clearInteractiveChatViewer();
+  if(command.split(/\s+/,1)[0]!=="/thinking")client.clearInteractiveChatViewer();
   if (await handleWorkspaceCommand({state,client,terminal,render,command:(next)=>handleCommand({...params,command:next}),send:(message,options)=>sendTuiMessage({message,state,client,render,modelShell,questionAnswer:options?.questionAnswer}),modelShell},command)) return;
   const [name, ...parts] = command.split(/\s+/);
   const arg = parts.join(" ");
@@ -559,34 +575,69 @@ export async function sendTuiMessage(params: {
 }): Promise<void> {
   const { state, client, render } = params;
   if (state.isBusy) return;
+  const initialMessage = params.message.trim();
+  if (!initialMessage) return;
   const preparingOwner = client.hasSession()
     ? captureTuiWorkspaceOwner(client)
     : () => !client.hasSession();
   const preparingRoute = state.routeVersion;
-  const preparingMessages = state.messages;
+  const previousMessages = state.messages;
   const preparingChatId = state.activeChatId;
-  const ownsPreparation = () => preparingOwner() && state.routeVersion === preparingRoute
-    && state.messages === preparingMessages && state.activeChatId === preparingChatId;
-  const resolved = !params.questionAnswer && params.modelShell
-    ? await params.modelShell.consumeMention(params.message, true) : { message: params.message, blocked: false };
-  if (resolved.blocked || !ownsPreparation() || state.isBusy) return;
-  const message = resolved.message.trim();
-  if (!message) return;
-  client.clearInteractiveChatViewer();
+  const previousActiveChat = state.activeChat, previousHeaderState = state.headerState;
+  const previousScreen = state.screen;
+  const sourceExample = previousScreen === "example" ? state.activeExample : null;
+  const history = sourceExample ? buildExampleContinuationHistory(sourceExample) : undefined;
+  const draftKey = sourceExample ? `example:${sourceExample.chat.id}` : preparingChatId ?? "new";
+  const draftBeforeSend = state.drafts[draftKey];
+  if (sourceExample) state.messages = sourceExample.messages.map((m) => ({role:m.role === "user" ? "user" : "assistant",content:m.content,title:m.senderName}));
+  const messages = state.messages;
+  const userMessage: TuiMessage = { id: randomUUID(), role: "user", content: initialMessage };
+  messages.push(userMessage);
+  state.screen = "chat";
   state.isBusy = true;
+  state.drafts[draftKey] = "";
+  state.input = ""; state.inputCursor = null;
+  state.status = "Preparing message…";
+  render();
+  const ownsPreparation = () => preparingOwner() && state.routeVersion === preparingRoute
+    && state.messages === messages && state.activeChatId === preparingChatId;
+  const restorePreparation = (status: string | null) => {
+    if (!ownsPreparation()) return;
+    const index = messages.indexOf(userMessage);
+    if (index >= 0) messages.splice(index, 1);
+    state.messages = previousMessages;
+    state.screen = previousScreen;
+    state.isBusy = false;
+    if (state.input === "" && state.drafts[draftKey] === "") {
+      state.input = initialMessage; state.inputCursor = null;
+      if (draftBeforeSend === undefined) delete state.drafts[draftKey];
+      rememberDraft(state);
+    }
+    if (client.getActiveTeamId?.()) reconcileTuiTeamSenderLabels(state);
+    state.status = status;
+    render();
+  };
+  let resolved: {message:string;blocked:boolean};
+  try {
+    resolved = !params.questionAnswer && params.modelShell
+      ? await params.modelShell.consumeMention(params.message, true) : { message: params.message, blocked: false };
+  } catch (error) {
+    restorePreparation(error instanceof Error ? error.message : String(error));
+    return;
+  }
+  if (!ownsPreparation()) return;
+  if (resolved.blocked) { restorePreparation(null); return; }
+  const message = resolved.message.trim();
+  if (!message) { restorePreparation(null); return; }
+  userMessage.content = message;
+  client.clearInteractiveChatViewer();
   state.status = "Preparing message…"; render();
   if (!ownsPreparation()) return;
   let prepared: Awaited<ReturnType<typeof prepareTuiMessage>>;
   try {
     prepared = params.questionAnswer ? {message,preparedEmbeds:[],displayNames:[]} : await prepareTuiMessage(client, message);
   } catch (error) {
-    if (ownsPreparation()) {
-      state.isBusy = false;
-      if (client.getActiveTeamId?.()) reconcileTuiTeamSenderLabels(state);
-      state.input = message; state.inputCursor = null; rememberDraft(state);
-      state.status = error instanceof Error ? error.message : String(error);
-      render();
-    }
+    restorePreparation(error instanceof Error ? error.message : String(error));
     return;
   }
   if (!ownsPreparation()) return;
@@ -595,46 +646,44 @@ export async function sendTuiMessage(params: {
   const modelSelection = waitForAi && !params.questionAnswer && isTuiAiComposer(state) && client.hasSession()
     ? params.modelShell?.selectionForSend() ?? null : 'auto';
   if (modelSelection === null) {
-    if (ownsPreparation()) {
-      state.isBusy = false; state.input = message; state.inputCursor = null; rememberDraft(state);
-      if (sendTeamId) reconcileTuiTeamSenderLabels(state);
-      state.status = 'Model selection is loading. Retry or choose Auto before sending.'; render();
-    }
+    restorePreparation('Model selection is loading. Retry or choose Auto before sending.');
     return;
   }
   const separator = modelSelection.indexOf('/');
   const modelDirective = separator > 0 ? `@ai-model:${modelSelection.slice(separator+1)}:${modelSelection.slice(0,separator)} ` : '';
-  const previousMessages = state.messages, previousActiveChat = state.activeChat, previousHeaderState = state.headerState;
-  const previousScreen = state.screen;
-  const sourceExample = state.screen === "example" ? state.activeExample : null;
-  const history = sourceExample ? buildExampleContinuationHistory(sourceExample) : undefined;
-  if (sourceExample) state.messages = sourceExample.messages.map((m) => ({role:m.role === "user" ? "user" : "assistant",content:m.content,title:m.senderName}));
-  const messages = state.messages;
   const existingChatId = sourceExample ? null : state.activeChatId;
   const chatId = existingChatId ?? randomUUID();
   let ownedMessages = messages, ownedChatId: string | null = chatId;
   const ownsSend = () => preparingOwner() && state.routeVersion === preparingRoute
     && state.messages === ownedMessages && state.activeChatId === ownedChatId;
-  const draftKey = sourceExample ? `example:${sourceExample.chat.id}` : existingChatId ?? "new";
-  state.drafts[draftKey] = ""; state.input = ""; state.inputCursor = null;
-  const anonymousHistory = history ?? messages.filter((m) => m.role !== "system").map((m) => ({message_id:randomUUID(),role:m.role as "user"|"assistant",content:m.content,sender_name:m.title??(m.role==="user"?"User":"Assistant"),created_at:Math.floor(Date.now()/1000)}));
+  // The composer was cleared when the optimistic row first appeared. Keep any
+  // newer draft the user entered while preparation was still in progress.
+  const anonymousHistory = history ?? messages.filter((m) => m !== userMessage && m.role !== "system").map((m) => ({message_id:randomUUID(),role:m.role as "user"|"assistant",content:m.content,sender_name:m.title??(m.role==="user"?"User":"Assistant"),created_at:Math.floor(Date.now()/1000)}));
   state.activeChatId = chatId; state.headerState = existingChatId ? "ready" : "loading"; state.headerError = null;
   if(!existingChatId && waitForAi)params.modelShell?.adoptNewChat(chatId);
   if (!existingChatId) state.activeChat = null;
   state.screen = "chat";
   state.aiTaskId = null;
   state.status = prepared.displayNames.length ? `Attached: ${prepared.displayNames.join(", ")}` : null;
-  const userMessage: TuiMessage = { role: "user", content: prepared.message, embedIds: prepared.preparedEmbeds.map((embed) => embed.embedId) };
-  state.messages.push(userMessage);
+  userMessage.content = prepared.message;
+  userMessage.embedIds = prepared.preparedEmbeds.map((embed) => embed.embedId);
   const privacyCallbacks = {
     onPrivacyPrepared: (safe: string) => { if (ownsSend()) { userMessage.content = safe.replace(/^@ai-model:[^\s]+\s*/,""); render(); } },
     onPrivacyProgress: (done: number, total: number) => { if (ownsSend()) { state.status = `Offline personal-data scan: ${Math.floor(done * 100 / total)}%`; render(); } },
   };
-  const assistantMessage = waitForAi ? { role: "assistant" as const, content: "", title: "Assistant" } : null;
-  if (assistantMessage) state.messages.push(assistantMessage);
+  const assistantMessage: TuiMessage | null = waitForAi
+    ? { id: randomUUID(), role: "assistant", content: "", title: "Assistant" } : null;
+  state.streamingMessage = assistantMessage;
+  if (assistantMessage) state.streamingPhase = 0;
   state.isAwaitingAi = waitForAi;
+  const showAssistant = (content: string) => {
+    if (!assistantMessage || !ownsSend() || !content) return;
+    assistantMessage.content = content;
+    if (!messages.includes(assistantMessage)) messages.push(assistantMessage);
+  };
   render();
   let questionSendError: Error | null = null;
+  let accepted = false;
   try {
     if (!client.hasSession()) {
       const result = await client.sendAnonymousMessage({
@@ -642,7 +691,8 @@ export async function sendTuiMessage(params: {
         ...privacyCallbacks,
         messageHistory: anonymousHistory,
       });
-      if (assistantMessage) assistantMessage.content = result.assistant;
+      accepted = true;
+      showAssistant(result.assistant);
       if (ownsSend()) {
         ownedChatId = result.chatId; state.activeChatId = result.chatId;
         state.activeChat = {id:result.chatId,shortId:result.chatId.slice(0,8),title:null,summary:null,updatedAt:null,createdAt:Math.floor(Date.now()/1000),category:result.category,mateName:result.mateName};
@@ -672,20 +722,34 @@ export async function sendTuiMessage(params: {
         onStream: (event: StreamEvent) => {
           if (!ownsSend()) return;
           if (event.taskId) state.aiTaskId = event.taskId;
-          if (assistantMessage && (event.kind === "chunk" || event.kind === "done")) {
-            assistantMessage.content = event.content;
-            if (event.category) state.activeChat = {id:chatId,shortId:chatId.slice(0,8),title:state.activeChat?.title??null,summary:state.activeChat?.summary??null,updatedAt:null,createdAt:state.activeChat?.createdAt??Math.floor(Date.now()/1000),category:event.category,mateName:null};
-            render();
+          if(assistantMessage&&event.thinkingContent!==undefined)assistantMessage.thinkingContent=event.thinkingContent;
+          if(assistantMessage&&event.thinkingActive!==undefined)assistantMessage.thinkingActive=event.thinkingActive;
+          if (assistantMessage && event.modelName) assistantMessage.modelName = event.modelName;
+          if (assistantMessage && event.category) {
+            state.activeChat = {id:chatId,shortId:chatId.slice(0,8),title:state.activeChat?.title??null,
+              summary:state.activeChat?.summary??null,updatedAt:null,
+              createdAt:state.activeChat?.createdAt??Math.floor(Date.now()/1000),category:event.category,mateName:null};
           }
+          if (assistantMessage && (event.kind === "chunk" || event.kind === "done")) {
+            showAssistant(event.content);
+          }
+          render();
         },
       });
-      if (assistantMessage) assistantMessage.content = result.assistant;
+      accepted = true;
+      showAssistant(result.assistant);
       if (ownsSend()) {
         ownedChatId = result.chatId; state.activeChatId = result.chatId; state.followUpSuggestions = result.followUpSuggestions ?? [];
         if (result.userMessageId) userMessage.id = result.userMessageId;
-        if(!existingChatId)void params.modelShell?.persistCreatedChat(result.chatId,modelSelection);
+        if (!existingChatId && params.modelShell) {
+          void Promise.resolve().then(() => ownsSend()
+            ? params.modelShell?.persistCreatedChat(result.chatId,modelSelection) : undefined).catch(() => {});
+        }
         // A completed reply must release send controls even if viewer sync is offline.
-        if (state.screen === "chat") void client.setInteractiveChatViewer(result.chatId).catch(() => {});
+        if (state.screen === "chat" && typeof client.setInteractiveChatViewer === "function") {
+          void Promise.resolve().then(() => ownsSend() && state.screen === "chat"
+            ? client.setInteractiveChatViewer(result.chatId) : undefined).catch(() => {});
+        }
         if (result.mateName && assistantMessage) assistantMessage.title = result.mateName;
         if (typeof client.getChatMetadata === "function") {
           const completedLength = messages.length;
@@ -702,25 +766,32 @@ export async function sendTuiMessage(params: {
     }
     if (ownsSend()) {state.status = null;state.headerState="ready";}
   } catch (error) {
+    // Server acceptance is irreversible; optional local follow-up failure
+    // must never turn the acknowledged message back into a retry draft.
+    if (accepted) return;
     if (params.questionAnswer) {
       questionSendError = error instanceof Error ? error : new Error(String(error));
-      for (const optimistic of [userMessage, assistantMessage].filter((item): item is NonNullable<typeof item> => item !== null)) {
-        const index = messages.indexOf(optimistic); if (index >= 0) messages.splice(index, 1);
-      }
       if (ownsSend()) {
+        for (const optimistic of [userMessage, assistantMessage].filter((item): item is NonNullable<typeof item> => item !== null)) {
+          const index = messages.indexOf(optimistic); if (index >= 0) messages.splice(index, 1);
+        }
         state.messages = previousMessages; state.activeChatId = existingChatId; state.activeChat = previousActiveChat;
         ownedMessages = previousMessages; ownedChatId = existingChatId;
         state.headerState = previousHeaderState; state.screen = sourceExample ? "example" : "chat"; state.status = null;
       }
-    } else if (assistantMessage) {
+    } else if (assistantMessage && ownsSend()) {
       assistantMessage.title = "Error";
-      assistantMessage.content = error instanceof Error ? error.message : String(error);
-      if (ownsSend()) {state.headerState="error";state.headerError=/credit/i.test(assistantMessage.content)?"Not enough credits":assistantMessage.content;}
+      showAssistant(error instanceof Error ? error.message : String(error));
+      state.headerState="error";state.headerError=/credit/i.test(assistantMessage.content)?"Not enough credits":assistantMessage.content;
     } else if (ownsSend()) {
+      const index = messages.indexOf(userMessage);
+      if (index >= 0) messages.splice(index, 1);
       state.messages = previousMessages; state.activeChatId = existingChatId; state.activeChat = previousActiveChat;
       ownedMessages = previousMessages; ownedChatId = existingChatId;
       state.headerState = previousHeaderState; state.screen = previousScreen;
-      state.input = message; state.inputCursor = null; rememberDraft(state);
+      if (state.input === "" && state.drafts[draftKey] === "") {
+        state.input = message; state.inputCursor = null; rememberDraft(state);
+      }
       state.status = error instanceof Error ? error.message : String(error);
     }
   } finally {
@@ -728,6 +799,7 @@ export async function sendTuiMessage(params: {
       state.isBusy = false;
       if (sendTeamId) reconcileTuiTeamSenderLabels(state);
       state.isAwaitingAi = false;
+      state.streamingMessage = null;
       state.projectFocusPending = null;
       state.aiTaskId = null;
       registerChatEmbedAliases(state);

@@ -82,7 +82,7 @@ async function recordInteractiveCli(apiUrl: string, home: string, outputDir: str
 	const cliDir = path.dirname(path.dirname(candidateCli));
 	const args = [
 		path.join(ROOT, 'scripts/cli_video_capture.py'), '--output-dir', outputDir,
-		'--target-environment', apiUrl, '--classification', 'cli_tui_workspace',
+		'--target-environment', apiUrl, '--classification', candidateCli.endsWith('/tests/fixtures/tui-streaming-proof.mjs') ? 'cli_tui_synthetic_stream' : 'cli_tui_workspace',
 		'--display-number', String(110 + Number(process.env.PLAYWRIGHT_WORKER_SLOT || '1')),
 		'--timeout-seconds', '90', '--input-plan', inputPlan, '--no-response-media',
 		'--', 'node', candidateCli
