@@ -86,6 +86,25 @@ def upload_specs(harness_manifest: dict, candidate_root: Path) -> set[str]:
     return set(harness_specs) | set(candidate_specs)
 
 
+def ai_fixture_specs(harness_manifest: dict, candidate_root: Path) -> set[str]:
+    """Add candidate replay dependencies while retaining harness requirements."""
+    candidate_manifest = json.loads(
+        (candidate_root / "scripts/ci_coverage_manifest.json").read_text()
+    )
+    required: set[str] = set()
+    for group in ("ai_committed_fixtures", "ai_cached_pipeline", "ai_cached_public_provider"):
+        harness_specs = harness_manifest["groups"].get(group, {}).get("specs", [])
+        candidate_specs = candidate_manifest["groups"].get(group, {}).get("specs", [])
+        if any(
+            not isinstance(specs, list) or not all(isinstance(spec, str) for spec in specs)
+            for specs in (harness_specs, candidate_specs)
+        ):
+            raise RuntimeError(f"Invalid {group} specs in CI coverage manifest")
+        required.update(harness_specs)
+        required.update(candidate_specs)
+    return required
+
+
 def workflow_specs(harness_manifest: dict, candidate_root: Path, group: str = "workflow_weather") -> set[str]:
     """Add candidate Workflow dependencies without removing trusted harness gates."""
     if group not in {"workflow_weather", "workflow_core"}:
@@ -1249,7 +1268,7 @@ def main():
             ["git", "rev-parse", "HEAD"], cwd=SOURCE, text=True
         ).strip()
         manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
-        fixture_specs = {spec for group in ("ai_committed_fixtures", "ai_cached_pipeline", "ai_cached_public_provider") for spec in manifest["groups"].get(group, {}).get("specs", [])}
+        fixture_specs = ai_fixture_specs(manifest, Path(SOURCE))
         selected = json.loads(os.environ.get("CI_SPECS_JSON", "[]"))
         billing_selected = [BILLING_STORAGE_PROFILES[spec] for spec in selected
                             if spec in BILLING_STORAGE_PROFILES]

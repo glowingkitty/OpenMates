@@ -17,6 +17,7 @@ from scripts.ci_environment import (
     SCHEMA_RESTORE_SEMANTICS,
     SOURCE,
     apply_prepared_schema,
+    ai_fixture_specs,
     compose_profile,
     mail_capture_specs,
     upload_specs,
@@ -114,6 +115,50 @@ def test_candidate_upload_dependencies_keep_harness_requirements(tmp_path):
     candidate_manifest.write_text(json.dumps({"groups": {"uploads": {"specs": "bad"}}}))
     with pytest.raises(RuntimeError, match="Invalid uploads specs"):
         upload_specs(harness, tmp_path)
+
+
+@pytest.mark.parametrize("group", [
+    "ai_committed_fixtures", "ai_cached_pipeline", "ai_cached_public_provider",
+])
+def test_candidate_ai_fixture_enables_private_replay_without_removing_harness_specs(tmp_path, group):
+    (tmp_path / "scripts").mkdir()
+    candidate_manifest = tmp_path / "scripts/ci_coverage_manifest.json"
+    candidate_manifest.write_text(json.dumps({"groups": {group: {
+        "specs": ["chat-queued-followups-protocol.spec.ts"]
+    }}}))
+    harness = {"groups": {"ai_committed_fixtures": {
+        "specs": ["existing-chat.spec.ts"]
+    }}}
+    required = ai_fixture_specs(harness, tmp_path)
+    assert required == {"existing-chat.spec.ts", "chat-queued-followups-protocol.spec.ts"}
+
+    profile = compose_profile("a" * 40, ai_fixtures="chat-queued-followups-protocol.spec.ts" in required)
+    assert profile["networks"]["default"]["internal"] is True
+    assert profile["services"]["ai-worker"]["environment"]["CELERY_QUEUES"] == "app_ai"
+    for service in ("api", "ai-worker"):
+        environment = profile["services"][service]["environment"]
+        assert environment["OPENMATES_CI_AI_FIXTURES"] == "1"
+        assert "HTTPS_PROXY" not in environment
+        assert not any(key.startswith("SECRET__") for key in environment)
+    assert "OPENMATES_CI_PUBLIC_PROVIDER_PROXY" not in profile["services"]["runner-gateway"]["environment"]
+
+    candidate_manifest.write_text(json.dumps({"groups": {}}))
+    assert ai_fixture_specs(harness, tmp_path) == {"existing-chat.spec.ts"}
+
+
+@pytest.mark.parametrize("group", [
+    "ai_committed_fixtures", "ai_cached_pipeline", "ai_cached_public_provider",
+])
+@pytest.mark.parametrize("bad_specs", ["bad", ["valid.spec.ts", 42], {"spec.ts": True}])
+def test_ai_fixture_dependencies_reject_malformed_spec_lists(tmp_path, group, bad_specs):
+    (tmp_path / "scripts").mkdir()
+    candidate_manifest = tmp_path / "scripts/ci_coverage_manifest.json"
+    candidate_manifest.write_text(json.dumps({"groups": {group: {"specs": bad_specs}}}))
+    with pytest.raises(RuntimeError, match=f"Invalid {group} specs"):
+        ai_fixture_specs({"groups": {}}, tmp_path)
+    candidate_manifest.write_text(json.dumps({"groups": {}}))
+    with pytest.raises(RuntimeError, match=f"Invalid {group} specs"):
+        ai_fixture_specs({"groups": {group: {"specs": bad_specs}}}, tmp_path)
 
 
 def test_candidate_mail_dependencies_add_only_mail_capture(tmp_path):

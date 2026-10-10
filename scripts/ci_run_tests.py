@@ -65,6 +65,7 @@ ARCHIVE_LIFECYCLE_SPEC = "storage-archive-lifecycle.spec.ts"
 MARKER_CHAT_EPOCH_SPECS = frozenset({
     "maps-discovery-chat.spec.ts",
     "audio-recording-deferred-send.spec.ts",
+    "chat-queued-followups-protocol.spec.ts",
     "connection-resilience.spec.ts",
     "skill-web-search.spec.ts",
     "native-cache-selected-tools.spec.ts",
