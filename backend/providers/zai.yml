@@ -1,6 +1,6 @@
 # backend/providers/zai.yml
 # Z.ai provider config (GLM models).
-# GLM models are served via Cerebras API.
+# GLM models use Mistral, OpenRouter, or Cerebras according to their version.
 ---
 provider_id: "zai"
 name: "Z.ai"
@@ -9,6 +9,10 @@ logo_svg: "logos/zai.svg"
 privacy_policy: "https://docs.z.ai/legal-agreement/privacy-policy"
 
 optional_keys:
+  - env_key: "SECRET__MISTRAL_AI__API_KEY"
+    vault_path: "kv/data/providers/mistral_ai"
+    vault_key: "api_key"
+    description: "Mistral API key for the default GLM 5.3 host."
   - env_key: "SECRET__CEREBRAS__API_KEY"
     vault_path: "kv/data/providers/cerebras"
     vault_key: "api_key"
@@ -19,6 +23,61 @@ optional_keys:
     description: "Optional OpenRouter fallback key for GLM model hosting."
 
 models:
+  - id: "zai-glm-5.3"
+    name: "GLM 5.3"
+    description: >-
+      Z.ai's long-context reasoning model for coding and agentic workflows,
+      hosted by Mistral in the EU with a one-million-token context.
+    country_origin: "CN"
+    for_app_skill: "ai.ask"
+    release_date: "2026-09-15"
+    capability_level: "high"
+    allow_auto_select: true
+    reasoning: true
+    reasoning_effort: "high"
+    input_types: [text]
+    output_types: [text]
+    default_server: "mistral"
+    servers:
+      - id: "mistral"
+        name: "Mistral"
+        model_id: "zai-glm-5-3"
+        region: "EU"
+    # Mistral direct-API rates, verified 2026-10-10:
+    # https://docs.mistral.ai/models/zai-glm-5-3
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 238 # About 3x $1.40/M at $0.001 per credit.
+        cache_read:
+          per_credit_unit: 2380 # About 3x $0.14/M.
+        output:
+          per_credit_unit: 75 # About 3x $4.40/M, including reasoning tokens.
+    cache_pricing:
+      enabled: true
+      write_billing: included_in_input
+      eligible_hosts: [mistral]
+      source_url: https://docs.mistral.ai/models/zai-glm-5-3
+      reviewed_on: "2026-10-10"
+      status: verified_for_activation
+      expires_on: "2026-11-10"
+    costs:
+      input_per_million_token:
+        price: 1.40
+        currency: USD
+        max_context: 1048576 # Confirmed by Mistral's authenticated /v1/models catalog.
+      cached_input_per_million_token:
+        price: 0.14
+        currency: USD
+      output_per_million_token:
+        price: 4.40
+        currency: USD
+        max_context: 1048576
+    features:
+      max_output_tokens: 128000
+      tool_use: true
+      streaming: true
+
   - id: "zai-glm-5.2"
     name: "GLM 5.2"
     description: "Z.ai GLM 5.2 - large-scale reasoning model with a 1M-token context window for long-horizon agent workflows and project-level software engineering. Served via OpenRouter."

@@ -20,6 +20,7 @@ ACTIVE = {
         "claude-sonnet-5", "claude-sonnet-4-6",
     },
     "mistral": {"mistral-large-4", "mistral-small-latest"},
+    "zai": {"zai-glm-5.3"},
 }
 SUPPLIER_COST_KEYS = {
     "input": "input_per_million_token",
@@ -54,16 +55,17 @@ def test_only_verified_models_have_active_cache_tariffs(provider: str) -> None:
     models = {model["id"]: model for model in catalog["models"] if "cache_pricing" in model}
     assert {model_id for model_id, model in models.items() if model["cache_pricing"]["enabled"]} == ACTIVE[provider]
 
+    review_date = date(2026, 10, 10) if provider == "zai" else REVIEW_DATE
     for model_id in ACTIVE[provider]:
         model = models[model_id]
         policy = model["cache_pricing"]
         assert policy["status"] == "verified_for_activation"
-        assert date.fromisoformat(policy["reviewed_on"]) == REVIEW_DATE
-        assert date.fromisoformat(policy["expires_on"]) >= REVIEW_DATE
+        assert date.fromisoformat(policy["reviewed_on"]) == review_date
+        assert date.fromisoformat(policy["expires_on"]) >= review_date
         assert policy["source_url"].startswith("https://")
         assert set(policy["eligible_hosts"]) <= {server["id"] for server in model["servers"]}
         for host in policy["eligible_hosts"]:
-            assert is_cache_tariff_admissible(policy, host, on_date=REVIEW_DATE)
+            assert is_cache_tariff_admissible(policy, host, on_date=review_date)
 
 
 # contract-test: supporting surface=rest_api assertions=billing.usage.receipt-token-breakdown
@@ -161,6 +163,10 @@ def test_active_category_prices_cover_configured_supplier_costs(provider: str, m
       "cache_read_input_tokens": 400, "cache_creation_input_tokens": None, "output_tokens": 20},
      400, 0),
     ("mistral", "mistral-large-4", "mistral",
+     {"input_tokens": 1000, "uncached_input_tokens": 600,
+      "cache_read_input_tokens": 400, "cache_creation_input_tokens": None, "output_tokens": 20},
+     400, 0),
+    ("zai", "zai-glm-5.3", "mistral",
      {"input_tokens": 1000, "uncached_input_tokens": 600,
       "cache_read_input_tokens": 400, "cache_creation_input_tokens": None, "output_tokens": 20},
      400, 0),

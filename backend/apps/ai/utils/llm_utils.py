@@ -1642,6 +1642,8 @@ async def call_preprocessing_llm(
                         provider_request_kwargs["max_retries"] = 0
                     if provider_prefix == "groq" and reasoning_effort:
                         provider_request_kwargs["reasoning_effort"] = reasoning_effort
+                    if provider_prefix == "mistral":
+                        provider_request_kwargs["catalog_model_id"] = requested_model_id
                     if temperature is not None:
                         provider_request_kwargs["temperature"] = temperature
                     if max_output_tokens is not None:
@@ -2257,6 +2259,8 @@ async def call_main_llm_stream(
                 _retry_input["cacheable_system_prefix"] = sanitized_cacheable_prefix
             if _retry_provider_prefix == "mistral" and prompt_cache_key:
                 _retry_input["prompt_cache_key"] = prompt_cache_key
+            if _retry_provider_prefix == "mistral":
+                _retry_input["catalog_model_id"] = original_model_id
             if pre_dispatch_admission is not None:
                 admitted_limit = await pre_dispatch_admission(_retry_server_model_id, _retry_input["max_tokens"])
                 if (isinstance(admitted_limit, bool) or not isinstance(admitted_limit, int)
@@ -2424,6 +2428,8 @@ async def call_main_llm_stream(
 
         if server_provider_prefix == "openai" and original_model_id.startswith("openai/"):
             server_llm_input_details["catalog_model_id"] = original_model_id.split("/", 1)[1]
+        if server_provider_prefix == "mistral":
+            server_llm_input_details["catalog_model_id"] = original_model_id
 
         # Select provider client using dynamic registry - no hardcoded provider names!
         provider_client = _get_provider_client(server_provider_prefix)

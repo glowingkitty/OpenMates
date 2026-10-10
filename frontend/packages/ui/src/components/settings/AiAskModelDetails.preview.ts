@@ -23,6 +23,7 @@ export const variants = {
   'catalog-anthropic': { modelId: 'claude-sonnet-5-5' },
   'catalog-haiku': { modelId: 'claude-haiku-5-5' },
   'catalog-mistral': { modelId: 'mistral-small-latest' },
+  'catalog-glm': { modelId: 'zai-glm-5.3' },
   'cache-active': {
     modelOverride: {
       ...model,

@@ -20,6 +20,7 @@ MISTRAL_API_BASE_URL = "https://api.mistral.ai/v1"
 MISTRAL_API_KEY: Optional[str] = None
 MISTRAL_THINKING_STATE_KEY = "mistral_thinking"
 MISTRAL_REASONING_EFFORTS = {"none", "high"}
+GLM_REASONING_EFFORTS = {"low", "high", "max"}
 
 # --- Pydantic Models for Structured Mistral Response ---
 
@@ -83,11 +84,17 @@ class UnifiedMistralResponse(BaseModel):
     usage: Optional[MistralUsage] = None
 
 
-def _get_mistral_reasoning_effort(model_id: str) -> Optional[str]:
+def _get_mistral_reasoning_effort(
+    model_id: str, catalog_model_id: Optional[str] = None,
+) -> Optional[str]:
     """Use the catalog's provider-specific reasoning setting when configured."""
-    model = config_manager.get_model_pricing("mistral", model_id) or {}
+    provider_id, catalog_id = (
+        catalog_model_id.split("/", 1) if catalog_model_id else ("mistral", model_id)
+    )
+    model = config_manager.get_model_pricing(provider_id, catalog_id) or {}
     effort = model.get("reasoning_effort")
-    if effort is not None and effort not in MISTRAL_REASONING_EFFORTS:
+    supported = GLM_REASONING_EFFORTS if model_id.startswith("zai-glm-") else MISTRAL_REASONING_EFFORTS
+    if effort is not None and effort not in supported:
         raise ValueError(f"Invalid Mistral reasoning_effort for model '{model_id}': {effort!r}")
     return effort
 
@@ -179,6 +186,7 @@ async def invoke_mistral_chat_completions(
     tool_choice: Optional[Union[str, Dict[str, Any]]] = None,
     stream: bool = False,
     prompt_cache_key: Optional[str] = None,
+    catalog_model_id: Optional[str] = None,
 ) -> Union[UnifiedMistralResponse, AsyncIterator[Union[str, UnifiedStreamChunk, ParsedMistralToolCall, MistralUsage]]]:
     global MISTRAL_API_KEY
     if not MISTRAL_API_KEY and secrets_manager:
@@ -211,7 +219,10 @@ async def invoke_mistral_chat_completions(
         payload["prompt_cache_key"] = prompt_cache_key
     if max_tokens is not None:
         payload["max_tokens"] = max_tokens
-    reasoning_effort = _get_mistral_reasoning_effort(model_id)
+    reasoning_effort = (
+        _get_mistral_reasoning_effort(model_id, catalog_model_id)
+        if catalog_model_id else _get_mistral_reasoning_effort(model_id)
+    )
     if reasoning_effort is not None:
         payload["reasoning_effort"] = reasoning_effort
     if tools:

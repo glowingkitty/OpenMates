@@ -316,6 +316,7 @@
         "components/teams-invite-form.spec.ts",
         "components/settings-avatar.spec.ts",
         "components/ai-model-cache-pricing.spec.ts",
+        "components/glm-mistral-pricing.spec.ts",
         "components/app-skill-model-cache-pricing.spec.ts",
         "components/settings-usage-cache-receipt.spec.ts",
         "components/chat-message-team-attribution.spec.ts",
