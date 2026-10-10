@@ -164,3 +164,36 @@ def test_cache_discount_is_not_admitted_for_another_host():
     entry = build_model_usage_breakdown([bucket], lambda *_: model)['entries'][0]
     assert entry['billing_mode'] == 'ordinary_input'
     assert float(entry['category_credits']['cache_read']) == 0
+
+
+@pytest.mark.parametrize('finish_reason', ['stop', 'tool_calls'])
+def test_glm_stream_emits_valid_tool_call_on_provider_terminal_reason(monkeypatch, finish_reason):
+    _use_catalog(monkeypatch)
+    events = [
+        {'choices': [{'delta': {'tool_calls': [{'id': 'glm-call', 'index': 0, 'type': 'function', 'function': {'name': 'verify_answer', 'arguments': ''}}]}, 'finish_reason': None}]},
+        {'choices': [{'delta': {'tool_calls': [{'index': 0, 'function': {'name': '', 'arguments': '{"code":"CACHE_OK"}'}}]}, 'finish_reason': None}]},
+        {'choices': [{'delta': {}, 'finish_reason': finish_reason}], 'usage': {'prompt_tokens': 189, 'completion_tokens': 13, 'total_tokens': 202, 'prompt_tokens_details': {'cached_tokens': 64}}},
+    ]
+
+    def handle(_):
+        return httpx.Response(200, text=''.join(f'data: {json.dumps(event)}\n\n' for event in events) + 'data: [DONE]\n\n')
+
+    original_client = httpx.AsyncClient
+    monkeypatch.setattr(mistral_client, 'MISTRAL_API_KEY', 'test-placeholder')
+    monkeypatch.setattr(mistral_client.httpx, 'AsyncClient', lambda **kwargs: original_client(**kwargs, transport=httpx.MockTransport(handle)))
+
+    async def run():
+        stream = await mistral_client.invoke_mistral_chat_completions(
+            task_id='glm-test', model_id='zai-glm-5-3', catalog_model_id='zai/zai-glm-5.3',
+            messages=[{'role': 'user', 'content': 'Verify the synthetic answer.'}], stream=True,
+        )
+        return [chunk async for chunk in stream]
+
+    chunks = asyncio.run(run())
+    calls = [chunk for chunk in chunks if isinstance(chunk, mistral_client.ParsedMistralToolCall)]
+    assert len(calls) == 1
+    assert calls[0].tool_call_id == 'glm-call'
+    assert calls[0].function_name == 'verify_answer'
+    assert calls[0].function_arguments_parsed == {'code': 'CACHE_OK'}
+    assert calls[0].parsing_error is None
+    assert chunks[-1].cache_read_input_tokens == 64

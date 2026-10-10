@@ -347,7 +347,8 @@ async def invoke_mistral_chat_completions(
                                             current_tool_function_args_buffer = func_details.get("arguments") or ""
                                         elif current_tool_function_name:
                                             current_tool_function_args_buffer += func_details.get("arguments", "")
-                                if choice.get("finish_reason") == "tool_calls" and current_tool_function_name:
+                                # Mistral-hosted GLM ends valid tool calls with "stop".
+                                if choice.get("finish_reason") in {"tool_calls", "stop"} and current_tool_function_name:
                                     parsed_args, err_msg = None, None
                                     try:
                                         parsed_args = json.loads(current_tool_function_args_buffer)
