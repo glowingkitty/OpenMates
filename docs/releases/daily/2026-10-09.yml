@@ -1,0 +1,4130 @@
+schema_version: 1
+cadence: daily
+date: '2026-10-09'
+generated_at: '2026-10-10T00:20:30+00:00'
+range:
+  since: '2026-10-09T00:00:00+00:00'
+  until: '2026-10-10T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 42
+  section_counts:
+    features: 4
+    bug_fixes: 28
+    improvements: 2
+    docs: 6
+    tests: 2
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 29
+  dev_only_items: 42
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: refine standalone landing and guest welcome'
+    section: features
+    commits:
+    - 5445e18fc
+    authored_at: '2026-10-09T17:58:56+00:00'
+    changed_paths:
+    - docs/plans/landing-refinement/plan.yml
+    - frontend/apps/web_app/static/landing/screenshots/model-selector-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/model-selector-mobile.webp
+    - frontend/apps/web_app/static/store-examples/community-garden-budget-page-1.png
+    - frontend/apps/web_app/static/store-examples/community-garden-budget.pdf
+    - frontend/apps/web_app/static/store-examples/community-garden-sunflower.webp
+    - frontend/apps/web_app/static/store-examples/community-garden-welcome-melody.mp3
+    - frontend/apps/web_app/static/store-examples/transcription-demo-voice-note.wav
+    - frontend/apps/web_app/tests/components/apps-workspace-preview.spec.ts
+    - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
+    - frontend/apps/web_app/tests/components/docs-public-model.spec.ts
+    - frontend/apps/web_app/tests/components/header-mobile-layout-preview.spec.ts
+    - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
+    - frontend/apps/web_app/tests/components/pdf-public-document.spec.ts
+    - frontend/apps/web_app/tests/components/recording-public-playback.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/apps/web_app/tests/header-mobile-layout.spec.ts
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/apps/web_app/tests/landing-app-examples-laptop-a.spec.ts
+    - frontend/apps/web_app/tests/landing-app-examples-laptop-b.spec.ts
+    - frontend/apps/web_app/tests/landing-app-examples-phone-b.spec.ts
+    - frontend/apps/web_app/tests/landing-app-examples.spec.ts
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/apps/web_app/tests/marketing-landing-route.spec.ts
+    - frontend/apps/web_app/tests/proof-video-architecture.spec.ts
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/apps/website/src/routes/legal/[slug]/+page.server.ts
+    - frontend/apps/website/src/routes/legal/[slug]/+page.svelte
+    - frontend/apps/website/static/landing/screenshots/model-selector-desktop.webp
+    - frontend/apps/website/static/landing/screenshots/model-selector-mobile.webp
+    - frontend/packages/public-site/scripts/compile-public-apps.mjs
+    - frontend/packages/public-site/scripts/generate-public-data.mjs
+    - frontend/packages/public-site/scripts/validate-landing-app-examples.mjs
+    - frontend/packages/public-site/scripts/validate-landing-app-examples.test.mjs
+    - frontend/packages/public-site/src/components/DeviceScreenshots.svelte
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - frontend/packages/public-site/src/components/landing/PublicSiteHeader.svelte
+    - frontend/packages/public-site/src/components/landing/landingPageContent.ts
+    - frontend/packages/public-site/src/generated/landingLocale.generated.json
+    - frontend/packages/public-site/src/generated/publicApps.generated.json
+    - frontend/packages/public-site/src/i18n/landing.yml
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ActiveChatFocusFixture.svelte
+    - frontend/packages/ui/src/components/apps/AppsWorkspace.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsWorkspace.svelte
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/audio/publicRecordingAudio.test.ts
+    - frontend/packages/ui/src/components/embeds/audio/publicRecordingAudio.ts
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/docsEmbedContent.test.ts
+    - frontend/packages/ui/src/components/embeds/docs/docsEmbedContent.ts
+    - frontend/packages/ui/src/components/embeds/pdf/PDFEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/pdf/PDFEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/pdf/PDFEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/pdf/PDFEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/pdf/publicExamplePdf.test.ts
+    - frontend/packages/ui/src/components/embeds/pdf/publicExamplePdf.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/PdfRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/RecordingRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/RecordingRenderer.test.ts
+    - frontend/packages/ui/src/components/settings/AppDetailsWrapper.svelte
+    - frontend/packages/ui/src/components/settings/FocusModeDetails.svelte
+    - frontend/packages/ui/src/components/settings/SkillDetails.svelte
+    - frontend/packages/ui/src/components/settings/SkillExamplesSection.svelte
+    - frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/adjacent-career-portfolio-experiments.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/autumn-basil-balcony-care.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/bayes-theorem-quick-quiz.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/beginner-yoga-classes-berlin.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-english-speaking-gp-appointments.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/books-after-left-hand-of-darkness.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/calm-manager-follow-up.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-budget-review.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-calendar-invitation.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-planning-mindmap.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-sunflower-illustration.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-volunteer-onboarding.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-welcome-melody.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/damped-sine-decay-plot.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/mastodon-public-post-themes.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/net-cash-from-supplied-balances.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/urban-heat-island-at-night.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/voice-note-transcription-action-item.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirationFallbackText.ts
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/daily_inspiration_fallback.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/adjacent_career_portfolio_experiments.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/autumn_basil_balcony_care.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/bayes_theorem_quick_quiz.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/beginner_yoga_classes_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_english_speaking_gp_appointments.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/books_after_left_hand_of_darkness.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/calm_manager_follow_up.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/community_garden_budget_review.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/community_garden_calendar_invitation.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/community_garden_planning_mindmap.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/community_garden_sunflower_illustration.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/community_garden_volunteer_onboarding.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/community_garden_welcome_melody.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/damped_sine_decay_plot.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/mastodon_public_post_themes.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/net_cash_from_supplied_balances.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/urban_heat_island_at_night.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/voice_note_transcription_action_item.yml
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    - scripts/audit_example_chats.py
+    - scripts/build_daily_inspiration_fallback.py
+    - scripts/ci_coverage_manifest.json
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    - scripts/tests/test_example_chat_single_quoted_embeds.py
+    - specifications/features/apps-workspace/examples.yml
+    - specifications/features/apps-workspace/specification.yml
+    - specifications/features/daily-inspiration/examples.yml
+    - specifications/features/daily-inspiration/specification.yml
+    - specifications/features/landing-onboarding/examples.yml
+    - specifications/features/landing-onboarding/specification.yml
+    - specifications/features/marketing-landing/examples.yml
+    - specifications/features/marketing-landing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:docs:doc
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:docs
+      source: backend/apps/docs/app.yml
+    - id: embed:pdf:pdf
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:audio:recording, embed:docs:doc, embed:pdf:pdf'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: align terminal Team chat and batched offline workspaces'
+    section: features
+    commits:
+    - fde4a6e87
+    authored_at: '2026-10-09T15:28:50+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/tests/test_workspace_inventory_paging.py
+    - docs/plans/terminal-ui-teams-parity/plan.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - frontend/apps/web_app/tests/cli-team-artifacts-parity.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-chrome-settings-proof.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-team-collaboration.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-workspace-proof.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiCachedWorkspaces.ts
+    - frontend/packages/openmates-cli/src/tuiChatSettings.ts
+    - frontend/packages/openmates-cli/src/tuiLayout.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tuiSettings.ts
+    - frontend/packages/openmates-cli/src/tuiSettingsCatalog.ts
+    - frontend/packages/openmates-cli/src/tuiTaskList.ts
+    - frontend/packages/openmates-cli/src/tuiTeamChat.ts
+    - frontend/packages/openmates-cli/src/tuiTeamsSettings.ts
+    - frontend/packages/openmates-cli/src/tuiText.ts
+    - frontend/packages/openmates-cli/src/tuiWorkflowWorkspace.ts
+    - frontend/packages/openmates-cli/src/tuiWorkspaceController.ts
+    - frontend/packages/openmates-cli/tests/sdk-teams.test.ts
+    - frontend/packages/openmates-cli/tests/task-pagination.test.ts
+    - frontend/packages/openmates-cli/tests/taskDiscovery.test.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - frontend/packages/openmates-cli/tests/team-ai-trigger.test.ts
+    - frontend/packages/openmates-cli/tests/teams-permissions.test.ts
+    - frontend/packages/openmates-cli/tests/tuiChromeShell.test.ts
+    - frontend/packages/openmates-cli/tests/tuiHeaderActions.test.ts
+    - frontend/packages/openmates-cli/tests/tuiSettings.test.ts
+    - frontend/packages/openmates-cli/tests/tuiTaskList.test.ts
+    - frontend/packages/openmates-cli/tests/tuiTeamChat.test.ts
+    - frontend/packages/openmates-cli/tests/tuiTeamsSettings.test.ts
+    - frontend/packages/openmates-cli/tests/tuiWorkflowWorkspace.test.ts
+    - frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_teams.py
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/terminal-ui/examples.yml
+    - specifications/features/terminal-ui/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: notify successful scheduled workflow completion'
+    section: features
+    commits:
+    - 19b735913
+    authored_at: '2026-10-09T08:39:49+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Networking/DeepLinkHandler.swift
+    - apple/OpenMates/Sources/Core/Networking/NotificationPreviewCrypto.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowModels.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowRunTimelineView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowStore.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowViews.swift
+    - apple/OpenMatesNotificationService/NotificationService.swift
+    - apple/OpenMatesTests/AppDeepLinkRoutingTests.swift
+    - apple/OpenMatesTests/NotificationPreviewCryptoTests.swift
+    - apple/OpenMatesTests/WorkflowsParityTests.swift
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/email_sender_profiles.py
+    - backend/core/api/app/services/notification_event_service.py
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/core/api/app/services/workflow_completion_notification_service.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/workflow_tasks.py
+    - backend/core/api/templates/email/workflow-run-completed.mjml
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/schemas/workflow_completion_notifications.yml
+    - backend/core/directus/setup/migrate_workflow_runtime_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/scripts/probe_workflow_completion_notification.py
+    - backend/tests/test_workflow_completion_notifications.py
+    - backend/tests/test_workflow_completion_probe.py
+    - backend/tests/test_workflow_completion_route_team.py
+    - backend/tests/test_workflow_trigger_persistence.py
+    - docs/architecture/core/chat-workflow-email-notifications.md
+    - docs/plans/dev-runtime-translation-artifacts/plan.yml
+    - docs/plans/workflow-completion-notifications/plan.yml
+    - docs/plans/workflow-completion-notifications/verification.md
+    - frontend/apps/web_app/src/lib/workflowCompletionAuth.test.ts
+    - frontend/apps/web_app/src/lib/workflowCompletionAuth.ts
+    - frontend/apps/web_app/src/lib/workflowCompletionRoute.test.ts
+    - frontend/apps/web_app/src/lib/workflowCompletionRoute.ts
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/static/.well-known/apple-app-site-association
+    - frontend/apps/web_app/tests/components/workflow-completion-status.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-run-exact-target.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/workflow-completion-notification-route.spec.ts
+    - frontend/apps/web_app/tests/workflow-completion-notifications.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowCompletionStatus.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowCompletionStatus.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    - frontend/packages/ui/src/i18n/sources/notifications.yml
+    - frontend/packages/ui/src/i18n/sources/settings/chat.yml
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+    - frontend/packages/ui/src/stores/__tests__/workflowWorkspaceStore.test.ts
+    - frontend/packages/ui/src/stores/activeChatStore.ts
+    - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/product_runtime_translations.py
+    - scripts/sessions.py
+    - scripts/tests/test_product_runtime_translations.py
+    - scripts/tests/test_sessions_setup_gated_restart.py
+    - specifications/features/notifications/examples.yml
+    - specifications/features/notifications/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: activate native history caching and personal chat balance admission'
+    section: features
+    commits:
+    - d566d2947
+    authored_at: '2026-10-09T07:54:09+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/anthropic_client.py
+    - backend/apps/ai/llm_providers/anthropic_direct_api.py
+    - backend/apps/ai/llm_providers/anthropic_shared.py
+    - backend/apps/ai/llm_providers/native_cache_context.py
+    - backend/apps/ai/llm_providers/openai_client.py
+    - backend/apps/ai/llm_providers/openai_responses.py
+    - backend/apps/ai/llm_providers/openai_shared.py
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/native_history_cache.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/apps/ai/testing/native_cache_tools_fixture.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/chat.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/cache_chat_mixin.py
+    - backend/providers/anthropic.yml
+    - backend/providers/mistral.yml
+    - backend/providers/openai.yml
+    - backend/scripts/verify_llm_cache_cli.py
+    - backend/shared/python_utils/native_cache_history.py
+    - backend/shared/testing/mock_context.py
+    - backend/tests/test_agent_context_history_transport.py
+    - backend/tests/test_ai_fallback_billing.py
+    - backend/tests/test_authenticated_ai_reservation_bridge.py
+    - backend/tests/test_cache_pricing_activation.py
+    - backend/tests/test_chat_completion_recovery_jobs.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    - backend/tests/test_llm_cache_accounting.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_mistral_large4.py
+    - backend/tests/test_mock_replay.py
+    - backend/tests/test_native_cache_five_turn_offline.py
+    - backend/tests/test_native_cache_history_transport.py
+    - backend/tests/test_native_cache_llm_utils.py
+    - backend/tests/test_native_cache_mock_transport.py
+    - backend/tests/test_native_cache_tool_adapters.py
+    - backend/tests/test_native_cache_tools_fixture.py
+    - backend/tests/test_native_history_cache_state.py
+    - backend/tests/test_openai_cache_write_usage.py
+    - backend/tests/test_openai_gpt56_models.py
+    - backend/tests/test_optional_native_cache_admission.py
+    - backend/tests/test_personal_chat_admission_balance.py
+    - backend/tests/test_preprocessor_context_startup.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - backend/tests/test_verify_llm_cache_cli.py
+    - docs/architecture/ai/ai-model-selection.md
+    - docs/plans/llm-history-caching/plan.yml
+    - frontend/apps/web_app/tests/components/ai-model-cache-pricing.spec.ts
+    - frontend/apps/web_app/tests/components/settings-usage-cache-receipt.spec.ts
+    - frontend/apps/web_app/tests/native-cache-selected-tools.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/settings/AiAskModelDetails.preview.ts
+    - frontend/packages/ui/src/components/settings/AiAskModelDetails.svelte
+    - frontend/packages/ui/src/components/settings/AppSkillModelDetails.svelte
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+    - frontend/packages/ui/src/services/__tests__/chatRecoveryVersionApply.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/__tests__/personalChatTurnBarrier.test.ts
+    - frontend/packages/ui/src/services/__tests__/recoveryAssistantTimestamp.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/chatRecoveryVersionApply.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/services/personalChatTurnBarrier.ts
+    - frontend/packages/ui/src/services/recoveryAssistantTimestamp.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - frontend/packages/ui/src/utils/cachePricingAvailability.test.ts
+    - frontend/packages/ui/src/utils/cachePricingAvailability.ts
+    - specifications/features/billing/examples.yml
+    - specifications/features/billing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: resolve unique trusted PDF upload filenames'
+    section: bug_fixes
+    commits:
+    - 1ec680021
+    authored_at: '2026-10-09T15:58:37+00:00'
+    changed_paths:
+    - backend/apps/pdf/skills/read_skill.py
+    - backend/tests/test_pdf_read_filename_alias.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:pdf
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/pdf/app.yml
+    - id: embed:pdf:read
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: skill:pdf:read
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:pdf, embed:pdf:read, skill:pdf:read'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: accept encrypted task slug lookup metadata over websocket'
+    section: bug_fixes
+    commits:
+    - 035d4b5a2
+    authored_at: '2026-10-09T14:53:04+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/tests/test_task_update_jobs.py
+    - frontend/apps/web_app/tests/storage-archive-lifecycle.spec.ts
+    - scripts/storage_archive_integration.py
+    - scripts/task_job_ws_integration.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover registered AI child embeds without relaxing Project guards'
+    section: bug_fixes
+    commits:
+    - d8e4814a5
+    authored_at: '2026-10-09T13:48:21+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_handler.py
+    - backend/core/api/app/services/directus/embed_methods.py
+    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
+    - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
+    - backend/tests/test_store_embed_authorization.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputWs.test.ts
+    - scripts/storage_archive_integration.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: enforce live Team access on embed recovery'
+    section: bug_fixes
+    commits:
+    - 8e13e9346
+    authored_at: '2026-10-09T12:36:00+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/request_embed_handler.py
+    - backend/tests/test_embed_version_routes.py
+    - backend/tests/test_request_embed_authorization.py
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent sharing private anonymous chats'
+    section: bug_fixes
+    commits:
+    - 5e32e6cba
+    authored_at: '2026-10-09T12:04:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-child-embeds.spec.ts
+    - frontend/apps/web_app/tests/components/chat-settings-preview.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/components/chats/ChatContextMenu.preview.ts
+    - frontend/packages/ui/src/components/chats/ChatContextMenu.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPreviewHarness.preview.ts
+    - frontend/packages/ui/src/components/chats/ChatSettingsPreviewHarness.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+    - frontend/packages/ui/src/services/__tests__/chatSharing.test.ts
+    - frontend/packages/ui/src/services/__tests__/issueReportSubmission.test.ts
+    - frontend/packages/ui/src/services/chatSharing.ts
+    - frontend/packages/ui/src/services/issueReportSubmission.ts
+    - scripts/ci_coverage.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: finish CLI login and show the next command'
+    section: bug_fixes
+    commits:
+    - 4fa2fa86c
+    authored_at: '2026-10-09T11:42:37+00:00'
+    changed_paths:
+    - docs/user-guide/cli/authentication.md
+    - frontend/apps/web_app/tests/cli-pair-login.spec.ts
+    - frontend/apps/web_app/tests/helpers/cli-pair-terminal-helpers.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/loginTerminal.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: Share encrypted Team uploads through authenticated embed reads'
+    section: bug_fixes
+    commits:
+    - 4442c89a0
+    authored_at: '2026-10-09T11:17:09+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/request_embed_handler.py
+    - backend/tests/test_request_embed_authorization.py
+    - deployment/Caddyfile.example
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - frontend/apps/web_app/tests/teams-chat-collaboration-real.spec.ts
+    - scripts/tests/test_verify_caddyfile.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: accept Project Focus without an optional specialist'
+    section: bug_fixes
+    commits:
+    - 5c6338946
+    authored_at: '2026-10-09T11:06:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve Project refusal and confident routing decisions'
+    section: bug_fixes
+    commits:
+    - 677a5ffc4
+    authored_at: '2026-10-09T10:51:03+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/project_file_tools.py
+    - backend/tests/test_project_focus_early_routing.py
+    - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore CLI recovery when keyring entries are unavailable'
+    section: bug_fixes
+    commits:
+    - 9153cc19b
+    authored_at: '2026-10-09T10:46:47+00:00'
+    changed_paths:
+    - docs/user-guide/cli/authentication.md
+    - frontend/apps/web_app/tests/cli-pair-login.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/storage.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: route named Project file consent before detailed inference'
+    section: bug_fixes
+    commits:
+    - 0fdd5763e
+    authored_at: '2026-10-09T10:32:17+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_personal_ai_output_fit.py
+    - backend/tests/test_project_focus_early_routing.py
+    - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retain native cache history after skill-result formatting'
+    section: bug_fixes
+    commits:
+    - 1a7e212ea
+    authored_at: '2026-10-09T10:24:00+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/native_history_cache.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_native_history_cache_state.py
+    - frontend/apps/web_app/tests/native-cache-selected-tools.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: Resolve Team member names in settings deep links'
+    section: bug_fixes
+    commits:
+    - b13a8bd2b
+    authored_at: '2026-10-09T10:16:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/team-settings-header-member.spec.ts
+    - frontend/packages/ui/src/components/settings/TeamSettingsHeader.preview.ts
+    - frontend/packages/ui/src/components/settings/TeamSettingsHeader.svelte
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:teams'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: Open Team member settings without waiting for avatars'
+    section: bug_fixes
+    commits:
+    - 2c7f3880e
+    authored_at: '2026-10-09T09:45:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-chat-collaboration-real.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:teams'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: repair anonymous chat embeds and tab recovery'
+    section: bug_fixes
+    commits:
+    - bfb525f05
+    authored_at: '2026-10-09T09:36:14+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/code_embed_policy.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/core/api/app/routes/anonymous.py
+    - backend/tests/test_anonymous_skill_access.py
+    - docs/architecture/ai/followup-suggestions.md
+    - docs/architecture/frontend/web-app.md
+    - docs/plans/anonymous-chat-recovery/plan.yml
+    - frontend/apps/web_app/tests/anonymous-child-embeds.spec.ts
+    - frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
+    - frontend/apps/web_app/tests/components/chat-anonymous-signup-notice.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatMessage.preview.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/services/__tests__/anonymousChatHistory.test.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatPromotionService.test.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/packages/ui/src/services/__tests__/dbAnonymousOrphanCheck.test.ts
+    - frontend/packages/ui/src/services/anonymousChatHistory.ts
+    - frontend/packages/ui/src/services/anonymousChatPromotionService.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - frontend/packages/ui/src/services/db.ts
+    - scripts/ci_coverage.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, skill:ai:ask'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve canonical CLI history IDs for cache replay'
+    section: bug_fixes
+    commits:
+    - 423c4e9cd
+    authored_at: '2026-10-09T09:10:33+00:00'
+    changed_paths:
+    - backend/scripts/verify_llm_cache_cli.py
+    - backend/tests/test_verify_llm_cache_cli.py
+    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: version immutable translation overlay artifacts'
+    section: bug_fixes
+    commits:
+    - ac42c4be6
+    authored_at: '2026-10-09T08:57:27+00:00'
+    changed_paths:
+    - scripts/product_runtime_translations.py
+    - scripts/tests/test_product_runtime_translations.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: Team chat identities, mentions and selected Mate routing'
+    section: bug_fixes
+    commits:
+    - 700cf35c1
+    authored_at: '2026-10-09T08:56:34+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/core/api/app/routes/generated_assets_api.py
+    - backend/tests/test_apps_workspace_team_execution.py
+    - backend/tests/test_embeds_presigned_url.py
+    - backend/tests/test_preprocessor.py
+    - backend/tests/test_preprocessor_jev.py
+    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
+    - frontend/apps/web_app/tests/components/chat-message-team-attribution.spec.ts
+    - frontend/apps/web_app/tests/components/chat-processing-indicator.spec.ts
+    - frontend/apps/web_app/tests/components/settings-teams.spec.ts
+    - frontend/apps/web_app/tests/components/team-chat-reminder.spec.ts
+    - frontend/apps/web_app/tests/components/team-openmates-mention-dropdown.spec.ts
+    - frontend/apps/web_app/tests/teams-chat-collaboration-real.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.preview.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ChatProcessingIndicator.preview.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/enter_message/MentionDropdown.preview.ts
+    - frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/GenericMentionNode.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/openMatesMentionSearch.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    - frontend/packages/ui/src/components/teams/TeamChatReminder.preview.ts
+    - frontend/packages/ui/src/components/teams/TeamChatReminder.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/mention_dropdown.yml
+    - frontend/packages/ui/src/i18n/sources/settings/teams_ui.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_openmates_mention.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/services/__tests__/teamService.test.ts
+    - frontend/packages/ui/src/services/teamService.ts
+    - frontend/packages/ui/src/utils/__tests__/teamChatTitle.test.ts
+    - frontend/packages/ui/src/utils/teamChatTitle.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: include inherited runtime translation consumers'
+    section: bug_fixes
+    commits:
+    - f68f70424
+    authored_at: '2026-10-09T08:51:55+00:00'
+    changed_paths:
+    - scripts/product_runtime_translations.py
+    - scripts/tests/test_product_runtime_translations.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: remove the video call experiment time limit'
+    section: bug_fixes
+    commits:
+    - 936d566f2
+    authored_at: '2026-10-09T08:31:53+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/video_call_experiment.py
+    - backend/tests/test_video_call_experiment.py
+    - docs/architecture/video-call-experiment.md
+    - docs/plans/video-call-experiment/plan.yml
+    - frontend/apps/web_app/tests/components/video-call-panel.spec.ts
+    - frontend/packages/ui/src/components/videocall/VideoCallPanel.preview.ts
+    - frontend/packages/ui/src/components/videocall/VideoCallPanel.svelte
+    - frontend/packages/ui/src/components/videocall/callController.test.ts
+    - frontend/packages/ui/src/components/videocall/callController.ts
+    - frontend/packages/ui/src/i18n/sources/videocall.yml
+    - specifications/features/video-call-experiment/examples.yml
+    - specifications/features/video-call-experiment/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: verify cache billing against canonical client message IDs'
+    section: bug_fixes
+    commits:
+    - 9806c51fd
+    authored_at: '2026-10-09T08:08:35+00:00'
+    changed_paths:
+    - backend/scripts/verify_llm_cache_cli.py
+    - backend/tests/test_verify_llm_cache_cli.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refresh native release translation inputs'
+    section: bug_fixes
+    commits:
+    - ef72451c0
+    authored_at: '2026-10-09T06:53:50+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize native authentication and offline speech'
+    section: bug_fixes
+    commits:
+    - c6bed2ad4
+    authored_at: '2026-10-09T06:45:41+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/LiveActivities/LocalModelLiveActivityCoordinator.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalModelBackgroundTransfers.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalModelStore.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalNeuralTTSRuntime.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalSpeechRuntimes.swift
+    - apple/OpenMates/Sources/Core/LocalModels/OfflineAIModelPack.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/AudioRealtimeTranscriptionClient.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+    - apple/OpenMates/Sources/Core/Services/ChatCompletionRecoveryCoordinator.swift
+    - apple/OpenMates/Sources/Core/Services/SpotlightIndexer.swift
+    - apple/OpenMates/Sources/Core/Services/UnreadMessagesStore.swift
+    - apple/OpenMates/Sources/DevPreview/DevAuthFormFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevComponentPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/DevPreview/DevSignupFlowFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevWatchPairApprovalFixture.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/PairV2Runtime.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/EmailLookupView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/SignupFlowView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsLocalModelsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowVoiceInputView.swift
+    - apple/OpenMates/Sources/Shared/Auth/AuthFormViews.swift
+    - apple/OpenMates/Sources/Shared/Components/NetworkStatusView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMSettingsElements.swift
+    - apple/OpenMates/Sources/Shared/Components/ToastNotification.swift
+    - apple/OpenMates/Sources/Shared/Composer/AssistantSpeechAppRuntime.swift
+    - apple/OpenMates/Sources/Shared/Composer/AssistantSpeechPlayerView.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerSpeechControl.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeAssistantSpeech.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesShared/OpenMatesSharedEnvironment.swift
+    - apple/OpenMatesTests/AudioRealtimeTranscriptionClientTests.swift
+    - apple/OpenMatesTests/AuthSessionReauthenticationTests.swift
+    - apple/OpenMatesTests/ChatAudioPipelineTests.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/DevPreviewLaunchConfigurationTests.swift
+    - apple/OpenMatesTests/LiveActivityPolicyTests.swift
+    - apple/OpenMatesTests/LocalModelStoreTests.swift
+    - apple/OpenMatesTests/NativeAssistantSpeechTests.swift
+    - apple/OpenMatesTests/PushCompletionNoticePolicyTests.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesTests/StreamingClientFanoutTests.swift
+    - apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
+    - apple/OpenMatesTests/WebSocketReconnectTests.swift
+    - apple/OpenMatesTests/WorkflowsParityTests.swift
+    - apple/OpenMatesUITests/AuthSecurityParityUITests.swift
+    - apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    - apple/OpenMatesUITests/DevAuthFormUITests.swift
+    - apple/OpenMatesUITests/DevComponentPreviewUITests.swift
+    - apple/OpenMatesUITests/DevSignupRuntimeUITests.swift
+    - apple/OpenMatesUITests/LandingOnboardingParityUITests.swift
+    - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - apple/OpenMatesUITests/WatchPairPhoneReadinessUITests.swift
+    - apple/OpenMatesUITests/WatchPhonePairApprovalUITests.swift
+    - apple/OpenMatesWatch/Sources/OpenMatesWatchApp.swift
+    - apple/OpenMatesWatch/Sources/WatchAuthStore.swift
+    - apple/OpenMatesWatch/Sources/WatchLocalization.swift
+    - apple/OpenMatesWatch/Sources/WatchPairLoginView.swift
+    - apple/OpenMatesWatchUITests/WatchFlowUITests.swift
+    - docs/plans/apple-local-model-lab/plan.yml
+    - docs/plans/apple-offline-speech-stability/plan.yml
+    - docs/plans/apple-offline-speech-stability/seamless-ai-followup.md
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/apple.yml
+    - specifications/features/apple-local-model-lab/examples.yml
+    - specifications/features/apple-local-model-lab/specification.yml
+    - specifications/features/assistant-response-speech/examples.yml
+    - specifications/features/assistant-response-speech/specification.yml
+    - specifications/features/landing-onboarding/examples.yml
+    - specifications/features/landing-onboarding/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore Team chats from Team-first links safely'
+    section: bug_fixes
+    commits:
+    - ac509c07e
+    authored_at: '2026-10-09T03:18:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/teams-chat-collaboration-real.spec.ts
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    - frontend/packages/ui/src/services/__tests__/teamFirstDeepLink.test.ts
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    - frontend/packages/ui/src/stores/activeChatStore.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render encrypted Team AI replies across members'
+    section: bug_fixes
+    commits:
+    - 97ea431ee
+    authored_at: '2026-10-09T02:26:51+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/tsconfig.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: relay sealed Team AI replies to active members'
+    section: bug_fixes
+    commits:
+    - b6802b557
+    authored_at: '2026-10-09T01:17:49+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
+    - backend/core/api/app/services/team_realtime_service.py
+    - backend/tests/test_chat_recovery_websocket_handlers.py
+    - frontend/apps/web_app/tests/teams-chat-collaboration-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:teams'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve encrypted Team drafts during view updates'
+    section: bug_fixes
+    commits:
+    - fe39662b2
+    authored_at: '2026-10-09T00:44:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    - frontend/packages/ui/src/services/db/__tests__/chatViewUpdates.test.ts
+    - frontend/packages/ui/src/services/db/offlineChangesAndUpdates.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: complete Team billing and SDK AI privacy'
+    section: bug_fixes
+    commits:
+    - 3cb4ed9ae
+    authored_at: '2026-10-09T00:05:24+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/services/team_billing_service.py
+    - backend/tests/test_sdk_chat_recovery.py
+    - backend/tests/test_teams_billing.py
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-teams.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:teams'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: 'perf: narrow named Project routing and preserve ambiguity'
+    section: improvements
+    commits:
+    - ec2be7aa8
+    authored_at: '2026-10-09T11:15:35+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_project_focus_early_routing.py
+    - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
+    - frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
+    - frontend/packages/ui/src/services/agenticProjectContextService.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: route Project consent before inference and combine file search with read'
+    section: improvements
+    commits:
+    - 847f0c586
+    authored_at: '2026-10-09T09:19:45+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/project_file_references.py
+    - backend/apps/ai/processing/project_file_tools.py
+    - backend/apps/ai/processing/project_focus_orchestration.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/preprocessing_resume.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/project_focus_catalog_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/project_focus_decision_handler.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/routes/recent_work_internal.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/directus/project_methods.py
+    - backend/core/api/app/services/project_file_operation_service.py
+    - backend/core/api/app/services/project_focus_request_service.py
+    - backend/core/api/app/services/project_focus_routing.py
+    - backend/core/api/app/services/project_write_authorization_service.py
+    - backend/core/directus/schemas/project_settings.yml
+    - backend/shared/python_utils/recent_work_summary_cache.py
+    - backend/shared/python_utils/recent_work_summary_client.py
+    - backend/tests/test_ai_fallback_billing.py
+    - backend/tests/test_async_skill_continuation.py
+    - backend/tests/test_billing_idempotency.py
+    - backend/tests/test_billing_settlement_reliability.py
+    - backend/tests/test_preprocessing_resume.py
+    - backend/tests/test_project_file_operations.py
+    - backend/tests/test_project_file_references.py
+    - backend/tests/test_project_focus_catalog_handoff.py
+    - backend/tests/test_project_focus_decision_specialist.py
+    - backend/tests/test_project_focus_early_routing.py
+    - backend/tests/test_project_focus_requests.py
+    - backend/tests/test_project_focus_routing.py
+    - backend/tests/test_project_focus_ws_transport.py
+    - backend/tests/test_project_remote_sources.py
+    - backend/tests/test_project_write_authorization.py
+    - backend/tests/test_storage_capacity_replay.py
+    - backend/tests/test_summary_billing_bridge.py
+    - docs/plans/app-first-project-retrieval/plan.yml
+    - frontend/apps/web_app/tests/cli-project-focus-settings.spec.ts
+    - frontend/apps/web_app/tests/components/focus-mode-activation.spec.ts
+    - frontend/apps/web_app/tests/components/project-file-references.spec.ts
+    - frontend/apps/web_app/tests/components/project-focus-policy.spec.ts
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/cliJevContext.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/projectRequester.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/tests/cliJevContext.test.ts
+    - frontend/packages/openmates-cli/tests/projectFileExecutor.test.ts
+    - frontend/packages/openmates-cli/tests/projectRequester.test.ts
+    - frontend/packages/openmates-cli/tests/projectSearchProtocol.test.ts
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    - frontend/packages/ui/src/components/embeds/focus_mode/FocusModeActivationEmbed.preview.ts
+    - frontend/packages/ui/src/components/embeds/focus_mode/FocusModeActivationEmbed.svelte
+    - frontend/packages/ui/src/components/embeds/projects/ProjectReferenceEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/projects/ProjectReferenceEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/projects/__tests__/projectReferenceRevision.test.ts
+    - frontend/packages/ui/src/components/embeds/projects/projectReferenceData.ts
+    - frontend/packages/ui/src/components/embeds/projects/projectReferenceRevision.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
+    - frontend/packages/ui/src/components/settings/ProjectFocusPolicySelector.preview.ts
+    - frontend/packages/ui/src/components/settings/ProjectFocusPolicySelector.svelte
+    - frontend/packages/ui/src/components/settings/SettingsProjects.svelte
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/projects.yml
+    - frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
+    - frontend/packages/ui/src/services/agenticProjectContextService.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/hostedProjectFileExecutor.ts
+    - frontend/packages/ui/src/services/projectFileJobExecutor.ts
+    - frontend/packages/ui/src/services/projectFocusSendPreflight.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/stores/pendingFocusActivationStore.ts
+    - frontend/packages/ui/src/utils/projectSearchProtocol.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/project_remote_access_live.mjs
+    - specifications/features/projects/examples.yml
+    - specifications/features/projects/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:projects:read
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+    - id: embed:projects:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, embed:projects:read, embed:projects:search, platform:projects, skill:ai:ask'
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs:
+  - title: 'docs: align daily inspirations with the website split'
+    section: docs
+    commits:
+    - 64c9ff539
+    authored_at: '2026-10-09T18:10:00+00:00'
+    changed_paths:
+    - docs/architecture/frontend/daily-inspiration.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: read private production deployment handoff during PR preparation'
+    section: docs
+    commits:
+    - 82d4ad1de
+    authored_at: '2026-10-09T11:21:44+00:00'
+    changed_paths:
+    - .agents/skills/create-pr/SKILL.md
+    - .claude/skills/create-pr/SKILL.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record anonymous chat repair verification'
+    section: docs
+    commits:
+    - 3f234e824
+    authored_at: '2026-10-09T09:48:33+00:00'
+    changed_paths:
+    - docs/plans/anonymous-chat-recovery/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record workflow notification activation evidence'
+    section: docs
+    commits:
+    - 64b00dfd2
+    authored_at: '2026-10-09T09:12:46+00:00'
+    changed_paths:
+    - docs/plans/dev-runtime-translation-artifacts/plan.yml
+    - docs/plans/workflow-completion-notifications/verification.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record unrestricted video call deployment'
+    section: docs
+    commits:
+    - 0200d2e8b
+    authored_at: '2026-10-09T08:40:45+00:00'
+    changed_paths:
+    - docs/plans/video-call-experiment/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record verified Teams web outcomes and limits'
+    section: docs
+    commits:
+    - 959b681ef
+    authored_at: '2026-10-09T03:33:09+00:00'
+    changed_paths:
+    - docs/plans/teams-web-2026-10/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: verify complete privacy-processed Project README retrieval'
+    section: tests
+    commits:
+    - 8026377bb
+    authored_at: '2026-10-09T12:15:11+00:00'
+    changed_paths:
+    - docs/plans/app-first-project-retrieval/plan.yml
+    - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reconcile generic provider cache writes in CLI billing proof'
+    section: tests
+    commits:
+    - 0e381e48b
+    authored_at: '2026-10-09T09:31:12+00:00'
+    changed_paths:
+    - backend/scripts/verify_llm_cache_cli.py
+    - backend/tests/test_verify_llm_cache_cli.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'docs: align daily inspirations with the website split'
+    commits:
+    - 64c9ff539
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: refine standalone landing and guest welcome'
+    commits:
+    - 5445e18fc
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:docs:doc
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:docs
+      source: backend/apps/docs/app.yml
+    - id: embed:pdf:pdf
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+  - title: 'fix: resolve unique trusted PDF upload filenames'
+    commits:
+    - 1ec680021
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:pdf
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/pdf/app.yml
+    - id: embed:pdf:read
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: skill:pdf:read
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+  - title: 'feat: align terminal Team chat and batched offline workspaces'
+    commits:
+    - fde4a6e87
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: accept encrypted task slug lookup metadata over websocket'
+    commits:
+    - 035d4b5a2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: recover registered AI child embeds without relaxing Project guards'
+    commits:
+    - d8e4814a5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: enforce live Team access on embed recovery'
+    commits:
+    - 8e13e9346
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: verify complete privacy-processed Project README retrieval'
+    commits:
+    - 8026377bb
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: prevent sharing private anonymous chats'
+    commits:
+    - 5e32e6cba
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: finish CLI login and show the next command'
+    commits:
+    - 4fa2fa86c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: read private production deployment handoff during PR preparation'
+    commits:
+    - 82d4ad1de
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: Share encrypted Team uploads through authenticated embed reads'
+    commits:
+    - 4442c89a0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'perf: narrow named Project routing and preserve ambiguity'
+    commits:
+    - ec2be7aa8
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: accept Project Focus without an optional specialist'
+    commits:
+    - 5c6338946
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve Project refusal and confident routing decisions'
+    commits:
+    - 677a5ffc4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: restore CLI recovery when keyring entries are unavailable'
+    commits:
+    - 9153cc19b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: route named Project file consent before detailed inference'
+    commits:
+    - 0fdd5763e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: retain native cache history after skill-result formatting'
+    commits:
+    - 1a7e212ea
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: Resolve Team member names in settings deep links'
+    commits:
+    - b13a8bd2b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'docs: record anonymous chat repair verification'
+    commits:
+    - 3f234e824
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: Open Team member settings without waiting for avatars'
+    commits:
+    - 2c7f3880e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: repair anonymous chat embeds and tab recovery'
+    commits:
+    - bfb525f05
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'test: reconcile generic provider cache writes in CLI billing proof'
+    commits:
+    - 0e381e48b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'perf: route Project consent before inference and combine file search with read'
+    commits:
+    - 847f0c586
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:projects:read
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+    - id: embed:projects:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'docs: record workflow notification activation evidence'
+    commits:
+    - 64b00dfd2
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve canonical CLI history IDs for cache replay'
+    commits:
+    - 423c4e9cd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: version immutable translation overlay artifacts'
+    commits:
+    - ac42c4be6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: Team chat identities, mentions and selected Mate routing'
+    commits:
+    - 700cf35c1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: include inherited runtime translation consumers'
+    commits:
+    - f68f70424
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record unrestricted video call deployment'
+    commits:
+    - 0200d2e8b
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: notify successful scheduled workflow completion'
+    commits:
+    - 19b735913
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: remove the video call experiment time limit'
+    commits:
+    - 936d566f2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: verify cache billing against canonical client message IDs'
+    commits:
+    - 9806c51fd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: activate native history caching and personal chat balance admission'
+    commits:
+    - d566d2947
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: refresh native release translation inputs'
+    commits:
+    - ef72451c0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize native authentication and offline speech'
+    commits:
+    - c6bed2ad4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'docs: record verified Teams web outcomes and limits'
+    commits:
+    - 959b681ef
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore Team chats from Team-first links safely'
+    commits:
+    - ac509c07e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: render encrypted Team AI replies across members'
+    commits:
+    - 97ea431ee
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: relay sealed Team AI replies to active members'
+    commits:
+    - b6802b557
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: preserve encrypted Team drafts during view updates'
+    commits:
+    - fe39662b2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: complete Team billing and SDK AI privacy'
+    commits:
+    - 3cb4ed9ae
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: activate native history caching and personal chat balance admission'
+    commits:
+    - d566d2947
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'feat: refine standalone landing and guest welcome'
+    commits:
+    - 5445e18fc
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:docs:doc
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:docs
+      source: backend/apps/docs/app.yml
+    - id: embed:pdf:pdf
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    newsletter_ready: false
+  - title: 'fix: resolve unique trusted PDF upload filenames'
+    commits:
+    - 1ec680021
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:pdf
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/pdf/app.yml
+    - id: embed:pdf:read
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: skill:pdf:read
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    newsletter_ready: false
+  - title: 'feat: align terminal Team chat and batched offline workspaces'
+    commits:
+    - fde4a6e87
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: accept encrypted task slug lookup metadata over websocket'
+    commits:
+    - 035d4b5a2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: recover registered AI child embeds without relaxing Project guards'
+    commits:
+    - d8e4814a5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: enforce live Team access on embed recovery'
+    commits:
+    - 8e13e9346
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: prevent sharing private anonymous chats'
+    commits:
+    - 5e32e6cba
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: finish CLI login and show the next command'
+    commits:
+    - 4fa2fa86c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: Share encrypted Team uploads through authenticated embed reads'
+    commits:
+    - 4442c89a0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'perf: narrow named Project routing and preserve ambiguity'
+    commits:
+    - ec2be7aa8
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: accept Project Focus without an optional specialist'
+    commits:
+    - 5c6338946
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve Project refusal and confident routing decisions'
+    commits:
+    - 677a5ffc4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: restore CLI recovery when keyring entries are unavailable'
+    commits:
+    - 9153cc19b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: route named Project file consent before detailed inference'
+    commits:
+    - 0fdd5763e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: retain native cache history after skill-result formatting'
+    commits:
+    - 1a7e212ea
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: Resolve Team member names in settings deep links'
+    commits:
+    - b13a8bd2b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: Open Team member settings without waiting for avatars'
+    commits:
+    - 2c7f3880e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: repair anonymous chat embeds and tab recovery'
+    commits:
+    - bfb525f05
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'perf: route Project consent before inference and combine file search with read'
+    commits:
+    - 847f0c586
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:projects:read
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+    - id: embed:projects:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: false
+      override: null
+      parent_id: app:projects
+      source: backend/apps/projects/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve canonical CLI history IDs for cache replay'
+    commits:
+    - 423c4e9cd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: Team chat identities, mentions and selected Mate routing'
+    commits:
+    - 700cf35c1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: notify successful scheduled workflow completion'
+    commits:
+    - 19b735913
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: remove the video call experiment time limit'
+    commits:
+    - 936d566f2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: activate native history caching and personal chat balance admission'
+    commits:
+    - d566d2947
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: stabilize native authentication and offline speech'
+    commits:
+    - c6bed2ad4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: restore Team chats from Team-first links safely'
+    commits:
+    - ac509c07e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: relay sealed Team AI replies to active members'
+    commits:
+    - b6802b557
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: preserve encrypted Team drafts during view updates'
+    commits:
+    - fe39662b2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: complete Team billing and SDK AI privacy'
+    commits:
+    - 3cb4ed9ae
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 64c9ff539162308ce50ee0d03c1f7d438f7f0770
+    short_sha: 64c9ff539
+    authored_at: '2026-10-09T18:10:00+00:00'
+    subject: 'docs: align daily inspirations with the website split'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/frontend/daily-inspiration.md
+    related_feature_ids: []
+  - sha: 5445e18fcd362b18111717a8244e245d80c1317a
+    short_sha: 5445e18fc
+    authored_at: '2026-10-09T17:58:56+00:00'
+    subject: 'feat: refine standalone landing and guest welcome'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/landing-refinement/plan.yml
+    - frontend/apps/web_app/static/landing/screenshots/model-selector-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/model-selector-mobile.webp
+    - frontend/apps/web_app/static/store-examples/community-garden-budget-page-1.png
+    - frontend/apps/web_app/static/store-examples/community-garden-budget.pdf
+    - frontend/apps/web_app/static/store-examples/community-garden-sunflower.webp
+    - frontend/apps/web_app/static/store-examples/community-garden-welcome-melody.mp3
+    - frontend/apps/web_app/static/store-examples/transcription-demo-voice-note.wav
+    - frontend/apps/web_app/tests/components/apps-workspace-preview.spec.ts
+    - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
+    - frontend/apps/web_app/tests/components/docs-public-model.spec.ts
+    - frontend/apps/web_app/tests/components/header-mobile-layout-preview.spec.ts
+    - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
+    - frontend/apps/web_app/tests/components/pdf-public-document.spec.ts
+    - frontend/apps/web_app/tests/components/recording-public-playback.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/apps/web_app/tests/header-mobile-layout.spec.ts
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/apps/web_app/tests/landing-app-examples-laptop-a.spec.ts
+    - frontend/apps/web_app/tests/landing-app-examples-laptop-b.spec.ts
+    - frontend/apps/web_app/tests/landing-app-examples-phone-b.spec.ts
+    - frontend/apps/web_app/tests/landing-app-examples.spec.ts
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/apps/web_app/tests/marketing-landing-route.spec.ts
+    - frontend/apps/web_app/tests/proof-video-architecture.spec.ts
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/apps/website/src/routes/legal/[slug]/+page.server.ts
+    - frontend/apps/website/src/routes/legal/[slug]/+page.svelte
+    - frontend/apps/website/static/landing/screenshots/model-selector-desktop.webp
+    - frontend/apps/website/static/landing/screenshots/model-selector-mobile.webp
+    - frontend/packages/public-site/scripts/compile-public-apps.mjs
+    - frontend/packages/public-site/scripts/generate-public-data.mjs
+    - frontend/packages/public-site/scripts/validate-landing-app-examples.mjs
+    - frontend/packages/public-site/scripts/validate-landing-app-examples.test.mjs
+    - frontend/packages/public-site/src/components/DeviceScreenshots.svelte
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - frontend/packages/public-site/src/components/landing/PublicSiteHeader.svelte
+    - frontend/packages/public-site/src/components/landing/landingPageContent.ts
+    - frontend/packages/public-site/src/generated/landingLocale.generated.json
+    - frontend/packages/public-site/src/generated/publicApps.generated.json
+    - frontend/packages/public-site/src/i18n/landing.yml
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ActiveChatFocusFixture.svelte
+    - frontend/packages/ui/src/components/apps/AppsWorkspace.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsWorkspace.svelte
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/audio/publicRecordingAudio.test.ts
+    - frontend/packages/ui/src/components/embeds/audio/publicRecordingAudio.ts
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/docsEmbedContent.test.ts
+    - frontend/packages/ui/src/components/embeds/docs/docsEmbedContent.ts
+    - frontend/packages/ui/src/components/embeds/pdf/PDFEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/pdf/PDFEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/pdf/PDFEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/pdf/PDFEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/pdf/publicExamplePdf.test.ts
+    - frontend/packages/ui/src/components/embeds/pdf/publicExamplePdf.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/PdfRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/RecordingRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/RecordingRenderer.test.ts
+    - frontend/packages/ui/src/components/settings/AppDetailsWrapper.svelte
+    - frontend/packages/ui/src/components/settings/FocusModeDetails.svelte
+    - frontend/packages/ui/src/components/settings/SkillDetails.svelte
+    - frontend/packages/ui/src/components/settings/SkillExamplesSection.svelte
+    - frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/adjacent-career-portfolio-experiments.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/autumn-basil-balcony-care.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/bayes-theorem-quick-quiz.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/beginner-yoga-classes-berlin.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-english-speaking-gp-appointments.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/books-after-left-hand-of-darkness.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/calm-manager-follow-up.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-budget-review.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-calendar-invitation.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-planning-mindmap.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-sunflower-illustration.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-volunteer-onboarding.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-welcome-melody.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/damped-sine-decay-plot.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/mastodon-public-post-themes.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/net-cash-from-supplied-balances.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/urban-heat-island-at-night.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/voice-note-transcription-action-item.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirationFallbackText.ts
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/daily_inspiration_fallback.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/adjacent_career_portfolio_experiments.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/autumn_basil_balcony_care.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/bayes_theorem_quick_quiz.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/beginner_yoga_classes_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_english_speaking_gp_appointments.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/books_after_left_hand_of_darkness.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/calm_manager_follow_up.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/community_garden_budget_review.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/community_garden_calendar_invitation.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/community_garden_planning_mindmap.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/community_garden_sunflower_illustration.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/community_garden_volunteer_onboarding.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/community_garden_welcome_melody.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/damped_sine_decay_plot.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/mastodon_public_post_themes.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/net_cash_from_supplied_balances.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/urban_heat_island_at_night.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/voice_note_transcription_action_item.yml
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    - scripts/audit_example_chats.py
+    - scripts/build_daily_inspiration_fallback.py
+    - scripts/ci_coverage_manifest.json
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    - scripts/tests/test_example_chat_single_quoted_embeds.py
+    - specifications/features/apps-workspace/examples.yml
+    - specifications/features/apps-workspace/specification.yml
+    - specifications/features/daily-inspiration/examples.yml
+    - specifications/features/daily-inspiration/specification.yml
+    - specifications/features/landing-onboarding/examples.yml
+    - specifications/features/landing-onboarding/specification.yml
+    - specifications/features/marketing-landing/examples.yml
+    - specifications/features/marketing-landing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - embed:audio:recording
+    - embed:docs:doc
+    - embed:pdf:pdf
+  - sha: 1ec68002178408634781ff9fd653c12694ac91e2
+    short_sha: 1ec680021
+    authored_at: '2026-10-09T15:58:37+00:00'
+    subject: 'fix: resolve unique trusted PDF upload filenames'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/pdf/skills/read_skill.py
+    - backend/tests/test_pdf_read_filename_alias.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:pdf
+    - embed:pdf:read
+    - skill:pdf:read
+  - sha: fde4a6e87caedc511dffae42077b2dea4d5b8aee
+    short_sha: fde4a6e87
+    authored_at: '2026-10-09T15:28:50+00:00'
+    subject: 'feat: align terminal Team chat and batched offline workspaces'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/tests/test_workspace_inventory_paging.py
+    - docs/plans/terminal-ui-teams-parity/plan.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - frontend/apps/web_app/tests/cli-team-artifacts-parity.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-chrome-settings-proof.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-team-collaboration.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-workspace-proof.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiCachedWorkspaces.ts
+    - frontend/packages/openmates-cli/src/tuiChatSettings.ts
+    - frontend/packages/openmates-cli/src/tuiLayout.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tuiSettings.ts
+    - frontend/packages/openmates-cli/src/tuiSettingsCatalog.ts
+    - frontend/packages/openmates-cli/src/tuiTaskList.ts
+    - frontend/packages/openmates-cli/src/tuiTeamChat.ts
+    - frontend/packages/openmates-cli/src/tuiTeamsSettings.ts
+    - frontend/packages/openmates-cli/src/tuiText.ts
+    - frontend/packages/openmates-cli/src/tuiWorkflowWorkspace.ts
+    - frontend/packages/openmates-cli/src/tuiWorkspaceController.ts
+    - frontend/packages/openmates-cli/tests/sdk-teams.test.ts
+    - frontend/packages/openmates-cli/tests/task-pagination.test.ts
+    - frontend/packages/openmates-cli/tests/taskDiscovery.test.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - frontend/packages/openmates-cli/tests/team-ai-trigger.test.ts
+    - frontend/packages/openmates-cli/tests/teams-permissions.test.ts
+    - frontend/packages/openmates-cli/tests/tuiChromeShell.test.ts
+    - frontend/packages/openmates-cli/tests/tuiHeaderActions.test.ts
+    - frontend/packages/openmates-cli/tests/tuiSettings.test.ts
+    - frontend/packages/openmates-cli/tests/tuiTaskList.test.ts
+    - frontend/packages/openmates-cli/tests/tuiTeamChat.test.ts
+    - frontend/packages/openmates-cli/tests/tuiTeamsSettings.test.ts
+    - frontend/packages/openmates-cli/tests/tuiWorkflowWorkspace.test.ts
+    - frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_teams.py
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/terminal-ui/examples.yml
+    - specifications/features/terminal-ui/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - platform:tasks
+  - sha: 035d4b5a262f9f54807b999dc26bda3d5312371b
+    short_sha: 035d4b5a2
+    authored_at: '2026-10-09T14:53:04+00:00'
+    subject: 'fix: accept encrypted task slug lookup metadata over websocket'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/tests/test_task_update_jobs.py
+    - frontend/apps/web_app/tests/storage-archive-lifecycle.spec.ts
+    - scripts/storage_archive_integration.py
+    - scripts/task_job_ws_integration.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: d8e4814a5aa67e38bbc74004088fe2a6e0df5a03
+    short_sha: d8e4814a5
+    authored_at: '2026-10-09T13:48:21+00:00'
+    subject: 'fix: recover registered AI child embeds without relaxing Project guards'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_handler.py
+    - backend/core/api/app/services/directus/embed_methods.py
+    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
+    - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
+    - backend/tests/test_store_embed_authorization.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputWs.test.ts
+    - scripts/storage_archive_integration.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 8e13e934675aee0b2eba4b8c4aac7bde9b971374
+    short_sha: 8e13e9346
+    authored_at: '2026-10-09T12:36:00+00:00'
+    subject: 'fix: enforce live Team access on embed recovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/request_embed_handler.py
+    - backend/tests/test_embed_version_routes.py
+    - backend/tests/test_request_embed_authorization.py
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 8026377bb9ae9acc4088d7c5b2d5cebfd0603a77
+    short_sha: 8026377bb
+    authored_at: '2026-10-09T12:15:11+00:00'
+    subject: 'test: verify complete privacy-processed Project README retrieval'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/app-first-project-retrieval/plan.yml
+    - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 5e32e6cba46a16ecf92dd7f7e89cc13e04ba557c
+    short_sha: 5e32e6cba
+    authored_at: '2026-10-09T12:04:31+00:00'
+    subject: 'fix: prevent sharing private anonymous chats'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-child-embeds.spec.ts
+    - frontend/apps/web_app/tests/components/chat-settings-preview.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/components/chats/ChatContextMenu.preview.ts
+    - frontend/packages/ui/src/components/chats/ChatContextMenu.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPreviewHarness.preview.ts
+    - frontend/packages/ui/src/components/chats/ChatSettingsPreviewHarness.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+    - frontend/packages/ui/src/services/__tests__/chatSharing.test.ts
+    - frontend/packages/ui/src/services/__tests__/issueReportSubmission.test.ts
+    - frontend/packages/ui/src/services/chatSharing.ts
+    - frontend/packages/ui/src/services/issueReportSubmission.ts
+    - scripts/ci_coverage.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 4fa2fa86cf96040badbafb8d25710713396fbb24
+    short_sha: 4fa2fa86c
+    authored_at: '2026-10-09T11:42:37+00:00'
+    subject: 'fix: finish CLI login and show the next command'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/user-guide/cli/authentication.md
+    - frontend/apps/web_app/tests/cli-pair-login.spec.ts
+    - frontend/apps/web_app/tests/helpers/cli-pair-terminal-helpers.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/loginTerminal.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 82d4ad1de2e186f4628de89ce70c53c51ccfb225
+    short_sha: 82d4ad1de
+    authored_at: '2026-10-09T11:21:44+00:00'
+    subject: 'docs: read private production deployment handoff during PR preparation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-pr/SKILL.md
+    - .claude/skills/create-pr/SKILL.md
+    related_feature_ids: []
+  - sha: 4442c89a09442b3745b68bf09ae2c107df5085b3
+    short_sha: 4442c89a0
+    authored_at: '2026-10-09T11:17:09+00:00'
+    subject: 'fix: Share encrypted Team uploads through authenticated embed reads'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/request_embed_handler.py
+    - backend/tests/test_request_embed_authorization.py
+    - deployment/Caddyfile.example
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - frontend/apps/web_app/tests/teams-chat-collaboration-real.spec.ts
+    - scripts/tests/test_verify_caddyfile.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: ec2be7aa8f6a2701ebcb22e77d2befedbf44765e
+    short_sha: ec2be7aa8
+    authored_at: '2026-10-09T11:15:35+00:00'
+    subject: 'perf: narrow named Project routing and preserve ambiguity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_project_focus_early_routing.py
+    - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
+    - frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
+    - frontend/packages/ui/src/services/agenticProjectContextService.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 5c6338946dc091b6210f70d0c2ab917e05234c88
+    short_sha: 5c6338946
+    authored_at: '2026-10-09T11:06:31+00:00'
+    subject: 'fix: accept Project Focus without an optional specialist'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 677a5ffc4cfd5db27e1fc615ed1acca4a05d2f0f
+    short_sha: 677a5ffc4
+    authored_at: '2026-10-09T10:51:03+00:00'
+    subject: 'fix: preserve Project refusal and confident routing decisions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/project_file_tools.py
+    - backend/tests/test_project_focus_early_routing.py
+    - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 9153cc19b42ee4b37d9d7e1f72ab913760faff78
+    short_sha: 9153cc19b
+    authored_at: '2026-10-09T10:46:47+00:00'
+    subject: 'fix: restore CLI recovery when keyring entries are unavailable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/user-guide/cli/authentication.md
+    - frontend/apps/web_app/tests/cli-pair-login.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/storage.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 0fdd5763eca3f0bf200ebeb3481ba5fd43aaba9e
+    short_sha: 0fdd5763e
+    authored_at: '2026-10-09T10:32:17+00:00'
+    subject: 'fix: route named Project file consent before detailed inference'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_personal_ai_output_fit.py
+    - backend/tests/test_project_focus_early_routing.py
+    - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 1a7e212ea3f32efd85a8d1ab467cc5602b1e9759
+    short_sha: 1a7e212ea
+    authored_at: '2026-10-09T10:24:00+00:00'
+    subject: 'fix: retain native cache history after skill-result formatting'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/native_history_cache.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_native_history_cache_state.py
+    - frontend/apps/web_app/tests/native-cache-selected-tools.spec.ts
+    related_feature_ids:
+    - app:ai
+  - sha: b13a8bd2bf5378a8b553bb3ee833ac89c2f7d0eb
+    short_sha: b13a8bd2b
+    authored_at: '2026-10-09T10:16:36+00:00'
+    subject: 'fix: Resolve Team member names in settings deep links'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/team-settings-header-member.spec.ts
+    - frontend/packages/ui/src/components/settings/TeamSettingsHeader.preview.ts
+    - frontend/packages/ui/src/components/settings/TeamSettingsHeader.svelte
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:teams
+  - sha: 3f234e8247a6b081b44f171e65546388d63be052
+    short_sha: 3f234e824
+    authored_at: '2026-10-09T09:48:33+00:00'
+    subject: 'docs: record anonymous chat repair verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/anonymous-chat-recovery/plan.yml
+    related_feature_ids: []
+  - sha: 2c7f3880e8c31e6596cb012e0de8695a961b715b
+    short_sha: 2c7f3880e
+    authored_at: '2026-10-09T09:45:14+00:00'
+    subject: 'fix: Open Team member settings without waiting for avatars'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-chat-collaboration-real.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids:
+    - platform:teams
+  - sha: bfb525f05d403aa674e736494e0c297d6b518fd9
+    short_sha: bfb525f05
+    authored_at: '2026-10-09T09:36:14+00:00'
+    subject: 'fix: repair anonymous chat embeds and tab recovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/code_embed_policy.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/core/api/app/routes/anonymous.py
+    - backend/tests/test_anonymous_skill_access.py
+    - docs/architecture/ai/followup-suggestions.md
+    - docs/architecture/frontend/web-app.md
+    - docs/plans/anonymous-chat-recovery/plan.yml
+    - frontend/apps/web_app/tests/anonymous-child-embeds.spec.ts
+    - frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
+    - frontend/apps/web_app/tests/components/chat-anonymous-signup-notice.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatMessage.preview.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/services/__tests__/anonymousChatHistory.test.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatPromotionService.test.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/packages/ui/src/services/__tests__/dbAnonymousOrphanCheck.test.ts
+    - frontend/packages/ui/src/services/anonymousChatHistory.ts
+    - frontend/packages/ui/src/services/anonymousChatPromotionService.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - frontend/packages/ui/src/services/db.ts
+    - scripts/ci_coverage.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - skill:ai:ask
+  - sha: 0e381e48b41d08bfebbfdb291c1932bafb0fa62c
+    short_sha: 0e381e48b
+    authored_at: '2026-10-09T09:31:12+00:00'
+    subject: 'test: reconcile generic provider cache writes in CLI billing proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/verify_llm_cache_cli.py
+    - backend/tests/test_verify_llm_cache_cli.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 847f0c5868317a11fce30a3cdf31433302ca48f9
+    short_sha: 847f0c586
+    authored_at: '2026-10-09T09:19:45+00:00'
+    subject: 'perf: route Project consent before inference and combine file search with read'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/project_file_references.py
+    - backend/apps/ai/processing/project_file_tools.py
+    - backend/apps/ai/processing/project_focus_orchestration.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/preprocessing_resume.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/project_focus_catalog_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/project_focus_decision_handler.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/routes/recent_work_internal.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/directus/project_methods.py
+    - backend/core/api/app/services/project_file_operation_service.py
+    - backend/core/api/app/services/project_focus_request_service.py
+    - backend/core/api/app/services/project_focus_routing.py
+    - backend/core/api/app/services/project_write_authorization_service.py
+    - backend/core/directus/schemas/project_settings.yml
+    - backend/shared/python_utils/recent_work_summary_cache.py
+    - backend/shared/python_utils/recent_work_summary_client.py
+    - backend/tests/test_ai_fallback_billing.py
+    - backend/tests/test_async_skill_continuation.py
+    - backend/tests/test_billing_idempotency.py
+    - backend/tests/test_billing_settlement_reliability.py
+    - backend/tests/test_preprocessing_resume.py
+    - backend/tests/test_project_file_operations.py
+    - backend/tests/test_project_file_references.py
+    - backend/tests/test_project_focus_catalog_handoff.py
+    - backend/tests/test_project_focus_decision_specialist.py
+    - backend/tests/test_project_focus_early_routing.py
+    - backend/tests/test_project_focus_requests.py
+    - backend/tests/test_project_focus_routing.py
+    - backend/tests/test_project_focus_ws_transport.py
+    - backend/tests/test_project_remote_sources.py
+    - backend/tests/test_project_write_authorization.py
+    - backend/tests/test_storage_capacity_replay.py
+    - backend/tests/test_summary_billing_bridge.py
+    - docs/plans/app-first-project-retrieval/plan.yml
+    - frontend/apps/web_app/tests/cli-project-focus-settings.spec.ts
+    - frontend/apps/web_app/tests/components/focus-mode-activation.spec.ts
+    - frontend/apps/web_app/tests/components/project-file-references.spec.ts
+    - frontend/apps/web_app/tests/components/project-focus-policy.spec.ts
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/cliJevContext.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/projectRequester.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/tests/cliJevContext.test.ts
+    - frontend/packages/openmates-cli/tests/projectFileExecutor.test.ts
+    - frontend/packages/openmates-cli/tests/projectRequester.test.ts
+    - frontend/packages/openmates-cli/tests/projectSearchProtocol.test.ts
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    - frontend/packages/ui/src/components/embeds/focus_mode/FocusModeActivationEmbed.preview.ts
+    - frontend/packages/ui/src/components/embeds/focus_mode/FocusModeActivationEmbed.svelte
+    - frontend/packages/ui/src/components/embeds/projects/ProjectReferenceEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/projects/ProjectReferenceEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/projects/__tests__/projectReferenceRevision.test.ts
+    - frontend/packages/ui/src/components/embeds/projects/projectReferenceData.ts
+    - frontend/packages/ui/src/components/embeds/projects/projectReferenceRevision.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
+    - frontend/packages/ui/src/components/settings/ProjectFocusPolicySelector.preview.ts
+    - frontend/packages/ui/src/components/settings/ProjectFocusPolicySelector.svelte
+    - frontend/packages/ui/src/components/settings/SettingsProjects.svelte
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/projects.yml
+    - frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
+    - frontend/packages/ui/src/services/agenticProjectContextService.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/hostedProjectFileExecutor.ts
+    - frontend/packages/ui/src/services/projectFileJobExecutor.ts
+    - frontend/packages/ui/src/services/projectFocusSendPreflight.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/stores/pendingFocusActivationStore.ts
+    - frontend/packages/ui/src/utils/projectSearchProtocol.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/project_remote_access_live.mjs
+    - specifications/features/projects/examples.yml
+    - specifications/features/projects/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - embed:projects:read
+    - embed:projects:search
+    - platform:projects
+    - skill:ai:ask
+  - sha: 64b00dfd2c0380c25b403c0db391fe7fe9db44cd
+    short_sha: 64b00dfd2
+    authored_at: '2026-10-09T09:12:46+00:00'
+    subject: 'docs: record workflow notification activation evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/dev-runtime-translation-artifacts/plan.yml
+    - docs/plans/workflow-completion-notifications/verification.md
+    related_feature_ids: []
+  - sha: 423c4e9cd8060572a664116165b9948bc7ddc031
+    short_sha: 423c4e9cd
+    authored_at: '2026-10-09T09:10:33+00:00'
+    subject: 'fix: preserve canonical CLI history IDs for cache replay'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/verify_llm_cache_cli.py
+    - backend/tests/test_verify_llm_cache_cli.py
+    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: ac42c4be694816f59c73daf21a6d6df4a27497a0
+    short_sha: ac42c4be6
+    authored_at: '2026-10-09T08:57:27+00:00'
+    subject: 'fix: version immutable translation overlay artifacts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/product_runtime_translations.py
+    - scripts/tests/test_product_runtime_translations.py
+    related_feature_ids: []
+  - sha: 700cf35c1ebcc154c70da2c9c1b62e7ebaaeb35b
+    short_sha: 700cf35c1
+    authored_at: '2026-10-09T08:56:34+00:00'
+    subject: 'fix: Team chat identities, mentions and selected Mate routing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/core/api/app/routes/generated_assets_api.py
+    - backend/tests/test_apps_workspace_team_execution.py
+    - backend/tests/test_embeds_presigned_url.py
+    - backend/tests/test_preprocessor.py
+    - backend/tests/test_preprocessor_jev.py
+    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
+    - frontend/apps/web_app/tests/components/chat-message-team-attribution.spec.ts
+    - frontend/apps/web_app/tests/components/chat-processing-indicator.spec.ts
+    - frontend/apps/web_app/tests/components/settings-teams.spec.ts
+    - frontend/apps/web_app/tests/components/team-chat-reminder.spec.ts
+    - frontend/apps/web_app/tests/components/team-openmates-mention-dropdown.spec.ts
+    - frontend/apps/web_app/tests/teams-chat-collaboration-real.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.preview.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ChatProcessingIndicator.preview.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/enter_message/MentionDropdown.preview.ts
+    - frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/GenericMentionNode.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/openMatesMentionSearch.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    - frontend/packages/ui/src/components/teams/TeamChatReminder.preview.ts
+    - frontend/packages/ui/src/components/teams/TeamChatReminder.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/mention_dropdown.yml
+    - frontend/packages/ui/src/i18n/sources/settings/teams_ui.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_openmates_mention.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/services/__tests__/teamService.test.ts
+    - frontend/packages/ui/src/services/teamService.ts
+    - frontend/packages/ui/src/utils/__tests__/teamChatTitle.test.ts
+    - frontend/packages/ui/src/utils/teamChatTitle.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: f68f70424d9294021eaced6c4364c6539cef477a
+    short_sha: f68f70424
+    authored_at: '2026-10-09T08:51:55+00:00'
+    subject: 'fix: include inherited runtime translation consumers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/product_runtime_translations.py
+    - scripts/tests/test_product_runtime_translations.py
+    related_feature_ids: []
+  - sha: 0200d2e8b6b7cc495e63361331d77ac62cb6d9b3
+    short_sha: 0200d2e8b
+    authored_at: '2026-10-09T08:40:45+00:00'
+    subject: 'docs: record unrestricted video call deployment'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/video-call-experiment/plan.yml
+    related_feature_ids: []
+  - sha: 19b735913b0d51ba9b9ca9c49c5bf281d49b7827
+    short_sha: 19b735913
+    authored_at: '2026-10-09T08:39:49+00:00'
+    subject: 'feat: notify successful scheduled workflow completion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Networking/DeepLinkHandler.swift
+    - apple/OpenMates/Sources/Core/Networking/NotificationPreviewCrypto.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowModels.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowRunTimelineView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowStore.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowViews.swift
+    - apple/OpenMatesNotificationService/NotificationService.swift
+    - apple/OpenMatesTests/AppDeepLinkRoutingTests.swift
+    - apple/OpenMatesTests/NotificationPreviewCryptoTests.swift
+    - apple/OpenMatesTests/WorkflowsParityTests.swift
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/email_sender_profiles.py
+    - backend/core/api/app/services/notification_event_service.py
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/core/api/app/services/workflow_completion_notification_service.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/workflow_tasks.py
+    - backend/core/api/templates/email/workflow-run-completed.mjml
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/schemas/workflow_completion_notifications.yml
+    - backend/core/directus/setup/migrate_workflow_runtime_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/scripts/probe_workflow_completion_notification.py
+    - backend/tests/test_workflow_completion_notifications.py
+    - backend/tests/test_workflow_completion_probe.py
+    - backend/tests/test_workflow_completion_route_team.py
+    - backend/tests/test_workflow_trigger_persistence.py
+    - docs/architecture/core/chat-workflow-email-notifications.md
+    - docs/plans/dev-runtime-translation-artifacts/plan.yml
+    - docs/plans/workflow-completion-notifications/plan.yml
+    - docs/plans/workflow-completion-notifications/verification.md
+    - frontend/apps/web_app/src/lib/workflowCompletionAuth.test.ts
+    - frontend/apps/web_app/src/lib/workflowCompletionAuth.ts
+    - frontend/apps/web_app/src/lib/workflowCompletionRoute.test.ts
+    - frontend/apps/web_app/src/lib/workflowCompletionRoute.ts
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/static/.well-known/apple-app-site-association
+    - frontend/apps/web_app/tests/components/workflow-completion-status.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-run-exact-target.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/workflow-completion-notification-route.spec.ts
+    - frontend/apps/web_app/tests/workflow-completion-notifications.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowCompletionStatus.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowCompletionStatus.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    - frontend/packages/ui/src/i18n/sources/notifications.yml
+    - frontend/packages/ui/src/i18n/sources/settings/chat.yml
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/stores/__tests__/activeChatStore.test.ts
+    - frontend/packages/ui/src/stores/__tests__/workflowWorkspaceStore.test.ts
+    - frontend/packages/ui/src/stores/activeChatStore.ts
+    - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/product_runtime_translations.py
+    - scripts/sessions.py
+    - scripts/tests/test_product_runtime_translations.py
+    - scripts/tests/test_sessions_setup_gated_restart.py
+    - specifications/features/notifications/examples.yml
+    - specifications/features/notifications/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+    - platform:workflows
+  - sha: 936d566f21e3676e2e689a162eb0ab39f3d1f69a
+    short_sha: 936d566f2
+    authored_at: '2026-10-09T08:31:53+00:00'
+    subject: 'fix: remove the video call experiment time limit'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/video_call_experiment.py
+    - backend/tests/test_video_call_experiment.py
+    - docs/architecture/video-call-experiment.md
+    - docs/plans/video-call-experiment/plan.yml
+    - frontend/apps/web_app/tests/components/video-call-panel.spec.ts
+    - frontend/packages/ui/src/components/videocall/VideoCallPanel.preview.ts
+    - frontend/packages/ui/src/components/videocall/VideoCallPanel.svelte
+    - frontend/packages/ui/src/components/videocall/callController.test.ts
+    - frontend/packages/ui/src/components/videocall/callController.ts
+    - frontend/packages/ui/src/i18n/sources/videocall.yml
+    - specifications/features/video-call-experiment/examples.yml
+    - specifications/features/video-call-experiment/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: 9806c51fdfa84867c69ccbfc090a56579d607bd0
+    short_sha: 9806c51fd
+    authored_at: '2026-10-09T08:08:35+00:00'
+    subject: 'fix: verify cache billing against canonical client message IDs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/verify_llm_cache_cli.py
+    - backend/tests/test_verify_llm_cache_cli.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: d566d2947bfed49d98dcba7c060d3170e07d6191
+    short_sha: d566d2947
+    authored_at: '2026-10-09T07:54:09+00:00'
+    subject: 'feat: activate native history caching and personal chat balance admission'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/anthropic_client.py
+    - backend/apps/ai/llm_providers/anthropic_direct_api.py
+    - backend/apps/ai/llm_providers/anthropic_shared.py
+    - backend/apps/ai/llm_providers/native_cache_context.py
+    - backend/apps/ai/llm_providers/openai_client.py
+    - backend/apps/ai/llm_providers/openai_responses.py
+    - backend/apps/ai/llm_providers/openai_shared.py
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/native_history_cache.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/apps/ai/testing/native_cache_tools_fixture.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/chat.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/cache_chat_mixin.py
+    - backend/providers/anthropic.yml
+    - backend/providers/mistral.yml
+    - backend/providers/openai.yml
+    - backend/scripts/verify_llm_cache_cli.py
+    - backend/shared/python_utils/native_cache_history.py
+    - backend/shared/testing/mock_context.py
+    - backend/tests/test_agent_context_history_transport.py
+    - backend/tests/test_ai_fallback_billing.py
+    - backend/tests/test_authenticated_ai_reservation_bridge.py
+    - backend/tests/test_cache_pricing_activation.py
+    - backend/tests/test_chat_completion_recovery_jobs.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    - backend/tests/test_llm_cache_accounting.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_mistral_large4.py
+    - backend/tests/test_mock_replay.py
+    - backend/tests/test_native_cache_five_turn_offline.py
+    - backend/tests/test_native_cache_history_transport.py
+    - backend/tests/test_native_cache_llm_utils.py
+    - backend/tests/test_native_cache_mock_transport.py
+    - backend/tests/test_native_cache_tool_adapters.py
+    - backend/tests/test_native_cache_tools_fixture.py
+    - backend/tests/test_native_history_cache_state.py
+    - backend/tests/test_openai_cache_write_usage.py
+    - backend/tests/test_openai_gpt56_models.py
+    - backend/tests/test_optional_native_cache_admission.py
+    - backend/tests/test_personal_chat_admission_balance.py
+    - backend/tests/test_preprocessor_context_startup.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - backend/tests/test_verify_llm_cache_cli.py
+    - docs/architecture/ai/ai-model-selection.md
+    - docs/plans/llm-history-caching/plan.yml
+    - frontend/apps/web_app/tests/components/ai-model-cache-pricing.spec.ts
+    - frontend/apps/web_app/tests/components/settings-usage-cache-receipt.spec.ts
+    - frontend/apps/web_app/tests/native-cache-selected-tools.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/settings/AiAskModelDetails.preview.ts
+    - frontend/packages/ui/src/components/settings/AiAskModelDetails.svelte
+    - frontend/packages/ui/src/components/settings/AppSkillModelDetails.svelte
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+    - frontend/packages/ui/src/services/__tests__/chatRecoveryVersionApply.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/__tests__/personalChatTurnBarrier.test.ts
+    - frontend/packages/ui/src/services/__tests__/recoveryAssistantTimestamp.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/chatRecoveryVersionApply.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/services/personalChatTurnBarrier.ts
+    - frontend/packages/ui/src/services/recoveryAssistantTimestamp.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - frontend/packages/ui/src/utils/cachePricingAvailability.test.ts
+    - frontend/packages/ui/src/utils/cachePricingAvailability.ts
+    - specifications/features/billing/examples.yml
+    - specifications/features/billing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+  - sha: ef72451c0276da93f10448e1ecbb427ad498a573
+    short_sha: ef72451c0
+    authored_at: '2026-10-09T06:53:50+00:00'
+    subject: 'fix: refresh native release translation inputs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    related_feature_ids: []
+  - sha: c6bed2ad4d895eb7772d0ff7046647b8047c9e4a
+    short_sha: c6bed2ad4
+    authored_at: '2026-10-09T06:45:41+00:00'
+    subject: 'fix: stabilize native authentication and offline speech'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/LiveActivities/LocalModelLiveActivityCoordinator.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalModelBackgroundTransfers.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalModelStore.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalNeuralTTSRuntime.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalSpeechRuntimes.swift
+    - apple/OpenMates/Sources/Core/LocalModels/OfflineAIModelPack.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/AudioRealtimeTranscriptionClient.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+    - apple/OpenMates/Sources/Core/Services/ChatCompletionRecoveryCoordinator.swift
+    - apple/OpenMates/Sources/Core/Services/SpotlightIndexer.swift
+    - apple/OpenMates/Sources/Core/Services/UnreadMessagesStore.swift
+    - apple/OpenMates/Sources/DevPreview/DevAuthFormFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevComponentPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/DevPreview/DevSignupFlowFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevWatchPairApprovalFixture.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/PairV2Runtime.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/EmailLookupView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/SignupFlowView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsLocalModelsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowVoiceInputView.swift
+    - apple/OpenMates/Sources/Shared/Auth/AuthFormViews.swift
+    - apple/OpenMates/Sources/Shared/Components/NetworkStatusView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMSettingsElements.swift
+    - apple/OpenMates/Sources/Shared/Components/ToastNotification.swift
+    - apple/OpenMates/Sources/Shared/Composer/AssistantSpeechAppRuntime.swift
+    - apple/OpenMates/Sources/Shared/Composer/AssistantSpeechPlayerView.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerSpeechControl.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeAssistantSpeech.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesShared/OpenMatesSharedEnvironment.swift
+    - apple/OpenMatesTests/AudioRealtimeTranscriptionClientTests.swift
+    - apple/OpenMatesTests/AuthSessionReauthenticationTests.swift
+    - apple/OpenMatesTests/ChatAudioPipelineTests.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/DevPreviewLaunchConfigurationTests.swift
+    - apple/OpenMatesTests/LiveActivityPolicyTests.swift
+    - apple/OpenMatesTests/LocalModelStoreTests.swift
+    - apple/OpenMatesTests/NativeAssistantSpeechTests.swift
+    - apple/OpenMatesTests/PushCompletionNoticePolicyTests.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesTests/StreamingClientFanoutTests.swift
+    - apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
+    - apple/OpenMatesTests/WebSocketReconnectTests.swift
+    - apple/OpenMatesTests/WorkflowsParityTests.swift
+    - apple/OpenMatesUITests/AuthSecurityParityUITests.swift
+    - apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    - apple/OpenMatesUITests/DevAuthFormUITests.swift
+    - apple/OpenMatesUITests/DevComponentPreviewUITests.swift
+    - apple/OpenMatesUITests/DevSignupRuntimeUITests.swift
+    - apple/OpenMatesUITests/LandingOnboardingParityUITests.swift
+    - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - apple/OpenMatesUITests/WatchPairPhoneReadinessUITests.swift
+    - apple/OpenMatesUITests/WatchPhonePairApprovalUITests.swift
+    - apple/OpenMatesWatch/Sources/OpenMatesWatchApp.swift
+    - apple/OpenMatesWatch/Sources/WatchAuthStore.swift
+    - apple/OpenMatesWatch/Sources/WatchLocalization.swift
+    - apple/OpenMatesWatch/Sources/WatchPairLoginView.swift
+    - apple/OpenMatesWatchUITests/WatchFlowUITests.swift
+    - docs/plans/apple-local-model-lab/plan.yml
+    - docs/plans/apple-offline-speech-stability/plan.yml
+    - docs/plans/apple-offline-speech-stability/seamless-ai-followup.md
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/apple.yml
+    - specifications/features/apple-local-model-lab/examples.yml
+    - specifications/features/apple-local-model-lab/specification.yml
+    - specifications/features/assistant-response-speech/examples.yml
+    - specifications/features/assistant-response-speech/specification.yml
+    - specifications/features/landing-onboarding/examples.yml
+    - specifications/features/landing-onboarding/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: 959b681ef08902693f3a2a3a992b7ec18a54f768
+    short_sha: 959b681ef
+    authored_at: '2026-10-09T03:33:09+00:00'
+    subject: 'docs: record verified Teams web outcomes and limits'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/teams-web-2026-10/plan.yml
+    related_feature_ids: []
+  - sha: ac509c07e36af0b95c65d27006e7aeeb4b733868
+    short_sha: ac509c07e
+    authored_at: '2026-10-09T03:18:24+00:00'
+    subject: 'fix: restore Team chats from Team-first links safely'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/teams-chat-collaboration-real.spec.ts
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    - frontend/packages/ui/src/services/__tests__/teamFirstDeepLink.test.ts
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    - frontend/packages/ui/src/stores/activeChatStore.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 97ea431ee6232eda8dc4d5683c759c7e1aa98c2f
+    short_sha: 97ea431ee
+    authored_at: '2026-10-09T02:26:51+00:00'
+    subject: 'fix: render encrypted Team AI replies across members'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/tsconfig.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: b6802b557d07c7f855f8a8c76028efe05a663e10
+    short_sha: b6802b557
+    authored_at: '2026-10-09T01:17:49+00:00'
+    subject: 'fix: relay sealed Team AI replies to active members'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
+    - backend/core/api/app/services/team_realtime_service.py
+    - backend/tests/test_chat_recovery_websocket_handlers.py
+    - frontend/apps/web_app/tests/teams-chat-collaboration-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:teams
+  - sha: fe39662b2f5fc799a5096d13250bc1464a63447c
+    short_sha: fe39662b2
+    authored_at: '2026-10-09T00:44:16+00:00'
+    subject: 'fix: preserve encrypted Team drafts during view updates'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    - frontend/packages/ui/src/services/db/__tests__/chatViewUpdates.test.ts
+    - frontend/packages/ui/src/services/db/offlineChangesAndUpdates.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 3cb4ed9aed53d14d320b95d91921f9f617e06adf
+    short_sha: 3cb4ed9ae
+    authored_at: '2026-10-09T00:05:24+00:00'
+    subject: 'fix: complete Team billing and SDK AI privacy'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/services/team_billing_service.py
+    - backend/tests/test_sdk_chat_recovery.py
+    - backend/tests/test_teams_billing.py
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-teams.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:teams
+llm_summary:
+  overview: OpenMates focused on AI infrastructure refinements, including native history caching and project routing, alongside
+    security hardening for Team collaboration and CLI authentication.
+  released_changes: []
+  bug_fixes:
+  - text: AI stability was improved by fixing native cache history retention after skill formatting and repairing anonymous
+      chat recovery.
+    evidence:
+      commits:
+      - 1a7e212ea
+      - bfb525f05
+    release_status: unreleased_feature
+  - text: Privacy controls were strengthened to prevent sharing private anonymous chats and enforce authenticated access for
+      Team-based embed reads.
+    evidence:
+      commits:
+      - 5e32e6cba
+      - 8e13e9346
+      - 4442c89a0
+    release_status: unreleased_feature
+  - text: The CLI experience was stabilized with fixes for login flow completion, keyring-related recovery failures, and canonical
+      history ID preservation.
+    evidence:
+      commits:
+      - 4fa2fa86c
+      - 9153cc19b
+      - 423c4e9cd
+    release_status: unreleased_feature
+  - text: General fixes addressed unique filename generation for PDF uploads and removed the time limit on the video call
+      experiment.
+    evidence:
+      commits:
+      - 1ec680021
+      - 936d566f2
+    release_status: unreleased_feature
+  unreleased_progress:
+  - text: AI infrastructure progress includes the activation of native history caching and more precise routing for Project-based
+      inference.
+    evidence:
+      commits:
+      - d566d2947
+      - ec2be7aa8
+      - 847f0c586
+      - 0fdd5763e
+      - 677a5ffc4
+    release_status: unreleased_feature
+  - text: Team collaboration features were advanced with improvements to member settings deep links, sealed AI reply relaying,
+      and encrypted draft preservation.
+    evidence:
+      commits:
+      - b13a8bd2b
+      - 2c7f3880e
+      - b6802b557
+      - 3cb4ed9ae
+      - ac509c07e
+      - fe39662b2
+    release_status: unreleased_feature
+  - text: Workflows and native platform stability were improved with scheduled completion notifications and refined offline
+      speech runtimes.
+    evidence:
+      commits:
+      - 19b735913
+      - c6bed2ad4
+    release_status: unreleased_feature
+  - text: The terminal interface was updated to align Team chat functionality and batched offline workspaces.
+    evidence:
+      commits:
+      - fde4a6e87
+    release_status: unreleased_feature
+  internal_progress:
+  - text: Internal translation tooling was updated to version immutable overlay artifacts and refresh release inputs.
+    evidence:
+      commits:
+      - ac42c4be6
+      - f68f70424
+      - ef72451c0
+    release_status: unreleased_feature
+  - text: Documentation was updated to reflect architectural changes in daily inspirations, anonymous chat repair verification,
+      and Team web outcomes.
+    evidence:
+      commits:
+      - 64c9ff539
+      - 82d4ad1de
+      - 3f234e824
+      - 64b00dfd2
+      - 0200d2e8b
+      - 959b681ef
+    release_status: unreleased_feature
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Standalone landing and guest welcome refinements.
+      evidence:
+        commits:
+        - 5445e18fc
+      reason: Development-only refinement of landing pages.
+    - text: Native history caching and personal chat balance admission.
+      evidence:
+        commits:
+        - d566d2947
+      reason: Feature is currently in development status.
+    - text: Workflow completion notifications.
+      evidence:
+        commits:
+        - 19b735913
+      reason: Related to disabled platform:workflows feature.
+    rationale: All user-facing changes from this period are currently in development or tied to disabled features, making
+      them unsuitable for public communication at this time.
+  social_video_recommendations:
+  - idea: A walkthrough of the refined guest welcome experience and smart interest selection.
+    priority: medium
+    reason: The update includes new visual assets and a more polished onboarding flow for unauthenticated users.
+    evidence:
+      commits:
+      - 5445e18fc
+  quality_notes:
+  - Extensive test coverage was added for project routing logic and CLI billing verification.
+  - Privacy-first architectural changes were implemented for Team AI replies and anonymous chat sharing.
+  validation_warnings: []
