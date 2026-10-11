@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: audio-transcript-composer
 title: Editable corrected microphone transcripts without audio storage
-status: implementing
+status: verified
 goal: >-
   Remove recording embed creation and permanent audio storage; paste the corrected
   transcript as regular text into the message input so the user can modify it,

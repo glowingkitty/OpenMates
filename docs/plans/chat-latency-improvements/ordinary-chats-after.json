@@ -1,0 +1,97 @@
+{
+  "phase": "after",
+  "cohort": "ordinary_no_project_no_workflows",
+  "product_revision": "8fff53e54ceae234f3643814b69e561e8390b2a6",
+  "cli_version": "0.27.0-alpha.54",
+  "baseline_available": false,
+  "prompts": {
+    "events": "Find AI events in Berlin",
+    "capital": "What's the capital of Spain?"
+  },
+  "saved_workflow_count": 0,
+  "project_target": "none",
+  "client_timing_definition": "CLI accepted-command marker to first authored answer, excluding reasoning/progress; command done is measured separately",
+  "cli": {
+    "capital": {
+      "median_command_done_ms": 14289,
+      "median_first_authored_answer_ms": 7957,
+      "median_typing_ms": 4563,
+      "n_captured": 3,
+      "n_first_authored_answer_timed": 3
+    },
+    "events": {
+      "median_command_done_ms": 51837,
+      "median_first_authored_answer_ms": 19830,
+      "median_typing_ms": 4517,
+      "n_captured": 3,
+      "n_first_authored_answer_timed": 3
+    }
+  },
+  "backend": {
+    "capital": {
+      "completed_tool_cycles_total": 0,
+      "medians_ms": {
+        "main_stream_ms": 3022,
+        "preprocess_ms": 1621,
+        "preprocess_to_main_ms": 1768
+      },
+      "n": 3,
+      "phase_complete_n": 3,
+      "processed_tool_calls_total": 0,
+      "ranges_ms": {
+        "main_stream_ms": [
+          2870,
+          3353
+        ],
+        "preprocess_ms": [
+          1032,
+          1641
+        ],
+        "preprocess_to_main_ms": [
+          1188,
+          1808
+        ]
+      },
+      "stage1_median_ms": 493,
+      "stage2_median_ms": 980
+    },
+    "events": {
+      "completed_tool_cycles_total": 3,
+      "medians_ms": {
+        "main_stream_ms": 18026,
+        "preprocess_ms": 1649,
+        "preprocess_to_main_ms": 1819
+      },
+      "n": 3,
+      "phase_complete_n": 3,
+      "processed_tool_calls_total": 3,
+      "ranges_ms": {
+        "main_stream_ms": [
+          16315,
+          19314
+        ],
+        "preprocess_ms": [
+          1624,
+          1683
+        ],
+        "preprocess_to_main_ms": [
+          1785,
+          1850
+        ]
+      },
+      "stage1_median_ms": 483,
+      "stage2_median_ms": 1011
+    }
+  },
+  "verified_behavior": {
+    "capital_answer": "Madrid in all three answers; no apps or tool cycles",
+    "events_answer": "Berlin and year tokens in all three answers; events/search preview; one tool cycle each"
+  },
+  "web_status": "pending readiness-race repair and deployed verification",
+  "limitations": [
+    "Three samples per prompt, descriptive medians only",
+    "No matched BEFORE baseline for these newly requested prompts",
+    "No reliable worker first-visible-answer timestamp",
+    "Event-result usefulness and current scheduling were not independently checked"
+  ]
+}

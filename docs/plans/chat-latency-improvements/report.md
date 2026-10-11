@@ -1,6 +1,6 @@
 # Chat latency investigation and implementation
 
-Updated 2026-10-11. Diagnosis Task: `12fb2012-be42-46f1-958c-babc378f1d02`. The implementation and focused/isolated checks are complete in session `6d3f`; the revised processing-feedback Specification was explicitly approved on October 11, and deployment and AFTER measurements are in progress.
+Updated 2026-10-11. Diagnosis Task: `12fb2012-be42-46f1-958c-babc378f1d02`. The implementation and focused/isolated checks are complete in session `6d3f`; the revised processing-feedback Specification was explicitly approved on October 11. Product revision `8fff53e54ceae234f3643814b69e561e8390b2a6` is deployed to dev web, API and workers, with the Directus queue schema installed. AFTER measurements are in progress.
 
 The accepted changes are immediate web composer handoff, first-stage model/Mate resolution and typing feedback, bounded saved Workflow discovery, and metadata-only warm-up on composer focus. Typing-time AI requests were explicitly rejected and are excluded. Queued follow-up editing and safe steering are tracked in the [queued-follow-up Plan](../chat-queued-followups/plan.yml).
 
@@ -64,6 +64,32 @@ The [BEFORE data](benchmark-before.json) contains sanitized aggregates. Account/
 
 Three samples per cell support a directional comparison, not a population p95 or provider-independent guarantee. Provider generation dominates first-visible-text time and can vary between runs. Backend phase durations and immediate composer paint measure the structural change more directly.
 
+## Deployed AFTER measurements
+
+These measurements use product revision `8fff53e`, Gemini 3.8 Flash with auto routing and CLI `0.27.0-alpha.54`. The backend consumers were rebuilt from the explicit coordinated runtime target, all consumers passed their managed health checks, and the exact web deployment completed before the AFTER calls. Each completed client cell contains three successful turns.
+
+| Matched cohort | BEFORE first answer | AFTER first answer | Observed difference |
+| --- | ---: | ---: | ---: |
+| CLI, zero Workflows, simple | 13.69 s | 14.12 s | 3.2% slower |
+| CLI, zero Workflows, complex | 20.09 s | 17.05 s | 15.1% faster |
+| CLI, ten Workflows, simple | 16.31 s | 13.60 s | 16.6% faster |
+| Web, ten Workflows, simple | 16.78 s | 11.44 s | 31.8% faster |
+
+The ten-Workflow web composer cleared 13–27 milliseconds after Send and the user row painted 107–315 milliseconds after Send. Matched backend preprocessing fell from 4.328 to 2.370 seconds for that cohort, a 45.2% reduction across six completed calls. The empty-Workflow complex CLI typing feedback fell from 12.559 to 7.980 seconds. The empty simple CLI result does not show an answer-latency improvement; these small samples do not support claiming every chat became faster.
+
+The ten owned Workflow fixtures were removed only after all six AFTER calls succeeded; the empty list was then verified after cache expiry. Two empty-Workflow web attempts stopped before submission with the existing model-selection loading guard. Their recordings and partial timing records are retained, and neither attempt counts as a completed inference call. The probe now checks readiness in the same composer as the unique Send control and retains its readiness at the actual click. Authored first-answer timing is separate from completed UI attribution: the original ten-Workflow probe could briefly label completion while the active status later remained visible, so its final-status measurement is not accepted as completion proof.
+
+The general routing changes apply without a Project or saved Workflows. Separate AFTER-only cohorts use the exact ordinary questions “Find AI events in Berlin” and “What's the capital of Spain?” through authenticated CLI and web, with no Project flag or mention, no forced model and an empty saved-Workflow list. The event question includes real skill execution; the capital question exercises a short factual answer. These newly requested prompts have no matched BEFORE baseline, so their measured times must not be reported as speedup percentages.
+
+| Ordinary CLI question, three successful turns each | First authored answer | Selected-Mate typing | Command finished | Backend preprocessing |
+| --- | ---: | ---: | ---: | ---: |
+| Find AI events in Berlin | 19.83 s | 4.52 s | 51.84 s | 1.649 s |
+| What's the capital of Spain? | 7.96 s | 4.56 s | 14.29 s | 1.621 s |
+
+The exact owned-chat log join verifies no Project target in all six requests. Each Berlin request completed one tool cycle and rendered an `events/search` result; routing preselected `events-search`, `news-search` and `web-search`. Each capital answer identified Madrid, with zero selected apps or tools. Stage-one/stage-two medians were 483/1,011 milliseconds for events and 493/980 milliseconds for the capital. Main-stream medians were 18.026 and 3.022 seconds respectively. These phase medians are measured separately and must not be added to explain a client median; first prose also does not imply the tool-backed response or terminal command is finished. The [ordinary-chat data](ordinary-chats-after.json) records sanitized results and limits. Event listing usefulness and live scheduling were not independently reviewed.
+
+The ordinary web attempts revealed an additional enabled-Send race while a new draft's exact model preference restores. One retained click recorded model readiness false at dispatch and no optimistic row; it was rejected by the existing loading guard. The focused and minimized Send controls are being aligned with that same readiness gate while preserving queued editing. The remaining ordinary web results and empty-Workflow web comparison are pending this focused repair and deployed verification.
+
 ## Original diagnostic evidence
 
 Before implementation, retained traces showed preprocessing median 3.87 seconds (40 spans), main phase 18.61 seconds (45), final billing 681 ms (39) and postprocessing 2.97 seconds (42). These unpaired observations include different request types and terminal paths; their medians must not be added.
@@ -81,6 +107,8 @@ The independent TypeScript TUI work in Task `TASK-8491`, session `8a64`, reports
 Shared API history reconstruction performs sequential decryption/re-encryption and awaited WebSocket handlers can delay later control frames. Batch authorized history reads and ordered asynchronous admission are candidates for later work. Another active Task owns catalogue deduplication and telemetry; that work is excluded here.
 
 Main-provider reasoning delay, tool-first responses and SDK output behavior need separate cohorts. API-key CLI/SDK sends currently wait for complete responses; faster backend preprocessing does not make that API emit partial text. Apple benefits from the shared backend changes, but native composer handoff and queued edit/steer controls are separate client work. The native backend event fields retain compatibility.
+
+Ordinary-chat measurements also expose a completion tail: the capital CLI first-answer median is 7.96 seconds while command completion is 14.29 seconds; event-search medians are 19.83 and 51.84 seconds. Source shows that finalization awaits billing, encrypted recovery preparation and AI cache persistence before the final response marker. Queue ownership can clear before postprocessing, but postprocessing still runs as an awaited step in the same worker task. The CLI waits up to 12 seconds for its postprocessing event after the final frame, then waits for encrypted recovery and metadata persistence acknowledgements. These are separate response-ready and command-complete boundaries. The medians alone do not identify which step caused each observed tail. Timestamping final-marker reception, postprocessing arrival, collector resolution and persistence acknowledgements is the next bounded investigation; optional suggestions, inspiration and debug work should leave the terminal critical path only after durable enqueue and without weakening billing, queue ownership or metadata convergence.
 
 ## Verification and rollout
 

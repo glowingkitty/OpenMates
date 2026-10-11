@@ -10,6 +10,7 @@
     import { tooltip } from '../../actions/tooltip';
     import { text } from '@repo/ui';
     import ComposerModelSelector from './ComposerModelSelector.svelte';
+    import { isComposerSendBusy } from './sendReadiness';
 
     const SPEECH_STATUS_DURATION_MS = 1800;
     const MIC_SHAKE_DURATION_MS = 350;
@@ -31,6 +32,7 @@
         modelSelection?: string;
         showModelSelector?: boolean;
         modelSelectionReady?: boolean;
+        queuedEditActive?: boolean;
         modelSelectionPersistenceRevision?: number;
         autoSpeakResponse?: boolean;
     }
@@ -50,6 +52,7 @@
         modelSelection = 'auto',
         showModelSelector = true,
         modelSelectionReady = true,
+        queuedEditActive = false,
         modelSelectionPersistenceRevision = 0,
         autoSpeakResponse = false
     }: Props = $props();
@@ -77,6 +80,7 @@
     let speechStatusReady = $state(false);
     let speechEnabled = $state(false);
     let canSendMessage = $derived(isAuthenticated || allowAnonymousTextSend);
+    let sendBusy = $derived(isComposerSendBusy(sendInProgress, modelSelectionReady, queuedEditActive));
 
     onMount(() => {
         previousAutoSpeakResponse = autoSpeakResponse;
@@ -234,7 +238,7 @@
                 </button>
             {:else if canSendMessage && !forceUnauthenticatedCta}
                 <!-- Keep the composer expanded between pointer-down and click, including during autosave. -->
-                <button type="button" class="send-button" data-testid="composer-send-button" data-preserve-composer-focus="true" data-action="send-message" onclick={handleSendMessageClick} aria-label={$text('enter_message.send')} disabled={sendInProgress} aria-busy={sendInProgress} in:fly={{ x: 40, duration: 200 }} out:fly={{ x: 40, duration: 150 }}>
+                <button type="button" class="send-button" data-testid="composer-send-button" data-preserve-composer-focus="true" data-action="send-message" onclick={handleSendMessageClick} aria-label={$text('enter_message.send')} disabled={sendBusy} aria-busy={sendBusy} in:fly={{ x: 40, duration: 200 }} out:fly={{ x: 40, duration: 150 }}>
                     {$text('enter_message.send')}
                 </button>
             {:else}

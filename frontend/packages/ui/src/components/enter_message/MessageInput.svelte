@@ -63,6 +63,7 @@
     import SketchView from './SketchView.svelte';
     import PressAndHoldMenu from './in_message_previews/PressAndHoldMenu.svelte';
     import ActionButtons from './ActionButtons.svelte';
+    import { isComposerSendBusy } from './sendReadiness';
     import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
     import Toggle from '../Toggle.svelte';
     import { Decoration, DecorationSet } from 'prosemirror-view';
@@ -6970,6 +6971,7 @@
                     {modelSelection}
                     showModelSelector={true}
                     {modelSelectionReady}
+                    queuedEditActive={!!queuedEdit}
                     {modelSelectionPersistenceRevision}
                     {autoSpeakResponse}
                     on:fileSelect={handleFileSelect}
@@ -6998,8 +7000,8 @@
                 data-testid="composer-send-button"
                 data-preserve-composer-focus="true"
                 aria-label={$text('enter_message.send')}
-                disabled={sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy}
-                aria-busy={sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy}
+                disabled={isComposerSendBusy(sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy, modelSelectionReady, !!queuedEdit)}
+                aria-busy={isComposerSendBusy(sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy, modelSelectionReady, !!queuedEdit)}
                 onclick={handleSendMessage}
             >
                 <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
