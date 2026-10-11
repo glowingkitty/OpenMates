@@ -1,0 +1,879 @@
+schema_version: 1
+cadence: daily
+date: '2026-10-10'
+generated_at: '2026-10-11T00:20:28+00:00'
+range:
+  since: '2026-10-10T00:00:00+00:00'
+  until: '2026-10-11T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 9
+  section_counts:
+    features: 1
+    bug_fixes: 3
+    improvements: 2
+    docs: 1
+    tests: 2
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 5
+  dev_only_items: 9
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: support Mistral-hosted GLM with prompt caching'
+    section: features
+    commits:
+    - b105221bc
+    authored_at: '2026-10-10T08:46:41+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/mistral_client.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/providers/zai.yml
+    - backend/tests/test_cache_pricing_activation.py
+    - backend/tests/test_glm_mistral.py
+    - docs/architecture/ai/ai-model-selection.md
+    - frontend/apps/web_app/tests/components/glm-mistral-pricing.spec.ts
+    - frontend/packages/ui/src/components/settings/AiAskModelDetails.preview.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: load candidate AI replay dependencies in isolated CI'
+    section: bug_fixes
+    commits:
+    - fcddd2a3e
+    authored_at: '2026-10-10T12:48:27+00:00'
+    changed_paths:
+    - scripts/ci_environment.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_environment.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: resolve Team uploads and show the AI system reminder first'
+    section: bug_fixes
+    commits:
+    - f13b9c1de
+    authored_at: '2026-10-10T12:20:22+00:00'
+    changed_paths:
+    - docs/plans/teams-web-2026-10/plan.yml
+    - frontend/apps/web_app/tests/components/image-upload-preview.spec.ts
+    - frontend/apps/web_app/tests/components/team-chat-reminder.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-hydration.ts
+    - frontend/apps/web_app/tests/helpers/chat-scroll.ts
+    - frontend/apps/web_app/tests/teams-chat-collaboration-real.spec.ts
+    - frontend/apps/web_app/tests/teams-image-upload.spec.ts
+    - frontend/apps/web_app/tests/teams-stripe-card-dev.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.preview.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/SystemMessageNotice.preview.ts
+    - frontend/packages/ui/src/components/SystemMessageNotice.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/UnifiedEmbedPreviewRecovery.test.ts
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/ImageRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/ImageRenderer.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/teams/TeamChatReminder.svelte
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:images:image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:images:image'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retain Mistral GLM streaming tool calls'
+    section: bug_fixes
+    commits:
+    - ea27c5248
+    authored_at: '2026-10-10T08:56:32+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/mistral_client.py
+    - backend/tests/test_glm_mistral.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: 'perf: render visible TUI rows and stream response activity'
+    section: improvements
+    commits:
+    - 117b9fd9b
+    authored_at: '2026-10-10T13:14:33+00:00'
+    changed_paths:
+    - docs/plans/tui-renderer-evaluation/plan.yml
+    - docs/plans/tui-renderer-evaluation/report.md
+    - docs/plans/tui-renderer-evaluation/typescript-visible-viewport.json
+    - frontend/apps/web_app/tests/cli-tui-proof-helpers.ts
+    - frontend/apps/web_app/tests/cli-tui-rich-chat-proof.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-streaming-render-proof.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-workspace-proof.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/scripts/tui-task-render-benchmark.mjs
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiChatResults.ts
+    - frontend/packages/openmates-cli/src/tuiFullscreenChrome.ts
+    - frontend/packages/openmates-cli/src/tuiInteractiveQuestions.ts
+    - frontend/packages/openmates-cli/src/tuiLayout.ts
+    - frontend/packages/openmates-cli/src/tuiMarkdown.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tuiStreamingRender.ts
+    - frontend/packages/openmates-cli/src/tuiTasksWorkspace.ts
+    - frontend/packages/openmates-cli/src/tuiTerminal.ts
+    - frontend/packages/openmates-cli/src/tuiWorkspaceController.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/fixtures/tui-streaming-proof.mjs
+    - frontend/packages/openmates-cli/tests/tuiEmbeds.test.ts
+    - frontend/packages/openmates-cli/tests/tuiLayout.test.ts
+    - frontend/packages/openmates-cli/tests/tuiMarkdown.test.ts
+    - frontend/packages/openmates-cli/tests/tuiRenderCache.test.ts
+    - frontend/packages/openmates-cli/tests/tuiStreamingRender.test.ts
+    - frontend/packages/openmates-cli/tests/tuiStreamingSend.test.ts
+    - frontend/packages/openmates-cli/tests/tuiTasksWorkspace.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/cli_video_capture.py
+    - scripts/tests/test_cli_video_capture.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: reduce terminal redraw cost and add Ratatui experiment'
+    section: improvements
+    commits:
+    - 68bf655a3
+    authored_at: '2026-10-10T10:41:47+00:00'
+    changed_paths:
+    - docs/plans/tui-renderer-evaluation/plan.yml
+    - docs/plans/tui-renderer-evaluation/report.md
+    - docs/plans/tui-renderer-evaluation/rust-bridge.json
+    - docs/plans/tui-renderer-evaluation/tasks-benchmark.json
+    - docs/plans/tui-renderer-evaluation/typescript-baseline.json
+    - docs/plans/tui-renderer-evaluation/typescript-optimized.json
+    - frontend/apps/web_app/tests/cli-tui-pointer-proof.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-proof-helpers.ts
+    - frontend/apps/web_app/tests/cli-tui-rich-chat-proof.spec.ts
+    - frontend/apps/web_app/tests/helpers/terminal-frame.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/scripts/ratatui-prototype.mjs
+    - frontend/packages/openmates-cli/scripts/tui-prototype-bridge-benchmark.mjs
+    - frontend/packages/openmates-cli/scripts/tui-render-benchmark.mjs
+    - frontend/packages/openmates-cli/src/tuiMarkdown.ts
+    - frontend/packages/openmates-cli/src/tuiPrototypeBridge.ts
+    - frontend/packages/openmates-cli/src/tuiRenderCache.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tuiTerminal.ts
+    - frontend/packages/openmates-cli/src/tuiText.ts
+    - frontend/packages/openmates-cli/tests/tuiMarkdown.test.ts
+    - frontend/packages/openmates-cli/tests/tuiPrototypeBridge.test.ts
+    - frontend/packages/openmates-cli/tests/tuiRenderCache.test.ts
+    - frontend/packages/openmates-cli/tests/tuiTerminal.test.ts
+    - frontend/packages/openmates-cli/tests/tuiTerminalFrame.test.ts
+    - frontend/packages/openmates-tui-prototype/Cargo.lock
+    - frontend/packages/openmates-tui-prototype/Cargo.toml
+    - frontend/packages/openmates-tui-prototype/README.md
+    - frontend/packages/openmates-tui-prototype/fixtures/demo.json
+    - frontend/packages/openmates-tui-prototype/src/main.rs
+    - frontend/packages/openmates-tui-prototype/src/model.rs
+    - frontend/packages/openmates-tui-prototype/src/ui.rs
+    - scripts/cli_video_capture.py
+    - scripts/tests/test_cli_video_capture.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs:
+  - title: 'docs: diagnose chat latency and plan improvements'
+    section: docs
+    commits:
+    - 76a43e104
+    authored_at: '2026-10-10T08:39:30+00:00'
+    changed_paths:
+    - docs/plans/chat-latency-improvements/baseline-summary.json
+    - docs/plans/chat-latency-improvements/plan.yml
+    - docs/plans/chat-latency-improvements/report.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: name the visible message in TUI proof captions'
+    section: tests
+    commits:
+    - aa2839f57
+    authored_at: '2026-10-10T13:46:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-tui-streaming-render-proof.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: link shared system notices to Team upload coverage'
+    section: tests
+    commits:
+    - 9568fed8e
+    authored_at: '2026-10-10T12:24:19+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-image-upload.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'test: name the visible message in TUI proof captions'
+    commits:
+    - aa2839f57
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'perf: render visible TUI rows and stream response activity'
+    commits:
+    - 117b9fd9b
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: load candidate AI replay dependencies in isolated CI'
+    commits:
+    - fcddd2a3e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: link shared system notices to Team upload coverage'
+    commits:
+    - 9568fed8e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: resolve Team uploads and show the AI system reminder first'
+    commits:
+    - f13b9c1de
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:images:image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+  - title: 'perf: reduce terminal redraw cost and add Ratatui experiment'
+    commits:
+    - 68bf655a3
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: retain Mistral GLM streaming tool calls'
+    commits:
+    - ea27c5248
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: support Mistral-hosted GLM with prompt caching'
+    commits:
+    - b105221bc
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'docs: diagnose chat latency and plan improvements'
+    commits:
+    - 76a43e104
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'perf: render visible TUI rows and stream response activity'
+    commits:
+    - 117b9fd9b
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: resolve Team uploads and show the AI system reminder first'
+    commits:
+    - f13b9c1de
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:images:image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    newsletter_ready: false
+  - title: 'perf: reduce terminal redraw cost and add Ratatui experiment'
+    commits:
+    - 68bf655a3
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: retain Mistral GLM streaming tool calls'
+    commits:
+    - ea27c5248
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: support Mistral-hosted GLM with prompt caching'
+    commits:
+    - b105221bc
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: aa2839f576bdb1ba3024a5ca42ceb5ff541ca74b
+    short_sha: aa2839f57
+    authored_at: '2026-10-10T13:46:00+00:00'
+    subject: 'test: name the visible message in TUI proof captions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-tui-streaming-render-proof.spec.ts
+    related_feature_ids: []
+  - sha: 117b9fd9ba7377c0352353d7f624a72b49f7d415
+    short_sha: 117b9fd9b
+    authored_at: '2026-10-10T13:14:33+00:00'
+    subject: 'perf: render visible TUI rows and stream response activity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/tui-renderer-evaluation/plan.yml
+    - docs/plans/tui-renderer-evaluation/report.md
+    - docs/plans/tui-renderer-evaluation/typescript-visible-viewport.json
+    - frontend/apps/web_app/tests/cli-tui-proof-helpers.ts
+    - frontend/apps/web_app/tests/cli-tui-rich-chat-proof.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-streaming-render-proof.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-workspace-proof.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/scripts/tui-task-render-benchmark.mjs
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiChatResults.ts
+    - frontend/packages/openmates-cli/src/tuiFullscreenChrome.ts
+    - frontend/packages/openmates-cli/src/tuiInteractiveQuestions.ts
+    - frontend/packages/openmates-cli/src/tuiLayout.ts
+    - frontend/packages/openmates-cli/src/tuiMarkdown.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tuiStreamingRender.ts
+    - frontend/packages/openmates-cli/src/tuiTasksWorkspace.ts
+    - frontend/packages/openmates-cli/src/tuiTerminal.ts
+    - frontend/packages/openmates-cli/src/tuiWorkspaceController.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/fixtures/tui-streaming-proof.mjs
+    - frontend/packages/openmates-cli/tests/tuiEmbeds.test.ts
+    - frontend/packages/openmates-cli/tests/tuiLayout.test.ts
+    - frontend/packages/openmates-cli/tests/tuiMarkdown.test.ts
+    - frontend/packages/openmates-cli/tests/tuiRenderCache.test.ts
+    - frontend/packages/openmates-cli/tests/tuiStreamingRender.test.ts
+    - frontend/packages/openmates-cli/tests/tuiStreamingSend.test.ts
+    - frontend/packages/openmates-cli/tests/tuiTasksWorkspace.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/cli_video_capture.py
+    - scripts/tests/test_cli_video_capture.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: fcddd2a3eaa40af61d6e99617eab2de0f4c1913a
+    short_sha: fcddd2a3e
+    authored_at: '2026-10-10T12:48:27+00:00'
+    subject: 'fix: load candidate AI replay dependencies in isolated CI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_environment.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_environment.py
+    related_feature_ids: []
+  - sha: 9568fed8ee55ee9e9437758af26bd88885672262
+    short_sha: 9568fed8e
+    authored_at: '2026-10-10T12:24:19+00:00'
+    subject: 'test: link shared system notices to Team upload coverage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-image-upload.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: f13b9c1de8f69a27b9b73bfb4b7d8e19a7ef0aba
+    short_sha: f13b9c1de
+    authored_at: '2026-10-10T12:20:22+00:00'
+    subject: 'fix: resolve Team uploads and show the AI system reminder first'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/teams-web-2026-10/plan.yml
+    - frontend/apps/web_app/tests/components/image-upload-preview.spec.ts
+    - frontend/apps/web_app/tests/components/team-chat-reminder.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-hydration.ts
+    - frontend/apps/web_app/tests/helpers/chat-scroll.ts
+    - frontend/apps/web_app/tests/teams-chat-collaboration-real.spec.ts
+    - frontend/apps/web_app/tests/teams-image-upload.spec.ts
+    - frontend/apps/web_app/tests/teams-stripe-card-dev.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.preview.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/SystemMessageNotice.preview.ts
+    - frontend/packages/ui/src/components/SystemMessageNotice.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/UnifiedEmbedPreviewRecovery.test.ts
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/ImageRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/ImageRenderer.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/teams/TeamChatReminder.svelte
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - embed:images:image
+  - sha: 68bf655a341c13437b464f7474b228031312521f
+    short_sha: 68bf655a3
+    authored_at: '2026-10-10T10:41:47+00:00'
+    subject: 'perf: reduce terminal redraw cost and add Ratatui experiment'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/tui-renderer-evaluation/plan.yml
+    - docs/plans/tui-renderer-evaluation/report.md
+    - docs/plans/tui-renderer-evaluation/rust-bridge.json
+    - docs/plans/tui-renderer-evaluation/tasks-benchmark.json
+    - docs/plans/tui-renderer-evaluation/typescript-baseline.json
+    - docs/plans/tui-renderer-evaluation/typescript-optimized.json
+    - frontend/apps/web_app/tests/cli-tui-pointer-proof.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-proof-helpers.ts
+    - frontend/apps/web_app/tests/cli-tui-rich-chat-proof.spec.ts
+    - frontend/apps/web_app/tests/helpers/terminal-frame.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/scripts/ratatui-prototype.mjs
+    - frontend/packages/openmates-cli/scripts/tui-prototype-bridge-benchmark.mjs
+    - frontend/packages/openmates-cli/scripts/tui-render-benchmark.mjs
+    - frontend/packages/openmates-cli/src/tuiMarkdown.ts
+    - frontend/packages/openmates-cli/src/tuiPrototypeBridge.ts
+    - frontend/packages/openmates-cli/src/tuiRenderCache.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tuiTerminal.ts
+    - frontend/packages/openmates-cli/src/tuiText.ts
+    - frontend/packages/openmates-cli/tests/tuiMarkdown.test.ts
+    - frontend/packages/openmates-cli/tests/tuiPrototypeBridge.test.ts
+    - frontend/packages/openmates-cli/tests/tuiRenderCache.test.ts
+    - frontend/packages/openmates-cli/tests/tuiTerminal.test.ts
+    - frontend/packages/openmates-cli/tests/tuiTerminalFrame.test.ts
+    - frontend/packages/openmates-tui-prototype/Cargo.lock
+    - frontend/packages/openmates-tui-prototype/Cargo.toml
+    - frontend/packages/openmates-tui-prototype/README.md
+    - frontend/packages/openmates-tui-prototype/fixtures/demo.json
+    - frontend/packages/openmates-tui-prototype/src/main.rs
+    - frontend/packages/openmates-tui-prototype/src/model.rs
+    - frontend/packages/openmates-tui-prototype/src/ui.rs
+    - scripts/cli_video_capture.py
+    - scripts/tests/test_cli_video_capture.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: ea27c5248c2e94af2eddb0390452ae9b9ecaeec6
+    short_sha: ea27c5248
+    authored_at: '2026-10-10T08:56:32+00:00'
+    subject: 'fix: retain Mistral GLM streaming tool calls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/mistral_client.py
+    - backend/tests/test_glm_mistral.py
+    related_feature_ids:
+    - app:ai
+  - sha: b105221bcadc743e62d0537479a10e5d761ec108
+    short_sha: b105221bc
+    authored_at: '2026-10-10T08:46:41+00:00'
+    subject: 'feat: support Mistral-hosted GLM with prompt caching'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/mistral_client.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/providers/zai.yml
+    - backend/tests/test_cache_pricing_activation.py
+    - backend/tests/test_glm_mistral.py
+    - docs/architecture/ai/ai-model-selection.md
+    - frontend/apps/web_app/tests/components/glm-mistral-pricing.spec.ts
+    - frontend/packages/ui/src/components/settings/AiAskModelDetails.preview.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 76a43e104e3b35c97a43279bea06d2e746efd0be
+    short_sha: 76a43e104
+    authored_at: '2026-10-10T08:39:30+00:00'
+    subject: 'docs: diagnose chat latency and plan improvements'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/chat-latency-improvements/baseline-summary.json
+    - docs/plans/chat-latency-improvements/plan.yml
+    - docs/plans/chat-latency-improvements/report.md
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on expanding AI model support and optimizing the command-line interface. Key developments include
+    initial support for Mistral-hosted GLM models with prompt caching and significant performance enhancements for the terminal-based
+    user interface.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: OpenMates added support for Mistral-hosted GLM models, including prompt caching for efficiency and fixes for streaming
+      tool calls.
+    evidence:
+      commits:
+      - b105221bc
+      - ea27c5248
+    release_status: dev_only
+  - text: The command-line interface now supports optimized viewport rendering and reduced redraw costs, including experimental
+      integration with Ratatui.
+    evidence:
+      commits:
+      - 117b9fd9b
+      - 68bf655a3
+    release_status: dev_only
+  - text: Development continued on the unreleased Teams feature, resolving image upload issues and refining the display of
+      AI system reminders.
+    evidence:
+      commits:
+      - f13b9c1de
+    release_status: dev_only
+  internal_progress:
+  - text: Documentation was created to diagnose chat latency and plan future performance improvements.
+    evidence:
+      commits:
+      - 76a43e104
+    release_status: dev_only
+  - text: The CI environment was updated to better handle AI replay dependencies in isolated test runs.
+    evidence:
+      commits:
+      - fcddd2a3e
+    release_status: dev_only
+  - text: Test coverage was expanded for system notices and TUI rendering captions.
+    evidence:
+      commits:
+      - 9568fed8e
+      - aa2839f57
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Mistral GLM support and prompt caching.
+      evidence:
+        commits:
+        - b105221bc
+        - ea27c5248
+      reason: AI model updates are currently in development and not yet merged to the main branch.
+    - text: TUI rendering and performance improvements.
+      evidence:
+        commits:
+        - 117b9fd9b
+        - 68bf655a3
+      reason: CLI performance optimizations are currently dev-only.
+    - text: Teams chat and upload fixes.
+      evidence:
+        commits:
+        - f13b9c1de
+      reason: The Teams feature is currently disabled and the fix is dev-only.
+    rationale: All updates from this period are classified as dev_only and have not yet reached the main release branch for
+      public communication.
+  social_video_recommendations:
+  - idea: A side-by-side comparison of the standard terminal redraw versus the new optimized viewport rendering for streaming
+      AI responses.
+    priority: medium
+    reason: The project added specific scripts for CLI video capture and TUI benchmarking, providing a concrete visual story
+      for performance-minded users.
+    evidence:
+      commits:
+      - 117b9fd9b
+      - 68bf655a3
+  quality_notes:
+  - Performance benchmarks were established for the TUI renderer to evaluate redraw costs.
+  - A baseline summary for chat latency was documented to guide future optimization work.
+  validation_warnings: []
