@@ -71,6 +71,7 @@ export type TuiWorkflowEdit = {
 };
 
 export type TuiState = {
+  mentionPicker: import('./tuiMentions.js').TuiMentionPicker | null;
   modelSelector:TuiModelSelectorState|null;
   settings:TuiSettingsState|null;
   settingsOwnerCurrent:(()=>boolean)|null;
@@ -212,6 +213,7 @@ export const TUI_INTERESTS = [
 
 export function createInitialTuiState(): TuiState {
   return {
+    mentionPicker:null,
     modelSelector:null,
     settings:null,settingsOwnerCurrent:null,settingsRestore:null,chrome:null,chatOrigin:null,headerActionIndex:0,
     questionEditor:null,

@@ -32,3 +32,11 @@ switches, cancellation, unauthorized Team keys, network window ordering and draf
 preservation. The synthetic terminal recording verifies the actual local SDK and
 TUI without claiming server/auth timing. The authenticated rich-chat recording
 also checks returning home and reopening while offline.
+
+The public chat-home `/refresh` now updates in place, preserving the selected card,
+composer draft and route. It previously rerouted after loading, reset selection
+and started a redundant second sync. The isolated recording found this path; a
+focused interaction regression fails before the fix and passes with it.
+
+
+The terminal composer now opens a web-aligned `@` picker using available live model routes, Mates, app skills, focus modes, Projects, populated memory categories and entries, and Wikipedia. The private catalog loads lazily through the existing encrypted account/Team-scoped cache; keystroke filtering and animation ticks do not refetch it. Only selecting a Project fetches that Project’s current write mode; failures fall back to read access. Already cached Project folders/files can be suggested without enumerating remote files while typing. Enter/Tab and click select without sending, model suggestions use the existing encrypted model preference service, and delayed work is fenced against owner, route and draft changes. Wikipedia searches are debounced and limited to five results.

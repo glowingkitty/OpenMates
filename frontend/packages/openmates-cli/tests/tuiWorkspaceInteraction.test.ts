@@ -595,3 +595,22 @@ test("a failed chat request finishing after Escape leaves the landing page intac
   pending.resolve(Promise.reject(new Error('HTTP 503')) as never);await opening;
   assert.equal(state.screen,'start');assert.equal(state.headerState,'new');assert.equal(state.status,null);
 });
+
+// contract-test: supporting surface=cli assertions=terminal-ui.offline.cache-first,chat-navigation.open.local-first-coherent
+test('chat home refresh preserves an older selected card and draft without rerouting or duplicate sync', async () => {
+  const state=createInitialTuiState();state.signedIn=true;state.workspace='chats';state.screen='chats';
+  const chats=Array.from({length:80},(_,i)=>({id:`chat-${i}`,title:`Chat ${i}`,updatedAt:80-i}));
+  state.recentChats=chats as typeof state.recentChats;state.selectedIndex=45;state.homeSelectionMoved=true;
+  state.input='Keep this draft';state.inputCursor=4;state.focus='content';state.routeVersion=17;
+  let syncs=0;
+  const client={hasSession:()=>true,getActiveTeamId:()=>null,getMasterKeyBytes:()=>Buffer.alloc(32,7),
+    listCachedChats:async(_limit:number,_page:number,options:{onCachedChats:(page:unknown)=>void})=>{
+      options.onCachedChats({chats:chats.slice(0,32)});return {chats};
+    },listChats:async()=>{syncs++;throw Error('Offline');}};
+  const context={state,client,render:()=>{},terminal:{},command:async()=>{throw Error('Refresh rerouted the workspace');},send:async()=>{}} as unknown as WorkspaceContext;
+  await handleWorkspaceCommand(context,'/refresh');
+  assert.equal(state.recentChats[state.selectedIndex].id,'chat-45');assert.equal(syncs,1);
+  assert.equal(state.routeVersion,17);assert.equal(state.focus,'content');
+  assert.equal(state.input,'Keep this draft');assert.equal(state.inputCursor,4);
+  assert.match(state.status!,/Sync failed/);
+});

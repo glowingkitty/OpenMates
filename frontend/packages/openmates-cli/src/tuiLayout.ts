@@ -2,6 +2,7 @@
 import type { TuiState } from "./tuiRenderer.js";
 import {renderTuiSettings} from './tuiSettings.js';
 import {renderTuiModelSelector,tuiModelTriggerLabel} from './tuiModelSelector.js';
+import {renderTuiMentions} from './tuiMentions.js';
 import {isTuiAiComposer} from './tuiModelSelectorShell.js';
 import {renderHeaderDialog} from './tuiHeaderActions.js';
 import {renderQuestionEditor} from './tuiInteractiveQuestions.js';
@@ -88,6 +89,7 @@ function pointerSidebarLines(state:TuiState):TuiLine[] {
 }
 
 export function workspaceHint(state: TuiState): string {
+  if(state.mentionPicker)return '↑/↓ suggestions   Enter/Tab insert   Esc close';
   if(state.modelSelector?.open)return "↑/↓ models   Enter choose   Esc back/close";
   if(state.chrome)return "Tab choose   Enter activate   Esc close";
   if(state.settings)return "↑/↓ select   Enter edit   Ctrl+S save   Esc back   Ctrl+G navigation";
@@ -363,6 +365,20 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
       rows[bodyRow]=' '.repeat(left)+backgroundLine(padCells(label,popWidth),popWidth,'#1b2330',mode,style?.bold,style?.color??'#d7e3ef')+' '.repeat(Math.max(0,width-left-popWidth));
       addPointerTarget(state,left,screenRow,popWidth,{kind:'command',command:'/model-action noop'});
       if(style?.action)addPointerTarget(state,left,screenRow,Math.min(popWidth,cells(label.trimEnd())),style.action);
+    }
+  }
+  if(state.mentionPicker && showComposer && aiComposer && !modal && !settingsFullscreen && bodyHeight>0){
+    const popWidth=Math.max(1,Math.min(76,composerWidth)),all=renderTuiMentions(state.mentionPicker);
+    const popHeight=Math.min(bodyHeight,Math.min(10,all.length)),room=Math.max(0,popHeight-2);
+    const start=Math.max(0,Math.min(Math.max(0,state.mentionPicker.items.length-room),state.mentionPicker.selectedIndex-room+1));
+    const visible=[all[0],...all.slice(1+start,1+start+room),all.at(-1)!].slice(0,popHeight);
+    const left=gutter+sidebarWidth+composerInset;
+    for(let n=0;n<visible.length;n++){
+      const bodyRow=bodyHeight-visible.length+n,value=visible[n],style=typeof value==='string'?undefined:value;
+      const label=truncateCells(lineText(value),popWidth);
+      rows[bodyRow]=' '.repeat(left)+backgroundLine(padCells(label,popWidth),popWidth,'#1b2330',mode,style?.bold,style?.color??'#d7e3ef')+' '.repeat(Math.max(0,width-left-popWidth));
+      addPointerTarget(state,left,bodyRow+2,popWidth,{kind:'command',command:'/mention-select noop'});
+      if(style?.action)addPointerTarget(state,left,bodyRow+2,popWidth,style.action);
     }
   }
   const placeholder = state.screen === "example" ? "Continue from this example, or ask your own question..."

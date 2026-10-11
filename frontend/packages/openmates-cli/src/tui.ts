@@ -49,6 +49,7 @@ import { registerChatEmbedAliases, hydrateChatEmbedPreviews } from './tuiEmbeds.
 import {createChatModelPreferences} from './chatModelPreferences.js';
 import {createTuiModelSelectorShell,isTuiAiComposer,type TuiModelSelectorShell} from './tuiModelSelectorShell.js';
 import {createTuiTeamChatRefresh,loadTuiTeamIdentity,reconcileTuiTeamSenderLabels} from './tuiTeamChat.js';
+import {createTuiMentionShell,type TuiMentionShell} from './tuiMentions.js';
 
 export type CliDefaultMode = "tui" | "quickstart";
 export type TuiResult = { action: "exit" | "signup" | "restart" };
@@ -85,6 +86,7 @@ export async function runTui(
   const scopedDrafts = new Map<string, Record<string,string>>();
   let teamChatRefresh: ReturnType<typeof createTuiTeamChatRefresh> | null = null;
   let modelShell:TuiModelSelectorShell|null=null;
+  let mentionShell:TuiMentionShell|null=null;
   const modelPreferences=createChatModelPreferences(client);
   const refreshActivity = async () => {
     if (closed || state.startup || refreshingActivity || !state.signedIn) return;
@@ -178,6 +180,7 @@ export async function runTui(
       identityRetryTimer=null;
     }
     modelShell?.sync();
+    mentionShell?.sync();
     if (state.screen !== "chat") client.clearInteractiveChatViewer();
     if (renderTimer) return;
     renderTimer = setTimeout(() => {
@@ -191,6 +194,7 @@ export async function runTui(
 
   teamChatRefresh=createTuiTeamChatRefresh(state,client,render);
   modelShell=createTuiModelSelectorShell({state,client,preferences:modelPreferences,render});
+  mentionShell=createTuiMentionShell({state,client,modelShell,render});
 
   const stopHomeSync=startHomeSync(state,client,render,()=>closed);
 
@@ -201,6 +205,7 @@ export async function runTui(
     stopHomeSync();stopActivity?.(); teamChatRefresh?.dispose(); clearTimeout(activityTimer); clearInterval(activityPoll); clearInterval(activityAnimation);
     if (identityRetryTimer) clearTimeout(identityRetryTimer);
     modelShell?.dispose();
+    mentionShell?.dispose();
     client.endInteractiveViewerSession();
     if (renderTimer) clearTimeout(renderTimer);
     renderTimer = null;
@@ -228,9 +233,9 @@ export async function runTui(
   terminal.onKey((chunk, key) => {
     if (key.ctrl && key.name === "c") { finish({ action: "exit" }); return; }
     void (async () => {
-      if(key.name==='mouseclick'){await handleKey({chunk,key,state,client,terminal,render,finish,modelShell:modelShell!});return;}
+      if(key.name==='mouseclick'){await handleKey({chunk,key,state,client,terminal,render,finish,modelShell:modelShell!,mentionShell:mentionShell!});return;}
       if (await startup.handleKey(chunk, key)) return;
-      await handleKey({ chunk, key, state, client, terminal, render, finish, modelShell:modelShell! });
+      await handleKey({ chunk, key, state, client, terminal, render, finish, modelShell:modelShell!,mentionShell:mentionShell! });
     })().catch((error) => {
       state.status = error instanceof Error ? error.message : String(error);
       render();
@@ -249,8 +254,9 @@ async function handleKey(params: {
   render: () => void;
   finish: (result: TuiResult) => void;
   modelShell?:TuiModelSelectorShell;
+  mentionShell?:TuiMentionShell;
 }): Promise<void> {
-  const { chunk, key, state, client, terminal, render, finish, modelShell } = params;
+  const { chunk, key, state, client, terminal, render, finish, modelShell,mentionShell } = params;
   if (key.ctrl && key.name === "c") {
     finish({ action: "exit" });
     return;
@@ -263,14 +269,16 @@ async function handleKey(params: {
   }
   const context: WorkspaceContext = {
     state, client, terminal, render,
-    command: (command) => handleCommand({command,state,client,terminal,render,finish,modelShell}),
+    command: async (command) => {if(command.startsWith('/mention-select ')){await mentionShell?.select(command.slice(16));return;}if(command==='/refresh')mentionShell?.refresh();await handleCommand({command,state,client,terminal,render,finish,modelShell});},
     send: (message, options) => sendTuiMessage({message,state,client,render,modelShell,questionAnswer:options?.questionAnswer}),
     modelShell,
+    mentionShell,
   };
   if(key.name==='mouseclick'){
     if(!key.mouse||key.ctrl||key.meta||key.shift)return;
     const action=pointerTargetAt(state,key.mouse.column,key.mouse.row,terminal.width,terminal.height);
     if(action)await handleTuiPointer(context,action,(text,pressed)=>handleKey({...params,chunk:text,key:pressed}));
+    else if(state.mentionPicker){mentionShell?.close();}
     else if(state.modelSelector?.open){await modelShell?.action('close');}
     return;
   }

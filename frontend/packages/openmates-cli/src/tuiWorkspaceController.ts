@@ -38,6 +38,7 @@ export type WorkspaceContext = {
   state: TuiState; client: OpenMatesClient; terminal: TuiTerminal; render: () => void;
   command: (command: string) => Promise<void>; send: (message: string,options?:{questionAnswer?:boolean}) => Promise<void>;
   modelShell?: TuiModelSelectorShell;
+  mentionShell?: import('./tuiMentions.js').TuiMentionShell;
 };
 
 function chatDraftKey(state: TuiState) { return state.screen === "example" ? `example:${state.activeExample?.chat.id}` : state.activeChatId ?? "new"; }
@@ -51,6 +52,7 @@ export function rememberDraft(state: TuiState): void {
 }
 export function route(state: TuiState, workspace: TuiWorkspace, screen: TuiScreen): number {
   clearTuiSendState(state);
+  state.mentionPicker=null;
   if(state.settings)closeTuiSettings(state);
   if (state.input) rememberDraft(state);
   state.workspace = workspace; state.screen = screen;
@@ -379,7 +381,7 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
     }
     case '/thinking': {
       const messages=[...state.messages,...state.streamingMessage&&!state.messages.includes(state.streamingMessage)?[state.streamingMessage]:[]];
-      const message=arg?messages.find(message=>message.id===arg):messages.findLast(message=>message.role==='assistant'&&message.thinkingContent?.trim());
+      const message=arg?messages.find(message=>message.id===arg):messages.reverse().find(message=>message.role==='assistant'&&message.thinkingContent?.trim());
       if(state.input.trim()===command){state.input='';state.inputCursor=null;}
       if(message?.thinkingContent?.trim())message.thinkingExpanded=!message.thinkingExpanded;
       else state.status='No visible thinking is available for this response.';
@@ -564,9 +566,9 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
           if(target?.resultIndex!==undefined&&!result)throw Error('This class result is unavailable. Open the search to see its current results.');
           if(result?._tuiUnavailable)throw Error('Class details are unavailable offline. Reconnect and open this shortcut again to retry.');
           if(result){embed={...embed,type:'fitness-class',embedId:result.embed_id??embed.embedId,content:result};state.detailTitle=String(result.name??result.venue_name??'Fitness class');}
-          else state.detailTitle=embed.type==='fitness-class'?String(embed.content.name??'Fitness class'):'Search classes';
+          else state.detailTitle=embed.type==='fitness-class'?String(embed.content?.name??'Fitness class'):'Search classes';
           state.detailEmbed=embed;
-          lines=embed.type==='fitness-class'?fitnessResultDetail(embed.content):fitnessSearchDetail(embed,aliasForEmbed(state,id));
+          lines=embed.type==='fitness-class'?fitnessResultDetail(embed.content??{}):fitnessSearchDetail(embed,aliasForEmbed(state,id));
         }else lines=await formatEmbedFullscreenLines(embed,cachedClient);
         if(request!==state.routeVersion)return true;
         state.detailLines=lines;
@@ -590,6 +592,11 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
       else if (state.screen === "project" && state.activeProject) await refreshOpenProject(context);
       else if (state.screen === "task" && state.activeTask) await openTask(context, state.activeTask.taskId);
       else if (state.screen === "chat" && state.activeChatId) await openSavedChat(context, state.activeChatId);
+      else if(state.workspace==="chats" && isWorkspaceHome(state)){
+        const request=state.routeVersion;
+        await loadHomeData(state,client,render);
+        if(request===state.routeVersion && state.workspace==="chats" && state.sidebarOpen)await refreshTuiChatSidebar(state,client,render,true);
+      }
       else {if(isWorkspaceHome(state))await loadHomeData(state,client,render);await context.command(`/${state.workspace}`);}
       return true;
     }
@@ -734,6 +741,7 @@ async function saveForm(context: WorkspaceContext): Promise<void> {
 
 export async function handleWorkspaceKey(context: WorkspaceContext, chunk: string, key: TerminalKey): Promise<boolean> {
   const {state, render, client} = context;
+  if(context.mentionShell && await context.mentionShell.key(chunk,key))return true;
   if(state.modelSelector?.open&&context.modelShell)return context.modelShell.key(chunk,key);
   if(key.meta&&key.name==='m'&&isTuiAiComposer(state)&&!state.form&&!state.settings&&!state.chrome&&!state.paletteOpen){
     if(context.modelShell)await context.modelShell.open();return true;

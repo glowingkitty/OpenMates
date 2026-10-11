@@ -11,9 +11,11 @@ scope:
   - Bound decryption concurrency and import nonextractable AES keys once per read operation.
   - Index cached top-level embeds once and avoid duplicate network-window decryption.
   - Preserve ciphertext-only persistence, authorized Team key resolution, account/context/cancellation fences and recovery ordering.
+  - Match web composer @ suggestions using a lazy encrypted owner-scoped catalog, local filtering, keyboard and pointer selection.
 checks:
   - Focused CLI client, crypto, cache, Team and terminal navigation unit tests.
   - CLI bundle and declaration build, focused lint and contract metadata validation.
   - Isolated GitHub synthetic encrypted-cache terminal proof and authenticated rich-chat offline reopen proof.
+  - Focused mention catalog and lifecycle checks plus isolated terminal autocomplete recording.
 evidence:
   benchmark: docs/plans/tui-startup-performance/report.md
