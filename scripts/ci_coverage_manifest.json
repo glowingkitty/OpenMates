@@ -327,7 +327,8 @@
         "components/embed-preview-info-top.spec.ts",
         "components/chat-assistant-response-activity.spec.ts",
         "components/chat-history-saved-assistant.spec.ts",
-        "components/image-upload-preview.spec.ts"
+        "components/image-upload-preview.spec.ts",
+        "components/team-direct-message-action.spec.ts"
       ],
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "execution": "e2e"
@@ -346,7 +347,9 @@
         "apple-ui-contracts.spec.ts",
         "profile-image-recovery.spec.ts",
         "teams-management-flow.spec.ts",
-        "teams-image-upload.spec.ts"
+        "teams-image-upload.spec.ts",
+        "teams-direct-chat.spec.ts",
+        "cli-tui-team-direct-chat.spec.ts"
       ]
     },
     "credential_free_domains": {
@@ -477,7 +480,9 @@
         "chat-response-email.spec.ts",
         "notification-email-migration.spec.ts",
         "teams-invite-acceptance.spec.ts",
-        "newsletter-flow.spec.ts"
+        "newsletter-flow.spec.ts",
+        "teams-direct-chat.spec.ts",
+        "cli-tui-team-direct-chat.spec.ts"
       ]
     },
     "storage_accountability_integration": {

@@ -41,6 +41,7 @@ STORAGE_CAPACITY_SPECS = frozenset({
     "storage-detached-producer.spec.ts",
     "wiki-learning-flow.spec.ts",
 })
+DIRECT_CHAT_SPECS = frozenset({"teams-direct-chat.spec.ts", "cli-tui-team-direct-chat.spec.ts"})
 ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
 BILLING_STORAGE_PROFILES = {
     "billing-storage-legacy.spec.ts": "legacy",
@@ -54,6 +55,16 @@ CAPACITY_WORKLOAD_SPECS = frozenset({
 SOURCE = os.environ.get(
     "OPENMATES_CI_SOURCE_ROOT", str(Path(__file__).resolve().parent.parent)
 )
+
+
+def browser_account_slots(spec: str) -> int:
+    """Reserve a third fresh actor only for the participant-isolation DM specs."""
+    return 3 if spec in DIRECT_CHAT_SPECS else 2
+
+
+def browser_account_count(specs: list[str]) -> int:
+    """Keep runner allowlist indices aligned with per-spec provisioning."""
+    return sum(browser_account_slots(spec) for spec in specs)
 
 
 def mail_capture_specs(harness_manifest: dict, candidate_root: Path) -> set[str]:
@@ -1316,7 +1327,7 @@ def main():
             raise RuntimeError("Capacity calibration requires exactly eight disposable users")
         if capacity_workload and not 1 <= capacity_users <= 1000:
             raise RuntimeError("Capacity user count must be 1..1000")
-        account_count = 0 if storage_accountability else capacity_users if target_smoke else 2 * len(selected) + capacity_users
+        account_count = 0 if storage_accountability else capacity_users if target_smoke else browser_account_count(selected) + capacity_users
         account_emails = [] if offline_preview else [f"ci-{secrets.token_hex(16)}@example.com" for _ in range(account_count)]
         storage_specs = set(manifest["groups"].get("object_storage", {}).get("specs", []))
         declared_upload_specs = upload_specs(manifest, Path(SOURCE))
@@ -1612,10 +1623,16 @@ def main():
             expected = (Path(SOURCE) / "test-results/ci-private").resolve()
             if private != expected or private == Path(SOURCE).resolve():
                 raise RuntimeError("Refusing cleanup outside the runner-private account directory")
+            profile = json.loads(COMPOSE_PATH.read_text())
+            allowed_accounts = sum(
+                bool(re.fullmatch(r"OPENMATES_TEST_ACCOUNT_CI_[0-9]+_EMAIL", key))
+                for key in profile.get("services", {}).get("api", {}).get("environment", {})
+            )
             shutil.rmtree(private)
             (Path(SOURCE) / "test-results/ci-cleanup.json").write_text(json.dumps({
                 "run_id": os.environ["GITHUB_RUN_ID"], "harness_commit": os.environ.get("CI_HARNESS_COMMIT"),
-                "containers_remaining": 0, "volumes_remaining": 0, "private_account_files_removed": True
+                "containers_remaining": 0, "volumes_remaining": 0, "private_account_files_removed": True,
+                "account_allowlist_identities_removed": allowed_accounts,
             }))
     elif action == "logs":
         if COMPOSE_PATH.exists():

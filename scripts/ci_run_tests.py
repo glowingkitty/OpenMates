@@ -28,7 +28,8 @@ import urllib.request
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from ci_environment import COMPOSE_PATH, SOURCE, compose, require_runner, has_team_storage_billing_schema
+from ci_environment import (COMPOSE_PATH, SOURCE, browser_account_count, browser_account_slots,
+                            compose, require_runner, has_team_storage_billing_schema)
 try:
     from scripts.ci_pytest_targets import validate_pytest_targets
 except ModuleNotFoundError:
@@ -1271,7 +1272,11 @@ def run_e2e(
                 return results
             capacity_epoch_receipt = None
             marker_chat_epoch_receipt = None
+            identity_index = 0
             for index, name in enumerate(specs):
+                account_slots = browser_account_slots(name)
+                first_identity_index = identity_index
+                identity_index += account_slots
                 source = (WEB / "tests" / name).read_text()
                 env = {**os.environ, "PLAYWRIGHT_TEST_API_URL": API}
                 recovery_epoch_receipt = None
@@ -1305,10 +1310,13 @@ def run_e2e(
                     capacity_epoch_receipt = activate_isolated_recovery_epoch()
                     recovery_epoch_receipt = capacity_epoch_receipt
                 if not account_free:
-                    primary = provision_account(14, identity_index=2 * index)
+                    primary = provision_account(14, identity_index=first_identity_index)
                     if "OPENMATES_TEST_ACCOUNT_API_KEY" in source and not local_signup_assertion:
                         primary["OPENMATES_TEST_ACCOUNT_API_KEY"] = provision_api_key(primary)
-                    secondary = provision_account(15, identity_index=2 * index + 1)
+                    secondary = provision_account(15, identity_index=first_identity_index + 1)
+                    accounts = [primary, secondary]
+                    if account_slots == 3:
+                        accounts.append(provision_account(16, identity_index=first_identity_index + 2))
                     if name in CAPACITY_EPOCH_SPECS:
                         if capacity_epoch_receipt is None:
                             run_isolated_legacy_claim_probe()
@@ -1335,28 +1343,15 @@ def run_e2e(
                         provision_startup_sync_chats(primary)
                     env["PLAYWRIGHT_WORKER_SLOT"] = "1"
                     env["OPENMATES_TEST_ACCOUNT_SOURCE_SLOT"] = str(reserved_account_slot(name))
-                    env.update(
-                        {
-                            k.replace(
-                                "OPENMATES_TEST_ACCOUNT_", "OPENMATES_TEST_ACCOUNT_1_"
-                            ): v
-                            for k, v in primary.items()
-                            if k.startswith("OPENMATES_TEST_ACCOUNT_")
-                        }
-                    )
-                    env.update(
-                        {
-                            k.replace(
-                                "OPENMATES_TEST_ACCOUNT_", "OPENMATES_TEST_ACCOUNT_2_"
-                            ): v
-                            for k, v in secondary.items()
-                            if k.startswith("OPENMATES_TEST_ACCOUNT_")
-                        }
-                    )
+                    for account_slot, account in enumerate(accounts, start=1):
+                        env.update({
+                            k.replace("OPENMATES_TEST_ACCOUNT_", f"OPENMATES_TEST_ACCOUNT_{account_slot}_"): v
+                            for k, v in account.items() if k.startswith("OPENMATES_TEST_ACCOUNT_")
+                        })
                 account_evidence = {"legacy_credentials_absent": True, "provisioning": "none" if account_free else "real-cli-signup-crypto-totp", "identity_hashes": []}
                 if not account_free:
-                    identities = [hashlib.sha256(item["OPENMATES_TEST_ACCOUNT_EMAIL"].encode()).hexdigest() for item in (primary, secondary)]
-                    if len(set(identities)) != 2:
+                    identities = [hashlib.sha256(item["OPENMATES_TEST_ACCOUNT_EMAIL"].encode()).hexdigest() for item in accounts]
+                    if len(set(identities)) != account_slots:
                         raise RuntimeError("Isolated batch received duplicate account identities")
                     account_evidence["identity_hashes"] = identities
                     account_evidence["credits_per_identity"] = FIXTURE_CREDITS
@@ -1447,7 +1442,7 @@ def run_e2e(
                         spec_result["diagnostic_error"] = str(exc)
                 if name in CAPACITY_WORKLOAD_SPECS and spec_result["exit_code"] == 0:
                     try:
-                        results.append(run_storage_capacity(identity_start=0 if name == TARGET_SMOKE_SPEC else 2 * len(specs),
+                        results.append(run_storage_capacity(identity_start=0 if name == TARGET_SMOKE_SPEC else browser_account_count(specs),
                                                             full=name == "storage-capacity-target.spec.ts",
                                                             target_smoke=name == TARGET_SMOKE_SPEC,
                                                             calibration=name == "storage-capacity-calibration.spec.ts"))

@@ -315,6 +315,65 @@ def test_reserved_account_policy_is_read_from_candidate_without_import(tmp_path,
     assert runner.reserved_account_slot("ordinary.spec.ts") == 1
 
 
+def test_mixed_browser_batch_uses_three_private_dm_accounts_without_identity_overlap(tmp_path, monkeypatch):
+    from pathlib import Path
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+
+    web = tmp_path / "web"
+    (web / "tests").mkdir(parents=True)
+    specs = ["ordinary-before.spec.ts", "teams-direct-chat.spec.ts", "storage-capacity-replay.spec.ts"]
+    for spec in specs:
+        (web / "tests" / spec).write_text("// isolated browser test\n")
+    results = tmp_path / "results"
+    results.mkdir()
+    compose_path = tmp_path / "compose.json"
+    compose_path.write_text(json.dumps({"services": {"api": {"environment": {"SIGNUP_TEST_EMAIL_DOMAINS": "example.com"}}}}))
+    monkeypatch.setattr(runner, "WEB", web)
+    monkeypatch.setattr(runner, "RESULTS", results)
+    monkeypatch.setattr(runner, "COMPOSE_PATH", compose_path)
+    monkeypatch.setattr(runner, "wait_web", lambda child: None)
+    calls = []
+    environments = []
+    capacity_starts = []
+
+    class Process:
+        def terminate(self): pass
+        def wait(self, timeout=None): return 0
+
+    monkeypatch.setattr(runner.subprocess, "Popen", lambda *args, **kwargs: Process())
+
+    def provision(slot, *, identity_index):
+        calls.append((slot, identity_index))
+        return {
+            "OPENMATES_TEST_ACCOUNT_EMAIL": f"ci-{identity_index}@example.com",
+            "OPENMATES_TEST_ACCOUNT_PASSWORD": f"password-{identity_index}",
+            "OPENMATES_TEST_ACCOUNT_OTP_KEY": f"otp-{identity_index}",
+        }
+
+    def browser(command, **kwargs):
+        env = kwargs["env"]
+        environments.append(env)
+        Path(env["PLAYWRIGHT_JSON_OUTPUT_NAME"]).write_text(json.dumps({"stats": {"expected": 1}}))
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(runner, "provision_account", provision)
+    monkeypatch.setattr(runner.subprocess, "run", browser)
+    monkeypatch.setattr(runner, "run_isolated_legacy_claim_probe", lambda: None)
+    monkeypatch.setattr(runner, "activate_isolated_recovery_epoch", lambda: {"protocol_epoch": "test"})
+    monkeypatch.setattr(runner, "run_storage_capacity", lambda *, identity_start, **kwargs:
+                        capacity_starts.append(identity_start) or {"suite": "storage-capacity", "exit_code": 0})
+    receipts = runner.run_e2e(specs)
+    assert calls == [(14, 0), (15, 1), (14, 2), (15, 3), (16, 4), (14, 5), (15, 6)]
+    assert [len(item["accounts"]["identity_hashes"]) for item in receipts[:3]] == [2, 3, 2]
+    assert len({identity for item in receipts[:3] for identity in item["accounts"]["identity_hashes"]}) == 7
+    assert capacity_starts == [7]
+    assert environments[1]["OPENMATES_TEST_ACCOUNT_3_EMAIL"] == "ci-4@example.com"
+    assert environments[1]["OPENMATES_TEST_ACCOUNT_3_OTP_KEY"] == "otp-4"
+    assert "OPENMATES_TEST_ACCOUNT_3_EMAIL" not in environments[0]
+    assert "OPENMATES_TEST_ACCOUNT_3_EMAIL" not in environments[2]
+
+
 def test_inherited_legacy_credentials_fail_before_account_setup(monkeypatch):
     import pytest
     monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)

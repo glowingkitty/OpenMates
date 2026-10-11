@@ -459,7 +459,10 @@ def test_cleanup_removes_only_disposable_accounts_and_records_evidence(tmp_path,
     import json
     private = tmp_path / "test-results/ci-private"
     private.mkdir(parents=True)
-    (private / "compose.json").write_text("{}")
+    (private / "compose.json").write_text(json.dumps({"services": {"api": {"environment": {
+        f"OPENMATES_TEST_ACCOUNT_CI_{index}_EMAIL": f"ci-{index}@example.com"
+        for index in range(3)
+    }}}}))
     (private / "account.env").write_text("synthetic")
     monkeypatch.setattr(runtime, "SOURCE", str(tmp_path))
     monkeypatch.setattr(runtime, "COMPOSE_PATH", private / "compose.json")
@@ -470,7 +473,9 @@ def test_cleanup_removes_only_disposable_accounts_and_records_evidence(tmp_path,
     monkeypatch.setenv("GITHUB_RUN_ID", "synthetic-run")
     runtime.main()
     assert not private.exists()
-    assert json.loads((tmp_path / "test-results/ci-cleanup.json").read_text())["private_account_files_removed"] is True
+    receipt = json.loads((tmp_path / "test-results/ci-cleanup.json").read_text())
+    assert receipt["private_account_files_removed"] is True
+    assert receipt["account_allowlist_identities_removed"] == 3
 
 
 def test_runtime_uses_candidate_development_feature_configuration():
@@ -510,6 +515,18 @@ def test_replay_allowlist_contains_only_this_runs_new_identities(monkeypatch):
     assert not is_configured_test_account_profile({"hashed_email": hashed("ci-other-run@example.com")})
     with pytest.raises(ValueError, match="unique generated"):
         compose_profile("a" * 40, account_emails=[fresh[0], fresh[0]])
+
+
+def test_direct_chat_specs_reserve_three_distinct_browser_identities():
+    from scripts.ci_environment import browser_account_count, browser_account_slots
+
+    assert browser_account_slots("teams-direct-chat.spec.ts") == 3
+    assert browser_account_slots("cli-tui-team-direct-chat.spec.ts") == 3
+    assert browser_account_slots("teams-flow.spec.ts") == 2
+    assert browser_account_count([
+        "teams-flow.spec.ts", "teams-direct-chat.spec.ts",
+        "cli-tui-team-direct-chat.spec.ts", "teams-image-upload.spec.ts",
+    ]) == 10
 
 
 def test_object_storage_uses_fresh_local_credentials_and_real_pinned_server():
