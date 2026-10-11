@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.workflows
-version: 10
+version: 11
 status: draft
 title: Workflows
 summary: >
@@ -506,6 +506,10 @@ assertions:
       A caller may select bounded typed outputs to return with run identity and terminal status via normal encrypted owner-chat delivery. No complete run context is exposed implicitly. A graph with a validated explicit caller-return projection may execute without Send message; ordinary scheduled runs retain their reachable delivery requirement. Retries use stable returned-message identities.
     depends_on: [models.WorkflowInvocation, examples.result_return]
 
+  - id: workflows.chat.metadata-warmup
+    type: privacy
+    must: Focusing an authenticated first-party web composer may warm bounded owner/Team-authorized saved Workflow metadata for later detailed preprocessing. The request contains no draft text and invokes no AI or Workflow. Duplicate focus requests are bounded and deduplicated; cache misses fall back to authoritative storage. Metadata remains protected in shared cache and never grants access to selected bodies; owner/Team permission, current version and execution gates are revalidated before selected details or invocation.
+    depends_on: [examples.metadata_warmup]
   - id: workflows.chat.relevance-discovery
     type: behavior
     must: Preprocessing and authoritative Focus/phase refresh may shortlist existing authorized saved Workflow

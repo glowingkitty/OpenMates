@@ -77,6 +77,55 @@ const CHAT_METADATA_FIELDS = new Set([
   'created_at', 'updated_at',
 ]);
 const OPERATION_FIELDS = Object.freeze({
+  revise_queued_message_ciphertext: new Set([
+    'protocol_version', 'chat_id', 'message_id', 'hashed_user_id', 'hashed_team_id',
+    'encrypted_content', 'encrypted_pii_mappings', 'expected_revision',
+    'queue_mode', 'stage_token', 'recovery_preflight_id', 'recovery_task_id',
+    'expected_inference_commitment', 'next_inference_commitment',
+  ]),
+  commit_queued_message_revision: new Set([
+    'protocol_version', 'chat_id', 'message_id', 'hashed_user_id', 'hashed_team_id',
+    'expected_revision', 'stage_token',
+  ]),
+  abort_queued_message_revision: new Set([
+    'protocol_version', 'chat_id', 'message_id', 'hashed_user_id', 'hashed_team_id',
+    'expected_revision', 'stage_token',
+  ]),
+  mark_queued_message_pending: new Set([
+    'protocol_version', 'chat_id', 'message_id', 'hashed_user_id', 'hashed_team_id',
+    'queue_revision', 'queue_mode', 'recovery_preflight_id', 'recovery_task_id',
+  ]),
+  mark_queued_message_paused: new Set([
+    'protocol_version', 'chat_id', 'message_id', 'hashed_user_id', 'hashed_team_id',
+    'queue_revision', 'reason', 'queue_mode',
+  ]),
+  pause_consumed_steers_for_task: new Set([
+    'protocol_version', 'chat_id', 'hashed_user_id', 'hashed_team_id', 'task_id',
+  ]),
+  list_pending_queued_messages: new Set([
+    'protocol_version', 'chat_id', 'hashed_user_id', 'hashed_team_id', 'limit',
+  ]),
+  get_sealed_job_receipt: new Set([
+    'protocol_version', 'chat_id', 'hashed_user_id', 'hashed_team_id',
+    'inference_task_id', 'assistant_message_id',
+  ]),
+  get_queued_revision_state: new Set([
+    'protocol_version', 'chat_id', 'message_id', 'hashed_user_id', 'hashed_team_id',
+  ]),
+  mark_queued_message_started: new Set([
+    'protocol_version', 'chat_id', 'message_id', 'hashed_user_id', 'hashed_team_id',
+    'queue_revision', 'task_id', 'mode', 'recovery_preflight_id', 'recovery_task_id',
+    'expected_inference_commitment',
+  ]),
+  restore_queued_message_pending: new Set([
+    'protocol_version', 'chat_id', 'message_id', 'hashed_user_id', 'hashed_team_id',
+    'queue_revision', 'task_id', 'mode', 'recovery_preflight_id', 'recovery_task_id',
+    'expected_inference_commitment',
+  ]),
+  advance_user_message_version: new Set([
+    'protocol_version', 'chat_id', 'message_id', 'hashed_user_id', 'hashed_team_id',
+    'messages_v', 'timestamp',
+  ]),
   prepare_preflight: new Set([
     'protocol_version', 'hashed_user_id', 'chat_id', 'turn_id', 'user_message_id',
     'device_hash', 'chat_key_version', 'wrapped_chat_key', 'recovery_public_key',
@@ -90,6 +139,9 @@ const OPERATION_FIELDS = Object.freeze({
   enqueue_inference: new Set([
     'protocol_version', 'preflight_id', 'hashed_user_id', 'device_hash',
     'inference_commitment', 'inference_task_id', 'billing_identity', 'outbox_id',
+  ]),
+  release_inference_outbox: new Set([
+    'protocol_version', 'preflight_id', 'inference_task_id', 'outbox_id', 'hashed_user_id',
   ]),
   claim_inference: new Set(['protocol_version', 'inference_task_id']),
   mark_outbox_dispatched: new Set(['protocol_version', 'outbox_id', 'inference_task_id']),
@@ -362,7 +414,7 @@ function validateNewChatMetadata(raw, identity) {
 
 function inferenceClaimDecision(state) {
   if (state === 'ENQUEUED') return true;
-  if (['RUNNING', 'TERMINAL', 'FAILED'].includes(state)) return false;
+  if (['RUNNING', 'TERMINAL', 'FAILED', 'CONSUMED'].includes(state)) return false;
   fail(409, 'invalid_inference_state');
 }
 
@@ -1204,6 +1256,714 @@ async function ownedChat(trx, chatId, ownerHash) {
   if (!chat || chat.hashed_user_id !== ownerHash) fail(404, 'chat_not_found');
   return chat;
 }
+
+function clientCiphertext(value, code) {
+  const encoded = string(value, code, MAX_CONTENT_BYTES);
+  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encoded)) fail(400, code);
+  const decoded = Buffer.from(encoded, 'base64');
+  if (decoded.length < 29 || decoded.toString('base64') !== encoded) fail(400, code);
+  return encoded;
+}
+
+function abortedQueuedStageTokens(row) {
+  if (row.queue_aborted_stage_tokens == null) return [];
+  if (!Array.isArray(row.queue_aborted_stage_tokens)
+    || row.queue_aborted_stage_tokens.length > 256
+    || row.queue_aborted_stage_tokens.some((token) => typeof token !== 'string'
+      || !/^[0-9a-f]{32}$/.test(token))) fail(409, 'queued_abort_fence_invalid');
+  return row.queue_aborted_stage_tokens;
+}
+
+function queuedRecoveryBinding(body) {
+  const preflightId = body.recovery_preflight_id == null ? null
+    : uuid(body.recovery_preflight_id, 'invalid_recovery_preflight_id');
+  const taskId = body.recovery_task_id == null ? null
+    : uuid(body.recovery_task_id, 'invalid_recovery_task_id');
+  if ((preflightId === null) !== (taskId === null)) fail(400, 'invalid_recovery_binding');
+  return { preflightId, taskId };
+}
+
+async function lockedQueuedRecovery(trx, row, ownerHash, chatId, preflightId, taskId) {
+  if (row.queue_recovery_preflight_id !== preflightId || row.queue_recovery_task_id !== taskId) {
+    return null;
+  }
+  const preflight = await trx(PREFLIGHTS).where({ id: preflightId }).forUpdate().first();
+  if (!preflight || preflight.hashed_user_id !== ownerHash || preflight.chat_id !== chatId
+    || preflight.user_message_id !== row.client_message_id || preflight.inference_task_id !== taskId
+    || preflight.deletion_invalidated_at) return null;
+  const outbox = await trx(OUTBOX).where({ id: preflight.outbox_id }).forUpdate().first();
+  if (!outbox || outbox.preflight_id !== preflightId || outbox.inference_task_id !== taskId
+    || outbox.hashed_user_id !== ownerHash || outbox.chat_id !== chatId) return null;
+  return { preflight, outbox };
+}
+
+async function reviseQueuedMessageCiphertext(database, raw, now) {
+  const body = operationBody(raw, 'revise_queued_message_ciphertext');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const messageId = string(body.message_id, 'invalid_message_id', 255);
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const modeOnly = body.encrypted_content === null;
+  const content = modeOnly ? null : clientCiphertext(body.encrypted_content, 'invalid_encrypted_message');
+  const mappings = body.encrypted_pii_mappings == null ? null
+    : clientCiphertext(body.encrypted_pii_mappings, 'invalid_encrypted_pii_mappings');
+  const expected = integer(body.expected_revision, 'invalid_queue_revision');
+  if (expected < 1 || expected >= 2147483647) fail(400, 'invalid_queue_revision');
+  const mode = string(body.queue_mode, 'invalid_queue_mode', 32);
+  if (!['steer', 'follow_up'].includes(mode)) fail(400, 'invalid_queue_mode');
+  const token = string(body.stage_token, 'invalid_stage_token', 64);
+  if (!/^[0-9a-f]{32}$/.test(token)) fail(400, 'invalid_stage_token');
+  if (modeOnly && mappings !== null) fail(400, 'invalid_request');
+  const recovery = queuedRecoveryBinding(body);
+  const oldCommitment = body.expected_inference_commitment == null ? null
+    : hexDigest(body.expected_inference_commitment, 'invalid_inference_commitment');
+  const nextCommitment = body.next_inference_commitment == null ? null
+    : hexDigest(body.next_inference_commitment, 'invalid_inference_commitment');
+  if (recovery.preflightId ? !oldCommitment || !nextCommitment : oldCommitment || nextCommitment) {
+    fail(400, 'invalid_recovery_commitment');
+  }
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
+    if (!chat) return { status: 'not_persisted' };
+    if (teamHash) {
+      if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
+      await authorizedTeamWriter(trx, teamHash, ownerHash);
+    } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
+      return { status: 'forbidden' };
+    }
+    const row = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).forUpdate().first();
+    if (!row) return { status: 'not_persisted' };
+    if (row.role !== 'user' || row.hashed_user_id !== ownerHash) return { status: 'forbidden' };
+    if (recovery.preflightId) {
+      const binding = await lockedQueuedRecovery(trx, row, ownerHash, chatId,
+        recovery.preflightId, recovery.taskId);
+      if (!binding || binding.preflight.state !== 'ENQUEUED' || binding.outbox.state !== 'HELD'
+        || binding.preflight.inference_commitment !== oldCommitment) {
+        return { status: 'conflict', queue_revision: Number(row.queue_revision ?? 1) };
+      }
+    } else if (row.queue_recovery_preflight_id || row.queue_recovery_task_id) {
+      return { status: 'conflict', queue_revision: Number(row.queue_revision ?? 1) };
+    }
+    if (['processing', 'paused'].includes(row.queue_dispatch_status)) {
+      return { status: 'conflict', queue_revision: Number(row.queue_revision ?? 1) };
+    }
+    if (Number(row.queue_revision ?? 1) !== expected) return { status: 'conflict', queue_revision: Number(row.queue_revision ?? 1) };
+    if (row.queue_last_aborted_stage_token === token || abortedQueuedStageTokens(row).includes(token)) {
+      return { status: 'conflict', queue_revision: expected };
+    }
+    if (row.queue_pending_revision != null) {
+      if (row.queue_pending_revision === expected + 1 && row.queue_pending_token === token
+        && row.queue_pending_mode === mode
+        && (row.queue_pending_expected_inference_commitment ?? null) === oldCommitment
+        && (row.queue_pending_inference_commitment ?? null) === nextCommitment
+        && row.queue_pending_encrypted_content === (modeOnly ? row.encrypted_content : content)
+        && (row.queue_pending_encrypted_pii_mappings ?? null) === (modeOnly ? (row.encrypted_pii_mappings ?? null) : mappings)) {
+        return { status: 'staged', queue_revision: expected + 1, stage_token: token,
+          previous_encrypted_content: row.encrypted_content,
+          previous_encrypted_pii_mappings: row.encrypted_pii_mappings ?? null };
+      }
+      return { status: 'conflict', queue_revision: expected };
+    }
+    const previousContent = row.encrypted_content;
+    const previousMappings = row.encrypted_pii_mappings ?? null;
+    const changed = await trx(MESSAGES).where({ id: row.id, chat_id: chatId, client_message_id: messageId })
+      .update({ queue_pending_encrypted_content: modeOnly ? previousContent : content,
+        queue_pending_encrypted_pii_mappings: modeOnly ? previousMappings : mappings,
+        queue_pending_revision: expected + 1, queue_pending_mode: mode,
+        queue_pending_token: token,
+        queue_pending_expected_inference_commitment: oldCommitment,
+        queue_pending_inference_commitment: nextCommitment });
+    if (changed !== 1) fail(409, 'queued_revision_conflict');
+    return {
+      status: 'staged', queue_revision: expected + 1, stage_token: token,
+      previous_encrypted_content: previousContent,
+      previous_encrypted_pii_mappings: previousMappings,
+    };
+  });
+}
+
+async function finishQueuedMessageRevision(database, raw, now, commit) {
+  const body = operationBody(raw, commit ? 'commit_queued_message_revision' : 'abort_queued_message_revision');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const messageId = string(body.message_id, 'invalid_message_id', 255);
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const expected = integer(body.expected_revision, 'invalid_queue_revision');
+  if (expected < 1) fail(400, 'invalid_queue_revision');
+  const token = string(body.stage_token, 'invalid_stage_token', 64);
+  if (!/^[0-9a-f]{32}$/.test(token)) fail(400, 'invalid_stage_token');
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
+    if (!chat) return { status: 'not_persisted' };
+    if (teamHash) {
+      if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
+      await authorizedTeamWriter(trx, teamHash, ownerHash);
+    } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
+      return { status: 'forbidden' };
+    }
+    const row = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).forUpdate().first();
+    if (!row) return { status: 'not_persisted' };
+    if (row.role !== 'user' || row.hashed_user_id !== ownerHash) return { status: 'forbidden' };
+    const abortedTokens = abortedQueuedStageTokens(row);
+    if (row.queue_pending_revision == null && commit
+      && Number(row.queue_revision ?? 1) === expected + 1
+      && row.queue_last_committed_stage_token === token) {
+      return { status: 'already_committed', queue_revision: expected + 1,
+        messages_v: Number(chat.messages_v || 0) };
+    }
+    if (row.queue_pending_revision == null && !commit
+      && Number(row.queue_revision ?? 1) === expected
+      && (row.queue_last_aborted_stage_token === token || abortedTokens.includes(token))) {
+      return { status: 'already_aborted', queue_revision: expected,
+        messages_v: Number(chat.messages_v || 0) };
+    }
+    // Fence an in-flight stage request before releasing its Redis quarantine.
+    // The chat and message row locks serialize whichever transaction arrives first.
+    if (row.queue_pending_revision == null && !commit
+      && Number(row.queue_revision ?? 1) === expected) {
+      if (abortedTokens.length >= 256) fail(409, 'queued_abort_fence_limit');
+      const changed = await trx(MESSAGES).where({ id: row.id, chat_id: chatId, client_message_id: messageId })
+        .update({ queue_last_aborted_stage_token: token,
+          queue_aborted_stage_tokens: JSON.stringify([...abortedTokens, token]) });
+      if (changed !== 1) fail(409, 'queued_revision_conflict');
+      return { status: 'restored', queue_revision: expected, messages_v: Number(chat.messages_v || 0) };
+    }
+    if (Number(row.queue_revision ?? 1) !== expected
+      || row.queue_pending_revision !== expected + 1 || row.queue_pending_token !== token) {
+      return { status: 'conflict', queue_revision: Number(row.queue_revision ?? 1) };
+    }
+    if (commit && row.queue_dispatch_status === 'processing') return { status: 'conflict', queue_revision: expected };
+    let recoveryBinding = null;
+    if (commit && row.queue_recovery_preflight_id) {
+      recoveryBinding = await lockedQueuedRecovery(trx, row, ownerHash, chatId,
+        row.queue_recovery_preflight_id, row.queue_recovery_task_id);
+      if (!recoveryBinding || recoveryBinding.preflight.state !== 'ENQUEUED'
+        || recoveryBinding.outbox.state !== 'HELD'
+        || recoveryBinding.preflight.inference_commitment !== row.queue_pending_expected_inference_commitment
+        || !row.queue_pending_inference_commitment) {
+        return { status: 'conflict', queue_revision: expected };
+      }
+    } else if (commit && row.queue_pending_inference_commitment) {
+      return { status: 'conflict', queue_revision: expected };
+    }
+    const expectedCommitment = row.queue_pending_expected_inference_commitment;
+    const nextCommitment = row.queue_pending_inference_commitment;
+    const patch = {
+      queue_pending_revision: null, queue_pending_token: null, queue_pending_mode: null,
+      queue_pending_encrypted_content: null, queue_pending_encrypted_pii_mappings: null,
+      queue_pending_expected_inference_commitment: null, queue_pending_inference_commitment: null,
+    };
+    if (commit) {
+      patch.encrypted_content = row.queue_pending_encrypted_content;
+      patch.encrypted_pii_mappings = row.queue_pending_encrypted_pii_mappings;
+      patch.queue_revision = expected + 1;
+      patch.queue_dispatch_mode = row.queue_pending_mode;
+      patch.queue_dispatch_status = 'queued';
+      patch.queue_last_committed_stage_token = token;
+      patch.queue_aborted_stage_tokens = JSON.stringify([]);
+      patch.updated_at = Math.floor(now.getTime() / 1000);
+    } else {
+      if (abortedTokens.length >= 256) fail(409, 'queued_abort_fence_limit');
+      patch.queue_last_aborted_stage_token = token;
+      patch.queue_aborted_stage_tokens = JSON.stringify([...abortedTokens, token]);
+    }
+    const changed = await trx(MESSAGES).where({ id: row.id, chat_id: chatId, client_message_id: messageId })
+      .update(patch);
+    if (changed !== 1) fail(409, 'queued_revision_conflict');
+    if (!commit) return { status: 'restored', queue_revision: expected, messages_v: Number(chat.messages_v || 0) };
+    if (recoveryBinding) {
+      const amended = await trx(PREFLIGHTS).where({
+        id: recoveryBinding.preflight.id, state: 'ENQUEUED',
+        inference_commitment: expectedCommitment,
+      }).update({ inference_commitment: nextCommitment });
+      if (amended !== 1) fail(409, 'queued_recovery_commitment_conflict');
+    }
+    const nextMessagesVersion = Number(chat.messages_v || 0) + 1;
+    await trx(CHATS).where({ id: chatId }).update({ messages_v: nextMessagesVersion,
+      updated_at: Math.floor(now.getTime() / 1000),
+      last_edited_overall_timestamp: Math.floor(now.getTime() / 1000) });
+    return { status: 'updated', queue_revision: expected + 1, messages_v: nextMessagesVersion };
+  });
+}
+
+async function markQueuedMessagePending(database, raw, now) {
+  const body = operationBody(raw, 'mark_queued_message_pending');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const messageId = string(body.message_id, 'invalid_message_id', 255);
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const revision = integer(body.queue_revision, 'invalid_queue_revision');
+  if (revision < 1) fail(400, 'invalid_queue_revision');
+  const mode = string(body.queue_mode, 'invalid_queue_mode', 32);
+  if (!['steer', 'follow_up'].includes(mode)) fail(400, 'invalid_queue_mode');
+  const recovery = queuedRecoveryBinding(body);
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
+    if (!chat) return { status: 'not_persisted' };
+    if (teamHash) {
+      if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
+      await authorizedTeamWriter(trx, teamHash, ownerHash);
+    } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
+      return { status: 'forbidden' };
+    }
+    const row = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).forUpdate().first();
+    if (!row) return { status: 'not_persisted' };
+    if (row.role !== 'user' || row.hashed_user_id !== ownerHash) return { status: 'forbidden' };
+    const current = Number(row.queue_revision ?? 1);
+    if (current !== revision) return { status: 'conflict', queue_revision: current };
+    if (row.queue_dispatch_status === 'processing') return { status: 'conflict', queue_revision: current };
+    if (row.queue_dispatch_status && row.queue_dispatch_status !== 'queued') {
+      return { status: 'conflict', queue_revision: current };
+    }
+    if (row.queue_dispatch_status === 'queued' && row.queue_dispatch_mode !== mode) {
+      return { status: 'conflict', queue_revision: current };
+    }
+    let recoveryBinding = null;
+    if (recovery.preflightId) {
+      if ((row.queue_recovery_preflight_id && row.queue_recovery_preflight_id !== recovery.preflightId)
+        || (row.queue_recovery_task_id && row.queue_recovery_task_id !== recovery.taskId)) {
+        return { status: 'conflict', queue_revision: current };
+      }
+      recoveryBinding = await lockedQueuedRecovery(trx, {
+        ...row, queue_recovery_preflight_id: recovery.preflightId,
+        queue_recovery_task_id: recovery.taskId,
+      }, ownerHash, chatId, recovery.preflightId, recovery.taskId);
+      if (!recoveryBinding || recoveryBinding.preflight.state !== 'ENQUEUED'
+        || !['PENDING', 'HELD'].includes(recoveryBinding.outbox.state)) {
+        return { status: 'conflict', queue_revision: current };
+      }
+    } else if (row.queue_recovery_preflight_id || row.queue_recovery_task_id) {
+      return { status: 'conflict', queue_revision: current };
+    }
+    if (row.queue_dispatch_status === 'queued'
+      && (!recovery.preflightId || (row.queue_recovery_preflight_id === recovery.preflightId
+        && row.queue_recovery_task_id === recovery.taskId
+        && recoveryBinding.outbox.state === 'HELD'))) {
+      return { status: 'already_queued', queue_revision: current,
+        messages_v: Number(chat.messages_v || 0) };
+    }
+    const changed = await trx(MESSAGES).where({ id: row.id, chat_id: chatId, client_message_id: messageId })
+      .update({ queue_dispatch_status: 'queued', queue_dispatch_mode: mode,
+        queue_recovery_preflight_id: recovery.preflightId,
+        queue_recovery_task_id: recovery.taskId,
+        updated_at: Math.floor(now.getTime() / 1000) });
+    if (changed !== 1) fail(409, 'queued_pending_conflict');
+    if (recoveryBinding && recoveryBinding.outbox.state === 'PENDING') {
+      const held = await trx(OUTBOX).where({ id: recoveryBinding.outbox.id, state: 'PENDING' })
+        .update({ state: 'HELD' });
+      if (held !== 1) fail(409, 'queued_outbox_hold_conflict');
+    }
+    const nextMessagesVersion = Number(chat.messages_v || 0) + 1;
+    await trx(CHATS).where({ id: chatId }).update({ messages_v: nextMessagesVersion,
+      updated_at: Math.floor(now.getTime() / 1000) });
+    return { status: 'queued', queue_revision: current, messages_v: nextMessagesVersion };
+  });
+}
+
+async function markQueuedMessagePaused(database, raw, now) {
+  const body = operationBody(raw, 'mark_queued_message_paused');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const messageId = string(body.message_id, 'invalid_message_id', 255);
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const revision = integer(body.queue_revision, 'invalid_queue_revision');
+  if (revision < 1) fail(400, 'invalid_queue_revision');
+  const reason = string(body.reason, 'invalid_pause_reason', 64);
+  if (!['queue_lost', 'dispatch_failed', 'queued_status_unavailable'].includes(reason)) {
+    fail(400, 'invalid_pause_reason');
+  }
+  const requestedMode = body.queue_mode == null ? null : string(body.queue_mode, 'invalid_queue_mode', 32);
+  if (requestedMode !== null && !['steer', 'follow_up'].includes(requestedMode)) fail(400, 'invalid_queue_mode');
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
+    if (!chat) return { status: 'not_persisted' };
+    if (teamHash) {
+      if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
+      await authorizedTeamWriter(trx, teamHash, ownerHash);
+    } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
+      return { status: 'forbidden' };
+    }
+    const row = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).forUpdate().first();
+    if (!row) return { status: 'not_persisted' };
+    if (row.role !== 'user' || row.hashed_user_id !== ownerHash) return { status: 'forbidden' };
+    const current = Number(row.queue_revision ?? 1);
+    if (current !== revision || row.queue_pending_revision != null
+      || row.queue_dispatch_status === 'processing') {
+      return { status: 'conflict', queue_revision: current };
+    }
+    if (row.queue_dispatch_status == null && requestedMode == null) {
+      return { status: 'conflict', queue_revision: current };
+    }
+    if (row.queue_dispatch_mode && requestedMode && row.queue_dispatch_mode !== requestedMode) {
+      return { status: 'conflict', queue_revision: current };
+    }
+    if (row.queue_dispatch_status === 'paused') {
+      return { status: row.queue_pause_reason === reason ? 'already_paused' : 'conflict',
+        queue_revision: current, queue_mode: row.queue_dispatch_mode ?? requestedMode,
+        reason: row.queue_pause_reason, messages_v: Number(chat.messages_v || 0) };
+    }
+    if (row.queue_dispatch_status && row.queue_dispatch_status !== 'queued') {
+      return { status: 'conflict', queue_revision: current };
+    }
+    const mode = row.queue_dispatch_mode ?? requestedMode;
+    const changed = await trx(MESSAGES).where({ id: row.id, chat_id: chatId, client_message_id: messageId })
+      .update({ queue_dispatch_status: 'paused', queue_dispatch_mode: mode,
+        queue_pause_reason: reason, updated_at: Math.floor(now.getTime() / 1000) });
+    if (changed !== 1) fail(409, 'queued_pause_conflict');
+    const nextMessagesVersion = Number(chat.messages_v || 0) + 1;
+    await trx(CHATS).where({ id: chatId }).update({ messages_v: nextMessagesVersion,
+      updated_at: Math.floor(now.getTime() / 1000) });
+    return { status: 'paused', queue_revision: current, queue_mode: mode,
+      reason, messages_v: nextMessagesVersion };
+  });
+}
+
+async function pauseConsumedSteersForTask(database, raw, now) {
+  const body = operationBody(raw, 'pause_consumed_steers_for_task');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const actorHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const taskId = string(body.task_id, 'invalid_task_id', 255);
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
+    if (!chat) return { status: 'not_found', messages: [] };
+    if (teamHash) {
+      if (chat.hashed_team_id !== teamHash) return { status: 'forbidden', messages: [] };
+      await authorizedTeamWriter(trx, teamHash, actorHash);
+    } else if (chat.hashed_team_id || chat.hashed_user_id !== actorHash) {
+      return { status: 'forbidden', messages: [] };
+    }
+    const rows = await trx(MESSAGES).where({ chat_id: chatId, hashed_user_id: actorHash, role: 'user',
+      queue_dispatch_mode: 'steer', queue_dispatch_task_id: taskId })
+      .whereIn('queue_dispatch_status', ['processing', 'paused'])
+      .orderBy('created_at', 'asc').limit(101)
+      .select(['id', 'client_message_id', 'hashed_user_id', 'queue_revision',
+        'queue_dispatch_status', 'queue_dispatch_task_id', 'queue_pause_reason',
+        'queue_pending_revision', 'queue_recovery_preflight_id', 'queue_recovery_task_id']);
+    if (rows.length > 100) return { status: 'too_many', messages: [] };
+    if (rows.length === 0) return { status: 'not_found', messages: [] };
+    for (const row of rows) {
+      if (row.queue_dispatch_status === 'paused') {
+        if (row.queue_pause_reason !== 'dispatch_failed') return { status: 'conflict', messages: [] };
+        continue;
+      }
+      if (row.queue_pending_revision != null) return { status: 'conflict', messages: [] };
+      if (row.queue_recovery_preflight_id || row.queue_recovery_task_id) {
+        if (!row.queue_recovery_preflight_id || !row.queue_recovery_task_id) {
+          return { status: 'conflict', messages: [] };
+        }
+        const recovery = await lockedQueuedRecovery(trx, row, row.hashed_user_id, chatId,
+          row.queue_recovery_preflight_id, row.queue_recovery_task_id);
+        if (!recovery || recovery.preflight.state !== 'CONSUMED'
+          || recovery.outbox.state !== 'CONSUMED') return { status: 'conflict', messages: [] };
+      }
+    }
+    const nowSeconds = Math.floor(now.getTime() / 1000);
+    for (const row of rows) {
+      if (row.queue_dispatch_status !== 'processing') continue;
+      const changed = await trx(MESSAGES).where({ id: row.id, chat_id: chatId,
+        queue_dispatch_status: 'processing', queue_dispatch_task_id: taskId })
+        .update({ queue_dispatch_status: 'paused', queue_pause_reason: 'dispatch_failed',
+          updated_at: nowSeconds });
+      if (changed !== 1) fail(409, 'queued_steer_pause_conflict');
+    }
+    const changed = rows.some((row) => row.queue_dispatch_status === 'processing');
+    const messagesVersion = Number(chat.messages_v || 0) + (changed ? 1 : 0);
+    if (changed) {
+      await trx(CHATS).where({ id: chatId }).update({ messages_v: messagesVersion,
+        updated_at: nowSeconds });
+    }
+    return { status: changed ? 'paused' : 'already_paused', messages_v: messagesVersion,
+      messages: rows.map((row) => ({ message_id: row.client_message_id,
+        queue_revision: Number(row.queue_revision ?? 1), queue_mode: 'steer',
+        pause_reason: 'dispatch_failed' })) };
+  });
+}
+
+async function listPendingQueuedMessages(database, raw) {
+  const body = operationBody(raw, 'list_pending_queued_messages');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const limit = integer(body.limit, 'invalid_limit');
+  if (limit < 1 || limit > 100) fail(400, 'invalid_limit');
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).first();
+    if (!chat) return { status: 'not_persisted' };
+    if (teamHash) {
+      if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
+      await authorizedTeamWriter(trx, teamHash, ownerHash, false);
+    } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
+      return { status: 'forbidden' };
+    }
+    const rows = await trx(MESSAGES).where({ chat_id: chatId, hashed_user_id: ownerHash, role: 'user' })
+      .whereIn('queue_dispatch_status', ['queued', 'paused'])
+      .orderBy('created_at', 'asc').limit(limit + 1)
+      .select(['client_message_id', 'queue_revision', 'queue_dispatch_status',
+        'queue_dispatch_mode', 'queue_pause_reason']);
+    return { status: 'found', messages_v: Number(chat.messages_v || 0),
+      truncated: rows.length > limit,
+      messages: rows.slice(0, limit).map((row) => ({
+        message_id: row.client_message_id,
+        queue_revision: Number(row.queue_revision ?? 1),
+        queue_dispatch_status: row.queue_dispatch_status,
+        queue_mode: row.queue_dispatch_mode ?? null,
+        pause_reason: row.queue_pause_reason ?? null,
+      })) };
+  });
+}
+
+async function getSealedJobReceipt(database, raw) {
+  const body = operationBody(raw, 'get_sealed_job_receipt');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const actorHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const taskId = uuid(body.inference_task_id, 'invalid_task_id');
+  const assistantMessageId = string(body.assistant_message_id, 'invalid_message_id', 255);
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).first();
+    if (!chat) return { status: 'not_found' };
+    if (teamHash) {
+      if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
+      await authorizedTeamWriter(trx, teamHash, actorHash, false);
+    } else if (chat.hashed_team_id || chat.hashed_user_id !== actorHash) {
+      return { status: 'forbidden' };
+    }
+    const job = await trx(JOBS).where({ chat_id: chatId, inference_task_id: taskId,
+      assistant_message_id: assistantMessageId }).first();
+    if (!job || job.invalidated_at || (!teamHash && job.hashed_user_id !== actorHash)) {
+      return { status: 'not_found' };
+    }
+    return { status: 'found', job_id: job.id, state: job.state,
+      preflight_id: job.preflight_id, chat_id: chatId,
+      inference_task_id: taskId, assistant_message_id: assistantMessageId,
+      sealed_payload_digest: job.sealed_payload_digest ?? null };
+  });
+}
+
+async function getQueuedRevisionState(database, raw) {
+  const body = operationBody(raw, 'get_queued_revision_state');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const messageId = string(body.message_id, 'invalid_message_id', 255);
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).first();
+    if (!chat) return { status: 'not_persisted' };
+    if (teamHash) {
+      if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
+      await authorizedTeamWriter(trx, teamHash, ownerHash, false);
+    } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
+      return { status: 'forbidden' };
+    }
+    const row = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).first();
+    if (!row) return { status: 'not_persisted' };
+    if (row.role !== 'user' || row.hashed_user_id !== ownerHash) return { status: 'forbidden' };
+    const preflight = row.queue_recovery_preflight_id
+      ? await trx(PREFLIGHTS).where({ id: row.queue_recovery_preflight_id }).first() : null;
+    const outbox = preflight?.outbox_id
+      ? await trx(OUTBOX).where({ id: preflight.outbox_id }).first() : null;
+    return {
+      status: 'found', queue_revision: Number(row.queue_revision ?? 1),
+      pending_revision: row.queue_pending_revision ?? null,
+      pending_token: row.queue_pending_token ?? null,
+      last_committed_stage_token: row.queue_last_committed_stage_token ?? null,
+      last_aborted_stage_token: row.queue_last_aborted_stage_token ?? null,
+      queue_dispatch_status: row.queue_dispatch_status ?? null,
+      queue_dispatch_mode: row.queue_dispatch_mode ?? null,
+      recovery_preflight_id: row.queue_recovery_preflight_id ?? null,
+      recovery_task_id: row.queue_recovery_task_id ?? null,
+      recovery_preflight_state: preflight?.state ?? null,
+      recovery_outbox_state: outbox?.state ?? null,
+      inference_commitment: preflight?.inference_commitment ?? null,
+      messages_v: Number(chat.messages_v || 0),
+    };
+  });
+}
+
+async function markQueuedMessageStarted(database, raw, now) {
+  const body = operationBody(raw, 'mark_queued_message_started');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const messageId = string(body.message_id, 'invalid_message_id', 255);
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const revision = integer(body.queue_revision, 'invalid_queue_revision');
+  if (revision < 1) fail(400, 'invalid_queue_revision');
+  const taskId = string(body.task_id, 'invalid_task_id', 255);
+  const mode = string(body.mode, 'invalid_queue_mode', 32);
+  if (!['steer', 'follow_up'].includes(mode)) fail(400, 'invalid_queue_mode');
+  const recovery = queuedRecoveryBinding(body);
+  const expectedCommitment = body.expected_inference_commitment == null ? null
+    : hexDigest(body.expected_inference_commitment, 'invalid_inference_commitment');
+  if ((recovery.preflightId === null) !== (expectedCommitment === null)) {
+    fail(400, 'invalid_recovery_commitment');
+  }
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
+    if (!chat) return { status: 'not_persisted' };
+    if (teamHash) {
+      if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
+      await authorizedTeamWriter(trx, teamHash, ownerHash);
+    } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
+      return { status: 'forbidden' };
+    }
+    const row = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).forUpdate().first();
+    if (!row) return { status: 'not_persisted' };
+    if (row.role !== 'user' || row.hashed_user_id !== ownerHash) return { status: 'forbidden' };
+    if (Number(row.queue_revision ?? 1) !== revision) return { status: 'conflict', queue_revision: Number(row.queue_revision ?? 1) };
+    if (row.queue_pending_revision != null) return { status: 'conflict', queue_revision: revision };
+    if (recovery.preflightId
+      ? row.queue_recovery_preflight_id !== recovery.preflightId || row.queue_recovery_task_id !== recovery.taskId
+      : row.queue_recovery_preflight_id || row.queue_recovery_task_id) {
+      return { status: 'conflict', queue_revision: revision };
+    }
+    if (row.queue_dispatch_status === 'processing') {
+      return { status: row.queue_dispatch_task_id === taskId && row.queue_dispatch_mode === mode
+        ? 'already_started' : 'conflict', queue_revision: revision,
+      messages_v: Number(chat.messages_v || 0) };
+    }
+    if (row.queue_dispatch_status && row.queue_dispatch_status !== 'queued') {
+      return { status: 'conflict', queue_revision: revision };
+    }
+    if (row.queue_dispatch_status === 'queued' && row.queue_dispatch_mode !== mode) {
+      return { status: 'conflict', queue_revision: revision };
+    }
+    let recoveryBinding = null;
+    if (recovery.preflightId) {
+      recoveryBinding = await lockedQueuedRecovery(trx, row, ownerHash, chatId,
+        recovery.preflightId, recovery.taskId);
+      if (!recoveryBinding || recoveryBinding.preflight.state !== 'ENQUEUED'
+        || recoveryBinding.outbox.state !== 'HELD'
+        || recoveryBinding.preflight.inference_commitment !== expectedCommitment
+        || (mode === 'follow_up' && taskId !== recovery.taskId)) {
+        return { status: 'conflict', queue_revision: revision };
+      }
+    }
+    const changed = await trx(MESSAGES).where({ id: row.id, chat_id: chatId, client_message_id: messageId })
+      .update({ queue_dispatch_status: 'processing', queue_dispatch_task_id: taskId,
+        queue_dispatch_mode: mode, updated_at: Math.floor(now.getTime() / 1000) });
+    if (changed !== 1) fail(409, 'queued_dispatch_conflict');
+    if (recoveryBinding) {
+      if (mode === 'steer') {
+        const consumed = await trx(PREFLIGHTS).where({ id: recovery.preflightId, state: 'ENQUEUED' })
+          .update({ state: 'CONSUMED', terminal_at: now });
+        if (consumed !== 1) fail(409, 'queued_recovery_consume_conflict');
+      }
+      const released = await trx(OUTBOX).where({ id: recoveryBinding.outbox.id, state: 'HELD' })
+        .update({ state: mode === 'steer' ? 'CONSUMED' : 'PENDING' });
+      if (released !== 1) fail(409, 'queued_recovery_outbox_conflict');
+    }
+    const nextMessagesVersion = Number(chat.messages_v || 0) + 1;
+    await trx(CHATS).where({ id: chatId }).update({ messages_v: nextMessagesVersion,
+      updated_at: Math.floor(now.getTime() / 1000),
+      last_edited_overall_timestamp: Math.floor(now.getTime() / 1000) });
+    return { status: 'started', queue_revision: revision, messages_v: nextMessagesVersion };
+  });
+}
+
+async function advanceUserMessageVersion(database, raw, now) {
+  const body = operationBody(raw, 'advance_user_message_version');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const messageId = string(body.message_id, 'invalid_message_id', 255);
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const proposed = integer(body.messages_v, 'invalid_messages_v');
+  const timestamp = integer(body.timestamp, 'invalid_message_timestamp');
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
+    if (!chat) return { status: 'not_persisted' };
+    if (teamHash ? chat.hashed_team_id !== teamHash : chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
+      return { status: 'forbidden' };
+    }
+    const row = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).first();
+    if (!row) return { status: 'not_persisted' };
+    if (row.role !== 'user' || row.hashed_user_id !== ownerHash) return { status: 'forbidden' };
+    const nextMessagesVersion = Math.max(Number(chat.messages_v || 0), proposed);
+    await trx(CHATS).where({ id: chatId }).update({
+      messages_v: nextMessagesVersion,
+      last_edited_overall_timestamp: Math.max(Number(chat.last_edited_overall_timestamp || 0), timestamp),
+      last_message_timestamp: Math.max(Number(chat.last_message_timestamp || 0), timestamp),
+      updated_at: Math.max(Number(chat.updated_at || 0), Math.floor(now.getTime() / 1000)),
+    });
+    return { status: 'updated', messages_v: nextMessagesVersion };
+  });
+}
+
+async function restoreQueuedMessagePending(database, raw, now) {
+  const body = operationBody(raw, 'restore_queued_message_pending');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const messageId = string(body.message_id, 'invalid_message_id', 255);
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const revision = integer(body.queue_revision, 'invalid_queue_revision');
+  if (revision < 1) fail(400, 'invalid_queue_revision');
+  const taskId = string(body.task_id, 'invalid_task_id', 255);
+  const mode = string(body.mode, 'invalid_queue_mode', 32);
+  if (!['steer', 'follow_up'].includes(mode)) fail(400, 'invalid_queue_mode');
+  const recovery = queuedRecoveryBinding(body);
+  const expectedCommitment = body.expected_inference_commitment == null ? null
+    : hexDigest(body.expected_inference_commitment, 'invalid_inference_commitment');
+  if ((recovery.preflightId === null) !== (expectedCommitment === null)) {
+    fail(400, 'invalid_recovery_commitment');
+  }
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
+    if (!chat) return { status: 'not_persisted' };
+    if (teamHash ? chat.hashed_team_id !== teamHash : chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
+      return { status: 'forbidden' };
+    }
+    if (teamHash) await authorizedTeamWriter(trx, teamHash, ownerHash);
+    const row = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).forUpdate().first();
+    if (!row) return { status: 'not_persisted' };
+    if (row.role !== 'user' || row.hashed_user_id !== ownerHash) return { status: 'forbidden' };
+    if (Number(row.queue_revision ?? 1) !== revision
+      || row.queue_dispatch_status !== 'processing'
+      || row.queue_dispatch_task_id !== taskId || row.queue_dispatch_mode !== mode) {
+      return { status: 'conflict', queue_revision: Number(row.queue_revision ?? 1) };
+    }
+    if (recovery.preflightId
+      ? row.queue_recovery_preflight_id !== recovery.preflightId || row.queue_recovery_task_id !== recovery.taskId
+      : row.queue_recovery_preflight_id || row.queue_recovery_task_id) {
+      return { status: 'conflict', queue_revision: revision };
+    }
+    let recoveryBinding = null;
+    if (recovery.preflightId) {
+      recoveryBinding = await lockedQueuedRecovery(trx, row, ownerHash, chatId,
+        recovery.preflightId, recovery.taskId);
+      if (!recoveryBinding || (mode === 'follow_up' && taskId !== recovery.taskId)
+        || recoveryBinding.preflight.inference_commitment !== expectedCommitment
+        || (mode === 'follow_up' && (recoveryBinding.preflight.state !== 'ENQUEUED'
+          || recoveryBinding.outbox.state !== 'PENDING'))
+        || (mode === 'steer' && (recoveryBinding.preflight.state !== 'CONSUMED'
+          || recoveryBinding.outbox.state !== 'CONSUMED'))) {
+        return { status: 'conflict', queue_revision: revision };
+      }
+      if (mode === 'steer'
+        && await trx(JOBS).where({ inference_task_id: recovery.taskId }).first()) {
+        return { status: 'conflict', queue_revision: revision };
+      }
+    }
+    const changed = await trx(MESSAGES).where({ id: row.id, chat_id: chatId, client_message_id: messageId })
+      .update({ queue_dispatch_status: 'queued', queue_dispatch_task_id: null,
+        queue_dispatch_mode: mode, updated_at: Math.floor(now.getTime() / 1000) });
+    if (changed !== 1) fail(409, 'queued_dispatch_conflict');
+    if (recoveryBinding) {
+      if (mode === 'steer') {
+        const resumed = await trx(PREFLIGHTS).where({ id: recovery.preflightId, state: 'CONSUMED' })
+          .update({ state: 'ENQUEUED', terminal_at: null });
+        if (resumed !== 1) fail(409, 'queued_recovery_restore_conflict');
+      }
+      const held = await trx(OUTBOX).where({ id: recoveryBinding.outbox.id,
+        state: mode === 'steer' ? 'CONSUMED' : 'PENDING' })
+        .update({ state: 'HELD' });
+      if (held !== 1) fail(409, 'queued_outbox_hold_conflict');
+    }
+    const nextMessagesVersion = Number(chat.messages_v || 0) + 1;
+    await trx(CHATS).where({ id: chatId }).update({ messages_v: nextMessagesVersion,
+      updated_at: Math.floor(now.getTime() / 1000) });
+    return { status: 'restored', queue_revision: revision, messages_v: nextMessagesVersion };
+  });
+}
 async function authorizedTeamWriter(trx, teamHash, actorHash, lock = true) {
   let membershipQuery = trx(TEAM_MEMBERSHIPS).where({
     hashed_team_id: teamHash, hashed_user_id: actorHash, status: 'active',
@@ -1448,7 +2208,7 @@ async function enqueueInference(database, raw, now) {
     if (row.deletion_invalidated_at) fail(409, 'preflight_invalidated');
     await authorizedOutputChat(trx, row.chat_id, ownerHash);
     if (row.inference_commitment !== commitment) fail(409, 'preflight_mismatch');
-    if (['ENQUEUED', 'RUNNING', 'FAILED', 'TERMINAL'].includes(row.state)) {
+    if (['ENQUEUED', 'RUNNING', 'FAILED', 'TERMINAL', 'CONSUMED'].includes(row.state)) {
       if (row.inference_task_id !== taskId || row.billing_identity !== billingId || row.outbox_id !== outboxId) fail(409, 'enqueue_identity_mismatch');
       return responseForPreflight(row);
     }
@@ -1457,13 +2217,47 @@ async function enqueueInference(database, raw, now) {
     await trx(OUTBOX).insert({
       id: outboxId, event_key: `chat-turn:${row.turn_id}`, preflight_id: row.id,
       hashed_user_id: ownerHash, chat_id: row.chat_id, turn_id: row.turn_id,
-      inference_task_id: taskId, billing_identity: billingId, state: 'PENDING', attempts: 0, created_at: now,
+      inference_task_id: taskId, billing_identity: billingId, state: 'HELD', attempts: 0, created_at: now,
     });
     await trx(PREFLIGHTS).where({ id: row.id, state: 'PREPARED' }).update({
       state: 'ENQUEUED', inference_task_id: taskId, billing_identity: billingId,
       outbox_id: outboxId, enqueued_at: now,
     });
     return responseForPreflight({ ...row, state: 'ENQUEUED', inference_task_id: taskId, billing_identity: billingId, outbox_id: outboxId });
+  });
+}
+
+async function releaseInferenceOutbox(database, raw) {
+  const body = operationBody(raw, 'release_inference_outbox');
+  const preflightId = uuid(body.preflight_id, 'invalid_preflight_id');
+  const taskId = uuid(body.inference_task_id, 'invalid_task_id');
+  const outboxId = uuid(body.outbox_id, 'invalid_outbox_id');
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  return database.transaction(async (trx) => {
+    const preflight = await trx(PREFLIGHTS).where({ id: preflightId }).forUpdate().first();
+    if (!preflight || preflight.hashed_user_id !== ownerHash
+      || preflight.inference_task_id !== taskId || preflight.outbox_id !== outboxId
+      || preflight.deletion_invalidated_at) return { status: 'forbidden' };
+    await authorizedOutputChat(trx, preflight.chat_id, ownerHash);
+    const outbox = await trx(OUTBOX).where({ id: outboxId }).forUpdate().first();
+    if (!outbox || outbox.preflight_id !== preflightId || outbox.inference_task_id !== taskId
+      || outbox.hashed_user_id !== ownerHash || outbox.chat_id !== preflight.chat_id) {
+      return { status: 'conflict' };
+    }
+    if (!['ENQUEUED', 'RUNNING', 'TERMINAL'].includes(preflight.state)) return { status: 'conflict' };
+    const message = await trx(MESSAGES).where({
+      chat_id: preflight.chat_id, client_message_id: preflight.user_message_id,
+      hashed_user_id: ownerHash, role: 'user',
+    }).first();
+    if (message && (message.queue_dispatch_status || message.queue_pending_revision != null)) {
+      return { status: 'conflict' };
+    }
+    if (['PENDING', 'DISPATCHED'].includes(outbox.state)) return { status: 'already_released' };
+    if (preflight.state !== 'ENQUEUED') return { status: 'conflict' };
+    if (outbox.state !== 'HELD') return { status: 'conflict' };
+    const released = await trx(OUTBOX).where({ id: outboxId, state: 'HELD' }).update({ state: 'PENDING' });
+    if (released !== 1) fail(409, 'outbox_release_conflict');
+    return { status: 'released' };
   });
 }
 
@@ -1480,6 +2274,16 @@ async function claimInference(database, raw, now) {
         state: row.state,
         ...(row.state === 'FAILED' ? { failure_category: row.failure_category } : {}),
       };
+    }
+    const outbox = await trx(OUTBOX).where({ id: row.outbox_id }).forUpdate().first();
+    if (!outbox || outbox.preflight_id !== row.id || outbox.inference_task_id !== taskId) {
+      fail(409, 'outbox_identity_mismatch');
+    }
+    if (outbox.state === 'HELD') {
+      return { inference_task_id: taskId, claimed: false, state: 'HELD' };
+    }
+    if (!['PENDING', 'DISPATCHED'].includes(outbox.state)) {
+      return { inference_task_id: taskId, claimed: false, state: outbox.state };
     }
     if (new Date(row.expires_at) <= now) {
       await trx(PREFLIGHTS).where({ id: row.id, state: 'ENQUEUED' }).update({
@@ -1550,7 +2354,9 @@ async function markInferenceFailed(database, raw, now) {
       if (row.failure_category !== category) fail(409, 'failure_category_mismatch');
       return { inference_task_id: taskId, failed: false, state: 'FAILED' };
     }
-    if (row.state === 'TERMINAL') return { inference_task_id: taskId, failed: false, state: 'TERMINAL' };
+    if (['TERMINAL', 'CONSUMED'].includes(row.state)) {
+      return { inference_task_id: taskId, failed: false, state: row.state };
+    }
     if (!['ENQUEUED', 'RUNNING'].includes(row.state)) fail(409, 'invalid_inference_state');
     const previousState = row.state;
     const updated = await trx(PREFLIGHTS).where({ id: row.id, state: previousState }).update({
@@ -3790,11 +4596,24 @@ async function acknowledgeFailureAlert(database, raw, now) {
 }
 
 export const operations = Object.freeze({
+  revise_queued_message_ciphertext: reviseQueuedMessageCiphertext,
+  commit_queued_message_revision: (database, raw, now) => finishQueuedMessageRevision(database, raw, now, true),
+  abort_queued_message_revision: (database, raw, now) => finishQueuedMessageRevision(database, raw, now, false),
+  mark_queued_message_pending: markQueuedMessagePending,
+  mark_queued_message_paused: markQueuedMessagePaused,
+  pause_consumed_steers_for_task: pauseConsumedSteersForTask,
+  list_pending_queued_messages: listPendingQueuedMessages,
+  get_sealed_job_receipt: getSealedJobReceipt,
+  get_queued_revision_state: getQueuedRevisionState,
+  mark_queued_message_started: markQueuedMessageStarted,
+  advance_user_message_version: advanceUserMessageVersion,
+  restore_queued_message_pending: restoreQueuedMessagePending,
   ...metadataOperations({ fail, exactKeys, string, uuid, integer, validateEnvelope, digest, ownedChat,
     JOB_TTL_MS, TOMBSTONE_TTL_MS }),
   prepare_preflight: preparePreflight, verify_committed_team_message: verifyCommittedTeamMessage,
   enqueue_inference: enqueueInference,
   claim_inference: claimInference, mark_outbox_dispatched: markOutboxDispatched,
+  release_inference_outbox: releaseInferenceOutbox,
   mark_inference_failed: markInferenceFailed,
   create_sealed_job: createSealedJob, list_available_jobs: listAvailableJobs,
   register_output_producer: registerOutputProducer,

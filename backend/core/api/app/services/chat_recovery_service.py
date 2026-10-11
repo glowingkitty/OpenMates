@@ -21,6 +21,18 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 RECOVERY_OPERATIONS = {
+    "revise_queued_message_ciphertext",
+    "commit_queued_message_revision",
+    "abort_queued_message_revision",
+    "mark_queued_message_pending",
+    "mark_queued_message_paused",
+    "pause_consumed_steers_for_task",
+    "list_pending_queued_messages",
+    "get_sealed_job_receipt",
+    "get_queued_revision_state",
+    "mark_queued_message_started",
+    "advance_user_message_version",
+    "restore_queued_message_pending",
     "create_metadata_job",
     "metadata_job_admitted",
     "list_metadata_jobs",
@@ -29,6 +41,7 @@ RECOVERY_OPERATIONS = {
     "prepare_preflight",
     "verify_committed_team_message",
     "enqueue_inference",
+    "release_inference_outbox",
     "claim_inference",
     "mark_outbox_dispatched",
     "mark_inference_failed",

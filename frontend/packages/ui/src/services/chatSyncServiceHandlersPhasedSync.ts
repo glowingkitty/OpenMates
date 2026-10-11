@@ -19,6 +19,7 @@ import type {
 import type { EmbedKeyEntry } from "./embedStore";
 import type { EmbedType } from "../message_parsing/types";
 import { chatDB } from "./db";
+import { clearQueuedProcessingForMessage, hasQueuedProcessing } from "./queuedMessageLifecycle";
 import { userDB } from "./userDB";
 import { chatListCache } from "./chatListCache";
 import { chatMetadataCache } from "./chatMetadataCache";
@@ -1290,7 +1291,7 @@ async function storeAllChats(
 /**
  * Prepare messages for storage - parses JSON strings and validates required fields
  */
-function prepareMessagesForStorage(
+export function prepareMessagesForStorage(
   messages: Message[],
   chatId: string,
   phaseName: string,
@@ -1341,8 +1342,21 @@ function prepareMessagesForStorage(
       message.chat_id = chatId;
     }
 
-    // Set default status if missing
-    if (!message.status) {
+    // Directus queue receipt is authoritative after reconnect or Redis loss.
+    if (message.queue_dispatch_status === "paused") {
+      clearQueuedProcessingForMessage(message.chat_id, message.message_id);
+      message.status = "delivered";
+      message.queue_mode = undefined;
+    } else if (hasQueuedProcessing(message.chat_id, message.message_id) ||
+        message.queue_dispatch_status === "processing") {
+      message.status = "delivered";
+      message.queue_mode = undefined;
+      message.queue_dispatch_status = "processing";
+    } else if (message.queue_dispatch_status === "queued" &&
+        (message.queue_dispatch_mode === "follow_up" || message.queue_dispatch_mode === "steer")) {
+      message.status = "queued";
+      message.queue_mode = message.queue_dispatch_mode;
+    } else if (!message.status) {
       message.status = "delivered";
     }
 

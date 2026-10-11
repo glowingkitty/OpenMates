@@ -730,6 +730,7 @@ async def _async_persist_new_chat_message_task(
                     "encrypted_sender_name": encrypted_sender_name,
                     "encrypted_category": encrypted_category,
                     "encrypted_content": encrypted_content,
+                    "queue_revision": 1,
                     "created_at": created_at,
                     "status": sync_cache_status,
                 }
@@ -870,6 +871,7 @@ async def _async_persist_new_chat_message_task(
             "encrypted_sender_name": encrypted_sender_name,
             "encrypted_category": encrypted_category,
             "encrypted_content": encrypted_content,
+            "queue_revision": 1,
             "created_at": created_at
         }
         # Only include encrypted_model_name for assistant messages
@@ -931,10 +933,21 @@ async def _async_persist_new_chat_message_task(
             "updated_at": int(datetime.now(timezone.utc).timestamp())
         }
         
-        updated_chat = await directus_service.chat.update_chat_fields_in_directus(
-            chat_id=chat_id,
-            fields_to_update=chat_fields_to_update
-        )
+        if role == "user" and hashed_user_id and new_chat_messages_version is not None:
+            # A queued edit can commit after this row is created but before this
+            # delayed task reaches metadata. Advance under the Directus chat lock
+            # so this initial write cannot lower the edit's sync version.
+            updated_chat = await directus_service.chat.advance_user_message_version(
+                chat_id, hashed_user_id, message_id,
+                int(new_chat_messages_version),
+                int(new_last_edited_overall_timestamp or created_at or datetime.now(timezone.utc).timestamp()),
+                hashed_team_id=hashed_team_id,
+            )
+        else:
+            updated_chat = await directus_service.chat.update_chat_fields_in_directus(
+                chat_id=chat_id,
+                fields_to_update=chat_fields_to_update
+            )
 
         if updated_chat:
             logger.info(f"Successfully updated chat {chat_id} metadata (task_id: {task_id}).")

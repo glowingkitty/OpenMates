@@ -134,163 +134,136 @@ async function openFixtureChat(page: any, userContent = FIXTURE.seed.user_conten
 }
 
 test.describe('Assistant response processing rendered contract', () => {
-	test.describe.configure({ timeout: 180000 });
-	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+  test.describe.configure({ timeout: 180000 });
+  skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
-	test.beforeEach(async ({ page }: { page: any }) => {
-		await installLifecycleSocketHarness(page, FIXTURE.chat_id);
-	});
+  test.beforeEach(async ({ page }: { page: any }) => {
+    await installLifecycleSocketHarness(page, FIXTURE.chat_id);
+  });
 
-	// contract-test: direct surface=gui.web assertions=chat-processing-feedback.selection-after-acceptance,chat-processing-feedback.selected-mate-identity
-	test('keeps an explicitly selected Mate through acceptance and skips Mate selection feedback', async ({ page }: { page: any }) => {
-		await openFixtureChat(page, '@mate:software_development Please review this deterministic fixture.');
-		await emitStage(page, 'task-initiated');
-		const indicator = page.getByTestId('chat-processing-indicator');
-		await expect(indicator).toContainText('Selecting AI model');
-		await expect(indicator).not.toContainText('Selecting mate');
-		await page.evaluate(({ fixture }) => {
-			(window as any).__openmatesE2ELifecycle.emit('preprocessing_step', {
-				chat_id: fixture.chat_id, step: 'mate_selected', skipped: true,
-				skip_reason: 'user_override', data: {
-					mate_id: 'software_development', mate_name: 'Sophia', mate_category: 'software_development'
-				}
-			});
-		}, { fixture: FIXTURE });
-		await expect(indicator).toContainText('Selecting AI model');
-		await expect(indicator).not.toContainText('Selecting mate');
-		await page.evaluate(({ fixture }) => {
-			(window as any).__openmatesE2ELifecycle.emit('ai_typing_started', {
-				chat_id: fixture.chat_id, message_id: fixture.task_id, task_id: fixture.task_id,
-				user_message_id: fixture.user_message_id, category: 'software_development',
-				model_name: 'Synthetic Reasoning Model', provider_name: 'Synthetic Provider', server_region: 'EU'
-			});
-		}, { fixture: FIXTURE });
-		await expect(page.getByTestId('chat-processing-mate-name')).toHaveText('Sophia');
-		await expect(indicator).not.toContainText('Selecting mate');
-	});
+  // contract-test: direct surface=gui.web assertions=chat-processing-feedback.selection-after-acceptance,chat-processing-feedback.selected-mate-identity,chat-processing-feedback.response-container-glow
+  test('opens one transient Thinking response only after server acceptance, then fills real identity', async ({ page }: { page: any }) => {
+    await openFixtureChat(page);
+    await expect(page.getByTestId('pending-assistant-response')).toHaveCount(0);
+    await emitStage(page, 'task-initiated');
+    const pending = page.getByTestId('pending-assistant-response');
+    await expect(pending).toBeVisible();
+    await expect(pending.getByTestId('assistant-transient-thinking')).toContainText('Thinking');
+    await expect(pending.getByTestId('chat-mate-name')).toHaveText('Assistant');
+    await expect(page.getByTestId('typing-indicator')).toHaveCount(0);
+    await expect(page.getByTestId('chat-history-content')).toHaveAttribute('data-source-message-count', '1');
 
-	// contract-test: direct surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
-	test('keeps rainbow, thinking, progressive answer, and cleanup on one assistant turn', async ({ page }: { page: any }) => {
-		await openFixtureChat(page);
-		const activeChat = page.getByTestId('active-chat-container');
-		const initialBox = await activeChat.boundingBox();
+    await page.evaluate(({ fixture }) => {
+      const lifecycle = (window as any).__openmatesE2ELifecycle;
+      lifecycle.emit('preprocessing_step', {
+        chat_id: fixture.chat_id, step: 'mate_selected', skipped: false,
+        data: { mate_id: 'software_development', mate_name: 'Sophia', mate_category: 'software_development' }
+      });
+      lifecycle.emit('preprocessing_step', {
+        chat_id: fixture.chat_id, step: 'model_selected', skipped: false,
+        data: { model_name: 'Synthetic Reasoning Model', provider_name: 'Synthetic Provider', server_region: 'EU' }
+      });
+      lifecycle.emit('ai_typing_started', {
+        chat_id: fixture.chat_id, message_id: fixture.task_id, task_id: fixture.task_id,
+        user_message_id: fixture.user_message_id, category: 'software_development',
+        model_name: 'Synthetic Reasoning Model', provider_name: 'Synthetic Provider', server_region: 'EU'
+      });
+    }, { fixture: FIXTURE });
+    await expect(pending.getByTestId('chat-mate-name')).toHaveText('Sophia');
+    await expect(pending.getByTestId('generated-by-container')).toContainText('Synthetic Reasoning Model');
+    await expect(pending.getByTestId('generated-by-container')).toContainText('🇪🇺');
+    await emitStage(page, 'task-initiated');
+    await expect(pending).toHaveCount(1);
+    await expect(pending.getByTestId('chat-mate-name')).toHaveText('Sophia');
 
-		await emitStage(page, 'task-initiated');
-		await expect(activeChat).toHaveClass(/ai-typing/);
-		await emitStage(page, 'preprocessing');
-		await expect(activeChat).toHaveClass(/ai-typing/);
-		await emitStage(page, 'typing');
-		await expect(activeChat).toHaveClass(/ai-typing/);
+    await page.evaluate(({ fixture }) => {
+      const lifecycle = (window as any).__openmatesE2ELifecycle;
+      lifecycle.emit('ai_message_ready', { chat_id: fixture.chat_id, message_id: fixture.task_id });
+      lifecycle.emit('ai_typing_ended', {
+        chat_id: fixture.chat_id, message_id: fixture.task_id, user_message_id: fixture.user_message_id
+      });
+    }, { fixture: FIXTURE });
+    await expect(pending).toHaveCount(0);
+    await expect(page.getByTestId('message-assistant')).toHaveCount(0);
+  });
 
-		const rainbow = await activeChat.evaluate((element: HTMLElement) => {
-			const style = getComputedStyle(element, '::after');
-			return {
-				animationDuration: style.animationDuration,
-				animationTimingFunction: style.animationTimingFunction,
-				borderRadius: style.borderRadius,
-				filter: style.filter,
-				pointerEvents: style.pointerEvents
-			};
-		});
-		expect(rainbow).toEqual({
-			animationDuration: '3s',
-			animationTimingFunction: 'linear',
-			borderRadius: '17px',
-			filter: 'blur(1.5px)',
-			pointerEvents: 'none'
-		});
-		expect(await activeChat.boundingBox()).toEqual(initialBox);
+  // contract-test: direct surface=gui.web assertions=chat-processing-feedback.selected-mate-identity,chat-processing-feedback.selection-after-acceptance
+  test('keeps an explicitly selected Mate in the accepted response', async ({ page }: { page: any }) => {
+    await openFixtureChat(page, '@mate:software_development Please review this deterministic fixture.');
+    await emitStage(page, 'task-initiated');
+    const pending = page.getByTestId('pending-assistant-response');
+    await expect(pending.getByTestId('chat-mate-name')).toHaveText('Sophia');
+    await page.evaluate(({ fixture }) => {
+      (window as any).__openmatesE2ELifecycle.emit('ai_typing_started', {
+        chat_id: fixture.chat_id, message_id: fixture.task_id, task_id: fixture.task_id,
+        user_message_id: fixture.user_message_id, category: 'software_development',
+        model_name: 'Synthetic Reasoning Model', provider_name: 'Synthetic Provider', server_region: 'EU'
+      });
+    }, { fixture: FIXTURE });
+    await expect(pending.getByTestId('chat-mate-name')).toHaveText('Sophia');
+    await expect(page.getByTestId('typing-indicator')).toHaveCount(0);
+  });
 
-		await emitStage(page, 'thinking-first');
-		const assistant = page.getByTestId('message-assistant');
-		await expect(assistant).toHaveCount(1);
-		const thinking = assistant.getByTestId('thinking-section');
-		await expect(thinking).toBeVisible();
-		await expect(thinking).toContainText('inspect the fixture');
+  // contract-test: direct surface=gui.web assertions=chat-processing-feedback.turn-lifecycle,chat-processing-feedback.response-container-glow
+  test('hands the transient slot to one streamed assistant response and clears its glow', async ({ page }: { page: any }) => {
+    await openFixtureChat(page);
+    const activeChat = page.getByTestId('active-chat-container');
+    await emitStage(page, 'task-initiated');
+    const pending = page.getByTestId('pending-assistant-response');
+    await expect(pending).toBeVisible();
+    await expect(activeChat).not.toHaveClass(/ai-typing/);
+    await emitStage(page, 'preprocessing');
+    await emitStage(page, 'typing');
+    await emitStage(page, 'thinking-first');
+    const assistant = page.getByTestId('message-assistant');
+    await expect(assistant).toHaveCount(1);
+    await expect(pending).toHaveCount(0);
+    await expect(assistant.getByTestId('assistant-response-thinking')).toContainText('inspect the fixture');
+    await expect(assistant.getByTestId('mate-message-content')).toHaveClass(/assistant-response-active/);
+    await emitStage(page, 'thinking-second');
+    await expect(assistant.getByTestId('assistant-response-thinking')).toContainText('select a safe answer');
+    await emitStage(page, 'thinking-complete');
+    await emitStage(page, 'answer-first');
+    await expect(assistant).toContainText('A deterministic');
+    await expect(assistant.getByTestId('assistant-response-status')).toContainText('Working');
+    await emitStage(page, 'answer-rich');
+    await expect(assistant).toHaveCount(1);
+    await expect(assistant).toContainText('a synthetic link');
+    await emitStage(page, 'final');
+    await expect(assistant.getByTestId('mate-message-content')).not.toHaveClass(/assistant-response-active/);
+    await expect(assistant.getByTestId('assistant-activity-toggle')).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByTestId('typing-indicator')).toHaveCount(0);
+  });
 
-		await emitStage(page, 'thinking-second');
-		await expect(thinking).toContainText('inspect the fixture');
-		await expect(thinking).toContainText('select a safe answer');
-		await expect(thinking.getByTestId('thinking-header')).toHaveAttribute('aria-expanded', 'true');
+  // contract-test: direct surface=gui.web assertions=chat-processing-feedback.accessible-responsive,chat-processing-feedback.response-container-glow
+  test('keeps the response glow static under reduced motion', async ({ page }: { page: any }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await openFixtureChat(page);
+    await emitStage(page, 'task-initiated');
+    await emitStage(page, 'typing');
+    const response = page.getByTestId('pending-assistant-response').getByTestId('mate-message-content');
+    await expect(response).toBeVisible();
+    expect(await response.evaluate((element: HTMLElement) => getComputedStyle(element, '::after').animationName)).toBe('none');
+    await expect(page.getByTestId('active-chat-container')).not.toHaveClass(/ai-typing/);
+  });
 
-		await emitStage(page, 'thinking-complete');
-		// The answer-only retry is internal: research completion does not end typing or create an error turn.
-		await expect(activeChat).toHaveClass(/ai-typing/);
-		await expect(assistant).toHaveCount(1);
-		await emitStage(page, 'answer-first');
-		await expect(assistant).toContainText('A deterministic');
-		await emitStage(page, 'answer-rich');
-		await expect(assistant).toHaveCount(1);
-		await expect(assistant).toContainText('a synthetic link');
-
-		await emitStage(page, 'final');
-		await expect(activeChat).not.toHaveClass(/ai-typing/);
-		await expect(page.getByTestId('typing-indicator')).toHaveCount(0);
-		await expect(assistant).toHaveCount(1);
-	});
-
-	// contract-test: direct surface=gui.web assertions=chat-processing-feedback.fade-preserves-border
-	test('keeps processing state visible but static under reduced motion', async ({ page }: { page: any }) => {
-		await page.emulateMedia({ reducedMotion: 'reduce' });
-		await openFixtureChat(page);
-		await emitStage(page, 'task-initiated');
-		await emitStage(page, 'typing');
-
-		const activeChat = page.getByTestId('active-chat-container');
-		await expect(activeChat).toHaveClass(/ai-typing/);
-		const rainbowAnimation = await activeChat.evaluate(
-			(element: HTMLElement) => getComputedStyle(element, '::after').animationName
-		);
-		expect(rainbowAnimation).toBe('none');
-
-		await emitStage(page, 'thinking-first');
-		const thinkingContent = page.getByTestId('thinking-content');
-		await expect(thinkingContent).toBeVisible();
-		const motion = await thinkingContent.evaluate((element: HTMLElement) => ({
-			animationName: getComputedStyle(element).animationName,
-			scrollBehavior: getComputedStyle(element).scrollBehavior
-		}));
-		expect(motion.animationName).toBe('none');
-		expect(motion.scrollBehavior).not.toBe('smooth');
-	});
-
-	// contract-test: direct surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
-	test('shows a terminal inference failure instead of an empty completed turn', async ({ page }: { page: any }) => {
-		await openFixtureChat(page);
-		await emitStage(page, 'task-initiated');
-		await emitStage(page, 'typing');
-
-		const errorText = 'The AI service encountered an error while processing your request. Please try again in a moment.';
-		await page.evaluate(({ fixture, error }) => {
-			const lifecycle = (window as any).__openmatesE2ELifecycle;
-			const payload = {
-				chat_id: fixture.chat_id,
-				task_id: fixture.task_id,
-				message_id: fixture.assistant_message_id,
-				user_message_id: fixture.user_message_id
-			};
-			lifecycle.emit('ai_message_update', {
-				...payload,
-				type: 'ai_message_chunk',
-				sequence: 1,
-				full_content_so_far: error,
-				is_final_chunk: true,
-				category: 'ai'
-			});
-			lifecycle.emit('ai_message_ready', {
-				chat_id: fixture.chat_id,
-				message_id: fixture.assistant_message_id
-			});
-			lifecycle.emit('ai_typing_ended', {
-				chat_id: fixture.chat_id,
-				message_id: fixture.assistant_message_id
-			});
-		}, { fixture: FIXTURE, error: errorText });
-
-		const assistant = page.getByTestId('message-assistant');
-		await expect(assistant).toHaveCount(1);
-		await expect(assistant).toContainText(errorText);
-		await expect(page.getByTestId('active-chat-container')).not.toHaveClass(/ai-typing/);
-		await expect(page.getByTestId('typing-indicator')).toHaveCount(0);
-	});
+  // contract-test: direct surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
+  test('shows a terminal inference failure instead of an empty completed turn', async ({ page }: { page: any }) => {
+    await openFixtureChat(page);
+    await emitStage(page, 'task-initiated');
+    await emitStage(page, 'typing');
+    const errorText = 'The AI service encountered an error while processing your request. Please try again in a moment.';
+    await page.evaluate(({ fixture, error }) => {
+      const lifecycle = (window as any).__openmatesE2ELifecycle;
+      const payload = { chat_id: fixture.chat_id, task_id: fixture.task_id,
+        message_id: fixture.assistant_message_id, user_message_id: fixture.user_message_id };
+      lifecycle.emit('ai_message_update', { ...payload, type: 'ai_message_chunk', sequence: 1,
+        full_content_so_far: error, is_final_chunk: true, category: 'ai' });
+      lifecycle.emit('ai_message_ready', { chat_id: fixture.chat_id, message_id: fixture.assistant_message_id });
+      lifecycle.emit('ai_typing_ended', { chat_id: fixture.chat_id, message_id: fixture.assistant_message_id });
+    }, { fixture: FIXTURE, error: errorText });
+    await expect(page.getByTestId('message-assistant')).toHaveCount(1);
+    await expect(page.getByTestId('message-assistant')).toContainText(errorText);
+    await expect(page.getByTestId('pending-assistant-response')).toHaveCount(0);
+  });
 });

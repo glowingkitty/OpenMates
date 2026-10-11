@@ -47,6 +47,7 @@
         };
         close: void;
         cancel: void;
+        overlayremoved: { recordingGeneration: number };
         recordingStateChange: { active: boolean };
         prepareassistantplayback: void;
     }>();
@@ -58,6 +59,7 @@
         enableRealtime?: boolean;
         previewTranscript?: string | null;
         correctionContext?: 'workflow';
+        recordingGeneration?: number;
     }
     let {
         initialPosition,
@@ -65,7 +67,9 @@
         enableRealtime = false,
         previewTranscript = null,
         correctionContext,
+        recordingGeneration = 0,
     }: Props = $props();
+    let overlayGeneration = 0;
 
     // --- Internal State ---
     let isRecording = $state(false);
@@ -81,6 +85,7 @@
     let stopIntent = $state<'finish' | 'cancel' | null>(null);
     let finalized = $state(false);
     let finalizationCompleted = false;
+    let overlayRemovalNotified = false;
     let stopFallbackTimer: ReturnType<typeof setTimeout> | null = null;
     // Guard: ignore pointer-release events until the MediaRecorder has actually
     // started. Without this, a queued/bubbled mouseup from the original press
@@ -137,6 +142,7 @@
 
     // --- Lifecycle ---
     onMount(() => {
+        overlayGeneration = recordingGeneration;
         logger.debug('Component mounted, starting recording.');
         void initialPosition;
 
@@ -158,6 +164,7 @@
     });
 
     onDestroy(() => {
+        notifyOverlayRemoved();
         logger.debug('Component destroying.');
         stopWaveform();
         stopTranscriptMeasurement();
@@ -167,6 +174,12 @@
         document.removeEventListener('keydown',   handleKeyDown);
         dispatch('recordingStateChange', { active: false });
     });
+
+    function notifyOverlayRemoved() {
+        if (overlayRemovalNotified) return;
+        overlayRemovalNotified = true;
+        dispatch('overlayremoved', { recordingGeneration: overlayGeneration });
+    }
 
     // --- Recording Logic ---
     async function initializeAndStartRecording() {
@@ -624,6 +637,7 @@
     data-recording-stop-intent={stopIntent ?? ''}
     tabindex="-1"
     transition:fade={{ duration: 150 }}
+    onoutroend={notifyOverlayRemoved}
 >
     <div class="record-content">
         <!-- Top: explicit completion/cancellation shortcuts. -->

@@ -36,6 +36,77 @@ messages:
       default: 1
       note: "Metadata-only source revision of the encrypted assistant content; legacy assistant rows read as revision 1."
 
+    queue_revision:
+      type: integer
+      default: 1
+      note: "Revision of a queued user message. Same client_message_id is retained when client-encrypted content is edited before dispatch."
+
+    queue_dispatch_status:
+      type: string
+      note: "Durable queued or processing state for a queued user turn."
+
+    queue_dispatch_task_id:
+      type: string
+      note: "Idempotency key for queued turn admission into an AI run."
+
+    queue_dispatch_mode:
+      type: string
+      note: "Whether the admitted queued turn steered the active run or followed it."
+
+    queue_pause_reason:
+      type: string
+      note: "Stable reason code when a queued user turn cannot be dispatched from its protected queue payload."
+
+    queue_recovery_preflight_id:
+      type: uuid
+      note: "Epoch-one queued turn's durable preflight identity."
+
+    queue_recovery_task_id:
+      type: uuid
+      note: "Epoch-one queued turn's stable inference task identity."
+
+    queue_pending_revision:
+      type: integer
+      note: "Unpublished queued edit revision; the visible revision advances only after the Redis queue CAS."
+
+    queue_pending_token:
+      type: string
+      note: "Opaque fence for committing or aborting a staged queued edit."
+
+    queue_last_committed_stage_token:
+      type: string
+      note: "Idempotent acknowledgement of the last staged queued edit commit."
+
+    queue_last_aborted_stage_token:
+      type: string
+      note: "Idempotent acknowledgement of the last staged queued edit abort."
+
+    queue_aborted_stage_tokens:
+      type: json
+      note: "Bounded abort fences for the current visible queue revision; prevents late staged writes after quarantine release."
+
+    queue_pending_mode:
+      type: string
+      note: "Unpublished queued mode for a staged edit."
+
+    queue_pending_inference_commitment:
+      type: string
+      length: 64
+      note: "Unpublished HMAC of the exact epoch-one inference request after queued edit."
+
+    queue_pending_expected_inference_commitment:
+      type: string
+      length: 64
+      note: "Preflight HMAC expected when the staged queued edit commits."
+
+    queue_pending_encrypted_content:
+      type: textfield
+      note: "[Client-encrypted staging only] New queued content, hidden from ordinary sync until queue CAS commits."
+
+    queue_pending_encrypted_pii_mappings:
+      type: textfield
+      note: "[Client-encrypted staging only] New PII sidecar, hidden from ordinary sync until queue CAS commits."
+
     role:
       type: string
       note: "[Indexed] Role of the sender: 'user', 'assistant', or 'system'."

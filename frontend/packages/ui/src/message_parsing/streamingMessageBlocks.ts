@@ -1,7 +1,7 @@
 // frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
 // Defines the runtime contract for committed assistant blocks and mutable tails.
-// The implementation is intentionally introduced after its red contract tests.
 // Canonical Markdown remains authoritative across live and reopened messages.
+// Adjacent app-skill calls retain their source positions beside authored text.
 // Spec: docs/specs/streaming-message-render-convergence/spec.yml
 
 import { compileAssistantDisplayMessage } from "./streamingMessageCompiler";
@@ -14,25 +14,10 @@ export interface AssistantRenderBlock {
   document: Record<string, unknown>;
 }
 
-export interface AppSkillExecution {
-  embedId: string;
-  appId?: string;
-  skillId?: string;
-  sourceIndex: number;
-  attributes?: Record<string, unknown>;
-}
-
-export interface AppSkillGroupBlock {
-  id: string;
-  executions: AppSkillExecution[];
-  document: Record<string, unknown>;
-}
-
 export type AssistantRenderOperation =
   | { kind: "append-blocks"; blockIds: string[] }
   | { kind: "replace-tail" }
   | { kind: "commit-tail" }
-  | { kind: "update-app-skill-group" }
   | { kind: "replace-block"; index: number; blockId: string }
   | { kind: "delete-block"; index: number; blockId: string }
   | { kind: "convergence-failure"; reason: "non-local-divergence" };
@@ -40,7 +25,6 @@ export type AssistantRenderOperation =
 export interface AssistantRenderPlan {
   sourceMarkdown: string;
   phase: AssistantRenderPhase;
-  appSkillGroup: AppSkillGroupBlock | null;
   committed: AssistantRenderBlock[];
   tail: AssistantRenderBlock | null;
   authoredDocument: Record<string, unknown>;
@@ -59,15 +43,6 @@ export interface NormalizedAssistantRenderPlan {
   blocks: Array<{ id: string; nodeTypes: string[] }>;
 }
 
-const APP_SKILL_GROUP_ID = "assistant-app-skill-executions";
-const APP_SKILL_FENCE = /```json\s*\n([\s\S]*?)```/g;
-
-interface ExtractedExecutions {
-  authoredMarkdown: string;
-  executions: AppSkillExecution[];
-  fencesByEmbedId: Map<string, string>;
-}
-
 function hashText(value: string): string {
   let hash = 2166136261;
   for (let index = 0; index < value.length; index += 1) {
@@ -83,40 +58,6 @@ function compileBlock(markdown: string, options: CreateAssistantRenderPlanOption
     role: "assistant",
     chatId: options.chatId,
   }) as Record<string, unknown>;
-}
-
-function extractAppSkillExecutions(markdown: string): ExtractedExecutions {
-  const executions: AppSkillExecution[] = [];
-  const fencesByEmbedId = new Map<string, string>();
-  const authoredMarkdown = markdown.replace(
-    APP_SKILL_FENCE,
-    (fence, jsonText: string, sourceIndex: number) => {
-      try {
-        const parsed = JSON.parse(jsonText.trim()) as Record<string, unknown>;
-        const type = String(parsed.type || "").replace(/_/g, "-");
-        const embedId = typeof parsed.embed_id === "string" ? parsed.embed_id : "";
-        if (type !== "app-skill-use" || !embedId) return fence;
-
-        executions.push({
-          embedId,
-          appId: typeof parsed.app_id === "string" ? parsed.app_id : undefined,
-          skillId: typeof parsed.skill_id === "string" ? parsed.skill_id : undefined,
-          sourceIndex,
-          attributes: parsed,
-        });
-        fencesByEmbedId.set(embedId, fence);
-        return "";
-      } catch {
-        return fence;
-      }
-    },
-  );
-
-  return {
-    authoredMarkdown: authoredMarkdown.replace(/\n{3,}/g, "\n\n").trim(),
-    executions,
-    fencesByEmbedId,
-  };
 }
 
 function findSafeParagraphEnds(markdown: string): number[] {
@@ -232,89 +173,6 @@ function createBlock(
   };
 }
 
-function documentContent(document: Record<string, unknown>): Array<Record<string, unknown>> {
-  return Array.isArray(document.content)
-    ? document.content as Array<Record<string, unknown>>
-    : [];
-}
-
-function findEmbedAttrs(
-  node: Record<string, unknown>,
-  embedId: string,
-): Record<string, unknown> | null {
-  const attrs = node.attrs as Record<string, unknown> | undefined;
-  if (node.type === "embed" && attrs?.id === embedId) return attrs;
-  const groupedItems = Array.isArray(attrs?.groupedItems)
-    ? attrs.groupedItems as Array<Record<string, unknown>>
-    : [];
-  const groupedMatch = groupedItems.find((item) => item.id === embedId);
-  if (groupedMatch) return groupedMatch;
-  const children = Array.isArray(node.content)
-    ? node.content as Array<Record<string, unknown>>
-    : [];
-  for (const child of children) {
-    const match = findEmbedAttrs(child, embedId);
-    if (match) return match;
-  }
-  return null;
-}
-
-function createAppSkillGroup(
-  extracted: ExtractedExecutions,
-  options: CreateAssistantRenderPlanOptions,
-  previous: AppSkillGroupBlock | null | undefined,
-): AppSkillGroupBlock | null {
-  if (extracted.executions.length === 0) return null;
-
-  const executions = [...extracted.executions].sort(
-    (left, right) => right.sourceIndex - left.sourceIndex,
-  );
-  if (JSON.stringify(previous?.executions || []) === JSON.stringify(executions)) {
-    return previous || null;
-  }
-  const groupMarkdown = executions
-    .map((execution) => extracted.fencesByEmbedId.get(execution.embedId) || "")
-    .filter(Boolean)
-    .join("\n\n");
-  const parsed = compileBlock(groupMarkdown, options);
-  const groupedItems = executions.map((execution) => {
-    const attrs = findEmbedAttrs(parsed, execution.embedId);
-    return attrs || {
-      ...execution.attributes,
-      id: execution.embedId,
-      type: "app-skill-use",
-      status: "processing",
-      contentRef: `embed:${execution.embedId}`,
-      app_id: execution.appId,
-      skill_id: execution.skillId,
-    };
-  });
-  const node = {
-    type: "embed",
-    attrs: {
-      id: APP_SKILL_GROUP_ID,
-      type: "app-skill-use-group",
-      status: "finished",
-      contentRef: null,
-      groupedItems,
-      groupCount: groupedItems.length,
-    },
-  };
-
-  return {
-    id: APP_SKILL_GROUP_ID,
-    executions,
-    document: { type: "doc", content: [{ type: "paragraph", content: [node] }] },
-  };
-}
-
-function sameExecutions(
-  previous: AppSkillGroupBlock | null,
-  next: AppSkillGroupBlock | null,
-): boolean {
-  return JSON.stringify(previous?.executions || []) === JSON.stringify(next?.executions || []);
-}
-
 function reuseStableBlocks(
   blocks: AssistantRenderBlock[],
   previous: AssistantRenderPlan | undefined,
@@ -334,10 +192,6 @@ function deriveOperations(
 ): AssistantRenderOperation[] {
   if (!previous) return [];
   const operations: AssistantRenderOperation[] = [];
-
-  if (!sameExecutions(previous.appSkillGroup, plan.appSkillGroup)) {
-    operations.push({ kind: "update-app-skill-group" });
-  }
 
   const previousBlocks = previous.committed;
   const nextBlocks = plan.committed;
@@ -409,8 +263,7 @@ export function createAssistantRenderPlan(
   markdown: string,
   options: CreateAssistantRenderPlanOptions,
 ): AssistantRenderPlan {
-  const extracted = extractAppSkillExecutions(markdown);
-  const partition = partitionAuthoredMarkdown(extracted.authoredMarkdown, options.phase);
+  const partition = partitionAuthoredMarkdown(markdown, options.phase);
   const occurrences = new Map<string, number>();
   const previousOccurrences = new Map<string, number>();
   const previousByKey = new Map<string, AssistantRenderBlock>();
@@ -432,28 +285,18 @@ export function createAssistantRenderPlan(
         document: compileBlock(partition.tailMarkdown, options),
       }
     : null;
-  const appSkillGroup = createAppSkillGroup(
-    extracted,
-    options,
-    options.previous?.appSkillGroup,
-  );
-  const authoredContent = [
-    ...committed.flatMap((block) => documentContent(block.document)),
-    ...(tail ? documentContent(tail.document) : []),
-  ];
-  const authoredDocument = { type: "doc", content: authoredContent };
-  const content = [
-    ...(appSkillGroup ? documentContent(appSkillGroup.document) : []),
-    ...authoredContent,
-  ];
+  // Compile the complete canonical source once. The parser groups only adjacent
+  // cards, so prose and result references stay between the calls that produced them.
+  // Stable committed/tail IDs above still describe incremental text updates.
+  const document = compileBlock(markdown, options) as AssistantRenderPlan["document"];
+  const authoredDocument = document;
   const plan: AssistantRenderPlan = {
     sourceMarkdown: markdown,
     phase: options.phase,
-    appSkillGroup,
     committed,
     tail,
     authoredDocument,
-    document: { type: "doc", content },
+    document,
     operations: [],
   };
   plan.operations = deriveOperations(plan, options.previous);
@@ -477,11 +320,29 @@ export function createAssistantRenderPlan(
   return plan;
 }
 
+function collectAppSkillIds(document: Record<string, unknown>): string[] {
+  const ids: string[] = [];
+  function visit(node: Record<string, unknown>): void {
+    const attrs = node.attrs as Record<string, unknown> | undefined;
+    if (node.type === "embed" && attrs) {
+      if (attrs.type === "app-skill-use" && typeof attrs.id === "string") ids.push(attrs.id);
+      if (attrs.type === "app-skill-use-group" && Array.isArray(attrs.groupedItems)) {
+        for (const item of attrs.groupedItems as Array<Record<string, unknown>>) {
+          if (typeof item.id === "string") ids.push(item.id);
+        }
+      }
+    }
+    for (const child of (Array.isArray(node.content) ? node.content : []) as Array<Record<string, unknown>>) visit(child);
+  }
+  visit(document);
+  return ids;
+}
+
 export function normalizeAssistantRenderPlan(
   plan: AssistantRenderPlan,
 ): NormalizedAssistantRenderPlan {
   return {
-    appSkillIds: plan.appSkillGroup?.executions.map((execution) => execution.embedId) || [],
+    appSkillIds: collectAppSkillIds(plan.document),
     blocks: [
       ...plan.committed.map((block) => ({
         id: `semantic:${hashText(block.markdown)}`,

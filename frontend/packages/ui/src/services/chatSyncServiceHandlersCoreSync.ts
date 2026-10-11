@@ -1,6 +1,7 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { chatDB } from "./db";
+import { clearQueuedProcessingForMessage, hasQueuedProcessing } from "./queuedMessageLifecycle";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { decryptWithChatKey } from "./encryption/MessageEncryptor";
 
@@ -744,7 +745,20 @@ export async function handlePhase1bChatContentImpl(
         }
         if (!msgObj.message_id) continue;
         if (!msgObj.chat_id) msgObj.chat_id = chatData.chat_id;
-        if (!msgObj.status) msgObj.status = "delivered";
+        if (msgObj.queue_dispatch_status === "paused") {
+          clearQueuedProcessingForMessage(chatData.chat_id, msgObj.message_id);
+          msgObj.status = "delivered";
+          msgObj.queue_mode = undefined;
+        } else if (hasQueuedProcessing(chatData.chat_id, msgObj.message_id) ||
+            msgObj.queue_dispatch_status === "processing") {
+          msgObj.status = "delivered";
+          msgObj.queue_mode = undefined;
+          msgObj.queue_dispatch_status = "processing";
+        } else if (msgObj.queue_dispatch_status === "queued" &&
+            (msgObj.queue_dispatch_mode === "follow_up" || msgObj.queue_dispatch_mode === "steer")) {
+          msgObj.status = "queued";
+          msgObj.queue_mode = msgObj.queue_dispatch_mode;
+        } else if (!msgObj.status) msgObj.status = "delivered";
         preparedMessages.push(msgObj as Message);
       }
 
@@ -1120,16 +1134,35 @@ export async function handleChatContentBatchResponseImpl(
           continue;
         }
 
+        if (message.queue_dispatch_status === "paused") {
+          clearQueuedProcessingForMessage(chatId, messageId);
+        }
+        const hasProcessingFence = message.queue_dispatch_status !== "paused" &&
+          hasQueuedProcessing(chatId, messageId);
+
         const messageToSave: Message = {
           message_id: messageId,
           chat_id: (message.chat_id as string) || chatId,
           role: (message.role as Message["role"]) || "user",
           hashed_user_id: message.hashed_user_id as string | undefined,
           created_at: message.created_at as number,
-          status:
-            (message.status as MessageStatus) || ("delivered" as MessageStatus),
+          status: hasProcessingFence ||
+            message.queue_dispatch_status === "processing" || message.queue_dispatch_status === "paused"
+            ? "delivered"
+            : message.queue_dispatch_status === "queued" &&
+            (message.queue_dispatch_mode === "follow_up" || message.queue_dispatch_mode === "steer")
+              ? "queued"
+                : (message.status as MessageStatus) || "delivered",
           client_message_id: message.client_message_id as string | undefined,
           user_message_id: message.user_message_id as string | undefined,
+          queue_revision: message.queue_revision as number | undefined,
+          queue_mode: !hasProcessingFence && message.queue_dispatch_status === "queued" &&
+            (message.queue_dispatch_mode === "follow_up" || message.queue_dispatch_mode === "steer")
+              ? message.queue_dispatch_mode : undefined,
+          queue_dispatch_status: hasProcessingFence
+            ? "processing" : message.queue_dispatch_status as "queued" | "processing" | "paused" | null | undefined,
+          queue_dispatch_mode: message.queue_dispatch_mode as "follow_up" | "steer" | null | undefined,
+          queue_dispatch_task_id: message.queue_dispatch_task_id as string | null | undefined,
           // Encrypted fields (zero-knowledge architecture)
           encrypted_content: message.encrypted_content as string,
           encrypted_sender_name: message.encrypted_sender_name as

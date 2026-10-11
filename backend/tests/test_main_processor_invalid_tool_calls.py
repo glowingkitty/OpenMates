@@ -282,6 +282,7 @@ async def _run_mocked_protocol_guard_main_processor(
     base_instructions=None,
     reservation_hook=None,
     admit_on_stream=False,
+    on_provider_call=None,
 ):
     """Run the real main processor loop with only external integrations mocked."""
     for name in (
@@ -307,6 +308,8 @@ async def _run_mocked_protocol_guard_main_processor(
     calls = []
 
     def call_main_llm_stream(**kwargs):
+        if on_provider_call is not None:
+            on_provider_call(kwargs)
         calls.append(kwargs)
         chunks = streams[len(calls) - 1]
 
@@ -466,6 +469,85 @@ async def _run_mocked_protocol_guard_main_processor(
         )
     ]
     return output, calls
+
+
+# contract-test: supporting surface=rest_api assertions=chat-queued-followups.steering.safe-boundary
+async def test_queued_steer_joins_only_after_complete_tool_batch_and_is_not_replayed(monkeypatch) -> None:
+    """The real loop must preserve every completed result before a queued steer."""
+    from backend.apps.ai.processing import queued_steering
+    from backend.core.api.app.schemas.chat import AIHistoryMessage
+
+    provider_histories = []
+    boundary_calls = []
+    executed_queries = []
+
+    def capture_provider_call(kwargs):
+        provider_histories.append(copy.deepcopy(kwargs["message_history"]))
+
+    async def execute_search(**kwargs):
+        query = kwargs["arguments"]["query"]
+        executed_queries.append(query)
+        return [{"results": [{"title": f"Finished {query}"}]}]
+
+    async def claim_queued_steer(**kwargs):
+        boundary_calls.append(set(kwargs["excluded_ids"]))
+        if "queued-steer-1" in kwargs["excluded_ids"]:
+            return None
+        kwargs["excluded_ids"].add("queued-steer-1")
+        return AIHistoryMessage(
+            role="user", message_id="queued-steer-1",
+            content="Use both finished results before continuing.",
+            created_at=1, sender_name="user",
+        )
+
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", execute_search)
+    monkeypatch.setattr(queued_steering, "consume_safe_queued_steer", claim_queued_steer)
+    tool = {"type": "function", "function": {"name": "web-search", "description": "Search web."}}
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [
+            [
+                {"fake_google_tool_call": "web-search", "arguments": {"query": "first"}, "tool_call_id": "call-first"},
+                {"fake_google_tool_call": "web-search", "arguments": {"query": "second"}, "tool_call_id": "call-second"},
+            ],
+            [{"fake_google_tool_call": "web-search", "arguments": {"query": "third"}, "tool_call_id": "call-third"}],
+            ["Done."],
+        ],
+        generated_tools=[tool],
+        discovered_apps_metadata={
+            "web": SimpleNamespace(skills=[SimpleNamespace(
+                id="search", parallel_safe=False, exclude_fields_for_llm=None,
+                tool_schema={"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]},
+            )], instructions=[], focuses=[]),
+        },
+        preprocessing_overrides={"selected_app_ids": ["web"], "relevant_app_skills": ["web-search"]},
+        on_provider_call=capture_provider_call,
+    )
+
+    assert len(calls) == 3
+    assert executed_queries == ["first", "second", "third"]
+    assert boundary_calls == [set(), {"queued-steer-1"}]
+    assert not any(message.get("message_id") == "queued-steer-1" for message in provider_histories[0])
+    second_history = provider_histories[1]
+    first_results = [
+        (index, message) for index, message in enumerate(second_history)
+        if message.get("role") == "tool" and message.get("tool_call_id") in {"call-first", "call-second"}
+    ]
+    assert [message["tool_call_id"] for _, message in first_results] == ["call-first", "call-second"]
+    assert "Finished first" in first_results[0][1]["content"]
+    assert "Finished second" in first_results[1][1]["content"]
+    steer_positions = [
+        index for index, message in enumerate(second_history)
+        if message.get("message_id") == "queued-steer-1"
+    ]
+    assert len(steer_positions) == 1
+    assert first_results[-1][0] < steer_positions[0]
+    third_history = provider_histories[2]
+    assert sum(message.get("message_id") == "queued-steer-1" for message in third_history) == 1
+    assert [message["tool_call_id"] for message in third_history if message.get("role") == "tool"] == [
+        "call-first", "call-second", "call-third",
+    ]
+    assert "Done." in "".join(chunk for chunk in output if isinstance(chunk, str))
 
 
 @pytest.fixture

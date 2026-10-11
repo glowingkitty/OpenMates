@@ -63,6 +63,7 @@ const mocks = vi.hoisted(() => {
     chatDB: {
       getAllMessages: vi.fn(async () => []),
       getChat: vi.fn(),
+      getMessage: vi.fn(),
       addChat: vi.fn(),
     },
     chatKeyManager: {
@@ -89,6 +90,7 @@ const mocks = vi.hoisted(() => {
     },
     activeChatStore: {
       clearActiveChat: vi.fn(),
+      subscribe: vi.fn((run: Subscriber<string | null>) => { run(null); return () => undefined; }),
     },
     chatListCache: {
       clear: vi.fn(),
@@ -191,6 +193,85 @@ vi.mock("../chatSyncServiceHandlersWebhooks", () => ({}));
 
 import { ChatSynchronizationService, chatSyncService } from "../chatSyncService";
 import { getTeam, TeamRequestCancelledError } from "../teamService";
+import { incognitoChatService } from "../incognitoChatService";
+import type { Chat, Message } from "../../types/chat";
+
+describe("queued revision socket receipts", () => {
+  afterEach(async () => {
+    await incognitoChatService.deleteAllChats();
+    mocks.webSocketService.isConnected.mockReturnValue(false);
+    mocks.webSocketService.sendMessage.mockReset();
+    mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: false }); return () => undefined; });
+  });
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.editing.stable-revision
+  it("waits for its own CAS receipt when another device wins the same revision", async () => {
+    mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: true }); return () => undefined; });
+    mocks.webSocketService.isConnected.mockReturnValue(true);
+    mocks.webSocketService.sendMessage.mockResolvedValue(undefined);
+    mocks.chatDB.getMessage.mockResolvedValue({
+      chat_id: "chat-1", message_id: "message-1", role: "user", status: "queued",
+      queue_revision: 1, queue_mode: "follow_up",
+    });
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: "chat-1" });
+    const service = new ChatSynchronizationService();
+    const revision = service.reviseQueuedMessage({
+      chatId: "chat-1", messageId: "message-1", expectedRevision: 1, queueMode: "steer",
+    });
+    await vi.waitFor(() => expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith(
+      "revise_queued_message", expect.objectContaining({ client_request_id: expect.any(String) }),
+    ));
+    const request = mocks.webSocketService.sendMessage.mock.calls.find(
+      ([type]) => type === "revise_queued_message",
+    )?.[1] as { client_request_id: string };
+    let settled = false;
+    void revision.finally(() => { settled = true; }).catch(() => undefined);
+    service.dispatchEvent(new CustomEvent("queuedMessageUpdated", { detail: {
+      chat_id: "chat-1", message_id: "message-1", queue_revision: 2,
+      client_request_id: "another-device-request",
+    } }));
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    service.dispatchEvent(new CustomEvent("queuedMessageRevisionRejected", { detail: {
+      chat_id: "chat-1", message_id: "message-1", reason_code: "conflict",
+      client_request_id: request.client_request_id,
+    } }));
+    await expect(revision).rejects.toThrow("conflict");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.editing.stable-revision
+  it("submits incognito edits without ciphertext and updates the same volatile row on ACK", async () => {
+    mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: true }); return () => undefined; });
+    mocks.webSocketService.isConnected.mockReturnValue(true);
+    mocks.webSocketService.sendMessage.mockResolvedValue(undefined);
+    await incognitoChatService.storeChat({ chat_id: "incognito-1", is_incognito: true,
+      created_at: 1, updated_at: 1 } as Chat);
+    await incognitoChatService.addMessage("incognito-1", { chat_id: "incognito-1",
+      message_id: "message-1", role: "user", created_at: 1, status: "queued",
+      content: "first", queue_revision: 1, queue_mode: "follow_up" } as Message);
+    const service = new ChatSynchronizationService();
+    const revision = service.reviseQueuedMessage({ chatId: "incognito-1", messageId: "message-1",
+      expectedRevision: 1, content: "revised" });
+    await vi.waitFor(() => expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith(
+      "revise_queued_message", expect.objectContaining({ content: "revised" }),
+    ));
+    const request = mocks.webSocketService.sendMessage.mock.calls.find(
+      ([type]) => type === "revise_queued_message",
+    )?.[1] as Record<string, unknown>;
+    expect(request).not.toHaveProperty("encrypted_content");
+    expect(request).not.toHaveProperty("encrypted_pii_mappings");
+    await incognitoChatService.updateMessage("incognito-1", "message-1", (row) => ({
+      ...row, queue_revision: 2,
+    }));
+    service.dispatchEvent(new CustomEvent("queuedMessageUpdated", { detail: {
+      chat_id: "incognito-1", message_id: "message-1", queue_revision: 2,
+      client_request_id: request.client_request_id,
+    } }));
+    await revision;
+    expect(await incognitoChatService.getMessagesForChat("incognito-1")).toMatchObject([{
+      message_id: "message-1", content: "revised", queue_revision: 2,
+    }]);
+  });
+});
 
 describe("Team and Personal context cache handoff", () => {
   beforeEach(() => {

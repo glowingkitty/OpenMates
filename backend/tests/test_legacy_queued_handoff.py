@@ -11,6 +11,8 @@ import pytest
 
 from backend.apps.ai.tasks.ask_skill_task import (
     _legacy_queued_batch_proof,
+    _start_recovery_queued_follower,
+    _validated_recovery_queued_member,
     _validated_queued_messages,
     _verify_legacy_batch_proof,
     resume_legacy_queued_handoff,
@@ -58,10 +60,16 @@ class _AtomicRedis:
     async def eval(self, script, key_count, *args):
         keys, values = args[:key_count], args[key_count:]
         if script == ChatCacheMixin._APPEND_QUEUED_MESSAGE_LUA:
+            if values[2] and self.strings.get(keys[3]) != values[2]:
+                return -1
             self.lists.setdefault(keys[0], []).append(values[0])
             return len(self.lists[keys[0]])
         if script == ChatCacheMixin._LEASE_QUEUED_PREFIX_LUA:
-            queue, lease = keys
+            queue, lease, edit_lock, edit_pause = keys
+            if edit_pause in self.strings:
+                return ["edit_paused"]
+            if edit_lock in self.strings:
+                return ["edit_busy"]
             existing = self.strings.get(lease)
             if existing:
                 token, count = existing.rsplit(":", 1)
@@ -70,13 +78,28 @@ class _AtomicRedis:
                 prefix = self.lists.get(queue, [])[:int(values[0])]
                 count = 0
                 size = 0
+                first_scope = None
                 for item in prefix:
+                    row = json.loads(item)
+                    if count and (row.get("recovery_task_id")
+                                  or json.loads(prefix[0]).get("recovery_task_id")):
+                        break
+                    scope = tuple(row.get(field) for field in (
+                        "chat_id", "user_id", "user_id_hash", "is_incognito",
+                        "is_external", "is_anonymous", "team_id", "team_id_hash",
+                        "team_workspace_type", "team_object_id_hash",
+                    ))
+                    if first_scope is not None and scope != first_scope:
+                        break
+                    first_scope = scope
                     size += len(item.encode())
                     if size > int(values[3]):
                         if not count:
                             raise ValueError("oversized_queued_message")
                         break
                     count += 1
+                    if row.get("recovery_task_id"):
+                        break
                 if not count:
                     return []
                 token = values[2]
@@ -259,6 +282,212 @@ class _FakeVault:
         return base64.b64decode(ciphertext.removeprefix("vault:v1:")).decode()
 
 
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+async def test_two_first_sends_claim_one_active_chat_before_dispatch():
+    cache = _Cache()
+    first, second = await asyncio.gather(
+        cache.try_claim_active_ai_task("chat", "first-task"),
+        cache.try_claim_active_ai_task("chat", "second-task"),
+    )
+    assert (first, second) in ((True, False), (False, True))
+    winner = await cache.get_active_ai_task("chat")
+    follower = "second-task" if winner == "first-task" else "first-task"
+    assert winner != follower
+    assert await cache.queue_message("chat", {"message_id": "follower"}, expected_active_task_id=winner)
+    assert await cache.has_queued_messages("chat")
+    assert not await cache.try_claim_active_ai_task("chat", "parallel-task")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("append_during_empty_lease", [False, True])
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+async def test_failed_active_task_transfers_accepted_follower_before_clearing_fence(
+    monkeypatch, append_during_empty_lease,
+):
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "queue-test-secret-which-is-at-least-32-bytes")
+    monkeypatch.setattr(ask_skill_task, "EncryptionService", _FakeVault)
+    from backend.apps.ai.processing import queued_steering
+    monkeypatch.setattr(queued_steering, "reconcile_queued_revision_quarantine", AsyncMock(return_value=True))
+    cache = _Cache()
+    cache.get_user_vault_key_id = AsyncMock(return_value="owner-vault-key")
+    assert await cache.try_claim_active_ai_task("chat", "failed-task")
+    if append_during_empty_lease:
+        original_lease = cache.lease_queued_message_prefix
+        first_lease = True
+
+        async def raced_lease(chat_id, *, limit):
+            nonlocal first_lease
+            if first_lease:
+                first_lease = False
+                assert await cache.queue_message(
+                    "chat", _member("follower", "Follow-up"),
+                    expected_active_task_id="failed-task",
+                )
+                return None
+            return await original_lease(chat_id, limit=limit)
+
+        cache.lease_queued_message_prefix = raced_lease
+    else:
+        assert await cache.queue_message(
+            "chat", _member("follower", "Follow-up"), expected_active_task_id="failed-task",
+        )
+    previous = AskSkillRequest(**_member("old", "Original"))
+    previous.legacy_cutover_task_id = "first-admission"
+    resumed = []
+
+    async def fake_resume(**kwargs):
+        resumed.append(kwargs)
+        return await cache.get_active_ai_task("chat")
+
+    monkeypatch.setattr(ask_skill_task, "resume_legacy_queued_handoff", fake_resume)
+    assert await ask_skill_task._handoff_queued_after_task_failure(
+        previous, {}, "failed-task", cache, SimpleNamespace(chat=SimpleNamespace()),
+    )
+    child_id = await cache.get_active_ai_task("chat")
+    assert child_id != "failed-task"
+    assert resumed[0]["actor_user_id"] == "owner"
+    sealed = await cache.get_paused_queue_handoff("chat")
+    assert sealed["vault_key_id"] == "owner-vault-key"
+    opened = await ask_skill_task._open_legacy_queue_handoff(sealed, cache)
+    assert opened["request_data_dict"]["message_id"] == "follower"
+    assert opened["legacy_batch_proof"]["celery_task_id"] == child_id
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.access.scoped,chat-queued-followups.admission.synced
+async def test_completed_team_batch_hands_next_follower_to_own_actor_and_vault_key(monkeypatch):
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "queue-test-secret-which-is-at-least-32-bytes")
+    monkeypatch.setattr(ask_skill_task, "EncryptionService", _FakeVault)
+    team_scope = {"team_id": "team", "team_id_hash": "team-hash"}
+    prior_member = {**_member("b-turn", "B asks", user_id="member-b"), **team_scope}
+    previous_cache = _Cache()
+    await previous_cache.queue_message("chat", prior_member)
+    prior_lease = await previous_cache.lease_queued_message_prefix("chat", limit=20)
+    prior_request = AskSkillRequest(**prior_member)
+    prior_proof = _legacy_queued_batch_proof(prior_request, prior_lease, ["b-turn"])
+    prior_request.legacy_cutover_task_id = prior_proof["task_identity"]
+    prior_task_id = prior_proof["celery_task_id"]
+
+    cache = _Cache()
+    await cache.try_claim_active_ai_task("chat", prior_task_id)
+    assert await cache.queue_message(
+        "chat", {**_member("c-turn", "C follows", user_id="member-c"), **team_scope},
+        expected_active_task_id=prior_task_id,
+    )
+    context = {
+        "task_id": prior_task_id, "chat_id": "chat", "owner_id": "member-b",
+        "hashed_team_id": "team-hash", "assistant_response": "B answer",
+        "request_data_dict": prior_request.model_dump(), "skill_config_dict": {},
+        "legacy_batch_proof": prior_proof,
+    }
+    vault = _FakeVault(cache_service=cache)
+    ciphertext, _ = await vault.encrypt_with_user_key(json.dumps(context), "member-b-key")
+    cache.get_completed_queue_context = AsyncMock(return_value={
+        "task_id": prior_task_id, "vault_key_id": "member-b-key", "ciphertext": ciphertext,
+    })
+    cache.get_user_vault_key_id = AsyncMock(return_value="member-c-key")
+    captured = {}
+
+    async def activate(user_id, chat_id, old_id, next_id, sealed, **kwargs):
+        captured.update(user_id=user_id, next_id=next_id, sealed=sealed)
+        return True
+
+    cache.activate_completed_queue_followers = activate
+    async def resume(**kwargs):
+        captured["resume_actor"] = kwargs["actor_user_id"]
+        return captured["next_id"]
+    monkeypatch.setattr(ask_skill_task, "resume_legacy_queued_handoff", resume)
+    directus = SimpleNamespace(team=SimpleNamespace(require_team_role=AsyncMock()))
+    result = await ask_skill_task._advance_completed_legacy_followers(
+        cache_service=cache, directus_service=directus,
+        chat_id="chat", task_id=prior_task_id,
+        actor_user_id="member-b", hashed_team_id="team-hash", completed_verified=True,
+    )
+    assert result == captured["next_id"]
+    assert captured["user_id"] == captured["resume_actor"] == "member-c"
+    assert captured["sealed"]["vault_key_id"] == "member-c-key"
+    handoff = await ask_skill_task._open_legacy_queue_handoff(captured["sealed"], cache)
+    assert handoff["owner_id"] == "member-c"
+    assert handoff["request_data_dict"]["user_id"] == "member-c"
+    assert [item["content"] for item in handoff["request_data_dict"]["message_history"]][-2:] == [
+        "B answer", "C follows",
+    ]
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+async def test_failed_incognito_task_terminalizes_volatile_followers():
+    cache = _Cache()
+    cache.publish_event = AsyncMock()
+    assert await cache.try_claim_active_ai_task("chat", "volatile-task")
+    follower = {**_member("incognito-follower", "Follow-up"), "is_incognito": True}
+    assert await cache.queue_message(
+        "chat", follower, expected_active_task_id="volatile-task",
+    )
+    request = AskSkillRequest(**{**_member("incognito-first", "First"), "is_incognito": True})
+    assert await ask_skill_task._terminalize_volatile_followers_after_failure(
+        request, "volatile-task", cache,
+    )
+    assert await cache.get_active_ai_task("chat") is None
+    assert not await cache.has_queued_messages("chat")
+    event = cache.publish_event.await_args.args[1]
+    assert event["event_for_client"] == "queued_handoff_paused"
+    assert event["payload"]["message_id"] == "incognito-follower"
+    assert event["payload"]["retryable"] is False
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+async def test_provisional_claim_admission_failure_pauses_follower_before_release():
+    from backend.core.api.app.routes.handlers.websocket_handlers.message_received_handler import (
+        _settle_failed_first_claim,
+    )
+    cache = _Cache()
+    assert await cache.try_claim_active_ai_task("chat", "provisional-task")
+    assert await cache.queue_message(
+        "chat", _member("follower", "Follow-up"),
+        expected_active_task_id="provisional-task",
+    )
+    pause = AsyncMock(return_value={"status": "paused", "messages_v": 2})
+    manager = SimpleNamespace(
+        broadcast_to_user=AsyncMock(), send_personal_message=AsyncMock(),
+    )
+    assert await _settle_failed_first_claim(
+        cache_service=cache,
+        directus_service=SimpleNamespace(chat=SimpleNamespace(mark_queued_message_paused=pause)),
+        manager=manager, chat_id="chat", task_id="provisional-task",
+        device_fingerprint_hash="device", known_not_dispatched=True,
+    )
+    pause.assert_awaited_once()
+    assert await cache.get_active_ai_task("chat") is None
+    assert not await cache.has_queued_messages("chat")
+    event = manager.broadcast_to_user.await_args.args[0]
+    assert event["type"] == "queued_handoff_paused"
+    assert event["payload"]["message_id"] == "follower"
+    assert event["payload"]["reason_code"] == "dispatch_failed"
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+async def test_ambiguous_broker_failure_keeps_provisional_claim_and_follower():
+    from backend.core.api.app.routes.handlers.websocket_handlers.message_received_handler import (
+        _settle_failed_first_claim,
+    )
+    cache = _Cache()
+    assert await cache.try_claim_active_ai_task("chat", "provisional-task")
+    assert await cache.queue_message(
+        "chat", _member("follower", "Follow-up"),
+        expected_active_task_id="provisional-task",
+    )
+    assert not await _settle_failed_first_claim(
+        cache_service=cache, directus_service=SimpleNamespace(),
+        manager=SimpleNamespace(), chat_id="chat", task_id="provisional-task",
+        device_fingerprint_hash="device", known_not_dispatched=False,
+    )
+    assert await cache.get_active_ai_task("chat") == "provisional-task"
+    assert await cache.has_queued_messages("chat")
+
 def _member(message_id, content, *, user_id="owner", chat_id="chat"):
     return {
         "chat_id": chat_id,
@@ -280,6 +509,179 @@ def _member(message_id, content, *, user_id="owner", chat_id="chat"):
 def _request():
     return SimpleNamespace(**_member("old", "old content"),
                            legacy_cutover_task_id=None)
+
+
+def _recovery_member(message_id, content):
+    from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import build_inference_commitment
+
+    member = _member(message_id, content)
+    inference_request = {"message": {"message_id": message_id, "content": content}}
+    member.update({
+        "current_user_content": content,
+        "recovery_task_id": f"task-{message_id}",
+        "recovery_preflight_id": f"preflight-{message_id}",
+        "recovery_outbox_id": f"outbox-{message_id}",
+        "recovery_inference_request": inference_request,
+        "recovery_inference_commitment": build_inference_commitment(inference_request),
+    })
+    return member
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+async def test_epoch_one_followers_dispatch_singleton_same_ids_with_verified_answer(monkeypatch):
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "queue-test-secret-which-is-at-least-32-bytes")
+    monkeypatch.setattr(ask_skill_task, "EncryptionService", _FakeVault)
+    from backend.apps.ai.processing import queued_steering
+    monkeypatch.setattr(queued_steering, "reconcile_queued_revision_quarantine", AsyncMock(return_value=True))
+    cache = _Cache()
+    cache.get_user_vault_key_id = AsyncMock(return_value="owner-key")
+    cache.mark_sync_message_processing = AsyncMock(return_value=True)
+    receipt = {"status": "found", "job_id": "sealed-job", "preflight_id": "preflight-A",
+               "sealed_payload_digest": "digest"}
+    started = AsyncMock(return_value={"status": "started", "messages_v": 8})
+    getter = AsyncMock(return_value=receipt)
+    directus = SimpleNamespace(chat=SimpleNamespace(
+        get_sealed_job_receipt=getter, mark_queued_message_started=started,
+    ))
+    outbox_calls = []
+
+    class Recovery:
+        def __init__(self, service):
+            pass
+
+        async def execute(self, operation, payload):
+            outbox_calls.append((operation, payload["inference_task_id"]))
+            return {"state": "DISPATCHED"}
+
+    broker_calls = []
+
+    def send_task(*, task_id, kwargs, **unused):
+        broker_calls.append((task_id, kwargs))
+        return SimpleNamespace(id=task_id)
+
+    monkeypatch.setattr(ask_skill_task, "ChatRecoveryService", Recovery)
+    monkeypatch.setattr(ask_skill_task.celery_config.app, "send_task", send_task)
+    assert await cache.try_claim_active_ai_task("chat", "task-A")
+    for prior_id, next_id, answer in (("A", "B", "Answer A"), ("B", "C", "Answer B")):
+        assert await cache.queue_message("chat", _recovery_member(next_id, f"Question {next_id}"),
+                                         expected_active_task_id=f"task-{prior_id}")
+        lease = await cache.lease_queued_message_prefix("chat", limit=20)
+        assert len(lease["messages"]) == 1
+        prior = AskSkillRequest.model_validate(_recovery_member(prior_id, f"Question {prior_id}"))
+        await _start_recovery_queued_follower(
+            prior_request=prior, prior_task_id=f"task-{prior_id}",
+            queued_lease=lease, assistant_response=answer,
+            skill_config_dict={}, cache_service=cache, directus_service=directus,
+        )
+        assert broker_calls[-1][0] == f"task-{next_id}"
+        history = broker_calls[-1][1]["request_data_dict"]["message_history"]
+        assert history[-2]["content"] == answer
+        assert history[-1]["message_id"] == next_id
+        assert await cache.get_active_ai_task("chat") == f"task-{next_id}"
+        receipt = {**receipt, "preflight_id": f"preflight-{next_id}"}
+        getter.return_value = receipt
+    assert [task for _, task in outbox_calls] == ["task-B", "task-C"]
+    assert started.await_count == 2
+    assert not await cache.has_queued_messages("chat")
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+async def test_epoch_one_queue_rejects_changed_committed_request(monkeypatch):
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "queue-test-secret-which-is-at-least-32-bytes")
+    member = _recovery_member("B", "Question B")
+    member["recovery_inference_request"]["message"]["content"] = "Swapped"
+    with pytest.raises(RequiredRecoveryOutputError, match="changed"):
+        _validated_recovery_queued_member({"messages": [member], "raw_messages": [json.dumps(member)]})
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("failure_point", ["save_missing", "receipt_changed"])
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+async def test_epoch_one_follower_stays_held_without_exact_predecessor_receipt(
+    monkeypatch, failure_point,
+):
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "queue-test-secret-which-is-at-least-32-bytes")
+    monkeypatch.setattr(ask_skill_task, "EncryptionService", _FakeVault)
+    from backend.apps.ai.processing import queued_steering
+    monkeypatch.setattr(queued_steering, "reconcile_queued_revision_quarantine", AsyncMock(return_value=True))
+    cache = _Cache()
+    cache.get_user_vault_key_id = AsyncMock(return_value="owner-key")
+    assert await cache.try_claim_active_ai_task("chat", "task-A")
+    assert await cache.queue_message("chat", _recovery_member("B", "Question B"),
+                                     expected_active_task_id="task-A")
+    lease = await cache.lease_queued_message_prefix("chat", limit=20)
+    valid = {"status": "found", "job_id": "job-A", "preflight_id": "preflight-A",
+             "sealed_payload_digest": "digest-A"}
+    changed = {**valid, "job_id": "swapped-job"}
+    getter = AsyncMock(side_effect=([{"status": "not_found"}]
+                                    if failure_point == "save_missing" else [valid, changed]))
+    started = AsyncMock(return_value={"status": "started", "messages_v": 8})
+    directus = SimpleNamespace(chat=SimpleNamespace(
+        get_sealed_job_receipt=getter, mark_queued_message_started=started,
+    ))
+    broker = AsyncMock()
+    monkeypatch.setattr(ask_skill_task.celery_config.app, "send_task", broker)
+    with pytest.raises(RequiredRecoveryOutputError, match="output|receipt"):
+        await _start_recovery_queued_follower(
+            prior_request=AskSkillRequest.model_validate(_recovery_member("A", "Question A")),
+            prior_task_id="task-A", queued_lease=lease,
+            assistant_response="Answer A", skill_config_dict={},
+            cache_service=cache, directus_service=directus,
+        )
+    assert await cache.has_queued_messages("chat")
+    started.assert_not_awaited()
+    broker.assert_not_called()
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+async def test_epoch_one_worker_claim_closes_own_prefix_before_parent_ack(monkeypatch):
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "queue-test-secret-which-is-at-least-32-bytes")
+    cache = _Cache()
+    assert await cache.try_claim_active_ai_task("chat", "task-B")
+    assert await cache.queue_message("chat", _recovery_member("B", "Question B"),
+                                     expected_active_task_id="task-B")
+    request = AskSkillRequest.model_validate(_recovery_member("B", "Question B"))
+    directus = SimpleNamespace(chat=SimpleNamespace(
+        get_queued_revision_state=AsyncMock(return_value={
+            "status": "found", "queue_dispatch_status": "processing",
+            "recovery_task_id": "task-B", "recovery_preflight_id": "preflight-B",
+        }),
+    ))
+    outbox = []
+
+    class Recovery:
+        def __init__(self, service):
+            pass
+
+        async def execute(self, operation, payload):
+            outbox.append((operation, payload["inference_task_id"]))
+            return {"state": "DISPATCHED"}
+
+    monkeypatch.setattr(ask_skill_task, "ChatRecoveryService", Recovery)
+    assert await ask_skill_task._ack_running_recovery_queue_prefix(
+        request, "task-B", cache, directus,
+    )
+    assert outbox == [("mark_outbox_dispatched", "task-B")]
+    assert not await cache.has_queued_messages("chat")
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+async def test_epoch_one_parent_accepts_verified_worker_ack_race():
+    request = AskSkillRequest.model_validate(_recovery_member("B", "Question B"))
+    durable = SimpleNamespace(chat=SimpleNamespace(
+        get_queued_revision_state=AsyncMock(return_value={
+            "status": "found", "queue_dispatch_status": "processing",
+            "recovery_task_id": "task-B", "recovery_preflight_id": "preflight-B",
+            "recovery_preflight_state": "RUNNING", "recovery_outbox_state": "DISPATCHED",
+        }),
+    ))
+    assert await ask_skill_task._recovery_follower_already_running(durable, request)
+    durable.chat.get_queued_revision_state.return_value["recovery_outbox_state"] = "HELD"
+    assert not await ask_skill_task._recovery_follower_already_running(durable, request)
 
 
 @pytest.mark.anyio
@@ -392,6 +794,10 @@ async def test_broker_failure_keeps_exact_batch_ahead_of_fresh_input(monkeypatch
     monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "queue-test-secret-which-is-at-least-32-bytes")
     monkeypatch.setattr(ask_skill_task, "EncryptionService", _FakeVault)
     cache = _Cache()
+    cache.mark_sync_message_processing = AsyncMock(return_value=True)
+    durable = SimpleNamespace(chat=SimpleNamespace(mark_queued_message_started=AsyncMock(
+        return_value={"status": "started", "messages_v": 2},
+    )))
     await cache.queue_message("chat", _member("first", "first"))
     lease = await cache.lease_queued_message_prefix("chat", limit=20)
     request = AskSkillRequest(**_member("first", "first"))
@@ -437,7 +843,7 @@ async def test_broker_failure_keeps_exact_batch_ahead_of_fresh_input(monkeypatch
     monkeypatch.setattr(ask_skill_task.celery_config.app, "send_task", send_task)
     with pytest.raises(RuntimeError, match="broker unavailable"):
         await resume_legacy_queued_handoff(
-            cache_service=cache, directus_service=object(), chat_id="chat",
+            cache_service=cache, directus_service=durable, chat_id="chat",
             actor_user_id="owner", hashed_team_id=None,
         )
     assert await cache.queue_message("chat", _member("fresh", "fresh"))
@@ -445,12 +851,12 @@ async def test_broker_failure_keeps_exact_batch_ahead_of_fresh_input(monkeypatch
     assert [json.loads(item)["message_id"] for item in cache.redis.lists[cache._get_chat_queue_key("chat")]] == ["first", "fresh"]
     with pytest.raises(RequiredRecoveryOutputError, match="scope"):
         await resume_legacy_queued_handoff(
-            cache_service=cache, directus_service=object(), chat_id="chat",
+            cache_service=cache, directus_service=durable, chat_id="chat",
             actor_user_id="other", hashed_team_id=None,
         )
     assert broker_ids == [task_id]
     resumed_id = await resume_legacy_queued_handoff(
-        cache_service=cache, directus_service=object(), chat_id="chat",
+        cache_service=cache, directus_service=durable, chat_id="chat",
         actor_user_id="owner", hashed_team_id=None,
     )
     assert resumed_id == task_id
@@ -469,6 +875,10 @@ async def test_claimed_batch_reconciles_lost_prefix_ack_without_broker_replay(
     monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "queue-test-secret-which-is-at-least-32-bytes")
     monkeypatch.setattr(ask_skill_task, "EncryptionService", _FakeVault)
     cache = _Cache()
+    cache.mark_sync_message_processing = AsyncMock(return_value=True)
+    durable = SimpleNamespace(chat=SimpleNamespace(mark_queued_message_started=AsyncMock(
+        return_value={"status": "started", "messages_v": 2},
+    )))
     await cache.queue_message("chat", _member("first", "first"))
     lease = await cache.lease_queued_message_prefix("chat", limit=20)
     request = AskSkillRequest(**_member("first", "first"))
@@ -559,14 +969,14 @@ async def test_claimed_batch_reconciles_lost_prefix_ack_without_broker_replay(
     monkeypatch.setattr(cache, "acknowledge_queued_message_prefix", lost_ack)
     with pytest.raises(RequiredRecoveryOutputError, match="prefix ACK failed"):
         await resume_legacy_queued_handoff(
-            cache_service=cache, directus_service=object(), chat_id="chat",
+            cache_service=cache, directus_service=durable, chat_id="chat",
             actor_user_id="owner", hashed_team_id=None,
         )
     assert broker_ids == [task_id]
     await cache.queue_message("chat", _member("follower", "follower"))
     with pytest.raises(RequiredRecoveryOutputError, match="claim is unverified"):
         await resume_legacy_queued_handoff(
-            cache_service=cache, directus_service=object(), chat_id="chat",
+            cache_service=cache, directus_service=durable, chat_id="chat",
             actor_user_id="owner", hashed_team_id=None,
         )
     assert broker_ids == [task_id]
@@ -585,7 +995,7 @@ async def test_claimed_batch_reconciles_lost_prefix_ack_without_broker_replay(
         monkeypatch.setattr(cache, "activate_completed_queue_followers", interrupted_activation)
         with pytest.raises(RuntimeError, match="transfer interrupted"):
             await resume_legacy_queued_handoff(
-                cache_service=cache, directus_service=object(), chat_id="chat",
+                cache_service=cache, directus_service=durable, chat_id="chat",
                 actor_user_id="owner", hashed_team_id=None,
             )
         assert await cache.get_active_ai_task("chat") == task_id
@@ -596,7 +1006,7 @@ async def test_claimed_batch_reconciles_lost_prefix_ack_without_broker_replay(
         # completed proof still allows exactly one atomic new follower owner.
         cache.redis.strings.pop(cache._get_active_task_key("chat"))
     resumed_id = await resume_legacy_queued_handoff(
-        cache_service=cache, directus_service=object(), chat_id="chat",
+        cache_service=cache, directus_service=durable, chat_id="chat",
         actor_user_id="owner", hashed_team_id=None,
     )
     assert Recovery.calls == (4 if durable_status == "COMPLETED" else 3)

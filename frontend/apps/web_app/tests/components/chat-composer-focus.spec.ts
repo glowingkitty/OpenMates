@@ -37,8 +37,17 @@ test.describe('Chat composer focus and draft preservation', () => {
     await expect(page.getByTestId('composer-focus-fixture')).toHaveAttribute('data-ready', 'true');
     const field = page.getByTestId('message-field');
     const editor = page.getByTestId('message-editor').locator('.ProseMirror');
+    const collapsedSend = page.getByTestId('composer-send-button');
+    await expect(collapsedSend).toBeVisible();
+    await expect(collapsedSend).toHaveAttribute('aria-label', 'Send');
+    await expect(collapsedSend.locator('svg')).toBeVisible();
+    await expect(collapsedSend).toHaveCSS('border-radius', '50%');
+    await expect(collapsedSend).toHaveCSS('background-color', 'rgb(255, 85, 59)');
+    await expect(collapsedSend).toHaveText('');
     await field.click();
     await expect(page.getByTestId('composer-send-button')).toBeVisible();
+    await expect(page.getByTestId('composer-send-button')).toHaveText('Send');
+    await expect(field).toHaveCSS('background-color', 'rgb(255, 255, 255)');
     await expect.poll(async () => {
       const [sendBox, micBox] = await Promise.all([page.getByTestId('composer-send-button').boundingBox(), page.getByTestId('record-audio-button').boundingBox()]);
       return micBox!.x - (sendBox!.x + sendBox!.width);
@@ -54,7 +63,8 @@ test.describe('Chat composer focus and draft preservation', () => {
     await expect(page.getByTestId('composer-send-button')).toBeVisible();
     await page.getByTestId('composer-send-button').click();
     await expect.poll(() => page.evaluate(() => (window as typeof window & { fixtureSendAttempts: number }).fixtureSendAttempts)).toBe(2);
-    await expect(editor).toContainText('second line');
+    await expect(editor).not.toContainText('second line');
+    await expect(page.getByTestId('composer-send-button')).toHaveCount(0);
     await page.evaluate(() => window.dispatchEvent(new Event('fixtureAcceptSend')));
     await expect(field).toHaveAttribute('data-focused', 'false');
     await expect(field).not.toHaveClass(/fullscreen-expanded/);
@@ -202,17 +212,11 @@ test.describe('Chat composer focus and draft preservation', () => {
       const cancel = document.querySelector('[data-testid="input-dismiss-button"]')!.getBoundingClientRect();
       return Math.max(Math.abs(cancel.width - field.width), Math.abs(cancel.x - field.x));
     })).toBeLessThanOrEqual(1);
-    const backdrop = page.getByTestId('chat-composer-focus-backdrop');
-    await expect.poll(() => backdrop.evaluate((element) => {
-      const box = element.getBoundingClientRect();
-      const parent = element.parentElement!.getBoundingClientRect();
-      return Math.max(Math.abs(box.width - parent.width), Math.abs(box.height - parent.height));
-    })).toBeLessThanOrEqual(1);
+    await expect(page.getByTestId('chat-composer-focus-backdrop')).toHaveCount(0);
     await page.screenshot({ path: test.info().outputPath(`chat-welcome-focused-${width}.png`) });
-    // Dismiss on the touch gesture itself: iOS may suppress the synthetic click
-    // after preventDefault() on pointerdown.
-    await backdrop.dispatchEvent('pointerdown', { pointerType: 'touch', button: 0 });
-    await expect(backdrop).toHaveCount(0);
+    // The document capture listener dismisses on the touch gesture itself.
+    await page.getByTestId('chat-side').dispatchEvent('pointerdown', { pointerType: 'touch', button: 0 });
+    await expect(field).toHaveAttribute('data-focused', 'false');
     await expect(field).toHaveAttribute('data-focused', 'false');
     await expect(side).not.toHaveAttribute('inert', '');
     await expect(side).toHaveCSS('opacity', '1');

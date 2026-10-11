@@ -22,7 +22,10 @@ def answers_for(questions, *, project=True, specialist=False, project_confidence
         else:
             choice = (f"project-{PROJECT}" if key == "project_target" and project
                       else f"project-focus:{PROJECT}:{ITEM}" if specialist
-                      else "default" if key == "project_specialist" else "none")
+                      else "default" if key == "project_specialist"
+                      else next(iter(question["criteria"])) if key in {
+                          "complexity", "task_area", "topic_area", "topic_shift",
+                      } else "none")
             answers[key] = {"type": "choice", "choice": choice,
                             "confidence": project_confidence if key == "project_target" else .99,
                             "probabilities": {value: float(value == choice) for value in question["criteria"]}}
@@ -320,7 +323,7 @@ async def test_confident_none_or_refusal_cannot_be_reselected_by_detailed_routin
     assert result.pending_project_focus_id is None
     assert result.relevant_focus_modes == []
     detail.assert_awaited_once()
-    assert compact.await_count == (1 if text == PROMPT else 0)
+    assert compact.await_count == 1
 
 
 @pytest.mark.asyncio

@@ -261,12 +261,15 @@
         // Look for any embed container with either data attribute.
         // Include [data-type="embed-preview-large"] for embedPreviewLarge NodeViews.
         const embedContainer = target.closest('[data-embed-id], [data-code-embed], .preview-container, [data-type="embed-preview-large"]');
-        if (embedContainer) {
+        // A surrounding preview/page can also use `.preview-container`.
+        // Only map nodes owned by this TipTap editor; posAtDOM returns -1 for
+        // ancestors outside it and ProseMirror throws on doc.nodeAt(-1).
+        if (embedContainer && editor?.view.dom.contains(embedContainer)) {
             console.debug('[ReadOnlyMessage] Embed container clicked');
             
             // Get the node from the editor
             const pos = editor?.view.posAtDOM(embedContainer, 0);
-            const node = pos !== undefined ? editor?.state.doc.nodeAt(pos) : null;
+            const node = typeof pos === 'number' && pos >= 0 ? editor?.state.doc.nodeAt(pos) : null;
             
             if (node) {
                 const elementId = embedContainer.getAttribute('data-embed-id') || 
@@ -297,7 +300,7 @@
         // Include [data-type="embed-preview-large"] for embedPreviewLarge NodeViews
         // (their inner content may not have data-embed-id during loading).
         const embedContainer = target.closest('[data-embed-id], [data-code-embed], .preview-container, [data-type="embed-preview-large"]');
-        if (embedContainer) {
+        if (embedContainer && editor?.view.dom.contains(embedContainer)) {
             // Prevent default browser context menu
             event.preventDefault();
             event.stopPropagation();
@@ -306,7 +309,7 @@
             
             // Get the node from the editor
             const pos = editor?.view.posAtDOM(embedContainer, 0);
-            const node = pos !== undefined ? editor?.state.doc.nodeAt(pos) : null;
+            const node = typeof pos === 'number' && pos >= 0 ? editor?.state.doc.nodeAt(pos) : null;
             
             if (node) {
                 const elementId = embedContainer.getAttribute('data-embed-id') || 
@@ -339,7 +342,7 @@
     function handleEmbedContextMenuEvent(event: CustomEvent) {
         const target = event.target as HTMLElement;
         const embedContainer = target.closest('[data-embed-id], [data-code-embed], .preview-container');
-        if (!embedContainer) return;
+        if (!embedContainer || !editor?.view.dom.contains(embedContainer)) return;
         
         event.preventDefault?.();
         event.stopPropagation?.();
@@ -347,7 +350,7 @@
         logger.debug('[ReadOnlyMessage] Received embed-context-menu event');
         
         const pos = editor?.view.posAtDOM(embedContainer, 0);
-        const node = pos !== undefined ? editor?.state.doc.nodeAt(pos) : null;
+        const node = typeof pos === 'number' && pos >= 0 ? editor?.state.doc.nodeAt(pos) : null;
         if (!node) return;
         
         const elementId =
@@ -394,7 +397,7 @@
         const target = event.target as HTMLElement;
         // Check if touch is on an embed container
         const embedContainer = target.closest('[data-embed-id], [data-code-embed], .preview-container');
-        if (!embedContainer) {
+        if (!embedContainer || !editor?.view.dom.contains(embedContainer)) {
             return; // Not touching an embed, ignore
         }
 
@@ -410,7 +413,7 @@
                 
                 // Get the node from the editor
                 const pos = editor.view.posAtDOM(touchTarget, 0);
-                const node = pos !== undefined ? editor.state.doc.nodeAt(pos) : null;
+                const node = typeof pos === 'number' && pos >= 0 ? editor.state.doc.nodeAt(pos) : null;
                 
                 if (node) {
                     const elementId = touchTarget.getAttribute('data-embed-id') || 

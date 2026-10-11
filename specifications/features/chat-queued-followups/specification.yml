@@ -1,0 +1,153 @@
+schema_version: 1
+id: feature.chat-queued-followups
+version: 1
+status: draft
+title: Queued Chat Follow-ups and Steering
+summary: 'Users can send follow-ups while an assistant is working, edit the same queued message across devices,
+  and explicitly steer the current run at a safe boundary.
+
+  '
+scope:
+  includes:
+  - Authenticated first-party queued follow-ups, stable message revisions and encrypted cross-device history.
+  - Web Queued state, Edit and Steer instead controls below the queued user message.
+  - Web queued editing, unchanged-send no-op and Cancel edit above the composer.
+  - Safe current-run steering after a completed tool batch or before the next agent cycle.
+  - Authorization, privacy, concurrency, recovery and existing execution gates.
+  excludes:
+  - Chronological response layout, governed separately by feature.chats and feature.chat-processing-feedback.
+  - Cancelling tools that have already started or undoing completed side effects.
+  - Broad public or developer access to client-encrypted message revisions.
+models:
+  QueuedTurn:
+    identity:
+      type: stable_chat_message_id
+      required: true
+      constraints:
+        owner_and_team_scoped: true
+        edits_keep_identity: true
+    revision:
+      type: monotonic_integer
+      required: true
+      constraints:
+        optimistic_concurrency_required: true
+        immutable_after_claim: true
+    intent:
+      type: enum
+      values:
+      - follow_up
+      - steer
+      required: true
+    body:
+      type: client_encrypted_chat_content
+      required: true
+      constraints:
+        same_revision_as_authorized_inference_payload: true
+    execution_binding:
+      type: durable_inference_identity
+      required: true
+      constraints:
+        one_task_outbox_billing_identity_per_saved_turn: true
+        held_until_gated_release_or_steer_consumption: true
+        commitment_matches_accepted_revision: true
+  QueuedEdit:
+    target:
+      type: QueuedTurn
+      required: true
+    original_draft:
+      type: local_composer_snapshot
+      required: true
+      constraints:
+        newer_typing_preserved: true
+        cancel_does_not_mutate_queue: true
+assertions:
+- id: chat-queued-followups.admission.synced
+  type: behavior
+  must: A follow-up submitted during an active assistant run reaches the server immediately, retains one stable
+    user-message identity, and is shown as Queued in authorized devices rather than waiting in the originating input.
+    Queue state and encrypted content converge after reload or reconnect. Normal queued follow-ups wait for the
+    active run to finish and retain existing duplicate-safe admission, ordering and recovery. Saved durable-protocol
+    followers retain their own preflight, inference task, outbox and billing identities and dispatch serially, with
+    authenticated completed predecessor results added to their context; they are never combined under a replacement
+    identity.
+  depends_on:
+  - models.QueuedTurn
+  - examples.admission
+- id: chat-queued-followups.editing.stable-revision
+  type: invariant
+  must: Edit below a queued message restores its content to the composer. Sending changed content atomically updates
+    that same queued message revision and its protected inference payload and encrypted durable history; it never
+    deletes later history or creates a second request. Sending unchanged content does not mutate the queue. An edit
+    racing claim, execution or another device is rejected explicitly without overwriting a newer revision or losing
+    the local edit. The durable unclaimed request commitment advances with the accepted encrypted revision; a mixed
+    durable and memory revision cannot start processing.
+  depends_on:
+  - models.QueuedTurn
+  - models.QueuedEdit
+  - examples.editing
+- id: chat-queued-followups.editing.cancel
+  type: behavior
+  must: Queued edit mode shows an accessible Cancel edit text link above the composer. Cancel leaves the queued
+    message unchanged, exits edit mode and preserves the prior draft and any newer typing according to composer
+    snapshot ownership. Switching chat or workspace cannot apply the edit to a different message.
+  depends_on:
+  - models.QueuedEdit
+  - examples.cancel
+- id: chat-queued-followups.steering.safe-boundary
+  type: behavior
+  must: Steer instead below a queued message requests addition to the current agent run at the next safe boundary
+    after an in-flight tool batch completes and before another model cycle. The same assistant response continues
+    with completed tool results retained and no repeated side effects. Steering uses current permission, safety,
+    billing and context gates, cannot bypass consent or expose unselected private context, and consumes the exact
+    accepted revision at most once. If the run finishes first or steering needs a new gated context, the request
+    remains an ordinary queued follow-up with truthful state rather than disappearing or running twice. Durable
+    steering consumption is tied to the active task and cannot later dispatch as a separate inference. If that task
+    fails before producing an output covering the steer, its saved message reaches a truthful paused state instead
+    of remaining indefinitely processing or replaying ambiguous tool actions.
+  depends_on:
+  - models.QueuedTurn.intent
+  - examples.steering
+- id: chat-queued-followups.access.scoped
+  type: privacy
+  must: Queue reads and mutations require authenticated first-party owner or authorized Team access to the chat
+    and queued message, are bounded and rate-limited, and preserve client encryption and PII processing. Cached
+    state grants no additional access; rejected and unchanged edits perform no unintended persistence or inference,
+    and logs contain no private draft or message bodies.
+  depends_on:
+  - models.QueuedTurn.identity
+  - examples.access
+applies_to:
+  rest_api:
+    required: true
+    role: Authenticated first-party WebSocket admission and revision actions; no broad developer ciphertext surface.
+  cli:
+    required: true
+    role: Authenticated follow-up submission returns Queued promptly while normal completed responses retain existing
+      behavior.
+  sdks:
+    required: false
+    implementations:
+      npm:
+        required: false
+      pip:
+        required: false
+  gui:
+    required: true
+    implementations:
+      web:
+        required: true
+      apple:
+        required: false
+    exceptions:
+    - id: native-controls-deferred
+      implementation: apple
+      reason: This increment adds web editing and steering controls; native control parity is a separate implementation.
+      equivalent_outcome: Backend queue admission and encrypted cross-device content remain shared with native clients.
+examples:
+  file: examples.yml
+  required_groups:
+  - admission
+  - editing
+  - cancel
+  - steering
+  - access

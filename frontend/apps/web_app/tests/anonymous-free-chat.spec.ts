@@ -591,7 +591,7 @@ test.describe('Anonymous free chat', () => {
 		await expect(
 			page.getByTestId('message-user').filter({ hasText: 'Slow anonymous stream should still show my message' })
 		).toBeVisible({ timeout: 2000 });
-		await expect(page.getByTestId('typing-indicator')).toBeVisible({ timeout: 3000 });
+		await expect(page.getByTestId('pending-assistant-response')).toHaveCount(0); // JSON reply has not acknowledged processing yet
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Delayed anonymous answer 1' })).toHaveCount(0);
 
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Delayed anonymous answer 1' })).toBeVisible({
@@ -637,7 +637,7 @@ test.describe('Anonymous free chat', () => {
 		);
 		await expect(page.getByTestId('chat-header-title')).toContainText('Anonymous stream title', { timeout: 5000 });
 		await expect(page.getByTestId('chat-header-provisional-title')).toHaveCount(0);
-		await expect(page.getByTestId('typing-indicator')).toContainText('George is typing', { timeout: 5000 });
+		await expect(page.getByTestId('typing-indicator')).toHaveCount(0); // status now lives inside the assistant response
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Partial anonymous stream' })).toBeVisible({
 			timeout: 5000
 		});
@@ -727,12 +727,12 @@ test.describe('Anonymous free chat', () => {
 			timeout: 12000
 		});
 		await expect(page.getByTestId('chat-header-title')).toContainText('Capital of Spain', { timeout: 12000 });
-		const typingIndicator = page.getByTestId('typing-indicator');
-		const typingSeen = typingIndicator
+		const responseActivity = page.locator('[data-testid="pending-assistant-response"], [data-testid="assistant-response-status"]');
+		const activitySeen = responseActivity
 			.first()
 			.waitFor({ state: 'visible', timeout: 12000 })
 			.then(async () => {
-				await expect(typingIndicator).toContainText('typing', { timeout: 1000 });
+				await expect(responseActivity.first()).toBeVisible({ timeout: 1000 });
 				return true;
 			})
 			.catch(() => false);
@@ -744,8 +744,8 @@ test.describe('Anonymous free chat', () => {
 		});
 		const terminalText = await terminalAssistant.first().innerText();
 		if (!/Create an account to keep using OpenMates/i.test(terminalText)) {
-			expect(await typingSeen).toBe(true);
-			await expect(typingIndicator).toHaveCount(0, { timeout: 10000 });
+			expect(await activitySeen).toBe(true);
+			await expect(page.getByTestId('pending-assistant-response')).toHaveCount(0, { timeout: 10000 });
 			await expect(page.getByTestId('chat-header-summary')).toBeVisible({ timeout: 30000 });
 			await expect(page.getByTestId('follow-up-suggestion-item').first()).toBeVisible({ timeout: 30000 });
 		}

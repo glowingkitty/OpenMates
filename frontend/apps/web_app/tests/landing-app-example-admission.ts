@@ -181,10 +181,9 @@ async function inspectChat(page: Page, chat: ExampleChat, checkpoint: string, ex
   await editable.fill(draftText, { timeout: 10_000 });
   await expect(editor).toContainText(draftText);
   if (exerciseFollowUps && suggestionCount > 0) {
-    const focusBackdrop = page.getByTestId('chat-composer-focus-backdrop');
-    if (await focusBackdrop.isVisible()) {
-      await focusBackdrop.click({ timeout: 5_000 });
-      await expect(focusBackdrop).toBeHidden({ timeout: 5_000 });
+    if (await page.getByTestId('message-field').getAttribute('data-focused') === 'true') {
+      await page.mouse.click(5, 5);
+      await expect(page.getByTestId('message-field')).toHaveAttribute('data-focused', 'false', { timeout: 5_000 });
       await expect(restoredDraft).toContainText(draftText);
     }
     await page.evaluate(() => {

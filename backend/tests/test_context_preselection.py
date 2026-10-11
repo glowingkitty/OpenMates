@@ -68,3 +68,43 @@ async def test_workflow_reload_rejects_changed_version_before_graph_loading(monk
     assert await context_preselection.reload_preselected_workflows(request, None,
         [{"workflow_id": "wf", "current_version_id": "old"}]) == []
     assert captured == []
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.chat.metadata-warmup
+@pytest.mark.asyncio
+async def test_workflow_discovery_uses_shared_cache_and_falls_back_on_cache_error(monkeypatch):
+    from backend.apps.workflows.skills import saved_workflow_context
+    request = SimpleNamespace(user_id="alice", team_id=None)
+    cached = [{"workflow_id": "wf", "current_version_id": "v1"}]
+    service = object()
+    monkeypatch.setattr(context_preselection, "_workflow_service", AsyncMock(return_value=(service, "vault")))
+    cache_read = AsyncMock(return_value=cached)
+    cache_write = AsyncMock()
+    monkeypatch.setattr(context_preselection, "_cached_workflow_metadata", cache_read)
+    monkeypatch.setattr(context_preselection, "_save_workflow_metadata", cache_write)
+    versioned_key = AsyncMock(return_value="key")
+    monkeypatch.setattr(context_preselection, "_versioned_workflow_metadata_key", versioned_key)
+    discovery_calls = []
+    monkeypatch.setattr(saved_workflow_context, "saved_workflow_metadata",
+                        lambda *args, **kwargs: discovery_calls.append(args) or cached)
+    assert await context_preselection.discover_workflow_metadata(request, object()) == cached
+    assert discovery_calls == []
+    cache_read.side_effect = RuntimeError("cache unavailable")
+    assert await context_preselection.discover_workflow_metadata(request, object()) == cached
+    assert len(discovery_calls) == 1
+    cache_write.assert_awaited_once()
+    versioned_key.side_effect = RuntimeError("epoch cache unavailable")
+    assert await context_preselection.discover_workflow_metadata(request, object()) == cached
+    assert len(discovery_calls) == 2
+    cache_write.assert_awaited_once()  # no write into an unknown cache generation
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.chat.metadata-warmup
+def test_workflow_cache_epoch_scopes_personal_and_team_authoring():
+    from backend.core.api.app.services.workflow_service import _hash_owner_id, _hash_team_id
+    personal = context_preselection._workflow_metadata_epoch_key("alice", None)
+    team = context_preselection._workflow_metadata_epoch_key("alice", "team-id")
+    assert personal == f"workflow:discovery:epoch:{_hash_owner_id('alice')}"
+    assert team == f"workflow:discovery:epoch:{_hash_team_id('team-id')}"
+    assert team == context_preselection._workflow_metadata_epoch_key("bob", "team-id")
+    assert personal != team

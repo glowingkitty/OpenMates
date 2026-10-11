@@ -13,6 +13,7 @@ import type { ChatSynchronizationService } from "./chatSyncService";
 import { getAssistantSpeechPreference, hasAssistantSpeechPreferenceIntent, setAssistantSpeechPreference } from "./assistantSpeechPreference";
 import { chatDB } from "./db";
 import { webSocketService } from "./websocketService";
+import { recordMessageDispatchFailure } from "./sendersChatMessagesDispatchFailure";
 import { notificationStore } from "../stores/notificationStore";
 import { normalizeToUnixSeconds } from "./timestampUtils";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
@@ -2412,8 +2413,10 @@ export async function sendNewMessageImpl(
 
 	// OTel: WebSocket dispatch span — the actual send over the wire
 	const wsDispatchSpan = tracer.startSpan('message.send.websocket_dispatch');
+	let attemptedTransport = false;
 	try {
 		if (shouldInvokeTeamAI) assertTeamSendScope();
+		attemptedTransport = true;
 		await webSocketService.sendMessage("chat_message_added", payload);
 	} catch (error) {
 		console.error(
@@ -2421,38 +2424,11 @@ export async function sendNewMessageImpl(
 			error
 		);
 		try {
-			// IMPORTANT: Use updateMessageStatus() NOT getMessage()→spread→saveMessage().
-			// saveMessage() calls encryptMessageFields() → getOrGenerateChatKey(), which
-			// silently generates a new random key if the chat key is absent from the in-memory
-			// cache, re-encrypting the message and causing "[Content decryption failed]" on
-			// the sender's device. updateMessageStatus() patches only the status field in-place
-			// via a raw IndexedDB transaction with no encryption involved.
-			//
-			// The chat_id mismatch guard is preserved via a getMessage() preflight check,
-			// but the actual status write always goes through updateMessageStatus().
-			const existingMessage = await chatDB.getMessage(message.message_id);
-
-			if (existingMessage && existingMessage.chat_id !== message.chat_id) {
-				console.warn(
-					`[ChatSyncService:Senders] Message ${message.message_id} found in DB but with different chat_id (${existingMessage.chat_id}) than expected (${message.chat_id}). Skipping status update to avoid corrupting wrong chat.`
-				);
-			} else {
-				// Message found with correct chat_id, or not found yet (updateMessageStatus
-				// is a no-op when the message doesn't exist, which is safe here).
-				await chatDB.updateMessageStatus(message.message_id, "failed");
-				serviceInstance.dispatchEvent(
-					new CustomEvent("messageStatusChanged", {
-						detail: {
-							chatId: message.chat_id,
-							messageId: message.message_id,
-							status: "failed"
-						}
-					})
-				);
-			}
+			// Patch only status: re-saving the encrypted row can regenerate its chat key.
+			await recordMessageDispatchFailure(serviceInstance, message, attemptedTransport);
 		} catch (dbError) {
 			console.error(
-				`[ChatSyncService:Senders] Error updating message status to 'failed' in DB for ${message.message_id}:`,
+				`[ChatSyncService:Senders] Error updating message status after dispatch failure for ${message.message_id}:`,
 				dbError
 			);
 		}

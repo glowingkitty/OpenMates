@@ -28,6 +28,10 @@ def saved_workflow_metadata(
     if not user_id:
         return []
     allowed = set(authorized_workflow_ids) if authorized_workflow_ids is not None else None
+    if hasattr(workflow_service, "list_discovery_metadata"):
+        metadata = workflow_service.list_discovery_metadata(user_id, vault_key_id, team_id=team_id,
+                                                            limit=MAX_WORKFLOW_CANDIDATES)
+        return [item for item in metadata if allowed is None or item["workflow_id"] in allowed]
     summaries = workflow_service.list_workflows(user_id, vault_key_id, team_id=team_id)
     return [{
         "workflow_id": item.id, "title": item.title[:200],

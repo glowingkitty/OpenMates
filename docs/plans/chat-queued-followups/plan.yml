@@ -1,0 +1,44 @@
+schema_version: 2
+profile: concise
+id: chat-queued-followups
+title: Editable synchronized queued follow-ups and safe steering
+status: implementing
+goal: We must implement and test followup requests queued on the server and synced to other devices as Queued, editing
+  without creating another message, Cancel edit, and Steer instead following the recommendation to add context to
+  the current run at the next safe agent or tool boundary.
+approved_by_user: true
+approval_basis: The user requested the flow and explicitly said then go with your steer instead recommendation.
+task_id: 61ed92e3-1e91-47c8-a48d-47c7a5ca228f
+specifications:
+- feature.chat-queued-followups
+scope:
+  in:
+  - Stable queued message revision, encrypted durable cross-device state and immediate follow-up admission.
+  - Web queued row Edit and Steer instead controls, snapshot-owned editing and Cancel edit.
+  - Atomic queue mutation and safe current-run steering with normal safety and consent gates.
+  - Focused unit, bare component and isolated product CI coverage, then dev deployment.
+  out:
+  - Assistant response UI redesign is tracked separately in assistant-response-ui.
+  - Undoing completed actions or cancelling tools mid-execution.
+acceptance_criteria:
+- Normal follow-ups reach the server and appear Queued across authorized devices and reload.
+- Changed queued edits use the same message ID and accepted revision; unchanged Send and Cancel edit leave the server
+  queue untouched.
+- Edit/claim/other-device races cannot overwrite accepted content or leave displayed ciphertext and inference text
+  at different revisions.
+- Steer instead enters the current response only at a safe gated boundary with at-most-once consumption; late/incompatible
+  requests stay queued.
+required_checks:
+- Focused backend queue CAS, durable revision, claim and safe steering tests.
+- Focused frontend queue state and composer editing tests.
+- Bare queued-control component Playwright proof before authenticated queue editing, cross-device and boundary use-case
+  checks in isolated CI.
+- Direct authenticated WebSocket owner/Team, stale revision and rate-limit contract proof; CLI follow-up queue proof.
+- Plan/Specification validation, generated metadata and scoped diff check.
+decisions:
+- 'Dev already uses protocol epoch 1: hold each immutable durable outbox until one-at-a-time dispatch or safe steering
+  consumption.'
+- Queued content revisions advance the durable request commitment atomically and remain immutable after claim.
+- Append completed predecessor context only through an authenticated sealed output receipt.
+- Consumed steering failure and unrecoverable volatile queue loss show a truthful saved paused state rather than
+  inventing private context or replaying side effects.

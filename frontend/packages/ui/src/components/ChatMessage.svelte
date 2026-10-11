@@ -5,7 +5,9 @@
   // Removed afterUpdate import for runes mode compatibility
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
   import DemoMessageContent from './DemoMessageContent.svelte';
-  import ThinkingSection from './ThinkingSection.svelte';
+  import AssistantActivityGroup from './AssistantActivityGroup.svelte';
+  import { splitAssistantActivityRuns } from '../message_parsing/assistantActivityRuns';
+  import { classifyAssistantSkillPhase } from '../message_parsing/assistantActivityStatus';
   import EmbedContextMenu from './embeds/EmbedContextMenu.svelte';
   import ChatContextMenu from './chats/ChatContextMenu.svelte';
   import MessageContextMenu from './chats/MessageContextMenu.svelte';
@@ -34,6 +36,7 @@
   import { getMatesById } from '../data/matesMetadata';
   import { reportIssueStore } from '../stores/reportIssueStore';
   import { startEdit } from '../stores/editMessageStore';
+  import QueuedFollowupControls from './chats/QueuedFollowupControls.svelte';
   import { messageHighlightStore, searchTextHighlightStore } from '../stores/messageHighlightStore';
   import { buildPendingSendPreviewContent, pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadStore';
   import { pendingRememberMessageStore } from '../stores/pendingRememberMessageStore';
@@ -122,6 +125,9 @@
     teamId = undefined,
     senderUserId = undefined,
     model_name = undefined,
+    server_region = undefined,
+    isTransientResponse = false,
+    assistantTurnActive = undefined,
     status = undefined,
     messageParts = [],
     appCards = undefined,
@@ -150,6 +156,7 @@
     canAnnotate = true,
     isForgottenMessage = false,
     onSpeak = undefined,
+    queueActions = undefined,
   }: {
     role?: MessageRole;
     category?: string;
@@ -159,6 +166,9 @@
     teamId?: string;
     senderUserId?: string;
     model_name?: string;
+    server_region?: string | null;
+    isTransientResponse?: boolean;
+    assistantTurnActive?: boolean;
     status?: MessageStatus;
     messageParts?: MessagePart[];
     appCards?: AppCardData[];
@@ -196,6 +206,14 @@
     /** True when this message is readable history outside the active compressed context. */
     isForgottenMessage?: boolean;
     onSpeak?: () => void;
+    /** Present only while this user message is waiting for assistant work. */
+    queueActions?: {
+      mode: 'follow_up' | 'steer';
+      busy: boolean;
+      error: string | null;
+      onEdit: () => void;
+      onSteer: () => void | Promise<void>;
+    };
   } = $props();
 
   const assistantSpeechPlayer = assistantSpeechController.player;
@@ -205,7 +223,29 @@
   });
   
   // State for thinking section expansion
-  let thinkingExpanded = $state(false);
+  const activityRuns = $derived(role === 'assistant' ? splitAssistantActivityRuns(content) : null);
+  const hasSkillActivity = $derived(activityRuns?.some((run) => run.kind === 'skills') ?? false);
+  const firstSkillActivityId = $derived(activityRuns?.find((run) => run.kind === 'skills')?.id);
+  const responseActive = $derived(role === 'assistant' && (assistantTurnActive ?? (status === 'processing' || status === 'streaming')));
+  const responseStatus = $derived.by(() => {
+    const lastRun = activityRuns?.[activityRuns.length - 1];
+    if (lastRun?.kind === 'skills') {
+      return $text(classifyAssistantSkillPhase(lastRun.skillIds) === 'working'
+        ? 'chat.response_activity.working' : 'chat.response_activity.researching');
+    }
+    return $text(status === 'processing' || isThinkingStreaming
+      ? 'chat.thinking.header_streaming' : 'chat.response_activity.working');
+  });
+  const regionFlag = $derived(((): string => {
+    switch (server_region) {
+      case 'EU': return '🇪🇺';
+      case 'US': return '🇺🇸';
+      case 'APAC': return '🌏';
+      case 'global': return '🌐';
+      case 'Local': return '🏠';
+      default: return '';
+    }
+  })());
 
   function formatCredits(credits: number): string {
     return credits.toLocaleString('de-DE');
@@ -1623,7 +1663,12 @@
    * messages from this point onward via editMessageStore.
    */
   function handleEdit() {
-    if (!messageId || !currentChatId || role !== 'user') return;
+    if (!messageId || !currentChatId || role !== 'user' || !isOwnUserMessage) return;
+    if (queueActions) {
+      queueActions.onEdit();
+      showMessageMenu = false;
+      return;
+    }
     const content = typeof original_message?.content === 'string'
       ? original_message.content : '';
     const createdAt = original_message?.created_at ?? 0;
@@ -1664,7 +1709,8 @@
   function handleMessageContextMenu(event: MouseEvent) {
     // Only show if not clicking on an embed (embeds have their own menu)
     const target = event.target as HTMLElement;
-    if (target.closest('[data-embed-id], [data-code-embed], .preview-container, a, .mate-mention')) {
+    const interactiveTarget = target.closest('[data-embed-id], [data-code-embed], .preview-container, a, .mate-mention');
+    if (interactiveTarget && messageContentElement?.contains(interactiveTarget)) {
       return;
     }
 
@@ -3210,11 +3256,14 @@
     {/if}
   {/if}
 
-  <div class="message-align-{role === 'user' && !isRemoteHuman ? 'right' : 'left'}" class:mobile-full-width={(role === 'assistant' || isRemoteHuman) && shouldStackMobile} class:mobile-compact={role === 'user' && !isRemoteHuman && shouldStackMobile}>
+  <div class="message-align-{role === 'user' && !isRemoteHuman ? 'right' : 'left'}" class:mobile-full-width={(role === 'assistant' || isRemoteHuman) && shouldStackMobile} class:mobile-compact={role === 'user' && !isRemoteHuman && shouldStackMobile} class:transient-assistant-lane={isTransientResponse}>
     <div 
       bind:this={messageContentElement}
       class="{role === 'user' && !isRemoteHuman ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''}"
       class:interactive-response-bubble={isInteractiveResponseMessage}
+      class:assistant-response-active={responseActive}
+      class:assistant-response-transient={isTransientResponse}
+      class:assistant-response-bubble={role === 'assistant'}
       data-testid="{role === 'user' && !isRemoteHuman ? 'user' : 'mate'}-message-content"
       style="opacity: {defaultHidden ? '0' : '1'};"
       role="article"
@@ -3237,7 +3286,7 @@
       {/if}
 
       {#if role === 'assistant'}
-        <div class="assistant-identity-row" data-testid="assistant-identity-row">
+        <div class="assistant-identity-row" class:transient={isTransientResponse} data-testid="assistant-identity-row">
           {#if isMateClickable}
             <button
               type="button"
@@ -3247,6 +3296,12 @@
             >{assistantDisplayName}</button>
           {:else}
             <div class="chat-mate-name" data-testid="chat-mate-name">{assistantDisplayName}</div>
+          {/if}
+          {#if isTransientResponse}
+            <span class="assistant-transient-thinking" data-testid="assistant-transient-thinking" role="status">
+              <span class="assistant-status-ai-glyph" data-testid="assistant-status-ai-glyph" aria-hidden="true"></span>
+              {$text('chat.thinking.header_streaming')}
+            </span>
           {/if}
           {#if onSpeak && status !== 'streaming' && status !== 'processing'}
             <button
@@ -3405,15 +3460,6 @@
           />
         {/if}
 
-        <!-- Thinking Section: Displayed above message content for thinking models -->
-        {#if (thinkingContent || isThinkingStreaming) && role === 'assistant'}
-          <ThinkingSection
-            thinkingContent={thinkingContent || ''}
-            isStreaming={isThinkingStreaming}
-            bind:isExpanded={thinkingExpanded}
-          />
-        {/if}
-
         <!-- Scoped wrapper for the rendered message body. Highlight capture
              and resolution use this narrow element so overlay/toolbar/popover
              text, thinking content, and truncation controls never leak into
@@ -3424,6 +3470,11 @@
           </div>
         {/if}
         <div class="chat-message-body" class:has-workflow-run={!!workflowRun} bind:this={messageBodyElement}>
+          {#if role === 'assistant' && !hasSkillActivity && (thinkingContent || isThinkingStreaming)}
+            <AssistantActivityGroup thinkingContent={thinkingContent || ''}
+              active={responseActive && isThinkingStreaming} chatId={currentChatId}
+              {piiMappings} {piiRevealed} />
+          {/if}
           <!-- Highlight overlay: yellow boxes drawn over rendered text. Nested
                inside messageBodyElement so the overlay's inset:0 layer and the
                per-box coordinates share the same origin. -->
@@ -3464,6 +3515,29 @@
                 isStreaming={status === 'streaming'}
                 {selectable}
             />
+          {:else if role === 'assistant' && hasSkillActivity && activityRuns}
+            {#each activityRuns as run (run.id)}
+              {#if run.kind === 'skills'}
+                <AssistantActivityGroup
+                  document={run.document} appIds={run.appIds}
+                  thinkingContent={run.id === firstSkillActivityId ? (thinkingContent || '') : ''}
+                  active={responseActive && activityRuns[activityRuns.length - 1]?.id === run.id}
+                  chatId={currentChatId}
+                  embedUpdateTimestamp={_embedUpdateTimestamp} {piiMappings} {piiRevealed}
+                  onEmbedClick={handleEmbedClick}
+                />
+              {:else}
+                <ReadOnlyMessage
+                  bind:this={readOnlyMessageComponent}
+                  content={run.document} chatId={currentChatId}
+                  isStreaming={status === 'streaming'} {_embedUpdateTimestamp}
+                  {selectable} {piiMappings} {piiRevealed} {role}
+                  speechActiveSegment={activeSpeechSegment}
+                  speechPlaying={activeSpeechSegment !== null}
+                  on:message-embed-click={handleEmbedClick}
+                />
+              {/if}
+            {/each}
           {:else}
             <ReadOnlyMessage
                 bind:this={readOnlyMessageComponent}
@@ -3563,6 +3637,12 @@
             {/if}
           </div>
         {/if}
+        {#if role === 'assistant' && responseActive && !isTransientResponse}
+          <div class="assistant-response-status" data-testid="assistant-response-status" role="status">
+            <span class="assistant-status-ai-glyph" data-testid="assistant-status-ai-glyph" aria-hidden="true"></span>
+            {responseStatus}
+          </div>
+        {/if}
       </div>
 
       {#if showMenu}
@@ -3626,7 +3706,7 @@
             onSelect={handleSelectMessage}
            onDelete={messageId && !isFirstMessage ? handleDeleteMessage : undefined}
            disableDelete={isFirstMessage}
-           onEdit={role === 'user' && messageId ? handleEdit : undefined}
+           onEdit={role === 'user' && isOwnUserMessage && messageId && original_message?.queue_dispatch_status !== 'paused' ? handleEdit : undefined}
            onFork={handleFork}
            disableFork={isForkDisabled}
            onHighlight={messageId && !isSharedReadOnly ? handleHighlightAction : undefined}
@@ -3640,10 +3720,27 @@
          />
        {/if}
     </div>
-    {#if role === 'assistant' && (model_name || onSpeak)}
+    {#if role === 'user' && !isRemoteHuman && queueActions}
+      <QueuedFollowupControls
+        mode={queueActions.mode}
+        busy={queueActions.busy}
+        error={queueActions.error}
+        onEdit={queueActions.onEdit}
+        onSteer={queueActions.onSteer}
+      />
+    {/if}
+    {#if role === 'user' && original_message?.queue_dispatch_status === 'paused'}
+      <p class="queued-followup-paused" class:remote={isRemoteHuman} data-testid="queued-followup-paused" role="status">
+        {$text('chats.queued_followup.paused')}
+      </p>
+    {/if}
+    {#if role === 'assistant' && responseActive && model_name}
+      <div class="generated-by-container active-attribution" data-testid="generated-by-container"><span class="generated-by" data-testid="using-model">{$text('chat.using_model', { values: { model: getModelDisplayName(model_name) } })}{regionFlag ? ` ${regionFlag}` : ''}</span></div>
+    {/if}
+    {#if role === 'assistant' && !responseActive && !isTransientResponse && (model_name || onSpeak)}
       <div class="generated-by-container" data-testid="generated-by-container">
         {#if model_name}
-          <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}</button>
+          <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}{regionFlag ? ` ${regionFlag}` : ''}</button>
         {/if}
         {#if exampleResponseCredits !== null}
           <button class="generated-by-cost" data-testid="generated-by-cost" onclick={handleGeneratedByCostClick}>
@@ -3759,6 +3856,52 @@
 {/if}
 
 <style>
+  .assistant-response-active {
+    position: relative;
+    padding-bottom: var(--spacing-5);
+  }
+  /* Overlap the opaque tail with the bubble so the two paint as one shape.
+     The parent bubble's drop shadow then covers both surfaces together. */
+  .mate-message-content.assistant-response-bubble::before {
+    inset-inline-start: -10px;
+    top: 10px;
+    width: 13px;
+    height: 20px;
+    background: var(--color-grey-0);
+    -webkit-mask: none;
+    mask: none;
+    clip-path: polygon(100% 0, 100% 100%, 0 50%);
+  }
+  .assistant-response-active::after {
+    content: '';
+    position: absolute;
+    inset-inline: var(--spacing-5);
+    bottom: 3px;
+    height: 16px;
+    border-radius: 0 0 var(--radius-4) var(--radius-4);
+    background: linear-gradient(90deg, #ff6882, #ffcc73, #76dca2, #80c8f5, #c7a3ee, #ff6882);
+    background-size: 200% 100%;
+    opacity: .7;
+    filter: blur(5px);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000);
+    mask-image: linear-gradient(to bottom, transparent, #000);
+    animation: response-rainbow-flow 3s linear infinite;
+    pointer-events: none;
+  }
+  /* The background image is wider than the bubble: 200% -> 0% moves it right. */
+  @keyframes response-rainbow-flow {
+    from { background-position: 200% 0; }
+    to { background-position: 0% 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { .assistant-response-active::after { animation: none; } }
+  .transient-assistant-lane { width: 100%; }
+  .assistant-response-transient { padding-block: var(--spacing-2) var(--spacing-3); }
+  .assistant-response-transient .chat-message-text { display: none; }
+  .assistant-identity-row.transient { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); width: 100%; }
+  .assistant-transient-thinking { display: inline-flex; align-items: center; gap: var(--spacing-2); grid-column: 2; color: var(--color-primary-start); white-space: nowrap; font-size: var(--font-size-small); }
+  .assistant-response-status { display: flex; justify-content: center; align-items: center; gap: var(--spacing-2); color: var(--color-primary-start); font-size: var(--font-size-small); padding-top: var(--spacing-2); text-align: center; }
+  .assistant-status-ai-glyph { display: inline-block; flex: 0 0 14px; width: 14px; height: 14px; background: var(--color-primary-start); -webkit-mask: var(--icon-url-ai) center / contain no-repeat; mask: var(--icon-url-ai) center / contain no-repeat; }
+
   .remote-human-profile {
     width: 60px;
     height: 60px;
@@ -4476,6 +4619,11 @@
     margin-left: var(--spacing-6);
     margin-bottom: var(--spacing-5);
   }
+  .generated-by-container.active-attribution {
+    justify-content: center;
+    margin-inline-start: 0;
+    text-align: center;
+  }
 
   .report-bad-answer-btn {
     all: unset;
@@ -4795,5 +4943,12 @@
     padding-left: var(--spacing-12, 12px) !important;
   }
   .workflow-run-provenance { display:flex; margin:var(--spacing-4) 0; }
+  .queued-followup-paused {
+    margin: var(--spacing-2, 8px) 0 0;
+    color: var(--color-error);
+    font-size: var(--font-size-xs, 12px);
+    text-align: end;
+  }
+  .queued-followup-paused.remote { text-align: start; }
   .chat-message-body.has-workflow-run :global(a[href^="/workflows#workflow-id="][href*="workflow-tab=runs"][href*="run-id="]) { display:none; }
 </style>

@@ -307,6 +307,7 @@ import { storageArchiveFetch } from "../config/api";
     };
 
     type MessageInputFieldRef = {
+        beginQueuedEdit: (message: ChatMessageModel) => Promise<void>;
         sendPublicQuestion: (question: string, article: WikipediaArticleIdentity, targetChatId: string | null) => Promise<boolean>;
         setDraftContent: (chatId: string | null, content: Content | null, version: number, isRemote: boolean) => void;
         setSuggestionText: (text: string) => void;
@@ -2865,6 +2866,8 @@ import { storageArchiveFetch } from "../config/api";
     let chatHistoryRef = $state<ChatHistoryRef | null>(null);
     // Create a reference for the MessageInput component using $state
     let messageInputFieldRef = $state<MessageInputFieldRef | null>(null);
+    let queuedActionBusyMessageId = $state<string | null>(null);
+    let queuedActionErrors = $state<Record<string, string>>({});
 
     $effect(() => {
         if (typeof window === 'undefined' || !messageInputFieldRef) return;
@@ -5447,6 +5450,9 @@ import { storageArchiveFetch } from "../config/api";
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
      let currentChat = $state<Chat | null>(initialPublicChat ?? initialAnonymousChat ?? initialRecentChatSelection?.chat ?? null);
       let currentMessages = $state<ChatMessageModel[]>(initialRecentChatSelection?.window.messages ?? initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+      // Queued follow-ups must remain directly editable while an unrelated draft is focused.
+      let hasQueuedFollowUpActions = $derived(currentMessages.some(message =>
+          message.role === 'user' && message.status === 'queued'));
       // A display-only first-message prefix fills the header until generated
       // encrypted title metadata arrives; it never becomes saved chat metadata.
       let provisionalChatTitle = $derived.by(() => {
@@ -5823,19 +5829,23 @@ import { storageArchiveFetch } from "../config/api";
     // won't trigger re-evaluation of $derived values that depend on this variable
     let currentTypingStatus = $state<AITypingStatus | null>(null);
 
-    // Show the rainbow for the full server-confirmed processing lifecycle, including
-    // queue/preprocessing time before ai_typing_started provides model metadata.
-    let showProcessingRainbow = $derived.by(() => {
-        void _aiTaskStateTrigger;
-        void _subChatProcessingStateTrigger;
-        const chatId = currentChat?.chat_id;
-        if (!chatId) return false;
-
-        if (chatSyncService.isSubChatProcessing(chatId)) return true;
-
-        return chatSyncService.getActiveAITaskIdForChat(chatId) !== null || (
-            currentTypingStatus?.isTyping === true && currentTypingStatus.chatId === chatId
-        );
+    // Accepted-turn presentation is transient until the first canonical assistant row.
+    // No empty assistant message is persisted or sent to another device.
+    const pendingAssistantResponse = $derived.by(() => {
+        const feedback = processingFeedbackTurn;
+        if (!feedback || feedback.chatId !== currentChat?.chat_id) return null;
+        if (terminalProcessingFeedbackTurns.has(processingFeedbackTurnKey(feedback.chatId, feedback.userMessageId))) return null;
+        const typing = currentTypingStatus?.isTyping
+            && currentTypingStatus.chatId === feedback.chatId
+            && currentTypingStatus.userMessageId === feedback.userMessageId
+            ? currentTypingStatus : null;
+        return {
+            taskId: typing?.aiMessageId || feedback.taskId,
+            userMessageId: feedback.userMessageId,
+            category: typing?.category || feedback.explicitMateCategory,
+            modelName: typing?.modelName,
+            serverRegion: typing?.serverRegion,
+        };
     });
 
     // Thinking/Reasoning state for thinking models (Gemini, Anthropic Claude)
@@ -7424,7 +7434,11 @@ import { storageArchiveFetch } from "../config/api";
             console.debug("[ActiveChat] handleSendMessage: User sent first message, banner can now show");
         }
 
-        console.debug("[ActiveChat] handleSendMessage: Received message payload:", message);
+        console.debug("[ActiveChat] handleSendMessage: Received message", {
+            chatId: message.chat_id,
+            messageId: message.message_id,
+            status: message.status,
+        });
         
         // CRITICAL: Handle new chat activation immediately to ensure UI is in sync with backend events
         // This must also run when we're currently in welcome/new-chat state (currentChat is null),
@@ -7647,7 +7661,7 @@ import { storageArchiveFetch } from "../config/api";
         console.debug('[ActiveChat] Processing phase set to SENDING', { isNewChat: isNewChatProcessing });
 
         if (chatHistoryRef) {
-            console.debug("[ActiveChat] handleSendMessage: Updating ChatHistory with messages:", currentMessages);
+            console.debug("[ActiveChat] handleSendMessage: Updating ChatHistory", { count: currentMessages.length });
             // Pass isNewChatProcessing so ChatHistory can use the extended 2 s scroll
             // delay for new chats, letting the user see the "Creating new chat…" header
             // transition before the view scrolls down to the user message.
@@ -7665,6 +7679,30 @@ import { storageArchiveFetch } from "../config/api";
         // should ideally update the message status in DB, and that change should flow
         // back via messageStatusChanged event if sendNewMessage fails at WebSocket level.
         // For now, we assume sendHandlers.ts and chatSyncService.sendNewMessage handle their DB ops.
+    }
+
+    function handleSendMessageRejected(event: CustomEvent<{ chatId: string; messageId: string }>) {
+        const { chatId, messageId } = event.detail;
+        if (currentChat?.chat_id !== chatId) return;
+        currentMessages = currentMessages.filter(message => message.message_id !== messageId);
+        chatHistoryRef?.updateMessages(currentMessages);
+        if (processingPhase?.phase === 'sending'
+            && !currentMessages.some(message => message.status === 'sending')) {
+            processingPhase = null;
+        }
+        if (currentMessages.length === 0) {
+            isNewChatProcessing = false;
+            isNewChatGeneratingTitle = false;
+        }
+    }
+
+    function handleSendMessagePrepared(event: CustomEvent<{ message: ChatMessageModel }>) {
+        const message = event.detail.message;
+        if (currentChat?.chat_id !== message.chat_id) return;
+        const index = currentMessages.findIndex(candidate => candidate.message_id === message.message_id);
+        if (index < 0) return;
+        currentMessages = currentMessages.map((candidate, candidateIndex) => candidateIndex === index ? message : candidate);
+        chatHistoryRef?.updateMessages(currentMessages);
     }
 
     function shouldUseAnonymousStorage(message: ChatMessageModel): boolean {
@@ -9341,6 +9379,58 @@ import { storageArchiveFetch } from "../config/api";
         }
     }
 
+    function handleQueuedEdit(message: ChatMessageModel): void {
+        if (!currentChat || message.chat_id !== currentChat.chat_id || message.status !== 'queued' || !message.queue_revision || queuedActionBusyMessageId) return;
+        queuedActionErrors = { ...queuedActionErrors, [message.message_id]: '' };
+        void messageInputFieldRef?.beginQueuedEdit(message);
+    }
+
+    async function handleQueuedSteer(message: ChatMessageModel): Promise<void> {
+        if (!currentChat || message.chat_id !== currentChat.chat_id || message.status !== 'queued' || !message.queue_revision ||
+            message.queue_mode !== 'follow_up' || queuedActionBusyMessageId) return;
+        queuedActionBusyMessageId = message.message_id;
+        queuedActionErrors = { ...queuedActionErrors, [message.message_id]: '' };
+        try {
+            await chatSyncService.reviseQueuedMessage({
+                chatId: message.chat_id,
+                messageId: message.message_id,
+                expectedRevision: message.queue_revision,
+                queueMode: 'steer',
+            });
+        } catch (error) {
+            const reason = error instanceof Error ? error.message : '';
+            queuedActionErrors = {
+                ...queuedActionErrors,
+                [message.message_id]: $text(/revision|changed|started|missing|not.queued|conflict/i.test(reason)
+                    ? 'chats.queued_followup.conflict'
+                    : 'chats.queued_followup.unavailable'),
+            };
+        } finally {
+            queuedActionBusyMessageId = null;
+        }
+    }
+
+    async function refreshQueuedMessage(event: CustomEvent): Promise<void> {
+        const detail = event.detail as { chat_id?: string; message_id?: string; user_message_id?: string };
+        const chatId = detail.chat_id;
+        const messageId = detail.message_id ?? detail.user_message_id;
+        if (!chatId || !messageId || currentChat?.chat_id !== chatId) return;
+        const row = currentChat.is_incognito
+            ? (await incognitoChatService.getMessagesForChat(chatId)).find(message => message.message_id === messageId)
+            : await chatDB.getMessage(messageId);
+        if (!row || currentChat?.chat_id !== chatId) return;
+        const existingIndex = currentMessages.findIndex(message => message.message_id === messageId);
+        if (existingIndex >= 0) {
+            currentMessages = currentMessages.map(message => message.message_id === messageId ? row : message);
+        } else {
+            currentMessages = [...currentMessages, row].sort((a, b) => a.created_at - b.created_at || a.message_id.localeCompare(b.message_id));
+        }
+        chatHistoryRef?.updateMessages(currentMessages);
+        if (!row.queue_revision && queuedActionErrors[messageId]) {
+            queuedActionErrors = { ...queuedActionErrors, [messageId]: '' };
+        }
+    }
+
     // Preserve optional helpers for debugging and future UI workflows without triggering linter noise.
     const preservedHelperRefs = { _plainTextToTiptapJson, _loadMessagesForCurrentChat };
     void preservedHelperRefs;
@@ -9348,6 +9438,11 @@ import { storageArchiveFetch } from "../config/api";
     // Handle message status changes without full reload
     async function handleMessageStatusChanged(event: CustomEvent) {
         const { chatId, messageId, status, chat: chatMetadata } = event.detail as { chatId: string, messageId: string, status: MessageStatus, chat?: Chat };
+        if (status === 'queued') {
+            void refreshQueuedMessage(new CustomEvent('queuedMessageStatus', {
+                detail: { chat_id: chatId, message_id: messageId },
+            }));
+        }
         console.debug(`[ActiveChat] handleMessageStatusChanged: Event for chatId: ${chatId}, messageId: ${messageId}, status: ${status}. Current active chat_id: ${currentChat?.chat_id}. Event detail:`, event.detail);
         
         if (!currentChat || currentChat.chat_id !== chatId) {
@@ -10927,12 +11022,15 @@ import { storageArchiveFetch } from "../config/api";
         // Commit the canonical window to ChatHistory before the follow-up
         // metadata awaits below. Its same-chat prop effect deliberately keeps
         // an already rendered document until updateMessages is called.
-        if (isInitialWarmContinuation) chatHistoryRef?.updateMessages(currentMessages);
+        if (isInitialWarmContinuation) {
+            chatHistoryRef?.updateMessages(currentMessages);
+        }
+        // A renderable local window is ready while its opportunistic refresh runs.
+        // messages_v is a revision (queued edits increment it without adding rows),
+        // so comparing it with the local row count cannot prove a missing message.
         chatLoadState = currentMessages.length === 0 && messageLoadFailed
             ? 'error'
-            : backgroundMessageWindowRepair
-                ? 'repairing'
-                : 'ready';
+            : 'ready';
 
         if (currentChat?.chat_id) {
             // Every selected chat owns the active surface, including empty or still-hydrating chats.
@@ -12535,6 +12633,18 @@ import { storageArchiveFetch } from "../config/api";
             handleMessageStatusChanged(event); 
         }) as EventListenerCallback;
 
+        const queuedMessageRefreshHandler: EventListenerCallback = (event) => {
+            void refreshQueuedMessage(event as CustomEvent);
+        };
+        const queuedSteerDeferredHandler: EventListenerCallback = (event) => {
+            const detail = (event as CustomEvent<{ chat_id: string; message_id: string }>).detail;
+            if (detail.chat_id !== currentChat?.chat_id) return;
+            queuedActionErrors = {
+                ...queuedActionErrors,
+                [detail.message_id]: $text('chats.queued_followup.steer_deferred'),
+            };
+        };
+
         const anonymousRollbackHandler = ((event: CustomEvent<{ chatId: string; userMessageId?: string | null }>) => {
             rollbackAnonymousSend(event.detail.chatId, event.detail.userMessageId ?? null);
         }) as EventListenerCallback;
@@ -12542,6 +12652,11 @@ import { storageArchiveFetch } from "../config/api";
         // Listen to events directly from chatSyncService
         chatSyncService.addEventListener('chatUpdated', chatUpdateHandler);
         chatSyncService.addEventListener('messageStatusChanged', messageStatusHandler);
+        chatSyncService.addEventListener('messageQueued', queuedMessageRefreshHandler);
+        chatSyncService.addEventListener('queuedMessageUpdated', queuedMessageRefreshHandler);
+        chatSyncService.addEventListener('queuedMessageStarted', queuedMessageRefreshHandler);
+        chatSyncService.addEventListener('queuedHandoffPaused', queuedMessageRefreshHandler);
+        chatSyncService.addEventListener('queuedMessageSteerDeferred', queuedSteerDeferredHandler);
         chatSyncService.addEventListener('anonymousSendRolledBack', anonymousRollbackHandler);
         
         // Add listener for AI message chunks
@@ -13569,6 +13684,11 @@ import { storageArchiveFetch } from "../config/api";
             uninstallChatReplayCommand();
             chatSyncService.removeEventListener('chatUpdated', chatUpdateHandler);
             chatSyncService.removeEventListener('messageStatusChanged', messageStatusHandler);
+            chatSyncService.removeEventListener('messageQueued', queuedMessageRefreshHandler);
+            chatSyncService.removeEventListener('queuedMessageUpdated', queuedMessageRefreshHandler);
+            chatSyncService.removeEventListener('queuedMessageStarted', queuedMessageRefreshHandler);
+            chatSyncService.removeEventListener('queuedHandoffPaused', queuedMessageRefreshHandler);
+            chatSyncService.removeEventListener('queuedMessageSteerDeferred', queuedSteerDeferredHandler);
             chatSyncService.removeEventListener('anonymousSendRolledBack', anonymousRollbackHandler);
             unsubscribeAiTyping(); // Unsubscribe from AI typing store
             unsubscribeDraftState(); // Unsubscribe from draft state
@@ -13682,12 +13802,11 @@ import { storageArchiveFetch } from "../config/api";
     data-current-chat-id={currentChat?.chat_id ?? ''}
     data-current-chat-messages-version={currentChat?.messages_v ?? -1}
     data-current-message-count={currentMessages.length}
+    data-chat-history-bound={chatHistoryRef ? 'true' : 'false'}
     data-current-message-chat-consistent={currentMessagesBelongToCurrentChat ? 'true' : 'false'}
     data-current-message-ids-unique={currentMessageIdsAreUnique ? 'true' : 'false'}
     data-current-message-order-valid={currentMessagesAreChronological ? 'true' : 'false'}
     data-chat-load-state={chatLoadState}
-    data-processing={showProcessingRainbow ? 'true' : 'false'}
-    class:ai-typing={showProcessingRainbow}
     class:dimmed={isDimmed}
     class:login-mode={!showChat}
     class:scaled={activeScaling}
@@ -13752,9 +13871,9 @@ import { storageArchiveFetch } from "../config/api";
                 <!-- Left side container for chat history and buttons -->
                 <div
                     class="chat-side"
-                    class:composer-background-faded={messageInputFocused}
+                    class:composer-background-faded={messageInputFocused && !hasQueuedFollowUpActions}
                     class:composer-welcome-hidden={messageInputFocused && (showWelcome || isActiveDraftOnlyChat)}
-                    inert={messageInputFocused}
+                    inert={messageInputFocused && !hasQueuedFollowUpActions}
                     class:welcome-chat-side={showWelcome}
                     data-testid="chat-side"
                     bind:this={chatSideEl}
@@ -14691,6 +14810,7 @@ import { storageArchiveFetch } from "../config/api";
                           containerWidth={effectiveChatWidth}
                          currentChatId={currentChat?.chat_id}
                          {processingPhase}
+                         {pendingAssistantResponse}
                          {thinkingContentByTask}
                          chatTitle={activeChatDecryptedTitle}
                          {provisionalChatTitle}
@@ -14717,6 +14837,10 @@ import { storageArchiveFetch } from "../config/api";
                             onChatNavigate={handleChatNavigate}
                             onSpeakMessage={speakAssistantMessage}
                             canSpeakMessage={canSpeakAssistantMessage}
+                            onQueuedEdit={handleQueuedEdit}
+                            onQueuedSteer={handleQueuedSteer}
+                            {queuedActionBusyMessageId}
+                            {queuedActionErrors}
                            followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
                            {quickTipSlugs}
                            compressionCheckpoints={showWelcome ? [] : currentCompressionCheckpoints}
@@ -14779,16 +14903,6 @@ import { storageArchiveFetch } from "../config/api";
                     {/if}
                 </div>
 
-                {#if messageInputFocused}
-                    <button type="button" class="composer-focus-backdrop" data-testid="chat-composer-focus-backdrop"
-                        data-composer-focus-control aria-label={$text('common.cancel')}
-                        onpointerdown={(event) => {
-                            event.preventDefault();
-                            messageInputFieldRef?.dismissFocus();
-                        }}
-                        onclick={() => messageInputFieldRef?.dismissFocus()}></button>
-                {/if}
-
                 <!-- Right side container for message input -->
                 <div
                     class="message-input-wrapper"
@@ -14815,7 +14929,7 @@ import { storageArchiveFetch } from "../config/api";
                             {$text(activeGuestInputLinkKey)}
                         </a>
                     {/if}
-                    {#if typingIndicatorLines.length > 0}
+                    {#if typingIndicatorLines.length > 0 && (projectFileProgressMatchesChat(projectFileProgress, currentChat?.chat_id) || processingPhase?.phase === 'compressing')}
                         <div
                             class="typing-indicator-wrapper"
                             data-testid="typing-indicator"
@@ -14984,6 +15098,8 @@ import { storageArchiveFetch } from "../config/api";
                                     on:pdffullscreen={handlePdfFullscreen}
                                     on:recordingfullscreen={handleRecordingFullscreen}
                                     on:sendMessage={handleSendMessage}
+                                    on:sendMessagePrepared={handleSendMessagePrepared}
+                                    on:sendMessageRejected={handleSendMessageRejected}
                                     on:newChatCreationCancelled={handleNewChatCreationCancelled}
                                     on:startNewChat={handleNewChatClick}
                                     on:heightchange={handleInputHeightChange}
@@ -15491,89 +15607,6 @@ import { storageArchiveFetch } from "../config/api";
         transition: opacity 0.3s ease, box-shadow 0.6s ease;
         overflow: hidden;
         box-sizing: border-box;
-    }
-
-    /* ===========================================
-       Rainbow border ring + outer glow while AI is typing
-       Uses @property --chat-gradient-angle to animate the conic-gradient rotation
-       (same technique as ThinkingSection — smooth gradient spin, no transform artifacts)
-
-       Overlay approach: the ring is painted ON TOP of content via ::after at
-       z-index: var(--z-index-dropdown-1) with pointer-events: none.  A CSS mask cuts out the interior
-       so only a 2px ring is visible.  This avoids the old isolation/z-index:-1
-       technique where child elements flush to the edges would cover the ring.
-       =========================================== */
-
-    @property --chat-gradient-angle {
-        syntax: '<angle>';
-        initial-value: 0deg;
-        inherits: false;
-    }
-
-    /* ::after — rotating rainbow ring painted ON TOP of all content.
-     * Always present but invisible (opacity: 0) until .ai-typing is added.
-     * pointer-events: none so it never blocks clicks on content underneath.
-     * CSS mask subtracts the inner area, leaving only a 2px border ring visible. */
-    .active-chat-container::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        border-radius: 17px;
-        background: conic-gradient(
-            from var(--chat-gradient-angle, 0deg),
-            #ff2d55, #ff6b2b, #ffd60a,
-            #30d158, #32ade6, #bf5af2,
-            #ff2d55
-        );
-        z-index: var(--z-index-dropdown-1);
-        pointer-events: none;
-        opacity: 0;
-        filter: blur(1.5px);
-        animation: chat-rainbow-spin 3s linear infinite;
-        /* Ring mask: the padding creates the ring thickness (2px).
-         * The two gradient layers + exclude composite subtract the content-box
-         * from the border-box, leaving only the padded ring area visible. */
-        padding: var(--spacing-1);
-        -webkit-mask:
-            linear-gradient(#fff 0 0) content-box,
-            linear-gradient(#fff 0 0);
-        -webkit-mask-composite: xor;
-        mask:
-            linear-gradient(#fff 0 0) content-box,
-            linear-gradient(#fff 0 0);
-        mask-composite: exclude;
-    }
-
-    .active-chat-container.ai-typing::after {
-        opacity: 1;
-    }
-
-    @keyframes chat-rainbow-spin {
-        from { --chat-gradient-angle: 0deg; }
-        to   { --chat-gradient-angle: 360deg; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .active-chat-container::after {
-            animation: none;
-        }
-    }
-
-    /* Outer glow — soft static multi-color bloom that fades in with the border.
-     * No color-cycling animation; the spinning border ring provides all the motion. */
-    .active-chat-container.ai-typing {
-        box-shadow:
-            0 0  8px  2px rgba(191,  90, 242, 0.18),
-            0 0 20px  6px rgba( 50, 173, 230, 0.12),
-            0 0 40px 14px rgba(255,  45,  85, 0.08);
-    }
-
-    /* Dark mode: wider bloom, stronger opacity */
-    :global(.dark) .active-chat-container.ai-typing {
-        box-shadow:
-            0 0 12px  4px rgba(191,  90, 242, 0.25),
-            0 0 28px  8px rgba( 50, 173, 230, 0.16),
-            0 0 48px 16px rgba(255,  45,  85, 0.10);
     }
 
     /* Responsive adjustments for narrow and medium containers */
@@ -16896,16 +16929,6 @@ import { storageArchiveFetch } from "../config/api";
         opacity: 0;
         visibility: hidden;
         transition-delay: 0s, var(--duration-normal);
-    }
-    .composer-focus-backdrop {
-        position: absolute; inset: 0; border: 0; padding: 0;
-        width: 100%; height: 100%; min-width: 0; margin: 0;
-        border-radius: 0; box-shadow: none; filter: none;
-        scale: none; transform: none; transition: none;
-        background: transparent; cursor: default; z-index: var(--z-index-raised-4);
-    }
-    .composer-focus-backdrop:hover, .composer-focus-backdrop:active {
-        background: transparent; scale: none; transform: none; filter: none;
     }
     @media (prefers-reduced-motion: reduce) {
         .chat-side, .chat-side.composer-welcome-hidden,

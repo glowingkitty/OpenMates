@@ -8247,11 +8247,13 @@ export class OpenMatesClient {
     /** Override WebSocket turn waits for long-running sends and responses. */
     responseTimeoutMs?: number;
   }): Promise<{
-    status: "completed" | "waiting_for_user";
+    status: "completed" | "waiting_for_user" | "queued";
     chatId: string;
     messageId: string | null;
     /** Canonical ID of the persisted human turn, including sends that skip AI. */
     userMessageId?: string;
+    queueMode?: "follow_up" | "steer";
+    queueRevision?: number;
     assistant: string;
     category: string | null;
     modelName: string | null;
@@ -8901,6 +8903,23 @@ export class OpenMatesClient {
         remoteCommandReviewInteractive: Boolean(params.onRemoteCommandReview),
       });
     }
+    // Queue admission follows durable ciphertext confirmation. Subscribe before
+    // sending so a fast ACK cannot be lost while the CLI waits for confirmation.
+    const queuedAdmission = !params.incognito && shouldWaitForAi
+      ? ws.waitForMessage("message_queued", (payload) => {
+          const event = payload as Record<string, unknown>;
+          return event.chat_id === chatId && event.user_message_id === messageId;
+        }, params.responseTimeoutMs ?? 90_000)
+      : null;
+    if (queuedAdmission) void queuedAdmission.catch(() => {});
+    const pausedHandoff = !params.incognito && shouldWaitForAi
+      ? ws.waitForMessage("queued_handoff_paused", (payload) => {
+          const event = payload as Record<string, unknown>;
+          return event.chat_id === chatId &&
+            (event.message_id === messageId || event.message_id === undefined);
+        }, params.responseTimeoutMs ?? 90_000)
+      : null;
+    if (pausedHandoff) void pausedHandoff.catch(() => {});
     const confirmed = ws.waitForMessage(
       "chat_message_confirmed",
       (payload) => {
@@ -9251,11 +9270,40 @@ export class OpenMatesClient {
           }
           await this.replayCurrentTurnRecoveryOutputPages(ws, ownerId, pages, cache, teamId, chatId);
         };
-        const resp = await (precollectedResponse ?? ws.collectAiResponse(messageId, chatId, {
+        const responsePromise = precollectedResponse ?? ws.collectAiResponse(messageId, chatId, {
           ...streamOpts,
           timeoutMs: params.responseTimeoutMs,
           recoveryTurnId: savedTurnId,
-        }));
+        });
+        const outcome = await Promise.race([
+          responsePromise.then((response) => ({ kind: "response" as const, response })),
+          ...(queuedAdmission ? [queuedAdmission.then(
+            (frame) => ({ kind: "queued" as const, frame }),
+            () => new Promise<never>(() => {}),
+          )] : []),
+          ...(pausedHandoff ? [pausedHandoff.then(
+            (frame) => ({ kind: "paused" as const, frame }),
+            () => new Promise<never>(() => {}),
+          )] : []),
+        ]);
+        if (outcome.kind === "paused") {
+          void responsePromise.catch(() => {});
+          throw new Error("Message saved, but AI handoff is paused. No assistant run started; check the chat before retrying.");
+        }
+        if (outcome.kind === "queued") {
+          void responsePromise.catch(() => {});
+          const frame = outcome.frame.payload as Record<string, unknown>;
+          return {
+            status: "queued", chatId, messageId: null, userMessageId: messageId,
+            queueMode: frame.queue_mode === "steer" ? "steer" : "follow_up",
+            queueRevision: typeof frame.queue_revision === "number" ? frame.queue_revision : 1,
+            assistant: "", category: null, modelName: null, mateName: null,
+            followUpSuggestions: [], taskProposals: [], taskUpdateProposals: [],
+            taskEvents: [], pendingTaskUpdateJobs: [], subChatEvents: [],
+            appSettingsMemoryRequests: [], tokenUsage: null, promptBudget: null,
+          };
+        }
+        const resp = outcome.response;
         assistantMessageId = resp.messageId;
         assistant = resp.content;
         category = resp.category;

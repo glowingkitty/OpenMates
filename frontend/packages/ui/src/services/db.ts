@@ -2282,6 +2282,17 @@ class ChatDatabase {
     );
   }
 
+  async applyQueuedMessageRevision(
+    chatId: string,
+    messageId: string,
+    revision: number,
+    mode: "follow_up" | "steer",
+    encryptedContent?: string,
+    encryptedPiiMappings?: string | null,
+  ): Promise<boolean> {
+    return messageOps.applyQueuedMessageRevision(this, chatId, messageId, revision, mode, encryptedContent, encryptedPiiMappings);
+  }
+
   async deleteMessage(
     message_id: string,
     transaction?: IDBTransaction,

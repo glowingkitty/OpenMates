@@ -166,7 +166,8 @@ class FakeSkillRegistry:
         assert self.manager.calls[0][0] == "set_active_chat"
         self.manager.request_payload = request_payload
         self.manager.calls.append(("dispatch_skill", app_name, skill_name, request_payload["chat_id"]))
-        return {"task_id": "task-123"}
+        return {"task_id": (request_payload.get("recovery_task_id") or request_payload.get("legacy_cutover_task_id")
+                            or request_payload.get("volatile_dispatch_task_id") or "task-123")}
 
 
 class FakeNoTaskSkillRegistry:
@@ -224,6 +225,8 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
         get_active_ai_task=AsyncMock(return_value=None),
         has_queued_messages=AsyncMock(return_value=False),
         set_active_ai_task=AsyncMock(),
+        try_claim_active_ai_task=AsyncMock(return_value=True),
+        clear_active_ai_task_if_matches=AsyncMock(return_value=True),
         update_user=AsyncMock(),
     )
     directus_service = SimpleNamespace(
@@ -297,7 +300,8 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
     }
     assert not any(call[0] == "broadcast_to_user_specific_event" and call[1] == "chat_message_confirmed" for call in manager.calls)
     cutover.get_epoch.assert_awaited_once_with(authoritative=True)
-    cache_service.set_active_ai_task.assert_awaited_once_with("chat-123", "task-123")
+    cache_service.try_claim_active_ai_task.assert_awaited_once_with("chat-123", hashlib.sha256(b"user-123:chat-123:msg-123").hexdigest())
+    cache_service.set_active_ai_task.assert_not_awaited()
     cache_service.increment_and_tombstone_user_draft.assert_awaited_once_with("user-123", "chat-123")
     assert {
         "type": "draft_deleted",
@@ -316,7 +320,7 @@ def test_message_send_forwards_client_embed_ref_index(monkeypatch):
             assert app_name == "ai"
             assert skill_name == "ask"
             captured.update(request_payload)
-            return {"task_id": "task-123"}
+            return {"task_id": request_payload["legacy_cutover_task_id"]}
 
     cutover = SimpleNamespace(
         get_epoch=AsyncMock(return_value=0),
@@ -339,6 +343,8 @@ def test_message_send_forwards_client_embed_ref_index(monkeypatch):
         get_active_ai_task=AsyncMock(return_value=None),
         has_queued_messages=AsyncMock(return_value=False),
         set_active_ai_task=AsyncMock(),
+        try_claim_active_ai_task=AsyncMock(return_value=True),
+        clear_active_ai_task_if_matches=AsyncMock(return_value=True),
         update_user=AsyncMock(),
     )
     directus_service = SimpleNamespace(
@@ -406,10 +412,11 @@ def test_message_send_forwards_client_embed_ref_index(monkeypatch):
 
     assert captured["embed_file_path_index"] == {"mockup-png-abc123": "embed-image-1"}
     assert captured["has_image_upload_embed"] is True
-    cache_service.set_active_ai_task.assert_awaited_once_with("chat-123", "task-123")
+    cache_service.try_claim_active_ai_task.assert_awaited_once_with("chat-123", hashlib.sha256(b"user-123:chat-123:msg-123").hexdigest())
+    cache_service.set_active_ai_task.assert_not_awaited()
 
 
-def test_recovery_send_does_not_enqueue_while_another_task_is_active(monkeypatch):
+def test_recovery_send_requires_preflight_even_while_another_task_is_active(monkeypatch):
     from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
 
     manager = FakeManager()
@@ -440,7 +447,6 @@ def test_recovery_send_does_not_enqueue_while_another_task_is_active(monkeypatch
                 "chat_id": "chat-123",
                 "message": {"message_id": "msg-123", "content": "retry me"},
                 "protocol_version": 1,
-                "preflight_id": "preflight-123",
             },
         )
     )
@@ -452,7 +458,10 @@ def test_recovery_send_does_not_enqueue_while_another_task_is_active(monkeypatch
     ]
 
 
-def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch):
+@pytest.mark.parametrize("active_task,stale_queue", [
+    (None, False), ("active-task-123", False), (None, True),
+])
+def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch, active_task, stale_queue):
     from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
 
     manager = FakeManager()
@@ -492,9 +501,13 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch):
         add_message_to_chat_history=AsyncMock(),
         get_user_by_id=AsyncMock(return_value={"language": "en"}),
         get_chat_list_item_data=AsyncMock(return_value={}),
-        get_active_ai_task=AsyncMock(return_value=None),
-        has_queued_messages=AsyncMock(return_value=False),
+        get_active_ai_task=AsyncMock(return_value=active_task),
+        has_queued_messages=AsyncMock(return_value=stale_queue),
+        queue_message=AsyncMock(return_value=True),
+        mark_sync_message_queued=AsyncMock(return_value=True),
         set_active_ai_task=AsyncMock(),
+        try_claim_active_ai_task=AsyncMock(return_value=True),
+        clear_active_ai_task_if_matches=AsyncMock(return_value=True),
         update_user=AsyncMock(),
     )
     directus_service = SimpleNamespace(
@@ -503,6 +516,8 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch):
                 return_value={"messages_v": 4, "title_v": 1, "hashed_team_id": hash_id("team-123")}
             ),
             check_chat_ownership=AsyncMock(return_value=False),
+            release_inference_outbox=AsyncMock(return_value={"status": "released"}),
+            mark_queued_message_pending=AsyncMock(return_value={"status": "queued", "messages_v": 5}),
         ),
         team=SimpleNamespace(
             require_team_role=AsyncMock(return_value={"role": "owner"}),
@@ -594,11 +609,22 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch):
         )
     )
 
-    assert ("dispatch_skill", "ai", "ask", "team-chat-123") in manager.calls
+    if active_task or stale_queue:
+        assert ("dispatch_skill", "ai", "ask", "team-chat-123") not in manager.calls
+        cache_service.queue_message.assert_awaited_once()
+        assert cache_service.queue_message.await_args.kwargs["expected_active_task_id"] == active_task
+        directus_service.chat.mark_queued_message_pending.assert_awaited_once()
+        assert directus_service.chat.mark_queued_message_pending.await_args.kwargs["recovery_task_id"] == "task-123"
+        assert any(call[1] == "message_queued" for call in manager.calls if call[0] == "send_personal_message")
+        directus_service.chat.release_inference_outbox.assert_not_awaited()
+    else:
+        assert ("dispatch_skill", "ai", "ask", "team-chat-123") in manager.calls
     assert not any(call[1] == "request_chat_history" for call in manager.calls if call[0] == "send_personal_message")
     enqueue.assert_awaited_once()
-    assert recovery_calls[0][0] == "mark_outbox_dispatched"
-    cache_service.set_active_ai_task.assert_awaited_once_with("team-chat-123", "task-123")
+    if not active_task and not stale_queue:
+        assert recovery_calls[0][0] == "mark_outbox_dispatched"
+        cache_service.try_claim_active_ai_task.assert_awaited_once_with("team-chat-123", "task-123")
+    cache_service.set_active_ai_task.assert_not_awaited()
     directus_service.chat.check_chat_ownership.assert_not_awaited()
 
 
@@ -631,12 +657,15 @@ def test_recovery_send_marks_enqueue_failed_when_dispatch_returns_no_task(monkey
         get_active_ai_task=AsyncMock(return_value=None),
         has_queued_messages=AsyncMock(return_value=False),
         set_active_ai_task=AsyncMock(),
+        try_claim_active_ai_task=AsyncMock(return_value=True),
+        clear_active_ai_task_if_matches=AsyncMock(return_value=True),
         update_user=AsyncMock(),
     )
     directus_service = SimpleNamespace(
         chat=SimpleNamespace(
             get_chat_metadata=AsyncMock(return_value={"messages_v": 1, "title_v": 1}),
             check_chat_ownership=AsyncMock(return_value=True),
+            release_inference_outbox=AsyncMock(return_value={"status": "released"}),
         ),
         get_user_profile=AsyncMock(),
         get_user_fields_direct=AsyncMock(return_value={}),
@@ -740,12 +769,17 @@ def test_incognito_send_skips_durable_cutover_lookup(monkeypatch):
         get_active_ai_task=AsyncMock(return_value=None),
         has_queued_messages=AsyncMock(return_value=False),
         set_active_ai_task=AsyncMock(),
+        try_claim_active_ai_task=AsyncMock(return_value=True),
+        clear_active_ai_task_if_matches=AsyncMock(return_value=True),
+        lease_queued_message_prefix=AsyncMock(return_value=None),
+        complete_active_ai_task_if_queue_empty=AsyncMock(return_value=1),
         update_user=AsyncMock(),
     )
     directus_service = SimpleNamespace(
         chat=SimpleNamespace(
             get_chat_metadata=AsyncMock(),
             check_chat_ownership=AsyncMock(),
+            release_inference_outbox=AsyncMock(return_value={"status": "released"}),
         ),
         get_user_profile=AsyncMock(),
         get_user_fields_direct=AsyncMock(return_value={}),
@@ -826,6 +860,8 @@ def test_contextual_pdf_processing_preserves_embed_ref(monkeypatch):
         get_active_ai_task=AsyncMock(return_value=None),
         has_queued_messages=AsyncMock(return_value=False),
         set_active_ai_task=AsyncMock(),
+        try_claim_active_ai_task=AsyncMock(return_value=True),
+        clear_active_ai_task_if_matches=AsyncMock(return_value=True),
         update_user=AsyncMock(),
         set_embed_in_cache=AsyncMock(),
         add_embed_id_to_chat_index=AsyncMock(),
@@ -924,7 +960,7 @@ def test_existing_personal_chat_rejects_user_user_ai_cache_history(monkeypatch):
     class CapturingSkillRegistry:
         async def dispatch_skill(self, app_name, skill_name, request_payload):
             captured.update(request_payload)
-            return {"task_id": "task-123"}
+            return {"task_id": request_payload["legacy_cutover_task_id"]}
 
     cutover = SimpleNamespace(
         get_epoch=AsyncMock(return_value=0),
@@ -967,12 +1003,15 @@ def test_existing_personal_chat_rejects_user_user_ai_cache_history(monkeypatch):
         get_active_ai_task=AsyncMock(return_value=None),
         has_queued_messages=AsyncMock(return_value=False),
         set_active_ai_task=AsyncMock(),
+        try_claim_active_ai_task=AsyncMock(return_value=True),
+        clear_active_ai_task_if_matches=AsyncMock(return_value=True),
         update_user=AsyncMock(),
     )
     directus_service = SimpleNamespace(
         chat=SimpleNamespace(
             get_chat_metadata=AsyncMock(return_value={"messages_v": 2, "title_v": 1}),
             check_chat_ownership=AsyncMock(return_value=True),
+            get_message_count_for_chat=AsyncMock(return_value=2),
         ),
         get_user_profile=AsyncMock(),
         get_user_fields_direct=AsyncMock(return_value={}),

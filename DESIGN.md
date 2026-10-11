@@ -378,7 +378,7 @@ Use `UnifiedEmbedPreview.svelte`.
 | Surface | `--color-grey-25`. |
 | Radius | `30px`. |
 | Shadow | Floating two-layer shadow. |
-| Layout | Details section above, `BasicInfosBar` below. |
+| Layout | `BasicInfosBar` at the top, details section below, for every preview status and size. |
 | Text selection | Disabled; preview acts as one interactive object. |
 | Finished state | Pointer cursor, keyboard activation, hover/tilt, active press. |
 | Error state | Error border and error-tinted background. |

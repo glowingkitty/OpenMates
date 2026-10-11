@@ -211,6 +211,32 @@ def _validated_queued_messages(request_data: AskSkillRequest, lease: dict) -> tu
     return ids, contents
 
 
+def _validated_recovery_queued_member(lease: dict) -> AskSkillRequest:
+    """A recovery preflight owns exactly one queued turn and one billing identity."""
+    messages = lease.get("messages")
+    raw_messages = lease.get("raw_messages")
+    if (not isinstance(messages, list) or len(messages) != 1
+            or not isinstance(raw_messages, list) or len(raw_messages) != 1):
+        raise RequiredRecoveryOutputError("Recovery queue must lease one message")
+    member = messages[0]
+    if not isinstance(member, dict):
+        raise RequiredRecoveryOutputError("Recovery queue member is malformed")
+    request = AskSkillRequest.model_validate(member)
+    if (not request.recovery_task_id or not request.recovery_preflight_id
+            or not member.get("recovery_outbox_id")
+            or not isinstance(member.get("recovery_inference_request"), dict)
+            or not isinstance(member.get("recovery_inference_commitment"), str)):
+        raise RequiredRecoveryOutputError("Recovery queue member lacks its preflight identity")
+    from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import build_inference_commitment
+    if build_inference_commitment(member["recovery_inference_request"]) != member["recovery_inference_commitment"]:
+        raise RequiredRecoveryOutputError("Recovery queue inference request changed")
+    latest = request.message_history[-1] if request.message_history else None
+    if (latest is None or latest.role != "user" or latest.message_id != request.message_id
+            or latest.content != request.current_user_content or not latest.content):
+        raise RequiredRecoveryOutputError("Recovery queue user turn changed")
+    return request
+
+
 def _legacy_queued_batch_proof(
     request_data: AskSkillRequest, lease: dict, message_ids: list[str],
 ) -> dict:
@@ -354,6 +380,123 @@ async def _open_legacy_queue_handoff(
     return handoff
 
 
+async def _start_recovery_queued_follower(
+    *, prior_request: AskSkillRequest, prior_task_id: str,
+    queued_lease: dict, assistant_response: str,
+    skill_config_dict: dict, cache_service: CacheService,
+    directus_service: DirectusService,
+    predecessor_receipt: Optional[dict] = None,
+) -> str:
+    """Handoff one epoch-one follow-up with its original preflight and task ID."""
+    queued = _validated_recovery_queued_member(queued_lease)
+    if (queued.chat_id != prior_request.chat_id
+            or queued.team_id_hash != prior_request.team_id_hash
+            or (queued.user_id != prior_request.user_id and not prior_request.team_id)):
+        raise RequiredRecoveryOutputError("Recovery queued follower changed chat or Team scope")
+    if queued.team_id:
+        await directus_service.team.require_team_role(
+            queued.team_id, queued.user_id, {"owner", "admin", "member"},
+        )
+    if assistant_response and prior_request.recovery_task_id and predecessor_receipt is None:
+        predecessor_receipt = await directus_service.chat.get_sealed_job_receipt(
+            prior_request.chat_id, queued.user_id, prior_task_id,
+            getattr(prior_request, "continuation_message_id", None) or prior_task_id,
+            hashed_team_id=prior_request.team_id_hash,
+        )
+        if (predecessor_receipt.get("status") != "found"
+                or predecessor_receipt.get("preflight_id") != prior_request.recovery_preflight_id):
+            raise RequiredRecoveryOutputError("Recovery predecessor answer lacks durable output")
+    history = [item.model_dump(mode="json") for item in queued.message_history[:-1]]
+    if queued.user_id != prior_request.user_id:
+        preceding_user = next(
+            (item.model_dump(mode="json") for item in reversed(prior_request.message_history)
+             if item.role == "user" and item.message_id == prior_request.message_id), None,
+        )
+        if preceding_user and not any(
+            item.get("message_id") == prior_request.message_id for item in history
+        ):
+            history.append(preceding_user)
+    if assistant_response:
+        if prior_request.recovery_task_id and not predecessor_receipt:
+            raise RequiredRecoveryOutputError("Recovery predecessor has no sealed output receipt")
+        history.append({
+            "role": "assistant", "content": assistant_response,
+            "created_at": int(time.time()), "sender_name": "assistant",
+        })
+    history.append(queued.message_history[-1].model_dump(mode="json"))
+    next_data = queued.model_dump()
+    next_data["message_history"] = history
+    next_request = AskSkillRequest.model_validate(next_data)
+    next_task_id = queued.recovery_task_id
+    vault_key_id = await cache_service.get_user_vault_key_id(queued.user_id)
+    if not vault_key_id:
+        profile = await directus_service.get_user_profile(queued.user_id)
+        vault_key_id = profile[1].get("vault_key_id") if profile and profile[1] else None
+    if not vault_key_id:
+        raise RequiredRecoveryOutputError("Recovery queued follower Vault key unavailable")
+    handoff = {
+        "kind": "recovery_singleton",
+        "task_id": next_task_id, "chat_id": queued.chat_id,
+        "owner_id": queued.user_id, "hashed_team_id": queued.team_id_hash,
+        "request_data_dict": next_request.model_dump(),
+        "skill_config_dict": skill_config_dict,
+        "recovery_preflight_id": queued.recovery_preflight_id,
+        "recovery_outbox_id": queued_lease["messages"][0]["recovery_outbox_id"],
+        "recovery_inference_commitment": queued_lease["messages"][0]["recovery_inference_commitment"],
+        "predecessor": {
+            "task_id": prior_task_id, "chat_id": prior_request.chat_id,
+            "preflight_id": prior_request.recovery_preflight_id,
+            "assistant_message_id": (
+                getattr(prior_request, "continuation_message_id", None) or prior_task_id
+            ),
+            "response_included": bool(assistant_response),
+            "response_digest": hashlib.sha256(assistant_response.encode()).hexdigest(),
+            "receipt": predecessor_receipt,
+        },
+        "lease": {"token": queued_lease["token"],
+                  "raw_messages": queued_lease["raw_messages"]},
+    }
+    sealed = await _seal_legacy_queue_handoff(
+        handoff, vault_key_id=vault_key_id, cache_service=cache_service,
+    )
+    if not await cache_service.store_paused_queue_handoff(
+        queued.user_id, queued.chat_id, prior_task_id, sealed,
+    ):
+        raise RequiredRecoveryOutputError("Recovery queued handoff could not be saved")
+    if not await cache_service.transfer_active_ai_task(
+        queued.chat_id, prior_task_id, next_task_id,
+    ):
+        await cache_service.discard_paused_queue_handoff_if_matches(queued.chat_id, next_task_id)
+        raise RequiredRecoveryOutputError("Recovery queued handoff lost active chat fence")
+    resumed = await resume_legacy_queued_handoff(
+        cache_service=cache_service, directus_service=directus_service,
+        chat_id=queued.chat_id, actor_user_id=queued.user_id,
+        hashed_team_id=queued.team_id_hash,
+    )
+    if resumed != next_task_id and not await _recovery_follower_already_running(
+        directus_service, next_request,
+    ):
+        raise RequiredRecoveryOutputError("Recovery queued follower was not dispatched")
+    return next_task_id
+
+
+async def _recovery_follower_already_running(
+    directus_service: DirectusService, request: AskSkillRequest,
+) -> bool:
+    state = await directus_service.chat.get_queued_revision_state(
+        request.chat_id, request.user_id, request.message_id,
+        hashed_team_id=request.team_id_hash,
+    )
+    return bool(
+        state.get("status") == "found"
+        and state.get("queue_dispatch_status") == "processing"
+        and state.get("recovery_task_id") == request.recovery_task_id
+        and state.get("recovery_preflight_id") == request.recovery_preflight_id
+        and state.get("recovery_preflight_state") in {"RUNNING", "TERMINAL"}
+        and state.get("recovery_outbox_state") == "DISPATCHED"
+    )
+
+
 async def _advance_completed_legacy_followers(
     *, cache_service: CacheService, directus_service: DirectusService,
     chat_id: str, task_id: str, actor_user_id: str, hashed_team_id: Optional[str],
@@ -409,12 +552,43 @@ async def _advance_completed_legacy_followers(
             return task_id
     if follower_lease is None:
         raise RequiredRecoveryOutputError("Completed queued follower raced with active task release")
-    ids, contents = _validated_queued_messages(prior_request, follower_lease)
+    if follower_lease["messages"][0].get("recovery_task_id"):
+        return await _start_recovery_queued_follower(
+            prior_request=prior_request, prior_task_id=task_id,
+            queued_lease=follower_lease,
+            assistant_response=context["assistant_response"],
+            skill_config_dict=context["skill_config_dict"],
+            cache_service=cache_service, directus_service=directus_service,
+        )
+    queued_origin = prior_request
+    first_member = follower_lease["messages"][0]
+    if first_member.get("user_id") != prior_request.user_id:
+        if not prior_request.team_id:
+            raise RequiredRecoveryOutputError("Queued follower changed owner outside Team chat")
+        queued_origin = AskSkillRequest.model_validate(first_member)
+        if (queued_origin.team_id != prior_request.team_id
+                or queued_origin.team_id_hash != prior_request.team_id_hash):
+            raise RequiredRecoveryOutputError("Queued Team follower scope changed")
+    if queued_origin.team_id:
+        await directus_service.team.require_team_role(
+            queued_origin.team_id, queued_origin.user_id, {"owner", "admin", "member"},
+        )
+    ids, contents = _validated_queued_messages(queued_origin, follower_lease)
     message_id = ids[0]
     history = [
         item.model_dump() if hasattr(item, "model_dump") else dict(item)
-        for item in prior_request.message_history
+        for item in queued_origin.message_history
     ]
+    if queued_origin is not prior_request:
+        history = history[:-1]
+        prior_user_turn = next(
+            (item.model_dump() for item in reversed(prior_request.message_history)
+             if item.role == "user" and item.message_id == prior_request.message_id), None,
+        )
+        if prior_user_turn and not any(
+            item.get("message_id") == prior_request.message_id for item in history
+        ):
+            history.append(prior_user_turn)
     if context["assistant_response"]:
         history.append({
             "role": "assistant", "content": context["assistant_response"],
@@ -425,7 +599,7 @@ async def _advance_completed_legacy_followers(
         "content": "\n\n".join(contents), "created_at": int(time.time()),
         "sender_name": "user",
     })
-    next_request_data = prior_request.model_dump()
+    next_request_data = queued_origin.model_dump()
     next_request_data.update({
         "message_id": message_id,
         "current_user_content": "\n\n".join(contents),
@@ -443,7 +617,7 @@ async def _advance_completed_legacy_followers(
     next_task_id = next_proof["celery_task_id"]
     next_handoff = {
         "task_id": next_task_id, "chat_id": chat_id,
-        "owner_id": actor_user_id, "hashed_team_id": hashed_team_id,
+        "owner_id": queued_origin.user_id, "hashed_team_id": hashed_team_id,
         "request_data_dict": next_request.model_dump(),
         "skill_config_dict": context["skill_config_dict"],
         "legacy_batch_proof": next_proof,
@@ -452,12 +626,20 @@ async def _advance_completed_legacy_followers(
             "raw_messages": follower_lease["raw_messages"],
         },
     }
+    next_vault_key_id = sealed_context["vault_key_id"]
+    if queued_origin.user_id != prior_request.user_id:
+        next_vault_key_id = await cache_service.get_user_vault_key_id(queued_origin.user_id)
+        if not next_vault_key_id:
+            profile = await directus_service.get_user_profile(queued_origin.user_id)
+            next_vault_key_id = profile[1].get("vault_key_id") if profile and profile[1] else None
+        if not next_vault_key_id:
+            raise RequiredRecoveryOutputError("Queued Team follower Vault key unavailable")
     sealed_next = await _seal_legacy_queue_handoff(
-        next_handoff, vault_key_id=sealed_context["vault_key_id"],
+        next_handoff, vault_key_id=next_vault_key_id,
         cache_service=cache_service,
     )
     if not await cache_service.activate_completed_queue_followers(
-        actor_user_id, chat_id, task_id, next_task_id, sealed_next,
+        queued_origin.user_id, chat_id, task_id, next_task_id, sealed_next,
         allow_missing_active=active_task_id is None,
     ):
         current = await cache_service.get_active_ai_task(chat_id)
@@ -469,7 +651,7 @@ async def _advance_completed_legacy_followers(
             raise RequiredRecoveryOutputError("Completed queued follower handoff changed")
     resumed_id = await resume_legacy_queued_handoff(
         cache_service=cache_service, directus_service=directus_service,
-        chat_id=chat_id, actor_user_id=actor_user_id,
+        chat_id=chat_id, actor_user_id=queued_origin.user_id,
         hashed_team_id=hashed_team_id,
     )
     if resumed_id != next_task_id:
@@ -477,11 +659,142 @@ async def _advance_completed_legacy_followers(
     return next_task_id
 
 
+async def _resume_recovery_queued_handoff(
+    *, handoff: dict, queued_lease: dict,
+    cache_service: CacheService, directus_service: DirectusService,
+) -> str:
+    """Release the existing epoch-one outbox and dispatch its original task ID."""
+    request = _validated_recovery_queued_member(queued_lease)
+    member = queued_lease["messages"][0]
+    task_id = handoff["task_id"]
+    if (request.recovery_task_id != task_id
+            or request.recovery_preflight_id != handoff.get("recovery_preflight_id")
+            or member["recovery_outbox_id"] != handoff.get("recovery_outbox_id")
+            or member["recovery_inference_commitment"] != handoff.get("recovery_inference_commitment")
+            or len(queued_lease["messages"]) != 1):
+        raise RequiredRecoveryOutputError("Recovery queued handoff identity changed")
+    next_request = AskSkillRequest.model_validate(handoff["request_data_dict"])
+    if (next_request.recovery_task_id != task_id
+            or next_request.recovery_preflight_id != request.recovery_preflight_id
+            or next_request.user_id != request.user_id
+            or next_request.chat_id != request.chat_id
+            or next_request.current_user_content != request.current_user_content):
+        raise RequiredRecoveryOutputError("Recovery queued dispatch request changed")
+    predecessor = handoff.get("predecessor")
+    if not isinstance(predecessor, dict) or predecessor.get("chat_id") != request.chat_id:
+        raise RequiredRecoveryOutputError("Recovery queued predecessor binding is absent")
+    prior_response = ""
+    if predecessor.get("response_included"):
+        if (len(next_request.message_history) < 2
+                or next_request.message_history[-2].role != "assistant"):
+            raise RequiredRecoveryOutputError("Recovery queued predecessor answer is missing")
+        prior_response = next_request.message_history[-2].content
+    if hashlib.sha256(prior_response.encode()).hexdigest() != predecessor.get("response_digest"):
+        raise RequiredRecoveryOutputError("Recovery queued predecessor answer changed")
+    receipt = predecessor.get("receipt")
+    if predecessor.get("preflight_id") and prior_response:
+        if not isinstance(receipt, dict) or not receipt.get("job_id"):
+            raise RequiredRecoveryOutputError("Recovery queued predecessor receipt is absent")
+        current_receipt = await directus_service.chat.get_sealed_job_receipt(
+            request.chat_id, request.user_id, predecessor["task_id"],
+            predecessor["assistant_message_id"], hashed_team_id=request.team_id_hash,
+        )
+        if (current_receipt.get("status") != "found"
+                or current_receipt.get("job_id") != receipt.get("job_id")
+                or current_receipt.get("preflight_id") != predecessor["preflight_id"]
+                or current_receipt.get("sealed_payload_digest") != receipt.get("sealed_payload_digest")):
+            raise RequiredRecoveryOutputError("Recovery queued predecessor receipt changed")
+    revision = int(member.get("queue_revision") or 1)
+    status = None
+    for retry in range(8):
+        status = await directus_service.chat.mark_queued_message_started(
+            request.chat_id, request.user_id, request.message_id, revision,
+            task_id, "follow_up", hashed_team_id=request.team_id_hash,
+            recovery_preflight_id=request.recovery_preflight_id,
+            recovery_task_id=task_id,
+            expected_inference_commitment=member["recovery_inference_commitment"],
+        )
+        if status.get("status") in ("started", "already_started"):
+            break
+        if status.get("status") not in ("not_persisted", "error"):
+            break
+        await asyncio.sleep(min(0.25 * (retry + 1), 1.0))
+    if not status or status.get("status") not in ("started", "already_started"):
+        raise RequiredRecoveryOutputError("Recovery queued durable start unavailable")
+    result = celery_config.app.send_task(
+        name="apps.ai.tasks.skill_ask",
+        kwargs={"request_data_dict": handoff["request_data_dict"],
+                "skill_config_dict": handoff["skill_config_dict"]},
+        queue="app_ai", task_id=task_id,
+    )
+    if not result or result.id != task_id:
+        raise RequiredRecoveryOutputError("Recovery queued broker returned a different task ID")
+    await ChatRecoveryService(directus_service).execute(
+        "mark_outbox_dispatched", {
+            "protocol_version": 1,
+            "outbox_id": handoff["recovery_outbox_id"],
+            "inference_task_id": task_id,
+        },
+    )
+    if status.get("messages_v") is not None:
+        await cache_service.mark_sync_message_processing(
+            request.user_id, request.chat_id, request.message_id,
+            revision, status["messages_v"],
+        )
+    if not await cache_service.acknowledge_queued_message_prefix(request.chat_id, queued_lease):
+        raise RequiredRecoveryOutputError("Recovery queued prefix ACK failed")
+    return task_id
+
+
+async def _ack_running_recovery_queue_prefix(
+    request: AskSkillRequest, task_id: str,
+    cache_service: CacheService, directus_service: DirectusService,
+) -> bool:
+    """Let a claimed worker close its own prefix if it beat the broker ACK."""
+    if not request.recovery_task_id:
+        return False
+    row = await cache_service.get_queued_message_member(
+        request.chat_id, request.user_id, request.message_id,
+    )
+    if not row or row["member"].get("recovery_task_id") != task_id:
+        return False
+    lease = await cache_service.lease_queued_message_prefix(request.chat_id, limit=1)
+    if (not lease or len(lease.get("messages") or []) != 1
+            or lease["messages"][0].get("message_id") != request.message_id
+            or lease["messages"][0].get("recovery_task_id") != task_id):
+        return False
+    member = _validated_recovery_queued_member(lease)
+    if member.recovery_preflight_id != request.recovery_preflight_id:
+        raise RequiredRecoveryOutputError("Running recovery queue prefix changed preflight")
+    state = await directus_service.chat.get_queued_revision_state(
+        request.chat_id, request.user_id, request.message_id,
+        hashed_team_id=request.team_id_hash,
+    )
+    if (state.get("status") != "found"
+            or state.get("queue_dispatch_status") != "processing"
+            or state.get("recovery_task_id") != task_id
+            or state.get("recovery_preflight_id") != request.recovery_preflight_id):
+        raise RequiredRecoveryOutputError("Running recovery queue lacks durable start receipt")
+    await ChatRecoveryService(directus_service).execute(
+        "mark_outbox_dispatched", {
+            "protocol_version": 1,
+            "outbox_id": lease["messages"][0]["recovery_outbox_id"],
+            "inference_task_id": task_id,
+        },
+    )
+    if not await cache_service.acknowledge_queued_message_prefix(request.chat_id, lease):
+        raise RequiredRecoveryOutputError("Running recovery queue prefix ACK failed")
+    return True
+
+
 async def resume_legacy_queued_handoff(
     *, cache_service: CacheService, directus_service: DirectusService,
     chat_id: str, actor_user_id: str, hashed_team_id: Optional[str],
 ) -> Optional[str]:
     """Retry only the exact first paused batch; later queue entries remain followers."""
+    from backend.apps.ai.processing.queued_steering import reconcile_queued_revision_quarantine
+    if not await reconcile_queued_revision_quarantine(cache_service, directus_service, chat_id):
+        raise RequiredRecoveryOutputError("Queued encrypted revision is unreconciled")
     sealed_handoff = await cache_service.get_paused_queue_handoff(chat_id)
     if sealed_handoff is None:
         active_task_id = await cache_service.get_active_ai_task(chat_id)
@@ -505,7 +818,16 @@ async def resume_legacy_queued_handoff(
     if (queued_lease is None
             or queued_lease.get("token") != handoff.get("lease", {}).get("token")
             or queued_lease.get("raw_messages") != handoff.get("lease", {}).get("raw_messages")):
+        if handoff.get("kind") == "recovery_singleton":
+            recovered_request = AskSkillRequest.model_validate(handoff["request_data_dict"])
+            if await _recovery_follower_already_running(directus_service, recovered_request):
+                return task_id
         raise RequiredRecoveryOutputError("Paused queued prefix changed before replay")
+    if handoff.get("kind") == "recovery_singleton":
+        return await _resume_recovery_queued_handoff(
+            handoff=handoff, queued_lease=queued_lease,
+            cache_service=cache_service, directus_service=directus_service,
+        )
     request_data = AskSkillRequest(**handoff["request_data_dict"])
     ids, _ = _validated_queued_messages(request_data, queued_lease)
     proof = _legacy_queued_batch_proof(request_data, queued_lease, ids)
@@ -524,6 +846,10 @@ async def resume_legacy_queued_handoff(
         if (prepared.get("execution_claimed") is not True
                 or prepared.get("idempotent") is not True):
             raise RequiredRecoveryOutputError("Paused queued batch claim is unverified")
+        await _mark_queued_prefix_started(
+            cache_service, directus_service, queued_lease, actor_user_id,
+            hashed_team_id, task_id,
+        )
         if not await cache_service.acknowledge_queued_message_prefix(
             chat_id, queued_lease,
         ):
@@ -550,11 +876,53 @@ async def resume_legacy_queued_handoff(
     )
     if not result or result.id != task_id:
         raise RuntimeError("Paused queued broker returned a different task ID")
+    await _mark_queued_prefix_started(
+        cache_service, directus_service, queued_lease, actor_user_id,
+        hashed_team_id, task_id,
+    )
     if not await cache_service.acknowledge_queued_message_prefix(
         chat_id, queued_lease,
     ):
         raise RequiredRecoveryOutputError("Paused queued prefix ACK failed")
     return task_id
+
+
+async def _mark_queued_prefix_started(
+    cache_service: CacheService, directus_service: DirectusService,
+    queued_lease: Dict[str, Any], user_id: str,
+    hashed_team_id: Optional[str], task_id: str,
+) -> None:
+    """Require durable processing receipts before an accepted batch leaves Redis."""
+    messages = queued_lease.get("messages") or []
+    if not messages or messages[0].get("is_incognito"):
+        return
+    for member in messages:
+        message_id = member.get("message_id")
+        chat_id = member.get("chat_id")
+        revision = member.get("queue_revision", 1)
+        if not isinstance(message_id, str) or not isinstance(chat_id, str):
+            raise RequiredRecoveryOutputError("Queued prefix lacks durable message identity")
+        status = None
+        for retry in range(8):
+            status = await directus_service.chat.mark_queued_message_started(
+                chat_id, user_id, message_id, revision, task_id, "follow_up",
+                hashed_team_id=hashed_team_id,
+            )
+            if status.get("status") in ("started", "already_started"):
+                if status.get("messages_v") is not None:
+                    await cache_service.mark_sync_message_processing(
+                        user_id, chat_id, message_id, revision, status["messages_v"],
+                    )
+                break
+            if status.get("status") not in ("not_persisted", "error"):
+                break
+            await asyncio.sleep(min(0.25 * (retry + 1), 1.0))
+        else:
+            raise RequiredRecoveryOutputError("Queued message durable start timed out")
+        if status.get("status") not in ("started", "already_started"):
+            raise RequiredRecoveryOutputError(
+                f"Queued message durable start unavailable: {status.get('status')}"
+            )
 
 
 def _bounded_identity_component(value: object) -> Optional[str]:
@@ -795,6 +1163,194 @@ async def _cleanup_processing_embeds_on_task_failure(
     return cleaned_count
 
 
+async def _handoff_queued_after_task_failure(
+    request_data: AskSkillRequest, skill_config_dict: dict, task_id: str,
+    cache_service: CacheService, directus_service: DirectusService,
+) -> bool:
+    """Dispatch an accepted follower after its predecessor failed without an answer."""
+    if (not (request_data.legacy_cutover_task_id or request_data.recovery_task_id)
+            or request_data.is_incognito or request_data.is_external):
+        return False
+    if await cache_service.get_active_ai_task(request_data.chat_id) != task_id:
+        return False
+    from backend.apps.ai.processing.queued_steering import reconcile_queued_revision_quarantine
+    if not await reconcile_queued_revision_quarantine(cache_service, directus_service, request_data.chat_id):
+        raise RequiredRecoveryOutputError("Failed predecessor has unreconciled queued edit")
+    lease = None
+    for _ in range(3):
+        lease = await cache_service.lease_queued_message_prefix(request_data.chat_id, limit=20)
+        if lease:
+            break
+        empty_state = await cache_service.complete_active_ai_task_if_queue_empty(
+            request_data.chat_id, task_id,
+        )
+        if empty_state in (1, 2):
+            return True
+    if not lease:
+        raise RequiredRecoveryOutputError("Failed predecessor raced with follower admission")
+    if lease["messages"][0].get("recovery_task_id") == task_id:
+        if not await _ack_running_recovery_queue_prefix(
+            request_data, task_id, cache_service, directus_service,
+        ):
+            raise RequiredRecoveryOutputError("Failed recovery task still owns its queued prefix")
+        return await _handoff_queued_after_task_failure(
+            request_data, skill_config_dict, task_id, cache_service, directus_service,
+        )
+    if lease["messages"][0].get("recovery_task_id"):
+        await _start_recovery_queued_follower(
+            prior_request=request_data, prior_task_id=task_id,
+            queued_lease=lease, assistant_response="",
+            skill_config_dict=skill_config_dict,
+            cache_service=cache_service, directus_service=directus_service,
+        )
+        return True
+    first = AskSkillRequest.model_validate(lease["messages"][0])
+    if (first.chat_id != request_data.chat_id
+            or first.team_id_hash != request_data.team_id_hash
+            or (first.user_id != request_data.user_id and not request_data.team_id)):
+        raise RequiredRecoveryOutputError("Failed predecessor queued scope changed")
+    if first.team_id:
+        await directus_service.team.require_team_role(
+            first.team_id, first.user_id, {"owner", "admin", "member"},
+        )
+    ids, contents = _validated_queued_messages(first, lease)
+    history = [item.model_dump() if hasattr(item, "model_dump") else dict(item)
+               for item in first.message_history[:-1]]
+    history.append({
+        "role": "user", "message_id": ids[0], "content": "\n\n".join(contents),
+        "created_at": int(time.time()), "sender_name": "user",
+    })
+    next_data = first.model_dump()
+    next_data.update({
+        "message_id": ids[0], "current_user_content": "\n\n".join(contents),
+        "message_history": history, "root_user_message_id": ids[0],
+        "agentic_context_ref": lease["messages"][-1].get("agentic_context_ref"),
+        "agentic_context_request_id": lease["messages"][-1].get("agentic_context_request_id"),
+        "agentic_context_turn_id": lease["messages"][-1].get("agentic_context_turn_id"),
+    })
+    next_request = AskSkillRequest(**next_data)
+    proof = _legacy_queued_batch_proof(next_request, lease, ids)
+    next_request.legacy_cutover_task_id = proof["task_identity"]
+    next_task_id = proof["celery_task_id"]
+    vault_key_id = await cache_service.get_user_vault_key_id(first.user_id)
+    if not vault_key_id:
+        profile = await directus_service.get_user_profile(first.user_id)
+        vault_key_id = profile[1].get("vault_key_id") if profile and profile[1] else None
+    if not vault_key_id:
+        raise RequiredRecoveryOutputError("Failed predecessor follower Vault key unavailable")
+    handoff = {
+        "task_id": next_task_id, "chat_id": request_data.chat_id,
+        "owner_id": first.user_id, "hashed_team_id": first.team_id_hash,
+        "request_data_dict": next_request.model_dump(),
+        "skill_config_dict": skill_config_dict, "legacy_batch_proof": proof,
+        "lease": {"token": lease["token"], "raw_messages": lease["raw_messages"]},
+    }
+    sealed = await _seal_legacy_queue_handoff(
+        handoff, vault_key_id=vault_key_id, cache_service=cache_service,
+    )
+    if not await cache_service.store_paused_queue_handoff(
+        first.user_id, request_data.chat_id, task_id, sealed,
+    ):
+        raise RequiredRecoveryOutputError("Failed predecessor follower handoff could not be stored")
+    if not await cache_service.transfer_active_ai_task(request_data.chat_id, task_id, next_task_id):
+        raise RequiredRecoveryOutputError("Failed predecessor follower lost active fence")
+    resumed = await resume_legacy_queued_handoff(
+        cache_service=cache_service, directus_service=directus_service,
+        chat_id=request_data.chat_id, actor_user_id=first.user_id,
+        hashed_team_id=first.team_id_hash,
+    )
+    if resumed != next_task_id:
+        raise RequiredRecoveryOutputError("Failed predecessor follower was not dispatched")
+    return True
+
+
+async def _terminalize_volatile_followers_after_failure(
+    request_data: AskSkillRequest, task_id: str, cache_service: CacheService,
+) -> bool:
+    """Release volatile followers with a truthful terminal event after task failure."""
+    if not (request_data.is_incognito or request_data.is_external):
+        return False
+    if await cache_service.get_active_ai_task(request_data.chat_id) != task_id:
+        return False
+    # A safe Steer has already left the queue. Its atomic claim stored a
+    # task-scoped volatile receipt, so a failed response must pause that same
+    # user turn even when no ordinary followers remain.
+    consumed = await cache_service.get_consumed_volatile_steers(request_data.chat_id, task_id)
+    for row in consumed:
+        if (row.get("user_id") != request_data.user_id
+                or row.get("user_id_hash") != request_data.user_id_hash
+                or not isinstance(row.get("message_id"), str)):
+            raise RequiredRecoveryOutputError("Volatile steer receipt identity mismatch")
+        await cache_service.publish_event(f"user_updates::{request_data.user_id_hash}", {
+            "event_for_client": "queued_handoff_paused",
+            "user_id_uuid": request_data.user_id,
+            "payload": {
+                "chat_id": request_data.chat_id,
+                "message_id": row["message_id"],
+                "reason_code": "volatile_predecessor_failed",
+                "retryable": False,
+            },
+        })
+    if consumed:
+        await cache_service.clear_consumed_volatile_steers(request_data.chat_id, task_id)
+    for _ in range(64):
+        lease = await cache_service.lease_queued_message_prefix(request_data.chat_id, limit=20)
+        if lease is None:
+            state = await cache_service.complete_active_ai_task_if_queue_empty(
+                request_data.chat_id, task_id,
+            )
+            return state in (1, 2)
+        for member in lease["messages"]:
+            await cache_service.publish_event(f"user_updates::{member['user_id_hash']}", {
+                "event_for_client": "queued_handoff_paused",
+                "user_id_uuid": member["user_id"],
+                "payload": {
+                    "chat_id": request_data.chat_id,
+                    "message_id": member["message_id"],
+                    "reason_code": "volatile_predecessor_failed",
+                    "retryable": False,
+                },
+            })
+        if not await cache_service.acknowledge_queued_message_prefix(
+            request_data.chat_id, lease,
+        ):
+            raise RequiredRecoveryOutputError("Volatile follower terminal ACK failed")
+    raise RequiredRecoveryOutputError("Volatile follower queue could not be drained")
+
+
+async def _pause_consumed_steers_after_failure(
+    request_data: AskSkillRequest, task_id: str,
+    cache_service: CacheService, directus_service: DirectusService,
+) -> list[str]:
+    """Surface steers already consumed by a run that ended without their answer."""
+    if request_data.is_incognito or request_data.is_external:
+        return []
+    result = await directus_service.chat.pause_consumed_steers_for_task(
+        request_data.chat_id, request_data.user_id, task_id,
+        hashed_team_id=request_data.team_id_hash,
+    )
+    if result.get("status") == "not_found":
+        return []
+    if result.get("status") not in ("paused", "already_paused"):
+        raise RequiredRecoveryOutputError("Consumed steer failure state could not be persisted")
+    ids = []
+    for row in result.get("messages") or []:
+        message_id = row.get("message_id")
+        if not isinstance(message_id, str):
+            continue
+        ids.append(message_id)
+        await cache_service.publish_event(f"user_updates::{request_data.user_id_hash}", {
+            "event_for_client": "queued_handoff_paused",
+            "user_id_uuid": request_data.user_id,
+            "payload": {
+                "chat_id": request_data.chat_id, "message_id": message_id,
+                "reason_code": "dispatch_failed", "retryable": False,
+                "queue_revision": row.get("queue_revision"),
+            },
+        })
+    return ids
+
+
 async def _cleanup_on_task_failure(
     task_id: str,
     chat_id: str,
@@ -806,7 +1362,9 @@ async def _cleanup_on_task_failure(
     cache_service: Optional[CacheService] = None,
     directus_service: Optional[DirectusService] = None,
     encryption_service: Optional[EncryptionService] = None,
-    use_cancelled_status: bool = False
+    use_cancelled_status: bool = False,
+    request_data: Optional[AskSkillRequest] = None,
+    skill_config_dict: Optional[dict] = None,
 ) -> None:
     """
     Comprehensive cleanup when a task fails unexpectedly.
@@ -838,9 +1396,33 @@ async def _cleanup_on_task_failure(
     if not cache_service:
         cache_service = CacheService()
     
-    # 1. Clear active_ai_task marker - this is critical for stopping the typing indicator
+    # Preserve accepted followers before releasing this task's chat fence.
     try:
-        cleared = await cache_service.clear_active_ai_task(chat_id)
+        handed_off = False
+        terminalized = False
+        if request_data is not None and not (request_data.is_incognito or request_data.is_external):
+            steer_directus = directus_service or DirectusService()
+            try:
+                await _pause_consumed_steers_after_failure(
+                    request_data, task_id, cache_service, steer_directus,
+                )
+            finally:
+                if directus_service is None:
+                    await steer_directus.close()
+        if request_data is not None and (request_data.is_incognito or request_data.is_external):
+            terminalized = await _terminalize_volatile_followers_after_failure(
+                request_data, task_id, cache_service,
+            )
+        if request_data is not None and skill_config_dict is not None:
+            handoff_directus = directus_service or DirectusService()
+            try:
+                handed_off = await _handoff_queued_after_task_failure(
+                    request_data, skill_config_dict, task_id, cache_service, handoff_directus,
+                )
+            finally:
+                if directus_service is None:
+                    await handoff_directus.close()
+        cleared = False if handed_off or terminalized else await cache_service.clear_active_ai_task_if_matches(chat_id, task_id)
         if cleared:
             logger.info(f"{log_prefix} Cleared active_ai_task marker after failure: {error_message}")
         else:
@@ -848,13 +1430,25 @@ async def _cleanup_on_task_failure(
         from backend.apps.ai.tasks.async_skill_continuation import (
             dispatch_deferred_async_skill_continuations,
         )
-        await dispatch_deferred_async_skill_continuations(
-            cache_service=cache_service,
-            user_id=user_id,
-            chat_id=chat_id,
-        )
+        if cleared:
+            await dispatch_deferred_async_skill_continuations(
+                cache_service=cache_service, user_id=user_id, chat_id=chat_id,
+            )
     except Exception as e:
-        logger.error(f"{log_prefix} Error clearing active_ai_task marker: {e}", exc_info=True)
+        # A failed handoff must keep the accepted prefix behind its fenced
+        # predecessor. A later exact retry can resume the sealed envelope.
+        logger.error(f"{log_prefix} Error recovering queued follower after failure: {e}", exc_info=True)
+
+    # An early routing event can already have moved the client into typing.
+    # Unexpected preprocessing and billing failures have no final stream chunk,
+    # so explicitly clear that state without creating an assistant message.
+    if user_id and user_id_hash and chat_id and task_id and message_id:
+        try:
+            await _publish_typing_ended(
+                cache_service, task_id, chat_id, user_id, user_id_hash, message_id,
+            )
+        except Exception as exc:
+            logger.warning("%s Could not clear typing after failure (%s)", log_prefix, type(exc).__name__)
     
     # 2. Clean up processing embeds
     try:
@@ -883,6 +1477,105 @@ async def _cleanup_on_task_failure(
 # Critical apps that should normally be available for full functionality
 # If these are missing, the AI will have reduced capabilities
 CRITICAL_APPS = ["web", "ai"]
+
+# Matches the canonical category fallback icons in frontend/packages/chatCategoryTheme.ts.
+# A valid first-event icon lets older clients encrypt new-chat metadata once.
+EARLY_CATEGORY_ICONS = {
+    "software_development": "code", "business_development": "briefcase",
+    "medical_health": "heart", "legal_law": "gavel",
+    "openmates_official": "shield-check", "maker_prototyping": "wrench",
+    "marketing_sales": "megaphone", "finance": "dollar-sign",
+    "design": "palette", "electrical_engineering": "zap",
+    "movies_tv": "tv", "history": "clock", "science": "microscope",
+    "life_coach_psychology": "users", "cooking_food": "utensils",
+    "activism": "trending-up", "general_knowledge": "help-circle",
+    "onboarding_support": "compass",
+}
+
+
+def _early_typing_provider_metadata(model_ref: Optional[str]) -> tuple[str, Optional[str]]:
+    """Resolve the configured server label for the selected answer model."""
+    if not model_ref or "/" not in model_ref:
+        return (model_ref or "Unknown").capitalize(), None
+    provider_id, model_id = model_ref.split("/", 1)
+    manager = celery_config.config_manager
+    provider = manager.get_provider_config(provider_id) if manager else None
+    if not provider:
+        return provider_id.capitalize(), None
+    for model in provider.get("models", []):
+        if model.get("id") != model_id:
+            continue
+        server_id = model.get("default_server")
+        server = next((row for row in model.get("servers", []) if row.get("id") == server_id), None)
+        if server:
+            return server.get("name") or server_id.capitalize(), server.get("region")
+        break
+    return provider.get("name") or provider_id.capitalize(), None
+
+
+async def _publish_typing_ended(
+    cache_service: CacheService, task_id: str, chat_id: str,
+    user_id: str, user_id_hash: str, message_id: str,
+) -> None:
+    """Clear a started typing state without creating a chat message."""
+    await cache_service.publish_event(
+        f"ai_typing_indicator_events::{user_id_hash}", {
+            "type": "ai_processing_started_event",
+            "event_for_client": "ai_typing_ended",
+            "task_id": task_id, "chat_id": chat_id,
+            "user_id_uuid": user_id, "user_id_hash": user_id_hash,
+            "user_message_id": message_id, "category": "general_knowledge",
+        },
+    )
+
+
+class EarlyTypingLifecycle:
+    """One task's typing and sealed-metadata delivery, without replaying a user turn."""
+
+    def __init__(self, cache_service: CacheService, request: AskSkillRequest, task_id: str):
+        self.cache_service = cache_service
+        self.request = request
+        self.task_id = task_id
+        self.started = False
+        self.ended = False
+
+    @property
+    def channel(self) -> str:
+        return f"ai_typing_indicator_events::{self.request.user_id_hash}"
+
+    async def publish_stage_one(self, payload: Dict[str, Any]) -> bool:
+        if self.started or self.request.is_external:
+            return False
+        await self.cache_service.publish_event(self.channel, payload)
+        self.started = True
+        return True
+
+    async def finish_preprocessing(self, *, can_proceed: bool,
+                                   late_payload: Optional[Dict[str, Any]] = None,
+                                   metadata_recovery_job: Optional[Dict[str, Any]] = None) -> None:
+        if self.request.is_external:
+            return
+        if self.started:
+            if not can_proceed and not self.ended:
+                await self.fail()
+            if metadata_recovery_job:
+                await self.cache_service.publish_event(self.channel, {
+                    "type": "chat_metadata_recovery_available",
+                    "user_id_hash": self.request.user_id_hash,
+                    "metadata_recovery_job": metadata_recovery_job,
+                })
+        elif late_payload:
+            await self.cache_service.publish_event(self.channel, late_payload)
+            self.started = True
+
+    async def fail(self) -> None:
+        if self.started and not self.ended:
+            await _publish_typing_ended(
+                self.cache_service, self.task_id, self.request.chat_id,
+                self.request.user_id, self.request.user_id_hash,
+                self.request.message_id,
+            )
+            self.ended = True
 
 
 def _check_critical_apps_availability(
@@ -1635,6 +2328,10 @@ async def _async_process_ai_skill_ask_task(
                     claim.get("state"),
                 )
                 return _recovery_unclaimed_result(claim)
+            await _ack_running_recovery_queue_prefix(
+                request_data, task_id,
+                cache_service_instance, directus_service_instance,
+            )
 
         user_task_claimed = await _update_user_task_execution_state(
             request_data,
@@ -2166,6 +2863,56 @@ async def _async_process_ai_skill_ask_task(
         logger.info(f"[Task ID: {task_id}] Chat has title flag from request_data: {request_data.chat_has_title}")
 
         preprocessing_result: Optional[PreprocessingResult] = None
+        typing_lifecycle = EarlyTypingLifecycle(cache_service_instance, request_data, task_id)
+
+        async def publish_early_typing(routing: Dict[str, Any]) -> None:
+            if request_data.is_external or not cache_service_instance or typing_lifecycle.started:
+                return
+            provider_name, server_region = _early_typing_provider_metadata(routing.get("model_id"))
+            encrypted_chat_key = None
+            try:
+                item = await cache_service_instance.get_chat_list_item_data(
+                    request_data.user_id, request_data.chat_id,
+                )
+                encrypted_chat_key = getattr(item, "encrypted_chat_key", None)
+            except Exception as exc:
+                logger.warning("[Task ID: %s] Early typing key cache unavailable (%s)", task_id, type(exc).__name__)
+            if not encrypted_chat_key:
+                try:
+                    chats = await directus_service_instance.get_items("chats", {
+                        "filter[id][_eq]": request_data.chat_id,
+                        "fields": "encrypted_chat_key", "limit": 1,
+                    })
+                    encrypted_chat_key = chats[0].get("encrypted_chat_key") if chats else None
+                except Exception as exc:
+                    logger.warning("[Task ID: %s] Early typing key fallback unavailable (%s)", task_id, type(exc).__name__)
+            payload = {
+                "type": "ai_processing_started_event", "event_for_client": "ai_typing_started",
+                "task_id": task_id, "chat_id": request_data.chat_id,
+                "user_id_uuid": request_data.user_id, "user_id_hash": request_data.user_id_hash,
+                "user_message_id": request_data.message_id,
+                "category": routing["category"], "model_name": routing.get("model_name"),
+                "provider_name": provider_name, "server_region": server_region,
+                "is_continuation": (
+                    request_data.is_app_settings_memories_continuation
+                    or request_data.is_focus_mode_continuation
+                    or request_data.is_sub_chat_continuation
+                    or request_data.is_async_skill_continuation
+                ),
+            }
+            if encrypted_chat_key:
+                payload["encrypted_chat_key"] = encrypted_chat_key
+            if not request_data.chat_has_title:
+                icon = EARLY_CATEGORY_ICONS.get(routing["category"])
+                if icon:
+                    payload["icon_names"] = [icon]
+            await typing_lifecycle.publish_stage_one(payload)
+            if _fixture_recorder:
+                _fixture_recorder.record_typing_started(
+                    category=payload["category"], model_name=payload["model_name"],
+                    provider_name=provider_name, server_region=server_region,
+                    icon_names=payload.get("icon_names"),
+                )
         try:
             if not cache_service_instance:
                 logger.error(f"[Task ID: {task_id}] CacheService instance is not available. Cannot proceed with preprocessing credit check.")
@@ -2244,6 +2991,7 @@ async def _async_process_ai_skill_ask_task(
                         preprocessing_stream_channel=preprocessing_stream_channel,
                         is_new_chat=is_new_chat_for_preprocessing,
                         selected_app_ids=selected_app_ids,
+                        on_early_routing=publish_early_typing,
                     )
                     _log_team_ai_pipeline_stage(request_data, task_id, "preprocess", "completed")
                 new_ref = await store_preprocessing_resume(
@@ -2251,6 +2999,14 @@ async def _async_process_ai_skill_ask_task(
                 )
                 if new_ref:
                     request_data.preprocessing_resume_ref = new_ref
+
+            if (typing_lifecycle.started and preprocessing_result
+                    and not preprocessing_result.can_proceed and cache_service_instance):
+                try:
+                    await typing_lifecycle.fail()
+                except Exception as exc:
+                    logger.warning("[Task ID: %s] Could not clear typing after preprocessing rejection (%s)",
+                                   task_id, type(exc).__name__)
 
             # --- TEST RECORD: capture preprocessing result ---
             if _fixture_recorder and preprocessing_result:
@@ -2696,11 +3452,24 @@ async def _async_process_ai_skill_ask_task(
                     if initial_metadata_job:
                         typing_payload_data["metadata_recovery_job"] = initial_metadata_job
                     typing_indicator_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}" # Channel uses hashed ID
-                    await cache_service_instance.publish_event(typing_indicator_channel, typing_payload_data)
-                    logger.info(f"[Task ID: {task_id}] Published '{typing_payload_data['event_for_client']}' event to Redis channel '{typing_indicator_channel}' with metadata for encryption.")
+                    was_early_typing = typing_lifecycle.started
+                    if not typing_lifecycle.started:
+                        await typing_lifecycle.finish_preprocessing(
+                            can_proceed=preprocessing_result.can_proceed,
+                            late_payload=typing_payload_data,
+                            metadata_recovery_job=initial_metadata_job,
+                        )
+                        logger.info(f"[Task ID: {task_id}] Published '{typing_payload_data['event_for_client']}' event to Redis channel '{typing_indicator_channel}' with metadata for encryption.")
+                    elif initial_metadata_job:
+                        # The first typing event already persisted the user turn.
+                        # Deliver the later sealed metadata job without replaying it.
+                        await typing_lifecycle.finish_preprocessing(
+                            can_proceed=preprocessing_result.can_proceed,
+                            metadata_recovery_job=initial_metadata_job,
+                        )
 
                     # --- TEST RECORD: capture typing_started event ---
-                    if _fixture_recorder:
+                    if _fixture_recorder and not was_early_typing:
                         _fixture_recorder.record_typing_started(
                             category=typing_payload_data.get("category"),
                             model_name=typing_payload_data.get("model_name"),
@@ -2901,6 +3670,11 @@ async def _async_process_ai_skill_ask_task(
     if cache_service_instance:
         # Check for queued messages and process them
         # This implements the queue system: when main processing completes, process any queued messages
+        from backend.apps.ai.processing.queued_steering import reconcile_queued_revision_quarantine
+        if not await reconcile_queued_revision_quarantine(
+            cache_service_instance, directus_service_instance, request_data.chat_id,
+        ):
+            raise RequiredRecoveryOutputError("Queued encrypted revision is unreconciled")
         queued_lease = None
         for _attempt in range(3):
             queued_lease = await cache_service_instance.lease_queued_message_prefix(
@@ -2918,17 +3692,50 @@ async def _async_process_ai_skill_ask_task(
                 "Queued message raced with active task completion repeatedly"
             )
         queued_messages = queued_lease["messages"] if queued_lease else []
+        if queued_messages and queued_messages[0].get("recovery_task_id") == task_id:
+            if not await _ack_running_recovery_queue_prefix(
+                request_data, task_id, cache_service_instance, directus_service_instance,
+            ):
+                raise RequiredRecoveryOutputError("Completed recovery task still owns its queued prefix")
+            queued_lease = await cache_service_instance.lease_queued_message_prefix(
+                request_data.chat_id, limit=20,
+            )
+            queued_messages = queued_lease["messages"] if queued_lease else []
+        if queued_messages and queued_messages[0].get("recovery_task_id"):
+            with ai_phase_span("queue_handoff"):
+                await _start_recovery_queued_follower(
+                    prior_request=request_data, prior_task_id=task_id,
+                    queued_lease=queued_lease,
+                    assistant_response=aggregated_final_response,
+                    skill_config_dict=skill_config.model_dump(),
+                    cache_service=cache_service_instance,
+                    directus_service=directus_service_instance,
+                )
+            queued_messages = []
         
         if queued_messages and len(queued_messages) > 0:
             logger.info(f"[Task ID: {task_id}] Found {len(queued_messages)} queued message(s) for chat {request_data.chat_id}. Processing combined message (post-processing will continue in parallel).")
             
             # Combine multiple queued messages into one
             # If user sent "Also explain docker" then "and Ruby", combine to "Also explain docker\n\nand Ruby"
+            queued_origin = request_data
+            if queued_messages[0].get("user_id") != request_data.user_id:
+                if not request_data.team_id:
+                    raise RequiredRecoveryOutputError("Queued batch changed owner outside Team chat")
+                queued_origin = AskSkillRequest.model_validate(queued_messages[0])
+                if (queued_origin.team_id != request_data.team_id
+                        or queued_origin.team_id_hash != request_data.team_id_hash):
+                    raise RequiredRecoveryOutputError("Queued Team batch scope changed")
+            if queued_origin.team_id:
+                await directus_service_instance.team.require_team_role(
+                    queued_origin.team_id, queued_origin.user_id,
+                    {"owner", "admin", "member"},
+                )
             combined_message_ids, combined_content_parts = _validated_queued_messages(
-                request_data, queued_lease,
+                queued_origin, queued_lease,
             )
-            combined_user_id = request_data.user_id
-            combined_user_id_hash = request_data.user_id_hash
+            combined_user_id = queued_origin.user_id
+            combined_user_id_hash = queued_origin.user_id_hash
             combined_chat_id = request_data.chat_id
             combined_active_focus_id = None
             combined_chat_has_title = True  # Default to True since we're in an existing chat
@@ -2948,7 +3755,22 @@ async def _async_process_ai_skill_ask_task(
                 # Get updated message history including the just-completed AI response
                 # This ensures the combined message has full context
                 # Start with the original request's message history
-                updated_message_history = request_data.model_dump(mode="json")["message_history"]
+                updated_message_history = queued_origin.model_dump(mode="json")["message_history"]
+                if queued_origin is not request_data:
+                    # The queued owner's history already ends in this queued turn.
+                    # Rebuild it after the just-completed Team turn using that
+                    # owner's context and keys, never the prior sender's cache.
+                    updated_message_history = updated_message_history[:-1]
+                    prior_user_turn = next(
+                        (item.model_dump(mode="json") for item in reversed(request_data.message_history)
+                         if item.role == "user" and item.message_id == request_data.message_id),
+                        None,
+                    )
+                    if prior_user_turn and not any(
+                        item.get("message_id") == request_data.message_id
+                        for item in updated_message_history
+                    ):
+                        updated_message_history.append(prior_user_turn)
                 
                 # Add the completed AI response to history
                 if aggregated_final_response:
@@ -2987,7 +3809,10 @@ async def _async_process_ai_skill_ask_task(
                 # Preserve the current task's selected mate for follow-up messages.
                 # Without this, the preprocessor would re-select a mate based on category,
                 # potentially switching to a different persona mid-conversation.
-                current_mate_id = preprocessing_result.selected_mate_id if preprocessing_result else None
+                current_mate_id = (
+                    preprocessing_result.selected_mate_id if preprocessing_result
+                    else queued_origin.mate_id
+                ) if queued_origin is request_data else queued_origin.mate_id
                 
                 combined_request = AskSkillRequestType(
                     chat_id=combined_chat_id,
@@ -3003,15 +3828,15 @@ async def _async_process_ai_skill_ask_task(
                     mate_id=current_mate_id,  # Preserve current mate instead of forcing re-selection
                     active_focus_id=combined_active_focus_id or request_data.active_focus_id,
                     user_preferences={},
-                    embed_file_path_index=request_data.embed_file_path_index,
-                    has_image_upload_embed=getattr(request_data, "has_image_upload_embed", False),
-                    is_incognito=request_data.is_incognito,
-                    is_external=request_data.is_external,
-                    is_anonymous=request_data.is_anonymous,
-                    team_id=request_data.team_id,
-                    team_id_hash=request_data.team_id_hash,
-                    team_workspace_type=request_data.team_workspace_type,
-                    team_object_id_hash=request_data.team_object_id_hash,
+                    embed_file_path_index=queued_origin.embed_file_path_index,
+                    has_image_upload_embed=getattr(queued_origin, "has_image_upload_embed", False),
+                    is_incognito=queued_origin.is_incognito,
+                    is_external=queued_origin.is_external,
+                    is_anonymous=queued_origin.is_anonymous,
+                    team_id=queued_origin.team_id,
+                    team_id_hash=queued_origin.team_id_hash,
+                    team_workspace_type=queued_origin.team_workspace_type,
+                    team_object_id_hash=queued_origin.team_object_id_hash,
                 )
                 
                 # Dispatch a new Celery task for the combined queued message
@@ -3026,7 +3851,7 @@ async def _async_process_ai_skill_ask_task(
                         if (not combined_request.is_incognito
                                 and not combined_request.is_external
                                 and not combined_request.is_anonymous):
-                            if (not request_data.legacy_cutover_task_id
+                            if not (request_data.legacy_cutover_task_id
                                     or request_data.recovery_task_id):
                                 raise RequiredRecoveryOutputError(
                                     "Queued saved turn lacks epoch-0 admission authority"
@@ -3090,6 +3915,23 @@ async def _async_process_ai_skill_ask_task(
                                 expires_at=volatile_parent.expires_at,
                             )
                         if legacy_batch_proof is not None:
+                            queued_owner_vault_key_id = user_vault_key_id
+                            if combined_request.user_id != request_data.user_id:
+                                queued_owner_vault_key_id = await cache_service_instance.get_user_vault_key_id(
+                                    combined_request.user_id,
+                                )
+                                if not queued_owner_vault_key_id:
+                                    queued_owner_profile = await directus_service_instance.get_user_profile(
+                                        combined_request.user_id,
+                                    )
+                                    queued_owner_vault_key_id = (
+                                        queued_owner_profile[1].get("vault_key_id")
+                                        if queued_owner_profile and queued_owner_profile[1] else None
+                                    )
+                                if not queued_owner_vault_key_id:
+                                    raise RequiredRecoveryOutputError(
+                                        "Queued Team owner Vault key unavailable"
+                                    )
                             paused_handoff = {
                                 "task_id": queued_task_id,
                                 "chat_id": combined_chat_id,
@@ -3104,7 +3946,7 @@ async def _async_process_ai_skill_ask_task(
                                 },
                             }
                             sealed_handoff = await _seal_legacy_queue_handoff(
-                                paused_handoff, vault_key_id=user_vault_key_id,
+                                paused_handoff, vault_key_id=queued_owner_vault_key_id,
                                 cache_service=cache_service_instance,
                                 encryption_service=encryption_service_instance,
                             )
@@ -3162,6 +4004,15 @@ async def _async_process_ai_skill_ask_task(
                                 )
                     
                     logger.info(f"[Task ID: {task_id}] Dispatched new Celery task {queued_task_id} for combined queued message(s) in chat {combined_chat_id} (post-processing continues in parallel)")
+                    if combined_message_ids:
+                        await cache_service_instance.publish_event(
+                            f"user_updates::{request_data.user_id_hash}", {
+                                "event_for_client": "queued_message_started",
+                                "user_id_uuid": request_data.user_id,
+                                "payload": {"chat_id": combined_chat_id, "message_ids": combined_message_ids,
+                                            "task_id": queued_task_id},
+                            },
+                        )
                     
                 except Exception as e_queue:
                     logger.error(f"[Task ID: {task_id}] Failed to dispatch queued message task: {e_queue}", exc_info=True)
@@ -3908,6 +4759,8 @@ def process_ai_skill_ask_task(
                 user_id_hash=request_data.user_id_hash,
                 user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
                 error_message="Task exceeded soft time limit",
+                request_data=request_data,
+                skill_config_dict=skill_config_dict,
                 use_cancelled_status=bool(was_revoked)
             ))
         except Exception as cleanup_err:
@@ -3967,6 +4820,8 @@ def process_ai_skill_ask_task(
                 user_id_hash=request_data.user_id_hash,
                 user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
                 error_message=str(e),
+                request_data=request_data,
+                skill_config_dict=skill_config_dict,
                 use_cancelled_status=bool(was_revoked)
             ))
         except Exception as cleanup_err:
@@ -4037,6 +4892,8 @@ def process_ai_skill_ask_task(
                 user_id_hash=request_data.user_id_hash,
                 user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
                 error_message=str(e),
+                request_data=request_data,
+                skill_config_dict=skill_config_dict,
                 use_cancelled_status=bool(was_revoked)
             ))
         except Exception as cleanup_err:

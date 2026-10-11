@@ -114,10 +114,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.ai-model-routing:
-    version: 3
+    version: 4
     status: draft
     path: features/ai-model-routing
-    fingerprint: cf564a833d8b8bcc0cb2f44a822783a21a04bc717a4b50ee543991d193716470
+    fingerprint: 715391ebd76475272e88257d4213e7b3e463adc0b51ac25b0b5271c744a1126f
     required_applies_to:
     - rest_api
     - cli
@@ -414,11 +414,20 @@ specifications:
     - gui.web
     - gui.apple
   feature.chat-processing-feedback:
-    version: 1
+    version: 3
     status: draft
     path: features/chat-processing-feedback
-    fingerprint: dd611ce040ddb4c76df15564cd36a87cba906abe09311985be8180cae9725fd9
+    fingerprint: e6a18cbb7223ba48721061e99f947928e31b8dc191278ab3c9e33a7c43369a95
     required_applies_to:
+    - gui.web
+  feature.chat-queued-followups:
+    version: 1
+    status: draft
+    path: features/chat-queued-followups
+    fingerprint: f713c976ed388d5f2096bb23c034b8c1266f5f5498c1a67c9ab5a5f8fabf0cf8
+    required_applies_to:
+    - rest_api
+    - cli
     - gui.web
   feature.chat-request-safety:
     version: 1
@@ -441,10 +450,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.chats:
-    version: 3
+    version: 4
     status: draft
     path: features/chats
-    fingerprint: 145a3126b6925c28caddd880410a310035a36c7bd30e87eb7f0eafefbec974a8
+    fingerprint: f61099682f9709427c396d3772b037dc4fc0fb6b24c06d9800428aad13cde91d
     required_applies_to:
     - cli
     - gui.web
@@ -513,10 +522,10 @@ specifications:
     required_applies_to:
     - gui.web
   feature.message-input:
-    version: 2
+    version: 4
     status: draft
     path: features/message-input
-    fingerprint: 614b490277683df23080efb3208eab39bdbe10bd961f75ca6b866e513ec26fec
+    fingerprint: e2f976c7777801ea4cb7da57cec906e890e6cdcb312ea862161cfb73be174413
     required_applies_to:
     - gui.web
     - gui.apple
@@ -689,10 +698,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.workflows:
-    version: 10
+    version: 11
     status: draft
     path: features/workflows
-    fingerprint: 6897e78ada938209a9a58dd55ab0cfb1ec956b91677c1b79efd4c061f0a48ae7
+    fingerprint: d9486ee77fe9fdaeabb0b31bf23d5c3d64d7279a65f3b5ad4d6e97be49a45ffb
     required_applies_to:
     - rest_api
     - cli
@@ -1958,8 +1967,20 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  ai-model-routing.preprocessing.early-resolution:
+    specification: feature.ai-model-routing@4
+    specification_id: feature.ai-model-routing
+    type: behavior
+    fingerprint: 6c2e3471a3e73760f98532dc01ad648ff259856b7c273b309daab8d51fdf833c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   ai-model-routing.tiers.conservative-three-way:
-    specification: feature.ai-model-routing@3
+    specification: feature.ai-model-routing@4
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 517eda4eb2523577439ab57b4dbd1a011d4190168e0bef99182bc21c0ac5c59f
@@ -1971,7 +1992,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.preferences.exclusive-tier-defaults:
-    specification: feature.ai-model-routing@3
+    specification: feature.ai-model-routing@4
     specification_id: feature.ai-model-routing
     type: invariant
     fingerprint: 703a7dc3c881d808505e2a75daffc13fe0ac3925cc2b37141020c2d6f306d0e2
@@ -1983,7 +2004,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.catalog.capability-recommendation-variants:
-    specification: feature.ai-model-routing@3
+    specification: feature.ai-model-routing@4
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 5bc34675b0292e6005cb071e80672e10e030a5f8d71b9c5207ebcb19c5c165b2
@@ -1995,7 +2016,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.catalog.public-read-only:
-    specification: feature.ai-model-routing@3
+    specification: feature.ai-model-routing@4
     specification_id: feature.ai-model-routing
     type: security
     fingerprint: 17680ddfbe234af079ecc36320cf84fdc0a516188f8dd5601d85ad27024acac8
@@ -2007,7 +2028,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.defaults.google-tier-profiles:
-    specification: feature.ai-model-routing@3
+    specification: feature.ai-model-routing@4
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 7e791bb278e96efc91f7b87bd42f2b8b7fceb22db3a7bc8584556a6bfd3aad3f
@@ -2019,7 +2040,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.chat-selection.encrypted-user-chat-scope:
-    specification: feature.ai-model-routing@3
+    specification: feature.ai-model-routing@4
     specification_id: feature.ai-model-routing
     type: privacy
     fingerprint: 3b1fe8326b1e4fe38b2dd71db60adeb9cbbaadadaaedd92b1522fc1bc961098a
@@ -2031,7 +2052,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.precedence.chat-over-tier-over-auto:
-    specification: feature.ai-model-routing@3
+    specification: feature.ai-model-routing@4
     specification_id: feature.ai-model-routing
     type: invariant
     fingerprint: 6fd5fe43066bcbb5d0fd124cd5f32632ad3dcb2d1e749aadf27f4874bfe0bd90
@@ -2043,7 +2064,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.preprocessing.missing-output-recovery:
-    specification: feature.ai-model-routing@3
+    specification: feature.ai-model-routing@4
     specification_id: feature.ai-model-routing
     type: failure
     fingerprint: a44b753e15ff0cad7d9f54ca1f40410b75a0912f251d01cfd798ec16f3d36527
@@ -2055,7 +2076,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.composer.mention-to-exact-selection:
-    specification: feature.ai-model-routing@3
+    specification: feature.ai-model-routing@4
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 1588ae8feecbfe893795d7b358c3a58f30c824fde2baa790a137f770891ad24c
@@ -2067,7 +2088,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.unavailable.notify-reset-auto:
-    specification: feature.ai-model-routing@3
+    specification: feature.ai-model-routing@4
     specification_id: feature.ai-model-routing
     type: failure
     fingerprint: e4b0ca6b9f2635f0f8e9ce522121e6530cc2f832194f8d2a7acc716f676fdb36
@@ -2079,7 +2100,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.settings.hierarchy-canonical:
-    specification: feature.ai-model-routing@3
+    specification: feature.ai-model-routing@4
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: df1f591c577d1c1c1d8cdfb2891e7c80ad770a5bfbaa2b9b360024d82a0355d2
@@ -2091,7 +2112,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.composer.responsive-actions:
-    specification: feature.ai-model-routing@3
+    specification: feature.ai-model-routing@4
     specification_id: feature.ai-model-routing
     type: parity
     fingerprint: cde79da48264deaf3f06d90a3d15e897b3f0aac4a69b42a91fe93b4cf23a84a6
@@ -2103,10 +2124,10 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.surface.semantic-parity:
-    specification: feature.ai-model-routing@3
+    specification: feature.ai-model-routing@4
     specification_id: feature.ai-model-routing
     type: parity
-    fingerprint: 3d85614f857a9fded3e757175cdcba6973b2a4516e439d2c49feb4367e296235
+    fingerprint: 89edb889c6336bc0119d2a96abe3f1f1d0cd4c2ba8ad4fb94c809335dca56c21
     required_applies_to:
     - rest_api
     - cli
@@ -5511,39 +5532,98 @@ assertions:
     - gui.web
     - gui.apple
   chat-processing-feedback.selection-after-acceptance:
-    specification: feature.chat-processing-feedback@1
+    specification: feature.chat-processing-feedback@3
     specification_id: feature.chat-processing-feedback
     type: behavior
-    fingerprint: 621d24193e78683006a2938c936e7cb1f3c19a35f3ae979858ea65e40d5a21c0
+    fingerprint: 38cc8bf1c3d241c2338cf4babdc2b4f6acdc01310408815d0e6515969e1d3497
+    required_applies_to:
+    - gui.web
+  chat-processing-feedback.skill-activity-label:
+    specification: feature.chat-processing-feedback@3
+    specification_id: feature.chat-processing-feedback
+    type: behavior
+    fingerprint: 1a03ae24cca2c2aad2575114acde1fb2d7f572bab685a643597d6c620d8b6840
     required_applies_to:
     - gui.web
   chat-processing-feedback.selected-mate-identity:
-    specification: feature.chat-processing-feedback@1
+    specification: feature.chat-processing-feedback@3
     specification_id: feature.chat-processing-feedback
     type: behavior
-    fingerprint: 9083f1d9cd09e6fd6961e9b5f80097d81f4757b965bee2927e059d24bff10839
+    fingerprint: 16561a447bb95dd80016c8072b7d59fa01fe9b03589102d2012ee4bc33a886a5
     required_applies_to:
     - gui.web
   chat-processing-feedback.turn-lifecycle:
-    specification: feature.chat-processing-feedback@1
+    specification: feature.chat-processing-feedback@3
     specification_id: feature.chat-processing-feedback
     type: invariant
-    fingerprint: a183ef7d468eddce883bdc2774d5f4243e33b29d1337fb751c4c6941bfabdecc
+    fingerprint: be26b6743cde095467989b58fe3dc5ba7d29d1f4589e1cfc9c881c0e5dce862e
     required_applies_to:
     - gui.web
-  chat-processing-feedback.fade-preserves-border:
-    specification: feature.chat-processing-feedback@1
+  chat-processing-feedback.response-container-glow:
+    specification: feature.chat-processing-feedback@3
     specification_id: feature.chat-processing-feedback
     type: behavior
-    fingerprint: b2980a18d39c155bcdacc7d679abe661a4a8238656563aa29eb96e73479be80b
+    fingerprint: 9462c1e23dfbeacaefbd89f54a22e4e19c2ad122099d1a776e1cb7d6bd9f3c7d
     required_applies_to:
     - gui.web
   chat-processing-feedback.accessible-responsive:
-    specification: feature.chat-processing-feedback@1
+    specification: feature.chat-processing-feedback@3
     specification_id: feature.chat-processing-feedback
     type: behavior
-    fingerprint: 82aa556146da1d5add94581cb85ec2e540e685bafb23ee582d97aae185012f10
+    fingerprint: 6dec47b835e603ffb1af169a798aa63573a0c91b12b6b7c47e1b3ec3b9129a3a
     required_applies_to:
+    - gui.web
+  chat-processing-feedback.completed-processing-summary:
+    specification: feature.chat-processing-feedback@3
+    specification_id: feature.chat-processing-feedback
+    type: behavior
+    fingerprint: f70bf26375ed75b0cd9aa50086712096ddd67c728d756f2b87e7d05d74a4c893
+    required_applies_to:
+    - gui.web
+  chat-queued-followups.admission.synced:
+    specification: feature.chat-queued-followups@1
+    specification_id: feature.chat-queued-followups
+    type: behavior
+    fingerprint: 02d8e1e313bc5e48e80feea62c6012bd5fa3ec3701cd2a6c86e88ae6b438522b
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-queued-followups.editing.stable-revision:
+    specification: feature.chat-queued-followups@1
+    specification_id: feature.chat-queued-followups
+    type: invariant
+    fingerprint: b079880dbe980f4e5494e573cfa0a0e92d62f093fcf38948fe9fa7c4936bb881
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-queued-followups.editing.cancel:
+    specification: feature.chat-queued-followups@1
+    specification_id: feature.chat-queued-followups
+    type: behavior
+    fingerprint: 1ce44e8fbd610e533982e550358e7e3191f7d691cec236eb29de4a8de2759833
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-queued-followups.steering.safe-boundary:
+    specification: feature.chat-queued-followups@1
+    specification_id: feature.chat-queued-followups
+    type: behavior
+    fingerprint: 66bfabcd0741e7689fba3397cda819b1221c21da5f7a925ab4e1ec44c20f5379
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-queued-followups.access.scoped:
+    specification: feature.chat-queued-followups@1
+    specification_id: feature.chat-queued-followups
+    type: privacy
+    fingerprint: 0f4f8f3b016d5855244b14fb9526d57bede2dee2674326221faee554509133f3
+    required_applies_to:
+    - rest_api
+    - cli
     - gui.web
   chat-request-safety.intent-over-topic:
     specification: feature.chat-request-safety@1
@@ -5638,16 +5718,16 @@ assertions:
     - gui.web
     - gui.apple
   chats.persistence.client-encrypted:
-    specification: feature.chats@3
+    specification: feature.chats@4
     specification_id: feature.chats
     type: privacy
-    fingerprint: c449797d3fb3bbcd339b5292393935f02a2479b6695eba35b937ca202e5a19ca
+    fingerprint: 75782c5d8745d90d8ef4e230511348562226e36c586a2616124f0558f98cbbb6
     required_applies_to:
     - cli
     - gui.web
     - gui.apple
   chats.message.identity-idempotent:
-    specification: feature.chats@3
+    specification: feature.chats@4
     specification_id: feature.chats
     type: invariant
     fingerprint: 48a43c8f66d64d6542891f6ec8b524df6346e91da8c1a036a8971153dba22f1f
@@ -5656,7 +5736,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.completion.recovery-takeover:
-    specification: feature.chats@3
+    specification: feature.chats@4
     specification_id: feature.chats
     type: behavior
     fingerprint: bf24b3f6fd71d37ab138c4423d64d296ff41aabd8fe25490931cb02110d93fc5
@@ -5665,7 +5745,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.completion.lease-fenced:
-    specification: feature.chats@3
+    specification: feature.chats@4
     specification_id: feature.chats
     type: invariant
     fingerprint: db4c803b123e9607dcdbe4591f3bd2ba3f0dba08bd7107c73c80ee26154e12b0
@@ -5674,25 +5754,25 @@ assertions:
     - gui.web
     - gui.apple
   chats.completion.pending-delivery:
-    specification: feature.chats@3
+    specification: feature.chats@4
     specification_id: feature.chats
     type: behavior
-    fingerprint: 7f1e0680600f3c40e51665bfb62cd3bbbdacd3ae4e0f3d3d61db62092ce53050
+    fingerprint: 9f431320258b19aba36624f2be7edd24fcbb2dc5c577f6634053d4fb18f60922
     required_applies_to:
     - cli
     - gui.web
     - gui.apple
   chats.local-state.precedence:
-    specification: feature.chats@3
+    specification: feature.chats@4
     specification_id: feature.chats
     type: behavior
-    fingerprint: 8ea89adc125485e5f87a48a6ee53d5e4e5fc3736572eb283c62f374186c5c760
+    fingerprint: 55154868ff4458712fbd39c2dc4916e80fe7717b48e56f3ae6c344addc0b17f7
     required_applies_to:
     - cli
     - gui.web
     - gui.apple
   chats.sync.key-gated-recovery:
-    specification: feature.chats@3
+    specification: feature.chats@4
     specification_id: feature.chats
     type: invariant
     fingerprint: 1510dc79394cf653e01d98e159fb2a9fe10631c3cded00b8e709d847797d6a3b
@@ -5701,7 +5781,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.fork.non-destructive-boundary:
-    specification: feature.chats@3
+    specification: feature.chats@4
     specification_id: feature.chats
     type: behavior
     fingerprint: 27d41bb48eede1c74597751d446a17c5f1708527d7d8c771254beee5a55d8001
@@ -5710,25 +5790,25 @@ assertions:
     - gui.web
     - gui.apple
   chats.streaming.ordered-final:
-    specification: feature.chats@3
+    specification: feature.chats@4
     specification_id: feature.chats
     type: behavior
-    fingerprint: 9ce798e60320c2bf76811bec7aa4101636a94504227311642ac2a6f8d6f511d7
+    fingerprint: 7f9ef466b304d46fe8c7fed191dc58df18f172bfa796b9465751709846f05bdf
     required_applies_to:
     - cli
     - gui.web
     - gui.apple
   chats.streaming.progressive-presentation:
-    specification: feature.chats@3
+    specification: feature.chats@4
     specification_id: feature.chats
     type: behavior
-    fingerprint: d889add78376f27df9d80e291ffb5bb6004f49e4f25b639f9683827ed9f7b5a1
+    fingerprint: dbd99a19b4b48f5051695a99cd5ed291af43eaac49ba29037791501281bea6a4
     required_applies_to:
     - cli
     - gui.web
     - gui.apple
   chats.followups.non-destructive-reconciliation:
-    specification: feature.chats@3
+    specification: feature.chats@4
     specification_id: feature.chats
     type: behavior
     fingerprint: b2a2ececcad6fae7e1c76262df58f3bd78183e0f354bbec9e73321cc4fc0ec74
@@ -5737,16 +5817,16 @@ assertions:
     - gui.web
     - gui.apple
   chats.rendering.assistant-document-convergence:
-    specification: feature.chats@3
+    specification: feature.chats@4
     specification_id: feature.chats
     type: behavior
-    fingerprint: ca93ed66776933dafc61b6fda568e727bbae434f2e079a97f90e600445472235
+    fingerprint: 22c6903d1c5a1e9c545cfc4cb59490247ca018cbbcb58a44db4b9c8c1525ad61
     required_applies_to:
     - cli
     - gui.web
     - gui.apple
   chats.rendering.inline-entity-interaction:
-    specification: feature.chats@3
+    specification: feature.chats@4
     specification_id: feature.chats
     type: behavior
     fingerprint: 38bb67252b7ef8d739b1fd20b71336baad61a0b7c88f4c5f737513d6b4dedf3d
@@ -5755,25 +5835,25 @@ assertions:
     - gui.web
     - gui.apple
   chats.layout.responsive-history:
-    specification: feature.chats@3
+    specification: feature.chats@4
     specification_id: feature.chats
     type: parity
-    fingerprint: df4039f0a5a068c0c785d160a657f65ba94727140adb7dee0cee076c619fffae
+    fingerprint: 57b965d67e88ad5ed4fef7ceea45b9ba31e2c2e9d227b9c5a86278f02f9d57a7
     required_applies_to:
     - cli
     - gui.web
     - gui.apple
   chats.surface.semantic-parity:
-    specification: feature.chats@3
+    specification: feature.chats@4
     specification_id: feature.chats
     type: parity
-    fingerprint: 70205317d0f08c430f0baaf5f081d6ddb4708c61fd96594b729b9e5afaa382f3
+    fingerprint: c1ab4cfb1266c6b0debc3b2846b8732c9cc5f4c58304f4e607360d0404220197
     required_applies_to:
     - cli
     - gui.web
     - gui.apple
   chats.context.memory-only-summary:
-    specification: feature.chats@3
+    specification: feature.chats@4
     specification_id: feature.chats
     type: privacy
     fingerprint: abdde9cadea3851554f2c18ea879b05b9375a3669229010f387b1468a1fdf973
@@ -5782,7 +5862,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.context.related-work-selection:
-    specification: feature.chats@3
+    specification: feature.chats@4
     specification_id: feature.chats
     type: behavior
     fingerprint: bcc88c967f886f729d7d206ba5ae39075e1940dad29315badee497c2cfd0f076
@@ -5791,7 +5871,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.direction.context-assessment:
-    specification: feature.chats@3
+    specification: feature.chats@4
     specification_id: feature.chats
     type: behavior
     fingerprint: c93aecf367c1e72141db249ef522b1142c1fbc0f2a9b1e6ce0c614c46ba7648e
@@ -5800,10 +5880,19 @@ assertions:
     - gui.web
     - gui.apple
   chats.direction.reviewed-correction:
-    specification: feature.chats@3
+    specification: feature.chats@4
     specification_id: feature.chats
     type: behavior
     fingerprint: 9495cd4f58f6fd6332740b9474acee5b54a3648488929ce6b99c53b2e14c726f
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  chats.rendering.preview-info-top:
+    specification: feature.chats@4
+    specification_id: feature.chats
+    type: behavior
+    fingerprint: 83c94f28f405a27c0e7844cf74d9f63d0a944f58a614f173922bb8246b41695f
     required_applies_to:
     - cli
     - gui.web
@@ -6466,7 +6555,7 @@ assertions:
     required_applies_to:
     - gui.web
   message-input.focus.parent-state:
-    specification: feature.message-input@2
+    specification: feature.message-input@4
     specification_id: feature.message-input
     type: behavior
     fingerprint: c9cd7e910c210b6e430cc4fe09f4a85755a5473346cc017e97991f63af76886b
@@ -6474,7 +6563,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.focus.guest-welcome-suppression:
-    specification: feature.message-input@2
+    specification: feature.message-input@4
     specification_id: feature.message-input
     type: behavior
     fingerprint: 805ecc548a7c652f4ef6f7f5451e17643d895b1be6dbebb34fa7759f77d12e1e
@@ -6482,7 +6571,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.focus.workspace-suppression:
-    specification: feature.message-input@2
+    specification: feature.message-input@4
     specification_id: feature.message-input
     type: behavior
     fingerprint: f9559fbcde2f3ad909ad2dc6cb6b46caeb53a3e13e75e0fdd699f0e9bad4cbf6
@@ -6490,39 +6579,39 @@ assertions:
     - gui.web
     - gui.apple
   message-input.actions.visibility:
-    specification: feature.message-input@2
+    specification: feature.message-input@4
     specification_id: feature.message-input
     type: behavior
-    fingerprint: 6cfe810216681b5e6ab4400a55aa7071f9111895a46f6d18093326212b72ff9b
+    fingerprint: 5c8d4b857988f7d4ea4b2d12b52a224fa96539dba11fcf7344322a1a525af091
     required_applies_to:
     - gui.web
     - gui.apple
   message-input.drafts.preview-persistence:
-    specification: feature.message-input@2
+    specification: feature.message-input@4
     specification_id: feature.message-input
     type: behavior
-    fingerprint: 82f601769583d788ae63db0da4ea58d70a0b82f1ff5600918f8c2baf5453caed
+    fingerprint: a3f26a82f400ea4d23e90bb8676f9f2e8790f48705ab90b1c55c553df301f193
     required_applies_to:
     - gui.web
     - gui.apple
   message-input.embeds.gated-send:
-    specification: feature.message-input@2
+    specification: feature.message-input@4
     specification_id: feature.message-input
     type: invariant
-    fingerprint: f479841a1c94ae75b747896122ba4000cc4632edf4edcc4bb50f7e201657059c
+    fingerprint: 46746526a0af42d964d369b9828526da2d2a2b4886cb1ffad657501051bf286c
     required_applies_to:
     - gui.web
     - gui.apple
   message-input.recording.lifecycle:
-    specification: feature.message-input@2
+    specification: feature.message-input@4
     specification_id: feature.message-input
     type: behavior
-    fingerprint: 1105a6c36d5fef330fe936ecc11793be56da84c7887caeb6a35b714f3fdd9d6a
+    fingerprint: a99d1b3caf3da1402241c05a50c4cae5b301a1d7e987d697bee7df788183da30
     required_applies_to:
     - gui.web
     - gui.apple
   message-input.suggestions.contextual:
-    specification: feature.message-input@2
+    specification: feature.message-input@4
     specification_id: feature.message-input
     type: behavior
     fingerprint: 6b709d86954867371423b3d9bcffa3109e43e87a23f926e6d46e5cbfefec812a
@@ -6530,15 +6619,15 @@ assertions:
     - gui.web
     - gui.apple
   message-input.send.ownership:
-    specification: feature.message-input@2
+    specification: feature.message-input@4
     specification_id: feature.message-input
     type: behavior
-    fingerprint: b4c1ba8664b6817ad70c02d25638ce7397bd294f8beee6731ecd993ef678d8cd
+    fingerprint: 0cdd07a0825a9fb6e20341f6ff15595b61d95c56f3e86cda879453e569d4e00a
     required_applies_to:
     - gui.web
     - gui.apple
   message-input.privacy-context:
-    specification: feature.message-input@2
+    specification: feature.message-input@4
     specification_id: feature.message-input
     type: privacy
     fingerprint: a6363726e6972b6b724d69949955b29fa8102aee8078564594afad46372502f1
@@ -6546,10 +6635,18 @@ assertions:
     - gui.web
     - gui.apple
   message-input.layout.responsive-parity:
-    specification: feature.message-input@2
+    specification: feature.message-input@4
     specification_id: feature.message-input
     type: parity
     fingerprint: 117f6e729e0b3e86a1cc5e2913c1a4b7a27021ad306c19c983ca3fbd03e8d872
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  message-input.audio.editable-transcript:
+    specification: feature.message-input@4
+    specification_id: feature.message-input
+    type: behavior
+    fingerprint: 0f8a3a92cf81f20dd560dc3757edb6b291128531f4237be20325ba5f9196a22a
     required_applies_to:
     - gui.web
     - gui.apple
@@ -8783,10 +8880,10 @@ assertions:
     - gui.web
     - gui.apple
   workflows.website-change.baseline:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
-    fingerprint: 5185dd692149a61fc4e02d2925fdacbbddb5926eb4eb7bc1d32ed7ed59d9bee5
+    fingerprint: 6254be9da83ed1113959ff3c1fa55bd727b03b92aaabba38ad3bafaa2374874b
     required_applies_to:
     - rest_api
     - cli
@@ -8794,10 +8891,10 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.website-change.diff-inputs:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
-    fingerprint: cdf2cda505c8d861ce95e1a7be28c6d90fd351828aca049e2f640915c7db1273
+    fingerprint: 01abb5ce0b348449bcffb73f5f68978e586fab83f3c990e0f08b8596a4e18185
     required_applies_to:
     - rest_api
     - cli
@@ -8805,10 +8902,10 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.website-change.retry:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
-    fingerprint: 2fed5b713a3ac4e50a500de6c7b0ef643fa37b4a840389970fc03f37e0341190
+    fingerprint: 51860c34672d2667cf49be837a51cae02a0f61a230addf55f5926373964e599c
     required_applies_to:
     - rest_api
     - cli
@@ -8816,10 +8913,10 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.website-change.lifecycle:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
-    fingerprint: 92a7e31a6f5b1c0cf6698eafd62027baa15110e23b9cfe2d16639ae323352f9d
+    fingerprint: 8d6d2c07c80331e692bf01474b44c5f6756dad5d3882a49edc9cb6675bdb815c
     required_applies_to:
     - rest_api
     - cli
@@ -8827,7 +8924,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.portability.definition-roundtrip:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: parity
     fingerprint: 22a924b36e6b4c95ace0c7bb729999c836c4df669b076f6de72223b63bfec40a
@@ -8838,7 +8935,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.portability.private-content-boundary:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: privacy
     fingerprint: 343e5aeab0f458b3d1aadd0aa5e5cde974820f194a7a265d0ec69abd5e38ba6f
@@ -8849,7 +8946,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.portability.disabled-validated-import:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: invariant
     fingerprint: 0f5477f3841b7c7e435db728f624beb35ab0699cf77f5d471ef63462b7668e9a
@@ -8860,7 +8957,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.portability.cli-commands:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: 8625bbccfc6bd8ce8957ea192e90258e87fd424fe88e36805d102490111c8f1c
@@ -8871,7 +8968,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.activation.reachable-side-effect:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: invariant
     fingerprint: 4428bfdd22a595f0ec65632d3afe90744b9eae45222bbc284594ebf9c40b80aa
@@ -8882,7 +8979,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.execution.lifecycle-visible:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: 94047ebaa79441ea3966798adc732611fc86d592fc6d8047d6aea84cd5b03ee2
@@ -8893,7 +8990,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.content.encrypted-retained:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: privacy
     fingerprint: 9768cf51830b453615f8799c66b96cdc8979a08556e64c39cee5b9f2a3e7c0d1
@@ -8904,7 +9001,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.chat-delivery.pending-private:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: privacy
     fingerprint: a61bc8fca467b25fffd21032816bb2d04a5da36519579c947734a00ed06b7e45
@@ -8915,7 +9012,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.chat-delivery.claim-fenced:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: invariant
     fingerprint: ce26abd3c0c910953c8553d54c04edf1689860f97833bef3901dd926f32ebec8
@@ -8926,7 +9023,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.chat-delivery.client-encrypted:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: 9cab74ea157ca5b6805995aa65d5be99598d1b0dcd2ce1cb0aff69cb5e161d2e
@@ -8937,7 +9034,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.surface.semantic-parity:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: parity
     fingerprint: 73d6b3fd396431b5398d5c84f4f7c08fc3b84bb541f64f2a03fae1900ddef3bc
@@ -8948,7 +9045,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.mvp.steps:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: 9a76b89d24b7f674fc47e6faee5718eaac35db6fa87ead00fbd020be58001430
@@ -8959,7 +9056,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.schedule.recurrence:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: b6c9ec38d4f853d8e339959c6162e62ade0cdb1b6dfe7c6eb882074439a7207b
@@ -8970,7 +9067,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.schedule.edge-cases:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: c6cc6f241059f00a10a913b6cf943d4d8e6f9f16b8b2eba2b2e77cf609f01690
@@ -8981,7 +9078,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.actions.skill-contract:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: 2a725caa5b80eaf0a2c2f3c87565bbffd8e769836aafe81433887a2c9b035116
@@ -8992,7 +9089,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.billing.skill-usage:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: 9d6a231ae54fb4b51693eb9852e04ac2af1358bb5684f864532b16de64e0c536
@@ -9003,7 +9100,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.control.filter:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: b2e4820c90da26294389b9c9dd202375c6dd9be359982a7de76d0ae2f3c859d9
@@ -9014,7 +9111,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.control.check:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: eec405b6b46fa4526da9c3d6f4f30afcaa147541be6f0ed8adf487b2b1713ba6
@@ -9025,7 +9122,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.control.ai-check:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: 537de71414dabfa29f108454226df3acc1818da683a7da82da87556371275fc3
@@ -9036,7 +9133,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.ai-check.single-call-billing:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: b58a45dd89b0518980ed08f4239b10cc6072feea69b611601c5d61833e79f1e1
@@ -9047,7 +9144,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.ai-ask.execution:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: d3af605e405819d45cd3e22ce179fa5fcdcf161d5930c1161282b500765199b8
@@ -9058,7 +9155,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.ai-ask.authoring-validation:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: bff1064291db1ee57963ea045dec6587ee07fbfe994c589d84863b7953ff404a
@@ -9069,7 +9166,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.ai-ask.validation-billing:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: 5b119b1d61a5399729f1e422f37cdeeff2d21a6f668e88a8d5c7776e5e938f4b
@@ -9080,7 +9177,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.control.typed-data:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: a9779b4e742c85c90159d64ec6b18a591d69f6209c2184b6f6e21d4081a639bc
@@ -9091,7 +9188,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.composition.earlier-action-reference:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: invariant
     fingerprint: 7050841f14b3a7cbfcd7ade7357829c12b30c0edf3387713daebc676e34fd9d0
@@ -9102,7 +9199,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.authoring.compact-plan:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: e9e0e9b2509b8539e63c3bef11322f8e58578df8d7070ffaec54ac70ec07e851
@@ -9113,7 +9210,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.authoring.provisional-validation:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: invariant
     fingerprint: 1bf095a6852a8c950d3be465ef55f55bfb7c2a7a0706dd34ef9a2875bb720924
@@ -9124,7 +9221,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.authoring.atomic-update:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: invariant
     fingerprint: 3428298899659b8107773e514804abd4f5f52c64eaa37d30daf5ce4ca7eff12d
@@ -9135,7 +9232,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.message.standard:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: 6c5be46d3318878624bd2ccfca7ff09c4d88067edbc9bd40dcd3510db0e1234b
@@ -9146,7 +9243,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.results.selective-embeds:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: e0b1d0eba459538a7e5c99d78a8ce94f2a76330e3014a86d532e6370e58334eb
@@ -9157,7 +9254,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.history.delivered-membership:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: 38e6a81037d1ed74062c06a461e1240e039da13045b7df83c370aadf510f7dce
@@ -9168,7 +9265,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.history.delivery-reservations:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: 216575f7c3f846e577ecec94f44b08ff2dd766ebb18177a903d2fb33b96dcb6b
@@ -9179,7 +9276,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.chat-delivery.run-provenance:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: 769fc39f635c2aa7994c18639ce7bf4e3a1d591f52697d82ef9fb97ea88282ee
@@ -9190,7 +9287,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.history.delete-forgets:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: privacy
     fingerprint: 6828706c173b9a9c3bc21e8dc7eefe852c28cdfce4b5bd0c2f4a70a7ba2346ab
@@ -9201,7 +9298,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.budget.limits:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: ec3b1092a0f3a44b690f8bba85947ea8752b4641712f6882dc6bf2b93c541cc2
@@ -9212,7 +9309,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.budget.notifications:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: ee889346aa5cec1a386c49e6cba53c3299b4bf1de650289760b1133256a5186b
@@ -9223,7 +9320,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.access.boundaries:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: privacy
     fingerprint: 959d0258c08e310e1184241634486d42423e77c92a9fa13b7ef83072073d3f35
@@ -9234,7 +9331,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.chat-delivery.key-recovery:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: privacy
     fingerprint: a71231c921241c1cb5148ec932220050d99d62198133add481889b1de637ee40
@@ -9245,7 +9342,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.chat-delivery.sync-projection:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: abb451bf3e79591cae17f9cad7d670a0aaa643d0a6f1f7581ecb52cd12940dc2
@@ -9256,7 +9353,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.history.persisted-recovery:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: privacy
     fingerprint: 832dc9b62189a04e088a37ac717bace44d35fc6087a18c02e2b094af0cbd8adf
@@ -9267,7 +9364,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.control.choice-check:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: b73101f570565efa284a7c8c6321edaa5c17b8f69fcc3b0f8c07e85ab0bd2e5b
@@ -9278,7 +9375,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.control.for-each:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: 865f02543e7e595bc137f33d443734353ed6512b0469d1bb966a3e196a727184
@@ -9289,7 +9386,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.chat.embedded-lifecycle:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: privacy
     fingerprint: 55a3cd784c9a3b3d9d9373f78ac1b7583e9097c424ab3700414afeac6946549a
@@ -9300,7 +9397,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.chat.invocation:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: privacy
     fingerprint: 2b5f8e93a1f83dc1d08c731a987cc79bea77b595b1ca41187823f6aed70fbec4
@@ -9311,7 +9408,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.chat.result-return:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: 5f2ba1ba1cd471c6b1695d37c885f50534c8b44c2fb533e8df2028a535532555
@@ -9321,8 +9418,19 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+  workflows.chat.metadata-warmup:
+    specification: feature.workflows@11
+    specification_id: feature.workflows
+    type: privacy
+    fingerprint: f329ed118828e7fea1c152d0ada41077d5881d71716f8701137cab75759a54e7
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   workflows.chat.relevance-discovery:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: de8ba852f389b9753731f5abe1b438f7e302bfddf3c76d454b56dd93624c2909
@@ -9333,7 +9441,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.portability.remote-project-save:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: d0ba7fed1709c2fccddf3f07de2f8c32a1499f76d19007b978a282c03beffdbb
@@ -9344,7 +9452,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.project.update-recommendation:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: b0faff923dc853986f121f818d8801ae4cf0d25816d599ed24f1e9563f2ddd8c
@@ -9355,7 +9463,7 @@ assertions:
     - sdks.pip
     - gui.web
   workflows.project.update-authoring:
-    specification: feature.workflows@10
+    specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
     fingerprint: 343a85bbbb05ffab54835aabc699cff673e0a61335fa0fe7e1f7db76bd273554

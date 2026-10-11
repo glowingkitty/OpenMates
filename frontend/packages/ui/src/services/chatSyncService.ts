@@ -28,6 +28,7 @@ import type {
   OfflineChange,
   Chat,
   Message,
+  PIIMapping,
   AITaskInitiatedPayload,
   AIMessageUpdatePayload,
   AIBackgroundResponseCompletedPayload,
@@ -137,6 +138,8 @@ interface PendingProjectFileCommit {
 }
 
 export class ChatSynchronizationService extends EventTarget {
+  private lastWorkflowWarmup: { scope: string; at: number } | null = null;
+  private lastQueuedSnapshotChat: string | null = null;
   private isSyncing = false;
   private serverChatOrder: string[] = [];
   private webSocketConnected = false;
@@ -158,6 +161,120 @@ export class ChatSynchronizationService extends EventTarget {
   private activityRequestedIds = new Set<string>();
   private activityFirstObserved = new Map<string, number>();
   private reloadActivityChats: (() => Promise<void>) | undefined;
+
+  public warmWorkflowMetadata(): void {
+    if (!get(authStore).isAuthenticated || get(isLoggingOut) || get(forcedLogoutInProgress)
+        || !webSocketService.isConnected()) return;
+    const teamId = get(activeTeamId);
+    const scope = `${getWorkspaceCacheIdentity()}:${teamId ?? 'personal'}`;
+    const now = Date.now();
+    if (this.lastWorkflowWarmup?.scope === scope && now - this.lastWorkflowWarmup.at < 30_000) return;
+    this.lastWorkflowWarmup = { scope, at: now };
+    void webSocketService.sendMessage('workflow_metadata_warmup', teamId ? { team_id: teamId } : {})
+      .catch(() => { this.lastWorkflowWarmup = null; });
+  }
+
+  public requestQueuedMessages(chatId: string): void {
+    if (!chatId || !get(authStore).isAuthenticated || !webSocketService.isConnected()) return;
+    void (async () => {
+      const { incognitoChatService } = await import("./incognitoChatService");
+      if (await incognitoChatService.getChat(chatId)) return; // Volatile turns have no cross-device snapshot.
+      const chat = await chatDB.getChat(chatId);
+      if (!chat || !webSocketService.isConnected()) return;
+      await webSocketService.sendMessage("get_queued_messages", {
+        chat_id: chatId, ...(chat.team_id ? { team_id: chat.team_id } : {}),
+      });
+    })().catch(() => undefined);
+  }
+
+  /** Submit a CAS revision of an already queued user message. The server ACK is authoritative. */
+  public async reviseQueuedMessage(params: {
+    chatId: string;
+    messageId: string;
+    expectedRevision: number;
+    content?: string;
+    piiMappings?: PIIMapping[];
+    queueMode?: "follow_up" | "steer";
+  }): Promise<void> {
+    if (!get(authStore).isAuthenticated || !webSocketService.isConnected()) {
+      throw new Error("Queued message editing requires a connected authenticated session");
+    }
+    if (!params.chatId || !params.messageId || !Number.isSafeInteger(params.expectedRevision) ||
+        params.expectedRevision < 1 || (params.content === undefined && !params.queueMode)) {
+      throw new Error("Invalid queued message revision");
+    }
+    const { incognitoChatService } = await import("./incognitoChatService");
+    const isIncognito = Boolean((await incognitoChatService.getChat(params.chatId))?.is_incognito);
+    const row = isIncognito
+      ? (await incognitoChatService.getMessagesForChat(params.chatId))
+          .find((message) => message.message_id === params.messageId)
+      : await chatDB.getMessage(params.messageId);
+    if (!row || row.chat_id !== params.chatId || row.role !== "user" ||
+        row.queue_revision !== params.expectedRevision || row.status !== "queued") {
+      throw new Error("Queued message changed; refresh before editing");
+    }
+    const clientRequestId = crypto.randomUUID();
+    const payload: Record<string, unknown> = {
+      chat_id: params.chatId, message_id: params.messageId,
+      expected_revision: params.expectedRevision, client_request_id: clientRequestId,
+      ...(params.queueMode ? { queue_mode: params.queueMode } : {}),
+    };
+    const chat = await chatDB.getChat(params.chatId);
+    if (chat?.team_id) payload.team_id = chat.team_id;
+    if (params.content !== undefined) {
+      if (!params.content.trim()) throw new Error("Queued message cannot be empty");
+      payload.content = params.content;
+      if (!isIncognito) {
+        const chatKey = await chatKeyManager.getKey(params.chatId);
+        const { ensureChatKeySafeForWrite } = await import("./chatKeyWriteGuard");
+        const { encryptWithChatKey } = await import("./encryption/MessageEncryptor");
+        if (!chatKey || !(await ensureChatKeySafeForWrite(params.chatId, chatKey, "queued message revision"))) {
+          throw new Error("Chat key unavailable for queued message revision");
+        }
+        payload.encrypted_content = await encryptWithChatKey(params.content, chatKey);
+        payload.encrypted_pii_mappings = params.piiMappings?.length
+          ? await encryptWithChatKey(JSON.stringify(params.piiMappings), chatKey)
+          : null;
+      }
+    }
+    await new Promise<void>((resolve, reject) => {
+      const matches = (detail: Record<string, unknown>) =>
+        detail.chat_id === params.chatId && detail.message_id === params.messageId;
+      const cleanup = () => {
+        clearTimeout(timeout);
+        this.removeEventListener("queuedMessageUpdated", updated);
+        this.removeEventListener("queuedMessageRevisionRejected", rejected);
+      };
+      const updated = (event: Event) => {
+        const detail = (event as CustomEvent<Record<string, unknown>>).detail;
+        if (!matches(detail) || detail.client_request_id !== clientRequestId ||
+            detail.queue_revision !== params.expectedRevision + 1) return;
+        cleanup(); resolve();
+      };
+      const rejected = (event: Event) => {
+        const detail = (event as CustomEvent<Record<string, unknown>>).detail;
+        if (!matches(detail) || detail.client_request_id !== clientRequestId) return;
+        cleanup(); reject(new Error(String(detail.reason_code ?? "Queued message revision rejected")));
+      };
+      const timeout = setTimeout(() => { cleanup(); reject(new Error("Queued message revision timed out")); }, 20_000);
+      this.addEventListener("queuedMessageUpdated", updated);
+      this.addEventListener("queuedMessageRevisionRejected", rejected);
+      void webSocketService.sendMessage("revise_queued_message", payload)
+        .catch((error) => { cleanup(); reject(error); });
+    });
+    if (isIncognito && params.content !== undefined) {
+      await incognitoChatService.updateMessage(params.chatId, params.messageId, (current) => {
+        if (current.queue_revision !== params.expectedRevision + 1 &&
+            current.queue_dispatch_status !== "processing") return null;
+        return { ...current, content: params.content,
+          pii_mappings: params.piiMappings?.length ? params.piiMappings : undefined };
+      });
+      this.dispatchEvent(new CustomEvent("queuedMessageUpdated", {
+        detail: { chat_id: params.chatId, message_id: params.messageId,
+          queue_revision: params.expectedRevision + 1 },
+      }));
+    }
+  }
 
   public async hydrateSidebarChats(ids: string[]): Promise<void> {
     if (!ids.length || !get(authStore).isAuthenticated) return;
@@ -340,6 +457,11 @@ export class ChatSynchronizationService extends EventTarget {
 
   constructor() {
     super();
+    activeChatStore.subscribe((chatId) => {
+      if (chatId === this.lastQueuedSnapshotChat) return;
+      this.lastQueuedSnapshotChat = chatId;
+      if (chatId) queueMicrotask(() => this.requestQueuedMessages(chatId));
+    });
     this.addEventListener('aiTaskEnded', (event) => {
       const detail = (event as CustomEvent<{ chatId?: string; userMessageId?: string; status?: string }>).detail;
       if (detail?.status === 'completed' || !detail?.chatId || !detail?.userMessageId) return;
@@ -495,6 +617,8 @@ export class ChatSynchronizationService extends EventTarget {
 
         // Dispatch event for components that need to know when WebSocket is ready
         this.dispatchEvent(new CustomEvent("webSocketConnected"));
+        const visibleChatId = activeChatStore.get();
+        if (visibleChatId) this.requestQueuedMessages(visibleChatId);
 
         // STREAM INTERRUPTION RECOVERY: If we had active AI streams when the
         // WebSocket disconnected, the final chunk was likely lost. Clear typing
@@ -634,6 +758,7 @@ export class ChatSynchronizationService extends EventTarget {
         // During logout, always do a full reset so the next login starts fresh.
         const isLoggingOutNow =
           get(forcedLogoutInProgress) || get(isLoggingOut);
+        if (isLoggingOutNow) aiHandlers.clearPendingQueuedRevisionsImpl();
 
         if (this.hasCompletedInitialSync && !isLoggingOutNow) {
           // SHORT DISCONNECT (pong timeout, brief network blip): Sync already completed
@@ -1032,6 +1157,8 @@ export class ChatSynchronizationService extends EventTarget {
   }
 
   private async handleTeamContextChanged(context: TeamContextSnapshot): Promise<void> {
+    aiHandlers.clearPendingQueuedRevisionsImpl();
+    this.lastQueuedSnapshotChat = null;
     void this.refreshChatActivity();
     chatSyncActivity.clear();
     this.clearPhasedSyncTimeout();
@@ -1066,6 +1193,7 @@ export class ChatSynchronizationService extends EventTarget {
       this, payload,
       () => this.isPayloadForActiveContext(payload),
     );
+    await aiHandlers.flushPendingQueuedMessageImpl(this, payload.message_id);
   }
 
   private handleTeamAIProcessing(payload: TeamAIProcessingPayload): void {
@@ -1227,7 +1355,10 @@ export class ChatSynchronizationService extends EventTarget {
     webSocketService.on("phased_sync_complete", (payload) => {
       const typedPayload = payload as PhasedSyncCompletePayload;
       if (!this.isPayloadForActiveContext(typedPayload)) return;
-      void phasedSyncHandlers.handlePhasedSyncCompleteImpl(this, typedPayload);
+      void phasedSyncHandlers.handlePhasedSyncCompleteImpl(this, typedPayload).then(() => {
+        const chatId = activeChatStore.get();
+        if (chatId) this.requestQueuedMessages(chatId);
+      });
     });
     webSocketService.on("sync_status_response", (payload) => {
       if (get(activeTeamId)) return;
@@ -1264,18 +1395,22 @@ export class ChatSynchronizationService extends EventTarget {
         payload as { chat_id: string; draft_v?: number },
       ),
     );
-    webSocketService.on("new_chat_message", (payload) =>
-      chatUpdateHandlers.handleNewChatMessageImpl(
+    webSocketService.on("new_chat_message", async (payload) => {
+      await chatUpdateHandlers.handleNewChatMessageImpl(
         this,
         payload as Parameters<typeof chatUpdateHandlers.handleNewChatMessageImpl>[1],
-      ),
-    ); // Handler for new chat messages from other devices
-    webSocketService.on("chat_message_added", (payload) =>
-      chatUpdateHandlers.handleChatMessageReceivedImpl(
+      );
+      const messageId = (payload as { message_id?: string }).message_id;
+      if (messageId) await aiHandlers.flushPendingQueuedMessageImpl(this, messageId);
+    }); // Handler for new chat messages from other devices
+    webSocketService.on("chat_message_added", async (payload) => {
+      await chatUpdateHandlers.handleChatMessageReceivedImpl(
         this,
         payload as ChatMessageReceivedPayload,
-      ),
-    );
+      );
+      const messageId = (payload as ChatMessageReceivedPayload).message?.message_id;
+      if (messageId) await aiHandlers.flushPendingQueuedMessageImpl(this, messageId);
+    });
     webSocketService.on("chat_message_confirmed", (payload) =>
       chatUpdateHandlers.handleChatMessageConfirmedImpl(
         this,
@@ -2104,13 +2239,38 @@ export class ChatSynchronizationService extends EventTarget {
     webSocketService.on("message_queued", (payload) =>
       aiHandlers.handleMessageQueuedImpl(
         this,
-        payload as {
-          chat_id: string;
-          user_message_id: string;
-          active_task_id: string;
-          message: string;
-        },
+        payload as aiHandlers.QueuedMessageEvent,
       ),
+    );
+    webSocketService.on("queued_message_status", (payload) => {
+      const detail = payload as aiHandlers.QueuedMessageEvent;
+      return aiHandlers.handleQueuedMessageUpdatedImpl(this, {
+        chat_id: detail.chat_id, message_id: detail.user_message_id,
+        queue_mode: detail.queue_mode, queue_revision: detail.queue_revision,
+      });
+    });
+    webSocketService.on("queued_handoff_paused", (payload) =>
+      aiHandlers.handleQueuedHandoffPausedImpl(this, payload as aiHandlers.QueuedHandoffPausedEvent),
+    );
+    webSocketService.on("queued_message_updated", (payload) =>
+      aiHandlers.handleQueuedMessageUpdatedImpl(this, payload as aiHandlers.QueuedMessageUpdatedEvent),
+    );
+    webSocketService.on("queued_message_revision_rejected", (payload) => {
+      this.dispatchEvent(new CustomEvent("queuedMessageRevisionRejected", { detail: payload }));
+    });
+    webSocketService.on("queued_message_started", (payload) =>
+      aiHandlers.handleQueuedMessageStartedImpl(this, payload as Parameters<typeof aiHandlers.handleQueuedMessageStartedImpl>[1]),
+    );
+    webSocketService.on("queued_message_steered", (payload) =>
+      aiHandlers.handleQueuedMessageStartedImpl(this, payload as Parameters<typeof aiHandlers.handleQueuedMessageStartedImpl>[1]),
+    );
+    webSocketService.on("queued_message_steer_deferred", async (payload) => {
+      const detail = payload as aiHandlers.QueuedMessageUpdatedEvent & { reason_code?: string };
+      await aiHandlers.handleQueuedMessageUpdatedImpl(this, detail);
+      this.dispatchEvent(new CustomEvent("queuedMessageSteerDeferred", { detail }));
+    });
+    webSocketService.on("queued_messages_snapshot", (payload) =>
+      aiHandlers.handleQueuedMessagesSnapshotImpl(this, payload as Parameters<typeof aiHandlers.handleQueuedMessagesSnapshotImpl>[1]),
     );
 
     // Register skill preview service handlers (async import to avoid circular dependencies)

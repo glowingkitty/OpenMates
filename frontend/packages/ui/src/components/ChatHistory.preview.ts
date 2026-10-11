@@ -23,6 +23,14 @@ function request(messageId: string, entryCount: number) {
 }
 const unknown = request(requestId, 0);
 const known = request("preview-web-request", 1);
+// Saved/legacy assistant records can omit the live turn's user_message_id.
+// Their rendering must not dereference absent processing feedback.
+const savedAssistant = { message_id: "preview-saved-assistant", chat_id: chatId,
+  role: "assistant", content: "Here is the saved photography reply.", created_at: timestamp + 1,
+  status: "synced", model_name: "gemini-3.8-flash", category: "general_knowledge" };
+const queuedUser = { message_id: "preview-queued-user", chat_id: chatId,
+  role: "user", content: "Please shorten that reply.", created_at: timestamp + 2,
+  status: "queued", queue_mode: "steer", queue_revision: 3 };
 const props = { currentChatId: chatId, chatTitle: "Writing preferences", chatCategory: "general_knowledge", canAnnotate: false, isExampleChat: true, sourceMessages: [user, unknown, known] };
 export default props;
 export const variants = {
@@ -34,4 +42,5 @@ export const variants = {
   draftOnly: { ...props, isDraftOnly: true, chatTitle: '{"type":"image","embed_id":"fictional-image"}', sourceMessages: [] },
   titlePending: { ...props, chatTitle: '', provisionalChatTitle: user.content, isNewChatGeneratingTitle: true, sourceMessages: [user] },
   titleReady: { ...props, chatTitle: 'Photography reply', provisionalChatTitle: user.content, isNewChatGeneratingTitle: false, sourceMessages: [user] },
+  savedAssistant: { ...props, pendingAssistantResponse: null, sourceMessages: [user, savedAssistant, queuedUser] },
 };

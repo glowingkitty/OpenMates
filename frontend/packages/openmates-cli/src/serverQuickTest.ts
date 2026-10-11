@@ -26,7 +26,7 @@ export interface QuickServerTestClient {
     autoApproveMemories?: boolean;
     responseTimeoutMs?: number;
   }): Promise<{
-    status: "completed" | "waiting_for_user";
+    status: "completed" | "waiting_for_user" | "queued";
     chatId: string;
     messageId: string | null;
     assistant: string;

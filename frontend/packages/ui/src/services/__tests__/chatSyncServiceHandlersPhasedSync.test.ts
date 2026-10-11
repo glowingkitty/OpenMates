@@ -89,7 +89,10 @@ import {
   handlePhase2RecentChatsImpl,
   handleSyncMetadataChatsResponseImpl,
   handleSyncStatusResponseImpl,
+  prepareMessagesForStorage,
 } from "../chatSyncServiceHandlersPhasedSync";
+import { clearQueuedProcessing, hasQueuedProcessing, recordQueuedProcessing } from "../queuedMessageLifecycle";
+import { shouldUpdateMessage } from "../db/messageOperations";
 import { phasedSyncState } from "../../stores/phasedSyncStateStore";
 import { activeTeamContext } from "../../stores/teamStore";
 
@@ -134,6 +137,7 @@ function createService(overrides: Partial<ServiceStub> = {}): ServiceStub {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  clearQueuedProcessing();
   activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
   mocks.userDB.getUserProfile.mockResolvedValue({ user_id: "user-1" });
   mocks.pendingChatDeletions.getPendingChatDeletionsSet.mockReturnValue(new Set());
@@ -141,6 +145,39 @@ beforeEach(() => {
   mocks.chatDB.batchSaveMetadataChats.mockResolvedValue(0);
   mocks.chatDB.deleteChatIfNoPendingTurn.mockResolvedValue({ deleted: true, deletedEmbedIds: [] });
   mocks.chatDB.deleteChat.mockResolvedValue({ deletedEmbedIds: [] });
+});
+
+describe("durable queued message sync", () => {
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+  it("restores pending mode and honors an earlier started socket fence", () => {
+    const serverRow = {
+      message_id: "message-1", chat_id: "chat-1", role: "user" as const,
+      created_at: 1, status: "delivered" as const, encrypted_content: "ciphertext",
+      queue_revision: 1, queue_dispatch_status: "queued" as const,
+      queue_dispatch_mode: "steer" as const,
+    };
+    expect(prepareMessagesForStorage([{ ...serverRow }], "chat-1", "Phase 2")[0]).toMatchObject({
+      status: "queued", queue_mode: "steer", queue_revision: 1,
+    });
+    recordQueuedProcessing("chat-1", "message-1");
+    expect(prepareMessagesForStorage([{ ...serverRow }], "chat-1", "Phase 2")[0]).toMatchObject({
+      status: "delivered", queue_dispatch_status: "processing", queue_mode: undefined,
+    });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.steering.safe-boundary,chat-queued-followups.admission.synced
+  it("accepts a durable paused receipt after a consumed Steer and clears its fence", () => {
+    const processing = { message_id: "message-1", chat_id: "chat-1", role: "user" as const,
+      created_at: 1, status: "synced" as const, encrypted_content: "ciphertext",
+      queue_revision: 2, queue_dispatch_status: "processing" as const };
+    recordQueuedProcessing("chat-1", "message-1");
+    const paused = prepareMessagesForStorage([{ ...processing,
+      queue_dispatch_status: "paused" as const }], "chat-1", "Phase 2")[0];
+    expect(paused.queue_dispatch_status).toBe("paused");
+    expect(paused.queue_mode).toBeUndefined();
+    expect(hasQueuedProcessing("chat-1", "message-1")).toBe(false);
+    expect(shouldUpdateMessage(processing, paused)).toBe(true);
+  });
 });
 
 describe("handleSyncStatusResponseImpl", () => {

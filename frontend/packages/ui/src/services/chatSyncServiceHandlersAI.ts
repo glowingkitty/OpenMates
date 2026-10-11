@@ -3,6 +3,8 @@ import type { ChatSynchronizationService } from "./chatSyncService";
 import type { ChatCompressionCheckpoint, PreprocessorStepResult } from "../types/chat";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { chatDB } from "./db"; // Import chatDB
+import { incognitoChatService } from "./incognitoChatService";
+import { clearQueuedProcessing, clearQueuedProcessingForMessage, hasQueuedProcessing, recordQueuedProcessing } from "./queuedMessageLifecycle";
 import { storeEmbed, markEmbedAsError } from "./embedResolver"; // Import storeEmbed and markEmbedAsError
 import { chatMetadataCache } from "./chatMetadataCache"; // Import for cache invalidation after post-processing
 import { chatListCache } from "./chatListCache"; // Import for cache invalidation when metadata arrives
@@ -2103,24 +2105,261 @@ export async function handleAITaskCancelRequestedImpl(
  *
  * The message should be displayed in MessageInput.svelte, not as a notification.
  */
-export function handleMessageQueuedImpl(
+export interface QueuedMessageEvent {
+  chat_id: string;
+  user_message_id: string;
+  active_task_id?: string | null;
+  queue_mode: "follow_up" | "steer";
+  queue_revision: number;
+  message?: string;
+}
+
+export interface QueuedMessageUpdatedEvent {
+  chat_id: string;
+  message_id: string;
+  queue_mode: "follow_up" | "steer";
+  queue_revision: number;
+  encrypted_content?: string;
+  encrypted_pii_mappings?: string | null;
+  messages_v?: number;
+  client_request_id?: string;
+}
+
+const pendingQueuedRevisions = new Map<string, { payload: QueuedMessageUpdatedEvent; at: number }>();
+const pendingPausedHandoffs = new Map<string, { payload: QueuedHandoffPausedEvent; at: number }>();
+
+export interface QueuedHandoffPausedEvent {
+  chat_id: string;
+  message_id?: string;
+  reason_code?: string;
+  retryable?: boolean;
+}
+
+export function clearPendingQueuedRevisionsImpl(): void {
+  pendingQueuedRevisions.clear();
+  pendingPausedHandoffs.clear();
+  clearQueuedProcessing();
+}
+
+async function applyQueuedEvent(
   serviceInstance: ChatSynchronizationService,
-  payload: {
-    chat_id: string;
-    user_message_id: string;
-    active_task_id: string;
-    message: string;
-  },
-): void {
+  payload: QueuedMessageUpdatedEvent,
+): Promise<void> {
+  if (!payload.chat_id || !payload.message_id ||
+      !["follow_up", "steer"].includes(payload.queue_mode) ||
+      !Number.isSafeInteger(payload.queue_revision) || payload.queue_revision < 1) return;
+  if (hasQueuedProcessing(payload.chat_id, payload.message_id)) return;
+  pendingPausedHandoffs.delete(payload.message_id);
+  if ((await incognitoChatService.getChat(payload.chat_id))?.is_incognito) {
+    const changed = await incognitoChatService.updateMessage(payload.chat_id, payload.message_id, (row) => {
+      if (row.role !== "user" || row.queue_dispatch_status === "processing" ||
+          row.queue_dispatch_status === "paused") return null;
+      const previous = row.queue_revision ?? 0;
+      if (payload.queue_revision > previous + 1 || previous > payload.queue_revision) return null;
+      if (previous === payload.queue_revision && row.status === "queued" && row.queue_mode === payload.queue_mode) return null;
+      return { ...row, status: "queued", queue_revision: payload.queue_revision,
+        queue_mode: payload.queue_mode, queue_dispatch_status: "queued",
+        queue_dispatch_mode: payload.queue_mode };
+    });
+    if (changed) serviceInstance.dispatchEvent(new CustomEvent("messageStatusChanged", {
+      detail: { chatId: payload.chat_id, messageId: payload.message_id, status: "queued" },
+    }));
+    return;
+  }
+  const current = await chatDB.getMessage(payload.message_id).catch(() => null);
+  if (current && current.chat_id === payload.chat_id &&
+      payload.queue_revision > (current.queue_revision ?? 0) + 1 &&
+      !payload.encrypted_content) {
+    // A mode-only event cannot prove what a missed content edit contained.
+    await serviceInstance.requestChatContentBatch_FOR_HANDLERS_ONLY([payload.chat_id]);
+    return;
+  }
+  const changed = await chatDB.applyQueuedMessageRevision(
+    payload.chat_id, payload.message_id, payload.queue_revision,
+    payload.queue_mode, payload.encrypted_content, payload.encrypted_pii_mappings,
+  );
+  if (!changed) {
+    // A cross-device broadcast can arrive before its encrypted row is stored.
+    if (!await chatDB.getMessage(payload.message_id).catch(() => null)) {
+      for (const [id, item] of pendingQueuedRevisions) {
+        if (Date.now() - item.at > 300_000) pendingQueuedRevisions.delete(id);
+      }
+      if (pendingQueuedRevisions.size >= 100) pendingQueuedRevisions.delete(pendingQueuedRevisions.keys().next().value!);
+      pendingQueuedRevisions.set(payload.message_id, { payload, at: Date.now() });
+    }
+    return;
+  }
+  if (Number.isSafeInteger(payload.messages_v) && (payload.messages_v ?? 0) > 0) {
+    const chat = await chatDB.getChat(payload.chat_id);
+    if (chat && (chat.messages_v ?? 0) < payload.messages_v!) {
+      chat.messages_v = payload.messages_v!;
+      await chatDB.updateChat(chat);
+    }
+  }
+  chatListCache.invalidateLastMessage(payload.chat_id);
+  serviceInstance.dispatchEvent(new CustomEvent("messageStatusChanged", {
+    detail: { chatId: payload.chat_id, messageId: payload.message_id, status: "queued" },
+  }));
+}
+
+export async function flushPendingQueuedMessageImpl(
+  serviceInstance: ChatSynchronizationService,
+  messageId: string,
+): Promise<void> {
+  const pending = pendingQueuedRevisions.get(messageId);
+  if (pending) {
+    pendingQueuedRevisions.delete(messageId);
+    if (Date.now() - pending.at <= 300_000) await applyQueuedEvent(serviceInstance, pending.payload);
+  }
+  const paused = pendingPausedHandoffs.get(messageId);
+  if (paused) {
+    pendingPausedHandoffs.delete(messageId);
+    if (Date.now() - paused.at <= 300_000) await handleQueuedHandoffPausedImpl(serviceInstance, paused.payload);
+  }
+}
+
+export async function handleQueuedHandoffPausedImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: QueuedHandoffPausedEvent,
+): Promise<void> {
+  if (!payload.chat_id) return;
+  if (payload.message_id) {
+    // The exact failed turn's paused receipt overrides its prior started fence.
+    clearQueuedProcessingForMessage(payload.chat_id, payload.message_id);
+    pendingQueuedRevisions.delete(payload.message_id);
+  }
+  if ((await incognitoChatService.getChat(payload.chat_id))?.is_incognito) {
+    if (payload.message_id) {
+      const changed = await incognitoChatService.updateMessage(payload.chat_id, payload.message_id, (row) => {
+        if (row.role !== "user") return null;
+        return { ...row, status: "synced", queue_revision: undefined, queue_mode: undefined,
+          queue_dispatch_status: "paused", queue_dispatch_mode: undefined };
+      });
+      if (changed) serviceInstance.dispatchEvent(new CustomEvent("messageStatusChanged", {
+        detail: { chatId: payload.chat_id, messageId: payload.message_id, status: "synced" },
+      }));
+    }
+    serviceInstance.dispatchEvent(new CustomEvent("queuedHandoffPaused", { detail: payload }));
+    return;
+  }
+  if (payload.message_id) {
+    const row = await chatDB.getMessage(payload.message_id).catch(() => null);
+    if (row?.chat_id === payload.chat_id && row.role === "user") {
+      await chatDB.updateMessageRawFields(payload.message_id, {
+        status: "synced", queue_revision: undefined, queue_mode: undefined,
+        queue_dispatch_status: "paused", queue_dispatch_mode: undefined,
+      });
+      serviceInstance.dispatchEvent(new CustomEvent("messageStatusChanged", {
+        detail: { chatId: payload.chat_id, messageId: payload.message_id, status: "synced" },
+      }));
+    } else if (!row) {
+      if (pendingPausedHandoffs.size >= 100) pendingPausedHandoffs.delete(pendingPausedHandoffs.keys().next().value!);
+      pendingPausedHandoffs.set(payload.message_id, { payload, at: Date.now() });
+    }
+  }
+  serviceInstance.dispatchEvent(new CustomEvent("queuedHandoffPaused", { detail: payload }));
+}
+
+export async function handleMessageQueuedImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: QueuedMessageEvent,
+): Promise<void> {
+  if (hasQueuedProcessing(payload.chat_id, payload.user_message_id)) return;
+  const incognito = Boolean((await incognitoChatService.getChat(payload.chat_id))?.is_incognito);
+  const current = incognito
+    ? (await incognitoChatService.getMessagesForChat(payload.chat_id))
+        .find((row) => row.message_id === payload.user_message_id)
+    : await chatDB.getMessage(payload.user_message_id).catch(() => null);
+  if (current?.queue_dispatch_status === "paused") return;
   console.info(
     `[ChatSyncService:AI] Message ${payload.user_message_id} queued for chat ${payload.chat_id}. Active task: ${payload.active_task_id}`,
   );
 
-  // Dispatch event for MessageInput component to handle the UI display
-  // Don't show notification - MessageInput will display the message instead
+  await applyQueuedEvent(serviceInstance, {
+    chat_id: payload.chat_id, message_id: payload.user_message_id,
+    queue_mode: payload.queue_mode, queue_revision: payload.queue_revision,
+  });
   serviceInstance.dispatchEvent(
     new CustomEvent("messageQueued", { detail: payload }),
   );
+}
+
+export async function handleQueuedMessageUpdatedImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: QueuedMessageUpdatedEvent,
+): Promise<void> {
+  await applyQueuedEvent(serviceInstance, payload);
+  serviceInstance.dispatchEvent(new CustomEvent("queuedMessageUpdated", { detail: payload }));
+}
+
+export async function handleQueuedMessageStartedImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: { chat_id: string; message_id?: string; user_message_id?: string; message_ids?: string[] },
+): Promise<void> {
+  if (!payload.chat_id) return;
+  const ids = payload.message_ids?.length
+    ? payload.message_ids : [payload.message_id ?? payload.user_message_id].filter((id): id is string => Boolean(id));
+  const isIncognito = Boolean((await incognitoChatService.getChat(payload.chat_id))?.is_incognito);
+  for (const messageId of ids) {
+    pendingQueuedRevisions.delete(messageId);
+    recordQueuedProcessing(payload.chat_id, messageId);
+    if (isIncognito) {
+      const changed = await incognitoChatService.updateMessage(payload.chat_id, messageId, (row) => {
+        if (row.role !== "user" || row.queue_dispatch_status === "paused") return null;
+        return { ...row, status: "synced", queue_revision: undefined, queue_mode: undefined,
+          queue_dispatch_status: "processing", queue_dispatch_mode: undefined };
+      });
+      if (!changed) {
+        const existing = (await incognitoChatService.getMessagesForChat(payload.chat_id))
+          .find((row) => row.message_id === messageId);
+        if (existing?.queue_dispatch_status === "paused") clearQueuedProcessingForMessage(payload.chat_id, messageId);
+      }
+      if (changed) {
+        serviceInstance.dispatchEvent(new CustomEvent("messageStatusChanged", {
+          detail: { chatId: payload.chat_id, messageId, status: "synced" },
+        }));
+        serviceInstance.dispatchEvent(new CustomEvent("queuedMessageStarted", {
+          detail: { chat_id: payload.chat_id, message_id: messageId },
+        }));
+      }
+      continue;
+    }
+    const row = await chatDB.getMessage(messageId);
+    if (row?.queue_dispatch_status === "paused") {
+      clearQueuedProcessingForMessage(payload.chat_id, messageId);
+      continue;
+    }
+    if (!row || row.chat_id !== payload.chat_id || row.role !== "user") continue;
+    await chatDB.updateMessageRawFields(messageId, {
+      status: "synced", queue_revision: undefined, queue_mode: undefined,
+      queue_dispatch_status: "processing",
+    });
+    serviceInstance.dispatchEvent(new CustomEvent("messageStatusChanged", {
+      detail: { chatId: payload.chat_id, messageId, status: "synced" },
+    }));
+    serviceInstance.dispatchEvent(new CustomEvent("queuedMessageStarted", {
+      detail: { chat_id: payload.chat_id, message_id: messageId },
+    }));
+  }
+}
+
+export async function handleQueuedMessagesSnapshotImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: { chat_id: string; messages: Array<Omit<QueuedMessageUpdatedEvent, "chat_id">>; uncertain?: boolean },
+): Promise<void> {
+  if (!payload.chat_id || !Array.isArray(payload.messages) || payload.messages.length > 100) return;
+  if ((await incognitoChatService.getChat(payload.chat_id))?.is_incognito) return;
+  if (payload.uncertain) {
+    await serviceInstance.requestChatContentBatch_FOR_HANDLERS_ONLY([payload.chat_id]);
+    return;
+  }
+  for (const item of payload.messages) {
+    if (!item) continue;
+    if (!item.message_id) continue;
+    await applyQueuedEvent(serviceInstance, { ...item, chat_id: payload.chat_id });
+  }
+  // A missing Redis entry does not prove task handoff. Directus processing receipts
+  // or queued_message_started/steered clear pending rows, including after Redis loss.
 }
 
 /**

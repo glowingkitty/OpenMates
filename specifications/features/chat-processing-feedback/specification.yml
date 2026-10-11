@@ -1,116 +1,161 @@
 schema_version: 1
 id: feature.chat-processing-feedback
-version: 1
+version: 3
 status: draft
 title: Chat Processing Feedback
-summary: >
-  Web chats show immediate, truthful processing feedback above the composer,
-  reveal the selected mate's identity when known, and preserve the intentional
-  transcript fade without obscuring the rainbow processing border.
-
+summary: Web chats show current-turn processing inside one assistant response container, with truthful Mate and
+  model identity, an internal bottom glow and expandable completed processing groups at their source positions.
 scope:
   includes:
-    - Processing feedback in new and existing web chats using existing accepted-send and typing events.
-    - Text-only mate and model selection status followed by selected-mate identity and typing or thinking status.
-    - Mate Details navigation from the indicator's mate name.
-    - Processing-state cleanup, responsive presentation, and unobscured rainbow side borders.
+  - Web response processing from accepted send through tool cycles and completion.
+  - First-stage Mate/model feedback before detailed second-stage selection.
+  - Chronological processing groups, completed summaries and accessible disclosure.
+  - Current-turn metadata, responsive layout and reduced-motion presentation.
   excludes:
-    - Changes to backend events, preprocessing, model routing, inference, billing, or message persistence.
-    - Replacing existing approval gates, compression feedback, or error messages.
-    - Removing the intentional transcript fade or redesigning the composer.
-    - CLI, SDK, REST API, and native Apple presentation changes in this web-only increment.
-
+  - New inference, billing, hidden reasoning disclosure or invented processing durations.
+  - Replacing approval gates, compression feedback or existing errors.
+  - Native Apple, CLI or SDK presentation changes in this web increment.
 models:
   ProcessingFeedback:
     identity:
       type: active_chat_turn
       required: true
-      constraints: {stale_turn_events_ignored: true, other_chat_events_not_displayed: true}
+      constraints:
+        stale_turn_events_ignored: true
+        other_chat_events_not_displayed: true
     phase:
       type: enum
-      values: [selecting, typing, thinking, inactive]
+      values:
+      - thinking
+      - researching
+      - working
+      - writing
+      - inactive
       required: true
     mate:
       type: existing_mate_identity
       nullable: true
-      constraints: {from_current_turn_metadata_only: true, previous_mate_not_used_as_placeholder: true}
-    model_and_provider:
+      constraints:
+        from_current_turn_metadata_only: true
+        previous_mate_not_used_as_placeholder: true
+    model_and_region:
       type: existing_display_metadata
       nullable: true
-      constraints: {unknown_values_not_invented: true}
-
+      constraints:
+        unknown_values_not_invented: true
+        region_flag_requires_known_region: true
+    response_container:
+      type: transient_assistant_presentation
+      required: true
+      constraints:
+        one_per_active_turn: true
+        empty_durable_assistant_row_forbidden: true
+    completed_group:
+      type: expandable_processing_summary
+      required: false
+      constraints:
+        source_position_retained: true
+        user_visible_thinking_only: true
+        measured_duration_only: true
+        aggregate_thinking_explicitly_response_scoped: true
 assertions:
-  - id: chat-processing-feedback.selection-after-acceptance
-    type: behavior
-    must: >
-      On the existing server acknowledgement that starts processing for the active
-      turn, the status area above the composer immediately displays the localized
-      text "Selecting mate & AI model..." without waiting for preprocessing to
-      finish or for a cosmetic timer. This selection stage is text-only, with no
-      mate portrait, AI badge, mate name, or guessed model. It is not shown merely
-      because the send button was clicked, and an already-known later phase is
-      never regressed by a delayed acknowledgement. There is no duplicate centered
-      copy of the same selection status.
-    depends_on: [models.ProcessingFeedback, examples.selection]
-  - id: chat-processing-feedback.selected-mate-identity
-    type: behavior
-    must: >
-      When the active turn's selected mate and typing metadata arrive, the same
-      status area replaces selection text with the existing typing or thinking
-      wording and a scaled-down circular mate portrait with the AI icon badge at
-      its bottom-right. The mate name opens that mate's existing Mate Details
-      destination without cancelling or resending the turn. Known model and
-      provider information remains available; unknown mate identity never produces
-      a stale portrait or a broken navigation target. This transient identity does
-      not create an empty assistant message, transcript avatar, or message bubble.
-    depends_on: [models.ProcessingFeedback, examples.identity]
-  - id: chat-processing-feedback.turn-lifecycle
-    type: invariant
-    must: >
-      Completion, failure, cancellation, or a waiting-for-user gate clears the
-      active processing indicator rather than leaving a selection or typing state
-      behind; existing errors and user gates remain visible. Switching chats or
-      starting another turn never leaks the previous turn's identity or status,
-      and delayed events from a finished or different turn cannot revive it.
-    depends_on: [models.ProcessingFeedback.identity, examples.lifecycle]
-  - id: chat-processing-feedback.fade-preserves-border
-    type: behavior
-    must: >
-      The intentional transcript-edge fade remains, while an active rainbow
-      processing border stays visibly continuous along both sides, including
-      where the fade meets the composer area. Fade and border layers do not block
-      scrolling, clicking, or composer controls. Reduced-motion preferences retain
-      the visible border without requiring its animation.
-    depends_on: [examples.border]
-  - id: chat-processing-feedback.accessible-responsive
-    type: behavior
-    must: >
-      The indicator fits phone and laptop chat widths without covering the composer
-      or clipping its portrait, badge, or status. The mate-name action supports
-      keyboard focus and activation with a meaningful accessible name. Status text
-      is localized, portrait and badge do not duplicate spoken status, and status
-      updates do not steal focus from the composer.
-    depends_on: [examples.responsive]
-
+- id: chat-processing-feedback.selection-after-acceptance
+  type: behavior
+  must: Once the server accepts processing for the active turn, the web response container immediately shows localized
+    “Thinking…” with the visible AI icon without waiting for detailed preprocessing. It is not created merely by a local Send click and does
+    not persist an empty assistant row. Unknown Mate, model and region remain unknown. A delayed acknowledgement
+    cannot regress a later phase. There is no separate selecting or Mate-is-typing indicator above the composer.
+  depends_on:
+  - models.ProcessingFeedback
+  - examples.selection
+- id: chat-processing-feedback.skill-activity-label
+  type: behavior
+  must: While app skills execute, the response label deterministically changes to “Researching…” for lookup,
+    retrieval and search skills, or “Working…” for action skills that create, change, send or execute something.
+    Classification uses the called app skill identity rather than generated prose. Unknown skills default to
+    researching; a group containing an action skill shows working. Active authored-answer streaming shows “Working…”.
+    The visible AI icon stays beside the label.
+  depends_on:
+  - models.ProcessingFeedback.phase
+  - examples.skill_activity
+- id: chat-processing-feedback.selected-mate-identity
+  type: behavior
+  must: First-stage model resolution emits the actual permitted model and selected Mate before detailed second-stage
+    selection. The same response container gains that Mate’s portrait and name when known; the name retains Mate
+    Details navigation. The current model name and known region flag appear together beneath the container. Later
+    content replaces the pending state in the same response slot, without a duplicate response or a stale identity.
+    Processing status text is centered; after completion the localized “Generated by…” model attribution aligns left.
+  depends_on:
+  - models.ProcessingFeedback
+  - examples.identity
+- id: chat-processing-feedback.turn-lifecycle
+  type: invariant
+  must: Completion, failure, cancellation or a waiting-for-user gate ends the active glow and processing label.
+    Existing content, errors and gates remain visible; an empty transient failed placeholder is removed. Switching
+    chats cannot leak another turn’s identity, and delayed events cannot revive a finished turn.
+  depends_on:
+  - models.ProcessingFeedback.identity
+  - examples.lifecycle
+- id: chat-processing-feedback.response-container-glow
+  type: behavior
+  must: Active processing uses a rainbow glow animated from left to right at the bottom inside the assistant response container. The
+    left bubble extension and the response container form one continuous filled shape without a visible gap or
+    detached segment. The external rainbow chat flow is removed. The glow does not obscure content or intercept scrolling, clicks or composer
+    controls. Reduced-motion preferences show a static visible glow.
+  depends_on:
+  - examples.glow
+- id: chat-processing-feedback.accessible-responsive
+  type: behavior
+  must: The container, glow, model/region line and disclosures fit phone and laptop widths without clipping or covering
+    the composer. Mate navigation and group disclosures support keyboard activation and meaningful accessible labels;
+    disclosure state is announced. Status text is localized and updates do not steal composer focus.
+  depends_on:
+  - examples.responsive
+- id: chat-processing-feedback.completed-processing-summary
+  type: behavior
+  must: Each completed adjacent processing group collapses at its source position into a summary of available thinking
+    and the apps used. Summary app icons are circular and partially overlap in source order; include the AI app icon
+    when actual user-visible thinking is available, rather than merely because a model supports thinking. Its right-side disclosure reveals skill cards and any available user-visible thinking without
+    hiding authored answer text or moving later groups. When thinking is only available as a response-wide aggregate,
+    disclose it once with explicit response-wide wording rather than inventing per-cycle attribution; a thinking-only
+    response uses the same summary style. Show a duration only when measured data exists; never reveal hidden model
+    reasoning or invent duration. An unfinished group remains visibly processing.
+  depends_on:
+  - models.ProcessingFeedback.completed_group
+  - examples.summary
 applies_to:
-  rest_api: {required: false, role: Existing server events are consumed unchanged.}
-  cli: {required: false, role: No terminal presentation changes.}
+  rest_api:
+    required: false
+    role: Existing server events are consumed unchanged.
+  cli:
+    required: false
+    role: No terminal presentation changes.
   sdks:
     required: false
     implementations:
-      npm: {required: false}
-      pip: {required: false}
+      npm:
+        required: false
+      pip:
+        required: false
   gui:
     required: true
     implementations:
-      web: {required: true}
-      apple: {required: false}
+      web:
+        required: true
+      apple:
+        required: false
     exceptions:
-      - id: native-presentation-deferred
-        implementation: apple
-        reason: This increment changes only the web indicator and border layering.
-        equivalent_outcome: Existing native processing feedback remains unchanged pending a separate parity increment.
-
+    - id: native-presentation-deferred
+      implementation: apple
+      reason: The user explicitly requested this response redesign for the web app.
+      equivalent_outcome: Native clients retain existing processing feedback and consume shared early routing metadata.
 examples:
   file: examples.yml
-  required_groups: [selection, identity, lifecycle, border, responsive]
+  required_groups:
+  - selection
+  - identity
+  - lifecycle
+  - glow
+  - skill_activity
+  - summary
+  - responsive

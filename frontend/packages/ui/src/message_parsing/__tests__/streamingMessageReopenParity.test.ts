@@ -55,8 +55,8 @@ describe("assistant live/reopen parity", () => {
       normalizeAssistantRenderPlan(reopened),
     );
     expect(normalizeAssistantRenderPlan(reopened).appSkillIds).toEqual([
-      "skill-new",
       "skill-old",
+      "skill-new",
     ]);
   });
 });

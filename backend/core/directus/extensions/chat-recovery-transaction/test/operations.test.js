@@ -21,9 +21,18 @@ const COMMITMENT = 'b'.repeat(64);
 const SEALED_PAYLOAD = JSON.stringify({ v: 1, epk: b64(32, 1), nonce: b64(12, 2), ciphertext: b64(17, 3) });
 const SEALED_OUTPUT = JSON.stringify({ v: 2, epk: b64(32, 1), nonce: b64(12, 2), ciphertext: b64(17, 3) });
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
+const clientCiphertext = (fill) => Buffer.alloc(32, fill).toString('base64');
 
 function fakeDatabase(seed, injectedFailure = null) {
   const rows = structuredClone(seed);
+  const storedValue = (table, field, value) => {
+    if (table === 'messages' && field === 'queue_aborted_stage_tokens' && value != null) {
+      // node-postgres sends a bare JS array as a PostgreSQL array literal. A JSON
+      // column accepts the empty literal '{}' as an object; nonempty literals fail.
+      return JSON.parse(Array.isArray(value) ? `{${value.join(',')}}` : value);
+    }
+    return structuredClone(value);
+  };
   let transactions = 0;
   let transactionTail = Promise.resolve();
   const shareLocks = [];
@@ -100,7 +109,8 @@ function fakeDatabase(seed, injectedFailure = null) {
           maybeFail('insert', table);
           store[table] ??= [];
           for (const row of Array.isArray(value) ? value : [value]) {
-            const stored = structuredClone(row);
+            const stored = Object.fromEntries(Object.entries(row)
+              .map(([field, value]) => [field, storedValue(table, field, value)]));
             if (table === 'chat_recovery_protocol_state') {
               for (const field of ['active_legacy_tasks', 'legacy_task_lifecycle']) {
                 if (typeof stored[field] === 'string') stored[field] = JSON.parse(stored[field]);
@@ -120,7 +130,8 @@ function fakeDatabase(seed, injectedFailure = null) {
                 && typeof value === 'string') {
                 row[field] = JSON.parse(value);
               } else {
-                row[field] = value?.rawExpression === `${field} + 1` ? row[field] + 1 : structuredClone(value);
+                row[field] = value?.rawExpression === `${field} + 1`
+                  ? row[field] + 1 : storedValue(table, field, value);
               }
             }
           }
@@ -159,6 +170,436 @@ function fakeDatabase(seed, injectedFailure = null) {
 const userMessage = (id = 'user-message-1') => ({
   client_message_id: id, chat_id: CHAT_ID, hashed_user_id: OWNER, encrypted_content: 'encrypted-user',
   role: 'user', created_at: 100, updated_at: 100,
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.editing.stable-revision,chat-queued-followups.admission.synced
+test('queued edit keeps one owner-scoped durable row and can compensate a lost queue CAS', async () => {
+  const original = clientCiphertext(1);
+  const revised = clientCiphertext(2);
+  const database = fakeDatabase({
+    chats: [{ id: CHAT_ID, hashed_user_id: OWNER, messages_v: 4 }],
+    messages: [{ id: TASK_ID, client_message_id: 'queued-1', chat_id: CHAT_ID,
+      hashed_user_id: OWNER, role: 'user', encrypted_content: original,
+      encrypted_pii_mappings: clientCiphertext(3), queue_revision: 1 }],
+  });
+  const body = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-1',
+    hashed_user_id: OWNER, hashed_team_id: null, encrypted_content: revised,
+    encrypted_pii_mappings: null, expected_revision: 1, queue_mode: 'steer',
+    stage_token: 'a'.repeat(32) };
+  const pendingBody = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-1',
+    hashed_user_id: OWNER, hashed_team_id: null, queue_revision: 1, queue_mode: 'follow_up' };
+  assert.equal((await executeOperation(database, 'mark_queued_message_pending', pendingBody)).status, 'queued');
+  assert.equal((await executeOperation(database, 'mark_queued_message_pending', pendingBody)).status, 'already_queued');
+  const beforeStageVersion = database.rows.chats[0].messages_v;
+  const staged = await executeOperation(database, 'revise_queued_message_ciphertext', body);
+  assert.equal(staged.status, 'staged');
+  assert.equal(staged.queue_revision, 2);
+  assert.equal(staged.previous_encrypted_content, original);
+  assert.equal(database.rows.messages.length, 1);
+  assert.equal(database.rows.messages[0].client_message_id, 'queued-1');
+  assert.equal(database.rows.messages[0].encrypted_content, original);
+  assert.equal(database.rows.messages[0].queue_revision, 1);
+  assert.equal(database.rows.chats[0].messages_v, beforeStageVersion);
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', body)).status, 'staged');
+
+  const finishBody = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-1',
+    hashed_user_id: OWNER, hashed_team_id: null, expected_revision: 1,
+    stage_token: body.stage_token };
+  assert.equal((await executeOperation(database, 'abort_queued_message_revision', finishBody)).status, 'restored');
+  assert.equal((await executeOperation(database, 'abort_queued_message_revision', finishBody)).status, 'already_aborted');
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', body)).status, 'conflict');
+  assert.equal(database.rows.messages[0].encrypted_content, original);
+  assert.equal(database.rows.messages[0].queue_revision, 1);
+  assert.equal(database.rows.chats[0].messages_v, beforeStageVersion);
+
+  const modeBody = { ...body, encrypted_content: null, encrypted_pii_mappings: null,
+    stage_token: 'b'.repeat(32) };
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', modeBody)).status, 'staged');
+  const committed = await executeOperation(database, 'commit_queued_message_revision', {
+    ...finishBody, stage_token: modeBody.stage_token,
+  });
+  assert.equal(committed.status, 'updated');
+  assert.equal(committed.queue_revision, 2);
+  assert.equal(committed.messages_v, beforeStageVersion + 1);
+  assert.equal((await executeOperation(database, 'commit_queued_message_revision', {
+    ...finishBody, stage_token: modeBody.stage_token,
+  })).status, 'already_committed');
+  assert.equal(database.rows.messages[0].encrypted_content, original);
+  assert.equal(database.rows.messages[0].encrypted_pii_mappings, clientCiphertext(3));
+  assert.equal(database.rows.messages[0].queue_dispatch_mode, 'steer');
+
+  const startedBody = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-1',
+    hashed_user_id: OWNER, hashed_team_id: null, queue_revision: 2,
+    task_id: 'task-active-1', mode: 'steer' };
+  assert.equal((await executeOperation(database, 'mark_queued_message_started', startedBody)).status, 'started');
+  assert.equal((await executeOperation(database, 'mark_queued_message_started', startedBody)).status, 'already_started');
+  assert.equal((await executeOperation(database, 'mark_queued_message_started', {
+    ...startedBody, task_id: 'task-other',
+  })).status, 'conflict');
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', {
+    ...body, expected_revision: 2,
+  })).status, 'conflict');
+  assert.equal(database.rows.messages[0].queue_dispatch_status, 'processing');
+  const durableVersion = database.rows.chats[0].messages_v;
+  const delayedInitialWrite = await executeOperation(database, 'advance_user_message_version', {
+    protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-1',
+    hashed_user_id: OWNER, hashed_team_id: null, messages_v: 4, timestamp: 100,
+  });
+  assert.equal(delayedInitialWrite.status, 'updated');
+  assert.equal(delayedInitialWrite.messages_v, durableVersion);
+  assert.equal(database.rows.chats[0].messages_v, durableVersion);
+  const pending = await executeOperation(database, 'restore_queued_message_pending', startedBody);
+  assert.equal(pending.status, 'restored');
+  assert.equal(database.rows.messages[0].queue_dispatch_status, 'queued');
+  assert.equal((await executeOperation(database, 'restore_queued_message_pending', startedBody)).status, 'conflict');
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.editing.stable-revision
+test('aborting a pre-stage crash fences a late Directus request without changing sync version', async () => {
+  const original = clientCiphertext(1);
+  const database = fakeDatabase({
+    chats: [{ id: CHAT_ID, hashed_user_id: OWNER, messages_v: 4 }],
+    messages: [{ id: TASK_ID, client_message_id: 'queued-fenced', chat_id: CHAT_ID,
+      hashed_user_id: OWNER, role: 'user', encrypted_content: original, queue_revision: 1 }],
+  });
+  const common = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-fenced',
+    hashed_user_id: OWNER, hashed_team_id: null, expected_revision: 1,
+    stage_token: 'e'.repeat(32) };
+  assert.equal((await executeOperation(database, 'abort_queued_message_revision', common)).status, 'restored');
+  assert.equal((await executeOperation(database, 'abort_queued_message_revision', {
+    ...common, stage_token: 'f'.repeat(32),
+  })).status, 'restored');
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', {
+    ...common, encrypted_content: clientCiphertext(2), encrypted_pii_mappings: null,
+    queue_mode: 'follow_up',
+  })).status, 'conflict');
+  assert.deepEqual(database.rows.messages[0].queue_aborted_stage_tokens,
+    ['e'.repeat(32), 'f'.repeat(32)]);
+  assert.equal(database.rows.messages[0].encrypted_content, original);
+  assert.equal(database.rows.messages[0].queue_revision, 1);
+  assert.equal(database.rows.chats[0].messages_v, 4);
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.editing.stable-revision
+test('queued edit waits for the initial row and rejects wrong owner or server ciphertext', async () => {
+  const database = fakeDatabase({ chats: [{ id: CHAT_ID, hashed_user_id: OWNER, messages_v: 4 }], messages: [] });
+  const body = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-1',
+    hashed_user_id: OWNER, hashed_team_id: null, encrypted_content: clientCiphertext(1),
+    encrypted_pii_mappings: null, expected_revision: 1, queue_mode: 'follow_up',
+    stage_token: 'c'.repeat(32) };
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', body)).status, 'not_persisted');
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', {
+    ...body, hashed_user_id: 'd'.repeat(64),
+  })).status, 'forbidden');
+  await assert.rejects(executeOperation(database, 'revise_queued_message_ciphertext', {
+    ...body, encrypted_content: 'vault:v1:server-readable',
+  }), (error) => error instanceof ProtocolError && error.code === 'invalid_encrypted_message');
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.editing.stable-revision,chat-queued-followups.admission.synced
+test('staged content stays invisible until queue CAS commit and late pending marker cannot reverse it', async () => {
+  const original = clientCiphertext(5);
+  const revised = clientCiphertext(6);
+  const database = fakeDatabase({
+    chats: [{ id: CHAT_ID, hashed_user_id: OWNER, messages_v: 1 }],
+    messages: [{ id: TASK_ID, client_message_id: 'queued-2', chat_id: CHAT_ID,
+      hashed_user_id: OWNER, role: 'user', encrypted_content: original, queue_revision: 1 }],
+  });
+  const pendingBody = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-2',
+    hashed_user_id: OWNER, hashed_team_id: null, queue_revision: 1, queue_mode: 'follow_up' };
+  assert.equal((await executeOperation(database, 'mark_queued_message_pending', pendingBody)).status, 'queued');
+  const beforeEditVersion = database.rows.chats[0].messages_v;
+  const body = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-2',
+    hashed_user_id: OWNER, hashed_team_id: null, encrypted_content: revised,
+    encrypted_pii_mappings: null, expected_revision: 1, queue_mode: 'steer',
+    stage_token: 'd'.repeat(32) };
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', body)).status, 'staged');
+  assert.equal(database.rows.messages[0].encrypted_content, original);
+  assert.equal(database.rows.messages[0].queue_revision, 1);
+  assert.equal(database.rows.chats[0].messages_v, beforeEditVersion);
+  const committed = await executeOperation(database, 'commit_queued_message_revision', {
+    protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-2', hashed_user_id: OWNER,
+    hashed_team_id: null, expected_revision: 1, stage_token: body.stage_token,
+  });
+  assert.equal(committed.status, 'updated');
+  assert.equal(database.rows.messages[0].encrypted_content, revised);
+  assert.equal(database.rows.messages[0].queue_revision, 2);
+  assert.equal(database.rows.messages[0].queue_dispatch_mode, 'steer');
+  assert.equal(database.rows.chats[0].messages_v, beforeEditVersion + 1);
+  assert.equal((await executeOperation(database, 'mark_queued_message_pending', pendingBody)).status, 'conflict');
+
+  // The committed empty fence must round-trip through the JSON column as an array.
+  assert.deepEqual(database.rows.messages[0].queue_aborted_stage_tokens, []);
+  const modeOnly = { ...body, encrypted_content: null, expected_revision: 2,
+    queue_mode: 'follow_up', stage_token: 'e'.repeat(32) };
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', modeOnly)).status, 'staged');
+  assert.equal((await executeOperation(database, 'commit_queued_message_revision', {
+    protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-2', hashed_user_id: OWNER,
+    hashed_team_id: null, expected_revision: 2, stage_token: modeOnly.stage_token,
+  })).status, 'updated');
+  assert.equal(database.rows.messages[0].encrypted_content, revised);
+  assert.equal(database.rows.messages[0].queue_revision, 3);
+  assert.equal(database.rows.messages[0].queue_dispatch_mode, 'follow_up');
+  assert.deepEqual(database.rows.messages[0].queue_aborted_stage_tokens, []);
+  const lateToken = 'f'.repeat(32);
+  assert.equal((await executeOperation(database, 'abort_queued_message_revision', {
+    protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-2', hashed_user_id: OWNER,
+    hashed_team_id: null, expected_revision: 3, stage_token: lateToken,
+  })).status, 'restored');
+  assert.deepEqual(database.rows.messages[0].queue_aborted_stage_tokens, [lateToken]);
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', {
+    ...modeOnly, expected_revision: 3, stage_token: lateToken,
+  })).status, 'conflict');
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.editing.stable-revision
+test('queued revision rejects malformed durable abort fences', async () => {
+  for (const invalidFence of [{}, ['not-a-stage-token']]) {
+    const database = fakeDatabase({
+      chats: [{ id: CHAT_ID, hashed_user_id: OWNER, messages_v: 1 }],
+      messages: [{ id: TASK_ID, client_message_id: 'queued-invalid-fence', chat_id: CHAT_ID,
+        hashed_user_id: OWNER, role: 'user', encrypted_content: clientCiphertext(1),
+        queue_revision: 1, queue_aborted_stage_tokens: invalidFence }],
+    });
+    await assert.rejects(executeOperation(database, 'revise_queued_message_ciphertext', {
+      protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-invalid-fence',
+      hashed_user_id: OWNER, hashed_team_id: null, encrypted_content: null,
+      encrypted_pii_mappings: null, expected_revision: 1, queue_mode: 'steer',
+      stage_token: 'a'.repeat(32),
+    }), (error) => error instanceof ProtocolError && error.code === 'queued_abort_fence_invalid');
+  }
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+test('lost queue pauses the same encrypted row and owner-scoped snapshot exposes metadata only', async () => {
+  const original = clientCiphertext(8);
+  const database = fakeDatabase({
+    chats: [{ id: CHAT_ID, hashed_user_id: OWNER, messages_v: 3 }],
+    messages: [
+      { id: TASK_ID, client_message_id: 'lost-queue-1', chat_id: CHAT_ID,
+        hashed_user_id: OWNER, role: 'user', encrypted_content: original, queue_revision: 1,
+        queue_dispatch_status: 'queued', queue_dispatch_mode: 'follow_up', created_at: 100 },
+      { id: JOB_ID, client_message_id: 'other-user', chat_id: CHAT_ID,
+        hashed_user_id: 'd'.repeat(64), role: 'user', encrypted_content: clientCiphertext(9),
+        queue_revision: 1, queue_dispatch_status: 'queued', created_at: 101 },
+    ],
+  });
+  const pausedBody = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'lost-queue-1',
+    hashed_user_id: OWNER, hashed_team_id: null, queue_revision: 1,
+    reason: 'queue_lost', queue_mode: 'follow_up' };
+  const receipt = await executeOperation(database, 'mark_queued_message_paused', pausedBody);
+  assert.equal(receipt.status, 'paused');
+  assert.equal(receipt.messages_v, 4);
+  assert.equal((await executeOperation(database, 'mark_queued_message_paused', pausedBody)).status, 'already_paused');
+  assert.equal(database.rows.chats[0].messages_v, 4);
+  assert.equal(database.rows.messages[0].encrypted_content, original);
+  assert.equal(database.rows.messages[0].queue_dispatch_status, 'paused');
+  const snapshot = await executeOperation(database, 'list_pending_queued_messages', {
+    protocol_version: 1, chat_id: CHAT_ID, hashed_user_id: OWNER,
+    hashed_team_id: null, limit: 100,
+  });
+  assert.equal(snapshot.status, 'found');
+  assert.equal(snapshot.messages_v, 4);
+  assert.deepEqual(snapshot.messages, [{ message_id: 'lost-queue-1', queue_revision: 1,
+    queue_dispatch_status: 'paused', queue_mode: 'follow_up', pause_reason: 'queue_lost' }]);
+  assert.equal(JSON.stringify(snapshot).includes(original), false);
+  assert.equal((await executeOperation(database, 'mark_queued_message_paused', {
+    ...pausedBody, hashed_user_id: 'd'.repeat(64),
+  })).status, 'forbidden');
+  assert.equal((await executeOperation(database, 'list_pending_queued_messages', {
+    protocol_version: 1, chat_id: CHAT_ID, hashed_user_id: 'd'.repeat(64),
+    hashed_team_id: null, limit: 100,
+  })).status, 'forbidden');
+});
+
+const queuedRecoverySeed = (mode = 'follow_up') => ({
+  chats: [{ id: CHAT_ID, hashed_user_id: OWNER, messages_v: 4 }],
+  messages: [{ id: JOB_ID, client_message_id: 'epoch-queued', chat_id: CHAT_ID,
+    hashed_user_id: OWNER, role: 'user', encrypted_content: clientCiphertext(1),
+    queue_revision: 1, created_at: 100 }],
+  chat_turn_preflights: [{ id: PREFLIGHT_ID, hashed_user_id: OWNER, chat_id: CHAT_ID,
+    user_message_id: 'epoch-queued', inference_task_id: TASK_ID, outbox_id: OUTBOX_ID,
+    billing_identity: BILLING_ID, inference_commitment: COMMITMENT,
+    state: 'ENQUEUED', expires_at: new Date('2030-01-01T00:00:00Z') }],
+  chat_inference_outbox: [{ id: OUTBOX_ID, preflight_id: PREFLIGHT_ID,
+    inference_task_id: TASK_ID, hashed_user_id: OWNER, chat_id: CHAT_ID,
+    state: 'PENDING' }],
+  chat_completion_recovery_jobs: [],
+  queueMode: mode,
+});
+
+const queuedRecoveryPendingBody = (mode = 'follow_up') => ({
+  protocol_version: 1, chat_id: CHAT_ID, message_id: 'epoch-queued',
+  hashed_user_id: OWNER, hashed_team_id: null, queue_revision: 1, queue_mode: mode,
+  recovery_preflight_id: PREFLIGHT_ID, recovery_task_id: TASK_ID,
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.editing.stable-revision,chat-queued-followups.admission.synced
+test('epoch-one queued edit atomically commits ciphertext and HMAC under a held outbox', async () => {
+  const database = fakeDatabase(queuedRecoverySeed());
+  const pending = await executeOperation(database, 'mark_queued_message_pending', queuedRecoveryPendingBody());
+  assert.equal(pending.status, 'queued');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'HELD');
+  assert.equal((await executeOperation(database, 'release_inference_outbox', {
+    protocol_version: 1, preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    outbox_id: OUTBOX_ID, hashed_user_id: OWNER,
+  })).status, 'conflict');
+  assert.equal((await executeOperation(database, 'claim_inference', {
+    protocol_version: 1, inference_task_id: TASK_ID,
+  })).state, 'HELD');
+  const stageBody = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'epoch-queued',
+    hashed_user_id: OWNER, hashed_team_id: null, encrypted_content: clientCiphertext(2),
+    encrypted_pii_mappings: null, expected_revision: 1, queue_mode: 'follow_up',
+    stage_token: '1'.repeat(32), recovery_preflight_id: PREFLIGHT_ID,
+    recovery_task_id: TASK_ID, expected_inference_commitment: COMMITMENT,
+    next_inference_commitment: 'd'.repeat(64) };
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', stageBody)).status, 'staged');
+  assert.equal(database.rows.messages[0].encrypted_content, clientCiphertext(1));
+  assert.equal(database.rows.chat_turn_preflights[0].inference_commitment, COMMITMENT);
+  const beforeCommitVersion = database.rows.chats[0].messages_v;
+  const finishBody = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'epoch-queued',
+    hashed_user_id: OWNER, hashed_team_id: null, expected_revision: 1,
+    stage_token: stageBody.stage_token };
+  assert.equal((await executeOperation(database, 'commit_queued_message_revision', finishBody)).status, 'updated');
+  assert.equal(database.rows.messages[0].encrypted_content, clientCiphertext(2));
+  assert.equal(database.rows.messages[0].queue_revision, 2);
+  assert.equal(database.rows.chat_turn_preflights[0].inference_commitment, 'd'.repeat(64));
+  assert.equal(database.rows.chat_turn_preflights[0].inference_task_id, TASK_ID);
+  assert.equal(database.rows.chat_turn_preflights[0].billing_identity, BILLING_ID);
+  assert.equal(database.rows.chat_inference_outbox[0].id, OUTBOX_ID);
+  assert.equal(database.rows.chats[0].messages_v, beforeCommitVersion + 1);
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', stageBody)).status, 'conflict');
+  const startBody = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'epoch-queued',
+    hashed_user_id: OWNER, hashed_team_id: null, queue_revision: 2, task_id: TASK_ID,
+    mode: 'follow_up', recovery_preflight_id: PREFLIGHT_ID, recovery_task_id: TASK_ID,
+    expected_inference_commitment: 'd'.repeat(64) };
+  assert.equal((await executeOperation(database, 'mark_queued_message_started', startBody)).status, 'started');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'PENDING');
+  assert.equal((await executeOperation(database, 'restore_queued_message_pending', startBody)).status, 'restored');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'HELD');
+  assert.equal((await executeOperation(database, 'claim_inference', {
+    protocol_version: 1, inference_task_id: TASK_ID,
+  })).state, 'HELD');
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.editing.stable-revision
+test('epoch-one queued edit rejects a preflight already claimed by inference', async () => {
+  const database = fakeDatabase(queuedRecoverySeed());
+  await executeOperation(database, 'mark_queued_message_pending', queuedRecoveryPendingBody());
+  database.rows.chat_turn_preflights[0].state = 'RUNNING';
+  database.rows.chat_inference_outbox[0].state = 'DISPATCHED';
+  const result = await executeOperation(database, 'revise_queued_message_ciphertext', {
+    protocol_version: 1, chat_id: CHAT_ID, message_id: 'epoch-queued',
+    hashed_user_id: OWNER, hashed_team_id: null, encrypted_content: clientCiphertext(2),
+    encrypted_pii_mappings: null, expected_revision: 1, queue_mode: 'follow_up',
+    stage_token: '9'.repeat(32), recovery_preflight_id: PREFLIGHT_ID,
+    recovery_task_id: TASK_ID, expected_inference_commitment: COMMITMENT,
+    next_inference_commitment: 'd'.repeat(64),
+  });
+  assert.equal(result.status, 'conflict');
+  assert.equal(database.rows.messages[0].encrypted_content, clientCiphertext(1));
+  assert.equal(database.rows.messages[0].queue_pending_token ?? null, null);
+  assert.equal(database.rows.chat_turn_preflights[0].inference_commitment, COMMITMENT);
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.editing.stable-revision
+test('epoch-one queued start rejects Redis content newer than durable HMAC', async () => {
+  const database = fakeDatabase(queuedRecoverySeed());
+  await executeOperation(database, 'mark_queued_message_pending', queuedRecoveryPendingBody());
+  const result = await executeOperation(database, 'mark_queued_message_started', {
+    protocol_version: 1, chat_id: CHAT_ID, message_id: 'epoch-queued',
+    hashed_user_id: OWNER, hashed_team_id: null, queue_revision: 1, task_id: TASK_ID,
+    mode: 'follow_up', recovery_preflight_id: PREFLIGHT_ID, recovery_task_id: TASK_ID,
+    expected_inference_commitment: 'd'.repeat(64),
+  });
+  assert.equal(result.status, 'conflict');
+  assert.equal(database.rows.messages[0].queue_dispatch_status, 'queued');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'HELD');
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+test('sealed predecessor receipt is exact and allows current Team member without revealing payload', async () => {
+  const member = 'd'.repeat(64);
+  const database = fakeDatabase({
+    chats: [{ id: CHAT_ID, hashed_user_id: OWNER, hashed_team_id: TEAM_HASH }],
+    teams: [{ hashed_team_id: TEAM_HASH, status: 'active' }],
+    team_memberships: [{ hashed_team_id: TEAM_HASH, hashed_user_id: member,
+      status: 'active', role: 'member' }],
+    chat_completion_recovery_jobs: [{ id: JOB_ID, hashed_user_id: OWNER,
+      chat_id: CHAT_ID, preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+      assistant_message_id: 'assistant-1', state: 'AVAILABLE',
+      sealed_payload: SEALED_PAYLOAD, sealed_payload_digest: 'e'.repeat(64) }],
+  });
+  const receipt = await executeOperation(database, 'get_sealed_job_receipt', {
+    protocol_version: 1, chat_id: CHAT_ID, hashed_user_id: member,
+    hashed_team_id: TEAM_HASH, inference_task_id: TASK_ID,
+    assistant_message_id: 'assistant-1',
+  });
+  assert.equal(receipt.status, 'found');
+  assert.equal(receipt.job_id, JOB_ID);
+  assert.equal(JSON.stringify(receipt).includes(SEALED_PAYLOAD), false);
+  assert.equal((await executeOperation(database, 'get_sealed_job_receipt', {
+    protocol_version: 1, chat_id: CHAT_ID, hashed_user_id: member,
+    hashed_team_id: TEAM_HASH, inference_task_id: TASK_ID,
+    assistant_message_id: 'assistant-other',
+  })).status, 'not_found');
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+test('epoch-one steer consumes its own outbox and failed queue claim can restore it', async () => {
+  const database = fakeDatabase(queuedRecoverySeed('steer'));
+  await executeOperation(database, 'mark_queued_message_pending', queuedRecoveryPendingBody('steer'));
+  const startBody = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'epoch-queued',
+    hashed_user_id: OWNER, hashed_team_id: null, queue_revision: 1, task_id: JOB_ID,
+    mode: 'steer', recovery_preflight_id: PREFLIGHT_ID, recovery_task_id: TASK_ID,
+    expected_inference_commitment: COMMITMENT };
+  assert.equal((await executeOperation(database, 'mark_queued_message_started', startBody)).status, 'started');
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'CONSUMED');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'CONSUMED');
+  assert.equal((await executeOperation(database, 'claim_inference', {
+    protocol_version: 1, inference_task_id: TASK_ID,
+  })).state, 'CONSUMED');
+  assert.equal((await executeOperation(database, 'restore_queued_message_pending', startBody)).status, 'restored');
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'ENQUEUED');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'HELD');
+  assert.equal((await executeOperation(database, 'claim_inference', {
+    protocol_version: 1, inference_task_id: TASK_ID,
+  })).state, 'HELD');
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+test('failed steering task pauses consumed same-ID rows without re-enabling inference', async () => {
+  const database = fakeDatabase(queuedRecoverySeed('steer'));
+  await executeOperation(database, 'mark_queued_message_pending', queuedRecoveryPendingBody('steer'));
+  const taskId = JOB_ID;
+  assert.equal((await executeOperation(database, 'mark_queued_message_started', {
+    protocol_version: 1, chat_id: CHAT_ID, message_id: 'epoch-queued',
+    hashed_user_id: OWNER, hashed_team_id: null, queue_revision: 1, task_id: taskId,
+    mode: 'steer', recovery_preflight_id: PREFLIGHT_ID, recovery_task_id: TASK_ID,
+    expected_inference_commitment: COMMITMENT,
+  })).status, 'started');
+  const version = database.rows.chats[0].messages_v;
+  const request = { protocol_version: 1, chat_id: CHAT_ID, hashed_user_id: OWNER,
+    hashed_team_id: null, task_id: taskId };
+  assert.equal((await executeOperation(database, 'pause_consumed_steers_for_task', {
+    ...request, task_id: TASK_ID,
+  })).status, 'not_found');
+  const paused = await executeOperation(database, 'pause_consumed_steers_for_task', request);
+  assert.equal(paused.status, 'paused');
+  assert.deepEqual(paused.messages, [{ message_id: 'epoch-queued', queue_revision: 1,
+    queue_mode: 'steer', pause_reason: 'dispatch_failed' }]);
+  assert.equal(paused.messages_v, version + 1);
+  assert.equal(database.rows.messages[0].queue_dispatch_status, 'paused');
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'CONSUMED');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'CONSUMED');
+  assert.equal((await executeOperation(database, 'claim_inference', {
+    protocol_version: 1, inference_task_id: TASK_ID,
+  })).state, 'CONSUMED');
+  assert.equal((await executeOperation(database, 'pause_consumed_steers_for_task', request)).status, 'already_paused');
+  assert.equal(database.rows.chats[0].messages_v, version + 1);
+  assert.equal((await executeOperation(database, 'pause_consumed_steers_for_task', {
+    ...request, hashed_user_id: 'f'.repeat(64),
+  })).status, 'forbidden');
 });
 const assistantMessage = () => ({
   client_message_id: 'assistant-message-1', chat_id: CHAT_ID, hashed_user_id: OWNER,
@@ -673,6 +1114,8 @@ test('claim_inference atomically claims once and suppresses duplicate delivery',
       billing_identity: '018f6666-6666-7666-8666-666666666666',
       outbox_id: OUTBOX_ID,
     }],
+    chat_inference_outbox: [{ id: OUTBOX_ID, preflight_id: PREFLIGHT_ID,
+      inference_task_id: TASK_ID, state: 'PENDING' }],
   });
   const body = { protocol_version: 1, inference_task_id: TASK_ID };
 
@@ -703,7 +1146,8 @@ test('claim_inference returns the durable failure category for cancellation-safe
       id: PREFLIGHT_ID, inference_task_id: TASK_ID, state: 'ENQUEUED', outbox_id: OUTBOX_ID,
       expires_at: new Date('2029-01-01T00:00:00Z'),
     }],
-    chat_inference_outbox: [{ id: OUTBOX_ID, state: 'PENDING' }],
+    chat_inference_outbox: [{ id: OUTBOX_ID, preflight_id: PREFLIGHT_ID,
+      inference_task_id: TASK_ID, state: 'PENDING' }],
   });
   const expiredResult = await executeOperation(expired, 'claim_inference', {
     protocol_version: 1, inference_task_id: TASK_ID,
@@ -1174,8 +1618,16 @@ test('enqueue_inference atomically transitions PREPARED and creates its outbox r
   assert.equal(result.state, 'ENQUEUED');
   assert.equal(database.rows.chat_turn_preflights[0].state, 'ENQUEUED');
   assert.deepEqual(database.rows.chat_inference_outbox.map(({ id, state, inference_task_id }) => ({ id, state, inference_task_id })), [{
-    id: OUTBOX_ID, state: 'PENDING', inference_task_id: TASK_ID,
+    id: OUTBOX_ID, state: 'HELD', inference_task_id: TASK_ID,
   }]);
+  assert.equal((await executeOperation(database, 'claim_inference', {
+    protocol_version: 1, inference_task_id: TASK_ID,
+  })).state, 'HELD');
+  assert.equal((await executeOperation(database, 'release_inference_outbox', {
+    protocol_version: 1, preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    outbox_id: OUTBOX_ID, hashed_user_id: OWNER,
+  })).status, 'released');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'PENDING');
 
   const failing = fakeDatabase(preparedSeed(), { operation: 'update', table: 'chat_turn_preflights' });
   await assert.rejects(
@@ -1239,6 +1691,10 @@ test('active Team member can seal, lease, and persist an AI response in a chat c
     device_hash: 'device-a', inference_commitment: COMMITMENT,
     inference_task_id: TASK_ID, billing_identity: BILLING_ID, outbox_id: OUTBOX_ID,
   }, new Date(now.getTime() + 1000));
+  assert.equal((await executeOperation(database, 'release_inference_outbox', {
+    protocol_version: 1, preflight_id: prepared.preflight_id,
+    inference_task_id: TASK_ID, outbox_id: OUTBOX_ID, hashed_user_id: member,
+  })).status, 'released');
   assert.equal((await executeOperation(database, 'claim_inference', {
     protocol_version: 1, inference_task_id: TASK_ID,
   }, new Date(now.getTime() + 2000))).state, 'RUNNING');

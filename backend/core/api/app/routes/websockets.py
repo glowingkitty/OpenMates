@@ -17,6 +17,7 @@ from backend.core.api.app.services.storage_archive_client_compatibility import (
 )
 
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
 from backend.core.api.app.services.notification_event_service import NotificationEventService
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -33,6 +34,7 @@ from .auth_ws import get_current_user_ws
 from .handlers.websocket_handlers.title_update_handler import handle_update_title
 from .handlers.websocket_handlers.draft_update_handler import handle_update_draft
 from .handlers.websocket_handlers.message_received_handler import handle_message_received
+from .handlers.websocket_handlers.revise_queued_message_handler import handle_revise_queued_message
 from .handlers.websocket_handlers.active_chat_handler import (
     AI_STREAM_SNAPSHOT_TTL_SECONDS,
     ai_stream_snapshot_cache_key,
@@ -65,6 +67,10 @@ from .handlers.websocket_handlers.focus_mode_deactivate_handler import handle_fo
 from .handlers.websocket_handlers.focus_mode_rejected_handler import handle_focus_mode_rejected # Handler for focus mode rejection during countdown
 from .handlers.websocket_handlers.project_focus_decision_handler import handle_project_focus_decision
 from .handlers.websocket_handlers.project_focus_catalog_handler import handle_project_focus_catalog_result
+from .handlers.websocket_handlers.workflow_metadata_warmup_handler import (
+    accept_workflow_warmup_request, warm_workflow_metadata,
+)
+
 from .handlers.websocket_handlers.sub_chat_confirmation_handler import handle_sub_chat_confirmation # Handler for large sub-chat batch approval
 from .handlers.websocket_handlers.sub_chat_stop_handler import handle_sub_chat_stop # Handler for stopping sequential sub-chat queues
 from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
@@ -162,6 +168,7 @@ from .handlers.websocket_handlers.chat_compression_checkpoint_handler import (
 from .handlers.websocket_handlers.chat_model_preference_handler import handle_chat_model_preference
 
 logger = logging.getLogger(__name__)
+_workflow_metadata_warmup_tasks: set[asyncio.Task] = set()
 
 router = APIRouter(
     prefix="/v1/ws",
@@ -2559,6 +2566,9 @@ async def websocket_endpoint(
     connection_capabilities = {item.strip() for item in raw_capabilities.split(",") if item.strip()}
     supports_chat_metadata_recovery = "chat_metadata_recovery" in connection_capabilities
     metadata_request_times: list[float] = []
+    workflow_warmup_request_times: list[float] = []
+    queued_revision_request_times: list[float] = []
+    queued_snapshot_request_times: list[float] = []
     supports_task_update_jobs = "task_update_jobs" in connection_capabilities
     supports_project_file_jobs = "project_file_jobs" in connection_capabilities
     supports_remote_command_jobs = "remote_command_jobs" in connection_capabilities
@@ -2833,7 +2843,35 @@ async def websocket_endpoint(
                     continue
 
             # Process different message types
-            if message_type == "update_draft":
+            if message_type == "workflow_metadata_warmup":
+                # First-party session-authenticated WS surface. No text, inference, credits,
+                # or response payload; Team membership is checked before cache access.
+                warmup_status, team_id = accept_workflow_warmup_request(workflow_warmup_request_times, payload)
+                await manager.send_personal_message(
+                    {"type": "workflow_metadata_warmup_result", "payload": {"status": warmup_status}},
+                    user_id, device_fingerprint_hash,
+                )
+                if warmup_status == "accepted":
+                    async def run_workflow_warmup(scoped_user_id: str = user_id,
+                                                  scoped_team_id: str | None = team_id) -> None:
+                        try:
+                            result_status = await warm_workflow_metadata(
+                                cache_service=cache_service, directus_service=directus_service,
+                                user_id=scoped_user_id, team_id=scoped_team_id,
+                            )
+                        except (PermissionError, TeamPermissionError):
+                            result_status = "forbidden"
+                        except Exception:
+                            logger.debug("Optional Workflow metadata warmup unavailable", exc_info=True)
+                            result_status = "unavailable"
+                        await manager.send_personal_message(
+                            {"type": "workflow_metadata_warmup_result", "payload": {"status": result_status}},
+                            scoped_user_id, device_fingerprint_hash,
+                        )
+                    warmup_task = asyncio.create_task(run_workflow_warmup())
+                    _workflow_metadata_warmup_tasks.add(warmup_task)
+                    warmup_task.add_done_callback(_workflow_metadata_warmup_tasks.discard)
+            elif message_type == "update_draft":
                 await handle_update_draft(
                     websocket=websocket,
                     manager=manager,
@@ -3135,6 +3173,176 @@ async def websocket_endpoint(
                     user_otel_attrs=user_otel_attrs,
                 )
             
+            elif message_type == "revise_queued_message":
+                now = time.monotonic()
+                queued_revision_request_times[:] = [
+                    value for value in queued_revision_request_times if value > now - 60
+                ]
+                if len(queued_revision_request_times) >= 20:
+                    await manager.send_personal_message(
+                        {"type": "queued_message_revision_rejected", "payload": {
+                            "chat_id": payload.get("chat_id"),
+                            "message_id": payload.get("message_id"),
+                            "client_request_id": payload.get("client_request_id"),
+                            "reason_code": "rate_limited", "retryable": True,
+                        }}, user_id, device_fingerprint_hash,
+                    )
+                    continue
+                queued_revision_request_times.append(now)
+                await handle_revise_queued_message(
+                    manager=manager, cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                )
+
+            elif message_type == "get_queued_messages":
+                now = time.monotonic()
+                queued_snapshot_request_times[:] = [
+                    value for value in queued_snapshot_request_times if value > now - 60
+                ]
+                if len(queued_snapshot_request_times) >= 60:
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"code": "queue_rate_limited"}},
+                        user_id, device_fingerprint_hash,
+                    )
+                    continue
+                queued_snapshot_request_times.append(now)
+                queue_chat_id = payload.get("chat_id")
+                if isinstance(queue_chat_id, str) and queue_chat_id:
+                    queued_state = await cache_service.get_queued_message_state(
+                        queue_chat_id, user_id,
+                    )
+                    redis_snapshot_had_rows = bool(queued_state)
+                    # Redis absence cannot prove the durable queue is empty after
+                    # reconnect or cache loss; phased sync owns the row status.
+                    queue_uncertain = not bool(queued_state)
+                    if queued_state:
+                        authorized = True
+                        for queued_item in queued_state:
+                            source = await cache_service.get_queued_message_member(
+                                queue_chat_id, user_id, queued_item["message_id"],
+                            )
+                            if not source:
+                                authorized = False
+                                break
+                            if source["member"].get("is_incognito"):
+                                # Volatile queue state belongs to the live
+                                # originating session, never another device.
+                                authorized = False
+                                break
+                            team_id = source["member"].get("team_id")
+                            if team_id:
+                                try:
+                                    await directus_service.team.require_team_role(
+                                        team_id, user_id, {"owner", "admin", "member"},
+                                    )
+                                except TeamPermissionError:
+                                    authorized = False
+                                    break
+                            elif not await directus_service.chat.check_chat_ownership(
+                                queue_chat_id, user_id,
+                            ):
+                                authorized = False
+                                break
+                        if not authorized:
+                            queued_state = []
+                        else:
+                            from backend.apps.ai.processing.queued_steering import reconcile_queued_revision_quarantine
+                            queue_uncertain = not await reconcile_queued_revision_quarantine(
+                                cache_service, directus_service, queue_chat_id,
+                            )
+                            queued_state = (
+                                await cache_service.get_queued_message_state(queue_chat_id, user_id)
+                                if not queue_uncertain else []
+                            )
+                    # Durable rows are the authority after Redis loss. Scope
+                    # the lookup before reporting a missing queue member as
+                    # paused; never reconstruct private AI context from storage.
+                    try:
+                        metadata = await directus_service.chat.get_chat_metadata(
+                            queue_chat_id, admin_required=True,
+                        )
+                        durable_allowed = False
+                        durable_team_hash = metadata.get("hashed_team_id") if metadata else None
+                        if durable_team_hash:
+                            snapshot_team_id = payload.get("team_id")
+                            from backend.core.api.app.services.directus.team_methods import hash_id
+                            if (isinstance(snapshot_team_id, str)
+                                    and hash_id(snapshot_team_id) == durable_team_hash):
+                                await directus_service.team.require_team_role(
+                                    snapshot_team_id, user_id, {"owner", "admin", "member"},
+                                )
+                                durable_allowed = True
+                        elif metadata:
+                            durable_allowed = await directus_service.chat.check_chat_ownership(
+                                queue_chat_id, user_id,
+                            )
+                        if durable_allowed:
+                            durable = await directus_service.chat.list_pending_queued_messages(
+                                queue_chat_id, user_id, hashed_team_id=durable_team_hash,
+                            )
+                            if durable.get("status") == "found":
+                                present_ids = {item.get("message_id") for item in queued_state}
+                                queue_uncertain = (
+                                    bool(durable.get("truncated"))
+                                    or (redis_snapshot_had_rows and not bool(queued_state))
+                                )
+                                for durable_row in durable.get("messages", []):
+                                    paused_reason = durable_row.get("pause_reason")
+                                    if (durable_row.get("queue_dispatch_status") == "queued"
+                                            and durable_row.get("message_id") not in present_ids):
+                                        still_in_redis = await cache_service.get_queued_message_member(
+                                            queue_chat_id, user_id, durable_row["message_id"],
+                                        )
+                                        if still_in_redis:
+                                            queue_uncertain = True
+                                            continue
+                                        paused = await directus_service.chat.mark_queued_message_paused(
+                                            queue_chat_id, user_id, durable_row["message_id"],
+                                            durable_row["queue_revision"], "queue_lost",
+                                            hashed_team_id=durable_team_hash,
+                                            queue_mode=durable_row.get("queue_mode"),
+                                        )
+                                        if paused.get("status") not in ("paused", "already_paused"):
+                                            queue_uncertain = True
+                                            continue
+                                        paused_reason = "queue_lost"
+                                    if paused_reason:
+                                        await manager.send_personal_message(
+                                            {"type": "queued_handoff_paused", "payload": {
+                                                "chat_id": queue_chat_id,
+                                                "message_id": durable_row["message_id"],
+                                                "reason_code": paused_reason,
+                                                "retryable": False,
+                                            }}, user_id, device_fingerprint_hash,
+                                        )
+                            else:
+                                queue_uncertain = True
+                        else:
+                            queued_state = []
+                            queue_uncertain = True
+                    except TeamPermissionError:
+                        queued_state = []
+                        queue_uncertain = True
+                    except Exception:
+                        logger.exception("Durable queued snapshot unavailable for chat %s", queue_chat_id)
+                        queue_uncertain = True
+                    await manager.send_personal_message(
+                        message={"type": "queued_messages_snapshot", "payload": {
+                            "chat_id": queue_chat_id,
+                            "messages": queued_state,
+                            "uncertain": queue_uncertain,
+                            "active_task_id": (
+                                await cache_service.get_active_ai_task(queue_chat_id)
+                                if queued_state else None
+                            ),
+                        }},
+                        user_id=user_id,
+                        device_fingerprint_hash=device_fingerprint_hash,
+                    )
+
             elif message_type == "delete_message":
                 await handle_delete_message(
                     websocket=websocket,

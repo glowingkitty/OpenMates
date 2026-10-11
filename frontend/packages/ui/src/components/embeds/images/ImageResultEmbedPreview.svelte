@@ -130,7 +130,8 @@
     height: 100%;
     position: relative;
     overflow: hidden;
-    border-radius: 30px 30px 0 0;
+    /* The shared card clips the image to its lower corners below the info bar. */
+    border-radius: 0 0 30px 30px;
   }
 
   .result-image {

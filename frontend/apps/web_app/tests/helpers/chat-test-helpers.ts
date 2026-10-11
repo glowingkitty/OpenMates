@@ -1700,20 +1700,20 @@ async function waitForAssistantMessage(
 		logCheckpoint(`Assistant response attached or merged (target count>=${minimumAssistantCount}).`);
 	}
 
-	// Stage 1 — stream-started gate.
+	// Stage 1 — accepted-response gate.
 	// Wait for any evidence that the AI pipeline has accepted the message.
-	// Either the typing-indicator appears, or an assistant message begins rendering.
+	// The accepted pending response appears, or an assistant message begins rendering.
 	const streamStartGate = page.locator(
-		'[data-testid="typing-indicator"], [data-testid="message-assistant"]'
+		'[data-testid="pending-assistant-response"], [data-testid="message-assistant"]'
 	);
 	const gateTimeout = Math.min(60000, budget());
 	try {
 		await expect(streamStartGate.first()).toBeVisible({ timeout: gateTimeout });
-		logCheckpoint('Assistant stream started (typing indicator or message bubble appeared).');
+		logCheckpoint('Assistant response accepted (pending container or streamed message appeared).');
 	} catch (err) {
 		throw new Error(
 			`waitForAssistantMessage: stream never started within ${gateTimeout}ms ` +
-				`(neither typing-indicator nor message-assistant appeared). Original: ${err}`
+				`(neither pending response nor assistant message appeared). Original: ${err}`
 		);
 	}
 

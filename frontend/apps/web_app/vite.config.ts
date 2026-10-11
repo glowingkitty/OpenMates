@@ -5,6 +5,10 @@ import { docsPlugin } from './scripts/vite-plugin-docs.js';
 
 export default defineConfig({
 	plugins: [sveltekit(), docsPlugin()],
+	ssr: {
+		// This workspace package ships TS sources with .js specifiers; Vite must resolve them before Node runs SSR.
+		noExternal: ['@repo/upload-privacy']
+	},
 	resolve: {
 		alias: {
 			// Add new alias for UI package

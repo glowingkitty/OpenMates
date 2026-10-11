@@ -5,6 +5,7 @@ from typing import List, Dict, Any, Optional, Union
 import hashlib
 import base64
 import binascii
+import secrets
 
 from backend.shared.python_utils.encrypted_slug_metadata import (
     DuplicateObjectSlugError,
@@ -198,6 +199,8 @@ MESSAGE_ALL_FIELDS = (
     "has_thinking," # Added thinking metadata flag
     "thinking_token_count," # Added thinking token count
     "encrypted_pii_mappings," # Encrypted PII placeholder-to-original mappings (user messages only)
+    "queue_revision,"
+    "queue_dispatch_status,queue_dispatch_task_id,queue_dispatch_mode,queue_pause_reason,"
     "user_message_id," # ID of the user message that triggered this system message (system messages only)
     # "sender_name," # Removed as per user feedback and to avoid permission issues
     "created_at"
@@ -839,6 +842,7 @@ class ChatMethods:
                 "encrypted_pii_mappings": message_data.get("encrypted_pii_mappings"),
                 "user_message_id": message_data.get("user_message_id"),  # Links system message to triggering user message
                 "encrypted_content": encrypted_content,
+                "queue_revision": message_data.get("queue_revision", 1),
                 "created_at": message_data.get("created_at"),
             }
             payload_to_directus = {k: v for k, v in payload_to_directus.items() if v is not None}
@@ -877,6 +881,409 @@ class ChatMethods:
         except Exception as e:
             logger.error(f"Error creating message in Directus: {e}", exc_info=True)
             return None
+
+    async def revise_queued_message_ciphertext(
+        self, chat_id: str, user_id: str, message_id: str,
+        encrypted_content: Optional[str], encrypted_pii_mappings: Optional[str],
+        expected_revision: int, *, queue_mode: str = "follow_up",
+        hashed_team_id: Optional[str] = None, stage_token: Optional[str] = None,
+        recovery_preflight_id: Optional[str] = None,
+        recovery_task_id: Optional[str] = None,
+        expected_inference_commitment: Optional[str] = None,
+        next_inference_commitment: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Stage client ciphertext without exposing it to sync before queue CAS."""
+        if encrypted_content is not None:
+            _validate_client_encrypted_message_content(message_id, encrypted_content)
+        if encrypted_pii_mappings is not None:
+            _validate_client_encrypted_message_content(message_id, encrypted_pii_mappings)
+        if queue_mode not in {"steer", "follow_up"}:
+            raise ValueError("Invalid queued message mode")
+        if type(expected_revision) is not int or expected_revision < 1:
+            raise ValueError("Invalid queued message revision")
+        if stage_token is None:
+            stage_token = secrets.token_hex(16)
+        return await self._queued_revision_transaction(
+            "revise_queued_message_ciphertext", chat_id, user_id, message_id,
+            expected_revision, stage_token, hashed_team_id=hashed_team_id,
+            encrypted_content=encrypted_content,
+            encrypted_pii_mappings=encrypted_pii_mappings,
+            queue_mode=queue_mode,
+            recovery_preflight_id=recovery_preflight_id,
+            recovery_task_id=recovery_task_id,
+            expected_inference_commitment=expected_inference_commitment,
+            next_inference_commitment=next_inference_commitment,
+        )
+
+    async def restore_queued_message_ciphertext(
+        self, chat_id: str, user_id: str, message_id: str,
+        expected_revision: int, stage_token: str, *,
+        hashed_team_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Discard unpublished bytes after a failed Redis CAS."""
+        return await self._queued_revision_transaction(
+            "abort_queued_message_revision", chat_id, user_id, message_id,
+            expected_revision, stage_token, hashed_team_id=hashed_team_id,
+        )
+
+    async def commit_queued_message_revision(
+        self, chat_id: str, user_id: str, message_id: str,
+        expected_revision: int, stage_token: str, *,
+        hashed_team_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Publish staged bytes after the exact Redis queue CAS succeeds."""
+        return await self._queued_revision_transaction(
+            "commit_queued_message_revision", chat_id, user_id, message_id,
+            expected_revision, stage_token, hashed_team_id=hashed_team_id,
+        )
+
+    async def _queued_revision_transaction(
+        self, operation: str, chat_id: str, user_id: str, message_id: str,
+        expected_revision: int, stage_token: str, *,
+        hashed_team_id: Optional[str], **extra: Any,
+    ) -> Dict[str, Any]:
+        if type(expected_revision) is not int or expected_revision < 1:
+            raise ValueError("Invalid queued message revision")
+        if not isinstance(stage_token, str) or len(stage_token) != 32 or any(
+            character not in "0123456789abcdef" for character in stage_token
+        ):
+            raise ValueError("Invalid queued message stage token")
+        from backend.core.api.app.services.chat_recovery_service import (
+            ChatRecoveryProtocolError, ChatRecoveryService,
+        )
+
+        body = {
+            "protocol_version": 1,
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+            "hashed_team_id": hashed_team_id,
+            "expected_revision": expected_revision,
+            "stage_token": stage_token,
+            **extra,
+        }
+        try:
+            result = await ChatRecoveryService(self.directus_service).execute(
+                operation, body,
+            )
+        except ChatRecoveryProtocolError as exc:
+            logger.warning("Queued ciphertext revision rejected: code=%s", exc.code)
+            return {"status": "error", "code": exc.code}
+        except Exception:
+            logger.exception("Queued ciphertext revision transaction failed")
+            return {"status": "error"}
+        if result.get("status") == "updated":
+            try:
+                await self.directus_service.cache.delete(f"chat:{chat_id}:messages")
+            except Exception:
+                logger.warning("Could not invalidate message read cache for queued revision %s", message_id)
+        return result
+
+    async def mark_queued_message_started(
+        self, chat_id: str, user_id: str, message_id: str,
+        queue_revision: int, task_id: str, mode: str, *,
+        hashed_team_id: Optional[str] = None,
+        recovery_preflight_id: Optional[str] = None,
+        recovery_task_id: Optional[str] = None,
+        expected_inference_commitment: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Durably admit one queued user message to its AI run exactly once."""
+        if mode not in {"steer", "follow_up"}:
+            raise ValueError("Invalid queued dispatch mode")
+        if not isinstance(queue_revision, int) or queue_revision < 1:
+            raise ValueError("Invalid queued message revision")
+        from backend.core.api.app.services.chat_recovery_service import (
+            ChatRecoveryProtocolError, ChatRecoveryService,
+        )
+        try:
+            result = await ChatRecoveryService(self.directus_service).execute(
+                "mark_queued_message_started", {
+                    "protocol_version": 1,
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+                    "hashed_team_id": hashed_team_id,
+                    "queue_revision": queue_revision,
+                    "task_id": task_id,
+                    "mode": mode,
+                    "recovery_preflight_id": recovery_preflight_id,
+                    "recovery_task_id": recovery_task_id,
+                    "expected_inference_commitment": expected_inference_commitment,
+                },
+            )
+        except ChatRecoveryProtocolError as exc:
+            logger.warning("Queued dispatch persistence rejected: code=%s", exc.code)
+            return {"status": "error", "code": exc.code}
+        except Exception:
+            logger.exception("Queued dispatch persistence failed")
+            return {"status": "error"}
+        if result.get("status") == "started":
+            try:
+                await self.directus_service.cache.delete(f"chat:{chat_id}:messages")
+            except Exception:
+                logger.warning("Could not invalidate queued dispatch message cache %s", message_id)
+        return result
+
+    async def mark_queued_message_pending(
+        self, chat_id: str, user_id: str, message_id: str,
+        queue_revision: int, queue_mode: str, *,
+        hashed_team_id: Optional[str] = None,
+        recovery_preflight_id: Optional[str] = None,
+        recovery_task_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Persist the initial queued state when the asynchronous message row exists."""
+        if queue_mode not in {"steer", "follow_up"}:
+            raise ValueError("Invalid queued message mode")
+        if type(queue_revision) is not int or queue_revision < 1:
+            raise ValueError("Invalid queued message revision")
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        try:
+            result = await ChatRecoveryService(self.directus_service).execute(
+                "mark_queued_message_pending", {
+                    "protocol_version": 1,
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+                    "hashed_team_id": hashed_team_id,
+                    "queue_revision": queue_revision,
+                    "queue_mode": queue_mode,
+                    "recovery_preflight_id": recovery_preflight_id,
+                    "recovery_task_id": recovery_task_id,
+                },
+            )
+        except Exception:
+            logger.exception("Initial queued status persistence failed for %s", message_id)
+            return {"status": "error"}
+        if result.get("status") == "queued":
+            try:
+                await self.directus_service.cache.delete(f"chat:{chat_id}:messages")
+            except Exception:
+                logger.warning("Could not invalidate queued status message cache %s", message_id)
+        return result
+
+    async def get_queued_revision_state(
+        self, chat_id: str, user_id: str, message_id: str, *,
+        hashed_team_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Read bounded owner-scoped revision metadata for Redis crash recovery."""
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        try:
+            return await ChatRecoveryService(self.directus_service).execute(
+                "get_queued_revision_state", {
+                    "protocol_version": 1,
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+                    "hashed_team_id": hashed_team_id,
+                },
+            )
+        except Exception:
+            logger.exception("Queued revision state lookup failed for %s", message_id)
+            return {"status": "error"}
+
+    async def mark_queued_message_paused(
+        self, chat_id: str, user_id: str, message_id: str,
+        queue_revision: int, reason: str, *,
+        hashed_team_id: Optional[str] = None,
+        queue_mode: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Mark an accepted but undispatchable same-ID user turn as durably paused."""
+        if type(queue_revision) is not int or queue_revision < 1:
+            raise ValueError("Invalid queued message revision")
+        if reason not in {"queue_lost", "dispatch_failed", "queued_status_unavailable"}:
+            raise ValueError("Invalid queued pause reason")
+        if queue_mode is not None and queue_mode not in {"steer", "follow_up"}:
+            raise ValueError("Invalid queued message mode")
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        try:
+            result = await ChatRecoveryService(self.directus_service).execute(
+                "mark_queued_message_paused", {
+                    "protocol_version": 1,
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+                    "hashed_team_id": hashed_team_id,
+                    "queue_revision": queue_revision,
+                    "reason": reason,
+                    "queue_mode": queue_mode,
+                },
+            )
+        except Exception:
+            logger.exception("Failed to pause queued message %s", message_id)
+            return {"status": "error"}
+        if result.get("status") in {"paused", "already_paused"}:
+            try:
+                await self.directus_service.cache.delete(f"chat:{chat_id}:messages")
+                await self.directus_service.cache.mark_sync_message_paused(
+                    user_id, chat_id, message_id, queue_revision,
+                    result.get("reason") or reason, result["messages_v"],
+                    queue_mode=result.get("queue_mode"),
+                )
+            except Exception:
+                logger.warning("Could not refresh sync cache for paused queued message %s", message_id)
+                try:
+                    await self.directus_service.cache.delete_sync_messages_history(user_id, chat_id)
+                except Exception:
+                    pass
+        return result
+
+    async def pause_consumed_steers_for_task(
+        self, chat_id: str, user_id: str, task_id: str, *,
+        hashed_team_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Pause exact consumed steering receipts after their active AI task fails."""
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        try:
+            result = await ChatRecoveryService(self.directus_service).execute(
+                "pause_consumed_steers_for_task", {
+                    "protocol_version": 1,
+                    "chat_id": chat_id,
+                    "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+                    "hashed_team_id": hashed_team_id,
+                    "task_id": task_id,
+                },
+            )
+        except Exception:
+            logger.exception("Failed to pause consumed steering receipts for chat %s", chat_id)
+            return {"status": "error", "messages": []}
+        if result.get("status") in {"paused", "already_paused"}:
+            try:
+                await self.directus_service.cache.delete(f"chat:{chat_id}:messages")
+                await self.directus_service.cache.delete_sync_messages_history(user_id, chat_id)
+            except Exception:
+                logger.warning("Could not invalidate sync cache for consumed steer pause in chat %s", chat_id)
+        return result
+
+    async def list_pending_queued_messages(
+        self, chat_id: str, user_id: str, *,
+        hashed_team_id: Optional[str] = None, limit: int = 100,
+    ) -> Dict[str, Any]:
+        """Return bounded owner-scoped queued/paused metadata, never ciphertext."""
+        if type(limit) is not int or limit < 1 or limit > 100:
+            raise ValueError("Invalid queued snapshot limit")
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        try:
+            return await ChatRecoveryService(self.directus_service).execute(
+                "list_pending_queued_messages", {
+                    "protocol_version": 1,
+                    "chat_id": chat_id,
+                    "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+                    "hashed_team_id": hashed_team_id,
+                    "limit": limit,
+                },
+            )
+        except Exception:
+            logger.exception("Failed to list durable queued messages for chat %s", chat_id)
+            return {"status": "error"}
+
+    async def release_inference_outbox(
+        self, preflight_id: str, inference_task_id: str,
+        outbox_id: str, user_id: str,
+    ) -> Dict[str, Any]:
+        """Release an initially held epoch-one outbox only for a fresh direct dispatch."""
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        try:
+            return await ChatRecoveryService(self.directus_service).execute(
+                "release_inference_outbox", {
+                    "protocol_version": 1,
+                    "preflight_id": preflight_id,
+                    "inference_task_id": inference_task_id,
+                    "outbox_id": outbox_id,
+                    "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+                },
+            )
+        except Exception:
+            logger.exception("Failed to release held inference outbox %s", outbox_id)
+            return {"status": "error"}
+
+    async def get_sealed_job_receipt(
+        self, chat_id: str, user_id: str, inference_task_id: str,
+        assistant_message_id: str, *, hashed_team_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Read an authorized metadata-only sealed predecessor proof."""
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        try:
+            return await ChatRecoveryService(self.directus_service).execute(
+                "get_sealed_job_receipt", {
+                    "protocol_version": 1,
+                    "chat_id": chat_id,
+                    "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+                    "hashed_team_id": hashed_team_id,
+                    "inference_task_id": inference_task_id,
+                    "assistant_message_id": assistant_message_id,
+                },
+            )
+        except Exception:
+            logger.exception("Failed to read sealed predecessor receipt %s", inference_task_id)
+            return {"status": "error"}
+
+    async def advance_user_message_version(
+        self, chat_id: str, user_id_hash: str, message_id: str,
+        messages_v: int, timestamp: int, *, hashed_team_id: Optional[str] = None,
+    ) -> bool:
+        """Keep delayed initial persistence from lowering a queued edit's version."""
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        try:
+            result = await ChatRecoveryService(self.directus_service).execute(
+                "advance_user_message_version", {
+                    "protocol_version": 1,
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "hashed_user_id": user_id_hash,
+                    "hashed_team_id": hashed_team_id,
+                    "messages_v": messages_v,
+                    "timestamp": timestamp,
+                },
+            )
+            return result.get("status") == "updated"
+        except Exception:
+            logger.exception("Failed to advance persisted user message version %s", message_id)
+            return False
+
+    async def restore_queued_message_pending(
+        self, chat_id: str, user_id: str, message_id: str,
+        queue_revision: int, task_id: str, mode: str, *,
+        hashed_team_id: Optional[str] = None,
+        recovery_preflight_id: Optional[str] = None,
+        recovery_task_id: Optional[str] = None,
+        expected_inference_commitment: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Undo a started receipt only when the exact Redis claim did not occur."""
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        try:
+            result = await ChatRecoveryService(self.directus_service).execute(
+                "restore_queued_message_pending", {
+                    "protocol_version": 1,
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+                    "hashed_team_id": hashed_team_id,
+                    "queue_revision": queue_revision,
+                    "task_id": task_id,
+                    "mode": mode,
+                    "recovery_preflight_id": recovery_preflight_id,
+                    "recovery_task_id": recovery_task_id,
+                    "expected_inference_commitment": expected_inference_commitment,
+                },
+            )
+            if result.get("status") == "restored":
+                try:
+                    await self.directus_service.cache.delete(f"chat:{chat_id}:messages")
+                except Exception:
+                    logger.warning("Could not invalidate restored queued message cache %s", message_id)
+            return result
+        except Exception:
+            logger.exception("Failed to restore queued pending receipt %s", message_id)
+            return {"status": "error"}
 
     async def update_chat_fields_in_directus(self, chat_id: str, fields_to_update: Dict[str, Any]) -> bool:
         """

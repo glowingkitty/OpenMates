@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.ai-model-routing
-version: 3
+version: 4
 status: draft
 title: AI Model Settings And Chat Routing
 summary: >
@@ -217,6 +217,10 @@ models:
       constraints: {values: [followup_suggestions, quick_tips], detail_explainer_reachable: true}
 
 assertions:
+  - id: ai-model-routing.preprocessing.early-resolution
+    type: behavior
+    must: The first preprocessing decision selects request complexity, Mate, relevant apps and Projects. Model resolution immediately follows that decision using existing exact-chat and tier-preference precedence. Selected-Mate typing metadata is published without waiting for detailed skill, Focus mode, Project Focus mode or Workflow selection. Main inference still waits for required detailed selection, consent, safety and billing gates; subsequent failures or user gates clear active typing.
+    depends_on: [models.RequestTier, examples.early_resolution]
   - id: ai-model-routing.tiers.conservative-three-way
     type: behavior
     must: Automatic model routing classifies each request as simple, complex, or most demanding; most demanding is selected only for sustained multi-stage reasoning plus an exceptional complexity or correctness factor, prompt length, stated importance, tool use, attachments, or dissatisfaction alone never qualify, and uncertainty resolves to complex.

@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from backend.apps.ai.processing import agentic_context, context_preselection, preprocessor
+from backend.apps.ai.processing import agentic_context, context_preselection, jev_preprocessing, preprocessor
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.core.api.app.services import project_focus_request_service
 from backend.core.api.app.services.billing_service import BillingService
@@ -66,6 +66,7 @@ async def test_team_chat_member_precheck_uses_spendable_credits(monkeypatch):
     load_ledger.assert_awaited_once()
 
 
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution,chat-processing-feedback.selected-mate-identity
 @pytest.mark.asyncio
 async def test_normal_account_discovers_rules_only_after_app_selection(monkeypatch):
     """The Jev stage-one boundary sees no Rule catalogue and loads selected apps."""
@@ -81,8 +82,10 @@ async def test_normal_account_discovers_rules_only_after_app_selection(monkeypat
     cache = SimpleNamespace(
         get_user_by_id=AsyncMock(return_value={"credits": 10, "auto_topup_low_balance_enabled": False}),
         get_mates_configs=AsyncMock(return_value=[SimpleNamespace(
-            category="general_knowledge", description="General help",
+            id="mate-code", category="software_development", description="Code help",
+            name="Code Mate",
         )]),
+        publish_event=AsyncMock(),
     )
     config = SimpleNamespace(default_llms=SimpleNamespace(
         preprocessing_model="test/preprocessing", decision_model="test/decision",
@@ -92,10 +95,25 @@ async def test_normal_account_discovers_rules_only_after_app_selection(monkeypat
     discover_rules = AsyncMock(return_value=rules)
     discover_workflows = AsyncMock(return_value=workflows)
     decision_calls = []
+    early_decisions = {"complexity": "complex", "task_area": "code", "user_unhappy": False,
+                       "china_model_sensitive": False, "topic_area": "software_development",
+                       "topic_shift": "noticeable_shift"}
+    early = AsyncMock(return_value={"selected_app_ids": ["code"], "early_decisions": early_decisions})
+    selection = AsyncMock(return_value={"selected_llm_for_main_id": "test/answer",
+                                        "selected_llm_for_main_name": "Answer", "complexity_val": "complex",
+                                        "model_override_applied": False})
+    notices = []
+
+    async def early_notice(routing):
+        discover_rules.assert_not_awaited()
+        discover_workflows.assert_not_awaited()
+        steps = [call.args[1]["step"] for call in cache.publish_event.await_args_list]
+        assert steps == ["mate_selected", "model_selected"]
+        notices.append(routing)
 
     async def decision(**kwargs):
         decision_calls.append(kwargs)
-        discover_rules.assert_not_awaited()
+        assert notices and kwargs["early_decisions"] == early_decisions
         assert await kwargs["available_rules_loader"](["code"]) == rules
         raise RuntimeError("Stop after observing the decision boundary")
 
@@ -112,6 +130,8 @@ async def test_normal_account_discovers_rules_only_after_app_selection(monkeypat
     monkeypatch.setattr(agentic_context, "private_focus_candidates", AsyncMock(return_value=[]))
     monkeypatch.setattr(context_preselection, "discover_rule_metadata", discover_rules)
     monkeypatch.setattr(context_preselection, "discover_workflow_metadata", discover_workflows)
+    monkeypatch.setattr(jev_preprocessing, "decide_app_and_project_routing_with_jev", early)
+    monkeypatch.setattr(preprocessor, "_select_main_model", selection)
     monkeypatch.setattr(preprocessor, "decide_preprocessing_with_jev", decision)
     monkeypatch.setattr(preprocessor, "call_preprocessing_llm", stop_before_fallback_inference)
     monkeypatch.setattr(preprocessor, "utility_model_fallbacks", lambda *_args: [])
@@ -123,12 +143,18 @@ async def test_normal_account_discovers_rules_only_after_app_selection(monkeypat
             skill_config=config, cache_service=cache, secrets_manager=None,
             directus_service=None, encryption_service=None,
             discovered_apps_metadata={"code": SimpleNamespace(skills=[], focuses=[])},
+            on_early_routing=early_notice,
+            preprocessing_stream_channel="preprocessing_stream::hash-test",
         )
 
     admitted_balance.assert_awaited_once_with(user_id="user-test", user_id_hash="hash-test")
     cache.get_user_by_id.assert_not_awaited()
     discover_rules.assert_awaited_once_with(request, None, cache, ["code"])
     discover_workflows.assert_awaited_once_with(request, cache)
+    assert notices[0]["model_id"] == "test/answer"
+    assert notices[0]["category"] == "software_development"
+    assert notices[0]["mate_id"] == "mate-code"
+    early.assert_awaited_once()
     assert len(decision_calls) == 1
     assert "available_rules" not in decision_calls[0]
     assert decision_calls[0]["available_workflows"] == workflows

@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workflows@10
+specification: feature.workflows@11
 portable_definition:
 - id: cli-web-definition-roundtrip
   given: Alice has saved a Berlin weather Workflow whose Check reads the earlier weather result and whose Send message uses an input mapping and typed result references.
@@ -471,3 +471,15 @@ project_update_authoring:
   then: Chat remains usable, one job edits the existing Workflow under its existing validation/encryption/conflict
     guards, and saved completion links to its embed. Future runs use version 4; the current run keeps version
     3.
+
+metadata_warmup:
+  - id: focus-prepares-metadata-only
+    assertion_ids: [workflows.chat.metadata-warmup]
+    given: Alice has reusable Workflows in her authorized account context and their metadata cache is cold.
+    when: Alice focuses the web composer repeatedly and later submits a request that may use a Workflow.
+    then: One bounded warm-up prepares metadata shared with inference workers, without sending her draft, calling AI or running a Workflow. If warm-up was missed, the normal request loads the same authorized metadata.
+  - id: permission-or-version-changed-after-warmup
+    assertion_ids: [workflows.chat.metadata-warmup]
+    given: A saved Workflow was shortlisted from cached metadata, but its current version or Alice's Team authorization has since changed.
+    when: Detailed preprocessing attempts to load that selected Workflow.
+    then: Fresh authorization and version checks reject inaccessible or stale details; cached metadata cannot grant execution access or expose another owner's Workflow.

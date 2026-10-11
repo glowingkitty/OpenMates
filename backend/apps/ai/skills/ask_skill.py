@@ -3,7 +3,7 @@
 
 import asyncio
 import logging
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Literal
 from fastapi import HTTPException
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 from fastapi.responses import StreamingResponse
@@ -106,6 +106,8 @@ class AskSkillRequest(BaseModel):
     user_id_hash: str = Field(..., description="Hashed ID of the user.")
     message_history: List[AIHistoryMessage] = Field(..., description="The complete history of messages in the chat, ordered chronologically. Each message is an AIHistoryMessage model. The last message is the current one.") # Emphasized completeness and order, and specified model type
     current_user_content: Optional[str] = Field(default=None, description="Plaintext content of the current user turn for stream-time intent checks.")
+    queue_mode: Literal["follow_up", "steer"] = Field(default="follow_up", description="Disposition when this message waits behind an active AI task.")
+    queue_revision: int = Field(default=1, ge=1, description="Optimistic revision of a queued user message.")
     chat_has_title: bool = Field(default=False, description="Whether the chat already has a title. Used to determine if metadata (title, category, icon) should be generated.")
     current_chat_title: Optional[str] = Field(default=None, description="The current decrypted chat title (if available). Used by post-processing to decide if the title needs updating when the conversation drifts.")
     current_chat_summary: Optional[str] = Field(default=None, max_length=4000, description="The current decrypted, client-authorized chat summary used only to bound preprocessing context.")
@@ -151,6 +153,7 @@ class AskSkillRequest(BaseModel):
     team_workspace_type: Optional[str] = Field(default="chat", description="Team workspace type used for team usage attribution.")
     team_object_id_hash: Optional[str] = Field(default=None, description="Hashed team object id for usage attribution.")
     recovery_task_id: Optional[str] = Field(default=None, description="Stable epoch-1 task ID reserved by durable chat preflight.")
+    volatile_dispatch_task_id: Optional[str] = Field(default=None, description="Stable in-memory first-turn task ID reserved before incognito dispatch.")
     recovery_inference_task_id: Optional[str] = Field(default=None, description="Durable inference identity for a dispatched child or an internal continuation.")
     legacy_cutover_task_id: Optional[str] = Field(default=None, description="Stable epoch-0 task ID owning one durable cutover admission.")
     root_user_message_id: Optional[str] = Field(default=None, description="Server-carried root user message for child legacy admission.")
@@ -452,7 +455,8 @@ class AskSkill(BaseSkill):
             from backend.shared.python_utils.volatile_embed_authority import (
                 MAIN_HEADER, active_authenticated_volatile_ai, make_main_header,
             )
-            dispatch_task_id = request.recovery_task_id or request.legacy_cutover_task_id or str(uuid.uuid4())
+            dispatch_task_id = (request.recovery_task_id or request.legacy_cutover_task_id
+                                or request.volatile_dispatch_task_id or str(uuid.uuid4()))
             from backend.shared.python_utils.recent_work_summary_cache import PRIVATE_CONTEXT_FIELDS
             from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload
             request_data_dict.update({key: getattr(request, key) for key in PRIVATE_CONTEXT_FIELDS

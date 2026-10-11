@@ -5474,7 +5474,35 @@ async def handle_main_processing(
     await refresh_agentic_context(initial=True)
     mark_project_reference_setup("agentic_context")
 
+    steer_boundary_ready = False
+    steer_excluded_ids: set[str] = set()
     for iteration in range(max_iterations_with_recovery):
+        # A queued steer may join this response only after the entire previous
+        # tool batch has completed and before the next provider call is made.
+        if steer_boundary_ready:
+            steer_boundary_ready = False
+            try:
+                from backend.apps.ai.processing.queued_steering import consume_safe_queued_steer
+                steered_message = await consume_safe_queued_steer(
+                    task_id=task_id, request=request_data,
+                    current_preprocessing=preprocessing_results,
+                    base_instructions=base_instructions,
+                    skill_config_dict=skill_config_dict,
+                    cache=cache_service, directus=directus_service,
+                    encryption=encryption_service, secrets=secrets_manager,
+                    discovered_apps=discovered_apps_metadata,
+                    excluded_ids=steer_excluded_ids,
+                )
+                if steered_message:
+                    request_data.message_history.append(steered_message)
+                    request_data.current_user_content = steered_message.content
+                    current_message_history.append(_llm_history_message(steered_message))
+                    native_prior_state = None
+                    native_state = None
+                    logger.info("%s Appended safely preflighted queued steer at tool boundary", log_prefix)
+            except Exception:
+                # Claim failures remain queued or fenced in the queue service.
+                logger.exception("%s Queued steer preflight was unavailable", log_prefix)
         if iteration == 0:
             mark_project_reference_setup("first_iteration")
         logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{max_iterations_with_recovery}, total_skill_calls={total_skill_calls}")
@@ -10764,6 +10792,7 @@ async def handle_main_processing(
                 f"This shouldn't happen if force_no_tools was set correctly. Breaking loop."
             )
             break
+        steer_boundary_ready = True
 
     final_billing_events = billing_usage_events()
     if (

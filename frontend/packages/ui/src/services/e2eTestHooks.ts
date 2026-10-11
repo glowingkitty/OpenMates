@@ -93,6 +93,8 @@ export async function installE2ETestHooks() {
     const { chatKeyManager } = await import('./encryption/ChatKeyManager');
     chatKeyManager.createKeyForNewChat(chatId);
     await chatDB.addChat(chat as unknown as Parameters<typeof chatDB.addChat>[0]);
+    // Persist the fixture key so another tab can decrypt the same local chat.
+    await chatKeyManager.createAndPersistKey(chatId);
     for (const message of messages) {
       await chatDB.saveMessage(
         message as unknown as Parameters<typeof chatDB.saveMessage>[0],

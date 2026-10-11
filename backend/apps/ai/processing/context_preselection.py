@@ -6,6 +6,7 @@ authorized after the decision; selection conveys no execution permission.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 from typing import Any
 
@@ -15,6 +16,43 @@ from backend.apps.ai.processing.rule_context import (
     authorized_project_memory_documents, eligible_rule_catalog, parse_custom_rule_documents,
 )
 from backend.shared.python_utils.rule_loader import rules_prompt
+
+WORKFLOW_METADATA_TTL_SECONDS = 30
+
+
+def _workflow_metadata_cache_key(user_id: str, team_id: str | None, vault_key_id: str) -> str:
+    scope = json.dumps([user_id, team_id, vault_key_id], separators=(",", ":"))
+    return "workflow:discovery:v1:" + hashlib.sha256(scope.encode()).hexdigest()
+
+
+def _workflow_metadata_epoch_key(user_id: str, team_id: str | None) -> str:
+    from backend.core.api.app.services.workflow_service import _hash_owner_id, _hash_team_id
+    return "workflow:discovery:epoch:" + (_hash_team_id(team_id) if team_id else _hash_owner_id(user_id))
+
+
+async def _versioned_workflow_metadata_key(cache: Any, user_id: str, team_id: str | None,
+                                           vault_key_id: str) -> str:
+    epoch = await cache.get(_workflow_metadata_epoch_key(user_id, team_id))
+    return f"{_workflow_metadata_cache_key(user_id, team_id, vault_key_id)}:{epoch or 0}"
+
+
+async def _cached_workflow_metadata(cache: Any, key: str, vault_key_id: str) -> list[dict] | None:
+    from backend.core.api.app.utils.encryption import EncryptionService
+    sealed = await cache.get(key)
+    if not isinstance(sealed, dict) or not isinstance(sealed.get("ciphertext"), str):
+        return None
+    plaintext = await EncryptionService().decrypt_with_user_key(sealed["ciphertext"], vault_key_id)
+    if not plaintext:
+        return None
+    rows = json.loads(plaintext)
+    return rows if isinstance(rows, list) else None
+
+
+async def _save_workflow_metadata(cache: Any, key: str, vault_key_id: str, rows: list[dict]) -> None:
+    from backend.core.api.app.utils.encryption import EncryptionService
+    ciphertext, _ = await EncryptionService().encrypt_with_user_key(
+        json.dumps(rows, separators=(",", ":"), ensure_ascii=True), vault_key_id)
+    await cache.set(key, {"ciphertext": ciphertext}, ttl=WORKFLOW_METADATA_TTL_SECONDS)
 
 
 async def _rules(request: Any, directus: Any, cache: Any, eligible_app_ids: list[str]) -> list:
@@ -83,33 +121,92 @@ async def _workflow_service(request: Any, cache: Any) -> tuple[Any, str | None] 
     return WorkflowService(repository=DirectusWorkflowRepository()), vault_key_id
 
 
+async def _close_workflow_service(service: Any) -> None:
+    client = getattr(getattr(service, "repository", None), "_client", None)
+    if client is not None:
+        try:
+            await asyncio.to_thread(client.close)
+        except Exception:
+            pass
+
+
+async def _authorize_workflow_team(request: Any, cache: Any) -> None:
+    team_id = getattr(request, "team_id", None)
+    if not team_id:
+        return
+    from backend.core.api.app.services.directus import DirectusService
+    directus = DirectusService(cache_service=cache)
+    try:
+        await directus.team.require_team_role(
+            team_id, request.user_id, {"owner", "admin", "member", "viewer"})
+    finally:
+        await directus.close()
+
+
 async def discover_workflow_metadata(request: Any, cache: Any) -> list[dict]:
     from backend.apps.workflows.skills.saved_workflow_context import saved_workflow_metadata
+    service = None
     try:
+        if not first_party(request):
+            return []
+        await _authorize_workflow_team(request, cache)
         binding = await _workflow_service(request, cache)
         if not binding:
             return []
         service, vault_key_id = binding
-        return await asyncio.to_thread(saved_workflow_metadata, service, request.user_id,
+        key = None
+        try:
+            key = await _versioned_workflow_metadata_key(cache, request.user_id, request.team_id, vault_key_id)
+            cached = await _cached_workflow_metadata(cache, key, vault_key_id)
+            if cached is not None:
+                return cached
+        except Exception:
+            pass  # A missing or unreadable cache always falls back to Directus.
+        rows = await asyncio.to_thread(saved_workflow_metadata, service, request.user_id,
             vault_key_id=vault_key_id, team_id=request.team_id)
+        if key is not None:
+            try:
+                await _save_workflow_metadata(cache, key, vault_key_id, rows)
+            except Exception:
+                pass
+        return rows
     except Exception:
         return []
+    finally:
+        if service is not None:
+            await _close_workflow_service(service)
 
 
 async def reload_preselected_workflows(request: Any, cache: Any, selected: list[dict]) -> list[dict]:
-    from backend.apps.workflows.skills.saved_workflow_context import load_selected_saved_workflows, saved_workflow_metadata
+    from backend.apps.workflows.skills.saved_workflow_context import load_selected_saved_workflows
+    service = None
     try:
+        if not first_party(request):
+            return []
+        await _authorize_workflow_team(request, cache)
         binding = await _workflow_service(request, cache)
         if not binding:
             return []
         service, vault_key_id = binding
-        fresh = await asyncio.to_thread(saved_workflow_metadata, service, request.user_id,
-            vault_key_id=vault_key_id, team_id=request.team_id)
-        expected = {row.get("workflow_id"): row.get("current_version_id") for row in selected[:3]}
-        retained = [row for row in fresh if row["workflow_id"] in expected
-                    and row["current_version_id"] == expected[row["workflow_id"]]]
+        def fresh_selected() -> list[dict]:
+            retained = []
+            for row in selected[:3]:
+                if not isinstance(row, dict) or not isinstance(row.get("workflow_id"), str):
+                    continue
+                record = service.repository.get_workflow(row["workflow_id"], request.user_id,
+                                                         team_id=request.team_id)
+                if (record and record.get("lifecycle", "persisted") == "persisted"
+                        and record.get("current_version_id") == row.get("current_version_id")):
+                    retained.append(row)
+            return retained
+        retained = await asyncio.to_thread(fresh_selected)
+        if not retained:
+            return []
         return await asyncio.to_thread(load_selected_saved_workflows, service, request.user_id,
-            [row["workflow_id"] for row in retained],
-            retained, vault_key_id=vault_key_id, team_id=request.team_id)
+            [row["workflow_id"] for row in retained], retained,
+            vault_key_id=vault_key_id, team_id=request.team_id)
     except Exception:
         return []
+    finally:
+        if service is not None:
+            await _close_workflow_service(service)

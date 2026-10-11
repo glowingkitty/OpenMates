@@ -2,7 +2,7 @@
 # This file contains Pydantic models for AI skill requests and responses
 # that might be shared between the core API and the AI app services.
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Literal
 from pydantic import AliasChoices, BaseModel, Field, field_validator, field_serializer
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 
@@ -24,6 +24,8 @@ class AskSkillRequest(BaseModel):
     user_id_hash: str = Field(..., description="Hashed ID of the user.")
     message_history: List[AIHistoryMessage] = Field(..., description="The complete history of messages in the chat, ordered chronologically. The last message is the current one.")
     current_user_content: Optional[str] = Field(default=None, description="Plaintext content of the current user turn for stream-time intent checks.")
+    queue_mode: Literal["follow_up", "steer"] = Field(default="follow_up", description="Disposition when this message waits behind an active AI task.")
+    queue_revision: int = Field(default=1, ge=1, description="Optimistic revision of a queued user message.")
     chat_has_title: bool = Field(default=False, description="Whether the chat already has a title. Used to determine if metadata (title, category, icon) should be generated.")
     current_chat_title: Optional[str] = Field(default=None, description="The current decrypted chat title (if available). Used by post-processing to decide if the title needs updating when the conversation drifts.")
     current_chat_summary: Optional[str] = Field(default=None, max_length=4000, description="The current decrypted, client-authorized chat summary used only to bound preprocessing context.")
@@ -87,6 +89,7 @@ class AskSkillRequest(BaseModel):
     budget_spent: int = Field(default=0, description="Cumulative credit spent under this sub-chat subtree.")
     user_task_id: Optional[str] = Field(default=None, description="Product task ID when this ask is executing a user task.")
     recovery_task_id: Optional[str] = Field(default=None, description="Stable epoch-1 task ID reserved by durable chat preflight.")
+    volatile_dispatch_task_id: Optional[str] = Field(default=None, description="Stable in-memory first-turn task ID reserved before incognito dispatch.")
     legacy_cutover_task_id: Optional[str] = Field(default=None, description="Stable epoch-0 task ID owning one durable cutover admission.")
     recovery_preflight_id: Optional[str] = Field(default=None, description="Durable epoch-1 preflight identity.")
     recovery_turn_id: Optional[str] = Field(default=None, description="Stable user-turn identity for sealed recovery.")

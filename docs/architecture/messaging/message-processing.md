@@ -59,12 +59,13 @@ claims:
 
 ## How It Works
 
-- Client sends message via WebSocket → [chatSyncServiceSenders.ts `sendNewMessageImpl()`](../../frontend/packages/ui/src/services/chatSyncServiceSenders.ts)
+- Web Send immediately clears the ordinary composer and displays one provisional history row. Preparation and authenticated submission use its stable ID → [sendersChatMessages.ts](../../../frontend/packages/ui/src/services/sendersChatMessages.ts).
 - Server receives in [message_received_handler.py `handle_message_received()`](../../backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py)
 - Check cache for chat history (last 3 chats, vault-encrypted)
   - Cache hit → decrypt with `decrypt_with_user_key()` in [encryption.py](../../backend/core/api/app/utils/encryption.py)
   - Cache miss → send `request_chat_history` to client → client responds with decrypted history + embeds
-- **Pre-processing** → select LLM, detect language, preselect skills, safety check
+- **Pre-processing stage one** → Jev selects complexity, Mate topic, relevant apps and Projects; application code resolves the permitted model/Mate and publishes early typing metadata.
+- **Pre-processing stage two** → choose specific skills, app Focus modes, Project Focus modes, Workflows and requested private context. Model resolution does not wait for this stage.
 - **Main processing** → send to LLM with tools and context
 - LLM calls skills → each creates/updates embeds
 - Response streamed via [stream_consumer.py](../../backend/apps/ai/tasks/stream_consumer.py)
@@ -77,8 +78,11 @@ graph LR
     B -->|Yes| C[Decrypt via<br/>Vault key]
     B -->|Miss| D[Request history<br/>from client]
     D --> C
-    C --> E[Pre-processing<br/>Mistral Small]
-    E -->|model + skills<br/>+ language| F[Main Processing<br/>Selected LLM]
+    C --> E[Jev stage one<br/>complexity, Mate, apps, Projects]
+    E --> R[Resolve permitted model/Mate<br/>emit early typing metadata]
+    R --> P[Jev stage two<br/>skills, Focus, Workflows, context]
+    P --> V[Safety, consent and budget gates]
+    V --> F[Main Processing<br/>Selected LLM]
     F --> G{Tool calls?}
     G -->|Yes| H[Skill Executor]
     H --> I[Create/update<br/>embed]
@@ -111,7 +115,7 @@ Two caches, different encryption, different purposes:
 
 ## Pre-Processing
 
-- **Model:** `mistral-small-latest` (Mistral Small 4) — see [preprocessing model comparison](../ai/preprocessing-model-comparison.md) for why
+- **Model:** configured preprocessing model and its permitted utility-model fallbacks. See [preprocessing model comparison](../ai/preprocessing-model-comparison.md) for historical evaluation.
 - **Implementation:** [preprocessor.py](../../backend/apps/ai/processing/preprocessor.py)
 - **Config:** [base_instructions.yml](../../backend/apps/ai/base_instructions.yml)
 - **Outputs:**
@@ -123,6 +127,20 @@ Two caches, different encryption, different purposes:
   - `prompt_injection_chance` — safety score
   - `title`, `icon_names`, `category` — chat metadata (first message only, skipped if title exists)
   - `tags` — max 10 for similar past chat lookup
+
+### Early routing and Workflow discovery
+
+The first Jev stage owns complexity and Mate topic as well as app/Project routing. Explicit user model/Mate overrides and existing Project, credit and policy constraints retain precedence. The resolved model is available before detailed tool/context selection; stage two cannot silently replace it. Early typing metadata describes progress and does not authorize execution. Rejection, a gate or a terminal failure closes that state.
+
+Workflow routing selects at most 20 candidates before summary hydration, batches routing-blob reads and Vault decryption, and caches bounded metadata encrypted with the user's Vault key for 30 seconds with scope/revision invalidation. Selected Workflow graphs are reauthorized fresh. The web composer can warm this cache on focus with an authenticated, rate-limited hint containing no draft text; it makes no inference request. Typing-time preprocessing is excluded.
+
+### Queued follow-ups and steering
+
+An already active assistant causes a normal follow-up to be admitted as an encrypted durable queued turn, with a stable message ID, revision and synchronized Queued state. Edits compare-and-swap that revision across durable history and the encrypted inference payload. Unchanged edits do not mutate the queue. Ordinary handoff dispatches one immutable turn at a time after the predecessor completes.
+
+Steer instead keeps the current assistant run and completed results. It consumes an exact queued revision only after a complete tool cycle or safe agent boundary and fresh safety, credit, consent and context checks. Explicit model/Mate changes, new gated context and incompatible Focus/Project state defer to an ordinary follow-up. A running tool is not cancelled and completed side effects are not replayed. Claimed revisions are fenced against concurrent edits; unrecoverable context or a failed consumed steer has a truthful saved paused state.
+
+The web, authenticated CLI and Apple share backend routing improvements. Web owns the new queue editor and response presentation; native Apple controls/recording and the independently implemented TUI presentation have separate client scope. See the [implementation report](../../plans/chat-latency-improvements/report.md) and [queue Plan](../../plans/chat-queued-followups/plan.yml) for evidence and rollout state.
 
 ### Tool Preselection
 

@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.ai-model-routing@3
+specification: feature.ai-model-routing@4
 
 tier_classification:
   - id: simple-live-search
@@ -157,3 +157,15 @@ preprocessing_recovery:
     given: {preprocessing_retries: true, configured_fallback: available}
     when: {primary_response: success_without_tool_calls, total_deadline: exhausted}
     expect: {preprocessing: failed, next_configured_provider_called: false}
+
+early_resolution:
+  - id: slow-detail-selection
+    assertion_ids: [ai-model-routing.preprocessing.early-resolution]
+    given: Alice submits a request whose detailed Workflow or skill selection is slow, and she has an exact chat model override.
+    when: The first decision has selected complexity, Mate, apps and relevant Projects but the detailed second decision is still pending.
+    then: The exact chat model is already resolved and the selected Mate typing event has reached the client. Main inference starts only after detailed selection and all consent, safety and billing gates succeed.
+  - id: later-gate-clears-early-typing
+    assertion_ids: [ai-model-routing.preprocessing.early-resolution]
+    given: The current turn has already announced its selected Mate before detailed processing completes.
+    when: Detailed processing fails or requires a user approval.
+    then: The client clears that turn's typing indicator and shows the existing failure or user gate without beginning main inference.

@@ -9,6 +9,7 @@
  */
 
 import { embedStore } from '../services/embedStore';
+import { createAssistantRenderPlan } from '../message_parsing/streamingMessageBlocks';
 import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
 
 // Preview-only navigation observation for focused click tests.
@@ -41,6 +42,73 @@ embedStore.registerStaticEmbed({
 	}),
 });
 const widthResults = '```embeds_results_view\ntitle: Upcoming events\nembeds: ' + widthEventId + '\n```';
+
+const responseSource = [
+  'I will compare two sources.',
+  '',
+  '```json',
+  '{"type":"app_skill_use","embed_id":"preview-skill-web","app_id":"web","skill_id":"search"}',
+  '```',
+  '',
+  '```json',
+  '{"type":"app_skill_use","embed_id":"preview-skill-news","app_id":"news","skill_id":"search"}',
+  '```',
+  '',
+  'The first comparison is ready.',
+  '',
+  '```json',
+  '{"type":"app_skill_use","embed_id":"preview-skill-images","app_id":"images","skill_id":"search"}',
+  '```',
+  '',
+  'The answer keeps both results in source order.',
+].join('\n');
+for (const [embedId, appId] of [
+  ['preview-skill-web', 'web'], ['preview-skill-news', 'news'], ['preview-skill-images', 'images'],
+]) {
+  embedStore.registerStaticEmbed({
+    embedId, type: 'app-skill-use', appId,
+    content: JSON.stringify({ type: 'app_skill_use', title: `Local ${appId} result`, status: 'finished' }),
+  });
+}
+const responseDocument = createAssistantRenderPlan(responseSource, { phase: 'final' }).document;
+const streamingResponseSource = responseSource
+  .slice(0, responseSource.indexOf('\n\nThe answer keeps both results'))
+  .replace(
+    '{"type":"app_skill_use","embed_id":"preview-skill-images","app_id":"images","skill_id":"search"}',
+    '{"type":"app_skill_use","embed_id":"preview-streaming-skill-images","app_id":"images","skill_id":"search","status":"processing"}',
+  );
+const streamingResponseDocument = createAssistantRenderPlan(
+  streamingResponseSource,
+  { phase: 'streaming' },
+).document;
+const workingResponseDocument = createAssistantRenderPlan([
+  'I will create an illustration.', '', '```json',
+  '{"type":"app_skill_use","embed_id":"preview-working-skill-images","app_id":"images","skill_id":"generate","status":"processing"}',
+  '```',
+].join('\n'), { phase: 'streaming' }).document;
+
+// The authored attributes intentionally stay processing after the store finishes.
+const liveSkillSource = ['preview-live-first', 'preview-live-second'].map((embedId, index) => [
+  '```json',
+  JSON.stringify({ type: 'app_skill_use', embed_id: embedId, app_id: index ? 'news' : 'web',
+    skill_id: 'search', status: 'processing' }),
+  '```',
+].join('\n')).join('\n\n');
+const liveSkillDocument = createAssistantRenderPlan(liveSkillSource, { phase: 'streaming' }).document;
+const seedLiveSkill = (embedId: string, status: string) => embedStore.setInMemoryOnly(`embed:${embedId}`, {
+  embed_id: embedId, type: 'app-skill-use', status,
+  app_id: embedId.endsWith('first') ? 'web' : embedId.endsWith('second') ? 'news' : 'images',
+  skill_id: embedId.startsWith('preview-working-') ? 'generate' : 'search',
+  content: JSON.stringify({ type: 'app_skill_use', title: embedId, status }),
+});
+for (const embedId of ['preview-streaming-skill-images', 'preview-working-skill-images']) {
+  seedLiveSkill(embedId, 'processing');
+}
+seedLiveSkill('preview-live-first', 'finished');
+seedLiveSkill('preview-live-second', 'processing');
+if (typeof document !== 'undefined') {
+  document.addEventListener('preview:finish-second-skill', () => seedLiveSkill('preview-live-second', 'finished'));
+}
 
 /** Default props — shows a user message */
 const defaultProps = {
@@ -148,6 +216,46 @@ export const variants = {
 		containerWidth: 800
 	},
 
+	/** Accepted server turn before the first persisted assistant chunk. */
+	responseThinking: {
+		role: 'assistant' as const, content: '', status: 'processing' as const,
+		isTransientResponse: true, model_name: 'claude-sonnet-4-20250514', server_region: 'EU',
+		containerWidth: 800,
+	},
+	/** User-visible reasoning still streams after the first assistant row exists. */
+	responseStreamingReasoning: {
+		role: 'assistant' as const, content: '', status: 'streaming' as const,
+		thinkingContent: 'I am checking the available sources.', isThinkingStreaming: true,
+		model_name: 'claude-sonnet-4-20250514', server_region: 'EU', containerWidth: 800,
+	},
+	/** Source-ordered active skill calls and prose in one response container. */
+	responseStreaming: {
+		role: 'assistant' as const, content: streamingResponseDocument, status: 'streaming' as const,
+		model_name: 'claude-sonnet-4-20250514', server_region: 'EU', containerWidth: 800,
+		thinkingContent: 'I will compare the available sources.', isThinkingStreaming: false,
+	},
+	responseLiveSkillCompletion: {
+		role: 'assistant' as const, content: liveSkillDocument, status: 'streaming' as const,
+		model_name: 'claude-sonnet-4-20250514', server_region: 'EU', containerWidth: 800,
+	},
+	/** Action skill IDs keep the active footer in Working, not Researching. */
+	responseWorking: {
+		role: 'assistant' as const, content: workingResponseDocument, status: 'streaming' as const,
+		model_name: 'claude-sonnet-4-20250514', server_region: 'EU', containerWidth: 800,
+	},
+	/** Completed activity collapses at its authored position and can be expanded. */
+	responseCompleted: {
+		role: 'assistant' as const, content: responseDocument, status: 'synced' as const,
+		model_name: 'claude-sonnet-4-20250514', server_region: 'EU', containerWidth: 800,
+		thinkingContent: 'I will compare the available sources.', isThinkingStreaming: false,
+	},
+	/** A finished response with visible thinking and no app calls uses the same disclosure. */
+	responseThinkingOnlyCompleted: {
+		role: 'assistant' as const, content: 'A concise answer.', status: 'synced' as const,
+		containerWidth: 800, thinkingContent: 'I checked the wording before answering.',
+		isThinkingStreaming: false,
+	},
+
 	/** Failed message */
 	failed: {
 		role: 'user' as const,
@@ -213,6 +321,40 @@ export const variants = {
 		isOwnUserMessage: false,
 		teamId: 'preview-team',
 		senderUserId: 'member-preview',
+	},
+	teamRemoteQueued: {
+		...defaultProps,
+		content: 'Sam’s queued follow-up.',
+		status: 'queued' as const,
+		messageId: 'preview-remote-queued',
+		currentChatId: 'preview-team-chat',
+		sender_name: 'Sam',
+		isOwnUserMessage: false,
+		teamId: 'preview-team',
+		senderUserId: 'member-preview',
+		original_message: {
+			message_id: 'preview-remote-queued', chat_id: 'preview-team-chat', role: 'user' as const,
+			content: 'Sam’s queued follow-up.', status: 'queued' as const, created_at: 1,
+			queue_revision: 1, queue_mode: 'follow_up' as const,
+			hashed_user_id: 'another-team-member',
+		},
+		queueActions: {
+			mode: 'follow_up' as const, busy: false, error: null,
+			onEdit: () => {}, onSteer: () => {},
+		},
+	},
+	teamOwnPaused: {
+		...defaultProps,
+		content: 'Saved question with no assistant handoff.',
+		messageId: 'preview-own-paused',
+		currentChatId: 'preview-team-chat',
+		teamId: 'preview-team',
+		isOwnUserMessage: true,
+		original_message: {
+			message_id: 'preview-own-paused', chat_id: 'preview-team-chat', role: 'user' as const,
+			content: 'Saved question with no assistant handoff.', status: 'synced' as const,
+			created_at: 1, queue_dispatch_status: 'paused' as const,
+		},
 	},
 	teamRemoteWithAvatar: {
 		...defaultProps,

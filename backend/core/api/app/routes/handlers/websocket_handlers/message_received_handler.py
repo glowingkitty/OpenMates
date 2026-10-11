@@ -9,6 +9,7 @@ from backend.shared.python_utils.chat_failure_notifications import notify_chat_f
 
 from backend.core.api.app.routes.handlers.websocket_handlers.draft_submission import clear_sent_message_draft
 import logging
+import asyncio
 import json
 import hashlib # Import hashlib for hashing user_id
 import uuid
@@ -404,6 +405,57 @@ def _reject_connected_account_secret_fields(item: dict[str, Any]) -> None:
         )
 
 
+async def _settle_failed_first_claim(
+    *, cache_service, directus_service, manager, chat_id: str, task_id: str,
+    device_fingerprint_hash: str, known_not_dispatched: bool,
+) -> bool:
+    """Release an unstarted chat claim only after its accepted followers are safe."""
+    if not known_not_dispatched:
+        # A broker timeout can follow acceptance. Keep the claim while any
+        # follower waits; the worker's exact task ID may still complete.
+        return False
+    for _ in range(64):
+        lease = await cache_service.lease_queued_message_prefix(chat_id, limit=20)
+        if lease is None:
+            state = await cache_service.complete_active_ai_task_if_queue_empty(chat_id, task_id)
+            if state in (1, 2):
+                return True
+            continue
+        for member in lease["messages"]:
+            if member.get("is_incognito"):
+                await manager.send_personal_message(
+                    {"type": "queued_handoff_paused", "payload": {
+                        "chat_id": chat_id, "message_id": member["message_id"],
+                        "reason_code": "volatile_predecessor_failed", "retryable": False,
+                    }}, member["user_id"], device_fingerprint_hash,
+                )
+            else:
+                paused = None
+                for retry in range(8):
+                    paused = await directus_service.chat.mark_queued_message_paused(
+                        chat_id, member["user_id"], member["message_id"],
+                        member.get("queue_revision") or 1, "dispatch_failed",
+                        hashed_team_id=member.get("team_id_hash"),
+                        queue_mode=member.get("queue_mode") or "follow_up",
+                    )
+                    if paused.get("status") in ("paused", "already_paused"):
+                        break
+                    if paused.get("status") not in ("not_persisted", "error"):
+                        break
+                    await asyncio.sleep(min(0.25 * (retry + 1), 1.0))
+                if paused.get("status") not in ("paused", "already_paused"):
+                    return False
+                await manager.broadcast_to_user(
+                    {"type": "queued_handoff_paused", "payload": {
+                        "chat_id": chat_id, "message_id": member["message_id"],
+                        "reason_code": "dispatch_failed", "retryable": False,
+                    }}, member["user_id"], exclude_device_hash=None,
+                )
+        if not await cache_service.acknowledge_queued_message_prefix(chat_id, lease):
+            return False
+    return False
+
+
 async def handle_message_received( # Renamed from handle_new_message, logic moved here
     websocket: WebSocket,
     manager: ConnectionManager,
@@ -565,23 +617,6 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         "payload": {
                             "code": "client_update_required",
                             "message": "Please update OpenMates before sending another saved chat message.",
-                        },
-                    },
-                    user_id,
-                    device_fingerprint_hash,
-                )
-                return
-            active_recovery_task_id = (
-                await cache_service.get_active_ai_task(chat_id)
-                if team_should_trigger_ai else None
-            )
-            if active_recovery_task_id:
-                await manager.send_personal_message(
-                    {
-                        "type": "error",
-                        "payload": {
-                            "code": "active_task_in_progress",
-                            "message": "Wait for the current response to finish, then retry this message.",
                         },
                     },
                     user_id,
@@ -1914,10 +1949,9 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         f"Message roles: {[msg.role for msg in message_history_for_ai]}"
                     )
                     
-                    # CRITICAL FIX: Validate chat history based on database messages_v vs cached messages
-                    # For existing chats, we should have historical context beyond just the current message
+                    # messages_v is a sync revision, not a row count: queued edits and
+                    # dispatch-status changes advance it without adding messages.
                     messages_v_from_db = chat_metadata_from_db.get("messages_v", 0) if chat_metadata_from_db else 0
-                    expected_total_messages = messages_v_from_db if messages_v_from_db > 0 else 1
 
                     # The current user message was saved to AI cache (LPUSH at line ~524)
                     # BEFORE the history fetch, so message_history_for_ai includes it.
@@ -1925,10 +1959,14 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     current_msg_in_cache = 1 if _current_message_resolved_in_history is not None else 0
                     actual_previous_messages = len(message_history_for_ai) - current_msg_in_cache
 
-                    # expected_previous = all messages already in DB. messages_v is read
-                    # at handler start (before current message is persisted), so it does
-                    # NOT include the current message. No need to subtract 1.
-                    expected_previous_messages = expected_total_messages
+                    # Avoid a DB count query on the common path. Query the actual row
+                    # count only when the revision would otherwise reject this cache.
+                    expected_previous_messages = messages_v_from_db
+                    if not is_team_chat and is_existing_chat and messages_v_from_db > actual_previous_messages:
+                        actual_db_count = await directus_service.chat.get_message_count_for_chat(chat_id)
+                        if actual_db_count is not None:
+                            expected_previous_messages = actual_db_count
+                    expected_total_messages = max(expected_previous_messages, 1)
 
                     previous_history_for_validation = message_history_for_ai
                     if current_msg_in_cache and message_history_for_ai:
@@ -2327,6 +2365,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(), # Pass the hashed user_id
             message_history=message_history_for_ai,
             current_user_content=content_plain,
+            queue_mode="steer" if payload.get("queue_mode") == "steer" else "follow_up",
             chat_has_title=chat_has_title_from_client, # Pass the flag to preprocessing
             current_chat_title=current_chat_title_from_client,  # OPE-265: For post-processing title update evaluation
             current_chat_summary=current_chat_summary_from_client,
@@ -2381,9 +2420,31 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # If so, queue the message instead of starting a new task
         active_task_id = await cache_service.get_active_ai_task(chat_id)
         stale_legacy_queue = (
-            active_task_id is None and not is_incognito and protocol_epoch == 0
+            active_task_id is None and not is_incognito
             and await cache_service.has_queued_messages(chat_id)
         )
+        fresh_task_claim_id = None
+        if not stale_legacy_queue and active_task_id is None:
+            candidate_id = (str(uuid.uuid4()) if is_incognito else
+                            (recovery_enqueue_result or {}).get("inference_task_id") or hashlib.sha256(
+                                f"{user_id}:{chat_id}:{message_id}".encode()
+                            ).hexdigest())
+            for _claim_attempt in range(2):
+                if await cache_service.try_claim_active_ai_task(chat_id, candidate_id):
+                    fresh_task_claim_id = candidate_id
+                    break
+                active_task_id = await cache_service.get_active_ai_task(chat_id)
+                if active_task_id:
+                    break
+            if not fresh_task_claim_id and not active_task_id:
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {
+                        "code": "inference_temporarily_paused",
+                        "message": "Chat admission is changing. Please retry shortly.",
+                        "chat_id": chat_id, "message_id": message_id, "retryable": True,
+                    }}, user_id, device_fingerprint_hash,
+                )
+                return
         
         if active_task_id or stale_legacy_queue:
             # There's an active task - queue this message instead
@@ -2393,6 +2454,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             from backend.shared.python_utils.recent_work_summary_cache import PRIVATE_CONTEXT_FIELDS
             from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload
             queued_payload = ai_request_payload.model_dump()
+            if recovery_enqueue_result:
+                from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import build_inference_commitment
+                queued_payload["recovery_inference_request"] = inference_request
+                queued_payload["recovery_inference_commitment"] = build_inference_commitment(inference_request)
+                queued_payload["recovery_outbox_id"] = recovery_enqueue_result["outbox_id"]
             try:
                 queued_payload = await seal_private_context_payload(queued_payload, request_id=message_id, ensure_turn_binding=True)
             except RuntimeError:
@@ -2401,27 +2467,92 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             # Queue the message data for later processing
             queued_success = await cache_service.queue_message(
                 chat_id=chat_id,
-                message_data=queued_payload
+                message_data=queued_payload,
+                expected_active_task_id=active_task_id,
             )
+            if not queued_success and active_task_id:
+                current_active_id = await cache_service.get_active_ai_task(chat_id)
+                if current_active_id and current_active_id != active_task_id:
+                    queued_success = await cache_service.queue_message(
+                        chat_id=chat_id, message_data=queued_payload,
+                        expected_active_task_id=current_active_id,
+                    )
+                    if queued_success:
+                        active_task_id = current_active_id
+                elif current_active_id is None and not await cache_service.has_queued_messages(chat_id):
+                    # The previous run completed between observation and append.
+                    # This user turn owns a fresh admission instead of an orphaned queue row.
+                    active_task_id = None
+                    stale_legacy_queue = False
             
             if queued_success:
-                # Notify client that message is queued
-                await manager.send_personal_message(
-                    message={
-                        "type": "message_queued",
-                        "payload": {
-                            "chat_id": chat_id,
-                            "user_message_id": message_id,
-                            "active_task_id": active_task_id,
-                            "message": "Press enter again to stop previous response"
-                        }
-                    },
-                    user_id=user_id,
-                    device_fingerprint_hash=device_fingerprint_hash
-                )
-                logger.info(f"Message {message_id} queued for chat {chat_id} with active task {active_task_id}")
+                durable_pending = True
+                if not is_incognito:
+                    pending_status = None
+                    for retry in range(8):
+                        pending_status = await directus_service.chat.mark_queued_message_pending(
+                            chat_id, user_id, message_id, ai_request_payload.queue_revision,
+                            ai_request_payload.queue_mode,
+                            hashed_team_id=team_ai_context.get("team_id_hash"),
+                            recovery_preflight_id=(payload.get("preflight_id")
+                                                   if recovery_enqueue_result else None),
+                            recovery_task_id=(recovery_enqueue_result or {}).get("inference_task_id"),
+                        )
+                        if pending_status.get("status") in ("queued", "already_queued", "already_started"):
+                            break
+                        if pending_status.get("status") not in ("not_persisted", "error"):
+                            break
+                        await asyncio.sleep(min(0.25 * (retry + 1), 1.0))
+                    if pending_status.get("status") not in ("queued", "already_queued", "already_started"):
+                        durable_pending = False
+                        logger.warning("Initial durable queue marker unavailable for message %s: %s",
+                                       message_id, pending_status.get("status"))
+                        if pending_status.get("status") != "not_persisted":
+                            paused = await directus_service.chat.mark_queued_message_paused(
+                                chat_id, user_id, message_id, ai_request_payload.queue_revision,
+                                "queued_status_unavailable",
+                                hashed_team_id=team_ai_context.get("team_id_hash"),
+                                queue_mode=ai_request_payload.queue_mode,
+                            )
+                            if paused.get("status") not in ("paused", "already_paused"):
+                                logger.warning("Queued status pause unavailable for %s: %s",
+                                               message_id, paused.get("status"))
+                    elif pending_status.get("messages_v") is not None:
+                        await cache_service.mark_sync_message_queued(
+                            user_id, chat_id, message_id, ai_request_payload.queue_revision,
+                            ai_request_payload.queue_mode, pending_status["messages_v"],
+                        )
+                if durable_pending:
+                    queued_notice = {
+                        "chat_id": chat_id,
+                        "user_message_id": message_id,
+                        "active_task_id": active_task_id,
+                        "task_id": active_task_id,
+                        "queue_mode": ai_request_payload.queue_mode,
+                        "queue_revision": ai_request_payload.queue_revision,
+                        "message": "Message queued",
+                    }
+                    await manager.send_personal_message(
+                        {"type": "message_queued", "payload": queued_notice},
+                        user_id, device_fingerprint_hash,
+                    )
+                    if not is_incognito:
+                        await manager.broadcast_to_user(
+                            message={"type": "queued_message_status", "payload": queued_notice},
+                            user_id=user_id, exclude_device_hash=None,
+                        )
+                else:
+                    await manager.send_personal_message(
+                        {"type": "queued_handoff_paused", "payload": {
+                            "chat_id": chat_id, "message_id": message_id,
+                            "reason_code": "queued_status_unavailable",
+                            "retryable": False,
+                        }}, user_id, device_fingerprint_hash,
+                    )
+                logger.info("Message %s queued for chat %s behind task %s (durable=%s)",
+                            message_id, chat_id, active_task_id, durable_pending)
                 try:
-                    if not is_incognito and protocol_epoch == 0:
+                    if not is_incognito:
                         from backend.apps.ai.tasks.ask_skill_task import resume_legacy_queued_handoff
                         resumed_task_id = await resume_legacy_queued_handoff(
                             cache_service=cache_service,
@@ -2442,7 +2573,9 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                             "type": "queued_handoff_paused",
                             "payload": {
                                 "chat_id": chat_id,
+                                "message_id": message_id,
                                 "reason_code": "queued_handoff_unavailable",
+                                "retryable": True,
                             },
                         },
                         user_id,
@@ -2465,15 +2598,33 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         user_id,
                         device_fingerprint_hash,
                     )
-            else:
+            elif active_task_id or stale_legacy_queue:
                 logger.error(f"Failed to queue message {message_id} for chat {chat_id}")
                 await manager.send_personal_message(
                     {"type": "error", "payload": {"message": "Failed to queue message. Please try again."}},
                     user_id, device_fingerprint_hash
                 )
-            return  # Exit early - message is queued, don't start new task
+            if queued_success or active_task_id or stale_legacy_queue:
+                return  # Queue admission or explicit retry; never start a parallel AI task.
         
         # No active task - proceed with normal processing
+        if fresh_task_claim_id is None:
+            candidate_id = (str(uuid.uuid4()) if is_incognito else
+                            (recovery_enqueue_result or {}).get("inference_task_id") or hashlib.sha256(
+                                f"{user_id}:{chat_id}:{message_id}".encode()
+                            ).hexdigest())
+            if not await cache_service.try_claim_active_ai_task(chat_id, candidate_id):
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {
+                        "code": "inference_temporarily_paused",
+                        "message": "Chat admission is changing. Please retry shortly.",
+                        "chat_id": chat_id, "message_id": message_id, "retryable": True,
+                    }}, user_id, device_fingerprint_hash,
+                )
+                return
+            fresh_task_claim_id = candidate_id
+        if is_incognito:
+            ai_request_payload.volatile_dispatch_task_id = fresh_task_claim_id
         if not is_incognito and protocol_epoch == 0:
             legacy_task_identity = hashlib.sha256(
                 f"{user_id}:{chat_id}:{message_id}".encode()
@@ -2493,6 +2644,13 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     )
                 ai_request_payload.legacy_cutover_task_id = legacy_task_identity
             except ChatRecoveryProtocolError as exc:
+                if fresh_task_claim_id:
+                    await _settle_failed_first_claim(
+                        cache_service=cache_service, directus_service=directus_service,
+                        manager=manager, chat_id=chat_id, task_id=fresh_task_claim_id,
+                        device_fingerprint_hash=device_fingerprint_hash,
+                        known_not_dispatched=True,
+                    )
                 error_code = (
                     "client_update_required"
                     if exc.code == "client_update_required"
@@ -2523,9 +2681,17 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         from backend.core.api.app.services.skill_registry import get_global_registry
 
         ai_call_start = time.time()
+        broker_invoked = False
         try:
             request_payload = ai_request_payload.model_dump()
             logger.debug(f"Dispatching ai.ask in-process for chat {chat_id}, message {message_id}")
+            if recovery_enqueue_result:
+                release = await directus_service.chat.release_inference_outbox(
+                    payload["preflight_id"], recovery_enqueue_result["inference_task_id"],
+                    recovery_enqueue_result["outbox_id"], user_id,
+                )
+                if release.get("status") not in ("released", "already_released"):
+                    raise RuntimeError("Durable inference outbox is unavailable")
 
             if is_incognito:
                 from backend.shared.python_utils.volatile_embed_authority import (
@@ -2545,12 +2711,14 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     hashed_team_id=team_ai_context.get("team_id_hash"),
                 ))
                 try:
+                    broker_invoked = True
                     response_data = await get_global_registry().dispatch_skill(
                         "ai", "ask", request_payload,
                     )
                 finally:
                     active_authenticated_volatile_ai.reset(volatile_token)
             else:
+                broker_invoked = True
                 response_data = await get_global_registry().dispatch_skill(
                     "ai", "ask", request_payload,
                 )
@@ -2562,6 +2730,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
 
             if ai_task_id:
+                if fresh_task_claim_id and ai_task_id != fresh_task_claim_id:
+                    raise RuntimeError("AI dispatcher returned a task ID that differs from the chat claim")
                 if recovery_enqueue_result:
                     expected_task_id = recovery_enqueue_result["inference_task_id"]
                     if ai_task_id != expected_task_id:
@@ -2574,7 +2744,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                             "inference_task_id": expected_task_id,
                         },
                     )
-                await cache_service.set_active_ai_task(chat_id, ai_task_id)
+                if not fresh_task_claim_id:
+                    await cache_service.set_active_ai_task(chat_id, ai_task_id)
                 await manager.send_personal_message(
                     message={
                         "type": "ai_task_initiated",
@@ -2616,6 +2787,13 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 raise RuntimeError(f"AI dispatcher returned no task_id. Response: {response_data}")
 
         except Exception as e_ai_task:
+            if fresh_task_claim_id:
+                await _settle_failed_first_claim(
+                    cache_service=cache_service, directus_service=directus_service,
+                    manager=manager, chat_id=chat_id, task_id=fresh_task_claim_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    known_not_dispatched=not broker_invoked,
+                )
             logger.error(f"Failed to dispatch ai.ask for chat {chat_id}: {e_ai_task}", exc_info=True)
             immutable_binding_rejected = (
                 getattr(e_ai_task, "status_code", None) == 409

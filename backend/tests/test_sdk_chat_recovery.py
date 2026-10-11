@@ -285,7 +285,10 @@ async def test_sdk_configured_mate_dispatch_preserves_each_human_sender_name(mon
     monkeypatch.setattr(sdk, "enqueue_chat_turn", AsyncMock(
         return_value={"inference_task_id": TASK_ID, "outbox_id": "outbox-id"},
     ))
-    monkeypatch.setattr(sdk, "_execute_sdk_recovery", AsyncMock(return_value={"state": "DISPATCHED"}))
+    async def recovery_execute(_request, operation, _payload):
+        return {"status": "released"} if operation == "release_inference_outbox" else {"state": "DISPATCHED"}
+
+    monkeypatch.setattr(sdk, "_execute_sdk_recovery", recovery_execute)
     monkeypatch.setattr(sdk, "broadcast_team_event", AsyncMock())
     monkeypatch.setattr(sdk, "notify_team_member_mentions", AsyncMock())
     history = [
@@ -415,7 +418,10 @@ async def test_create_dispatches_only_canonical_inference_values_with_stable_aut
         "enqueue_chat_turn",
         AsyncMock(return_value={"inference_task_id": TASK_ID, "outbox_id": "outbox-id"}),
     )
-    mark_dispatched = AsyncMock(return_value={"state": "DISPATCHED"})
+    async def recovery_response(_request, operation, _body):
+        return {"status": "released"} if operation == "release_inference_outbox" else {"state": "DISPATCHED"}
+
+    mark_dispatched = AsyncMock(side_effect=recovery_response)
     monkeypatch.setattr(sdk, "_execute_sdk_recovery", mark_dispatched)
     inference_request = {
         "messages": [{"role": "user", "content": "canonical"}],
@@ -461,6 +467,10 @@ async def test_create_dispatches_only_canonical_inference_values_with_stable_aut
 
     assert result["task_id"] == retry["task_id"] == TASK_ID
     assert registry.dispatch_skill.await_count == 2
+    assert [call.args[1] for call in mark_dispatched.await_args_list] == [
+        "release_inference_outbox", "mark_outbox_dispatched",
+        "release_inference_outbox", "mark_outbox_dispatched",
+    ]
     dispatch = registry.dispatch_skill.await_args.args[2]
     assert dispatch["current_user_content"] == "canonical"
     assert dispatch["user_preferences"]["model"] == "canonical-model"
@@ -511,7 +521,10 @@ def test_create_marks_recovery_failed_when_dispatch_returns_no_task(monkeypatch)
         "enqueue_chat_turn",
         AsyncMock(return_value={"inference_task_id": TASK_ID, "outbox_id": "outbox-id"}),
     )
-    recovery_execute = AsyncMock(return_value={"failed": True})
+    async def recovery_response(_request, operation, _body):
+        return {"status": "released"} if operation == "release_inference_outbox" else {"failed": True}
+
+    recovery_execute = AsyncMock(side_effect=recovery_response)
     monkeypatch.setattr(sdk, "_execute_sdk_recovery", recovery_execute)
 
     exc = asyncio.run(run_test())
@@ -524,7 +537,9 @@ def test_create_marks_recovery_failed_when_dispatch_returns_no_task(monkeypatch)
         "message_id": "message-id",
         "retryable": True,
     }
-    recovery_execute.assert_awaited_once()
+    assert [call.args[1] for call in recovery_execute.await_args_list] == [
+        "release_inference_outbox", "mark_inference_failed",
+    ]
     assert recovery_execute.await_args.args[1] == "mark_inference_failed"
     assert recovery_execute.await_args.args[2] == {
         "protocol_version": 1,

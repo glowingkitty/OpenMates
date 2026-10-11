@@ -747,26 +747,16 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
     // This is critical for streaming updates - the group ID must remain stable
     const groupId = generateDeterministicGroupId(embedNodes);
 
-    // Sort according to status: processing first, then error, then finished.
-    // Error embeds are kept but sorted after processing so they appear last in
-    // the horizontal scroll row (least prominent position).
-    const STATUS_ORDER: Record<string, number> = {
-      processing: 0,
-      finished: 1,
-      error: 2,
-    };
-    const sortedEmbeds = [...embedNodes].sort((a, b) => {
-      const orderA = STATUS_ORDER[a.status] ?? 1;
-      const orderB = STATUS_ORDER[b.status] ?? 1;
-      return orderA - orderB;
-    });
+    // A parallel call can finish after a later call. Completion must never
+    // reorder cards or remount the text and results around this source run.
+    const orderedEmbeds = embedNodes;
 
     // Extract serializable attributes for groupedItems
     // CRITICAL: Preserve app_id, skill_id, query, and provider so that GroupRenderer
     // can render the correct Svelte component during streaming, even before
     // the full embed data arrives from the server via WebSocket.
     // Without these, the group items will render as empty/generic fallback HTML.
-    const serializableGroupedItems = sortedEmbeds.map((embed) => ({
+    const serializableGroupedItems = orderedEmbeds.map((embed) => ({
       id: embed.id,
       type: embed.type,
       status: embed.status as "processing" | "finished" | "error",
@@ -778,11 +768,6 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
       provider: embed.provider,
     }));
 
-    console.log(
-      "[AppSkillUseGroupHandler] Creating group with items:",
-      serializableGroupedItems,
-    );
-
     // Mixed groups may contain embeds from different apps/skills.
     // Group-level app_id/skill_id are omitted since items may vary.
     // Each item retains its own app_id/skill_id for individual rendering.
@@ -792,10 +777,9 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
       status: "finished",
       contentRef: null,
       groupedItems: serializableGroupedItems,
-      groupCount: sortedEmbeds.length,
+      groupCount: orderedEmbeds.length,
     } as EmbedNodeAttributes;
 
-    console.log("[AppSkillUseGroupHandler] Created group:", result);
     return result;
   }
 

@@ -29,3 +29,51 @@ export async function waitForHydratedChat(
     throw error;
   }
 }
+
+/** Select a chat only after the account's initial snapshot can no longer replace it. */
+export async function openChatAfterContextSync(page: Page, chatId: string, testInfo: TestInfo): Promise<void> {
+  const connectionState = () => page.evaluate(async () => {
+    const hook = (window as typeof window & {
+      __openmatesE2EChatConnectionState?: () => Promise<{
+        websocketConnected: boolean;
+        cachePrimed: boolean;
+        contextSyncCompleted: boolean;
+      }>;
+    }).__openmatesE2EChatConnectionState;
+    if (!hook) return null;
+    const state = await hook();
+    return {
+      websocketConnected: state.websocketConnected,
+      cachePrimed: state.cachePrimed,
+      contextSyncCompleted: state.contextSyncCompleted,
+    };
+  });
+  try {
+    await expect.poll(async () => (await connectionState())?.contextSyncCompleted === true,
+      { timeout: 45_000 }).toBe(true);
+  } catch (error) {
+    await testInfo.attach('chat-context-sync-state', {
+      body: JSON.stringify(await connectionState().catch(() => null)),
+      contentType: 'application/json',
+    });
+    throw error;
+  }
+  await page.evaluate((id) => {
+    const target = `#chat-id=${encodeURIComponent(id)}`;
+    // Reload can leave the target hash in the URL after startup reset selection.
+    // Clearing only that stale hash lets the router observe a real hash change.
+    if (window.location.hash === target) {
+      window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
+    }
+    window.location.hash = target;
+  }, chatId);
+  await waitForHydratedChat(page, chatId, testInfo);
+}
+
+/** Click the one currently usable composer Send control without DOM-order guesses. */
+export async function clickReadyComposerSend(page: Page): Promise<void> {
+  const send = page.getByTestId('composer-send-button').filter({ visible: true });
+  await expect(send).toHaveCount(1);
+  await expect(send).toBeEnabled();
+  await send.click();
+}

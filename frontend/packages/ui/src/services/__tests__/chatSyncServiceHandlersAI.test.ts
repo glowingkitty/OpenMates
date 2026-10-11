@@ -6,7 +6,9 @@
 
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ChatSynchronizationService } from "../chatSyncService";
+import { hasQueuedProcessing } from "../queuedMessageLifecycle";
 import {
+  clearPendingQueuedRevisionsImpl,
   clearProcessedEmbedsTracking,
   flushPendingFinalizedEmbedsForChat,
   handleAIBackgroundResponseCompletedImpl,
@@ -16,6 +18,11 @@ import {
   handleAIResponseStorageConfirmedImpl,
   handleAIResponseStorageFailedImpl,
   handleAITypingStartedImpl,
+  handleMessageQueuedImpl,
+  handleQueuedHandoffPausedImpl,
+  handleQueuedMessageStartedImpl,
+  handleQueuedMessagesSnapshotImpl,
+  handleQueuedMessageUpdatedImpl,
   handleAwaitingSubChatsCompletionImpl,
   handleChatCompressionCheckpointStoredImpl,
   handleEmbedUpdateImpl,
@@ -38,10 +45,215 @@ const mockChatDB = vi.hoisted(() => ({
   saveMessage: vi.fn(),
   getMessage: vi.fn(),
   getMessagesForChat: vi.fn(),
+  getMessageWindowForChat: vi.fn(),
+  applyQueuedMessageRevision: vi.fn(),
+  updateMessageRawFields: vi.fn(),
   addChat: vi.fn(),
   saveChatCompressionCheckpoint: vi.fn(),
   deleteCoveredMessagesForChat: vi.fn(),
 }));
+const mockIncognitoChatService = vi.hoisted(() => ({
+  getChat: vi.fn(),
+  getMessagesForChat: vi.fn(),
+  updateMessage: vi.fn(),
+}));
+
+describe("queued user message socket events", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    clearPendingQueuedRevisionsImpl();
+    mockChatDB.applyQueuedMessageRevision.mockResolvedValue(true);
+    mockChatDB.updateMessageRawFields.mockResolvedValue(undefined);
+    mockChatDB.getMessage.mockImplementation(async (id: string) => ({
+      message_id: id, chat_id: "chat-1", role: "user", status: "queued",
+      queue_revision: 1, queue_mode: "follow_up",
+    }));
+    mockChatDB.getChat.mockResolvedValue(null);
+    mockIncognitoChatService.getChat.mockResolvedValue(null);
+    mockIncognitoChatService.getMessagesForChat.mockResolvedValue([]);
+    mockIncognitoChatService.updateMessage.mockResolvedValue(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.editing.stable-revision
+  it("persists queue metadata and encrypted edit ACKs before notifying the UI", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    await handleMessageQueuedImpl(service, {
+      chat_id: "chat-1", user_message_id: "message-1", active_task_id: "task-1",
+      queue_mode: "follow_up", queue_revision: 1,
+    });
+    await handleQueuedMessageUpdatedImpl(service, {
+      chat_id: "chat-1", message_id: "message-1", queue_mode: "steer",
+      queue_revision: 2, encrypted_content: "new-cipher", encrypted_pii_mappings: null,
+    });
+    expect(mockChatDB.applyQueuedMessageRevision).toHaveBeenNthCalledWith(
+      2, "chat-1", "message-1", 2, "steer", "new-cipher", null,
+    );
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "queuedMessageUpdated" }));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+  it("clears every queued row when one task starts for a combined batch", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    await handleQueuedMessageStartedImpl(service, {
+      chat_id: "chat-1", message_ids: ["message-1", "message-2"],
+    });
+    expect(mockChatDB.updateMessageRawFields).toHaveBeenCalledTimes(2);
+    expect(mockChatDB.updateMessageRawFields).toHaveBeenCalledWith("message-1", {
+      status: "synced", queue_revision: undefined, queue_mode: undefined,
+      queue_dispatch_status: "processing",
+    });
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: "queuedMessageStarted", detail: { chat_id: "chat-1", message_id: "message-2" },
+    }));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+  it("does not resurrect a started row from a late queued snapshot", async () => {
+    const row = { message_id: "message-1", chat_id: "chat-1", role: "user",
+      status: "queued", queue_revision: 1, queue_mode: "follow_up",
+      queue_dispatch_status: "queued" };
+    mockChatDB.getMessage.mockImplementation(async () => ({ ...row }));
+    mockChatDB.updateMessageRawFields.mockImplementation(async (_id: string, fields: Record<string, unknown>) => {
+      Object.assign(row, fields);
+    });
+    mockChatDB.applyQueuedMessageRevision.mockImplementation(async () => row.queue_dispatch_status !== "processing");
+    mockChatDB.getMessageWindowForChat.mockImplementation(async () => ({ messages: [{ ...row }] }));
+    const service = { dispatchEvent: vi.fn(), requestChatContentBatch_FOR_HANDLERS_ONLY: vi.fn() } as unknown as ChatSynchronizationService;
+    await handleQueuedMessageStartedImpl(service, { chat_id: "chat-1", message_ids: ["message-1"] });
+    await handleQueuedMessagesSnapshotImpl(service, { chat_id: "chat-1", messages: [{
+      message_id: "message-1", queue_mode: "follow_up", queue_revision: 1,
+    }] });
+    expect(row.status).toBe("synced");
+    expect(row.queue_dispatch_status).toBe("processing");
+    expect(service.dispatchEvent).not.toHaveBeenCalledWith(expect.objectContaining({
+      type: "messageStatusChanged", detail: expect.objectContaining({ status: "queued" }),
+    }));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+  it("keeps a durable queued row pending when Redis returns an empty snapshot", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    await handleQueuedMessagesSnapshotImpl(service, { chat_id: "chat-1", messages: [] });
+    expect(mockChatDB.updateMessageRawFields).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).not.toHaveBeenCalledWith(expect.objectContaining({
+      type: "queuedMessageStarted",
+    }));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+  it("fences a started turn before its encrypted row or delayed queue ACK arrives", async () => {
+    mockChatDB.getMessage.mockResolvedValue(null);
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    await handleQueuedMessageStartedImpl(service, { chat_id: "chat-1", message_ids: ["message-1"] });
+    await handleMessageQueuedImpl(service, {
+      chat_id: "chat-1", user_message_id: "message-1", active_task_id: "task-1",
+      queue_mode: "follow_up", queue_revision: 1,
+    });
+    await handleQueuedMessagesSnapshotImpl(service, { chat_id: "chat-1", messages: [{
+      message_id: "message-1", queue_mode: "follow_up", queue_revision: 1,
+    }] });
+    expect(mockChatDB.applyQueuedMessageRevision).not.toHaveBeenCalled();
+    expect(mockChatDB.updateMessageRawFields).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).not.toHaveBeenCalledWith(expect.objectContaining({ type: "messageQueued" }));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+  it("marks a saved user row as paused when durable queue admission fails", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    await handleQueuedHandoffPausedImpl(service, {
+      chat_id: "chat-1", message_id: "message-1",
+      reason_code: "durable_queue_marker_unavailable", retryable: false,
+    });
+    expect(mockChatDB.updateMessageRawFields).toHaveBeenCalledWith("message-1", {
+      status: "synced", queue_revision: undefined, queue_mode: undefined,
+      queue_dispatch_status: "paused", queue_dispatch_mode: undefined,
+    });
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: "queuedHandoffPaused",
+    }));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.steering.safe-boundary,chat-queued-followups.admission.synced
+  it("moves a consumed Steer from processing to paused on exact failure receipt", async () => {
+    const row = { message_id: "message-1", chat_id: "chat-1", role: "user",
+      status: "queued", queue_revision: 2, queue_mode: "steer",
+      queue_dispatch_status: "queued" };
+    mockChatDB.getMessage.mockResolvedValue(row);
+    mockChatDB.updateMessageRawFields.mockImplementation(async (_id: string, fields: Record<string, unknown>) => {
+      Object.assign(row, fields);
+    });
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    await handleQueuedMessageStartedImpl(service, { chat_id: "chat-1", message_ids: ["message-1"] });
+    expect(row.queue_dispatch_status).toBe("processing");
+    expect(hasQueuedProcessing("chat-1", "message-1")).toBe(true);
+    await handleQueuedHandoffPausedImpl(service, { chat_id: "chat-1", message_id: "message-1",
+      reason_code: "steer_failed", retryable: false });
+    expect(row.queue_dispatch_status).toBe("paused");
+    expect(hasQueuedProcessing("chat-1", "message-1")).toBe(false);
+    await handleMessageQueuedImpl(service, { chat_id: "chat-1", user_message_id: "message-1",
+      active_task_id: "older-task", queue_mode: "steer", queue_revision: 2 });
+    expect(row.queue_dispatch_status).toBe("paused");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced,chat-queued-followups.editing.stable-revision
+  it("keeps incognito queue revisions and terminal pause in volatile storage", async () => {
+    let row = { chat_id: "chat-1", message_id: "message-1", role: "user",
+      status: "synced", content: "private turn", queue_revision: undefined as number | undefined,
+      queue_mode: undefined as "follow_up" | "steer" | undefined,
+      queue_dispatch_status: undefined as string | undefined };
+    mockIncognitoChatService.getChat.mockResolvedValue({ chat_id: "chat-1", is_incognito: true });
+    mockIncognitoChatService.getMessagesForChat.mockImplementation(async () => [row]);
+    mockIncognitoChatService.updateMessage.mockImplementation(async (_chatId, _messageId, update) => {
+      const next = update(row);
+      if (!next) return false;
+      row = next;
+      return true;
+    });
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    await handleMessageQueuedImpl(service, {
+      chat_id: "chat-1", user_message_id: "message-1", active_task_id: "task-1",
+      queue_mode: "follow_up", queue_revision: 1,
+    });
+    await handleQueuedMessageUpdatedImpl(service, {
+      chat_id: "chat-1", message_id: "message-1", queue_mode: "steer", queue_revision: 2,
+    });
+    expect(row).toMatchObject({ content: "private turn", status: "queued",
+      queue_mode: "steer", queue_revision: 2 });
+    await handleQueuedHandoffPausedImpl(service, {
+      chat_id: "chat-1", message_id: "message-1",
+      reason_code: "volatile_predecessor_failed", retryable: false,
+    });
+    expect(row).toMatchObject({ content: "private turn", status: "synced",
+      queue_dispatch_status: "paused", queue_mode: undefined });
+    expect(mockChatDB.applyQueuedMessageRevision).not.toHaveBeenCalled();
+    expect(mockChatDB.updateMessageRawFields).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+  it("clears an incognito queued row when its task starts", async () => {
+    let row = { chat_id: "chat-1", message_id: "message-1", role: "user",
+      status: "queued", queue_revision: 2, queue_mode: "steer",
+      queue_dispatch_status: "queued" };
+    mockIncognitoChatService.getChat.mockResolvedValue({ chat_id: "chat-1", is_incognito: true });
+    mockIncognitoChatService.getMessagesForChat.mockImplementation(async () => [row]);
+    mockIncognitoChatService.updateMessage.mockImplementation(async (_chatId, _messageId, update) => {
+      const next = update(row);
+      if (!next) return false;
+      row = next;
+      return true;
+    });
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    await handleQueuedMessageStartedImpl(service, { chat_id: "chat-1", message_ids: ["message-1"] });
+    expect(row).toMatchObject({ status: "synced", queue_dispatch_status: "processing",
+      queue_mode: undefined });
+    await handleQueuedHandoffPausedImpl(service, { chat_id: "chat-1", message_id: "message-1",
+      reason_code: "volatile_predecessor_failed", retryable: false });
+    expect(row).toMatchObject({ status: "synced", queue_dispatch_status: "paused",
+      queue_mode: undefined });
+    expect(hasQueuedProcessing("chat-1", "message-1")).toBe(false);
+    expect(mockChatDB.updateMessageRawFields).not.toHaveBeenCalled();
+  });
+});
 
 const mockEmbedStore = vi.hoisted(() => ({
   cancelProcessingEmbeds: vi.fn(() => []),
@@ -193,9 +405,7 @@ vi.mock("../websocketService", () => ({
 }));
 
 vi.mock("../incognitoChatService", () => ({
-  incognitoChatService: {
-    getChat: vi.fn(async () => null),
-  },
+  incognitoChatService: mockIncognitoChatService,
 }));
 
 vi.mock("../chatMetadataCache", () => ({

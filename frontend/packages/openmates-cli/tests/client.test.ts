@@ -3142,6 +3142,123 @@ describe("CLI saved-chat recovery preflight", () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
+
+  // contract-test: supporting surface=cli assertions=chat-queued-followups.admission.synced
+  it("returns a queued receipt after ciphertext confirmation without waiting for the prior AI turn", async () => {
+    const ownerId = "77777777-7777-4777-8777-777777777777";
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "queued-test-ws-token", user: { id: ownerId } }));
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/settings/export-account-data?include_usage=false&include_invoices=false") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ data: { app_settings_memories: [] } }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, socket, head) => {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+        ws.on("message", (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
+          if (frame.type === "chat_turn_preflight") {
+            ws.send(JSON.stringify({ type: "chat_turn_preflight_ack", payload: {
+              preflight_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", turn_id: frame.payload.turn_id,
+            } }));
+          }
+          if (frame.type === "chat_message_added") {
+            const user = frame.payload.message as Record<string, unknown>;
+            ws.send(JSON.stringify({ type: "chat_message_confirmed", payload: {
+              chat_id: frame.payload.chat_id, message_id: user.message_id, new_messages_v: 1,
+            } }));
+            ws.send(JSON.stringify({ type: "message_queued", payload: {
+              chat_id: frame.payload.chat_id, user_message_id: user.message_id,
+              active_task_id: "active-task", queue_mode: "follow_up", queue_revision: 1,
+            } }));
+          }
+        });
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const result = await client.sendMessage({ message: "Please follow up", responseTimeoutMs: 1_000 });
+      assert.equal(result.status, "queued");
+      assert.equal(result.userMessageId !== undefined, true);
+      assert.equal(result.messageId, null);
+      assert.equal(result.queueRevision, 1);
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=chat-queued-followups.admission.synced
+  it("reports a saved turn whose queue handoff is paused instead of waiting for AI", async () => {
+    const ownerId = "77777777-7777-4777-8777-777777777777";
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "paused-test-ws-token", user: { id: ownerId } }));
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/settings/export-account-data?include_usage=false&include_invoices=false") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ data: { app_settings_memories: [] } }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, socket, head) => {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+        ws.on("message", (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
+          if (frame.type === "chat_turn_preflight") {
+            ws.send(JSON.stringify({ type: "chat_turn_preflight_ack", payload: {
+              preflight_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", turn_id: frame.payload.turn_id,
+            } }));
+          }
+          if (frame.type === "chat_message_added") {
+            const user = frame.payload.message as Record<string, unknown>;
+            ws.send(JSON.stringify({ type: "chat_message_confirmed", payload: {
+              chat_id: frame.payload.chat_id, message_id: user.message_id, new_messages_v: 1,
+            } }));
+            ws.send(JSON.stringify({ type: "queued_handoff_paused", payload: {
+              chat_id: frame.payload.chat_id, message_id: user.message_id,
+              reason_code: "durable_queue_marker_unavailable", retryable: false,
+            } }));
+          }
+        });
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await assert.rejects(
+        client.sendMessage({ message: "Please follow up", responseTimeoutMs: 1_000 }),
+        /Message saved, but AI handoff is paused/,
+      );
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
 });
 
 describe("CLI saved chat history identities", () => {

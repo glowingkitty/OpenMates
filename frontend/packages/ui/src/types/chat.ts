@@ -9,6 +9,7 @@ export type TiptapJSON = Record<string, unknown> | null;
 // Represents the state of a message on the client, aligned with chat_sync_architecture.md
 export type MessageStatus =
   | "sending"
+  | "queued" // Server accepted this user turn behind an active AI task
   | "synced"
   | "delivered" // Server received the message via phased sync; awaiting full sync confirmation
   | "failed"
@@ -80,6 +81,11 @@ export interface Message {
   role: MessageRole; // 'user' for user messages, 'assistant' for AI/mate messages
   created_at: number; // Creation Unix timestamp of the message
   status: MessageStatus; // Status of the message sending process
+  queue_revision?: number; // Server CAS revision while this user turn is queued
+  queue_mode?: "follow_up" | "steer"; // Wait for completion or steer at the next safe point
+  queue_dispatch_status?: "queued" | "processing" | "paused" | null; // Server receipt or local paused handoff
+  queue_dispatch_mode?: "follow_up" | "steer" | null;
+  queue_dispatch_task_id?: string | null;
   user_message_id?: string; // Optional: ID of the user message that this AI message is a response to
   current_chat_title?: string; // Optional: Current title of the chat when this message is sent (for AI context)
   client_message_id?: string; // Optional: Client-generated ID, used to match with server's message_id upon confirmation
@@ -1235,6 +1241,10 @@ export interface ServerBatchMessageFormat {
   created_at: number; // Server's creation timestamp
   client_message_id?: string; // The ID the client might have sent for this message
   user_message_id?: string; // If it's an AI response, the ID of the user message it's responding to
+  queue_revision?: number;
+  queue_dispatch_status?: "queued" | "processing" | "paused" | null;
+  queue_dispatch_mode?: "follow_up" | "steer" | null;
+  queue_dispatch_task_id?: string | null;
 
   // Only encrypted fields for device sync (zero-knowledge architecture)
   encrypted_content: string; // Encrypted markdown content, encrypted using chat-specific key

@@ -48,6 +48,7 @@ const UNSAFE_TO_EVICT_MESSAGE_STATUSES = new Set<Message["status"]>([
   "sending",
   "waiting_for_upload",
   "waiting_for_internet",
+  "queued",
   "processing",
   "streaming",
   "failed",
@@ -288,6 +289,7 @@ const STATUS_PRIORITY: Record<string, number> = {
   sending: 1,
   waiting_for_upload: 1, // Upload in progress, same level as sending
   waiting_for_internet: 1,
+  queued: 3.1, // Server queue admission survives an ordinary synced/delivered refresh
   processing: 2,
   streaming: 2,
   waiting_for_user: 2.3, // Higher than streaming/processing, lower than failed - chat paused for user action
@@ -313,6 +315,26 @@ export function shouldUpdateMessage(
   existing: Message,
   incoming: Message,
 ): boolean {
+  if (existing.queue_dispatch_status === "paused" &&
+      (incoming.queue_dispatch_status === "queued" || incoming.queue_dispatch_status === "processing")) {
+    return false; // This increment has no same-ID resume; older receipts cannot revive a paused turn.
+  }
+  if (existing.queue_dispatch_status === "processing" && incoming.queue_dispatch_status === "queued") {
+    return false; // An older queued receipt cannot undo a durable task handoff.
+  }
+  if ((existing.status === "queued" || existing.queue_dispatch_status === "processing") &&
+      incoming.queue_dispatch_status === "paused") {
+    return true; // Failure receipt supersedes both pending and consumed Steer states.
+  }
+  if (existing.status === "queued" && Number.isSafeInteger(incoming.queue_revision) &&
+      (incoming.queue_revision ?? 0) >= (existing.queue_revision ?? 0) &&
+      incoming.queue_dispatch_status === "processing") {
+    return true; // Durable server handoff receipt clears queued UI after missed WS events.
+  }
+  if (existing.status === "queued" && Number.isSafeInteger(incoming.queue_revision) &&
+      (incoming.queue_revision ?? 0) > (existing.queue_revision ?? 0)) {
+    return true; // A newer encrypted edit revision must replace a stale local body.
+  }
   // Streaming chunks must be able to update the same message id.
   if (existing.status === "streaming" && incoming.status === "streaming") {
     return true;
@@ -1856,6 +1878,11 @@ export async function updateMessageStatus(
         resolve();
         return;
       }
+      if (rawRecord.status === "queued" &&
+          (newStatus === "synced" || newStatus === "delivered")) {
+        resolve();
+        return;
+      }
 
       // Step 2: Patch only the status field. Encrypted fields are untouched.
       const patched: Message = { ...rawRecord, status: newStatus };
@@ -2030,6 +2057,57 @@ export async function updateMessageRawFields(
         ),
       );
     };
+  });
+}
+
+/** Apply a server-committed queued revision to a stored ciphertext row atomically. */
+export async function applyQueuedMessageRevision(
+  dbInstance: ChatDatabaseInstance,
+  chatId: string,
+  messageId: string,
+  revision: number,
+  mode: "follow_up" | "steer",
+  encryptedContent?: string,
+  encryptedPiiMappings?: string | null,
+): Promise<boolean> {
+  if (!Number.isSafeInteger(revision) || revision < 1) return false;
+  await dbInstance.init();
+  if (!dbInstance.db) throw new Error("Database not initialized");
+  return new Promise((resolve, reject) => {
+    const tx = dbInstance.db!.transaction(MESSAGES_STORE_NAME, "readwrite");
+    const store = tx.objectStore(MESSAGES_STORE_NAME);
+    let applied = false;
+    const request = store.get(messageId);
+    request.onsuccess = () => {
+      const row = request.result as Message | undefined;
+      if (!row || row.chat_id !== chatId || row.role !== "user") return;
+      if (row.queue_dispatch_status === "processing" || row.queue_dispatch_status === "paused") return;
+      const previous = row.queue_revision ?? 0;
+      if (revision > previous + 1 && !encryptedContent) return; // Never advance past an unseen content edit.
+      if (previous > revision ||
+          (previous === revision && row.status === "queued" && row.queue_mode === mode && !encryptedContent)) return;
+      const updated: Message = {
+        ...row,
+        status: "queued",
+        queue_revision: revision,
+        queue_mode: mode,
+        queue_dispatch_status: "queued",
+        queue_dispatch_mode: mode,
+        ...(encryptedContent ? { encrypted_content: encryptedContent } : {}),
+        ...(encryptedPiiMappings !== undefined
+          ? { encrypted_pii_mappings: encryptedPiiMappings ?? undefined } : {}),
+      };
+      // A decrypted `content` field must never shadow the new ciphertext in IDB.
+      delete updated.content;
+      delete updated.pii_mappings;
+      store.put(updated);
+      applied = true;
+      invalidateRecentChatWindow(chatId);
+    };
+    request.onerror = () => reject(request.error);
+    tx.oncomplete = () => { if (applied) invalidateRecentChatWindow(chatId); resolve(applied); };
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error ?? new Error("Queued revision transaction aborted"));
   });
 }
 

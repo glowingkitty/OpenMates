@@ -1,0 +1,50 @@
+schema_version: 2
+profile: concise
+id: assistant-response-ui
+title: Chronological assistant response processing and internal glow
+status: implementing
+goal: 'Implement to the web app the updated assistant response UI shown in Figma and the screenshot: internal bottom
+  rainbow glow, initial Thinking with model and region below, skill embeds where called, preview information at
+  the top and expandable completed thinking/app summaries.'
+approved_by_user: true
+approval_basis: The user directly requested this implementation and supplied the target screenshot on October 10.
+task_id: 463c2292-819a-4392-9e2b-33daf922fe2b
+specifications:
+- feature.chats
+- feature.chat-processing-feedback
+design_reference:
+  file_key: PzgE78TVxG0eWuEeO6o8ve
+  node_id: 3643:51607
+  scope: Match the supplied response hierarchy and states using existing web tokens and responsive behavior.
+  reference: test-results/figma/assistant-response-ui/user-reference.jpg
+  access: Figma API and image export returned 403; the supplied screenshot is the visual reference. Available index
+    is dated 2026-10-06.
+  components:
+  - ChatMessage
+  - ChatHistory
+  - ActiveChat
+  - UnifiedEmbedPreview
+  - BasicInfosBar
+  accepted_differences:
+  - Screenshot typography and colors map to existing web tokens; unseen Figma layers are not inferred.
+  - Thinking durations appear only when measured data exists; unavailable model regions are not guessed.
+  - Native Apple presentation is deferred; canonical encrypted response content remains compatible.
+  - 'The existing thinking stream is response-wide: disclose it once with response-wide wording instead of attributing
+    it to a tool cycle.'
+scope:
+  in:
+  - One transient current-turn Thinking container after server acceptance, with actual Mate and model/region as
+    available.
+  - Bottom-inside rainbow glow with reduced-motion support and removal of external rainbow and typing indicator.
+  - Connected left bubble and container, visible AI status icon, deterministic centered Researching/Working labels for active skills, left-to-right glow and left-aligned completed attribution.
+  - Stable adjacent skill runs in canonical source order interleaved with authored prose.
+  - Completed groups collapse to app/thinking summaries with keyboard-accessible disclosure.
+  - Shared preview information bars precede details across status, width and historical embeds.
+  out:
+  - New inference events, hidden model reasoning, invented durations and unrelated Figma surfaces.
+required_checks:
+- Focused parser/grouping unit tests and changed-source lint.
+- Isolated bare component proof of processing, completed disclosure, header order and phone/laptop layout.
+- Isolated processing lifecycle, live/final/reopen document and historical embed product checks.
+- Compare approved aspects against reference and rendered CI evidence; retain recordings for all attempts.
+- Owning Specifications and Plan validation, generated metadata and scoped diff check.

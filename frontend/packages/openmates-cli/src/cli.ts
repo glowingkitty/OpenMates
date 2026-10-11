@@ -11981,7 +11981,7 @@ async function sendMessageStreaming(
   },
   redactor?: OutputRedactor,
 ): Promise<{
-  status: "completed" | "waiting_for_user";
+  status: "completed" | "waiting_for_user" | "queued";
   chatId: string;
   messageId: string | null;
   assistant: string;
@@ -12553,6 +12553,11 @@ async function sendMessageStreaming(
   const acceptedTaskProposals = params.acceptTaskProposals === true && result.status === "completed"
     ? await acceptChatTaskProposals(client, result.chatId, result.taskProposals, `${finalMessage}\n\n${result.assistant}`)
     : [];
+
+  if (result.status === "queued") {
+    if (!params.json) process.stderr.write("Message queued for this chat. It will run after the active response finishes.\n");
+    return { ...result, acceptedTaskProposals: [] };
+  }
 
   if (result.status === "waiting_for_user") {
     const question = parseInteractiveQuestionBlock(result.assistant);

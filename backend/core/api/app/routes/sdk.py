@@ -1801,6 +1801,19 @@ async def create_sdk_chat(
         from backend.core.api.app.services.skill_registry import get_global_registry
 
         try:
+            released = await _execute_sdk_recovery(
+                request,
+                "release_inference_outbox",
+                {
+                    "protocol_version": 1,
+                    "preflight_id": preflight.get("preflight_id"),
+                    "inference_task_id": enqueue.get("inference_task_id"),
+                    "outbox_id": enqueue.get("outbox_id"),
+                    "hashed_user_id": hashed_user_id,
+                },
+            )
+            if released.get("status") not in ("released", "already_released"):
+                raise RuntimeError("Held SDK inference outbox was not released")
             result = await get_global_registry().dispatch_skill("ai", "ask", dispatch_payload)
             raw_result = _jsonable(result)
             task_id = raw_result.get("task_id") if isinstance(raw_result, dict) else None

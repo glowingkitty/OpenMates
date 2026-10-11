@@ -167,7 +167,6 @@
         "apple-chat-history-contracts.spec.ts",
         "apple-embed-rendering-contracts.spec.ts",
         "assistant-speech-player.spec.ts",
-        "audio-recording.spec.ts",
         "auth-back-to-demo.spec.ts",
         "berlin-mitte-maps-example.spec.ts",
         "business-company-financials-example.spec.ts",
@@ -316,7 +315,6 @@
         "components/teams-invite-form.spec.ts",
         "components/settings-avatar.spec.ts",
         "components/ai-model-cache-pricing.spec.ts",
-        "components/glm-mistral-pricing.spec.ts",
         "components/app-skill-model-cache-pricing.spec.ts",
         "components/settings-usage-cache-receipt.spec.ts",
         "components/chat-message-team-attribution.spec.ts",
@@ -324,6 +322,11 @@
         "components/team-openmates-mention-dropdown.spec.ts",
         "components/team-chat-reminder.spec.ts",
         "components/team-settings-header-member.spec.ts",
+        "components/queued-followup-controls.spec.ts",
+        "chat-queued-followups.spec.ts",
+        "components/embed-preview-info-top.spec.ts",
+        "components/chat-assistant-response-activity.spec.ts",
+        "components/chat-history-saved-assistant.spec.ts",
         "components/image-upload-preview.spec.ts"
       ],
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
@@ -389,7 +392,8 @@
         "stop-new-chat-draft.spec.ts",
         "tasks-chat-settings-parity.spec.ts",
         "unified-detail-metadata-sync.spec.ts",
-        "maps-discovery-chat.spec.ts"
+        "maps-discovery-chat.spec.ts",
+        "chat-queued-followups-protocol.spec.ts"
       ]
     },
     "external_integration": {
@@ -644,7 +648,9 @@
         "teams-resource-context.spec.ts",
         "cli-team-tasks-real.spec.ts",
         "cli-tui-team-collaboration.spec.ts",
-        "cli-team-artifacts-parity.spec.ts"
+        "cli-team-artifacts-parity.spec.ts",
+        "workflow-metadata-warmup.spec.ts",
+        "audio-recording.spec.ts"
       ],
       "enabling_work": "Run against existing core stack and fresh real accounts; report missing fixture or product assertion failures without restoring shared accounts."
     },

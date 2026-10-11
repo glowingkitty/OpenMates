@@ -1205,6 +1205,7 @@ import { storageArchiveFetch } from "../config/api";
     containerWidth = 0,
     currentChatId = undefined,
     processingPhase = null,
+    pendingAssistantResponse = null,
     thinkingContentByTask = new Map(),
     // Chat header props: shown at the top of new chats only.
     // chatTitle / chatCategory / chatIcon are the decrypted metadata once received.
@@ -1240,6 +1241,10 @@ import { storageArchiveFetch } from "../config/api";
     onChatNavigate = undefined,
     onSpeakMessage = undefined,
     canSpeakMessage = undefined,
+    onQueuedEdit = undefined,
+    onQueuedSteer = undefined,
+    queuedActionBusyMessageId = null,
+    queuedActionErrors = {},
     canAnnotate = true,
   }: {
     disablePointerEvents?: boolean;
@@ -1248,6 +1253,10 @@ import { storageArchiveFetch } from "../config/api";
     containerWidth?: number;
     currentChatId?: string; // Current active chat ID - used to ensure permission dialog only shows in the originating chat
     processingPhase?: ProcessingPhase; // Current phase of the AI processing pipeline (sending → processing → typing → null)
+    pendingAssistantResponse?: {
+      taskId: string; userMessageId: string; category?: string | null;
+      modelName?: string | null; serverRegion?: string | null;
+    } | null;
     thinkingContentByTask?: Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>; // Thinking content from thinking models
 
     /** Decrypted title to show in the permanent header card (new chats only). */
@@ -1316,10 +1325,21 @@ import { storageArchiveFetch } from "../config/api";
     onChatNavigate?: (chatId: string) => Promise<void> | void;
     onSpeakMessage?: (messageId: string, content: string) => Promise<void> | void;
     canSpeakMessage?: (messageId: string) => boolean;
+    /** Actions for a user message waiting on assistant work. */
+    onQueuedEdit?: (message: GlobalMessage) => void;
+    onQueuedSteer?: (message: GlobalMessage) => void | Promise<void>;
+    queuedActionBusyMessageId?: string | null;
+    queuedActionErrors?: Record<string, string>;
     compressionCheckpoints?: ChatCompressionCheckpoint[];
     hasOlderMessages?: boolean;
     olderMessagesLoading?: boolean;
   } = $props();
+
+  const showPendingAssistantResponse = $derived(!!pendingAssistantResponse
+    && !displayMessages.some((message) => message.role === 'assistant'
+      && (message.id === pendingAssistantResponse.taskId
+        || message.original_message?.user_message_id === pendingAssistantResponse.userMessageId)));
+
 
   let hydratedQuickTipSlugs = $state<string[]>([]);
   let effectiveQuickTipSlugs = $derived(
@@ -2108,6 +2128,10 @@ import { storageArchiveFetch } from "../config/api";
             !hasEmbedUpdate &&
             newMessage.status !== 'streaming' &&
             oldMessage.status === newMessage.status &&
+            oldMessage.original_message?.queue_revision === newMessage.queue_revision &&
+            oldMessage.original_message?.queue_mode === newMessage.queue_mode &&
+            oldMessage.original_message?.queue_dispatch_status === newMessage.queue_dispatch_status &&
+            oldMessage.original_message?.encrypted_pii_mappings === newMessage.encrypted_pii_mappings &&
             oldMessage.appCards === (newMessage as MessageWithEmbedMetadata).appCards &&
             oldMessage.original_message?.content === newMessage.content
         ) {
@@ -2942,6 +2966,7 @@ import { storageArchiveFetch } from "../config/api";
               class:has-team-reminder={Boolean($activeTeamId && !isExampleChat && !isSharedChat)}
               data-virtualized={shouldVirtualizeMessages ? 'true' : 'false'}
               data-source-message-count={sourceMessages.length}
+              data-current-chat-id={currentChatId ?? ''}
               data-rendered-message-count={virtualizedDisplayMessages.length}
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
@@ -3043,8 +3068,14 @@ import { storageArchiveFetch } from "../config/api";
                           ? msg.original_message.hashed_user_id === currentUserHash
                           : msg.status === 'sending' || msg.status === 'waiting_for_internet' || msg.status === 'waiting_for_upload')}
                         model_name={msg.model_name}
+                        server_region={msg.role === 'assistant' && pendingAssistantResponse
+                          && msg.original_message?.user_message_id === pendingAssistantResponse.userMessageId
+                          ? pendingAssistantResponse.serverRegion : undefined}
                         content={msg.content as string | Record<string, unknown> | null}
                         status={msg.status}
+                        assistantTurnActive={msg.role === 'assistant' && !!pendingAssistantResponse
+                          && (msg.id === pendingAssistantResponse.taskId
+                            || msg.original_message?.user_message_id === pendingAssistantResponse.userMessageId)}
                         is_truncated={msg.is_truncated}
                         original_message={msg.original_message}
                         containerWidth={containerWidth}
@@ -3067,11 +3098,35 @@ import { storageArchiveFetch } from "../config/api";
                         onSpeak={msg.role === 'assistant' && onSpeakMessage && speechContent && (canSpeakMessage?.(msg.id) ?? true)
                           ? () => onSpeakMessage(msg.id, speechContent)
                           : undefined}
+                        queueActions={msg.role === 'user' && msg.original_message?.status === 'queued' && msg.original_message.queue_revision && msg.original_message.queue_mode &&
+                          (!$activeTeamId || (msg.original_message.hashed_user_id && msg.original_message.hashed_user_id === currentUserHash)) &&
+                          canAnnotate && onQueuedEdit && onQueuedSteer
+                          ? {
+                              mode: msg.original_message.queue_mode,
+                              busy: queuedActionBusyMessageId === msg.id,
+                              error: queuedActionErrors?.[msg.id] ?? null,
+                              onEdit: () => onQueuedEdit(msg.original_message!),
+                              onSteer: () => onQueuedSteer(msg.original_message!),
+                            }
+                          : undefined}
                     />
                     {/if}
 
                 </div>
             {/each}
+
+            {#if showPendingAssistantResponse && pendingAssistantResponse}
+              <div class="message-wrapper assistant" data-testid="pending-assistant-response"
+                data-message-id={pendingAssistantResponse.taskId} data-status="processing">
+                <ChatMessage role="assistant" content="" status="processing"
+                  category={pendingAssistantResponse.category || undefined}
+                  model_name={pendingAssistantResponse.modelName || undefined}
+                  server_region={pendingAssistantResponse.serverRegion}
+                  messageId={pendingAssistantResponse.taskId}
+                  userMessageId={pendingAssistantResponse.userMessageId}
+                  containerWidth={containerWidth} isTransientResponse={true} />
+              </div>
+            {/if}
 
             {#if virtualBottomSpacerHeight > 0}
               <div class="virtual-message-spacer" style="height: {virtualBottomSpacerHeight}px;" aria-hidden="true"></div>

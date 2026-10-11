@@ -1,0 +1,67 @@
+schema_version: 1
+specification: feature.chat-queued-followups@1
+admission:
+- id: follow-up-while-tools-run
+  assertion_ids:
+  - chat-queued-followups.admission.synced
+  given: Alice's assistant is processing a request and one tool batch is still running.
+  when: Alice sends a follow-up and opens the same chat on another authorized device.
+  then: The composer clears immediately, the server accepts one queued user message, and both devices show its Queued
+    state and content. The normal follow-up runs after the current assistant response finishes.
+- id: durable-followers-use-own-identities
+  assertion_ids:
+  - chat-queued-followups.admission.synced
+  given: Alice queues two saved follow-ups while the durable-protocol assistant is working.
+  when: The current response completes and the followers start in order.
+  then: Each follower runs once with its original request and billing identity, and receives authenticated completed
+    predecessor results without merging requests.
+editing:
+- id: change-queued-text
+  assertion_ids:
+  - chat-queued-followups.editing.stable-revision
+  given: Alice has a queued follow-up that has not been claimed for execution.
+  when: Alice chooses Edit, changes the text and presses Send.
+  then: The same message ID receives a new accepted revision on all devices, and the inference payload matches that
+    encrypted revision. Later messages remain intact. A concurrent claim or newer device revision prevents a stale
+    overwrite and leaves her edit recoverable. Its durable request commitment changes atomically with that revision;
+    an old durable commitment cannot authorize newer queued text.
+- id: unchanged-edit-is-no-op
+  assertion_ids:
+  - chat-queued-followups.editing.stable-revision
+  given: Alice opens a queued message for editing and leaves its content unchanged.
+  when: Alice presses Send.
+  then: Editing ends without changing the queued content or revision, storing a new row or scheduling another request.
+cancel:
+- id: cancel-restores-local-draft
+  assertion_ids:
+  - chat-queued-followups.editing.cancel
+  given: Alice has an unsent local draft before opening a queued follow-up for editing.
+  when: Alice activates the Cancel edit link above the composer.
+  then: The queued message remains unchanged and the prior draft returns without overwriting a newer draft. Changing
+    chat or workspace cannot submit the old edit to a new target.
+steering:
+- id: steer-after-tool-batch
+  assertion_ids:
+  - chat-queued-followups.steering.safe-boundary
+  given: The current assistant run has an active tool batch and Alice's compatible follow-up is queued.
+  when: Alice presses Steer instead before the next model cycle.
+  then: The tool batch completes once, the exact queued revision enters the current run once at the safe boundary,
+    and the same assistant message continues with its new instruction and retained tool results.
+- id: run-finishes-or-new-consent-needed
+  assertion_ids:
+  - chat-queued-followups.steering.safe-boundary
+  given: Alice requests steering just as the current run finishes, or her follow-up requires a new Project or Focus
+    consent.
+  when: The safe-boundary claim checks the run and current processing gates.
+  then: The message stays a truthful ordinary queued follow-up for its normal gated processing. It is neither lost
+    nor injected without permission, and it cannot execute both as a steer and as a later turn. If a consumed steer’s
+    active task later fails without a covering response, its saved row becomes visibly paused and cannot silently
+    replay.
+access:
+- id: cross-owner-and-stale-edit
+  assertion_ids:
+  - chat-queued-followups.access.scoped
+  given: Bob does not have access to Alice's queued chat, or Alice's second device has an obsolete queued revision.
+  when: The device sends an edit or steering action.
+  then: The server rejects unauthorized or stale mutation without exposing content, altering the accepted message
+    or triggering tools. Authorized edits retain normal PII processing and encrypted history.

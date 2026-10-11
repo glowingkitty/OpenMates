@@ -85,16 +85,23 @@ Key extensions:
 - File attachments (images, PDFs, EPUBs, audio) are handled by [fileHandlers.ts](../../frontend/packages/ui/src/components/enter_message/fileHandlers.ts) and [embedHandlers.ts](../../frontend/packages/ui/src/components/enter_message/embedHandlers.ts).
 
 **Sending:**
-- `handleSend()` in [sendHandlers.ts](../../frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts) serializes the TipTap document back to canonical markdown via `tipTapToCanonicalMarkdown()` from [serializers.ts](../../frontend/packages/ui/src/message_parsing/serializers.ts).
+- `handleSend()` in [sendHandlers.ts](../../../frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts) snapshots the clicked TipTap document, cancels its pending draft save, clears the ordinary composer and emits one provisional sending row before asynchronous preparation. Finished attachment references are normalized in that snapshot; later edits stay in the live editor.
+- URL/embed preparation, PII handling, encryption and durable admission replace the same stable message ID with the prepared canonical payload. A disconnected send retains that ID for reconnect. A preparation failure restores the submitted draft only while the original chat/editor still owns an empty composer; it cannot overwrite a newer draft.
 - Embed nodes are serialized to their fenced code block format (JSON references for server embeds, raw code for preview embeds).
-- Ordinary sends flush and clear the draft after successful submission. Wiki learning questions use a separate editor and the normal encrypted send path with `preserveDraft`; top-level boolean `preserve_draft: true` also retains the server draft. Rejected questions retain the article and composer for retry.
+- Wiki learning questions use a separate editor and the normal encrypted send path with `preserveDraft`; top-level boolean `preserve_draft: true` also retains the server draft. Rejected questions retain the article and composer for retry.
+
+**Web microphone recordings:**
+- Recording uses ephemeral realtime transcription and correction. Corrected text is inserted as literal TipTap text and hard breaks at the originating, transaction-mapped selection, preserving surrounding notes. It is editable and is not sent automatically.
+- The shared web composer creates no new recording embed and uploads no permanent recording file. Existing audio embeds, uploaded audio files and assistant speech output retain their separate paths. Native Apple recording is a separate implementation.
+- Send remains unavailable while correction is pending. Cancel, an error, a new recording, editor destruction, chat/route changes, a sent draft or a queued edit invalidate the old insertion context. Recording-owned audio resources close on completion/cancel; focus is restored after the recording overlay closes and only while the context still matches.
 
 ### Layout Behavior
 
 - **Auto-expanding height** -- The input field grows with content up to a configurable max height.
 - **Fullscreen toggle** -- When max height is reached, a fullscreen button appears in the top-right corner. Clicking it expands the editor to full viewport height.
 - **Scroll minimization** -- When the user scrolls through chat history, the input field minimizes to show only the last few lines of the draft.
-- **Send button** -- Appears in the bottom-right corner when the input is non-empty, displacing camera/recording buttons to the left.
+- **Send button** -- A focused nonempty composer shows the translated Send label. A blurred nonempty composer minimizes and retains a round orange up-arrow Send button. Focus uses no translucent gray backdrop and does not intercept chat-history actions.
+- **Workflow warm-up** -- Composer focus can send a debounced, authenticated metadata-only warm-up hint. Draft text is absent, and the hint invokes no AI inference. Server rate limits and a scoped lock bound the work; normal discovery handles cache misses or failure.
 
 ### Mentions
 
@@ -115,6 +122,8 @@ Opening a saved Study goal flushes the composer before entering the Apps workspa
 - **Backspace on embed previews** -- Pressing backspace after an embed preview converts it back to editable markdown text. For groups, the last item is split off while the remaining items stay grouped (see [message-previews-grouping.md](./message-previews-grouping.md)).
 - **Embed cleanup on deletion** -- When an embed node is removed from the editor, `cleanupRemovedEmbed()` in [Embed.ts](../../frontend/packages/ui/src/components/enter_message/extensions/Embed.ts) asynchronously deletes the corresponding entry from EmbedStore to prevent orphaned data.
 - **Edit mode** -- `editMessageStore` allows editing previously sent messages. The original message content is loaded back into the editor as markdown.
+- **Queued follow-up edit** -- Edit preserves the queued message ID and expected revision. Changed Send uses server compare-and-swap; unchanged Send leaves the queue untouched. Cancel edit appears above the composer and restores the independent unsent draft. Steer instead requests current-run consumption at a completed tool/agent boundary, subject to fresh gates and compatible context.
+- Entering a queued edit synchronously blocks Send and temporarily makes the editor read-only. The draft service drains the ordinary draft's active save and pending resave before queued text replaces it, with chat, editor, account and Team fences. This prevents a fast Send from creating a separate message and prevents a delayed draft save from persisting queued text as the independent draft.
 - **Notification reply** -- `pendingNotificationReplyStore` pre-fills the input when replying from a notification.
 
 ## Related Docs

@@ -1,8 +1,9 @@
 """Message input workspace-focus contract guards.
 
 The approved composer behavior keeps the workspace measurable while fading and
-disabling it for every user. Isolated Playwright coverage verifies the rendered
-focus and dismissal transitions; these guards protect the shared predicates.
+disabling it for every user, except when queued follow-up controls must remain
+reachable. Isolated Playwright coverage verifies the rendered focus and
+dismissal transitions; these guards protect the shared predicates.
 """
 
 from __future__ import annotations
@@ -20,15 +21,15 @@ def _active_chat_source() -> str:
     return ACTIVE_CHAT_PATH.read_text(encoding="utf-8")
 
 
-# contract-test: direct surface=gui.web assertions=message-input.focus.guest-welcome-suppression
-def test_focused_workspace_fades_and_disables_controls_for_all_users() -> None:
+# contract-test: direct surface=gui.web assertions=message-input.focus.guest-welcome-suppression,chat-queued-followups.editing.stable-revision
+def test_focused_workspace_preserves_reachable_queued_controls() -> None:
     source = _active_chat_source()
     workspace = re.search(r'<div\s+class="chat-side"\s+(.*?)\n\s*>', source, re.S)
     assert workspace, "ActiveChat must keep a shared workspace container"
-    assert "class:composer-background-faded={messageInputFocused}" in workspace.group(1)
+    assert "class:composer-background-faded={messageInputFocused && !hasQueuedFollowUpActions}" in workspace.group(1)
     assert "class:composer-welcome-hidden={messageInputFocused && (showWelcome || isActiveDraftOnlyChat)}" in workspace.group(1)
-    assert "inert={messageInputFocused}" in workspace.group(1), (
-        "Focus must disable the entire workspace for guests and authenticated users"
+    assert "inert={messageInputFocused && !hasQueuedFollowUpActions}" in workspace.group(1), (
+        "Focus must disable the normal workspace for all users while leaving queued controls reachable"
     )
     assert "const hideWelcomeForKeyboard = false;" in source, (
         "Focus must preserve welcome layout measurements while hiding its content"
@@ -126,7 +127,7 @@ def test_expanded_landing_intro_preserves_measurable_composer_reserve() -> None:
 
 
 if __name__ == "__main__":
-    test_focused_workspace_fades_and_disables_controls_for_all_users()
+    test_focused_workspace_preserves_reachable_queued_controls()
     test_logout_resets_composer_state_before_restoring_guest_welcome()
     test_expanded_landing_intro_preserves_measurable_composer_reserve()
     print("ActiveChat workspace-focus/logout contracts: PASS")

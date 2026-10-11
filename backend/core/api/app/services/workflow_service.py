@@ -517,6 +517,9 @@ class InMemoryWorkflowRepository:
         blob = self.encrypted_blobs.get(ref)
         return deepcopy(blob) if blob else None
 
+    def get_encrypted_blobs(self, refs: list[str]) -> dict[str, dict[str, Any]]:
+        return {ref: deepcopy(self.encrypted_blobs[ref]) for ref in refs if ref in self.encrypted_blobs}
+
     def save_trigger(self, record: dict[str, Any]) -> dict[str, Any]:
         self.triggers[record["trigger_id"]] = deepcopy(record)
         return deepcopy(record)
@@ -648,6 +651,21 @@ class DirectusWorkflowRepository:
         data = response.json().get("data")
         if not isinstance(data, dict):
             raise RuntimeError("Workflow authoring transaction returned invalid data")
+        if path in {"/", "/legacy-head"} and payload:
+            try:
+                import redis
+                scope = payload.get("hashed_team_id") or (payload.get("record") or {}).get("hashed_team_id") or payload.get("owner_hash")
+                if isinstance(scope, str) and scope:
+                    from backend.core.api.app.services.cache import CacheService
+                    settings = CacheService()
+                    with redis.Redis(host=settings.host, port=settings.port,
+                                     password=settings.DRAGONFLY_PASSWORD,
+                                     socket_connect_timeout=0.2, socket_timeout=0.2) as client:
+                        epoch_key = f"workflow:discovery:epoch:{scope}"
+                        with client.pipeline() as pipe:
+                            pipe.incr(epoch_key).expire(epoch_key, 120).execute()
+            except Exception:
+                logger.debug("Workflow discovery cache invalidation unavailable", exc_info=True)
         return data
 
     def update_workflow_run_status(self, workflow_id: str, owner_hash: str, run_id: str, status: str, updated_at: int) -> None:
@@ -932,6 +950,16 @@ class DirectusWorkflowRepository:
             "expires_at": item.get("expires_at"),
             "created_at": item["created_at"],
         }
+
+    def get_encrypted_blobs(self, refs: list[str]) -> dict[str, dict[str, Any]]:
+        """Fetch only requested title/description blobs in one bounded Directus read."""
+        if not refs:
+            return {}
+        items = self._get_items(self.BLOBS, {"ref": {"_in": refs}},
+                                fields="ref,hashed_user_id,kind,ciphertext,checksum,vault_key_ref,expires_at",
+                                limit=len(refs))
+        return {item["ref"]: {**item, "owner_hash": item["hashed_user_id"]}
+                for item in items if isinstance(item.get("ref"), str)}
 
     def save_trigger(self, record: dict[str, Any]) -> dict[str, Any]:
         payload = {
@@ -1541,6 +1569,62 @@ class WorkflowService:
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
         records = self._list_persisted_workflow_records(user_id, team_id)
         return [self._summary_from_record(record, vault_key_id) for record in records]
+
+    def list_discovery_metadata(
+        self, user_id: str, vault_key_id: str | None = None, team_id: str | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        """Preserve library order while loading only shortlisted title/description blobs."""
+        self.ensure_enabled()
+        if not 1 <= limit <= 20:
+            raise ValueError("Workflow discovery limit is invalid")
+        vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
+        records = self._list_persisted_workflow_records(user_id, team_id)[:limit]
+        refs = list(dict.fromkeys(ref for record in records
+            for ref in (record.get("encrypted_title_ref"), record.get("encrypted_description_ref")) if ref))
+        owners_by_ref = {ref: record.get("owner_hash") for record in records
+                         for ref in (record.get("encrypted_title_ref"), record.get("encrypted_description_ref")) if ref}
+        blobs = self.repository.get_encrypted_blobs(refs)
+        now = int(time.time())
+        blobs = {ref: blob for ref, blob in blobs.items()
+                 if ref in owners_by_ref
+                 and (not owners_by_ref[ref] or blob.get("owner_hash") == owners_by_ref[ref])
+                 and (blob.get("expires_at") is None or blob["expires_at"] > now)}
+        if isinstance(self.payload_cipher, VaultWorkflowPayloadCipher):
+            decoded = {}
+            grouped: dict[str, list[str]] = {}
+            for ref in refs:
+                if ref in blobs:
+                    grouped.setdefault(blobs[ref].get("vault_key_ref") or vault_key_id, []).append(ref)
+            for key_ref, group_refs in grouped.items():
+                plaintexts = _run_async_blocking(self.payload_cipher.encryption_service.decrypt_many_with_user_key(
+                    [blobs[ref]["ciphertext"] for ref in group_refs], key_ref))
+                if len(plaintexts) != len(group_refs):
+                    raise RuntimeError("Workflow discovery decryption incomplete")
+                for ref, value in zip(group_refs, plaintexts):
+                    if value is None:
+                        continue
+                    if blobs[ref].get("checksum") and "sha256:" + hashlib.sha256(value.encode()).hexdigest() != blobs[ref]["checksum"]:
+                        continue
+                    try:
+                        decoded[ref] = json.loads(value)
+                    except (TypeError, ValueError):
+                        continue
+        else:
+            decoded = {}
+            for ref in refs:
+                if ref in blobs:
+                    try:
+                        decoded[ref] = self.payload_cipher.decrypt_json(blobs[ref], vault_key_id)
+                    except Exception:
+                        continue
+        return [{"workflow_id": record["id"], "title": str(decoded[record["encrypted_title_ref"]])[:200],
+                 "description": str(decoded[record["encrypted_description_ref"]])[:1000]
+                    if record.get("encrypted_description_ref") else "",
+                 "enabled": bool(record["enabled"]), "status": record["status"],
+                 "current_version_id": record["current_version_id"]} for record in records
+                if record.get("encrypted_title_ref") in decoded
+                and (not record.get("encrypted_description_ref") or record["encrypted_description_ref"] in decoded)]
 
     def list_workflows_page(
         self, user_id: str, vault_key_id: str | None = None, team_id: str | None = None,

@@ -4,6 +4,7 @@ import os
 import time
 import secrets
 import json
+import uuid
 from contextlib import asynccontextmanager
 from typing import Any, Optional, Union, List, Tuple, Literal, Dict
 from datetime import datetime, timezone
@@ -17,14 +18,23 @@ class ChatCacheMixin:
     """Mixin for new chat sync architecture caching methods"""
 
     _APPEND_QUEUED_MESSAGE_LUA = """
+    if ARGV[3] ~= '' and redis.call('GET', KEYS[4]) ~= ARGV[3] then return -1 end
     local length = redis.call('LLEN', KEYS[1])
-    if length >= 64 then return redis.error_reply('queued_message_limit') end
     local bytes = string.len(ARGV[1])
     if bytes > 4194304 then return redis.error_reply('oversized_queued_message') end
+    local ok_new, incoming = pcall(cjson.decode, ARGV[1])
+    if not ok_new or not incoming.message_id then return redis.error_reply('invalid_queued_message') end
     for i = 0, length - 1 do
-      bytes = bytes + string.len(redis.call('LINDEX', KEYS[1], i))
+      local current = redis.call('LINDEX', KEYS[1], i)
+      local ok_old, existing = pcall(cjson.decode, current)
+      if ok_old and existing.message_id == incoming.message_id then
+        if current == ARGV[1] then return length end
+        return redis.error_reply('queued_message_id_conflict')
+      end
+      bytes = bytes + string.len(current)
       if bytes > 8388608 then return redis.error_reply('queued_bytes_limit') end
     end
+    if length >= 64 then return redis.error_reply('queued_message_limit') end
     local count = redis.call('RPUSH', KEYS[1], ARGV[1])
     redis.call('EXPIRE', KEYS[1], ARGV[2])
     if redis.call('EXISTS', KEYS[2]) == 1 then
@@ -37,7 +47,9 @@ class ChatCacheMixin:
     """
 
     _LEASE_QUEUED_PREFIX_LUA = """
-    local queue_key, lease_key = KEYS[1], KEYS[2]
+    local queue_key, lease_key, edit_lock_key, edit_pause_key = KEYS[1], KEYS[2], KEYS[3], KEYS[4]
+    if redis.call('EXISTS', edit_pause_key) == 1 then return {'edit_paused'} end
+    if redis.call('EXISTS', edit_lock_key) == 1 then return {'edit_busy'} end
     local limit, lease_ttl, proposed = tonumber(ARGV[1]), tonumber(ARGV[2]), ARGV[3]
     local max_bytes = tonumber(ARGV[4])
     local lease = redis.call('GET', lease_key)
@@ -50,8 +62,19 @@ class ChatCacheMixin:
       local available = math.min(redis.call('LLEN', queue_key), limit)
       count = 0
       local total_bytes = 0
+      local first_scope = nil
+      local first_is_recovery = false
       for i = 0, available - 1 do
         local item = redis.call('LINDEX', queue_key, i)
+        local ok, row = pcall(cjson.decode, item)
+        if not ok or type(row) ~= 'table' then return redis.error_reply('invalid_queued_message') end
+        local scope = cjson.encode({row.chat_id, row.user_id, row.user_id_hash,
+          row.is_incognito, row.is_external, row.is_anonymous,
+          row.team_id, row.team_id_hash, row.team_workspace_type, row.team_object_id_hash})
+        if first_scope and scope ~= first_scope then break end
+        if count > 0 and (first_is_recovery or row.recovery_task_id) then break end
+        first_scope = scope
+        if count == 0 then first_is_recovery = row.recovery_task_id ~= nil end
         total_bytes = total_bytes + string.len(item)
         if total_bytes > max_bytes then
           if i == 0 then return redis.error_reply('oversized_queued_message') end
@@ -100,6 +123,77 @@ class ChatCacheMixin:
     redis.call('DEL', lease_key)
     redis.call('SET', receipt_key, '1', 'EX', 3600)
     clear_matching_paused()
+    return 1
+    """
+
+    _REVISE_QUEUED_MESSAGE_LUA = """
+    local queue, lease, ai, active, usage, quarantine =
+      KEYS[1], KEYS[2], KEYS[3], KEYS[4], KEYS[5], KEYS[6]
+    local expected, replacement, task_id, message_id, vault_content, max_ai =
+      ARGV[1], ARGV[2], ARGV[3], ARGV[4], ARGV[5], tonumber(ARGV[6])
+    if redis.call('EXISTS', lease) == 1 then return -1 end
+    if ARGV[8] ~= '' then
+      if redis.call('GET', quarantine) ~= ARGV[8] then return -5 end
+    elseif redis.call('EXISTS', quarantine) == 1 then return -5 end
+    if redis.call('GET', active) ~= task_id then return -2 end
+    local queue_len = redis.call('LLEN', queue)
+    local queue_index = -1
+    local queue_bytes = string.len(replacement) - string.len(expected)
+    for i = 0, queue_len - 1 do
+      local item = redis.call('LINDEX', queue, i)
+      queue_bytes = queue_bytes + string.len(item)
+      if item == expected then queue_index = i end
+    end
+    if queue_index < 0 then return 0 end
+    if string.len(replacement) > 4194304 or queue_bytes > 8388608 then return -4 end
+    if vault_content ~= '' then
+      local ai_len = redis.call('LLEN', ai)
+      local ai_index, ai_replacement, ai_delta = -1, nil, 0
+      local ai_bytes = 0
+      for i = 0, ai_len - 1 do
+        local item = redis.call('LINDEX', ai, i)
+        local ok, row = pcall(cjson.decode, item)
+        if ok and (row.id == message_id or row.message_id == message_id) then
+          if row.role ~= 'user' then return -3 end
+          row.encrypted_content = vault_content
+          ai_replacement = cjson.encode(row)
+          ai_index = i
+          ai_bytes = ai_bytes + string.len(ai_replacement)
+          ai_delta = string.len(ai_replacement) - string.len(item)
+        else
+          ai_bytes = ai_bytes + string.len(item)
+        end
+      end
+      if ai_index < 0 then return -3 end
+      if ai_bytes > max_ai then return -4 end
+      redis.call('LSET', ai, ai_index, ai_replacement)
+      redis.call('HINCRBY', usage, ARGV[7], ai_delta)
+    end
+    redis.call('LSET', queue, queue_index, replacement)
+    return 1
+    """
+
+    _CLEAR_QUEUED_REVISION_QUARANTINE_LUA = """
+    if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+    redis.call('DEL', KEYS[1])
+    return 1
+    """
+
+    _CLAIM_STEER_MESSAGE_LUA = """
+    local queue, lease, active, edit_lock, pause, receipt, volatile_receipts =
+      KEYS[1], KEYS[2], KEYS[3], KEYS[4], KEYS[5], KEYS[6], KEYS[7]
+    if redis.call('GET', active) ~= ARGV[2] then return -2 end
+    if redis.call('EXISTS', lease) == 1 or redis.call('EXISTS', pause) == 1 then return -1 end
+    if redis.call('EXISTS', edit_lock) == 1
+      and redis.call('GET', edit_lock) ~= ARGV[3] then return -1 end
+    if redis.call('EXISTS', receipt) == 1 then return 0 end
+    local count = redis.call('LREM', queue, 1, ARGV[1])
+    if count ~= 1 then return 0 end
+    redis.call('SET', receipt, '1', 'EX', 3600)
+    if ARGV[4] ~= '' then
+      redis.call('SADD', volatile_receipts, ARGV[4])
+      redis.call('EXPIRE', volatile_receipts, 3600)
+    end
     return 1
     """
 
@@ -2021,6 +2115,199 @@ class ChatCacheMixin:
         except Exception as e:
             logger.error(f"Error appending sync message to {key}: {e}")
             return False
+
+    _REPLACE_SYNC_MESSAGE_REVISION_LUA = """
+    local length = redis.call('LLEN', KEYS[1])
+    if length > 5000 then return -2 end
+    for index = 0, length - 1 do
+      local raw = redis.call('LINDEX', KEYS[1], index)
+      local ok, message = pcall(cjson.decode, raw)
+      if ok and (message.id == ARGV[1] or message.message_id == ARGV[1]
+          or message.client_message_id == ARGV[1]) then
+        if tonumber(message.queue_revision or 1) ~= tonumber(ARGV[2]) then return -1 end
+        message.encrypted_content = ARGV[3]
+        message.encrypted_pii_mappings = ARGV[4] == '' and cjson.null or ARGV[4]
+        message.queue_revision = tonumber(ARGV[5])
+        message.status = 'queued'
+        message.queue_dispatch_status = 'queued'
+        message.queue_dispatch_mode = ARGV[6]
+        redis.call('LSET', KEYS[1], index, cjson.encode(message))
+        return 1
+      end
+    end
+    return 0
+    """
+
+    async def replace_sync_message_revision(
+        self, user_id: str, chat_id: str, message_id: str,
+        expected_revision: int, encrypted_content: str,
+        encrypted_pii_mappings: Optional[str], new_revision: int,
+        messages_v: Optional[int] = None, queue_mode: str = "follow_up",
+    ) -> bool:
+        """Replace one existing same-ID ciphertext after Directus and queue CAS commit."""
+        client = await self.client
+        if client is None:
+            return False
+        if queue_mode not in {"steer", "follow_up"}:
+            raise ValueError("Invalid queued message mode")
+        key = self._get_sync_messages_key(user_id, chat_id)
+        try:
+            result = int(await client.eval(
+                self._REPLACE_SYNC_MESSAGE_REVISION_LUA, 1, key,
+                message_id, expected_revision, encrypted_content,
+                encrypted_pii_mappings or "", new_revision, queue_mode,
+            ))
+            if result != 1:
+                # Missing, stale, or oversized snapshots must reload durable storage.
+                await client.delete(key)
+            if messages_v is not None:
+                await self.set_chat_version_component(user_id, chat_id, "messages_v", messages_v)
+            return result == 1
+        except Exception:
+            logger.exception("Failed to replace sync ciphertext for queued message %s", message_id)
+            try:
+                await client.delete(key)
+            except Exception:
+                pass
+            return False
+
+    _MARK_SYNC_MESSAGE_QUEUED_LUA = """
+    local length = redis.call('LLEN', KEYS[1])
+    if length > 5000 then return -2 end
+    for index = 0, length - 1 do
+      local raw = redis.call('LINDEX', KEYS[1], index)
+      local ok, message = pcall(cjson.decode, raw)
+      if ok and (message.id == ARGV[1] or message.message_id == ARGV[1]
+          or message.client_message_id == ARGV[1]) then
+        if tonumber(message.queue_revision or 1) ~= tonumber(ARGV[2]) then return -1 end
+        message.status = 'queued'
+        message.queue_dispatch_status = 'queued'
+        message.queue_dispatch_mode = ARGV[3]
+        redis.call('LSET', KEYS[1], index, cjson.encode(message))
+        return 1
+      end
+    end
+    return 0
+    """
+
+    async def mark_sync_message_queued(
+        self, user_id: str, chat_id: str, message_id: str,
+        queue_revision: int, queue_mode: str, messages_v: int,
+    ) -> bool:
+        """Reflect the durable initial queued marker in the short-lived sync history."""
+        if queue_mode not in {"steer", "follow_up"}:
+            raise ValueError("Invalid queued message mode")
+        client = await self.client
+        if client is None:
+            return False
+        key = self._get_sync_messages_key(user_id, chat_id)
+        try:
+            result = int(await client.eval(
+                self._MARK_SYNC_MESSAGE_QUEUED_LUA, 1, key,
+                message_id, queue_revision, queue_mode,
+            ))
+            if result != 1:
+                await client.delete(key)
+            await self.set_chat_version_component(user_id, chat_id, "messages_v", messages_v)
+            return result == 1
+        except Exception:
+            logger.exception("Failed to mark sync message queued for %s", message_id)
+            try:
+                await client.delete(key)
+            except Exception:
+                pass
+            return False
+
+    _MARK_SYNC_MESSAGE_PAUSED_LUA = """
+    local length = redis.call('LLEN', KEYS[1])
+    if length > 5000 then return -2 end
+    for index = 0, length - 1 do
+      local raw = redis.call('LINDEX', KEYS[1], index)
+      local ok, message = pcall(cjson.decode, raw)
+      if ok and (message.id == ARGV[1] or message.message_id == ARGV[1]
+          or message.client_message_id == ARGV[1]) then
+        if tonumber(message.queue_revision or 1) ~= tonumber(ARGV[2]) then return -1 end
+        message.status = 'paused'
+        message.queue_dispatch_status = 'paused'
+        message.queue_pause_reason = ARGV[3]
+        if ARGV[4] ~= '' then message.queue_dispatch_mode = ARGV[4] end
+        redis.call('LSET', KEYS[1], index, cjson.encode(message))
+        return 1
+      end
+    end
+    return 0
+    """
+
+    async def mark_sync_message_paused(
+        self, user_id: str, chat_id: str, message_id: str,
+        queue_revision: int, reason: str, messages_v: int,
+        queue_mode: Optional[str] = None,
+    ) -> bool:
+        """Publish the durable paused receipt without changing encrypted content."""
+        client = await self.client
+        if client is None:
+            return False
+        key = self._get_sync_messages_key(user_id, chat_id)
+        try:
+            result = int(await client.eval(
+                self._MARK_SYNC_MESSAGE_PAUSED_LUA, 1, key,
+                message_id, queue_revision, reason, queue_mode or "",
+            ))
+            if result != 1:
+                await client.delete(key)
+            await self.set_chat_version_component(user_id, chat_id, "messages_v", messages_v)
+            return result == 1
+        except Exception:
+            logger.exception("Failed to mark sync message paused for %s", message_id)
+            try:
+                await client.delete(key)
+            except Exception:
+                pass
+            return False
+
+    _MARK_SYNC_MESSAGE_PROCESSING_LUA = """
+    local length = redis.call('LLEN', KEYS[1])
+    if length > 5000 then return -2 end
+    for index = 0, length - 1 do
+      local raw = redis.call('LINDEX', KEYS[1], index)
+      local ok, message = pcall(cjson.decode, raw)
+      if ok and (message.id == ARGV[1] or message.message_id == ARGV[1]
+          or message.client_message_id == ARGV[1]) then
+        if tonumber(message.queue_revision or 1) ~= tonumber(ARGV[2]) then return -1 end
+        message.status = 'processing'
+        message.queue_dispatch_status = 'processing'
+        redis.call('LSET', KEYS[1], index, cjson.encode(message))
+        return 1
+      end
+    end
+    return 0
+    """
+
+    async def mark_sync_message_processing(
+        self, user_id: str, chat_id: str, message_id: str,
+        queue_revision: int, messages_v: int,
+    ) -> bool:
+        """Publish a durable queued admission to the short-lived sync snapshot."""
+        client = await self.client
+        if client is None:
+            return False
+        key = self._get_sync_messages_key(user_id, chat_id)
+        try:
+            result = int(await client.eval(
+                self._MARK_SYNC_MESSAGE_PROCESSING_LUA, 1, key,
+                message_id, queue_revision,
+            ))
+            if result != 1:
+                await client.delete(key)
+            await self.set_chat_version_component(user_id, chat_id, "messages_v", messages_v)
+            return result == 1
+        except Exception:
+            logger.exception("Failed to mark sync message processing for %s", message_id)
+            try:
+                await client.delete(key)
+            except Exception:
+                pass
+            return False
     
     async def get_sync_messages_history(self, user_id: str, chat_id: str, start: int = 0, end: int = -1) -> List[str]:
         """
@@ -2518,6 +2805,56 @@ class ChatCacheMixin:
         """Returns the cache key for queued messages for a chat."""
         return f"chat:{chat_id}:message_queue"
 
+    def _get_chat_queue_edit_lock_key(self, chat_id: str) -> str:
+        return f"chat:{chat_id}:message_queue:edit_lock"
+
+    def _get_chat_queue_edit_pause_key(self, chat_id: str) -> str:
+        return f"chat:{chat_id}:message_queue:edit_pause"
+
+    async def pause_queued_message_revisions(self, chat_id: str) -> None:
+        """Fail closed if encrypted persistence and queue CAS cannot be reconciled."""
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queued message state unavailable")
+        await client.set(self._get_chat_queue_edit_pause_key(chat_id), "1", nx=True)
+
+    async def begin_queued_message_revision_quarantine(
+        self, chat_id: str, user_id: str, message_id: str, expected_revision: int,
+        *, hashed_team_id: Optional[str] = None,
+    ) -> Optional[str]:
+        """Fence handoff before staging an encrypted edit; retain across crashes."""
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queued revision cache unavailable")
+        token = json.dumps({
+            "nonce": uuid.uuid4().hex, "user_id": user_id,
+            "message_id": message_id, "expected_revision": expected_revision,
+            "hashed_team_id": hashed_team_id,
+        }, separators=(",", ":"))
+        if await client.set(self._get_chat_queue_edit_pause_key(chat_id), token, nx=True):
+            return token
+        return None
+
+    async def get_queued_message_revision_quarantine(self, chat_id: str) -> Optional[str]:
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queued revision cache unavailable")
+        value = await client.get(self._get_chat_queue_edit_pause_key(chat_id))
+        if value is None:
+            return None
+        return value.decode("utf-8") if isinstance(value, bytes) else str(value)
+
+    @asynccontextmanager
+    async def queued_message_edit_lock(self, chat_id: str):
+        """Exclude handoff leases while one queued edit commits its encrypted row."""
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queued message state unavailable")
+        lock = client.lock(self._get_chat_queue_edit_lock_key(chat_id),
+                           timeout=45, blocking_timeout=5)
+        async with lock:
+            yield lock
+
     def _get_paused_queue_handoff_key(self, chat_id: str) -> str:
         return f"chat:{chat_id}:paused_queue_handoff"
 
@@ -2562,6 +2899,16 @@ class ChatCacheMixin:
         except Exception as e:
             logger.error(f"Error setting active AI task for chat {chat_id}: {e}", exc_info=True)
             return False
+
+    async def try_claim_active_ai_task(self, chat_id: str, task_id: str, ttl: int = 600) -> bool:
+        """Atomically reserve a chat before broker dispatch of its first turn."""
+        client = await self.client
+        if not client:
+            raise RuntimeError("Chat activity cache unavailable")
+        claimed = await client.set(self._get_active_task_key(chat_id), task_id, ex=ttl, nx=True)
+        if claimed:
+            await client.set(self._get_task_chat_mapping_key(task_id), chat_id, ex=ttl)
+        return bool(claimed)
     
     async def get_active_ai_task(self, chat_id: str) -> Optional[str]:
         """
@@ -2728,7 +3075,8 @@ class ChatCacheMixin:
                 admission.local.token,
             ))
     
-    async def queue_message(self, chat_id: str, message_data: Dict[str, Any], ttl: int = 600) -> bool:
+    async def queue_message(self, chat_id: str, message_data: Dict[str, Any], ttl: int = 600,
+                            *, expected_active_task_id: Optional[str] = None) -> bool:
         """
         Add a message to the queue for a chat.
         Multiple messages will be combined when processed.
@@ -2754,10 +3102,14 @@ class ChatCacheMixin:
             if len(message_json.encode("utf-8")) > 4 * 1024 * 1024:
                 return False
             queue_length = await client.eval(
-                self._APPEND_QUEUED_MESSAGE_LUA, 3, key, f"{key}:lease",
+                self._APPEND_QUEUED_MESSAGE_LUA, 4, key, f"{key}:lease",
                 self._get_paused_queue_handoff_key(chat_id),
-                message_json, ttl,
+                self._get_active_task_key(chat_id),
+                message_json, ttl, expected_active_task_id or "",
             )
+            if int(queue_length) < 0:
+                logger.info("Queued admission lost active task fence for chat %s", chat_id)
+                return False
             logger.info(f"Queued message for chat {chat_id}. Queue length: {queue_length}")
             return True
         except Exception as e:
@@ -2773,6 +3125,126 @@ class ChatCacheMixin:
             raise RuntimeError("Queued message state unavailable")
         return bool(await client.llen(self._get_chat_queue_key(chat_id)))
 
+    async def get_queued_message_state(self, chat_id: str, user_id: str) -> List[Dict[str, Any]]:
+        """Return a bounded, content-free queue snapshot for one authenticated owner."""
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queued message state unavailable")
+        raw_rows = await client.lrange(self._get_chat_queue_key(chat_id), 0, 63)
+        result = []
+        for raw in raw_rows:
+            row = json.loads(raw)
+            if row.get("chat_id") != chat_id or row.get("user_id") != user_id:
+                continue
+            message_id = row.get("message_id")
+            if isinstance(message_id, str) and message_id:
+                result.append({
+                    "message_id": message_id,
+                    "queue_mode": "steer" if row.get("queue_mode") == "steer" else "follow_up",
+                    "queue_revision": max(1, int(row.get("queue_revision") or 1)),
+                })
+        return result
+
+    async def get_queued_message_member(self, chat_id: str, user_id: str,
+                                        message_id: str) -> Optional[Dict[str, Any]]:
+        """Read an exact raw member for optimistic queue revision."""
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queued message state unavailable")
+        for raw in await client.lrange(self._get_chat_queue_key(chat_id), 0, 63):
+            decoded = raw.decode("utf-8") if isinstance(raw, bytes) else str(raw)
+            member = json.loads(decoded)
+            if (member.get("chat_id") == chat_id and member.get("user_id") == user_id
+                    and member.get("message_id") == message_id):
+                return {"raw": decoded, "member": member}
+        return None
+
+    async def peek_steer_queued_message(self, chat_id: str, user_id: str,
+                                        *, exclude_ids: Optional[set[str]] = None) -> Optional[Dict[str, Any]]:
+        """Find an exact queued steer byte string without leasing normal follow-ups."""
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queued message state unavailable")
+        for raw in await client.lrange(self._get_chat_queue_key(chat_id), 0, 63):
+            decoded = raw.decode("utf-8") if isinstance(raw, bytes) else str(raw)
+            member = json.loads(decoded)
+            message_id = member.get("message_id")
+            if (member.get("chat_id") == chat_id and member.get("user_id") == user_id
+                    and member.get("queue_mode") == "steer"
+                    and isinstance(message_id, str) and message_id not in (exclude_ids or set())):
+                return {"raw": decoded, "member": member}
+        return None
+
+    async def claim_steer_queued_message(self, chat_id: str, message_id: str,
+                                         *, expected_raw: str, active_task_id: str,
+                                         edit_lock_token: Optional[bytes] = None,
+                                         volatile_receipt: Optional[Dict[str, str]] = None) -> bool:
+        """Consume only the preflighted bytes under the current task fence."""
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queued message state unavailable")
+        receipt = f"{self._get_chat_queue_key(chat_id)}:steer:{message_id}"
+        result = await client.eval(
+            self._CLAIM_STEER_MESSAGE_LUA, 7,
+            self._get_chat_queue_key(chat_id), f"{self._get_chat_queue_key(chat_id)}:lease",
+            self._get_active_task_key(chat_id), self._get_chat_queue_edit_lock_key(chat_id),
+            self._get_chat_queue_edit_pause_key(chat_id), receipt,
+            f"{self._get_chat_queue_key(chat_id)}:volatile-steers:{active_task_id}",
+            expected_raw, active_task_id, edit_lock_token or "",
+            json.dumps(volatile_receipt, separators=(",", ":")) if volatile_receipt else "",
+        )
+        return int(result) == 1
+
+    async def get_consumed_volatile_steers(self, chat_id: str, task_id: str) -> List[Dict[str, str]]:
+        """Read task-bound volatile steer identities for terminal failure notification."""
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queued steer receipt state unavailable")
+        key = f"{self._get_chat_queue_key(chat_id)}:volatile-steers:{task_id}"
+        rows = await client.smembers(key)
+        return [json.loads(raw) for raw in rows]
+
+    async def clear_consumed_volatile_steers(self, chat_id: str, task_id: str) -> None:
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queued steer receipt state unavailable")
+        await client.delete(f"{self._get_chat_queue_key(chat_id)}:volatile-steers:{task_id}")
+
+    async def revise_queued_message_member(
+        self, chat_id: str, user_id: str, message_id: str, *,
+        expected_raw: str, replacement: Dict[str, Any], active_task_id: str,
+        vault_encrypted_content: Optional[str] = None,
+        quarantine_token: Optional[str] = None,
+    ) -> str:
+        """CAS queue and Vault AI-cache text together, fenced before any queue lease."""
+        if (replacement.get("chat_id") != chat_id or replacement.get("user_id") != user_id
+                or replacement.get("message_id") != message_id):
+            raise ValueError("Queued message identity cannot change")
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queued message state unavailable")
+        encoded = json.dumps(replacement, separators=(",", ":"))
+        result = await client.eval(
+            self._REVISE_QUEUED_MESSAGE_LUA, 6,
+            self._get_chat_queue_key(chat_id), f"{self._get_chat_queue_key(chat_id)}:lease",
+            self._get_ai_messages_key(user_id, chat_id), self._get_active_task_key(chat_id),
+            self._get_ai_cache_bytes_key(user_id), self._get_chat_queue_edit_pause_key(chat_id),
+            expected_raw, encoded, active_task_id, message_id,
+            vault_encrypted_content or "", self._ai_cache_limit("AI_CONTEXT_MAX_BYTES", 16 * 1024 * 1024), chat_id,
+            quarantine_token or "",
+        )
+        return {1: "updated", 0: "conflict", -1: "busy", -2: "inactive",
+                -3: "cache_missing", -4: "too_large", -5: "busy"}.get(int(result), "conflict")
+
+    async def clear_queued_message_revision_quarantine(self, chat_id: str, token: str) -> bool:
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queued revision cache unavailable")
+        return bool(await client.eval(
+            self._CLEAR_QUEUED_REVISION_QUARANTINE_LUA, 1,
+            self._get_chat_queue_edit_pause_key(chat_id), token,
+        ))
+
     async def lease_queued_message_prefix(
         self, chat_id: str, *, limit: int = 32, lease_ttl: int = 600,
     ) -> Optional[Dict[str, Any]]:
@@ -2784,10 +3256,22 @@ class ChatCacheMixin:
             raise RuntimeError("Queue lease store unavailable")
         queue_key = self._get_chat_queue_key(chat_id)
         lease_key = f"{queue_key}:lease"
-        raw = await client.eval(
-            self._LEASE_QUEUED_PREFIX_LUA, 2, queue_key, lease_key,
-            limit, lease_ttl, secrets.token_hex(16), 4 * 1024 * 1024,
-        )
+        deadline = time.monotonic() + 30
+        while True:
+            raw = await client.eval(
+                self._LEASE_QUEUED_PREFIX_LUA, 4, queue_key, lease_key,
+                self._get_chat_queue_edit_lock_key(chat_id),
+                self._get_chat_queue_edit_pause_key(chat_id),
+                limit, lease_ttl, secrets.token_hex(16), 4 * 1024 * 1024,
+            )
+            if raw and raw[0] in ("edit_busy", b"edit_busy"):
+                if time.monotonic() >= deadline:
+                    raise RuntimeError("Queued edit lock did not release before handoff")
+                await asyncio.sleep(0.1)
+                continue
+            if raw and raw[0] in ("edit_paused", b"edit_paused"):
+                raise RuntimeError("Queued encrypted revision is unreconciled")
+            break
         if not raw:
             return None
         token = raw[0].decode() if isinstance(raw[0], bytes) else str(raw[0])

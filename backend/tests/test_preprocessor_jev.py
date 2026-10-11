@@ -13,6 +13,42 @@ from backend.apps.ai.processing.preprocessor import (
 from backend.shared.providers.typesafe.models import DecisionResponse
 
 
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
+@pytest.mark.asyncio
+async def test_detailed_decisions_reuse_stage_one_model_and_mate_routing(monkeypatch):
+    async def evaluate(**kwargs):
+        questions = kwargs["questions"]
+        assert {"complexity", "task_area", "user_unhappy", "china_sensitive",
+                "topic_area", "topic_shift"}.isdisjoint(questions)
+        answers = {}
+        for key, question in questions.items():
+            if question["type"] == "noul":
+                answers[key] = {"type": "noul", "noul": 0.0}
+            else:
+                choice = next(iter(question["criteria"]))
+                answers[key] = {"type": "choice", "choice": choice, "confidence": 0.99,
+                                "probabilities": {candidate: float(candidate == choice)
+                                                  for candidate in question["criteria"]}}
+        return DecisionResponse.model_validate({"model": "jev", "answers": answers, "usage": {}})
+
+    monkeypatch.setattr(jev_preprocessing, "_evaluate_preprocessing_questions", evaluate)
+    result = await jev_preprocessing.decide_preprocessing_with_jev(
+        model_id="jev", secrets_manager=None,
+        message_history=[{"role": "user", "content": "Fix this code"}],
+        topic_areas=["software_development: Code"], available_skills=[],
+        available_focus_modes=[], available_settings_and_memories=None,
+        recent_skill_activity=[], conversation_summary=None, previous_category=None,
+        is_first_message=True, selected_app_ids=[],
+        early_decisions={"complexity": "complex", "task_area": "code",
+                         "user_unhappy": True, "china_model_sensitive": True,
+                         "topic_area": "software_development", "topic_shift": "noticeable_shift"},
+    )
+    assert (result["complexity"], result["task_area"], result["topic_area"]) == (
+        "complex", "code", "software_development",
+    )
+    assert result["user_unhappy"] and result["china_model_sensitive"]
+
+
 def test_selected_apps_are_transient_and_fallback_has_no_shortlist():
     assert PreprocessingResult().selected_app_ids is None
     result = PreprocessingResult(selected_app_ids=["news", "web"])
@@ -132,10 +168,13 @@ async def test_explicit_mate_skips_routing_after_app_shortlist_and_keeps_telemet
 
     assert len(calls) == 2
     assert all(call["telemetry_task_id"] == "chat_message" for call in calls)
-    assert set(calls[0]["questions"]) == {"app_0"}
+    assert set(calls[0]["questions"]) == {
+        "app_0", "complexity", "task_area", "user_unhappy", "china_sensitive",
+    }
     stage_two_questions = set(calls[1]["questions"])
     assert {"topic_area", "topic_shift"}.isdisjoint(stage_two_questions)
-    assert {"harmful", "misuse", "task_area", "complexity", "language", "icon"} <= stage_two_questions
+    assert {"harmful", "misuse", "language", "icon"} <= stage_two_questions
+    assert {"task_area", "complexity"}.isdisjoint(stage_two_questions)
     assert result["topic_area"] is None
     assert result["topic_shift"] is None
 
@@ -194,7 +233,11 @@ async def test_app_shortlist_selects_multiple_apps_without_unrelated_stage_two_c
     assert loaded_rule_apps == [["news", "web", "images"]]
     assert result["relevant_rules"] == [{"id": "news-guide", "revision": "v1"}]
     assert result["relevant_app_skills"] == ["news-search", "web-search", "images-search"]
-    assert set(calls[0]["questions"]) == {"app_0", "app_1", "app_2", "app_3"}
+    assert set(calls[0]["questions"]) == {
+        "app_0", "app_1", "app_2", "app_3", "complexity", "task_area",
+        "user_unhappy", "china_sensitive", "topic_area", "topic_shift",
+    }
+    assert {"complexity", "task_area", "topic_area", "topic_shift"}.isdisjoint(calls[1]["questions"])
     stage_one = repr(calls[0])
     stage_two = repr(calls[1])
     assert "PRIVATE-UNRELATED" not in stage_one
