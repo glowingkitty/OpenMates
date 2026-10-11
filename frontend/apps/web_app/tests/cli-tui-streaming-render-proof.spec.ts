@@ -94,7 +94,7 @@ test('records encrypted cached startup, full history, draft preservation and rep
    {name:'draft',text:'Keep this draft',wait_for:'Keep this draft',hold_ms:350},
    {name:'oldest',key:'Home',wait_for:'Cached message 0.',hold_ms:350},
    {name:'newest',key:'End',wait_for:'Cached message 239.',hold_ms:350},
-   {name:'back',key:'Escape',wait_for:'Cached conversation 0',hold_ms:350},
+   {name:'back',key:'Escape',wait_for:'Continue where you left off',wait_for_absent:'Cached message 239.',hold_ms:350},
    {name:'older-card-1',key:'Right',repeat:15},{name:'older-card-2',key:'Right',repeat:15},{name:'older-card-3',key:'Right',repeat:15},
    {name:'warm-selection',wait_for:'Cached conversation 45',hold_ms:250},
    {name:'refresh-command',text:'/refresh'},
