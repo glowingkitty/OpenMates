@@ -58,7 +58,7 @@ export function clearTuiStreamingFrame(state:TuiState):void {frames.delete(state
 export function rememberTuiStreamingFrame(state:TuiState,frame:string,width:number,height:number,bodyWidth:number,
   painted:{row:number;rendered:string;line:string}|undefined,options:{colorMode?:TuiColorMode;ascii?:boolean;reducedMotion?:boolean}):void {
   const mode=options.colorMode??'none';
-  if(!painted||!state.isAwaitingAi||state.screen!=='chat'||mode==='none'||options.reducedMotion||state.modelSelector?.open)return;
+  if(!painted||!state.isAwaitingAi||state.screen!=='chat'||mode==='none'||options.reducedMotion||state.modelSelector?.open||state.mentionPicker)return;
   const at=painted.line.indexOf(painted.rendered);if(at<0)return;
   const prefix=painted.line.slice(0,at),suffix=painted.line.slice(at+painted.rendered.length);
   const variants=Array.from({length:12},(_,phase)=>{
@@ -75,7 +75,7 @@ export function renderTuiStreamingAnimationFrame(state:TuiState,width:number,hei
   options:{colorMode?:TuiColorMode;ascii?:boolean;reducedMotion?:boolean}={}):string|null {
   const saved=frames.get(state);
   if(options.reducedMotion||!saved||!state.isAwaitingAi||state.screen!=='chat'||state.textSelection||state.form||state.chrome||state.questionEditor||state.paletteOpen||
-    state.modelSelector?.open||saved.owner!==owner(state)||saved.width!==width||saved.height!==height||saved.mode!==(options.colorMode??'none')||
+    state.modelSelector?.open||state.mentionPicker||saved.owner!==owner(state)||saved.width!==width||saved.height!==height||saved.mode!==(options.colorMode??'none')||
     saved.ascii!==(options.ascii??false)||saved.messages!==state.messages||saved.message!==state.streamingMessage||
     saved.content!==state.streamingMessage?.content||saved.thinking!==state.streamingMessage?.thinkingContent||saved.thinkingActive!==state.streamingMessage?.thinkingActive||saved.expanded!==state.streamingMessage?.thinkingExpanded||saved.model!==state.streamingMessage?.modelName||saved.scroll!==state.scrollOffset||
     saved.input!==state.input||saved.focus!==state.focus||saved.sidebar!==state.sidebarOpen||saved.settings!==state.settings)return null;

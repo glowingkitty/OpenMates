@@ -61,6 +61,22 @@ test('animation cache refuses stale drafts, content, viewports, owners and hidde
   assert.equal(renderTuiStreamingAnimationFrame(monochrome,100,28),null);
 });
 
+// contract-test: supporting surface=cli assertions=chats.streaming.progressive-presentation,cli.surface.semantic-parity
+test('streaming animation never paints over an open mention popup',()=>{
+  const state=active('Answer'),options={colorMode:'truecolor' as const};
+  renderTuiFrame(state,100,28,options);
+  assert.ok(renderTuiStreamingAnimationFrame(state,100,28,options));
+  state.mentionPicker={generation:1,input:'@',cursor:1,start:0,end:1,query:'',items:[],selectedIndex:0,loading:true,busy:false,error:null};
+  assert.equal(renderTuiStreamingAnimationFrame(state,100,28,options),null);
+  const popup=renderTuiFrame(state,100,28,options);
+  assert.match(popup,/@ Suggestions/);
+  assert.equal(renderTuiStreamingAnimationFrame(state,100,28,options),null);
+  state.mentionPicker=null;
+  assert.equal(renderTuiStreamingAnimationFrame(state,100,28,options),null);
+  renderTuiFrame(state,100,28,options);
+  assert.ok(renderTuiStreamingAnimationFrame(state,100,28,options));
+});
+
 // contract-test: supporting surface=cli assertions=chats.streaming.progressive-presentation
 test('active status follows the trailing adjacent skills and authored text, with action precedence',()=>{
   const fence=(skill:string,id=skill)=>'```json_embed\n'+JSON.stringify({type:'app_skill_use',embed_id:id,app_id:'workflows',skill_id:skill})+'\n```';

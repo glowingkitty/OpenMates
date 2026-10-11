@@ -18,7 +18,12 @@ const search=call('search'),action=search+'\n\n'+call('create');
 const first=action+'\n\n### Progressive response\n\n**First paragraph** appears while the response continues.';
 const second=first+'\n\nSecond paragraph follows in source order.';
 const final=second+'\n\nComplete response.';
+const session={apiUrl:'https://example.invalid',sessionId:'synthetic-stream-session',cookies:{},wsToken:null,
+  masterKeyExportedB64:Buffer.alloc(32).toString('base64'),hashedEmail:'synthetic-owner',userEmailSalt:'salt',createdAt:1,autoLogoutMinutes:null,authorizerDeviceName:'Synthetic'};
 const client={apiUrl:'https://example.invalid',hasSession:()=>true,getActiveTeamId:()=>null,
+  getSession:()=>session,resolveTeamContext:()=>null,
+  getAppsWorkspaceCatalog:async()=>({apps:[{id:'web',name:'Web',skills:[{id:'search',name:'Search'}]}]}),
+  listMemories:async()=>[],listProjects:async()=>[],
   getMasterKeyBytes:()=>new Uint8Array(32),whoAmI:async()=>({username:'Synthetic'}),
   beginInteractiveViewerSession:()=>{},endInteractiveViewerSession:()=>{},
   clearInteractiveChatViewer:()=>{},setInteractiveChatViewer:async()=>{},
@@ -29,7 +34,7 @@ const client={apiUrl:'https://example.invalid',hasSession:()=>true,getActiveTeam
     input.onStream?.(event('typing',''));
     await delay(2000);input.onStream?.({...event('typing',''),thinkingContent:'Synthetic visible reasoning for this response.',thinkingActive:true});
     await delay(1500);input.onStream?.({...event('chunk',search),thinkingActive:false});
-    await delay(1800);input.onStream?.(event('chunk',action));
+    await delay(4000);input.onStream?.(event('chunk',action));
     await delay(1800);input.onStream?.(event('chunk',first));
     await delay(1800);input.onStream?.(event('chunk',second));
     await delay(1800);input.onStream?.(event('done',final));

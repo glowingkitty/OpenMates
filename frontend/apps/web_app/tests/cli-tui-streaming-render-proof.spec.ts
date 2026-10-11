@@ -33,6 +33,10 @@ test('records optimistic send, centered Thinking and bounded rainbow animation i
       {name:'reasoning-open',click:{text:'Thinking for this response'},wait_for:'Synthetic visible reasoning for this response.',hold_ms:150},
       {name:'researching',wait_for:'✦ Researching…',hold_ms:450},
       {name:'researching-animation',wait_for:'✦ Researching…',hold_ms:450},
+      {name:'streaming-mentions',text:'@search',wait_for:'@Web-Search',hold_ms:300},
+      {name:'streaming-mentions-animation',wait_for:'@Web-Search',hold_ms:700},
+      {name:'streaming-mentions-dismiss',key:'Escape',wait_for_absent:'@ Suggestions',wait_for:'@search',hold_ms:100},
+      {name:'streaming-mentions-clear',key:'ctrl+u'},
       {name:'working-skills',wait_for:'✦ Working…',hold_ms:450},
       {name:'writing',wait_for:'First paragraph',hold_ms:500},
       {name:'writing-animation',wait_for:'First paragraph',hold_ms:600},
@@ -53,6 +57,9 @@ test('records optimistic send, centered Thinking and bounded rainbow animation i
     expect(frame('reasoning-open')).toContain('Synthetic visible reasoning for this response.');
     expect(frame('researching')).toContain('✦ Researching…');
     expect(recording.segment('researching-animation','researching')).toContain('▁');
+    expect(frame('streaming-mentions-animation')).toContain('@ Suggestions');
+    expect(frame('streaming-mentions-animation')).toContain('@Web-Search');
+    expect(frame('streaming-mentions-dismiss')).toContain('@search');
     expect(frame('working-skills')).toContain('✦ Working…');
     const writing=frame('writing');
     expect(writing).toContain('First paragraph');expect(writing).not.toContain('**First paragraph**');
