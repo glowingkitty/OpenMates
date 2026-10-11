@@ -817,12 +817,25 @@ def verify_image(image: str) -> dict:
                 "600",
                 "cms-setup",
             )
+            account_key_probe_expected = (
+                ROOT / "backend/core/directus/schemas/account_chat_keys.yml"
+            ).is_file()
+            if account_key_probe_expected:
+                candidate_probe = ROOT / "scripts/ci_account_chat_key_lifecycle_probe.sql"
+                harness_probe = Path(__file__).with_name("ci_account_chat_key_lifecycle_probe.sql")
+                probe_path = candidate_probe if candidate_probe.is_file() else harness_probe
+                lifecycle_probe = probe_path.read_bytes()
+                compose(
+                    "exec", "-T", "cms-database", "psql", "-v", "ON_ERROR_STOP=1",
+                    "-U", "openmates", "-d", "openmates", input_bytes=lifecycle_probe,
+                )
             consumers.append(
                 {
                     "consumer": index + 1,
                     "fresh_volume": True,
                     "normalized_equivalent": True,
                     "fresh_auth_ready": True,
+                    "account_chat_key_lifecycle_verified": account_key_probe_expected,
                 }
             )
         finally:
