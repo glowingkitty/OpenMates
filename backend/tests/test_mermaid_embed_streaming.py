@@ -52,32 +52,30 @@ def test_mermaid_fence_detection_is_disabled() -> None:
 
 
 # contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
-def test_diagrams_app_definition_is_dormant() -> None:
-    assert not DIAGRAMS_APP_YML.exists()
-    app = yaml.safe_load(DIAGRAMS_DISABLED_APP_YML.read_text())
+def test_diagrams_app_uses_html_source_direct_embed() -> None:
+    app = yaml.safe_load(DIAGRAMS_APP_YML.read_text())
 
     assert app["app_id"] == "diagrams"
-    embed = next(item for item in app["embed_types"] if item.get("backend_type") == "mermaid")
+    embed = next(item for item in app["embed_types"] if item.get("backend_type") == "diagram_html")
 
     assert embed["category"] == "direct"
-    assert embed["frontend_type"] == "diagrams-mermaid"
-    assert embed["preview_component"] == "diagrams/MermaidDiagramEmbedPreview.svelte"
-    assert embed["fullscreen_component"] == "diagrams/MermaidDiagramEmbedFullscreen.svelte"
-    assert embed["content_catalog"]["content_type_id"] == "mermaid"
-    assert app["instructions"] == []
+    assert embed["frontend_type"] == "diagrams-html"
+    assert embed["preview_component"] == "diagrams/DiagramHtmlEmbedPreview.svelte"
+    assert embed["fullscreen_component"] == "diagrams/DiagramHtmlEmbedFullscreen.svelte"
+    assert embed["content_catalog"]["content_type_id"] == "diagram_html"
 
 
 # contract-test: supporting surface=rest_api assertions=chats.streaming.ordered-final,chats.rendering.assistant-document-convergence
-def test_streaming_path_keeps_mermaid_branch_dormant() -> None:
+def test_streaming_path_prioritizes_html_diagram_before_generic_code() -> None:
     source = STREAM_CONSUMER.read_text(encoding="utf-8")
-    multi_chunk_branch = source[source.index("is_mermaid_block_multi = _is_mermaid_fence(current_code_language)") :]
+    multi_chunk_branch = source[source.index("is_diagram_html_block_multi = is_diagram_html_fence(current_code_language)") :]
     finalization_branch = source[source.index("if in_plot_block:", source.index("# Finalize embed")) :]
 
     assert "is_mermaid_block_multi = _is_mermaid_fence(current_code_language)" in source
     assert "elif is_mermaid_block_multi:" in source
     assert "create_mermaid_embed_placeholder" in source
     assert "update_mermaid_embed_content" in source
-    assert multi_chunk_branch.index("elif is_mermaid_block_multi:") < multi_chunk_branch.index("create_code_embed_placeholder(")
+    assert multi_chunk_branch.index("elif is_diagram_html_block_multi:") < multi_chunk_branch.index("create_code_embed_placeholder(")
     assert finalization_branch.index("elif in_mermaid_block:") < finalization_branch.index("Finalized code embed")
 
 
@@ -238,3 +236,36 @@ async def test_embed_service_creates_and_updates_mermaid_payload() -> None:
     assert final_event["version_number"] == 2
     assert final_event["content_hash"] == "content-hash-v2"
     assert "sequenceDiagram" in final_event["content"]
+
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence,storage.versions.bounded-reconstruction
+@pytest.mark.asyncio
+async def test_html_diagram_service_publishes_exact_source_and_encrypted_v1_snapshot() -> None:
+    from backend.apps.ai.utils.diagram_html_fences import validate_diagram_html_source
+
+    source = (REPO_ROOT / "frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlExampleLight.html").read_text()
+    metadata = validate_diagram_html_source(source)
+    cache = FakeCacheService()
+    service = EmbedService(cache, directus_service=object(), encryption_service=FakeEncryptionService())
+    service._schedule_embed_persistence_fallback = lambda embed_id: None
+    created = await service.create_diagram_html_embed_placeholder(
+        chat_id="chat-1", message_id="message-1", user_id="user-1",
+        user_id_hash="user-hash", user_vault_key_id="vault-1", task_id="task-1",
+    )
+    assert created and json.loads(created["embed_reference"])["type"] == "diagram_html"
+    assert await service.update_diagram_html_embed_content(
+        embed_id=created["embed_id"], html_source=source,
+        chat_id="chat-1", user_id="user-1", user_id_hash="user-hash",
+        user_vault_key_id="vault-1", status="finished",
+    )
+    cached = json.loads(cache._client.values[f"embed:{created['embed_id']}"])
+    content = decode(cached["encrypted_content"])
+    assert content["html_source"] == source
+    assert content["diagram_kind"] == metadata.diagram_kind
+    assert content["render_width"] == metadata.render_width
+    assert content["render_height"] == metadata.render_height
+    assert content["version_number"] == 1
+    assert cached["content_hash"] == __import__("hashlib").sha256(source.encode()).hexdigest()
+    final = cache._client.published[-1][1]["payload"]
+    assert final["app_id"] == "diagrams" and final["skill_id"] == "html"
+    assert final["version_history_rows"][0]["snapshot"] == source
+    assert final["version_history_rows"][0]["version_number"] == 1

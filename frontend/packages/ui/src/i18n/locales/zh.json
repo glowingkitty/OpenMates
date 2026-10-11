@@ -4979,6 +4979,7 @@
       }
     }
   },
+  "diagrams": {},
   "digital_team_mates": {
     "digital_team_mates": {
       "text": "数字团队伙伴"
@@ -7462,6 +7463,9 @@
     "diagrams": {
       "mermaid": {
         "text": "Mermaid 图表"
+      },
+      "html": {
+        "text": "可编辑图表"
       }
     },
     "mail": {

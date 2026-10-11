@@ -78,6 +78,7 @@ import { renderWeatherDay, renderWeatherForecast, renderWeatherRainRadar } from 
 import { renderCompanyFinancialResult, renderCompanyFinancials } from '../components/embeds/business/businessEmbedText';
 import { normalizeFinanceOverview } from '../components/embeds/finance/financeCheckAccountsContent';
 import { renderMindMapText } from '../components/embeds/mindmaps/mindMapContent';
+import { renderDiagramText } from '../components/embeds/diagrams/diagramHtmlContent';
 import { renderFile } from '../components/embeds/file/fileEmbedText';
 import { renderProjectReferences } from '../components/embeds/projects/projectReferenceEmbedText';
 
@@ -289,6 +290,8 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 		'math-plot': renderMathPlot,
 		'mindmaps-mindmap': renderMindMap,
 		'mindmap': renderMindMap,
+		'diagrams-html': renderDiagramText,
+		'diagram_html': renderDiagramText,
 		'events-event': renderEvent,
 	'fitness-location': renderFitnessResult,
 	'fitness-class': renderFitnessResult,

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 
 import { isAuthorized } from '../src/index.js';
-import { activateEmbedArchiveReader, commitEmbedRevision, finalizeEmbedArchiveCopy,
+import { activateEmbedArchiveReader, commitChatDiagramRevision, commitEmbedRevision, finalizeEmbedArchiveCopy,
   prepareEmbedArchiveCopy, retireEmbedArchiveCopy, pruneEmbedArchivePayload,
   publishEmbedSnapshot, writeLegacyEmbed, ProtocolError, testing } from '../src/operations.js';
 
@@ -952,4 +952,151 @@ test('commit cannot target an embed that is not an item in the authorized Projec
   assert.equal(database.rows.embeds[0].version_number, 1);
   assert.equal(database.rows.embed_diffs.length, 1);
   assert.equal(database.rows.embed_version_commits.length, 0);
+});
+
+function chatDiagramFixture({ team = false } = {}) {
+  const seed = existingSeed();
+  const id = 'chat-diagram-1';
+  const chatId = 'diagram-chat';
+  const hash = (value) => createHash('sha256').update(value).digest('hex');
+  const teamHash = team ? hash('team-a') : null;
+  seed.project_items = [];
+  seed.chats = [{ id: chatId, hashed_user_id: ACTOR, hashed_team_id: teamHash, storage_state: 'hot' }];
+  seed.embeds = [{
+    id: 'diagram-row', embed_id: id, hashed_user_id: ACTOR,
+    hashed_chat_id: hash(chatId), hashed_team_id: teamHash,
+    app_id: 'diagrams', skill_id: 'html', workspace_origin: 'chat',
+    encryption_mode: 'client', content_hash: '1'.repeat(64),
+    encrypted_content: 'encrypted-v1', version_number: 1,
+  }];
+  seed.embed_diffs = [{ id: 'diagram-v1', embed_id: id, hashed_user_id: ACTOR,
+    version_number: 1, encrypted_snapshot: 'encrypted-snapshot-v1',
+    encrypted_patch: null, created_at: 10 }];
+  seed.chat_diagram_revision_commits = [];
+  if (team) {
+    seed.teams = [{ hashed_team_id: teamHash, status: 'active' }];
+    seed.team_memberships = [{ hashed_team_id: teamHash, hashed_user_id: ACTOR,
+      status: 'active', role: 'member' }];
+  }
+  const body = {
+    operation_id: 'diagram-op-1', embed_id: id, chat_id: chatId,
+    ...(team ? { team_id: 'team-a' } : {}),
+    expected_revision: 1, expected_content_hash: '1'.repeat(64),
+    head: { encrypted_content: 'encrypted-v2', content_hash: '2'.repeat(64),
+      status: 'finished', updated_at: 20 },
+    history_rows: [{ version_number: 2, encrypted_patch: 'encrypted-patch-v2', created_at: 20 }],
+    actor_user_hash: ACTOR,
+  };
+  return { seed, body };
+}
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
+test('chat diagram legacy writer finalizes a processing v1 but cannot rewrite a finished head', async () => {
+  const { seed, body } = chatDiagramFixture();
+  seed.embeds[0].status = 'processing';
+  const db = fakeDatabase(seed);
+  const payload = {
+    embed_id: body.embed_id, hashed_user_id: ACTOR,
+    app_id: 'diagrams', skill_id: 'html', workspace_origin: 'chat',
+    root_embed_id: body.embed_id, encrypted_content: 'encrypted-final-v1',
+    status: 'finished', version_number: 1,
+  };
+  assert.equal((await writeLegacyEmbed(db, {
+    embed_id: body.embed_id, actor_user_hash: ACTOR, payload,
+  })).status, 'updated');
+  assert.equal(db.rows.embeds[0].encrypted_content, 'encrypted-final-v1');
+  await assert.rejects(writeLegacyEmbed(db, {
+    embed_id: body.embed_id, actor_user_hash: ACTOR,
+    payload: { ...payload, encrypted_content: 'legacy-overwrite' },
+  }), (error) => error instanceof ProtocolError && error.code === 'chat_diagram_revision_required');
+  assert.equal(db.rows.embeds[0].encrypted_content, 'encrypted-final-v1');
+
+  const committed = await commitChatDiagramRevision(db, body);
+  assert.equal(committed.status, 'committed');
+  await assert.rejects(writeLegacyEmbed(db, {
+    embed_id: body.embed_id, actor_user_hash: ACTOR, payload,
+  }), (error) => error instanceof ProtocolError && error.code === 'chat_diagram_revision_required');
+  assert.equal(db.rows.embeds[0].encrypted_content, 'encrypted-v2');
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+ test('chat diagram revision commits head, history, and retry receipt atomically', async () => {
+  const { seed, body } = chatDiagramFixture();
+  const db = fakeDatabase(seed);
+  const first = await commitChatDiagramRevision(db, body);
+  assert.equal(first.status, 'committed');
+  assert.equal(first.current_revision, 2);
+  assert.equal(db.rows.embeds[0].encrypted_content, 'encrypted-v2');
+  assert.equal(db.rows.embeds[0].content_hash, '2'.repeat(64));
+  assert.equal(db.rows.embed_diffs.length, 2);
+  const replay = await commitChatDiagramRevision(db, body);
+  assert.equal(replay.idempotent, true);
+  assert.equal(db.rows.embed_diffs.length, 2);
+  assert.equal(db.rows.chat_diagram_revision_commits.length, 1);
+  await assert.rejects(commitChatDiagramRevision(db, {
+    ...body, head: { ...body.head, encrypted_content: 'changed-retry' },
+  }), (error) => error.code === 'operation_payload_mismatch');
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+ test('chat diagram revision rejects cross-chat, unauthorized, and Project-linked writes', async () => {
+  const { seed, body } = chatDiagramFixture();
+  const db = fakeDatabase(seed);
+  for (const changed of [
+    { ...body, chat_id: 'other-chat' },
+    { ...body, actor_user_hash: 'f'.repeat(64) },
+    { ...body, team_id: 'team-a' },
+  ]) {
+    await assert.rejects(commitChatDiagramRevision(db, changed),
+      (error) => error instanceof ProtocolError && error.status === 403);
+  }
+  db.rows.project_items.push({ target_id_hash: createHash('sha256').update(body.embed_id).digest('hex'),
+    item_type: 'embed' });
+  await assert.rejects(commitChatDiagramRevision(db, body),
+    (error) => error.code === 'project_context_required');
+  assert.equal(db.rows.embeds[0].encrypted_content, 'encrypted-v1');
+  assert.equal(db.rows.embed_diffs.length, 1);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+ test('chat diagram revision enforces revision and source-hash CAS with no mutation', async () => {
+  const { seed, body } = chatDiagramFixture();
+  const db = fakeDatabase(seed);
+  const stale = await commitChatDiagramRevision(db, { ...body, expected_content_hash: '0'.repeat(64) });
+  assert.equal(stale.status, 'conflict');
+  assert.equal(stale.current_content_hash, '1'.repeat(64));
+  assert.equal(db.rows.embeds[0].encrypted_content, 'encrypted-v1');
+  assert.equal(db.rows.embed_diffs.length, 1);
+  assert.equal(db.rows.chat_diagram_revision_commits.length, 0);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+ test('chat diagram revision checks Team membership and rolls back incomplete history', async () => {
+  const { seed, body } = chatDiagramFixture({ team: true });
+  const db = fakeDatabase(seed);
+  db.rows.team_memberships = [];
+  await assert.rejects(commitChatDiagramRevision(db, body), (error) => error.code === 'chat_access_denied');
+  db.rows.team_memberships = seed.team_memberships;
+  db.rows.embed_diffs = [];
+  await assert.rejects(commitChatDiagramRevision(db, body), (error) => error.code === 'incomplete_history');
+  assert.equal(db.rows.embeds[0].encrypted_content, 'encrypted-v1');
+  assert.equal(db.rows.embed_diffs.length, 0);
+  assert.equal(db.rows.chat_diagram_revision_commits.length, 0);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+ test('chat diagram first edit supplies v1 only when the imported embed lacks it', async () => {
+  const { seed, body } = chatDiagramFixture();
+  seed.embed_diffs = [];
+  const db = fakeDatabase(seed);
+  const result = await commitChatDiagramRevision(db, {
+    ...body,
+    history_rows: [
+      { version_number: 1, encrypted_snapshot: 'encrypted-original-source', created_at: 10 },
+      ...body.history_rows,
+    ],
+  });
+  assert.equal(result.status, 'committed');
+  assert.equal(db.rows.embed_diffs.length, 2);
+  assert.equal(db.rows.embed_diffs[0].encrypted_snapshot, 'encrypted-original-source');
 });

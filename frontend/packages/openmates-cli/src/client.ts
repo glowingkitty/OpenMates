@@ -3163,6 +3163,7 @@ function extractVersionedEmbedContent(content: Record<string, unknown>): string 
     ].join("\n").trim();
   }
   if (typeof content.remotion_source === "string") return content.remotion_source;
+  if (typeof content.html_source === "string") return content.html_source;
   if (typeof content.code === "string") return content.code;
   if (typeof content.html === "string") return content.html;
   if (typeof content.table === "string") return content.table;
@@ -3183,6 +3184,7 @@ function buildRestoredEmbedContentObject(
   if (typeof current.remotion_source === "string") {
     return { ...restored, remotion_source: restoredContent, current_source_version: newVersion };
   }
+  if (typeof current.html_source === "string") return { ...restored, html_source: restoredContent };
   if (typeof current.code === "string") return { ...restored, code: restoredContent };
   if (typeof current.html === "string") return { ...restored, html: restoredContent };
   if (typeof current.table === "string") return { ...restored, table: restoredContent };
@@ -7969,6 +7971,7 @@ export class OpenMatesClient {
               } else {
                 const historicalFieldByType: Record<string, string> = {
                   code: "code", pcb_schematic: "code", sheet: "table", mermaid: "diagram_code",
+                  diagram_html: "html_source",
                 };
                 const field = historicalFieldByType[content.type];
                 if (!field || typeof sealedEmbed[field] !== "string") {
@@ -9547,6 +9550,7 @@ export class OpenMatesClient {
               chatKeyBytes,
               fallbackMessageId: assistantId,
               ownerId,
+              teamId,
             });
             clearSyncCache(teamId);
             await persistCompressionCheckpoints(ws, chatKeyBytes, resp.compressionCheckpoints);
@@ -9730,6 +9734,7 @@ export class OpenMatesClient {
             chatKeyBytes,
             fallbackMessageId: assistantId,
             ownerId,
+            teamId,
           });
           // Chat-level identity is separate from assistant-message metadata.
           // Use the same encrypted storage protocol as the web typing handler.
@@ -10113,6 +10118,7 @@ export class OpenMatesClient {
     chatKeyBytes: Uint8Array;
     fallbackMessageId: string;
     ownerId: string;
+    teamId?: string | null;
   }): Promise<void> {
     const finalized = new Map(
       params.embeds
@@ -10255,6 +10261,10 @@ export class OpenMatesClient {
         version_number: embed.version_number,
         file_path: embed.file_path,
         content_hash: embed.content_hash,
+        ...(embed.type === "diagram_html" ? {
+          app_id: "diagrams", skill_id: "html", chat_id: params.chatId,
+          ...(params.teamId ? { team_id: params.teamId } : {}),
+        } : {}),
         text_length_chars: embed.text_length_chars,
         is_private: embed.is_private ?? false,
         is_shared: embed.is_shared ?? false,
@@ -14820,6 +14830,49 @@ export class OpenMatesClient {
 
     const { ws } = await this.openWsClient();
     try {
+      if (currentObject.type === "diagram_html") {
+        const chat = cache.chats.find((entry) =>
+          computeSHA256(String(entry.details.id ?? "")) === embed.hashed_chat_id);
+        const chatId = String(chat?.details.id ?? "");
+        if (!chatId || typeof embed.content_hash !== "string"
+          || embed.content_hash !== computeSHA256(currentContent)) {
+          throw new Error("Diagram restore requires a current chat and matching source hash.");
+        }
+        const teamId = this.resolveTeamContext();
+        const versions = await this.listEmbedVersions(embedId, { chatId, teamId: teamId ?? undefined });
+        if (versions.readonly) throw new Error("Diagram version history is read-only.");
+        const historyRows: Array<Record<string, unknown>> = [];
+        if (currentVersion === 1 && !versions.versions.some((row) => row.version_number === 1)) {
+          historyRows.push({ version_number: 1,
+            encrypted_snapshot: await encryptWithAesGcmCombined(currentContent, embedKey),
+            created_at: normalizeUnixSeconds(embed.created_at, now) });
+        }
+        historyRows.push({ version_number: newVersion,
+          encrypted_patch: encryptedPatch, encrypted_snapshot: encryptedSnapshot, created_at: now });
+        const requestId = randomUUID();
+        const operationId = randomUUID();
+        const receipt = ws.waitForMessage("commit_chat_diagram_revision_result",
+          (payload) => (payload as Record<string, unknown>).request_id === requestId, 30_000);
+        await ws.sendAsync("commit_chat_diagram_revision", {
+          request_id: requestId, operation_id: operationId, embed_id: embedId,
+          chat_id: chatId, ...(teamId ? { team_id: teamId } : {}),
+          expected_revision: currentVersion, expected_content_hash: embed.content_hash,
+          head: { encrypted_content: encryptedRestoredContent,
+            encrypted_text_preview: embed.encrypted_text_preview ?? null,
+            content_hash: contentHash, status: "finished", updated_at: now },
+          history_rows: historyRows,
+        });
+        const result = (await receipt).payload as Record<string, unknown>;
+        if (result.status !== "committed" || result.current_revision !== newVersion
+          || result.current_content_hash !== contentHash) {
+          throw new Error(result.status === "conflict"
+            ? "Diagram advanced on another device; reload and retry restore."
+            : `Diagram restore was rejected: ${String(result.code ?? "unknown")}`);
+        }
+        clearSyncCache(teamId);
+        return { embed_id: embedId, restored_from_version: version,
+          version_number: newVersion, content: target.content, content_hash: contentHash };
+      }
       const storeRequestId = randomUUID();
       const storeConfirmed = ws.waitForMessage(
         "store_embed_confirmed",

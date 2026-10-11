@@ -1007,6 +1007,20 @@ async def delete_embed_version_rows(*, directus_service: Any, version_ids: Itera
     return len(ids)
 
 
+async def delete_chat_diagram_revision_receipts(
+    *, directus_service: Any, embed_ids: Iterable[str],
+) -> int:
+    """Remove opaque chat diagram receipts after their authorized heads are deleted."""
+    deleted = 0
+    for embed_id in sorted({str(value) for value in embed_ids if value}):
+        deleted += await _delete_rows_bounded(
+            directus_service=directus_service,
+            collection="chat_diagram_revision_commits",
+            item_filter={"embed_id": {"_eq": embed_id}},
+        )
+    return deleted
+
+
 async def delete_account_storage_reference_rows(
     *,
     directus_service: Any,
@@ -1046,6 +1060,10 @@ async def delete_account_storage_reference_rows(
     deleted["embed_diffs"] = await delete_embed_version_rows(
         directus_service=directus_service,
         version_ids=[row["id"] for row in eligible_embed_rows.versions],
+    )
+    deleted["chat_diagram_revision_commits"] = await delete_chat_diagram_revision_receipts(
+        directus_service=directus_service,
+        embed_ids=[row.get("embed_id") for row in eligible_embed_rows.embeds],
     )
     return deleted
 

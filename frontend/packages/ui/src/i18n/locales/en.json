@@ -5803,6 +5803,62 @@
       }
     }
   },
+  "diagrams": {
+    "html": {
+      "text": "Editable Diagram"
+    },
+    "edit": {
+      "text": "Edit diagram"
+    },
+    "loading": {
+      "text": "Preparing diagram…"
+    },
+    "invalid_source": {
+      "text": "This diagram contains unsupported content."
+    },
+    "conflict": {
+      "text": "The diagram changed on another device. Reload before editing."
+    },
+    "saved": {
+      "text": "Diagram saved"
+    },
+    "saved_refresh": {
+      "text": "Diagram saved. Refresh this page to sync this device before editing again."
+    },
+    "history_unavailable": {
+      "text": "This diagram version could not be loaded. Choose another version to retry."
+    },
+    "history_version": {
+      "text": "Viewing version"
+    },
+    "save_failed": {
+      "text": "Could not save diagram"
+    },
+    "zoom_out": {
+      "text": "Zoom out"
+    },
+    "zoom_in": {
+      "text": "Zoom in"
+    },
+    "fit": {
+      "text": "Fit diagram"
+    },
+    "export": {
+      "text": "Export HTML"
+    },
+    "undo": {
+      "text": "Undo"
+    },
+    "cancel": {
+      "text": "Cancel"
+    },
+    "save": {
+      "text": "Save changes"
+    },
+    "saving": {
+      "text": "Saving…"
+    }
+  },
   "digital_team_mates": {
     "digital_team_mates": {
       "text": "Digital Team Mates"
@@ -8534,6 +8590,9 @@
     "diagrams": {
       "mermaid": {
         "text": "Mermaid Diagram"
+      },
+      "html": {
+        "text": "Editable Diagram"
       }
     },
     "mail": {

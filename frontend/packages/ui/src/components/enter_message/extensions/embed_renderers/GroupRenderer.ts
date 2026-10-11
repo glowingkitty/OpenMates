@@ -71,6 +71,7 @@ import HostingSearchEmbedPreview from "../../../embeds/hosting/HostingSearchEmbe
 import HostingDomainEmbedPreview from "../../../embeds/hosting/HostingDomainEmbedPreview.svelte";
 import PcbSchematicEmbedPreview from "../../../embeds/electronics/PcbSchematicEmbedPreview.svelte";
 import MermaidDiagramEmbedPreview from "../../../embeds/diagrams/MermaidDiagramEmbedPreview.svelte";
+import DiagramHtmlEmbedPreview from "../../../embeds/diagrams/DiagramHtmlEmbedPreview.svelte";
 import MindMapEmbedPreview from "../../../embeds/mindmaps/MindMapEmbedPreview.svelte";
 import { normalizeMindMapSource, toMindMapOutline } from "../../../embeds/mindmaps/mindMapContent";
 import ElectronicsSearchEmbedPreview from "../../../embeds/electronics/ElectronicsSearchEmbedPreview.svelte";
@@ -505,6 +506,11 @@ export class GroupRenderer implements EmbedRenderer {
           this.renderMermaidDiagramComponent(item, embedData, decodedContent, content),
       ],
       [
+        "diagrams-html",
+        (item, embedData, decodedContent, content) =>
+          this.renderDiagramHtmlComponent(item, embedData, decodedContent, content),
+      ],
+      [
         "mindmaps-mindmap",
         (item, embedData, decodedContent, content) =>
           this.renderMindMapComponent(item, embedData, decodedContent, content),
@@ -906,6 +912,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderPcbSchematicItem(item, embedData, decodedContent);
       case "diagrams-mermaid":
         return this.renderMermaidDiagramItem(item, embedData, decodedContent);
+      case "diagrams-html":
+        return this.renderDiagramHtmlItem(item, embedData, decodedContent);
       case "mindmaps-mindmap":
         return this.renderMindMapItem(item, embedData, decodedContent);
       case "electronics-component":
@@ -6746,6 +6754,46 @@ export class GroupRenderer implements EmbedRenderer {
     }
   }
 
+  private async renderDiagramHtmlComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace('embed:', '') || item.id || '';
+    const status = (embedData?.status || decodedContent?.status || item.status || 'finished') as
+      'processing' | 'finished' | 'error' | 'cancelled';
+    const existing = mountedComponents.get(content);
+    if (existing) {
+      try { unmount(existing); } catch (error) { console.warn('[GroupRenderer] Could not unmount diagram preview', error); }
+    }
+    disposeEmbedTree(content, false);
+    content.innerHTML = '';
+    if (!content.isConnected) return;
+    try {
+      const component = mount(DiagramHtmlEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          title: decodedContent?.title as string | undefined,
+          diagram_kind: decodedContent?.diagram_kind as string | undefined,
+          html_source: decodedContent?.html_source as string | undefined,
+          render_width: decodedContent?.render_width as number | undefined,
+          render_height: decodedContent?.render_height as number | undefined,
+          schema_version: decodedContent?.schema_version as number | undefined,
+          version_number: decodedContent?.version_number as number | undefined,
+          status,
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(item, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error('[GroupRenderer] Could not mount HTML diagram preview', error);
+      content.innerHTML = await this.renderDiagramHtmlItem(item, embedData, decodedContent);
+    }
+  }
+
   /**
    * Render a Mind Maps embed using MindMapEmbedPreview.
    */
@@ -7094,6 +7142,19 @@ export class GroupRenderer implements EmbedRenderer {
         ${code ? `<div class="embed-text-subline">${esc(String(code)).slice(0, 120)}</div>` : ""}
       </div>
     `;
+  }
+
+  private async renderDiagramHtmlItem(
+    item: EmbedNodeAttributes,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const escape = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const title = decodedContent?.title || item.title || 'Diagram';
+    const kind = decodedContent?.diagram_kind || 'HTML / SVG';
+    return `<div class="embed-app-icon diagrams"><span class="icon icon_diagram"></span></div>
+      <div class="embed-text-content"><div class="embed-text-line">${escape(String(title))}</div>
+      <div class="embed-text-subline">${escape(String(kind))}</div></div>`;
   }
 
   /**

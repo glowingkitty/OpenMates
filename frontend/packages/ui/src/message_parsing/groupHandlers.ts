@@ -1082,6 +1082,13 @@ export class GroupHandlerRegistry {
     );
 
     this.register(
+      new BaseGroupHandler("diagrams-html", [
+        "id", "type", "status", "contentRef", "title", "diagram_kind",
+        "html_source", "render_width", "render_height", "schema_version", "version_number",
+      ]),
+    );
+
+    this.register(
       new BaseGroupHandler("mindmaps-mindmap", [
         "id",
         "type",

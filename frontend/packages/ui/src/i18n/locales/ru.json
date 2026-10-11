@@ -4979,6 +4979,7 @@
       }
     }
   },
+  "diagrams": {},
   "digital_team_mates": {
     "digital_team_mates": {
       "text": "Цифровые коллеги"
@@ -7462,6 +7463,9 @@
     "diagrams": {
       "mermaid": {
         "text": "Диаграмма Mermaid"
+      },
+      "html": {
+        "text": "Редактируемая диаграмма"
       }
     },
     "mail": {

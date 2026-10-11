@@ -97,6 +97,9 @@ export interface PreparedEmbed {
   filePath?: string;
   contentHash?: string;
   textLengthChars?: number;
+  appId?: string;
+  skillId?: string;
+  versionNumber?: number;
 }
 
 /** A fully encrypted embed ready for the WebSocket payload */
@@ -112,6 +115,12 @@ export interface EncryptedEmbed {
   embed_ids?: string[];
   file_path?: string;
   content_hash?: string;
+  app_id?: string;
+  skill_id?: string;
+  root_embed_id?: string;
+  workspace_origin?: "chat";
+  version_number?: number;
+  encryption_mode?: "client";
   text_length_chars?: number;
   created_at: number;
   updated_at: number;
@@ -325,6 +334,14 @@ export async function encryptEmbed(
       hashed_user_id: hashedUserId,
       file_path: embed.filePath,
       content_hash: embed.contentHash,
+      ...(embed.appId && embed.skillId ? {
+        app_id: embed.appId,
+        skill_id: embed.skillId,
+        root_embed_id: embed.embedId,
+        workspace_origin: "chat" as const,
+      } : {}),
+      ...(embed.versionNumber ? { version_number: embed.versionNumber } : {}),
+      encryption_mode: "client",
       text_length_chars: embed.textLengthChars,
       created_at: nowSeconds,
       updated_at: nowSeconds,

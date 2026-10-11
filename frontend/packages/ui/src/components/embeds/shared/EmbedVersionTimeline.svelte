@@ -27,9 +27,13 @@
 		currentContent: string;
 		buildRestoredContent?: (restoredContent: string, newVersion: number) => Record<string, unknown>;
 		onVersionSelect: (version: number, content: string | null) => void;
+		onVersionPending?: (version: number) => void;
+		onVersionError?: (version: number) => void;
+		/** Embed-specific atomic restore writer, used instead of legacy store_embed transport. */
+		onRestoreVersion?: (restoredContent: string, selectedVersion: number) => Promise<{ version: number; content: string }>;
 	}
 
-	let { embedId, chatId, projectId, teamId, currentVersion, currentContent, buildRestoredContent, onVersionSelect }: Props = $props();
+	let { embedId, chatId, projectId, teamId, currentVersion, currentContent, buildRestoredContent, onVersionSelect, onVersionPending, onVersionError, onRestoreVersion }: Props = $props();
 
 	let versions: EmbedVersionMeta[] = $state([]);
 	let nextCursor: number | null = $state(null);
@@ -104,6 +108,7 @@
 	async function selectVersion(version: number) {
 		const requestId = ++contentRequestId;
 		selectedVersion = version;
+		onVersionPending?.(version);
 		restoreConfirmVersion = null;
 		errorMessage = '';
 		if (version === activeCurrentVersion) {
@@ -124,13 +129,14 @@
 			errorMessage = e instanceof Error ? e.message : 'Failed to load version content';
 			selectedContent = null;
 			onVersionSelect(version, null);
+			onVersionError?.(version);
 		} finally {
 			if (requestId === contentRequestId) loadingContent = false;
 		}
 	}
 
 	async function restoreSelectedVersion() {
-		if (selectedVersion === activeCurrentVersion || readonly || !buildRestoredContent) return;
+		if (selectedVersion === activeCurrentVersion || readonly || (!buildRestoredContent && !onRestoreVersion) || selectedContent === null) return;
 		if (restoreConfirmVersion !== selectedVersion) {
 			restoreConfirmVersion = selectedVersion;
 			return;
@@ -138,19 +144,22 @@
 		restoring = true;
 		errorMessage = '';
 		try {
-			const response = await restoreEmbedVersion(embedId, selectedVersion, {
-				currentVersion: activeCurrentVersion,
-				currentContent,
-				chatId,
-				projectId,
-				teamId,
-				buildRestoredContent
-			});
-			activeCurrentVersion = response.version_number;
-			selectedVersion = response.version_number;
+			const response = onRestoreVersion
+				? await onRestoreVersion(selectedContent, selectedVersion)
+				: await restoreEmbedVersion(embedId, selectedVersion, {
+					currentVersion: activeCurrentVersion,
+					currentContent,
+					chatId,
+					projectId,
+					teamId,
+					buildRestoredContent: buildRestoredContent!
+				});
+			const restoredVersion = 'version' in response ? response.version : response.version_number;
+			activeCurrentVersion = restoredVersion;
+			selectedVersion = restoredVersion;
 			selectedContent = response.content;
 			restoreConfirmVersion = null;
-			onVersionSelect(response.version_number, response.content);
+			onVersionSelect(selectedVersion, response.content);
 			await loadVersions();
 		} catch (e) {
 			errorMessage = e instanceof Error ? e.message : 'Failed to restore version';
@@ -250,11 +259,11 @@
 					{showChanges ? 'Hide changes' : 'Show changes'}
 				</button>
 			{/if}
-			{#if selectedVersion !== activeCurrentVersion && !readonly && buildRestoredContent}
+			{#if selectedVersion !== activeCurrentVersion && !readonly && (buildRestoredContent || onRestoreVersion)}
 				<button
 					class="restore-btn"
 					data-testid="restore-version-btn"
-					disabled={restoring}
+					disabled={restoring || selectedContent === null}
 					onclick={restoreSelectedVersion}
 				>
 					{restoring

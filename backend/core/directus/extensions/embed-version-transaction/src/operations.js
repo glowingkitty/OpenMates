@@ -432,6 +432,11 @@ export async function writeLegacyEmbed(database, raw) {
         await persistBundleWrappers(trx, embedId, actor, bundle.key_wrappers);
         return { status: 'idempotent', embed_id: embedId };
       }
+      if (embed.app_id === 'diagrams' && embed.skill_id === 'html'
+        && (embed.status !== 'processing' || Number(embed.version_number ?? 1) !== 1
+          || Number(payload.version_number ?? 1) !== 1)) {
+        fail(409, 'chat_diagram_revision_required');
+      }
       if (embed.workspace_origin === 'web_apps'
         || (embed.hashed_team_id != null && embed.hashed_team_id !== storedPayload.hashed_team_id)
         || (payload.app_id != null && embed.app_id != null && embed.app_id !== payload.app_id)
@@ -515,6 +520,114 @@ function historiesMatch(existing, proposed) {
   return existing.encrypted_snapshot === proposed.encrypted_snapshot
     && existing.encrypted_patch === proposed.encrypted_patch
     && existing.created_at === proposed.created_at;
+}
+
+/** Atomically publish an encrypted edit to a chat-owned HTML diagram. */
+export async function commitChatDiagramRevision(database, raw) {
+  const input = exactFields(raw, new Set([
+    'operation_id', 'embed_id', 'chat_id', 'team_id', 'expected_revision',
+    'expected_content_hash', 'head', 'history_rows', 'actor_user_hash',
+  ]), ['operation_id', 'embed_id', 'chat_id', 'expected_revision',
+    'expected_content_hash', 'head', 'history_rows', 'actor_user_hash']);
+  const operationId = boundedString(input.operation_id, 'invalid_operation_id', MAX_OPERATION_BYTES);
+  if (!OPERATION_RE.test(operationId)) fail(400, 'invalid_operation_id');
+  const embedId = boundedString(input.embed_id, 'invalid_embed_id', 512);
+  if (UUID_V5_RE.test(embedId)) fail(403, 'project_context_required');
+  const chatId = boundedString(input.chat_id, 'invalid_chat_id', 512);
+  const actor = hexDigest(input.actor_user_hash, 'invalid_actor');
+  const teamHash = input.team_id == null ? null
+    : sha256(boundedString(input.team_id, 'invalid_team_id', 512));
+  const expectedRevision = safeInteger(input.expected_revision, 'invalid_expected_revision');
+  if (expectedRevision < 1) fail(400, 'invalid_expected_revision');
+  const expectedHash = hexDigest(input.expected_content_hash, 'invalid_content_hash');
+  const head = exactFields(input.head, new Set([
+    'encrypted_content', 'encrypted_text_preview', 'content_hash', 'status', 'updated_at',
+  ]), ['encrypted_content', 'content_hash', 'status', 'updated_at']);
+  const nextHead = {
+    encrypted_content: boundedString(head.encrypted_content, 'invalid_ciphertext', MAX_CIPHERTEXT_BYTES),
+    content_hash: hexDigest(head.content_hash, 'invalid_content_hash'),
+    status: boundedString(head.status, 'invalid_status', 64),
+    updated_at: safeInteger(head.updated_at, 'invalid_timestamp'),
+  };
+  if (nextHead.status !== 'finished') fail(400, 'invalid_status');
+  if ('encrypted_text_preview' in head) {
+    nextHead.encrypted_text_preview = optionalCiphertext(head.encrypted_text_preview);
+  }
+  const history = validateHistoryRows(input.history_rows, expectedRevision + 1);
+  const body = { operation_id: operationId, embed_id: embedId, chat_id: chatId,
+    team_id: input.team_id ?? null, expected_revision: expectedRevision,
+    expected_content_hash: expectedHash, head: nextHead, history_rows: history,
+    actor_user_hash: actor };
+  const digest = payloadDigest(body);
+  const identity = sha256(`${embedId}\0${operationId}`);
+  return database.transaction(async (trx) => {
+    await lockIdentity(trx, `embed:${embedId}`);
+    const chat = await trx(CHATS).where({ id: chatId }).forShare().first();
+    if (!chat || chat.storage_state === 'deleting'
+      || (chat.hashed_team_id ?? null) !== teamHash) fail(403, 'chat_access_denied');
+    if (teamHash) {
+      const membership = await trx(MEMBERSHIPS).where({
+        hashed_team_id: teamHash, hashed_user_id: actor, status: 'active',
+      }).forShare().first();
+      const team = await trx(TEAMS).where({ hashed_team_id: teamHash, status: 'active' }).forShare().first();
+      if (!team || !membership || !['owner', 'admin', 'member'].includes(membership.role)) {
+        fail(403, 'chat_access_denied');
+      }
+    } else if (chat.hashed_user_id !== actor) fail(403, 'chat_access_denied');
+    const linked = await trx(PROJECT_ITEMS).where({ target_id_hash: sha256(embedId) })
+      .whereIn('item_type', ['embed', 'upload']).first();
+    if (linked) fail(403, 'project_context_required');
+    const embed = await trx(EMBEDS).where({ embed_id: embedId }).forUpdate().first();
+    if (!embed || embed.hashed_chat_id !== sha256(chatId)
+      || (embed.hashed_team_id ?? null) !== teamHash
+      || (!teamHash && embed.hashed_user_id !== actor)
+      || embed.app_id !== 'diagrams' || embed.skill_id !== 'html'
+      || ![null, undefined, 'chat'].includes(embed.workspace_origin)
+      || (embed.root_embed_id != null && embed.root_embed_id !== embedId)
+      || embed.encryption_mode !== 'client') fail(403, 'diagram_access_denied');
+    const receipt = await trx('chat_diagram_revision_commits')
+      .where({ commit_identity: identity }).first();
+    if (receipt) {
+      if (receipt.payload_digest !== digest) fail(409, 'operation_payload_mismatch');
+      return { status: 'committed', operation_id: operationId, embed_id: embedId,
+        current_revision: receipt.committed_revision,
+        current_content_hash: receipt.content_hash, idempotent: true };
+    }
+    const currentRevision = Number(embed.version_number ?? 1);
+    if (!Number.isSafeInteger(currentRevision) || currentRevision < 1) fail(409, 'invalid_current_revision');
+    if (currentRevision !== expectedRevision || embed.content_hash !== expectedHash) {
+      return { status: 'conflict', operation_id: operationId, embed_id: embedId,
+        current_revision: currentRevision, current_content_hash: embed.content_hash ?? null };
+    }
+    const versions = history.map((row) => row.version_number);
+    const existing = await trx(DIFFS).where({ embed_id: embedId }).whereIn('version_number', versions);
+    const byVersion = new Map(existing.map((row) => [row.version_number, row]));
+    for (const row of history) {
+      const previous = byVersion.get(row.version_number);
+      if (previous && !historiesMatch(previous, row)) fail(409, 'immutable_history_mismatch');
+      if (!previous) await trx(DIFFS).insert({
+        id: randomUUID(), embed_id: embedId, hashed_user_id: embed.hashed_user_id,
+        ...row, has_snapshot: row.encrypted_snapshot !== null,
+        has_patch: row.encrypted_patch !== null,
+      });
+    }
+    const count = await trx(DIFFS).where({ embed_id: embedId })
+      .where('version_number', '<=', expectedRevision + 1).count({ count: '*' }).first();
+    if (Number(count?.count ?? 0) !== expectedRevision + 1) fail(409, 'incomplete_history');
+    await trx(EMBEDS).where({ id: embed.id }).update({
+      ...nextHead, version_number: expectedRevision + 1,
+    });
+    await trx('chat_diagram_revision_commits').insert({
+      id: randomUUID(), operation_id: operationId, commit_identity: identity,
+      embed_id: embedId, hashed_chat_id: sha256(chatId), hashed_team_id: teamHash,
+      actor_user_hash: actor, payload_digest: digest,
+      expected_revision: expectedRevision, committed_revision: expectedRevision + 1,
+      content_hash: nextHead.content_hash, created_at: Math.floor(Date.now() / 1000),
+    });
+    return { status: 'committed', operation_id: operationId, embed_id: embedId,
+      current_revision: expectedRevision + 1,
+      current_content_hash: nextHead.content_hash, idempotent: false };
+  });
 }
 
 export async function commitEmbedRevision(database, raw) {

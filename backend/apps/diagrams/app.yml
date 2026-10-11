@@ -1,0 +1,70 @@
+# Diagram Design generates editable, self-contained HTML/SVG diagrams.
+app_id: diagrams
+name_translation_key: diagrams
+description_translation_key: diagrams.description
+icon_image: diagram.svg
+category: work
+last_updated: "2026-10-11"
+settings_and_memories: []
+instructions:
+  - instruction: |
+      When the user asks for a diagram and the Diagrams app is selected, create a
+      self-contained HTML document with inline CSS and an accessible inline SVG.
+      Output the complete document in one ```openmates_diagram fenced block.
+      Set integer data-om-render-width and data-om-render-height on the root
+      html element to fit the whole document at that viewport, including the
+      heading, SVG, padding, and footer; mark the primary SVG with
+      data-om-diagram for its selected type. Set data-om-background on the root
+      html element to the resolved opaque six-digit #RRGGBB body/artboard
+      background color, so the preview surround matches the diagram page.
+      Do not use a CSS variable, named color, currentColor, or transparency there.
+      Use the selected Diagram Design type guidance when present. Keep SVG nodes,
+      labels, and attached connectors editable with the data-om-* metadata contract
+      in the loaded guide. Use local Lexend and system font fallbacks. Do not add
+      scripts, external assets, network font links, or imported source directives.
+embed_types:
+  - id: html
+    category: direct
+    frontend_type: diagrams-html
+    backend_type: diagram_html
+    has_children: false
+    groupable: true
+    preview_component: diagrams/DiagramHtmlEmbedPreview.svelte
+    fullscreen_component: diagrams/DiagramHtmlEmbedFullscreen.svelte
+    icon: diagram
+    gradient_var: "--color-app-diagrams"
+    i18n_namespace: embeds.diagrams.html
+    content_catalog:
+      enabled: true
+      diff_editable: true
+      content_type_id: diagram_html
+      name: Editable Diagram
+      description: Self-contained editorial HTML and editable SVG diagrams.
+      icon: diagram
+      example_key: diagrams.html
+      order: 10
+    content_fields:
+      - name: html_source
+        type: string
+        required: true
+      - name: title
+        type: string
+        required: true
+      - name: diagram_kind
+        type: string
+        required: true
+      - name: render_width
+        type: number
+        required: true
+      - name: render_height
+        type: number
+        required: true
+      - name: schema_version
+        type: number
+        required: true
+      - name: version_number
+        type: number
+        required: true
+skills: []
+marketing_discovery:
+  skills: {}

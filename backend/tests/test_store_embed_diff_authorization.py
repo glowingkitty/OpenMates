@@ -313,3 +313,29 @@ async def test_store_embed_diff_rejects_legacy_history_write_for_project_embed()
     assert directus.rows == []
     assert manager.broadcasts == []
     assert manager.personal_messages[0][0]["payload"]["message"] == "Project file revisions require atomic commit"
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.asyncio
+async def test_diagram_history_allows_initial_snapshot_but_fences_later_legacy_versions():
+    manager = FakeConnectionManager()
+    directus = FakeDirectusService(existing_embed={
+        "embed_id": "embed-1", "hashed_user_id": OWNER_HASH,
+        "app_id": "diagrams", "skill_id": "html",
+    })
+    handle = get_handle_store_embed_diff()
+    common = dict(
+        websocket=None, manager=manager, cache_service=None,
+        directus_service=directus, user_id=OWNER_ID,
+        device_fingerprint_hash="device-1",
+    )
+    await handle(**common, payload=diff_payload())
+    assert [(row["version_number"], row["encrypted_snapshot"]) for row in directus.rows] == [
+        (1, "encrypted-snapshot")
+    ]
+
+    await handle(**common, payload=diff_payload(
+        version_number=2, encrypted_snapshot=None, encrypted_patch="encrypted-patch",
+    ))
+    assert len(directus.rows) == 1
+    assert manager.personal_messages[-1][0]["payload"]["message"] == "Diagram revisions require atomic commit"

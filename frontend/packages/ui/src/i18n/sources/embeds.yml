@@ -8827,6 +8827,31 @@ diagrams.mermaid:
   he: תרשים Mermaid
   verified_by_human: []
 
+diagrams.html:
+  context: Editable HTML/SVG diagram embed label shown in BasicInfosBar
+  en: Editable Diagram
+  de: Bearbeitbares Diagramm
+  zh: 可编辑图表
+  es: Diagrama editable
+  fr: Diagramme modifiable
+  pt: Diagrama editável
+  ru: Редактируемая диаграмма
+  ja: 編集可能な図
+  ko: 편집 가능한 다이어그램
+  it: Diagramma modificabile
+  tr: Düzenlenebilir diyagram
+  vi: Sơ đồ có thể chỉnh sửa
+  id: Diagram yang dapat diedit
+  pl: Edytowalny diagram
+  nl: Bewerkbaar diagram
+  ar: مخطط قابل للتحرير
+  hi: संपादन योग्य डायग्राम
+  th: แผนภาพที่แก้ไขได้
+  cs: Upravitelný diagram
+  sv: Redigerbart diagram
+  he: תרשים ניתן לעריכה
+  verified_by_human: []
+
 mail.email:
   context: Mail draft embed label shown in BasicInfosBar
   en: Email Draft

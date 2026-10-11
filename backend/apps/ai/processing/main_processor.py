@@ -419,6 +419,8 @@ _FALLBACK_DIFF_EDITABLE_EMBED_TYPES = frozenset({
     "mail-email",
     "mermaid",
     "diagrams-mermaid",
+    "diagram_html",
+    "diagrams-html",
     "mindmap",
     "mindmaps-mindmap",
     "pcb_schematic",
@@ -4425,11 +4427,22 @@ async def handle_main_processing(
     # converts to interactive math-plot embeds rendered by function-plot on the frontend.
     if discovered_apps_metadata and "math" in discovered_apps_metadata:
         prompt_parts.append(base_instructions.get("base_plot_code_block_instruction", ""))
-    # Add Mermaid diagram instruction only when the Diagrams app is available.
-    # Teaches the LLM to emit ```mermaid``` fences that stream_consumer.py
-    # converts to Diagrams-owned direct embeds.
-    if discovered_apps_metadata and "diagrams" in discovered_apps_metadata:
-        prompt_parts.append(base_instructions.get("base_mermaid_code_block_instruction", ""))
+    # Diagram Design references are large and type-specific. Load them only
+    # after JEV selected this app and its short type Memory metadata; never
+    # truncate a chosen guide through the generic Memory prompt budget.
+    diagram_prompt = ""
+    diagram_receipt_memories = []
+    if (discovered_apps_metadata and "diagrams" in discovered_apps_metadata
+            and selected_app_ids is not None and "diagrams" in selected_app_ids):
+        from backend.apps.diagrams.diagram_guidance import (
+            diagram_guidance_prompt, selected_diagram_memories,
+        )
+        selected_diagram_types = getattr(preprocessing_results, "relevant_diagram_types", None) or []
+        diagram_variant = getattr(preprocessing_results, "relevant_diagram_variant", None) or "minimal_light"
+        diagram_prompt = diagram_guidance_prompt(selected_diagram_types, variant=diagram_variant)
+        if diagram_prompt:
+            prompt_parts.append(diagram_prompt)
+            diagram_receipt_memories = selected_diagram_memories(selected_diagram_types)
     # Inject diff editing instruction when diffable embeds (code/document/sheet) exist in history.
     # This teaches the LLM to output unified diffs instead of regenerating full content.
     _has_diffable_embeds = await _has_diffable_embeds_for_prompt(
@@ -5729,8 +5742,11 @@ async def handle_main_processing(
                         yield {"__chat_context_applied__": True,
                                "receipt": agentic_context.receipt_event(request_data, event)}
                 if not agentic_section or agentic_section in iteration_system_prompt:
-                    receipt = applied_rule_receipt(applied_guides, previous_set_key=last_applied_rule_key)
-                    new_rule_key = applied_rule_set_key(applied_guides)
+                    receipt_guides = [*applied_guides]
+                    if diagram_prompt and diagram_prompt in iteration_system_prompt:
+                        receipt_guides.extend(diagram_receipt_memories)
+                    receipt = applied_rule_receipt(receipt_guides, previous_set_key=last_applied_rule_key)
+                    new_rule_key = applied_rule_set_key(receipt_guides)
                     if new_rule_key != last_applied_rule_key:
                         applied_context_revision += 1
                     last_applied_rule_key = new_rule_key

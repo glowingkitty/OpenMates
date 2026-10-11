@@ -1624,6 +1624,24 @@ def test_diff_prompt_uses_cached_chat_embed_metadata() -> None:
     assert asyncio.run(_has_diffable_embeds_for_prompt(request, cache_service=CacheServiceStub())) is True
 
 
+@pytest.mark.parametrize("diagram_type", ["diagram_html", "diagrams-html"])
+def test_diff_prompt_keeps_diagram_html_when_app_catalogue_is_unavailable(diagram_type: str) -> None:
+    class CacheServiceStub:
+        async def get_chat_embed_ids(self, chat_id: str) -> list[str]:
+            return ["diagram-1"]
+
+        async def get_embed_from_cache(self, embed_id: str) -> dict[str, str]:
+            return {"type": diagram_type}
+
+    request = SimpleNamespace(
+        chat_id="chat-1",
+        message_history=[SimpleNamespace(role="user", content="Edit the previous diagram.")],
+        embed_file_path_index=None,
+    )
+
+    assert asyncio.run(_has_diffable_embeds_for_prompt(request, cache_service=CacheServiceStub())) is True
+
+
 def test_diff_prompt_uses_content_catalog_diff_editable_metadata() -> None:
     class CacheServiceStub:
         async def get_chat_embed_ids(self, chat_id: str) -> list[str]:

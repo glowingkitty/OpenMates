@@ -215,6 +215,18 @@ class JevDecisionClient:
         questions: Mapping[str, Mapping[str, Any]],
     ) -> DecisionResponse:
         estimated_tokens = self._validate_request(state, questions)
+        from backend.apps.ai.testing.diagram_html_fixture import active as diagram_fixture_active
+
+        if diagram_fixture_active():
+            from backend.apps.ai.testing.diagram_html_fixture import jev_response
+            from backend.shared.testing.mock_context import record_blocked_provider_call, record_cache_hit
+
+            fixture = jev_response(state, questions, self._model)
+            if fixture is None:
+                record_blocked_provider_call()
+                raise DecisionProviderUnavailable("Diagram replay has no decision fixture for this request")
+            record_cache_hit()
+            return fixture
         owns_client = self._http_client is None
         client = self._http_client or httpx.AsyncClient(timeout=self._timeout_seconds)
         try:

@@ -4979,6 +4979,7 @@
       }
     }
   },
+  "diagrams": {},
   "digital_team_mates": {
     "digital_team_mates": {
       "text": "Đồng Đội Kỹ Thuật Số"
@@ -7462,6 +7463,9 @@
     "diagrams": {
       "mermaid": {
         "text": "Sơ đồ Mermaid"
+      },
+      "html": {
+        "text": "Sơ đồ có thể chỉnh sửa"
       }
     },
     "mail": {

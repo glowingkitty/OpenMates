@@ -92,7 +92,11 @@ def eligible_rule_catalog(
     active_project_id: str | None = None,
 ) -> list[RuleDefinition]:
     """Load available apps independently of skill invocation; gate private guides."""
-    result = load_app_rules(eligible_app_ids)
+    result = [
+        rule for rule in load_app_rules(eligible_app_ids)
+        if not (rule.source == "app" and rule.app_id == "diagrams"
+                and rule.id.startswith("app:diagrams:type-"))
+    ]
     if authenticated_first_party:
         result.extend(
             rule for rule in custom_rules

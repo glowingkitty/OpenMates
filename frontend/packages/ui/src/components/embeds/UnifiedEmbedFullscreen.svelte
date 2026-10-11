@@ -94,6 +94,11 @@
     skillId?: string;
     /** Close handler */
     onClose: () => void;
+    /** Optional primary edit action in the top-right chrome. */
+    onEdit?: () => void;
+    editActive?: boolean;
+    /** Optional artboard surround color for embeds with their own page background. */
+    contentBackgroundColor?: string;
     /** Chat embeds close on chat selection; independent workspace details do not. */
     closeOnChatSelection?: boolean;
     /** Optional copy handler (for copy button) - copies text version of embed */
@@ -353,6 +358,9 @@
     appId,
     skillId,
     onClose,
+    onEdit,
+    editActive = false,
+    contentBackgroundColor,
     closeOnChatSelection = true,
     onCopy,
     onDownload,
@@ -1367,6 +1375,7 @@
 
 <div
   class="unified-embed-fullscreen-overlay"
+  style:--embed-content-background={contentBackgroundColor ?? 'var(--color-grey-20)'}
   class:animating-in={isAnimatingIn}
   class:host-presented={(!!currentEmbedId && workspace?.presentedEmbedId === currentEmbedId)}
   data-testid={testId}
@@ -1459,6 +1468,8 @@
       {piiRevealed}
       {showPIIIncludeOriginal}
       onClose={handleClose}
+      {onEdit}
+      {editActive}
       {closeTestId}
       onShare={handleShare}
       onCopy={handleCopy}
@@ -1492,7 +1503,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: var(--color-grey-20);
+    background-color: var(--embed-content-background);
     border-radius: 17px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     z-index: var(--z-index-dropdown);
@@ -1559,7 +1570,7 @@
     left: 0;
     right: 0;
     height: 48px;
-    background: linear-gradient(to bottom, transparent, var(--color-grey-20));
+    background: linear-gradient(to bottom, transparent, var(--embed-content-background));
     z-index: 999;
     pointer-events: none;
     border-radius: 0 0 17px 17px;
@@ -1572,6 +1583,7 @@
   /* Fills the full container height. EmbedTopBar overlays via position: absolute. */
   .content-area {
     flex: 1;
+    background-color: var(--embed-content-background);
     overflow-y: auto;
     overflow-x: hidden;
     /* Scrollbar styling is shared with chat history in styles/theme.css. */

@@ -34,6 +34,7 @@ import { homedir } from "node:os";
 import { createHash } from "node:crypto";
 import JSZip from "jszip";
 import type { OutputRedactor } from "./outputRedactor.js";
+import { inspectDiagramHtml } from "./diagramHtml.js";
 import {
   createEmbedRef,
   generateEmbedId,
@@ -667,6 +668,35 @@ function processCodeFile(
     }
 
     const language = detectLanguage(filename);
+    if (language === "html") {
+      const diagram = inspectDiagramHtml(content);
+      if (diagram) {
+        const embedId = generateEmbedId();
+        const embedRef = createEmbedRef("diagram_html", `${filename}:${embedId}`);
+        return {
+          embed: {
+            embedId, embedRef, type: "diagram_html",
+            content: toonEncodeContent({
+              type: "diagram_html", app_id: "diagrams", skill_id: "html",
+              html_source: content, title: diagram.title,
+              diagram_kind: diagram.diagramKind,
+              render_width: diagram.renderWidth,
+              render_height: diagram.renderHeight,
+              schema_version: 1, version_number: 1,
+              embed_ref: embedRef, status: "finished",
+            }),
+            textPreview: `${diagram.title} (${diagram.diagramKind})`, status: "finished",
+            filePath: filename,
+            contentHash: createHash("sha256").update(content).digest("hex"),
+            textLengthChars: content.length, appId: "diagrams", skillId: "html",
+            versionNumber: 1,
+          },
+          referenceBlock: createEmbedReferenceBlock(embedRef),
+          displayName: filename, secretsRedacted, zeroKnowledge,
+          requiresUpload: false,
+        };
+      }
+    }
     const lineCount = content.split("\n").length;
 
     const embedId = generateEmbedId();

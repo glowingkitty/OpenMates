@@ -57,6 +57,8 @@ const DIRECT_TYPES = new Set([
   "recording",
   "mail-email",
   "math-plot",
+  "diagram_html",
+  "diagrams-html",
   "mindmap",
   "mindmaps-mindmap",
   "events-event",
@@ -90,6 +92,8 @@ const DIRECT_TYPE_LABELS: Record<string, string> = {
   "recording": "recording",
   "mail-email": "email",
   "math-plot": "plot",
+  "diagram_html": "diagram",
+  "diagrams-html": "diagram",
   "mindmap": "Mind Map",
   "mindmaps-mindmap": "Mind Map",
   "events-event": "event",
@@ -1434,6 +1438,16 @@ function renderByDirectType(
       break;
     }
 
+    case "diagram_html":
+    case "diagrams-html": {
+      ln(str(c.title) ?? "Diagram");
+      const kind = str(c.diagram_kind) ?? "diagram";
+      const width = typeof c.render_width === "number" ? c.render_width : 0;
+      const height = typeof c.render_height === "number" ? c.render_height : 0;
+      ln(`\x1b[2m${kind}${width && height ? ` · ${width} × ${height}` : ""}\x1b[0m`);
+      break;
+    }
+
     case "mindmap":
     case "mindmaps-mindmap": {
       const document = mindMapDocumentFromContent(c);
@@ -1636,6 +1650,19 @@ function renderDirectTypeFullscreen(
         writeEmbedLine(write);
         writeEmbedLine(write, content);
       }
+      break;
+    }
+
+    case "diagram_html":
+    case "diagrams-html": {
+      writeEmbedLine(write, `Title: ${str(c.title) ?? "Diagram"}`);
+      writeEmbedLine(write, `Kind: ${str(c.diagram_kind) ?? "diagram"}`);
+      if (typeof c.render_width === "number" && typeof c.render_height === "number") {
+        writeEmbedLine(write, `Size: ${c.render_width} × ${c.render_height}`);
+      }
+      writeEmbedLine(write, `Version: ${typeof c.version_number === "number" ? c.version_number : 1}`);
+      writeEmbedLine(write, `Source: ${typeof c.html_source === "string" ? c.html_source.length : 0} characters`);
+      writeEmbedLine(write, "Export with: openmates chats download <chat> --output <directory>");
       break;
     }
 

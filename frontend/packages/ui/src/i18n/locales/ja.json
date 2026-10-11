@@ -4979,6 +4979,7 @@
       }
     }
   },
+  "diagrams": {},
   "digital_team_mates": {
     "digital_team_mates": {
       "text": "デジタルチームメイト"
@@ -7462,6 +7463,9 @@
     "diagrams": {
       "mermaid": {
         "text": "Mermaid 図"
+      },
+      "html": {
+        "text": "編集可能な図"
       }
     },
     "mail": {

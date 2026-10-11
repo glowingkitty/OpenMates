@@ -1,6 +1,6 @@
 /* Internal, fail-closed endpoint for atomic encrypted Project embed revisions. */
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { activateEmbedArchiveReader, commitEmbedRevision, finalizeEmbedArchiveCopy,
+import { activateEmbedArchiveReader, commitChatDiagramRevision, commitEmbedRevision, finalizeEmbedArchiveCopy,
   prepareEmbedArchiveCopy, retireEmbedArchiveCopy,
   pruneEmbedArchivePayload, publishEmbedSnapshot, writeLegacyEmbed, ProtocolError } from './operations.js';
 
@@ -36,6 +36,21 @@ export default {
           return res.status(error.status).json({ error: { code: error.code } });
         }
         logger.error({ code: 'transaction_failed' }, 'Embed revision transaction failed');
+        return res.status(500).json({ error: { code: 'transaction_failed' } });
+      }
+    });
+    router.post('/chat-diagram-revision', async (req, res) => {
+      if (!isAuthorized(req.headers, env.INTERNAL_API_SHARED_TOKEN)) {
+        return res.status(401).json({ error: { code: 'internal_auth_failed' } });
+      }
+      try {
+        return res.status(200).json({ data: await commitChatDiagramRevision(database, req.body) });
+      } catch (error) {
+        if (error instanceof ProtocolError) {
+          logger.warn({ code: error.code }, 'Chat diagram revision rejected');
+          return res.status(error.status).json({ error: { code: error.code } });
+        }
+        logger.error({ code: 'transaction_failed' }, 'Chat diagram revision transaction failed');
         return res.status(500).json({ error: { code: 'transaction_failed' } });
       }
     });

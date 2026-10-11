@@ -5758,6 +5758,62 @@
       }
     }
   },
+  "diagrams": {
+    "html": {
+      "text": "Bearbeitbares Diagramm"
+    },
+    "edit": {
+      "text": "Diagramm bearbeiten"
+    },
+    "loading": {
+      "text": "Diagramm wird vorbereitet…"
+    },
+    "invalid_source": {
+      "text": "Dieses Diagramm enthält nicht unterstützte Inhalte."
+    },
+    "conflict": {
+      "text": "Das Diagramm wurde auf einem anderen Gerät geändert. Lade es vor dem Bearbeiten neu."
+    },
+    "saved": {
+      "text": "Diagramm gespeichert"
+    },
+    "saved_refresh": {
+      "text": "Diagramm gespeichert. Lade diese Seite neu, bevor du es erneut bearbeitest."
+    },
+    "history_unavailable": {
+      "text": "Diese Diagrammversion konnte nicht geladen werden. Wähle eine andere Version und versuche es erneut."
+    },
+    "history_version": {
+      "text": "Version anzeigen"
+    },
+    "save_failed": {
+      "text": "Diagramm konnte nicht gespeichert werden"
+    },
+    "zoom_out": {
+      "text": "Verkleinern"
+    },
+    "zoom_in": {
+      "text": "Vergrößern"
+    },
+    "fit": {
+      "text": "Diagramm einpassen"
+    },
+    "export": {
+      "text": "HTML exportieren"
+    },
+    "undo": {
+      "text": "Rückgängig"
+    },
+    "cancel": {
+      "text": "Abbrechen"
+    },
+    "save": {
+      "text": "Änderungen speichern"
+    },
+    "saving": {
+      "text": "Wird gespeichert…"
+    }
+  },
   "digital_team_mates": {
     "digital_team_mates": {
       "text": "Digitale Kollegen"
@@ -8489,6 +8545,9 @@
     "diagrams": {
       "mermaid": {
         "text": "Mermaid-Diagramm"
+      },
+      "html": {
+        "text": "Bearbeitbares Diagramm"
       }
     },
     "mail": {

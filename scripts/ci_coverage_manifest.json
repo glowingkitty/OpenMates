@@ -212,6 +212,7 @@
         "components/workflow-value-view.spec.ts",
         "components/memory-consent.spec.ts",
         "components/mindmap-fullscreen.spec.ts",
+        "components/diagram-html-embed.spec.ts",
         "components/password-and-tfa-otp.spec.ts",
         "components/map-load-recovery.spec.ts",
         "components/newsroom-surface.spec.ts",
@@ -460,6 +461,7 @@
       "specs": [
         "copy-message-flow.spec.ts",
         "embed-diff-editing.spec.ts",
+        "diagram-html-editing.spec.ts",
         "models3d-search.spec.ts",
         "native-cache-selected-tools.spec.ts",
         "skill-code-docs.spec.ts",

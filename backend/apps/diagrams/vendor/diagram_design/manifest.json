@@ -1,0 +1,418 @@
+{
+  "upstream": {
+    "repository": "https://github.com/cathrynlavery/diagram-design",
+    "commit": "7a2e22170ee838e859d8142ba825d83f8b6375e6",
+    "license": "MIT",
+    "copyright": "Copyright (c) 2025 Cathryn Lavery"
+  },
+  "types": [
+    {
+      "id": "type-architecture",
+      "title": "Architecture",
+      "when_to_use": "Components + connections in one system snapshot",
+      "reference": "references/type-architecture.md",
+      "source_sha256": "ce3f913d255058bca2e50484f60993e0a9aca8af83b1e52d0b5b759dfc1a8fb1",
+      "runtime_sha256": "8a8fec1b6ffd895218b89a667a2bf814025405b01bdc727f6fdf064f7e21e30e"
+    },
+    {
+      "id": "type-architecture-delta",
+      "title": "Architecture delta",
+      "when_to_use": "Structural change between synchronized Before / After topologies, with a Changes ledger",
+      "reference": "references/type-architecture-delta.md",
+      "source_sha256": "e5813f26e1fb924863efe70db36f112e1b9570e47335d7f6fa6e46473136e4e5",
+      "runtime_sha256": "82f9aec2e9ded9764022e939ac5b2bfab7bb68302e7b8fdd35999c1077826e11"
+    },
+    {
+      "id": "type-it-state",
+      "title": "IT current-state",
+      "when_to_use": "Legacy IT landscape by phase or department; shows the *before* state",
+      "reference": "references/type-it-state.md",
+      "source_sha256": "b5c35f1703a53e3ca4196352912898e5ea5f1fce054a40d4a3568629535cd7ec",
+      "runtime_sha256": "74a2f4fef8e238c246a087a42e55595387933b181cd55be72f353ccb5b701011"
+    },
+    {
+      "id": "type-flowchart",
+      "title": "Flowchart",
+      "when_to_use": "Decision logic with branches",
+      "reference": "references/type-flowchart.md",
+      "source_sha256": "c2af5e2b849255ae4859125db7b101b74bfb9b201204725c1e83fac51a98ebab",
+      "runtime_sha256": "c2af5e2b849255ae4859125db7b101b74bfb9b201204725c1e83fac51a98ebab"
+    },
+    {
+      "id": "type-sequence",
+      "title": "Sequence",
+      "when_to_use": "Time-ordered messages between actors",
+      "reference": "references/type-sequence.md",
+      "source_sha256": "e3a109d4983a951ff670346c352529e48619c1e81db1774edfa6f05d3e93f778",
+      "runtime_sha256": "e3a109d4983a951ff670346c352529e48619c1e81db1774edfa6f05d3e93f778"
+    },
+    {
+      "id": "type-state",
+      "title": "State machine",
+      "when_to_use": "States + transitions + guards",
+      "reference": "references/type-state.md",
+      "source_sha256": "9c8ed85762d5bbb3672907bc1664ebf94bcc72850efbacf33d5ee12731053122",
+      "runtime_sha256": "9c8ed85762d5bbb3672907bc1664ebf94bcc72850efbacf33d5ee12731053122"
+    },
+    {
+      "id": "type-er",
+      "title": "ER / data model",
+      "when_to_use": "Entities + fields + relationships",
+      "reference": "references/type-er.md",
+      "source_sha256": "d1495abeb6f5004bd89fface17d3767ebab71c8450dca195b055e18bf3132c57",
+      "runtime_sha256": "d1495abeb6f5004bd89fface17d3767ebab71c8450dca195b055e18bf3132c57"
+    },
+    {
+      "id": "type-timeline",
+      "title": "Timeline",
+      "when_to_use": "Events positioned in time",
+      "reference": "references/type-timeline.md",
+      "source_sha256": "a6b4ad26c05957835705229579f8c733b32791de9d01f9f268fea8a70228f501",
+      "runtime_sha256": "a6b4ad26c05957835705229579f8c733b32791de9d01f9f268fea8a70228f501"
+    },
+    {
+      "id": "type-swimlane",
+      "title": "Swimlane",
+      "when_to_use": "Cross-functional process with handoffs",
+      "reference": "references/type-swimlane.md",
+      "source_sha256": "8fb19f58dd532ed7246de2dd3a603b1c48687d556be43a6eef465386f5afc98e",
+      "runtime_sha256": "8fb19f58dd532ed7246de2dd3a603b1c48687d556be43a6eef465386f5afc98e"
+    },
+    {
+      "id": "type-quadrant",
+      "title": "Quadrant",
+      "when_to_use": "Two-axis positioning / prioritization",
+      "reference": "references/type-quadrant.md",
+      "source_sha256": "eb7d542ddac72e2e1a75cb7ca64ddb67901283859413a133a332137e7fb9e5b1",
+      "runtime_sha256": "eb7d542ddac72e2e1a75cb7ca64ddb67901283859413a133a332137e7fb9e5b1"
+    },
+    {
+      "id": "type-radar",
+      "title": "Radar / Spider",
+      "when_to_use": "Multiple entities scored across 3–5 quantitative criteria",
+      "reference": "references/type-radar.md",
+      "source_sha256": "49c66e7921e1fd7575cf879852c41aa86e0db7f98b0c8105e3103202af49f563",
+      "runtime_sha256": "49c66e7921e1fd7575cf879852c41aa86e0db7f98b0c8105e3103202af49f563"
+    },
+    {
+      "id": "type-polar",
+      "title": "Polar chart",
+      "when_to_use": "One quantitative series across cyclic categories; angle=category, radius=magnitude",
+      "reference": "references/type-polar.md",
+      "source_sha256": "11237fa0be82c3c6e963bc1aaed20283d839c7570dadfd0805e202ea129edba0",
+      "runtime_sha256": "eaf3f1873c94af2b9419896453b69740732971a6d31673d15c6b6a8914755a70"
+    },
+    {
+      "id": "type-loop",
+      "title": "Loop",
+      "when_to_use": "Reinforcing cycle; the last step feeds the first and a hub accumulates state",
+      "reference": "references/type-loop.md",
+      "source_sha256": "c7e98b8eda1e6d6904920f4d96310745deb0651920e9d531c8f40e54304ab60d",
+      "runtime_sha256": "7370b68b9609afffd7e50bdec107349c467e23cb686d461b92d72ecfaaceff1d"
+    },
+    {
+      "id": "type-nested",
+      "title": "Nested",
+      "when_to_use": "Hierarchy through containment / scope",
+      "reference": "references/type-nested.md",
+      "source_sha256": "c16da375df52f047748c65276f564a1b0d7d2dd420170b92dbf7cdac68981516",
+      "runtime_sha256": "af3924063f72a00e239f534a3bc798ff9522a17278c0d3d9d89121fa0bdbc729"
+    },
+    {
+      "id": "type-tree",
+      "title": "Tree",
+      "when_to_use": "Parent → children relationships",
+      "reference": "references/type-tree.md",
+      "source_sha256": "60194950ef4e46725d7670d93e405a7d4b9af44bf775c549b8f3ce63ca6ce15c",
+      "runtime_sha256": "60194950ef4e46725d7670d93e405a7d4b9af44bf775c549b8f3ce63ca6ce15c"
+    },
+    {
+      "id": "type-org-chart",
+      "title": "Org chart",
+      "when_to_use": "Human/agent/team ownership, reporting, routing, escalation",
+      "reference": "references/type-org-chart.md",
+      "source_sha256": "fd64716f3f419f41785c40fbabb96b36cfddcdfd0cc7ee444585f3e2b528f9c9",
+      "runtime_sha256": "fd64716f3f419f41785c40fbabb96b36cfddcdfd0cc7ee444585f3e2b528f9c9"
+    },
+    {
+      "id": "type-layers",
+      "title": "Layer stack",
+      "when_to_use": "Stacked abstraction levels",
+      "reference": "references/type-layers.md",
+      "source_sha256": "a822afe4e06ffaf9793f5466810e2504c020e6ae3abd0b9e53c6f7b1368f2609",
+      "runtime_sha256": "a822afe4e06ffaf9793f5466810e2504c020e6ae3abd0b9e53c6f7b1368f2609"
+    },
+    {
+      "id": "type-exploded",
+      "title": "Exploded axonometric",
+      "when_to_use": "Parts of one object pulled apart along one axis: a teardown, an unboxing, assembly order",
+      "reference": "references/type-exploded.md",
+      "source_sha256": "785b904ce1a1be806824c97a5719578a2c32c931fb424d0a1a69c4480a527152",
+      "runtime_sha256": "4d398b8a273fc4bcb1cbfb6b49894d44befd861a3e44511ca85b3431ce10cd94"
+    },
+    {
+      "id": "type-axonometric-plan",
+      "title": "Axonometric plan",
+      "when_to_use": "One floor or site seen from above at an angle: rooms with furniture, buildings by phase",
+      "reference": "references/type-axonometric-plan.md",
+      "source_sha256": "be8ead6d582df5c19fdf611f7540c058f166929293155ab40ddc3ef524232ba6",
+      "runtime_sha256": "f0b234a96cf909867bd02a965439426577025a39f1615b8bca91ea5162e73cc2"
+    },
+    {
+      "id": "type-venn",
+      "title": "Venn",
+      "when_to_use": "Overlap between sets",
+      "reference": "references/type-venn.md",
+      "source_sha256": "7ead49ed70f1b2506beb83e9c84862d7dbc63f1225f0e50ecc6e2b1b4a632b38",
+      "runtime_sha256": "7ead49ed70f1b2506beb83e9c84862d7dbc63f1225f0e50ecc6e2b1b4a632b38"
+    },
+    {
+      "id": "type-pyramid",
+      "title": "Pyramid / funnel",
+      "when_to_use": "Ranked hierarchy or conversion drop-off",
+      "reference": "references/type-pyramid.md",
+      "source_sha256": "c21ef0c6f3832eb30f0cd1aef0e0ec72b6758abbb1b8128acf36e81384679714",
+      "runtime_sha256": "c21ef0c6f3832eb30f0cd1aef0e0ec72b6758abbb1b8128acf36e81384679714"
+    },
+    {
+      "id": "type-bar",
+      "title": "Bar chart",
+      "when_to_use": "Quantitative comparison across categories",
+      "reference": "references/type-bar.md",
+      "source_sha256": "d0505f88ba830db50ea215b9a3d4da7679577b07d76c1164efc29d82b988446d",
+      "runtime_sha256": "c49c5043e3fec332b06c557ddc04a685d58095128eae1d04011cca848b7edfb0"
+    },
+    {
+      "id": "type-waterfall",
+      "title": "Waterfall",
+      "when_to_use": "A start total bridged to an end total by signed contributions (budget bridge, headcount deltas)",
+      "reference": "references/type-waterfall.md",
+      "source_sha256": "07db1d30ce52356884b9c7005ad473434c6104257eee0252e3487209e59d0da9",
+      "runtime_sha256": "5c07b1aa7445169c6d129d94d0ca4349fe0cfad2f28d7f9187c314609295afa4"
+    },
+    {
+      "id": "type-treemap",
+      "title": "Treemap",
+      "when_to_use": "Part-of-whole where the relative sizes are the story",
+      "reference": "references/type-treemap.md",
+      "source_sha256": "72e2e864486e96df7afeeb1b4522e770ca850645f1d1ea1954106a80366214f1",
+      "runtime_sha256": "72e4b0faed3d44002dd4da4879d5ded020dcf1e31b7ee1e90faf65f55ebfd535"
+    },
+    {
+      "id": "type-heatmap",
+      "title": "Heatmap",
+      "when_to_use": "Cross-tabulated data; fill encodes value per cell",
+      "reference": "references/type-heatmap.md",
+      "source_sha256": "eba9f8c06eaf12d346f4dae89fb20d7cd884c9e37b42164d505c594d46e51bb1",
+      "runtime_sha256": "2d74543b5b029a273e3c34e4954b9307b6cfeb0d891d142dfa49189fdd344828"
+    },
+    {
+      "id": "type-line",
+      "title": "Line chart",
+      "when_to_use": "Continuous trends over time, change between exactly two states (slopegraph), one distribution per series (ridgeline), or rank movement across several snapshots (bump)",
+      "reference": "references/type-line.md",
+      "source_sha256": "f7fa213f2398da9e6bf30402bc2c430e778e57d95e60174bf082ba67d629b831",
+      "runtime_sha256": "f211d2c465fa02713ddbc35ca1351b85ad829c4e697626d7e71403e96ffb94d5"
+    },
+    {
+      "id": "type-gantt",
+      "title": "Gantt",
+      "when_to_use": "Tasks and phases on a timeline",
+      "reference": "references/type-gantt.md",
+      "source_sha256": "d7d6b199fd804b417200f2b878f36042cb5d6b025af711c06d3d3e429b0ae6b0",
+      "runtime_sha256": "d7d6b199fd804b417200f2b878f36042cb5d6b025af711c06d3d3e429b0ae6b0"
+    },
+    {
+      "id": "type-scatter",
+      "title": "Scatter plot",
+      "when_to_use": "Correlation or distribution of two variables; bubble (three variables) and beeswarm (one variable, dot per item) variants",
+      "reference": "references/type-scatter.md",
+      "source_sha256": "2f0770c4aaea747d14788805e45b13aee44350796ab4035bdfc2ab3d8c0c787f",
+      "runtime_sha256": "198ef3be843669eca38a62ccecf1deaa2ede6c3848e8e649c4fe70c76bb155be"
+    },
+    {
+      "id": "type-high-level",
+      "title": "High-Level",
+      "when_to_use": "End-to-end data stack on a container cluster",
+      "reference": "references/type-high-level.md",
+      "source_sha256": "f9629c9b3dd4b85da3a19c762d0f5fd58213b5e3994ad783b2033f4e83260264",
+      "runtime_sha256": "bb1836d8061139acbaee1d7f7ca4fff73fde3b6e00735a61fedcc62bb6fadbf6"
+    },
+    {
+      "id": "type-process",
+      "title": "Process",
+      "when_to_use": "Multi-actor sequential process with data handoffs",
+      "reference": "references/type-process.md",
+      "source_sha256": "7e929246f3191bb62529b4485668c1fa1738b93472dd42388960f2ade9205a77",
+      "runtime_sha256": "7939a007c42e0eb2ec9d7adfc8bfbceb1de2991abf60fad699c9f8d76037c049"
+    },
+    {
+      "id": "type-medallion",
+      "title": "Medallion",
+      "when_to_use": "Multi-tier data storage with quality levels and access policies",
+      "reference": "references/type-medallion.md",
+      "source_sha256": "a1af03521adb53431766a559e05c984ee07871fd3cf495cf63146999f56f6f42",
+      "runtime_sha256": "caa70370538a3aef3ff6366ba4e93e7bb76aacd36e1b96301dae58b39e636bc3"
+    },
+    {
+      "id": "type-data-flow",
+      "title": "Data flow",
+      "when_to_use": "Role-scoped data flow: who does what at each pipeline step",
+      "reference": "references/type-data-flow.md",
+      "source_sha256": "ad1cd8358c9360663200f5100a199e57e43a4e6702982752220ad423127941e8",
+      "runtime_sha256": "dfd176650dfd7c52e49110659ca1ed939779355cc1b5d9e2eabd1e07f58491f7"
+    },
+    {
+      "id": "type-dp-integration",
+      "title": "DP integration",
+      "when_to_use": "Integration topology of a data platform — sources → core → consumers",
+      "reference": "references/type-dp-integration.md",
+      "source_sha256": "6bf9b678d37e9f01f61ac8203e4ad5c29024ecd7a9f3ae0b42e71851522774f7",
+      "runtime_sha256": "bb96c3c61726b12e47072e5e82715d00ac155d3ffa2525b1b34db9d3b5dd74d0"
+    },
+    {
+      "id": "type-dp-security-matrix",
+      "title": "DP security matrix",
+      "when_to_use": "Per-role / per-component access permissions matrix",
+      "reference": "references/type-dp-security-matrix.md",
+      "source_sha256": "209f4870ec19d90eff1ab80ecfe0062f3a5075c3b666b1a3a900a27260ba8832",
+      "runtime_sha256": "62d5dfde78d41acf9d62c4c4fdd0af1e0237d76f75b8e0eecb79e7051d7bec6c"
+    },
+    {
+      "id": "type-sankey",
+      "title": "Sankey",
+      "when_to_use": "A quantity splitting and merging across stages, band width = amount",
+      "reference": "references/type-sankey.md",
+      "source_sha256": "9c70bb6fc3d77d278ae39af69fa705cd7cdb6e61f6ec88acbd8faede033ebb00",
+      "runtime_sha256": "50e41fcfbd482cabc892ed236d418cb7018da74101b1b46fbea23f77496d2933"
+    },
+    {
+      "id": "type-fishbone",
+      "title": "Fishbone",
+      "when_to_use": "Causes of one observed effect, grouped by category (root-cause analysis)",
+      "reference": "references/type-fishbone.md",
+      "source_sha256": "3441d3c73334813bf55cf1d0d96ea1aa4f9e46a60001ba83dfe9442be1745f8b",
+      "runtime_sha256": "6dc2127492591c5371e223cc6c6bb8637367c950d741e8a5ae67a8e0d0539782"
+    },
+    {
+      "id": "type-wardley",
+      "title": "Wardley map",
+      "when_to_use": "Value chain against evolution — what to build, buy, and what is moving",
+      "reference": "references/type-wardley.md",
+      "source_sha256": "4060402f648fa2ec858850f532675f52ac5d5df0b209c9c9450cc3df332114fb",
+      "runtime_sha256": "4060402f648fa2ec858850f532675f52ac5d5df0b209c9c9450cc3df332114fb"
+    },
+    {
+      "id": "type-kanban",
+      "title": "Kanban",
+      "when_to_use": "Work-in-progress by state, with WIP limits and blocked items",
+      "reference": "references/type-kanban.md",
+      "source_sha256": "447a8a231d5bb1e822945a02e8bd4adc219b0791bb0182cab48680fbbd88d045",
+      "runtime_sha256": "447a8a231d5bb1e822945a02e8bd4adc219b0791bb0182cab48680fbbd88d045"
+    },
+    {
+      "id": "type-journey",
+      "title": "User journey",
+      "when_to_use": "What a person does across stages of an experience, and how it feels",
+      "reference": "references/type-journey.md",
+      "source_sha256": "9a84eb80c416957907b2d0e242e74f4610000b7862490278eadb7b6647c5635a",
+      "runtime_sha256": "9a84eb80c416957907b2d0e242e74f4610000b7862490278eadb7b6647c5635a"
+    },
+    {
+      "id": "type-deployment",
+      "title": "Deployment",
+      "when_to_use": "Where software runs — zones, hosts, artifacts, replicas, ports",
+      "reference": "references/type-deployment.md",
+      "source_sha256": "296adfee79069e8fd8f9a19012cca731c5cc237990a0274ca1a8a807173c9fec",
+      "runtime_sha256": "df2b07ad83555075a6a6a3b499525a2cdfb4978f5393bd5200d72a471a7451c2"
+    },
+    {
+      "id": "type-dependency",
+      "title": "Dependency graph",
+      "when_to_use": "What depends on what, with fan-in and cycles a tree cannot express",
+      "reference": "references/type-dependency.md",
+      "source_sha256": "dd76bc521408b1cf0a3f86ee7c9ea93e4ad0650e4855c8f2be2358db7b721a43",
+      "runtime_sha256": "dd76bc521408b1cf0a3f86ee7c9ea93e4ad0650e4855c8f2be2358db7b721a43"
+    },
+    {
+      "id": "type-uml-class",
+      "title": "UML class",
+      "when_to_use": "Classes with operations, inheritance, composition (other UML routes elsewhere)",
+      "reference": "references/type-uml-class.md",
+      "source_sha256": "2940353d4c0afeb25b8d5e830e3408d5fdec3c4c89504739f5d847e064ad12c2",
+      "runtime_sha256": "70f10a1927702960bc905835baa280848f1c9437cdc8e4e79bce363d2e30cd9c"
+    },
+    {
+      "id": "type-story-map",
+      "title": "Story map",
+      "when_to_use": "Narrative backbone sliced into releases, with the cut line",
+      "reference": "references/type-story-map.md",
+      "source_sha256": "0ab4fae3de1f9909e20f27ca30414c5574fd8af583c28e1f55ba2af1b50f51fc",
+      "runtime_sha256": "0ab4fae3de1f9909e20f27ca30414c5574fd8af583c28e1f55ba2af1b50f51fc"
+    },
+    {
+      "id": "type-db-schema",
+      "title": "Database schema",
+      "when_to_use": "Physical tables: SQL types, constraints, indexes, column-level FKs",
+      "reference": "references/type-db-schema.md",
+      "source_sha256": "91f017b8813cfc63d775809d18659971d0aa5982967af94d47def31690713083",
+      "runtime_sha256": "5ab761ee929f8fd725d4a7bdb0468144596528f744fbe9e80841d7309ecc6b8e"
+    }
+  ],
+  "common": [
+    {
+      "id": "guide",
+      "path": "guide.md",
+      "source_sha256": "9cb173e6d30a9aa4af646f4eba4431ddb03dbbed23c041eaefdc13b1bf445826",
+      "runtime_sha256": "da9506b90644f83b4b432075d1416e2be7bc7ada47b6bb27ab3ae8efdbf904aa"
+    },
+    {
+      "id": "primitives-core",
+      "path": "references/primitives-core.md",
+      "source_sha256": "c56c028914c6aa6e0f37dfe4725f761b9ff723562db2796941cbea5897317072",
+      "runtime_sha256": "01dbe7d35387dda47c9f6696302739ebb926fc589b4fc83a1c1224006b64c5a3"
+    },
+    {
+      "id": "style-guide",
+      "path": "references/style-guide.md",
+      "source_sha256": "4716fa1a4f4d31cf836e0b4363886aa7242657fb48c624e0b34c433179dc6673",
+      "runtime_sha256": "df03536b78592c5f2cc371a0efdf8f393de7e127a20e8b32ce1f44396130c721"
+    },
+    {
+      "id": "layout-budget",
+      "path": "references/layout-budget.md",
+      "source_sha256": "453eb5d31ec5377ddd028f0d7e3a28ba7943948524fc60d9b00c2959216a9211",
+      "runtime_sha256": "03074cad0205b080198a681248d1447397e83c0cba6d8924b0fcf672fcbf92a6"
+    },
+    {
+      "id": "output-spec",
+      "path": "references/output-spec.md",
+      "source_sha256": "12dc0eed3514e387328651652604ef4fba1a76bce1823a79f4da2993336d1e69",
+      "runtime_sha256": "fbe00b3804e56e5306114c80bd0d8f828f39fc5b063e82a22c0223f3e8ee5139"
+    },
+    {
+      "id": "semantic-patterns",
+      "path": "references/semantic-patterns.md",
+      "source_sha256": "8bdd863696c415bef08d5f9390d95c4d660c70c22a1deef483b18cf58f48e60b",
+      "runtime_sha256": "6bf0cd9459ada8bf61bdcc24cc5a74c3ef88db3dfa29c3dd3d372bbd8b811c3e"
+    },
+    {
+      "id": "template",
+      "path": "templates/template.html",
+      "source_sha256": "f6978a9d50dd286f32ab149bcf505261b9fc331df7320071f87509a285dee7f4",
+      "runtime_sha256": "4e39015653e74fa15235b5a9fd530446b6b10007f9b78cf82343c53263de39e9"
+    },
+    {
+      "id": "template-dark",
+      "path": "templates/template-dark.html",
+      "source_sha256": "98428c8de2c4fe8e799d7110606421effb876e2e788f8639140854c1033d82d5",
+      "runtime_sha256": "9f13c4e414c26f859ec6867a80de869177c70d0f4e3449ab4e309b2efb15012b"
+    },
+    {
+      "id": "template-full",
+      "path": "templates/template-full.html",
+      "source_sha256": "bfe0aa003eb264f4a2b6f10c540d9d7a53950574ed0f5dba2af3cac61fc2f52a",
+      "runtime_sha256": "c5a01b00e1ccd23b9a283bae90b312d4b1dce75ff76bee40abacc7e675ad79fa"
+    }
+  ]
+}

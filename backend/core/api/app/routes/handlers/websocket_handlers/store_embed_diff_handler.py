@@ -155,6 +155,13 @@ async def handle_store_embed_diff(
             )
             return
 
+        if embed.get("app_id") == "diagrams" and embed.get("skill_id") == "html" and version_number > 1:
+            await manager.send_personal_message(
+                {"type": "error", "payload": {"message": "Diagram revisions require atomic commit"}},
+                user_id, device_fingerprint_hash,
+            )
+            return
+
         row = {
             "embed_id": embed_id,
             "version_number": version_number,

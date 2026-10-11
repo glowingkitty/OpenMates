@@ -6187,6 +6187,7 @@ async function handleChats(
       filename: string;
       content: string;
     }> = [];
+    const diagramEmbeds: Array<{ embedId: string; content: string }> = [];
     const processedEmbedIds = new Set<string>();
 
     // Collect all embed IDs from messages
@@ -6207,6 +6208,11 @@ async function handleChats(
       const eid = embedQueue.shift()!;
       try {
         const embed = await client.getEmbed(eid);
+
+        if ((embed.type === "diagram_html" || embed.type === "diagrams-html")
+          && typeof embed.content?.html_source === "string" && embed.content.html_source) {
+          diagramEmbeds.push({ embedId: embed.embedId, content: embed.content.html_source });
+        }
 
         // Code embeds
         if (embed.type === "code" && embed.content) {
@@ -6328,6 +6334,13 @@ async function handleChats(
           await writeFile(join(tDir, te.filename), te.content);
         }
       }
+      if (diagramEmbeds.length > 0) {
+        const dDir = join(tmpDir, "diagrams");
+        await mkdir(dDir, { recursive: true });
+        for (const diagram of diagramEmbeds) {
+          await writeFile(join(dDir, `${diagram.embedId}.html`), diagram.content);
+        }
+      }
       // Create zip using system zip command
       const zipPath = join(outputDir, `${filenameBase}.zip`);
       const { execSync } = await import("node:child_process");
@@ -6376,6 +6389,15 @@ async function handleChats(
         for (const te of transcriptEmbeds) {
           await writeFile(join(tDir, te.filename), te.content);
           written.push(`transcripts/${te.filename}`);
+        }
+      }
+      if (diagramEmbeds.length > 0) {
+        const dDir = join(chatDir, "diagrams");
+        await mkdir(dDir, { recursive: true });
+        for (const diagram of diagramEmbeds) {
+          const filename = `${diagram.embedId}.html`;
+          await writeFile(join(dDir, filename), diagram.content);
+          written.push(`diagrams/${filename}`);
         }
       }
 

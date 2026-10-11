@@ -693,6 +693,7 @@ class EmbedService:
             "mail": ("mail", "email"),
             "math-plot": ("math", "plot"),
             "mermaid": ("diagrams", "mermaid"),
+            "diagram_html": ("diagrams", "html"),
             "mindmap": ("mindmaps", "mindmap"),
         }
         return mapping.get(embed_type, (embed_type, embed_type))
@@ -3309,6 +3310,245 @@ class EmbedService:
             raise
         except Exception as e:
             logger.error(f"{log_prefix} Error updating Mermaid embed content: {e}", exc_info=True)
+            return False
+
+    # =========================================================================
+    # HTML diagram embed methods (for ```openmates_diagram ... ``` fenced blocks)
+    # Source-first direct embeds owned by the Diagrams app.
+    # =========================================================================
+
+    async def create_diagram_html_embed_placeholder(
+        self,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        title: Optional[str] = None,
+        diagram_kind: Optional[str] = None,
+        render_width: Optional[int] = None,
+        render_height: Optional[int] = None,
+        log_prefix: str = "",
+    ) -> Optional[Dict[str, Any]]:
+        """Create a processing Diagrams/HTML diagram direct embed placeholder."""
+        try:
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            embed_id = str(uuid.uuid4())
+            embed_ref = self._generate_direct_embed_ref(
+                "diagram_html",
+                embed_id,
+                {"title": title, "diagram_kind": diagram_kind},
+            )
+            now = int(datetime.now().timestamp())
+            placeholder_content = {
+                "type": "diagram_html",
+                "app_id": "diagrams",
+                "skill_id": "html",
+                "title": title or "Diagram",
+                "diagram_kind": diagram_kind or "diagram",
+                "render_width": render_width or 800,
+                "render_height": render_height or 600,
+                "html_source": "",
+                "embed_ref": embed_ref,
+                "status": "processing",
+                "schema_version": 1,
+                "version_number": 1,
+            }
+            placeholder_toon = encode(placeholder_content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                placeholder_toon,
+                user_vault_key_id,
+            )
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "diagram_html",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,
+                "encrypted_content": encrypted_content,
+                "version_number": 1,
+                "created_at": now,
+                "updated_at": now,
+            }
+
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="diagram_html",
+                content_toon=placeholder_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                version_number=1,
+                created_at=now,
+                updated_at=now,
+                app_id="diagrams",
+                skill_id="html",
+                log_prefix=log_prefix,
+            )
+
+            logger.info(f"{log_prefix} Created processing HTML diagram embed {embed_id}")
+            return {
+                "embed_id": embed_id,
+                "embed_reference": json.dumps({"type": "diagram_html", "embed_id": embed_id}),
+            }
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating HTML diagram embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def update_diagram_html_embed_content(
+        self,
+        embed_id: str,
+        html_source: str,
+        chat_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        status: str = "finished",
+        title: Optional[str] = None,
+        diagram_kind: Optional[str] = None,
+        render_width: Optional[int] = None,
+        render_height: Optional[int] = None,
+        version_number: Optional[int] = None,
+        content_hash: Optional[str] = None,
+        version_history_rows: Optional[List[Dict[str, Any]]] = None,
+        log_prefix: str = "",
+    ) -> bool:
+        """Update HTML diagram source and metadata for a Diagrams direct embed."""
+        try:
+            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached_embed:
+                logger.warning(f"{log_prefix} HTML diagram embed {embed_id} not found in cache, cannot update")
+                return False
+
+            existing_content: Dict[str, Any] = {}
+            existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+            if existing_toon:
+                try:
+                    decoded = decode(existing_toon)
+                    if isinstance(decoded, dict):
+                        existing_content = decoded
+                except RequiredRecoveryOutputError:
+                    raise
+                except Exception as e:
+                    logger.warning(f"{log_prefix} Failed to decode existing HTML diagram content: {e}")
+
+            from backend.apps.ai.utils.diagram_html_fences import validate_diagram_html_source, DiagramHtmlValidationError
+            metadata = None
+            if status == "finished":
+                try:
+                    metadata = validate_diagram_html_source(html_source)
+                except DiagramHtmlValidationError as exc:
+                    logger.warning("%s Invalid HTML diagram: %s", log_prefix, exc)
+                    return False
+            next_title = (metadata.title if metadata else title) if title is None else title
+            next_title = next_title or existing_content.get("title") or "Diagram"
+            next_diagram_kind = diagram_kind or (metadata.diagram_kind if metadata else None) or existing_content.get("diagram_kind") or "diagram"
+            next_version_number = version_number or int(cached_embed.get("version_number") or existing_content.get("version_number") or 1)
+            next_content_hash = content_hash
+            if next_content_hash is None and status == "finished":
+                next_content_hash = hashlib.sha256(html_source.encode("utf-8")).hexdigest()
+            if status == "finished" and next_version_number == 1 and not version_history_rows:
+                version_history_rows = [{
+                    "embed_id": embed_id, "version_number": 1,
+                    "snapshot": html_source, "created_at": int(datetime.now().timestamp()),
+                }]
+
+            updated_content = {
+                **existing_content,
+                "type": "diagram_html",
+                "app_id": "diagrams",
+                "skill_id": "html",
+                "title": next_title,
+                "diagram_kind": next_diagram_kind,
+                "render_width": render_width or (metadata.render_width if metadata else None) or existing_content.get("render_width") or 800,
+                "render_height": render_height or (metadata.render_height if metadata else None) or existing_content.get("render_height") or 600,
+                "html_source": html_source,
+                "embed_ref": existing_content.get("embed_ref") or self._generate_direct_embed_ref(
+                    "diagram_html",
+                    embed_id,
+                    {"title": next_title, "diagram_kind": next_diagram_kind},
+                ),
+                "status": status,
+                "schema_version": 1,
+                "version_number": next_version_number,
+            }
+            updated_toon = encode(updated_content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                updated_toon,
+                user_vault_key_id,
+            )
+            updated_embed_data = {
+                **cached_embed,
+                "type": "diagram_html",
+                "encrypted_content": encrypted_content,
+                "status": status,
+                "version_number": next_version_number,
+                "updated_at": int(datetime.now().timestamp()),
+            }
+            if next_content_hash is not None:
+                updated_embed_data["content_hash"] = next_content_hash
+
+            current_status = cached_embed.get("status", "processing")
+            should_send_event = not (status == "finished" and current_status == "finished" and version_number is None)
+            if status != "finished":
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            if should_send_event or (status == "finished" and self._finished_recovery_required()):
+                await self.send_embed_data_to_client(
+                    embed_id=embed_id,
+                    embed_type="diagram_html",
+                    content_toon=updated_toon,
+                    chat_id=chat_id,
+                    message_id=cached_embed.get("message_id", ""),
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status=status,
+                    task_id=cached_embed.get("hashed_task_id"),
+                    is_private=cached_embed.get("is_private", False),
+                    is_shared=cached_embed.get("is_shared", False),
+                    version_number=next_version_number,
+                    content_hash=next_content_hash,
+                    version_history_rows=version_history_rows,
+                    app_id="diagrams",
+                    skill_id="html",
+                    created_at=cached_embed.get("created_at"),
+                    updated_at=updated_embed_data["updated_at"],
+                    log_prefix=log_prefix,
+                    check_cache_status=False,
+                    finished_cache_data=updated_embed_data if status == "finished" else None,
+                    finished_cache_vault_key_id=user_vault_key_id,
+                )
+            if status == "finished" and not (should_send_event or self._finished_recovery_required()):
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            logger.info(
+                f"{log_prefix} Updated HTML diagram embed {embed_id} "
+                f"(kind={next_diagram_kind}, chars={len(html_source)}, status={status})"
+            )
+            if status == "finished":
+                self._schedule_embed_persistence_fallback(embed_id)
+            return True
+        except RequiredRecoveryOutputError:
+            raise
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating HTML diagram embed content: {e}", exc_info=True)
             return False
 
     # =========================================================================

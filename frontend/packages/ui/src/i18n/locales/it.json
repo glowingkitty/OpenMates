@@ -5006,6 +5006,7 @@
       }
     }
   },
+  "diagrams": {},
   "digital_team_mates": {
     "digital_team_mates": {
       "text": "Compagni Digitali"
@@ -7489,6 +7490,9 @@
     "diagrams": {
       "mermaid": {
         "text": "Diagramma Mermaid"
+      },
+      "html": {
+        "text": "Diagramma modificabile"
       }
     },
     "mail": {

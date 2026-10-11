@@ -1303,6 +1303,8 @@ class PreprocessingResult(BaseModel):
     relevant_app_skills: Optional[List[str]] = Field(None, description="List of relevant app skill identifiers (format: 'app_id-skill_id') for tool preselection.")
     relevant_focus_modes: Optional[List[str]] = Field(None, description="List of relevant focus mode identifiers (format: 'app_id-focus_id') that could help with this request.")
     relevant_rules: Optional[List[Dict[str, Any]]] = Field(None, exclude=True, description="Transient metadata snapshots selected by initial Jev; reload exact authorized revisions before use.")
+    relevant_diagram_types: Optional[List[str]] = Field(None, exclude=True, description="Transient Diagram Design type Memory identities selected by Jev; revalidate against the shipped manifest before use.")
+    relevant_diagram_variant: Optional[str] = Field(None, exclude=True, description="Transient selected Diagram Design template; revalidate against the shipped variant map before use.")
     relevant_workflows: Optional[List[Dict[str, Any]]] = Field(None, exclude=True, description="Transient owned saved Workflow snapshots; never execution authority.")
 
 
@@ -3054,6 +3056,8 @@ async def handle_preprocessing(
     # Live inference snapshots must not enter durable summaries, recorder dumps,
     # logs or raw preprocessing receipts.
     preselected_rule_snapshots = llm_analysis_args.pop("relevant_rules", None)
+    preselected_diagram_types = llm_analysis_args.pop("relevant_diagram_types", None)
+    preselected_diagram_variant = llm_analysis_args.pop("relevant_diagram_variant", None)
     preselected_workflow_snapshots = llm_analysis_args.pop("relevant_workflows", None)
     preselected_app_ids = llm_analysis_args.pop("selected_app_ids", None)
     ai_model_topics = complete_ai_model_topics(
@@ -4051,6 +4055,8 @@ async def handle_preprocessing(
         relevant_app_skills=validated_relevant_skills,  # Use validated relevant skills (filtered against available skills)
         relevant_focus_modes=validated_relevant_focus_modes,  # Use validated relevant focus modes (filtered against available focus modes)
         relevant_rules=preselected_rule_snapshots if isinstance(preselected_rule_snapshots, list) else None,
+        relevant_diagram_types=preselected_diagram_types if isinstance(preselected_diagram_types, list) else None,
+        relevant_diagram_variant=preselected_diagram_variant if isinstance(preselected_diagram_variant, str) else None,
         relevant_workflows=preselected_workflow_snapshots if isinstance(preselected_workflow_snapshots, list) else None,
 
         user_requested_skills_only=user_requested_skills_only,

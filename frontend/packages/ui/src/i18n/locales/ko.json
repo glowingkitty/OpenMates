@@ -4979,6 +4979,7 @@
       }
     }
   },
+  "diagrams": {},
   "digital_team_mates": {
     "digital_team_mates": {
       "text": "디지털 팀원"
@@ -7462,6 +7463,9 @@
     "diagrams": {
       "mermaid": {
         "text": "Mermaid 다이어그램"
+      },
+      "html": {
+        "text": "편집 가능한 다이어그램"
       }
     },
     "mail": {

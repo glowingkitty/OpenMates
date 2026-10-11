@@ -1248,6 +1248,7 @@ async def _async_persist_delete_chat(
             assert_no_active_chat_recovery_output_writer_leases,
             delete_chat_message_archive_rows,
             delete_embed_version_rows,
+            delete_chat_diagram_revision_receipts,
             fence_chat_for_deletion,
             load_chat_embed_rows,
             prepare_orphan_embed_version_deletion,
@@ -1429,6 +1430,11 @@ async def _async_persist_delete_chat(
         await delete_embed_version_rows(
             directus_service=directus_service, version_ids=orphan_version_ids,
         )
+        await delete_chat_diagram_revision_receipts(
+            directus_service=directus_service,
+            embed_ids=[row.get("embed_id") for row in embed_rows_before_delete
+                       if row.get("id") in set(deleted_embed_ids)],
+        )
         await activate_storage_tombstones(
             directus_service=directus_service,
             tombstones=[*archive_tombstones, *version_tombstones],
@@ -1578,6 +1584,12 @@ async def _async_persist_delete_message(
         )
 
         if deleted_embeds:
+            from backend.core.api.app.services.storage_reference_service import (
+                delete_chat_diagram_revision_receipts,
+            )
+            await delete_chat_diagram_revision_receipts(
+                directus_service=directus_service, embed_ids=deleted_embeds,
+            )
             logger.info(
                 f"Deleted {len(deleted_embeds)} embeds for message {client_message_id} "
                 f"in chat {chat_id}. Task ID: {task_id}"

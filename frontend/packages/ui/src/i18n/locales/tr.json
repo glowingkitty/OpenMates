@@ -4979,6 +4979,7 @@
       }
     }
   },
+  "diagrams": {},
   "digital_team_mates": {
     "digital_team_mates": {
       "text": "Dijital Ekip Arkadaşları"
@@ -7462,6 +7463,9 @@
     "diagrams": {
       "mermaid": {
         "text": "Mermaid Diyagramı"
+      },
+      "html": {
+        "text": "Düzenlenebilir diyagram"
       }
     },
     "mail": {

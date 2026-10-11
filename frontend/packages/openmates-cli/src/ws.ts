@@ -144,6 +144,8 @@ export interface SendEmbedDataFrame {
   version_number?: number;
   file_path?: string;
   content_hash?: string;
+  app_id?: string;
+  skill_id?: string;
   text_length_chars?: number;
   is_private?: boolean;
   is_shared?: boolean;

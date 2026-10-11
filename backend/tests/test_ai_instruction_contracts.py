@@ -85,12 +85,13 @@ def test_mermaid_instruction_is_inactive_and_prefers_source_only() -> None:
     assert "Only write Mermaid source when the user explicitly asks" in instruction
 
 
-def test_software_development_mate_prefers_ascii_diagrams() -> None:
+def test_software_development_mate_uses_selected_diagram_app() -> None:
     prompt = SOFTWARE_DEVELOPMENT_MATE_PATH.read_text(encoding="utf-8")
 
-    assert "prefer readable ASCII/text diagrams" in prompt
-    assert "Do not use Mermaid" in prompt
-    assert "unless the user explicitly asks for Mermaid syntax" in prompt
+    assert "the Diagrams app is selected" in prompt
+    assert "editable HTML/SVG diagram in an `openmates_diagram` fence" in prompt
+    assert "Explain the diagram briefly in plain text" in prompt
+    assert "Use Mermaid syntax only when the user explicitly asks for it" in prompt
 
 
 def test_software_development_mate_uses_application_preview_for_runnable_web_apps() -> None:

@@ -4979,6 +4979,7 @@
       }
     }
   },
+  "diagrams": {},
   "digital_team_mates": {
     "digital_team_mates": {
       "text": "Rekan Tim Digital"
@@ -7462,6 +7463,9 @@
     "diagrams": {
       "mermaid": {
         "text": "Diagram Mermaid"
+      },
+      "html": {
+        "text": "Diagram yang dapat diedit"
       }
     },
     "mail": {

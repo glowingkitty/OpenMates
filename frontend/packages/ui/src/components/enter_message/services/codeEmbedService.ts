@@ -45,6 +45,8 @@ import {
 import { get } from "svelte/store";
 import type { EmbedType } from "../../../message_parsing/types";
 import { generateDirectEmbedRef } from "../../../utils/embedFragmentUtils";
+import { computeSHA256 } from '../../../message_parsing/utils';
+import type { DiagramHtmlUpload } from './diagramHtmlUploadDetection';
 import {
   normalizeMindMapSource,
   type MindMapNormalizationResult,
@@ -69,6 +71,25 @@ export interface MindMapEmbedCreationResult {
   type: "mindmaps-mindmap";
   embedReference: string;
   normalization: MindMapNormalizationResult;
+}
+
+export async function createDiagramHtmlEmbed(source: string, filename: string, metadata: DiagramHtmlUpload): Promise<string> {
+  const embedId = generateUUID();
+  const embedRef = generateDirectEmbedRef('diagram_html', embedId, { filename });
+  const content = {
+    type: 'diagram_html', app_id: 'diagrams', skill_id: 'html', title: metadata.title,
+    diagram_kind: metadata.diagramKind, html_source: source, render_width: metadata.renderWidth,
+    render_height: metadata.renderHeight, schema_version: 1, version_number: 1,
+    embed_ref: embedRef, filename, status: 'finished'
+  };
+  const now = Date.now();
+  await embedStore.put(`embed:${embedId}`, {
+    embed_id: embedId, type: 'diagrams-html', app_id: 'diagrams', skill_id: 'html', status: 'finished',
+    content: toonEncode(content), content_hash: await computeSHA256(source), version_number: 1,
+    text_preview: metadata.title, createdAt: now, updatedAt: now,
+  }, 'diagrams-html' as EmbedType);
+  embedStore.registerEmbedRef(embedRef, embedId, 'diagram_html');
+  return embedId;
 }
 
 export interface EmbedRedactionResult {

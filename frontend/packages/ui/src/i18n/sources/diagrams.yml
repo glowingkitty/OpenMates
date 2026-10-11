@@ -1,0 +1,107 @@
+html:
+  context: Editable HTML/SVG diagram embed label in the content catalog
+  en: Editable Diagram
+  de: Bearbeitbares Diagramm
+  verified_by_human: []
+
+edit:
+  context: Primary action for editing an HTML/SVG diagram
+  en: Edit diagram
+  de: Diagramm bearbeiten
+  verified_by_human: []
+
+loading:
+  context: Status while an HTML/SVG diagram is being generated
+  en: Preparing diagram…
+  de: Diagramm wird vorbereitet…
+  verified_by_human: []
+
+invalid_source:
+  context: Error when diagram HTML contains unsafe or unsupported markup
+  en: This diagram contains unsupported content.
+  de: Dieses Diagramm enthält nicht unterstützte Inhalte.
+  verified_by_human: []
+
+conflict:
+  context: Error when another device changed the diagram during editing
+  en: The diagram changed on another device. Reload before editing.
+  de: Das Diagramm wurde auf einem anderen Gerät geändert. Lade es vor dem Bearbeiten neu.
+  verified_by_human: []
+
+saved:
+  context: Confirmation after a diagram edit is durably saved
+  en: Diagram saved
+  de: Diagramm gespeichert
+  verified_by_human: []
+
+saved_refresh:
+  context: Durable diagram save succeeded but this device could not update its local encrypted cache
+  en: Diagram saved. Refresh this page to sync this device before editing again.
+  de: Diagramm gespeichert. Lade diese Seite neu, bevor du es erneut bearbeitest.
+  verified_by_human: []
+
+history_unavailable:
+  context: Historical diagram could not be loaded after a version fetch failed
+  en: This diagram version could not be loaded. Choose another version to retry.
+  de: Diese Diagrammversion konnte nicht geladen werden. Wähle eine andere Version und versuche es erneut.
+  verified_by_human: []
+
+history_version:
+  context: Read-only historical diagram version indicator before its version number
+  en: Viewing version
+  de: Version anzeigen
+  verified_by_human: []
+
+save_failed:
+  context: Error when a diagram edit cannot be saved
+  en: Could not save diagram
+  de: Diagramm konnte nicht gespeichert werden
+  verified_by_human: []
+
+zoom_out:
+  context: Diagram zoom control accessible label
+  en: Zoom out
+  de: Verkleinern
+  verified_by_human: []
+
+zoom_in:
+  context: Diagram zoom control accessible label
+  en: Zoom in
+  de: Vergrößern
+  verified_by_human: []
+
+fit:
+  context: Fit the entire diagram to its viewport
+  en: Fit diagram
+  de: Diagramm einpassen
+  verified_by_human: []
+
+export:
+  context: Download the canonical editable HTML diagram
+  en: Export HTML
+  de: HTML exportieren
+  verified_by_human: []
+
+undo:
+  context: Undo the latest local diagram edit
+  en: Undo
+  de: Rückgängig
+  verified_by_human: []
+
+cancel:
+  context: Cancel unsaved diagram edits
+  en: Cancel
+  de: Abbrechen
+  verified_by_human: []
+
+save:
+  context: Save the current diagram edits
+  en: Save changes
+  de: Änderungen speichern
+  verified_by_human: []
+
+saving:
+  context: Diagram edit save in progress
+  en: Saving…
+  de: Wird gespeichert…
+  verified_by_human: []

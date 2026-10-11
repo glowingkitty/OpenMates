@@ -4979,6 +4979,7 @@
       }
     }
   },
+  "diagrams": {},
   "digital_team_mates": {
     "digital_team_mates": {
       "text": "डिजिटल टीम साथी"
@@ -7462,6 +7463,9 @@
     "diagrams": {
       "mermaid": {
         "text": "Mermaid डायग्राम"
+      },
+      "html": {
+        "text": "संपादन योग्य डायग्राम"
       }
     },
     "mail": {

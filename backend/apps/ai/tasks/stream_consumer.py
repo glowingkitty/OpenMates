@@ -86,6 +86,11 @@ from backend.apps.ai.utils.mermaid_fences import (
     _extract_mermaid_metadata,
     _is_mermaid_fence,
 )
+from backend.apps.ai.utils.diagram_html_fences import (
+    DiagramHtmlValidationError,
+    is_diagram_html_fence,
+    validate_diagram_html_source,
+)
 from backend.apps.ai.utils.mindmap_fences import is_mindmap_fence
 from backend.apps.ai.utils.embeds_map_view import (
     append_missing_embeds_map_view_block,
@@ -1368,6 +1373,31 @@ def _full_replacement_history_rows(
     return rows
 
 
+async def _finalize_diagram_html_embed(
+    embed_service: Any, embed_id: str, source: str, request_data: AskSkillRequest,
+    user_vault_key_id: str, log_prefix: str,
+) -> bool:
+    """Publish only a whole, safe document; keep invalid source out of the embed."""
+    try:
+        metadata = validate_diagram_html_source(source)
+    except DiagramHtmlValidationError as exc:
+        logger.warning("%s Invalid generated HTML diagram: %s", log_prefix, exc)
+        await embed_service.update_diagram_html_embed_content(
+            embed_id=embed_id, html_source="", chat_id=request_data.chat_id,
+            user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+            user_vault_key_id=user_vault_key_id, status="error", log_prefix=log_prefix,
+        )
+        return False
+    return await embed_service.update_diagram_html_embed_content(
+        embed_id=embed_id, html_source=source, chat_id=request_data.chat_id,
+        user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+        user_vault_key_id=user_vault_key_id, status="finished",
+        title=metadata.title, diagram_kind=metadata.diagram_kind,
+        render_width=metadata.render_width, render_height=metadata.render_height,
+        log_prefix=log_prefix,
+    )
+
+
 async def _apply_diff_block_to_existing_embed(
     *,
     diff_content: str,
@@ -1425,6 +1455,7 @@ async def _apply_diff_block_to_existing_embed(
                     )
                 else:
                     current_content = (
+                        decoded.get("html_source") or
                         decoded.get("code") or
                         decoded.get("diagram_code") or
                         decoded.get("html") or
@@ -1612,6 +1643,21 @@ async def _apply_diff_block_to_existing_embed(
             content_hash=new_content_hash,
             version_history_rows=version_history_rows,
             log_prefix=log_prefix
+        )
+    elif embed_type == "diagram_html":
+        try:
+            metadata = validate_diagram_html_source(patch_result.new_content)
+        except DiagramHtmlValidationError as exc:
+            logger.warning("%s Invalid diagram diff: %s", log_prefix, exc)
+            return _render_diff_visual_card(resolved_ref, diff_content, "invalid diagram HTML")
+        await embed_service.update_diagram_html_embed_content(
+            embed_id=target_embed_id, html_source=patch_result.new_content,
+            chat_id=request_data.chat_id, user_id=request_data.user_id,
+            user_id_hash=request_data.user_id_hash, user_vault_key_id=user_vault_key_id,
+            status="finished", title=metadata.title, diagram_kind=metadata.diagram_kind,
+            render_width=metadata.render_width, render_height=metadata.render_height,
+            version_number=new_version, content_hash=new_content_hash,
+            version_history_rows=version_history_rows, log_prefix=log_prefix,
         )
     elif embed_type == "mermaid":
         mermaid_metadata = _extract_mermaid_metadata(
@@ -5772,6 +5818,7 @@ async def _consume_main_processing_stream(
     # Mermaid diagram tracking: ```mermaid ... ``` fences produce Diagrams-owned
     # direct embeds instead of generic Code embeds during incremental streaming.
     in_mermaid_block = False
+    in_diagram_html_block = False
 
     # Mind map tracking: ```openmates_mindmap ... ``` fences produce Mind Maps
     # direct embeds instead of generic Code embeds during incremental streaming.
@@ -6441,6 +6488,7 @@ async def _consume_main_processing_stream(
 
                                 # Check if this is a Diagrams Mermaid block.
                                 is_mermaid_block = _is_mermaid_fence(current_code_language)
+                                is_diagram_html_block = is_diagram_html_fence(current_code_language)
 
                                 # Check if this is a Mind Maps OpenMates JSON block.
                                 is_mindmap_block = is_mindmap_fence(current_code_language)
@@ -6530,6 +6578,26 @@ async def _consume_main_processing_stream(
 
                                         in_code_block = False
                                         in_mindmap_block = False
+                                        current_code_language = ""
+                                        current_code_filename = None
+                                        current_code_content = ""
+                                        current_code_embed_id = None
+
+                                elif is_diagram_html_block:
+                                    embed_data = await embed_service.create_diagram_html_embed_placeholder(
+                                        chat_id=request_data.chat_id, message_id=request_data.message_id,
+                                        user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+                                    )
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        await _finalize_diagram_html_embed(
+                                            embed_service, current_code_embed_id, code_content,
+                                            request_data, user_vault_key_id, log_prefix,
+                                        )
+                                        chunk = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        in_code_block = False
+                                        in_diagram_html_block = False
                                         current_code_language = ""
                                         current_code_filename = None
                                         current_code_content = ""
@@ -7065,6 +7133,7 @@ async def _consume_main_processing_stream(
                         is_pcb_schematic_block_multi = _is_pcb_schematic_fence(current_code_language)
                         is_mindmap_block_multi = is_mindmap_fence(current_code_language)
                         is_mermaid_block_multi = _is_mermaid_fence(current_code_language)
+                        is_diagram_html_block_multi = is_diagram_html_fence(current_code_language)
                         if is_plot_block_multi:
                             in_plot_block = True
                         elif is_document_html:
@@ -7082,6 +7151,8 @@ async def _consume_main_processing_stream(
                             in_mindmap_block = True
                         elif is_mermaid_block_multi:
                             in_mermaid_block = True
+                        elif is_diagram_html_block_multi:
+                            in_diagram_html_block = True
                         
                         if directus_service and encryption_service and user_vault_key_id:
                             try:
@@ -7257,6 +7328,17 @@ async def _consume_main_processing_stream(
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                         chunk = embed_reference_code
                                         logger.info(f"{log_prefix} Created mind map embed placeholder {current_code_embed_id}")
+                                elif is_diagram_html_block_multi:
+                                    embed_data = await embed_service.create_diagram_html_embed_placeholder(
+                                        chat_id=request_data.chat_id, message_id=request_data.message_id,
+                                        user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+                                    )
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        chunk = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                    else:
+                                        chunk = ""
                                 elif is_mermaid_block_multi:
                                     mermaid_metadata = _extract_mermaid_metadata(
                                         current_code_language,
@@ -7493,6 +7575,7 @@ async def _consume_main_processing_stream(
                         is_pcb_schematic_block_post_bare = _is_pcb_schematic_fence(current_code_language)
                         is_mindmap_block_post_bare = is_mindmap_fence(current_code_language)
                         is_mermaid_block_post_bare = _is_mermaid_fence(current_code_language)
+                        is_diagram_html_block_post_bare = is_diagram_html_fence(current_code_language)
                         if is_plot_block_post_bare:
                             in_plot_block = True
                         elif is_document_html:
@@ -7510,6 +7593,8 @@ async def _consume_main_processing_stream(
                             in_mindmap_block = True
                         elif is_mermaid_block_post_bare:
                             in_mermaid_block = True
+                        elif is_diagram_html_block_post_bare:
+                            in_diagram_html_block = True
                         
                         if directus_service and encryption_service and user_vault_key_id:
                             try:
@@ -7691,6 +7776,17 @@ async def _consume_main_processing_stream(
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                         chunk = embed_reference_code
                                         logger.info(f"{log_prefix} Created mind map embed placeholder {current_code_embed_id} (language resolved after bare fence)")
+                                    else:
+                                        chunk = ""
+                                elif is_diagram_html_block_post_bare:
+                                    embed_data = await embed_service.create_diagram_html_embed_placeholder(
+                                        chat_id=request_data.chat_id, message_id=request_data.message_id,
+                                        user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+                                    )
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        chunk = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                     else:
                                         chunk = ""
                                 elif is_mermaid_block_post_bare:
@@ -8022,6 +8118,7 @@ async def _consume_main_processing_stream(
                             in_pcb_schematic_block = False
                             in_mindmap_block = False
                             in_mermaid_block = False
+                            in_diagram_html_block = False
                             current_document_title = None
                             current_code_language = ""
                             current_code_filename = None
@@ -8078,6 +8175,7 @@ async def _consume_main_processing_stream(
                             in_pcb_schematic_block = False
                             in_mindmap_block = False
                             in_mermaid_block = False
+                            in_diagram_html_block = False
                             current_document_title = None
                             current_code_language = ""
                             current_code_filename = None
@@ -8134,6 +8232,7 @@ async def _consume_main_processing_stream(
                             in_pcb_schematic_block = False
                             in_mindmap_block = False
                             in_mermaid_block = False
+                            in_diagram_html_block = False
                             current_document_title = None
                             current_code_language = ""
                             current_code_filename = None
@@ -8172,6 +8271,7 @@ async def _consume_main_processing_stream(
                             in_pcb_schematic_block = False
                             in_mindmap_block = False
                             in_mermaid_block = False
+                            in_diagram_html_block = False
                             current_document_title = None
                             current_code_language = ""
                             current_code_filename = None
@@ -8197,6 +8297,7 @@ async def _consume_main_processing_stream(
                             in_pcb_schematic_block = False
                             in_mindmap_block = False
                             in_mermaid_block = False
+                            in_diagram_html_block = False
                             current_document_title = None
                             current_code_language = ""
                             current_code_filename = None
@@ -8211,6 +8312,7 @@ async def _consume_main_processing_stream(
                             and not in_pcb_schematic_block
                             and not in_mindmap_block
                             and not in_mermaid_block
+                            and not in_diagram_html_block
                             and _should_skip_code_block_for_embed(current_code_content)
                             and directus_service
                             and encryption_service
@@ -8357,6 +8459,13 @@ async def _consume_main_processing_stream(
                                     )
 
                                     logger.info(f"{log_prefix} Finalized mind map embed {current_code_embed_id}")
+                                elif in_diagram_html_block:
+                                    await _finalize_diagram_html_embed(
+                                        embed_service, current_code_embed_id, current_code_content,
+                                        request_data, user_vault_key_id, log_prefix,
+                                    )
+                                elif in_diagram_html_block:
+                                    pass  # Keep partial HTML out of persisted embed content.
                                 elif in_mermaid_block:
                                     mermaid_metadata = _extract_mermaid_metadata(
                                         current_code_language,
@@ -8531,6 +8640,7 @@ async def _consume_main_processing_stream(
                             in_pcb_schematic_block = False
                             in_mindmap_block = False
                             in_mermaid_block = False
+                            in_diagram_html_block = False
                             current_document_title = None
                             current_code_language = ""
                             current_code_filename = None
@@ -8948,6 +9058,12 @@ async def _consume_main_processing_stream(
                     log_prefix=log_prefix
                 )
                 logger.info(f"{log_prefix} Finalized interrupted mail embed {current_code_embed_id}")
+            elif in_diagram_html_block:
+                await _finalize_diagram_html_embed(
+                    embed_service, current_code_embed_id, current_code_content,
+                    request_data, user_vault_key_id, log_prefix,
+                )
+
             elif in_mermaid_block:
                 mermaid_metadata = _extract_mermaid_metadata(
                     current_code_language,

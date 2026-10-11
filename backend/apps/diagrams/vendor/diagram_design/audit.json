@@ -1,0 +1,316 @@
+{
+  "schema_version": 1,
+  "upstream": {
+    "repository": "https://github.com/cathrynlavery/diagram-design",
+    "commit": "7a2e22170ee838e859d8142ba825d83f8b6375e6",
+    "license": "MIT",
+    "copyright": "Copyright (c) 2025 Cathryn Lavery"
+  },
+  "inventory": {
+    "type_references": 44,
+    "common_runtime_resources": 9,
+    "total_verified_resources": 53,
+    "resource_paths": [
+      "references/type-architecture.md",
+      "references/type-architecture-delta.md",
+      "references/type-it-state.md",
+      "references/type-flowchart.md",
+      "references/type-sequence.md",
+      "references/type-state.md",
+      "references/type-er.md",
+      "references/type-timeline.md",
+      "references/type-swimlane.md",
+      "references/type-quadrant.md",
+      "references/type-radar.md",
+      "references/type-polar.md",
+      "references/type-loop.md",
+      "references/type-nested.md",
+      "references/type-tree.md",
+      "references/type-org-chart.md",
+      "references/type-layers.md",
+      "references/type-exploded.md",
+      "references/type-axonometric-plan.md",
+      "references/type-venn.md",
+      "references/type-pyramid.md",
+      "references/type-bar.md",
+      "references/type-waterfall.md",
+      "references/type-treemap.md",
+      "references/type-heatmap.md",
+      "references/type-line.md",
+      "references/type-gantt.md",
+      "references/type-scatter.md",
+      "references/type-high-level.md",
+      "references/type-process.md",
+      "references/type-medallion.md",
+      "references/type-data-flow.md",
+      "references/type-dp-integration.md",
+      "references/type-dp-security-matrix.md",
+      "references/type-sankey.md",
+      "references/type-fishbone.md",
+      "references/type-wardley.md",
+      "references/type-kanban.md",
+      "references/type-journey.md",
+      "references/type-deployment.md",
+      "references/type-dependency.md",
+      "references/type-uml-class.md",
+      "references/type-story-map.md",
+      "references/type-db-schema.md",
+      "guide.md",
+      "references/primitives-core.md",
+      "references/style-guide.md",
+      "references/layout-budget.md",
+      "references/output-spec.md",
+      "references/semantic-patterns.md",
+      "templates/template.html",
+      "templates/template-dark.html",
+      "templates/template-full.html"
+    ]
+  },
+  "verification": {
+    "runtime_sha256_match": true,
+    "manifest_path_allowlist": true,
+    "forbidden_network_or_shell_directives_found": false,
+    "prompt_authority_override_or_exfiltration_patterns_found": false,
+    "machine_scan_findings": {
+      "remote_asset_directives": [],
+      "shell_or_install_directives": [],
+      "authority_override": [],
+      "host_gate": []
+    }
+  },
+  "source_review_findings": [
+    {
+      "finding": "MIT license and copyright retained",
+      "action": "Full license copied beside pinned runtime assets."
+    },
+    {
+      "finding": "Upstream style guide and three templates contained Google Fonts links",
+      "action": "Removed remote font links; use locally bundled Lexend and system fallbacks."
+    },
+    {
+      "finding": "Upstream guide required first-use host style onboarding and a confirmation pause",
+      "action": "Removed the host gate; use the preconfigured OpenMates palette and request defaults."
+    },
+    {
+      "finding": "Upstream guide and references cited local shell validators and file export/import helpers",
+      "action": "Preserved geometric and accessibility checks as drawing guidance; removed shell invocations from runtime prompt."
+    },
+    {
+      "finding": "Several type references said to halt and ask for ambiguous focal declarations",
+      "action": "Adapted to choose from the user goal and state a material assumption; no automatic host approval gate."
+    },
+    {
+      "finding": "No role-override or exfiltration instruction found in the copied 44 type references and common assets",
+      "action": "Full selected references are resolved only by shipped IDs and verified SHA-256 revisions."
+    },
+    {
+      "finding": "SVG-only dimensions can crop surrounding HTML composition",
+      "action": "Templates and runtime instructions declare a whole-document artboard on html and a selected type on the SVG; generated dimensions must fit header, cards, padding, and footer."
+    },
+    {
+      "finding": "Scaled preview surround must match the source page background",
+      "action": "Root data-om-background declares the same resolved opaque six-digit #RRGGBB color as the body/artboard background in the guide and all three templates."
+    }
+  ],
+  "runtime_boundary": "Only manifest-listed audited resources are loaded; JEV receives concise app Memory metadata, and the main model receives complete common and selected type documents after selection. Imported user diagram content remains untrusted.",
+  "excluded_upstream_material": [
+    "installation and host onboarding",
+    "saved host profiles",
+    "shell import/export commands",
+    "motion controller scripts",
+    "examples and screenshots",
+    "remote font fetching"
+  ],
+  "dependency_change": "none",
+  "metadata_review": {
+    "app_instruction_and_type_memory_count": 45,
+    "sources": [
+      {
+        "path": "app.yml",
+        "sha256": "24a66f187bbf8a04a46d08f709d003e240d5f4149610f976b3ebb7b290e23468"
+      },
+      {
+        "path": "memories/type-architecture-delta.md",
+        "sha256": "be29b5bc9179a5adfd32dc15d9b15de65be6dc01185e22d5dc4b5bd7c16f5866"
+      },
+      {
+        "path": "memories/type-architecture.md",
+        "sha256": "202480f8f1da029caf79190c26d9e45379a5c259f6cf959674cd72c72f52b82c"
+      },
+      {
+        "path": "memories/type-axonometric-plan.md",
+        "sha256": "db34a7b643971074b8dced80c4aeb80706fcedc6cf1ae5680f18bf74f12092c7"
+      },
+      {
+        "path": "memories/type-bar.md",
+        "sha256": "d5e860fcec107348520894acb9f259a860a60c086513040fd690e523676fd6e2"
+      },
+      {
+        "path": "memories/type-data-flow.md",
+        "sha256": "1daec50f05df4bfcd5ef100822e901a091d1c69ddaa273761745408e534d86b3"
+      },
+      {
+        "path": "memories/type-db-schema.md",
+        "sha256": "03bbd630ae5451e215700841856ab70738f0cc76a5e0b9311391c63b38dc0786"
+      },
+      {
+        "path": "memories/type-dependency.md",
+        "sha256": "4349979b4b31e8282bad691f6ed6fe487086bb0da346b3ade3b96270e959f1aa"
+      },
+      {
+        "path": "memories/type-deployment.md",
+        "sha256": "9bad03950af950ff1c1652f5d413a2c709bc2999658b628944749ef046695984"
+      },
+      {
+        "path": "memories/type-dp-integration.md",
+        "sha256": "862b7f33f9f346393f221c3aa116538befb26d064c81aba751aea0c288a3dd7a"
+      },
+      {
+        "path": "memories/type-dp-security-matrix.md",
+        "sha256": "2a08e39e930ffed6ee142fe24b175aafbb74b5fddb0e818b2058b496ab9bcbca"
+      },
+      {
+        "path": "memories/type-er.md",
+        "sha256": "2a8c86a9dea31430dabac1cc56d41562b7f1c88792676fa9139d3312f7d65d32"
+      },
+      {
+        "path": "memories/type-exploded.md",
+        "sha256": "80e54f976c0abb4c9b08cbed9f0ff6e8eec33673ff64556945f3389357c1568f"
+      },
+      {
+        "path": "memories/type-fishbone.md",
+        "sha256": "27d9536b69bbbdca1d6cc82159d6f5b2b3871ca634277540074a253e2fc36b2b"
+      },
+      {
+        "path": "memories/type-flowchart.md",
+        "sha256": "728b5f4838cabe9816be301ae5f60bbc2fddbbb8e4bd0b167ee1462ef8069272"
+      },
+      {
+        "path": "memories/type-gantt.md",
+        "sha256": "e98c9dca28f8e3d4adb287f285767e954f4cb2a29a5dab7d68aefb38cc2a2769"
+      },
+      {
+        "path": "memories/type-heatmap.md",
+        "sha256": "6deff54f0333c63904e2321eb307add8b7295b6c440a90f995bf13c7e20c2d13"
+      },
+      {
+        "path": "memories/type-high-level.md",
+        "sha256": "cfa223b802c04129166503618e3d046f609f6a8eae9ea52d5f6aa39245692301"
+      },
+      {
+        "path": "memories/type-it-state.md",
+        "sha256": "b5e23a7eaafa5373b71ef6589b7c1c8dbc25008e17a86c1248cd174226e1b084"
+      },
+      {
+        "path": "memories/type-journey.md",
+        "sha256": "c8cbe4337173fb37628720a108675a1624658cacbf09b92cfd2f046b18fd699f"
+      },
+      {
+        "path": "memories/type-kanban.md",
+        "sha256": "d27848cc46f9848534a3797872d58716f0c1e7453f4df1b2bee660c02a15e65a"
+      },
+      {
+        "path": "memories/type-layers.md",
+        "sha256": "42788e7110eb539291139b858d3bbc0b134e3589e57b406bec3c40bbf8e57ccd"
+      },
+      {
+        "path": "memories/type-line.md",
+        "sha256": "253d4feb6ac91c845f021328979dbfe44ccb945e44c3de666ea73b036166f022"
+      },
+      {
+        "path": "memories/type-loop.md",
+        "sha256": "2e1f3c4f7867a12ea7a92ba11dd5e54302306a2284fa49df10f889bcd95d3a96"
+      },
+      {
+        "path": "memories/type-medallion.md",
+        "sha256": "61a9c7a915b73d1ef978698178c7b28b143c9df7ec4b8d6dbfe94f03fed54608"
+      },
+      {
+        "path": "memories/type-nested.md",
+        "sha256": "6b7ff012c413327e605136874ce03aca024b21226ccee26b880afd1610e9a815"
+      },
+      {
+        "path": "memories/type-org-chart.md",
+        "sha256": "451c0d3fd8c85c32474b16dc6d70090d6bf62b3422da4ac0677a4ab796e36ea7"
+      },
+      {
+        "path": "memories/type-polar.md",
+        "sha256": "b3c1b0666447ceae2f39da58b4544f8f5541d8e7af1e254b7db3dac8613d77a6"
+      },
+      {
+        "path": "memories/type-process.md",
+        "sha256": "719df9888fef9b53a2e19d71ac1a6cad0c35197dc7d99a5eace5ca6cdb47e8f4"
+      },
+      {
+        "path": "memories/type-pyramid.md",
+        "sha256": "05081ba8e1d82430731f730d9b790fa668b1deaf8ae26936bee02d70be7fa8b4"
+      },
+      {
+        "path": "memories/type-quadrant.md",
+        "sha256": "301be672afd974a983279e539794e1a4e40dbcb50ca120e28a5832c813c70df3"
+      },
+      {
+        "path": "memories/type-radar.md",
+        "sha256": "21f88e4374d8225d7bef42650f3fbbeec3a116965049914748cd5d77e3801431"
+      },
+      {
+        "path": "memories/type-sankey.md",
+        "sha256": "403918391a6964360043a100f4a29a76a0c675955dd07f9957d269682f91fce9"
+      },
+      {
+        "path": "memories/type-scatter.md",
+        "sha256": "9ae5bd8955c14d69415b6032bbb0b38d4658d6383c203a9cdb504d830265840d"
+      },
+      {
+        "path": "memories/type-sequence.md",
+        "sha256": "341196db6cb9aff19ee8b47e72ca995fe6e2ef8265fd315205d93da499d98449"
+      },
+      {
+        "path": "memories/type-state.md",
+        "sha256": "2c14e533d57131c750570bc83348c5cc6e93e5fa27d64f9acb5e8c2e933890c7"
+      },
+      {
+        "path": "memories/type-story-map.md",
+        "sha256": "5f28fa12f68481baca26bc1aaa2486e1a5068a6fde9cfbdd6cd582b0061a4dc5"
+      },
+      {
+        "path": "memories/type-swimlane.md",
+        "sha256": "060145bd4866ef95c4ddcc8af4760e5cc369f0b422cb6301bf020c95f63ca80b"
+      },
+      {
+        "path": "memories/type-timeline.md",
+        "sha256": "1051780651c1990c63a3da481d939b03d8e7e13b1e336782d2a0522a44d17929"
+      },
+      {
+        "path": "memories/type-tree.md",
+        "sha256": "e54fe4cdf7d5d363a50c5ff8df4ffa8c8ddbb72bc5b68e42ef4726f12b0438e1"
+      },
+      {
+        "path": "memories/type-treemap.md",
+        "sha256": "9692c00fefada0ac9075d1045a5eccee5c06b7d55880dfd7b509dc35237f3731"
+      },
+      {
+        "path": "memories/type-uml-class.md",
+        "sha256": "9401d7317ee603e22ba96c703c76abb22f6449b7df28ba4803fcdc64587c3b40"
+      },
+      {
+        "path": "memories/type-venn.md",
+        "sha256": "40bd629c1d6059b4fa5f4dd4d2a96deead98db8096bb6f37ca70bce70ba44d62"
+      },
+      {
+        "path": "memories/type-wardley.md",
+        "sha256": "818b27bf3b8ec84043b9eeb914fce568fc43bd30d9505d9e4f3fad5da5cc4457"
+      },
+      {
+        "path": "memories/type-waterfall.md",
+        "sha256": "97694772e8e3ed8f65a2f2d75229b02d2f338c7ef5ed023698ee53ea18fa4505"
+      }
+    ],
+    "machine_scan_findings": {
+      "remote_asset_directives": [],
+      "shell_or_install_directives": [],
+      "authority_override": [],
+      "host_gate": []
+    }
+  }
+}
