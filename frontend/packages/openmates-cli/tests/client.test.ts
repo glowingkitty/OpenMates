@@ -2312,6 +2312,86 @@ describe("task update job helpers", () => {
 });
 
 describe("CLI saved-chat recovery preflight", () => {
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle,auth.session.isolation,chats.completion.lease-fenced
+  for (const variant of ["fresh", "memory-loaded", "arbitrary snapshot", "expired", "future", "missing owner", "rotated disk cookie", "changed account", "changed Team", "revoked socket"] as const) {
+    it(`uses a one-shot Personal auth receipt or falls back safely: ${variant}`, async () => {
+      let authCalls = 0;
+      let preflightSent = false;
+      let upgraded = false;
+      const wss = new WebSocketServer({ noServer: true });
+      const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+        response.setHeader("content-type", "application/json");
+        if (request.method === "POST" && request.url === "/v1/auth/session") {
+          authCalls++;
+          response.end(JSON.stringify({ success: true, ws_token: `fresh-token-${authCalls}`,
+            user: variant === "missing owner" && authCalls === 1 ? {} : { id: "11111111-1111-4111-8111-111111111111" } }));
+        } else if (request.method === "GET" && request.url === "/v1/sdk/memories") {
+          response.end(JSON.stringify({ memories: [] }));
+        } else if (request.method === "GET" && request.url === "/v1/projects") {
+          response.end(JSON.stringify({ projects: [] }));
+        } else if (request.method === "GET" && request.url?.startsWith("/v1/user-tasks")) {
+          response.end(JSON.stringify({ tasks: [], complete: true, next_cursor: null }));
+        } else {
+          response.writeHead(404);
+          response.end(JSON.stringify({}));
+        }
+      });
+      server.on("upgrade", (request, connection, head) => {
+        if (variant === "revoked socket") { connection.destroy(); return; }
+        upgraded = true;
+        wss.handleUpgrade(request, connection, head, (ws) => {
+          ws.on("message", raw => {
+            const frame = JSON.parse(raw.toString()) as { type: string; payload?: { chat_id?: string } };
+            if (frame.type === "chat_metadata_warmup") {
+              ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+            } else if (frame.type === "encrypted_chat_metadata") {
+              ws.send(JSON.stringify({ type: "encrypted_metadata_stored", payload: { chat_id: frame.payload?.chat_id } }));
+            } else if (frame.type === "chat_turn_preflight") {
+              preflightSent = true;
+              ws.send(JSON.stringify({ type: "error", payload: { code: "client_update_required" } }));
+            }
+          });
+        });
+      });
+      await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+      const address = server.address();
+      assert.ok(address && typeof address === "object");
+      try {
+        const apiUrl = `http://127.0.0.1:${address.port}`;
+        writeLegacySession(apiUrl);
+        const client = OpenMatesClient.load({ apiUrl });
+        const snapshot = variant === "memory-loaded" ? undefined : variant === "arbitrary snapshot"
+          ? (await client.whoAmI(), []) : await client.listMemories({ personal: true });
+        const internal = client as unknown as {
+          personalMemoryAuthHandoff: { auth: { validatedAt: number } } | null;
+        };
+        if (variant === "expired") internal.personalMemoryAuthHandoff!.auth.validatedAt -= 6_000;
+        if (variant === "future") internal.personalMemoryAuthHandoff!.auth.validatedAt += 6_000;
+        if (variant === "rotated disk cookie") {
+          const stored = JSON.parse(readFileSync(sessionPath, "utf8")) as { cookies: Record<string, string> };
+          stored.cookies.auth_refresh_token = "rotated-on-disk";
+          writeFileSync(sessionPath, JSON.stringify(stored), { mode: 0o600 });
+        }
+        if (variant === "changed account") client.getSession()!.hashedEmail = "different-account";
+        if (variant === "changed Team") client.getSession()!.activeTeamId = "different-team";
+        await assert.rejects(client.sendMessage({ message: "ordinary question", personal: true,
+          ...(snapshot ? { memorySnapshot: snapshot } : {}), piiDetection: false }), variant === "revoked socket" ? undefined
+            : variant === "changed account" ? /Login account changed/i : /update required/i);
+        assert.equal(authCalls, variant === "fresh" || variant === "memory-loaded" || variant === "revoked socket" || variant === "changed account" ? 1 : 2);
+        assert.equal(preflightSent, variant !== "revoked socket" && variant !== "changed account");
+        assert.equal(upgraded, variant !== "revoked socket" && variant !== "changed account");
+        if (variant === "fresh") {
+          await assert.rejects(client.sendMessage({ message: "second question", personal: true,
+            memorySnapshot: snapshot, piiDetection: false }), /update required/i);
+          assert.equal(authCalls, 2, "the first send consumed the auth receipt");
+        }
+      } finally {
+        wss.close();
+        server.closeAllConnections();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
+  }
   // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
   it("prepares a new chat's scoped context during recovery discovery", async () => {
     let projectReadBeforeDiscovery = false;

@@ -12000,6 +12000,7 @@ async function sendMessageStreaming(
   }>;
   acceptedTaskProposals: Array<Record<string, unknown>>;
 } | WaitingForUserResult | SignupRequiredResult> {
+  const preparationStartedAt = performance.now();
   let memorySnapshot: DecryptedMemoryEntry[] = [];
   const needsMemorySnapshot = client.hasSession() && (
     params.incognito !== true
@@ -12022,9 +12023,12 @@ async function sendMessageStreaming(
       memorySnapshot = [];
     }
   }
+  const memorySnapshotMs = Math.round(performance.now() - preparationStartedAt);
+  const redactorSeedStartedAt = performance.now();
   if (params.piiDetection !== false && redactor) {
     redactor.initializeFromMemories(memorySnapshot);
   }
+  const redactorSeedMs = Math.round(performance.now() - redactorSeedStartedAt);
 
   let headerPrinted = false;
   let typingShown = false;
@@ -12518,6 +12522,9 @@ async function sendMessageStreaming(
   finalMessage = urlResult.message;
   preparedEmbeds.push(...urlResult.embeds);
 
+  if (process.env.OPENMATES_DEBUG === "1") {
+    console.error(`[cli preparation] pre_sdk_ms=${Math.round(performance.now() - preparationStartedAt)} memory_snapshot_ms=${memorySnapshotMs} redactor_seed_ms=${redactorSeedMs}`);
+  }
   const result = await client.sendMessage({
       message: finalMessage,
       chatId: params.chatId,

@@ -3323,9 +3323,28 @@ export async function persistCompressionCheckpoints(
   }
 }
 
+type PersonalSendAuthHandoff = {
+  ownerId: string;
+  wsToken: string;
+  validatedAt: number;
+  apiUrl: string;
+  hashedEmail: string;
+  sessionId: string;
+  createdAt: number;
+  masterKeyExportedB64: string;
+  activeTeamId: string | null | undefined;
+  cookieFingerprint: string;
+};
+
+function authCookieFingerprint(cookies: Record<string, string>): string {
+  return createHash("sha256").update(JSON.stringify(Object.entries(cookies).sort(([a], [b]) => a.localeCompare(b)))).digest("hex");
+}
+
 export class OpenMatesClient {
   private readonly workflowDeliveriesBySocket = new WeakMap<OpenMatesWsClient, Map<string, WorkflowDeliveryDiscovery>>();
   private readonly ownTeamDisplayNames = new Map<string, { name: string; expiresAt: number }>();
+  private pendingWhoAmIAuthHandoff: PersonalSendAuthHandoff | null = null;
+  private personalMemoryAuthHandoff: { snapshot: WeakRef<DecryptedMemoryEntry[]>; auth: PersonalSendAuthHandoff } | null = null;
   readonly apiUrl: string;
   private session: OpenMatesSession | null;
   private readonly http: OpenMatesHttpClient;
@@ -5094,6 +5113,7 @@ export class OpenMatesClient {
 
   async whoAmI(): Promise<Record<string, unknown>> {
     return this.withFreshStoredSession(async () => {
+      this.pendingWhoAmIAuthHandoff = null;
       const session = this.requireSession();
       const previousRefreshToken = session.cookies.auth_refresh_token;
       const response = await this.http.post<{
@@ -5122,6 +5142,17 @@ export class OpenMatesClient {
       }
       session.cookies = this.http.getCookieMap();
       saveSession(session, { expectedRefreshToken: previousRefreshToken });
+      const ownerId = typeof response.data.user?.id === "string" ? response.data.user.id : "";
+      const wsToken = typeof response.data.ws_token === "string" ? response.data.ws_token : "";
+      if (ownerId && wsToken && session.wsToken === wsToken
+        && authCookieFingerprint(session.cookies) === authCookieFingerprint(this.http.getCookieMap())) {
+        this.pendingWhoAmIAuthHandoff = {
+          ownerId, wsToken, validatedAt: performance.now(), apiUrl: session.apiUrl,
+          hashedEmail: session.hashedEmail, sessionId: session.sessionId,
+          createdAt: session.createdAt, masterKeyExportedB64: session.masterKeyExportedB64,
+          activeTeamId: session.activeTeamId, cookieFingerprint: authCookieFingerprint(session.cookies),
+        };
+      }
       return response.data.user ?? {};
     });
   }
@@ -8301,6 +8332,7 @@ export class OpenMatesClient {
     /** Prompt-budget metrics surfaced by the backend when available. */
     promptBudget: AiResponsePromptBudget | null;
   }> {
+    const preWsStartedAt = performance.now();
     const teamId = this.resolveTeamContext({ teamId: params.teamId, personal: params.personal });
     const teamSenderName = teamId ? await this.ownTeamSenderName(teamId) : "User";
     // Resolve short IDs (8-char prefix) to full UUIDs via sync cache.
@@ -8347,6 +8379,7 @@ export class OpenMatesClient {
     }
     const shouldWaitForAi = shouldWaitForTeamAi(finalMessage, teamId);
 
+    const memoryStartedAt = performance.now();
     let availableMemories: DecryptedMemoryEntry[] = params.memorySnapshot ?? [];
     let memoryCountsLoaded = false;
     let memoryMetadataKeys: string[] = [];
@@ -8368,7 +8401,14 @@ export class OpenMatesClient {
         }
       }
     }
+    const snapshotAuthHandoff = this.personalMemoryAuthHandoff?.snapshot.deref() === availableMemories
+      ? this.personalMemoryAuthHandoff.auth : null;
+    this.personalMemoryAuthHandoff = null;
+    this.pendingWhoAmIAuthHandoff = null;
+    const personalSendAuthHandoff = !teamId && !params.incognito ? snapshotAuthHandoff : null;
+    const memoryPrepMs = Math.round(performance.now() - memoryStartedAt);
 
+    const privacyStartedAt = performance.now();
     const savedPrivacyHistory = !params.incognito && params.chatId
       ? await this.getChatMessages(chatId, teamId ? { teamId } : { personal: true }) : null;
     let piiMappings = [...(savedPrivacyHistory?.messages.flatMap((message) => (message.piiMappings ?? []).map((mapping) => ({ ...mapping, type: mapping.type ?? "OTHER" }))) ?? []), ...(params.piiMappings ?? [])];
@@ -8390,11 +8430,14 @@ export class OpenMatesClient {
       }
     }
     params.onPrivacyPrepared?.(finalMessage);
+    const privacyPrepMs = Math.round(performance.now() - privacyStartedAt);
 
     const explicitTasksAppSkill = messageExplicitlyRequestsTasksAppSkill(finalMessage);
     const taskUpdateJobsEnabled = params.taskUpdateJobs !== false && !explicitTasksAppSkill;
+    const preWsMs = Math.round(performance.now() - preWsStartedAt);
     const authSocketStartedAt = Date.now();
     const { ws, ownerId } = await this.openWsClient({
+      personalSendAuthHandoff,
       taskUpdateJobs: taskUpdateJobsEnabled,
       projectFileJobs: !params.incognito,
       remoteCommandJobs: !params.incognito,
@@ -8676,7 +8719,7 @@ export class OpenMatesClient {
       if (!prepared.ok) throw prepared.error;
       if (!contextOwnerIsCurrent()) throw new Error("Chat workspace changed while preparing context.");
       if (process.env.OPENMATES_DEBUG === "1") {
-        console.error(`[chat preparation] auth_ws_ms=${authSocketMs} recovery_ms=${recoveryMs} context_ms=${prepared.elapsedMs}`);
+        console.error(`[chat preparation] pre_ws_ms=${preWsMs} memory_ms=${memoryPrepMs} privacy_ms=${privacyPrepMs} auth_ws_ms=${authSocketMs} recovery_ms=${recoveryMs} context_ms=${prepared.elapsedMs}`);
       }
       Object.assign(messagePayload, prepared.value);
     }
@@ -14135,13 +14178,20 @@ export class OpenMatesClient {
     }
     if (!teamId) {
       let accountDocuments: Awaited<ReturnType<OpenMatesClient['getCustomRuleDocuments']>> = [];
-      try { accountDocuments = await this.getCustomRuleDocuments(); }
+      // Bind the account-settings auth receipt to this exact decrypted
+      // snapshot; a later unrelated memory read must not borrow it.
+      this.pendingWhoAmIAuthHandoff = null;
+      let accountDocumentsLoaded = false;
+      try { accountDocuments = await this.getCustomRuleDocuments(); accountDocumentsLoaded = true; }
       catch { /* Unavailable account settings must not hide valid encrypted row Memories. */ }
+      const handoff = this.pendingWhoAmIAuthHandoff;
+      this.pendingWhoAmIAuthHandoff = null;
       for (const memory of accountDocuments) {
         const title = /^title:\s*(.+)$/m.exec(memory.document)?.[1]?.replace(/^['"]|['"]$/g, '') ?? 'Memory';
         results.push({ id: `account-memory-${memory.id.replace(/^personal:/, '')}`, app_id: 'openmates', item_type: 'memories',
           item_key_hash: '', data: { title, document: memory.document }, created_at: 0, updated_at: 0, item_version: 1 });
       }
+      if (accountDocumentsLoaded && handoff) this.personalMemoryAuthHandoff = { snapshot: new WeakRef(results), auth: handoff };
     }
     return results;
   }
@@ -15144,19 +15194,42 @@ export class OpenMatesClient {
 
   /**
    * Refresh ws_token, then create and open a WebSocket client.
-   * Combines refreshWsToken() + makeWsClient() + ws.open() into one call
-   * so every WebSocket usage gets a fresh HMAC token automatically.
+   * Opens an authenticated socket. Only a Personal send may supply a
+   * one-use, same-send validated auth receipt; every other use refreshes.
    */
-  private async openWsClient(options: { taskUpdateJobs?: boolean; projectFileJobs?: boolean; remoteCommandJobs?: boolean; interactiveHuman?: boolean } = {}): Promise<{
+  private async openWsClient(options: { taskUpdateJobs?: boolean; projectFileJobs?: boolean; remoteCommandJobs?: boolean; interactiveHuman?: boolean;
+    personalSendAuthHandoff?: PersonalSendAuthHandoff | null } = {}): Promise<{
     ws: OpenMatesWsClient;
     session: OpenMatesSession;
     ownerId: string | null;
   }> {
-    const ownerId = await this.refreshWsToken();
+    const reusedOwner = options.personalSendAuthHandoff
+      ? await this.reusePersonalSendAuthHandoff(options.personalSendAuthHandoff) : null;
+    const ownerId = reusedOwner ?? await this.refreshWsToken();
     const session = this.requireSession();
     const ws = this.makeWsClient(session, options);
     await ws.open();
     return { ws, session, ownerId };
+  }
+
+  private personalSendAuthHandoffCurrent(handoff: PersonalSendAuthHandoff): boolean {
+    const age = performance.now() - handoff.validatedAt;
+    const session = this.requireSession();
+    return age >= 0 && age <= 5_000 && handoff.ownerId.length > 0 && handoff.wsToken.length > 0
+      && session.apiUrl === handoff.apiUrl && session.apiUrl.replace(/\/$/, "") === this.apiUrl
+      && session.hashedEmail === handoff.hashedEmail && session.sessionId === handoff.sessionId
+      && session.createdAt === handoff.createdAt && session.masterKeyExportedB64 === handoff.masterKeyExportedB64
+      && session.activeTeamId === handoff.activeTeamId && session.wsToken === handoff.wsToken
+      && authCookieFingerprint(session.cookies) === handoff.cookieFingerprint
+      && authCookieFingerprint(this.http.getCookieMap()) === handoff.cookieFingerprint;
+  }
+
+  private async reusePersonalSendAuthHandoff(handoff: PersonalSendAuthHandoff): Promise<string | null> {
+    if (!this.personalSendAuthHandoffCurrent(handoff)) return null;
+    // Re-read the persisted profile under the same cross-process refresh lock
+    // before using the one-shot token. A changed cookie or owner falls back to
+    // the normal refresh; an invalidated account still fails closed.
+    return this.withFreshStoredSession(async () => this.personalSendAuthHandoffCurrent(handoff) ? handoff.ownerId : null);
   }
 
   private interactiveViewerChatId: string | null = null;

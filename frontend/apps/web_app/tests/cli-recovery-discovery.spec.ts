@@ -274,3 +274,46 @@ test('SDK-minted new chat skips only impossible Focus and Plan discovery', async
 		removeWorkflowCliHome(home);
 	}
 });
+
+// contract-test: supporting surface=rest_api assertions=auth.session.lifecycle,auth.session.isolation,chats.completion.lease-fenced
+test('Personal SDK send reuses only its fresh validated session receipt before preflight', async ({ page }: { page: any }) => {
+	test.setTimeout(300_000);
+	test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted'
+		|| process.env.CI_TEST_MODE !== 'e2e', 'Requires the isolated GitHub product stack');
+	skipWithoutCredentials(test, email, password, otpKey);
+	const apiUrl = workflowApiUrl();
+	const home = createWorkflowCliHome('personal-auth-handoff');
+	try {
+		await loginWorkflowCliViaPair(page, apiUrl, home, 'CLI_PERSONAL_AUTH_HANDOFF');
+		const observed = canonicalHistorySdk(apiUrl, home, `
+			if(client.getActiveTeamId())throw Error('Expected paired Personal account');
+			const post=client.http.post.bind(client.http);
+			let authCalls=0,preflights=0;
+			client.http.post=async(...args)=>{if(args[0]==='/v1/auth/session')authCalls++;return post(...args);};
+			const open=client.openWsClient.bind(client);
+			client.openWsClient=async(...args)=>{
+				const opened=await open(...args),send=opened.ws.sendAsync.bind(opened.ws);
+				opened.ws.sendAsync=async(type,payload)=>{
+					if(type==='chat_turn_preflight'){preflights++;throw Error('EXPECTED_PRE_DISPATCH_STOP');}
+					return send(type,payload);
+				};
+				return opened;
+			};
+			const counts=[];
+			for(const mode of ['fresh','expired']){
+				const snapshot=await client.listMemories({personal:true});
+				if(mode==='expired')client.personalMemoryAuthHandoff.auth.validatedAt-=6000;
+				try{
+					await client.sendMessage({message:'Ordinary Personal auth boundary check.',personal:true,
+						memorySnapshot:snapshot,piiDetection:false});
+					throw Error('Inference preflight was not captured');
+				}catch(error){if(error.message!=='EXPECTED_PRE_DISPATCH_STOP')throw error;}
+				counts.push({authCalls,preflights});
+			}
+			process.stdout.write(JSON.stringify({counts}));
+		`);
+		expect(observed.counts).toEqual([{ authCalls: 1, preflights: 1 }, { authCalls: 3, preflights: 2 }]);
+	} finally {
+		removeWorkflowCliHome(home);
+	}
+});
