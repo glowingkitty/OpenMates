@@ -75,6 +75,47 @@ test("startup renders cached chats before background sync and preserves the sele
 });
 
 // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent,terminal-ui.offline.cache-first
+test("startup publishes a recent cached window before older previews and ignores stale windows", async () => {
+  const state=createInitialTuiState();state.signedIn=true;
+  let finish!:(page:unknown)=>void;
+  let publish!:(page:{chats:ReturnType<typeof chat>[]})=>void;
+  const frames:string[]=[];
+  const loading=loadHomeData(state,{
+    listCachedChats:(_limit:number,_page:number,options:{onCachedChats:typeof publish})=>{
+      publish=options.onCachedChats;return new Promise(done=>{finish=done;});
+    },
+    listChats:async()=>({chats:[]}),getDailyInspirations:async()=>[],
+  } as never,()=>frames.push(stripAnsi(renderTuiFrame(state,120,40))));
+  await new Promise<void>(done=>setImmediate(done));
+  publish({chats:[chat(1)]});
+  assert.equal(state.homeChatsLoading,false);assert.match(frames.at(-1)!,/Conversation 1/);
+  assert.doesNotMatch(frames.at(-1)!,/Loading your recent chats/);
+  const version=state.homeLoadVersion;
+  Object.assign(state,createInitialTuiState(),{homeLoadVersion:version+1});
+  publish({chats:[chat(2)]});assert.deepEqual(state.recentChats,[]);
+  finish({chats:[chat(3)]});await loading;assert.deepEqual(state.recentChats,[]);
+});
+
+// contract-test: supporting surface=cli assertions=terminal-ui.offline.cache-first,chat-navigation.open.local-first-coherent
+test("refreshing a populated home keeps the selected older chat while a recent cache window decrypts", async () => {
+  const state=createInitialTuiState();state.signedIn=true;
+  const chats=Array.from({length:80},(_,i)=>chat(i));state.recentChats=chats;state.selectedIndex=60;
+  let finish!:(page:{chats:typeof chats})=>void;
+  let publish!:(page:{chats:typeof chats})=>void;
+  const loading=loadHomeData(state,{
+    listCachedChats:(_limit:number,_page:number,options:{onCachedChats:typeof publish})=>{
+      publish=options.onCachedChats;return new Promise(done=>{finish=done;});
+    },listChats:async()=>({chats}),getDailyInspirations:async()=>[],
+  } as never,()=>{});
+  await new Promise<void>(done=>setImmediate(done));
+  publish({chats:chats.slice(0,32)});
+  assert.equal(state.recentChats[state.selectedIndex].id,'chat-60');
+  assert.equal(state.recentChats.length,80,'Existing visible inventory must not shrink to an early window');
+  finish({chats});await loading;
+  assert.equal(state.recentChats[state.selectedIndex].id,'chat-60');
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.open.local-first-coherent,terminal-ui.offline.cache-first
 test("cold startup shows verified synced previews while saved output recovery is still pending", async () => {
   const state=createInitialTuiState();state.signedIn=true;
   let finish!:(page:unknown)=>void;

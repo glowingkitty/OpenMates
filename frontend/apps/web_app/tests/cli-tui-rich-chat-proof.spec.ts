@@ -320,6 +320,9 @@ test('records saved Markdown, linked Fitness views, wiki navigation, and offline
 			{name: 'offline-map', key: 'Return', wait_for: 'Mapped results · Map · 2 results', hold_ms: 500},
 			{name: 'offline-calendar', text: 'c', wait_for: 'Mapped results · Calendar · 2 results', hold_ms: 400},
 			{name: 'offline-chat-return', key: 'Escape', wait_for: 'Saved answer', hold_ms: 350},
+			{name: 'offline-home-return', key: 'Escape', wait_for: 'Continue where you left off', hold_ms: 300},
+			{name: 'offline-reopen-command', text: '/chat ' + chat.chatId},
+			{name: 'offline-reopen', key: 'Return', wait_for: 'Dance studio Mitte', wait_timeout_ms: 30_000, hold_ms: 500},
 			{name: 'offline-exit-command', text: '/exit'},
 			{name: 'offline-exit', key: 'Return'}
 		];
@@ -341,6 +344,7 @@ test('records saved Markdown, linked Fitness views, wiki navigation, and offline
 		expect(offline.frame('offline-map').join('\n')).toContain('Dance studio Mitte');
 		expect(offline.frame('offline-calendar').join('\n')).toContain('2026-10-08');
 		expect(offline.frame('offline-chat-return').join('\n')).toContain('Fitness · Search classes');
+		expect(offline.frame('offline-reopen').join('\n')).toContain('Dance studio Mitte');
 		await offline.attest();
 	} finally {
 		try { if (chat) persistChatFixture(chat, 'cleanup'); }

@@ -797,44 +797,61 @@ export async function decryptWithAesGcmCombined(
   rawKeyBytes: Uint8Array,
   associatedData?: string,
 ): Promise<string | null> {
+  const decrypt = await createAesGcmCombinedDecryptor(rawKeyBytes);
+  return decrypt(encryptedWithIvB64, associatedData);
+}
+
+/** Import one decrypt-only key for the lifetime of a chat operation. */
+export async function createAesGcmCombinedDecryptor(
+  rawKeyBytes: Uint8Array,
+): Promise<(encryptedWithIvB64: string, associatedData?: string) => Promise<string | null>> {
+  let key: CryptoKey;
   try {
-    const combined = base64ToBytes(encryptedWithIvB64);
-    if (combined.length <= AES_GCM_IV_LENGTH) {
-      return null;
-    }
-
-    // Detect new "OM" format: [magic 2B][fingerprint 4B][IV 12B][ciphertext]
-    let offset = 0;
-    if (
-      combined.length > CIPHERTEXT_HEADER_LENGTH + AES_GCM_IV_LENGTH &&
-      combined[0] === CIPHERTEXT_MAGIC_0 &&
-      combined[1] === CIPHERTEXT_MAGIC_1
-    ) {
-      offset = CIPHERTEXT_HEADER_LENGTH;
-    }
-
-    const iv = combined.slice(offset, offset + AES_GCM_IV_LENGTH);
-    const ciphertext = combined.slice(offset + AES_GCM_IV_LENGTH);
-    const key = await cryptoApi.subtle.importKey(
+    key = await cryptoApi.subtle.importKey(
       "raw",
       toArrayBuffer(rawKeyBytes),
       { name: "AES-GCM" },
       false,
       ["decrypt"],
     );
-    const decrypted = await cryptoApi.subtle.decrypt(
-      {
-        name: "AES-GCM",
-        iv: toArrayBuffer(iv),
-        ...(associatedData ? { additionalData: toArrayBuffer(new TextEncoder().encode(associatedData)) } : {}),
-      },
-      key,
-      toArrayBuffer(ciphertext),
-    );
-    return new TextDecoder().decode(decrypted);
   } catch {
-    return null;
+    // Match the single-field helper's null result for an invalid raw key.
+    return async () => null;
   }
+
+  return async (encryptedWithIvB64: string, associatedData?: string): Promise<string | null> => {
+    try {
+      const combined = base64ToBytes(encryptedWithIvB64);
+      if (combined.length <= AES_GCM_IV_LENGTH) {
+        return null;
+      }
+
+      // Detect new "OM" format: [magic 2B][fingerprint 4B][IV 12B][ciphertext]
+      let offset = 0;
+      if (
+        combined.length > CIPHERTEXT_HEADER_LENGTH + AES_GCM_IV_LENGTH &&
+        combined[0] === CIPHERTEXT_MAGIC_0 &&
+        combined[1] === CIPHERTEXT_MAGIC_1
+      ) {
+        offset = CIPHERTEXT_HEADER_LENGTH;
+      }
+
+      const iv = combined.slice(offset, offset + AES_GCM_IV_LENGTH);
+      const ciphertext = combined.slice(offset + AES_GCM_IV_LENGTH);
+      const decrypted = await cryptoApi.subtle.decrypt(
+        {
+          name: "AES-GCM",
+          iv: toArrayBuffer(iv),
+          ...(associatedData ? { additionalData: toArrayBuffer(new TextEncoder().encode(associatedData)) } : {}),
+        },
+        key,
+        toArrayBuffer(ciphertext),
+      );
+      return new TextDecoder().decode(decrypted);
+    } catch {
+      return null;
+    }
+  };
 }
 
 export async function deriveEmailEncryptionKeyB64(

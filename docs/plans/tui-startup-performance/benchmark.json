@@ -1,0 +1,124 @@
+{
+  "before": {
+    "scope": "Synthetic encrypted local cache only; excludes terminal paint, auth, sync, network and inference.",
+    "node": "v24.20.0",
+    "platform": "linux",
+    "arch": "arm64",
+    "module_import_ms": 355.139497,
+    "cache_bytes": 2224393,
+    "chats": 500,
+    "messages": 500,
+    "embeds": 10000,
+    "samples": [
+      {
+        "home_first_ms": 499.86354800000004,
+        "home_complete_ms": 499.86354800000004,
+        "home_key_imports": 2500,
+        "chat_first_ms": 696.500096,
+        "chat_complete_ms": 696.500096,
+        "chat_key_imports": 2506
+      },
+      {
+        "home_first_ms": 453.63299200000006,
+        "home_complete_ms": 453.63299200000006,
+        "home_key_imports": 2500,
+        "chat_first_ms": 715.5773370000002,
+        "chat_complete_ms": 715.5773370000002,
+        "chat_key_imports": 2506
+      },
+      {
+        "home_first_ms": 457.11320799999976,
+        "home_complete_ms": 457.11320799999976,
+        "home_key_imports": 2500,
+        "chat_first_ms": 681.0878709999997,
+        "chat_complete_ms": 681.0878709999997,
+        "chat_key_imports": 2506
+      },
+      {
+        "home_first_ms": 407.52103799999986,
+        "home_complete_ms": 407.52103799999986,
+        "home_key_imports": 2500,
+        "chat_first_ms": 669.2551819999999,
+        "chat_complete_ms": 669.2551819999999,
+        "chat_key_imports": 2506
+      },
+      {
+        "home_first_ms": 443.1961080000001,
+        "home_complete_ms": 443.1961080000001,
+        "home_key_imports": 2500,
+        "chat_first_ms": 642.1825470000003,
+        "chat_complete_ms": 642.1825470000003,
+        "chat_key_imports": 2506
+      }
+    ],
+    "median": {
+      "home_first_ms": 453.63299200000006,
+      "home_complete_ms": 453.63299200000006,
+      "home_key_imports": 2500,
+      "chat_first_ms": 681.0878709999997,
+      "chat_complete_ms": 681.0878709999997,
+      "chat_key_imports": 2506
+    }
+  },
+  "after": {
+    "scope": "Synthetic encrypted local cache only; excludes terminal paint, auth, sync, network and inference.",
+    "node": "v24.20.0",
+    "platform": "linux",
+    "arch": "arm64",
+    "module_import_ms": 385.391462,
+    "cache_bytes": 2224393,
+    "chats": 500,
+    "messages": 500,
+    "embeds": 10000,
+    "samples": [
+      {
+        "home_first_ms": 35.22318800000005,
+        "home_complete_ms": 200.94412499999999,
+        "home_key_imports": 1000,
+        "chat_first_ms": 53.54702599999996,
+        "chat_complete_ms": 181.4408840000001,
+        "chat_key_imports": 4
+      },
+      {
+        "home_first_ms": 17.50027399999999,
+        "home_complete_ms": 154.95945200000006,
+        "home_key_imports": 1000,
+        "chat_first_ms": 42.02241700000013,
+        "chat_complete_ms": 158.16378499999996,
+        "chat_key_imports": 4
+      },
+      {
+        "home_first_ms": 18.775678999999855,
+        "home_complete_ms": 170.24551599999995,
+        "home_key_imports": 1000,
+        "chat_first_ms": 33.44442099999992,
+        "chat_complete_ms": 125.83016999999995,
+        "chat_key_imports": 4
+      },
+      {
+        "home_first_ms": 28.202958999999964,
+        "home_complete_ms": 151.842359,
+        "home_key_imports": 1000,
+        "chat_first_ms": 51.66921700000012,
+        "chat_complete_ms": 148.9797470000001,
+        "chat_key_imports": 4
+      },
+      {
+        "home_first_ms": 15.888587000000143,
+        "home_complete_ms": 141.10451399999988,
+        "home_key_imports": 1000,
+        "chat_first_ms": 37.56055800000013,
+        "chat_complete_ms": 157.86686400000008,
+        "chat_key_imports": 4
+      }
+    ],
+    "median": {
+      "home_first_ms": 18.775678999999855,
+      "home_complete_ms": 154.95945200000006,
+      "home_key_imports": 1000,
+      "chat_first_ms": 42.02241700000013,
+      "chat_complete_ms": 157.86686400000008,
+      "chat_key_imports": 4
+    }
+  }
+}

@@ -70,3 +70,45 @@ test('records optimistic send, centered Thinking and bounded rainbow animation i
     await recording.attest();
   } finally {removeWorkflowCliHome(home);}
 });
+
+
+const cachedStartupContract={id:'cli-tui-encrypted-cache-startup',title:'Encrypted cache navigation in the terminal',surface:'cli',devices:[profile],
+ transcript:[
+  {id:'home',text:'The chat workspace shows recent previews from an encrypted synthetic local cache while sync is unavailable.',checkpoint:'landing',devices:[profile]},
+  {id:'chat',text:'The selected chat opens its recent decrypted messages and preserves a new composer draft.',checkpoint:'draft',devices:[profile]},
+  {id:'history',text:'Older cached messages remain reachable and the newest response can be reopened after returning to the workspace.',checkpoint:'reopen',devices:[profile]},
+ ],assertions:[
+  {id:'tui.cache.synthetic.home',checkpoint:'landing',visual:'Recent cached chat cards are visible while sync is unavailable.',devices:[profile]},
+  {id:'tui.cache.synthetic.open',checkpoint:'draft',visual:'The newest cached message is visible above the new composer draft.',devices:[profile]},
+  {id:'tui.cache.synthetic.history',checkpoint:'reopen',visual:'Returning to the workspace and reopening preserves the cached transcript and draft.',devices:[profile]},
+ ],tutorial:{readingWordsPerSecond:2.5,minimumHoldMs:1200,maximumHoldMs:5000}};
+// eslint-disable-next-line no-empty-pattern
+test('records encrypted cached startup, full history, draft preservation and repeated opening',async ({},testInfo:any)=>{
+ test.setTimeout(150_000);const cli=requireIsolatedCliBuild();installRecorderDeps();
+ const fixture=path.resolve(path.dirname(cli),'../tests/fixtures/tui-cache-startup-proof.mjs');
+ const home=createWorkflowCliHome('encrypted-cache-startup');
+ try{
+  const steps:ProofStep[]=[
+   {name:'landing',wait_for:'Cached conversation 0',hold_ms:400},
+   {name:'open',key:'Return',wait_for:'Cached message 239.',hold_ms:400},
+   {name:'draft',text:'Keep this draft',wait_for:'Keep this draft',hold_ms:350},
+   {name:'oldest',key:'Home',wait_for:'Cached message 0.',hold_ms:350},
+   {name:'newest',key:'End',wait_for:'Cached message 239.',hold_ms:350},
+   {name:'back',key:'Escape',wait_for:'Cached conversation 0',hold_ms:350},
+   {name:'older-card-1',key:'Right',repeat:15},{name:'older-card-2',key:'Right',repeat:15},{name:'older-card-3',key:'Right',repeat:15},
+   {name:'warm-selection',wait_for:'Cached conversation 45',hold_ms:250},
+   {name:'refresh-command',text:'/refresh'},
+   {name:'warm-refresh',key:'Return',wait_for:'Sync failed',hold_ms:350},
+   {name:'reopen-command',text:'/chat 11111111-1111-4111-8111-111111111111'},
+   {name:'reopen',key:'Return',wait_for:'Cached message 239.',hold_ms:700},
+   {name:'exit',key:'ctrl+c'},
+  ];
+  const recording=await captureProof(workflowApiUrl(),home,fixture,steps,cachedStartupContract,testInfo);
+  const frame=(name:string)=>recording.frame(name).join('\n');
+  expect(frame('landing')).toContain('Continue where you left off');expect(frame('landing')).not.toContain('Loading your recent chats');
+  expect(frame('draft')).toContain('Cached message 239.');expect(frame('draft')).toContain('Keep this draft');
+  expect(frame('oldest')).toContain('Cached message 0.');expect(frame('oldest')).toContain('Keep this draft');
+  expect(frame('newest')).toContain('Cached message 239.');expect(frame('warm-refresh')).toContain('Cached conversation 45');expect(frame('reopen')).toContain('Keep this draft');
+  expect(frame('reopen')).toContain('Cached conversation 0');await recording.attest();
+ }finally{removeWorkflowCliHome(home);}
+});

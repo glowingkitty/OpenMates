@@ -105,7 +105,11 @@ export async function loadHomeData(state: TuiState, client: OpenMatesClient, ren
   // Publish locally decrypted history before starting any remote home request.
   if(signedIn && typeof client.listCachedChats === "function") {
     try {
-      const cached=await client.listCachedChats(Number.MAX_SAFE_INTEGER,1);
+      const cached=await client.listCachedChats(Number.MAX_SAFE_INTEGER,1,{onCachedChats:page=>{
+        // A warm workspace already has its full inventory and selection visible.
+        if(!current() || state.recentChats.length>0)return;
+        updateHomeChats(state,page.chats);state.homeChatsLoading=homeChatItems(state).length===0;render();
+      }});
       if(!current())return;
       if(cached)updateHomeChats(state,cached.chats);
     } catch {

@@ -1,0 +1,19 @@
+schema_version: 2
+profile: concise
+id: tui-startup-performance
+title: Faster encrypted local chat startup and opening
+status: implementing
+goal: >-
+  Ok continue with further finding performance issues and improving performance -
+  for example startup time of the chat workspace, opening chats etc. - without reducing security
+scope:
+  - Publish recent encrypted-cache previews and message windows before older entries finish decrypting.
+  - Bound decryption concurrency and import nonextractable AES keys once per read operation.
+  - Index cached top-level embeds once and avoid duplicate network-window decryption.
+  - Preserve ciphertext-only persistence, authorized Team key resolution, account/context/cancellation fences and recovery ordering.
+checks:
+  - Focused CLI client, crypto, cache, Team and terminal navigation unit tests.
+  - CLI bundle and declaration build, focused lint and contract metadata validation.
+  - Isolated GitHub synthetic encrypted-cache terminal proof and authenticated rich-chat offline reopen proof.
+evidence:
+  benchmark: docs/plans/tui-startup-performance/report.md

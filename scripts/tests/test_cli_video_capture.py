@@ -748,11 +748,12 @@ def test_workspace_navigation_keys_are_recordable(tmp_path, key):
     assert module.load_input_plan(path)[0]["key"] == key
 
 
-def test_only_fixed_synthetic_stream_fixture_is_admitted(tmp_path: Path) -> None:
+@pytest.mark.parametrize("name", ["tui-streaming-proof.mjs", "tui-cache-startup-proof.mjs"])
+def test_only_fixed_synthetic_tui_fixtures_are_admitted(tmp_path: Path, name: str) -> None:
     module = load_module()
-    fixture = ROOT / "frontend/packages/openmates-cli/tests/fixtures/tui-streaming-proof.mjs"
+    fixture = ROOT / "frontend/packages/openmates-cli/tests/fixtures" / name
     module._validate_argv(["node", str(fixture)])
-    for argv in (["node", str(tmp_path / "tui-streaming-proof.mjs")],
+    for argv in (["node", str(tmp_path / name)],
                  ["node", str(fixture), "--extra"], ["python3", str(fixture)]):
         with pytest.raises(module.CliCaptureError, match="requires"):
             module._validate_argv(argv)
