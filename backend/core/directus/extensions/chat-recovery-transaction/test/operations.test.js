@@ -1365,6 +1365,73 @@ test('prepare_preflight creates team chat wrapper for new team chats', async () 
   assert.equal(database.rows.chat_inference_outbox.length, 0);
 });
 
+// contract-test: direct surface=rest_api assertions=teams.direct-chat.participant-isolation,chats.persistence.client-encrypted
+test('direct-chat preflight permits active participants including viewers, never a Team owner outsider', async () => {
+  const peer = 'd'.repeat(64);
+  const outsider = 'e'.repeat(64);
+  const ownerEnvelope = `OMDM1.${'a'.repeat(40)}`;
+  const peerEnvelope = `OMDM1.${'b'.repeat(40)}`;
+  const directChat = {
+    id: CHAT_ID, hashed_user_id: OWNER, hashed_team_id: TEAM_HASH,
+    chat_visibility: 'direct', participant_user_hashes: JSON.stringify([OWNER, peer]),
+    participant_key_envelopes: JSON.stringify({
+      [OWNER]: { key_id: 'key-owner', encrypted_chat_key: ownerEnvelope },
+      [peer]: { key_id: 'key-peer', encrypted_chat_key: peerEnvelope },
+    }),
+    encrypted_chat_key: null, messages_v: 0, title_v: 0, metadata_v: 0,
+  };
+  const seed = (actor, role, status = 'active', chat = directChat) => fakeDatabase({
+    chats: [chat], messages: [], chat_turn_preflights: [], chat_inference_outbox: [],
+    teams: [{ hashed_team_id: TEAM_HASH, status: 'active' }],
+    team_memberships: [{ hashed_team_id: TEAM_HASH, hashed_user_id: actor, status, role }],
+  });
+  const body = (actor, envelope) => prepareBody({
+    hashed_user_id: actor, hashed_team_id: TEAM_HASH, wrapped_chat_key: envelope,
+    encrypted_chat_metadata: undefined,
+    encrypted_user_message: { ...userMessage(), hashed_user_id: actor },
+  });
+
+  for (const [actor, role, envelope] of [[OWNER, 'member', ownerEnvelope], [peer, 'viewer', peerEnvelope]]) {
+    const database = seed(actor, role);
+    const result = await executeOperation(database, 'prepare_preflight', body(actor, envelope));
+    assert.equal(result.state, 'PREPARED');
+    assert.equal(database.rows.messages.length, 1);
+    assert.equal(database.rows.chats[0].encrypted_chat_key, null);
+    assert.equal(database.rows.chat_key_wrappers?.length ?? 0, 0);
+  }
+  for (const [actor, role, status, envelope] of [
+    [outsider, 'owner', 'active', ownerEnvelope],
+    [peer, 'viewer', 'removed', peerEnvelope],
+  ]) {
+    const database = seed(actor, role, status);
+    await assert.rejects(executeOperation(database, 'prepare_preflight', body(actor, envelope)), /chat_not_found/);
+    assert.equal(database.rows.messages.length, 0);
+  }
+  await assert.rejects(executeOperation(seed(OWNER, 'member'), 'prepare_preflight', body(OWNER, peerEnvelope)),
+    /immutable_chat_key_mismatch/);
+  await assert.rejects(executeOperation(seed(OWNER, 'member', 'active', {
+    ...directChat, chat_visibility: null,
+  }), 'prepare_preflight', body(OWNER, ownerEnvelope)), /chat_not_found/);
+
+  const deleting = seed(OWNER, 'admin');
+  await assert.rejects(executeOperation(deleting, 'invalidate_deletion', {
+    protocol_version: 1, hashed_user_id: OWNER, scope: 'chat', chat_id: CHAT_ID,
+  }), /chat_not_found/);
+  assert.equal(deleting.rows.chat_recovery_chat_deletion_fences?.length ?? 0, 0);
+
+  const fenced = seed(outsider, 'owner');
+  fenced.rows.chat_recovery_chat_deletion_fences = [{
+    id: CHAT_ID, chat_id: CHAT_ID, hashed_team_id: TEAM_HASH, hashed_user_id: OWNER,
+  }];
+  assert.deepEqual(await executeOperation(fenced, 'lookup_chat_deletion_fences', {
+    protocol_version: 1, hashed_user_id: outsider, chat_ids: [CHAT_ID],
+  }), { fenced_chat_ids: [] });
+  fenced.rows.chats = [];
+  assert.deepEqual(await executeOperation(fenced, 'lookup_chat_deletion_fences', {
+    protocol_version: 1, hashed_user_id: outsider, chat_ids: [CHAT_ID],
+  }), { fenced_chat_ids: [] });
+});
+
 // contract-test: supporting surface=rest_api assertions=teams.workspace.surface-parity,chats.persistence.client-encrypted
 test('prepare_preflight rolls back team chat when team wrapper insert fails', async () => {
   const seed = { chats: [], messages: [], chat_turn_preflights: [], chat_key_wrappers: [],

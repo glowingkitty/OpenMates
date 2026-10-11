@@ -1,6 +1,6 @@
 # Teams
 
-Last updated: 2026-10-06. The permanent product contract is [the Teams Specification](../../specifications/features/teams/specification.yml); this page describes the implementation and its boundaries.
+Last updated: 2026-10-11. The permanent product contract is [the Teams Specification](../../specifications/features/teams/specification.yml); this page describes the implementation and its boundaries.
 
 Teams management lives in Settings. Creation checks the normalized lowercase name with our own backend, then opens the profile-image step. Names need not be unique. The video placeholder is hidden pending a real introduction video. The settings quick action enables or disables Team context and opens an animated selector with the five most recently used joined Teams, Show more, and New team. Chats, Projects, Tasks, and Workflows show the selected Team avatar beside their workspace icon.
 
@@ -19,6 +19,20 @@ Only owners and admins invite members or change roles. Every new member must sat
 All invitations contain a Team-key envelope encrypted using HKDF-SHA256 and AES-256-GCM with a client-generated 32-byte fragment secret. The secret stays in the URL fragment and tab-local session storage during login; it never reaches REST, logs, server storage or automatic invitation email. The inviter shares the complete link through their email app or copy-link controls. The UI says the invitation is ready to share, rather than claiming email delivery. After acceptance the recipient wraps the Team key with their own master key; pending approval does not cache an active Team key. Acceptance or decline removes the tab secret; logout purges remaining invitation secrets.
 
 All active roles can read member profiles; only managers can mutate roles or remove members. Successful role changes and removals queue an email to the affected account without exposing the private Team name or content. Removal revokes server access and Team-key wrappers. Automatic Team-key rotation and cryptographic erasure of previously downloaded content remain outside V1.
+
+## Participant-private chats
+
+Updated unlocked web and CLI/TUI clients automatically enroll an immutable account public key through `/v1/account/chat-encryption-key`. The X25519 private identity backup is encrypted with the existing account master key. Concurrent enrollment recovers the authoritative winner instead of replacing it. Clients cache only that encrypted backup with an account/API binding for offline recovery; logout and account replacement purge it.
+
+The member profile's Message action and `openmates teams member message <team-id> <member-hash> <message>` create a two-person chat using `/v1/teams/{team_id}/direct-chats`. An active co-member's authenticated public key is resolved automatically. Missing recipient enrollment shows secure setup pending and creates no broader chat. The npm and Python SDKs expose the same automatic creation helper through device-bound first-party authentication. Python uses PyNaCl with the same `OMDM1.` wire format; interoperability is tested in both directions. Both SDKs verify the returned chat ID, Team scope and exact participant pair before decrypting. Generic API-key-only private chat reading and sending remain explicitly unsupported.
+
+Each private chat has a fresh independent key sealed separately to each participant with TweetNaCl X25519/XSalsa20-Poly1305. The `OMDM1.` envelope binds the Team ID, chat ID, recipient hash and account key identifier. The shared Team key cannot decrypt it. Server metadata stores exactly two immutable participant hashes and their envelopes, with the shared `encrypted_chat_key` column empty. Responses return the caller's envelope, never the peer envelope map.
+
+Active Team membership and exact participant membership gate discovery, reads, writes, sync, realtime delivery, metadata, media and embeds. Team owners and admins have no private-chat override. Unavailable authorization metadata fails closed. Team-wide exports exclude private chats; Team usage retains totals without private-chat correlation IDs. Removal revokes future server access, while account deletion removes its encrypted identity backup atomically.
+
+Ordinary human messages remain encrypted and bypass AI processing. Explicit `@openmates` or Mate invocation supplies only this chat's attributed history, returns to its participants and uses Team credits with the existing AI role checks. New-chat notifications go only to the recipient through existing in-app, push and email preferences, without plaintext content or keys. Private-chat summaries are excluded from cross-chat recent-work context. Other related-work summaries require fresh access checks and the same Personal or Team context before and after decryption; an old cached summary cannot broaden access.
+
+The authenticated server key directory remains trusted: this version has no key transparency, forward secrecy or automatic identity-key rotation. Routing metadata, existing server-processed uploads and explicitly invoked AI remain server-visible boundaries. Previously downloaded copies cannot be remotely erased. Apple parity is deferred to a separate instructed implementation.
 
 ## Billing contexts
 

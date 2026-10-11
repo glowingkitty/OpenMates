@@ -521,6 +521,14 @@ describe("sendersChatMessages protocol fences", () => {
     expect(shouldIncludePreflightChatMetadata(7)).toBe(false);
   });
 
+  // contract-test: supporting surface=gui.web assertions=teams.direct-chat.participant-isolation,chats.persistence.client-encrypted
+  it("does not recreate an empty direct chat's immutable metadata on its first send", () => {
+    for (const version of [undefined, 0, 1, 2]) {
+      expect(shouldIncludePreflightChatMetadata(version, "direct")).toBe(false);
+    }
+    expect(shouldIncludePreflightChatMetadata(1, "team")).toBe(true);
+  });
+
   // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
   it("only treats preflight acknowledgement timeouts as retryable", () => {
     expect(

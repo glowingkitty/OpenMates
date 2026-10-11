@@ -49,6 +49,7 @@ from backend.core.api.app.routes.ideabucket import (
     store_ideabucket_encrypted_add,
 )
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
+from backend.core.api.app.services.direct_chat_access import is_direct_chat
 from backend.core.api.app.services.team_chat_ai_service import should_trigger_team_ai
 from backend.core.api.app.services.team_member_mention_service import TeamMemberMentionNotificationSink, notify_team_member_mentions
 from backend.core.api.app.services.team_realtime_service import broadcast_team_event
@@ -1622,6 +1623,21 @@ async def create_sdk_chat(
             raise HTTPException(status_code=403, detail={"error": "approved_device_required"})
 
         user_id = str(api_key_info["user_id"])
+        # Saved Team DMs use the first-party participant-scoped WebSocket
+        # transport. This generic SDK route fans Team messages out broadly.
+        existing_rows = await request.app.state.directus_service.get_items(
+            "chats",
+            params={
+                "filter[id][_eq]": str(request_body.chat_id),
+                "fields": "id,chat_visibility,participant_user_hashes,participant_key_envelopes",
+                "limit": 1,
+            },
+            no_cache=True, admin_required=True, raise_on_error=True,
+        )
+        if not isinstance(existing_rows, list):
+            raise HTTPException(status_code=503, detail={"error": "chat_scope_unavailable"})
+        if existing_rows and is_direct_chat(existing_rows[0]):
+            raise HTTPException(status_code=403, detail={"error": "direct_chat_sdk_send_unsupported"})
         hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
         encrypted_user_message = dict(request_body.encrypted_user_message or {})
         if encrypted_user_message.get("chat_id") != request_body.chat_id or encrypted_user_message.get("client_message_id") != request_body.message_id:

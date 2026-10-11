@@ -23,7 +23,7 @@ import { get } from "svelte/store";
 import { forcedLogoutInProgress, isLoggingOut } from "../../stores/signupState";
 import { isPublicChat } from "../../demo_chats/convertToChat";
 import { isAnonymousChatId } from "../anonymousChatIds";
-import { unwrapTeamChatKey, wrapTeamChatKey } from "../teamService";
+import { wrapTeamChatKey } from "../teamService";
 import { invalidateRecentChatWindow } from "../recentChatWindowCache";
 import { computeSHA256 } from "../../message_parsing/utils";
 
@@ -196,11 +196,14 @@ function isSharedChatKeySource(chatId: string): boolean {
 
 async function unwrapPersistedChatKey(
   teamId: string | null | undefined,
+  chatId: string,
   encryptedChatKey: string,
+  visibility?: string | null,
 ): Promise<Uint8Array | null> {
   if (!teamId) return decryptChatKeyWithMasterKey(encryptedChatKey);
   try {
-    return await unwrapTeamChatKey(teamId, encryptedChatKey);
+    const { unwrapTeamOrDirectChatKey } = await import("../directChatService");
+    return await unwrapTeamOrDirectChatKey(teamId, chatId, encryptedChatKey, visibility);
   } catch (error) {
     console.error(
       `[ChatDatabase] Failed to unwrap Team chat key for team ${teamId}`,
@@ -213,7 +216,9 @@ async function unwrapPersistedChatKey(
 async function wrapPersistedChatKey(
   teamId: string | null | undefined,
   chatKey: Uint8Array,
+  visibility?: string | null,
 ): Promise<string | null> {
+  if (visibility === 'direct') throw new Error('Direct chat keys must retain their participant envelope');
   return teamId
     ? wrapTeamChatKey(teamId, chatKey)
     : encryptChatKeyWithMasterKey(chatKey);
@@ -353,7 +358,9 @@ export async function encryptChatForStorage(
   if (chatKey && chat.encrypted_chat_key) {
     const incomingKey = await unwrapPersistedChatKey(
       chat.team_id,
+      chat.chat_id,
       chat.encrypted_chat_key,
+      chat.chat_visibility,
     );
     if (incomingKey) {
       if (!chatKeysEqual(chatKey, incomingKey)) {
@@ -386,7 +393,7 @@ export async function encryptChatForStorage(
           ).catch(() => {});
           encryptedChat.encrypted_chat_key =
             existingChat?.encrypted_chat_key ??
-            (await wrapPersistedChatKey(chat.team_id, chatKey));
+            (await wrapPersistedChatKey(chat.team_id, chatKey, chat.chat_visibility));
           console.warn(
             `[ChatDatabase] Refusing to persist conflicting encrypted_chat_key for chat ${chat.chat_id}; ` +
               `cached key remains authoritative until sync explicitly reloads the server key`,
@@ -405,7 +412,9 @@ export async function encryptChatForStorage(
   if (!chatKey && chat.encrypted_chat_key) {
     const candidateKey = await unwrapPersistedChatKey(
       chat.team_id,
+      chat.chat_id,
       chat.encrypted_chat_key,
+      chat.chat_visibility,
     );
     if (candidateKey) {
       const accepted = chatKeyManager.injectKey(
@@ -444,7 +453,9 @@ export async function encryptChatForStorage(
     if (existingChat?.encrypted_chat_key) {
       chatKey = await unwrapPersistedChatKey(
         existingChat.team_id ?? chat.team_id,
+        chat.chat_id,
         existingChat.encrypted_chat_key,
+        existingChat.chat_visibility ?? chat.chat_visibility,
       );
       if (chatKey) {
         chatKeyManager.injectKey(chat.chat_id, chatKey, "master_key");
@@ -467,6 +478,9 @@ export async function encryptChatForStorage(
   // all existing messages permanently undecryptable (the original key is lost).
   // This was the root cause of OPE-314-class decryption failures after logout/login.
   if (!chatKey) {
+    if (chat.chat_visibility === 'direct' || chat.encrypted_chat_key?.startsWith('OMDM1.')) {
+      throw new Error(`Cannot create or replace the key for direct chat ${chat.chat_id}`);
+    }
     if (chat.is_anonymous) {
       throw new Error(
         `[ChatDatabase] Cannot save anonymous chat ${chat.chat_id}: anonymous chat key is unavailable`,
@@ -506,7 +520,7 @@ export async function encryptChatForStorage(
     !chat.is_anonymous &&
     !isSharedChatKeySource(chat.chat_id)
   ) {
-    const encryptedChatKey = await wrapPersistedChatKey(chat.team_id, chatKey);
+    const encryptedChatKey = await wrapPersistedChatKey(chat.team_id, chatKey, chat.chat_visibility);
     if (encryptedChatKey) {
       encryptedChat.encrypted_chat_key = encryptedChatKey;
     } else {
@@ -593,9 +607,12 @@ export async function decryptChatFromStorage(
 
     if (chat.team_id) {
       try {
-        const teamChatKey = await unwrapTeamChatKey(
+        const { unwrapTeamOrDirectChatKey } = await import("../directChatService");
+        const teamChatKey = await unwrapTeamOrDirectChatKey(
           chat.team_id,
+          chat.chat_id,
           chat.encrypted_chat_key,
+          chat.chat_visibility,
         );
         chatKeyManager.injectKey(
           chat.chat_id,

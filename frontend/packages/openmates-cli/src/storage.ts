@@ -102,6 +102,24 @@ interface TrustedAccountOnDisk {
   accountId: string;
 }
 
+/** Opaque server backup; the private key inside remains encrypted by the account master key. */
+export interface CachedDirectChatAccountKey {
+  version: 1;
+  algorithm: "x25519-xsalsa20poly1305";
+  key_id: string;
+  public_key: string;
+  encrypted_private_key: string;
+}
+
+interface DirectChatAccountKeyOnDisk {
+  accountId: string;
+  apiUrl: string;
+  sessionId: string;
+  hashedEmail: string;
+  sessionCreatedAt: number;
+  record: CachedDirectChatAccountKey;
+}
+
 export type CredentialStorageMode = "os-keyring" | "owner-only-file" | "legacy-machine-id" | "none";
 
 // ---------------------------------------------------------------------------
@@ -110,6 +128,53 @@ export type CredentialStorageMode = "os-keyring" | "owner-only-file" | "legacy-m
 
 const PROFILE_NAME_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const TRUSTED_ACCOUNT_FILE = "trusted_account.json";
+const DIRECT_CHAT_ACCOUNT_KEY_FILE = "direct_chat_account_key.json";
+
+function storedSessionMatches(session: OpenMatesSession, apiUrl: string): boolean {
+  const saved = readJsonFile<SessionOnDisk>(join(getStateDir(), "session.json"));
+  return Boolean(saved && saved.apiUrl.replace(/\/$/, "") === apiUrl.replace(/\/$/, "")
+    && session.apiUrl.replace(/\/$/, "") === apiUrl.replace(/\/$/, "")
+    && saved.sessionId === session.sessionId && saved.hashedEmail === session.hashedEmail
+    && saved.createdAt === session.createdAt
+    && (typeof saved.pairedSessionExpiresAt !== "number" || saved.pairedSessionExpiresAt > Date.now()));
+}
+
+export function loadCachedDirectChatAccountKey(session: OpenMatesSession, apiUrl: string):
+  { accountId: string; record: CachedDirectChatAccountKey } | null {
+  const trustedAccountId = loadTrustedAccountId();
+  if ((process.env.OPENMATES_ACCOUNT_GUARD === "required" && !trustedAccountId)
+    || !storedSessionMatches(session, apiUrl)) return null;
+  const cached = readJsonFile<DirectChatAccountKeyOnDisk>(join(getStateDir(), DIRECT_CHAT_ACCOUNT_KEY_FILE));
+  if (!cached || typeof cached.accountId !== "string" || !cached.accountId.trim()
+    || cached.accountId !== cached.accountId.trim()
+    || (trustedAccountId && cached.accountId !== trustedAccountId)
+    || cached.apiUrl !== apiUrl.replace(/\/$/, "")
+    || cached.sessionId !== session.sessionId || cached.hashedEmail !== session.hashedEmail
+    || cached.sessionCreatedAt !== session.createdAt || !cached.record
+    || cached.record.version !== 1 || cached.record.algorithm !== "x25519-xsalsa20poly1305"
+    || typeof cached.record.key_id !== "string" || typeof cached.record.public_key !== "string"
+    || typeof cached.record.encrypted_private_key !== "string") return null;
+  return { accountId: cached.accountId, record: cached.record };
+}
+
+export function saveCachedDirectChatAccountKey(session: OpenMatesSession, apiUrl: string,
+  accountId: string, record: CachedDirectChatAccountKey): void {
+  withSessionWriteLock(() => {
+    const trustedAccountId = loadTrustedAccountId();
+    if (typeof accountId !== "string" || !accountId.trim() || accountId !== accountId.trim()
+      || (process.env.OPENMATES_ACCOUNT_GUARD === "required" && !trustedAccountId)
+      || (trustedAccountId && trustedAccountId !== accountId)
+      || !storedSessionMatches(session, apiUrl)) {
+      throw new Error("Direct chat key owner changed before local backup.");
+    }
+    writeJsonFile(join(ensureStateDir(), DIRECT_CHAT_ACCOUNT_KEY_FILE), {
+      accountId, apiUrl: apiUrl.replace(/\/$/, ""), sessionId: session.sessionId,
+      hashedEmail: session.hashedEmail, sessionCreatedAt: session.createdAt,
+      record: { version: record.version, algorithm: record.algorithm, key_id: record.key_id,
+        public_key: record.public_key, encrypted_private_key: record.encrypted_private_key },
+    } satisfies DirectChatAccountKeyOnDisk);
+  });
+}
 
 export function resolveStateDir(options: {
   homeDir?: string;
@@ -228,6 +293,11 @@ export function saveSession(session: OpenMatesSession, options: {
   withSessionWriteLock(() => {
     const path = join(ensureStateDir(), "session.json");
     const current = readJsonFile<SessionOnDisk>(path);
+    if (current && options.replace && (current.sessionId !== session.sessionId
+      || current.hashedEmail !== session.hashedEmail || current.apiUrl !== session.apiUrl
+      || current.createdAt !== session.createdAt)) {
+      rmSync(join(getStateDir(), DIRECT_CHAT_ACCOUNT_KEY_FILE), { force: true });
+    }
     if (!current && options.expectedRefreshToken !== undefined) {
       throw new Error("Login session was removed. Retry using the current profile.");
     }
@@ -436,6 +506,7 @@ function clearSessionLocked(): void {
   }
   rmSync(join(getStateDir(), "tui_workspace_cache.json"), { force: true });
   rmSync(join(getStateDir(), "chat_model_preferences.json"), { force: true });
+  rmSync(join(getStateDir(), DIRECT_CHAT_ACCOUNT_KEY_FILE), { force: true });
   if (cleanupError) throw cleanupError;
 }
 
@@ -447,6 +518,7 @@ export function purgeLocalPrivateData(): void {
 
   let cleanupError: Error | null = null;
   try { clearSession(); } catch (error) { cleanupError = error as Error; }
+  rmSync(join(stateDir, DIRECT_CHAT_ACCOUNT_KEY_FILE), { force: true });
   try { purgeLocalTeamKeys(hashedEmail); } catch (error) { cleanupError ??= error as Error; }
   try { purgeSyncCaches(stateDir); } catch (error) { cleanupError ??= error as Error; }
   if (cleanupError) throw cleanupError;

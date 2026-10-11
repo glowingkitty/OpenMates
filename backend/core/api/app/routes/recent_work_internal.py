@@ -16,6 +16,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.core.api.app.services.direct_chat_access import is_direct_chat, require_direct_chat_access
 from backend.core.api.app.utils.internal_auth import VerifiedInternalRequest
 from backend.shared.python_utils.recent_work_summary_cache import (
     recent_work_summary_cache, transient_context_handoff_store,
@@ -72,25 +73,59 @@ async def _parse(request: Request, model: type[BaseModel], *, max_bytes: int = 6
         raise HTTPException(status_code=400, detail="Invalid recent-work request") from None
 
 
-async def _live_owned_chat_ids(directus, owner_id: str, chat_ids: list[str]) -> set[str]:
+async def _live_chat_scopes(directus, owner_id: str, chat_ids: list[str],
+                            *, verify_direct: bool = True) -> dict[str, tuple[str | None, bool]]:
+    """Return fresh accessible chat scopes: (Team hash or Personal, direct)."""
     if not chat_ids:
-        return set()
+        return {}
     rows = await directus.get_items("chats", params={
         "filter[id][_in]": ",".join(chat_ids),
-        "filter[hashed_user_id][_eq]": hashlib.sha256(owner_id.encode()).hexdigest(),
-        "fields": "id,hashed_team_id", "limit": len(chat_ids),
+        "fields": "id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,"
+                  "participant_key_envelopes,encrypted_chat_key",
+        "limit": len(chat_ids),
     }, no_cache=True, admin_required=True)
-    team_hashes = {row.get("hashed_team_id") for row in rows or [] if row.get("hashed_team_id")}
-    active_teams = set()
+    if not isinstance(rows, list):
+        return {}
+    owner_hash = hashlib.sha256(owner_id.encode()).hexdigest()
+    team_hashes = {row.get("hashed_team_id") for row in rows if isinstance(row, dict)
+                   and row.get("hashed_team_id") and not is_direct_chat(row)}
+    active_teams: set[str] = set()
     if team_hashes:
         memberships = await directus.get_items("team_memberships", params={
-            "filter[hashed_user_id][_eq]": hashlib.sha256(owner_id.encode()).hexdigest(),
+            "filter[hashed_user_id][_eq]": owner_hash,
             "filter[hashed_team_id][_in]": ",".join(team_hashes),
             "filter[status][_eq]": "active", "fields": "hashed_team_id", "limit": len(team_hashes),
         }, no_cache=True, admin_required=True)
-        active_teams = {row["hashed_team_id"] for row in memberships or [] if row.get("hashed_team_id")}
-    return {str(row["id"]) for row in rows or [] if row.get("id")
-            and (not row.get("hashed_team_id") or row["hashed_team_id"] in active_teams)}
+        teams = await directus.get_items("teams", params={
+            "filter[hashed_team_id][_in]": ",".join(team_hashes),
+            "filter[status][_eq]": "active", "fields": "hashed_team_id", "limit": len(team_hashes),
+        }, no_cache=True, admin_required=True)
+        if isinstance(memberships, list) and isinstance(teams, list):
+            member_hashes = {row.get("hashed_team_id") for row in memberships if isinstance(row, dict)}
+            live_hashes = {row.get("hashed_team_id") for row in teams if isinstance(row, dict)}
+            active_teams = team_hashes & member_hashes & live_hashes
+    scopes = {}
+    for row in rows:
+        if not isinstance(row, dict) or not row.get("id"):
+            continue
+        chat_id = str(row["id"])
+        team_hash = row.get("hashed_team_id")
+        if is_direct_chat(row):
+            if verify_direct:
+                try:
+                    await require_direct_chat_access(directus, row, owner_id)
+                except (PermissionError, ValueError):
+                    continue
+            scopes[chat_id] = (team_hash, True)
+        elif team_hash is None and row.get("hashed_user_id") == owner_hash:
+            scopes[chat_id] = (None, False)
+        elif isinstance(team_hash, str) and team_hash in active_teams:
+            scopes[chat_id] = (team_hash, False)
+    return scopes
+
+
+async def _live_owned_chat_ids(directus, owner_id: str, chat_ids: list[str]) -> set[str]:
+    return set(await _live_chat_scopes(directus, owner_id, chat_ids))
 
 
 async def _services_and_authority(request: Request, binding: _TurnBinding, *, completion_permit=None):
@@ -334,18 +369,26 @@ async def read_summaries(request: Request) -> JSONResponse:
         # replacement cache and authorize in batches so revoked leading sources
         # cannot displace useful cross-Project references before the final cap.
         sources = sources[:512]
+        current_scopes = await _live_chat_scopes(directus, payload.owner_id, [payload.current_chat_id])
+        if payload.current_chat_id not in current_scopes:
+            raise HTTPException(status_code=403, detail="Recent-work turn authority denied")
+        current_team = current_scopes[payload.current_chat_id][0]
         summaries = []
         for offset in range(0, len(sources), 64):
             if len(summaries) >= 24:
                 break
             batch = sources[offset:offset + 64]
-            owned = await _live_owned_chat_ids(directus, payload.owner_id, [source.chat_id for source in batch])
+            scopes = await _live_chat_scopes(directus, payload.owner_id,
+                                             [source.chat_id for source in batch], verify_direct=False)
+            owned = {chat_id for chat_id, scope in scopes.items() if scope == (current_team, False)}
             live_tasks = await cache.get_active_ai_tasks([source.chat_id for source in batch if source.chat_id in owned])
             for source in batch:
                 if len(summaries) >= 24:
                     break
-                if source.chat_id not in owned:
+                if source.chat_id not in scopes:
                     recent_work_summary_cache.revoke_chat(owner_id=payload.owner_id, chat_id=source.chat_id)
+                    continue
+                if source.chat_id not in owned:
                     continue
                 active = source.active and source.chat_id in live_tasks and (source.active_task_id is None or live_tasks[source.chat_id] == source.active_task_id)
                 recent_completion = (source.assistant_completed_at is not None
@@ -358,18 +401,22 @@ async def read_summaries(request: Request) -> JSONResponse:
                 )
                 if summary is not None and summary.source.revision == source.revision:
                     summaries.append({"source": asdict(replace(summary.source, active=active)), "text": summary.text})
-        still_owned = await _live_owned_chat_ids(
+        still_scopes = await _live_chat_scopes(
             directus, payload.owner_id, [payload.current_chat_id] + [item["source"]["chat_id"] for item in summaries],
         )
+        current_scope = still_scopes.get(payload.current_chat_id)
+        scoped_sources = {item["source"]["chat_id"] for item in summaries
+                          if current_scope is not None
+                          and still_scopes.get(item["source"]["chat_id"]) == (current_scope[0], False)}
         for item in summaries:
-            if item["source"]["chat_id"] not in still_owned:
+            if item["source"]["chat_id"] not in still_scopes:
                 recent_work_summary_cache.revoke_chat(owner_id=payload.owner_id, chat_id=item["source"]["chat_id"])
         still_active = await cache.get_active_ai_tasks([
-            item["source"]["chat_id"] for item in summaries if item["source"]["active"] and item["source"]["chat_id"] in still_owned
+            item["source"]["chat_id"] for item in summaries if item["source"]["active"] and item["source"]["chat_id"] in scoped_sources
         ])
         current_revisions = {source.chat_id: source.revision for source in
                              recent_work_summary_cache.owner_candidates(owner_id=payload.owner_id)}
-        summaries = [item for item in summaries if item["source"]["chat_id"] in still_owned
+        summaries = [item for item in summaries if item["source"]["chat_id"] in scoped_sources
                      and current_revisions.get(item["source"]["chat_id"]) == item["source"]["revision"]
                      and item["source"]["expires_at"] > time.time()
                      and (not item["source"]["active"] or (
@@ -380,7 +427,7 @@ async def read_summaries(request: Request) -> JSONResponse:
                          item["source"]["assistant_completed_at"] is not None
                          and 0 <= time.time() - item["source"]["assistant_completed_at"] < 30 * 60))]
         if (await cache.get_active_ai_task(payload.current_chat_id) != payload.task_id
-                or payload.current_chat_id not in still_owned):
+                or current_scope is None):
             raise HTTPException(status_code=403, detail="Recent-work turn authority denied")
     except HTTPException:
         raise

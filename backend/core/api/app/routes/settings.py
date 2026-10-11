@@ -15,6 +15,7 @@ from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel, Field, SecretStr # Import BaseModel and Field for response models
 
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.direct_chat_access import is_personal_retention_chat
 from backend.core.api.app.services.storage_usage_metering import (
     StorageUsageIncompleteError,
     StorageUsageMeteringService,
@@ -6355,6 +6356,7 @@ async def get_chat_stats(
         # returns the collection total, making it useless for per-user counts.
         params = {
             'filter[hashed_user_id][_eq]': hashed_user_id,
+            'filter[hashed_team_id][_null]': True,
             'aggregate[count]': '*',
         }
         response = await directus_service._make_api_request("GET", url, headers=headers, params=params)
@@ -6411,6 +6413,7 @@ async def preview_old_chats(
         # older_than_days=0 means "all chats" — omit the date filter.
         params: dict = {
             'filter[hashed_user_id][_eq]': hashed_user_id,
+            'filter[hashed_team_id][_null]': True,
             'aggregate[count]': '*',
         }
         if older_than_days > 0:
@@ -6446,7 +6449,7 @@ async def delete_old_chats(
     When older_than_days > 0: deletes chats whose last_edited_overall_timestamp (last activity) is older
     than the cutoff. When older_than_days == 0: deletes ALL chats for the user.
 
-    Only chats belonging to the user (matched via hashed_user_id) are deleted.
+    Only Personal chats belonging to the user are deleted.
     The operation is irreversible -- compliance event is logged.
     Returns the list of deleted chat IDs so the client can clean up IndexedDB.
     """
@@ -6478,16 +6481,22 @@ async def delete_old_chats(
         while True:
             params: dict = {
                 'filter[hashed_user_id][_eq]': hashed_user_id,
-                'fields': 'id',
+                'filter[hashed_team_id][_null]': True,
+                'fields': 'id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes',
                 'limit': PAGE_SIZE,
                 'offset': offset,
             }
             if not delete_all:
                 params['filter[last_edited_overall_timestamp][_lt]'] = cutoff_unix
-            page = await directus_service.get_items('chats', params=params)
+            page = await directus_service.get_items(
+                'chats', params=params, no_cache=True, admin_required=True, raise_on_error=True,
+            )
             if not page or not isinstance(page, list):
                 break
-            chat_ids_to_delete.extend(item['id'] for item in page if item.get('id'))
+            chat_ids_to_delete.extend(
+                item['id'] for item in page
+                if item.get('id') and is_personal_retention_chat(item, hashed_user_id)
+            )
             if len(page) < PAGE_SIZE:
                 break
             offset += PAGE_SIZE
@@ -6504,6 +6513,11 @@ async def delete_old_chats(
         deleted_ids: list[str] = []
         for chat_id in chat_ids_to_delete:
             try:
+                live_chat = await directus_service.chat.get_chat_metadata(
+                    chat_id, admin_required=True,
+                )
+                if not is_personal_retention_chat(live_chat, hashed_user_id):
+                    continue
                 success = await directus_service.chat.persist_delete_chat(
                     chat_id, hashed_user_id=hashed_user_id,
                 )

@@ -17,6 +17,7 @@ from backend.core.api.app.services.notification_email_preferences import (
     resolve_notification_email,
 )
 from backend.core.api.app.services.notification_presence import has_active_human, is_message_viewed
+from backend.core.api.app.services.direct_chat_access import is_direct_chat, require_direct_chat_access
 
 CANDIDATE_TTL = 86400
 RECONNECT_GRACE_SECONDS = 15
@@ -58,6 +59,14 @@ async def notification_chat_access(directus: Any, user_id: str, chat_id: str, te
     metadata = await directus.chat.get_chat_metadata(chat_id, admin_required=True)
     if not isinstance(metadata, dict) or metadata.get("deleted"):
         return False
+    if is_direct_chat(metadata):
+        if not team_id:
+            return False
+        try:
+            await require_direct_chat_access(directus, metadata, user_id, team_id)
+            return True
+        except (PermissionError, ValueError):
+            return False
     if team_id:
         if metadata.get("hashed_team_id") != hashlib.sha256(team_id.encode()).hexdigest():
             return False
@@ -75,6 +84,8 @@ async def enqueue_chat_email(
 ) -> bool:
     """Accept one completed response or committed Team message, excluding workflows."""
     if source not in {"chat", "team"} or not all((user_id, chat_id, message_id)) or sender_user_id == user_id:
+        return False
+    if not await notification_chat_access(directus_service, user_id, chat_id, team_id):
         return False
     user = await load_notification_user(directus_service, user_id)
     if not user or user.get("status") != "active" or not notification_category_enabled(user, "aiResponses"):

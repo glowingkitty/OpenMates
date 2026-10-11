@@ -30,6 +30,7 @@ from backend.core.api.app.routes.sdk import (
     _validate_encrypted_message_for_chat,
 )
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
+from backend.core.api.app.services.direct_chat_access import is_direct_chat, require_direct_chat_access
 from backend.core.api.app.services.bounded_message_window import (
     EXACT_MESSAGE_BYTES, MESSAGE_WINDOW_LIMIT, bound_encrypted_message_window,
     encrypted_message_bytes,
@@ -95,7 +96,9 @@ async def sidebar_chat_metadata(body: SidebarChatMetadataRequest, request: Reque
     """Hydrate saved folder/activity rows without fetching message transcripts."""
     records = []
     for chat_id in dict.fromkeys(body.chat_ids):
-        chat = await _require_chat_read_access(request, chat_id, team_id, current_user.id)
+        chat = await _require_chat_read_access(
+            request, chat_id, team_id, current_user.id, skip_out_of_scope=True,
+        )
         if not chat:
             continue
         if not team_id and chat.get("hashed_team_id"):
@@ -116,11 +119,15 @@ async def sidebar_chat_metadata(body: SidebarChatMetadataRequest, request: Reque
         record["team_id"] = team_id
         records.append(record)
     if records:
+        direct_ids = {record["id"] for record in records if record.get("chat_visibility") == "direct"}
         wrappers = await request.app.state.directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
-            [hashlib.sha256(record["id"].encode()).hexdigest() for record in records],
+            [hashlib.sha256(record["id"].encode()).hexdigest() for record in records if record["id"] not in direct_ids],
             **({"hashed_team_id": hash_id(team_id)} if team_id else {"hashed_user_id": hashlib.sha256(current_user.id.encode()).hexdigest()}),
         )
         for record in records:
+            if record["id"] in direct_ids:
+                record["chat_key_wrappers"] = []
+                continue
             chat_hash = hashlib.sha256(record["id"].encode()).hexdigest()
             scoped = [wrapper for wrapper in wrappers if wrapper.get("hashed_chat_id") == chat_hash]
             record["chat_key_wrappers"] = scoped
@@ -154,6 +161,8 @@ def _watch_chat_payload(chat: dict[str, Any]) -> dict[str, Any]:
         "encrypted_focus_phase_state": chat.get("encrypted_focus_phase_state"),
         "encrypted_auto_speak_response": chat.get("encrypted_auto_speak_response"),
         "encrypted_chat_key": chat.get("encrypted_chat_key"),
+        "chat_visibility": chat.get("chat_visibility"),
+        "participant_user_hashes": chat.get("participant_user_hashes"),
         "chat_key_wrappers": chat.get("chat_key_wrappers") or [],
         "chat_key_wrapper_window": chat.get("chat_key_wrapper_window"),
         "pinned": chat.get("pinned", False),
@@ -195,7 +204,10 @@ def _encrypted_message_payload(message: str | dict[str, Any]) -> dict[str, Any] 
     return record
 
 
-async def _require_chat_read_access(request: Request, chat_id: str, team_id: str | None, user_id: str) -> dict[str, Any] | None:
+async def _require_chat_read_access(
+    request: Request, chat_id: str, team_id: str | None, user_id: str,
+    *, skip_out_of_scope: bool = False,
+) -> dict[str, Any] | None:
     chat_service = request.app.state.directus_service.chat
     if team_id:
         try:
@@ -205,6 +217,11 @@ async def _require_chat_read_access(request: Request, chat_id: str, team_id: str
         chat = await chat_service.get_chat_metadata(chat_id, admin_required=True)
         if not chat or chat.get("storage_state") == "deleting" or chat.get("hashed_team_id") != hash_id(team_id):
             raise HTTPException(status_code=404, detail="Chat not found")
+        if is_direct_chat(chat):
+            try:
+                return await require_direct_chat_access(request.app.state.directus_service, chat, user_id, team_id)
+            except (PermissionError, ValueError) as exc:
+                raise HTTPException(status_code=404, detail="Chat not found") from exc
         return chat
     if not await chat_service.check_chat_ownership(chat_id, user_id):
         raise HTTPException(status_code=404, detail="Chat not found")
@@ -212,7 +229,13 @@ async def _require_chat_read_access(request: Request, chat_id: str, team_id: str
     # This first-party encrypted read must use exactly Personal or one Team.
     # A creator's personal owner/cache match never authorizes a Team chat read;
     # Team access above also requires current membership and the matching Team.
-    if not chat or chat.get("storage_state") == "deleting" or chat.get("hashed_team_id"):
+    if not chat or chat.get("storage_state") == "deleting":
+        raise HTTPException(status_code=404, detail="Chat not found")
+    if chat.get("hashed_team_id"):
+        # A mixed metadata batch may include a Team ID from a stale sidebar
+        # reference. Omit it without weakening exact Personal chat reads.
+        if skip_out_of_scope:
+            return None
         raise HTTPException(status_code=404, detail="Chat not found")
     return chat
 
@@ -259,6 +282,9 @@ async def list_chats(
     }
     for chat in chats:
         chat_id = chat.get("id")
+        if is_direct_chat(chat):
+            chat["chat_key_wrappers"] = []
+            continue
         if chat_id:
             page = await request.app.state.directus_service.chat_key_wrapper.get_sync_wrapper_window_for_chat(
                 hashlib.sha256(str(chat_id).encode()).hexdigest(), **principal,
@@ -285,7 +311,10 @@ async def get_chat_wrapper_window(
     """Return one owner or Team scoped key wrapper page or selected large wrapper."""
     if before_id and wrapper_id:
         raise HTTPException(status_code=422, detail="Specify a cursor or one wrapper id")
-    await _require_chat_read_access(request, chat_id, team_id, current_user.id)
+    chat = await _require_chat_read_access(request, chat_id, team_id, current_user.id)
+    if is_direct_chat(chat):
+        return {"wrappers": [], "has_more_before": False, "start_cursor": None,
+                "oversized_wrapper_id": None}
     principal = {"hashed_team_id": hash_id(team_id)} if team_id else {
         "hashed_user_id": hashlib.sha256(current_user.id.encode()).hexdigest()
     }
@@ -606,6 +635,9 @@ async def move_chat_to_team(
     request: Request,
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
+    existing = await request.app.state.directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+    if is_direct_chat(existing):
+        raise HTTPException(status_code=403, detail="Direct chats cannot be moved")
     try:
         chat = await move_workspace_record_to_team(
             directus_service=request.app.state.directus_service,

@@ -20,6 +20,7 @@ from typing import Any
 from backend.shared.python_utils.invoice_ciphertext_versions import (
     select_latest_invoice_ciphertext,
 )
+from backend.core.api.app.services.direct_chat_access import is_direct_chat
 
 EXPORT_JOB_TTL_HOURS = 24
 EXPORT_SCHEMA_VERSION = "account-export-v1"
@@ -917,6 +918,9 @@ class AccountExportService:
         user_id: str,
         team_id: str | None,
     ) -> AsyncIterator[dict[str, Any]]:
+        direct_chat_hashes: set[str] = set()
+        if team_id and collection in {"embeds", "upload_files"}:
+            direct_chat_hashes = await self._direct_chat_hashes_for_team(team_id)
         if team_id:
             params = {
                 "filter": {"hashed_team_id": {"_eq": _hash_id(team_id)}},
@@ -942,6 +946,21 @@ class AccountExportService:
             for row in page:
                 if team_id:
                     if _is_team_row(row, team_id=team_id):
+                        if collection == "chats" and is_direct_chat(row):
+                            continue
+                        if collection == "embeds" and row.get("hashed_chat_id") in direct_chat_hashes:
+                            continue
+                        if collection == "upload_files":
+                            embed_id = row.get("embed_id")
+                            embeds = await self._directus_get_items("embeds", {
+                                "filter[embed_id][_eq]": embed_id,
+                                "fields": "hashed_chat_id",
+                                "limit": 1,
+                            }) if embed_id else []
+                            # Orphan upload files have no provable Team export
+                            # scope and may refer to a removed private embed.
+                            if not embeds or embeds[0].get("hashed_chat_id") in direct_chat_hashes:
+                                continue
                         yield _redact_for_export(row)
                     continue
                 if _is_personal_row(row):
@@ -949,6 +968,17 @@ class AccountExportService:
             if len(page) < DIRECTUS_EXPORT_PAGE_SIZE:
                 break
             offset += DIRECTUS_EXPORT_PAGE_SIZE
+
+    async def _direct_chat_hashes_for_team(self, team_id: str) -> set[str]:
+        rows = await self._get_items_bounded(
+            collection="chats",
+            params={
+                "filter": {"hashed_team_id": {"_eq": _hash_id(team_id)}},
+                "fields": "id,chat_visibility,participant_user_hashes,participant_key_envelopes",
+            },
+            admin_required=True,
+        )
+        return {_hash_id(str(row["id"])) for row in rows if row.get("id") and is_direct_chat(row)}
 
     async def _chats_payload(self, *, user_id: str, team_id: str | None, filters: dict[str, Any]) -> dict[str, Any]:
         chats = await self._get_scoped_rows(collection="chats", user_field="hashed_user_id", user_id=user_id, team_id=team_id)
@@ -1171,6 +1201,12 @@ class AccountExportService:
                 raise AccountExportAuthorizationError("Cold archive escaped authorized export scope")
             if filters and not _matches_export_filters(manifest, filters):
                 continue
+            if team_id and manifest.get("resource_type") == "chat":
+                chat = await self.directus_service.chat.get_chat_metadata(
+                    str(manifest.get("resource_id") or ""), admin_required=True,
+                )
+                if not chat or is_direct_chat(chat):
+                    continue
             yield manifest
 
     async def _get_items_bounded(

@@ -2720,7 +2720,10 @@ class WorkflowService:
             enabled=bool(record["enabled"]),
             lifecycle=WorkflowLifecycle(record.get("lifecycle", WorkflowLifecycle.PERSISTED.value)),
             source=record.get("source") or "manual",
-            source_chat_id=record.get("source_chat_id"),
+            # Team workflows are shared resources, but their source chat may be
+            # participant-private. Keep the stored origin for internal cleanup
+            # while omitting it from every shared summary/detail projection.
+            source_chat_id=None if record.get("hashed_team_id") else record.get("source_chat_id"),
             created_by_assistant=bool(record.get("created_by_assistant")),
             auto_delete_at=record.get("auto_delete_at"),
             kept_at=record.get("kept_at"),

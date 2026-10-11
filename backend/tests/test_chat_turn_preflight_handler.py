@@ -90,6 +90,27 @@ def _payload() -> dict:
     }
 
 
+class FakeChatMetadata:
+    """Authoritative metadata for the existing non-direct chat in these tests."""
+
+    def __init__(self, team_id: str | None = None) -> None:
+        self.team_id = team_id
+
+    async def get_chat_metadata(self, chat_id: str, *, admin_required: bool = False) -> dict:
+        assert admin_required is True
+        assert chat_id == _payload()["chat_id"]
+        return {
+            "id": chat_id,
+            "hashed_user_id": "owner-hash",
+            "hashed_team_id": hashlib.sha256(self.team_id.encode()).hexdigest() if self.team_id else None,
+            "chat_visibility": "team" if self.team_id else None,
+        }
+
+
+def _directus_with_chat_metadata(team_id: str | None = None, team=None) -> SimpleNamespace:
+    return SimpleNamespace(chat=FakeChatMetadata(team_id), team=team)
+
+
 @pytest.mark.asyncio
 # contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
 async def test_preflight_commits_only_encrypted_data_and_acknowledges(monkeypatch) -> None:
@@ -110,7 +131,7 @@ async def test_preflight_commits_only_encrypted_data_and_acknowledges(monkeypatc
     await chat_turn_preflight_handler.handle_chat_turn_preflight(
         websocket=websocket,
         manager=manager,
-        directus_service=object(),
+        directus_service=_directus_with_chat_metadata(),
         user_id="user-1",
         user_id_hash="owner-hash",
         device_fingerprint_hash="device-hash",
@@ -157,7 +178,7 @@ async def test_epoch_zero_acknowledges_without_persisting_recovery_state(monkeyp
 
     await chat_turn_preflight_handler.handle_chat_turn_preflight(
         manager=manager,
-        directus_service=object(),
+        directus_service=_directus_with_chat_metadata(),
         user_id="user-1",
         user_id_hash="owner-hash",
         device_fingerprint_hash="device-hash",
@@ -191,7 +212,9 @@ async def test_epoch_zero_ordinary_team_preflight_commits_before_ack(monkeypatch
     monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-key")
     monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", EpochZeroRecoveryService)
     EpochZeroRecoveryService.calls = []
-    directus = type("Directus", (), {"team": type("Team", (), {"require_team_role": staticmethod(require_team_role)})()})()
+    directus = _directus_with_chat_metadata(
+        "team-1", SimpleNamespace(require_team_role=require_team_role)
+    )
     manager = FakeManager()
     payload = _payload()
     payload["team_id"] = "team-1"
@@ -257,7 +280,9 @@ async def test_ordinary_team_lost_ack_retry_ignores_live_inference_metadata(monk
     monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-key")
     monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", IdempotentRecoveryService)
     monkeypatch.setattr(project_write_authorization_service, "ProjectWriteAuthorizationService", ChangingFocus)
-    directus = SimpleNamespace(team=SimpleNamespace(require_team_role=require_team_role))
+    directus = _directus_with_chat_metadata(
+        "team-1", SimpleNamespace(require_team_role=require_team_role)
+    )
     websocket = FakeWebSocket()
     websocket.app = SimpleNamespace(state=SimpleNamespace(cache_service=object(), encryption_service=None))
     manager = FakeManager()
@@ -337,7 +362,9 @@ async def test_team_ai_preflight_and_enqueue_bind_the_same_typed_history(monkeyp
     manager = FakeManager()
     websocket = FakeWebSocket()
     websocket.app = SimpleNamespace(state=SimpleNamespace(cache_service=object(), encryption_service=None))
-    directus = SimpleNamespace(team=SimpleNamespace(require_team_role=require_team_role))
+    directus = _directus_with_chat_metadata(
+        "team-1", SimpleNamespace(require_team_role=require_team_role)
+    )
     payload = _payload()
     payload["team_id"] = "team-1"
     ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
@@ -445,7 +472,7 @@ async def test_epoch_zero_ordinary_team_preflight_respects_send_pause(monkeypatc
     }
     manager = FakeManager()
     await chat_turn_preflight_handler.handle_chat_turn_preflight(
-        manager=manager, directus_service=object(), user_id="user-1", user_id_hash="owner-hash",
+        manager=manager, directus_service=_directus_with_chat_metadata("team-1"), user_id="user-1", user_id_hash="owner-hash",
         device_fingerprint_hash="device-hash", payload=payload,
     )
     assert [operation for operation, _ in PausedRecoveryService.calls] == ["get_cutover_state"]
@@ -471,7 +498,9 @@ async def test_epoch_zero_ordinary_team_commit_failure_sends_no_ack(monkeypatch)
     monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-key")
     monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", FailingRecoveryService)
     FailingRecoveryService.calls = []
-    directus = type("Directus", (), {"team": type("Team", (), {"require_team_role": staticmethod(require_team_role)})()})()
+    directus = _directus_with_chat_metadata(
+        "team-1", SimpleNamespace(require_team_role=require_team_role)
+    )
     payload = _payload()
     payload["team_id"] = "team-1"
     ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
@@ -508,7 +537,7 @@ async def test_epoch_zero_ordinary_team_scope_mismatch_never_commits(monkeypatch
     }
     manager = FakeManager()
     await chat_turn_preflight_handler.handle_chat_turn_preflight(
-        manager=manager, directus_service=object(), user_id="user-1", user_id_hash="owner-hash",
+        manager=manager, directus_service=_directus_with_chat_metadata("team-1"), user_id="user-1", user_id_hash="owner-hash",
         device_fingerprint_hash="device-hash", payload=payload,
     )
     assert [operation for operation, _ in EpochZeroRecoveryService.calls] == ["get_cutover_state"]

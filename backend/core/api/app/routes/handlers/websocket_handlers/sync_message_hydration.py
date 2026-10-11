@@ -6,6 +6,7 @@
 # cold-boot clients from accepting incomplete cache entries as complete history.
 
 import logging
+from backend.core.api.app.services.direct_chat_access import is_direct_chat, require_direct_chat_access
 from typing import Any, List, Tuple
 
 logger = logging.getLogger(__name__)
@@ -84,6 +85,11 @@ async def load_bounded_sync_message_window(
     )
 
     try:
+        metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+        if not metadata:
+            raise PermissionError("Chat unavailable for message hydration")
+        if is_direct_chat(metadata):
+            await require_direct_chat_access(directus_service, metadata, user_id)
         window = await directus_service.chat.get_message_window_for_chat(
             chat_id=chat_id,
             direction="before" if before_timestamp is not None else "latest",

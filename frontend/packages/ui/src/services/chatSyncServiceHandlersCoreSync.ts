@@ -21,7 +21,12 @@ import {
   hasEncryptedChatKeyMismatch,
   mergeServerChatWithLocal,
 } from "./chatSyncMerge";
-import { unwrapTeamChatKey } from "./teamService";
+// Loaded when sync handles a Team key; a static import closes the DB/auth cycle
+// during preview SSR before active-chat stores have finished initializing.
+async function unwrapTeamOrDirectChatKey(teamId: string, chatId: string, encryptedKey: string, visibility?: string | null): Promise<Uint8Array> {
+  const directChats = await import("./directChatService");
+  return directChats.unwrapTeamOrDirectChatKey(teamId, chatId, encryptedKey, visibility);
+}
 import { isActiveTeamContext } from "../stores/teamStore";
 import { consumeOfflineSyncBatch } from "./offlineSyncBatch";
 import { promoteDeferredTeamDraft } from "./drafts/draftContext";
@@ -428,9 +433,11 @@ export async function handlePhase1LastChatImpl(
         return null;
       }
       if (details.team_id && details.encrypted_chat_key) {
-        const chatKey = await unwrapTeamChatKey(
+        const chatKey = await unwrapTeamOrDirectChatKey(
           details.team_id,
+          details.id,
           details.encrypted_chat_key,
+          details.chat_visibility,
         );
         if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) {
           return null;

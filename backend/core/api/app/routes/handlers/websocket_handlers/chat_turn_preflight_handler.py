@@ -22,6 +22,7 @@ from backend.core.api.app.services.chat_recovery_service import (
     ChatRecoveryService,
 )
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
+from backend.core.api.app.services.direct_chat_access import is_direct_chat, require_direct_chat_access
 from backend.core.api.app.services.team_chat_ai_service import (
     normalize_team_ai_inference_request,
     parse_team_message_transport,
@@ -205,6 +206,15 @@ async def handle_chat_turn_preflight(
         inference_request_payload = payload.get("inference_request")
         team_id = payload.get("team_id")
         is_team_turn = isinstance(team_id, str) and bool(team_id)
+        existing_chat = await directus_service.chat.get_chat_metadata(str(payload["chat_id"]), admin_required=True)
+        direct_turn = is_direct_chat(existing_chat)
+        if direct_turn:
+            try:
+                await require_direct_chat_access(directus_service, existing_chat, user_id, team_id)
+            except (PermissionError, ValueError):
+                raise ChatRecoveryProtocolError(403, "direct_chat_permission_denied") from None
+            if not is_team_turn:
+                raise ChatRecoveryProtocolError(403, "direct_chat_permission_denied")
         ordinary_team_turn = (
             is_team_turn
             and isinstance(inference_request_payload, dict)
@@ -258,7 +268,10 @@ async def handle_chat_turn_preflight(
         hashed_team_id = None
         if isinstance(team_id, str) and team_id:
             try:
-                await directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
+                allowed_roles = {"owner", "admin", "member"}
+                if direct_turn and ordinary_team_turn:
+                    allowed_roles.add("viewer")
+                await directus_service.team.require_team_role(team_id, user_id, allowed_roles)
             except TeamPermissionError:
                 raise ChatRecoveryProtocolError(403, "team_permission_denied") from None
             hashed_team_id = hash_id(team_id)

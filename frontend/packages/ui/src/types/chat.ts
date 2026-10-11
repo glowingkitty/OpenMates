@@ -476,6 +476,8 @@ export interface Chat {
   chat_id: string; // Unique identifier for the chat
   user_id?: string; // Optional: User identifier associated with the chat on the client side (owner/creator)
   team_id?: string | null; // Local context marker; null/undefined means Personal
+  chat_visibility?: 'team' | 'direct' | null;
+  participant_user_hashes?: string[] | null; // Exact two-person scope for direct Team chats
   team_chat_pending_commit?: boolean; // Client-only fence until first Team message ACK or authoritative sync
   team_draft_pending_sync?: "update" | "delete"; // Client-only private draft intent awaiting first Team chat commit
   title?: string; // Plaintext title (ONLY for demo chats - not encrypted)
@@ -947,6 +949,8 @@ export interface ChatMessageConfirmedPayload {
 export interface TeamChatMessageCreatedPayload {
   team_id: string;
   chat_id: string;
+  chat_visibility?: 'team' | 'direct';
+  participant_user_hashes?: string[];
   message_id: string;
   role: MessageRole;
   hashed_user_id: string;

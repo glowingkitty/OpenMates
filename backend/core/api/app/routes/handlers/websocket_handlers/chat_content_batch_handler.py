@@ -7,6 +7,9 @@
 
 import logging
 import hashlib
+from backend.core.api.app.services.direct_chat_access import (
+    is_direct_chat, require_direct_chat_access, validate_direct_chat_metadata,
+)
 import re
 from typing import List, Dict, Any, Optional
 
@@ -62,6 +65,8 @@ async def _send_apps_legacy_embed_page(
             not team_hash and (chat.get("hashed_team_id") or chat.get("hashed_user_id") != user_hash)
         ):
             raise PermissionError("Chat is outside the requested account scope")
+        if is_direct_chat(chat):
+            await require_direct_chat_access(directus_service, chat, user_id, team_id)
 
         chat_hash = hashlib.sha256(chat_id.encode()).hexdigest()
         rows = await directus_service.get_items("embeds", params={
@@ -217,7 +222,7 @@ async def handle_chat_content_batch(
             chat_rows = await directus_service.get_items(
                 "chats", params={
                     "filter": {"id": {"_in": durable_chat_ids}},
-                    "fields": "id,hashed_user_id,hashed_team_id,storage_state,messages_v", "limit": len(durable_chat_ids),
+                    "fields": "id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_chat_key,storage_state,messages_v", "limit": len(durable_chat_ids),
                 }, admin_required=True, no_cache=True, raise_on_error=True,
             ) if durable_chat_ids else []
             if not isinstance(chat_rows, list) or any(
@@ -251,10 +256,21 @@ async def handle_chat_content_batch(
                 active_team_hashes = {row["hashed_team_id"] for row in memberships} & {
                     row["hashed_team_id"] for row in teams
                 }
-            current_chats = {row["id"]: row for row in chat_rows if (
-                row.get("hashed_team_id") in active_team_hashes if row.get("hashed_team_id")
-                else row.get("hashed_user_id") == user_id_hash
-            )}
+            current_chats = {}
+            for row in chat_rows:
+                if row.get("hashed_team_id"):
+                    if row["hashed_team_id"] not in active_team_hashes:
+                        continue
+                elif row.get("hashed_user_id") != user_id_hash:
+                    continue
+                if is_direct_chat(row):
+                    try:
+                        participants, _ = validate_direct_chat_metadata(row)
+                    except ValueError:
+                        continue
+                    if user_id_hash not in participants:
+                        continue
+                current_chats[row["id"]] = row
         except Exception as exc:
             logger.warning("[CHAT_CONTENT_BATCH]: Durable ownership unavailable (%s)", type(exc).__name__)
             await manager.send_personal_message(
@@ -386,6 +402,10 @@ async def handle_chat_content_batch(
         chat_key_wrappers: List[Dict[str, Any]] = []
         wrapper_windows: Dict[str, Dict[str, Any]] = {}
         for chat_id, hashed_id in zip(authorized_chat_ids, hashed_ids_for_keys):
+            if is_direct_chat(current_chats[chat_id]):
+                wrapper_windows[chat_id] = {"has_more_before": False, "start_cursor": None,
+                                            "oversized_wrapper_id": None}
+                continue
             team_hash = current_chats[chat_id].get("hashed_team_id")
             page = await directus_service.chat_key_wrapper.get_sync_wrapper_window_for_chat(
                 hashed_id, **({"hashed_team_id": team_hash} if team_hash else {"hashed_user_id": user_id_hash}),

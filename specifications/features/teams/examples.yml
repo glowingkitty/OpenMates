@@ -1,12 +1,12 @@
 schema_version: 1
-specification: feature.teams@3
+specification: feature.teams@4
 
 specification_structure:
   - id: requirements-use-canonical-assertion-ids
     input: {chapter: membership-invitations, requirement_id: teams.membership.role-gated, ui_label: Requirements}
     expect: {duplicate_requirement_record: false, canonical_assertion_id_preserved: true, chapter_placement_visible: true}
   - id: flow-is-specification-owned-rich-content
-    input: {flow_id: create-team, kind: user_flow, embed_references: [], parent_contract_revision: feature.teams@3}
+    input: {flow_id: create-team, kind: user_flow, embed_references: [], parent_contract_revision: feature.teams@4}
     expect: {independent_flow_embed_created: false, nested_fullscreen_renderable: true, independent_share_action: false}
   - id: edge-case-reuses-flow-rendering
     input: {flow_id: invite-unusable, kind: edge_case, parent_flow_id: invite-member}
@@ -44,18 +44,16 @@ team_profile_images:
     expect_error: {code: image_rejected, profile_metadata_changed: false, policy_violation_count_applied: true}
 
 team_membership_permissions:
-  - id: owner-can-manage-team-and-billing
-    input: {role: owner, operation: invite_change_role_delete_buy_export}
-    expect: {allowed: true}
-  - id: admin-can-manage-without-owner-transfer-delete
-    input: {role: admin, operation: invite_change_member_role_buy_export_delete_team}
-    expect: {invite_allowed: true, role_change_allowed: true, billing_allowed: true, export_allowed: true, delete_team_allowed: false}
-  - id: member-can-write-and-use-credits
-    input: {role: member, operation: create_team_chat_send_openmates_message}
-    expect: {workspace_write_allowed: true, team_credit_charge_allowed: true, member_management_allowed: false}
-  - id: viewer-is-read-only
-    input: {role: viewer, operation: send_openmates_message_create_project_export}
-    expect_error: {code: TEAM_PERMISSION_DENIED, mutation: false, ai_triggered: false, export_created: false}
+  - id: viewer-cannot-mutate-team-resources
+    assertion_ids: [teams.membership.role-gated]
+    given: Clara has the viewer role in Anna's Team.
+    when: Clara tries to change Team settings, create a shared Team resource or invoke AI using Team credits.
+    then: The operation is denied before a Team row changes or AI processing begins.
+  - id: viewer-can-reply-in-private-human-chat
+    assertion_ids: [teams.membership.role-gated]
+    given: Clara is a viewer and is one of the two participants in a private Team conversation with Anna.
+    when: Clara sends an ordinary human greeting and then tries to involve AI.
+    then: Anna receives the greeting without AI processing. AI invocation remains denied by the viewer role.
 
 team_invites:
   - id: encrypted-invite-link-web-accept-after-login
@@ -213,3 +211,39 @@ team_offline_cache:
     given: The browser cache is near its target and contains old synced chats plus an unsent draft.
     when: A write exhausts the quota and Mira later switches Teams and logs out.
     then: Only recoverable cached content is trimmed before one retry; the draft is protected, failed offline saving is visible, decrypted media is revoked and temporary plaintext downloads are purged.
+
+team_direct_key_exchange:
+  - id: recipient-can-be-offline-after-enrollment
+    assertion_ids: [teams.direct-chat.account-key-exchange]
+    given: Anna and Ben belong to the same Team and have each unlocked a supported client once. Ben is currently offline.
+    when: Anna chooses Message on Ben's member profile.
+    then: A separate chat key is encrypted for Anna and Ben. Ben can decrypt the conversation after signing in on another device; another Team member's key cannot decrypt it.
+  - id: missing-recipient-key-stays-pending
+    assertion_ids: [teams.direct-chat.account-key-exchange]
+    given: Ben belongs to Anna's Team but has never enrolled an account public encryption key.
+    when: Anna tries to start a private conversation with Ben.
+    then: Anna sees that Ben must complete secure setup. No Team-wide chat or Team-key wrapper is created as a fallback.
+
+team_direct_participant_access:
+  - id: team-admin-cannot-read-private-conversation
+    assertion_ids: [teams.direct-chat.participant-isolation]
+    given: Anna and Ben have a private Team conversation containing an uploaded image. Clara is an admin of that Team.
+    when: Clara lists chats or requests the known chat, message, key, embed or image identifier.
+    then: The private conversation is absent from Clara's list and sync events, and every direct content request is denied. Anna and Ben can read the messages and image after reload.
+  - id: removed-participant-loses-future-access
+    assertion_ids: [teams.direct-chat.participant-isolation]
+    given: Ben has synchronized his private conversation with Anna and is then removed from their Team.
+    when: Ben requests new messages or media, or an old Team request completes after his context has changed.
+    then: Future server access is denied and stale results do not appear in the new context. The product does not promise to erase copies Ben already downloaded.
+
+team_direct_entry_notifications:
+  - id: member-message-opens-private-chat
+    assertion_ids: [teams.direct-chat.member-entry-and-notifications]
+    given: Anna opens Ben's Team member profile in the web app or terminal settings.
+    when: Anna chooses Message and then sends a human greeting, retrying the initial creation request once.
+    then: One two-person conversation opens with the normal sender profile presentation. Ben receives a new-chat notification subject to his delivery preferences; Clara receives none, and notifications contain neither the greeting nor a secret key.
+  - id: private-chat-reopens-on-web-and-cli
+    assertion_ids: [teams.direct-chat.member-entry-and-notifications]
+    given: Anna created a private chat with Ben through the CLI and both accounts have their encrypted identity backups.
+    when: Ben opens the chat in the web app and later reopens it in the terminal.
+    then: Both clients show the private two-person scope and the same attributed conversation. Ordinary messages cause no AI processing; an explicit allowed AI mention uses this conversation's history.

@@ -13,6 +13,9 @@ from uuid import uuid4
 from typing import Any
 
 from backend.core.api.app.services.directus.team_methods import hash_id
+from backend.core.api.app.services.direct_chat_access import (
+    is_direct_chat, require_direct_chat_access, validate_direct_chat_metadata,
+)
 from backend.core.api.app.services.notification_email_preferences import (
     load_notification_user,
     notification_category_enabled,
@@ -39,15 +42,20 @@ def _capability_key(capability_id: str) -> str:
     return f"team:notification:capability:{capability_id}"
 
 
-async def _require_scoped_chat(directus: Any, team_id: str, chat_id: str, actor_id: str) -> None:
-    await directus.team.require_team_role(team_id, actor_id, {"owner", "admin", "member"})
+async def _require_scoped_chat(directus: Any, team_id: str, chat_id: str, actor_id: str) -> dict[str, Any]:
     chat = await directus.chat.get_chat_metadata(chat_id)
     if not isinstance(chat, dict) or chat.get("hashed_team_id") != hash_id(team_id):
         raise PermissionError("Team chat scope mismatch")
+    if is_direct_chat(chat):
+        await require_direct_chat_access(directus, chat, actor_id, team_id)
+    else:
+        await directus.team.require_team_role(team_id, actor_id, {"owner", "admin", "member"})
+    return chat
 
 
 async def active_team_recipient_ids(
     directus: Any, team_id: str, sender_id: str, *, exclude_sender: bool = True,
+    participant_hashes: set[str] | None = None,
 ) -> tuple[str, ...]:
     """Resolve membership hashes, including accounts without passkeys.
 
@@ -55,6 +63,8 @@ async def active_team_recipient_ids(
     Directus scan covers password-only accounts until every member is resolved.
     """
     hashes = await directus.team.list_active_member_hashes(team_id)
+    if participant_hashes is not None:
+        hashes &= participant_hashes
     pending = hashes - ({hash_id(sender_id)} if exclude_sender else set())
     recipients: list[str] = []
     for member_hash in tuple(pending):
@@ -88,9 +98,10 @@ async def active_team_recipient_ids(
 async def issue_preview_capability(
     *, directus: Any, cache: Any, team_id: str, chat_id: str, sender_id: str,
 ) -> dict[str, Any]:
-    await _require_scoped_chat(directus, team_id, chat_id, sender_id)
+    chat = await _require_scoped_chat(directus, team_id, chat_id, sender_id)
+    participants = set(validate_direct_chat_metadata(chat)[0]) if is_direct_chat(chat) else None
     eligible: list[str] = []
-    for recipient_id in await active_team_recipient_ids(directus, team_id, sender_id):
+    for recipient_id in await active_team_recipient_ids(directus, team_id, sender_id, participant_hashes=participants):
         user = await load_notification_user(directus, recipient_id)
         if notification_category_enabled(user, TEAM_EMAIL_CATEGORY) and preview_enabled(user) and user.get("vault_key_id"):
             eligible.append(recipient_id)
@@ -116,7 +127,7 @@ async def stage_team_preview(
         raise ValueError("Invalid title length")
     if not isinstance(message_id, str) or len(message_id) > 255 or not message_id:
         raise ValueError("Invalid message ID")
-    await _require_scoped_chat(directus, team_id, chat_id, sender_id)
+    chat = await _require_scoped_chat(directus, team_id, chat_id, sender_id)
     client = await cache.client
     if not client:
         return 0
@@ -128,6 +139,8 @@ async def stage_team_preview(
         raise PermissionError("Preview capability scope mismatch")
     await client.delete(_capability_key(capability_id))
     active_hashes = await directus.team.list_active_member_hashes(team_id)
+    if is_direct_chat(chat):
+        active_hashes &= set(validate_direct_chat_metadata(chat)[0])
     count = 0
     for recipient_id in capability.get("recipient_ids", []):
         if recipient_id == sender_id or hash_id(recipient_id) not in active_hashes:
@@ -189,12 +202,13 @@ async def queue_committed_team_message(
     message_id: str, sender_id: str,
 ) -> int:
     """Queue only after the encrypted user message has committed."""
-    await _require_scoped_chat(directus, team_id, chat_id, sender_id)
+    chat = await _require_scoped_chat(directus, team_id, chat_id, sender_id)
+    participants = set(validate_direct_chat_metadata(chat)[0]) if is_direct_chat(chat) else None
     from backend.core.api.app.services.chat_email_notification_service import enqueue_chat_email
 
     sender_name = await _sender_display_name(directus, encryption, sender_id)
     count = 0
-    for recipient_id in await active_team_recipient_ids(directus, team_id, sender_id):
+    for recipient_id in await active_team_recipient_ids(directus, team_id, sender_id, participant_hashes=participants):
         try:
             user = await load_notification_user(directus, recipient_id)
             if not notification_category_enabled(user, TEAM_EMAIL_CATEGORY):
@@ -278,10 +292,18 @@ async def queue_completed_team_mate_response(
     # Authoritative metadata must continue to match the resolved Team identity.
     if hash_id(team_id) != hashed_team_id:
         return True
+    participants = None
+    if is_direct_chat(chat):
+        try:
+            await require_direct_chat_access(directus, chat, initiating_user_id, team_id)
+            participants = set(validate_direct_chat_metadata(chat)[0])
+        except (PermissionError, ValueError):
+            return True
     from backend.core.api.app.services.chat_email_notification_service import enqueue_chat_email
 
     for recipient_id in await active_team_recipient_ids(
         directus, team_id, initiating_user_id, exclude_sender=False,
+        participant_hashes=participants,
     ):
         try:
             user = await load_notification_user(directus, recipient_id)

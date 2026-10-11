@@ -12,6 +12,7 @@ from backend.core.api.app.services.directus.team_methods import hash_id
 
 
 TEAM_EVENT_ALLOWED_FIELDS = {
+    "team_chat_created": frozenset({"team_id", "chat"}),
     "team_chat_message_created": frozenset(
         {
             "team_id",
@@ -23,6 +24,8 @@ TEAM_EVENT_ALLOWED_FIELDS = {
             "encrypted_sender_name",
             "created_at",
             "encrypted_chat_key",
+            "chat_visibility",
+            "participant_user_hashes",
         }
     ),
     "team_ai_processing": frozenset({"team_id", "chat_id", "message_id", "ai_task_id", "status"}),
@@ -73,7 +76,26 @@ async def broadcast_team_event(
     unexpected_fields = set(payload).difference(allowed_fields)
     if unexpected_fields:
         raise ValueError(f"Team realtime payload contains unapproved fields: {sorted(unexpected_fields)}")
-
+    if event_name == "team_chat_created":
+        chat = payload.get("chat")
+        recipients = tuple(active_member_hashes or ())
+        participants = chat.get("participant_user_hashes") if isinstance(chat, dict) else None
+        if (
+            not isinstance(chat, dict)
+            or chat.get("chat_visibility") != "direct"
+            or not isinstance(chat.get("id"), str)
+            or chat.get("team_id") != payload.get("team_id")
+            or "participant_key_envelopes" in chat
+            or "chat_key_wrappers" in chat
+            or not isinstance(chat.get("encrypted_chat_key"), str)
+            or not chat["encrypted_chat_key"].startswith("OMDM1.")
+            or not isinstance(participants, list)
+            or len(participants) != 2
+            or len(recipients) != 1
+            or recipients[0] not in participants
+            or getattr(chat, "user_hash", None) != recipients[0]
+        ):
+            raise ValueError("Direct chat creation event requires one recipient projection")
     if cache_service is not None and active_member_hashes is not None:
         client = await cache_service.client
         if not client:

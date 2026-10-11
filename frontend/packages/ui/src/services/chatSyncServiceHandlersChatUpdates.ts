@@ -36,7 +36,15 @@ import { draftEditorUIState } from "./drafts/draftState";
 import { activeTeamContext, isActiveTeamContext } from "../stores/teamStore";
 import { promoteDeferredTeamDraft } from "./drafts/draftContext";
 import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
-import { unwrapTeamChatKey } from "./teamService";
+// Resolve only for incoming Team keys; static loading re-enters chat sync via
+// DB/auth modules before active-chat stores initialize during preview SSR.
+async function unwrapTeamOrDirectChatKey(teamId: string, chatId: string, encryptedKey: string, visibility?: string | null): Promise<Uint8Array> {
+  const directChats = await import("./directChatService");
+  return directChats.unwrapTeamOrDirectChatKey(teamId, chatId, encryptedKey, visibility);
+}
+import { chatKeysEqual } from "./chatKeyConsistency";
+import { computeSHA256 } from "../message_parsing/utils";
+import { userProfile } from "../stores/userProfile";
 import {
   persistAssistantSpeechPreferenceIntent,
 } from "./assistantSpeechPreference";
@@ -44,6 +52,52 @@ import {
 const ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH = 120;
 // Keep this aligned with db/messageOperations.ts DEFAULT_MESSAGE_WINDOW_LIMIT.
 const METADATA_MESSAGE_WINDOW_HYDRATION_LIMIT = 30;
+
+/** Recipient-only metadata delivery makes a new direct chat visible before its first message. */
+export async function handleTeamChatCreatedImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: { team_id: string; chat: Partial<Chat> & { id?: string } },
+  isCurrentContext: () => boolean,
+): Promise<void> {
+  if (!isCurrentContext()) return;
+  const details = payload.chat;
+  const chatId = details?.chat_id ?? details?.id;
+  const userId = get(userProfile).user_id;
+  if (!chatId || !userId || details.team_id !== payload.team_id ||
+      details.chat_visibility !== 'direct' || !details.encrypted_chat_key ||
+      details.participant_user_hashes?.length !== 2) return;
+  const ownHash = await computeSHA256(userId);
+  if (!isCurrentContext() || !details.participant_user_hashes.includes(ownHash)) return;
+  const key = await unwrapTeamOrDirectChatKey(payload.team_id, chatId, details.encrypted_chat_key, 'direct');
+  if (!isCurrentContext()) return;
+  const cachedKey = chatKeyManager.getKeySync(chatId);
+  if (cachedKey && !chatKeysEqual(cachedKey, key)) throw new Error('Conflicting direct chat key');
+  if (!cachedKey) chatKeyManager.injectKey(chatId, key, 'direct_chat');
+  const now = Math.floor(Date.now() / 1000);
+  const chat: Chat = {
+    ...details, chat_id: chatId, team_id: payload.team_id,
+    encrypted_title: details.encrypted_title ?? null,
+    encrypted_chat_key: details.encrypted_chat_key,
+    chat_visibility: 'direct',
+    participant_user_hashes: details.participant_user_hashes,
+    messages_v: details.messages_v ?? 0,
+    title_v: details.title_v ?? 0,
+    draft_v: details.draft_v ?? 0,
+    unread_count: details.unread_count ?? 0,
+    created_at: details.created_at ?? now,
+    updated_at: details.updated_at ?? now,
+    last_edited_overall_timestamp: details.last_edited_overall_timestamp ?? now,
+  };
+  if (!isCurrentContext()) return;
+  await chatDB.addChat(chat, undefined, { isFromSync: true, writeGuard: () => {
+    if (!isCurrentContext()) throw new Error('Team context changed before direct chat was saved');
+  } });
+  if (!isCurrentContext()) return;
+  chatMetadataCache.invalidateChat(chatId);
+  chatListCache.upsertChat(chat);
+  serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: chatId, type: 'created', chat } }));
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { detail: { chat_id: chatId, chat } }));
+}
 
 export function isProjectAuthoringAvailablePayload(
   payload: unknown,
@@ -136,9 +190,11 @@ export async function ensureTeamChatShellImpl(
     throw new Error(`Team realtime event context mismatch for chat ${payload.chat_id}`);
   }
   if (payload.encrypted_chat_key && !chatKeyManager.getKeySync(payload.chat_id)) {
-    const chatKey = await unwrapTeamChatKey(
+    const chatKey = await unwrapTeamOrDirectChatKey(
       payload.team_id,
+      payload.chat_id,
       payload.encrypted_chat_key,
+      payload.chat_visibility,
     );
     if (!isCurrentContext()) {
       throw new Error("Team context changed while unwrapping realtime chat key");
@@ -153,6 +209,8 @@ export async function ensureTeamChatShellImpl(
   chat = {
     chat_id: payload.chat_id,
     team_id: payload.team_id,
+    chat_visibility: payload.chat_visibility ?? null,
+    participant_user_hashes: payload.participant_user_hashes ?? null,
     encrypted_title: null,
     encrypted_chat_key: payload.encrypted_chat_key,
     messages_v: 0,

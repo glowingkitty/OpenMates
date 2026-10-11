@@ -9,6 +9,8 @@ export const TUI_ACTIONS = [
   { label: "Show all workspace items", command: "/browse" },
   { label: "Use selected app skill", command: "/app-run" },
   { label: "Recent chats", command: "/chats" },
+  { label: "Team members", command: "/members" },
+  { label: "Message Team member", command: "/message" },
   { label: "Example chats", command: "/examples" },
   { label: "Projects", command: "/projects" },
   { label: "Tasks", command: "/tasks" },

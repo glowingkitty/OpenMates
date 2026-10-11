@@ -33,6 +33,19 @@ export async function hasEncryptedChatKeyMismatch(
   if (!serverEncryptedKey || !localEncryptedKey) return false;
   if (serverEncryptedKey === localEncryptedKey) return false;
 
+  if (serverChat.chat_visibility === 'direct' || localChat?.chat_visibility === 'direct' ||
+      serverEncryptedKey.startsWith('OMDM1.') || localEncryptedKey.startsWith('OMDM1.')) {
+    if (!serverChat.team_id || !localChat?.team_id || serverChat.team_id !== localChat.team_id) return true;
+    try {
+      const { unwrapDirectTeamChatKey } = await import('./directChatService');
+      const [serverRaw, localRaw] = await Promise.all([
+        unwrapDirectTeamChatKey(serverChat.team_id, serverChat.id, serverEncryptedKey),
+        unwrapDirectTeamChatKey(localChat.team_id, localChat.chat_id, localEncryptedKey),
+      ]);
+      return !chatKeysEqual(serverRaw, localRaw);
+    } catch { return true; }
+  }
+
   const [serverRawKey, localRawKey] = await Promise.all(
     [serverEncryptedKey, localEncryptedKey].map((encryptedKey) =>
       decryptChatKeyWithMasterKey(encryptedKey),
@@ -95,6 +108,8 @@ export async function mergeServerChatWithLocal(
     return {
       chat_id: serverChat.id,
       team_id: serverChat.team_id ?? null,
+      chat_visibility: serverChat.chat_visibility ?? null,
+      participant_user_hashes: serverChat.participant_user_hashes ?? null,
       encrypted_title: serverChat.encrypted_title ?? null,
       messages_v: serverChat.messages_v ?? 0,
       message_window_has_more_before: serverChat.message_window_has_more_before,
@@ -192,6 +207,8 @@ export async function mergeServerChatWithLocal(
   const merged: Chat = {
     chat_id: serverChat.id,
     team_id: serverChat.team_id ?? localChat.team_id ?? null,
+    chat_visibility: serverChat.chat_visibility ?? localChat.chat_visibility ?? null,
+    participant_user_hashes: serverChat.participant_user_hashes ?? localChat.participant_user_hashes ?? null,
     team_chat_pending_commit: serverChat.team_id && (serverChat.messages_v ?? 0) > 0
       ? false : localChat.team_chat_pending_commit,
     team_draft_pending_sync: pendingTeamDraft || undefined,

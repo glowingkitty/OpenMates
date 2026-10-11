@@ -21,6 +21,7 @@ import { promisify } from "node:util";
 import { WebSocketServer } from "ws";
 import { parse as parseYaml } from "yaml";
 import { encryptBytesWithAesGcm } from "../src/crypto.ts";
+import { createAccountChatIdentity } from "../src/directChats.ts";
 
 // Import from compiled dist — the .js extension imports in src/ require the build step
 import {
@@ -888,10 +889,20 @@ async function withTeamsContextMockApi<T>(
   );
   const stateDir = join(tempHome, ".openmates");
   mkdirSync(stateDir, { recursive: true });
+  const { record: accountKeyRecord } = await createAccountChatIdentity(Buffer.alloc(32));
 
   const server = createServer(async (request, response) => {
     try {
       if (request.url) requests.push({ method: request.method ?? "GET", url: request.url });
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        writeJson(response, { success: true, ws_token: "fresh-ws-token",
+          user: { id: "11111111-1111-4111-8111-111111111111" } });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/account/chat-encryption-key") {
+        writeJson(response, { key: accountKeyRecord });
+        return;
+      }
       if (request.method === "GET" && request.url === "/v1/teams") {
         writeJson(response, {
           teams: [
@@ -4650,7 +4661,11 @@ describe("settings command surface", () => {
       assert.equal(parsed.active_team_id, "team-design");
       assert.equal(parsed.targets?.find((target) => target.target === "design")?.active, true);
 
-      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+      const enrollmentRequests = requests.filter((request) => request.url === "/v1/account/chat-encryption-key");
+      assert.ok(enrollmentRequests.length >= 1, "Team listing enrolls a direct-chat account key");
+      assert.ok(enrollmentRequests.every((request) => request.method === "GET"));
+      assert.deepEqual(requests.filter((request) => request.url !== "/v1/account/chat-encryption-key"
+        && request.url !== "/v1/auth/session").map((request) => `${request.method} ${request.url}`), [
         "GET /v1/teams",
         "GET /v1/teams",
         "GET /v1/teams",
@@ -4678,7 +4693,11 @@ describe("settings command surface", () => {
       });
       assert.equal((JSON.parse(jsonOutput) as { active_team_id?: string | null }).active_team_id, null);
 
-      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+      const enrollmentRequests = requests.filter((request) => request.url === "/v1/account/chat-encryption-key");
+      assert.ok(enrollmentRequests.length >= 1, "Team listing enrolls a direct-chat account key");
+      assert.ok(enrollmentRequests.every((request) => request.method === "GET"));
+      assert.deepEqual(requests.filter((request) => request.url !== "/v1/account/chat-encryption-key"
+        && request.url !== "/v1/auth/session").map((request) => `${request.method} ${request.url}`), [
         "GET /v1/teams",
         "GET /v1/teams",
       ]);
@@ -4709,7 +4728,11 @@ describe("settings command surface", () => {
       assert.match(teamCredits, /Available/);
       assert.match(teamCredits, /1200 credits/);
 
-      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+      const enrollmentRequests = requests.filter((request) => request.url === "/v1/account/chat-encryption-key");
+      assert.ok(enrollmentRequests.length >= 1, "Team listing enrolls a direct-chat account key");
+      assert.ok(enrollmentRequests.every((request) => request.method === "GET"));
+      assert.deepEqual(requests.filter((request) => request.url !== "/v1/account/chat-encryption-key"
+        && request.url !== "/v1/auth/session").map((request) => `${request.method} ${request.url}`), [
         "GET /v1/settings/billing",
         "GET /v1/teams",
         "GET /v1/teams/team-design/billing",

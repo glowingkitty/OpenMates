@@ -69,7 +69,13 @@ async def test_chat_key_wrapper_fetch_uses_team_scope_for_team_sync() -> None:
             return {"wrappers": [{"id": "team-wrapper"}], "has_more_before": False,
                     "start_cursor": "team-wrapper", "oversized_wrapper_id": None}
 
-    directus = SimpleNamespace(chat_key_wrapper=FakeChatKeyWrapper())
+    class FakeChat:
+        async def get_chat_metadata(self, chat_id, *, admin_required=True):
+            assert chat_id == "chat-1"
+            assert admin_required is True
+            return {"id": chat_id, "hashed_team_id": _hash("team-1"), "chat_visibility": "team"}
+
+    directus = SimpleNamespace(chat=FakeChat(), chat_key_wrapper=FakeChatKeyWrapper())
 
     wrappers, windows = await phased_sync_handler._fetch_chat_key_wrappers_for_chats(
         directus,
@@ -799,6 +805,11 @@ async def test_phase1b_refetches_directus_when_sync_cache_is_partial(monkeypatch
             return []
 
     class FakeDirectusChat:
+        async def get_chat_metadata(self, chat_id, *, admin_required=True):
+            assert chat_id == "chat-1"
+            assert admin_required is True
+            return {"id": chat_id, "hashed_user_id": _hash("user-1"), "hashed_team_id": None}
+
         async def get_message_count_for_chat(self, chat_id):
             return 2
 
@@ -916,6 +927,10 @@ async def test_phase1_full_content_ids_are_limited_to_recent_parent_chats(doc_as
             "is_sub_chat": True,
         }
 
+    for chat_metadata in metadata.values():
+        chat_metadata["hashed_user_id"] = _hash("user-1")
+        chat_metadata["hashed_team_id"] = None
+
     class FakeCache:
         async def get_new_chat_suggestions(self, hashed_user_id):
             return []
@@ -946,7 +961,8 @@ async def test_phase1_full_content_ids_are_limited_to_recent_parent_chats(doc_as
         async def get_chats_metadata_batch(self, chat_ids):
             return {chat_id: metadata[chat_id] for chat_id in chat_ids if chat_id in metadata}
 
-        async def get_chat_metadata(self, chat_id):
+        async def get_chat_metadata(self, chat_id, *, admin_required=True):
+            assert admin_required is True
             return metadata.get(chat_id)
 
     class FakeDirectus:
@@ -1016,6 +1032,10 @@ async def test_phase1_emits_keyless_metadata_rows_for_client_key_recovery(doc_as
         },
     }
 
+    for chat_metadata in metadata.values():
+        chat_metadata["hashed_user_id"] = _hash("user-1")
+        chat_metadata["hashed_team_id"] = None
+
     class FakeCache:
         async def get_new_chat_suggestions(self, hashed_user_id):
             return []
@@ -1046,7 +1066,8 @@ async def test_phase1_emits_keyless_metadata_rows_for_client_key_recovery(doc_as
                 if chat_id in metadata
             }
 
-        async def get_chat_metadata(self, chat_id):
+        async def get_chat_metadata(self, chat_id, *, admin_required=True):
+            assert admin_required is True
             return metadata.get(chat_id)
 
     class FakeDirectus:
@@ -1110,6 +1131,10 @@ async def test_phase1_emits_keyless_direct_sub_chat_metadata_for_client_key_reco
         },
     }
 
+    for chat_metadata in metadata.values():
+        chat_metadata["hashed_user_id"] = _hash("user-1")
+        chat_metadata["hashed_team_id"] = None
+
     class FakeCache:
         async def get_new_chat_suggestions(self, hashed_user_id):
             return []
@@ -1140,7 +1165,8 @@ async def test_phase1_emits_keyless_direct_sub_chat_metadata_for_client_key_reco
                 if chat_id in metadata
             }
 
-        async def get_chat_metadata(self, chat_id):
+        async def get_chat_metadata(self, chat_id, *, admin_required=True):
+            assert admin_required is True
             return metadata.get(chat_id)
 
     class FakeDirectus:

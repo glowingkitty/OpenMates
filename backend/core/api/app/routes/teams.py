@@ -31,7 +31,7 @@ from backend.core.api.app.services.directus.team_methods import PENDING_ACCESS_A
 from backend.core.api.app.services.feature_availability_guards import ensure_teams_enabled
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.project_remote_access_service import ProjectRemoteAccessService
-from backend.core.api.app.services.team_billing_service import TEAM_BILLING_ROLES, TeamBillingService, TeamInsufficientCreditsError
+from backend.core.api.app.services.team_billing_service import TEAM_BILLING_ROLES, TeamBillingService, TeamInsufficientCreditsError, team_usage_csv_values
 from backend.core.api.app.services.billing_profile_service import BillingProfileService
 from backend.core.api.app.schemas.billing_address import BuyerAddress, BuyerAddressRequest
 from backend.core.api.app.services.team_data_portability_service import TeamDataPortabilityError, TeamDataPortabilityService
@@ -2119,7 +2119,7 @@ async def export_team_usage(
         writer = csv.writer(output)
         writer.writerow(fields)
         for event in usage:
-            writer.writerow([event.get(field, "") for field in fields])
+            writer.writerow(team_usage_csv_values(event, fields))
         content = output.getvalue().encode("utf-8")
         media_type = "text/csv; charset=utf-8"
     else:

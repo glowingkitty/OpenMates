@@ -33,6 +33,17 @@ function isRawResponse(value: unknown): value is RawResponse {
   return Boolean(value && typeof value === "object" && value instanceof Object && "body" in value && "contentType" in value);
 }
 
+// These route tests exercise an already-enrolled account. Key exchange itself
+// is asserted by directChatsSdk.test.ts; count the independent Team dependency.
+function stubEnrolledChatIdentity(client: OpenMates): () => number {
+  let calls = 0;
+  (client as unknown as { chatIdentity: () => Promise<unknown> }).chatIdentity = async () => {
+    calls += 1;
+    return {};
+  };
+  return () => calls;
+}
+
 async function withServer(
   handler: (request: IncomingMessage, body: unknown) => unknown,
   run: (apiUrl: string, seen: SeenRequest[]) => Promise<void>,
@@ -102,12 +113,14 @@ describe("OpenMates SDK Teams", () => {
       throw new Error(`Unexpected request ${request.method} ${request.url}`);
     }, async (apiUrl, seen) => {
       const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
+      const identityCalls = stubEnrolledChatIdentity(client);
       assert.equal((await client.teams.listMembers("team-1"))[0]?.profile?.display_name, "Alice");
       assert.equal((await client.teams.getMember("team-1", "alice")).profile?.avatar, "sun");
       assert.equal((await client.teams.updateOwnMemberProfile("team-1", { display_name: "Alice B", avatar: "star" })).profile?.display_name, "Alice B");
       const payload = seen.find((row) => row.method === "PATCH")?.body as Record<string, unknown>;
       assert.deepEqual(Object.keys(payload), ["encrypted_member_profile"]);
       assert.doesNotMatch(JSON.stringify(payload), /Alice B|star|display_name/);
+      assert.ok(identityCalls() >= 1);
     }, `Bearer ${splitApiKeyCredential(material.apiKey).bearer}`);
   });
   // contract-test: direct surface=sdks.npm assertions=billing.storage.weekly-quote,billing.storage.team-warning-expiry
@@ -157,8 +170,10 @@ describe("OpenMates SDK Teams", () => {
       },
       async (apiUrl, seen) => {
         const client = new OpenMates({ apiKey: "x", apiUrl });
+        const identityCalls = stubEnrolledChatIdentity(client);
         assert.equal((await client.teams.list())[0]?.team_id, "team-1");
         assert.equal((await client.teams.get("team-1")).team_id, "team-1");
+        assert.equal(identityCalls(), 2);
         assert.equal((await client.teams.create({ encrypted_name: "cipher" })).team_id, "team-1");
         assert.equal((await client.teams.update("team-1", { encrypted_name: "next" })).encrypted_name, "next");
         assert.equal((await client.teams.invite("team-1", { invite_id: "invite-1" })).invite_id, "invite-1");
@@ -242,6 +257,7 @@ describe("OpenMates SDK Teams", () => {
       },
       async (apiUrl, seen) => {
         const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
+        const identityCalls = stubEnrolledChatIdentity(client);
 
         const created = await client.teams.createPlain({
           teamId: "team-1",
@@ -285,6 +301,7 @@ describe("OpenMates SDK Teams", () => {
           ["PATCH", "/v1/teams/team-1"],
           ["GET", "/v1/teams/team-1/profile-image"],
         ]);
+        assert.ok(identityCalls() >= 1);
       },
       `Bearer ${splitApiKeyCredential(material.apiKey).bearer}`,
     );
@@ -317,6 +334,7 @@ describe("OpenMates SDK Teams", () => {
       },
       async (apiUrl, seen) => {
         const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
+        const identityCalls = stubEnrolledChatIdentity(client);
         const note = "Private note to @Alice; email@openmates.org and @mate:unknown_person are not AI mentions";
         const result = await client.chats.send(note, {
           teamId: "team-1",
@@ -338,6 +356,7 @@ describe("OpenMates SDK Teams", () => {
         assert.equal("title" in payload, false);
         assert.equal(JSON.stringify(payload).includes("Earlier private Team turn"), false);
         assert.equal(JSON.stringify(payload).includes("Private Team title"), false);
+        assert.ok(identityCalls() >= 1);
       },
       `Bearer ${splitApiKeyCredential(material.apiKey).bearer}`,
     );
@@ -377,10 +396,12 @@ describe("OpenMates SDK Teams", () => {
       },
       async (apiUrl) => {
         const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
+        const identityCalls = stubEnrolledChatIdentity(client);
         await assert.rejects(client.chats.send("@mate:software_development review", {
           teamId: "team-1", title: "Private Team title", senderName: "Alias",
           history: [{ role: "user", content: "Earlier venue idea", sender_name: "Alice", created_at: 100 }],
         }), /Saved chat dispatch did not return a stable inference task id/);
+        assert.ok(identityCalls() >= 1);
       },
       `Bearer ${splitApiKeyCredential(material.apiKey).bearer}`,
     );

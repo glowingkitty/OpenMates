@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from backend.core.api.app.schemas.chat import CachedChatVersions, CachedChatListItemData, ChatSyncData, InitialSyncResponsePayloadSchema, ClientChatComponentVersions
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.direct_chat_access import is_direct_chat
 from backend.core.api.app.utils.encryption import EncryptionService
 from datetime import datetime, timezone
 
@@ -118,6 +119,13 @@ async def handle_initial_sync(
 
         # 3. Process Server's Chats for Deltas
         for server_chat_id, server_last_edited_ts_score in server_master_list_tuples:
+            # This legacy personal cache may contain stale Team entries. It has
+            # no participant projection slot, so never emit a direct chat here.
+            live_chat = await directus_service.chat.get_chat_metadata(
+                server_chat_id, admin_required=True,
+            )
+            if not isinstance(live_chat, dict) or is_direct_chat(live_chat):
+                continue
             # Skip timestamp-based filtering if client is missing this chat entirely
             is_missing_on_client = server_chat_id in chats_missing_on_client
             

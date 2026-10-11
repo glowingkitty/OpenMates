@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   getEncryptedChatKey: vi.fn(),
   decryptChatKeyWithMasterKey: vi.fn(),
   unwrapTeamChatKey: vi.fn(),
+  unwrapDirectTeamChatKey: vi.fn(),
   unwrapAnonymousChatKey: vi.fn(),
   addCandidateKey: vi.fn(),
 }));
@@ -40,6 +41,17 @@ vi.mock("../teamService", () => ({
   unwrapTeamChatKey: mocks.unwrapTeamChatKey,
 }));
 
+vi.mock("../directChatService", () => ({
+  unwrapTeamOrDirectChatKey: async (teamId: string, chatId: string, wrapper: string, visibility?: string) => {
+    if (visibility === "direct" || wrapper.startsWith("OMDM1.")) {
+      return mocks.unwrapDirectTeamChatKey(teamId, chatId, wrapper);
+    }
+    const key = await mocks.unwrapTeamChatKey(teamId, wrapper);
+    if (!key) throw new Error("Team chat key could not be unwrapped");
+    return key;
+  },
+}));
+
 vi.mock("../anonymousChatKeyWrapping", () => ({
   unwrapAnonymousChatKey: mocks.unwrapAnonymousChatKey,
 }));
@@ -53,6 +65,63 @@ describe("chat key write guard", () => {
     vi.clearAllMocks();
     mocks.addCandidateKey.mockResolvedValue(undefined);
     vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.direct-chat.account-key-exchange,teams.direct-chat.participant-isolation
+  it("validates a private participant envelope before a human message or embed write", async () => {
+    const { ensureChatKeySafeForWrite } = await import("../chatKeyWriteGuard");
+    const key = new Uint8Array([7]);
+    mocks.getChat.mockResolvedValue({
+      chat_id: "private-chat", team_id: "team-123", chat_visibility: "direct",
+      encrypted_chat_key: "OMDM1.participant-envelope", key_fingerprint: "fp-7",
+    });
+    mocks.unwrapDirectTeamChatKey.mockResolvedValue(key);
+
+    expect(await ensureChatKeySafeForWrite("private-chat", key, "human message")).toBe(true);
+    expect(mocks.unwrapDirectTeamChatKey).toHaveBeenCalledWith("team-123", "private-chat", "OMDM1.participant-envelope");
+    expect(mocks.unwrapTeamChatKey).not.toHaveBeenCalled();
+    expect(mocks.decryptChatKeyWithMasterKey).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.direct-chat.account-key-exchange,teams.direct-chat.participant-isolation
+  it("rejects a private participant envelope that opens to a different raw key", async () => {
+    const { ensureChatKeySafeForWrite } = await import("../chatKeyWriteGuard");
+    mocks.getChat.mockResolvedValue({ team_id: "team-123", chat_visibility: "direct", encrypted_chat_key: "OMDM1.envelope" });
+    mocks.unwrapDirectTeamChatKey.mockResolvedValue(new Uint8Array([8]));
+
+    expect(await ensureChatKeySafeForWrite("private-chat", new Uint8Array([7]), "embed key")).toBe(false);
+    expect(mocks.addCandidateKey).toHaveBeenCalled();
+    expect(mocks.unwrapTeamChatKey).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.direct-chat.account-key-exchange,teams.direct-chat.participant-isolation
+  it("fails closed when a private envelope or account identity is unavailable", async () => {
+    const { ensureChatKeySafeForWrite } = await import("../chatKeyWriteGuard");
+    mocks.getChat.mockResolvedValue({ team_id: "team-123", chat_visibility: "direct", encrypted_chat_key: "OMDM1.envelope" });
+    mocks.unwrapDirectTeamChatKey.mockRejectedValue(new Error("Identity unavailable"));
+
+    expect(await ensureChatKeySafeForWrite("private-chat", new Uint8Array([7]), "human message")).toBe(false);
+    expect(mocks.unwrapTeamChatKey).not.toHaveBeenCalled();
+    expect(mocks.addCandidateKey).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.direct-chat.account-key-exchange,teams.direct-chat.participant-isolation
+  it("rejects a private envelope without Team context instead of using the Personal fallback", async () => {
+    const { ensureChatKeySafeForWrite } = await import("../chatKeyWriteGuard");
+    mocks.getChat.mockResolvedValue({ chat_visibility: "direct", encrypted_chat_key: "OMDM1.envelope" });
+
+    expect(await ensureChatKeySafeForWrite("private-chat", new Uint8Array([7]), "human message")).toBe(false);
+    expect(mocks.decryptChatKeyWithMasterKey).not.toHaveBeenCalled();
+    expect(mocks.unwrapTeamChatKey).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.direct-chat.account-key-exchange,teams.direct-chat.participant-isolation
+  it("does not permit a missing private key even when a new ordinary chat may omit its wrapper", async () => {
+    const { ensureChatKeySafeForWrite } = await import("../chatKeyWriteGuard");
+    mocks.getChat.mockResolvedValue({ team_id: "team-123", chat_visibility: "direct" });
+    mocks.getEncryptedChatKey.mockResolvedValue(null);
+
+    expect(await ensureChatKeySafeForWrite("private-chat", new Uint8Array([7]), "human message", { allowMissingEncryptedChatKey: true })).toBe(false);
   });
 
   // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery

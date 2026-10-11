@@ -38,7 +38,12 @@ import {
   hasEncryptedChatKeyMismatch,
   mergeServerChatWithLocal,
 } from "./chatSyncMerge";
-import { unwrapTeamChatKey } from "./teamService";
+// Deferred to the key-handling path to avoid closing the DB/auth import cycle
+// while chat sync is constructed during SSR.
+async function unwrapTeamOrDirectChatKey(teamId: string, chatId: string, encryptedKey: string, visibility?: string | null): Promise<Uint8Array> {
+  const directChats = await import("./directChatService");
+  return directChats.unwrapTeamOrDirectChatKey(teamId, chatId, encryptedKey, visibility);
+}
 import { isActiveTeamContext } from "../stores/teamStore";
 
 /**
@@ -123,6 +128,8 @@ function buildMetadataOnlyChatFromDetails(
     encrypted_icon: details.encrypted_icon || null,
     encrypted_chat_key:
       details.encrypted_chat_key || existingChat?.encrypted_chat_key || null,
+    chat_visibility: details.chat_visibility ?? existingChat?.chat_visibility ?? null,
+    participant_user_hashes: details.participant_user_hashes ?? existingChat?.participant_user_hashes ?? null,
     anonymous_encrypted_chat_key:
       details.anonymous_encrypted_chat_key ||
       existingChat?.anonymous_encrypted_chat_key ||
@@ -303,9 +310,11 @@ export async function handlePhase2RecentChatsImpl(
       chat.chat_details.team_id = payload.team_id ?? null;
       if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
       if (payload.team_id && chat.chat_details.encrypted_chat_key) {
-        const chatKey = await unwrapTeamChatKey(
+        const chatKey = await unwrapTeamOrDirectChatKey(
           payload.team_id,
+          chat.chat_details.id,
           chat.chat_details.encrypted_chat_key,
+          chat.chat_details.chat_visibility,
         );
         if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
         chatKeyManager.injectKey(chat.chat_details.id, chatKey, "server_sync");
@@ -415,9 +424,11 @@ export async function handlePhase3FullSyncImpl(
       chat.chat_details.team_id = payload.team_id ?? null;
       if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
       if (payload.team_id && chat.chat_details.encrypted_chat_key) {
-        const chatKey = await unwrapTeamChatKey(
+        const chatKey = await unwrapTeamOrDirectChatKey(
           payload.team_id,
+          chat.chat_details.id,
           chat.chat_details.encrypted_chat_key,
+          chat.chat_details.chat_visibility,
         );
         if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
         chatKeyManager.injectKey(chat.chat_details.id, chatKey, "server_sync");
@@ -1524,7 +1535,7 @@ export async function handleLoadMoreChatsResponseImpl(
       details.team_id = payload.team_id ?? null;
       if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
       if (payload.team_id && details.encrypted_chat_key) {
-        const chatKey = await unwrapTeamChatKey(payload.team_id, details.encrypted_chat_key);
+        const chatKey = await unwrapTeamOrDirectChatKey(payload.team_id, details.id, details.encrypted_chat_key, details.chat_visibility);
         if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
         chatKeyManager.injectKey(details.id, chatKey, "server_sync");
       }
@@ -1594,7 +1605,7 @@ export async function handleSyncMetadataChatsResponseImpl(
       details.team_id = payload.team_id ?? null;
       if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
       if (payload.team_id && details.encrypted_chat_key) {
-        const chatKey = await unwrapTeamChatKey(payload.team_id, details.encrypted_chat_key);
+        const chatKey = await unwrapTeamOrDirectChatKey(payload.team_id, details.id, details.encrypted_chat_key, details.chat_visibility);
         if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
         chatKeyManager.injectKey(details.id, chatKey, "server_sync");
       }

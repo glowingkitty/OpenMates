@@ -33,6 +33,9 @@ from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProt
 from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
 from backend.core.api.app.services.team_chat_ai_service import extract_team_ai_context, normalize_team_ai_inference_request, parse_team_message_transport, should_trigger_team_ai
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
+from backend.core.api.app.services.direct_chat_access import (
+    is_direct_chat, require_direct_chat_access, validate_direct_chat_metadata,
+)
 from backend.core.api.app.services.team_realtime_service import broadcast_team_event
 from backend.core.api.app.services.team_member_mention_service import TeamMemberMentionNotificationSink, notify_team_member_mentions
 from backend.shared.python_utils.team_log_correlation import team_correlation_fields
@@ -536,11 +539,39 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         team_ai_context = extract_team_ai_context(payload, message_payload_from_client)
         team_id = team_ai_context.get("team_id")
         is_team_chat = bool(team_id)
+        existing_chat_for_access = (
+            await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+            if not is_incognito else None
+        )
+        if is_team_chat and not isinstance(existing_chat_for_access, dict):
+            await manager.send_personal_message(
+                {"type": "error", "payload": {"code": "team_chat_scope_unavailable", "chat_id": chat_id}},
+                user_id, device_fingerprint_hash,
+            )
+            return
+        is_direct = is_direct_chat(existing_chat_for_access)
+        if is_direct:
+            try:
+                await require_direct_chat_access(
+                    directus_service, existing_chat_for_access, user_id,
+                    str(team_id) if is_team_chat else None,
+                )
+            except (PermissionError, ValueError):
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"code": "direct_chat_permission_denied", "chat_id": chat_id}},
+                    user_id, device_fingerprint_hash,
+                )
+                return
+            if not is_team_chat:
+                return
         team_transport = None
         team_should_trigger_ai = False
         if is_team_chat:
             try:
-                await directus_service.team.require_team_role(str(team_id), user_id, TEAM_CHAT_WRITE_ROLES)
+                allowed_roles = TEAM_CHAT_WRITE_ROLES | (
+                    {"viewer"} if is_direct and payload.get("team_ai_invocation") is None else set()
+                )
+                await directus_service.team.require_team_role(str(team_id), user_id, allowed_roles)
             except TeamPermissionError:
                 logger.warning("User %s attempted to send team chat message without write role", user_id)
                 await manager.send_personal_message(
@@ -817,24 +848,41 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
         if is_team_chat:
             active_member_hashes = await directus_service.team.list_active_member_hashes(str(team_id))
-            await broadcast_team_event(
-                manager=manager,
-                active_member_user_ids=(),
-                event_name="team_chat_message_created",
-                payload={
-                    "team_id": team_id,
-                    "chat_id": chat_id,
-                    "message_id": message_payload_from_client.get("message_id"),
-                    "role": message_payload_from_client.get("role"),
-                    "hashed_user_id": hash_id(user_id),
-                    "encrypted_content": team_transport.encrypted_content,
-                    "encrypted_sender_name": message_payload_from_client.get("encrypted_sender_name"),
-                    "created_at": message_payload_from_client.get("created_at"),
-                    "encrypted_chat_key": encrypted_chat_key_from_client,
-                },
-                cache_service=cache_service,
-                active_member_hashes=active_member_hashes,
-            )
+            if is_direct:
+                participant_hashes, participant_envelopes = validate_direct_chat_metadata(existing_chat_for_access)
+                active_member_hashes &= set(participant_hashes)
+            event_payload = {
+                "team_id": team_id,
+                "chat_id": chat_id,
+                "message_id": message_payload_from_client.get("message_id"),
+                "role": message_payload_from_client.get("role"),
+                "hashed_user_id": hash_id(user_id),
+                "encrypted_content": team_transport.encrypted_content,
+                "encrypted_sender_name": message_payload_from_client.get("encrypted_sender_name"),
+                "created_at": message_payload_from_client.get("created_at"),
+            }
+            if is_direct:
+                for recipient_hash in active_member_hashes:
+                    await broadcast_team_event(
+                        manager=manager,
+                        active_member_user_ids=(),
+                        event_name="team_chat_message_created",
+                        payload={
+                            **event_payload,
+                            "chat_visibility": "direct",
+                            "participant_user_hashes": participant_hashes,
+                            "encrypted_chat_key": participant_envelopes[recipient_hash]["encrypted_chat_key"],
+                        },
+                        cache_service=cache_service,
+                        active_member_hashes={recipient_hash},
+                    )
+            else:
+                await broadcast_team_event(
+                    manager=manager, active_member_user_ids=(),
+                    event_name="team_chat_message_created",
+                    payload={**event_payload, "encrypted_chat_key": encrypted_chat_key_from_client},
+                    cache_service=cache_service, active_member_hashes=active_member_hashes,
+                )
             if not team_transport.should_trigger_ai:
                 logger.info(
                     "Team chat relay correlation %s ai_invoked=false",
@@ -2761,6 +2809,9 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 )
                 if is_team_chat:
                     active_member_hashes = await directus_service.team.list_active_member_hashes(str(team_id))
+                    if is_direct:
+                        participant_hashes, _ = validate_direct_chat_metadata(existing_chat_for_access)
+                        active_member_hashes &= set(participant_hashes)
                     await broadcast_team_event(
                         manager=manager,
                         active_member_user_ids=(),

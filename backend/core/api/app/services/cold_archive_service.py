@@ -7,6 +7,7 @@ Spec: docs/specs/regional-cold-storage-lifecycle/spec.yml.
 """
 
 from __future__ import annotations
+from backend.core.api.app.services.direct_chat_access import is_direct_chat
 
 import base64
 import gzip
@@ -248,6 +249,8 @@ class ColdArchiveService:
         chat = await self._get_one("chats", {"id": {"_eq": chat_id}})
         if not chat:
             raise ColdArchiveNotFoundError("CHAT_NOT_FOUND")
+        if is_direct_chat(chat):
+            raise ColdArchiveConflictError("DIRECT_CHAT_ARCHIVE_FORBIDDEN")
         if chat.get("storage_state") == "archiving" and chat.get("cold_archive_id"):
             if int(chat.get("archive_started_at") or 0) > now - ARCHIVE_LEASE_SECONDS:
                 raise ColdArchiveConflictError("CHAT_ARCHIVE_IN_PROGRESS")
@@ -560,7 +563,17 @@ class ColdArchiveService:
             admin_required=True,
         )
         rows = rows if isinstance(rows, list) else []
-        page_rows = rows[:bounded_limit]
+        page_rows = []
+        for row in rows:
+            if row.get("resource_type") == "chat" and team_id:
+                chat = await self.directus_service.chat.get_chat_metadata(
+                    str(row.get("resource_id") or ""), admin_required=True,
+                )
+                if not chat or is_direct_chat(chat):
+                    continue
+            page_rows.append(row)
+            if len(page_rows) >= bounded_limit:
+                break
         has_more = len(rows) > bounded_limit
         items = [self.public_manifest(row) for row in page_rows]
         next_cursor = None
@@ -581,6 +594,12 @@ class ColdArchiveService:
         team_id: str | None,
         mutation: bool,
     ) -> None:
+        if manifest.get("resource_type") == "chat":
+            chat = await self.directus_service.chat.get_chat_metadata(
+                str(manifest.get("resource_id") or ""), admin_required=True,
+            )
+            if not chat or is_direct_chat(chat):
+                raise ColdArchiveAuthorizationError("ARCHIVE_PERMISSION_DENIED")
         manifest_team_hash = manifest.get("hashed_team_id")
         if manifest_team_hash:
             if not team_id or _hash_id(team_id) != manifest_team_hash:

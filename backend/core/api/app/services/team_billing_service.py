@@ -33,6 +33,16 @@ TEAM_CREDIT_USER_ROLES = {"owner", "admin", "member"}
 MAX_TEAM_BALANCE_CAS_RETRIES = 3
 logger = logging.getLogger(__name__)
 
+
+def project_team_usage_row(row: dict[str, Any]) -> dict[str, Any]:
+    """Keep Team credits and attribution without a linkable resource hash."""
+    return {key: value for key, value in row.items() if key != "object_id_hash"}
+
+
+def team_usage_csv_values(row: dict[str, Any], fields: tuple[str, ...]) -> list[Any]:
+    safe = project_team_usage_row(row)
+    return [safe.get(field, "") for field in fields]
+
 TeamCreditAddEvent = Literal["purchase", "personal_transfer_in"]
 
 
@@ -369,7 +379,7 @@ class TeamBillingService:
 
         params: dict[str, Any] = {
             "filter[hashed_team_id][_eq]": hash_id(team_id),
-            "fields": "id,event_id,hashed_team_id,actor_user_hash,workspace_type,object_id_hash,credit_amount,encrypted_llm_usage_breakdown,llm_usage_vault_key_id,created_at",
+            "fields": "id,event_id,hashed_team_id,actor_user_hash,workspace_type,credit_amount,encrypted_llm_usage_breakdown,llm_usage_vault_key_id,created_at",
             "limit": -1,
         }
         if member_user_id:
@@ -379,9 +389,13 @@ class TeamBillingService:
             return []
         result = []
         for row in rows:
-            public_row = {key: value for key, value in row.items() if key not in {
+            public_row = project_team_usage_row({key: value for key, value in row.items() if key not in {
                 "encrypted_llm_usage_breakdown", "llm_usage_vault_key_id",
-            }}
+            }})
+            # The stored object hash can be sha256(chat_id). Team billing viewers
+            # need attribution and credits, not a linkable private-chat ID.
+            # Suppress it for every workspace type because older/client-supplied
+            # type labels cannot prove that a hash was never a chat ID.
             ciphertext = row.get("encrypted_llm_usage_breakdown")
             key_id = row.get("llm_usage_vault_key_id")
             if ciphertext and key_id:

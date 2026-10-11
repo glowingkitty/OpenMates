@@ -10,6 +10,7 @@ from backend.core.api.app.services.directus.directus import DirectusService # Ke
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.routes.handlers.websocket_handlers.draft_scope import draft_change_allowed
+from backend.core.api.app.services.direct_chat_access import is_direct_chat
 from backend.core.api.app.tasks.celery_config import app as celery_app_instance
 # Import validation function from draft handler if needed, or redefine
 
@@ -170,6 +171,15 @@ async def handle_sync_offline_changes(
                 # Cached versions are not an authorization signal. Check every
                 # draft replay, including existing chats with warm cache entries.
                 team_id = change.get("team_id")
+                if change_type == "title":
+                    # This legacy path encrypts with a server chat key and uses
+                    # cached versions; it cannot update an end-to-end DM title.
+                    current_chat = await directus_service.chat.get_chat_metadata(
+                        chat_id, admin_required=True,
+                    )
+                    if current_chat is None or is_direct_chat(current_chat):
+                        error_count += 1
+                        continue
                 if change_type in {"draft", "delete_draft"} and not await draft_change_allowed(
                     directus_service, user_id, chat_id, team_id,
                 ):

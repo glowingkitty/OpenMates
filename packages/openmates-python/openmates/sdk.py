@@ -35,6 +35,10 @@ import requests
 from toon_format import ToonDecodeError, decode as decode_toon
 
 from .generated.app_skills import GeneratedAppSkills
+from .direct_chats import (
+    DirectChatIdentity, DirectChatKeyPair, generate_identity, open_direct_chat_key,
+    recover_identity, seal_direct_chat_key, validate_public_chat_key,
+)
 from .chat_completion_recovery import derive_recovery_keypair, open_recovery_envelope
 from .work_control import WorkDependenciesFacade as _WorkDependenciesFacade
 
@@ -607,6 +611,47 @@ class OpenMates:
             )
         return self._sdk_session
 
+    def _chat_identity(self) -> DirectChatKeyPair:
+        """Recover or enroll the immutable account direct-chat identity."""
+        master_key = self._get_master_key()
+        try:
+            response = self._get("/v1/account/chat-encryption-key")
+        except OpenMatesApiError as error:
+            if error.status_code != 404:
+                raise
+            response = {"key": None}
+        record = response.get("key")
+        if not record:
+            identity = generate_identity()
+            encrypted = _encrypt_aes_gcm_text(identity.private_key, master_key)
+            proposed = {
+                "version": 1, "algorithm": "x25519-xsalsa20poly1305",
+                "key_id": identity.key_id, "public_key": identity.public_key, "encrypted_private_key": base64.urlsafe_b64encode(base64.b64decode(encrypted)).decode("ascii").rstrip("="),
+            }
+            try:
+                response = self._put("/v1/account/chat-encryption-key", proposed)
+                record = response.get("key") or proposed
+            except OpenMatesApiError as error:
+                if error.status_code != 409:
+                    raise
+                record = self._get("/v1/account/chat-encryption-key").get("key")
+                if not record:
+                    raise OpenMatesConfigError("Account chat encryption key enrollment conflicted; retry.") from error
+        if not isinstance(record, dict) or record.get("version") != 1 or record.get("algorithm") != "x25519-xsalsa20poly1305":
+            raise OpenMatesConfigError("Unsupported account chat encryption key")
+        encoded = record.get("encrypted_private_key")
+        if not isinstance(encoded, str) or not encoded or len(encoded) > 2048 or not re.fullmatch(r"[A-Za-z0-9_-]+", encoded):
+            raise OpenMatesConfigError("Invalid account chat private key backup")
+        encrypted = base64.b64encode(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))).decode("ascii")
+        private_key = _decrypt_aes_gcm_text(encrypted, master_key)
+        if private_key is None:
+            raise OpenMatesConfigError("Could not decrypt account chat private key")
+        try:
+            identity = recover_identity(record.get("public_key"), record.get("key_id"), private_key)
+        except ValueError as error:
+            raise OpenMatesConfigError(str(error)) from error
+        return identity
+
     def _get_project_grant_key(self, project_id: str) -> bytes | None:
         session = self._get_sdk_session()
         if session.get("key_wrapper"):
@@ -625,6 +670,25 @@ class OpenMates:
         chat_key_wrappers: list[dict[str, Any]] | None = None,
     ) -> bytes | None:
         chat_id = chat.get("id")
+        if chat.get("chat_visibility") == "direct":
+            session = self._get_sdk_session()
+            user = session.get("user") if isinstance(session.get("user"), dict) else {}
+            user_id = user.get("id")
+            if not isinstance(user_id, str) or not user_id:
+                raise OpenMatesConfigError("Authenticated identity is required for a direct chat")
+            own_hash = hashlib.sha256(user_id.encode("utf-8")).hexdigest()
+            participants = chat.get("participant_user_hashes")
+            if not isinstance(participants, list) or len(participants) != 2 or own_hash not in participants:
+                raise OpenMatesConfigError("Direct chat participant binding mismatch")
+            identity = self._chat_identity()
+            if not isinstance(chat.get("team_id"), str) or not isinstance(chat_id, str) or not isinstance(chat.get("encrypted_chat_key"), str):
+                raise OpenMatesConfigError("Direct chat key metadata is incomplete")
+            try:
+                return open_direct_chat_key(chat["encrypted_chat_key"], DirectChatIdentity(
+                    team_id=chat["team_id"], chat_id=chat_id, recipient_hash=own_hash, key_id=identity.key_id,
+                ), identity.private_key)
+            except ValueError as error:
+                raise OpenMatesConfigError(str(error)) from error
         hashed_chat_id = hashlib.sha256(str(chat_id).encode("utf-8")).hexdigest() if chat_id else ""
         wrapper = next(
             (
@@ -6373,6 +6437,70 @@ class OpenMatesTeams:
 
     def members(self, team_id: str) -> dict[str, Any]:
         return self._client._get(f"/v1/teams/{_quote(team_id)}/members")
+
+    def member_chat_encryption_key(self, team_id: str, member_hash: str) -> dict[str, str]:
+        """Resolve an enrolled Team member's authenticated public chat key."""
+        if not team_id or not re.fullmatch(r"[0-9a-f]{64}", member_hash):
+            raise OpenMatesConfigError("A Team ID and SHA-256 member hash are required")
+        try:
+            result = self._client._get(
+                f"/v1/teams/{_quote(team_id)}/members/{_quote(member_hash)}/chat-encryption-key"
+            )
+        except OpenMatesApiError as error:
+            if error.status_code == 404:
+                raise OpenMatesConfigError(
+                    "Direct message pending: this Team member has not enrolled a chat encryption key yet."
+                ) from error
+            raise
+        try:
+            return validate_public_chat_key(result)
+        except ValueError as error:
+            raise OpenMatesConfigError(str(error)) from error
+
+    def open_direct_chat(self, team_id: str, recipient_hash: str) -> dict[str, Any]:
+        """Create a private Team chat with a fresh key sealed to both accounts."""
+        if not team_id or not re.fullmatch(r"[0-9a-f]{64}", recipient_hash):
+            raise OpenMatesConfigError("A Team ID and member hash are required")
+        session = self._client._get_sdk_session()
+        user = session.get("user") if isinstance(session.get("user"), dict) else {}
+        user_id = user.get("id")
+        if not isinstance(user_id, str) or not user_id:
+            raise OpenMatesConfigError("Authenticated identity is required for a direct chat")
+        own_hash = hashlib.sha256(user_id.encode("utf-8")).hexdigest()
+        if own_hash == recipient_hash:
+            raise OpenMatesConfigError("Choose another Team member to message")
+        own_key = self._client._chat_identity()
+        recipient_key = self.member_chat_encryption_key(team_id, recipient_hash)
+        chat_id = str(uuid.uuid4())
+        chat_key = os.urandom(32)
+        try:
+            envelopes = {
+                own_hash: {"key_id": own_key.key_id, "encrypted_chat_key": seal_direct_chat_key(
+                    chat_key, DirectChatIdentity(team_id, chat_id, own_hash, own_key.key_id), own_key.public_key,
+                )},
+                recipient_hash: {"key_id": recipient_key["key_id"], "encrypted_chat_key": seal_direct_chat_key(
+                    chat_key, DirectChatIdentity(team_id, chat_id, recipient_hash, recipient_key["key_id"]), recipient_key["public_key"],
+                )},
+            }
+        except ValueError as error:
+            raise OpenMatesConfigError(str(error)) from error
+        result = self._client._post(f"/v1/teams/{_quote(team_id)}/direct-chats", {
+            "chat_id": chat_id,
+            "recipient_user_hash": recipient_hash,
+            "participant_key_envelopes": envelopes,
+            "encrypted_title": _encrypt_aes_gcm_text("Private Team message", chat_key),
+        })
+        chat = result.get("chat")
+        if not isinstance(chat, dict):
+            raise OpenMatesConfigError("Direct chat creation returned no metadata")
+        participants = chat.get("participant_user_hashes")
+        if (chat.get("chat_visibility") != "direct" or chat.get("team_id") != team_id or chat.get("id") != chat_id
+                or not isinstance(participants, list) or len(participants) != 2
+                or not all(isinstance(participant, str) for participant in participants)
+                or set(participants) != {own_hash, recipient_hash}):
+            raise OpenMatesConfigError("Direct chat creation returned mismatched metadata")
+        # Decrypt only the participant-bound envelope returned by the server.
+        return self._client._decrypt_chat_metadata(chat)
 
     def invites(self, team_id: str) -> dict[str, Any]:
         return self._client._get(f"/v1/teams/{_quote(team_id)}/invites")

@@ -769,9 +769,11 @@ function relativeTime(timestamp: number): string {
   return `${Math.floor(seconds / 86400)}d ago`;
 }
 
-function renderStatus(state: TuiState, width: number): string[] {
-  return ["OpenMates", "", state.status ?? "Working..."]
-    .flatMap((line) => wrap(line, width));
+function renderStatus(state: TuiState, width: number): TuiLine[] {
+  return ["OpenMates", "", ...(state.status ?? "Working...").split('\n')]
+    .flatMap((line) => wrap(line, width).map((text) =>
+      line === 'Message · Enter' ? pointerLine(text, { kind: 'key', name: 'return' }) :
+      line === 'Next member · ↓' ? pointerLine(text, { kind: 'key', name: 'down' }) : text));
 }
 
 export function renderMessageContent(content: string, width: number, embeds: Map<string, DecryptedEmbed> = new Map()): string[] {

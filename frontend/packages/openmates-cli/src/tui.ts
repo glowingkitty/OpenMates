@@ -34,7 +34,7 @@ import {
   type TuiState,
 } from "./tuiRenderer.js";
 import { loadTuiTaskList } from "./tuiTaskList.js";
-import { handleWorkspaceKey, handleWorkspaceCommand, rememberDraft, route, type WorkspaceContext } from "./tuiWorkspaceController.js";
+import { handleWorkspaceKey, handleWorkspaceCommand, openSavedChat, rememberDraft, route, type WorkspaceContext } from "./tuiWorkspaceController.js";
 import { loadWorkflowRunGraph, orderedWorkflowNodes } from "./tuiWorkflowWorkspace.js";
 import { loadTuiProjects } from "./tuiProjectsWorkspace.js";
 import { captureTuiWorkspaceOwner, invalidateCachedTuiWorkspace, loadCachedTuiWorkspace, writeCachedTuiWorkspace } from "./tuiCachedWorkspaces.js";
@@ -53,6 +53,14 @@ import {createTuiMentionShell,type TuiMentionShell} from './tuiMentions.js';
 
 export type CliDefaultMode = "tui" | "quickstart";
 export type TuiResult = { action: "exit" | "signup" | "restart" };
+const teamMemberActions = new WeakMap<TuiState, { teamId: string; isCurrent: () => boolean; members: Array<{ hash: string; label: string }> }>();
+
+function showSelectedTeamMember(state: TuiState): void {
+  const selection = teamMemberActions.get(state);
+  if (!selection?.members.length) { state.status = 'No other active Team members are available.'; return; }
+  const member = selection.members[state.selectedIndex] ?? selection.members[0];
+  state.status = `Team members ${state.selectedIndex + 1}/${selection.members.length}\n${member.label}\nMessage · Enter\nNext member · ↓`;
+}
 
 export function defaultModeForStreams(input: NodeJS.ReadStream, output: NodeJS.WriteStream): CliDefaultMode {
   return input.isTTY === true && output.isTTY === true ? "tui" : "quickstart";
@@ -295,6 +303,19 @@ async function handleKey(params: {
     modelShell,
     mentionShell,
   };
+  const memberActions = teamMemberActions.get(state);
+  if (state.screen === 'status' && memberActions && !memberActions.isCurrent()) teamMemberActions.delete(state);
+  if (state.screen === 'status' && memberActions && memberActions.isCurrent() && memberActions.teamId === client.getActiveTeamId()) {
+    if (memberActions.members.length > 0 && (key.name === 'up' || key.name === 'down')) {
+      state.selectedIndex = (state.selectedIndex + (key.name === 'down' ? 1 : -1) + memberActions.members.length) % memberActions.members.length;
+      showSelectedTeamMember(state); render(); return;
+    }
+    if (key.name === 'return' && !state.input.trim()) {
+      const member = memberActions.members[state.selectedIndex];
+      if (member) await handleCommand({ command: `/message ${member.hash}`, state, client, terminal, render, finish, modelShell });
+      return;
+    }
+  }
   if(key.name==='mouseclick'){
     if(!key.mouse||key.ctrl||key.meta||key.shift)return;
     const action=pointerTargetAt(state,key.mouse.column,key.mouse.row,terminal.width,terminal.height);
@@ -481,6 +502,31 @@ async function handleCommand(params: {
   const arg = parts.join(" ");
   rememberDraft(state);
   state.input = ""; state.inputCursor = null;
+  if (name === '/members') {
+    const teamId = client.getActiveTeamId();
+    if (!teamId) { state.status = 'Select a Team to view members.'; state.screen = 'status'; render(); return; }
+    const isCurrent = captureTuiWorkspaceOwner(client);
+    const members = await client.listTeamMembers(teamId);
+    if (!isCurrent() || client.getActiveTeamId() !== teamId) return;
+    const user = await client.whoAmI();
+    if (!isCurrent() || client.getActiveTeamId() !== teamId) return;
+    const ownId = typeof user.id === 'string' ? user.id : typeof user.user_id === 'string' ? user.user_id : '';
+    teamMemberActions.set(state, { teamId, isCurrent, members: members.filter(member => member.status === 'active' && member.hashed_user_id && member.user_id !== ownId)
+      .map(member => ({ hash: member.hashed_user_id!, label: `${member.profile?.display_name || member.user_id} · ${member.role}` })) });
+    state.selectedIndex = 0;
+    state.screen = 'status'; showSelectedTeamMember(state); render(); return;
+  }
+  if (name === '/message') {
+    const teamId = client.getActiveTeamId();
+    if (!teamId) { state.status = 'Select a Team to message a member.'; state.screen = 'status'; render(); return; }
+    const memberHash = parts[0];
+    if (!memberHash) { state.status = 'Use /members to find a member, then /message <member-hash>.'; state.screen = 'status'; render(); return; }
+    const chat = await client.openTeamDirectChat(teamId, memberHash);
+    if (client.getActiveTeamId() !== teamId) return;
+    state.recentChats = [chat, ...state.recentChats.filter(item => item.id !== chat.id)];
+    await openSavedChat({ state, client, terminal, render, command: async () => {}, send: async () => {} }, chat.id);
+    return;
+  }
   if (name === "/privacy") {
     const action = parts[0] ?? "status";
     if (action === "later") { state.privacyOffer = false; render(); return; }

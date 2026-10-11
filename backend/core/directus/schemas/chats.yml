@@ -29,6 +29,24 @@ chats:
       nullable: true
       note: "[Indexed, Nullable] SHA256(team_id) when the chat has been moved into a team workspace. Null means personal context."
 
+    chat_visibility:
+      type: string
+      nullable: true
+      default: null
+      note: "Null for existing chats; direct for a two-person client-encrypted Team chat. Server-controlled."
+
+    participant_user_hashes:
+      type: json
+      nullable: true
+      default: null
+      note: "For direct chats only, exactly two SHA256(account user ID) hashes. Server-controlled."
+
+    participant_key_envelopes:
+      type: json
+      nullable: true
+      default: null
+      note: "For direct chats only, per-participant opaque client-encrypted chat-key envelopes. Never returned as a map to clients. Server-controlled."
+
     encrypted_title:
       type: text # Suitable for potentially longer titles
       note: "[Client-encrypted permanent storage] User-defined title of the chat, encrypted with the chat-specific key before storage in Directus"

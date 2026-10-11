@@ -1327,7 +1327,7 @@ async function reviseQueuedMessageCiphertext(database, raw, now) {
     if (!chat) return { status: 'not_persisted' };
     if (teamHash) {
       if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
-      await authorizedTeamWriter(trx, teamHash, ownerHash);
+      await authorizedTeamWriter(trx, teamHash, ownerHash, true, requireDirectParticipant(chat, ownerHash));
     } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
       return { status: 'forbidden' };
     }
@@ -1397,7 +1397,7 @@ async function finishQueuedMessageRevision(database, raw, now, commit) {
     if (!chat) return { status: 'not_persisted' };
     if (teamHash) {
       if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
-      await authorizedTeamWriter(trx, teamHash, ownerHash);
+      await authorizedTeamWriter(trx, teamHash, ownerHash, true, requireDirectParticipant(chat, ownerHash));
     } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
       return { status: 'forbidden' };
     }
@@ -1502,7 +1502,7 @@ async function markQueuedMessagePending(database, raw, now) {
     if (!chat) return { status: 'not_persisted' };
     if (teamHash) {
       if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
-      await authorizedTeamWriter(trx, teamHash, ownerHash);
+      await authorizedTeamWriter(trx, teamHash, ownerHash, true, requireDirectParticipant(chat, ownerHash));
     } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
       return { status: 'forbidden' };
     }
@@ -1579,7 +1579,7 @@ async function markQueuedMessagePaused(database, raw, now) {
     if (!chat) return { status: 'not_persisted' };
     if (teamHash) {
       if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
-      await authorizedTeamWriter(trx, teamHash, ownerHash);
+      await authorizedTeamWriter(trx, teamHash, ownerHash, true, requireDirectParticipant(chat, ownerHash));
     } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
       return { status: 'forbidden' };
     }
@@ -1629,7 +1629,7 @@ async function pauseConsumedSteersForTask(database, raw, now) {
     if (!chat) return { status: 'not_found', messages: [] };
     if (teamHash) {
       if (chat.hashed_team_id !== teamHash) return { status: 'forbidden', messages: [] };
-      await authorizedTeamWriter(trx, teamHash, actorHash);
+      await authorizedTeamWriter(trx, teamHash, actorHash, true, requireDirectParticipant(chat, actorHash));
     } else if (chat.hashed_team_id || chat.hashed_user_id !== actorHash) {
       return { status: 'forbidden', messages: [] };
     }
@@ -1692,7 +1692,7 @@ async function listPendingQueuedMessages(database, raw) {
     if (!chat) return { status: 'not_persisted' };
     if (teamHash) {
       if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
-      await authorizedTeamWriter(trx, teamHash, ownerHash, false);
+      await authorizedTeamWriter(trx, teamHash, ownerHash, false, requireDirectParticipant(chat, ownerHash));
     } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
       return { status: 'forbidden' };
     }
@@ -1725,7 +1725,7 @@ async function getSealedJobReceipt(database, raw) {
     if (!chat) return { status: 'not_found' };
     if (teamHash) {
       if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
-      await authorizedTeamWriter(trx, teamHash, actorHash, false);
+      await authorizedTeamWriter(trx, teamHash, actorHash, false, requireDirectParticipant(chat, actorHash));
     } else if (chat.hashed_team_id || chat.hashed_user_id !== actorHash) {
       return { status: 'forbidden' };
     }
@@ -1752,7 +1752,7 @@ async function getQueuedRevisionState(database, raw) {
     if (!chat) return { status: 'not_persisted' };
     if (teamHash) {
       if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
-      await authorizedTeamWriter(trx, teamHash, ownerHash, false);
+      await authorizedTeamWriter(trx, teamHash, ownerHash, false, requireDirectParticipant(chat, ownerHash));
     } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
       return { status: 'forbidden' };
     }
@@ -1803,7 +1803,7 @@ async function markQueuedMessageStarted(database, raw, now) {
     if (!chat) return { status: 'not_persisted' };
     if (teamHash) {
       if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
-      await authorizedTeamWriter(trx, teamHash, ownerHash);
+      await authorizedTeamWriter(trx, teamHash, ownerHash, true, requireDirectParticipant(chat, ownerHash));
     } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
       return { status: 'forbidden' };
     }
@@ -1912,7 +1912,7 @@ async function restoreQueuedMessagePending(database, raw, now) {
     if (teamHash ? chat.hashed_team_id !== teamHash : chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
       return { status: 'forbidden' };
     }
-    if (teamHash) await authorizedTeamWriter(trx, teamHash, ownerHash);
+    if (teamHash) await authorizedTeamWriter(trx, teamHash, ownerHash, true, requireDirectParticipant(chat, ownerHash));
     const row = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).forUpdate().first();
     if (!row) return { status: 'not_persisted' };
     if (row.role !== 'user' || row.hashed_user_id !== ownerHash) return { status: 'forbidden' };
@@ -1964,7 +1964,43 @@ async function restoreQueuedMessagePending(database, raw, now) {
     return { status: 'restored', queue_revision: revision, messages_v: nextMessagesVersion };
   });
 }
-async function authorizedTeamWriter(trx, teamHash, actorHash, lock = true) {
+const directChatMarked = (chat) => chat && (
+  (chat.chat_visibility != null && chat.chat_visibility !== 'team')
+  || chat.participant_user_hashes != null || chat.participant_key_envelopes != null
+);
+const directJson = (value) => {
+  if (typeof value !== 'string') return value;
+  try { return JSON.parse(value); } catch { fail(404, 'chat_not_found'); }
+};
+function requireDirectParticipant(chat, actorHash, wrappedKey = null) {
+  if (!directChatMarked(chat)) return false;
+  const participants = directJson(chat.participant_user_hashes);
+  const envelopes = directJson(chat.participant_key_envelopes);
+  if (chat.chat_visibility !== 'direct' || !chat.hashed_team_id
+    || chat.encrypted_chat_key != null
+    || !Array.isArray(participants) || participants.length !== 2
+    || participants.some((hash) => typeof hash !== 'string' || !HEX_64_RE.test(hash))
+    || new Set(participants).size !== 2
+    || !envelopes || typeof envelopes !== 'object' || Array.isArray(envelopes)
+    || Object.keys(envelopes).length !== 2
+    || participants.some((hash) => !Object.hasOwn(envelopes, hash))
+    || !participants.includes(actorHash)) fail(404, 'chat_not_found');
+  for (const hash of participants) {
+    const envelope = envelopes[hash];
+    if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)
+      || Object.keys(envelope).sort().join(',') !== 'encrypted_chat_key,key_id'
+      || typeof envelope.key_id !== 'string' || !/^[A-Za-z0-9_.:-]{1,128}$/.test(envelope.key_id)
+      || typeof envelope.encrypted_chat_key !== 'string'
+      || !/^OMDM1\.[A-Za-z0-9._-]{16,16378}$/.test(envelope.encrypted_chat_key)) {
+      fail(404, 'chat_not_found');
+    }
+  }
+  if (wrappedKey !== null && envelopes[actorHash].encrypted_chat_key !== wrappedKey) {
+    fail(409, 'immutable_chat_key_mismatch');
+  }
+  return true;
+}
+async function authorizedTeamWriter(trx, teamHash, actorHash, lock = true, allowViewer = false) {
   let membershipQuery = trx(TEAM_MEMBERSHIPS).where({
     hashed_team_id: teamHash, hashed_user_id: actorHash, status: 'active',
   });
@@ -1975,7 +2011,7 @@ async function authorizedTeamWriter(trx, teamHash, actorHash, lock = true) {
   }
   const membership = await membershipQuery.first();
   const team = await teamQuery.first();
-  if (!team || !membership || !['owner', 'admin', 'member'].includes(membership.role)) {
+  if (!team || !membership || !['owner', 'admin', 'member', ...(allowViewer ? ['viewer'] : [])].includes(membership.role)) {
     fail(404, 'chat_not_found');
   }
 }
@@ -1998,7 +2034,8 @@ async function authorizedOutputChat(trx, chatId, actorHash, lock = true) {
     if (chat.hashed_user_id !== actorHash) fail(404, 'chat_not_found');
     return chat;
   }
-  await authorizedTeamWriter(trx, chat.hashed_team_id, actorHash, lock);
+  const directChat = requireDirectParticipant(chat, actorHash);
+  await authorizedTeamWriter(trx, chat.hashed_team_id, actorHash, lock, directChat);
   return chat;
 }
 const outputChatScope = (chat, actorHash) => chat.hashed_team_id
@@ -2085,7 +2122,8 @@ async function preparePreflight(database, raw, now) {
     let chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
     if (chat && (teamHash ? chat.hashed_team_id !== teamHash : chat.hashed_user_id !== ownerHash || chat.hashed_team_id)) fail(404, 'chat_not_found');
     if (chat?.storage_state === 'deleting') fail(404, 'chat_not_found');
-    if (teamHash) await authorizedTeamWriter(trx, teamHash, ownerHash);
+    const directChat = requireDirectParticipant(chat, ownerHash, wrappedKey);
+    if (teamHash) await authorizedTeamWriter(trx, teamHash, ownerHash, true, directChat);
     const existing = await trx(PREFLIGHTS).where({ hashed_user_id: ownerHash, chat_id: chatId, turn_id: turnId }).forUpdate().first();
     if (existing) {
       if (!samePreflight(existing, values) || existing.deletion_invalidated_at
@@ -2094,6 +2132,7 @@ async function preparePreflight(database, raw, now) {
     }
     if (chat) {
       if (chatMetadata) {
+        if (directChat) fail(409, 'existing_chat_metadata_forbidden');
         if (!isEmptyDraftShell(chat) || !canCompleteChatMetadata(chat, chatMetadata)) {
           fail(409, 'existing_chat_metadata_forbidden');
         }
@@ -2184,6 +2223,7 @@ async function verifyCommittedTeamMessage(database, raw) {
     if (!preflight || preflight.deletion_invalidated_at) fail(404, 'preflight_not_found');
     const chat = await trx(CHATS).where({ id: chatId, hashed_team_id: teamHash }).first();
     if (!chat) fail(404, 'chat_not_found');
+    await authorizedTeamWriter(trx, teamHash, ownerHash, true, requireDirectParticipant(chat, ownerHash));
     const message = await trx(MESSAGES).where({
       chat_id: chatId, client_message_id: messageId, hashed_user_id: ownerHash, role: 'user',
     }).first();
@@ -2206,7 +2246,12 @@ async function enqueueInference(database, raw, now) {
     const row = await trx(PREFLIGHTS).where({ id: preflightId }).forUpdate().first();
     if (!row || row.hashed_user_id !== ownerHash || row.device_hash !== deviceHash) fail(404, 'preflight_not_found');
     if (row.deletion_invalidated_at) fail(409, 'preflight_invalidated');
-    await authorizedOutputChat(trx, row.chat_id, ownerHash);
+    const chat = await authorizedOutputChat(trx, row.chat_id, ownerHash);
+    if (directChatMarked(chat)) {
+      // Human DM turns may be sent by viewers, but inference spends Team
+      // credits and still requires a regular Team writer role.
+      await authorizedTeamWriter(trx, chat.hashed_team_id, ownerHash);
+    }
     if (row.inference_commitment !== commitment) fail(409, 'preflight_mismatch');
     if (['ENQUEUED', 'RUNNING', 'FAILED', 'TERMINAL', 'CONSUMED'].includes(row.state)) {
       if (row.inference_task_id !== taskId || row.billing_identity !== billingId || row.outbox_id !== outboxId) fail(409, 'enqueue_identity_mismatch');
@@ -4387,6 +4432,9 @@ async function invalidateDeletion(database, raw, now) {
       const chat = await trx(CHATS).where({ id: chatId }).first();
       const prior = await trx(CHAT_DELETION_FENCES).where({ id: chatId }).first();
       if (!chat && !prior) fail(404, 'chat_not_found');
+      // Direct chats have no generic Team delete authority. A participant
+      // removal is handled through membership, without destroying the pair.
+      if (directChatMarked(chat)) fail(404, 'chat_not_found');
       if (chat && prior && (chat.hashed_team_id || null) !== (prior.hashed_team_id || null)) {
         fail(404, 'chat_not_found');
       }
@@ -4452,7 +4500,12 @@ async function lookupChatDeletionFences(database, raw) {
       continue;
     }
     try {
-      await authorizedTeamWriter(database, row.hashed_team_id, ownerHash, false);
+      const chat = await database(CHATS).where({ id: row.chat_id }).first();
+      // A deleted row cannot prove whether the Team fence was for a direct
+      // chat, so omit the UUID rather than reveal a private chat's existence.
+      if (!chat || chat.hashed_team_id !== row.hashed_team_id) continue;
+      await authorizedTeamWriter(database, row.hashed_team_id, ownerHash, false,
+        requireDirectParticipant(chat, ownerHash));
       fenced.add(row.chat_id);
     } catch (error) {
       if (!(error instanceof ProtocolError && error.code === 'chat_not_found')) throw error;

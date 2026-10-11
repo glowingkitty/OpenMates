@@ -3,6 +3,7 @@
 from typing import Any
 
 from backend.core.api.app.services.directus.team_methods import hash_id
+from backend.core.api.app.services.direct_chat_access import is_direct_chat, require_direct_chat_access
 
 
 TEAM_DRAFT_WRITE_ROLES = {"owner", "admin", "member"}
@@ -20,6 +21,11 @@ async def draft_change_allowed(
         return False
     try:
         metadata = await directus_service.chat.get_chat_metadata(chat_id)
+        if is_direct_chat(metadata):
+            if not team_id:
+                return False
+            await require_direct_chat_access(directus_service, metadata, user_id, team_id)
+            return True  # Active direct-chat viewers may write human turns/drafts.
         if team_id:
             if not metadata or metadata.get("hashed_team_id") != hash_id(team_id):
                 return False

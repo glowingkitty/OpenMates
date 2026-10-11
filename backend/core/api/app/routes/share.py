@@ -22,6 +22,7 @@ from backend.core.api.app.services import cache_config
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_current_user_or_api_key
 from backend.core.api.app.models.user import User
+from backend.core.api.app.services.direct_chat_access import is_direct_chat
 
 logger = logging.getLogger(__name__)
 CHAT_COMPRESSION_CHECKPOINT_COLLECTION = "chat_compression_checkpoints"
@@ -125,7 +126,7 @@ def generate_dummy_encrypted_data(chat_id: str) -> Dict[str, Any]:
 
 async def get_shared_chat_or_dummy(chat_id: str, directus_service: DirectusService) -> tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
     chat = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
-    if not chat or chat.get("storage_state") == "deleting" or chat.get("is_private", False):
+    if not chat or is_direct_chat(chat) or chat.get("storage_state") == "deleting" or chat.get("is_private", False):
         dummy_data = generate_dummy_encrypted_data(chat_id)
         dummy_data.pop("is_dummy", None)
         return None, dummy_data
@@ -352,7 +353,7 @@ async def get_shared_chat(
         
         # Check if chat is private (unshared)
         is_private = chat.get("is_private", False)
-        if is_private or chat.get("storage_state") == "deleting":
+        if is_direct_chat(chat) or is_private or chat.get("storage_state") == "deleting":
             # Chat was unshared - return dummy data
             logger.debug(f"Chat {chat_id} is private (unshared), returning dummy data")
             dummy_data = generate_dummy_encrypted_data(chat_id)

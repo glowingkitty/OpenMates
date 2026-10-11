@@ -6,6 +6,7 @@ from fastapi import WebSocket
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
+from backend.core.api.app.services.direct_chat_access import is_direct_chat, validate_direct_chat_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +95,14 @@ async def _require_chat_write_scope(directus_service, hashed_chat_id, actor_hash
         if chat.get("hashed_user_id") != actor_hash:
             raise ValueError("Chat owner mismatch")
         return chat
+    metadata = await directus_service.chat.get_chat_metadata(str(chat.get("id")), admin_required=True)
+    if not metadata or metadata.get("hashed_team_id") != team_hash:
+        raise ValueError("Chat metadata unavailable for key writes")
+    direct = is_direct_chat(metadata)
+    if direct:
+        participants, _ = validate_direct_chat_metadata(metadata)
+        if actor_hash not in participants:
+            raise ValueError("Direct chat participant required")
     membership = await directus_service.get_items(
         "team_memberships",
         params={
@@ -108,7 +117,7 @@ async def _require_chat_write_scope(directus_service, hashed_chat_id, actor_hash
         no_cache=True, admin_required=True, raise_on_error=True,
     )
     if (not isinstance(membership, list) or len(membership) != 1
-            or membership[0].get("role") not in {"owner", "admin", "member"}):
+            or membership[0].get("role") not in ({"owner", "admin", "member", "viewer"} if direct else {"owner", "admin", "member"})):
         raise ValueError("Team chat write denied")
     teams = await directus_service.get_items(
         "teams",

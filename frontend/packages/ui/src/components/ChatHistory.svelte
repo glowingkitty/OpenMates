@@ -1226,6 +1226,7 @@ import { storageArchiveFetch } from "../config/api";
     isIncognito = false,
     isExampleChat = false,
     isSharedChat = false,
+    isDirectChat = false,
     videoMp4Url = null,
     videoTeaserUrl = null,
     videoTeaserMp4Url = null,
@@ -1301,6 +1302,7 @@ import { storageArchiveFetch } from "../config/api";
     isExampleChat?: boolean;
     /** True when the active chat was opened from a shared-chat link. */
     isSharedChat?: boolean;
+    isDirectChat?: boolean;
     /** api.video MP4 URL. Only used to gate the play button in the chat header —
      *  the full MP4 is loaded on demand when the user clicks play. */
     videoMp4Url?: string | null;
@@ -1766,7 +1768,7 @@ import { storageArchiveFetch } from "../config/api";
   //   e) isSharedChat is true (badge remains visible even if shared metadata has no title), or
   //   f) this is an owned writable chat whose encrypted title is not yet available.
   let showChatHeader = $derived(
-    !isDraftOnly && (isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle || isSharedChat || chatHeaderWritable),
+    !isDraftOnly && (isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle || isSharedChat || isDirectChat || chatHeaderWritable),
   );
 
   async function saveChatHeaderTitle(title: string): Promise<void> {
@@ -2931,6 +2933,7 @@ import { storageArchiveFetch } from "../config/api";
                 {isIncognito}
                 {isExampleChat}
                 {isSharedChat}
+                {isDirectChat}
                 {videoMp4Url}
                 {videoTeaserUrl}
                 {videoTeaserMp4Url}

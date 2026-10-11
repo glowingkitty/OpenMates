@@ -279,6 +279,10 @@ USER_CHAT_PREFERENCE_MIGRATION_PATH = os.getenv(
     'USER_CHAT_PREFERENCE_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_user_chat_preferences_indexes.sql',
 )
+ACCOUNT_CHAT_KEYS_MIGRATION_PATH = os.getenv(
+    'ACCOUNT_CHAT_KEYS_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_account_chat_keys.sql',
+)
 NOTIFICATION_EMAIL_MIGRATION_PATH = os.getenv(
     'NOTIFICATION_EMAIL_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_notification_email_preferences.sql',
@@ -1786,6 +1790,35 @@ def apply_and_verify_user_chat_preference_indexes():
     print(f"Verified {len(USER_CHAT_PREFERENCE_INDEXES)} user chat preference indexes")
 
 
+def apply_and_verify_account_chat_keys_lifecycle():
+    """Install atomic account-key cleanup and verify its database trigger."""
+    if not os.path.isfile(ACCOUNT_CHAT_KEYS_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required account chat-key migration is missing: {ACCOUNT_CHAT_KEYS_MIGRATION_PATH}"
+        )
+    with open(ACCOUNT_CHAT_KEYS_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """SELECT 1 FROM pg_indexes WHERE schemaname = 'public'
+                   AND tablename = 'account_chat_keys' AND indexname = 'account_chat_keys_owner_uq'"""
+            )
+            unique_index_installed = cursor.fetchone() is not None
+            cursor.execute(
+                """SELECT 1 FROM pg_trigger AS t
+                   JOIN pg_class AS c ON c.oid = t.tgrelid
+                   WHERE c.relname = 'directus_users' AND t.tgname = 'account_chat_keys_user_delete'
+                     AND t.tgenabled = 'O' AND NOT t.tgisinternal"""
+            )
+            trigger_installed = cursor.fetchone() is not None
+    if not unique_index_installed or not trigger_installed:
+        raise RuntimeError("Account chat-key uniqueness or delete trigger verification failed")
+    print("Verified atomic account chat-key cleanup")
+
+
 def apply_and_verify_notification_email_preferences():
     """Apply the idempotent notification default transition after schema sync."""
     if not os.path.isfile(NOTIFICATION_EMAIL_MIGRATION_PATH):
@@ -2042,6 +2075,9 @@ def setup_schemas():
 
         print("\n--- Applying user chat preference database indexes ---")
         apply_and_verify_user_chat_preference_indexes()
+
+        print("\n--- Applying account chat-key lifecycle migration ---")
+        apply_and_verify_account_chat_keys_lifecycle()
 
         print("\n--- Applying notification email preference migration ---")
         apply_and_verify_notification_email_preferences()

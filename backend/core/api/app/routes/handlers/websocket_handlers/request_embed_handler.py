@@ -8,6 +8,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
+from backend.core.api.app.services.direct_chat_access import is_direct_chat, require_direct_chat_access
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +110,13 @@ async def handle_request_embed(
                 except TeamPermissionError:
                     await not_found()
                     return
+                metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+                if is_direct_chat(metadata):
+                    try:
+                        await require_direct_chat_access(directus_service, metadata, user_id, team_id)
+                    except (PermissionError, ValueError):
+                        await not_found()
+                        return
             elif team_id or chat.get("hashed_user_id") != hashed_user_id:
                 await not_found()
                 return

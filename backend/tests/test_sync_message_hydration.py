@@ -25,6 +25,9 @@ class FakeDirectusChat:
         self.count = count
         self.window_calls: list[dict] = []
 
+    async def get_chat_metadata(self, chat_id, admin_required=False):
+        return {"id": chat_id, "chat_visibility": "team"}
+
     async def get_message_window_for_chat(self, **kwargs):
         self.window_calls.append(kwargs)
         messages = self.messages

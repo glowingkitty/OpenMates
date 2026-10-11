@@ -15,6 +15,7 @@ from backend.core.api.app.services.embed_version_transaction_service import (
     requires_atomic_project_embed_write,
 )
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+from backend.core.api.app.services.direct_chat_access import is_direct_chat, require_direct_chat_access
 
 logger = logging.getLogger(__name__)
 
@@ -193,6 +194,57 @@ async def handle_store_embed(
             # fields or plaintext content.
             chat_id = payload.pop("chat_id", None)
             team_id = payload.pop("team_id", None)
+            hashed_chat_id = payload.get("hashed_chat_id")
+            if (isinstance(chat_id, str) and isinstance(hashed_chat_id, str)
+                    and hashlib.sha256(chat_id.encode()).hexdigest() != hashed_chat_id):
+                await _reject_store_embed_write(
+                    manager, user_id, device_fingerprint_hash, embed_id,
+                    "chat_scope_mismatch", request_id,
+                )
+                return
+            direct_chat_metadata = None
+            if isinstance(chat_id, str) and chat_id:
+                direct_chat_metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+                if team_id is not None and direct_chat_metadata is None:
+                    await _reject_store_embed_write(
+                        manager, user_id, device_fingerprint_hash, embed_id,
+                        "chat_scope_unavailable", request_id,
+                    )
+                    return
+            elif isinstance(payload.get("hashed_chat_id"), str):
+                from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+                resolved = await ChatMessageArchiveService(
+                    directus_service=directus_service, s3_service=None,
+                ).transaction("resolve_chat_hashes", {"hashes": [payload["hashed_chat_id"]]})
+                chats = resolved.get("chats") if isinstance(resolved, dict) else None
+                if (not isinstance(chats, list) or len(chats) != 1
+                        or chats[0].get("hashed_chat_id") != hashed_chat_id):
+                    await _reject_store_embed_write(
+                        manager, user_id, device_fingerprint_hash, embed_id,
+                        "chat_scope_unavailable", request_id,
+                    )
+                    return
+                direct_chat_metadata = await directus_service.chat.get_chat_metadata(
+                    str(chats[0]["id"]), admin_required=True,
+                )
+                if direct_chat_metadata is None:
+                    await _reject_store_embed_write(
+                        manager, user_id, device_fingerprint_hash, embed_id,
+                        "chat_scope_unavailable", request_id,
+                    )
+                    return
+            if is_direct_chat(direct_chat_metadata):
+                try:
+                    await require_direct_chat_access(
+                        directus_service, direct_chat_metadata, user_id,
+                        team_id if isinstance(team_id, str) else None,
+                    )
+                except (PermissionError, ValueError):
+                    await _reject_store_embed_write(
+                        manager, user_id, device_fingerprint_hash, embed_id,
+                        "direct_chat_permission_denied", request_id,
+                    )
+                    return
             app_id = payload.pop("app_id", None)
             skill_id = payload.pop("skill_id", None)
             # Catalog and scope fields are server-derived. In particular, a
@@ -223,7 +275,11 @@ async def handle_store_embed(
                         if not isinstance(team_id, str) or hashlib.sha256(team_id.encode()).hexdigest() != chat_team_hash:
                             await _reject_store_embed_write(manager, user_id, device_fingerprint_hash, embed_id, "Team chat context mismatch", request_id)
                             return
-                        await directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
+                        await directus_service.team.require_team_role(
+                            team_id, user_id,
+                            {"owner", "admin", "member", "viewer"} if is_direct_chat(direct_chat_metadata)
+                            else {"owner", "admin", "member"},
+                        )
                         payload["hashed_team_id"] = chat_team_hash
                     elif chat.get("hashed_user_id") != _user_hash(user_id) or team_id:
                         await _reject_store_embed_write(manager, user_id, device_fingerprint_hash, embed_id, "Personal chat context mismatch", request_id)

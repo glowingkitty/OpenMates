@@ -71,6 +71,22 @@ members_description:
   context: Team members page description
   en: Manage your team members and their permissions.
   de: Verwalte deine Teammitglieder und ihre Berechtigungen.
+direct_message_action:
+  context: Button on an active teammate's profile to start a private chat
+  en: Message
+  de: Nachricht
+direct_message_scope:
+  context: Privacy scope below the Team member message action
+  en: Only you and this member can read this chat.
+  de: Nur du und dieses Mitglied könnt diesen Chat lesen.
+direct_message_pending:
+  context: Recipient has not enrolled a public messaging key yet
+  en: Secure messaging setup is pending. Ask this member to open OpenMates.
+  de: Die sichere Einrichtung steht noch aus. Bitte dieses Mitglied, OpenMates zu öffnen.
+direct_message_failed:
+  context: Private Team message creation failed
+  en: Could not open a private message. Try again.
+  de: Die private Nachricht konnte nicht geöffnet werden. Versuche es erneut.
 admins:
   context: Team administrator heading
   en: Admins

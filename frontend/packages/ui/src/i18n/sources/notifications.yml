@@ -3,6 +3,15 @@
 # Note: Chat settings translations are in settings/chat.yml (settings.chat.* keys)
 # All keys must be at root level with flat dot-notation, only language codes (en, de, etc.) are nested
 
+team_direct_chat.title:
+  context: Content-free in-app notification title for a new private Team chat
+  en: Private Team message
+  de: Private Team-Nachricht
+team_direct_chat.body:
+  context: Content-free in-app notification body for a new private Team chat
+  en: You have a new private conversation in your Team.
+  de: Du hast eine neue private Unterhaltung in deinem Team.
+
 # Auto-logout notifications
 auto_logout.title:
   context: Title for auto logout notification

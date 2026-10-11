@@ -12,6 +12,8 @@ import { shouldWaitForTeamAi, type WikipediaLearningBundle } from "./client.js";
 import { GeneratedAppSkills, type AppSkillRunOptions } from "./generated/appSkills.js";
 import { decode as toonDecode } from "@toon-format/toon";
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
+import { openDirectChatKey, sealDirectChatKey, type DirectChatKeyPair } from "@repo/pairing-crypto/direct-chat";
+import { createAccountChatIdentity, recoverAccountChatIdentity, validatePublicChatEncryptionKeyId, type AccountChatEncryptionKey } from "./directChats.js";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -736,6 +738,7 @@ export class OpenMates {
   private readonly sdkName: "cli" | "npm" | "pip";
   private sdkSessionPromise?: Promise<SdkSessionResponse>;
   private masterKeyPromise?: Promise<Uint8Array>;
+  private chatIdentityPromise?: Promise<DirectChatKeyPair>;
 
   constructor(options: OpenMatesOptions = {}) {
     this.apiKey = options.apiKey ?? process.env.OPENMATES_API_KEY;
@@ -863,6 +866,35 @@ export class OpenMates {
     return this.getSdkSession();
   }
 
+  async chatIdentity(): Promise<DirectChatKeyPair> {
+    if (!this.chatIdentityPromise) this.chatIdentityPromise = this.loadChatIdentity().catch(error => {
+      this.chatIdentityPromise = undefined;
+      throw error;
+    });
+    return this.chatIdentityPromise;
+  }
+
+  private async loadChatIdentity(): Promise<DirectChatKeyPair> {
+    const masterKey = await this.masterKey();
+    let response: { key?: AccountChatEncryptionKey | null };
+    try { response = await this.get('/v1/account/chat-encryption-key'); }
+    catch (error) {
+      if (!(error instanceof OpenMatesApiError) || error.status !== 404) throw error;
+      response = { key: null };
+    }
+    if (response.key) return recoverAccountChatIdentity(response.key, masterKey);
+    const generated = await createAccountChatIdentity(masterKey);
+    try {
+      const saved = await this.put<{ key?: AccountChatEncryptionKey }>('/v1/account/chat-encryption-key', generated.record);
+      return recoverAccountChatIdentity(saved.key ?? generated.record, masterKey);
+    } catch (error) {
+      if (!(error instanceof OpenMatesApiError) || error.status !== 409) throw error;
+      const current = await this.get<{ key?: AccountChatEncryptionKey }>('/v1/account/chat-encryption-key');
+      if (!current.key) throw new OpenMatesConfigError('Account chat encryption key enrollment conflicted; retry.');
+      return recoverAccountChatIdentity(current.key, masterKey);
+    }
+  }
+
   /** @internal Resource-key resolver shared by the Project namespace. */
   async _getProjectGrantKey(projectId: string): Promise<Uint8Array | null> {
     const session = await this.getSdkSession();
@@ -957,6 +989,23 @@ export class OpenMates {
     chat: EncryptedChatMetadata,
     chatKeyWrappers?: ChatKeyWrapperRecord[],
   ): Promise<Uint8Array | null> {
+    if (chat.chat_visibility === 'direct') {
+      const session = await this.sdkSession();
+      const userId = session.user?.id;
+      if (!userId) throw new OpenMatesConfigError('Authenticated identity is required for a direct chat');
+      const ownHash = createHash('sha256').update(userId).digest('hex');
+      const participants = chat.participant_user_hashes;
+      if (!Array.isArray(participants) || participants.length !== 2 || !participants.includes(ownHash)) {
+        throw new OpenMatesConfigError('Direct chat participant binding mismatch');
+      }
+      const identity = await this.chatIdentity();
+      if (typeof chat.team_id !== 'string' || typeof chat.encrypted_chat_key !== 'string') {
+        throw new OpenMatesConfigError('Direct chat key metadata is incomplete');
+      }
+      return openDirectChatKey(chat.encrypted_chat_key, {
+        teamId: chat.team_id, chatId: chat.id, recipientHash: ownHash, keyId: identity.keyId,
+      }, identity.privateKey);
+    }
     const hashedChatId = createHash("sha256").update(chat.id).digest("hex");
     const wrapper = (chatKeyWrappers ?? []).find(
       (entry) =>
@@ -5311,10 +5360,12 @@ export class OpenMatesTeams {
 
   async list(): Promise<Record<string, unknown>[]> {
     const result = await this.client.get<{ teams?: Record<string, unknown>[] }>("/v1/teams");
+    if (result.teams?.length) await this.client.chatIdentity();
     return result.teams ?? [];
   }
 
   async get(teamId: string): Promise<Record<string, unknown>> {
+    await this.client.chatIdentity();
     const result = await this.client.get<{ team?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}`);
     return result.team ?? result;
   }
@@ -5384,6 +5435,56 @@ export class OpenMatesTeams {
 
   async members(teamId: string): Promise<Record<string, unknown>> {
     return this.client.get(`/v1/teams/${encodeURIComponent(teamId)}/members`);
+  }
+
+  async memberChatEncryptionKey(teamId: string, memberHash: string): Promise<{ key_id: string; public_key: string }> {
+    if (!/^[0-9a-f]{64}$/.test(memberHash)) throw new OpenMatesConfigError('Member hash must be a SHA-256 hex digest');
+    try {
+      const result = await this.client.get<Record<string, unknown>>(
+        `/v1/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(memberHash)}/chat-encryption-key`);
+      return validatePublicChatEncryptionKeyId(result);
+    } catch (error) {
+      if (error instanceof OpenMatesApiError && error.status === 404) {
+        throw new OpenMatesConfigError('Direct message pending: this Team member has not enrolled a chat encryption key yet.');
+      }
+      throw error;
+    }
+  }
+
+  async openDirectChat(teamId: string, recipientHash: string): Promise<EncryptedChatMetadata> {
+    if (!teamId || !/^[0-9a-f]{64}$/.test(recipientHash)) throw new OpenMatesConfigError('A Team ID and member hash are required');
+    const session = await this.client.sdkSession();
+    const userId = session.user?.id;
+    if (!userId) throw new OpenMatesConfigError('Authenticated identity is required for a direct chat');
+    const ownHash = createHash('sha256').update(userId).digest('hex');
+    if (ownHash === recipientHash) throw new OpenMatesConfigError('Choose another Team member to message');
+    const [ownIdentity, recipientKey] = await Promise.all([
+      this.client.chatIdentity(), this.memberChatEncryptionKey(teamId, recipientHash),
+    ]);
+    const chatId = randomUUID();
+    const chatKey = new Uint8Array(randomBytes(32));
+    const ownEnvelope = await sealDirectChatKey(chatKey,
+      { teamId, chatId, recipientHash: ownHash, keyId: ownIdentity.keyId }, ownIdentity.publicKey);
+    const recipientEnvelope = await sealDirectChatKey(chatKey,
+      { teamId, chatId, recipientHash, keyId: recipientKey.key_id }, recipientKey.public_key);
+    const result = await this.client.request<{ chat?: EncryptedChatMetadata }>(
+      `/v1/teams/${encodeURIComponent(teamId)}/direct-chats`, {
+        chat_id: chatId,
+        recipient_user_hash: recipientHash,
+        participant_key_envelopes: {
+          [ownHash]: { key_id: ownIdentity.keyId, encrypted_chat_key: ownEnvelope },
+          [recipientHash]: { key_id: recipientKey.key_id, encrypted_chat_key: recipientEnvelope },
+        },
+        encrypted_title: await encryptWithAesGcmCombined('Private Team message', chatKey),
+      });
+    if (!result.chat) throw new OpenMatesConfigError('Direct chat creation returned no metadata');
+    const participants = result.chat.participant_user_hashes;
+    if (result.chat.chat_visibility !== 'direct' || result.chat.team_id !== teamId
+      || result.chat.id !== chatId || !Array.isArray(participants) || participants.length !== 2
+      || !participants.includes(ownHash) || !participants.includes(recipientHash)) {
+      throw new OpenMatesConfigError('Direct chat creation returned mismatched metadata');
+    }
+    return this.client.decryptChatMetadata(result.chat);
   }
 
   private async decryptMemberProfile(teamKey: Uint8Array, member: Record<string, unknown>): Promise<SdkTeamMember> {

@@ -155,10 +155,12 @@ def runtime_app(monkeypatch):
                 assert params["fields"] == "hashed_team_id"
                 return [{"hashed_team_id": team_hash} for team_hash in self.active_teams
                         if team_hash in params["filter[hashed_team_id][_in]"].split(",")]
-            assert collection == "chats" and params["fields"] == "id,hashed_team_id"
-            if params["filter[hashed_user_id][_eq]"] != hashlib.sha256(b"owner").hexdigest():
-                return []
-            return [{"id": chat, "hashed_team_id": hashlib.sha256(b"team").hexdigest() if chat in self.team_chats else None}
+            if collection == "teams":
+                return [{"hashed_team_id": team_hash} for team_hash in self.active_teams
+                        if team_hash in params["filter[hashed_team_id][_in]"].split(",")]
+            assert collection == "chats" and "participant_user_hashes" in params["fields"]
+            return [{"id": chat, "hashed_user_id": hashlib.sha256(b"owner").hexdigest(),
+                     "hashed_team_id": hashlib.sha256(b"team").hexdigest() if chat in self.team_chats else None}
                     for chat in params["filter[id][_in]"].split(",") if chat in owned]
 
     app.state.cache_service = RuntimeCache()
@@ -234,6 +236,7 @@ async def test_api_owner_index_rechecks_team_membership_and_active_task(monkeypa
     directus = app.state.directus_service
     owned.add("team-related")
     directus.team_chats.add("team-related")
+    directus.team_chats.add("current")
     team_hash = hashlib.sha256(b"team").hexdigest()
     cache = recent_work_internal.recent_work_summary_cache
     assert await cache.put(owner_id="owner", chat_id="team-related", project_id="team-project",
@@ -246,8 +249,7 @@ async def test_api_owner_index_rechecks_team_membership_and_active_task(monkeypa
     assert await ipc.read(owner_id="owner", current_chat_id="current", task_id="task-current") == []
     assert encryption.decrypt_calls == 0
     directus.active_teams.add(team_hash)
-    # A denied read revokes the process-local copy; only a new authorized
-    # processing write may restore eligibility after access is granted.
+    # A new authorized processing write restores a fresh Team candidate.
     assert await cache.put(owner_id="owner", chat_id="team-related", project_id="team-project",
                            revision="active-r2", text="team summary", vault_key_id="owner-key",
                            encryption=encryption, authorized=True, active=True,

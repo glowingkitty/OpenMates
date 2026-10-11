@@ -1,5 +1,8 @@
 # backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
 from __future__ import annotations
+from backend.core.api.app.services.direct_chat_access import (
+    filter_direct_chat_metadata, is_direct_chat, require_direct_chat_access,
+)
 
 import asyncio
 import logging
@@ -449,6 +452,15 @@ async def _fetch_chat_key_wrappers_for_chats(
         "hashed_user_id": hashlib.sha256(user_id.encode()).hexdigest()
     }
     for chat_id in dict.fromkeys(chat_ids):
+        metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+        if is_direct_chat(metadata):
+            try:
+                await require_direct_chat_access(directus_service, metadata, user_id, team_id)
+            except (PermissionError, ValueError):
+                continue
+            windows[chat_id] = {"has_more_before": False, "start_cursor": None,
+                                "oversized_wrapper_id": None}
+            continue
         page = await directus_service.chat_key_wrapper.get_sync_wrapper_window_for_chat(
             hashlib.sha256(chat_id.encode()).hexdigest(), **principal,
         )
@@ -459,6 +471,30 @@ async def _fetch_chat_key_wrappers_for_chats(
             "oversized_wrapper_id": page["oversized_wrapper_id"],
         }
     return wrappers, windows
+
+
+async def _live_visible_sync_chat_ids(
+    directus_service: DirectusService, chat_ids: List[str], user_id: str,
+    team_id: Optional[str],
+) -> List[str]:
+    """Recheck direct-chat access immediately before encrypted content reads."""
+    visible: List[str] = []
+    for chat_id in chat_ids:
+        metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+        if not metadata:
+            continue
+        if team_id:
+            if metadata.get("hashed_team_id") != hashlib.sha256(team_id.encode()).hexdigest():
+                continue
+        elif metadata.get("hashed_team_id") or metadata.get("hashed_user_id") != hashlib.sha256(user_id.encode()).hexdigest():
+            continue
+        if is_direct_chat(metadata):
+            try:
+                await require_direct_chat_access(directus_service, metadata, user_id, team_id)
+            except (PermissionError, ValueError):
+                continue
+        visible.append(chat_id)
+    return visible
 
 
 async def _fetch_direct_sub_chat_ids_for_phase1_parents(
@@ -861,6 +897,9 @@ def _build_chat_details_from_directus_metadata(
         "created_at": chat_metadata.get("created_at"),
         "updated_at": chat_metadata.get("updated_at"),
         "encrypted_chat_key": chat_metadata.get("encrypted_chat_key"),
+        "hashed_team_id": chat_metadata.get("hashed_team_id"),
+        "chat_visibility": chat_metadata.get("chat_visibility"),
+        "participant_user_hashes": chat_metadata.get("participant_user_hashes"),
         "encrypted_icon": chat_metadata.get("encrypted_icon"),
         "encrypted_category": chat_metadata.get("encrypted_category"),
         "encrypted_chat_summary": chat_metadata.get("encrypted_chat_summary"),
@@ -1089,6 +1128,12 @@ async def _handle_phase1_sync(
             )
             return []
 
+        phase1_chat_ids = await _live_visible_sync_chat_ids(
+            directus_service, phase1_chat_ids, user_id, team_id,
+        )
+        if not phase1_chat_ids:
+            return []
+
         # --- Batch fetch metadata for all phase1 chats ---
         batch_list_items = await cache_service.get_batch_chat_list_item_data(user_id, phase1_chat_ids)
         batch_versions = await cache_service.get_batch_chat_versions(user_id, phase1_chat_ids)
@@ -1117,9 +1162,11 @@ async def _handle_phase1_sync(
         }
         if directus_needed:
             try:
-                directus_metadata_map.update(
-                    await directus_service.chat.get_chats_metadata_batch(directus_needed)
+                fetched = await directus_service.chat.get_chats_metadata_batch(directus_needed)
+                visible = await filter_direct_chat_metadata(
+                    directus_service, list(fetched.values()), user_id, team_id,
                 )
+                directus_metadata_map.update({row["id"]: row for row in visible})
             except Exception as e:
                 logger.warning(f"Phase 1a: Directus batch metadata fetch failed: {e}")
 
@@ -1139,11 +1186,38 @@ async def _handle_phase1_sync(
             cached_ver = batch_versions.get(cid)
             chat_details = None
 
+            if team_id and cid not in directus_metadata_map:
+                try:
+                    current_meta = await directus_service.chat.get_chat_metadata(
+                        cid, admin_required=True,
+                    )
+                    if not isinstance(current_meta, dict):
+                        continue
+                    if is_direct_chat(current_meta):
+                        current_meta = await require_direct_chat_access(
+                            directus_service, current_meta, user_id, team_id,
+                        )
+                    directus_metadata_map[cid] = current_meta
+                except (PermissionError, ValueError):
+                    continue
+
             directus_details = None
             if cid in directus_metadata_map:
                 directus_details = _build_chat_details_from_directus_metadata(
                     directus_metadata_map[cid], cid
                 )
+
+            if directus_details and is_direct_chat(directus_metadata_map.get(cid)):
+                # Redis list entries have one shared key slot and cannot carry
+                # the caller's direct-chat envelope. Use authoritative projection.
+                chat_details = directus_details
+                valid_phase1_ids.append(cid)
+                if cid == last_opened_id:
+                    last_chat_details = chat_details
+                if _is_parent_chat_details(chat_details) and len(parent_content_chat_ids) < STARTUP_FULL_PARENT_CHAT_LIMIT:
+                    parent_content_chat_ids.append(cid)
+                    candidate_metadata.append(chat_details)
+                continue
 
             if cached_item:
                 cached_details = await _build_chat_details_from_cache(
@@ -1164,6 +1238,10 @@ async def _handle_phase1_sync(
                 try:
                     single_meta = await directus_service.chat.get_chat_metadata(cid)
                     if single_meta:
+                        if is_direct_chat(single_meta):
+                            single_meta = await require_direct_chat_access(
+                                directus_service, single_meta, user_id, team_id,
+                            )
                         chat_details = single_meta if isinstance(single_meta, dict) else None
                 except Exception:
                     pass
@@ -1202,6 +1280,10 @@ async def _handle_phase1_sync(
         if direct_sub_chat_ids:
             try:
                 sub_chat_metadata_map = await directus_service.chat.get_chats_metadata_batch(direct_sub_chat_ids)
+                visible = await filter_direct_chat_metadata(
+                    directus_service, list(sub_chat_metadata_map.values()), user_id, team_id,
+                )
+                sub_chat_metadata_map = {row["id"]: row for row in visible}
             except Exception as e:
                 logger.warning(f"Phase 1a: Direct sub-chat metadata fetch failed: {e}")
                 sub_chat_metadata_map = {}
@@ -1304,6 +1386,12 @@ async def _handle_phase1b_sync(
     if not phase1_chat_ids:
         return
 
+    phase1_chat_ids = await _live_visible_sync_chat_ids(
+        directus_service, phase1_chat_ids, user_id, team_id,
+    )
+    if not phase1_chat_ids:
+        return
+
     logger.info(f"Processing Phase 1b sync for user {user_id}: {len(phase1_chat_ids)} chats")
     phase1b_start = time.perf_counter()
 
@@ -1314,6 +1402,8 @@ async def _handle_phase1b_sync(
         user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
 
         for chat_id in phase1_chat_ids:
+            if not await _live_visible_sync_chat_ids(directus_service, [chat_id], user_id, team_id):
+                continue
             messages_data: List[str] = []
             message_window: Dict[str, Any] = {}
 
@@ -1373,6 +1463,8 @@ async def _handle_phase1b_sync(
                 } if should_fetch_messages else None,
             })
 
+        phase1_chat_ids = [row["chat_id"] for row in chats_data]
+
         # Fetch embeds + embed_keys for all Phase 1 chats
         all_embeds: List[Dict[str, Any]] = []
         all_embed_keys: List[Dict[str, Any]] = []
@@ -1384,6 +1476,8 @@ async def _handle_phase1b_sync(
         embed_key_windows_by_chat_id: Dict[str, Dict[str, Any]] = {}
 
         for chat_id in phase1_chat_ids:
+            if not await _live_visible_sync_chat_ids(directus_service, [chat_id], user_id, team_id):
+                continue
             hashed_id = hashlib.sha256(chat_id.encode()).hexdigest()
 
             try:
@@ -1439,6 +1533,13 @@ async def _handle_phase1b_sync(
         )
 
         # Send Phase 1b as separate WS message
+        # A membership can be removed while bounded content and sidecars load.
+        # Drop this frame if any chat has lost access before dispatch.
+        still_visible_ids = await _live_visible_sync_chat_ids(
+            directus_service, phase1_chat_ids, user_id, team_id,
+        )
+        if set(still_visible_ids) != set(phase1_chat_ids):
+            return
         await manager.send_personal_message(
             {
                 "type": "phase_1b_chat_content_ready",
@@ -1561,6 +1662,10 @@ async def _handle_phase2_sync(
                 existing_draft_chat_metadata = {
                     row["id"]: row for row in metadata_rows or []
                 }
+                visible_draft_rows = await filter_direct_chat_metadata(
+                    directus_service, list(existing_draft_chat_metadata.values()), user_id, team_id,
+                )
+                existing_draft_chat_metadata = {row["id"]: row for row in visible_draft_rows}
                 owner_hash = hashlib.sha256(user_id.encode()).hexdigest()
                 team_hash = hashlib.sha256(team_id.encode()).hexdigest() if team_id else None
                 draft_only_chat_ids = [
@@ -1865,6 +1970,11 @@ async def _handle_phase3_sync(
 
         for i in range(0, len(chats_needing_messages), BATCH_SIZE):
             batch_chat_ids = chats_needing_messages[i:i + BATCH_SIZE]
+            batch_chat_ids = await _live_visible_sync_chat_ids(
+                directus_service, batch_chat_ids, user_id, team_id,
+            )
+            if not batch_chat_ids:
+                continue
             batch_num += 1
             batch_data: List[Dict[str, Any]] = []
 

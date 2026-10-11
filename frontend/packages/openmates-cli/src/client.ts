@@ -11,6 +11,8 @@ import { prepareCliMessagePrivacy } from "./privacyScan.js";
  */
 
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import { openDirectChatKey, sealDirectChatKey, type DirectChatKeyPair } from "@repo/pairing-crypto/direct-chat";
+import { createAccountChatIdentity, recoverAccountChatIdentity, validatePublicChatEncryptionKeyId, type AccountChatEncryptionKey } from "./directChats.js";
 import { arch, platform, release } from "node:os";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
@@ -72,6 +74,9 @@ import {
   pruneLocalTeamArtifacts,
   loadAnonymousId,
   saveAnonymousId,
+  loadTrustedAccountId,
+  loadCachedDirectChatAccountKey,
+  saveCachedDirectChatAccountKey,
 } from "./storage.js";
 import { loadServerConfig } from "./serverConfig.js";
 import { activateCliProjectFocus, prepareCliProjectFocusForPreflight, registerCliProjectFileExecutor } from "./projectFileExecutor.js";
@@ -2453,6 +2458,8 @@ export interface ChatListItem {
   hasDraft?: boolean;
   draftPreview?: string | null;
   metadataUpdatedAt?: number | null;
+  chatVisibility?: "direct" | "team" | "personal";
+  participantUserHashes?: string[];
 }
 
 /** A single parameter extracted from the OpenAPI skill schema. */
@@ -3351,6 +3358,8 @@ export class OpenMatesClient {
   private session: OpenMatesSession | null;
   private readonly http: OpenMatesHttpClient;
   private readonly explicitSession: boolean;
+  private directChatIdentity?: { scope: string; promise: Promise<DirectChatKeyPair> };
+  private directChatUserHash?: { scope: string; promise: Promise<string> };
 
   constructor(options: OpenMatesClientOptions = {}) {
     this.explicitSession = options.session !== undefined;
@@ -3673,6 +3682,8 @@ export class OpenMatesClient {
     if (!response.ok) throw new Error(`Team list failed with HTTP ${response.status}`);
     if (!owner.isCurrent()) throw new Error("Account changed while loading Teams.");
     const teams = response.data.teams ?? [];
+    if (teams.length) await this.ensureDirectChatIdentity();
+    if (!owner.isCurrent()) throw new Error('Account changed while loading Teams.');
     await Promise.all(teams.map((team) => this.cacheTeamKeyFromRecord(team, owner.isCurrent)));
     if (!owner.isCurrent()) throw new Error("Account changed while loading Teams.");
     const teamIds = teams.map((team) => team.team_id).filter((teamId): teamId is string => typeof teamId === "string" && teamId.length > 0);
@@ -3681,6 +3692,58 @@ export class OpenMatesClient {
       this.setActiveTeamId(null);
     }
     return teams;
+  }
+
+  async openTeamDirectChat(teamId: string, recipientHash: string): Promise<ChatListItem> {
+    if (!teamId || !/^[0-9a-f]{64}$/.test(recipientHash)) throw new Error('A Team ID and member hash are required.');
+    const owner = this.captureTeamAccountOwner();
+    const [ownHash, ownIdentity] = await Promise.all([this.ownDirectChatHash(), this.ensureDirectChatIdentity()]);
+    if (recipientHash === ownHash) throw new Error('Choose another Team member to message.');
+    const cache = await this.ensureSynced(false, [], { teamId });
+    if (!owner.isCurrent()) throw new Error('Account changed while opening the direct chat.');
+    const existing = cache.chats.find(row => row.details.chat_visibility === 'direct'
+      && (!row.details.team_id || row.details.team_id === teamId)
+      && (!row.details.hashed_team_id || row.details.hashed_team_id === computeSHA256(teamId))
+      && Array.isArray(row.details.participant_user_hashes)
+      && row.details.participant_user_hashes.length === 2
+      && row.details.participant_user_hashes.includes(ownHash)
+      && row.details.participant_user_hashes.includes(recipientHash));
+    if (existing) {
+      const wrapping = await this.getChatWrappingKey(teamId, this.getMasterKeyBytes());
+      return this.decryptChatListItem(existing, wrapping, cache, teamId);
+    }
+    const recipient = await this.http.get<{ key_id?: string; public_key?: string; detail?: { code?: string } }>(
+      `/v1/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(recipientHash)}/chat-encryption-key`,
+      this.getCliRequestHeaders());
+    if (recipient.status === 404) throw new Error('Direct message pending: this Team member has not enrolled a chat encryption key yet.');
+    if (!recipient.ok) throw new Error(`Team member chat encryption key failed with HTTP ${recipient.status}`);
+    const recipientKey = await validatePublicChatEncryptionKeyId(recipient.data);
+    const chatId = randomUUID();
+    const chatKey = new Uint8Array(randomBytes(32));
+    const ownEnvelope = await sealDirectChatKey(chatKey, { teamId, chatId, recipientHash: ownHash, keyId: ownIdentity.keyId }, ownIdentity.publicKey);
+    const recipientEnvelope = await sealDirectChatKey(chatKey, { teamId, chatId, recipientHash, keyId: recipientKey.key_id }, recipientKey.public_key);
+    if (!owner.isCurrent()) throw new Error('Account changed while opening the direct chat.');
+    const response = await this.http.post<{ chat?: Record<string, unknown> }>(
+      `/v1/teams/${encodeURIComponent(teamId)}/direct-chats`, {
+        chat_id: chatId, recipient_user_hash: recipientHash,
+        participant_key_envelopes: {
+          [ownHash]: { key_id: ownIdentity.keyId, encrypted_chat_key: ownEnvelope },
+          [recipientHash]: { key_id: recipientKey.key_id, encrypted_chat_key: recipientEnvelope },
+        },
+        encrypted_title: await encryptWithAesGcmCombined('Private Team message', chatKey),
+      }, this.getCliRequestHeaders());
+    if (!owner.isCurrent()) throw new Error('Account changed while opening the direct chat.');
+    if (!response.ok || !response.data.chat) throw new Error(`Direct chat creation failed with HTTP ${response.status}`);
+    const details = response.data.chat;
+    if (details.chat_visibility !== 'direct' || details.team_id !== teamId || details.id !== chatId) {
+      throw new Error('Direct chat creation returned mismatched metadata.');
+    }
+    const latest = loadSyncCache(teamId) ?? cache;
+    const row = { details, messages: [] };
+    saveSyncCache({ ...latest, chats: [row, ...latest.chats], loadedChatCount: latest.loadedChatCount + 1,
+      totalChatCount: latest.totalChatCount + 1 }, teamId);
+    const wrapping = await this.getChatWrappingKey(teamId, this.getMasterKeyBytes());
+    return this.decryptChatListItem(row, wrapping, loadSyncCache(teamId), teamId);
   }
 
   async approveTeamName(name: string): Promise<string> {
@@ -3733,6 +3796,7 @@ export class OpenMatesClient {
   }
 
   async getTeam(teamId: string): Promise<TeamRecord> {
+    await this.ensureDirectChatIdentity();
     const owner = this.captureTeamAccountOwner();
     const response = await this.http.get<{ team?: TeamRecord }>(`/v1/teams/${encodeURIComponent(teamId)}`, this.getCliRequestHeaders());
     if (!response.ok || !response.data.team) throw new Error(`Team get failed with HTTP ${response.status}`);
@@ -3787,6 +3851,7 @@ export class OpenMatesClient {
 
   async listTeamMembers(teamId: string): Promise<TeamMemberRecord[]> {
     this.requireSession();
+    await this.ensureDirectChatIdentity();
     const response = await this.http.get<{ members?: TeamMemberRecord[] }>(`/v1/teams/${encodeURIComponent(teamId)}/members`, this.getCliRequestHeaders());
     if (!response.ok) throw new Error(`Team members failed with HTTP ${response.status}`);
     return Promise.all((response.data.members ?? []).map((member) => this.decryptTeamMember(teamId, member)));
@@ -5159,6 +5224,104 @@ export class OpenMatesClient {
     });
   }
 
+  private async ownDirectChatHash(): Promise<string> {
+    const session = this.requireSession();
+    const owner = this.captureTeamAccountOwner();
+    const scope = `${session.apiUrl}:${session.sessionId}:${session.hashedEmail}:${session.masterKeyExportedB64}`;
+    if (this.directChatUserHash?.scope !== scope) {
+      const cached = loadCachedDirectChatAccountKey(session, this.apiUrl);
+      const promise = (cached ? Promise.resolve<Record<string, unknown>>({ id: cached.accountId }) : this.whoAmI()).then(user => {
+        const id = typeof user.id === 'string' ? user.id : typeof user.user_id === 'string' ? user.user_id : null;
+        if (!id) throw new Error('Authenticated identity is required for direct chats.');
+        if (!owner.isCurrent()) throw new Error('Account changed while loading direct chat identity.');
+        return createHash('sha256').update(id).digest('hex');
+      }).catch(error => {
+        if (!(error instanceof TypeError)) throw error;
+        const cached = loadCachedDirectChatAccountKey(session, this.apiUrl);
+        if (!cached) throw error;
+        if (!owner.isCurrent()) throw new Error('Account changed while loading direct chat identity.');
+        return createHash('sha256').update(cached.accountId).digest('hex');
+      }).catch(error => { if (this.directChatUserHash?.promise === promise) this.directChatUserHash = undefined; throw error; });
+      this.directChatUserHash = { scope, promise };
+    }
+    return this.directChatUserHash.promise;
+  }
+
+  async ensureDirectChatIdentity(): Promise<DirectChatKeyPair> {
+    const session = this.requireSession();
+    const scope = `${session.apiUrl}:${session.sessionId}:${session.hashedEmail}:${session.masterKeyExportedB64}`;
+    if (this.directChatIdentity?.scope !== scope) {
+      const promise = this.loadDirectChatIdentity().catch(error => {
+        if (this.directChatIdentity?.promise === promise) this.directChatIdentity = undefined;
+        throw error;
+      });
+      this.directChatIdentity = { scope, promise };
+    }
+    return this.directChatIdentity.promise;
+  }
+
+  private async loadDirectChatIdentity(): Promise<DirectChatKeyPair> {
+    const owner = this.captureTeamAccountOwner();
+    const masterKey = this.getMasterKeyBytes();
+    const recover = async (record: AccountChatEncryptionKey): Promise<DirectChatKeyPair> => {
+      const identity = await recoverAccountChatIdentity(record, masterKey);
+      if (!owner.isCurrent()) throw new Error('Account changed during chat encryption key recovery.');
+      return identity;
+    };
+    const local = loadCachedDirectChatAccountKey(this.requireSession(), this.apiUrl);
+    if (local) return recover(local.record);
+    const cacheVerifiedRecord = async (record: AccountChatEncryptionKey): Promise<void> => {
+      try {
+        const user = await this.whoAmI();
+        if (!owner.isCurrent()) return;
+        const accountId = typeof user.id === 'string' ? user.id : typeof user.user_id === 'string' ? user.user_id : null;
+        const trustedAccountId = loadTrustedAccountId();
+        if (accountId && (trustedAccountId ? trustedAccountId === accountId
+          : process.env.OPENMATES_ACCOUNT_GUARD !== "required")) {
+          saveCachedDirectChatAccountKey(this.requireSession(), this.apiUrl, accountId, record);
+        }
+      } catch { /* Local backup is optional; successful enrollment remains usable. */ }
+    };
+    let existing: HttpResponse<{ key?: AccountChatEncryptionKey | null }>;
+    try {
+      existing = await this.http.get<{ key?: AccountChatEncryptionKey | null }>(
+        '/v1/account/chat-encryption-key', this.getCliRequestHeaders());
+    } catch (error) {
+      if (!(error instanceof TypeError)) throw error;
+      if (!owner.isCurrent()) throw new Error('Account changed during chat encryption key recovery.');
+      const cached = loadCachedDirectChatAccountKey(this.requireSession(), this.apiUrl);
+      if (!cached) throw error;
+      return recover(cached.record);
+    }
+    if (!existing.ok && existing.status !== 404) throw new Error(`Account chat encryption key failed with HTTP ${existing.status}`);
+    if (!owner.isCurrent()) throw new Error('Account changed during chat encryption key enrollment.');
+    if (existing.data.key) {
+      const identity = await recover(existing.data.key);
+      await cacheVerifiedRecord(existing.data.key);
+      if (!owner.isCurrent()) throw new Error('Account changed during chat encryption key recovery.');
+      return identity;
+    }
+    const generated = await createAccountChatIdentity(masterKey);
+    if (!owner.isCurrent()) throw new Error('Account changed during chat encryption key enrollment.');
+    const saved = await this.http.put<{ key?: AccountChatEncryptionKey }>(
+      '/v1/account/chat-encryption-key', generated.record, this.getCliRequestHeaders());
+    if (saved.status === 409) {
+      const current = await this.http.get<{ key?: AccountChatEncryptionKey }>(
+        '/v1/account/chat-encryption-key', this.getCliRequestHeaders());
+      if (!owner.isCurrent() || !current.ok || !current.data.key) throw new Error('Account chat encryption key enrollment conflicted. Retry.');
+      const identity = await recover(current.data.key);
+      await cacheVerifiedRecord(current.data.key);
+      if (!owner.isCurrent()) throw new Error('Account changed during chat encryption key recovery.');
+      return identity;
+    }
+    if (!owner.isCurrent() || !saved.ok) throw new Error(`Account chat encryption key enrollment failed with HTTP ${saved.status}`);
+    const record = saved.data.key ?? generated.record;
+    const identity = await recover(record);
+    await cacheVerifiedRecord(record);
+    if (!owner.isCurrent()) throw new Error('Account changed during chat encryption key recovery.');
+    return identity;
+  }
+
   async getTopicPreferences(): Promise<TopicPreferencesPayload | null> {
     const user = await this.whoAmI();
     return await this.decryptTopicPreferences(user.encrypted_settings);
@@ -5597,6 +5760,21 @@ export class OpenMatesClient {
     teamId: string | null = null,
   ): Promise<Uint8Array | null> {
     const chatId = String(cached.details.id ?? "");
+    if (cached.details.chat_visibility === 'direct') {
+      if (!teamId || !chatId || (cached.details.team_id && cached.details.team_id !== teamId)
+        || (cached.details.hashed_team_id && cached.details.hashed_team_id !== computeSHA256(teamId))) {
+        throw new Error('Direct chat Team binding mismatch.');
+      }
+      const ownHash = await this.ownDirectChatHash();
+      const participants = cached.details.participant_user_hashes;
+      if (!Array.isArray(participants) || participants.length !== 2 || !participants.includes(ownHash)) {
+        throw new Error('Direct chat participant binding mismatch.');
+      }
+      const encrypted = cached.details.encrypted_chat_key;
+      if (typeof encrypted !== 'string') throw new Error('Direct chat envelope unavailable.');
+      const identity = await this.ensureDirectChatIdentity();
+      return openDirectChatKey(encrypted, { teamId, chatId, recipientHash: ownHash, keyId: identity.keyId }, identity.privateKey);
+    }
     const wrapperKey = chatId ? this.getContextWrapperEncryptedChatKey(cache, chatId, teamId) : null;
     const encryptedChatKey = wrapperKey ?? (
       typeof cached.details.encrypted_chat_key === "string"
@@ -5641,6 +5819,8 @@ export class OpenMatesClient {
 
     return {
       id,
+      chatVisibility: d.chat_visibility === 'direct' ? 'direct' : teamId ? 'team' : 'personal',
+      participantUserHashes: Array.isArray(d.participant_user_hashes) ? d.participant_user_hashes.filter((value): value is string => typeof value === 'string') : undefined,
       shortId: id.slice(0, 8),
       slug,
       title,
@@ -6910,17 +7090,42 @@ export class OpenMatesClient {
       if (!active || active.apiUrl !== owner[0] || active.hashedEmail !== owner[1]
         || active.sessionId !== owner[2] || active.createdAt !== owner[3]
         || active.masterKeyExportedB64 !== owner[4]
-        || (options.preferCache && this.getActiveTeamId() !== selectedTeamId))
+        || this.getActiveTeamId() !== selectedTeamId
+        || this.resolveTeamContext(options) !== teamId)
         throw new Error('Chat workspace changed');
     };
-    const cache = options.preferCache ? loadSyncCache(teamId) : await this.ensureSynced(false, [], options);
+    let cache = options.preferCache ? loadSyncCache(teamId) : await this.ensureSynced(false, [], options);
     current();
     if (!cache) throw new Error('Chat cache unavailable. Open the chat to refresh it.');
+    const diskCacheAtStart = loadSyncCache(teamId);
+    const diskChatIdsAtStart = diskCacheAtStart?.chats.map(chat => String(chat.details.id));
     const localTeamKey = options.preferCache && teamId ? loadLocalTeamKey(owner[1], teamId) : null;
     if (options.preferCache && teamId && !localTeamKey) throw new Error('Team key unavailable offline. Reconnect to refresh Team access.');
     const wrappingKey = localTeamKey ? base64ToBytes(localTeamKey) : await this.getChatWrappingKey(teamId, masterKey);
     current();
-    const found = await this.resolveCachedChatForQuery(query, cache, wrappingKey, teamId);
+    let found: CachedChat;
+    let fetchedMetadata = false;
+    try {
+      found = await this.resolveCachedChatForQuery(query, cache, wrappingKey, teamId);
+    } catch (error) {
+      if (options.preferCache || !(error instanceof Error) || !/^Chat '.*' not found\./.test(error.message)
+        || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(query)) throw error;
+      // A fresh local census can predate a chat created in the browser. The
+      // metadata route checks Team membership and direct-chat participation.
+      const response = await this.http.post<{ chats: Record<string, unknown>[] }>(
+        this.appendTeamQuery('/v1/chats/metadata/batch', { teamId }),
+        { chat_ids: [query] }, this.getCliRequestHeaders());
+      current();
+      if (!response.ok) throw new Error(`Chat metadata failed with HTTP ${response.status}`);
+      const details = response.data.chats.find(chat => String(chat.id ?? '') === query);
+      if (!details) throw error;
+      found = { details, messages: [] };
+      fetchedMetadata = true;
+      cache = { ...cache, chats: [...cache.chats, found], chatKeyWrappers: [
+        ...(cache.chatKeyWrappers ?? []),
+        ...(Array.isArray(details.chat_key_wrappers) ? details.chat_key_wrappers as Record<string, unknown>[] : []),
+      ] };
+    }
     current();
     const chatItem = await this.decryptChatListItem(found, wrappingKey, cache, teamId);
     current();
@@ -6960,24 +7165,33 @@ export class OpenMatesClient {
     const rawMessages = Array.isArray(response.data.messages) ? response.data.messages : [];
     const messages = await this.decryptRawChatMessages(rawMessages, chatItem, chatKeyBytes, cache.embeds);
     current();
-    if (options.preferCache && teamId && (options.direction ?? 'latest') === 'latest') {
+    if ((options.direction ?? 'latest') === 'latest') {
+      // Persist only an authorized, successfully decrypted server window. Keep
+      // ciphertext and raw encrypted metadata; a later sync may have deleted
+      // this chat or rotated its key while the REST request was in flight.
       const latestCache = loadSyncCache(teamId);
       const row = latestCache?.chats.find(chat => String(chat.details.id) === chatId);
-      // Do not restore a deleted chat or overwrite a concurrent key rotation/edit.
-      if (row && row.details.messages_v === found.details.messages_v
+      const sameVersion = row && row.details.messages_v === found.details.messages_v
         && row.details.encrypted_chat_key === found.details.encrypted_chat_key
         && row.messages.length === found.messages.length
-        && row.messages.every((raw,index) => raw === found.messages[index])) {
+        && row.messages.every((raw,index) => raw === found.messages[index]);
+      if (latestCache && (sameVersion || (fetchedMetadata && !row && diskCacheAtStart
+        && latestCache.syncedAt === diskCacheAtStart.syncedAt
+        && latestCache.totalChatCount === diskCacheAtStart.totalChatCount
+        && latestCache.loadedChatCount === diskCacheAtStart.loadedChatCount
+        && latestCache.chats.length === diskChatIdsAtStart?.length
+        && latestCache.chats.every((chat,index) => String(chat.details.id) === diskChatIdsAtStart[index])))) {
         const canonicalId = (raw: string | Record<string,unknown>) => {
           const value = typeof raw === 'string' ? JSON.parse(raw) as Record<string,unknown> : raw;
           return String(value.client_message_id ?? value.id ?? value.message_id ?? '');
         };
-        const existingById = new Map(row.messages.map((raw,index) => [canonicalId(raw),index]));
+        const existing = row?.messages ?? [];
+        const existingById = new Map(existing.map((raw,index) => [canonicalId(raw),index]));
         const overlap = rawMessages.find(raw => !!canonicalId(raw) && existingById.has(canonicalId(raw)));
         // A complete window is authoritative. For a partial window retain only
         // the history before its overlap; omitted confirmed tail rows are deleted.
         const older = response.data.has_more_before !== true ? [] : overlap
-          ? row.messages.slice(0,existingById.get(canonicalId(overlap))!) : row.messages;
+          ? existing.slice(0,existingById.get(canonicalId(overlap))!) : existing;
         const byId = new Map<string, {raw:string;createdAt:number}>();
         for (const raw of [...older, ...rawMessages]) {
           const value = typeof raw === 'string' ? JSON.parse(raw) as Record<string, unknown> : raw;
@@ -6987,9 +7201,21 @@ export class OpenMatesClient {
         }
         const merged = [...byId.values()].sort((a,b) => a.createdAt-b.createdAt).map(message => message.raw);
         current();
-        if (merged.length !== row.messages.length || merged.some((raw,index) => raw !== row.messages[index]))
-          saveSyncCache({...latestCache!,chats:latestCache!.chats.map(chat => chat === row
+        try {
+        if (!row) {
+          const wrappers = Array.isArray(found.details.chat_key_wrappers)
+            ? found.details.chat_key_wrappers as Record<string,unknown>[] : [];
+          saveSyncCache({...latestCache,chats:[...latestCache.chats,{details:found.details,messages:merged}],
+            loadedChatCount:latestCache.loadedChatCount+1,
+            totalChatCount:Math.max(latestCache.totalChatCount,latestCache.loadedChatCount+1),
+            chatKeyWrappers:[...(latestCache.chatKeyWrappers ?? []),...wrappers]},teamId);
+        } else if (merged.length !== row.messages.length || merged.some((raw,index) => raw !== row.messages[index])) {
+          saveSyncCache({...latestCache,chats:latestCache.chats.map(chat => chat === row
             ? {...row,messages:merged} : chat)},teamId);
+        }
+        } catch {
+          // A full local cache must not turn an authorized chat read into a failure.
+        }
       }
     }
     return {
@@ -8578,7 +8804,7 @@ export class OpenMatesClient {
               ? chat.details.encrypted_chat_key
               : null;
           if (encKey) {
-            chatKeyBytes = await decryptBytesWithAesGcm(encKey, wrappingKey);
+            chatKeyBytes = await this.resolveChatKey(cache, chat, wrappingKey, teamId);
             encryptedChatKey = encKey;
             if (!chatKeyBytes) throw new Error("Could not decrypt the saved chat key.");
             if (typeof chat.details.encrypted_title === "string") {

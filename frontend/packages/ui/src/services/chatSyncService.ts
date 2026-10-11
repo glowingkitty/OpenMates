@@ -1407,6 +1407,12 @@ export class ChatSynchronizationService extends EventTarget {
     webSocketService.on("team_chat_message_created", (payload) => {
       void this.handleTeamChatMessageCreated(payload as TeamChatMessageCreatedPayload);
     });
+    webSocketService.on("team_chat_created", (payload) => {
+      const created = payload as { team_id: string; chat: Partial<Chat> & { id?: string } };
+      void chatUpdateHandlers.handleTeamChatCreatedImpl(
+        this, created, () => this.isPayloadForActiveContext(created),
+      );
+    });
     webSocketService.on("team_ai_processing", (payload) => {
       this.handleTeamAIProcessing(payload as TeamAIProcessingPayload);
     });

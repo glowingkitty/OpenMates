@@ -353,12 +353,22 @@ it("accepts a Team switch within the same owner while a Team list is pending", a
   const suffix = randomBytes(6).toString("hex"), selectedTeam = `selected-${suffix}`;
   const client = new OpenMatesClient({ apiUrl: "http://127.0.0.1", session: testSession(null) });
   let release!: (value: unknown) => void;
-  const internals = client as unknown as { http: { get: () => Promise<unknown> } };
-  internals.http.get = () => new Promise((resolve) => { release = resolve; });
+  let identityEnrollments = 0;
+  const internals = client as unknown as {
+    http: { get: (path: string) => Promise<unknown> };
+    ensureDirectChatIdentity: () => Promise<unknown>;
+  };
+  internals.http.get = (path) => {
+    assert.equal(path, "/v1/teams");
+    return new Promise((resolve) => { release = resolve; });
+  };
+  internals.ensureDirectChatIdentity = async () => { identityEnrollments += 1; return {}; };
   const pending = client.listTeams();
   client.setActiveTeamId(selectedTeam);
+  assert.equal(identityEnrollments, 0);
   release({ ok: true, status: 200, data: { teams: [{ team_id: selectedTeam }] } });
   assert.equal((await pending)[0]?.team_id, selectedTeam);
+  assert.equal(identityEnrollments, 1);
   assert.equal(client.getActiveTeamId(), selectedTeam);
 });
 
@@ -371,8 +381,11 @@ it("rejects a Team selection when the account switches during cached key loading
   const internals = client as unknown as {
     session: OpenMatesSession;
     http: { get: () => Promise<unknown> };
+    ensureDirectChatIdentity: () => Promise<unknown>;
     cacheTeamKeyFromRecord: () => Promise<void>;
   };
+  let identityEnrollments = 0;
+  internals.ensureDirectChatIdentity = async () => { identityEnrollments += 1; return {}; };
   internals.http.get = async () => ({ ok: true, status: 200, data: { team: { team_id: oldTeam } } });
   internals.cacheTeamKeyFromRecord = async () => {
     // A cache hit still yields before getTeam resumes and Settings applies the selection.
@@ -383,6 +396,7 @@ it("rejects a Team selection when the account switches during cached key loading
     client.setActiveTeamId(team.team_id);
   })();
   await assert.rejects(pendingSelection, /Account changed while loading Team/);
+  assert.equal(identityEnrollments, 1);
   assert.equal(client.getActiveTeamId(), newTeam);
 });
 
@@ -500,6 +514,7 @@ describe("OpenMatesClient Teams V1", () => {
     await withServer(
       (request, body) => {
         if (request.url === "/v1/teams" && request.method === "GET") return { teams: [{ team_id: "team-1" }] };
+        if (request.url === "/v1/auth/session" && request.method === "POST") return { success: true, user: { id: "test-account-id" } };
         if (request.url === "/v1/teams/name-approval" && request.method === "POST") {
           assert.deepEqual(body, { name: 'acme' });
           return { approval_token: 'approved-acme', expires_at: 1000 };
@@ -534,6 +549,14 @@ describe("OpenMatesClient Teams V1", () => {
         assert.equal((await client.updateTeamMemberRole("team-1", "user-1", "admin")).role, "admin");
         assert.equal((await client.getTeamBilling("team-1")).balance_credits, 10);
         assert.equal((await client.createTeamBankTransferOrder("team-1", 110000)).order_id, "bt_1");
+
+        // contract-test: direct surface=cli assertions=teams.direct-chat.account-key-exchange
+        assert.deepEqual(seen.slice(1, 4).map((request) => [request.method, request.url]), [
+          ["GET", "/v1/account/chat-encryption-key"],
+          ["PUT", "/v1/account/chat-encryption-key"],
+          ["POST", "/v1/auth/session"],
+        ]);
+        seen.splice(1, 3);
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
           ["GET", "/v1/teams"],

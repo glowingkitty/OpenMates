@@ -6,6 +6,12 @@ import hashlib
 import base64
 import binascii
 import secrets
+from backend.core.api.app.services.direct_chat_access import (
+    DIRECT_FIELDS,
+    filter_direct_chat_metadata,
+    is_direct_chat,
+    validate_direct_chat_metadata,
+)
 
 from backend.shared.python_utils.encrypted_slug_metadata import (
     DuplicateObjectSlugError,
@@ -68,8 +74,8 @@ def _validate_client_encrypted_message_content(message_id: str, encrypted_conten
 # Define metadata fields to fetch (exclude large content fields)
 # NOTE: user_id is NOT included here to avoid permission issues on public share endpoints
 # Use hashed_user_id for ownership verification instead
-CHAT_METADATA_FIELDS = "id,hashed_user_id,hashed_team_id,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,archived_message_count,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_focus_phase_state,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
-CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,hashed_team_id,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_focus_phase_state,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS = "id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,archived_message_count,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_focus_phase_state,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_focus_phase_state,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION = ",".join(
     field for field in CHAT_METADATA_FIELDS.split(",") if field != "metadata_v"
 )
@@ -78,10 +84,10 @@ CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS = ",".join
     for field in CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS.split(",")
     if field != "metadata_v"
 )
-CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,encrypted_slug,slug_lookup_hash,messages_v,title_v,metadata_v,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_shared,is_private,share_pii,share_highlights,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_LIST_ITEM_FIELDS = "id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_title,encrypted_slug,slug_lookup_hash,messages_v,title_v,metadata_v,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_shared,is_private,share_pii,share_highlights,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
 
 # Fallback field sets for when encrypted fields are not accessible due to permissions
-CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,hashed_team_id,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_LIST_ITEM_FIELDS_FALLBACK = "id,encrypted_title,encrypted_slug,slug_lookup_hash,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_METADATA_FIELD_SETS = (
     CHAT_METADATA_FIELDS,
@@ -98,6 +104,7 @@ CHAT_METADATA_FIELD_SETS = (
 CORE_CHAT_FIELDS_FOR_WARMING = (
     "id,"
     "hashed_user_id,"
+    "hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,"
     "encrypted_title,"
     "encrypted_slug,"
     "slug_lookup_hash,"
@@ -235,7 +242,7 @@ class ChatMethods:
 
     async def get_chat_activity_candidates(self, user_id: str, team_id: str | None = None) -> List[Dict[str, Any]]:
         """Minimal owned IDs and ancestry for a client activity census; no ciphertext."""
-        params = {"fields": "id,parent_id,is_sub_chat", "limit": -1}
+        params = {"fields": "id,parent_id,is_sub_chat,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_chat_key", "limit": -1}
         if team_id:
             params["filter[hashed_team_id][_eq]"] = hashlib.sha256(team_id.encode()).hexdigest()
         else:
@@ -244,7 +251,7 @@ class ChatMethods:
         rows = await self.directus_service.get_items("chats", params=params, admin_required=True, no_cache=True)
         if not isinstance(rows, list):
             raise RuntimeError("Chat activity metadata unavailable")
-        return rows
+        return await filter_direct_chat_metadata(self.directus_service, rows, user_id, team_id)
 
     async def get_user_chat_count(self, user_id: str, team_id: str | None = None) -> int:
         """
@@ -261,6 +268,10 @@ class ChatMethods:
             params['filter[hashed_user_id][_eq]'] = hashed_user_id
             params['filter[hashed_team_id][_null]'] = True
         try:
+            if team_id:
+                # Team-wide aggregate counts include private direct chats. Count
+                # only the caller's visible records for pagination and activity.
+                return len(await self.get_chat_activity_candidates(user_id, team_id))
             response = await self.directus_service.get_items('chats', params=params, no_cache=True, admin_required=True)
             if response and isinstance(response, list) and len(response) > 0:
                 count = response[0].get('count', 0)
@@ -284,6 +295,10 @@ class ChatMethods:
         try:
             response = await self.directus_service.get_items('chats', params=params, no_cache=True)
             if response and isinstance(response, list) and len(response) > 0:
+                # This legacy personal sync fallback has no caller identity for
+                # participant projection. Never return a direct chat's wrapper map.
+                if is_direct_chat(response[0]):
+                    return None
                 logger.info(f"DB Fallback: Successfully fetched list item data for chat {chat_id}")
                 return response[0]
             else:
@@ -401,6 +416,11 @@ class ChatMethods:
             True if the user owns the chat, False otherwise
         """
         try:
+            authoritative = await self.get_chat_metadata(chat_id, admin_required=True)
+            if authoritative is None:
+                return False
+            if is_direct_chat(authoritative):
+                return False
             # 1. Try cache first (most efficient)
             # If the chat_id is in the user's sorted set, they definitely own it.
             cache_exists = await self.directus_service.cache.check_chat_exists_for_user(user_id, chat_id)
@@ -422,6 +442,8 @@ class ChatMethods:
             if not chat_metadata:
                 logger.warning(f"Chat {chat_id} not found when checking ownership for user {user_id}")
                 return False
+            if is_direct_chat(chat_metadata):
+                return False  # Direct chat creator/admin status grants no access.
             
             # Get hashed_user_id from chat metadata
             chat_hashed_user_id = chat_metadata.get('hashed_user_id')
@@ -464,6 +486,8 @@ class ChatMethods:
         }
         if team_id:
             params['filter[hashed_team_id][_eq]'] = hashlib.sha256(team_id.encode()).hexdigest()
+            params['limit'] = -1
+            params['offset'] = 0
         else:
             params['filter[hashed_user_id][_eq]'] = hashed_user_id
             params['filter[hashed_team_id][_null]'] = True
@@ -475,7 +499,8 @@ class ChatMethods:
             )
             if response and isinstance(response, list):
                 logger.info(f"Successfully fetched {len(response)} chat metadata items for user {user_id}")
-                return response
+                visible = await filter_direct_chat_metadata(self.directus_service, response, user_id, team_id)
+                return visible[offset:offset + limit] if team_id else visible
             else:
                 logger.warning(f"No chat metadata found or unexpected response for user_id: {user_id}")
                 return []
@@ -504,6 +529,10 @@ class ChatMethods:
             current_metadata = await self.get_chat_metadata(chat_id) # Use self.get_chat_metadata
             if not current_metadata:
                 logger.error(f"Update rejected for chat {chat_id}: Chat not found.")
+                return None
+            if is_direct_chat(current_metadata) or any(field in data for field in DIRECT_FIELDS):
+                # Direct identity/key material is immutable; ordinary metadata
+                # updates cannot convert the chat or replace its participants.
                 return None
             current_version = current_metadata.get('_version')
             if current_version is None:
@@ -554,6 +583,10 @@ class ChatMethods:
                 - (None, False) on other failures
         """
         chat_id_val = chat_metadata.get('id')
+        if is_direct_chat(chat_metadata):
+            validate_direct_chat_metadata(chat_metadata)
+        elif any(field in chat_metadata for field in ("participant_user_hashes", "participant_key_envelopes")):
+            raise ValueError("Participant fields require a direct chat")
         _validate_no_vault_ciphertext_for_chat_fields(f"Chat {chat_id_val or 'unknown'}", chat_metadata)
         validate_encrypted_slug_metadata(chat_metadata, record_label="Chat")
         await self._ensure_chat_slug_lookup_available(
@@ -598,6 +631,11 @@ class ChatMethods:
                         is_duplicate = True
                 
                 if is_duplicate and chat_id_val:
+                    existing_metadata = await self.get_chat_metadata(chat_id_val, admin_required=True)
+                    if is_direct_chat(existing_metadata) or is_direct_chat(chat_metadata):
+                        # A conflicting create cannot replace a direct chat's
+                        # participants, wrappers, or workspace identity.
+                        return None, True
                     # UPSERT FALLBACK: Chat already exists — update it with any meaningful fields
                     # from the payload that the existing record might be missing.
                     # Exclude 'id' and 'created_at' since those are immutable.
@@ -727,6 +765,8 @@ class ChatMethods:
             raise DuplicateObjectSlugError("Chat slug already exists in this workspace")
 
     async def _ensure_chat_key_wrapper_from_metadata(self, chat_metadata: Dict[str, Any]) -> None:
+        if is_direct_chat(chat_metadata):
+            return  # No Team-wide key wrapper exists for a direct chat.
         encrypted_chat_key = chat_metadata.get("encrypted_chat_key")
         chat_id = chat_metadata.get("id")
         hashed_user_id = chat_metadata.get("hashed_user_id")
@@ -1290,6 +1330,21 @@ class ChatMethods:
         Updates specific fields for a chat item in Directus.
         """
         _validate_no_vault_ciphertext_for_chat_fields(f"Chat {chat_id}", fields_to_update)
+        if any(field in fields_to_update for field in DIRECT_FIELDS):
+            return False
+        existing = await self.get_chat_metadata(chat_id, admin_required=True)
+        if not isinstance(existing, dict):
+            return False
+        if is_direct_chat(existing):
+            # Only message/accounting state may pass through the generic
+            # persistence queue. Direct titles and all key/scope/share fields
+            # are set through the dedicated creation protocol.
+            direct_state_fields = {
+                "messages_v", "last_edited_overall_timestamp", "last_message_timestamp",
+                "updated_at", "unread_count", "budget_spent", "archived_message_count",
+            }
+            if set(fields_to_update) - direct_state_fields:
+                return False
         logger.info(f"Updating chat fields for chat_id: {chat_id} with data: {list(fields_to_update.keys())}")
         try:
             updated_item_data = await self.directus_service.update_item(
@@ -1899,6 +1954,8 @@ class ChatMethods:
         }
         if team_id:
             chat_params['filter[hashed_team_id][_eq]'] = hashlib.sha256(team_id.encode()).hexdigest()
+            chat_params['limit'] = -1
+            chat_params['offset'] = 0
         else:
             chat_params['filter[hashed_user_id][_eq]'] = hashlib.sha256(user_id.encode()).hexdigest()
             chat_params['filter[hashed_team_id][_null]'] = True
@@ -1909,6 +1966,11 @@ class ChatMethods:
             if not core_chats_list or not isinstance(core_chats_list, list):
                 logger.warning(f"No core chats found for user_id: {user_id} for cache warming.")
                 return []
+            core_chats_list = await filter_direct_chat_metadata(
+                self.directus_service, core_chats_list, user_id, team_id,
+            )
+            if team_id:
+                core_chats_list = core_chats_list[offset:offset + limit]
             logger.info(f"Successfully fetched {len(core_chats_list)} core chat items for user {user_id}.")
 
             # 2. Fetch all user drafts in one request

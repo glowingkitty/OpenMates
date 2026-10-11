@@ -34,6 +34,7 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
+from backend.core.api.app.services.direct_chat_access import is_direct_chat, require_direct_chat_access
 from backend.core.api.app.services.project_write_authorization_service import (
     ProjectWriteAuthorizationError,
     ProjectWriteAuthorizationService,
@@ -110,6 +111,14 @@ async def _require_chat_embed_read(
             or (metadata.get("hashed_team_id") or None) != (_hash_value(team_id) if team_id else None)
             or not team_id and metadata.get("hashed_user_id") != _hash_value(current_user.id)):
         raise HTTPException(status_code=404, detail="Chat not found")
+    direct_metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+    if not isinstance(direct_metadata, dict) or direct_metadata.get("id") != chat_id:
+        raise HTTPException(status_code=503, detail="Chat authorization unavailable")
+    if is_direct_chat(direct_metadata):
+        try:
+            await require_direct_chat_access(directus_service, direct_metadata, current_user.id, team_id)
+        except (PermissionError, ValueError) as exc:
+            raise HTTPException(status_code=404, detail="Chat not found") from exc
 
 
 _REFERENCE_PROBE_LIMIT = 20
@@ -130,8 +139,7 @@ async def _reference_target_scope(
         try:
             await directus_service.team.require_team_role(
                 team_id, current_user.id,
-                {"owner", "admin", "member"} if write_required
-                else {"owner", "admin", "member", "viewer"},
+                {"owner", "admin", "member", "viewer"},
             )
         except TeamPermissionError as exc:
             raise HTTPException(status_code=404, detail="Chat not found") from exc
@@ -153,6 +161,18 @@ async def _reference_target_scope(
                 or (row.get("hashed_team_id") or None) != team_hash
                 or not team_hash and row.get("hashed_user_id") != actor_hash):
             raise HTTPException(status_code=404, detail="Chat not found")
+        direct_metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+        if not isinstance(direct_metadata, dict) or direct_metadata.get("id") != chat_id:
+            raise HTTPException(status_code=503, detail="Reference authorization unavailable")
+        if is_direct_chat(direct_metadata):
+            try:
+                await require_direct_chat_access(directus_service, direct_metadata, current_user.id, team_id)
+            except (PermissionError, ValueError) as exc:
+                raise HTTPException(status_code=404, detail="Chat not found") from exc
+        elif team_id and write_required:
+            await directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member"})
+    elif team_id and write_required:
+        await directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member"})
     return _hash_value(chat_id), actor_hash, bool(team_id), bool(rows)
 
 
@@ -497,6 +517,11 @@ async def _authorize_version_read(
         metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
         if not metadata or metadata.get("hashed_team_id") != _hash_value(team_id):
             raise HTTPException(status_code=404, detail="Embed not found")
+        if is_direct_chat(metadata):
+            try:
+                await require_direct_chat_access(directus_service, metadata, current_user.id, team_id)
+            except (PermissionError, ValueError) as exc:
+                raise HTTPException(status_code=404, detail="Embed not found") from exc
     elif not await directus_service.chat.check_chat_ownership(chat_id, current_user.id):
         raise HTTPException(status_code=404, detail="Embed not found")
     embed = await directus_service.embed.get_embed_by_id(embed_id)

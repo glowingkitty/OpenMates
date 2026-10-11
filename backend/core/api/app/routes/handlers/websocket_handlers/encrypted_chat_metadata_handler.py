@@ -15,6 +15,7 @@ from backend.core.api.app.tasks.persistence_tasks import (
     _async_persist_encrypted_chat_metadata,
 )
 from backend.core.api.app.services.directus.team_methods import hash_id
+from backend.core.api.app.services.direct_chat_access import is_direct_chat
 
 logger = logging.getLogger(__name__)
 METADATA_BROADCAST_TIMEOUT_SECONDS = 1.0
@@ -176,7 +177,27 @@ async def handle_encrypted_chat_metadata(
             # Verify personal ownership or Team write membership and canonical scope.
             if hashed_team_id:
                 await directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
-                existing_team_chat = await directus_service.chat.get_chat_metadata(chat_id)
+                team_chat_rows = await directus_service.get_items(
+                    "chats",
+                    params={
+                        "filter[id][_eq]": chat_id,
+                        "fields": "id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes",
+                        "limit": 1,
+                    },
+                    no_cache=True, admin_required=True, raise_on_error=True,
+                )
+                if not isinstance(team_chat_rows, list):
+                    raise RuntimeError("Team chat scope unavailable")
+                existing_team_chat = team_chat_rows[0] if team_chat_rows else None
+                if is_direct_chat(existing_team_chat):
+                    # This legacy event can rotate the Team wrapper and fans out
+                    # metadata to the whole Team. Direct-chat metadata is updated
+                    # only through participant-aware operations.
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"code": "direct_chat_metadata_immutable", "chat_id": chat_id}},
+                        user_id, device_fingerprint_hash,
+                    )
+                    return
                 if existing_team_chat and existing_team_chat.get("hashed_team_id") != hashed_team_id:
                     logger.warning("User %s attempted cross-Team encrypted metadata write for chat %s", user_id, chat_id)
                     await manager.send_personal_message(

@@ -646,10 +646,10 @@ specifications:
     - sdks.pip
     - gui.web
   feature.teams:
-    version: 3
+    version: 4
     status: draft
     path: features/teams
-    fingerprint: 0f48e6b37f25f1a6b32298b3b14e9b72badec69ff7e05872dbd7fda4d1e33c8a
+    fingerprint: b3352a401547ccecb0f84df76a60ee832711d4332b7a4f5b98fd11053111b58f
     required_applies_to:
     - rest_api
     - cli
@@ -8325,7 +8325,7 @@ assertions:
     - sdks.pip
     - gui.web
   teams.lifecycle.encrypted-profiled:
-    specification: feature.teams@3
+    specification: feature.teams@4
     specification_id: feature.teams
     type: privacy
     fingerprint: 8834571d03135efec958df52c67e1040030e4c091d97a38d5f053679c388dad9
@@ -8336,7 +8336,7 @@ assertions:
     - sdks.pip
     - gui.web
   teams.profile-image.safe-parity:
-    specification: feature.teams@3
+    specification: feature.teams@4
     specification_id: feature.teams
     type: security
     fingerprint: 6de4f05f7eb4a72abbbadff4c13d4350b3dd06cf74011239053d769fba043a2b
@@ -8347,10 +8347,10 @@ assertions:
     - sdks.pip
     - gui.web
   teams.membership.role-gated:
-    specification: feature.teams@3
+    specification: feature.teams@4
     specification_id: feature.teams
     type: security
-    fingerprint: f1f30677527d2d68065ec38a3b782d9ffa3f268570d5e5f969f2ccba1ca63320
+    fingerprint: 199838b33314c94ef2ddb28ab73ba81059a43c77e3599257e0fb4b8aa8b14542
     required_applies_to:
     - rest_api
     - cli
@@ -8358,7 +8358,7 @@ assertions:
     - sdks.pip
     - gui.web
   teams.invites.fragment-key-web-flow:
-    specification: feature.teams@3
+    specification: feature.teams@4
     specification_id: feature.teams
     type: behavior
     fingerprint: 45b6418f4d8cc6a9449f3bfc3f70803875da2c5f58bb6dd1075639f87c5031a8
@@ -8369,7 +8369,7 @@ assertions:
     - sdks.pip
     - gui.web
   teams.context.full-switch-local:
-    specification: feature.teams@3
+    specification: feature.teams@4
     specification_id: feature.teams
     type: invariant
     fingerprint: 6acb2c59c0d1e8745be01dcb9d87d7b901aaa6cf4e19f6a97c04c48027c35b42
@@ -8380,7 +8380,7 @@ assertions:
     - sdks.pip
     - gui.web
   teams.connected-accounts.team-owned-isolation:
-    specification: feature.teams@3
+    specification: feature.teams@4
     specification_id: feature.teams
     type: security
     fingerprint: b86a34f4d4f1e2f73f6b4db54da033e43a966a63c9ec95f705b9422aca37ff4b
@@ -8391,7 +8391,7 @@ assertions:
     - sdks.pip
     - gui.web
   teams.collaboration.realtime-team-sync:
-    specification: feature.teams@3
+    specification: feature.teams@4
     specification_id: feature.teams
     type: behavior
     fingerprint: 867f1cb3a9f75475b74a3b2aff6ec9f9c9586dee7e06cb5747bfb3e7512389e0
@@ -8402,7 +8402,7 @@ assertions:
     - sdks.pip
     - gui.web
   teams.chat.encrypted-until-invoked:
-    specification: feature.teams@3
+    specification: feature.teams@4
     specification_id: feature.teams
     type: privacy
     fingerprint: 6bf7c3990168b8d75d7abffb9b4d15100d6839a3b2e2b3267322bfa39f794923
@@ -8413,7 +8413,7 @@ assertions:
     - sdks.pip
     - gui.web
   teams.chat.member-mentions-notify:
-    specification: feature.teams@3
+    specification: feature.teams@4
     specification_id: feature.teams
     type: behavior
     fingerprint: ccf2237eb59a6f52a25794ab8467ef2f85974042b7e70e3af45372cb680be0d5
@@ -8424,7 +8424,7 @@ assertions:
     - sdks.pip
     - gui.web
   teams.chat.sender-identity-layout:
-    specification: feature.teams@3
+    specification: feature.teams@4
     specification_id: feature.teams
     type: behavior
     fingerprint: 3925fcf2f8e842f8588533a35c066e7c350e75ade6f6bf7487f3ee73ebce475a
@@ -8435,10 +8435,10 @@ assertions:
     - sdks.pip
     - gui.web
   teams.chat-billing.team-credit-boundary:
-    specification: feature.teams@3
+    specification: feature.teams@4
     specification_id: feature.teams
     type: invariant
-    fingerprint: ef50034dc051d8a5adf86cc79375d76a170997f9888111a303b159ffe658d71e
+    fingerprint: 6c7d5a649bebfd4cfc33edab6ed6f234c4e32d9aa0ec9b03f2d5f79895e7317c
     required_applies_to:
     - rest_api
     - cli
@@ -8446,10 +8446,10 @@ assertions:
     - sdks.pip
     - gui.web
   teams.workspace.surface-parity:
-    specification: feature.teams@3
+    specification: feature.teams@4
     specification_id: feature.teams
     type: parity
-    fingerprint: a4e4f08346d5770a991a065e9e5bd2d5f46ea6dffdd538fd8a576872c3e1c4d4
+    fingerprint: cfeaa496962b8f7fb2349ad2a1d632eb2f5a7060d2867f477a91f9fd1b7a3522
     required_applies_to:
     - rest_api
     - cli
@@ -8457,7 +8457,7 @@ assertions:
     - sdks.pip
     - gui.web
   teams.name.transient-policy:
-    specification: feature.teams@3
+    specification: feature.teams@4
     specification_id: feature.teams
     type: security
     fingerprint: 8d3a9bf38a62d13616826df8bb14d163ba7a483d823c5474c23c5a4c945ba30f
@@ -8468,7 +8468,7 @@ assertions:
     - sdks.pip
     - gui.web
   teams.security.join-policy:
-    specification: feature.teams@3
+    specification: feature.teams@4
     specification_id: feature.teams
     type: security
     fingerprint: 304287b19c79fa351a7c0f8301dce651511930aee9ad958993c4f93829c8978a
@@ -8479,7 +8479,7 @@ assertions:
     - sdks.pip
     - gui.web
   teams.membership.change-emails:
-    specification: feature.teams@3
+    specification: feature.teams@4
     specification_id: feature.teams
     type: behavior
     fingerprint: ef99f649e58a600e209fc9326f128329ad31f562a9e15629381156339af17dc4
@@ -8490,7 +8490,7 @@ assertions:
     - sdks.pip
     - gui.web
   teams.web.figma-context:
-    specification: feature.teams@3
+    specification: feature.teams@4
     specification_id: feature.teams
     type: behavior
     fingerprint: 82ed8f3a3b293bdad1fe0fef1669ba87ddc3d54c9075e0ea84aba9fbda4978cb
@@ -8501,7 +8501,7 @@ assertions:
     - sdks.pip
     - gui.web
   teams.billing.context-parity:
-    specification: feature.teams@3
+    specification: feature.teams@4
     specification_id: feature.teams
     type: invariant
     fingerprint: 9fedd5bae3870b345584549846b1eb74912bdf3239330a17937e29263ccc9eb9
@@ -8512,10 +8512,43 @@ assertions:
     - sdks.pip
     - gui.web
   teams.cache.bounded-isolated:
-    specification: feature.teams@3
+    specification: feature.teams@4
     specification_id: feature.teams
     type: privacy
     fingerprint: c9749363a8a9151ad03082389f2a905d08ab29295d37047dc83ceef90c7be828
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  teams.direct-chat.account-key-exchange:
+    specification: feature.teams@4
+    specification_id: feature.teams
+    type: security
+    fingerprint: fa60ffb53954ce030593ec2fb76aa793b5038f677067e71cf080d9fae5cc1976
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  teams.direct-chat.participant-isolation:
+    specification: feature.teams@4
+    specification_id: feature.teams
+    type: security
+    fingerprint: b9042f0f79e25e86f3beb2480ff7e86a828c97b2e69ed6a5641db25ecfc65a70
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  teams.direct-chat.member-entry-and-notifications:
+    specification: feature.teams@4
+    specification_id: feature.teams
+    type: behavior
+    fingerprint: 297aa1b6b8d221708db69b82340dd7ba9a6988f0b18bbec68f5356c5b5513a54
     required_applies_to:
     - rest_api
     - cli

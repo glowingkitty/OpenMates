@@ -43,6 +43,14 @@ import { phasedSyncState } from "./phasedSyncStateStore"; // Import phased sync 
 import { text } from "../i18n/translations"; // Import text store for translations
 import { chatListCache } from "../services/chatListCache"; // Import chatListCache to clear stale chat data on session expiry
 import { invalidateWorkspaceCaches } from "../services/workspaceCacheLifecycle";
+
+// Enroll the account's public messaging key whenever a normal unlocked session
+// becomes available, including an existing session restored on cold boot.
+if (typeof window !== 'undefined') {
+  void import('../services/directChatService').then(({ startDirectChatIdentityEnrollment }) => {
+    startDirectChatIdentityEnrollment();
+  });
+}
 import { chatMetadataCache } from "../services/chatMetadataCache"; // Import chatMetadataCache to clear stale decrypted title/metadata cache on logout
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage"; // Import to clear shared chat keys on session expiry
 import { workflowWorkspaceStore } from "./workflowWorkspaceStore";

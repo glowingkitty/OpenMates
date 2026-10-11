@@ -233,8 +233,10 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `teams` | `om.teams.list()` | `om.teams.list()` | direct | direct |
 | `teams` | `om.teams.listBankTransferOrders()` | `om.teams.list_bank_transfer_orders()` | direct | direct |
 | `teams` | `om.teams.listMembers()` | `om.teams.list_members()` | direct | direct |
+| `teams` | `om.teams.memberChatEncryptionKey()` | `om.teams.member_chat_encryption_key()` | namespace smoke: sdk-teams.test.ts | direct |
 | `teams` | `om.teams.members()` | `om.teams.members()` | direct | direct |
 | `teams` | `om.teams.memories()` | `om.teams.memories()` | direct | direct |
+| `teams` | `om.teams.openDirectChat()` | `om.teams.open_direct_chat()` | direct | direct |
 | `teams` | `om.teams.previewInvite()` | `om.teams.preview_invite()` | namespace smoke: sdk-teams.test.ts | namespace smoke: test_teams.py |
 | `teams` | `om.teams.rejectAccess()` | `om.teams.reject_access()` | direct | direct |
 | `teams` | `om.teams.removeMember()` | `om.teams.remove_member()` | direct | direct |

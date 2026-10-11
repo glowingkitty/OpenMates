@@ -8,6 +8,11 @@
       "types": "./src/index.ts",
       "import": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./direct-chat": {
+      "types": "./src/directChatCrypto.ts",
+      "import": "./src/directChatCrypto.ts",
+      "default": "./src/directChatCrypto.ts"
     }
   },
   "scripts": {
@@ -15,7 +20,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@serenity-kit/opaque": "1.1.0"
+    "@serenity-kit/opaque": "1.1.0",
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "@types/node": "^24.5.0",

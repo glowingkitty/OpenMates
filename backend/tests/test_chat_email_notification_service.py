@@ -256,11 +256,20 @@ async def test_explicit_preview_is_bounded_escaped_and_revocable(fixture, monkey
 def test_pre_transition_plaintext_tasks_are_discarded():
     from backend.core.api.app.tasks.email_tasks.ai_response_notification_email_task import send_ai_response_notification
 
-    assert send_ai_response_notification.run(
+    # Other backend test modules may import this worker with an identity Celery
+    # decorator, leaving the module cached as a plain function for this test.
+    task_run = getattr(send_ai_response_notification, "run", None)
+
+    def run(*args, **kwargs):
+        if task_run is not None:
+            return task_run(*args, **kwargs)
+        return send_ai_response_notification(SimpleNamespace(), *args, **kwargs)
+
+    assert run(
         recipient_email="unused@example.com", response_preview="old private content",
         user_id="user-a", chat_id="chat-a",
     ) == "legacy_discarded"
-    assert send_ai_response_notification.run("unused@example.com", "old private content", "chat-a") == "legacy_discarded"
+    assert run("unused@example.com", "old private content", "chat-a") == "legacy_discarded"
 
 
 # contract-test: supporting surface=rest_api assertions=notifications.delivery.email-enabled

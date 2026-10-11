@@ -15547,6 +15547,14 @@
     }
   },
   "notifications": {
+    "team_direct_chat": {
+      "title": {
+        "text": "Private Team-Nachricht"
+      },
+      "body": {
+        "text": "Du hast eine neue private Unterhaltung in deinem Team."
+      }
+    },
     "auto_logout": {
       "title": {
         "text": "Automatische Abmeldung"
@@ -23189,6 +23197,18 @@
       },
       "members_description": {
         "text": "Verwalte deine Teammitglieder und ihre Berechtigungen."
+      },
+      "direct_message_action": {
+        "text": "Nachricht"
+      },
+      "direct_message_scope": {
+        "text": "Nur du und dieses Mitglied könnt diesen Chat lesen."
+      },
+      "direct_message_pending": {
+        "text": "Die sichere Einrichtung steht noch aus. Bitte dieses Mitglied, OpenMates zu öffnen."
+      },
+      "direct_message_failed": {
+        "text": "Die private Nachricht konnte nicht geöffnet werden. Versuche es erneut."
       },
       "admins": {
         "text": "Admins"

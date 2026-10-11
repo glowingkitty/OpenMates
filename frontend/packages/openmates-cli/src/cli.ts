@@ -4089,24 +4089,33 @@ async function handleTeams(
     return;
   }
 
-  if (subcommand === "members") {
+  if (subcommand === "members" || subcommand === "member") {
     const action = rest[0];
     const teamId = requiredStringFlag(rest[1], "<team-id>");
+    if (action === "message") {
+      const memberHash = requiredStringFlag(rest[2], "<member-hash>");
+      const chat = await client.openTeamDirectChat(teamId, memberHash);
+      const message = rest.slice(3).join(' ').trim();
+      const response = message ? await client.sendMessage({ message, chatId: chat.id, teamId }) : undefined;
+      if (flags.json === true) printJson({ chat_id: chat.id, chat, ...(response ? { response } : {}) });
+      else console.log(message ? `Message sent in direct chat ${chat.id}` : `Direct chat: ${chat.id}`);
+      return;
+    }
     if (action === "list") {
       const members = (await client.listTeamMembers(teamId)).map(publicTeamMember);
       if (flags.json === true) printJson({ members });
       else if (!members.length) console.log("No Team members.");
-      else for (const member of members) console.log(`${member.display_name || member.user_id}  ${member.role}  ${member.status || ""}  ${member.user_id}`.trim());
+      else for (const member of members) console.log(`${member.display_name || member.user_id}  ${member.role}  ${member.status || ""}  ${member.hashed_user_id || member.user_id}`.trim());
       return;
     }
     if (action === "show") {
       const userId = requiredStringFlag(rest[2], "<member-user-id>");
       const member = publicTeamMember(await client.getTeamMember(teamId, userId));
       if (flags.json === true) printJson({ member });
-      else console.log(`${member.display_name || member.user_id}  ${member.role}  ${member.status || ""}  ${member.user_id}`.trim());
+      else console.log(`${member.display_name || member.user_id}  ${member.role}  ${member.status || ""}  ${member.hashed_user_id || member.user_id}`.trim());
       return;
     }
-    throw new Error("Use teams members list <team-id> or teams members show <team-id> <member-user-id>.");
+    throw new Error("Use teams members list, show, or message <team-id> <member-hash> [text].");
   }
 
   if (subcommand === "profile") {
@@ -15151,6 +15160,7 @@ function printTeamsHelp(): void {
   openmates teams role <team-id> --user <user-id> --role admin|member|viewer [--json]
   openmates teams members list <team-id> [--json]
   openmates teams members show <team-id> <member-user-id> [--json]
+  openmates teams member message <team-id> <member-hash> [text] [--json]
   openmates teams profile show <team-id> [--json]
   openmates teams profile edit <team-id> [--name <display-name>] [--avatar <value>] [--json]
   openmates teams remove-member <team-id> --user <user-id> [--json]

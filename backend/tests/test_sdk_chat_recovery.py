@@ -24,10 +24,36 @@ USER_ID = "11111111-1111-4111-8111-111111111111"
 TASK_ID = "77777777-7777-4777-8777-777777777777"
 
 
+class FakeChatScopeDirectus:
+    """Return an authoritative existing non-direct row for saved SDK sends."""
+
+    def __init__(self, *, visibility: str | None = None, team: object | None = None):
+        self.visibility = visibility
+        self.team = team
+        self.metadata_queries: list[str] = []
+
+    async def get_items(self, collection: str, params: dict | None = None, **kwargs):
+        assert collection == "chats"
+        assert params is not None
+        assert params["fields"] == "id,chat_visibility,participant_user_hashes,participant_key_envelopes"
+        assert params["limit"] == 1
+        assert kwargs == {"no_cache": True, "admin_required": True, "raise_on_error": True}
+        chat_id = params["filter[id][_eq]"]
+        self.metadata_queries.append(chat_id)
+        if self.visibility == "direct":
+            participants = [hash_id(USER_ID), "a" * 64]
+            envelopes = {member: {"key_id": "b" * 64, "encrypted_chat_key": "OMDM1." + "x" * 32}
+                         for member in participants}
+            return [{"id": chat_id, "chat_visibility": "direct",
+                     "participant_user_hashes": participants, "participant_key_envelopes": envelopes}]
+        return [{"id": chat_id, "chat_visibility": self.visibility,
+                 "participant_user_hashes": None, "participant_key_envelopes": None}]
+
+
 def _request() -> SimpleNamespace:
     return SimpleNamespace(
         headers={"Authorization": "Bearer test-key"},
-        app=SimpleNamespace(state=SimpleNamespace(cache_service=object(), directus_service=object())),
+        app=SimpleNamespace(state=SimpleNamespace(cache_service=object(), directus_service=FakeChatScopeDirectus())),
     )
 
 
@@ -172,6 +198,35 @@ async def test_create_rejects_encrypted_row_and_inference_identity_mismatch(monk
     assert exc.value.detail["error"] == "encrypted_user_message_identity_mismatch"
 
 
+# contract-test: supporting surface=rest_api assertions=teams.direct-chat.participant-isolation
+@pytest.mark.asyncio
+async def test_generic_sdk_saved_send_rejects_existing_direct_chat_before_commit(monkeypatch):
+    request = _request()
+    directus = FakeChatScopeDirectus(visibility="direct")
+    request.app.state.directus_service = directus
+    monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+    commit = AsyncMock()
+    monkeypatch.setattr(sdk.ChatRecoveryService, "execute", commit)
+
+    with pytest.raises(HTTPException) as exc:
+        await sdk.create_sdk_chat(
+            request,
+            sdk.SdkChatCreateRequest(
+                message="canonical", save_to_account=True, protocol_version=1,
+                chat_id="chat-id", turn_id="turn-id", message_id="message-id",
+                chat_key_version=1, encrypted_chat_key="wrapped-key",
+                recovery_public_key="public-key", expected_messages_v=0,
+                encrypted_user_message={"chat_id": "chat-id", "client_message_id": "message-id",
+                                        "encrypted_content": "ciphertext"},
+                inference_request={"messages": [{"role": "user", "content": "canonical"}]},
+            ),
+        )
+    assert exc.value.status_code == 403
+    assert exc.value.detail["error"] == "direct_chat_sdk_send_unsupported"
+    assert directus.metadata_queries == ["chat-id"]
+    commit.assert_not_awaited()
+
+
 # contract-test: supporting surface=rest_api assertions=chats.completion.lease-fenced
 @pytest.mark.asyncio
 async def test_create_saved_chat_requires_authoritative_epoch_one_before_preflight(monkeypatch):
@@ -219,7 +274,7 @@ async def test_sdk_ordinary_team_message_commits_team_scope_before_notification_
 
     order: list[str] = []
     ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
-    directus = SimpleNamespace(team=SimpleNamespace(
+    directus = FakeChatScopeDirectus(visibility="team", team=SimpleNamespace(
         require_team_role=AsyncMock(return_value={"role": "member"}),
         list_active_member_hashes=AsyncMock(return_value={hash_id(USER_ID)}),
     ))
@@ -269,7 +324,7 @@ async def test_sdk_ordinary_team_message_commits_team_scope_before_notification_
 async def test_sdk_configured_mate_dispatch_preserves_each_human_sender_name(monkeypatch):
     ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
     request = _request()
-    request.app.state.directus_service = SimpleNamespace(team=SimpleNamespace(
+    request.app.state.directus_service = FakeChatScopeDirectus(visibility="team", team=SimpleNamespace(
         require_team_role=AsyncMock(return_value={"role": "member"}),
         list_active_member_hashes=AsyncMock(return_value={hash_id(USER_ID)}),
     ))
@@ -322,7 +377,7 @@ async def test_sdk_team_notification_failure_keeps_committed_message(monkeypatch
     ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
     request = _request()
     request.app.state.encryption_service = object()
-    request.app.state.directus_service = SimpleNamespace(team=SimpleNamespace(
+    request.app.state.directus_service = FakeChatScopeDirectus(visibility="team", team=SimpleNamespace(
         require_team_role=AsyncMock(return_value={"role": "member"}),
         list_active_member_hashes=AsyncMock(return_value=set()),
     ))
@@ -352,7 +407,7 @@ async def test_sdk_failed_team_commit_sends_no_notification_or_relay(monkeypatch
     ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
     request = _request()
     request.app.state.encryption_service = object()
-    request.app.state.directus_service = SimpleNamespace(team=SimpleNamespace(
+    request.app.state.directus_service = FakeChatScopeDirectus(visibility="team", team=SimpleNamespace(
         require_team_role=AsyncMock(return_value={"role": "member"}),
     ))
     monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))

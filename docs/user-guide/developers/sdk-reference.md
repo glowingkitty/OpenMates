@@ -355,8 +355,10 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.teams.list()` | `om.teams.list()` | `none` | `none` | `list` |
 | `om.teams.listBankTransferOrders()` | `om.teams.list_bank_transfer_orders()` | `id` | `id` | `object` |
 | `om.teams.listMembers()` | `om.teams.list_members()` | `id` | `id` | `list` |
+| `om.teams.memberChatEncryptionKey()` | `om.teams.member_chat_encryption_key()` | `id, member_hash` | `id, member_hash` | `object` |
 | `om.teams.members()` | `om.teams.members()` | `id` | `id` | `object` |
 | `om.teams.memories()` | `om.teams.memories()` | `id` | `id` | `list` |
+| `om.teams.openDirectChat()` | `om.teams.open_direct_chat()` | `id, recipient_hash` | `id, recipient_hash` | `object` |
 | `om.teams.previewInvite()` | `om.teams.preview_invite()` | `invite_id, verified_email` | `invite_id, verified_email` | `object` |
 | `om.teams.rejectAccess()` | `om.teams.reject_access()` | `id, access_request_id, input` | `id, access_request_id, input` | `object` |
 | `om.teams.removeMember()` | `om.teams.remove_member()` | `id, member_user_id, input` | `id, member_user_id, input` | `object` |

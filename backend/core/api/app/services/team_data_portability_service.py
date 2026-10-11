@@ -17,6 +17,7 @@ from typing import Any, AsyncIterator, Callable
 from uuid import uuid4
 
 from backend.core.api.app.services.directus.team_methods import hash_id
+from backend.core.api.app.services.team_billing_service import project_team_usage_row
 
 
 TEAM_SCOPED_COLLECTIONS = (
@@ -98,7 +99,7 @@ class TeamDataPortabilityService:
             collection="teams", params={"filter[hashed_team_id][_eq]": team_hash, "sort": "id"}, admin_required=True,
         ) if row.get("hashed_team_id") == team_hash]
         for collection in TEAM_SCOPED_COLLECTIONS:
-            collections[collection] = [admit(self._redact_row(row)) async for row in export._iter_items_bounded(
+            collections[collection] = [admit(self._redact_row(row, collection=collection)) async for row in export._iter_items_bounded(
                 collection=collection, params={"filter[hashed_team_id][_eq]": team_hash, "sort": "id"}, admin_required=True,
             ) if row.get("hashed_team_id") == team_hash]
         # Reuse the account export's bounded, integrity checked ciphertext readers.
@@ -233,5 +234,6 @@ class TeamDataPortabilityService:
             except ColdArchiveExportError as exc:
                 raise TeamDataPortabilityError("Team cold archive is incomplete or corrupt") from exc
 
-    def _redact_row(self, row: dict[str, Any]) -> dict[str, Any]:
-        return {key: ("<redacted>" if key in SECRET_FIELDS else value) for key, value in row.items()}
+    def _redact_row(self, row: dict[str, Any], *, collection: str | None = None) -> dict[str, Any]:
+        redacted = {key: ("<redacted>" if key in SECRET_FIELDS else value) for key, value in row.items()}
+        return project_team_usage_row(redacted) if collection == "team_usage_events" else redacted

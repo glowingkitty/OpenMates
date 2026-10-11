@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.teams
-version: 3
+version: 4
 status: draft
 title: Teams
 summary: >
@@ -55,15 +55,16 @@ scope:
     - Team chat UI keeps the current user's unchanged right-side message layout without a profile image; other members render on the left with username and profile image but no AI badge, while assistants remain on the left with the existing AI identity treatment.
     - Team chats always show a reminder below the chat header and above the first message that @openmates must be mentioned to trigger AI processing.
     - Team members can mention another active member by username; the client resolves the recipient identity without exposing message plaintext, and OpenMates sends an in-app notification plus a default-on email notification that contains no message plaintext or private chat content.
-    - Team-wide visibility in V1 for chats, tasks, plans, projects, workflows, memories, and approved team-connected-account capabilities to every active team member/viewer, with viewer read-only restrictions.
+    - Team-wide visibility for ordinary chats and other Team resources; participant-private direct chats are visible only to their two active Team participants. Viewer restrictions on Team resource mutation and AI use remain enforced.
+    - Automatic account public-key exchange for two-person Team chats across first-party backend, npm SDK, CLI/TUI, and web, with encrypted private-key backup and independent recipient-wrapped chat keys.
     - Team-owned connected accounts use team-scoped encrypted credential bundles and token brokerage; owner/admin can manage connections, members can use approved capabilities, and viewers remain read-only without receiving raw provider credentials or personal-account fallback.
     - Updated Figma Teams settings, security controls, member management, MRU quick selection, workspace avatars, context-scoped billing and bounded best-effort offline caching.
     - Semantic parity across REST/API, OpenMates CLI, npm SDK, pip SDK, and web for every Teams operation each surface exposes.
   excludes:
-    - Private team chats, per-resource ACLs, participant lists, public team discovery, SSO/SAML, and user groups.
+    - Private Team chats with more than two human participants, general per-resource ACLs, public team discovery, SSO/SAML, and user groups.
     - Per-member credit limits, team-to-personal credit transfers, per-seat subscriptions, and enterprise sales flows.
     - Sharing, copying, importing, or falling back to any member's Personal connected account while Team context is active.
-    - Automatic team key rotation, historical rewrap, public-key member key distribution, or strict cryptographic erasure of already-synced data.
+    - Automatic Team or account identity key rotation, historical rewrap, key transparency, or strict cryptographic erasure of already-synced data.
     - Apple-native Teams implementation before REST/API, CLI, SDK, web, visual-smoke, and user-confirmation gates are complete or explicitly deferred.
     - A top-level Teams workspace route, workspace navigation tab, or Teams-as-workspace web surface.
 
@@ -92,9 +93,9 @@ chapters:
   - id: collaboration-chat
     title: Realtime collaboration and Team chat
     summary: Synchronize encrypted human collaboration, explicit OpenMates turns, member mentions, sender identity, and Team-scoped AI billing.
-    requirement_ids: [teams.collaboration.realtime-team-sync, teams.chat.encrypted-until-invoked, teams.chat.member-mentions-notify, teams.chat.sender-identity-layout, teams.chat-billing.team-credit-boundary]
-    user_flow_ids: [send-ordinary-team-message, invoke-openmates-in-team-chat, mention-team-member]
-    edge_case_ids: [insufficient-team-credits, removed-member-connected, ordinary-follow-up-after-ai, missing-member-profile-image]
+    requirement_ids: [teams.collaboration.realtime-team-sync, teams.chat.encrypted-until-invoked, teams.chat.member-mentions-notify, teams.chat.sender-identity-layout, teams.chat-billing.team-credit-boundary, teams.direct-chat.account-key-exchange, teams.direct-chat.participant-isolation, teams.direct-chat.member-entry-and-notifications]
+    user_flow_ids: [send-ordinary-team-message, invoke-openmates-in-team-chat, mention-team-member, start-private-team-chat]
+    edge_case_ids: [insufficient-team-credits, removed-member-connected, ordinary-follow-up-after-ai, missing-member-profile-image, private-chat-outsider-denied, private-chat-recipient-not-ready]
     model_ids: [TeamMembership, TeamActiveContext, TeamChatProcessingBoundary, TeamMemberMention]
   - id: cross-surface-guarantees
     title: Cross-surface guarantees
@@ -399,6 +400,43 @@ flows:
     embed_references: []
     check_obligation_ids: [check.sender-layout]
 
+  - id: start-private-team-chat
+    kind: user_flow
+    title: Start a private conversation with a Team member
+    chapter_id: collaboration-chat
+    requirement_ids: [teams.direct-chat.account-key-exchange, teams.direct-chat.participant-isolation, teams.direct-chat.member-entry-and-notifications]
+    surface_ids: [rest_api, cli, web]
+    content: |
+      1. Open another active Team member's profile and choose Message, or use the equivalent CLI command.
+      2. Resolve both account public keys and create an independent chat key encrypted for each participant.
+      3. Exchange ordinary messages and reopen the conversation on another enrolled device.
+      4. The recipient receives a new-chat notification without message content or secret keys.
+      5. Other Team members, including owners and admins, cannot discover or read the conversation or its attachments.
+    embed_references: []
+    check_obligation_ids: [check.team-direct-chat]
+  - id: private-chat-outsider-denied
+    kind: edge_case
+    parent_flow_id: start-private-team-chat
+    title: A third member attempts to open a private conversation
+    chapter_id: collaboration-chat
+    requirement_ids: [teams.direct-chat.participant-isolation]
+    surface_ids: [rest_api, cli, sdk_npm, web]
+    content: |
+      A third Team member, including an owner or admin, cannot list, synchronize, receive, read or send private-chat content, retrieve its key or access its attachments. Guessing a chat or embed identifier does not grant access.
+    embed_references: []
+    check_obligation_ids: [check.team-direct-chat]
+  - id: private-chat-recipient-not-ready
+    kind: edge_case
+    parent_flow_id: start-private-team-chat
+    title: Recipient has not enrolled an account encryption key
+    chapter_id: collaboration-chat
+    requirement_ids: [teams.direct-chat.account-key-exchange, teams.direct-chat.member-entry-and-notifications]
+    surface_ids: [cli, sdk_npm, web]
+    content: |
+      Explain that the recipient must unlock a supported client once to finish secure setup. Creation remains pending; do not substitute a Team-wide key or secret-bearing sharing link.
+    embed_references: []
+    check_obligation_ids: [check.team-direct-chat]
+
 model_placements:
   - {model_id: TeamRecord, chapter_ids: [team-creation-profile]}
   - {model_id: TeamProfileImage, chapter_ids: [team-creation-profile]}
@@ -562,6 +600,14 @@ check_obligations:
       role: required
       surface: web
       path: frontend/packages/ui/src/services/db/__tests__/offlineChangeCommit.test.ts
+
+  - id: check.team-direct-chat
+    title: Private Team chats exchange keys and deny third-member access
+    materialization: pending
+    covers: [teams.direct-chat.account-key-exchange, teams.direct-chat.participant-isolation, teams.direct-chat.member-entry-and-notifications, start-private-team-chat, private-chat-outsider-denied, private-chat-recipient-not-ready]
+    sources:
+      - {kind: e2e, role: required, surface: web, path: frontend/apps/web_app/tests/teams-direct-chat.spec.ts}
+      - {kind: e2e, role: required, surface: cli, path: frontend/apps/web_app/tests/cli-tui-team-direct-chat.spec.ts}
 
 models:
   TeamRecord:
@@ -760,7 +806,7 @@ assertions:
     importance: required
     project_surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
     check_obligation_ids: [check.membership-permissions]
-    must: Owner, admin, member, and viewer permissions are derived from active membership status and enforced consistently for team management, billing, export/import, workspace writes, AI-triggering actions, and read-only viewer access; unauthorized operations fail visibly before returning or mutating team-scoped rows.
+    must: Owner, admin, member, and viewer permissions are derived from active membership status and enforced consistently for team management, billing, export/import, workspace writes, AI-triggering actions, and read-only viewer access; unauthorized operations fail visibly before returning or mutating team-scoped rows. A viewer may exchange ordinary human messages as one of the two private-chat participants, while Team resource mutation and AI use remain role-gated.
     depends_on: [models.TeamMembership, examples.team_membership_permissions]
   - id: teams.invites.fragment-key-web-flow
     title: Invite links preserve the encrypted Team-key boundary
@@ -832,7 +878,7 @@ assertions:
     importance: required
     project_surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
     check_obligation_ids: [check.team-chat-billing]
-    must: Team chat AI requests require an explicit @openmates or configured Mate mention, include the full current chat history with per-human sender attribution, charge only the selected team's credit balance, never charge personal credits, publish processing and completed response state to active team members in realtime, and fail with visible insufficient-team-credit or viewer-read-only states before AI execution when the selected Team cannot pay or mutate.
+    must: Team chat AI requests require an explicit @openmates or configured Mate mention, include the full current chat history with per-human sender attribution, charge only the selected team's credit balance, never charge personal credits, publish processing and completed response state to authorized chat readers in realtime, and fail with visible insufficient-team-credit or viewer-read-only states before AI execution when the selected Team cannot pay or mutate.
     depends_on: [examples.team_chat_billing]
   - id: teams.workspace.surface-parity
     title: Supported surfaces preserve equivalent Team behavior
@@ -933,6 +979,34 @@ assertions:
     depends_on:
     - examples.team_offline_cache
 
+  - id: teams.direct-chat.account-key-exchange
+    title: Private chat keys are exchanged automatically between accounts
+    chapter_id: collaboration-chat
+    type: security
+    importance: required
+    project_surface_ids: [rest_api, cli, sdk_npm, web]
+    check_obligation_ids: [check.team-direct-chat]
+    must: Supported unlocked clients automatically enroll an account public encryption key and back up its private key encrypted under the account master key. A private Team chat uses a new independent key encrypted separately for exactly two recipient identities, bound to the chat, Team, recipient and key identifier. The shared Team key is never used. Concurrent enrollment is idempotent and cannot silently replace an existing identity; missing or inconsistent keys fail visibly without an insecure fallback. Key-directory routes are authenticated first-party surfaces, disclose only an active co-member's public key, and never return another account's encrypted private-key backup. This version trusts the authenticated server key directory and does not promise key transparency or forward secrecy.
+    depends_on: [examples.team_direct_key_exchange]
+  - id: teams.direct-chat.participant-isolation
+    title: Only two active participants can access a private Team chat
+    chapter_id: collaboration-chat
+    type: security
+    importance: required
+    project_surface_ids: [rest_api, cli, sdk_npm, web]
+    check_obligation_ids: [check.team-direct-chat]
+    must: Authoritative immutable two-participant membership and active Team membership gate private-chat creation, discovery, reads, history, metadata, key retrieval, sends, sync, realtime delivery, attachments, embeds and generated assets. Owners and admins have no read override. Private chats cannot be publicly shared, exported through Team-wide export, moved into a broader scope or converted by ordinary metadata writes. Removal revokes future server access and obsolete asynchronous completions cannot restore a former context; previously downloaded copies cannot be erased. Both active participants may send ordinary human messages, while invoking AI still requires an authorized Team AI role and charges only Team credits. Ordinary human messages bypass all AI processing; explicit AI invocation receives only the private chat's attributed history and returns only to its participants. Existing server-side media and explicitly invoked AI processing remain disclosed privacy boundaries.
+    depends_on: [examples.team_direct_participant_access]
+  - id: teams.direct-chat.member-entry-and-notifications
+    title: Member profiles open private chats with safe recipient notifications
+    chapter_id: collaboration-chat
+    type: behavior
+    importance: required
+    project_surface_ids: [rest_api, cli, sdk_npm, web]
+    check_obligation_ids: [check.team-direct-chat]
+    must: Another active Team member's web and TUI profile offers Message, and CLI/npm SDK exposes the same private-chat creation operation. Full conversation reading and sending use the existing first-party web and CLI session transports; a generic API-key-only SDK chat transport remains unsupported and must not fall back to Personal scope. Self-chat is rejected. Supported clients render the two-person scope, sender names and profile images using the existing chat and settings elements, and restore only authorized encrypted content after reload. Creation sends recipient-only in-app, push and email notification through existing delivery preferences without plaintext message content or secret keys. Repeated creation retries do not duplicate the chat or notifications. A recipient who has not enrolled a public key sees a visible secure-setup requirement rather than a Team-wide conversation. Apple-native parity remains deferred to a separate instructed chat.
+    depends_on: [examples.team_direct_entry_notifications]
+
 applies_to:
   rest_api:
     required: true
@@ -980,3 +1054,6 @@ examples:
     - team_figma_context
     - team_billing_context_parity
     - team_offline_cache
+    - team_direct_key_exchange
+    - team_direct_participant_access
+    - team_direct_entry_notifications

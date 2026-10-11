@@ -711,8 +711,13 @@ export function preflightExpectedMessagesVersion(localMessagesVersion: number | 
 	return Math.max(0, (localMessagesVersion ?? 1) - 1);
 }
 
-export function shouldIncludePreflightChatMetadata(localMessagesVersion: number | undefined): boolean {
-	return (localMessagesVersion ?? 1) <= 1;
+export function shouldIncludePreflightChatMetadata(
+	localMessagesVersion: number | undefined,
+	chatVisibility?: string
+): boolean {
+	// Direct chats already have immutable metadata and participant envelopes from
+	// their creation endpoint, even before either participant sends a message.
+	return chatVisibility !== "direct" && (localMessagesVersion ?? 1) <= 1;
 }
 
 export async function resolveHistoryCategoryForInference(
@@ -983,7 +988,7 @@ export async function sendNewMessageImpl(
 	// causing the backend to skip title/icon/category generation for new chats.
 	// title_v starts at 0 and only increments to 1 when a title is actually stored — the correct signal.
 	const chatHasTitle = (chat?.title_v ?? 0) > 0;
-	const includePreflightChatMetadata = shouldIncludePreflightChatMetadata(chat?.messages_v);
+	const includePreflightChatMetadata = shouldIncludePreflightChatMetadata(chat?.messages_v, chat?.chat_visibility);
 
 	console.debug(
 		`[ChatSyncService:Senders] Chat has title: ${chatHasTitle} (title_v: ${chat?.title_v}, messages_v: ${chat?.messages_v}) - ${includePreflightChatMetadata ? "NEW CHAT" : "FOLLOW-UP"}, isIncognito: ${isIncognitoChat}`

@@ -92,6 +92,7 @@ const mocks = vi.hoisted(() => {
     },
     activeChatStore: {
       clearActiveChat: vi.fn(),
+      get: vi.fn(() => null),
       subscribe: vi.fn((run: Subscriber<string | null>) => { run(null); return () => undefined; }),
     },
     chatListCache: {
@@ -187,7 +188,7 @@ vi.mock("../chatSyncServiceHandlersRecovery", () => ({
   prepareRecoveryLifecycleImpl: vi.fn(),
   resetRecoveryLifecycleImpl: vi.fn(),
 }));
-vi.mock("../chatSyncServiceHandlersAI", () => ({}));
+vi.mock("../chatSyncServiceHandlersAI", () => ({ clearPendingQueuedRevisionsImpl: vi.fn() }));
 vi.mock("../chatSyncServiceHandlersChatUpdates", () => ({}));
 vi.mock("../chatSyncServiceHandlersCoreSync", () => ({}));
 vi.mock("../chatSyncServiceHandlersPhasedSync", () => ({}));

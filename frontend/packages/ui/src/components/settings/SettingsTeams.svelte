@@ -5,13 +5,17 @@
     import TeamAvatar from '../teams/TeamAvatar.svelte';
     import SettingsItem from '../SettingsItem.svelte';
     import TeamSettingsHeader from './TeamSettingsHeader.svelte';
+    import TeamMemberMessageAction from './TeamMemberMessageAction.svelte';
+    import { createDirectChat } from '../../services/directChatService';
+    import { computeSHA256 } from '../../message_parsing/utils';
+    import { activeChatStore } from '../../stores/activeChatStore';
     import {
         SettingsAvatar, SettingsButton,
         SettingsCard, SettingsCheckboxList, SettingsConfirmBlock, SettingsDetailRow, SettingsDropdown,
         SettingsFileUpload, SettingsInfoBox, SettingsInput,
         SettingsLoadingState, SettingsPageContainer, SettingsSectionHeading,
     } from './elements';
-    import { notifyTeamsUpdated } from '../../stores/teamStore';
+    import { notifyTeamsUpdated, setActiveTeamContext } from '../../stores/teamStore';
     import { authStore } from '../../stores/authStore';
     import { userProfile } from '../../stores/userProfile';
     import {
@@ -95,6 +99,15 @@
     let removeConfirmed = $state(false);
     let deleteConfirmed = $state(false);
     let loadedRoute = $state('');
+    let ownUserHash = $state('');
+
+    $effect(() => {
+        const id = $userProfile.user_id;
+        let cancelled = false;
+        ownUserHash = '';
+        if (id) void computeSHA256(id).then(hash => { if (!cancelled) ownUserHash = hash; });
+        return () => { cancelled = true; };
+    });
 
     const routeParts = $derived(activeSettingsView.split('/'));
     const selectedTeamId = $derived(routeParts[1] && routeParts[1] !== 'new' ? routeParts[1] : null);
@@ -563,6 +576,18 @@
         if (selectedTeam) navigate(`teams/${selectedTeam.team_id}/members/${encodeURIComponent(member.user_id ?? member.hashed_user_id ?? '')}`, memberDisplayName(member));
     }
 
+    async function messageMember(member: TeamMember): Promise<void> {
+        if (!selectedTeam || selectedTeam.status !== 'active' || member.status !== 'active') throw new Error('Inactive Team member');
+        const recipientHash = member.hashed_user_id ?? (member.user_id ? await computeSHA256(member.user_id) : '');
+        if (!recipientHash) throw new Error('Team member identity unavailable');
+        setActiveTeamContext(selectedTeam);
+        const chat = await createDirectChat(selectedTeam.team_id, recipientHash);
+        activeChatStore.setActiveChat(chat.chat_id);
+        dispatch('chatSelected', { chat });
+        window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat } }));
+        dispatch('closeSettings');
+    }
+
     function regenerateAvatar(): void {
         useGeneratedAvatar();
         avatarGeneratedChanged = true;
@@ -655,6 +680,9 @@
                     <SettingsDetailRow label={$text('settings.teams_ui.role_label')} value={selectedMember.role} />
                     <SettingsDetailRow label={$text('settings.teams_ui.status_label')} value={selectedMember.status} />
                 </SettingsCard>
+                {#if selectedTeam.status === 'active' && selectedMember.status === 'active' && (selectedMember.user_id || selectedMember.hashed_user_id) && selectedMember.user_id !== $userProfile.user_id && selectedMember.hashed_user_id !== ownUserHash}
+                    <TeamMemberMessageAction onMessage={() => messageMember(selectedMember)} />
+                {/if}
                 {#if canManage && selectedMember.role !== 'owner' && selectedMember.user_id}
                     <SettingsSectionHeading title={$text('settings.teams_ui.role_label')} icon="team" />
                     <SettingsDropdown value={selectedMember.role} options={roleOptions} disabled={isBusy} ariaLabel={$text('settings.teams_ui.member_role')}
