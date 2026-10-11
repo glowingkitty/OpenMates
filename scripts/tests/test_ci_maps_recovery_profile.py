@@ -110,6 +110,7 @@ def _runner_profile(tmp_path, monkeypatch, **options):
 @pytest.mark.parametrize("spec_name", [
     "maps-discovery-chat.spec.ts",
     "audio-recording-deferred-send.spec.ts",
+    "workflow-metadata-warmup.spec.ts",
     "connection-resilience.spec.ts",
     "skill-web-search.spec.ts",
     "native-cache-selected-tools.spec.ts",
