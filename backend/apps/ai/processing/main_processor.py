@@ -3747,7 +3747,7 @@ async def handle_main_processing(
     ]
     cacheable_system_prefix = "\n\n".join(filter(None, stable_prefix_parts))
     prompt_parts = [*filter(None, stable_prefix_parts)]
-    tool_only_prompt_parts: list[str] = []
+    tool_only_prompt_parts: list[tuple[str, str]] = []
     # Explicit research/dispatch requirements apply to the tool phase. Keep all
     # safety, focus, output-format and user constraints in the synthesis prompt.
     research_only_prompt_parts: set[str] = set()
@@ -4295,7 +4295,7 @@ async def handle_main_processing(
         thinking_discipline = base_instructions.get("base_tool_thinking_discipline_instruction", "")
         if thinking_discipline:
             prompt_parts.append(thinking_discipline)
-            tool_only_prompt_parts.append(thinking_discipline)
+            tool_only_prompt_parts.append(("any_tool", thinking_discipline))
             logger.debug(f"{log_prefix} [THINKING_DISCIPLINE] Injected tool-calling thinking discipline instruction")
     
     # Add generic proactive skill usage instruction (only when apps are available)
@@ -4304,7 +4304,7 @@ async def handle_main_processing(
         proactive_skill_instruction = base_instructions.get("base_proactive_skill_usage_instruction", "")
         if proactive_skill_instruction:
             prompt_parts.append(proactive_skill_instruction)
-            tool_only_prompt_parts.append(proactive_skill_instruction)
+            tool_only_prompt_parts.append(("app_skill", proactive_skill_instruction))
             research_only_prompt_parts.add(proactive_skill_instruction)
     else:
         # When no apps available, skip the proactive skill usage instruction
@@ -4613,7 +4613,7 @@ async def handle_main_processing(
             "If the user is complaining about sub-chats or wants you to try starting them, proceed to call 'start_sub_chats' on their request immediately."
         )
         prompt_parts.append(sub_chats_instruction)
-        tool_only_prompt_parts.append(sub_chats_instruction)
+        tool_only_prompt_parts.append(("start_sub_chats", sub_chats_instruction))
         research_only_prompt_parts.add(sub_chats_instruction)
         logger.info(f"{log_prefix} Appended sub-chats orchestration instructions to system prompt.")
 
@@ -4650,6 +4650,12 @@ async def handle_main_processing(
         preselected_skills=preselected_skills,
         translation_service=translation_service
     ) if assigned_app_ids != [] else []
+    # Record provenance before Task, Project, Focus, and orchestration tools
+    # are merged. Their presence alone does not make app-skill guidance useful.
+    generated_app_skill_names = {
+        tool.get("function", {}).get("name") for tool in available_tools_for_llm
+        if tool.get("function", {}).get("name")
+    }
     available_tools_for_llm = without_unscoped_project_search(available_tools_for_llm)
 
     if task_queue_blocks_plan_tools:
@@ -4667,6 +4673,10 @@ async def handle_main_processing(
 
     if task_tools_enabled and task_tool_context is not None and not suppress_task_runtime_tools:
         task_tools = build_task_runtime_tools(task_tool_context)
+        # merge_task_runtime_tools replaces same-named generated definitions.
+        generated_app_skill_names.difference_update(
+            tool.get("function", {}).get("name") for tool in task_tools
+        )
         available_tools_for_llm = merge_task_runtime_tools(available_tools_for_llm, task_tools)
         logger.info(
             "%s Added %s task runtime tool(s) to main processing",
@@ -4986,22 +4996,35 @@ async def handle_main_processing(
         available_tools_for_llm.append(ask_user_input_tool)
         logger.info(f"{log_prefix} Added ask_user_input tool to main LLM tools (depth={chat_depth}).")
 
-    # The final tool boundary can remove every preselected tool (for example,
-    # through a user/app policy). Do not instruct a tool-free model to call or
-    # reason about unavailable tools. Keep safety, Mate, focus, interactive
-    # questions, language, and other tool-independent instructions unchanged.
-    if not available_tools_for_llm and tool_only_prompt_parts:
-        for instruction in reversed(tool_only_prompt_parts):
+    # The final tool boundary may leave only a Task or other system tool.
+    # Match actual generated app-tool names rather than assuming every remaining
+    # tool can execute an app skill. Preserve independent content guidance.
+    if tool_only_prompt_parts:
+        final_tool_names = {
+            tool.get("function", {}).get("name") for tool in available_tools_for_llm
+            if tool.get("function", {}).get("name")
+        }
+        guide_available = {
+            "any_tool": bool(final_tool_names),
+            "app_skill": bool(final_tool_names & generated_app_skill_names),
+            "start_sub_chats": "start_sub_chats" in final_tool_names,
+        }
+        removed_tool_guidance = False
+        for guide_kind, instruction in reversed(tool_only_prompt_parts):
+            if guide_available[guide_kind]:
+                continue
             # Remove the appended segment itself, even if a separate safety or
             # persona rule happens to contain the same text.
             for index in range(len(prompt_parts) - 1, -1, -1):
                 if prompt_parts[index] is instruction:
                     del prompt_parts[index]
+                    removed_tool_guidance = True
                     break
-        full_system_prompt = "\n\n".join(filter(None, prompt_parts))
-        answer_recovery_system_prompt = "\n\n".join(
-            part for part in prompt_parts if part and part not in research_only_prompt_parts
-        )
+        if removed_tool_guidance:
+            full_system_prompt = "\n\n".join(filter(None, prompt_parts))
+            answer_recovery_system_prompt = "\n\n".join(
+                part for part in prompt_parts if part and part not in research_only_prompt_parts
+            )
     
     # Log available tools for debugging
     tool_names = [tool["function"]["name"] for tool in available_tools_for_llm]

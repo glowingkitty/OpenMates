@@ -107,6 +107,21 @@ const CHAT_CONTENT_BATCH_WS_READY_TIMEOUT_MS = 8_000;
 
 type EarlyEmptyConnectedAccounts = { scope: string; mutationEpoch: number; empty: boolean } | null;
 
+type QueuedSnapshotSendScope = {
+  chatId: string;
+  workspace: string;
+  teamId: string | null;
+  teamEpoch: number;
+  socketEpoch: number;
+};
+
+type PendingQueuedSnapshotSend = {
+  scope: QueuedSnapshotSendScope;
+  active: Set<object>;
+  uncertain: boolean;
+  allUserFramesDispatched: boolean;
+};
+
 export function canReuseEarlyEmptyConnectedAccounts(
   early: EarlyEmptyConnectedAccounts,
   current: { scope: string | null; mutationEpoch: number; authenticated: boolean; teamId: string | null },
@@ -164,6 +179,8 @@ export class ChatSynchronizationService extends EventTarget {
   private lastWorkflowWarmup: { scope: string; at: number } | null = null;
   private lastChatMetadataPrefetch: { scope: string; at: number } | null = null;
   private lastQueuedSnapshotChat: string | null = null;
+  private queuedSnapshotSocketEpoch = 0;
+  private pendingQueuedSnapshotSends = new Map<string, PendingQueuedSnapshotSend>();
   private isSyncing = false;
   private serverChatOrder: string[] = [];
   private webSocketConnected = false;
@@ -211,17 +228,76 @@ export class ChatSynchronizationService extends EventTarget {
     this.warmChatMetadata();
   }
 
-  public requestQueuedMessages(chatId: string): void {
-    if (!chatId || !get(authStore).isAuthenticated || !webSocketService.isConnected()) return;
+  public requestQueuedMessages(chatId: string, expectedScope?: QueuedSnapshotSendScope): void {
+    if (!chatId || !get(authStore).isAuthenticated || !webSocketService.isConnected()
+        || (expectedScope && !this.sameQueuedSnapshotScope(expectedScope, this.queuedSnapshotScope(chatId)))) return;
     void (async () => {
       const { incognitoChatService } = await import("./incognitoChatService");
       if (await incognitoChatService.getChat(chatId)) return; // Volatile turns have no cross-device snapshot.
       const chat = await chatDB.getChat(chatId);
-      if (!chat || !webSocketService.isConnected()) return;
+      if (!chat || !webSocketService.isConnected()
+          || (expectedScope && !this.sameQueuedSnapshotScope(expectedScope, this.queuedSnapshotScope(chatId)))) return;
       await webSocketService.sendMessage("get_queued_messages", {
         chat_id: chatId, ...(chat.team_id ? { team_id: chat.team_id } : {}),
       });
     })().catch(() => undefined);
+  }
+
+  private queuedSnapshotScope(chatId: string): QueuedSnapshotSendScope | null {
+    const workspace = getWorkspaceCacheIdentity();
+    if (!chatId || !workspace || !get(authStore).isAuthenticated
+        || get(isLoggingOut) || get(forcedLogoutInProgress)
+        || !this.webSocketConnected || !webSocketService.isConnected()) return null;
+    const team = get(activeTeamContext);
+    return { chatId, workspace, teamId: team.teamId,
+      teamEpoch: team.epoch, socketEpoch: this.queuedSnapshotSocketEpoch };
+  }
+
+  private sameQueuedSnapshotScope(a: QueuedSnapshotSendScope, b: QueuedSnapshotSendScope | null): boolean {
+    return !!b && a.chatId === b.chatId && a.workspace === b.workspace
+      && a.teamId === b.teamId && a.teamEpoch === b.teamEpoch
+      && a.socketEpoch === b.socketEpoch;
+  }
+
+  private beginQueuedSnapshotSend(chatId: string): { entry: PendingQueuedSnapshotSend; token: object } | null {
+    const scope = this.queuedSnapshotScope(chatId);
+    if (!scope) return null;
+    let entry = this.pendingQueuedSnapshotSends.get(chatId);
+    if (!entry || !this.sameQueuedSnapshotScope(entry.scope, scope)) {
+      entry = { scope, active: new Set(), uncertain: false, allUserFramesDispatched: true };
+      this.pendingQueuedSnapshotSends.set(chatId, entry);
+    }
+    const token = {};
+    entry.active.add(token);
+    return { entry, token };
+  }
+
+  /** A queued snapshot may be uncertain while this same-socket user send is preflighting. */
+  public deferUncertainQueuedSnapshotForActiveSend(chatId: string): boolean {
+    const entry = this.pendingQueuedSnapshotSends.get(chatId);
+    if (!entry || !entry.active.size
+        || !this.sameQueuedSnapshotScope(entry.scope, this.queuedSnapshotScope(chatId))) return false;
+    entry.uncertain = true;
+    return true;
+  }
+
+  private finishQueuedSnapshotSend(
+    pending: { entry: PendingQueuedSnapshotSend; token: object } | null,
+    userFrameDispatched: boolean,
+  ): void {
+    if (!pending) return;
+    const { entry, token } = pending;
+    entry.active.delete(token);
+    entry.allUserFramesDispatched &&= userFrameDispatched;
+    if (entry.active.size || this.pendingQueuedSnapshotSends.get(entry.scope.chatId) !== entry) return;
+    this.pendingQueuedSnapshotSends.delete(entry.scope.chatId);
+    if (!entry.uncertain || !this.sameQueuedSnapshotScope(
+      entry.scope, this.queuedSnapshotScope(entry.scope.chatId))) return;
+    // The sender's success signal fires only after ws.send has queued the user
+    // frame. On a caught transport failure or early return, keep the original
+    // full-history reconciliation rather than pretending a send succeeded.
+    if (entry.allUserFramesDispatched) this.requestQueuedMessages(entry.scope.chatId, entry.scope);
+    else void this.requestChatContentBatch([entry.scope.chatId]);
   }
 
   /** Submit a CAS revision of an already queued user message. The server ACK is authoritative. */
@@ -642,6 +718,10 @@ export class ChatSynchronizationService extends EventTarget {
     websocketStatus.subscribe((storeState) => {
       const wasWebSocketConnected = this.webSocketConnected;
       this.webSocketConnected = storeState.status === "connected";
+      if (wasWebSocketConnected !== this.webSocketConnected) {
+        this.queuedSnapshotSocketEpoch++;
+        this.pendingQueuedSnapshotSends.clear();
+      }
       if (this.webSocketConnected) {
         // A default zero or a prior socket's status cannot authorize a local
         // pending turn after a synthetic completion.
@@ -1194,6 +1274,7 @@ export class ChatSynchronizationService extends EventTarget {
   }
 
   private async handleTeamContextChanged(context: TeamContextSnapshot): Promise<void> {
+    this.pendingQueuedSnapshotSends.clear();
     aiHandlers.clearPendingQueuedRevisionsImpl();
     this.lastQueuedSnapshotChat = null;
     void this.refreshChatActivity();
@@ -2881,6 +2962,8 @@ export class ChatSynchronizationService extends EventTarget {
     // Reserve synchronously: connected-account preparation may await before the
     // sender starts, while another local send can already be in progress.
     const turn = reservePersonalChatTurn(message.chat_id, message.message_id);
+    const pendingQueuedSnapshot = this.beginQueuedSnapshotSend(message.chat_id);
+    let userFrameDispatched = false;
     try {
     recordSendPreparationPhase('connected_context_begin');
     const early = earlyEmptyConnectedAccounts ? await earlyEmptyConnectedAccounts : null;
@@ -2912,12 +2995,15 @@ export class ChatSynchronizationService extends EventTarget {
       projectFocusIntent,
       newLocalChat,
       turn,
+      () => { userFrameDispatched = true; },
     );
     recordSendPreparationPhase('sender_complete');
     if (!turn.turnId) failPersonalChatTurn(turn, new Error('The encrypted chat turn was not dispatched.'));
     } catch (error) {
       failPersonalChatTurn(turn, error);
       throw error;
+    } finally {
+      this.finishQueuedSnapshotSend(pendingQueuedSnapshot, userFrameDispatched);
     }
   }
 

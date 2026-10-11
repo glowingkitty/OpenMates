@@ -197,9 +197,139 @@ vi.mock("../chatSyncServiceHandlersConnectedAccounts", () => ({}));
 vi.mock("../chatSyncServiceHandlersWebhooks", () => ({}));
 
 import { ChatSynchronizationService, canReuseEarlyEmptyConnectedAccounts, chatSyncService } from "../chatSyncService";
+import { sendNewMessageImpl } from "../chatSyncServiceSenders";
 import { getTeam, TeamRequestCancelledError } from "../teamService";
 import { incognitoChatService } from "../incognitoChatService";
 import type { Chat, Message } from "../../types/chat";
+
+describe('uncertain queued snapshot during an outbound user send', () => {
+  const message = { chat_id: 'chat-send', message_id: 'message-send', role: 'user',
+    content: 'hello', status: 'sending', created_at: 1 } as Message;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.workspaceIdentity = 'account-a';
+    mocks.activeTeamId.set(null);
+    mocks.activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
+    mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: true }); return () => undefined; });
+    mocks.webSocketService.isConnected.mockReturnValue(true);
+    mocks.webSocketService.sendMessage.mockResolvedValue(undefined);
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: 'chat-send' });
+    mocks.listConnectedAccounts.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    mocks.emitWebSocketStatus('disconnected');
+    mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: false }); return () => undefined; });
+  });
+
+  async function readyService() {
+    const service = new ChatSynchronizationService();
+    await Promise.resolve();
+    mocks.emitWebSocketStatus('connected');
+    return service;
+  }
+
+  async function startHeldSend(service: ChatSynchronizationService, messageId = message.message_id) {
+    let finish!: () => void;
+    let signal!: () => void;
+    const sender = vi.mocked(sendNewMessageImpl).mockImplementationOnce(async (...args) => {
+      signal = args[7] as () => void;
+      await new Promise<void>(resolve => { finish = resolve; });
+    });
+    const sending = service.sendNewMessage({ ...message, message_id: messageId }, undefined, {}, undefined, false);
+    await vi.waitFor(() => expect(sender).toHaveBeenCalled());
+    return { sending, finish: () => finish(), signal: () => signal() };
+  }
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+  it('refreshes uncertain queue state only after the same-chat user frame was queued', async () => {
+    const service = await readyService();
+    const held = await startHeldSend(service);
+    expect(service.deferUncertainQueuedSnapshotForActiveSend('chat-send')).toBe(true);
+    expect(service.deferUncertainQueuedSnapshotForActiveSend('other-chat')).toBe(false);
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalledWith('get_queued_messages', expect.anything());
+    held.signal();
+    held.finish();
+    await held.sending;
+    await vi.waitFor(() => expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith(
+      'get_queued_messages', { chat_id: 'chat-send' },
+    ));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+  it('falls back to the original content batch after a caught dispatch failure or early return', async () => {
+    const service = await readyService();
+    const held = await startHeldSend(service);
+    expect(service.deferUncertainQueuedSnapshotForActiveSend('chat-send')).toBe(true);
+    held.finish(); // Sender returns normally without the successful-frame signal.
+    await held.sending;
+    await vi.waitFor(() => expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith(
+      'request_chat_content_batch', { chat_ids: ['chat-send'] },
+    ));
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalledWith('get_queued_messages', expect.anything());
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+  it('keeps full reconciliation when one of two same-chat sends has no dispatched frame', async () => {
+    const service = await readyService();
+    const first = await startHeldSend(service, 'message-one');
+    const second = await startHeldSend(service, 'message-two');
+    expect(service.deferUncertainQueuedSnapshotForActiveSend('chat-send')).toBe(true);
+    first.signal();
+    first.finish();
+    await first.sending;
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalledWith('get_queued_messages', expect.anything());
+    second.finish();
+    await second.sending;
+    await vi.waitFor(() => expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith(
+      'request_chat_content_batch', { chat_ids: ['chat-send'] },
+    ));
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalledWith('get_queued_messages', expect.anything());
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+  it('restores full reconciliation when the sender rejects before dispatch', async () => {
+    const service = await readyService();
+    let rejectSender!: (error: Error) => void;
+    vi.mocked(sendNewMessageImpl).mockImplementationOnce(async () => {
+      await new Promise<void>((_resolve, reject) => { rejectSender = reject; });
+    });
+    const sending = service.sendNewMessage(message, undefined, {}, undefined, false);
+    await vi.waitFor(() => expect(rejectSender).toBeTypeOf('function'));
+    expect(service.deferUncertainQueuedSnapshotForActiveSend('chat-send')).toBe(true);
+    rejectSender(new Error('dispatch failed'));
+    await expect(sending).rejects.toThrow('dispatch failed');
+    await vi.waitFor(() => expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith(
+      'request_chat_content_batch', { chat_ids: ['chat-send'] },
+    ));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local,chat-queued-followups.admission.synced
+  it('drops a deferred read on account, Team, or socket epoch changes', async () => {
+    for (const change of ['account', 'team', 'socket'] as const) {
+      const service = await readyService();
+      const held = await startHeldSend(service);
+      expect(service.deferUncertainQueuedSnapshotForActiveSend('chat-send')).toBe(true);
+      if (change === 'account') mocks.workspaceIdentity = 'account-b';
+      if (change === 'team') mocks.activeTeamContext.set({ team: null, teamId: 'team-b', epoch: 1 });
+      if (change === 'socket') {
+        await Promise.resolve();
+        mocks.emitWebSocketStatus('disconnected');
+        mocks.emitWebSocketStatus('connected');
+      }
+      held.signal();
+      held.finish();
+      await held.sending;
+      expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalledWith('get_queued_messages', expect.anything());
+      expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalledWith('request_chat_content_batch', expect.anything());
+      mocks.workspaceIdentity = 'account-a';
+      mocks.activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
+      mocks.webSocketService.sendMessage.mockClear();
+      mocks.emitWebSocketStatus('disconnected');
+    }
+  });
+});
 
 describe('per-send connected-account empty lookup', () => {
   beforeEach(() => {

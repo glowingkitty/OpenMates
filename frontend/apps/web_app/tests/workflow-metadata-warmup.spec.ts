@@ -131,6 +131,33 @@ test.describe('Chat metadata warmup WebSocket contract', () => {
 
 	// contract-test: direct surface=gui.web assertions=message-input.send.ownership,chat-processing-feedback.selection-after-acceptance
 	test('personal send overlaps the empty connected-account lookup with durable local preparation', async ({ page }: { page: any }, testInfo: any) => {
+		// Observe real protocol frames without changing or delaying the socket.
+		const queueWire: Array<{ socket: number; at: number; type: string; chatId: string; uncertain?: boolean }> = [];
+		let socketCount = 0;
+		page.on('websocket', (socket: any) => {
+			if (!new URL(socket.url()).pathname.endsWith('/v1/ws')) return;
+			const socketIndex = ++socketCount;
+			for (const eventName of ['framesent', 'framereceived']) {
+				socket.on(eventName, (frame: { payload?: string }) => {
+					try {
+						const envelope = JSON.parse(String(frame.payload || ''));
+						const type = envelope.type;
+						if (!['chat_message_added', 'get_queued_messages', 'queued_messages_snapshot',
+							'request_chat_content_batch'].includes(type)) return;
+						const payload = envelope.payload ?? {};
+						const chatId = typeof payload.chat_id === 'string' ? payload.chat_id : '';
+						if (type === 'request_chat_content_batch') {
+							for (const id of payload.chat_ids ?? []) {
+								if (typeof id === 'string') queueWire.push({ socket: socketIndex, at: Date.now(), type, chatId: id });
+							}
+						} else if (chatId) {
+							queueWire.push({ socket: socketIndex, at: Date.now(), type, chatId,
+								...(type === 'queued_messages_snapshot' ? { uncertain: payload.uncertain === true } : {}) });
+						}
+					} catch { /* WebSocket control frame. */ }
+				});
+			}
+		});
 		// The isolated self-hosted CI stack has no provider key. Mock inference still
 		// travels through the real send protocol, so only lift the public UI gate.
 		await page.route('**/v1/settings/server-status', async (route: any) => {
@@ -197,6 +224,29 @@ test.describe('Chat metadata warmup WebSocket contract', () => {
 			{ timeout: 15_000 }).toBe(true);
 			const phases = await page.evaluate(() =>
 				((window as any).__openmatesSendPrepPhases ?? []).map((entry: { phase: string }) => entry.phase));
+			const sendBegin = await page.evaluate(() => {
+				const entry = ((window as any).__openmatesSendPrepPhases ?? [])
+					.find((item: { phase: string }) => item.phase === 'connected_context_begin');
+				return entry ? performance.timeOrigin + entry.ms : null;
+			});
+			const userFrame = queueWire.find((frame) => frame.type === 'chat_message_added');
+			const overlappingUncertain = userFrame && sendBegin !== null
+				? queueWire.filter((frame) => frame.type === 'queued_messages_snapshot' && frame.uncertain
+					&& frame.chatId === userFrame.chatId && frame.socket === userFrame.socket
+					&& frame.at >= sendBegin && frame.at < userFrame.at)
+				: [];
+			const prematureHistory = userFrame && overlappingUncertain.length
+				? queueWire.filter((frame) => frame.type === 'request_chat_content_batch'
+					&& frame.chatId === userFrame.chatId && frame.socket === userFrame.socket
+					&& frame.at >= overlappingUncertain[0].at && frame.at < userFrame.at)
+				: [];
+			await testInfo.attach('queue-snapshot-send-order', {
+				body: JSON.stringify({ userFrameObserved: !!userFrame, overlappingUncertain: overlappingUncertain.length,
+					prematureHistory: prematureHistory.length }),
+				contentType: 'application/json',
+			});
+			expect(userFrame).toBeDefined();
+			expect(prematureHistory).toHaveLength(0);
 			expect(localReadyBeforeContinue).toBe(true);
 			await expect.poll(() => directoryResponse, { timeout: 15_000 }).not.toBeNull();
 			expect(directoryResponse).toEqual({ status: 200, rowsArray: true, rowCount: 0 });

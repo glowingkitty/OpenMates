@@ -848,6 +848,7 @@ export async function sendNewMessageImpl(
 	projectFocusIntent?: ProjectFocusSendIntent,
 	newLocalChat?: boolean,
 	reservedTurn?: PersonalChatTurn,
+	onUserFrameDispatched?: () => void,
 ): Promise<void> {
 	const personalTurn = reservedTurn ?? reservePersonalChatTurn(message.chat_id, message.message_id);
 	const testMockMarker = ((message as unknown) as { testMockMarker?: unknown }).testMockMarker;
@@ -2499,6 +2500,7 @@ export async function sendNewMessageImpl(
 		if (shouldInvokeTeamAI) assertTeamSendScope();
 		attemptedTransport = true;
 		await webSocketService.sendMessage("chat_message_added", payload);
+		onUserFrameDispatched?.();
 	} catch (error) {
 		console.error(
 			`[ChatSyncService:Senders] Error sending 'chat_message_added' for message_id: ${message.message_id}:`,

@@ -949,6 +949,80 @@ async def test_no_tool_dispatch_prunes_only_unavailable_tool_guidance(monkeypatc
     )
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
+@pytest.mark.parametrize("forwarded_kind", ["task_create", "app_skill", "start_sub_chats"])
+async def test_tool_guidance_matches_final_forwarded_capability(monkeypatch, forwarded_kind: str) -> None:
+    """Capture the primary prompt after the final tool boundary."""
+    from backend.apps.ai.processing.task_tool_context import TaskToolContext
+
+    expose_subchats = forwarded_kind == "start_sub_chats"
+    monkeypatch.setattr(main_processor, "should_expose_subchat_tool", lambda **_kwargs: expose_subchats)
+    monkeypatch.setattr(main_processor, "create_orchestration_root", AsyncMock())
+    directus_service = None
+    request_overrides = {}
+    if forwarded_kind == "task_create":
+        task_context = TaskToolContext(user_id="user-1", chat_id="chat-1")
+        monkeypatch.setattr(main_processor, "resolve_task_tool_context", AsyncMock(return_value=task_context))
+        directus_service = SimpleNamespace(user_task=object())
+        request_overrides["client_capabilities"] = ["task_update_jobs"]
+    app_tool = {"type": "function", "function": {"name": "web-search", "description": "Search."}}
+    generated_tools = [app_tool] if forwarded_kind == "app_skill" else []
+    safety = "SAFETY_AND_PII_RULE: Protect personal information and answer safely."
+    discipline = "TOOL_DISCIPLINE_RULE: Wait for actual tool results."
+    proactive = "APP_SKILL_RULE: Use a useful available app skill."
+    run_kwargs = dict(
+        generated_tools=generated_tools,
+        discovered_apps_metadata={"web": SimpleNamespace(
+            skills=[SimpleNamespace(id="search")], instructions=[], focuses=[],
+        )},
+        preprocessing_overrides={
+            "selected_app_ids": ["web"],
+            "relevant_app_skills": [] if expose_subchats else ["web-search"],
+            "enable_subchats": forwarded_kind != "app_skill",
+        },
+        base_instructions={
+            "base_ethics_instruction": safety,
+            "base_tool_thinking_discipline_instruction": discipline,
+            "base_proactive_skill_usage_instruction": proactive,
+        },
+        request_overrides=request_overrides,
+        directus_service=directus_service,
+    )
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, streams=[["A safe answer."]], **run_kwargs,
+    )
+
+    assert len(calls) == 1
+    primary = calls[0]["system_prompt"]
+    assert [tool["function"]["name"] for tool in calls[0]["tools"]] == [
+        {"task_create": "task_create", "app_skill": "web-search",
+         "start_sub_chats": "start_sub_chats"}[forwarded_kind]
+    ]
+    assert safety in primary
+    assert main_processor.INTERACTIVE_QUESTIONS_INSTRUCTION in primary
+    assert (discipline in primary) is not expose_subchats
+    assert (proactive in primary) is (forwarded_kind == "app_skill")
+    assert ("### Sub-Chats (Sub-Agents) Orchestration Instruction:" in primary) is expose_subchats
+    assert "A safe answer." in "".join(chunk for chunk in output if isinstance(chunk, str))
+
+    if forwarded_kind == "task_create":
+        monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", 1)
+        _output, recovery_calls = await _run_mocked_protocol_guard_main_processor(
+            monkeypatch,
+            streams=[[{"fake_google_tool_call": "unavailable-tool"}], ["A safe answer."]],
+            **run_kwargs,
+        )
+        assert len(recovery_calls) == 2
+        for call in recovery_calls:
+            prompt = call["system_prompt"]
+            assert call["tools"] is None
+            assert safety in prompt
+            assert main_processor.INTERACTIVE_QUESTIONS_INSTRUCTION in prompt
+            assert proactive not in prompt
+            assert "### Sub-Chats (Sub-Agents) Orchestration Instruction:" not in prompt
+        assert main_processor.ANSWER_RECOVERY_INSTRUCTION in recovery_calls[1]["system_prompt"]
+
+
 # contract-test: supporting surface=rest_api assertions=app-memories.transparency.loaded-set,app-memories.privacy.client-encrypted
 @pytest.mark.parametrize("diagram_selected", [True, False])
 async def test_no_tool_diagram_guidance_survives_primary_and_recovery_prompts(

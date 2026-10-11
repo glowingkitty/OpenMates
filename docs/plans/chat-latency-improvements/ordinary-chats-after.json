@@ -263,6 +263,136 @@
         "No active Project target does not imply an empty eligible Project catalogue.",
         "First authored text is separate from reasoning, progress and command completion."
       ]
+    },
+    {
+      "name": "AF3_stable_source_live_retest",
+      "product_revision": "d59e93d482f1c16c44b501c9e3d338a6103771c6",
+      "backend_tree": "ef610454dc64898f5d9d183c167d8ba0569d2a5b",
+      "cli_version": "0.27.0-alpha.61",
+      "cli_npm_git_head": "f42ae96f2d3f48da646a13beca17b097150722c6",
+      "web_etag": "W/\"cc72187628e185fe6d4171efee45f0cc\"",
+      "runtime_operation": "docker-eb046e19",
+      "saved_workflow_count": 0,
+      "project_target": "none",
+      "n_per_prompt_per_client": 3,
+      "status": "12 passed",
+      "target_first_authored_capital_ms": [
+        2000,
+        3000
+      ],
+      "target_met": false,
+      "first_authored_answer_ms": {
+        "cli": {
+          "events": 31009,
+          "capital": 7208
+        },
+        "web": {
+          "events": 21435,
+          "capital": 8344
+        }
+      },
+      "first_authored_answer_trials_ms": {
+        "cli": {
+          "events": [
+            31009,
+            31101,
+            22087
+          ],
+          "capital": [
+            7208,
+            7155,
+            8349
+          ]
+        },
+        "web": {
+          "events": [
+            36886,
+            19913,
+            21435
+          ],
+          "capital": [
+            6999,
+            12262,
+            8344
+          ]
+        }
+      },
+      "web_send_relative_ui": {
+        "composer_clear": {
+          "median_ms": 16.5,
+          "range_ms": [
+            13,
+            60
+          ]
+        },
+        "user_row": {
+          "median_ms": 39.0,
+          "range_ms": [
+            16,
+            406
+          ]
+        }
+      },
+      "owned_backend_joins": 12,
+      "main_model": "google/gemini-3.8-flash",
+      "tools": {
+        "cli_capital": {
+          "forwarded_per_turn": 1,
+          "forwarded_name": "task_create",
+          "called_per_turn": 0
+        },
+        "web_capital": {
+          "forwarded_per_turn": 0,
+          "called_per_turn": 0
+        },
+        "cli_events": {
+          "forwarded_per_turn": 4,
+          "called_per_turn": 1,
+          "called_name": "events-search",
+          "main_provider_iterations_per_turn": 2,
+          "skill_start_to_finished_ms": [
+            11596,
+            10957,
+            5606
+          ]
+        },
+        "web_events": {
+          "forwarded_per_turn": 3,
+          "called_per_turn": 1,
+          "called_name": "events-search",
+          "main_provider_iterations_per_turn": 2,
+          "skill_start_to_finished_ms": [
+            13326,
+            8079,
+            8969
+          ]
+        },
+        "actual_provider_fallback_attempts_total": 0
+      },
+      "cache_read_input_tokens": null,
+      "cache_read_input_tokens_note": "Provider did not report a cache-read count; null is not zero.",
+      "capital_cli_preflight_start_after_accepted_command_ms": [
+        2959,
+        2609,
+        2458
+      ],
+      "capital_web_trial_2": {
+        "post_message_to_handler_gap_ms": 2333,
+        "queued_batch_query_ms": 1786,
+        "batch_to_current_chat_attribution": "source-backed inference; sanitized batch payload omitted chat ID",
+        "remaining_gap_cause": "unexplained"
+      },
+      "media_receipt": "7/7 live recordings uploaded; signed links retained in private session evidence.",
+      "limitations": [
+        "Three trials per prompt and client, concurrent local capture and provider variability: descriptive results only.",
+        "Browser Send click and CLI accepted command use different start boundaries.",
+        "No direct client auth-snapshot reuse branch timing in retained transcripts; release correctness is separately verified.",
+        "Event cases each invoked events-search and a second provider iteration; not a no-tool single-iteration comparison.",
+        "CLI event trials 1 and 2 lack reliable command-complete markers; first-authored timing is valid.",
+        "No active Project target does not imply an empty eligible Project catalogue.",
+        "Queued batch association with web capital trial 2 is an inference, not a verified chat-ID join.",
+        "Queued-frame deferral and tool-provenance predicate follow-ups are unpublished and unmeasured."
+      ]
     }
   ]
 }

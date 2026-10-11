@@ -44,6 +44,9 @@ decisions:
   - Use the API's existing encrypted transient-summary index instead of a redundant worker chat-ID scan; keep active-turn and source ownership, Team, expiry and revision checks before use.
   - Omit unavailable tool-only prompt guidance and unused late typing-key preparation; preserve independent question protocols, safety and default model/thinking behavior.
   - Reuse a personal authentication receipt only for the exact memory snapshot returned by that preparation, once within five seconds and after session/cookie/account/Team/master-key rechecks; arbitrary snapshots, other sockets and Team sends retain fresh validation.
+  - The d59 ordinary retest still misses the target (capital medians 7.208 seconds CLI and 8.344 seconds web); Berlin CLI regressed to 31.009 seconds. Keep first authored text separate from optimistic UI, reasoning, tool execution and command completion.
+  - Defer only same-scope uncertain queue history reconciliation while an ordinary send prepares its outbound frame. A successful awaited user-frame dispatch permits an ordered queue refresh; failure and changed authentication, Team or connection scope retain normal reconciliation.
+  - Match optional app-skill and sub-chat prompt guidance to the final forwarded capabilities. A built-in Task tool alone does not justify app-skill or sub-chat guidance; retain independent questions and safety rules.
 specifications:
   - feature.message-input
   - feature.chat-processing-feedback

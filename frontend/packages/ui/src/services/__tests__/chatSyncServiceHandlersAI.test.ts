@@ -141,6 +141,22 @@ describe("queued user message socket events", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+  it("defers only an uncertain snapshot for the service's active send", async () => {
+    const service = {
+      deferUncertainQueuedSnapshotForActiveSend: vi.fn((chatId: string) => chatId === "chat-1"),
+      requestChatContentBatch_FOR_HANDLERS_ONLY: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+    await handleQueuedMessagesSnapshotImpl(service, {
+      chat_id: "chat-1", messages: [], uncertain: true,
+    });
+    expect(service.requestChatContentBatch_FOR_HANDLERS_ONLY).not.toHaveBeenCalled();
+    await handleQueuedMessagesSnapshotImpl(service, {
+      chat_id: "chat-2", messages: [], uncertain: true,
+    });
+    expect(service.requestChatContentBatch_FOR_HANDLERS_ONLY).toHaveBeenCalledWith(["chat-2"]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
   it("fences a started turn before its encrypted row or delayed queue ACK arrives", async () => {
     mockChatDB.getMessage.mockResolvedValue(null);
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;

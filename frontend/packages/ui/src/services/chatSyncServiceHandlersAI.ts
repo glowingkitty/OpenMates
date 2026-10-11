@@ -2350,6 +2350,7 @@ export async function handleQueuedMessagesSnapshotImpl(
   if (!payload.chat_id || !Array.isArray(payload.messages) || payload.messages.length > 100) return;
   if ((await incognitoChatService.getChat(payload.chat_id))?.is_incognito) return;
   if (payload.uncertain) {
+    if (serviceInstance.deferUncertainQueuedSnapshotForActiveSend?.(payload.chat_id)) return;
     await serviceInstance.requestChatContentBatch_FOR_HANDLERS_ONLY([payload.chat_id]);
     return;
   }
