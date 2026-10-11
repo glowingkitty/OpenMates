@@ -9,6 +9,36 @@ import { projectItemRevision, assessCliProjectAuthoring, startCliProjectAuthorin
 import { encryptWithAesGcmCombined } from '../src/crypto.ts';
 const key = new Uint8Array(32).fill(8);
 
+// contract-test: supporting surface=cli assertions=chats.direction.context-assessment,plans.active-context.vault-boundary
+it('skips only impossible Focus and Plan reads for an SDK-minted chat while retaining fresh Project and Task candidates', async () => {
+  const encryptedName = await encryptWithAesGcmCombined('Project candidate', key);
+  const calls = { projects: 0, settings: 0, tasks: 0, focus: 0, plans: 0 };
+  const scope = { personal: true, teamId: null };
+  const client = {
+    async listProjects(options: unknown) { assert.deepEqual(options, scope); calls.projects++; return [{ project_id: 'project', encrypted_name: encryptedName }]; },
+    async decryptProjectKey() { return key; },
+    async getProjectSettings(_id: string, options: unknown) { assert.deepEqual(options, scope); calls.settings++; return { auto_selection: true }; },
+    async listUserTasks(options: Record<string, unknown>) { assert.deepEqual(options, { ...scope, limit: 500 }); calls.tasks++;
+      return [{ task_id: 'task', status: 'in_progress', version: 1, updated_at: 10 }]; },
+    async decryptTaskContextRecord(_record: unknown, options: unknown) { assert.deepEqual(options, scope);
+      return { title: 'Current work', description: 'Useful summary', linkedProjectIds: ['project'] }; },
+    async getActiveProjectFocus() { calls.focus++; return null; },
+    async listUserPlans() { calls.plans++; return []; },
+  };
+  const supplied = { custom_rule_documents: [{ id: 'rule', source: 'project' as const, project_id: 'project', document: 'Private rule' }],
+    project_focus_catalog: [{ id: 'focus', title: 'Private', summary: 'Private', revision: '1' }] };
+  const fresh = await prepareCliJevContext(client as never, 'fresh-chat', scope, supplied, 'Question', { sdkMintedChatId: true });
+  assert.deepEqual(calls, { projects: 1, settings: 1, tasks: 1, focus: 0, plans: 0 });
+  assert.deepEqual(fresh.project_focus_candidates?.map(row => row.name), ['Project candidate']);
+  assert.deepEqual(fresh.related_task_candidates?.map(row => row.title), ['Current work']);
+  assert.deepEqual(fresh.custom_memory_documents, []);
+  assert.deepEqual(fresh.project_focus_catalog, []);
+  assert.equal(fresh.accepted_plan_context, null);
+
+  await prepareCliJevContext(client as never, 'existing-or-caller-id', scope, supplied, 'Question');
+  assert.deepEqual(calls, { projects: 2, settings: 2, tasks: 2, focus: 2, plans: 1 });
+});
+
 // contract-test: supporting surface=cli assertions=chats.direction.context-assessment
 it('prioritizes older actual chat-linked open Tasks and their owned explicit dependencies ahead of general recent discovery', async () => {
   const now = 10_000, reads: string[] = [];

@@ -227,23 +227,27 @@ export async function collectRelatedCliTaskContext(client: OpenMatesClient, chat
   return candidates;
 }
 
-export async function prepareCliJevContext(client: OpenMatesClient, chatId: string, options: TeamContextOptions, supplied: CliJevContext = {}, text?: string): Promise<CliJevContext> {
+export async function prepareCliJevContext(client: OpenMatesClient, chatId: string, options: TeamContextOptions, supplied: CliJevContext = {}, text?: string,
+  discovery: { sdkMintedChatId?: boolean } = {}): Promise<CliJevContext> {
   let candidates: CliJevContext["project_focus_candidates"] = [];
   let active: Awaited<ReturnType<typeof loadActiveCliProjectContext>> = {};
   let tasks: RelatedTaskCandidate[] = [];
   let ownedTaskRecords: UserTaskRecord[] = [];
   await Promise.all([
     discoverCliProjectCandidates(client, options).then(value => { candidates = value; }).catch(() => {}),
-    loadActiveCliProjectContext(client, chatId, text).then(value => { active = value; }).catch(() => {}),
+    ...(discovery.sdkMintedChatId ? [] : [loadActiveCliProjectContext(client, chatId, text).then(value => { active = value; }).catch(() => {})]),
     (async () => {
       const records = await client.listUserTasks({ ...options, limit: 500 });
       ownedTaskRecords = records;
       tasks = await collectRelatedCliTaskContext(client, chatId, options, records);
     })().catch(() => {}),
   ]);
-  const acceptedPlan = await collectAcceptedCliPlanContext(client, chatId, options, ownedTaskRecords).catch(() => null);
+  // Only the SDK may assert that it minted this UUID for this send. It cannot
+  // already have server-side Focus or Plan linkage; caller-provided IDs may.
+  const acceptedPlan = discovery.sdkMintedChatId ? null
+    : await collectAcceptedCliPlanContext(client, chatId, options, ownedTaskRecords).catch(() => null);
   const { projectId, focusCatalogComplete: _complete, ...loaded } = active;
-  const current = await client.getActiveProjectFocus(chatId).catch(() => null);
+  const current = discovery.sdkMintedChatId ? null : await client.getActiveProjectFocus(chatId).catch(() => null);
   if (current?.project_id !== projectId) {
     delete loaded.project_focus_catalog; delete loaded.project_focus_documents;
     delete loaded.project_context_documents; delete loaded.custom_rule_documents;

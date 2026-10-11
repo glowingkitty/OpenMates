@@ -8314,6 +8314,8 @@ export class OpenMatesClient {
     if (params.incognito && params.projectId) {
       throw new Error("Project file execution requires a saved chat.");
     }
+    const sdkMintedChatId = params.chatId === undefined && params.newChatId === undefined
+      && params.projectId === undefined;
     let chatId: string;
     if (params.newChatId) {
       chatId = params.newChatId;
@@ -8437,7 +8439,7 @@ export class OpenMatesClient {
     const earlyContextAbort = new AbortController();
     const earlyContext = !params.incognito && !params.chatId && !params.projectId
       ? withHttpAbortSignal(earlyContextAbort.signal, () =>
-          prepareCliJevContext(this, chatId, contextScope, params.jevContext, finalMessage))
+          prepareCliJevContext(this, chatId, contextScope, params.jevContext, finalMessage, { sdkMintedChatId }))
         .then(value => ({ ok: true as const, value, elapsedMs: Date.now() - contextStartedAt }),
           error => ({ ok: false as const, error: error as unknown, elapsedMs: Date.now() - contextStartedAt }))
       : null;
@@ -8670,7 +8672,7 @@ export class OpenMatesClient {
       const serialContextStartedAt = Date.now();
       const prepared = earlyContext
         ? await earlyContext
-        : { ok: true as const, value: await prepareCliJevContext(this, chatId, contextScope, params.jevContext, finalMessage), elapsedMs: Date.now() - serialContextStartedAt };
+        : { ok: true as const, value: await prepareCliJevContext(this, chatId, contextScope, params.jevContext, finalMessage, { sdkMintedChatId }), elapsedMs: Date.now() - serialContextStartedAt };
       if (!prepared.ok) throw prepared.error;
       if (!contextOwnerIsCurrent()) throw new Error("Chat workspace changed while preparing context.");
       if (process.env.OPENMATES_DEBUG === "1") {

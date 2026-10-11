@@ -2317,6 +2317,8 @@ describe("CLI saved-chat recovery preflight", () => {
     let projectReadBeforeDiscovery = false;
     let discoverySent = false;
     let preflightSent = false;
+    let focusReads = 0;
+    let planReads = 0;
     let socket: import("ws").WebSocket | null = null;
     const wss = new WebSocketServer({ noServer: true });
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
@@ -2333,6 +2335,8 @@ describe("CLI saved-chat recovery preflight", () => {
         discoverySent = true;
         return;
       }
+      if (request.method === "GET" && request.url?.startsWith("/v1/projects/focus/current")) focusReads++;
+      if (request.method === "GET" && request.url?.startsWith("/v1/user-plans")) planReads++;
       response.writeHead(404);
       response.end();
     });
@@ -2357,6 +2361,66 @@ describe("CLI saved-chat recovery preflight", () => {
       await assert.rejects(client.sendMessage({ message: "ordinary question", piiDetection: false }), /update required/i);
       assert.equal(projectReadBeforeDiscovery, true);
       assert.equal(preflightSent, true);
+      assert.equal(focusReads, 0);
+      assert.equal(planReads, 0);
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.direction.context-assessment,plans.active-context.vault-boundary
+  for (const variant of ["caller newChatId", "explicit Project"] as const) it(`retains Focus and Plan discovery for ${variant}`, async () => {
+    let focusReads = 0;
+    let planReads = 0;
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      const path = request.url ?? "";
+      response.setHeader("content-type", "application/json");
+      if (request.method === "POST" && path === "/v1/auth/session") {
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: "11111111-1111-4111-8111-111111111111" } }));
+      } else if (request.method === "GET" && path === "/v1/projects") {
+        response.end(JSON.stringify({ projects: [] }));
+      } else if (request.method === "GET" && path.startsWith("/v1/projects/focus/current")) {
+        focusReads++;
+        response.end(JSON.stringify({ focus: null }));
+      } else if (request.method === "GET" && path.startsWith("/v1/user-plans")) {
+        planReads++;
+        response.end(JSON.stringify({ plans: [] }));
+      } else if (request.method === "GET" && path.startsWith("/v1/user-tasks")) {
+        response.end(JSON.stringify({ tasks: [], complete: true, next_cursor: null }));
+      } else {
+        response.writeHead(404);
+        response.end(JSON.stringify({}));
+      }
+    });
+    server.on("upgrade", (request, connection, head) => {
+      wss.handleUpgrade(request, connection, head, (ws) => {
+        ws.on("message", (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload?: { chat_id?: string } };
+          if (frame.type === "chat_metadata_warmup") {
+            ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+          } else if (frame.type === "encrypted_chat_metadata") {
+            ws.send(JSON.stringify({ type: "encrypted_metadata_stored", payload: { chat_id: frame.payload?.chat_id } }));
+          } else if (frame.type === "chat_turn_preflight") {
+            ws.send(JSON.stringify({ type: "error", payload: { code: "client_update_required" } }));
+          }
+        });
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const options = variant === "caller newChatId"
+        ? { newChatId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }
+        : { projectId: "project" };
+      await assert.rejects(client.sendMessage({ message: "ordinary question", piiDetection: false, ...options }));
+      assert.equal(focusReads, 2);
+      assert.equal(planReads, 1);
     } finally {
       wss.close();
       server.closeAllConnections();

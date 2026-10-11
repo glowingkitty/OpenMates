@@ -194,3 +194,83 @@ test('saved Personal follow-up sends canonical client message IDs in inference h
 		removeWorkflowCliHome(home);
 	}
 });
+
+// contract-test: supporting surface=rest_api assertions=chats.direction.context-assessment,plans.active-context.vault-boundary
+test('SDK-minted new chat skips only impossible Focus and Plan discovery', async ({ page }: { page: any }) => {
+	test.setTimeout(300_000);
+	test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted'
+		|| process.env.CI_TEST_MODE !== 'e2e', 'Requires the isolated GitHub product stack');
+	skipWithoutCredentials(test, email, password, otpKey);
+	const apiUrl = workflowApiUrl();
+	const home = createWorkflowCliHome('fresh-context-discovery');
+	try {
+		await loginWorkflowCliViaPair(page, apiUrl, home, 'CLI_FRESH_CONTEXT_DISCOVERY');
+		const observed = canonicalHistorySdk(apiUrl, home, `
+			await client.whoAmI();
+			if(client.getActiveTeamId())throw Error('Expected paired Personal account');
+			let phase='minted';
+			const result={minted:{focus:0,plans:0,projects:0,tasks:0,preflight:null},
+				supplied:{focus:0,plans:0,projects:0,tasks:0,preflight:null}};
+			for(const [method,field] of [['getActiveProjectFocus','focus'],['listUserPlans','plans'],
+				['listProjects','projects'],['listUserTasks','tasks']]){
+				const original=client[method].bind(client);
+				client[method]=async(...args)=>{result[phase][field]++;return original(...args);};
+			}
+			const open=client.openWsClient.bind(client);
+			client.openWsClient=async(...args)=>{
+				const opened=await open(...args),send=opened.ws.sendAsync.bind(opened.ws);
+				opened.ws.sendAsync=async(type,payload)=>{
+					if(type==='chat_turn_preflight'){
+						const context=payload.inference_request??{};
+						result[phase].preflight={
+							projectCandidates:Array.isArray(context.project_focus_candidates),
+							taskCandidates:Array.isArray(context.related_task_candidates),
+							plan:context.accepted_plan_context!=null,
+							memoryDocuments:(context.custom_memory_documents??[]).length,
+							projectRules:(context.custom_rule_documents??[]).length,
+							focusCatalog:(context.project_focus_catalog??[]).length,
+							focusDocuments:(context.project_focus_documents??[]).length,
+							projectDocuments:(context.project_context_documents??[]).length};
+						throw Error('EXPECTED_PRE_DISPATCH_STOP');
+					}
+					return send(type,payload);
+				};
+				return opened;
+			};
+			const suppliedContext={custom_rule_documents:[{id:'unowned-rule',source:'project',project_id:'unowned-project',document:'Unowned private rule'}],
+				project_focus_catalog:[{id:'unowned-focus',title:'Unowned focus',summary:'Private',revision:'1'}],
+				project_focus_documents:[{item_id:'unowned-focus',document:'Unowned private focus',revision:'1'}],
+				project_context_documents:[{item_id:'unowned-file',kind:'spec',title:'Unowned file',description:'Private',document:'Unowned private content',revision:'1'}]};
+			for(const current of ['minted','supplied']){
+				phase=current;
+				try{
+					await client.sendMessage({message:'Ordinary context discovery check.',personal:true,piiDetection:false,
+						jevContext:suppliedContext,...(current==='supplied'?{newChatId:randomUUID()}:{})});
+					throw Error('Inference preflight was not captured');
+				}catch(error){if(error.message!=='EXPECTED_PRE_DISPATCH_STOP')throw error;}
+				if(!result[current].preflight)throw Error('Missing preflight observation');
+			}
+			process.stdout.write(JSON.stringify(result));
+		`);
+		expect(observed.minted.focus).toBe(0);
+		expect(observed.minted.plans).toBe(0);
+		expect(observed.minted.projects).toBeGreaterThan(0);
+		expect(observed.minted.tasks).toBeGreaterThan(0);
+		expect(observed.supplied.focus).toBe(2);
+		expect(observed.supplied.plans).toBe(1);
+		expect(observed.supplied.projects).toBeGreaterThan(0);
+		expect(observed.supplied.tasks).toBeGreaterThan(0);
+		for (const turn of [observed.minted, observed.supplied]) {
+			expect(turn.preflight.projectCandidates).toBe(true);
+			expect(turn.preflight.taskCandidates).toBe(true);
+			expect(turn.preflight.plan).toBe(false);
+			expect(turn.preflight.memoryDocuments).toBe(0);
+			expect(turn.preflight.projectRules).toBe(0);
+			expect(turn.preflight.focusCatalog).toBe(0);
+			expect(turn.preflight.focusDocuments).toBe(0);
+			expect(turn.preflight.projectDocuments).toBe(0);
+		}
+	} finally {
+		removeWorkflowCliHome(home);
+	}
+});
