@@ -7425,8 +7425,15 @@ export class OpenMatesClient {
     const fetchedIds=new Set<string>(), fetchedKeyIds=new Set<string>();
     const wrapperId=(key:Record<string,unknown>)=>`${key.hashed_embed_id}:${key.key_type}:${key.hashed_chat_id ?? ""}`;
     const targetId=embed ? String(embed.embed_id ?? embed.id) : embedIdOrShort;
-    const cachedKey=options.preferCache && embed ? await this.resolveEmbedKey(cache,wrappingKey,embed,targetId,computeSHA256(targetId)) : null;
-    if ((!embed || !cachedKey) && options.preferCache && /^[0-9a-f-]{36}$/i.test(targetId)) {
+    const cachedKey=embed ? await this.resolveEmbedKey(cache,wrappingKey,embed,targetId,computeSHA256(targetId),new Set(),teamId) : null;
+    if ((!embed || !cachedKey) && /^[0-9a-f-]{36}$/i.test(targetId)) {
+      // Account sync windows may omit this chat and its embeds. A targeted
+      // metadata refresh supplies the chat key; request_embed supplies the
+      // authorized encrypted embed and wrappers below.
+      if (!options.preferCache && options.chatId && !cache.chats.some(chat => String(chat.details.id) === options.chatId)) {
+        cache = await this.ensureSynced(true, [options.chatId], options);
+        current();
+      }
       if(teamId && !options.chatId)throw new Error('Open the original Team chat to load this embed.');
       const {ws} = await this.openWsClient({taskUpdateJobs:false});
       try {
@@ -7438,7 +7445,7 @@ export class OpenMatesClient {
             const row = payload as Record<string,unknown>, nested=(row.payload ?? row) as Record<string,unknown>;
             return nested.embed_id === wanted;
           },10_000);
-          await ws.sendAsync('request_embed',{embed_id:wanted,...(teamId ? {team_id:teamId,chat_id:options.chatId} : {})});
+          await ws.sendAsync('request_embed',{embed_id:wanted,...(options.chatId ? {chat_id:options.chatId} : {}),...(teamId ? {team_id:teamId} : {})});
           const envelope=(await pending).payload as Record<string,unknown>, row=(envelope.payload ?? envelope) as Record<string,unknown>;
           current();
           if(row.already_encrypted !== true || typeof row.content !== 'string') throw new Error('Saved embed ciphertext is unavailable. Open its original chat and /refresh.');
@@ -7452,7 +7459,7 @@ export class OpenMatesClient {
           fetched=true;
           const parent=typeof row.parent_embed_id === 'string' ? row.parent_embed_id : '';
           const parentEmbed=cache.embeds.find(e=>String(e.embed_id ?? e.id)===parent);
-          const parentKey=parentEmbed ? await this.resolveEmbedKey(cache,wrappingKey,parentEmbed,parent,computeSHA256(parent)) : null;
+          const parentKey=parentEmbed ? await this.resolveEmbedKey(cache,wrappingKey,parentEmbed,parent,computeSHA256(parent),new Set(),teamId) : null;
           wanted=parent && !parentKey ? parent : '';
         }
         embed=cache.embeds.find(e=>String(e.embed_id ?? e.id)===targetId);
@@ -7478,6 +7485,8 @@ export class OpenMatesClient {
       embed,
       embedId,
       hashedEmbedId,
+      new Set(),
+      teamId,
     );
 
     const decryptField = async (field: string): Promise<string | null> => {
@@ -7491,16 +7500,14 @@ export class OpenMatesClient {
     let content: Record<string, unknown> | null = null;
     const rawContent = await decryptField("encrypted_content");
     if (rawContent) content = parseEmbedContentObject(rawContent);
-    if(options.preferCache && (!embedKeyBytes || rawContent === null)) throw new Error('Saved embed key or content is unavailable. Use /refresh to retry.');
+    if((options.preferCache || fetched) && (!embedKeyBytes || rawContent === null)) throw new Error('Saved embed key or content is unavailable. Use /refresh to retry.');
     if(!options.preferCache)content = await this.refreshRemotionVideoCreateContent(embedId, content);
-    if(options.preferCache) {
+    if(fetched) {
       current();
-      if(fetched) {
-        const latest=loadSyncCache(teamId) ?? cache;
-        saveSyncCache({...latest,
-          embeds:[...latest.embeds.filter(e=>!fetchedIds.has(String(e.embed_id ?? e.id))),...cache.embeds.filter(e=>fetchedIds.has(String(e.embed_id ?? e.id)))],
-          embedKeys:[...latest.embedKeys.filter(key=>!fetchedKeyIds.has(wrapperId(key))),...cache.embedKeys.filter(key=>fetchedKeyIds.has(wrapperId(key)))]},teamId);
-      }
+      const latest=loadSyncCache(teamId) ?? cache;
+      saveSyncCache({...latest,
+        embeds:[...latest.embeds.filter(e=>!fetchedIds.has(String(e.embed_id ?? e.id))),...cache.embeds.filter(e=>fetchedIds.has(String(e.embed_id ?? e.id)))],
+        embedKeys:[...latest.embedKeys.filter(key=>!fetchedKeyIds.has(wrapperId(key))),...cache.embedKeys.filter(key=>fetchedKeyIds.has(wrapperId(key)))]},teamId);
     }
 
     // Derive type/appId/skillId from content if not on the embed record itself
@@ -7621,6 +7628,7 @@ export class OpenMatesClient {
     embedId: string,
     hashedEmbedId: string,
     visited: Set<string> = new Set(),
+    teamId: string | null = this.resolveTeamContext(),
   ): Promise<Uint8Array | null> {
     if (visited.has(embedId)) return null; // prevent cycles
     visited.add(embedId);
@@ -7658,7 +7666,7 @@ export class OpenMatesClient {
         return chatHash === hashedChatId;
       });
       if (owningChat) {
-        const chatKeyBytes=await this.resolveChatKey(cache,owningChat,masterKey,this.resolveTeamContext());
+        const chatKeyBytes=await this.resolveChatKey(cache,owningChat,masterKey,teamId);
         if(chatKeyBytes) {
           const key=await decryptBytesWithAesGcm(chatKeyEntry.encrypted_embed_key as string,chatKeyBytes);
           if(key)return key;
@@ -7688,6 +7696,7 @@ export class OpenMatesClient {
           parentFullId,
           parentHashedId,
           visited,
+          teamId,
         );
         if (parentKey) return parentKey;
       }

@@ -1103,6 +1103,7 @@ describe("Revolut Business connect-account command", () => {
 describe("embeds preview command", () => {
   it("prints application preview lifecycle help", () => {
     const output = runCli(["embeds", "--help"]);
+    assert.match(output, /openmates embeds show <embed-id> \[--chat <chat-id>\]/);
     assert.match(output, /openmates embeds add-to-project <embed-id> <project-id>/);
     assert.match(output, /openmates embeds remove-from-project <embed-id> <project-id>/);
     assert.match(output, /openmates embeds preview start <embed-id> --chat-id <chat-id>/);

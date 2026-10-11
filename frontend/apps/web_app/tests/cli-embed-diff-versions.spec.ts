@@ -261,6 +261,9 @@ test.describe('CLI Embed Diff Versions', () => {
 		expect(turn1.chatId).toBeTruthy();
 		const embedId = extractEmbedIdFromText(turn1.assistant);
 		expect(embedId, `assistant response should reference a code embed: ${turn1.assistant}`).toBeTruthy();
+		const shown = await runCliJson(apiUrl, ['embeds', 'show', embedId, '--chat', turn1.chatId], 60_000);
+		expect(shown.embedId).toBe(embedId);
+		expect(shown.content).toBeTruthy();
 
 		const turn2 = await runCliJson(
 			apiUrl,

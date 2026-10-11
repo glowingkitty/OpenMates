@@ -9020,7 +9020,10 @@ async function handleEmbeds(
       printEmbedsHelp();
       process.exit(1);
     }
-    const embed = await client.getEmbed(embedId);
+    const embed = await client.getEmbed(embedId, {
+      ...teamContextFromFlags(flags),
+      chatId: typeof flags.chat === "string" ? flags.chat : undefined,
+    });
     if (flags.json === true) {
       printJson(embed);
     } else {
@@ -15353,7 +15356,7 @@ Examples:
 
 function printEmbedsHelp(): void {
   console.log(`Embeds commands:
-  openmates embeds show <embed-id> [--json]
+  openmates embeds show <embed-id> [--chat <chat-id>] [--team <team-id>] [--json]
   openmates embeds add-to-project <embed-id> <project-id> [--folder <folder-id>] [--json]
   openmates embeds remove-from-project <embed-id> <project-id> [--json]
   openmates embeds share <embed-id> [--expires <seconds>] [--password <pwd>] [--json]

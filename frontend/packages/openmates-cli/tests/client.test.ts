@@ -1795,6 +1795,133 @@ describe("memory type registry", () => {
   });
 });
 
+describe("saved embed on-demand lookup", () => {
+  const embedId = "11111111-1111-4111-8111-111111111111";
+  const chatId = "22222222-2222-4222-8222-222222222222";
+  const emptyCache = () => ({ syncedAt: Date.now(), totalChatCount: 0, loadedChatCount: 0,
+    chats: [], embeds: [], embedKeys: [] });
+
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity,chats.persistence.client-encrypted
+  it("requests a full UUID missing from sync windows, decrypts its chat wrapper, and saves ciphertext", async () => {
+    writeLegacySession();
+    saveSyncCache(emptyCache());
+    const client = OpenMatesClient.load();
+    const chatKey = new Uint8Array(32).fill(7);
+    const embedKey = new Uint8Array(32).fill(9);
+    const source = { type: "diagram_html", html_source: "<html><body><svg data-om-diagram></svg></body></html>" };
+    const encryptedChatKey = await encryptBytesWithAesGcm(chatKey, new Uint8Array(32));
+    const encryptedEmbedKey = await encryptBytesWithAesGcm(embedKey, chatKey);
+    const encryptedContent = await encryptWithAesGcmCombined(JSON.stringify(source), embedKey);
+    const encryptedType = await encryptWithAesGcmCombined("diagram_html", embedKey);
+    const wrapper = { hashed_embed_id: createHash("sha256").update(embedId).digest("hex"),
+      hashed_chat_id: createHash("sha256").update(chatId).digest("hex"),
+      key_type: "chat", encrypted_embed_key: encryptedEmbedKey };
+    const syncs: Array<{ force: boolean; chats: string[] }> = [];
+    const requests: Record<string, unknown>[] = [];
+    (client as any).ensureSynced = async (force: boolean, chats: string[]) => {
+      syncs.push({ force, chats });
+      if (!force) return emptyCache();
+      const cache = { ...emptyCache(), totalChatCount: 1, loadedChatCount: 1,
+        chats: [{ details: { id: chatId, encrypted_chat_key: encryptedChatKey }, messages: [] }] };
+      saveSyncCache(cache);
+      return cache;
+    };
+    let deliver!: (value: { payload: Record<string, unknown> }) => void;
+    const ws = {
+      waitForMessage: (_type: string, predicate: (payload: unknown) => boolean) => new Promise((resolve) => {
+        deliver = (value) => { assert.ok(predicate(value.payload)); resolve(value); };
+      }),
+      sendAsync: async (type: string, payload: Record<string, unknown>) => {
+        assert.equal(type, "request_embed");
+        requests.push(payload);
+        deliver({ payload: { payload: { embed_id: embedId, already_encrypted: true,
+          status: "finished", chat_id: chatId, type: encryptedType, content: encryptedContent,
+          embed_keys: [wrapper] } } });
+      },
+      close: () => {},
+    };
+    (client as any).openWsClient = async () => ({ ws });
+
+    const embed = await client.getEmbed(embedId, { chatId });
+    assert.deepEqual(syncs, [{ force: false, chats: [] }, { force: true, chats: [chatId] }]);
+    assert.deepEqual(requests, [{ embed_id: embedId, chat_id: chatId }]);
+    assert.equal(embed.type, "diagram_html");
+    assert.deepEqual(embed.content, source);
+    const saved = loadSyncCache();
+    assert.equal(saved?.embeds.find((row) => row.embed_id === embedId)?.encrypted_content, encryptedContent);
+    assert.equal(saved?.embedKeys.find((row) => row.hashed_embed_id === wrapper.hashed_embed_id)?.encrypted_embed_key, encryptedEmbedKey);
+    assert.equal(JSON.stringify(saved).includes(source.html_source), false);
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity,chats.persistence.client-encrypted
+  it("uses an explicit Team chat scope to decrypt an authorized on-demand embed", async () => {
+    writeLegacySession();
+    saveSyncCache(emptyCache());
+    const client = OpenMatesClient.load();
+    const teamId = "33333333-3333-4333-8333-333333333333";
+    const teamKey = new Uint8Array(32).fill(3);
+    const chatKey = new Uint8Array(32).fill(7);
+    const embedKey = new Uint8Array(32).fill(9);
+    const encryptedChatKey = await encryptBytesWithAesGcm(chatKey, teamKey);
+    const encryptedContent = await encryptWithAesGcmCombined(JSON.stringify({ type: "diagram_html", title: "Team map" }), embedKey);
+    const cache = { ...emptyCache(), totalChatCount: 1, loadedChatCount: 1,
+      chats: [{ details: { id: chatId, encrypted_chat_key: encryptedChatKey }, messages: [] }] };
+    saveSyncCache(cache, teamId);
+    (client as any).ensureSynced = async () => cache;
+    (client as any).getChatWrappingKey = async (scope: string | null) => {
+      assert.equal(scope, teamId);
+      return teamKey;
+    };
+    const wrapper = { hashed_embed_id: createHash("sha256").update(embedId).digest("hex"),
+      hashed_chat_id: createHash("sha256").update(chatId).digest("hex"), key_type: "chat",
+      encrypted_embed_key: await encryptBytesWithAesGcm(embedKey, chatKey) };
+    let deliver!: (value: { payload: Record<string, unknown> }) => void;
+    const ws = {
+      waitForMessage: (_type: string, predicate: (payload: unknown) => boolean) => new Promise((resolve) => {
+        deliver = (value) => { assert.ok(predicate(value.payload)); resolve(value); };
+      }),
+      sendAsync: async (type: string, payload: Record<string, unknown>) => {
+        assert.equal(type, "request_embed");
+        assert.deepEqual(payload, { embed_id: embedId, chat_id: chatId, team_id: teamId });
+        deliver({ payload: { payload: { embed_id: embedId, chat_id: chatId, already_encrypted: true,
+          status: "finished", type: await encryptWithAesGcmCombined("diagram_html", embedKey),
+          content: encryptedContent, embed_keys: [wrapper] } } });
+      },
+      close: () => {},
+    };
+    (client as any).openWsClient = async () => ({ ws });
+    const embed = await client.getEmbed(embedId, { teamId, chatId });
+    assert.equal(embed.type, "diagram_html");
+    assert.equal(embed.content?.title, "Team map");
+    assert.equal(loadSyncCache(teamId)?.embeds.find((row) => row.embed_id === embedId)?.encrypted_content, encryptedContent);
+    assert.equal(loadSyncCache()?.embeds.some((row) => row.embed_id === embedId), false);
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
+  it("preserves authorized lookup failures and does not cache a missing or denied embed", async () => {
+    writeLegacySession();
+    saveSyncCache(emptyCache());
+    const client = OpenMatesClient.load();
+    (client as any).ensureSynced = async () => emptyCache();
+    for (const reason of ["Embed not found", "Access denied"]) {
+      let rejectReply!: (error: Error) => void;
+      const ws = {
+        waitForMessage: () => new Promise((_resolve, reject) => { rejectReply = reject; }),
+        sendAsync: async (type: string, payload: Record<string, unknown>) => {
+          assert.equal(type, "request_embed");
+          assert.deepEqual(payload, { embed_id: embedId, chat_id: chatId });
+          queueMicrotask(() => rejectReply(new Error(reason)));
+        },
+        close: () => {},
+      };
+      (client as any).openWsClient = async () => ({ ws });
+      await assert.rejects(client.getEmbed(embedId, { chatId }), new RegExp(reason));
+      assert.deepEqual(loadSyncCache()?.embeds, []);
+      assert.deepEqual(loadSyncCache()?.embedKeys, []);
+    }
+  });
+});
+
 describe("CLI streamed embed persistence", () => {
   const versionResponse = (encryptedSnapshot: string) => ({
     ok: true, status: 200,
