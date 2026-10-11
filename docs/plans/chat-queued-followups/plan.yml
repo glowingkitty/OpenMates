@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: chat-queued-followups
 title: Editable synchronized queued follow-ups and safe steering
-status: implementing
+status: verified
 goal: We must implement and test followup requests queued on the server and synced to other devices as Queued, editing
   without creating another message, Cancel edit, and Steer instead following the recommendation to add context to
   the current run at the next safe agent or tool boundary.
@@ -42,3 +42,7 @@ decisions:
 - Append completed predecessor context only through an authenticated sealed output receipt.
 - Consumed steering failure and unrecoverable volatile queue loss show a truthful saved paused state rather than
   inventing private context or replaying side effects.
+
+verification:
+  deployed_revision: 8fff53e54ceae234f3643814b69e561e8390b2a6
+  evidence: docs/plans/chat-latency-improvements/verification.md

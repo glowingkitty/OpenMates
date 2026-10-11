@@ -53,7 +53,7 @@ import {
 import { buildMemoryRequestMessage, coalesceMemoryRequestMessages } from "../../ui/src/utils/appMemoryRequests.js";
 import { applyVersionPatch, reconstructVersionRows } from "../../ui/src/utils/embedVersionReconstruction.js";
 import { COMPRESSION_SUMMARY_CATEGORY } from "./accountImport.js";
-import { OpenMatesHttpClient, type HttpResponse } from "./http.js";
+import { OpenMatesHttpClient, withHttpAbortSignal, type HttpResponse } from "./http.js";
 import {
   type OpenMatesSession,
   type SyncCache,
@@ -5665,6 +5665,25 @@ export class OpenMatesClient {
     return result;
   }
 
+  private chatActivitySocket: {
+    ws: OpenMatesWsClient;
+    ownerCurrent: () => boolean;
+    lastWarmupScope: string | null;
+  } | null = null;
+
+  /** Warm the active chat scope over the TUI's existing authenticated activity socket. */
+  warmChatMetadata(): void {
+    const activity = this.chatActivitySocket;
+    if (!activity || !activity.ownerCurrent()) return;
+    const teamId = this.getActiveTeamId();
+    const scope = teamId ?? "personal";
+    if (activity.lastWarmupScope === scope) return;
+    try {
+      activity.ws.send("chat_metadata_warmup", teamId ? { team_id: teamId } : {});
+      activity.lastWarmupScope = scope;
+    } catch { /* Optional metadata warmup never blocks the workspace. */ }
+  }
+
   /** Observe lifecycle metadata without claiming or collecting AI responses. */
   async observeChatActivity(onChange: () => void): Promise<() => void> {
     const session = this.requireSession();
@@ -5692,6 +5711,7 @@ export class OpenMatesClient {
       removeHandlers = [];
       const active = socket;
       socket = null;
+      if (this.chatActivitySocket?.ws === active) this.chatActivitySocket = null;
       active?.close();
     };
     const scheduleReconnect = () => {
@@ -5714,6 +5734,8 @@ export class OpenMatesClient {
       }
       if (stopped || !ownerCurrent()) { opened.close(); return; }
       socket = opened;
+      this.chatActivitySocket = { ws: opened, ownerCurrent, lastWarmupScope: null };
+      this.warmChatMetadata();
       removeHandlers = types.map(type => opened.onMessageType(type, () => {
         if (!ownerCurrent()) { stop(); return; }
         if (!stopped) { retryAttempt = 0; onChange(); }
@@ -5721,6 +5743,7 @@ export class OpenMatesClient {
       removeHandlers.push(opened.onClose(() => {
         if (socket !== opened) return;
         socket = null;
+        if (this.chatActivitySocket?.ws === opened) this.chatActivitySocket = null;
         removeHandlers.forEach(remove => remove());
         removeHandlers = [];
         scheduleReconnect();
@@ -8368,6 +8391,7 @@ export class OpenMatesClient {
 
     const explicitTasksAppSkill = messageExplicitlyRequestsTasksAppSkill(finalMessage);
     const taskUpdateJobsEnabled = params.taskUpdateJobs !== false && !explicitTasksAppSkill;
+    const authSocketStartedAt = Date.now();
     const { ws, ownerId } = await this.openWsClient({
       taskUpdateJobs: taskUpdateJobsEnabled,
       projectFileJobs: !params.incognito,
@@ -8379,9 +8403,52 @@ export class OpenMatesClient {
       ws.close();
       throw new Error("Authenticated user identity is required for saved chat recovery.");
     }
+    const authSocketMs = Date.now() - authSocketStartedAt;
+    // A new chat without an explicit Project cannot have an existing active
+    // Project focus. Start its read-only context discovery while the socket
+    // completes recovery discovery and we prepare the encrypted turn.
+    let contextSession: OpenMatesSession;
+    try {
+      contextSession = this.requireSession();
+    } catch (error) {
+      ws.close();
+      throw error;
+    }
+    const {
+      apiUrl: contextApiUrl,
+      hashedEmail: contextHashedEmail,
+      sessionId: contextSessionId,
+      createdAt: contextSessionCreatedAt,
+      masterKeyExportedB64: contextMasterKey,
+      activeTeamId: contextActiveTeamId,
+    } = contextSession;
+    const contextScope = { teamId, personal: !teamId };
+    const contextStartedAt = Date.now();
+    let recoveryMs = 0;
+    const contextOwnerIsCurrent = () => {
+      const current = this.session;
+      return Boolean(current && current.apiUrl === contextApiUrl
+        && current.hashedEmail === contextHashedEmail
+        && current.sessionId === contextSessionId
+        && current.createdAt === contextSessionCreatedAt
+        && current.masterKeyExportedB64 === contextMasterKey
+        && current.activeTeamId === contextActiveTeamId);
+    };
+    const earlyContextAbort = new AbortController();
+    const earlyContext = !params.incognito && !params.chatId && !params.projectId
+      ? withHttpAbortSignal(earlyContextAbort.signal, () =>
+          prepareCliJevContext(this, chatId, contextScope, params.jevContext, finalMessage))
+        .then(value => ({ ok: true as const, value, elapsedMs: Date.now() - contextStartedAt }),
+          error => ({ ok: false as const, error: error as unknown, elapsedMs: Date.now() - contextStartedAt }))
+      : null;
+    try {
     if (!params.incognito) {
+      try { ws.send("chat_metadata_warmup", teamId ? { team_id: teamId } : {}); }
+      catch { /* Optional warmup cannot delay the actual message. */ }
       try {
+        const recoveryStartedAt = Date.now();
         await ws.waitForRecoveryOutputDiscovery();
+        recoveryMs = Date.now() - recoveryStartedAt;
       } catch (error) {
         ws.close();
         throw error;
@@ -8599,8 +8666,18 @@ export class OpenMatesClient {
         chat_has_title: Boolean(params.chatId),
       },
     };
-    if (!params.incognito) Object.assign(messagePayload,
-      await prepareCliJevContext(this, chatId, { teamId, personal: !teamId }, params.jevContext, finalMessage));
+    if (!params.incognito) {
+      const serialContextStartedAt = Date.now();
+      const prepared = earlyContext
+        ? await earlyContext
+        : { ok: true as const, value: await prepareCliJevContext(this, chatId, contextScope, params.jevContext, finalMessage), elapsedMs: Date.now() - serialContextStartedAt };
+      if (!prepared.ok) throw prepared.error;
+      if (!contextOwnerIsCurrent()) throw new Error("Chat workspace changed while preparing context.");
+      if (process.env.OPENMATES_DEBUG === "1") {
+        console.error(`[chat preparation] auth_ws_ms=${authSocketMs} recovery_ms=${recoveryMs} context_ms=${prepared.elapsedMs}`);
+      }
+      Object.assign(messagePayload, prepared.value);
+    }
     if (params.testMockMarker !== undefined) {
       const { capacityReplayMarker } = await import("./capacityReplayMarker.js");
       messagePayload.test_mock_marker = capacityReplayMarker(
@@ -9698,6 +9775,14 @@ export class OpenMatesClient {
       tokenUsage,
       promptBudget,
     };
+    } finally {
+      // A failed recovery or key preparation must not leave a context read
+      // running after this send has returned. The promise already handles its
+      // own rejection, so settling it here cannot mask the original failure.
+      earlyContextAbort.abort();
+      ws.close();
+      if (earlyContext) await earlyContext;
+    }
   }
 
   private async persistEncryptedSystemMessage(

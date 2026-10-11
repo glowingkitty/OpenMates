@@ -21,11 +21,10 @@ def answers_for(questions, *, project=True, specialist=False, project_confidence
             answers[key] = {"type": "noul", "noul": .9}
         else:
             choice = (f"project-{PROJECT}" if key == "project_target" and project
-                      else f"project-focus:{PROJECT}:{ITEM}" if specialist
+                      else "none" if key == "project_target"
+                      else f"project-focus:{PROJECT}:{ITEM}" if key == "project_specialist" and specialist
                       else "default" if key == "project_specialist"
-                      else next(iter(question["criteria"])) if key in {
-                          "complexity", "task_area", "topic_area", "topic_shift",
-                      } else "none")
+                      else next(iter(question["criteria"])))
             answers[key] = {"type": "choice", "choice": choice,
                             "confidence": project_confidence if key == "project_target" else .99,
                             "probabilities": {value: float(value == choice) for value in question["criteria"]}}

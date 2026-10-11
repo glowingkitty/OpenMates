@@ -17,17 +17,19 @@ from backend.apps.ai.processing.rule_context import (
 )
 from backend.shared.python_utils.rule_loader import rules_prompt
 
-WORKFLOW_METADATA_TTL_SECONDS = 30
+# Sliding retention for encrypted discovery only. Selection still reloads the
+# current owner-authorized Workflow version before reading any graph.
+WORKFLOW_METADATA_TTL_SECONDS = 2 * 60 * 60
 
 
 def _workflow_metadata_cache_key(user_id: str, team_id: str | None, vault_key_id: str) -> str:
     scope = json.dumps([user_id, team_id, vault_key_id], separators=(",", ":"))
-    return "workflow:discovery:v1:" + hashlib.sha256(scope.encode()).hexdigest()
+    return "workflow:discovery:v2:" + hashlib.sha256(scope.encode()).hexdigest()
 
 
 def _workflow_metadata_epoch_key(user_id: str, team_id: str | None) -> str:
     from backend.core.api.app.services.workflow_service import _hash_owner_id, _hash_team_id
-    return "workflow:discovery:epoch:" + (_hash_team_id(team_id) if team_id else _hash_owner_id(user_id))
+    return "workflow:discovery:epoch:v2:" + (_hash_team_id(team_id) if team_id else _hash_owner_id(user_id))
 
 
 async def _versioned_workflow_metadata_key(cache: Any, user_id: str, team_id: str | None,
@@ -68,6 +70,7 @@ async def _rules(request: Any, directus: Any, cache: Any, eligible_app_ids: list
 
 async def discover_rule_metadata(request: Any, directus: Any, cache: Any,
                                  eligible_app_ids: list[str]) -> list[dict]:
+    request._rule_metadata_discovery_complete = False
     try:
         binding = await fresh_project(request, directus, cache)
         request._preselected_rule_project_activation = (binding or {}).get("activation_id")
@@ -82,6 +85,7 @@ async def discover_rule_metadata(request: Any, directus: Any, cache: Any,
                      ("id", "title", "description", "when_to_use", "revision", "source", "app_id", "project_id")}
             if len(json.dumps([*result, entry], ensure_ascii=True)) <= MAX_DISCOVERY_CHARS:
                 result.append(entry)
+        request._rule_metadata_discovery_complete = True
         return result
     except Exception:
         return []
@@ -89,6 +93,8 @@ async def discover_rule_metadata(request: Any, directus: Any, cache: Any,
 
 async def reload_preselected_rules(request: Any, directus: Any, cache: Any,
                                     eligible_app_ids: list[str], selected: list[dict]) -> list:
+    if not selected:
+        return []
     try:
         binding = await fresh_project(request, directus, cache)
         if (binding or {}).get("activation_id") != getattr(request, "_preselected_rule_project_activation", None):
@@ -146,8 +152,10 @@ async def _authorize_workflow_team(request: Any, cache: Any) -> None:
 async def discover_workflow_metadata(request: Any, cache: Any) -> list[dict]:
     from backend.apps.workflows.skills.saved_workflow_context import saved_workflow_metadata
     service = None
+    request._workflow_metadata_discovery_complete = False
     try:
         if not first_party(request):
+            request._workflow_metadata_discovery_complete = True
             return []
         await _authorize_workflow_team(request, cache)
         binding = await _workflow_service(request, cache)
@@ -158,15 +166,27 @@ async def discover_workflow_metadata(request: Any, cache: Any) -> list[dict]:
         try:
             key = await _versioned_workflow_metadata_key(cache, request.user_id, request.team_id, vault_key_id)
             cached = await _cached_workflow_metadata(cache, key, vault_key_id)
-            if cached is not None:
+            if cached is not None and key == await _versioned_workflow_metadata_key(
+                cache, request.user_id, request.team_id, vault_key_id,
+            ):
+                client = await cache.client
+                if client:
+                    await client.expire(key, WORKFLOW_METADATA_TTL_SECONDS)
+                request._workflow_metadata_discovery_complete = True
                 return cached
         except Exception:
             pass  # A missing or unreadable cache always falls back to Directus.
         rows = await asyncio.to_thread(saved_workflow_metadata, service, request.user_id,
             vault_key_id=vault_key_id, team_id=request.team_id)
+        request._workflow_metadata_discovery_complete = True
         if key is not None:
             try:
-                await _save_workflow_metadata(cache, key, vault_key_id, rows)
+                # A mutation while discovery runs makes this generation obsolete.
+                # Never publish into a new generation from an older read.
+                if key == await _versioned_workflow_metadata_key(
+                    cache, request.user_id, request.team_id, vault_key_id,
+                ):
+                    await _save_workflow_metadata(cache, key, vault_key_id, rows)
             except Exception:
                 pass
         return rows
@@ -180,6 +200,8 @@ async def discover_workflow_metadata(request: Any, cache: Any) -> list[dict]:
 async def reload_preselected_workflows(request: Any, cache: Any, selected: list[dict]) -> list[dict]:
     from backend.apps.workflows.skills.saved_workflow_context import load_selected_saved_workflows
     service = None
+    if not selected:
+        return []
     try:
         if not first_party(request):
             return []

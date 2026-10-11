@@ -4,6 +4,9 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from backend.apps.ai.processing import jev_preprocessing
@@ -11,6 +14,130 @@ from backend.apps.ai.processing.preprocessor import (
     PreprocessingResult, _latest_user_text_from_history, _selected_apps_with_skill_owners,
 )
 from backend.shared.providers.typesafe.models import DecisionResponse
+
+
+def test_current_app_catalogue_and_public_questions_fit_one_jev_batch():
+    app_ids = [path.parent.name for path in (Path(__file__).resolve().parents[1] / "apps").glob("*/app.yml")]
+    assert app_ids
+    questions = jev_preprocessing._early_routing_questions(
+        [f"topic_{index}: Topic {index}" for index in range(60)], False)
+    questions.update(jev_preprocessing._public_decision_questions(True))
+    jev_preprocessing._add_multi_select_questions(
+        questions, "app", jev_preprocessing._app_catalogue(
+            app_ids, [f"{app_id}-example: " + "x" * 500 for app_id in app_ids]), "Relevant app?",
+    )
+    state = {"messages": [{"role": "user", "content": "Help me."}]}
+    batches = jev_preprocessing._question_batches(state, questions)
+    assert len(batches) == 1
+    assert len(batches[0]) <= 160
+    assert len(json.dumps({"state": state, "questions": batches[0]}, ensure_ascii=False)) <= 120_000
+
+
+def _routing_answer(questions, *, missing=(), public_harm=.05):
+    answers = {}
+    for key, question in questions.items():
+        if key in missing:
+            continue
+        if question["type"] == "noul":
+            value = public_harm if key == "harmful" else (.75 if key == "misuse" else
+                    .95 if key in {"enable_subchats", "model_llm"} else .05)
+            answers[key] = {"type": "noul", "noul": value}
+        else:
+            choice = {"temperature": "creative", "language": "de", "preview": "document",
+                      "icon": "code"}.get(key, next(iter(question["criteria"])))
+            answers[key] = {"type": "choice", "choice": choice, "confidence": .99,
+                            "probabilities": {candidate: float(candidate == choice)
+                                              for candidate in question["criteria"]}}
+    return DecisionResponse.model_validate({"model": "jev", "answers": answers, "usage": {}})
+
+
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
+@pytest.mark.asyncio
+async def test_complete_public_routing_skips_empty_detailed_provider_call(monkeypatch):
+    calls = []
+    discovery = {"complete": False}
+
+    async def evaluate(**kwargs):
+        calls.append(kwargs)
+        return _routing_answer(kwargs["questions"], public_harm=.81)
+
+    async def load_rules(app_ids):
+        assert app_ids == [] and len(calls) == 1
+        discovery["complete"] = True
+        return []
+
+    monkeypatch.setattr(jev_preprocessing, "_evaluate_preprocessing_questions", evaluate)
+    result = await jev_preprocessing.decide_preprocessing_with_jev(
+        model_id="jev", secrets_manager=None,
+        message_history=[{"role": "user", "content": "Hallo"}],
+        topic_areas=["general_misc: General"], available_apps=[], available_skills=[],
+        available_focus_modes=[], available_settings_and_memories={},
+        recent_skill_activity=[], conversation_summary=None, previous_category=None,
+        is_first_message=True, available_rules_loader=load_rules,
+        candidate_discovery_complete=lambda: discovery["complete"],
+    )
+    assert len(calls) == 1
+    assert result["selected_app_ids"] == []
+    assert result["relevant_app_skills"] == result["relevant_focus_modes"] == []
+    assert result["relevant_rules"] == result["relevant_workflows"] == []
+    assert result["harmful_or_illegal"] == 8.1
+    assert result["misuse_risk"] == 8
+    assert result["output_language"] == "de"
+    assert result["llm_response_temp"] == .8
+    assert result["enable_subchats"] is True
+    assert result["ai_model_topics"] == ["llm"]
+    assert result["relevant_embedded_previews"] == ["document"]
+    assert result["icon_names"] == ["code"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("missing,complete", [("harmful", True), (None, False)])
+async def test_missing_public_answer_or_uncertain_discovery_asks_full_detail(monkeypatch, missing, complete):
+    calls = []
+
+    async def evaluate(**kwargs):
+        calls.append(kwargs)
+        omitted = (missing,) if len(calls) == 1 and missing else ()
+        return _routing_answer(kwargs["questions"], missing=omitted, public_harm=.81)
+
+    monkeypatch.setattr(jev_preprocessing, "_evaluate_preprocessing_questions", evaluate)
+    result = await jev_preprocessing.decide_preprocessing_with_jev(
+        model_id="jev", secrets_manager=None,
+        message_history=[{"role": "user", "content": "Hallo"}],
+        topic_areas=["general_misc: General"], available_apps=[], available_skills=[],
+        available_focus_modes=[], available_settings_and_memories={},
+        recent_skill_activity=[], conversation_summary=None, previous_category=None,
+        is_first_message=False, candidate_discovery_complete=complete,
+    )
+    assert len(calls) == 2
+    assert set(jev_preprocessing._public_decision_questions(False)) <= set(calls[1]["questions"])
+    assert result["harmful_or_illegal"] == 8.1
+
+
+@pytest.mark.asyncio
+async def test_malformed_cached_public_decision_does_not_skip_safety(monkeypatch):
+    calls = []
+
+    async def evaluate(**kwargs):
+        calls.append(kwargs)
+        return _routing_answer(kwargs["questions"], public_harm=.91)
+
+    monkeypatch.setattr(jev_preprocessing, "_evaluate_preprocessing_questions", evaluate)
+    result = await jev_preprocessing.decide_preprocessing_with_jev(
+        model_id="jev", secrets_manager=None,
+        message_history=[{"role": "user", "content": "Hello"}],
+        topic_areas=["general_misc: General"], available_apps=[], available_skills=[],
+        available_focus_modes=[], available_settings_and_memories={},
+        recent_skill_activity=[], conversation_summary=None, previous_category=None,
+        is_first_message=False, selected_app_ids=[], candidate_discovery_complete=True,
+        early_decisions={"complexity": "simple", "task_area": "general",
+                         "user_unhappy": False, "china_model_sensitive": False,
+                         "topic_area": "general_misc", "topic_shift": "same_topic",
+                         "public_decisions": {"temperature": [], "harmful_or_illegal": 0}},
+    )
+    assert len(calls) == 1
+    assert set(jev_preprocessing._public_decision_questions(False)) <= set(calls[0]["questions"])
+    assert result["harmful_or_illegal"] == 9.1
 
 
 # contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
@@ -170,7 +297,7 @@ async def test_explicit_mate_skips_routing_after_app_shortlist_and_keeps_telemet
     assert all(call["telemetry_task_id"] == "chat_message" for call in calls)
     assert set(calls[0]["questions"]) == {
         "app_0", "complexity", "task_area", "user_unhappy", "china_sensitive",
-    }
+    } | set(jev_preprocessing._public_decision_questions(True))
     stage_two_questions = set(calls[1]["questions"])
     assert {"topic_area", "topic_shift"}.isdisjoint(stage_two_questions)
     assert {"harmful", "misuse", "language", "icon"} <= stage_two_questions
@@ -236,13 +363,14 @@ async def test_app_shortlist_selects_multiple_apps_without_unrelated_stage_two_c
     assert set(calls[0]["questions"]) == {
         "app_0", "app_1", "app_2", "app_3", "complexity", "task_area",
         "user_unhappy", "china_sensitive", "topic_area", "topic_shift",
-    }
+    } | set(jev_preprocessing._public_decision_questions(False))
     assert {"complexity", "task_area", "topic_area", "topic_shift"}.isdisjoint(calls[1]["questions"])
     stage_one = repr(calls[0])
     stage_two = repr(calls[1])
     assert "PRIVATE-UNRELATED" not in stage_one
     assert "PRIVATE-UNRELATED" not in stage_two
-    assert "harmful" in calls[1]["questions"] and "language" in calls[1]["questions"]
+    assert "harmful" in calls[0]["questions"] and "language" in calls[0]["questions"]
+    assert set(jev_preprocessing._public_decision_questions(False)).isdisjoint(calls[1]["questions"])
     assert len(repr(jev_preprocessing._app_catalogue(kwargs["available_apps"], skills))) < len(repr(skills))
     stage_two_skill_questions = [question for key, question in calls[1]["questions"].items()
                                  if key.startswith("skill_")]

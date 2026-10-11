@@ -9,7 +9,7 @@ import { projectRecordRevision } from '../utils/projectContextRevision';
 import { getApiEndpoint } from '../config/api';
 import {
   getActiveProjectFocus, getProject, getProjectContents,
-  type ProjectItemViewModel, type ProjectViewModel,
+  type ActiveProjectFocus, type ProjectItemViewModel, type ProjectViewModel,
 } from './projectService';
 import { readActiveProjectMarkdownDocuments } from './ruleDocumentService';
 import { WorkspaceQueryCache } from './workspaceQueryCache';
@@ -68,10 +68,12 @@ export async function projectItemRevision(item: ProjectItemViewModel): Promise<s
   return projectRecordRevision(item.encrypted as unknown as Record<string, unknown>);
 }
 
-async function activeWorkspace(chatId: string, projectId?: string | null) {
+type InitialFocusRead = () => Promise<ActiveProjectFocus | null>;
+
+async function activeWorkspace(chatId: string, projectId?: string | null, initialFocus?: InitialFocusRead) {
   const owner = get(userProfile).user_id;
   if (!get(authStore).isAuthenticated || !owner) return null;
-  const focus = await getActiveProjectFocus(chatId);
+  const focus = await (initialFocus ? initialFocus() : getActiveProjectFocus(chatId));
   if (!focus || projectId && focus.project_id !== projectId) return null;
   const context = { teamId: focus.team_id };
   const project = await getProject(focus.project_id, context);
@@ -142,8 +144,8 @@ export async function collectSelectedProjectFocusRoutingCatalog(
   return focuses;
 }
 
-export async function collectProjectFocusCatalog(input: { chatId: string; projectId?: string | null }): Promise<ProjectFocusCatalogEntry[]> {
-  const workspace = await activeWorkspace(input.chatId, input.projectId);
+export async function collectProjectFocusCatalog(input: { chatId: string; projectId?: string | null; initialFocus?: InitialFocusRead }): Promise<ProjectFocusCatalogEntry[]> {
+  const workspace = await activeWorkspace(input.chatId, input.projectId, input.initialFocus);
   if (!workspace) return [];
   const specialistId = specialistItemId(workspace.focus.project_id, workspace.focus.specialist_focus_id);
   const ordered = workspace.contents.items.filter(focusItem).sort((a, b) =>
@@ -212,7 +214,7 @@ export async function loadAcceptedProjectSpecialistFocusDocument(
 }
 
 export async function collectPrivateFocusForRequest(input: {
-  chatId: string; projectId?: string | null; text: string;
+  chatId: string; projectId?: string | null; text: string; initialFocus?: InitialFocusRead;
 }): Promise<Array<{ item_id: string; revision: string; document: string }>> {
   const catalog = await collectProjectFocusCatalog(input);
   if (!catalog.length) return [];
@@ -250,9 +252,9 @@ export interface ProjectReferenceDocument {
 }
 
 export async function collectProjectReferenceDocuments(input: {
-  chatId: string; projectId?: string | null; text: string;
+  chatId: string; projectId?: string | null; text: string; initialFocus?: InitialFocusRead;
 }): Promise<ProjectReferenceDocument[]> {
-  const workspace = await activeWorkspace(input.chatId, input.projectId);
+  const workspace = await activeWorkspace(input.chatId, input.projectId, input.initialFocus);
   if (!workspace) return [];
   const catalog: Array<{ kind: ProjectReferenceDocument['kind']; id: string; title: string; description: string; revision: string; path?: string; document?: string }> = [];
   for (const item of workspace.contents.items) {

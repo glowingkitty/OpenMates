@@ -1,5 +1,6 @@
 """Fresh context selection and accepted prompt delivery use bounded shared APIs."""
 # contract-test-file: infrastructure
+import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -7,6 +8,102 @@ import pytest
 
 from backend.apps.ai.processing import main_processor as main
 from backend.apps.ai.processing.chat_direction import DirectionAuthority
+
+
+@pytest.mark.asyncio
+async def test_related_chat_and_task_fetches_overlap_before_selection(monkeypatch):
+    request = SimpleNamespace(user_id="owner", chat_id="chat", is_external=False, is_incognito=False,
+                              current_project=None, current_user_content="Fix the API", related_task_candidates=[])
+    chat_started, task_started = asyncio.Event(), asyncio.Event()
+    release_chat, release_task = asyncio.Event(), asyncio.Event()
+    chat_completed = asyncio.Event()
+
+    async def chats(*args):
+        chat_started.set()
+        await release_chat.wait()
+        chat_completed.set()
+        return []
+
+    async def tasks(*args, **kwargs):
+        task_started.set()
+        await release_task.wait()
+        return []
+
+    selection = AsyncMock(return_value=[])
+    monkeypatch.setattr(main.agentic_context, "fresh_project", AsyncMock(return_value=None))
+    monkeypatch.setattr(main.agentic_context, "select_rule_guides", AsyncMock(return_value=[]))
+    monkeypatch.setattr(main.agentic_context, "select_existing_workflows", AsyncMock(return_value=[]))
+    monkeypatch.setattr(main.agentic_context, "selected_project_documents", AsyncMock(return_value=[]))
+    monkeypatch.setattr(main, "fetch_related_chat_summaries", chats)
+    monkeypatch.setattr(main, "fetch_related_task_candidates", tasks)
+    monkeypatch.setattr(main, "select_related_work", selection)
+
+    loading = asyncio.create_task(main._load_main_agentic_context(
+        request=request, task_id="task", preprocessing=SimpleNamespace(), directus=object(), cache=object(),
+        secrets_manager=None, eligible_app_ids=[], vault_key_id=None, decision_model="jev",
+        effective_instructions="", active_phase="", initial=False,
+    ))
+    try:
+        await asyncio.wait_for(asyncio.gather(chat_started.wait(), task_started.wait()), timeout=1)
+        assert selection.await_count == 0
+        release_chat.set()
+        await asyncio.wait_for(chat_completed.wait(), timeout=1)
+        assert selection.await_count == 0
+        release_task.set()
+        await asyncio.wait_for(loading, timeout=1)
+        selection.assert_awaited_once()
+    finally:
+        release_chat.set()
+        release_task.set()
+        if not loading.done():
+            await loading
+
+
+@pytest.mark.asyncio
+async def test_related_fetch_failure_waits_for_sibling_and_discards_all_related_context(monkeypatch):
+    request = SimpleNamespace(user_id="owner", chat_id="chat", is_external=False, is_incognito=False,
+                              current_project=None, current_user_content="Fix the API", related_task_candidates=[])
+    task_started, task_settled = asyncio.Event(), asyncio.Event()
+    release_task = asyncio.Event()
+
+    async def chats(*args):
+        await task_started.wait()
+        raise RuntimeError("chat discovery unavailable")
+
+    async def tasks(*args, **kwargs):
+        task_started.set()
+        await release_task.wait()
+        task_settled.set()
+        return []
+
+    selection = AsyncMock(return_value=[])
+    monkeypatch.setattr(main.agentic_context, "fresh_project", AsyncMock(return_value=None))
+    monkeypatch.setattr(main.agentic_context, "select_rule_guides", AsyncMock(return_value=[]))
+    monkeypatch.setattr(main.agentic_context, "select_existing_workflows", AsyncMock(return_value=[]))
+    monkeypatch.setattr(main.agentic_context, "selected_project_documents", AsyncMock(return_value=[]))
+    monkeypatch.setattr(main, "fetch_related_chat_summaries", chats)
+    monkeypatch.setattr(main, "fetch_related_task_candidates", tasks)
+    monkeypatch.setattr(main, "select_related_work", selection)
+
+    loading = asyncio.create_task(main._load_main_agentic_context(
+        request=request, task_id="task", preprocessing=SimpleNamespace(), directus=object(), cache=object(),
+        secrets_manager=None, eligible_app_ids=[], vault_key_id=None, decision_model="jev",
+        effective_instructions="", active_phase="", initial=False,
+    ))
+    try:
+        await asyncio.wait_for(task_started.wait(), timeout=1)
+        with pytest.raises(asyncio.TimeoutError):
+            await asyncio.wait_for(asyncio.shield(loading), timeout=0.05)
+        assert not task_settled.is_set()
+        assert selection.await_count == 0
+        release_task.set()
+        await asyncio.wait_for(loading, timeout=1)
+        assert task_settled.is_set()
+        assert selection.await_count == 0
+    finally:
+        release_task.set()
+        if not loading.done():
+            await loading
 
 
 @pytest.mark.asyncio

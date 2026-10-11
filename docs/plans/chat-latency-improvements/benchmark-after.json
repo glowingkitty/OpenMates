@@ -1,0 +1,438 @@
+{
+  "backend_phase_metrics": {
+    "cohorts": {
+      "workflow_empty": {
+        "medians_ms": {
+          "main_stream_ms": 9635,
+          "preprocess_ms": 2175,
+          "preprocess_to_main_ms": 2431
+        },
+        "n": 12,
+        "ranges_ms": {
+          "main_stream_ms": [
+            3176,
+            24217
+          ],
+          "preprocess_ms": [
+            2013,
+            2936
+          ],
+          "preprocess_to_main_ms": [
+            2132,
+            3090
+          ]
+        }
+      },
+      "workflow_ten": {
+        "medians_ms": {
+          "main_stream_ms": 3620,
+          "preprocess_ms": 2370,
+          "preprocess_to_main_ms": 2504
+        },
+        "n": 6,
+        "ranges_ms": {
+          "main_stream_ms": [
+            3176,
+            5190
+          ],
+          "preprocess_ms": [
+            1859,
+            3044
+          ],
+          "preprocess_to_main_ms": [
+            2033,
+            3252
+          ]
+        }
+      }
+    },
+    "first_token_timing": "unavailable_in_worker_log",
+    "scope": "dev_app_ai_worker_owned_disposable_chats"
+  },
+  "cohorts": {
+    "workflow_empty": {
+      "cli": {
+        "clock": "accepted_terminal_command",
+        "groups": {
+          "complex": {
+            "medians_ms": {
+              "cli_start_to_first_text_ms": 17053
+            },
+            "n": 3,
+            "ranges_ms": {
+              "cli_start_to_first_text_ms": [
+                16874,
+                18588
+              ]
+            }
+          },
+          "simple": {
+            "medians_ms": {
+              "cli_start_to_first_text_ms": 14123
+            },
+            "n": 3,
+            "ranges_ms": {
+              "cli_start_to_first_text_ms": [
+                12835,
+                16875
+              ]
+            }
+          }
+        },
+        "runs": [
+          {
+            "case": "complex-1",
+            "cli_start_to_answer_done_ms": 42514,
+            "cli_start_to_command_done_ms": 42514,
+            "cli_start_to_first_text_ms": 18588,
+            "cli_start_to_typing_ms": 6959,
+            "model": "Gemini 3.8 Flash",
+            "status": "passed"
+          },
+          {
+            "case": "complex-2",
+            "cli_start_to_answer_done_ms": 41746,
+            "cli_start_to_command_done_ms": 41746,
+            "cli_start_to_first_text_ms": 16874,
+            "cli_start_to_typing_ms": 7980,
+            "model": "Gemini 3.8 Flash",
+            "status": "passed"
+          },
+          {
+            "case": "complex-3",
+            "cli_start_to_answer_done_ms": 34661,
+            "cli_start_to_command_done_ms": 34661,
+            "cli_start_to_first_text_ms": 17053,
+            "cli_start_to_typing_ms": 8227,
+            "model": "Gemini 3.8 Flash",
+            "status": "passed"
+          },
+          {
+            "case": "simple-1",
+            "cli_start_to_answer_done_ms": 21681,
+            "cli_start_to_command_done_ms": 21681,
+            "cli_start_to_first_text_ms": 14123,
+            "cli_start_to_typing_ms": 7671,
+            "model": "Gemini 3.8 Flash",
+            "status": "passed"
+          },
+          {
+            "case": "simple-2",
+            "cli_start_to_answer_done_ms": 19914,
+            "cli_start_to_command_done_ms": 19914,
+            "cli_start_to_first_text_ms": 12835,
+            "cli_start_to_typing_ms": 8203,
+            "model": "Gemini 3.8 Flash",
+            "status": "passed"
+          },
+          {
+            "case": "simple-3",
+            "cli_start_to_answer_done_ms": 25091,
+            "cli_start_to_command_done_ms": 25091,
+            "cli_start_to_first_text_ms": 16875,
+            "cli_start_to_typing_ms": 10680,
+            "model": "Gemini 3.8 Flash",
+            "status": "passed"
+          }
+        ]
+      },
+      "saved_workflow_count": 0,
+      "web": {
+        "clock": "send_event",
+        "completion_status": "validated",
+        "groups": {
+          "complex": {
+            "medians_ms": {
+              "send_to_completed_ui_state_ms": 29568,
+              "send_to_composer_clear_ms": 14,
+              "send_to_first_answer_ms": 21209,
+              "send_to_user_paint_ms": 124
+            },
+            "n": 3,
+            "ranges_ms": {
+              "send_to_completed_ui_state_ms": [
+                28020,
+                33959
+              ],
+              "send_to_composer_clear_ms": [
+                13,
+                15
+              ],
+              "send_to_first_answer_ms": [
+                19608,
+                26214
+              ],
+              "send_to_user_paint_ms": [
+                114,
+                131
+              ]
+            }
+          },
+          "simple": {
+            "medians_ms": {
+              "send_to_completed_ui_state_ms": 15847,
+              "send_to_composer_clear_ms": 15,
+              "send_to_first_answer_ms": 13712,
+              "send_to_user_paint_ms": 185
+            },
+            "n": 3,
+            "ranges_ms": {
+              "send_to_completed_ui_state_ms": [
+                15733,
+                17620
+              ],
+              "send_to_composer_clear_ms": [
+                12,
+                26
+              ],
+              "send_to_first_answer_ms": [
+                13568,
+                15425
+              ],
+              "send_to_user_paint_ms": [
+                128,
+                338
+              ]
+            }
+          }
+        },
+        "runs": [
+          {
+            "case": "complex-1",
+            "cold": false,
+            "first_text_kind": "authored_answer",
+            "send_to_accepted_thinking_ms": 4951,
+            "send_to_completed_ui_state_ms": 29568,
+            "send_to_composer_clear_ms": 13,
+            "send_to_first_answer_ms": 21209,
+            "send_to_last_authored_text_change_ms": 27877,
+            "send_to_model_visible_ms": 6448,
+            "send_to_user_paint_ms": 114,
+            "status": "passed"
+          },
+          {
+            "case": "complex-2",
+            "cold": false,
+            "first_text_kind": "authored_answer",
+            "send_to_accepted_thinking_ms": 4921,
+            "send_to_completed_ui_state_ms": 33959,
+            "send_to_composer_clear_ms": 14,
+            "send_to_first_answer_ms": 26214,
+            "send_to_last_authored_text_change_ms": 32168,
+            "send_to_model_visible_ms": 6406,
+            "send_to_user_paint_ms": 124,
+            "status": "passed"
+          },
+          {
+            "case": "complex-3",
+            "cold": false,
+            "first_text_kind": "authored_answer",
+            "send_to_accepted_thinking_ms": 5412,
+            "send_to_completed_ui_state_ms": 28020,
+            "send_to_composer_clear_ms": 15,
+            "send_to_first_answer_ms": 19608,
+            "send_to_last_authored_text_change_ms": 25998,
+            "send_to_model_visible_ms": 7173,
+            "send_to_user_paint_ms": 131,
+            "status": "passed"
+          },
+          {
+            "case": "simple-1",
+            "cold": true,
+            "first_text_kind": "authored_answer",
+            "send_to_accepted_thinking_ms": 4740,
+            "send_to_completed_ui_state_ms": 17620,
+            "send_to_composer_clear_ms": 26,
+            "send_to_first_answer_ms": 15425,
+            "send_to_last_authored_text_change_ms": 15939,
+            "send_to_model_visible_ms": 6318,
+            "send_to_user_paint_ms": 185,
+            "status": "passed"
+          },
+          {
+            "case": "simple-2",
+            "cold": false,
+            "first_text_kind": "authored_answer",
+            "send_to_accepted_thinking_ms": 5290,
+            "send_to_completed_ui_state_ms": 15733,
+            "send_to_composer_clear_ms": 12,
+            "send_to_first_answer_ms": 13568,
+            "send_to_last_authored_text_change_ms": 14153,
+            "send_to_model_visible_ms": 6476,
+            "send_to_user_paint_ms": 338,
+            "status": "passed"
+          },
+          {
+            "case": "simple-3",
+            "cold": false,
+            "first_text_kind": "authored_answer",
+            "send_to_accepted_thinking_ms": 6432,
+            "send_to_completed_ui_state_ms": 15847,
+            "send_to_composer_clear_ms": 15,
+            "send_to_first_answer_ms": 13712,
+            "send_to_last_authored_text_change_ms": 14298,
+            "send_to_model_visible_ms": 7654,
+            "send_to_user_paint_ms": 128,
+            "status": "passed"
+          }
+        ]
+      }
+    },
+    "workflow_ten": {
+      "cli": {
+        "clock": "accepted_terminal_command",
+        "groups": {
+          "complex": {
+            "medians_ms": {},
+            "n": 0,
+            "ranges_ms": {}
+          },
+          "simple": {
+            "medians_ms": {
+              "cli_start_to_first_text_ms": 13599
+            },
+            "n": 3,
+            "ranges_ms": {
+              "cli_start_to_first_text_ms": [
+                12531,
+                14359
+              ]
+            }
+          }
+        },
+        "runs": [
+          {
+            "case": "simple-1",
+            "cli_start_to_answer_done_ms": 28128,
+            "cli_start_to_command_done_ms": 28129,
+            "cli_start_to_first_text_ms": 13599,
+            "cli_start_to_typing_ms": 8826,
+            "model": "Gemini 3.8 Flash",
+            "status": "passed"
+          },
+          {
+            "case": "simple-2",
+            "cli_start_to_answer_done_ms": 24427,
+            "cli_start_to_command_done_ms": 24427,
+            "cli_start_to_first_text_ms": 14359,
+            "cli_start_to_typing_ms": 7710,
+            "model": "Gemini 3.8 Flash",
+            "status": "passed"
+          },
+          {
+            "case": "simple-3",
+            "cli_start_to_answer_done_ms": 21226,
+            "cli_start_to_command_done_ms": 21227,
+            "cli_start_to_first_text_ms": 12531,
+            "cli_start_to_typing_ms": 7789,
+            "model": "Gemini 3.8 Flash",
+            "status": "passed"
+          }
+        ]
+      },
+      "saved_workflow_count": 10,
+      "web": {
+        "clock": "send_event",
+        "completion_status": "completion_status_not_validated",
+        "groups": {
+          "complex": {
+            "medians_ms": {},
+            "n": 0,
+            "ranges_ms": {}
+          },
+          "simple": {
+            "medians_ms": {
+              "send_to_composer_clear_ms": 14,
+              "send_to_first_answer_ms": 11440,
+              "send_to_user_paint_ms": 175
+            },
+            "n": 3,
+            "ranges_ms": {
+              "send_to_composer_clear_ms": [
+                13,
+                27
+              ],
+              "send_to_first_answer_ms": [
+                10606,
+                12453
+              ],
+              "send_to_user_paint_ms": [
+                107,
+                314
+              ]
+            }
+          }
+        },
+        "runs": [
+          {
+            "case": "simple-1",
+            "cold": true,
+            "first_text_kind": "authored_answer",
+            "send_to_accepted_thinking_ms": 6398,
+            "send_to_composer_clear_ms": 27,
+            "send_to_first_answer_ms": 12453,
+            "send_to_last_authored_text_change_ms": 12826,
+            "send_to_model_visible_ms": 7818,
+            "send_to_user_paint_ms": 175,
+            "status": "passed"
+          },
+          {
+            "case": "simple-2",
+            "cold": false,
+            "first_text_kind": "authored_answer",
+            "send_to_accepted_thinking_ms": 4683,
+            "send_to_composer_clear_ms": 13,
+            "send_to_first_answer_ms": 10606,
+            "send_to_last_authored_text_change_ms": 10606,
+            "send_to_model_visible_ms": 5889,
+            "send_to_user_paint_ms": 107,
+            "status": "passed"
+          },
+          {
+            "case": "simple-3",
+            "cold": false,
+            "first_text_kind": "authored_answer",
+            "send_to_accepted_thinking_ms": 4894,
+            "send_to_composer_clear_ms": 14,
+            "send_to_first_answer_ms": 11440,
+            "send_to_last_authored_text_change_ms": 11849,
+            "send_to_model_visible_ms": 6000,
+            "send_to_user_paint_ms": 314,
+            "status": "passed"
+          }
+        ]
+      }
+    }
+  },
+  "environment": "dev",
+  "measurement_notes": [
+    "Three trials per client/group are descriptive; provider and queue variability remain.",
+    "CLI version changed from BEFORE to AFTER; CLI latency changes cannot be attributed solely to server changes.",
+    "AFTER browser event times are measured from send_ms; BEFORE browser event times begin at send-button click.",
+    "Web send_to_last_authored_text_change_ms records answer text stabilization; only the empty Workflow web cohort has a validated send_to_completed_ui_state_ms.",
+    "The retained ten Workflow web probe's completion latch was followed by a Working/glow frame, so completion_status_not_validated applies to that cohort.",
+    "Backend worker phases exclude preflight and first-token timing.",
+    "If web source varies by cohort, its exact commit and ETag are recorded; the follow-up fix changes only Send readiness, leaving backend source unchanged."
+  ],
+  "phase": "after",
+  "prompts": {
+    "complex": "Compare two ways to improve city bus reliability under a fixed budget; discuss tradeoffs and recommend a phased plan in four concise bullet points. Do not use tools.",
+    "simple": "Reply with exactly one sentence explaining why the sky looks blue."
+  },
+  "schema": "chat_latency_benchmark_after_v1",
+  "source_identity": {
+    "api_image": "sha256:d23720bafa10f057e825f24709335791cb025a3d3601285f1ff44c83a70c11b3",
+    "app_ai_worker_image": "sha256:c104416219d66de388cf082b7073e20a0eb417f0c683fd1ce5bec92ecf78b102",
+    "cli_version": "0.27.0-alpha.54",
+    "commit": "8fff53e54ceae234f3643814b69e561e8390b2a6",
+    "web_commit_by_cohort": {
+      "workflow_empty": "23319f80fc1792bd483df322debb69d78829f0f8",
+      "workflow_ten": "8fff53e54ceae234f3643814b69e561e8390b2a6"
+    },
+    "web_etag": "\"f5209dc72a7d6957d87259671fb1e7e6\"",
+    "web_etag_by_cohort": {
+      "workflow_empty": "\"45b6759450d25c6f683de11e3583fc78\"",
+      "workflow_ten": "\"f5209dc72a7d6957d87259671fb1e7e6\""
+    }
+  }
+}

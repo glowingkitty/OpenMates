@@ -11,7 +11,7 @@ import { chatKeyManager } from './encryption/ChatKeyManager';
 import {
   approveProjectWrite, getActiveProjectFocus, getProject, getProjectContents,
   getProjectSettings, getProjectFileRevisionReceipt, readEncryptedProjectFile,
-  type ProjectItemViewModel,
+  type ActiveProjectFocus, type ProjectItemViewModel,
 } from './projectService';
 import {
   executeHostedProjectFileJob, type HostedProjectFileAdapter,
@@ -325,12 +325,14 @@ export async function saveProjectMarkdownDocument(input: {
     item_revision: await projectItemRevision(saved) };
 }
 
-export async function collectCustomRuleDocuments(input: { chatId: string; projectId?: string | null }): Promise<CustomRuleDocument[]> {
+export async function collectCustomRuleDocuments(input: {
+  chatId: string; projectId?: string | null; initialFocus?: () => Promise<ActiveProjectFocus | null>;
+}): Promise<CustomRuleDocument[]> {
   if (!get(authStore).isAuthenticated || !get(userProfile).user_id) return [];
   const owner = requireOwner();
   // Personal Memories are advertised only as metadata and supplied after consent.
   const personal: CustomRuleDocument[] = [];
-  const focus = await getActiveProjectFocus(input.chatId);
+  const focus = await (input.initialFocus ? input.initialFocus() : getActiveProjectFocus(input.chatId));
   if (!get(authStore).isAuthenticated || get(userProfile).user_id !== owner) return [];
   if (!focus || input.projectId && focus.project_id !== input.projectId) return personal;
   const project = await listProjectRuleDocuments({ chatId: input.chatId, projectId: focus.project_id });

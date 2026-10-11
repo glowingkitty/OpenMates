@@ -59,3 +59,24 @@ async def test_warmup_shared_rate_limit_precedes_team_lookup():
     from types import SimpleNamespace
     assert await warm_workflow_metadata(cache_service=Cache(), directus_service=SimpleNamespace(team=None),
                                         user_id="alice", team_id="other-team") == "rate_limited"
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.chat.metadata-warmup
+@pytest.mark.asyncio
+async def test_authorized_warm_hit_renews_two_hour_retention_without_discovery(monkeypatch):
+    from unittest.mock import AsyncMock
+    from types import SimpleNamespace
+    from backend.core.api.app.routes.handlers.websocket_handlers import workflow_metadata_warmup_handler as handler
+    redis = SimpleNamespace(set=AsyncMock(return_value=True), expire=AsyncMock(return_value=True))
+    class Cache:
+        @property
+        async def client(self): return redis
+        async def get_user_vault_key_id(self, user_id): return "vault"
+        async def get(self, key): return {"ciphertext": "encrypted metadata"}
+    monkeypatch.setattr(handler, "_versioned_workflow_metadata_key", AsyncMock(return_value="versioned-key"))
+    discover = AsyncMock(side_effect=AssertionError("hit should reuse metadata"))
+    monkeypatch.setattr(handler, "discover_workflow_metadata", discover)
+    assert await warm_workflow_metadata(cache_service=Cache(), directus_service=SimpleNamespace(team=None),
+                                       user_id="alice", team_id=None) == "ready"
+    redis.expire.assert_awaited_once_with("versioned-key", 7200)
+    discover.assert_not_awaited()

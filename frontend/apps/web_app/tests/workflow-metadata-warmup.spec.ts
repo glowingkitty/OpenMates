@@ -10,7 +10,7 @@ const { loginToTestAccount, waitForChatReady, focusMessageEditor } = require('./
 const { email, password, otpKey } = getTestAccount();
 type WarmupFrame = { type: string; payload: Record<string, unknown> };
 
-test.describe('Workflow metadata warmup WebSocket contract', () => {
+test.describe('Chat metadata warmup WebSocket contract', () => {
 	test.setTimeout(180_000);
 	skipWithoutCredentials(test, email, password, otpKey);
 
@@ -25,7 +25,7 @@ test.describe('Workflow metadata warmup WebSocket contract', () => {
 			socket.on('framesent', (frame: { payload?: string }) => {
 				try {
 					const message = JSON.parse(String(frame.payload || ''));
-					if (message.type === 'workflow_metadata_warmup') sentHints.push(message);
+					if (message.type === 'chat_metadata_warmup') sentHints.push(message);
 				} catch { /* WebSocket control frame. */ }
 			});
 		});
@@ -61,14 +61,14 @@ test.describe('Workflow metadata warmup WebSocket contract', () => {
 				socket.addEventListener('open', () => resolve(socket), { once: true });
 				socket.addEventListener('error', () => reject(new Error('Authenticated WebSocket did not open')), { once: true });
 			});
-			const request = (socket: WebSocket, payload: Record<string, unknown>) =>
+			const request = (socket: WebSocket, payload: Record<string, unknown>, type = 'chat_metadata_warmup') =>
 				new Promise<string[]>((resolve, reject) => {
 					const statuses: string[] = [];
 					const timeout = setTimeout(() => { socket.removeEventListener('message', receive); reject(new Error('Warmup result timed out')); }, 20_000);
 					function receive(event: MessageEvent) {
 						let message: WarmupFrame;
 						try { message = JSON.parse(String(event.data)); } catch { return; }
-						if (message.type !== 'workflow_metadata_warmup_result') return;
+						if (message.type !== `${type}_result`) return;
 						const status = message.payload?.status;
 						if (typeof status !== 'string') return;
 						statuses.push(status);
@@ -78,7 +78,7 @@ test.describe('Workflow metadata warmup WebSocket contract', () => {
 						resolve(statuses);
 					}
 					socket.addEventListener('message', receive);
-					socket.send(JSON.stringify({ type: 'workflow_metadata_warmup', payload }));
+					socket.send(JSON.stringify({ type, payload }));
 				});
 			const forbiddenSocket = await openSocket();
 			try {
@@ -87,7 +87,11 @@ test.describe('Workflow metadata warmup WebSocket contract', () => {
 				try {
 					const personal = [];
 					for (let index = 0; index < 4; index += 1) personal.push(await request(personalSocket, {}));
-					return { forbidden, personal };
+					const legacySocket = await openSocket();
+					try {
+						const legacy = await request(legacySocket, {}, 'workflow_metadata_warmup');
+						return { forbidden, personal, legacy };
+					} finally { legacySocket.close(); }
 				} finally { personalSocket.close(); }
 			} finally { forbiddenSocket.close(); }
 		}, authenticatedUrl);
@@ -97,6 +101,8 @@ test.describe('Workflow metadata warmup WebSocket contract', () => {
 			expect(['ready', 'in_progress']).toContain(result[1]);
 		}
 		expect(authenticated.personal[3]).toEqual(['rate_limited']);
+		expect(authenticated.legacy[0]).toBe('accepted');
+		expect(['ready', 'in_progress']).toContain(authenticated.legacy[1]);
 
 		const guestContext = await browser.newContext();
 		try {
@@ -112,7 +118,7 @@ test.describe('Workflow metadata warmup WebSocket contract', () => {
 					const timeout = setTimeout(() => { socket.close(); resolve({ opened, closeCode: 0 }); }, 10_000);
 					socket.addEventListener('open', () => {
 						opened = true;
-						socket.send(JSON.stringify({ type: 'workflow_metadata_warmup', payload: {} }));
+						socket.send(JSON.stringify({ type: 'chat_metadata_warmup', payload: {} }));
 					});
 					socket.addEventListener('close', (event) => { clearTimeout(timeout); resolve({ opened, closeCode: event.code }); });
 				});

@@ -1,11 +1,13 @@
 schema_version: 2
 profile: concise
 id: chat-latency-improvements
-title: Immediate web chat submission and earlier shared processing feedback
+title: Immediate submission and faster general chat processing
 status: implementing
 goal: >-
   Implement and test the difference - both for OpenMates cli requests and web app
   requests once deployed - to compare before and after processing times.
+  Target must be 2-3 seconds max for such a simple request that doesn't use any
+  app skills until the response starts streaming.
 approved_by_user: true
 approval_basis: >-
   The user explicitly specified immediate optimistic submission, collapsed icon-only
@@ -21,6 +23,8 @@ scope:
     - Stage one selects complexity, Mate, apps and Projects, followed immediately by model resolution and existing selected-Mate typing event.
     - Stage two selects skills, Focus modes, Project Focus modes and authorized Workflows; preserve consent, safety, billing and execution gates.
     - Authenticated first-party focus warm-up of bounded authorized Workflow metadata, without draft text, inference or Workflow execution.
+    - Warm preparation on web composer focus and authenticated TUI startup, including later login, Team changes and reconnects; actual requests renew encrypted discovery retention for two hours.
+    - Reduce ordinary no-Project/no-Workflow Send preparation and redundant routing requests while preserving required safety decisions and fresh access checks.
     - Focused component and shared backend/CLI contract checks, scoped dev deployment and matched real-AI CLI/web timing comparison.
   out:
     - Typing-time inference or draft prediction; this proposal was explicitly rejected.
@@ -31,6 +35,10 @@ decisions:
   - Reauthorize selected Workflow details and Project access; cached metadata never grants execution access.
   - Shared early typing events preserve current client protocol and terminal cleanup.
   - Existing explicit user instructions authorize implementation; recording these contracts does not reopen approval.
+  - The first-pass capital question is 7.96 seconds in CLI and 11.238 seconds in web; neither meets the user's 2–3-second authored-stream target.
+  - Required public decisions are evaluated in stage one and reused in stage two. Only a confirmed empty candidate catalogue with complete valid decisions can avoid another Jev call; uncertainty retains the full detailed pass.
+  - Reuse one in-flight initial Project focus read per send, retain later fresh authorization checks, and collect independent Project routing metadata concurrently.
+  - Dragonfly retains encrypted Workflow discovery for two hours with non-expiring invalidation generations; browser Project/Task projections use existing bounded caches. Project access and accepted Plan approval remain fresh rather than receiving a two-hour permission cache.
 specifications:
   - feature.message-input
   - feature.chat-processing-feedback
@@ -42,6 +50,7 @@ acceptance_criteria:
   - Stage-one resolved model and Mate are published before detailed stage-two processing; overrides, consent, safety and terminal-state behavior remain correct.
   - Repeated focus does not trigger inference or duplicate hydration; warm metadata is shared with inference workers and scoped to the authorized owner/Team.
   - Before/after deployed CLI and web samples use the same prompts, account state and model settings, with source identity, sample counts, timings and recording links retained.
+  - Ordinary factual no-tool requests start authored response streaming within the user's 2–3-second target, measured separately from Thinking, reasoning, finalization and command completion; report any samples that miss it.
 required_checks:
   - Focused composer unit tests and runner-local bare component Playwright proof at compact and regular widths.
   - Focused backend tests for two-stage routing, early events, failure/gate cleanup, metadata cache miss/hit, authorization and selected Workflow revalidation.

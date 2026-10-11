@@ -87,11 +87,148 @@
     "capital_answer": "Madrid in all three answers; no apps or tool cycles",
     "events_answer": "Berlin and year tokens in all three answers; events/search preview; one tool cycle each"
   },
-  "web_status": "pending readiness-race repair and deployed verification",
+  "web_status": "passed: six first-attempt runs; fresh context, ready model selector, one visible composer, no loading notification",
   "limitations": [
     "Three samples per prompt, descriptive medians only",
     "No matched BEFORE baseline for these newly requested prompts",
-    "No reliable worker first-visible-answer timestamp",
-    "Event-result usefulness and current scheduling were not independently checked"
-  ]
+    "Event-result usefulness and current scheduling were not independently checked",
+    "Worker logs do not provide reliable first-visible-answer timing; browser and backend phases are separate clocks",
+    "Web Send-click clock differs from CLI accepted-command clock"
+  ],
+  "web_revision": "23319f80fc1792bd483df322debb69d78829f0f8",
+  "web_etag": "\"45b6759450d25c6f683de11e3583fc78\"",
+  "web_timing_definition": "Browser Send click to first authored answer; last authored text change and completed UI state are separate observations",
+  "web": {
+    "events": {
+      "n": 3,
+      "medians_ms": {
+        "send_to_composer_clear_ms": 14,
+        "send_to_user_paint_ms": 144,
+        "send_to_accepted_thinking_ms": 4386,
+        "send_to_model_visible_ms": 5670,
+        "send_to_first_authored_answer_ms": 23235,
+        "send_to_last_authored_text_change_ms": 30280,
+        "send_to_completed_ui_state_ms": 32981
+      },
+      "ranges_ms": {
+        "send_to_composer_clear_ms": [
+          10,
+          24
+        ],
+        "send_to_user_paint_ms": [
+          109,
+          146
+        ],
+        "send_to_accepted_thinking_ms": [
+          3447,
+          4698
+        ],
+        "send_to_model_visible_ms": [
+          4405,
+          6014
+        ],
+        "send_to_first_authored_answer_ms": [
+          18954,
+          24314
+        ],
+        "send_to_last_authored_text_change_ms": [
+          23713,
+          31535
+        ],
+        "send_to_completed_ui_state_ms": [
+          27545,
+          35305
+        ]
+      }
+    },
+    "capital": {
+      "n": 3,
+      "medians_ms": {
+        "send_to_composer_clear_ms": 12,
+        "send_to_user_paint_ms": 122,
+        "send_to_accepted_thinking_ms": 4496,
+        "send_to_model_visible_ms": 5616,
+        "send_to_first_authored_answer_ms": 11238,
+        "send_to_last_authored_text_change_ms": 11867,
+        "send_to_completed_ui_state_ms": 14197
+      },
+      "ranges_ms": {
+        "send_to_composer_clear_ms": [
+          11,
+          15
+        ],
+        "send_to_user_paint_ms": [
+          104,
+          151
+        ],
+        "send_to_accepted_thinking_ms": [
+          3430,
+          6678
+        ],
+        "send_to_model_visible_ms": [
+          4477,
+          8715
+        ],
+        "send_to_first_authored_answer_ms": [
+          10526,
+          12538
+        ],
+        "send_to_last_authored_text_change_ms": [
+          11430,
+          13659
+        ],
+        "send_to_completed_ui_state_ms": [
+          13771,
+          16820
+        ]
+      }
+    }
+  },
+  "web_backend": {
+    "events": {
+      "n": 3,
+      "medians_ms": {
+        "preprocess_ms": 1372,
+        "preprocess_to_main_ms": 1684,
+        "main_stream_ms": 23705
+      },
+      "ranges_ms": {
+        "preprocess_ms": [
+          1251,
+          1443
+        ],
+        "preprocess_to_main_ms": [
+          1467,
+          1783
+        ],
+        "main_stream_ms": [
+          18579,
+          24671
+        ]
+      }
+    },
+    "capital": {
+      "n": 3,
+      "medians_ms": {
+        "preprocess_ms": 1288,
+        "preprocess_to_main_ms": 1585,
+        "main_stream_ms": 5521
+      },
+      "ranges_ms": {
+        "preprocess_ms": [
+          1245,
+          1860
+        ],
+        "preprocess_to_main_ms": [
+          1467,
+          2429
+        ],
+        "main_stream_ms": [
+          3822,
+          6115
+        ]
+      }
+    }
+  },
+  "web_backend_scope": "dev_app_ai_worker_owned_disposable_chats"
 }

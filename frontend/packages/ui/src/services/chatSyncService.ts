@@ -139,6 +139,7 @@ interface PendingProjectFileCommit {
 
 export class ChatSynchronizationService extends EventTarget {
   private lastWorkflowWarmup: { scope: string; at: number } | null = null;
+  private lastChatMetadataPrefetch: { scope: string; at: number } | null = null;
   private lastQueuedSnapshotChat: string | null = null;
   private isSyncing = false;
   private serverChatOrder: string[] = [];
@@ -162,16 +163,29 @@ export class ChatSynchronizationService extends EventTarget {
   private activityFirstObserved = new Map<string, number>();
   private reloadActivityChats: (() => Promise<void>) | undefined;
 
-  public warmWorkflowMetadata(): void {
+  public warmChatMetadata(chatId?: string): void {
     if (!get(authStore).isAuthenticated || get(isLoggingOut) || get(forcedLogoutInProgress)
         || !webSocketService.isConnected()) return;
     const teamId = get(activeTeamId);
-    const scope = `${getWorkspaceCacheIdentity()}:${teamId ?? 'personal'}`;
+    const workspace = getWorkspaceCacheIdentity();
+    const scope = `${workspace}:${teamId ?? 'personal'}`;
     const now = Date.now();
+    const prefetchScope = `${scope}:${chatId ?? 'new'}`;
+    if (this.lastChatMetadataPrefetch?.scope !== prefetchScope
+        || now - this.lastChatMetadataPrefetch.at >= 30_000) {
+      this.lastChatMetadataPrefetch = { scope: prefetchScope, at: now };
+      void import('./chatMetadataWarmup')
+        .then(({ prefetchChatMetadata }) => prefetchChatMetadata({ scope: workspace, teamId, chatId }))
+        .catch(() => { /* The regular Send path retains its authoritative fallback. */ });
+    }
     if (this.lastWorkflowWarmup?.scope === scope && now - this.lastWorkflowWarmup.at < 30_000) return;
     this.lastWorkflowWarmup = { scope, at: now };
-    void webSocketService.sendMessage('workflow_metadata_warmup', teamId ? { team_id: teamId } : {})
-      .catch(() => { this.lastWorkflowWarmup = null; });
+    void webSocketService.sendMessage('chat_metadata_warmup', teamId ? { team_id: teamId } : {})
+      .catch(() => { if (this.lastWorkflowWarmup?.scope === scope) this.lastWorkflowWarmup = null; });
+  }
+
+  public warmWorkflowMetadata(): void {
+    this.warmChatMetadata();
   }
 
   public requestQueuedMessages(chatId: string): void {

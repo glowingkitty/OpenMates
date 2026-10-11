@@ -13,7 +13,20 @@ from backend.core.api.app.services import project_focus_request_service
 from backend.core.api.app.services.billing_service import BillingService
 from backend.core.api.app.utils import server_mode
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
+from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationService
 from backend.tests.test_teams_lifecycle import FakeDirectus
+
+
+@pytest.mark.asyncio
+async def test_private_focus_empty_discovery_marker_requires_fresh_success(monkeypatch):
+    request = SimpleNamespace(user_id="user", chat_id="chat", project_focus_catalog=[])
+    get_active = AsyncMock(return_value=None)
+    monkeypatch.setattr(ProjectWriteAuthorizationService, "get_active_focus", get_active)
+    assert await agentic_context.private_focus_candidates(request, object(), object()) == []
+    assert request._private_focus_candidates_discovery_complete is True
+    get_active.side_effect = RuntimeError("unavailable")
+    assert await agentic_context.private_focus_candidates(request, object(), object()) == []
+    assert request._private_focus_candidates_discovery_complete is False
 
 
 # contract-test: supporting surface=rest_api assertions=teams.chat-billing.team-credit-boundary,teams.membership.role-gated

@@ -28,6 +28,7 @@ vi.mock('../projectService', () => ({
 import { authStore } from '../../stores/authStore';
 import { userProfile } from '../../stores/userProfile';
 import { collectCustomRuleDocuments, personalDocumentMemoryEntries, listPersonalRuleDocuments, savePersonalRuleDocument, saveProjectMarkdownDocument, readActiveProjectMarkdownDocuments } from '../ruleDocumentService';
+import { collectProjectFocusCatalog, collectPrivateFocusForRequest, collectProjectReferenceDocuments } from '../agenticProjectContextService';
 
 const guide = '---\ntitle: Private Python practices\ndescription: Private reusable service practices.\nwhen_to_use: Writing Python services.\n---\n- Preserve cancellation.\n- Release resources.\n';
 const personal = { id: 'personal:r1', document: guide };
@@ -63,6 +64,22 @@ describe('encrypted private Rule transport', () => {
     expect(await collectCustomRuleDocuments({ chatId: 'chat-1' })).toEqual([]);
   });
 
+  // contract-test: supporting surface=gui.web assertions=projects.focus.default-owned,app-memories.selection.source-scoped
+  it('uses one send-scoped initial focus request across all four context collectors', async () => {
+    const first = mocks.activeFocus('chat-1');
+    const initialFocus = vi.fn(() => first);
+    const results = await Promise.all([
+      collectCustomRuleDocuments({ chatId: 'chat-1', initialFocus }),
+      collectProjectFocusCatalog({ chatId: 'chat-1', initialFocus }),
+      collectPrivateFocusForRequest({ chatId: 'chat-1', text: 'Hello', initialFocus }),
+      collectProjectReferenceDocuments({ chatId: 'chat-1', text: 'Hello', initialFocus }),
+    ]);
+    expect(results).toEqual([[], [], [], []]);
+    expect(initialFocus).toHaveBeenCalledTimes(4);
+    expect(mocks.activeFocus).toHaveBeenCalledExactlyOnceWith('chat-1');
+    expect(mocks.readHead).not.toHaveBeenCalled();
+  });
+
   // contract-test: supporting surface=gui.web assertions=app-memories.selection.source-scoped
   it('drops Project documents revoked while the encrypted file is being read', async () => {
     mocks.activeFocus.mockResolvedValue(focus);
@@ -71,6 +88,17 @@ describe('encrypted private Rule transport', () => {
       return { content: { code: guide }, revision: 1, embedKey: new Uint8Array(32), hasInitialHistory: true };
     });
     expect(await collectCustomRuleDocuments({ chatId: 'chat-1', projectId: 'p1' })).toEqual([]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.selection.source-scoped,projects.focus.default-owned
+  it('does not treat a shared initial focus as permission to read Project bodies', async () => {
+    const initialFocus = vi.fn(async () => focus as never);
+    mocks.activeFocus.mockResolvedValue(null);
+    await expect(collectCustomRuleDocuments({ chatId: 'chat-1', projectId: 'p1', initialFocus }))
+      .rejects.toThrow('rule_project_activation_required');
+    expect(initialFocus).toHaveBeenCalledTimes(1);
+    expect(mocks.activeFocus).toHaveBeenCalledTimes(1);
+    expect(mocks.readHead).not.toHaveBeenCalled();
   });
 
   // contract-test: supporting surface=gui.web assertions=app-memories.selection.source-scoped,app-memories.definition.context-documents

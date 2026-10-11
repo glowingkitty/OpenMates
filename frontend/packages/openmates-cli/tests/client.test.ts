@@ -2313,6 +2313,207 @@ describe("task update job helpers", () => {
 
 describe("CLI saved-chat recovery preflight", () => {
   // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
+  it("prepares a new chat's scoped context during recovery discovery", async () => {
+    let projectReadBeforeDiscovery = false;
+    let discoverySent = false;
+    let preflightSent = false;
+    let socket: import("ws").WebSocket | null = null;
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: "11111111-1111-4111-8111-111111111111" } }));
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/projects") {
+        projectReadBeforeDiscovery = !discoverySent;
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ projects: [] }));
+        socket?.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+        discoverySent = true;
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, connection, head) => {
+      wss.handleUpgrade(request, connection, head, (ws) => {
+        socket = ws;
+        ws.on("message", (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string };
+          if (frame.type === "chat_turn_preflight") {
+            preflightSent = true;
+            ws.send(JSON.stringify({ type: "error", payload: { code: "client_update_required" } }));
+          }
+        });
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await assert.rejects(client.sendMessage({ message: "ordinary question", piiDetection: false }), /update required/i);
+      assert.equal(projectReadBeforeDiscovery, true);
+      assert.equal(preflightSent, true);
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
+  for (const mutation of ["setter", "live session"] as const) it(`rejects prepared context after a ${mutation} Team change`, async () => {
+    let client: OpenMatesClient | null = null;
+    let socket: import("ws").WebSocket | null = null;
+    let preflightSent = false;
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: "11111111-1111-4111-8111-111111111111" } }));
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/projects") {
+        assert.ok(client);
+        if (mutation === "setter") client.setActiveTeamId("22222222-2222-4222-8222-222222222222");
+        else client.getSession().activeTeamId = "22222222-2222-4222-8222-222222222222";
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ projects: [] }));
+        socket?.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, connection, head) => {
+      wss.handleUpgrade(request, connection, head, (ws) => {
+        socket = ws;
+        ws.on("message", (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string };
+          if (frame.type === "chat_turn_preflight") preflightSent = true;
+        });
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await assert.rejects(client.sendMessage({ message: "ordinary question", personal: true, piiDetection: false }), /Chat workspace changed while preparing context/);
+      assert.equal(preflightSent, false);
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
+  it("aborts an unfinished context read when recovery discovery fails", { timeout: 5_000 }, async () => {
+    let socket: import("ws").WebSocket | null = null;
+    let projectAborted = false;
+    let socketClosed = false;
+    let projectReadStarted = false;
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: "11111111-1111-4111-8111-111111111111" } }));
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/projects") {
+        projectReadStarted = true;
+        response.on("close", () => { if (!response.writableEnded) projectAborted = true; });
+        socket?.send(JSON.stringify({ type: "error", payload: { code: "client_update_required", message: "Recovery discovery failed." } }));
+        // Leave this response open: the scoped abort must close it promptly.
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, connection, head) => {
+      wss.handleUpgrade(request, connection, head, (ws) => {
+        socket = ws;
+        ws.on("close", () => { socketClosed = true; });
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const startedAt = Date.now();
+      await assert.rejects(client.sendMessage({ message: "ordinary question", piiDetection: false }), /OpenMates CLI update required/);
+      assert.equal(projectReadStarted, true);
+      assert.ok(Date.now() - startedAt < 2_000, "failed send must not wait for the HTTP timeout");
+      await new Promise<void>((resolve) => setTimeout(resolve, 30));
+      assert.equal(projectAborted, true);
+      assert.equal(socketClosed, true);
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
+  it("closes an opened socket when the session disappears before context setup", async () => {
+    let socketClosed = false;
+    let contextRead = false;
+    let preflightSent = false;
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: "11111111-1111-4111-8111-111111111111" } }));
+        return;
+      }
+      if (request.url === "/v1/projects") contextRead = true;
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, connection, head) => {
+      wss.handleUpgrade(request, connection, head, (ws) => {
+        ws.on("close", () => { socketClosed = true; });
+        ws.on("message", (raw) => {
+          if ((JSON.parse(raw.toString()) as { type: string }).type === "chat_turn_preflight") preflightSent = true;
+        });
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const internal = client as unknown as {
+        openWsClient: (...args: never[]) => Promise<{ ws: unknown; ownerId: string | null }>;
+        session: unknown;
+      };
+      const open = internal.openWsClient.bind(client);
+      internal.openWsClient = async (...args: never[]) => {
+        const opened = await open(...args);
+        internal.session = null; // Deterministic forced logout after successful socket open.
+        return opened;
+      };
+      await assert.rejects(client.sendMessage({ message: "ordinary question", piiDetection: false }), /Not logged in/);
+      await new Promise<void>((resolve) => setTimeout(resolve, 30));
+      assert.equal(socketClosed, true);
+      assert.equal(contextRead, false);
+      assert.equal(preflightSent, false);
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
   it("orders immediate personal follow-ups after committed replies", () => {
     assert.equal(nextPersonalUserCreatedAt(100, [100, 101]), 102);
     assert.equal(nextPersonalUserCreatedAt(100, [100, 101, 102, 103]), 104);
@@ -2381,7 +2582,7 @@ describe("CLI saved-chat recovery preflight", () => {
     }
   });
 
-  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity,workflows.chat.metadata-warmup
   it("waits for preflight ack and keeps durable transaction content encrypted", async () => {
     const ownerId = "11111111-1111-4111-8111-111111111111";
     const assistantMessageId = "33333333-3333-4333-8333-333333333333";
@@ -2391,6 +2592,7 @@ describe("CLI saved-chat recovery preflight", () => {
       preflightPayload?: Record<string, unknown>;
       persistPayload?: Record<string, unknown>;
       metadataPayload?: Record<string, unknown>;
+      warmupPayload?: Record<string, unknown>;
       postProcessingPayload?: Record<string, unknown>;
       frameTypes: string[];
       preflightAcknowledged: boolean;
@@ -2425,6 +2627,7 @@ describe("CLI saved-chat recovery preflight", () => {
         ws.on("message", async (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           captured.frameTypes.push(frame.type);
+          if (frame.type === "chat_metadata_warmup") captured.warmupPayload = frame.payload;
           if (frame.type === "chat_turn_preflight") {
             captured.preflightPayload = frame.payload;
             const sealedPayload = await sealChatCompletionRecoveryPayload(
@@ -2566,6 +2769,8 @@ describe("CLI saved-chat recovery preflight", () => {
       assert.equal(JSON.stringify(captured.messagePayload).includes("+1 (555) 123-4567"), false);
 
       assert.ok(captured.preflightPayload);
+      assert.deepEqual(captured.warmupPayload, {});
+      assert.equal(captured.frameTypes.indexOf("chat_metadata_warmup") < captured.frameTypes.indexOf("chat_turn_preflight"), true);
       assert.equal(captured.frameTypes.indexOf("chat_turn_preflight") < captured.frameTypes.indexOf("chat_message_added"), true);
       assert.equal(captured.frameTypes.indexOf("encrypted_chat_metadata") > captured.frameTypes.indexOf("recovery_job_persist"), true);
       assert.equal(captured.metadataPayload?.message_id, undefined);

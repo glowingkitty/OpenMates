@@ -2997,6 +2997,14 @@ async def handle_preprocessing(
                 selected_app_ids=selected_app_ids,
                 authorized_project_id=(authorized_project or {}).get("project_id"),
                 early_decisions=(early_routing or {}).get("early_decisions"),
+                candidate_discovery_complete=lambda: (
+                    getattr(request_data, "_rule_metadata_discovery_complete", False) is True
+                    and getattr(request_data, "_workflow_metadata_discovery_complete", False) is True
+                    and getattr(request_data, "_private_focus_candidates_discovery_complete", False) is True
+                    and not authorized_project
+                    and not (early_routing or {}).get("pending_project_focus_id")
+                    and not (early_routing or {}).get("pending_project_catalog_id")
+                ),
             )
             llm_call_result = LLMPreprocessingCallResult(
                 arguments=decision_arguments,
@@ -3173,7 +3181,7 @@ async def handle_preprocessing(
     )
     complexity_val = model_selection["complexity_val"]
     task_area_val = model_selection["task_area_val"]
-    # The detailed pass still owns the separate subchat decision.
+    # The validated decision is separate from model routing in either pass.
     enable_subchats_val = llm_analysis_args.get("enable_subchats", model_selection["enable_subchats_val"])
     if not isinstance(enable_subchats_val, bool):
         enable_subchats_val = bool(enable_subchats_val)

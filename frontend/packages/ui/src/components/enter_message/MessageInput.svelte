@@ -2722,7 +2722,7 @@
         
         isMessageFieldFocused = true;
         isFocused = true; // Update bindable prop for parent components
-        chatSyncService.warmWorkflowMetadata();
+        chatSyncService.warmChatMetadata(currentChatId);
         if (editor.isEmpty) {
             editor.commands.setContent(getInitialContent(), { emitUpdate: false });
             editor.commands.focus('end');

@@ -2843,17 +2843,19 @@ async def websocket_endpoint(
                     continue
 
             # Process different message types
-            if message_type == "workflow_metadata_warmup":
+            if message_type in {"chat_metadata_warmup", "workflow_metadata_warmup"}:
                 # First-party session-authenticated WS surface. No text, inference, credits,
                 # or response payload; Team membership is checked before cache access.
+                warmup_result_type = f"{message_type}_result"
                 warmup_status, team_id = accept_workflow_warmup_request(workflow_warmup_request_times, payload)
                 await manager.send_personal_message(
-                    {"type": "workflow_metadata_warmup_result", "payload": {"status": warmup_status}},
+                    {"type": warmup_result_type, "payload": {"status": warmup_status}},
                     user_id, device_fingerprint_hash,
                 )
                 if warmup_status == "accepted":
                     async def run_workflow_warmup(scoped_user_id: str = user_id,
-                                                  scoped_team_id: str | None = team_id) -> None:
+                                                  scoped_team_id: str | None = team_id,
+                                                  result_type: str = warmup_result_type) -> None:
                         try:
                             result_status = await warm_workflow_metadata(
                                 cache_service=cache_service, directus_service=directus_service,
@@ -2865,7 +2867,7 @@ async def websocket_endpoint(
                             logger.debug("Optional Workflow metadata warmup unavailable", exc_info=True)
                             result_status = "unavailable"
                         await manager.send_personal_message(
-                            {"type": "workflow_metadata_warmup_result", "payload": {"status": result_status}},
+                            {"type": result_type, "payload": {"status": result_status}},
                             scoped_user_id, device_fingerprint_hash,
                         )
                     warmup_task = asyncio.create_task(run_workflow_warmup())

@@ -36,8 +36,11 @@ before(() => {
 function fakeActivitySocket() {
   const handlers = new Map<string, Set<() => void>>();
   const closeHandlers = new Set<() => void>();
+  const sent: Array<{ type: string; payload: unknown }> = [];
   let closed = false;
   return {
+    sent,
+    send(type: string, payload: unknown) { if (!closed) sent.push({ type, payload }); },
     onMessageType(type: string, handler: () => void) {
       const listeners = handlers.get(type) ?? new Set<() => void>();
       listeners.add(handler); handlers.set(type, listeners);
@@ -49,6 +52,29 @@ function fakeActivitySocket() {
     get closed() { return closed; },
   };
 }
+
+// contract-test: supporting surface=cli assertions=workflows.chat.metadata-warmup
+it('warms chat metadata on the activity socket per scope and reconnect without draft data', async () => {
+  const client = new OpenMatesClient({ apiUrl: 'http://127.0.0.1', session: testSession() });
+  const sockets: ReturnType<typeof fakeActivitySocket>[] = [];
+  (client as unknown as { openWsClient: () => Promise<unknown> }).openWsClient = async () => {
+    const ws = fakeActivitySocket(); sockets.push(ws);
+    return { ws, session: client.getSession(), ownerId: null };
+  };
+  const stop = await client.observeChatActivity(() => {});
+  assert.deepEqual(sockets[0]!.sent, [{ type: 'chat_metadata_warmup', payload: {} }]);
+  client.warmChatMetadata();
+  assert.equal(sockets[0]!.sent.length, 1);
+  client.setActiveTeamId('team-a');
+  client.warmChatMetadata();
+  assert.deepEqual(sockets[0]!.sent[1], { type: 'chat_metadata_warmup', payload: { team_id: 'team-a' } });
+  sockets[0]!.close();
+  await waitFor(() => sockets.length === 2);
+  assert.deepEqual(sockets[1]!.sent, [{ type: 'chat_metadata_warmup', payload: { team_id: 'team-a' } }]);
+  stop();
+  client.warmChatMetadata();
+  assert.equal(sockets[1]!.sent.length, 1);
+});
 
 async function waitFor(check: () => boolean): Promise<void> {
   const deadline = Date.now() + 1_000;

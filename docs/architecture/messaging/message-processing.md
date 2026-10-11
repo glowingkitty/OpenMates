@@ -64,8 +64,8 @@ claims:
 - Check cache for chat history (last 3 chats, vault-encrypted)
   - Cache hit → decrypt with `decrypt_with_user_key()` in [encryption.py](../../backend/core/api/app/utils/encryption.py)
   - Cache miss → send `request_chat_history` to client → client responds with decrypted history + embeds
-- **Pre-processing stage one** → Jev selects complexity, Mate topic, relevant apps and Projects; application code resolves the permitted model/Mate and publishes early typing metadata.
-- **Pre-processing stage two** → choose specific skills, app Focus modes, Project Focus modes, Workflows and requested private context. Model resolution does not wait for this stage.
+- **Pre-processing stage one** → Jev selects complexity, Mate topic, relevant apps and Projects, and evaluates the independent required safety, language and presentation decisions. Application code resolves the permitted model/Mate and publishes early typing metadata.
+- **Pre-processing stage two** → choose specific skills, app Focus modes, Project Focus modes, Workflows and requested private context. Model resolution does not wait for this stage. Complete public decisions are reused; a confirmed empty catalogue requires no additional Jev request. Missing decisions or uncertain discovery retain the detailed call and existing safety gate.
 - **Main processing** → send to LLM with tools and context
 - LLM calls skills → each creates/updates embeds
 - Response streamed via [stream_consumer.py](../../backend/apps/ai/tasks/stream_consumer.py)
@@ -80,7 +80,7 @@ graph LR
     D --> C
     C --> E[Jev stage one<br/>complexity, Mate, apps, Projects]
     E --> R[Resolve permitted model/Mate<br/>emit early typing metadata]
-    R --> P[Jev stage two<br/>skills, Focus, Workflows, context]
+    R --> P[Detailed preprocessing<br/>skills, Focus, Workflows, context<br/>Jev only when needed]
     P --> V[Safety, consent and budget gates]
     V --> F[Main Processing<br/>Selected LLM]
     F --> G{Tool calls?}
@@ -132,7 +132,11 @@ Two caches, different encryption, different purposes:
 
 The first Jev stage owns complexity and Mate topic as well as app/Project routing. Explicit user model/Mate overrides and existing Project, credit and policy constraints retain precedence. The resolved model is available before detailed tool/context selection; stage two cannot silently replace it. Early typing metadata describes progress and does not authorize execution. Rejection, a gate or a terminal failure closes that state.
 
-Workflow routing selects at most 20 candidates before summary hydration, batches routing-blob reads and Vault decryption, and caches bounded metadata encrypted with the user's Vault key for 30 seconds with scope/revision invalidation. Selected Workflow graphs are reauthorized fresh. The web composer can warm this cache on focus with an authenticated, rate-limited hint containing no draft text; it makes no inference request. Typing-time preprocessing is excluded.
+Workflow routing selects at most 20 candidates before summary hydration, batches routing-blob reads and Vault decryption, and caches bounded metadata encrypted with the user's Vault key. Authenticated discovery and warm hits renew two-hour retention. Owner/Team/Vault-key scoping and persistent mutation generations prevent an expired generation from making an older snapshot reachable again; discovery that crosses a mutation does not publish into the new generation. Selected Workflow graphs are reauthorized fresh.
+
+The web composer sends the authenticated, rate-limited `chat_metadata_warmup` hint on focus, without draft text or inference. The legacy `workflow_metadata_warmup` name remains accepted. The TUI sends the hint on its existing activity socket after startup admission, after later login or Team changes, and on reconnect; ordinary saved CLI sends use their existing request socket. Warm-up is optional and never delays optimistic submission or changes a human-only Team send into an AI request. User profile metadata keeps its existing shared-cache policy.
+
+Web focus also prepares the exact Project and Task inventory queries in their existing bounded tab-local caches. This is distinct from Dragonfly Workflow discovery. Server Project/Task/Plan lists do not gain a broad two-hour cache: Project changes have transactional writers, and accepted Plan approval remains an authoritative fresh read. During Send, independent routing metadata and context collectors start concurrently and share one initial focus lookup only within that send's account, Team epoch and chat. Later activation, revision and private-body checks remain fresh. Typing-time inference is excluded.
 
 ### Queued follow-ups and steering
 
@@ -159,6 +163,8 @@ The web, authenticated CLI and Apple share backend routing improvements. Web own
 ## Post-Processing
 
 - Follow-up suggestions generated after response completes
+- The final answer marker follows awaited billing, encrypted recovery preparation and AI cache persistence. The worker then handles queue ownership and awaits postprocessing in the same task; postprocessing is not a detached worker job.
+- Authenticated CLI completion is later than first answer text: it can wait up to 12 seconds for the postprocessing event after the final frame, followed by encrypted recovery and metadata persistence acknowledgements. Measure these boundaries separately when comparing chat speed.
 - See [followup-suggestions.md](../ai/followup-suggestions.md)
 
 ## Edge Cases

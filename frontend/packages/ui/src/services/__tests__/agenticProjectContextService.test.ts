@@ -19,6 +19,7 @@ vi.mock('../projectService', () => ({
 vi.mock('../ruleDocumentService', () => ({ readActiveProjectMarkdownDocuments: mocks.head }));
 import {
   collectProjectFocusCatalog, collectProjectFocusRoutingCandidates, collectPrivateFocusForRequest,
+  collectProjectReferenceDocuments,
   loadAcceptedProjectSpecialistFocusDocument, loadSelectedProjectFocusDocuments, parseProjectFocusDocument,
 } from '../agenticProjectContextService';
 
@@ -51,6 +52,34 @@ describe('Project focus catalog boundaries', () => {
     vi.clearAllMocks();
     expect(await collectProjectFocusCatalog({ chatId: 'chat-1', projectId: 'project-1' })).toEqual([]);
     expect(mocks.project).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=projects.focus.default-owned
+  it('shares one initial focus read across concurrent send collectors without retaining a null result', async () => {
+    mocks.focus.mockResolvedValue(null);
+    const initialRead = mocks.focus('chat-1');
+    const initialFocus = vi.fn(() => initialRead);
+    const results = await Promise.all([
+      collectProjectFocusCatalog({ chatId: 'chat-1', initialFocus }),
+      collectPrivateFocusForRequest({ chatId: 'chat-1', text: 'Hello', initialFocus }),
+      collectProjectReferenceDocuments({ chatId: 'chat-1', text: 'Hello', initialFocus }),
+    ]);
+    expect(results).toEqual([[], [], []]);
+    expect(initialFocus).toHaveBeenCalledTimes(3);
+    expect(mocks.focus).toHaveBeenCalledTimes(1);
+    expect(mocks.project).not.toHaveBeenCalled();
+    mocks.focus.mockResolvedValue({ project_id: 'project-1', team_id: null });
+    expect((await collectProjectFocusCatalog({ chatId: 'chat-1' })).length).toBe(1);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=focus-modes.project-authoring-click,projects.focus.default-owned
+  it('still checks fresh activation before using Project metadata from a shared initial read', async () => {
+    mocks.focus.mockResolvedValue(null);
+    const initialFocus = vi.fn(async () => ({ project_id: 'project-1', team_id: null } as never));
+    expect(await collectProjectFocusCatalog({ chatId: 'chat-1', initialFocus })).toEqual([]);
+    expect(initialFocus).toHaveBeenCalledTimes(1);
+    expect(mocks.focus).toHaveBeenCalledTimes(1);
+    expect(mocks.head).not.toHaveBeenCalled();
   });
 
   // contract-test: supporting surface=gui.web assertions=projects.focus.inferred-consent

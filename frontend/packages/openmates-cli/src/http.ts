@@ -7,6 +7,7 @@
  * Security: cookie parsing stores name/value only; attributes are discarded.
  * Tests: covered via client and CLI integration-style tests.
  */
+import { AsyncLocalStorage } from "node:async_hooks";
 
 export interface HttpClientOptions {
   apiUrl: string;
@@ -37,6 +38,12 @@ export interface SseMessage {
 
 const DEFAULT_JSON_REQUEST_TIMEOUT_MS = 180_000;
 const JSON_REQUEST_TIMEOUT_ENV = "OPENMATES_CLI_HTTP_TIMEOUT_MS";
+const requestAbortScope = new AsyncLocalStorage<AbortSignal>();
+
+/** Cancel only HTTP reads started by this async operation, not other client work. */
+export function withHttpAbortSignal<T>(signal: AbortSignal, operation: () => Promise<T>): Promise<T> {
+  return requestAbortScope.run(signal, operation);
+}
 
 export class OpenMatesHttpClient {
   private readonly apiUrl: string;
@@ -191,7 +198,12 @@ export class OpenMatesHttpClient {
       requestHeaders["Content-Type"] = "application/json";
     }
 
+    const scopedSignal = requestAbortScope.getStore();
+    scopedSignal?.throwIfAborted();
     const controller = new AbortController();
+    const onScopedAbort = () => controller.abort(scopedSignal?.reason);
+    scopedSignal?.addEventListener("abort", onScopedAbort, { once: true });
+    if (scopedSignal?.aborted) onScopedAbort();
     const timeout = setTimeout(() => controller.abort(), getJsonRequestTimeoutMs());
     try {
       let response: Response;
@@ -203,6 +215,7 @@ export class OpenMatesHttpClient {
           signal: controller.signal,
         });
       } catch (error) {
+        if (scopedSignal?.aborted) throw new Error(`HTTP ${method} ${path} cancelled`);
         if (controller.signal.aborted) {
           throw new Error(`HTTP ${method} ${path} timed out after ${getJsonRequestTimeoutMs()}ms`);
         }
@@ -210,14 +223,18 @@ export class OpenMatesHttpClient {
       }
 
       await this.captureCookies(response, path, sessionId, sentToken);
+      scopedSignal?.throwIfAborted();
 
       let data: unknown = {};
       try {
         data = await response.json();
       } catch {
+        if (scopedSignal?.aborted) throw new Error(`HTTP ${method} ${path} cancelled`);
         if (controller.signal.aborted) throw new Error(`HTTP ${method} ${path} timed out`);
         data = {};
       }
+
+      scopedSignal?.throwIfAborted();
 
       return {
         ok: response.ok,
@@ -227,6 +244,7 @@ export class OpenMatesHttpClient {
       };
     } finally {
       clearTimeout(timeout);
+      scopedSignal?.removeEventListener("abort", onScopedAbort);
     }
   }
 

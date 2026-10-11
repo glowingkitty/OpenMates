@@ -2,7 +2,9 @@
 
 The hint carries only owner/Team scope and optional trace context, never draft
 text. It rechecks Team access, bounds repeated work, and only populates the
-short-lived encrypted shared cache used by normal Workflow discovery.
+encrypted shared cache used by normal Workflow discovery. Authenticated use
+renews two-hour retention; current versions and permissions are never cached
+as an execution grant.
 Failures leave the authoritative cold discovery path available.
 """
 from __future__ import annotations
@@ -15,7 +17,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from backend.apps.ai.processing.context_preselection import (
-    _versioned_workflow_metadata_key, discover_workflow_metadata,
+    WORKFLOW_METADATA_TTL_SECONDS, _versioned_workflow_metadata_key, discover_workflow_metadata,
 )
 
 _TRACEPARENT = re.compile(r"^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$")
@@ -40,6 +42,7 @@ async def warm_workflow_metadata(
         return "unavailable"
     key = await _versioned_workflow_metadata_key(cache_service, user_id, team_id, vault_key_id)
     if await cache_service.get(key) is not None:
+        await client.expire(key, WORKFLOW_METADATA_TTL_SECONDS)
         return "ready"
     lock_key = f"{key}:warming"
     lock_token = uuid.uuid4().hex

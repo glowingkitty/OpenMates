@@ -661,9 +661,12 @@ class DirectusWorkflowRepository:
                     with redis.Redis(host=settings.host, port=settings.port,
                                      password=settings.DRAGONFLY_PASSWORD,
                                      socket_connect_timeout=0.2, socket_timeout=0.2) as client:
-                        epoch_key = f"workflow:discovery:epoch:{scope}"
+                        # Discovery snapshots now have sliding two-hour retention.
+                        # A generation must not expire and make an older snapshot
+                        # reachable again; only the encrypted snapshots expire.
+                        epoch_key = f"workflow:discovery:epoch:v2:{scope}"
                         with client.pipeline() as pipe:
-                            pipe.incr(epoch_key).expire(epoch_key, 120).execute()
+                            pipe.incr(epoch_key).persist(epoch_key).execute()
             except Exception:
                 logger.debug("Workflow discovery cache invalidation unavailable", exc_info=True)
         return data

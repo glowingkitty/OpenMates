@@ -119,12 +119,27 @@ async def private_focus_document(request: Any, focus_id: str, directus: Any, cac
 
 
 async def private_focus_candidates(request: Any, directus: Any, cache: Any) -> list[dict]:
-    project = await fresh_project(request, directus, cache)
+    request._private_focus_candidates_discovery_complete = False
+    if not first_party(request):
+        request._private_focus_candidates_discovery_complete = True
+        return []
+    if directus is None or cache is None:
+        return []
+    from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationService
+    try:
+        project = await ProjectWriteAuthorizationService(directus, cache).get_active_focus(
+            user_id=request.user_id, chat_id=request.chat_id,
+        )
+    except Exception:
+        return []
     if not project:
+        request._private_focus_candidates_discovery_complete = True
         return []
     result = []
+    complete = True
     for item in getattr(request, "project_focus_catalog", [])[:20]:
         if not isinstance(item, dict) or not isinstance(item.get("id"), str):
+            complete = False
             continue
         identifier = f"project-focus:{project['project_id']}:{item['id']}"
         # Only the selected body's ready revision is usable by the activation tool.
@@ -132,6 +147,9 @@ async def private_focus_candidates(request: Any, directus: Any, cache: Any) -> l
         if definition and item.get("revision") == definition["item_revision"]:
             result.append({"id": identifier, "title": str(item.get("title", ""))[:200],
                            "summary": str(item.get("summary", ""))[:640]})
+        else:
+            complete = False
+    request._private_focus_candidates_discovery_complete = complete
     return result
 
 

@@ -34,6 +34,7 @@ import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { promptChatErrorReportConsent } from "./chatErrorReportConsent";
 import type { Chat, Message } from "../types/chat";
 import { get } from "svelte/store";
+import { authStore } from "../stores/authStore";
 import { initializeServerStatus, serverStatusStore } from "../stores/serverStatusStore";
 import type { PreparedConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
 import { assertNoConnectedAccountSecretLeak } from "./connectedAccountTokenBrokerService";
@@ -47,7 +48,7 @@ import {
 	isProjectFocusId,
 	type ProjectFocusSendIntent,
 } from "./projectFocusSendPreflight";
-import { deactivateProjectFocus, listProjects } from "./projectService";
+import { deactivateProjectFocus, getActiveProjectFocus, listProjects } from "./projectService";
 import { collectProjectFocusRoutingCandidates, type ProjectFocusRoutingCandidate } from "./agenticProjectContextService";
 import { stageTeamNotificationPreview } from "./teamNotificationPreview";
 import { assertNoOmittedTeamTurns, loadLocalSavedHistoryForSend, loadTeamAIHistory } from "./teamAIHistory";
@@ -58,6 +59,46 @@ import { ordinaryTeamPreflightStorageKey, retainOrReuseOrdinaryTeamPreflight } f
 import { PreflightRejectionError, isPreflightAcknowledgementTimeout, waitForPreflightAcknowledgement } from "./preflightAcknowledgement";
 import { awaitPersonalChatPredecessor, bindPersonalChatTurn, failPersonalChatTurn, reservePersonalChatTurn, type PersonalChatTurn } from "./personalChatTurnBarrier";
 export { isPreflightAcknowledgementTimeout } from "./preflightAcknowledgement";
+
+interface SendRouteScope {
+	teamId: string | null | undefined;
+	messageChatId: string;
+	initialActiveChatId: string | null;
+	activeChatId: string | null;
+	newLocalChat: boolean;
+	newChatActivated: boolean;
+}
+
+/** Team sends retain the existing route fence; personal sends target their captured chat. */
+export function isSendRouteCurrent(scope: SendRouteScope): boolean {
+	if (!scope.teamId) return true;
+	if (!scope.newLocalChat && scope.initialActiveChatId !== null
+		&& scope.initialActiveChatId !== scope.messageChatId) return false;
+	return scope.newLocalChat
+		? (scope.activeChatId === scope.messageChatId
+			|| (!scope.newChatActivated && scope.activeChatId === scope.initialActiveChatId))
+		: scope.activeChatId === scope.initialActiveChatId;
+}
+
+interface SendContextScope extends Omit<SendRouteScope, "teamId"> {
+	capturedWorkspaceIdentity: string | null;
+	currentWorkspaceIdentity: string | null;
+	authenticated: boolean;
+	capturedTeamEpoch: number;
+	currentTeamEpoch: number;
+	capturedTeamId: string | null;
+	chatTeamId: string | null | undefined;
+}
+
+/** A context response belongs to the account, Team and message chat captured at send. */
+export function isSendContextCurrent(scope: SendContextScope): boolean {
+	return scope.capturedWorkspaceIdentity !== null
+		&& scope.authenticated
+		&& scope.currentWorkspaceIdentity === scope.capturedWorkspaceIdentity
+		&& scope.currentTeamEpoch === scope.capturedTeamEpoch
+		&& (!scope.chatTeamId || scope.capturedTeamId === scope.chatTeamId)
+		&& isSendRouteCurrent({ ...scope, teamId: scope.chatTeamId });
+}
 
 const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
 const CHAT_RECOVERY_KEY_VERSION = 1;
@@ -897,12 +938,11 @@ export async function sendNewMessageImpl(
 		const activeChatId = activeChatStore.get();
 		if (newLocalChat && activeChatId === message.chat_id) newChatActivated = true;
 		if (!chat?.team_id || !sendWorkspaceIdentity || sendTeamContext.teamId !== chat.team_id
-			|| (!newLocalChat && sendActiveChatId !== null && sendActiveChatId !== message.chat_id)
 			|| getWorkspaceCacheIdentity() !== sendWorkspaceIdentity
 			|| getActiveTeamContextSnapshot().epoch !== sendTeamContext.epoch
-			|| (newLocalChat
-				? (activeChatId !== message.chat_id && (newChatActivated || activeChatId !== sendActiveChatId))
-				: activeChatId !== sendActiveChatId)) {
+			|| !isSendRouteCurrent({ teamId: chat.team_id, messageChatId: message.chat_id,
+				initialActiveChatId: sendActiveChatId, activeChatId, newLocalChat: !!newLocalChat,
+				newChatActivated })) {
 			throw new Error("Team AI history scope changed before send");
 		}
 	};
@@ -1626,34 +1666,67 @@ export async function sendNewMessageImpl(
 		payload.connected_account_token_refs = connectedAccountContext.tokenRefs;
 	}
 
-	// When user mentioned @memory or @memory-entry in the message, send cleartext so the backend
-	// can use it and not request that category again during this request
-	if (!isIncognitoChat) {
-		try {
-			// Names are transient routing data. Instructions and file content are
-			// loaded only after a confirmed Project focus activation.
-			payload.project_focus_candidates = await collectProjectFocusRoutingCandidates(
-				await listProjects({ teamId: chat?.team_id }), chat?.team_id, contentForServer,
-			);
-		} catch (error) {
-			console.warn("[ChatSyncService:Senders] Project routing metadata unavailable", error);
-		}
-	}
-	if (!isIncognitoChat && contentForServer) {
+	// Keep the captured message chat as the context target. The visible route can
+	// change during a personal send or when a new chat receives its persisted ID.
+	const sendContextStillCurrent = () => {
+		const activeChatId = activeChatStore.get();
+		if (newLocalChat && activeChatId === message.chat_id) newChatActivated = true;
+		return isSendContextCurrent({
+			capturedWorkspaceIdentity: sendWorkspaceIdentity,
+			currentWorkspaceIdentity: getWorkspaceCacheIdentity(),
+			authenticated: get(authStore).isAuthenticated,
+			capturedTeamEpoch: sendTeamContext.epoch,
+			currentTeamEpoch: getActiveTeamContextSnapshot().epoch,
+			capturedTeamId: sendTeamContext.teamId,
+			chatTeamId: chat?.team_id,
+			messageChatId: message.chat_id,
+			initialActiveChatId: sendActiveChatId,
+			activeChatId,
+			newLocalChat: !!newLocalChat,
+			newChatActivated,
+		});
+	};
+	const routingMetadata = !isIncognitoChat
+		? (async () => {
+			try {
+				// Names are transient routing data. Instructions and file content are
+				// loaded only after a confirmed Project focus activation.
+				const candidates = await collectProjectFocusRoutingCandidates(
+					await listProjects({ teamId: chat?.team_id }), chat?.team_id, contentForServer,
+				);
+				if (sendContextStillCurrent()) payload.project_focus_candidates = candidates;
+			} catch (error) {
+				console.warn("[ChatSyncService:Senders] Project routing metadata unavailable", error);
+			}
+		})()
+		: Promise.resolve();
+	const privateContext = !isIncognitoChat && contentForServer ? (async () => {
 		// Each Project collector checks authoritative activation before metadata or
 		// private-body reads. Selection never grants access to another Project.
 		const context = await import('./agenticProjectContextService');
 		const { collectCustomRuleDocuments } = await import('./ruleDocumentService');
 		const { collectRelatedTaskSnapshots } = await import('./relatedTaskContext');
 		const { collectAcceptedPlanContext } = await import('./acceptedPlanContext');
+		if (!sendContextStillCurrent()) return;
+		// This send's four initial focus checks ask the same owner/Team/chat question.
+		// Share only the in-flight read; later freshness checks remain independent.
+		const sharedInitialFocus = getActiveProjectFocus(message.chat_id);
+		// A collector may return early after an ownership change without awaiting
+		// the shared read. Observe rejection while preserving it for each consumer.
+		void sharedInitialFocus.catch(() => {});
+		const initialFocus = async () => {
+			const focus = await sharedInitialFocus;
+			return sendContextStillCurrent() ? focus : null;
+		};
 		const collected = await Promise.allSettled([
-			collectCustomRuleDocuments({ chatId: message.chat_id }),
-			context.collectProjectFocusCatalog({ chatId: message.chat_id }),
-			context.collectPrivateFocusForRequest({ chatId: message.chat_id, text: contentForServer }),
-			context.collectProjectReferenceDocuments({ chatId: message.chat_id, text: contentForServer }),
+			collectCustomRuleDocuments({ chatId: message.chat_id, initialFocus }),
+			context.collectProjectFocusCatalog({ chatId: message.chat_id, initialFocus }),
+			context.collectPrivateFocusForRequest({ chatId: message.chat_id, text: contentForServer, initialFocus }),
+			context.collectProjectReferenceDocuments({ chatId: message.chat_id, text: contentForServer, initialFocus }),
 			collectRelatedTaskSnapshots(chat?.team_id, message.chat_id),
 			collectAcceptedPlanContext({ chatId: message.chat_id, teamId: chat?.team_id }),
 		]);
+		if (!sendContextStillCurrent()) return;
 		const fields = ['custom_memory_documents', 'project_focus_catalog', 'project_focus_documents',
 			'project_context_documents', 'related_task_candidates'] as const;
 		for (let index = 0; index < fields.length; index++) {
@@ -1666,7 +1739,10 @@ export async function sendNewMessageImpl(
 		if (acceptedPlan.status === 'fulfilled' && acceptedPlan.value) {
 			payload.accepted_plan_context = acceptedPlan.value as import('./acceptedPlanContext').AcceptedPlanContext;
 		}
-	}
+	})() : Promise.resolve();
+	await Promise.all([routingMetadata, privateContext]);
+	// When user mentioned @memory or @memory-entry in the message, send cleartext so the backend
+	// can use it and not request that category again during this request
 	if (!isIncognitoChat && contentForServer) {
 		try {
 			const { extractMentionedSettingsMemoriesCleartext } = await import(

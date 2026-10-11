@@ -215,6 +215,87 @@ def _early_routing_questions(topic_areas: list[str], skip_mate_routing: bool) ->
     return questions
 
 
+def _public_decision_questions(is_first_message: bool) -> dict[str, dict[str, Any]]:
+    """Public decisions shared by the first pass and the detailed fallback."""
+    questions: dict[str, dict[str, Any]] = {
+        "temperature": {"type": "choice", "instructions": "Choose the best response-temperature band.",
+                        "criteria": {"precise": "Factual, code, math, legal, safety, or exact transformation",
+                                     "balanced": "Ordinary conversation and mixed tasks",
+                                     "creative": "Open-ended brainstorming or artistic generation"}},
+        "enable_subchats": {"type": "noul", "instructions": "Would parallel subchats materially help because the user explicitly asked for agents/parallel work or the task is a genuinely complex batch, comparison, research, coding, or test effort?"},
+        "model_llm": {"type": "noul", "instructions": "Is the latest request discussing or comparing language models, AI coding assistants, their versions, capabilities, or subscription usage? Merely using a coding assistant to do a task is no."},
+        "model_image": {"type": "noul", "instructions": "Is the latest request discussing or comparing AI image generation/editing models? Merely asking to generate an image is no."},
+        "model_video": {"type": "noul", "instructions": "Is the latest request discussing or comparing AI video generation models? Merely asking to create a video is no."},
+        "model_audio": {"type": "noul", "instructions": "Is the latest request discussing or comparing AI audio, speech, music, or transcription models? Merely asking to create or transcribe audio is no."},
+        "harmful": {"type": "noul", "instructions": "Does the requested assistance clearly and materially facilitate harm to others or illegality? Informational, analytical, defensive, harm-reduction, fictional, and owned-device repair requests are no.",
+                    "criteria": {"true": "Clear actionable facilitation", "false": "Allowed, ambiguous, or non-operational"}},
+        "misuse": {"type": "noul", "instructions": "Does the requested assistance clearly facilitate a malicious scam or hacking action based on intent, rather than sensitive subject matter alone?",
+                   "criteria": {"true": "Clear malicious facilitation", "false": "Benign, defensive, informational, or ambiguous"}},
+        "language": {"type": "choice", "instructions": "Detect the language of the latest user's core instruction, ignoring quoted text, code, and data.",
+                     "criteria": LANGUAGES},
+        "preview": {"type": "choice", "instructions": "Select the one structured embedded-preview type that would be most useful, or none.",
+                    "criteria": PREVIEW_TYPES},
+    }
+    if is_first_message:
+        questions["icon"] = {"type": "choice", "instructions": "Choose one common Lucide icon representing the conversation topic.",
+                             "criteria": ICONS}
+    return questions
+
+
+def _validated_public_decisions(response: DecisionResponse, is_first_message: bool) -> dict[str, Any] | None:
+    """Reject incomplete or malformed public answers instead of assuming safety."""
+    try:
+        questions = _public_decision_questions(is_first_message)
+        choices = {key: choice_value(response, key) for key in ("temperature", "language", "preview")}
+        if is_first_message:
+            choices["icon"] = choice_value(response, "icon")
+        if any(value not in questions[key]["criteria"] for key, value in choices.items()):
+            return None
+        nouls = {key: noul_value(response, key) for key in (
+            "enable_subchats", "model_llm", "model_image", "model_video", "model_audio", "harmful", "misuse")}
+        if any(not 0 <= value <= 1 for value in nouls.values()):
+            return None
+    except (ValueError, KeyError, TypeError):
+        return None
+    return {
+        "temperature": choices["temperature"],
+        "enable_subchats": nouls["enable_subchats"] >= 0.65,
+        "ai_model_topics": [family for family in ("llm", "image", "video", "audio")
+                            if nouls[f"model_{family}"] >= 0.65],
+        "harmful_or_illegal": round(nouls["harmful"] * 10.0, 2),
+        "misuse_risk": round(nouls["misuse"] * 10.0),
+        "output_language": choices["language"],
+        "preview": choices["preview"],
+        "icon_names": [choices["icon"]] if is_first_message else [],
+    }
+
+
+def _complete_public_decisions(value: Any, is_first_message: bool) -> bool:
+    if not isinstance(value, dict):
+        return False
+    try:
+        return (
+            isinstance(value.get("temperature"), str)
+            and value["temperature"] in {"precise", "balanced", "creative"}
+            and type(value.get("enable_subchats")) is bool
+            and isinstance(value.get("ai_model_topics"), list)
+            and all(isinstance(topic, str) and topic in {"llm", "image", "video", "audio"}
+                    for topic in value["ai_model_topics"])
+            and type(value.get("harmful_or_illegal")) in {int, float}
+            and 0 <= value["harmful_or_illegal"] <= 10
+            and type(value.get("misuse_risk")) in {int, float}
+            and 0 <= value["misuse_risk"] <= 10
+            and isinstance(value.get("output_language"), str) and value["output_language"] in LANGUAGES
+            and isinstance(value.get("preview"), str) and value["preview"] in PREVIEW_TYPES
+            and isinstance(value.get("icon_names"), list)
+            and (len(value["icon_names"]) == 1 and isinstance(value["icon_names"][0], str)
+                 and value["icon_names"][0] in ICONS
+                 if is_first_message else value["icon_names"] == [])
+        )
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
 async def decide_app_and_project_routing_with_jev(
     *, model_id: str, secrets_manager: Optional[SecretsManager], message_history: list[Any],
     available_apps: list[str], available_skills: list[str], available_focus_modes: list[str],
@@ -255,6 +336,7 @@ async def decide_app_and_project_routing_with_jev(
     # available before private Rule/Workflow discovery and the detailed pass.
     if topic_areas:
         questions.update(_early_routing_questions(topic_areas, skip_mate_routing))
+        questions.update(_public_decision_questions(is_first_message))
     candidates = [row for row in (project_candidates or [])
                   if row.get("auto_selection", True) is True][:40]
     if candidates:
@@ -286,6 +368,9 @@ async def decide_app_and_project_routing_with_jev(
                 "noticeable_shift" if is_first_message else choice_value(response, "topic_shift")
             ),
         }
+        public_decisions = _validated_public_decisions(response, is_first_message)
+        if public_decisions is not None:
+            result["early_decisions"]["public_decisions"] = public_decisions
     if not candidates:
         logger.info("Compact Project target task=%s outcome=no_eligible_candidate eligible_candidates=0 confidence=n/a",
                     telemetry_task_id)
@@ -375,10 +460,11 @@ async def decide_preprocessing_with_jev(
     selected_app_ids: list[str] | None = None,
     authorized_project_id: str | None = None,
     early_decisions: dict[str, Any] | None = None,
+    candidate_discovery_complete: bool | Callable[[], bool] = False,
 ) -> dict[str, Any]:
     """Return preprocessing arguments matching the existing structured-output schema."""
 
-    # Stage one is deliberately limited to public app capabilities. Project
+    # Stage one sees public app capabilities and public decisions. Project
     # specialist, Rule, and memory catalogues only enter the authorized stage two.
     if available_apps is None:
         inferred = [entry.partition(": ")[0].split("-", 1)[0] for entry in available_skills]
@@ -412,7 +498,7 @@ async def decide_preprocessing_with_jev(
         selected = routing["selected_app_ids"]
         early_decisions = routing.get("early_decisions")
     else:
-        # Reuse is only an app shortlist; all stage-two decisions are fresh.
+        # Reuse the selected app shortlist; public answers need separate validation.
         selected = [app_id for app_id in selected_app_ids if app_id in valid_app_ids]
     selected.extend(app_id for app_id in (forced_app_ids or []) if app_id in valid_app_ids)
     selected = list(dict.fromkeys(selected))
@@ -444,92 +530,15 @@ async def decide_preprocessing_with_jev(
                            and row.get("project_id") == authorized_project_id)
                        or row.get("source") in {"global", None}]
 
-    questions: dict[str, dict[str, Any]] = {
-        "complexity": {
-            "type": "choice",
-            "instructions": "Select the minimum reasoning depth needed for a high-quality answer.",
-            "criteria": {
-                "simple": "Ordinary Q&A, retrieval, direct transformation, or straightforward app skill use.",
-                "complex": "Multi-step reasoning, nuanced long-form work, intricate debugging, proofs, or consequential judgment.",
-                "most_demanding": "Sustained multi-system reasoning with exceptional correctness constraints.",
-            },
-        },
-        "task_area": {
-            "type": "choice",
-            "instructions": "Select the primary task area of the latest user request.",
-            "criteria": {
-                "code": "Programming or software engineering",
-                "math": "Mathematics or formal quantitative reasoning",
-                "creative": "Creative ideation or artistic composition",
-                "instruction": "Writing, transformation, planning, or following detailed instructions",
-                "general": "General knowledge or conversation",
-            },
-        },
-        "temperature": {
-            "type": "choice",
-            "instructions": "Choose the best response-temperature band.",
-            "criteria": {
-                "precise": "Factual, code, math, legal, safety, or exact transformation",
-                "balanced": "Ordinary conversation and mixed tasks",
-                "creative": "Open-ended brainstorming or artistic generation",
-            },
-        },
-        "user_unhappy": {"type": "noul", "instructions": "Does the latest user turn explicitly express dissatisfaction, correction, or frustration with the prior answer?"},
-        "china_sensitive": {"type": "noul", "instructions": "Is this specifically about China-related politics, censorship, human rights, or value comparison involving an authoritarian or one-party system? Ordinary culture, travel, food, language, business, and neutral facts are no."},
-        "enable_subchats": {"type": "noul", "instructions": "Would parallel subchats materially help because the user explicitly asked for agents/parallel work or the task is a genuinely complex batch, comparison, research, coding, or test effort?"},
-        "model_llm": {"type": "noul", "instructions": "Is the latest request discussing or comparing language models, AI coding assistants, their versions, capabilities, or subscription usage? Merely using a coding assistant to do a task is no."},
-        "model_image": {"type": "noul", "instructions": "Is the latest request discussing or comparing AI image generation/editing models? Merely asking to generate an image is no."},
-        "model_video": {"type": "noul", "instructions": "Is the latest request discussing or comparing AI video generation models? Merely asking to create a video is no."},
-        "model_audio": {"type": "noul", "instructions": "Is the latest request discussing or comparing AI audio, speech, music, or transcription models? Merely asking to create or transcribe audio is no."},
-        "topic_area": {
-            "type": "choice",
-            "instructions": "Choose the most specific topic for the latest request; use general_misc only as a fallback.",
-            "criteria": _criteria(topic_areas),
-        },
-        "topic_shift": {
-            "type": "choice",
-            "instructions": "Classify the latest user turn relative to the preceding conversation. First messages are noticeable_shift.",
-            "criteria": {
-                "same_topic": "Same intent or a natural follow-up",
-                "noticeable_shift": "A fundamentally different subject or the first user message",
-                "unclear": "Relationship cannot be determined",
-            },
-        },
-        "harmful": {
-            "type": "noul",
-            "instructions": "Does the requested assistance clearly and materially facilitate harm to others or illegality? Informational, analytical, defensive, harm-reduction, fictional, and owned-device repair requests are no.",
-            "criteria": {"true": "Clear actionable facilitation", "false": "Allowed, ambiguous, or non-operational"},
-        },
-        "misuse": {
-            "type": "noul",
-            "instructions": "Does the requested assistance clearly facilitate a malicious scam or hacking action based on intent, rather than sensitive subject matter alone?",
-            "criteria": {"true": "Clear malicious facilitation", "false": "Benign, defensive, informational, or ambiguous"},
-        },
-        "language": {
-            "type": "choice",
-            "instructions": "Detect the language of the latest user's core instruction, ignoring quoted text, code, and data.",
-            "criteria": LANGUAGES,
-        },
-        "preview": {
-            "type": "choice",
-            "instructions": "Select the one structured embedded-preview type that would be most useful, or none.",
-            "criteria": PREVIEW_TYPES,
-        },
-    }
-    if is_first_message:
-        questions["icon"] = {
-            "type": "choice",
-            "instructions": "Choose one common Lucide icon representing the conversation topic.",
-            "criteria": ICONS,
-        }
-    if skip_mate_routing:
-        # An explicit, validated Mate fixes the category. Preserve task, safety,
-        # language, app, skill and model decisions without asking for Mate routing.
-        questions.pop("topic_area")
-        questions.pop("topic_shift")
+    questions = _early_routing_questions(topic_areas, skip_mate_routing)
     if early_decisions:
         for key in ("complexity", "task_area", "user_unhappy", "china_sensitive", "topic_area", "topic_shift"):
             questions.pop(key, None)
+    public_decisions = (early_decisions or {}).get("public_decisions")
+    if not _complete_public_decisions(public_decisions, is_first_message):
+        public_decisions = None
+    if public_decisions is None:
+        questions.update(_public_decision_questions(is_first_message))
 
     skill_map = _add_multi_select_questions(
         questions, "skill", available_skills,
@@ -569,26 +578,30 @@ async def decide_preprocessing_with_jev(
         safe_effective_focus = {}
     state["effective_focus"] = safe_effective_focus
 
+    # Empty candidate lists can also mean a discovery failure. Only a known
+    # complete catalogue permits the zero-question second pass.
+    discovery_complete = (candidate_discovery_complete()
+                          if callable(candidate_discovery_complete) else candidate_discovery_complete)
+    if not questions and not discovery_complete:
+        questions.update(_public_decision_questions(is_first_message))
+        public_decisions = None
     response = await _evaluate_preprocessing_questions(
-        state=state,
-        questions=questions,
-        secrets_manager=secrets_manager,
-        model_id=model_id,
-        telemetry_task_id=telemetry_task_id,
-    )
+        state=state, questions=questions, secrets_manager=secrets_manager,
+        model_id=model_id, telemetry_task_id=telemetry_task_id,
+    ) if questions else None
 
     temperature = {"precise": 0.2, "balanced": 0.4, "creative": 0.8}[
-        choice_value(response, "temperature")
+        public_decisions["temperature"] if public_decisions else choice_value(response, "temperature")
     ]
-    preview = choice_value(response, "preview")
+    preview = public_decisions["preview"] if public_decisions else choice_value(response, "preview")
     result: dict[str, Any] = {
         "llm_response_temp": temperature,
         "complexity": early_decisions["complexity"] if early_decisions else choice_value(response, "complexity", min_confidence=0.05),
         "task_area": early_decisions["task_area"] if early_decisions else choice_value(response, "task_area", min_confidence=0.05),
         "user_unhappy": early_decisions["user_unhappy"] if early_decisions else noul_value(response, "user_unhappy") >= 0.5,
         "china_model_sensitive": early_decisions["china_model_sensitive"] if early_decisions else noul_value(response, "china_sensitive") >= 0.5,
-        "enable_subchats": noul_value(response, "enable_subchats") >= 0.65,
-        "ai_model_topics": [
+        "enable_subchats": public_decisions["enable_subchats"] if public_decisions else noul_value(response, "enable_subchats") >= 0.65,
+        "ai_model_topics": public_decisions["ai_model_topics"] if public_decisions else [
             family for family in ("llm", "image", "video", "audio")
             if noul_value(response, f"model_{family}") >= 0.65
         ],
@@ -604,11 +617,11 @@ async def decide_preprocessing_with_jev(
         "topic_shift": early_decisions.get("topic_shift") if early_decisions else (None if skip_mate_routing else (
             "noticeable_shift" if is_first_message else choice_value(response, "topic_shift")
         )),
-        "harmful_or_illegal": round(noul_value(response, "harmful") * 10.0, 2),
-        "misuse_risk": round(noul_value(response, "misuse") * 10.0),
-        "output_language": choice_value(response, "language"),
+        "harmful_or_illegal": public_decisions["harmful_or_illegal"] if public_decisions else round(noul_value(response, "harmful") * 10.0, 2),
+        "misuse_risk": public_decisions["misuse_risk"] if public_decisions else round(noul_value(response, "misuse") * 10.0),
+        "output_language": public_decisions["output_language"] if public_decisions else choice_value(response, "language"),
         "title": None,
-        "icon_names": [choice_value(response, "icon")] if is_first_message else [],
+        "icon_names": public_decisions["icon_names"] if public_decisions else ([choice_value(response, "icon")] if is_first_message else []),
         "selected_app_ids": selected,
     }
     return result

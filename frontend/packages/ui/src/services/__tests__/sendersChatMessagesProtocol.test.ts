@@ -47,6 +47,7 @@ import {
 	resolveHistoryCategoryForInference,
   shouldIncludePreflightChatMetadata,
 	shouldSkipClientCodeBlockExtraction,
+	isSendContextCurrent,
 } from "../sendersChatMessages";
 import { shouldUpdateMessage } from "../db/messageOperations";
 
@@ -61,6 +62,42 @@ const TEAM_MESSAGE = {
 };
 
 describe("sendersChatMessages protocol fences", () => {
+	describe("captured send context", () => {
+		const personalScope = {
+			capturedWorkspaceIdentity: "account-a|personal|epoch-1",
+			currentWorkspaceIdentity: "account-a|personal|epoch-1",
+			authenticated: true,
+			capturedTeamEpoch: 1,
+			currentTeamEpoch: 1,
+			capturedTeamId: null,
+			chatTeamId: null,
+			messageChatId: "new-chat",
+			initialActiveChatId: null,
+			activeChatId: null,
+			newLocalChat: true,
+			newChatActivated: false,
+		};
+
+		// contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+		it("retains a new chat's Project context when its persisted chat becomes active during discovery", () => {
+			expect(isSendContextCurrent({ ...personalScope, activeChatId: "new-chat", newChatActivated: true })).toBe(true);
+			const teamScope = { ...personalScope, capturedWorkspaceIdentity: "account-a|team-a|epoch-1",
+				currentWorkspaceIdentity: "account-a|team-a|epoch-1", capturedTeamId: "team-a", chatTeamId: "team-a" };
+			expect(isSendContextCurrent({ ...teamScope, activeChatId: "new-chat", newChatActivated: true })).toBe(true);
+			expect(isSendContextCurrent({ ...teamScope, activeChatId: "other-chat", newChatActivated: true })).toBe(false);
+		});
+
+		// contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+		it("retains a deferred personal send's captured chat after navigation but fences owner changes", () => {
+			const navigated = { ...personalScope, initialActiveChatId: "original-chat",
+				messageChatId: "original-chat", activeChatId: "other-chat", newLocalChat: false };
+			expect(isSendContextCurrent(navigated)).toBe(true);
+			expect(isSendContextCurrent({ ...navigated, authenticated: false })).toBe(false);
+			expect(isSendContextCurrent({ ...navigated, currentWorkspaceIdentity: "account-b|personal|epoch-1" })).toBe(false);
+			expect(isSendContextCurrent({ ...navigated, currentTeamEpoch: 2 })).toBe(false);
+			expect(isSendContextCurrent({ ...navigated, chatTeamId: "team-a", capturedTeamId: "team-a" })).toBe(false);
+		});
+	});
 	describe("durable embed bundle HMAC", () => {
 		let previousCrypto: Crypto;
 		beforeEach(() => {

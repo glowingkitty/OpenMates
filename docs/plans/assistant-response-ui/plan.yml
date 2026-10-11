@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: assistant-response-ui
 title: Chronological assistant response processing and internal glow
-status: implementing
+status: verified
 goal: 'Implement to the web app the updated assistant response UI shown in Figma and the screenshot: internal bottom
   rainbow glow, initial Thinking with model and region below, skill embeds where called, preview information at
   the top and expandable completed thinking/app summaries.'
@@ -48,3 +48,7 @@ required_checks:
 - Isolated processing lifecycle, live/final/reopen document and historical embed product checks.
 - Compare approved aspects against reference and rendered CI evidence; retain recordings for all attempts.
 - Owning Specifications and Plan validation, generated metadata and scoped diff check.
+
+verification:
+  deployed_revision: 8fff53e54ceae234f3643814b69e561e8390b2a6
+  evidence: docs/plans/chat-latency-improvements/verification.md

@@ -231,6 +231,14 @@ async def _load_main_agentic_context(
     initial: bool, explicit_dependency_task_ids: frozenset[str] = frozenset(),
 ) -> tuple[str, list]:
     """Load bounded fresh references after authority; references grant no tools."""
+    async def timed(stage: str, operation):
+        started = time.monotonic()
+        try:
+            return await operation
+        finally:
+            logger.info("[Task ID: %s] [AGENTIC_CONTEXT] stage=%s elapsed_ms=%.1f",
+                        task_id, stage, (time.monotonic() - started) * 1000)
+
     async def rules():
         selected = getattr(preprocessing, "relevant_rules", None)
         if initial and selected is not None:
@@ -253,11 +261,16 @@ async def _load_main_agentic_context(
     async def related():
         if not agentic_context.first_party(request):
             return []
-        chats = await fetch_related_chat_summaries(request, task_id, cache, directus)
-        tasks = await fetch_related_task_candidates(
-            request, directus, client_summaries=getattr(request, "related_task_candidates", []),
-            explicit_dependency_task_ids=explicit_dependency_task_ids,
+        chats, tasks = await asyncio.gather(
+            timed("related_chats", fetch_related_chat_summaries(request, task_id, cache, directus)),
+            timed("related_tasks", fetch_related_task_candidates(
+                request, directus, client_summaries=getattr(request, "related_task_candidates", []),
+                explicit_dependency_task_ids=explicit_dependency_task_ids,
+            )),
+            return_exceptions=True,
         )
+        if isinstance(chats, BaseException) or isinstance(tasks, BaseException):
+            return []
         candidates = [RelatedWorkCandidate.from_chat_summary(item, authorized=True) for item in chats] + tasks
         project = request.current_project or {}
         selected = await select_related_work(
@@ -266,19 +279,20 @@ async def _load_main_agentic_context(
             model_id=decision_model, secrets_manager=secrets_manager,
         )
         return [item.as_context() for item in selected]
-    initial_binding = await agentic_context.fresh_project(request, directus, cache)
+    initial_binding = await timed("initial_binding", agentic_context.fresh_project(request, directus, cache))
     outcomes = await asyncio.gather(
-        rules(), workflows(), related(), agentic_context.selected_project_documents(
+        timed("rules", rules()), timed("workflows", workflows()), timed("related", related()),
+        timed("project_documents", agentic_context.selected_project_documents(
             request=request, directus=directus, cache=cache, model_id=decision_model,
             secrets_manager=secrets_manager, effective_instructions=effective_instructions,
-        ), return_exceptions=True,
+        )), return_exceptions=True,
     )
     guides, graphs, references, documents = [value if isinstance(value, list) else [] for value in outcomes]
     # Selected Project facts and reusable guidance share Memory transparency.
     # The resolver above checked current activation, ownership and source revision.
     from backend.shared.python_utils.memory_loader import MemoryDefinition
     import hashlib
-    current_binding = await agentic_context.fresh_project(request, directus, cache)
+    current_binding = await timed("final_binding", agentic_context.fresh_project(request, directus, cache))
     if (current_binding or {}).get("activation_id") != (initial_binding or {}).get("activation_id"):
         documents = []
         guides = [guide for guide in guides if guide.source == "app"]

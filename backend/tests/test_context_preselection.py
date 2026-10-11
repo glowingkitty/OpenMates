@@ -77,6 +77,12 @@ async def test_workflow_discovery_uses_shared_cache_and_falls_back_on_cache_erro
     request = SimpleNamespace(user_id="alice", team_id=None)
     cached = [{"workflow_id": "wf", "current_version_id": "v1"}]
     service = object()
+    expire = AsyncMock(return_value=True)
+    class Cache:
+        @property
+        async def client(self):
+            return SimpleNamespace(expire=expire)
+    cache = Cache()
     monkeypatch.setattr(context_preselection, "_workflow_service", AsyncMock(return_value=(service, "vault")))
     cache_read = AsyncMock(return_value=cached)
     cache_write = AsyncMock()
@@ -87,14 +93,16 @@ async def test_workflow_discovery_uses_shared_cache_and_falls_back_on_cache_erro
     discovery_calls = []
     monkeypatch.setattr(saved_workflow_context, "saved_workflow_metadata",
                         lambda *args, **kwargs: discovery_calls.append(args) or cached)
-    assert await context_preselection.discover_workflow_metadata(request, object()) == cached
+    assert await context_preselection.discover_workflow_metadata(request, cache) == cached
     assert discovery_calls == []
+    expire.assert_awaited_once_with("key", 7200)
+    assert request._workflow_metadata_discovery_complete is True
     cache_read.side_effect = RuntimeError("cache unavailable")
-    assert await context_preselection.discover_workflow_metadata(request, object()) == cached
+    assert await context_preselection.discover_workflow_metadata(request, cache) == cached
     assert len(discovery_calls) == 1
     cache_write.assert_awaited_once()
     versioned_key.side_effect = RuntimeError("epoch cache unavailable")
-    assert await context_preselection.discover_workflow_metadata(request, object()) == cached
+    assert await context_preselection.discover_workflow_metadata(request, cache) == cached
     assert len(discovery_calls) == 2
     cache_write.assert_awaited_once()  # no write into an unknown cache generation
 
@@ -104,7 +112,51 @@ def test_workflow_cache_epoch_scopes_personal_and_team_authoring():
     from backend.core.api.app.services.workflow_service import _hash_owner_id, _hash_team_id
     personal = context_preselection._workflow_metadata_epoch_key("alice", None)
     team = context_preselection._workflow_metadata_epoch_key("alice", "team-id")
-    assert personal == f"workflow:discovery:epoch:{_hash_owner_id('alice')}"
-    assert team == f"workflow:discovery:epoch:{_hash_team_id('team-id')}"
+    assert personal == f"workflow:discovery:epoch:v2:{_hash_owner_id('alice')}"
+    assert team == f"workflow:discovery:epoch:v2:{_hash_team_id('team-id')}"
     assert team == context_preselection._workflow_metadata_epoch_key("bob", "team-id")
     assert personal != team
+
+
+# contract-test: supporting surface=rest_api assertions=rules.selection.focus-aware,workflows.chat.relevance-discovery
+@pytest.mark.asyncio
+async def test_empty_selection_does_not_reload_unselected_private_catalogues(monkeypatch):
+    rules = AsyncMock(side_effect=AssertionError("no Rule body was selected"))
+    workflows = AsyncMock(side_effect=AssertionError("no Workflow was selected"))
+    monkeypatch.setattr(context_preselection, "_rules", rules)
+    monkeypatch.setattr(context_preselection, "_workflow_service", workflows)
+    request = SimpleNamespace(user_id="alice", team_id=None)
+    assert await context_preselection.reload_preselected_rules(request, None, None, [], []) == []
+    assert await context_preselection.reload_preselected_workflows(request, None, []) == []
+    rules.assert_not_awaited()
+    workflows.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=rules.selection.focus-aware,workflows.chat.metadata-warmup
+@pytest.mark.asyncio
+async def test_failed_discovery_is_not_confirmed_empty(monkeypatch):
+    request = SimpleNamespace(user_id="alice", team_id=None)
+    monkeypatch.setattr(context_preselection, "_rules", AsyncMock(side_effect=RuntimeError("offline")))
+    assert await context_preselection.discover_rule_metadata(request, None, None, []) == []
+    assert request._rule_metadata_discovery_complete is False
+    monkeypatch.setattr(context_preselection, "_workflow_service", AsyncMock(return_value=None))
+    assert await context_preselection.discover_workflow_metadata(request, None) == []
+    assert request._workflow_metadata_discovery_complete is False
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.chat.metadata-warmup
+@pytest.mark.asyncio
+async def test_workflow_cache_generation_change_forces_discovery_without_stale_publish(monkeypatch):
+    from backend.apps.workflows.skills import saved_workflow_context
+    request = SimpleNamespace(user_id="alice", team_id=None)
+    monkeypatch.setattr(context_preselection, "_workflow_service", AsyncMock(return_value=(object(), "vault")))
+    keys = iter(["before", "after", "after"])
+    monkeypatch.setattr(context_preselection, "_versioned_workflow_metadata_key", AsyncMock(side_effect=lambda *args: next(keys)))
+    monkeypatch.setattr(context_preselection, "_cached_workflow_metadata", AsyncMock(return_value=[{"workflow_id": "removed"}]))
+    fresh = [{"workflow_id": "new", "current_version_id": "v2"}]
+    monkeypatch.setattr(saved_workflow_context, "saved_workflow_metadata", lambda *args, **kwargs: fresh)
+    save = AsyncMock()
+    monkeypatch.setattr(context_preselection, "_save_workflow_metadata", save)
+    assert await context_preselection.discover_workflow_metadata(request, object()) == fresh
+    assert request._workflow_metadata_discovery_complete is True
+    save.assert_not_awaited()

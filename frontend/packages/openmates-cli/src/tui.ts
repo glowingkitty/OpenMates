@@ -77,6 +77,9 @@ export async function runTui(
 
   let closed = false;
   let stopActivity: (() => void) | undefined;
+  let workspaceReady = false;
+  let activityOwner: string | null = null;
+  let activityEpoch = 0;
   let activityTimer: ReturnType<typeof setTimeout> | undefined;
   let refreshingActivity = false;
   let identityScope = '';
@@ -128,6 +131,25 @@ export async function runTui(
       hydrateExamples(state);
     }
   };
+  const syncActivityObserver = () => {
+    if (!workspaceReady || closed) return;
+    const session = state.signedIn && client.hasSession() && typeof client.getSession === 'function' ? client.getSession() : null;
+    const owner = session ? JSON.stringify([session.apiUrl, session.hashedEmail, session.sessionId,
+      session.createdAt, session.masterKeyExportedB64]) : null;
+    if (owner === activityOwner) return;
+    activityOwner = owner;
+    const epoch = ++activityEpoch;
+    stopActivity?.(); stopActivity = undefined;
+    if (!owner || typeof client.observeChatActivity !== 'function') return;
+    void client.observeChatActivity(() => {
+      if (closed || activityEpoch !== epoch || activityOwner !== owner) return;
+      teamChatRefresh?.request();
+      clearTimeout(activityTimer); activityTimer = setTimeout(() => { void refreshActivity(); }, 300);
+    }).then(stop => {
+      if (closed || activityEpoch !== epoch || activityOwner !== owner) stop();
+      else stopActivity = stop;
+    }).catch(() => { /* Polling still repairs activity state. */ });
+  };
   const render = () => {
     if (closed) return;
     syncSessionView();
@@ -159,6 +181,8 @@ export async function runTui(
     }
     workspaceScope=nextScope;
     state.activeTeamId = teamId;
+    syncActivityObserver();
+    if (workspaceReady && state.signedIn && typeof client.warmChatMetadata === 'function') client.warmChatMetadata();
     if (teamId && state.signedIn && nextScope) {
       if (nextScope !== identityScope) {
         identityScope=nextScope;
@@ -200,6 +224,7 @@ export async function runTui(
 
   const finish = (result: TuiResult) => {
     closed = true;
+    activityEpoch++;
     state.homeAbortController?.abort();
     Object.values(state.chatContextAuthoringControls).forEach(control => control.stop());
     stopHomeSync();stopActivity?.(); teamChatRefresh?.dispose(); clearTimeout(activityTimer); clearInterval(activityPoll); clearInterval(activityAnimation);
@@ -217,15 +242,11 @@ export async function runTui(
   const startup = createTuiStartup({ state, render, closed: () => closed, services: startupServices,
     updated: () => finish({ action: "restart" }),
     ready: () => {
+      workspaceReady = true;
+      syncActivityObserver();
       void loadHomeData(state, client, render);
       void refreshActivity();
       warmTuiWorkspaceLists(client);
-      if (state.signedIn && typeof client.observeChatActivity === 'function') {
-        void client.observeChatActivity(() => {
-          teamChatRefresh?.request();
-          clearTimeout(activityTimer); activityTimer = setTimeout(() => { void refreshActivity(); }, 300);
-        }).then(stop => { if (closed) stop(); else stopActivity = stop; }).catch(() => { /* Polling still repairs activity state. */ });
-      }
     },
   });
   terminal.enter();

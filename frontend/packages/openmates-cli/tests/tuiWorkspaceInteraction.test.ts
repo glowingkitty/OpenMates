@@ -40,6 +40,67 @@ afterEach(async () => {
   }
 });
 
+// contract-test: supporting surface=cli assertions=workflows.chat.metadata-warmup
+test("TUI admits metadata warmup after startup and replaces its activity observer on account changes", async () => {
+  const terminal = new FakeTerminal();
+  let signedIn = true;
+  let session = {apiUrl:"https://warmup.example",hashedEmail:"owner-a",sessionId:"session-a",
+    activeTeamId:null as string | null,createdAt:1,masterKeyExportedB64:"key-a"};
+  const events: string[] = [];
+  const {client} = fakeClient({
+    hasSession: () => signedIn,
+    getSession: () => session,
+    getActiveTeamId: () => session.activeTeamId,
+    observeChatActivity: async () => {
+      const owner = session.hashedEmail;
+      events.push(`observe:${owner}`);
+      return () => events.push(`stop:${owner}`);
+    },
+    warmChatMetadata: () => events.push(`warm:${session.hashedEmail}:${session.activeTeamId ?? 'personal'}`),
+  });
+  const run = runTui(client as never, terminal);
+  await tick();
+  assert.equal(events.filter(event => event === 'observe:owner-a').length, 1);
+  assert.ok(events.includes('warm:owner-a:personal'));
+  session.activeTeamId = 'team-a';
+  terminal.press('\u0002', {ctrl:true,name:'b'}); await tick();
+  assert.ok(events.includes('warm:owner-a:team-a'));
+  session = {...session,hashedEmail:'owner-b',sessionId:'session-b',activeTeamId:null};
+  terminal.press('\u0002', {ctrl:true,name:'b'}); await tick();
+  assert.ok(events.includes('stop:owner-a'));
+  assert.equal(events.filter(event => event === 'observe:owner-b').length, 1);
+  signedIn = false;
+  terminal.press('\u0002', {ctrl:true,name:'b'}); await tick();
+  assert.ok(events.includes('stop:owner-b'));
+  const warms = events.filter(event => event.startsWith('warm:')).length;
+  terminal.press('\u0002', {ctrl:true,name:'b'}); await tick();
+  assert.equal(events.filter(event => event.startsWith('warm:')).length, warms);
+  terminal.press('\u0003', {ctrl:true,name:'c'}); await run;
+});
+
+// contract-test: supporting surface=cli assertions=workflows.chat.metadata-warmup
+test("TUI starts metadata warmup when a guest signs in after startup", async () => {
+  const terminal = new FakeTerminal();
+  let signedIn = false;
+  terminal.suspend = async <T>(_run: () => Promise<T>): Promise<T> => {
+    signedIn = true;
+    return undefined as T;
+  };
+  const events: string[] = [];
+  const session = {apiUrl:"https://warmup.example",hashedEmail:"owner-a",sessionId:"session-a",
+    activeTeamId:null,createdAt:1,masterKeyExportedB64:"key-a"};
+  const {client} = fakeClient({hasSession:()=>signedIn,getSession:()=>session,getActiveTeamId:()=>null,
+    observeChatActivity:async()=>{events.push('observe');return()=>events.push('stop');},
+    warmChatMetadata:()=>events.push('warm')});
+  const run = runTui(client as never, terminal);
+  await tick();
+  assert.deepEqual(events, []);
+  terminal.type('/login'); terminal.enterKey(); await tick();
+  assert.equal(events.filter(event=>event==='observe').length, 1);
+  assert.ok(events.includes('warm'));
+  terminal.press('\u0003',{ctrl:true,name:'c'}); await run;
+});
+
 test("public example embed cards open from their bundled content without an account fetch", async () => {
   const state = createInitialTuiState();
   state.activeExample = {embeds:[{embed_id:"example-embed",type:"app_skill_use",content:"app_id: web\nskill_id: search\nquery: Cargo planes\nstatus: finished",parent_embed_id:null,embed_ids:null}]} as typeof state.activeExample;
