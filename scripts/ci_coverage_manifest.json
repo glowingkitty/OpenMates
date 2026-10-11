@@ -567,6 +567,7 @@
         "cli-tui-chrome-settings-proof.spec.ts",
         "cli-tui-workspace-proof.spec.ts",
         "cli-tui-streaming-render-proof.spec.ts",
+        "cli-tui-mentions-proof.spec.ts",
         "cli-tui-workspace-details-proof.spec.ts",
         "cli-workflow-data-branches.spec.ts",
         "cli-workflow-skill-safety.spec.ts",
