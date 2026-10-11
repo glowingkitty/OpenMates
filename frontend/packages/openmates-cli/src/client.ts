@@ -9928,7 +9928,11 @@ export class OpenMatesClient {
           } catch (error) {
             if (error instanceof WebSocketProtocolError) {
               if (error.code === "version_conflict") {
-                const latestCache = await this.ensureSynced(true, [chatId], { teamId });
+                // The send socket already owns typed recovery output replay for
+                // this turn. This second socket only refreshes messages_v; a
+                // normal sync here would ACK the same pending outputs first.
+                const latestCache = await this.ensureSynced(true, [chatId], { teamId }, false,
+                  undefined, undefined, { skipTypedRecoveryOutputReplay: true });
                 const latestChat = latestCache.chats.find(
                   (chat) => String(chat.details.id ?? "") === chatId,
                 );
@@ -15680,6 +15684,7 @@ export class OpenMatesClient {
     includeMessageContentRefresh = false,
     onSyncedCache?: (cache: SyncCache) => Promise<void>,
     signal?: AbortSignal,
+    syncBehavior: { skipTypedRecoveryOutputReplay?: boolean } = {},
   ): Promise<SyncCache> {
     signal?.throwIfAborted();
     const teamId = this.resolveTeamContext(options);
@@ -15998,7 +16003,7 @@ export class OpenMatesClient {
       await ws.waitForRecoveryOutputDiscovery();
       signal?.throwIfAborted();
       const pages = ws.drainAvailableRecoveryOutputPages();
-      if (pages.length > 0) {
+      if (pages.length > 0 && !syncBehavior.skipTypedRecoveryOutputReplay) {
         if (!ownerId) throw new Error("Authenticated owner identity is required for recovery output replay.");
         const currentCache: SyncCache = {
           syncedAt: Date.now(), totalChatCount, loadedChatCount: chats.length,
@@ -16031,7 +16036,8 @@ export class OpenMatesClient {
 
     if (persistedTaskJobIds.size > 0 || persistedWorkflowDeliveryCount > 0 || recoveredOutputCount > 0) {
       this.invalidateSyncedHistory(teamId);
-      return this.ensureSynced(true, refreshChatIds, { teamId }, includeMessageContentRefresh, onSyncedCache, signal);
+      return this.ensureSynced(true, refreshChatIds, { teamId }, includeMessageContentRefresh,
+        onSyncedCache, signal, syncBehavior);
     }
 
     const cache: SyncCache = {

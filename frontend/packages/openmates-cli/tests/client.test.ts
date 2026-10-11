@@ -3336,6 +3336,139 @@ describe("CLI saved-chat recovery preflight", () => {
 
   }
 
+  // contract-test: supporting surface=sdks.npm assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+  it("refreshes a terminal version conflict without replaying the same typed output twice", async () => {
+    const ownerId = "11111111-1111-4111-8111-111111111111";
+    const assistantId = "33333333-3333-4333-8333-333333333333";
+    const jobId = "44444444-4444-4444-8444-444444444444";
+    const outputId = "55555555-5555-4555-8555-555555555555";
+    const recordId = "66666666-6666-4666-8666-666666666666";
+    const output = (chatId: string, turnId: string) => ({
+      record_id: recordId, root_chat_id: chatId, target_chat_id: chatId,
+      turn_id: turnId, subject_id: outputId, output_kind: "embed",
+      output_version: 1, chat_key_version: 1,
+    });
+    const captured: {
+      preflight?: Record<string, any>; sealed?: string; nestedDiscovery: number;
+      persistVersions: number[]; nestedReplay: number; originalReplay: number;
+      pending: boolean;
+    } = { nestedDiscovery: 0, persistVersions: [], nestedReplay: 0, originalReplay: 0, pending: true };
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: ownerId } }));
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/settings/export-account-data?include_usage=false&include_invoices=false") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ data: { app_settings_memories: [] } }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, socket, head) => {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+        ws.on("message", async (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, any> };
+          if (frame.type === "chat_turn_preflight") {
+            captured.preflight = frame.payload;
+            captured.sealed = JSON.stringify(await sealChatCompletionRecoveryPayload(
+              new TextEncoder().encode(JSON.stringify({
+                assistant_message_id: assistantId, category: "general_knowledge",
+                chat_id: frame.payload.chat_id, content: "recovered answer",
+                job_id: jobId, key_version: 1, model_name: "test-model",
+                turn_id: frame.payload.turn_id,
+              })), {
+                recoveryPublicKey: String(frame.payload.recovery_public_key), ownerId,
+                chatId: String(frame.payload.chat_id), turnId: String(frame.payload.turn_id),
+                jobId, assistantMessageId: assistantId, keyVersion: 1,
+              },
+            ));
+            ws.send(JSON.stringify({ type: "chat_turn_preflight_ack", payload: {
+              preflight_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+              turn_id: frame.payload.turn_id,
+            } }));
+          } else if (frame.type === "chat_message_added") {
+            const message = frame.payload.message as Record<string, any>;
+            ws.send(JSON.stringify({ type: "chat_message_confirmed", payload: {
+              chat_id: frame.payload.chat_id, message_id: message.message_id,
+            } }));
+            setTimeout(() => {
+              ws.send(JSON.stringify({ type: "ai_message_update", payload: {
+                chat_id: frame.payload.chat_id, user_message_id: message.message_id,
+                message_id: assistantId, full_content_so_far: "streamed answer", is_final_chunk: true,
+                recovery_job_id: jobId, recovery_protocol_version: 1,
+                recovery_turn_id: captured.preflight?.turn_id,
+              } }));
+              ws.send(JSON.stringify({ type: "recovery_outputs_available", payload: {
+                outputs: [output(String(frame.payload.chat_id), String(captured.preflight?.turn_id))],
+              } }));
+            }, 10);
+          } else if (frame.type === "recovery_job_claim") {
+            ws.send(JSON.stringify({ type: "recovery_job_claimed", payload: {
+              job_id: jobId, state: "LEASED", lease_token: "lease-token-1", lease_generation: 3,
+              sealed_payload: captured.sealed, chat_id: captured.preflight?.chat_id,
+              turn_id: captured.preflight?.turn_id, assistant_message_id: assistantId,
+              chat_key_version: 1,
+            } }));
+          } else if (frame.type === "recovery_job_persist") {
+            captured.persistVersions.push(Number(frame.payload.expected_messages_v));
+            ws.send(JSON.stringify(captured.persistVersions.length === 1
+              ? { type: "error", payload: { code: "version_conflict", message: "stale chat version", job_id: jobId } }
+              : { type: "recovery_job_persisted", payload: { job_id: jobId, state: "TERMINAL", committed_messages_v: 4 } }));
+          } else if (frame.type === "phased_sync_request") {
+            captured.nestedDiscovery += 1;
+            ws.send(JSON.stringify({ type: "recovery_outputs_available", payload: {
+              outputs: [output(String(captured.preflight?.chat_id), String(captured.preflight?.turn_id))],
+            } }));
+            ws.send(JSON.stringify({ type: "phase_2_last_20_chats_ready", payload: {
+              total_chat_count: 1, chats: [{ chat_details: {
+                id: captured.preflight?.chat_id,
+                encrypted_chat_key: captured.preflight?.encrypted_chat_key,
+                messages_v: 3, title_v: 0, draft_v: 0,
+              } }],
+            } }));
+            ws.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+          }
+        });
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      (client as any).replayRecoveryOutputPages = async (_ws: unknown, _owner: unknown, pages: any[][]) => {
+        assert.equal(pages.flat()[0]?.record_id, recordId);
+        captured.nestedReplay += 1;
+        if (!captured.pending) throw new Error("recovery_output_not_found");
+        captured.pending = false;
+        return 1;
+      };
+      (client as any).replayCurrentTurnRecoveryOutputPages = async (_ws: unknown, _owner: unknown, pages: any[][]) => {
+        assert.equal(pages.flat()[0]?.record_id, recordId);
+        captured.originalReplay += 1;
+        if (!captured.pending) throw new Error("recovery_output_not_found");
+        captured.pending = false;
+      };
+      const result = await client.sendMessage({ message: "Create an editable diagram" });
+      assert.equal(result.assistant, "recovered answer");
+      assert.deepEqual(captured.persistVersions, [1, 3]);
+      assert.equal(captured.nestedDiscovery, 1);
+      assert.equal(captured.nestedReplay, 0);
+      assert.equal(captured.originalReplay, 1);
+      assert.equal(captured.pending, false);
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   // contract-test: supporting surface=cli assertions=focus-modes.full-instruction,focus-modes.restoration
   for (const restoredFocus of ["jobs-career_insights", null]) {
