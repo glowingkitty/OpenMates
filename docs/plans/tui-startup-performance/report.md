@@ -30,8 +30,8 @@ Coverage checks cold/unsorted caches, field preservation, invalid ciphertext and
 AAD, nonextractability/import counts, owner changes with the same key, Team/key
 switches, cancellation, unauthorized Team keys, network window ordering and draft
 preservation. The synthetic terminal recording verifies the actual local SDK and
-TUI without claiming server/auth timing. The authenticated rich-chat recording
-also checks returning home and reopening while offline.
+TUI without claiming server/auth timing. The authenticated rich-chat recording was attempted, but API 503 responses
+prevented login/chat creation; it does not establish live-account parity.
 
 The public chat-home `/refresh` now updates in place, preserving the selected card,
 composer draft and route. It previously rerouted after loading, reset selection
@@ -40,3 +40,23 @@ focused interaction regression fails before the fix and passes with it.
 
 
 The terminal composer now opens a web-aligned `@` picker using available live model routes, Mates, app skills, focus modes, Projects, populated memory categories and entries, and Wikipedia. The private catalog loads lazily through the existing encrypted account/Team-scoped cache; keystroke filtering and animation ticks do not refetch it. Only selecting a Project fetches that Project’s current write mode; failures fall back to read access. Already cached Project folders/files can be suggested without enumerating remote files while typing. Enter/Tab and click select without sending, model suggestions use the existing encrypted model preference service, and delayed work is fenced against owner, route and draft changes. Wikipedia searches are debounced and limited to five results.
+
+
+Published TypeScript CLI revisions retain the owner/key boundaries. The final
+release is 0.27.0-alpha.58, installed on the dev server; release run 38134973213
+passed 1,139 checks. Focused local terminal checks passed 422 cases. Exact-source
+isolated run 38135300266 passed autocomplete, and run 38135303029 passed cached
+startup/refresh and streaming with an open mention picker. Their source is
+97ac6ec41e2fb1db4f1a54f166c91545c8e63c94, published as 9aa12825c4c092af42e29a0bbc99129c7477a2d5.
+
+All 51 raw recordings, including failed attempts, retries and recorded profiles,
+were uploaded. The additional captioned autocomplete proof was rejected for blank
+opening/closing frames and cue/state timing mismatch; its failed recording and
+review are retained and uploaded. This is a proof-workflow limitation, not a
+passing visual proof. No terminal design was changed to hide it.
+
+Remaining evidence: a successful authenticated rich-chat/offline-reopen recording
+when the API is available, and repaired caption timing/capture markers. Next
+performance targets are cold module loading (observed about 355–385 ms separately
+from these cache measurements) and batched embed hydration, preserving encrypted
+persistence and account/Team/cancellation fences.

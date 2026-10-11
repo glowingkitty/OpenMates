@@ -19,3 +19,7 @@ checks:
   - Focused mention catalog and lifecycle checks plus isolated terminal autocomplete recording.
 evidence:
   benchmark: docs/plans/tui-startup-performance/report.md
+  release: CLI 0.27.0-alpha.58; GitHub release run 38134973213 passed 1,139 checks
+  focused: 422 terminal checks passed
+  isolated: Autocomplete 38135300266 and cache/streaming 38135303029 passed
+  limitations: Live rich-chat setup failed with API 503; captioned proof review rejected cue timing and blank edge frames
