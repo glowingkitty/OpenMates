@@ -47,6 +47,10 @@ decisions:
   - The d59 ordinary retest still misses the target (capital medians 7.208 seconds CLI and 8.344 seconds web); Berlin CLI regressed to 31.009 seconds. Keep first authored text separate from optimistic UI, reasoning, tool execution and command completion.
   - Defer only same-scope uncertain queue history reconciliation while an ordinary send prepares its outbound frame. A successful awaited user-frame dispatch permits an ordered queue refresh; failure and changed authentication, Team or connection scope retain normal reconciliation.
   - Match optional app-skill and sub-chat prompt guidance to the final forwarded capabilities. A built-in Task tool alone does not justify app-skill or sub-chat guidance; retain independent questions and safety rules.
+  - The 9bd ordinary retest regressed in all four prompt/client medians (capital 17.836 seconds CLI and 15.201 seconds web; Berlin 41.392 seconds CLI and 33.452 seconds web). Keep the latency outcome open and preserve actual provider timeouts/retries and first-chunk delays separately from local preparation and completion.
+  - AF4 did not exercise same-chat uncertain queue deferral on an active send. The worker has two prefork children and independent chats overlapped; neither global serialization nor provider quota exhaustion is established by the task-start gap.
+  - Keep the completed web composer, assistant-response, queued-edit/steer and editable microphone-transcript outcomes distinct from the unmet authored-streaming target. Native Apple presentation is not separately verified.
+  - Further latency work must account for pre-provider preparation as well as provider tail delays. Do not omit required no-tool output, safety, privacy or question instructions, silently change the approved Gemini 3.8 LOW default, or attribute small timing cohorts to a branch they did not exercise.
 specifications:
   - feature.message-input
   - feature.chat-processing-feedback
@@ -68,3 +72,5 @@ required_checks:
 evidence:
   - baseline-summary.json contains retained observational timing, not a matched before/after control.
   - Controlled benchmark results and recordings are recorded separately from the retained diagnosis.
+  - AF4's twelve actual inference turns passed on deployed 9bd2039 and pinned CLI alpha.61; all seven valid recordings uploaded. The first browser launch failed before requests or capture, and the delayed retry limits comparison of local load.
+  - Focused AF4 checks passed 52 frontend and 64 backend cases; the two browser cases passed on tested source f78f64b3, whose thirteen selected product paths equal the published source. Generated-index regeneration does not imply a CI run on the derivative SHA.

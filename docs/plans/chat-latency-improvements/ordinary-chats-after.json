@@ -393,6 +393,143 @@
         "Queued batch association with web capital trial 2 is an inference, not a verified chat-ID join.",
         "Queued-frame deferral and tool-provenance predicate follow-ups are unpublished and unmeasured."
       ]
+    },
+    {
+      "name": "AF4_published_source_live_retest",
+      "product_revision": "9bd203923b684f7e7606026840ed6a07239a2d40",
+      "backend_tree": "c88b9d5db73dc2717792a8b2519bb229639c8d65",
+      "runtime_operation": "docker-9f81bac8",
+      "web_etag": "W/\"6cf9269246462f3f53dce2a09f8ab1f5\"",
+      "cli_version": "0.27.0-alpha.61",
+      "cli_npm_git_head": "f42ae96f2d3f48da646a13beca17b097150722c6",
+      "saved_workflow_count": 0,
+      "project_target": "none",
+      "eligible_project_catalogue_candidates_per_capital_turn": 2,
+      "n_per_prompt_per_client": 3,
+      "status": "12 actual inference turns passed",
+      "target_first_authored_capital_ms": [
+        2000,
+        3000
+      ],
+      "target_met": false,
+      "first_authored_answer_ms": {
+        "cli": {
+          "capital": 17836,
+          "events": 41392
+        },
+        "web": {
+          "capital": 15201,
+          "events": 33452
+        }
+      },
+      "first_authored_answer_trials_ms": {
+        "cli": {
+          "capital": [
+            22112,
+            17836,
+            12111
+          ],
+          "events": [
+            69466,
+            41392,
+            26855
+          ]
+        },
+        "web": {
+          "capital": [
+            15575,
+            15201,
+            7245
+          ],
+          "events": [
+            30222,
+            47746,
+            33452
+          ]
+        }
+      },
+      "capital_cli_command_done_median_ms": 24627,
+      "events_cli_command_done_median_ms": 94636,
+      "web_send_relative_ui": {
+        "composer_clear": {
+          "median_ms": 15.5,
+          "range_ms": [
+            13,
+            36
+          ]
+        },
+        "user_row": {
+          "median_ms": 131.0,
+          "range_ms": [
+            36,
+            250
+          ]
+        }
+      },
+      "owned_backend_joins": 12,
+      "main_model": "google/gemini-3.8-flash",
+      "capital": {
+        "cli_forwarded_tool": "task_create",
+        "cli_forwarded_tool_count_per_turn": 1,
+        "web_forwarded_tool_count_per_turn": 0,
+        "tool_calls_per_turn": 0,
+        "jev_stage1_per_turn": 1,
+        "jev_stage2_per_turn": 1,
+        "provider_first_chunk_timeout_cli_trial_1_ms": 15000,
+        "provider_first_chunk_wait_cli_trial_2_ms": 11540,
+        "provider_first_chunk_wait_web_trial_2_ms": 10350,
+        "cache_read_input_tokens": null,
+        "cache_read_input_tokens_note": "Unreported is not zero."
+      },
+      "events": {
+        "called_skill": "events-search",
+        "skill_calls_per_turn": 1,
+        "provider_fallback_attempts_by_case": {
+          "cli": [
+            3,
+            0,
+            0
+          ],
+          "web": [
+            0,
+            2,
+            0
+          ]
+        },
+        "web_trial_2_reported_cache_read_input_tokens": 11696
+      },
+      "web_capital_trial_1": {
+        "post_message_to_handler_gap_ms": 1935,
+        "sequential_batch_handler_ms": 1741,
+        "batch_to_current_chat_attribution": "unproven; server log omits chat ID",
+        "prior_owned_events_task_finished_to_worker_start_ms": 32,
+        "other_logged_active_task_during_admission_gap": false,
+        "worker_prefork_children": 2,
+        "worker_child_pid_in_retained_lifecycle_log": false,
+        "admission_gap_cause": "unresolved; consumer receipt and second-child occupancy unobserved",
+        "ai_task_announced_to_task_prerun_ms": 3526,
+        "task_prerun_to_task_body_entry_ms": 5,
+        "consumer_received_log_present": false,
+        "child_init_or_recycle_log_in_gap": false
+      },
+      "queue_deferral_exposure": {
+        "same_chat_uncertain_snapshots_before_first_text": 0,
+        "observed_pre_answer_batch_requests_for_other_chats": 5,
+        "observed_pre_answer_batch_requests_containing_active_chat": 0,
+        "latency_benefit_established": false
+      },
+      "capture_note": "Initial browser startup failed before browser creation; zero inference and no clip. Same six-case web capture succeeded after local matching-shell repair, with partial rather than AF3-like concurrent overlap.",
+      "media_receipt": "7/7 valid recordings uploaded; signed links retained in private session evidence.",
+      "limitations": [
+        "Three non-randomized trials per client/prompt and different local capture overlap; descriptive only.",
+        "CLI accepted-command and browser Send-click are distinct origins; completion is separate from authored text.",
+        "Provider timeouts and long waits occurred, but quota pressure is not established.",
+        "Worker lifecycle starts at task_prerun; retained log lacks consumer receipt, child PID or child initialization/recycle record during web capital-1 admission. Neither broker wait, worker-slot contention nor global serialization is proven.",
+        "Server batch log omits chat ID; active-chat batch attribution is unverified.",
+        "No active Project target does not mean no eligible Project candidates.",
+        "Capital provider cache-read counts were unreported, not zero.",
+        "Active-send same-chat uncertain queued-snapshot deferral was not observed, so its latency benefit is unmeasured."
+      ]
     }
   ]
 }
