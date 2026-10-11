@@ -5,6 +5,7 @@ import {fileURLToPath} from 'node:url';
 import {createCipheriv,randomBytes} from 'node:crypto';
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {join} from 'node:path';
+import {tmpdir} from 'node:os';
 if(!process.execArgv.includes('--experimental-strip-types')){
  const result=spawnSync(process.execPath,['--experimental-strip-types',fileURLToPath(import.meta.url)],{stdio:'inherit',env:process.env});
  process.exit(result.status??1);
@@ -14,7 +15,8 @@ const {OpenMatesClient}=await import('../../src/client.ts');
 const {runTui}=await import('../../src/tui.ts');
 const {TuiTerminal}=await import('../../src/tuiTerminal.ts');
 const {noStartupPrompts}=await import('../tuiTestServices.ts');
-const {resolveStateDir}=await import('../../src/storage.ts');
+const {resolveStateDir,saveSession}=await import('../../src/storage.ts');
+if(!resolveStateDir().startsWith(join(tmpdir(),'openmates-')))throw Error('Synthetic fixture requires a disposable OpenMates test directory.');
 const master=Buffer.alloc(32,11),key=Buffer.alloc(32,22),id='11111111-1111-4111-8111-111111111111';
 const encrypt=(value,k=key)=>{const iv=randomBytes(12),c=createCipheriv('aes-256-gcm',k,iv);return Buffer.concat([iv,c.update(value),c.final(),c.getAuthTag()]).toString('base64');};
 const cache={syncedAt:Date.now(),loadedChatCount:160,totalChatCount:160,embeds:[],embedKeys:[],
@@ -27,6 +29,7 @@ mkdirSync(resolveStateDir(),{recursive:true,mode:0o700});
 writeFileSync(join(resolveStateDir(),'sync_cache.json'),JSON.stringify(cache),{mode:0o600});
 const client=new OpenMatesClient({session:{apiUrl:'https://synthetic.invalid',sessionId:'synthetic-cache-session',cookies:{},wsToken:null,
  masterKeyExportedB64:master.toString('base64'),hashedEmail:'synthetic-owner',userEmailSalt:'salt',createdAt:1,autoLogoutMinutes:null,authorizerDeviceName:'Synthetic'}});
+saveSession(client.getSession(),{replace:true});
 // Public/remote ancillary startup services are deterministic. Real encrypted
 // listCachedChats/getChatMessages/getCachedDraft and all TUI routing are retained.
 client.http.get=client.http.post=async()=>{throw Error('Synthetic offline fixture: network unavailable');};

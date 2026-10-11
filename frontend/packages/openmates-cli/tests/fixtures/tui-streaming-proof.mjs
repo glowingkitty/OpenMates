@@ -3,6 +3,8 @@
 import {register} from 'node:module';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {join} from 'node:path';
+import {tmpdir} from 'node:os';
 if(!process.execArgv.includes('--experimental-strip-types')) {
   const result=spawnSync(process.execPath,['--experimental-strip-types',fileURLToPath(import.meta.url)],{stdio:'inherit',env:process.env});
   process.exit(result.status??1);
@@ -20,6 +22,9 @@ const second=first+'\n\nSecond paragraph follows in source order.';
 const final=second+'\n\nComplete response.';
 const session={apiUrl:'https://example.invalid',sessionId:'synthetic-stream-session',cookies:{},wsToken:null,
   masterKeyExportedB64:Buffer.alloc(32).toString('base64'),hashedEmail:'synthetic-owner',userEmailSalt:'salt',createdAt:1,autoLogoutMinutes:null,authorizerDeviceName:'Synthetic'};
+const {resolveStateDir,saveSession}=await import('../../src/storage.ts');
+if(!resolveStateDir().startsWith(join(tmpdir(),'openmates-')))throw Error('Synthetic fixture requires a disposable OpenMates test directory.');
+saveSession(session,{replace:true});
 const client={apiUrl:'https://example.invalid',hasSession:()=>true,getActiveTeamId:()=>null,
   getSession:()=>session,resolveTeamContext:()=>null,
   getAppsWorkspaceCatalog:async()=>({apps:[{id:'web',name:'Web',skills:[{id:'search',name:'Search'}]}]}),
