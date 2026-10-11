@@ -146,12 +146,20 @@ def runtime_app(monkeypatch):
             return "owner-key" if owner == "owner" else None
 
     class DirectusMetadata:
+        team_chats = set()
+        active_teams = set()
+
         async def get_items(self, collection, params, **kwargs):
-            assert collection == "chats" and params["fields"] == "id,hashed_team_id"
             assert kwargs == {"no_cache": True, "admin_required": True}
+            if collection == "team_memberships":
+                assert params["fields"] == "hashed_team_id"
+                return [{"hashed_team_id": team_hash} for team_hash in self.active_teams
+                        if team_hash in params["filter[hashed_team_id][_in]"].split(",")]
+            assert collection == "chats" and params["fields"] == "id,hashed_team_id"
             if params["filter[hashed_user_id][_eq]"] != hashlib.sha256(b"owner").hexdigest():
                 return []
-            return [{"id": chat} for chat in params["filter[id][_in]"].split(",") if chat in owned]
+            return [{"id": chat, "hashed_team_id": hashlib.sha256(b"team").hexdigest() if chat in self.team_chats else None}
+                    for chat in params["filter[id][_in]"].split(",") if chat in owned]
 
     app.state.cache_service = RuntimeCache()
     app.state.directus_service = DirectusMetadata()
@@ -182,6 +190,127 @@ async def test_worker_to_api_ipc_rechecks_owner_and_active_turn(monkeypatch):
     assert not await ipc.read(owner_id="owner", current_chat_id="current", task_id="task-current",
                               authorized_chat_ids=["related"])
     assert encryption.decrypt_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_api_owner_index_cold_and_explicit_empty_shortlist(monkeypatch):
+    app, _tasks, _owned, encryption = runtime_app(monkeypatch)
+    ipc = RecentWorkSummaryClient(base_url="http://runtime", token="service-token",
+                                  transport=httpx.ASGITransport(app=app))
+    assert await ipc.read(owner_id="owner", current_chat_id="current", task_id="task-current") == []
+    assert await ipc.write(owner_id="owner", chat_id="related", task_id="task-related", revision="r1",
+                           text="transient summary", assistant_completed_at=time.time())
+    assert [item.source.chat_id for item in await ipc.read(
+        owner_id="owner", current_chat_id="current", task_id="task-current")] == ["related"]
+    assert await ipc.read(owner_id="owner", current_chat_id="current", task_id="task-current",
+                          authorized_chat_ids=[]) == []
+    assert encryption.decrypt_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_api_owner_index_authorizes_before_final_cap_and_keeps_cross_project(monkeypatch):
+    app, _tasks, owned, encryption = runtime_app(monkeypatch)
+    cache = recent_work_internal.recent_work_summary_cache
+    now = time.time()
+    for index in range(25):
+        assert await cache.put(owner_id="owner", chat_id=f"revoked-{index}", project_id="current-project",
+                               revision=f"r{index}", text="inaccessible summary", vault_key_id="owner-key",
+                               encryption=encryption, authorized=True, assistant_completed_at=now)
+    assert await cache.put(owner_id="owner", chat_id="related", project_id="other-project",
+                           revision="cross-r1", text="cross project summary", vault_key_id="owner-key",
+                           encryption=encryption, authorized=True, assistant_completed_at=now)
+    ipc = RecentWorkSummaryClient(base_url="http://runtime", token="service-token",
+                                  transport=httpx.ASGITransport(app=app))
+    result = await ipc.read(owner_id="owner", current_chat_id="current", task_id="task-current",
+                            current_project_id="current-project")
+    assert [(item.source.chat_id, item.text) for item in result] == [("related", "cross project summary")]
+    assert encryption.decrypt_calls == 1
+    assert owned == {"current", "related"}
+
+
+@pytest.mark.asyncio
+async def test_api_owner_index_rechecks_team_membership_and_active_task(monkeypatch):
+    app, tasks, owned, encryption = runtime_app(monkeypatch)
+    directus = app.state.directus_service
+    owned.add("team-related")
+    directus.team_chats.add("team-related")
+    team_hash = hashlib.sha256(b"team").hexdigest()
+    cache = recent_work_internal.recent_work_summary_cache
+    assert await cache.put(owner_id="owner", chat_id="team-related", project_id="team-project",
+                           revision="active-r1", text="team summary", vault_key_id="owner-key",
+                           encryption=encryption, authorized=True, active=True,
+                           active_task_id="team-task")
+    tasks["team-related"] = "team-task"
+    ipc = RecentWorkSummaryClient(base_url="http://runtime", token="service-token",
+                                  transport=httpx.ASGITransport(app=app))
+    assert await ipc.read(owner_id="owner", current_chat_id="current", task_id="task-current") == []
+    assert encryption.decrypt_calls == 0
+    directus.active_teams.add(team_hash)
+    # A denied read revokes the process-local copy; only a new authorized
+    # processing write may restore eligibility after access is granted.
+    assert await cache.put(owner_id="owner", chat_id="team-related", project_id="team-project",
+                           revision="active-r2", text="team summary", vault_key_id="owner-key",
+                           encryption=encryption, authorized=True, active=True,
+                           active_task_id="team-task")
+    assert len(await ipc.read(owner_id="owner", current_chat_id="current", task_id="task-current")) == 1
+    del tasks["team-related"]
+    assert await ipc.read(owner_id="owner", current_chat_id="current", task_id="task-current") == []
+    directus.active_teams.clear()
+    assert await ipc.read(owner_id="owner", current_chat_id="current", task_id="task-current") == []
+    assert encryption.decrypt_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_api_owner_index_discards_replaced_revision_during_decryption(monkeypatch):
+    app, _tasks, _owned, encryption = runtime_app(monkeypatch)
+    cache = recent_work_internal.recent_work_summary_cache
+    assert await cache.put(owner_id="owner", chat_id="related", project_id=None,
+                           revision="old", text="old summary", vault_key_id="owner-key",
+                           encryption=encryption, authorized=True, assistant_completed_at=time.time())
+    original_decrypt = encryption.decrypt_with_user_key
+
+    async def replace_during_decrypt(cipher, key):
+        assert await cache.put(owner_id="owner", chat_id="related", project_id=None,
+                               revision="new", text="new summary", vault_key_id="owner-key",
+                               encryption=encryption, authorized=True, assistant_completed_at=time.time())
+        return await original_decrypt(cipher, key)
+
+    encryption.decrypt_with_user_key = replace_during_decrypt
+    ipc = RecentWorkSummaryClient(base_url="http://runtime", token="service-token",
+                                  transport=httpx.ASGITransport(app=app))
+    assert await ipc.read(owner_id="owner", current_chat_id="current", task_id="task-current") == []
+    encryption.decrypt_with_user_key = original_decrypt
+    result = await ipc.read(owner_id="owner", current_chat_id="current", task_id="task-current")
+    assert [(item.source.revision, item.text) for item in result] == [("new", "new summary")]
+
+
+@pytest.mark.asyncio
+async def test_client_rejects_malformed_or_foreign_internal_summaries():
+    from dataclasses import asdict
+    from backend.shared.python_utils.recent_work_summary_cache import SummarySource
+
+    now = time.time()
+    valid = asdict(SummarySource("owner", "related", None, "r1", now, now, False, now + 60))
+    bad_owner = {**valid, "owner_id": "other"}
+    bad_revision = {**valid, "revision": ""}
+    bad_current = {**valid, "chat_id": "current"}
+    expired = {**valid, "expires_at": now - 1}
+
+    def respond(request):
+        return httpx.Response(200, json={"summaries": [
+            {"source": bad_owner, "text": "foreign"},
+            {"source": bad_revision, "text": "invalid"},
+            {"source": bad_current, "text": "current"},
+            {"source": expired, "text": "expired"},
+            {"source": valid, "text": "valid"},
+        ]})
+
+    ipc = RecentWorkSummaryClient(base_url="http://runtime", token="service-token",
+                                  transport=httpx.MockTransport(respond))
+    result = await ipc.read(owner_id="owner", current_chat_id="current", task_id="task-current")
+    assert [(item.source.chat_id, item.text) for item in result] == [("related", "valid")]
+    assert await ipc.read(owner_id="owner", current_chat_id="current", task_id="task-current",
+                          authorized_chat_ids=["other-related"]) == []
 
 
 @pytest.mark.asyncio

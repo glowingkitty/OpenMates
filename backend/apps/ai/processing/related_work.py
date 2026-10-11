@@ -24,10 +24,10 @@ async def fetch_related_chat_summaries(
     request: object, task_id: str, cache_service: object, directus_service: object,
     *, client: RecentWorkSummaryClient | None = None,
 ) -> list[RecentChatSummary]:
-    """Discover bounded live owner-scoped IDs, then read only transient summaries.
+    """Read transient summaries from the API's owner-scoped memory index.
 
-    Metadata discovery neither decrypts durable chat fields nor renews activity.
-    The API revalidates current source ownership/team access before decryption.
+    The API revalidates current source ownership/Team access before decryption;
+    discovering candidates here must not scan durable chats or renew activity.
     """
     if any(getattr(request, flag, False) for flag in ("is_external", "is_incognito", "is_anonymous")):
         return []
@@ -36,15 +36,10 @@ async def fetch_related_chat_summaries(
     if not owner_id or not chat_id or not task_id:
         return []
     try:
-        rows = await directus_service.get_items("chats", params={
-            "filter[hashed_user_id][_eq]": hashlib.sha256(owner_id.encode()).hexdigest(),
-            "fields": "id", "sort": "-updated_at", "limit": 128,
-        }, no_cache=True, admin_required=True)
-        ids = [str(row["id"]) for row in rows or [] if row.get("id") and row["id"] != chat_id]
         project = getattr(request, "current_project", None) or {}
         return await (client or RecentWorkSummaryClient()).read(
             owner_id=owner_id, current_chat_id=chat_id, task_id=task_id,
-            authorized_chat_ids=ids, current_project_id=project.get("id") or project.get("project_id"),
+            current_project_id=project.get("id") or project.get("project_id"),
         )
     except Exception:
         return []

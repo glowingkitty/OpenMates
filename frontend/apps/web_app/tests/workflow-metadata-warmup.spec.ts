@@ -4,8 +4,9 @@ export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { skipWithoutCredentials, skipIfFeaturesDisabled } = require('./helpers/env-guard');
-const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
-const { loginToTestAccount, waitForChatReady, focusMessageEditor } = require('./helpers/chat-test-helpers');
+const { getE2EDebugUrl, getTestAccount, withMockMarker } = require('./signup-flow-helpers');
+const { loginToTestAccount, waitForChatReady, focusMessageEditor, startNewChat,
+	sendMessage, waitForAssistantMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
 
 const { email, password, otpKey } = getTestAccount();
 type WarmupFrame = { type: string; payload: Record<string, unknown> };
@@ -126,5 +127,102 @@ test.describe('Chat metadata warmup WebSocket contract', () => {
 			expect(rejected.opened).toBe(false);
 			expect([1008, 1006]).toContain(rejected.closeCode);
 		} finally { await guestContext.close(); }
+	});
+
+	// contract-test: direct surface=gui.web assertions=message-input.send.ownership,chat-processing-feedback.selection-after-acceptance
+	test('personal send overlaps the empty connected-account lookup with durable local preparation', async ({ page }: { page: any }, testInfo: any) => {
+		// The isolated self-hosted CI stack has no provider key. Mock inference still
+		// travels through the real send protocol, so only lift the public UI gate.
+		await page.route('**/v1/settings/server-status', async (route: any) => {
+			const response = await route.fetch();
+			if (!response.ok()) throw new Error(`Server status failed (${response.status()}).`);
+			const status = await response.json();
+			await route.fulfill({ response, json: { ...status, ai_models_configured: true } });
+		});
+		await loginToTestAccount(page);
+		await waitForChatReady(page);
+		await expect.poll(() => page.evaluate(async () => {
+			const state = await (window as any).__openmatesE2EChatConnectionState?.();
+			return state?.online === true && state?.websocketConnected === true
+				&& state?.cachePrimed === true && state?.contextSyncCompleted === true
+				&& state?.teamContextActive === false;
+		}), { timeout: 45_000 }).toBe(true);
+		await startNewChat(page);
+		await waitForChatReady(page);
+		await expect(page.getByTestId('message-user')).toHaveCount(0);
+		await page.evaluate(() => {
+			sessionStorage.setItem('openmates:send-prep-timing', '1');
+			(window as any).__openmatesSendPrepPhases = [];
+			(window as any).__sendPrepLoadingNoticeSeen = false;
+			const loadingNotice = 'Model selection is still loading. Send again in a moment.';
+			new MutationObserver(() => {
+				if ([...document.querySelectorAll('[data-testid="notification"]')]
+					.some((item) => item.textContent?.includes(loadingNotice))) {
+					(window as any).__sendPrepLoadingNoticeSeen = true;
+				}
+			}).observe(document.body, { childList: true, subtree: true, characterData: true });
+		});
+		let lookupRequests = 0;
+		let localReadyBeforeContinue = false;
+		let directoryResponse: { status: number; rowsArray: boolean; rowCount: number } | null = null;
+		const directoryPath = /\/v1\/connected-accounts(?:\?.*)?$/;
+		await page.route(directoryPath, async (route: any) => {
+			if (route.request().method() !== 'GET') return route.continue();
+			lookupRequests += 1;
+			if (lookupRequests === 1) {
+				localReadyBeforeContinue = await page.waitForFunction(() =>
+					((window as any).__openmatesSendPrepPhases ?? []).some((entry: { phase: string }) =>
+						entry.phase === 'local_message_ready'), null, { timeout: 15_000 })
+					.then(() => true).catch(() => false);
+			}
+			await route.continue();
+		});
+		page.on('response', (response: any) => {
+			if (response.request().method() !== 'GET' || !directoryPath.test(response.url())) return;
+			void response.json().then((payload: { rows?: unknown }) => {
+				directoryResponse = {
+					status: response.status(), rowsArray: Array.isArray(payload.rows),
+					rowCount: Array.isArray(payload.rows) ? payload.rows.length : -1,
+				};
+			}).catch(() => { directoryResponse = { status: response.status(), rowsArray: false, rowCount: -1 }; });
+		});
+		try {
+			await sendMessage(page, withMockMarker('Capital of Germany?', 'chat_flow_capital', 'instant'));
+			await waitForAssistantMessage(page, { contains: 'Berlin', timeout: 60_000 });
+			await expect(page.getByTestId('message-user')).toHaveCount(1);
+			await expect(page.getByTestId('message-editor').last()).toHaveText('');
+			await expect.poll(() => page.evaluate(() =>
+				((window as any).__openmatesSendPrepPhases ?? []).some((entry: { phase: string }) =>
+					entry.phase === 'connected_context_ready')),
+			{ timeout: 15_000 }).toBe(true);
+			const phases = await page.evaluate(() =>
+				((window as any).__openmatesSendPrepPhases ?? []).map((entry: { phase: string }) => entry.phase));
+			expect(localReadyBeforeContinue).toBe(true);
+			await expect.poll(() => directoryResponse, { timeout: 15_000 }).not.toBeNull();
+			expect(directoryResponse).toEqual({ status: 200, rowsArray: true, rowCount: 0 });
+			expect(lookupRequests).toBe(1);
+			expect(phases.indexOf('connected_lookup_started')).toBeGreaterThanOrEqual(0);
+			expect(phases.indexOf('connected_lookup_started')).toBeLessThan(phases.indexOf('local_message_ready'));
+			expect(phases.indexOf('local_message_ready')).toBeLessThan(phases.indexOf('connected_lookup_ready'));
+			expect(phases.indexOf('connected_lookup_ready')).toBeLessThanOrEqual(phases.indexOf('connected_context_ready'));
+			expect(await page.evaluate(() => (window as any).__sendPrepLoadingNoticeSeen)).toBe(false);
+		} catch (error) {
+			const diagnostics = await page.evaluate(() => ({
+				phases: ((window as any).__openmatesSendPrepPhases ?? []).map((entry: { phase: string; ms: number }) => entry),
+				sendStep: (window as any).__openmatesLastSendDebug?.step ?? null,
+				preflightStep: (window as any).__openmatesLastPreflightDebug?.step ?? null,
+				loadingNoticeSeen: (window as any).__sendPrepLoadingNoticeSeen ?? false,
+				userCount: document.querySelectorAll('[data-testid="message-user"]').length,
+				lastUserStatus: [...document.querySelectorAll('[data-testid="message-user"]')].at(-1)?.getAttribute('data-status') ?? null,
+			})).catch(() => null);
+			await testInfo.attach('connected-lookup-overlap-diagnostics', {
+				body: JSON.stringify({ diagnostics, lookupRequests, localReadyBeforeContinue, directoryResponse }),
+				contentType: 'application/json',
+			});
+			throw error;
+		} finally {
+			await page.unroute(directoryPath);
+			await deleteActiveChat(page);
+		}
 	});
 });

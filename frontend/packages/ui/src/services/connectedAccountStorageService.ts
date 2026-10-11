@@ -14,6 +14,10 @@ import { assertNoConnectedAccountSecretLeak } from './connectedAccountTokenBroke
 
 const CONNECTED_ACCOUNTS_ENDPOINT = '/v1/connected-accounts';
 const CONNECTED_ACCOUNTS_LIST_TIMEOUT_MS = 8000;
+let connectedAccountMutationEpoch = 0;
+
+/** Fence per-send early empty-list reads when this tab changes permissions. */
+export function getConnectedAccountMutationEpoch(): number { return connectedAccountMutationEpoch; }
 
 const STORAGE_FORBIDDEN_FIELDS = [
 	'provider',
@@ -146,6 +150,7 @@ export async function createConnectedAccount(params: {
 	userId: string;
 	row: EncryptedConnectedAccountCreateInput;
 }): Promise<ConnectedAccountWriteResponse> {
+	connectedAccountMutationEpoch += 1;
 	assertNoPlaintextConnectedAccountFields(params.row);
 	const hashedUserId = await computeConnectedAccountUserHash(params.userId);
 	const response = await fetch(getApiEndpoint(CONNECTED_ACCOUNTS_ENDPOINT), {
@@ -154,13 +159,16 @@ export async function createConnectedAccount(params: {
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ ...params.row, hashed_user_id: hashedUserId })
 	});
-	return parseWriteResponse(response, 'create');
+	const result = await parseWriteResponse(response, 'create');
+	connectedAccountMutationEpoch += 1;
+	return result;
 }
 
 export async function updateConnectedAccount(params: {
 	accountId: string;
 	patch: EncryptedConnectedAccountPatchInput;
 }): Promise<ConnectedAccountWriteResponse> {
+	connectedAccountMutationEpoch += 1;
 	assertNoPlaintextConnectedAccountFields(params.patch);
 	const response = await fetch(
 		getApiEndpoint(`${CONNECTED_ACCOUNTS_ENDPOINT}/${encodeURIComponent(params.accountId)}`),
@@ -171,7 +179,9 @@ export async function updateConnectedAccount(params: {
 			body: JSON.stringify(params.patch)
 		}
 	);
-	return parseWriteResponse(response, 'update');
+	const result = await parseWriteResponse(response, 'update');
+	connectedAccountMutationEpoch += 1;
+	return result;
 }
 
 export async function buildConnectedAccountSendContext(params: {

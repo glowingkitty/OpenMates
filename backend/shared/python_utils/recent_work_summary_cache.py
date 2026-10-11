@@ -208,6 +208,12 @@ class RecentWorkSummaryCache:
         return [entry.source for (owner, chat), entry in self._entries.items()
                 if owner == owner_id and chat in allowed]
 
+    def owner_candidates(self, *, owner_id: str) -> list[SummarySource]:
+        """Inspect bounded owner metadata; callers must authorize IDs before decryption."""
+        self.prune()
+        return [entry.source for (owner, _chat), entry in self._entries.items()
+                if owner == owner_id]
+
     async def get(
         self, *, owner_id: str, chat_id: str, authorized_chat_ids: Collection[str],
         vault_key_id: str, encryption: SummaryEncryption,

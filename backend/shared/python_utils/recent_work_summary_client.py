@@ -197,19 +197,24 @@ class RecentWorkSummaryClient:
 
     async def read(
         self, *, owner_id: str, current_chat_id: str, task_id: str,
-        authorized_chat_ids: list[str], current_project_id: str | None = None,
+        authorized_chat_ids: list[str] | None = None, current_project_id: str | None = None,
     ) -> list[RecentChatSummary]:
-        result = await self._post("read", {
+        payload = {
             "owner_id": owner_id, "current_chat_id": current_chat_id, "task_id": task_id,
-            "authorized_chat_ids": authorized_chat_ids[:128], "current_project_id": current_project_id,
-        })
+            "current_project_id": current_project_id,
+        }
+        if authorized_chat_ids is not None:
+            payload["authorized_chat_ids"] = authorized_chat_ids[:128]
+        result = await self._post("read", payload)
         if not result or not isinstance(result.get("summaries"), list):
             return []
         summaries = []
         try:
             for item in result["summaries"][:24]:
                 source = SummarySource(**item["source"])
-                if source.owner_id != owner_id or source.chat_id not in authorized_chat_ids or source.expires_at <= time.time():
+                if (source.owner_id != owner_id or not source.chat_id or source.chat_id == current_chat_id
+                        or authorized_chat_ids is not None and source.chat_id not in authorized_chat_ids
+                        or not source.revision or source.expires_at <= time.time()):
                     continue
                 if isinstance(item["text"], str):
                     summaries.append(RecentChatSummary(source, item["text"][:4_000]))

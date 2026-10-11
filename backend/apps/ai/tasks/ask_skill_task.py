@@ -2865,6 +2865,14 @@ async def _async_process_ai_skill_ask_task(
         preprocessing_result: Optional[PreprocessingResult] = None
         typing_lifecycle = EarlyTypingLifecycle(cache_service_instance, request_data, task_id)
 
+        async def time_pre_main(stage: str, operation):
+            started = time.monotonic()
+            try:
+                return await operation
+            finally:
+                logger.info("[Task ID: %s] [PRE_MAIN] stage=%s elapsed_ms=%.1f",
+                            task_id, stage, (time.monotonic() - started) * 1000)
+
         async def publish_early_typing(routing: Dict[str, Any]) -> None:
             if request_data.is_external or not cache_service_instance or typing_lifecycle.started:
                 return
@@ -2994,9 +3002,9 @@ async def _async_process_ai_skill_ask_task(
                         on_early_routing=publish_early_typing,
                     )
                     _log_team_ai_pipeline_stage(request_data, task_id, "preprocess", "completed")
-                new_ref = await store_preprocessing_resume(
+                new_ref = await time_pre_main("resume_store", store_preprocessing_resume(
                     cache_service_instance, request_data, preprocessing_result,
-                )
+                ))
                 if new_ref:
                     request_data.preprocessing_resume_ref = new_ref
 
@@ -3059,7 +3067,7 @@ async def _async_process_ai_skill_ask_task(
                     # Prepare preprocessor output data (full model dump)
                     preprocessor_output = preprocessing_result.model_dump() if preprocessing_result else None
                 
-                    await cache_service_instance.cache_debug_request_entry(
+                    await time_pre_main("debug_cache", cache_service_instance.cache_debug_request_entry(
                         encryption_service=encryption_service_instance,
                         task_id=task_id,
                         chat_id=request_data.chat_id,
@@ -3067,7 +3075,7 @@ async def _async_process_ai_skill_ask_task(
                         stage="preprocessor",
                         input_data=preprocessor_input,
                         output_data=preprocessor_output,
-                    )
+                    ))
                     logger.debug(f"[Task ID: {task_id}] Cached preprocessor debug data (admin only)")
             except Exception as e_debug:
                 # Don't fail the task if debug caching fails - just log the error
@@ -3189,7 +3197,7 @@ async def _async_process_ai_skill_ask_task(
             and user_vault_key_id
         ):
             try:
-                compression_performed = await _compress_for_selected_model(
+                compression_performed = await time_pre_main("compression", _compress_for_selected_model(
                     task_id=task_id,
                     request_data=request_data,
                     selected_model_id=preprocessing_result.selected_main_llm_model_id,
@@ -3198,7 +3206,7 @@ async def _async_process_ai_skill_ask_task(
                     user_vault_key_id=user_vault_key_id,
                     secrets_manager=secrets_manager,
                     directus_service=directus_service_instance,
-                )
+                ))
             except Exception as compression_error:
                 if isinstance(compression_error, RecoveryCheckpointPersistenceError):
                     raise
@@ -3353,103 +3361,105 @@ async def _async_process_ai_skill_ask_task(
                 # Log the final provider name and server region that will be sent to client
                 logger.info(f"[Task ID: {task_id}] Provider name to send to client: '{provider_name}', server region: '{server_region}'")
             
-                # CROSS-DEVICE FIX: Fetch encrypted_chat_key so secondary devices can
-                # decrypt messages without generating a wrong random key.
-                # The ai_typing_started event arrives BEFORE the AI response, so this
-                # gives secondary devices the key early enough to avoid queuing issues.
-                #
-                # For NEW chats, the cache may not have the key yet (the client's
-                # sendEncryptedStoragePackage/persist_encrypted_chat_metadata Celery task
-                # may not have completed). Fall back to Directus if cache misses.
-                encrypted_chat_key_for_typing: str | None = None
-                try:
-                    chat_list_item = await cache_service_instance.get_chat_list_item_data(
-                        request_data.user_id, request_data.chat_id
-                    )
-                    if chat_list_item and hasattr(chat_list_item, 'encrypted_chat_key'):
-                        encrypted_chat_key_for_typing = chat_list_item.encrypted_chat_key
-                        logger.debug(f"[Task ID: {task_id}] Retrieved encrypted_chat_key from cache for typing event")
-                except Exception as e_key:
-                    logger.warning(f"[Task ID: {task_id}] Could not fetch encrypted_chat_key from cache for typing event: {e_key}")
-
-                # Fallback: If cache miss (common for new chats), try Directus directly
-                if not encrypted_chat_key_for_typing:
+                typing_payload_data = {}
+                if not typing_lifecycle.started:
+                    # CROSS-DEVICE FIX: Fetch encrypted_chat_key so secondary devices can
+                    # decrypt messages without generating a wrong random key.
+                    # The ai_typing_started event arrives BEFORE the AI response, so this
+                    # gives secondary devices the key early enough to avoid queuing issues.
+                    #
+                    # For NEW chats, the cache may not have the key yet (the client's
+                    # sendEncryptedStoragePackage/persist_encrypted_chat_metadata Celery task
+                    # may not have completed). Fall back to Directus if cache misses.
+                    encrypted_chat_key_for_typing: str | None = None
                     try:
-                        ds = DirectusService()
-                        chat_data = await ds.get_items('chats', {
-                            'filter[id][_eq]': request_data.chat_id,
-                            'fields': 'encrypted_chat_key',
-                            'limit': 1
-                        })
-                        if chat_data and chat_data[0].get('encrypted_chat_key'):
-                            encrypted_chat_key_for_typing = chat_data[0]['encrypted_chat_key']
-                            logger.info(f"[Task ID: {task_id}] Retrieved encrypted_chat_key from Directus fallback for typing event")
-                        else:
-                            logger.info(f"[Task ID: {task_id}] encrypted_chat_key not yet in Directus for chat {request_data.chat_id} (very new chat)")
-                    except Exception as e_db:
-                        logger.warning(f"[Task ID: {task_id}] Could not fetch encrypted_chat_key from Directus for typing event: {e_db}")
-            
-                # Build typing payload with conditional metadata (only for new chats)
-                typing_payload_data = { 
-                    "type": "ai_processing_started_event", 
-                    "event_for_client": "ai_typing_started", 
-                    "task_id": task_id, # This is the AI's message_id for the new message being generated
-                    "chat_id": request_data.chat_id,
-                    "user_id_uuid": request_data.user_id, # Actual user ID for routing
-                    "user_id_hash": request_data.user_id_hash, # Hashed user ID for logging/internal use
-                    "user_message_id": request_data.message_id, # ID of the user message that triggered this AI response
-                    "category": typing_category, # Send category instead of mate_name
-                    "model_name": model_name, # Add model_name to the payload
-                    "provider_name": provider_name, # Add provider_name to the payload
-                    "server_region": server_region, # Add server region to the payload (e.g., "EU", "US", "APAC")
-                    # CRITICAL: Include is_continuation flag so client knows to skip re-persisting the user message
-                    # When this is True, the user message was already persisted before the app settings/memories
-                    # or focus mode deferred activation pause
-                    "is_continuation": request_data.is_app_settings_memories_continuation or request_data.is_focus_mode_continuation or request_data.is_sub_chat_continuation or request_data.is_async_skill_continuation,
-                }
-                if request_data.is_async_skill_continuation:
-                    typing_payload_data.update(
-                        {
-                            "is_async_skill_continuation": True,
-                            "original_user_message_id": request_data.original_user_message_id or request_data.message_id,
-                            "async_skill_task_id": request_data.async_skill_task_id,
-                        }
-                    )
-            
-                # Include encrypted_chat_key so secondary devices can cache it early
-                if encrypted_chat_key_for_typing:
-                    typing_payload_data["encrypted_chat_key"] = encrypted_chat_key_for_typing
-            
-                # Log the complete typing payload for debugging
-                logger.info(f"[Task ID: {task_id}] Typing payload BEFORE adding title/icon: category={typing_category}, model_name={model_name}, provider_name={provider_name}, server_region={server_region}")
-            
-                # Jev can choose bounded icon/category metadata before main inference,
-                # while the generated title intentionally arrives from postprocessing.
-                if preprocessing_result.icon_names:
-                    typing_payload_data["icon_names"] = preprocessing_result.icon_names
-                    logger.info(
-                        f"[Task ID: {task_id}] NEW CHAT: Including icon metadata in typing event "
-                        f"(icon_count={len(preprocessing_result.icon_names)})"
-                    )
-                if preprocessing_result.title:
-                    typing_payload_data["title"] = preprocessing_result.title
-                    logger.info(
-                        f"[Task ID: {task_id}] Including fallback-generated title in typing event "
-                        f"(title_length={len(preprocessing_result.title)})"
-                    )
-                if not preprocessing_result.title and not preprocessing_result.icon_names:
-                    logger.debug(f"[Task ID: {task_id}] FOLLOW-UP MESSAGE: No title/icon_names generated (chat already has metadata)")
-            
+                        chat_list_item = await time_pre_main("late_key_cache", cache_service_instance.get_chat_list_item_data(
+                            request_data.user_id, request_data.chat_id
+                        ))
+                        if chat_list_item and hasattr(chat_list_item, 'encrypted_chat_key'):
+                            encrypted_chat_key_for_typing = chat_list_item.encrypted_chat_key
+                            logger.debug(f"[Task ID: {task_id}] Retrieved encrypted_chat_key from cache for typing event")
+                    except Exception as e_key:
+                        logger.warning(f"[Task ID: {task_id}] Could not fetch encrypted_chat_key from cache for typing event: {e_key}")
+
+                    # Fallback: If cache miss (common for new chats), try Directus directly
+                    if not encrypted_chat_key_for_typing:
+                        try:
+                            ds = DirectusService()
+                            chat_data = await time_pre_main("late_key_directus", ds.get_items('chats', {
+                                'filter[id][_eq]': request_data.chat_id,
+                                'fields': 'encrypted_chat_key',
+                                'limit': 1
+                            }))
+                            if chat_data and chat_data[0].get('encrypted_chat_key'):
+                                encrypted_chat_key_for_typing = chat_data[0]['encrypted_chat_key']
+                                logger.info(f"[Task ID: {task_id}] Retrieved encrypted_chat_key from Directus fallback for typing event")
+                            else:
+                                logger.info(f"[Task ID: {task_id}] encrypted_chat_key not yet in Directus for chat {request_data.chat_id} (very new chat)")
+                        except Exception as e_db:
+                            logger.warning(f"[Task ID: {task_id}] Could not fetch encrypted_chat_key from Directus for typing event: {e_db}")
+
+                    # Build typing payload with conditional metadata (only for new chats)
+                    typing_payload_data = {
+                        "type": "ai_processing_started_event",
+                        "event_for_client": "ai_typing_started",
+                        "task_id": task_id, # This is the AI's message_id for the new message being generated
+                        "chat_id": request_data.chat_id,
+                        "user_id_uuid": request_data.user_id, # Actual user ID for routing
+                        "user_id_hash": request_data.user_id_hash, # Hashed user ID for logging/internal use
+                        "user_message_id": request_data.message_id, # ID of the user message that triggered this AI response
+                        "category": typing_category, # Send category instead of mate_name
+                        "model_name": model_name, # Add model_name to the payload
+                        "provider_name": provider_name, # Add provider_name to the payload
+                        "server_region": server_region, # Add server region to the payload (e.g., "EU", "US", "APAC")
+                        # CRITICAL: Include is_continuation flag so client knows to skip re-persisting the user message
+                        # When this is True, the user message was already persisted before the app settings/memories
+                        # or focus mode deferred activation pause
+                        "is_continuation": request_data.is_app_settings_memories_continuation or request_data.is_focus_mode_continuation or request_data.is_sub_chat_continuation or request_data.is_async_skill_continuation,
+                    }
+                    if request_data.is_async_skill_continuation:
+                        typing_payload_data.update(
+                            {
+                                "is_async_skill_continuation": True,
+                                "original_user_message_id": request_data.original_user_message_id or request_data.message_id,
+                                "async_skill_task_id": request_data.async_skill_task_id,
+                            }
+                        )
+
+                    # Include encrypted_chat_key so secondary devices can cache it early
+                    if encrypted_chat_key_for_typing:
+                        typing_payload_data["encrypted_chat_key"] = encrypted_chat_key_for_typing
+
+                    # Log the complete typing payload for debugging
+                    logger.info(f"[Task ID: {task_id}] Typing payload BEFORE adding title/icon: category={typing_category}, model_name={model_name}, provider_name={provider_name}, server_region={server_region}")
+
+                    # Jev can choose bounded icon/category metadata before main inference,
+                    # while the generated title intentionally arrives from postprocessing.
+                    if preprocessing_result.icon_names:
+                        typing_payload_data["icon_names"] = preprocessing_result.icon_names
+                        logger.info(
+                            f"[Task ID: {task_id}] NEW CHAT: Including icon metadata in typing event "
+                            f"(icon_count={len(preprocessing_result.icon_names)})"
+                        )
+                    if preprocessing_result.title:
+                        typing_payload_data["title"] = preprocessing_result.title
+                        logger.info(
+                            f"[Task ID: {task_id}] Including fallback-generated title in typing event "
+                            f"(title_length={len(preprocessing_result.title)})"
+                        )
+                    if not preprocessing_result.title and not preprocessing_result.icon_names:
+                        logger.debug(f"[Task ID: {task_id}] FOLLOW-UP MESSAGE: No title/icon_names generated (chat already has metadata)")
+
                 # CRITICAL: Skip WebSocket events for external requests (REST API)
                 # This prevents typing indicators from popping up in the web app when a user makes an API call.
                 if not request_data.is_external:
-                    initial_metadata_job = await persist_generated_metadata(
+                    initial_metadata_job = await time_pre_main("metadata_job", persist_generated_metadata(
                         request=request_data, task_id=task_id, stage="initial",
                         metadata={"title": preprocessing_result.title,
                                   "category": typing_category if not request_data.chat_has_title else None,
                                   "icon": (preprocessing_result.icon_names or [None])[0] if not request_data.chat_has_title else None},
-                    )
-                    if initial_metadata_job:
+                    ))
+                    if initial_metadata_job and not typing_lifecycle.started:
                         typing_payload_data["metadata_recovery_job"] = initial_metadata_job
                     typing_indicator_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}" # Channel uses hashed ID
                     was_early_typing = typing_lifecycle.started

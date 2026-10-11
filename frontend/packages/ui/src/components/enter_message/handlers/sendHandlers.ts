@@ -6,7 +6,7 @@ import { hasActualContent, vibrateMessageField } from "../utils";
 import { Extension } from "@tiptap/core";
 import { chatDB } from "../../../services/db";
 import { chatKeyManager } from "../../../services/encryption/ChatKeyManager";
-import { chatSyncService } from "../../../services/chatSyncService"; // Import chatSyncService
+import { chatSyncService, recordSendPreparationPhase } from "../../../services/chatSyncService"; // Import chatSyncService
 import { failPersonalChatTurn, reservePersonalChatTurn, type PersonalChatTurn } from "../../../services/personalChatTurnBarrier";
 import type { Chat, Message, PIIMapping } from "../../../types/chat"; // Import Message type
 import { draftEditorUIState } from "../../../services/drafts/draftState";
@@ -630,6 +630,7 @@ export async function handleSend(
     return;
   }
   sendInProgress = true;
+  recordSendPreparationPhase('send_accepted');
   const submittedEditorDoc = editor.state.doc;
   const submittedEditorText = editor.getText();
   const submittedEditorJSON = structuredClone(editor.getJSON());
@@ -672,6 +673,8 @@ export async function handleSend(
   const embedsReadyAtClick = submittedEmbeds.every((node) =>
     Boolean(node.attrs?.contentRef) &&
     !["uploading", "transcribing", "correcting"].includes(String(node.attrs?.status)));
+  const earlyEmptyConnectedAccounts = embedsReadyAtClick
+    ? chatSyncService.beginEmptyConnectedAccountLookup() : undefined;
   // A submission with ready embed references can leave the composer before any URL metadata,
   // draft-save, IndexedDB, or transport await. Its raw content stays in local
   // UI memory until the final PII-processed payload replaces the same row.
@@ -2265,6 +2268,7 @@ export async function handleSend(
       return;
     }
 
+    recordSendPreparationPhase('local_message_ready');
     // OTel: WebSocket send span (encryption + WS dispatch happens inside sendNewMessage)
     const wsSpan = tracer.startSpan('message.send.ws_send');
     // CRITICAL: Notify backend about the active chat BEFORE sending the message
@@ -2276,7 +2280,9 @@ export async function handleSend(
 			messageId: messagePayload.message_id,
 		});
 		if (!contextIsCurrent()) return;
+		recordSendPreparationPhase('set_active_chat_begin');
 		await chatSyncService.sendSetActiveChat(chatIdToUse);
+		recordSendPreparationPhase('set_active_chat_ready');
 		recordSendDebugStep("send_set_active_chat_complete", {
 			chatIdToUse,
 			messageId: messagePayload.message_id,
@@ -2307,12 +2313,14 @@ export async function handleSend(
 			chatIdToUse,
 			messageId: messagePayload.message_id,
 		});
+		recordSendPreparationPhase('send_new_message_begin');
 		await chatSyncService.sendNewMessage(
 			serverMessagePayload,
 			encryptedSuggestionToDelete,
 			undefined,
 			projectFocusIntent ?? undefined,
 			isNewChatCreation || isUsingDraftChat,
+			earlyEmptyConnectedAccounts,
 		);
     if (options.preserveDraft) {
       // A local admission guard can resolve sendNewMessage after marking the

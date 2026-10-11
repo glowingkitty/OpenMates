@@ -8,7 +8,30 @@ ciphertext for that history entry.
 
 # contract-test-file: infrastructure
 
+import ast
 from pathlib import Path
+
+
+def test_early_typing_skips_duplicate_late_key_read_and_payload():
+    source = (Path(__file__).resolve().parents[1] / "tasks" / "ask_skill_task.py").read_text()
+    tree = ast.parse(source)
+    late_region = source.split("# Persist server provider/region on preprocessing_result", maxsplit=1)[1]
+    late_region = late_region.split("# CRITICAL: Skip WebSocket events for external requests", maxsplit=1)[0]
+    assert "preprocessing_result.server_provider_name = provider_name" in late_region
+    assert "preprocessing_result.server_region = server_region" in late_region
+
+    guards = [node for node in ast.walk(tree) if isinstance(node, ast.If)
+              and ast.unparse(node.test) == "not typing_lifecycle.started"
+              and any(isinstance(child, ast.Call)
+                      and isinstance(child.func, ast.Attribute)
+                      and child.func.attr == "get_chat_list_item_data"
+                      for child in ast.walk(node))]
+    assert len(guards) == 1
+    guarded = ast.get_source_segment(source, guards[0])
+    assert "encrypted_chat_key_for_typing" in guarded
+    assert '"event_for_client": "ai_typing_started"' in guarded
+    assert "typing_payload_data = {}" in late_region.split("if not typing_lifecycle.started:", maxsplit=1)[0]
+    assert "late_payload=typing_payload_data" in source
 
 
 def test_chat_compression_does_not_persist_server_encrypted_summary_to_history():

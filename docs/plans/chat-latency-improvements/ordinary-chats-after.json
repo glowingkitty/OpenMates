@@ -230,5 +230,39 @@
       }
     }
   },
-  "web_backend_scope": "dev_app_ai_worker_owned_disposable_chats"
+  "web_backend_scope": "dev_app_ai_worker_owned_disposable_chats",
+  "general_speed_passes": [
+    {
+      "product_revision": "a6231ae528ff5910c23249aba84c8800424bd8b3",
+      "backend_tree": "06e4489342aa144d67ac2e8a723b4a99f65641b7",
+      "runtime_operation": "docker-c659b3ff",
+      "cli_version": "0.27.0-alpha.59",
+      "web_etag": "\"79f9c271369658c121a1ef0e5a036de8\"",
+      "saved_workflow_count": 0,
+      "project_target": "none",
+      "n_per_prompt_per_client": 3,
+      "status": "12 passed",
+      "capital_target_ms": [
+        2000,
+        3000
+      ],
+      "capital_target_met": false,
+      "first_authored_answer_ms": {
+        "cli": {
+          "capital": 8805,
+          "events": 22510
+        },
+        "web": {
+          "capital": 8882,
+          "events": 21897
+        }
+      },
+      "limitations": [
+        "Small descriptive samples; provider variability remains.",
+        "CLI version changed; no provider-independent speedup claim.",
+        "No active Project target does not imply an empty eligible Project catalogue.",
+        "First authored text is separate from reasoning, progress and command completion."
+      ]
+    }
+  ]
 }

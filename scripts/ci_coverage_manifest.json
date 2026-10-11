@@ -398,7 +398,8 @@
         "tasks-chat-settings-parity.spec.ts",
         "unified-detail-metadata-sync.spec.ts",
         "maps-discovery-chat.spec.ts",
-        "chat-queued-followups-protocol.spec.ts"
+        "chat-queued-followups-protocol.spec.ts",
+        "workflow-metadata-warmup.spec.ts"
       ]
     },
     "external_integration": {
@@ -658,7 +659,6 @@
         "cli-team-tasks-real.spec.ts",
         "cli-tui-team-collaboration.spec.ts",
         "cli-team-artifacts-parity.spec.ts",
-        "workflow-metadata-warmup.spec.ts",
         "audio-recording.spec.ts"
       ],
       "enabling_work": "Run against existing core stack and fresh real accounts; report missing fixture or product assertion failures without restoring shared accounts."

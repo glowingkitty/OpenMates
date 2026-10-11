@@ -80,6 +80,8 @@ const mocks = vi.hoisted(() => {
     },
     aiTypingByChatStore: createReadable({}),
     workspaceIdentity: 'account-a',
+    connectedAccountMutationEpoch: 0,
+    listConnectedAccounts: vi.fn(async () => []),
     phasedSyncState: {
       reset: vi.fn(),
       markSyncCompleted: vi.fn(),
@@ -170,13 +172,15 @@ vi.mock("../embedSenders", () => ({
 }));
 vi.mock("../chatSyncServiceSenders", () => ({
   sendOfflineChangesImpl: mocks.sendOfflineChangesImpl,
+  sendNewMessageImpl: vi.fn(async () => undefined),
 }));
 vi.mock("../connectedAccountTokenBrokerService", () => ({
   prepareConnectedAccountSendContext: vi.fn(),
 }));
 vi.mock("../connectedAccountStorageService", () => ({
   buildConnectedAccountSendContext: vi.fn(),
-  listConnectedAccounts: vi.fn(),
+  listConnectedAccounts: mocks.listConnectedAccounts,
+  getConnectedAccountMutationEpoch: () => mocks.connectedAccountMutationEpoch,
 }));
 vi.mock("../chatSyncServiceHandlersRecovery", () => ({
   handleRecoveryJobsAvailableImpl: vi.fn(),
@@ -191,10 +195,60 @@ vi.mock("../chatSyncServiceHandlersAppSettings", () => ({}));
 vi.mock("../chatSyncServiceHandlersConnectedAccounts", () => ({}));
 vi.mock("../chatSyncServiceHandlersWebhooks", () => ({}));
 
-import { ChatSynchronizationService, chatSyncService } from "../chatSyncService";
+import { ChatSynchronizationService, canReuseEarlyEmptyConnectedAccounts, chatSyncService } from "../chatSyncService";
 import { getTeam, TeamRequestCancelledError } from "../teamService";
 import { incognitoChatService } from "../incognitoChatService";
 import type { Chat, Message } from "../../types/chat";
+
+describe('per-send connected-account empty lookup', () => {
+  beforeEach(() => {
+    mocks.workspaceIdentity = 'account-a';
+    mocks.connectedAccountMutationEpoch = 0;
+    mocks.activeTeamId.set(null);
+    mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: true }); return () => undefined; });
+    mocks.listConnectedAccounts.mockReset().mockResolvedValue([]);
+  });
+  afterEach(() => {
+    mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: false }); return () => undefined; });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it('starts an empty-list read early and accepts it only for the same authenticated scope and mutation epoch', async () => {
+    const service = new ChatSynchronizationService();
+    const early = await service.beginEmptyConnectedAccountLookup();
+    expect(mocks.listConnectedAccounts).toHaveBeenCalledOnce();
+    const current = { scope: 'account-a', mutationEpoch: 0, authenticated: true, teamId: null };
+    expect(canReuseEarlyEmptyConnectedAccounts(early, current)).toBe(true);
+    expect(canReuseEarlyEmptyConnectedAccounts(early, { ...current, scope: 'account-b' })).toBe(false);
+    expect(canReuseEarlyEmptyConnectedAccounts(early, { ...current, mutationEpoch: 1 })).toBe(false);
+    expect(canReuseEarlyEmptyConnectedAccounts(early, { ...current, authenticated: false })).toBe(false);
+    expect(canReuseEarlyEmptyConnectedAccounts(early, { ...current, teamId: 'team-a' })).toBe(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it('keeps nonempty and failed early reads on the fresh Send lookup path', async () => {
+    const service = new ChatSynchronizationService();
+    const current = { scope: 'account-a', mutationEpoch: 0, authenticated: true, teamId: null };
+    mocks.listConnectedAccounts.mockResolvedValueOnce([{ id: 'connected-a' }]);
+    expect(canReuseEarlyEmptyConnectedAccounts(await service.beginEmptyConnectedAccountLookup(), current)).toBe(false);
+    mocks.listConnectedAccounts.mockRejectedValueOnce(new Error('offline'));
+    expect(canReuseEarlyEmptyConnectedAccounts(await service.beginEmptyConnectedAccountLookup(), current)).toBe(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it('uses one lookup for an unchanged empty scope and retries after a local mutation', async () => {
+    const service = new ChatSynchronizationService();
+    const message = { chat_id: 'chat-a', message_id: 'message-a', role: 'user', content: 'hello', status: 'sending', created_at: 1 } as Message;
+    const early = service.beginEmptyConnectedAccountLookup();
+    await service.sendNewMessage(message, undefined, undefined, undefined, false, early);
+    expect(mocks.listConnectedAccounts).toHaveBeenCalledTimes(1);
+    mocks.connectedAccountMutationEpoch += 1;
+    const stale = service.beginEmptyConnectedAccountLookup();
+    mocks.connectedAccountMutationEpoch += 1;
+    await service.sendNewMessage({ ...message, message_id: 'message-b' }, undefined, undefined, undefined, false, stale);
+    expect(mocks.listConnectedAccounts).toHaveBeenCalledTimes(3);
+  });
+});
 
 describe("queued revision socket receipts", () => {
   afterEach(async () => {
@@ -299,7 +353,7 @@ describe("Team and Personal context cache handoff", () => {
     mocks.activeTeamId.set(null);
     mocks.activeTeamContext.set(context);
 
-    await (service as unknown as { handleTeamContextChanged: (context: typeof context) => Promise<void> }).handleTeamContextChanged(context);
+    await (service as unknown as { handleTeamContextChanged: (nextContext: typeof context) => Promise<void> }).handleTeamContextChanged(context);
 
     expect(service.cachePrimed_FOR_HANDLERS_ONLY).toBe(false);
     expect(service.hasCompletedInitialSync_FOR_HANDLERS_ONLY).toBe(false);
@@ -322,7 +376,7 @@ describe("Team and Personal context cache handoff", () => {
     mocks.activeTeamId.set("team-a");
     mocks.activeTeamContext.set(context);
 
-    await (service as unknown as { handleTeamContextChanged: (context: typeof context) => Promise<void> }).handleTeamContextChanged(context);
+    await (service as unknown as { handleTeamContextChanged: (nextContext: typeof context) => Promise<void> }).handleTeamContextChanged(context);
 
     expect(startSync).toHaveBeenCalledOnce();
     expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalledWith("request_cache_status", {});
@@ -393,7 +447,7 @@ describe("phased sync context cancellation", () => {
     service.addEventListener("phasedSyncComplete", completion);
     mocks.notificationStore.error.mockClear();
     try {
-      rejectA(new TeamRequestCancelledError("Team request cancelled"));
+      rejectA(new TeamRequestCancelledError());
       await oldSync;
       expect(mocks.notificationStore.error).not.toHaveBeenCalled();
       expect(clearTimeoutSpy).not.toHaveBeenCalled();
@@ -402,7 +456,7 @@ describe("phased sync context cancellation", () => {
     } finally {
       service.removeEventListener("phasedSyncComplete", completion);
       mocks.activeTeamContext.set({ team: null, teamId: null, epoch: 3 });
-      rejectB(new TeamRequestCancelledError("Team request cancelled"));
+      rejectB(new TeamRequestCancelledError());
       await newSync;
       clearTimeout(watchdog);
     }
@@ -432,7 +486,7 @@ describe("phased sync context cancellation", () => {
     service.addEventListener("phasedSyncComplete", completion);
     mocks.notificationStore.error.mockClear();
     try {
-      rejectOld(new TeamRequestCancelledError("Obsolete Team lookup"));
+      rejectOld(new TeamRequestCancelledError());
       await oldSync;
       expect(mocks.notificationStore.error).not.toHaveBeenCalled();
       expect(clearTimeoutSpy).not.toHaveBeenCalled();

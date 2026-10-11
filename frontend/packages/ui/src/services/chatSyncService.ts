@@ -91,7 +91,7 @@ import type {
 } from "./connectedAccountTokenBrokerService";
 import type { ProjectFocusSendIntent } from "./projectFocusSendPreflight";
 import { prepareConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
-import { buildConnectedAccountSendContext, listConnectedAccounts } from "./connectedAccountStorageService";
+import { buildConnectedAccountSendContext, getConnectedAccountMutationEpoch, listConnectedAccounts } from "./connectedAccountStorageService";
 import { chatListCache } from "./chatListCache";
 import { ActiveAITaskMap, runningChatIds, activityChats, subChatActivityIds } from "../stores/chatActivityStore";
 import { chatMetadataCache } from "./chatMetadataCache";
@@ -104,6 +104,29 @@ import {
 // All payload interface definitions are now expected to be in types/chat.ts
 
 const CHAT_CONTENT_BATCH_WS_READY_TIMEOUT_MS = 8_000;
+
+type EarlyEmptyConnectedAccounts = { scope: string; mutationEpoch: number; empty: boolean } | null;
+
+export function canReuseEarlyEmptyConnectedAccounts(
+  early: EarlyEmptyConnectedAccounts,
+  current: { scope: string | null; mutationEpoch: number; authenticated: boolean; teamId: string | null },
+): boolean {
+  return !!early?.empty && !!current.scope && early.scope === current.scope
+    && early.mutationEpoch === current.mutationEpoch && current.authenticated && !current.teamId;
+}
+
+/** Opt-in, bounded local timing only; never records message, account or chat identifiers. */
+export function recordSendPreparationPhase(phase: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (window.sessionStorage.getItem('openmates:send-prep-timing') !== '1') return;
+  } catch { return; }
+  const target = window as Window & { __openmatesSendPrepPhases?: Array<{ phase: string; ms: number }> };
+  const phases = target.__openmatesSendPrepPhases ?? [];
+  phases.push({ phase, ms: performance.now() });
+  if (phases.length > 80) phases.splice(0, phases.length - 80);
+  target.__openmatesSendPrepPhases = phases;
+}
 const PROJECT_FILE_COMMIT_TIMEOUT_MS = 30_000;
 const PROJECT_FILE_EXECUTOR_EVENTS = new Set([
   "project_file_operation_claim",
@@ -2847,12 +2870,21 @@ export class ChatSynchronizationService extends EventTarget {
     connectedAccountContext?: ConnectedAccountSendContext,
     projectFocusIntent?: ProjectFocusSendIntent,
     newLocalChat?: boolean,
+    earlyEmptyConnectedAccounts?: Promise<EarlyEmptyConnectedAccounts>,
   ): Promise<void> {
     // Reserve synchronously: connected-account preparation may await before the
     // sender starts, while another local send can already be in progress.
     const turn = reservePersonalChatTurn(message.chat_id, message.message_id);
     try {
-    const context = connectedAccountContext ?? await this.buildDefaultConnectedAccountSendContext();
+    recordSendPreparationPhase('connected_context_begin');
+    const early = earlyEmptyConnectedAccounts ? await earlyEmptyConnectedAccounts : null;
+    const skipEmptyLookup = canReuseEarlyEmptyConnectedAccounts(early, {
+      scope: getWorkspaceCacheIdentity(), mutationEpoch: getConnectedAccountMutationEpoch(),
+      authenticated: get(authStore).isAuthenticated, teamId: get(activeTeamId),
+    });
+    const context = connectedAccountContext != null ? connectedAccountContext
+      : skipEmptyLookup ? undefined : await this.buildDefaultConnectedAccountSendContext();
+    recordSendPreparationPhase('connected_context_ready');
     let preparedConnectedAccountContext: PreparedConnectedAccountSendContext | undefined;
     try {
       preparedConnectedAccountContext = await prepareConnectedAccountSendContext({
@@ -2875,11 +2907,27 @@ export class ChatSynchronizationService extends EventTarget {
       newLocalChat,
       turn,
     );
+    recordSendPreparationPhase('sender_complete');
     if (!turn.turnId) failPersonalChatTurn(turn, new Error('The encrypted chat turn was not dispatched.'));
     } catch (error) {
       failPersonalChatTurn(turn, error);
       throw error;
     }
+  }
+
+  /** Starts a fresh, per-send empty-list check while local persistence runs. */
+  public beginEmptyConnectedAccountLookup(): Promise<EarlyEmptyConnectedAccounts> {
+    const scope = getWorkspaceCacheIdentity();
+    if (!scope || !get(authStore).isAuthenticated || get(activeTeamId)) return Promise.resolve(null);
+    const mutationEpoch = getConnectedAccountMutationEpoch();
+    recordSendPreparationPhase('connected_lookup_started');
+    return listConnectedAccounts().then((rows) => {
+      recordSendPreparationPhase('connected_lookup_ready');
+      return { scope, mutationEpoch, empty: rows.length === 0 };
+    }).catch(() => {
+      recordSendPreparationPhase('connected_lookup_failed');
+      return null;
+    });
   }
 
   private async buildDefaultConnectedAccountSendContext(): Promise<ConnectedAccountSendContext | undefined> {

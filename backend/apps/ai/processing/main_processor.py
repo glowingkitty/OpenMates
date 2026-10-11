@@ -3747,6 +3747,7 @@ async def handle_main_processing(
     ]
     cacheable_system_prefix = "\n\n".join(filter(None, stable_prefix_parts))
     prompt_parts = [*filter(None, stable_prefix_parts)]
+    tool_only_prompt_parts: list[str] = []
     # Explicit research/dispatch requirements apply to the tool phase. Keep all
     # safety, focus, output-format and user constraints in the synthesis prompt.
     research_only_prompt_parts: set[str] = set()
@@ -4294,14 +4295,17 @@ async def handle_main_processing(
         thinking_discipline = base_instructions.get("base_tool_thinking_discipline_instruction", "")
         if thinking_discipline:
             prompt_parts.append(thinking_discipline)
+            tool_only_prompt_parts.append(thinking_discipline)
             logger.debug(f"{log_prefix} [THINKING_DISCIPLINE] Injected tool-calling thinking discipline instruction")
     
     # Add generic proactive skill usage instruction (only when apps are available)
     # This encourages using available skills proactively for time-sensitive queries
     if discovered_apps_metadata and (request_data.user_preferences or {}).get("apps_enabled") is not False:
         proactive_skill_instruction = base_instructions.get("base_proactive_skill_usage_instruction", "")
-        prompt_parts.append(proactive_skill_instruction)
-        research_only_prompt_parts.add(proactive_skill_instruction)
+        if proactive_skill_instruction:
+            prompt_parts.append(proactive_skill_instruction)
+            tool_only_prompt_parts.append(proactive_skill_instruction)
+            research_only_prompt_parts.add(proactive_skill_instruction)
     else:
         # When no apps available, skip the proactive skill usage instruction
         # to avoid confusing the AI about capabilities it doesn't have
@@ -4609,6 +4613,7 @@ async def handle_main_processing(
             "If the user is complaining about sub-chats or wants you to try starting them, proceed to call 'start_sub_chats' on their request immediately."
         )
         prompt_parts.append(sub_chats_instruction)
+        tool_only_prompt_parts.append(sub_chats_instruction)
         research_only_prompt_parts.add(sub_chats_instruction)
         logger.info(f"{log_prefix} Appended sub-chats orchestration instructions to system prompt.")
 
@@ -4980,6 +4985,23 @@ async def handle_main_processing(
     if chat_depth > 0 and not getattr(request_data, "is_anonymous", False) and (request_data.user_preferences or {}).get("apps_enabled") is not False:
         available_tools_for_llm.append(ask_user_input_tool)
         logger.info(f"{log_prefix} Added ask_user_input tool to main LLM tools (depth={chat_depth}).")
+
+    # The final tool boundary can remove every preselected tool (for example,
+    # through a user/app policy). Do not instruct a tool-free model to call or
+    # reason about unavailable tools. Keep safety, Mate, focus, interactive
+    # questions, language, and other tool-independent instructions unchanged.
+    if not available_tools_for_llm and tool_only_prompt_parts:
+        for instruction in reversed(tool_only_prompt_parts):
+            # Remove the appended segment itself, even if a separate safety or
+            # persona rule happens to contain the same text.
+            for index in range(len(prompt_parts) - 1, -1, -1):
+                if prompt_parts[index] is instruction:
+                    del prompt_parts[index]
+                    break
+        full_system_prompt = "\n\n".join(filter(None, prompt_parts))
+        answer_recovery_system_prompt = "\n\n".join(
+            part for part in prompt_parts if part and part not in research_only_prompt_parts
+        )
     
     # Log available tools for debugging
     tool_names = [tool["function"]["name"] for tool in available_tools_for_llm]

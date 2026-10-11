@@ -54,7 +54,9 @@ class _CompletionMint(_TurnBinding):
 
 
 class _SummaryRead(_TurnBinding):
-    authorized_chat_ids: list[str] = Field(default_factory=list, max_length=128)
+    # Older workers supply a fresh ID shortlist. New workers let the API inspect
+    # its own memory-only owner index and authorize each candidate here.
+    authorized_chat_ids: list[str] | None = Field(default=None, max_length=128)
     current_project_id: str | None = Field(default=None, max_length=100)
 
 
@@ -318,40 +320,65 @@ async def read_summaries(request: Request) -> JSONResponse:
     payload = await _parse(request, _SummaryRead)
     cache, directus, encryption, vault_key_id = await _services_and_authority(request, payload)
     try:
-        sources = recent_work_summary_cache.candidates(
+        sources = (recent_work_summary_cache.candidates(
             owner_id=payload.owner_id, authorized_chat_ids=payload.authorized_chat_ids,
-        )
+        ) if payload.authorized_chat_ids is not None else recent_work_summary_cache.owner_candidates(
+            owner_id=payload.owner_id,
+        ))
         sources = [source for source in sources if source.chat_id != payload.current_chat_id]
         sources.sort(key=lambda source: (
             source.project_id != payload.current_project_id if payload.current_project_id else True,
             -source.source_updated_at,
         ))
-        sources = sources[:24]
-        owned = await _live_owned_chat_ids(directus, payload.owner_id, [source.chat_id for source in sources])
-        live_tasks = await cache.get_active_ai_tasks([source.chat_id for source in sources if source.chat_id in owned])
+        # The underlying cache has at most 512 entries globally. Bound even a
+        # replacement cache and authorize in batches so revoked leading sources
+        # cannot displace useful cross-Project references before the final cap.
+        sources = sources[:512]
         summaries = []
-        for source in sources:
-            if source.chat_id not in owned:
-                recent_work_summary_cache.revoke_chat(owner_id=payload.owner_id, chat_id=source.chat_id)
-                continue
-            active = source.active and source.chat_id in live_tasks and (source.active_task_id is None or live_tasks[source.chat_id] == source.active_task_id)
-            recent_completion = (source.assistant_completed_at is not None
-                                 and 0 <= time.time() - source.assistant_completed_at < 30 * 60)
-            if not active and not recent_completion:
-                continue
-            summary = await recent_work_summary_cache.get(
-                owner_id=payload.owner_id, chat_id=source.chat_id, authorized_chat_ids=owned,
-                vault_key_id=vault_key_id, encryption=encryption,
-            )
-            if summary is not None:
-                summaries.append({"source": asdict(replace(summary.source, active=active)), "text": summary.text})
+        for offset in range(0, len(sources), 64):
+            if len(summaries) >= 24:
+                break
+            batch = sources[offset:offset + 64]
+            owned = await _live_owned_chat_ids(directus, payload.owner_id, [source.chat_id for source in batch])
+            live_tasks = await cache.get_active_ai_tasks([source.chat_id for source in batch if source.chat_id in owned])
+            for source in batch:
+                if len(summaries) >= 24:
+                    break
+                if source.chat_id not in owned:
+                    recent_work_summary_cache.revoke_chat(owner_id=payload.owner_id, chat_id=source.chat_id)
+                    continue
+                active = source.active and source.chat_id in live_tasks and (source.active_task_id is None or live_tasks[source.chat_id] == source.active_task_id)
+                recent_completion = (source.assistant_completed_at is not None
+                                     and 0 <= time.time() - source.assistant_completed_at < 30 * 60)
+                if not active and not recent_completion:
+                    continue
+                summary = await recent_work_summary_cache.get(
+                    owner_id=payload.owner_id, chat_id=source.chat_id, authorized_chat_ids=owned,
+                    vault_key_id=vault_key_id, encryption=encryption,
+                )
+                if summary is not None and summary.source.revision == source.revision:
+                    summaries.append({"source": asdict(replace(summary.source, active=active)), "text": summary.text})
         still_owned = await _live_owned_chat_ids(
             directus, payload.owner_id, [payload.current_chat_id] + [item["source"]["chat_id"] for item in summaries],
         )
         for item in summaries:
             if item["source"]["chat_id"] not in still_owned:
                 recent_work_summary_cache.revoke_chat(owner_id=payload.owner_id, chat_id=item["source"]["chat_id"])
-        summaries = [item for item in summaries if item["source"]["chat_id"] in still_owned]
+        still_active = await cache.get_active_ai_tasks([
+            item["source"]["chat_id"] for item in summaries if item["source"]["active"] and item["source"]["chat_id"] in still_owned
+        ])
+        current_revisions = {source.chat_id: source.revision for source in
+                             recent_work_summary_cache.owner_candidates(owner_id=payload.owner_id)}
+        summaries = [item for item in summaries if item["source"]["chat_id"] in still_owned
+                     and current_revisions.get(item["source"]["chat_id"]) == item["source"]["revision"]
+                     and item["source"]["expires_at"] > time.time()
+                     and (not item["source"]["active"] or (
+                         item["source"]["chat_id"] in still_active and (
+                             item["source"]["active_task_id"] is None
+                             or still_active[item["source"]["chat_id"]] == item["source"]["active_task_id"])))
+                     and (item["source"]["active"] or (
+                         item["source"]["assistant_completed_at"] is not None
+                         and 0 <= time.time() - item["source"]["assistant_completed_at"] < 30 * 60))]
         if (await cache.get_active_ai_task(payload.current_chat_id) != payload.task_id
                 or payload.current_chat_id not in still_owned):
             raise HTTPException(status_code=403, detail="Recent-work turn authority denied")

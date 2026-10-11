@@ -32,6 +32,7 @@ const mocks = vi.hoisted(() => {
     getActiveAITaskIdForChat: vi.fn(() => null),
     sendSetActiveChat: vi.fn(async () => undefined),
     sendNewMessage: vi.fn(),
+    beginEmptyConnectedAccountLookup: vi.fn(async () => null),
     sendDeleteMessage: vi.fn(async () => undefined),
   };
   return {
@@ -67,7 +68,10 @@ vi.mock('../../../services/tracing/setup', () => ({ getTracer: mocks.getTracer }
 vi.mock('@tiptap/core', () => ({ Extension: { create: vi.fn() } }));
 vi.mock('../../../services/db', () => ({ chatDB: mocks.chatDB }));
 vi.mock('../../../services/encryption/ChatKeyManager', () => ({ chatKeyManager: { getKeySync: vi.fn(() => 'local-key'), createKeyForNewChat: vi.fn(() => 'local-key') } }));
-vi.mock('../../../services/chatSyncService', () => ({ chatSyncService: mocks.chatSyncService }));
+vi.mock('../../../services/chatSyncService', () => ({
+  chatSyncService: mocks.chatSyncService,
+  recordSendPreparationPhase: vi.fn(),
+}));
 vi.mock('../../../services/chatListCache', () => ({ chatListCache: { setLastMessage: vi.fn(), removeChat: vi.fn() } }));
 vi.mock('../../../stores/websocketStatusStore', () => ({ websocketStatus: mocks.store(mocks.wsStatus) }));
 vi.mock('../utils', () => ({ hasActualContent: mocks.hasActualContent, vibrateMessageField: vi.fn() }));
@@ -319,6 +323,7 @@ describe('handleSend authenticated acceptance lifecycle', () => {
     expect(mocks.chatDB.saveMessage).toHaveBeenCalledWith(expect.objectContaining({ message_id: optimistic.message_id }));
     expect(mocks.chatSyncService.sendNewMessage).toHaveBeenCalledWith(
       expect.objectContaining({ message_id: optimistic.message_id }), null, undefined, undefined, false,
+      expect.any(Promise),
     );
     expect(document.content).toEqual([]);
     expect(setContent).not.toHaveBeenCalled();
@@ -456,7 +461,7 @@ describe('handleSend authenticated acceptance lifecycle', () => {
     expect(mocks.embedStorePut).toHaveBeenCalledOnce();
     expect(mocks.chatSyncService.sendNewMessage).toHaveBeenCalledWith(
       expect.objectContaining({ content: 'embed:uploaded-image' }),
-      null, undefined, undefined, false,
+      null, undefined, undefined, false, expect.any(Promise),
     );
   });
 
@@ -474,7 +479,7 @@ describe('handleSend authenticated acceptance lifecycle', () => {
     expect(mocks.embedStorePut).toHaveBeenCalledOnce();
     expect(mocks.chatSyncService.sendNewMessage).toHaveBeenCalledWith(
       expect.objectContaining({ content: 'embed:uploaded-image' }),
-      null, undefined, undefined, false,
+      null, undefined, undefined, false, expect.any(Promise),
     );
     expect(state.doc.content).toEqual([]);
   });
@@ -497,7 +502,7 @@ describe('handleSend authenticated acceptance lifecycle', () => {
     expect(await pending).toBe(true);
     expect(mocks.chatSyncService.sendNewMessage).toHaveBeenCalledWith(
       expect.objectContaining({ content: 'Team photo' }),
-      null, undefined, undefined, false,
+      null, undefined, undefined, false, expect.any(Promise),
     );
     expect(state.doc.content[0]?.content?.[0].text).toBe('New thought while sending');
     expect(clearContent).toHaveBeenCalledOnce();

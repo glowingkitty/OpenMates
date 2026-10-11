@@ -133,14 +133,12 @@ async def test_task_activity_floor_only_widens_discovery_not_exact_recency():
 
 
 @pytest.mark.asyncio
-async def test_chat_discovery_fetches_only_ids_then_memory_ipc():
+async def test_chat_discovery_uses_api_memory_index_without_worker_chat_scan():
     calls = []
 
     class Directus:
         async def get_items(self, collection, params, **kwargs):
-            assert collection == "chats" and params["fields"] == "id"
-            assert kwargs["no_cache"] is True and kwargs["admin_required"] is True
-            return [{"id": "current"}, {"id": "related"}]
+            pytest.fail("The worker must not scan durable chat IDs for related summaries")
 
     class Client:
         async def read(self, **kwargs):
@@ -149,7 +147,7 @@ async def test_chat_discovery_fetches_only_ids_then_memory_ipc():
 
     request = SimpleNamespace(user_id="owner", chat_id="current", current_project={"id": "project"})
     assert await related_work.fetch_related_chat_summaries(request, "task", object(), Directus(), client=Client()) == []
-    assert calls[0]["authorized_chat_ids"] == ["related"]
+    assert "authorized_chat_ids" not in calls[0]
     assert calls[0]["current_project_id"] == "project"
 
 

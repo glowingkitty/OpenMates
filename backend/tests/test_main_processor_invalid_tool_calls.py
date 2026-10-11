@@ -897,6 +897,116 @@ async def test_stage_one_app_shortlist_limits_ordinary_main_prompt_instructions(
     assert "UNRELATED_APP_INSTRUCTION" not in prompt
 
 
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles
+async def test_no_tool_dispatch_prunes_only_unavailable_tool_guidance(monkeypatch) -> None:
+    """Compare the actual prompts sent to the provider for identical chat context."""
+    ethics = "Always answer safely and accurately."
+    temporal = "Use the current date for time-sensitive answers."
+    discipline = "TOOL_THINKING_ONLY: Wait for tool output before reasoning about it."
+    proactive = "PROACTIVE_SKILLS_ONLY: Call a useful available skill."
+    base_instructions = {
+        "base_ethics_instruction": ethics,
+        "base_temporal_awareness_instruction": temporal,
+        "base_tool_thinking_discipline_instruction": discipline,
+        "base_proactive_skill_usage_instruction": proactive,
+    }
+    app_metadata = {"web": SimpleNamespace(skills=[], instructions=[], focuses=[])}
+    kwargs = {
+        "streams": [["Berlin."]],
+        "base_instructions": base_instructions,
+        "discovered_apps_metadata": app_metadata,
+        "preprocessing_overrides": {
+            "relevant_app_skills": ["web-search"],
+            "selected_app_ids": ["web"],
+            "selected_main_llm_model_id": "google/gemini-3.8-flash",
+            "selected_main_llm_thinking_level": "LOW",
+            "output_language": "de",
+        },
+    }
+    _output, no_tool_calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, generated_tools=[], **kwargs,
+    )
+    web_tool = {"type": "function", "function": {"name": "web-search", "description": "Search."}}
+    _output, tool_calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, generated_tools=[web_tool], **kwargs,
+    )
+
+    no_tool = no_tool_calls[0]
+    with_tool = tool_calls[0]
+    assert no_tool["tools"] == []
+    assert with_tool["tools"] == [web_tool]
+    assert no_tool["thinking_level"] == with_tool["thinking_level"] == "LOW"
+    for rule in (ethics, temporal, main_processor.INTERACTIVE_QUESTIONS_INSTRUCTION,
+                 "You MUST respond entirely in German"):
+        assert rule in no_tool["system_prompt"]
+        assert rule in with_tool["system_prompt"]
+    assert discipline not in no_tool["system_prompt"]
+    assert proactive not in no_tool["system_prompt"]
+    assert discipline in with_tool["system_prompt"]
+    assert proactive in with_tool["system_prompt"]
+    assert len(with_tool["system_prompt"].encode()) - len(no_tool["system_prompt"].encode()) == (
+        len(discipline.encode()) + len(proactive.encode()) + 4
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.transparency.loaded-set,app-memories.privacy.client-encrypted
+@pytest.mark.parametrize("diagram_selected", [True, False])
+async def test_no_tool_diagram_guidance_survives_primary_and_recovery_prompts(
+    monkeypatch, diagram_selected: bool,
+) -> None:
+    """Capture both real provider prompts when Diagram Design can render without a tool."""
+    from backend.apps.diagrams import diagram_guidance
+    from backend.shared.python_utils.memory_loader import MemoryDefinition
+
+    monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", 1)
+    # Keep the real pinned drawing references and receipt builder; provide the
+    # app Memory metadata normally discovered from the installed app package.
+    flowchart_memory = MemoryDefinition(
+        id="app:diagrams:type-flowchart", title="Flowchart",
+        description="Complete flowchart diagram layout and visual grammar.",
+        when_to_use="Decision logic with branches", body="Flowchart guide metadata.",
+        revision="a" * 64, source="app", app_id="diagrams",
+    )
+    monkeypatch.setattr(diagram_guidance, "load_app_memories", lambda _apps: [flowchart_memory])
+    safety = "SAFETY_RULE: Answer safely."
+    pii = "PII_RULE: Protect personal information."
+    tool_discipline = "TOOL_ONLY_RULE: Wait for tool results."
+    app_metadata = {"diagrams": SimpleNamespace(skills=[], instructions=[], focuses=[])}
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        streams=[[{"fake_google_tool_call": "unavailable-tool"}], ["A safe answer."]],
+        generated_tools=[],
+        discovered_apps_metadata=app_metadata,
+        preprocessing_overrides={
+            "selected_app_ids": ["diagrams"] if diagram_selected else [],
+            "relevant_diagram_types": ["type-flowchart"],
+        },
+        base_instructions={
+            "base_ethics_instruction": safety + "\n" + pii,
+            "base_tool_thinking_discipline_instruction": tool_discipline,
+        },
+    )
+
+    assert len(calls) == 2
+    assert all(call["tools"] is None and call["tool_choice"] == "none" for call in calls)
+    for call in calls:
+        prompt = call["system_prompt"]
+        for stable_rule in (safety, pii, main_processor.INTERACTIVE_QUESTIONS_INSTRUCTION):
+            assert stable_rule in prompt
+        assert tool_discipline not in prompt
+        assert ("Diagram Design drawing context" in prompt) is diagram_selected
+        assert ("--- Diagram Design selected visual type: type-flowchart ---" in prompt) is diagram_selected
+    assert main_processor.ANSWER_RECOVERY_INSTRUCTION in calls[1]["system_prompt"]
+
+    receipts = [chunk["receipt"] for chunk in output
+                if isinstance(chunk, dict) and chunk.get("__chat_context_applied__")]
+    applied_diagram_memories = [memory for receipt in receipts
+                                for memory in receipt.get("memories", [])
+                                if memory.get("source") == "app"
+                                and memory.get("id") == "app:diagrams:type-flowchart"]
+    assert bool(applied_diagram_memories) is diagram_selected
+
+
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
 async def test_main_processor_continues_safe_text_after_fabricated_protocol(monkeypatch) -> None:
     safe_prefix = "## Practical comparison\n\nThe first option is easier to operate.\n\n"
