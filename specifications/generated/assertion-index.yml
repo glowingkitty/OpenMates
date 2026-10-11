@@ -20535,7 +20535,7 @@ assertions:
       surface: cli
     - &id2609
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 440
+      line: 442
       name: remembered home data remains encrypted offline and cannot cross accounts
         or Teams
       surface: cli
@@ -20605,7 +20605,7 @@ assertions:
       surface: sdks.npm
     - &id2614
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 440
+      line: 442
       name: remembered home data remains encrypted offline and cannot cross accounts
         or Teams
       surface: cli
@@ -51689,13 +51689,13 @@ assertions:
       surface: gui.web
     - &id6420
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 179
+      line: 181
       name: saved keyless drafts retain their preview and ordering metadata without
         revealing locked chats
       surface: cli
     - &id6421
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 195
+      line: 197
       name: linked metadata uses message time rather than a later metadata edit
       surface: cli
     - &id6422
@@ -51836,18 +51836,18 @@ assertions:
       surface: cli
     - &id6437
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 179
+      line: 181
       name: saved keyless drafts retain their preview and ordering metadata without
         revealing locked chats
       surface: cli
     - &id6438
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 211
+      line: 213
       name: saving a draft before the first list still syncs the complete chat census
       surface: cli
     - &id6439
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 278
+      line: 280
       name: clearing a new draft remembers its deletion without marking the chat census
         fresh
       surface: cli
@@ -52456,82 +52456,82 @@ assertions:
       surface: cli
     - &id6534
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 23
+      line: 25
       name: cached chat opening and drafts bypass full sync while preserving account
         fences
       surface: cli
     - &id6535
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 51
+      line: 53
       name: metadata-only chat opening reads canonical history without saved-output
         recovery
       surface: cli
     - &id6536
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 79
+      line: 81
       name: cached history decrypts stale local chats without network access and retains
         account fences
       surface: cli
     - &id6537
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 107
+      line: 109
       name: missing team cache or local team key never falls back to personal chats
         or fetches a key
       surface: cli
     - &id6538
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 204
+      line: 206
       name: a list response cannot publish after the account changes while syncing
       surface: cli
     - &id6539
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 211
+      line: 213
       name: saving a draft before the first list still syncs the complete chat census
       surface: cli
     - &id6540
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 247
+      line: 249
       name: editing a draft does not extend the freshness of an existing chat census
       surface: cli
     - &id6541
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 278
+      line: 280
       name: clearing a new draft remembers its deletion without marking the chat census
         fresh
       surface: cli
     - &id6542
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 304
+      line: 306
       name: verified synced history is published and retained on disk before slow
         recovery finishes
       surface: cli
     - &id6543
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 340
+      line: 342
       name: cancelling background chat sync closes its socket and stops recovery without
         removing saved history
       surface: cli
     - &id6544
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 370
+      line: 372
       name: an incomplete metadata sync cannot replace the saved chat cache or publish
         an empty list
       surface: cli
     - &id6545
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 389
+      line: 391
       name: first history window is usable and encrypted on disk while older history
         is unavailable
       surface: cli
     - &id6546
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 412
+      line: 414
       name: background sync retains concurrent windows without reviving deleted or
         newer chats
       surface: cli
     - &id6547
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 422
+      line: 424
       name: idle recent history warming is bounded and cancellation stops subsequent
         reads
       surface: cli
@@ -52959,13 +52959,13 @@ assertions:
       surface: gui.web
     - &id6587
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 141
+      line: 143
       name: sidebar metadata distinguishes a readable untitled chat from a locked
         hidden key
       surface: cli
     - &id6588
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 195
+      line: 197
       name: linked metadata uses message time rather than a later metadata edit
       surface: cli
     - &id6589
@@ -53183,19 +53183,19 @@ assertions:
       surface: gui.web
     - &id6616
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 141
+      line: 143
       name: sidebar metadata distinguishes a readable untitled chat from a locked
         hidden key
       surface: cli
     - &id6617
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 160
+      line: 162
       name: sidebar metadata cannot return plaintext after an account change during
         the request
       surface: cli
     - &id6618
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 168
+      line: 170
       name: activity census cannot cross accounts before metadata hydration starts
       surface: cli
     - &id6619
@@ -53454,7 +53454,7 @@ assertions:
       surface: gui.web
     - &id6651
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 128
+      line: 130
       name: project naming sends structured titles through the naming route
       surface: cli
     - &id6652
@@ -57587,37 +57587,37 @@ assertions:
       surface: cli
     - &id7233
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 304
+      line: 306
       name: verified synced history is published and retained on disk before slow
         recovery finishes
       surface: cli
     - &id7234
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 389
+      line: 391
       name: first history window is usable and encrypted on disk while older history
         is unavailable
       surface: cli
     - &id7235
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 412
+      line: 414
       name: background sync retains concurrent windows without reviving deleted or
         newer chats
       surface: cli
     - &id7236
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 422
+      line: 424
       name: idle recent history warming is bounded and cancellation stops subsequent
         reads
       surface: cli
     - &id7237
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 458
+      line: 460
       name: saved embeds open from encrypted cache and targeted reads without a full
         recovery sync
       surface: cli
     - &id7238
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 479
+      line: 481
       name: cached child embed repairs its missing inherited parent and stays readable
         offline
       surface: cli
@@ -60363,13 +60363,13 @@ assertions:
       surface: cli
     - &id7587
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 304
+      line: 306
       name: verified synced history is published and retained on disk before slow
         recovery finishes
       surface: cli
     - &id7588
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 340
+      line: 342
       name: cancelling background chat sync closes its socket and stops recovery without
         removing saved history
       surface: cli
@@ -64862,7 +64862,7 @@ assertions:
       surface: gui.web
     - &id8219
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 479
+      line: 481
       name: cached child embed repairs its missing inherited parent and stays readable
         offline
       surface: cli
@@ -120363,37 +120363,37 @@ assertions:
       surface: cli
     - &id15131
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 23
+      line: 25
       name: cached chat opening and drafts bypass full sync while preserving account
         fences
       surface: cli
     - &id15132
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 51
+      line: 53
       name: metadata-only chat opening reads canonical history without saved-output
         recovery
       surface: cli
     - &id15133
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 79
+      line: 81
       name: cached history decrypts stale local chats without network access and retains
         account fences
       surface: cli
     - &id15134
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 107
+      line: 109
       name: missing team cache or local team key never falls back to personal chats
         or fetches a key
       surface: cli
     - &id15135
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 440
+      line: 442
       name: remembered home data remains encrypted offline and cannot cross accounts
         or Teams
       surface: cli
     - &id15136
       path: frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
-      line: 458
+      line: 460
       name: saved embeds open from encrypted cache and targeted reads without a full
         recovery sync
       surface: cli

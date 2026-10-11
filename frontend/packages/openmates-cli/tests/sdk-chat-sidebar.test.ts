@@ -12,8 +12,10 @@ import { loadSyncCache, saveSyncCache } from '../src/storage.js';
 
 function fixture() {
   let master = Buffer.alloc(32, 1);
-  const client = Object.create(OpenMatesClient.prototype) as OpenMatesClient;
-  Object.assign(client, { requireSession: () => ({hashedEmail:'fixture-account'}), hasSession: () => true,
+  const client = new OpenMatesClient({session: {apiUrl:'https://fixture.invalid',sessionId:'fixture-session',
+    hashedEmail:'fixture-account',masterKeyExportedB64:master.toString('base64'),createdAt:1,
+    cookies:{},wsToken:null,userEmailSalt:'fixture-salt',authorizerDeviceName:'Fixture',autoLogoutMinutes:null}});
+  Object.assign(client, {
     resolveTeamContext: () => null, getMasterKeyBytes: () => master,
     getChatWrappingKey: async () => master, getCliRequestHeaders: () => ({}), appendTeamQuery: (path: string) => path });
   return { client, master, changeAccount: () => { master = Buffer.alloc(32, 2); } };
@@ -38,7 +40,7 @@ test('cached chat opening and drafts bypass full sync while preserving account f
     assert.equal(opened.messages[0].content,'A cached message');
     assert.equal((await client.getCachedDraft('cached'))?.markdown,'Continue the plan');
     await assert.rejects(client.getChatMessages('cached'),/Full sync must not block opening/);
-    Object.assign(client,{decryptRawChatMessages:async()=>{changeAccount();return [];}});
+    Object.assign(client,{createRawChatMessageReader:async()=>async()=>{changeAccount();return [];}});
     await assert.rejects(client.getChatMessages('cached',{preferCache:true}),/workspace changed/);
   } finally {
     if(previousStateDir===undefined)delete process.env.OPENMATES_STATE_DIR;
