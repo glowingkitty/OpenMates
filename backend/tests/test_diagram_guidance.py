@@ -55,6 +55,12 @@ def test_all_44_types_have_short_memories_and_complete_selected_references() -> 
     assert "data-om-component" in selected and "data-om-edge" in selected
     assert "static nested inline SVG icons are allowed" in selected
     assert "Do not use foreignObject or external images" in selected
+    sequence = diagram_guidance_prompt(["type-sequence"], variant="minimal_dark")
+    assert "data-om-owner=\"participant-node-id\"" in sequence
+    assert "message endpoint heights remain fixed" in sequence
+    assert "including Q curves and a arcs" in selected
+    assert "correct dangling references" in selected
+    assert "Use orthogonal M/H/V path segments" not in selected
     assert diagram_guidance_prompt(["../private", "type-unknown"]) == ""
 
     receipt = selected_diagram_memories(["type-line"])

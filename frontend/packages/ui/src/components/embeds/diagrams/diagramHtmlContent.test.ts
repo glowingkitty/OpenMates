@@ -3,9 +3,26 @@ import { describe, expect, it } from 'vitest';
 import darkHtml from './diagramHtmlExampleDark.html?raw';
 import lightHtml from './diagramHtmlExampleLight.html?raw';
 import { diagramHtmlDecorativeFixture } from './diagramHtmlDecorativeFixture';
+import { generatedDiagramArtifacts } from './diagramHtmlGeneratedArtifacts';
 import { buildDiagramFrame, buildDiagramSrcdoc, diagramBackgroundColor, validateDiagramHtml } from './diagramHtmlContent';
 
 describe('HTML diagram isolation', () => {
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
+  it('preserves static rounded elbows and arc bridges while rejecting invalid editable paths', () => {
+    const paths = [
+      'M 110,30 H 142 Q 150,30 150,38 V 52 Q 150,60 158,60 H 200',
+      'M 110,30 H 142 a 8,8 0 0,1 16,0 H 200',
+      'M 110,30 C 120,40 180,40 200,30',
+    ];
+    const source = (path: string) => `<html><head><title>Rounded connector</title></head><body><svg data-om-diagram="architecture" viewBox="0 0 300 200"><g data-om-component="from"></g><g data-om-component="to"></g><g data-om-edge="route" data-om-from="from" data-om-to="to" data-om-from-side="right" data-om-to-side="left"><path data-om-path d="${path}"/></g></svg></body></html>`;
+    for (const path of paths) {
+      expect(validateDiagramHtml(source(path)).querySelector('path')?.getAttribute('d')).toBe(path);
+    }
+    expect(() => validateDiagramHtml(source('M 110,30 javascript:alert(1)'))).toThrow();
+    expect(() => validateDiagramHtml(source('H 200'))).toThrow();
+    expect(() => validateDiagramHtml(source(paths[0]).replace('data-om-to="to"', 'data-om-to="missing"'))).toThrow();
+  });
+
   // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence,chats.layout.responsive-history
   it('uses the canonical page color for the outer preview and fullscreen surround', () => {
     expect(buildDiagramFrame(darkHtml).backgroundColor).toBe('#2d3142');
@@ -79,5 +96,14 @@ describe('HTML diagram isolation', () => {
     expect(() => validateDiagramHtml(diagramHtmlDecorativeFixture)).not.toThrow();
     expect(() => validateDiagramHtml(diagramHtmlDecorativeFixture.replace('data-om-diagram="architecture"', ''))).toThrow();
     expect(() => validateDiagramHtml(diagramHtmlDecorativeFixture.replace('</body>', '<svg data-om-diagram="second" viewBox="0 0 10 10"></svg></body>'))).toThrow();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
+  it('accepts the exact passwordless sequence produced by a real model request', () => {
+    const source = generatedDiagramArtifacts.generatedPasswordless.html_source;
+    const document = validateDiagramHtml(source);
+    expect(document.querySelector('svg[data-om-diagram="sequence"]')).not.toBeNull();
+    expect(document.querySelectorAll('g[data-om-edge]')).toHaveLength(10);
+    expect(document.querySelector('g[data-om-edge="msg-7"]')?.textContent).toContain('401 CODE EXPIRED');
   });
 });

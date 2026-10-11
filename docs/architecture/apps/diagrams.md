@@ -45,8 +45,12 @@ Stable, nonvisual SVG metadata identifies editable parts:
 - A movable group has `data-om-component="node-id"` and `data-om-editable="true"`.
 - A text element has `data-om-text="label-id"` and `data-om-editable="text"`.
 - A connector group has `data-om-edge`, `data-om-from`, `data-om-to`, and explicit
-  `data-om-from-side`/`data-om-to-side` anchors. Its editable orthogonal path has
+  `data-om-from-side`/`data-om-to-side` anchors. Its editable SVG path has
   `data-om-path`; optional label backgrounds have `data-om-label-mask`.
+  Rounded elbows and arc bridges remain part of the original visual composition.
+- Sequence lifelines and activation shapes use `data-om-owner="participant-id"`
+  to follow their participant column. Participant dragging is horizontal, and
+  each message retains its original chronological height and endpoint offset.
 
 Clicking text edits it in place. Dragging a group moves its shapes and labels
 together and reroutes attached orthogonal connectors. Undo and Cancel operate on

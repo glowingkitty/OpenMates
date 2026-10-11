@@ -13,6 +13,7 @@ from backend.apps.ai.processing.jev_preprocessing import (
 from backend.apps.ai.testing.caching_llm_wrapper import wrap_provider_with_cache
 from backend.apps.ai.testing.diagram_html_fixture import GROUP, PROMPT, active, llm_fixture
 from backend.apps.ai.utils.diagram_html_fences import validate_diagram_html_source
+from backend.shared.providers.typesafe import budget as jev_budget
 from backend.shared.providers.typesafe import client as jev_client_module
 from backend.shared.providers.typesafe.batching import question_batches
 from backend.shared.providers.typesafe.client import (
@@ -24,6 +25,10 @@ from backend.shared.testing.mock_context import mock_group_var, mock_mode_var
 
 @pytest.fixture
 def diagram_replay(monkeypatch):
+    # Worker startup loads these public, hash-checked tokenizer tables before
+    # signed LIVE mock mode blocks all unregistered outbound HTTP. Keep the
+    # real Jev budget estimator active throughout the replay tests.
+    jev_budget._encodings()
     monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
     monkeypatch.setenv("MOCK_EXTERNAL_APIS", "true")
     mode = mock_mode_var.set("mock")

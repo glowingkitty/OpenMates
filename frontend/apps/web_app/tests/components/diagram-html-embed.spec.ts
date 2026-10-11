@@ -135,15 +135,7 @@ test('fullscreen retains the source, provides matching edit/close controls, and 
   await page.getByTestId('diagram-html-undo').click();
   await expect(label).toHaveText(originalText);
 
-  const nodeBox = (await node.boundingBox())!;
-  const start = { x: nodeBox.x + 15, y: nodeBox.y + nodeBox.height - 8 };
-  await page.mouse.move(start.x, start.y);
-  await page.mouse.down();
-  await page.mouse.move(start.x + 45, start.y + 25, { steps: 8 });
-  await page.mouse.up();
-  await expect(node).not.toHaveAttribute('transform', originalTransform ?? '');
-  await expect(edge).not.toHaveAttribute('d', originalPath ?? '');
-  const attachment = await edge.evaluate(path => {
+  const edgeGeometry = () => edge.evaluate(path => {
     const curve = path as SVGPathElement;
     const connection = curve.closest('g[data-om-edge]') as SVGGElement;
     const root = curve.ownerSVGElement!;
@@ -153,12 +145,31 @@ test('fullscreen retains the source, provides matching edit/close controls, and 
     const start = curve.getPointAtLength(0).matrixTransform(matrix);
     const end = curve.getPointAtLength(curve.getTotalLength()).matrixTransform(matrix);
     return {
-      fromError: Math.hypot(start.x - from.right, start.y - (from.top + from.height / 2)),
-      toError: Math.hypot(end.x - to.left, end.y - (to.top + to.height / 2)),
+      start: { x: start.x, y: start.y },
+      end: { x: end.x, y: end.y },
+      fromPort: { x: from.right, y: from.top + from.height / 2 },
+      toPort: { x: to.left, y: to.top + to.height / 2 },
     };
   });
-  expect(attachment.fromError).toBeLessThan(2);
-  expect(attachment.toError).toBeLessThan(2);
+  const originalAttachment = await edgeGeometry();
+
+  const nodeBox = (await node.boundingBox())!;
+  const start = { x: nodeBox.x + 15, y: nodeBox.y + nodeBox.height - 8 };
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x + 45, start.y + 25, { steps: 8 });
+  await page.mouse.up();
+  await expect(node).not.toHaveAttribute('transform', originalTransform ?? '');
+  await expect(edge).not.toHaveAttribute('d', originalPath ?? '');
+  const attachment = await edgeGeometry();
+  expect(attachment.start.x - attachment.fromPort.x).toBeCloseTo(originalAttachment.start.x - originalAttachment.fromPort.x, 1);
+  expect(attachment.start.y - attachment.fromPort.y).toBeCloseTo(originalAttachment.start.y - originalAttachment.fromPort.y, 1);
+  expect(attachment.end.x - attachment.toPort.x).toBeCloseTo(originalAttachment.end.x - originalAttachment.toPort.x, 1);
+  expect(attachment.end.y - attachment.toPort.y).toBeCloseTo(originalAttachment.end.y - originalAttachment.toPort.y, 1);
+  expect(attachment.start.x - originalAttachment.start.x).toBeCloseTo(attachment.fromPort.x - originalAttachment.fromPort.x, 1);
+  expect(attachment.start.y - originalAttachment.start.y).toBeCloseTo(attachment.fromPort.y - originalAttachment.fromPort.y, 1);
+  expect(attachment.end.x).toBeCloseTo(originalAttachment.end.x, 1);
+  expect(attachment.end.y).toBeCloseTo(originalAttachment.end.y, 1);
   await screenshot(page, 'diagram-fullscreen-moving-component.png');
   await page.getByTestId('diagram-html-undo').click();
   await expect.poll(() => node.getAttribute('transform')).toBe(originalTransform);

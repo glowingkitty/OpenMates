@@ -1,0 +1,16 @@
+[
+  {
+    "id": "generatedPasswordless",
+    "prompt": "Draw a dark sequence diagram for passwordless login. Show the user, app, email service, and API exchanging the sign-in request, one-time code, verification, and successful session. Include what happens when a code has expired and the user retries.",
+    "html_file": "diagramHtmlGeneratedPasswordlessSequenceDark.html",
+    "sha256": "b1ee5b8430f0e4c5856e9edd92592d8e96057ce65a390ef634347002d68a70b1",
+    "guidance_type": "app:diagrams:type-sequence",
+    "guidance_revision": "e3a109d4983a951ff670346c352529e48619c1e81db1774edfa6f05d3e93f778",
+    "title": "Passwordless Login Flow",
+    "diagram_kind": "sequence",
+    "render_width": 1024,
+    "render_height": 840,
+    "background": "#2d3142",
+    "required_labels": ["User Client", "SPA / Mobile App", "Auth API Gateway", "Email Provider", "401 CODE EXPIRED", "200 SESSION JWT"]
+  }
+]

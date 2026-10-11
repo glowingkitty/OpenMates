@@ -1796,6 +1796,31 @@ describe("memory type registry", () => {
 });
 
 describe("CLI streamed embed persistence", () => {
+  const versionResponse = (encryptedSnapshot: string) => ({
+    ok: true, status: 200,
+    data: { embed_id: "embed-123", version_number: 1,
+      rows: [{ version_number: 1, encrypted_snapshot: encryptedSnapshot, encrypted_patch: null }] },
+  });
+  const diffReceipt = (payload: Record<string, any>) => ({
+    request_id: payload.request_id,
+    embed_id: payload.embed_id,
+    version_number: payload.version_number,
+    canonical_source: "version_row",
+    canonical_digest: createHash("sha256").update(JSON.stringify([
+      payload.encrypted_snapshot ?? null, payload.encrypted_patch ?? null,
+    ])).digest("hex"),
+  });
+  const streamedEmbed = (content: string, version = 1) => ({
+    embed_id: "embed-123", type: "diagram_html", content, status: "finished", version_number: version,
+    version_history_rows: [{ embed_id: "embed-123", version_number: version,
+      snapshot: content, created_at: 1780000000 + version }],
+  });
+  const persistenceArgs = (ws: unknown, content: string, version = 1) => ({
+    ws, embeds: [streamedEmbed(content, version)], chatId: "chat-123",
+    chatKeyBytes: new Uint8Array(32).fill(7), fallbackMessageId: "message-123",
+    ownerId: "user-uuid-123",
+  });
+
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity,storage.versions.bounded-reconstruction
   it("uses the same deterministic parent embed key across version updates", async () => {
     writeLegacySession();
@@ -1804,15 +1829,19 @@ describe("CLI streamed embed persistence", () => {
     const chatKey = new Uint8Array(32).fill(7);
     const frames: { type: string; payload: Record<string, any> }[] = [];
     const ws = {
-      waitForMessage: async (type: string) => ({
-        payload: type === "store_embed_keys_confirmed"
+      waitForMessage: async (type: string, match: (payload: unknown) => boolean) => {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        const sent = frames.at(-1);
+        assert.ok(sent && match(sent.payload));
+        return { payload: type === "store_embed_keys_confirmed"
           ? { created_count: 2, failed_count: 0 }
-          : {},
-      }),
+          : type === "store_embed_diff_confirmed" ? diffReceipt(sent.payload) : sent.payload };
+      },
       sendAsync: async (type: string, payload: Record<string, any>) => {
         frames.push({ type, payload });
       },
     };
+    (client as any).http.get = async () => ({ ok: false, status: 404 });
 
     const replacementPatch = "--- v1\n+++ v2\n@@ -1,1 +1,2 @@\n-version one\n+version two\n+";
     const persist = async (content: string, version: number) => {
@@ -1877,6 +1906,128 @@ describe("CLI streamed embed persistence", () => {
       await decryptWithAesGcmCombined(diffFrames[1].payload.encrypted_patch, secondKey),
       replacementPatch,
     );
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=chats.completion.recovery-takeover,storage.versions.bounded-reconstruction
+  it("waits for the correlated durable v1 receipt before continuing to recovery", async () => {
+    writeLegacySession();
+    const client = OpenMatesClient.load();
+    const frames: Array<{ type: string; payload: Record<string, any> }> = [];
+    let releaseDiff!: (payload: Record<string, unknown>) => void;
+    const diffAck = new Promise<Record<string, unknown>>((resolve) => { releaseDiff = resolve; });
+    (client as any).http.get = async () => ({ ok: false, status: 404 });
+    const ws = {
+      waitForMessage: async (type: string, match: (payload: unknown) => boolean) => {
+        if (type === "store_embed_diff_confirmed") {
+          const receipt = await diffAck;
+          assert.equal(match({ ...receipt, request_id: "unrelated-request" }), false);
+          assert.ok(match(receipt));
+          return { payload: receipt };
+        }
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        const sent = frames.at(-1);
+        assert.ok(sent && match(sent.payload));
+        return { payload: type === "store_embed_keys_confirmed"
+          ? { created_count: 2, failed_count: 0 } : sent.payload };
+      },
+      sendAsync: async (type: string, payload: Record<string, any>) => { frames.push({ type, payload }); },
+    };
+    let settled = false;
+    const persist = (client as any).persistStreamedEmbeds(persistenceArgs(ws, "<html>first</html>"))
+      .finally(() => { settled = true; });
+    for (let i = 0; i < 30 && !frames.some((frame) => frame.type === "store_embed_diff"); i++) {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+    const sent = frames.find((frame) => frame.type === "store_embed_diff");
+    assert.ok(sent);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(settled, false);
+    releaseDiff(diffReceipt(sent.payload));
+    await persist;
+    assert.equal(settled, true);
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=storage.versions.bounded-reconstruction,chats.completion.recovery-takeover
+  it("reuses an existing identical v1 without sending new randomized ciphertext", async () => {
+    writeLegacySession();
+    const client = OpenMatesClient.load();
+    const frames: Array<{ type: string; payload: Record<string, any> }> = [];
+    const chatKey = new Uint8Array(32).fill(7);
+    const embedKey = await (await import("../src/crypto.ts")).deriveEmbedKeyFromChatKey(chatKey, "embed-123");
+    const existingCiphertext = await encryptWithAesGcmCombined("<html>same</html>", embedKey);
+    let requestedPath = "";
+    (client as any).http.get = async (path: string) => {
+      requestedPath = path;
+      return versionResponse(existingCiphertext);
+    };
+    const ws = {
+      waitForMessage: async (type: string, match: (payload: unknown) => boolean) => {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        const sent = frames.at(-1);
+        assert.ok(sent && match(sent.payload));
+        return { payload: type === "store_embed_keys_confirmed"
+          ? { created_count: 2, failed_count: 0 } : sent.payload };
+      },
+      sendAsync: async (type: string, payload: Record<string, any>) => { frames.push({ type, payload }); },
+    };
+    await (client as any).persistStreamedEmbeds(persistenceArgs(ws, "<html>same</html>"));
+    assert.match(requestedPath, /versions\/1\?capability=bounded-v1&chat_id=chat-123/);
+    assert.equal(frames.filter((frame) => frame.type === "store_embed_diff").length, 0);
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=storage.versions.bounded-reconstruction
+  it("rejects an existing v1 with different plaintext without overwriting it", async () => {
+    writeLegacySession();
+    const client = OpenMatesClient.load();
+    const frames: Array<{ type: string; payload: Record<string, any> }> = [];
+    const embedKey = await (await import("../src/crypto.ts")).deriveEmbedKeyFromChatKey(
+      new Uint8Array(32).fill(7), "embed-123");
+    const existingCiphertext = await encryptWithAesGcmCombined("<html>other</html>", embedKey);
+    (client as any).http.get = async () => versionResponse(existingCiphertext);
+    const ws = {
+      waitForMessage: async (type: string, match: (payload: unknown) => boolean) => {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        const sent = frames.at(-1);
+        assert.ok(sent && match(sent.payload));
+        return { payload: type === "store_embed_keys_confirmed"
+          ? { created_count: 2, failed_count: 0 } : sent.payload };
+      },
+      sendAsync: async (type: string, payload: Record<string, any>) => { frames.push({ type, payload }); },
+    };
+    await assert.rejects(
+      (client as any).persistStreamedEmbeds(persistenceArgs(ws, "<html>changed</html>")),
+      /does not match streamed source/,
+    );
+    assert.equal(frames.filter((frame) => frame.type === "store_embed_diff").length, 0);
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=chats.completion.recovery-takeover,storage.versions.bounded-reconstruction
+  it("surfaces timeout and mismatched durable history receipts", async () => {
+    for (const failure of ["timeout", "digest"] as const) {
+      writeLegacySession();
+      const client = OpenMatesClient.load();
+      const frames: Array<{ type: string; payload: Record<string, any> }> = [];
+      (client as any).http.get = async () => ({ ok: false, status: 404 });
+      const ws = {
+        waitForMessage: async (type: string, match: (payload: unknown) => boolean) => {
+          await new Promise<void>((resolve) => setImmediate(resolve));
+          const sent = frames.at(-1);
+          assert.ok(sent && match(sent.payload));
+          if (type === "store_embed_diff_confirmed") {
+            if (failure === "timeout") throw new Error("durable receipt timed out");
+            return { payload: { ...diffReceipt(sent.payload), canonical_digest: "0".repeat(64) } };
+          }
+          return { payload: type === "store_embed_keys_confirmed"
+            ? { created_count: 2, failed_count: 0 } : sent.payload };
+        },
+        sendAsync: async (type: string, payload: Record<string, any>) => { frames.push({ type, payload }); },
+      };
+      await assert.rejects(
+        (client as any).persistStreamedEmbeds(persistenceArgs(ws, "<html>source</html>")),
+        failure === "timeout" ? /durable receipt timed out/ : /durable receipt did not match/,
+      );
+      assert.equal(frames.filter((frame) => frame.type === "store_embed_diff").length, 1);
+    }
   });
 });
 

@@ -39,31 +39,129 @@ function editorRuntime(token, mapBounds) {
     if (side === "bottom") return { x: box.left + box.width / 2, y: box.bottom };
     return { x: box.right, y: box.top + box.height / 2 };
   }
-  function rerouteEdges(componentId) {
+  function componentById(root, id) {
+    return Array.from(root.querySelectorAll('[data-om-component]')).find((node) => node.dataset.omComponent === id);
+  }
+  function pointIn(point, sourceElement, targetElement) {
+    const box = mapBounds({ x: point.x, y: point.y, width: 0, height: 0 }, sourceElement.getScreenCTM(), targetElement.getScreenCTM());
+    return box && { x: box.left, y: box.top };
+  }
+  function capturePorts(componentId) {
+    const root = svg();
+    const ports = new Map();
+    if (!root) return ports;
+    root.querySelectorAll('[data-om-edge]').forEach((edge) => {
+      if (edge.dataset.omFrom !== componentId && edge.dataset.omTo !== componentId) return;
+      const from = componentById(root, edge.dataset.omFrom);
+      const to = componentById(root, edge.dataset.omTo);
+      const path = edge.querySelector('path[data-om-path]');
+      if (!from || !to || !path) return;
+      const originalStart = path.getPointAtLength(0);
+      const originalEnd = path.getPointAtLength(path.getTotalLength());
+      const start = pointIn(originalStart, path, from);
+      const end = pointIn(originalEnd, path, to);
+      if (start && end) ports.set(edge, { from: start, to: end, originalStart, originalEnd, originalD: path.getAttribute('d') || '' });
+    });
+    return ports;
+  }
+  function sequenceColumns(element) {
+    const root = svg();
+    if (!root || root.dataset.omDiagram !== 'sequence') return [];
+    const actor = mapBounds(element.getBBox(), element.getScreenCTM(), root.getScreenCTM());
+    if (!actor) return [];
+    const center = (actor.left + actor.right) / 2;
+    const componentId = element.dataset.omComponent;
+    const explicit = Array.from(root.querySelectorAll('[data-om-owner]')).filter((node) =>
+      node.dataset.omOwner === componentId && !node.closest('[data-om-component], [data-om-edge]') &&
+      !node.parentElement?.closest('[data-om-owner]'));
+    const fallback = Array.from(root.querySelectorAll('line, rect')).filter((node) => {
+      if (node.hasAttribute('data-om-owner') || node.closest('[data-om-owner], [data-om-component], [data-om-edge]')) return false;
+      const box = mapBounds(node.getBBox(), node.getScreenCTM(), root.getScreenCTM());
+      if (!box || Math.abs((box.left + box.right) / 2 - center) > 8 || box.top < actor.bottom - 4) return false;
+      return node.localName === 'line' ? box.width <= 2 && box.height >= 40 : box.width <= 20 && box.height >= 20;
+    });
+    return [...explicit, ...fallback].map((node) => ({ node, transform: node.getAttribute('transform') || '' }));
+  }
+  function moveAlongColumn(column, actorParent, dx) {
+    for (const item of column) {
+      const targetParent = item.node.parentElement;
+      const origin = pointIn({ x: 0, y: 0 }, actorParent, targetParent);
+      const shifted = pointIn({ x: dx, y: 0 }, actorParent, targetParent);
+      if (!origin || !shifted) continue;
+      const localDx = shifted.x - origin.x;
+      if (Math.abs(localDx) < 1e-6) {
+        if (item.transform) item.node.setAttribute('transform', item.transform);
+        else item.node.removeAttribute('transform');
+      } else item.node.setAttribute('transform', `translate(${localDx} 0) ${item.transform}`.trim());
+    }
+  }
+  function moveWithPath(element, path, oldPoint, newPoint) {
+    const before = pointIn(oldPoint, path, element);
+    const after = pointIn(newPoint, path, element);
+    if (!before || !after) return;
+    for (const coordinate of ['x', 'y']) {
+      const original = element.getAttribute(coordinate);
+      if (original === null) continue;
+      const current = Number(original);
+      if (Number.isFinite(current)) element.setAttribute(coordinate, String(current + after[coordinate] - before[coordinate]));
+    }
+  }
+  function routePreservingShape(captured, start, end, horizontal) {
+    const square = () => horizontal
+      ? `M ${start.x},${start.y} H ${(start.x + end.x) / 2} V ${end.y} H ${end.x}`
+      : `M ${start.x},${start.y} V ${(start.y + end.y) / 2} H ${end.x} V ${end.y}`;
+    if (!captured || !captured.originalD || ![start.x, start.y, end.x, end.y].every(Number.isFinite)) return null;
+    const original = captured.originalD;
+    const oldStart = captured.originalStart;
+    const oldEnd = captured.originalEnd;
+    const same = (a, b) => Math.abs(a - b) < 1e-5;
+    if (same(start.x, oldStart.x) && same(start.y, oldStart.y) && same(end.x, oldEnd.x) && same(end.y, oldEnd.y)) return original;
+    const number = '[+-]?(?:\\d*\\.\\d+|\\d+\\.?\\d*)(?:[eE][+-]?\\d+)?';
+    const move = new RegExp(`^\\s*M\\s*(${number})[\\s,]+(${number})`).exec(original);
+    if (!move || /[Zz]\s*$/.test(original)) return square();
+    let route = original;
+    if (!same(start.x, oldStart.x) || !same(start.y, oldStart.y)) {
+      const next = original.slice(move[0].length).trimStart();
+      const stretchesFirst = (same(start.y, oldStart.y) && next.startsWith('H')) ||
+        (same(start.x, oldStart.x) && next.startsWith('V'));
+      const head = stretchesFirst
+        ? `M ${start.x},${start.y}`
+        : `M ${start.x},${start.y} H ${oldStart.x} V ${oldStart.y}`;
+      route = head + original.slice(move[0].length);
+    }
+    if (!same(end.x, oldEnd.x) || !same(end.y, oldEnd.y)) {
+      const lastH = new RegExp(`H\\s*(${number})\\s*$`).exec(route);
+      const lastV = new RegExp(`V\\s*(${number})\\s*$`).exec(route);
+      if (same(end.y, oldEnd.y) && lastH) route = route.slice(0, lastH.index) + `H ${end.x}`;
+      else if (same(end.x, oldEnd.x) && lastV) route = route.slice(0, lastV.index) + `V ${end.y}`;
+      else route += ` H ${end.x} V ${end.y}`;
+    }
+    return route;
+  }
+  function rerouteEdges(componentId, ports) {
     const root = svg();
     if (!root) return;
     root.querySelectorAll("[data-om-edge]").forEach((edge) => {
       if (edge.dataset.omFrom !== componentId && edge.dataset.omTo !== componentId) return;
-      const from = Array.from(root.querySelectorAll("[data-om-component]")).find((node) => node.dataset.omComponent === edge.dataset.omFrom);
-      const to = Array.from(root.querySelectorAll("[data-om-component]")).find((node) => node.dataset.omComponent === edge.dataset.omTo);
+      const from = componentById(root, edge.dataset.omFrom);
+      const to = componentById(root, edge.dataset.omTo);
       const path = edge.querySelector("path[data-om-path]");
       if (!from || !to || !path) return;
-      const start = anchor(from, edge.dataset.omFromSide || "right", path);
-      const end = anchor(to, edge.dataset.omToSide || "left", path);
+      const captured = ports.get(edge);
+      const start = captured ? pointIn(captured.from, from, path) : anchor(from, edge.dataset.omFromSide || "right", path);
+      const end = captured ? pointIn(captured.to, to, path) : anchor(to, edge.dataset.omToSide || "left", path);
       if (!start || !end) return;
+      const oldMidpoint = path.getPointAtLength(path.getTotalLength() / 2);
       const horizontal = ["left", "right"].includes(edge.dataset.omFromSide || "right");
-      const pathData = horizontal ? `M ${start.x},${start.y} H ${(start.x + end.x) / 2} V ${end.y} H ${end.x}` : `M ${start.x},${start.y} V ${(start.y + end.y) / 2} H ${end.x} V ${end.y}`;
+      const pathData = routePreservingShape(captured, start, end, horizontal);
+      if (!pathData) return;
       path.setAttribute("d", pathData);
       const label = edge.querySelector("text[data-om-text]");
       const mask = edge.querySelector("rect[data-om-label-mask]");
       if (label) {
-        const point = path.getPointAtLength(path.getTotalLength() / 2);
-        const labelPoint = mapBounds({ x: point.x, y: point.y, width: 0, height: 0 }, path.getScreenCTM(), label.getScreenCTM());
-        if (labelPoint) {
-          label.setAttribute("x", String(labelPoint.left));
-          label.setAttribute("y", String(labelPoint.top - 4));
-          if (mask) fitMaskToText(mask, label);
-        }
+        const newMidpoint = path.getPointAtLength(path.getTotalLength() / 2);
+        moveWithPath(label, path, oldMidpoint, newMidpoint);
+        if (mask) moveWithPath(mask, path, oldMidpoint, newMidpoint);
       }
     });
   }
@@ -120,7 +218,8 @@ function editorRuntime(token, mapBounds) {
     if (!element) return;
     endText(true);
     const parent2 = element.parentElement;
-    drag = { element, start: localPoint(event, parent2), transform: element.getAttribute("transform") || "", initial: source() };
+    drag = { element, start: localPoint(event, parent2), transform: element.getAttribute("transform") || "", initial: source(),
+      ports: capturePorts(element.dataset.omComponent || ''), sequence: svg()?.dataset.omDiagram === 'sequence', column: sequenceColumns(element) };
     element.setPointerCapture(event.pointerId);
     event.preventDefault();
   });
@@ -128,12 +227,13 @@ function editorRuntime(token, mapBounds) {
     if (!drag) return;
     const parent2 = drag.element.parentElement;
     const point = localPoint(event, parent2);
-    const dx = point.x - drag.start.x, dy = point.y - drag.start.y;
+    const dx = point.x - drag.start.x, dy = drag.sequence ? 0 : point.y - drag.start.y;
     if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) {
       if (drag.transform) drag.element.setAttribute("transform", drag.transform);
       else drag.element.removeAttribute("transform");
     } else drag.element.setAttribute("transform", `translate(${dx} ${dy}) ${drag.transform}`.trim());
-    rerouteEdges(drag.element.dataset.omComponent || "");
+    if (drag.sequence) moveAlongColumn(drag.column, parent2, dx);
+    rerouteEdges(drag.element.dataset.omComponent || "", drag.ports);
   });
   document.addEventListener("pointerup", () => {
     if (!drag) return;

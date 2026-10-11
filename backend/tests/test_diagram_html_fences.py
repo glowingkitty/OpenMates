@@ -62,7 +62,8 @@ def test_requires_exactly_one_primary_svg(invalid: str) -> None:
 @pytest.mark.parametrize("invalid", [
     SOURCE.replace("</svg>", ""),
     SOURCE.replace("data-om-to=\"target\"", "data-om-to=\"missing\""),
-    SOURCE.replace("M 110,30 H 200", "M 110,30 C 120,40 180,40 200,30"),
+    SOURCE.replace("M 110,30 H 200", "M 110,30 javascript:alert(1)"),
+    SOURCE.replace("M 110,30 H 200", "H 200"),
     SOURCE.replace("<title>Revenue flow</title>", ""),
     SOURCE.replace("<rect x=", "<rect onclick=\"alert(1)\" x=", 1),
     SOURCE.replace("<defs>", "<script>alert(1)</script><defs>"),
@@ -75,6 +76,18 @@ def test_requires_exactly_one_primary_svg(invalid: str) -> None:
 def test_rejects_malformed_active_or_external_document(invalid: str) -> None:
     with pytest.raises(DiagramHtmlValidationError):
         validate_diagram_html_source(invalid)
+
+
+@pytest.mark.parametrize("path", [
+    "M 110,30 H 142 Q 150,30 150,38 V 52 Q 150,60 158,60 H 200",
+    "M 110,30 H 142 a 8,8 0 0,1 16,0 H 200",
+    "M 110,30 C 120,40 180,40 200,30",
+])
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
+def test_preserves_static_rounded_connectors_from_selected_guides(path: str) -> None:
+    source = SOURCE.replace("M 110,30 H 200", path)
+    assert validate_diagram_html_source(source).diagram_kind == "flowchart"
+    assert path in source
 
 
 # contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence

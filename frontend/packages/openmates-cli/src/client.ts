@@ -10521,6 +10521,39 @@ export class OpenMatesClient {
       if (Array.isArray(embed.version_history_rows)) {
         for (const row of embed.version_history_rows) {
           if (!row.embed_id || typeof row.version_number !== "number") continue;
+          if (row.embed_id !== embed.embed_id) {
+            throw new Error(`Embed ${embed.embed_id} history row has a different embed identity.`);
+          }
+          // A resumed turn can receive the same v1 after another client has
+          // already stored it. Its ciphertext is immutable and encryption uses
+          // a fresh nonce, so compare the canonical plaintext before deciding
+          // whether this writer needs to send a new row.
+          if (row.version_number === 1) {
+            const query = new URLSearchParams({ capability: "bounded-v1", chat_id: params.chatId });
+            if (params.teamId) query.set("team_id", params.teamId);
+            const existing = await this.http.get<{
+              embed_id?: string; version_number?: number;
+              rows?: Array<{ version_number: number; encrypted_snapshot?: string | null; encrypted_patch?: string | null }>;
+            }>(`/v1/embeds/${encodeURIComponent(embed.embed_id)}/versions/1?${query}`,
+              this.getCliRequestHeaders());
+            if (existing.ok) {
+              const rows = existing.data?.rows;
+              if (existing.data?.embed_id !== embed.embed_id || existing.data.version_number !== 1
+                || !Array.isArray(rows) || rows.length !== 1 || rows[0].version_number !== 1
+                || typeof rows[0].encrypted_snapshot !== "string" || rows[0].encrypted_patch != null
+                || typeof row.snapshot !== "string" || typeof row.patch === "string") {
+                throw new Error(`Canonical embed ${embed.embed_id} v1 history is invalid.`);
+              }
+              const canonicalSnapshot = await decryptWithAesGcmCombined(rows[0].encrypted_snapshot, embedKey);
+              if (canonicalSnapshot !== row.snapshot) {
+                throw new Error(`Existing canonical embed ${embed.embed_id} v1 does not match streamed source.`);
+              }
+              continue;
+            }
+            if (existing.status !== 404) {
+              throw new Error(`Canonical embed ${embed.embed_id} v1 read failed (HTTP ${existing.status}).`);
+            }
+          }
           const encryptedSnapshot =
             typeof row.snapshot === "string"
               ? await encryptWithAesGcmCombined(row.snapshot, embedKey)
@@ -10530,7 +10563,20 @@ export class OpenMatesClient {
               ? await encryptWithAesGcmCombined(row.patch, embedKey)
               : undefined;
           if (!encryptedSnapshot && !encryptedPatch) continue;
+          const diffRequestId = randomUUID();
+          const diffConfirmed = params.ws.waitForMessage(
+            "store_embed_diff_confirmed",
+            (payload) => {
+              const p = payload as Record<string, unknown>;
+              return p.request_id === diffRequestId
+                && p.embed_id === row.embed_id
+                && p.version_number === row.version_number;
+            },
+            30_000,
+          );
+          void diffConfirmed.catch(() => {});
           await params.ws.sendAsync("store_embed_diff", {
+            request_id: diffRequestId,
             embed_id: row.embed_id,
             version_number: row.version_number,
             encrypted_snapshot: encryptedSnapshot ?? null,
@@ -10538,6 +10584,11 @@ export class OpenMatesClient {
             hashed_user_id: hashedUserId,
             created_at: normalizeUnixSeconds(row.created_at, now),
           });
+          const diffReceipt = (await diffConfirmed).payload as Record<string, unknown>;
+          const expectedDigest = computeSHA256(JSON.stringify([encryptedSnapshot ?? null, encryptedPatch ?? null]));
+          if (diffReceipt.canonical_source !== "version_row" || diffReceipt.canonical_digest !== expectedDigest) {
+            throw new Error(`Embed ${embed.embed_id} v${row.version_number} durable receipt did not match the stored source.`);
+          }
         }
       }
     };

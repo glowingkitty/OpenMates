@@ -11,6 +11,8 @@ from backend.shared.testing.mock_context import (
     activate_mock_mode,
     deactivate_mock_mode,
     get_live_mock_receipt,
+    resolve_live_marker_or_raise,
+    sign_live_marker,
 )
 
 
@@ -31,7 +33,10 @@ def _native_fixture_environment(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_native_mock_allows_only_isolated_internal_transport(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("group", ["native_cache_tools_v1", "diagram_html_web"])
+async def test_signed_mock_allows_only_isolated_internal_transport(
+    monkeypatch: pytest.MonkeyPatch, group: str,
+) -> None:
     _native_fixture_environment(monkeypatch)
     dispatched: list[str] = []
 
@@ -40,7 +45,7 @@ async def test_native_mock_allows_only_isolated_internal_transport(monkeypatch: 
         return httpx.Response(204, request=request)
 
     monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", fake_async)
-    activate_mock_mode("mock", "native_cache_tools_v1", task_id="native-fixture-task")
+    activate_mock_mode("mock", group, task_id="signed-fixture-task")
     try:
         mock_context._install_httpx_transport_guard()
         allowed = [
@@ -81,6 +86,7 @@ async def test_native_mock_allows_only_isolated_internal_transport(monkeypatch: 
         deactivate_mock_mode()
 
 
+@pytest.mark.parametrize("group", ["native_cache_tools_v1", "diagram_html_web"])
 @pytest.mark.parametrize("invalid", [
     {"CI": "false"},
     {"OPENMATES_CI_ISOLATED": "0"},
@@ -93,11 +99,13 @@ async def test_native_mock_allows_only_isolated_internal_transport(monkeypatch: 
     {"OPENMATES_STORAGE_CAPACITY_FIXTURES": "true"},
     {"HTTPS_PROXY": "http://proxy.example"},
 ])
-def test_native_mock_rejects_nonmarker_profiles(monkeypatch: pytest.MonkeyPatch, invalid: dict[str, str]) -> None:
+def test_signed_mock_rejects_nonmarker_profiles(
+    monkeypatch: pytest.MonkeyPatch, group: str, invalid: dict[str, str],
+) -> None:
     _native_fixture_environment(monkeypatch)
     for key, value in invalid.items():
         monkeypatch.setenv(key, value)
-    activate_mock_mode("mock", "native_cache_tools_v1", task_id="native-fixture-task")
+    activate_mock_mode("mock", group, task_id="signed-fixture-task")
     try:
         assert not mock_context._allow_isolated_capacity_internal("http://cms:8055/items/chats", "GET")
         assert not mock_context._allow_isolated_capacity_internal(
@@ -109,10 +117,43 @@ def test_native_mock_rejects_nonmarker_profiles(monkeypatch: pytest.MonkeyPatch,
 
 def test_native_mock_requires_exact_group_and_task(monkeypatch: pytest.MonkeyPatch) -> None:
     _native_fixture_environment(monkeypatch)
-    for group, task_id in (("native_cache_tools_v2", "task"), ("other_flow", "task"),
-                           ("native_cache_tools_v1", None)):
+    for group, task_id in (("native_cache_tools_v2", "task"), ("diagram_html_web_v2", "task"),
+                           ("other_flow", "task"), ("native_cache_tools_v1", None),
+                           ("diagram_html_web", None)):
         activate_mock_mode("mock", group, task_id=task_id)
         try:
             assert not mock_context._allow_isolated_capacity_internal("http://cms:8055/items/chats", "GET")
         finally:
             deactivate_mock_mode()
+
+
+def test_diagram_internal_transport_requires_signed_replay_marker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _native_fixture_environment(monkeypatch)
+    monkeypatch.setenv("DAILY_AI_TEST_CONTEXT_SECRET", "isolated-fixture-test-secret")
+    marker = "<<<TEST_LIVE_MOCK:diagram_html_web>>>"
+    with pytest.raises(RuntimeError, match="Invalid or unauthorized"):
+        resolve_live_marker_or_raise(marker, "test-user")
+    signed = sign_live_marker(marker, "test-user", is_allowlisted_test_account=True)
+    assert signed is not None
+    validated = resolve_live_marker_or_raise(signed, "test-user")
+    assert validated is not None
+    activate_mock_mode(validated.mode, validated.group_id, task_id="signed-fixture-task")
+    try:
+        assert mock_context._allow_isolated_capacity_internal(
+            "http://cms:8055/items/user_credits", "GET",
+        )
+        assert not mock_context._allow_isolated_capacity_internal(
+            "https://api.openai.com/v1/responses", "POST",
+        )
+    finally:
+        deactivate_mock_mode()
+
+    activate_mock_mode("record", "diagram_html_web", task_id="signed-fixture-task")
+    try:
+        assert not mock_context._allow_isolated_capacity_internal(
+            "http://cms:8055/items/user_credits", "GET",
+        )
+    finally:
+        deactivate_mock_mode()

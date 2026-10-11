@@ -1,6 +1,7 @@
 import darkHtml from './diagramHtmlExampleDark.html?raw';
 import lightHtml from './diagramHtmlExampleLight.html?raw';
 import { diagramHtmlDecorativeFixture } from './diagramHtmlDecorativeFixture';
+import { generatedDiagramArtifacts } from './diagramHtmlGeneratedArtifacts';
 
 export const diagramHtmlFixtureDark = darkHtml;
 export const diagramHtmlFixtureLight = lightHtml;
@@ -22,6 +23,7 @@ export default defaultProps;
 export const variants = {
   light: { ...defaultProps, id: 'preview-diagrams-html-light', html_source: lightHtml },
   decorativeSvg: { ...defaultProps, id: 'preview-diagrams-html-decorative', html_source: diagramHtmlDecorativeFixture },
+  generatedPasswordless: { ...defaultProps, id: 'preview-diagrams-html-generated-passwordless', ...generatedDiagramArtifacts.generatedPasswordless },
   mobile: { ...defaultProps, id: 'preview-diagrams-html-mobile', isMobile: true },
   processing: { ...defaultProps, id: 'preview-diagrams-html-processing', status: 'processing' as const, html_source: '' },
   error: { ...defaultProps, id: 'preview-diagrams-html-error', status: 'error' as const, html_source: '' },

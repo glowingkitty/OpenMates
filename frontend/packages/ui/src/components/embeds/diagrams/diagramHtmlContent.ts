@@ -103,7 +103,10 @@ export function validateDiagramHtml(source: string): Document {
         edges.push([from, to]);
       }
     }
-    if (tag === 'path' && element.hasAttribute('data-om-path') && !/^[MmHhVv0-9eE.,+\-\s]+$/.test(element.getAttribute('d') || '')) throw new Error('Invalid editable edge path');
+    if (tag === 'path' && element.hasAttribute('data-om-path')) {
+      const path = element.getAttribute('d') || '';
+      if (!/^[MmLlHhVvCcSsQqTtAaZz0-9eE.,+\-\s]+$/.test(path) || !/^\s*[Mm]/.test(path)) throw new Error('Invalid editable edge path');
+    }
   }
   if (edges.some(([from, to]) => !components.has(from) || !components.has(to))) throw new Error('Diagram edge references a missing component');
   return document;

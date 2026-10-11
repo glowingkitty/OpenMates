@@ -1,6 +1,7 @@
 import darkHtml from './diagramHtmlExampleDark.html?raw';
 import lightHtml from './diagramHtmlExampleLight.html?raw';
 import { diagramHtmlDecorativeFixture } from './diagramHtmlDecorativeFixture';
+import { generatedDiagramArtifacts } from './diagramHtmlGeneratedArtifacts';
 
 const decodedContent = {
   type: 'diagram_html', app_id: 'diagrams', skill_id: 'html', title: 'High-level architecture · End-to-end stack',
@@ -18,6 +19,8 @@ export default defaultProps;
 export const variants = {
   light: { ...defaultProps, embedId: 'preview-diagrams-html-fullscreen-light', data: { ...defaultProps.data, decodedContent: { ...decodedContent, html_source: lightHtml } } },
   decorativeSvg: { ...defaultProps, embedId: 'preview-diagrams-html-fullscreen-decorative', data: { ...defaultProps.data, decodedContent: { ...decodedContent, html_source: diagramHtmlDecorativeFixture } } },
+  generatedPasswordless: { ...defaultProps, embedId: 'preview-diagrams-html-fullscreen-generated-passwordless',
+    data: { ...defaultProps.data, decodedContent: { ...decodedContent, ...generatedDiagramArtifacts.generatedPasswordless } } },
   editable: { ...defaultProps, embedId: 'preview-diagrams-html-fullscreen-editable' },
   unsafe: { ...defaultProps, embedId: 'preview-diagrams-html-fullscreen-unsafe', fixtureEditable: false,
     data: { ...defaultProps.data, decodedContent: { ...decodedContent, html_source: '<html><body><svg viewBox="0 0 100 100"></svg><img src="https://evil.example/x"></body></html>' } } },

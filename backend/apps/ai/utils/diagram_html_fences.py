@@ -36,7 +36,7 @@ _FRAGMENT_RE = re.compile(r"^#[A-Za-z_][A-Za-z0-9_.:-]{0,119}$")
 _FONT_DATA_RE = re.compile(r"^data:font/woff2;base64,([A-Za-z0-9+/]+={0,2})$", re.IGNORECASE)
 _KIND_RE = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
 _EDGE_SIDES = {"left", "right", "top", "bottom"}
-_ORTHOGONAL_PATH_RE = re.compile(r"^[MmHhVv0-9eE.,+\-\s]+$")
+_SVG_PATH_RE = re.compile(r"^[MmLlHhVvCcSsQqTtAaZz0-9eE.,+\-\s]+$")
 
 
 class DiagramHtmlValidationError(ValueError):
@@ -211,8 +211,8 @@ class _DiagramParser(HTMLParser):
                 self.edges.append((source, target))
         if tag == "path" and "data-om-path" in values:
             path = values.get("d") or ""
-            if not _ORTHOGONAL_PATH_RE.fullmatch(path) or not re.search(r"[Mm]", path):
-                _fail("Editable edge path must use M/H/V commands")
+            if not _SVG_PATH_RE.fullmatch(path) or not re.match(r"\s*[Mm]", path):
+                _fail("Editable edge path must use static SVG path commands")
         if tag == "title":
             self._text_target = "head" if "head" in self.stack else "svg" if "svg" in self.stack else None
         if tag == "style":
