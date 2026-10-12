@@ -75723,7 +75723,7 @@ assertions:
       surface: gui.web
     - &id9579
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 134
+      line: 137
       name: standalone landing and publication indexes are server-rendered without
         app startup
       surface: gui.web
@@ -75766,7 +75766,7 @@ assertions:
       surface: gui.web
     - &id9583
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 245
+      line: 248
       name: standalone global styles preserve the landing viewport and media at ${width}px
       surface: gui.web
     supporting_tests: []
@@ -75849,19 +75849,19 @@ assertions:
       surface: gui.web
     - &id9599
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 134
+      line: 137
       name: standalone landing and publication indexes are server-rendered without
         app startup
       surface: gui.web
     - &id9600
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 182
+      line: 185
       name: news subscriptions open the standalone public form in the publication
         language
       surface: gui.web
     - &id9601
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 245
+      line: 248
       name: standalone global styles preserve the landing viewport and media at ${width}px
       surface: gui.web
     supporting_tests:
@@ -75968,7 +75968,7 @@ assertions:
       surface: gui.web
     - &id9606
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 245
+      line: 248
       name: standalone global styles preserve the landing viewport and media at ${width}px
       surface: gui.web
     supporting_tests: []
@@ -76017,24 +76017,24 @@ assertions:
       surface: gui.web
     - &id9612
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 134
+      line: 137
       name: standalone landing and publication indexes are server-rendered without
         app startup
       surface: gui.web
     - &id9613
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 163
+      line: 166
       name: canonical news and blog details render in English and German
       surface: gui.web
     - &id9614
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 182
+      line: 185
       name: news subscriptions open the standalone public form in the publication
         language
       surface: gui.web
     - &id9615
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 197
+      line: 200
       name: privacy, terms, and imprint are full styled public documents
       surface: gui.web
     supporting_tests: []
@@ -76119,7 +76119,7 @@ assertions:
       surface: gui.web
     - &id9622
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 307
+      line: 310
       name: saved dark theme applies in the document head before hydration
       surface: gui.web
     supporting_tests: []
@@ -76151,7 +76151,7 @@ assertions:
       surface: gui.web
     - &id9625
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 245
+      line: 248
       name: standalone global styles preserve the landing viewport and media at ${width}px
       surface: gui.web
     supporting_tests: []
@@ -80688,7 +80688,7 @@ assertions:
     supporting_tests:
     - &id10231
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 332
+      line: 335
       name: confirmation token waits for an explicit click and reveals Signal only
         after a successful response
       surface: gui.web

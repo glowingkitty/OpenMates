@@ -118,6 +118,9 @@ test('standalone hero uses built app defaults and selects icons without app star
   const icons = rail.getByTestId('landing-rail-group').nth(1).locator('.rail-icon');
   expect(await icons.evaluateAll(nodes => nodes.map(node => node.getAttribute('data-app-id')))).toEqual(publicApps.map(app => app.id));
   expect(publicApps.some(app => app.id === 'plants')).toBe(false);
+  // Unpublished entries must stay out until they have a reviewed real example.
+  expect(publicApps.some(app => app.id === 'diagrams')).toBe(false);
+  await expect(rail.locator('[data-app-id="diagrams"]')).toHaveCount(0);
   const travel = publicApps.find(app => app.id === 'travel')!;
   await rail.locator('.rail-group:nth-child(2) [data-app-id="travel"]').click();
   const prompt = page.getByTestId('landing-prompt');

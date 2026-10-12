@@ -49,7 +49,7 @@ export function compilePublicApps(root) {
     const appPath = resolve(appsRoot, id, 'app.yml');
     if (!existsSync(appPath)) continue;
     const app = parse(readFileSync(appPath, 'utf8'));
-    if (!app || app.default_enabled === false || app.internal === true || excluded.has(id)) continue;
+    if (!app || app.default_enabled === false || app.internal === true || app.landing?.enabled === false || excluded.has(id)) continue;
 
     const skills = new Set(Array.isArray(app.skills) ? app.skills.filter((skill) => skill?.default_enabled !== false && skill?.internal !== true && skill?.id).map((skill) => skill.id) : []);
     const focusRoot = resolve(appsRoot, id, 'focus_modes');

@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validateLandingMetadata } from './compile-public-apps.mjs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { compilePublicApps, validateLandingMetadata } from './compile-public-apps.mjs';
 
 // contract-test: supporting surface=gui.web assertions=marketing-landing.app-metadata-defaults
 test('landing defaults require a real enabled tagged capability and localized caption', () => {
@@ -23,4 +26,20 @@ test('landing defaults require a real enabled tagged capability and localized ca
     ...landing, capability: { type: 'app', id: 'events' },
     source_evidence: { request_excerpt: 'Find local music events this weekend', rationale: 'The request demonstrates event discovery through ordinary app guidance.' }
   }, skills, focuses, artifacts));
+});
+
+// contract-test: supporting surface=gui.web assertions=marketing-landing.app-metadata-defaults
+test('unpublished examples stay out of the tour while published apps still require defaults', () => {
+  const root = mkdtempSync(join(tmpdir(), 'public-landing-apps-'));
+  const appRoot = join(root, 'backend/apps/diagrams');
+  mkdirSync(appRoot, { recursive: true });
+  const source = 'default_enabled: true\nicon_image: diagram.svg\nembed_types:\n  - id: html\n    category: direct\n';
+  try {
+    writeFileSync(join(appRoot, 'app.yml'), `${source}landing:\n  enabled: false\n`);
+    assert.deepEqual(compilePublicApps(root), []);
+    writeFileSync(join(appRoot, 'app.yml'), source);
+    assert.throws(() => compilePublicApps(root), /Missing landing metadata for public app: diagrams/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
