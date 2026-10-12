@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: trademark-search-brand-naming
 title: Regional trademark search and concise brand naming
-status: implementing
+status: verified
 goal: >
   Add a regional trademark search skill with CLI, npm/pip SDK and preview/fullscreen
   verification before a concise Find a brand name focus mode, then verify and tune
@@ -27,3 +27,16 @@ checks:
   - Inspect activation, intake brevity, shortlist quality, finalist-only research and honest evidence limits; tune if needed.
   - Add a permanent example from the successful natural-language conversation.
 phase_order: [provider_skill, cli_sdks, embeds, focus_mode, real_conversation]
+evidence:
+  - Specification approval receipt records the exact fingerprint above; the approved bundle is unchanged.
+  - Keyless US provider live probes, 27 provider/skill/dispatcher checks, preview contract and 27 UI normalization checks passed.
+  - Isolated REST, CLI, npm and pip SDK parity and app catalog tests passed (5 cases).
+  - Isolated responsive component checks passed (4 cases), followed by saved preview/fullscreen/reload E2E (1 case).
+  - Real inference activated from the exact requested phrase; 26-word intake, seven unchecked names and only two researched finalists passed the live verifier.
+  - CLI phase rendering and batched inference arguments were corrected after real conversation evidence; focused regression checks passed.
+  - Real naming evidence distinguishes truncated US results, unavailable domains and missing regional coverage from legal clearance.
+  - Permanent example and both app-store links pass isolated phone/laptop browser admission and deployed read-only inspection.
+  - Final 323-word prompt passes a fresh three-turn real conversation: automatic activation, 26-word intake, seven unchecked names, only Stillsum and Tidely researched, and a 112-word comparison with explicit preliminary/returned-record limits.
+  - Active-naming tool admission correction passes twelve focused checks locally and in isolated CI; all 95 selected deployment-gate tests pass.
+  - Final link cleanup no longer duplicates CLI prose; six focused CLI checks and the TypeScript build pass, and the fresh real response displays once.
+  - Final accepted behavior is deployed on dev at 7f66a8a38651dc2fc4891d04b4a34cfc39535608; all 17 shared runtime services are healthy under coordinated refresh.
