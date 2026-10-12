@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseMessageSegments, streamingContentStart } from '../src/messageSegments.js';
+import { parseMessageSegments, streamingTextDelta } from '../src/messageSegments.js';
 
 // contract-test: supporting surface=cli assertions=brand-naming.activation,brand-naming.flow
 test('focus activation followed by a shorter intake keeps the visible question exactly once', () => {
@@ -9,16 +9,16 @@ test('focus activation followed by a shorter intake keeps the visible question e
   let previous = '';
   let output = '';
   const embeds = new Set<string>();
-  for (const raw of [activation, question.slice(0, 12), question, question]) {
-    const start = streamingContentStart(previous, raw);
-    let offset = 0;
+  for (const raw of [activation, question.slice(0, 12), activation + '\n\n' + question,
+    '\n\n\n' + question + '\n\n' + activation, question, question]) {
     for (const segment of parseMessageSegments(raw)) {
       if (segment.type === 'embed') embeds.add(segment.value);
-      else output += segment.value.slice(Math.max(0, start - offset));
-      offset += segment.rawLength;
     }
-    previous = raw;
+    const text = parseMessageSegments(raw).filter(segment => segment.type === 'text')
+      .map(segment => segment.value).join('').replace(/\n{3,}/g, '\n\n').trim();
+    output += streamingTextDelta(previous, text);
+    if (text) previous = text;
   }
-  assert.equal(output, question);
+  assert.equal(output.trim(), question);
   assert.deepEqual([...embeds], ['focus-activation']);
 });

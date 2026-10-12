@@ -50,7 +50,8 @@ def main():
     for saved in searches:
         data = next((item for item in saved.get("results", []) if isinstance(item, dict) and "coverage" in item), saved)
         assert data["success"] is True and data["status"] == "finished"
-        assert data["regions"] == ["US"]
+        regions = data["regions"].split("|") if isinstance(data["regions"], str) else data["regions"]
+        assert regions == ["US"]
         assert saved.get("max_results") == 5, "The initial research must stay bounded"
         for row in data["coverage"]:
             assert row["status"] == "searched" and row.get("checked_at")

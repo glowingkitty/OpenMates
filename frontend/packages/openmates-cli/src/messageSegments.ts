@@ -4,8 +4,8 @@ export type MessageSegment =
   | { type: "embed"; value: string; meta?: Record<string, unknown>; rawLength: number };
 
 /** Focus/tool continuations replace the stream prefix; their text starts anew. */
-export function streamingContentStart(previous: string, current: string): number {
-  return current.startsWith(previous) ? previous.length : 0;
+export function streamingTextDelta(previous: string, current: string): string {
+  return current.startsWith(previous) ? current.slice(previous.length) : current;
 }
 
 export function parseMessageSegments(content: string, options: {preserveCodeFences?: boolean} = {}): MessageSegment[] {

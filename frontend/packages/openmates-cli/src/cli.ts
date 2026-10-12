@@ -162,7 +162,7 @@ import {
 import { buildAssistantFeedbackDecision } from "./feedback.js";
 import { handleBenchmark, printBenchmarkHelp } from "./benchmark.js";
 import { defaultModeForStreams, printProgrammaticQuickstart, runTui } from "./tui.js";
-import { parseMessageSegments, streamingContentStart } from "./messageSegments.js";
+import { parseMessageSegments, streamingTextDelta } from "./messageSegments.js";
 import { SUPPORT_MESSAGE, SUPPORT_URL, renderSupportInfo } from "./support.js";
 import {
   remoteAccessHostingCandidates,
@@ -12070,7 +12070,7 @@ async function sendMessageStreaming(
   const renderedEmbedIds = new Set<string>();
   // Track how much raw content we've processed (for diff-printing)
   let processedRawLength = 0;
-  let previousRawContent = "";
+  let previousStreamText = "";
   // Queue of embed IDs to render after streaming, with optional meta
   // from the JSON block for fallback rendering of unsynced embeds
   const pendingEmbedRenders: Array<{
@@ -12118,40 +12118,22 @@ async function sendMessageStreaming(
       // This lets us detect embed JSON blocks as they arrive and queue
       // them for rendering at their natural position in the output.
       const raw = event.content;
-      processedRawLength = streamingContentStart(previousRawContent, raw);
-      previousRawContent = raw;
-      if (raw.length <= processedRawLength) return;
-
-      // Parse the FULL content each time (embed blocks may span multiple
-      // chunks), then output only the new segments we haven't printed yet.
-      // Each segment carries rawLength — the number of characters it
-      // consumed in the original string (including ```json\n...\n```
-      // delimiters for embed blocks). We track offset in raw-string
-      // coordinates so that processedRawLength subtraction works correctly.
+      // Compare visible text, because continuations and finalization can replace
+      // or move embed references without changing the prose already printed.
       const segments = parseMessageSegments(raw);
-      let offset = 0;
       for (const seg of segments) {
-        const segEnd = offset + seg.rawLength;
         if (seg.type === "embed") {
           if (!renderedEmbedIds.has(seg.value)) {
             renderedEmbedIds.add(seg.value);
             pendingEmbedRenders.push({ id: seg.value, meta: seg.meta });
           }
-        } else {
-          // Only print text we haven't printed yet
-          const clean = seg.value.replace(/\n{3,}/g, "\n\n");
-          const alreadyPrinted = Math.max(0, processedRawLength - offset);
-          if (alreadyPrinted < clean.length) {
-            const chunk = clean.slice(alreadyPrinted);
-            // Redact personal data and secrets from streamed output
-            const safeChunk = redactor?.isInitialized
-              ? redactor.redact(chunk)
-              : chunk;
-            process.stdout.write(safeChunk);
-          }
         }
-        offset = segEnd;
       }
+      const visibleText = segments.filter(seg => seg.type === "text")
+        .map(seg => seg.value).join("").replace(/\n{3,}/g, "\n\n").trim();
+      const delta = streamingTextDelta(previousStreamText, visibleText);
+      if (visibleText) previousStreamText = visibleText;
+      if (delta) process.stdout.write(redactor?.isInitialized ? redactor.redact(delta) : delta);
       processedRawLength = raw.length;
     }
   };
