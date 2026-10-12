@@ -59,7 +59,13 @@
   }
   function focusPending(item: Record<string, unknown>): boolean {
     const pending = pendingForFocus(item);
-    return !!pending && !pending.confirmed && !pending.expired && pending.expiresAt > Date.now();
+    const focusId = String(item.focus_id);
+    // Project acceptance runs in the mounted card at the deadline. Keep a live
+    // request mounted until confirmation, without replaying expired history.
+    const liveProjectRequest = focusId.startsWith('project-') && !focusId.startsWith('project-focus:') &&
+      (pending?.activationPolicy ?? 'delayed') === 'delayed' && liveFocusIds.has(String(item.id));
+    return !!pending && !pending.confirmed &&
+      (liveProjectRequest || (!pending.expired && pending.expiresAt > Date.now()));
   }
   function focusOpen(item: Record<string, unknown>): boolean {
     if (rejectedFocusIds.includes(String(item.id))) return false;
@@ -204,7 +210,11 @@
     ? $text('chat.response_activity.list_last', { values: { items: appNames.slice(0, -1).join(', '), last: appNames.at(-1)! } })
     : appNames[0] ?? '');
   const appIcons = $derived(appIds.map((id) => ({ id, name: appSkillsStore.getApp(id)?.icon_image?.replace(/\.svg$/i, '') || id })));
-  const focusNames = $derived(focuses.filter((item) => !rejectedFocusIds.includes(String(item.id))).map((item) => {
+  const cancelledFocusIds = $derived(focuses.filter((item) => {
+    const pending = pendingForFocus(item);
+    return rejectedFocusIds.includes(String(item.id)) || (pending?.activationPolicy === 'approval' && pending.expired && !pending.confirmed);
+  }).map((item) => String(item.id)));
+  const focusNames = $derived(focuses.filter((item) => !cancelledFocusIds.includes(String(item.id))).map((item) => {
     const fallback = String(item.focus_id ?? '').split('-').slice(1).join(' ').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
     const key = String(item.focus_mode_name ?? fallback);
     return displayName(key, key.includes('.') ? fallback : key);
@@ -224,7 +234,7 @@
     if (focusNames.length) clauses.push($text(hasSubChats ? 'chat.response_activity.focus_sub_chats' : 'chat.response_activity.focus_activated', { values: { focus: focusNames.join("', '") } }));
     else if (hasSubChats) clauses.push($text('chat.response_activity.sub_chats'));
     if (clauses.length) return clauses.join('. ');
-    if (rejectedFocusIds.length) return $text('chat.response_activity.focus_cancelled');
+    if (cancelledFocusIds.length) return $text('chat.response_activity.focus_cancelled');
     return $text(groupActive ? 'chat.thinking.header_streaming' : 'chat.thinking.header_done');
   });
 </script>

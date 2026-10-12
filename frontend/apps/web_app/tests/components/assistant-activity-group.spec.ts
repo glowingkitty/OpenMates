@@ -94,6 +94,49 @@ test.describe('Completed assistant activity disclosure', () => {
     await expect(body.getByTestId('sub-chat-status-completed')).toHaveCount(2);
   });
 
+  // contract-test: direct surface=gui.web assertions=focus-modes.countdown,chat-processing-feedback.turn-lifecycle
+  test('keeps a delayed Project card mounted through its client acceptance and full acknowledgement', async ({ page }) => {
+    await page.goto(preview('liveProjectFocus'));
+    await waitForComponentPreview(page);
+    const toggle = page.getByTestId('assistant-activity-toggle');
+    const bar = page.getByTestId('assistant-activity-body').getByTestId('focus-mode-bar');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    // Initial fixture is approval-only. Freeze after the real card mounts, then
+    // start a fresh delayed request so its timer owns the activation transition.
+    await page.clock.install({ time: new Date(await page.evaluate(() => Date.now())) });
+    await page.clock.pauseAt(await page.evaluate(() => Date.now()));
+    await page.evaluate(() => document.dispatchEvent(new Event('preview:start-project-countdown')));
+    await page.clock.runFor(100);
+    await expect(bar.getByTestId('focus-progress-bar')).toBeVisible();
+    expect(await page.evaluate(() => document.body.dataset.projectAcceptCount ?? '0')).toBe('0');
+
+    await page.clock.runFor(3900);
+    await expect.poll(() => page.evaluate(() => document.body.dataset.projectAcceptCount)).toBe('1');
+    await expect(bar.getByTestId('focus-status-value')).toContainText('activated');
+    await page.clock.runFor(999);
+    await expect(bar).toBeVisible();
+    await page.clock.runFor(1);
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByTestId('assistant-activity-body')).toHaveCount(0);
+    expect(await page.evaluate(() => document.body.dataset.projectAcceptCount)).toBe('1');
+  });
+
+  // contract-test: direct surface=gui.web assertions=focus-modes.countdown
+  test('expires an unapproved Project request without accepting it', async ({ page }) => {
+    await page.clock.install();
+    await page.goto(preview('liveProjectFocus'));
+    await waitForComponentPreview(page);
+    const toggle = page.getByTestId('assistant-activity-toggle');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByTestId('assistant-activity-body').getByTestId('focus-mode-bar')).toBeVisible();
+    await page.clock.pauseAt(await page.evaluate(() => Date.now()));
+    await page.clock.runFor(60_000);
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(toggle).toHaveText('Cancelled focus activation');
+    await expect(page.getByTestId('assistant-activity-body')).toHaveCount(0);
+    expect(await page.evaluate(() => document.body.dataset.projectAcceptCount ?? '0')).toBe('0');
+  });
+
   // contract-test: direct surface=gui.web assertions=chat-processing-feedback.completed-processing-summary,chat-processing-feedback.accessible-responsive
   test('nests the thinking disclosure above skills and shows the latest lines during streaming', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
