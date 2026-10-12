@@ -3,6 +3,11 @@ export type MessageSegment =
   | { type: "text"; value: string; rawLength: number }
   | { type: "embed"; value: string; meta?: Record<string, unknown>; rawLength: number };
 
+/** Focus/tool continuations replace the stream prefix; their text starts anew. */
+export function streamingContentStart(previous: string, current: string): number {
+  return current.startsWith(previous) ? previous.length : 0;
+}
+
 export function parseMessageSegments(content: string, options: {preserveCodeFences?: boolean} = {}): MessageSegment[] {
   const segments: MessageSegment[] = [];
   const rows = content.match(/[^\n]*(?:\n|$)/g)?.filter(Boolean) ?? [];

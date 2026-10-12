@@ -162,7 +162,7 @@ import {
 import { buildAssistantFeedbackDecision } from "./feedback.js";
 import { handleBenchmark, printBenchmarkHelp } from "./benchmark.js";
 import { defaultModeForStreams, printProgrammaticQuickstart, runTui } from "./tui.js";
-import { parseMessageSegments } from "./messageSegments.js";
+import { parseMessageSegments, streamingContentStart } from "./messageSegments.js";
 import { SUPPORT_MESSAGE, SUPPORT_URL, renderSupportInfo } from "./support.js";
 import {
   remoteAccessHostingCandidates,
@@ -12070,6 +12070,7 @@ async function sendMessageStreaming(
   const renderedEmbedIds = new Set<string>();
   // Track how much raw content we've processed (for diff-printing)
   let processedRawLength = 0;
+  let previousRawContent = "";
   // Queue of embed IDs to render after streaming, with optional meta
   // from the JSON block for fallback rendering of unsynced embeds
   const pendingEmbedRenders: Array<{
@@ -12117,6 +12118,8 @@ async function sendMessageStreaming(
       // This lets us detect embed JSON blocks as they arrive and queue
       // them for rendering at their natural position in the output.
       const raw = event.content;
+      processedRawLength = streamingContentStart(previousRawContent, raw);
+      previousRawContent = raw;
       if (raw.length <= processedRawLength) return;
 
       // Parse the FULL content each time (embed blocks may span multiple

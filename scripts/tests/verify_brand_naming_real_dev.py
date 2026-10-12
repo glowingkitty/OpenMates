@@ -34,7 +34,7 @@ def main():
     intake = assistants[0]["content"]
     assert len(intake.split()) <= 60 and "interactive_question" not in intake
     shortlist = assistants[1]["content"]
-    candidates = re.findall(r"(?m)^\s*(?:\d+\.\s+|-\s+)\*\*[^*]+\*\*", shortlist)
+    candidates = re.findall(r"(?m)^\s*(?:\d+\.\s+|[-*]\s+(?:\[[ x]\]\s+)?)\*\*[^*]+\*\*", shortlist)
     assert 6 <= len(candidates) <= 8 and "unchecked" in shortlist.lower()
     assert "interactive_question" not in shortlist
     assert not any("```sheet" in message["content"] or "```doc" in message["content"] for message in assistants)
