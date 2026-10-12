@@ -1074,7 +1074,7 @@ function formatMessages(messages, metadata, keyPrefix) {
 function formatEmbeds(embeds) {
   return embeds.map((embed) => ({
     embed_id: embed.embed_id,
-    type: embed.type,
+    type: embed.type === 'focus_mode_activation' ? 'focus-mode-activation' : embed.type,
     content: sanitizeEmbedContent(embed.content),
     parent_embed_id: embed.parent_embed_id ?? null,
     embed_ids: embed.embed_ids ?? null,

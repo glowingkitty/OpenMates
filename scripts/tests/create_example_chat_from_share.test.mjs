@@ -49,6 +49,22 @@ import {
   withPromotedAppSkillUseMessages,
 } from '../create-example-chat-from-share.mjs';
 
+// contract-test: supporting surface=gui.web assertions=brand-naming.activation,public-example-chats.surface.semantic-parity
+test('converts a real multi-skill focus activation to its public renderer type without changing content', () => {
+  const content = 'focus_id: business-find_brand_name\napp_id: business\nfocus_mode_name: Find a brand name\nstatus: activated';
+  const embed = { embed_id: 'activation', type: 'focus_mode_activation', content };
+  const source = formatTs({ chat_id: 'source', messages: [], embeds: [embed] }, {
+    slug: 'focus-fixture', snake: 'focus_fixture', chatId: 'example-focus-fixture',
+    title: 'Focus fixture', summary: '', icon: 'business', category: 'design',
+    keywords: [], followUps: [], featured: false, order: 1, appSkillExamples: [],
+    appFocusModeExamples: ['business.find_brand_name'], appSettingsMemoryExamples: [],
+    contentEmbedExamples: [], activeFocusId: 'business-find_brand_name',
+  });
+  assert.match(source, /"type": "focus-mode-activation"/);
+  assert.ok(source.includes(JSON.stringify(content)));
+  assert.equal(embed.type, 'focus_mode_activation');
+});
+
 test('normalizes only a leading UI model selection while preserving typed prose and model provenance', () => {
   const prose = 'Could you summarize this PDF?\nPlease focus on the budget.';
   const chat = normalizeLeadingModelSelection({

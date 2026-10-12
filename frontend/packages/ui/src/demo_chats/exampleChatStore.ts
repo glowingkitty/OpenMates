@@ -73,14 +73,14 @@ function focusActivationContent(embed: ExampleChatEmbed): string | null {
   const skillId = toonField(embed.content, "skill_id");
   const focusId = toonField(embed.content, "focus_id");
   const focusModeName = toonField(embed.content, "focus_mode_name");
-  if (!appId || !skillId || !focusId || !focusModeName) return null;
+  if (!appId || !focusId || !focusModeName) return null;
 
   return `\`\`\`json\n${JSON.stringify({
     type: "focus_mode_activation",
     embed_id: embed.embed_id,
     status: toonField(embed.content, "status") ?? "finished",
     app_id: appId,
-    skill_id: skillId,
+    ...(skillId ? { skill_id: skillId } : {}),
     focus_id: focusId,
     focus_mode_name: focusModeName,
   })}\n\`\`\``;

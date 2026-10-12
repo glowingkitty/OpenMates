@@ -246,6 +246,7 @@
         "example-chat-settings-usage.spec.ts",
         "example-chat-speech.spec.ts",
         "example-chat-hosting-domains.spec.ts",
+        "example-chat-brand-naming.spec.ts",
         "example-chats-load.spec.ts",
         "landing-app-examples.spec.ts",
         "landing-app-examples-phone-b.spec.ts",
