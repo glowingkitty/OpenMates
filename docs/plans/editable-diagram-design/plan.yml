@@ -237,3 +237,21 @@ evidence:
       verified zero containers/volumes, removed private account files and both
       disposable allowlist identities. The final 18 product/test blobs are
       preserved exactly in the documentation-only deployment candidate.
+  - check: Explicit zoom-out and phone-sized pan proof
+    status: passed
+    source: f840bdea2e73cab4e3b9bc8bae01b4db5600cbd2
+    run: https://github.com/glowingkitty/OpenMates/actions/runs/38229475834
+    summary: >-
+      All nine component cases passed without skips or retries. The phone-sized
+      case explicitly verifies zoom-out after zoom-in, dragging the zoomed
+      viewing canvas in both axes, and Fit resetting both pan offsets. Product
+      rendering/editing source is unchanged from the authenticated proof.
+  - check: Enabled Diagrams catalog expectations
+    status: passed
+    summary: >-
+      All 34 tests across the three scoped app metadata, skills-store and
+      registry suites passed. They now require active memory-backed Diagrams
+      and its durable HTML content entry, while keeping the retired Mermaid
+      content type absent. Scoped lint and Specification metadata checks passed.
+      A broader Vitest run also reported unrelated failures; those were not
+      changed or represented as passing by this focused verification.

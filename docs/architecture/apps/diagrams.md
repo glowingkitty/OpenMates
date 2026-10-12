@@ -34,7 +34,10 @@ and scale the whole artboard uniformly. Root `data-om-render-width` and
 `data-om-render-height` cover the complete page, including titles and legends;
 `data-om-background` matches its page background and colors the surrounding
 canvas, so fitting an artboard never introduces white gutters. Fullscreen adds fit, zoom, pan and HTML
-export. Generated scripts, event handlers and external resources are rejected;
+export. The +/− controls change the viewing scale; dragging the viewing canvas
+pans in both directions, and Fit resets zoom and position. These view changes
+leave the saved diagram geometry and source unchanged.
+Generated scripts, event handlers and external resources are rejected;
 visible read-only frames have no script permission. A separate opaque measurement
 frame runs only a first-party nonce-protected reporter after fonts settle. Its
 source, opaque origin and per-source token are checked before accepting bounded

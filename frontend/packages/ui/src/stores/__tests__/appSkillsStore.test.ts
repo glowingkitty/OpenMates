@@ -1,8 +1,8 @@
 // frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
 //
 // Regression coverage for Settings > Apps user-specific skill filtering.
-// Deactivated apps must stay out of the app skills store even when dormant
-// implementation files remain in the repository for future refinement.
+// App discovery retains active apps with memories even when the authenticated
+// skill response does not list them.
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -31,7 +31,7 @@ describe("appSkillsStore", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=settings-ui.navigation.contextual-availability
-  it("omits deactivated Diagrams app metadata", () => {
+  it("retains Diagram Design metadata without user-available skills", () => {
     userAvailableSkillsStore.set({
       initialized: true,
       loading: false,
@@ -43,7 +43,12 @@ describe("appSkillsStore", () => {
 
     const apps = appSkillsStore.getState().apps;
 
-    expect(apps.diagrams).toBeUndefined();
+    expect(apps.diagrams).toMatchObject({
+      id: "diagrams",
+      name_translation_key: "apps.diagrams",
+      skills: [],
+    });
+    expect(apps.diagrams.memories.length).toBeGreaterThan(0);
   });
 
   // contract-test: direct surface=gui.web assertions=settings-ui.navigation.contextual-availability
