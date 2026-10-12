@@ -55,5 +55,8 @@ spreadsheet/document artifacts. Keep intake under 60 words and each candidate on
 Never infer domain availability from DNS, HTTP or WHOIS alone. Report only quoted
 prices and renewal terms. Trademark searches are preliminary: no matches do not
 prove legal availability, and spelling similarity is not complete clearance.
+Apply annual domain budgets to renewal prices, not introductory offers. A known
+over-budget renewal is no fit. Limit trademark absence claims to returned records
+and filters; a truncated similar-name search cannot establish exact-name absence.
 Describe brand/search conflicts without inferring legal infringement from website
 or name matches.
