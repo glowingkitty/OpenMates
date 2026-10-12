@@ -1,0 +1,3077 @@
+schema_version: 1
+cadence: daily
+date: '2026-10-11'
+generated_at: '2026-10-12T00:20:33+00:00'
+range:
+  since: '2026-10-11T00:00:00+00:00'
+  until: '2026-10-12T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 24
+  section_counts:
+    features: 4
+    bug_fixes: 5
+    improvements: 6
+    docs: 2
+    tests: 7
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 15
+  dev_only_items: 24
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add encrypted participant-private Team chats'
+    section: features
+    commits:
+    - b37aaf97f
+    authored_at: '2026-10-11T15:44:59+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/chats.py
+    - backend/core/api/app/routes/direct_chats.py
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/core/api/app/routes/generated_assets_api.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_content_batch_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/draft_scope.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/initial_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/offline_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/request_embed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_keys_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/sync_message_hydration.py
+    - backend/core/api/app/routes/recent_work_internal.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/routes/teams.py
+    - backend/core/api/app/services/account_export_service.py
+    - backend/core/api/app/services/chat_email_notification_service.py
+    - backend/core/api/app/services/cold_archive_service.py
+    - backend/core/api/app/services/direct_chat_access.py
+    - backend/core/api/app/services/direct_chat_key_service.py
+    - backend/core/api/app/services/direct_chat_notification_service.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/services/team_billing_service.py
+    - backend/core/api/app/services/team_chat_notification_service.py
+    - backend/core/api/app/services/team_data_portability_service.py
+    - backend/core/api/app/services/team_realtime_service.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/app/tasks/auto_delete_tasks.py
+    - backend/core/api/app/tasks/push_notification_task.py
+    - backend/core/api/main.py
+    - backend/core/directus/Dockerfile.setup.selfhost
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/core/directus/schemas/account_chat_keys.yml
+    - backend/core/directus/schemas/chats.yml
+    - backend/core/directus/setup/migrate_account_chat_keys.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/tests/test_chat_activity.py
+    - backend/tests/test_chat_email_notification_service.py
+    - backend/tests/test_chat_turn_preflight_handler.py
+    - backend/tests/test_direct_chat_access.py
+    - backend/tests/test_direct_chat_embed_access.py
+    - backend/tests/test_direct_chat_keys.py
+    - backend/tests/test_direct_chat_recent_work.py
+    - backend/tests/test_phased_sync_handler.py
+    - backend/tests/test_recent_work_summary_cache.py
+    - backend/tests/test_sdk_chat_recovery.py
+    - backend/tests/test_sync_message_hydration.py
+    - backend/tests/test_team_usage_privacy.py
+    - backend/tests/test_team_workflow_source_projection.py
+    - docs/architecture/teams.md
+    - docs/plans/team-direct-chats/plan.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - frontend/apps/web_app/tests/cli-tui-team-direct-chat.spec.ts
+    - frontend/apps/web_app/tests/components/team-direct-message-action.spec.ts
+    - frontend/apps/web_app/tests/helpers/direct-chat-cli.ts
+    - frontend/apps/web_app/tests/helpers/direct-chat-fixture.ts
+    - frontend/apps/web_app/tests/teams-direct-chat.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/directChats.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/storage.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiActions.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tweetnacl.d.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/directChatWindowMiss.test.ts
+    - frontend/packages/openmates-cli/tests/directChats.test.ts
+    - frontend/packages/openmates-cli/tests/directChatsOffline.test.ts
+    - frontend/packages/openmates-cli/tests/directChatsSdk.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-teams.test.ts
+    - frontend/packages/openmates-cli/tests/teams-permissions.test.ts
+    - frontend/packages/pairing-crypto/package.json
+    - frontend/packages/pairing-crypto/src/directChatCrypto.ts
+    - frontend/packages/pairing-crypto/src/tweetnacl.d.ts
+    - frontend/packages/pairing-crypto/tests/directChatCrypto.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.preview.ts
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/settings/SettingsTeams.svelte
+    - frontend/packages/ui/src/components/settings/TeamMemberMessageAction.preview.ts
+    - frontend/packages/ui/src/components/settings/TeamMemberMessageAction.svelte
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/notifications.yml
+    - frontend/packages/ui/src/i18n/sources/settings/teams_ui.yml
+    - frontend/packages/ui/src/services/__tests__/chatKeyWriteGuard.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceReconnect.test.ts
+    - frontend/packages/ui/src/services/__tests__/directChatService.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/chatKeyWriteGuard.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/directChatService.ts
+    - frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - packages/openmates-python/openmates/direct_chats.py
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/pyproject.toml
+    - packages/openmates-python/tests/test_direct_chat_crypto.py
+    - packages/openmates-python/tests/test_sdk_team_direct_chats.py
+    - pnpm-lock.yaml
+    - specifications/features/teams/examples.yml
+    - specifications/features/teams/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:teams, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: integrate editable Diagram Design embeds'
+    section: features
+    commits:
+    - d0080e354
+    authored_at: '2026-10-11T14:08:46+00:00'
+    changed_paths:
+    - backend/apps/ai/mates/software_development.md
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/rule_context.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/apps/ai/testing/diagram_html_fixture.py
+    - backend/apps/ai/testing/fixtures/diagram_html_web.html
+    - backend/apps/ai/utils/diagram_html_fences.py
+    - backend/apps/diagrams/app.disabled.yml
+    - backend/apps/diagrams/app.yml
+    - backend/apps/diagrams/diagram_guidance.py
+    - backend/apps/diagrams/memories/type-architecture-delta.md
+    - backend/apps/diagrams/memories/type-architecture.md
+    - backend/apps/diagrams/memories/type-axonometric-plan.md
+    - backend/apps/diagrams/memories/type-bar.md
+    - backend/apps/diagrams/memories/type-data-flow.md
+    - backend/apps/diagrams/memories/type-db-schema.md
+    - backend/apps/diagrams/memories/type-dependency.md
+    - backend/apps/diagrams/memories/type-deployment.md
+    - backend/apps/diagrams/memories/type-dp-integration.md
+    - backend/apps/diagrams/memories/type-dp-security-matrix.md
+    - backend/apps/diagrams/memories/type-er.md
+    - backend/apps/diagrams/memories/type-exploded.md
+    - backend/apps/diagrams/memories/type-fishbone.md
+    - backend/apps/diagrams/memories/type-flowchart.md
+    - backend/apps/diagrams/memories/type-gantt.md
+    - backend/apps/diagrams/memories/type-heatmap.md
+    - backend/apps/diagrams/memories/type-high-level.md
+    - backend/apps/diagrams/memories/type-it-state.md
+    - backend/apps/diagrams/memories/type-journey.md
+    - backend/apps/diagrams/memories/type-kanban.md
+    - backend/apps/diagrams/memories/type-layers.md
+    - backend/apps/diagrams/memories/type-line.md
+    - backend/apps/diagrams/memories/type-loop.md
+    - backend/apps/diagrams/memories/type-medallion.md
+    - backend/apps/diagrams/memories/type-nested.md
+    - backend/apps/diagrams/memories/type-org-chart.md
+    - backend/apps/diagrams/memories/type-polar.md
+    - backend/apps/diagrams/memories/type-process.md
+    - backend/apps/diagrams/memories/type-pyramid.md
+    - backend/apps/diagrams/memories/type-quadrant.md
+    - backend/apps/diagrams/memories/type-radar.md
+    - backend/apps/diagrams/memories/type-sankey.md
+    - backend/apps/diagrams/memories/type-scatter.md
+    - backend/apps/diagrams/memories/type-sequence.md
+    - backend/apps/diagrams/memories/type-state.md
+    - backend/apps/diagrams/memories/type-story-map.md
+    - backend/apps/diagrams/memories/type-swimlane.md
+    - backend/apps/diagrams/memories/type-timeline.md
+    - backend/apps/diagrams/memories/type-tree.md
+    - backend/apps/diagrams/memories/type-treemap.md
+    - backend/apps/diagrams/memories/type-uml-class.md
+    - backend/apps/diagrams/memories/type-venn.md
+    - backend/apps/diagrams/memories/type-wardley.md
+    - backend/apps/diagrams/memories/type-waterfall.md
+    - backend/apps/diagrams/vendor/diagram_design/LICENSE
+    - backend/apps/diagrams/vendor/diagram_design/audit.json
+    - backend/apps/diagrams/vendor/diagram_design/guide.md
+    - backend/apps/diagrams/vendor/diagram_design/manifest.json
+    - backend/apps/diagrams/vendor/diagram_design/references/layout-budget.md
+    - backend/apps/diagrams/vendor/diagram_design/references/output-spec.md
+    - backend/apps/diagrams/vendor/diagram_design/references/primitives-core.md
+    - backend/apps/diagrams/vendor/diagram_design/references/semantic-patterns.md
+    - backend/apps/diagrams/vendor/diagram_design/references/style-guide.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-architecture-delta.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-architecture.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-axonometric-plan.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-bar.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-data-flow.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-db-schema.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-dependency.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-deployment.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-dp-integration.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-dp-security-matrix.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-er.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-exploded.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-fishbone.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-flowchart.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-gantt.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-heatmap.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-high-level.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-it-state.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-journey.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-kanban.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-layers.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-line.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-loop.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-medallion.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-nested.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-org-chart.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-polar.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-process.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-pyramid.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-quadrant.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-radar.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-sankey.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-scatter.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-sequence.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-state.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-story-map.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-swimlane.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-timeline.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-tree.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-treemap.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-uml-class.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-venn.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-wardley.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-waterfall.md
+    - backend/apps/diagrams/vendor/diagram_design/templates/template-dark.html
+    - backend/apps/diagrams/vendor/diagram_design/templates/template-full.html
+    - backend/apps/diagrams/vendor/diagram_design/templates/template.html
+    - backend/core/api/Dockerfile.celery
+    - backend/core/api/Dockerfile.selfhost
+    - backend/core/api/app/routes/handlers/websocket_handlers/commit_chat_diagram_revision_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_diff_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/services/embed_version_transaction_service.py
+    - backend/core/api/app/services/storage_reference_service.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/directus/extensions/embed-version-transaction/src/index.js
+    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
+    - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
+    - backend/core/directus/schemas/embed_diffs.yml
+    - backend/shared/providers/typesafe/client.py
+    - backend/tests/test_ai_instruction_contracts.py
+    - backend/tests/test_diagram_guidance.py
+    - backend/tests/test_diagram_html_fences.py
+    - backend/tests/test_diagram_html_live_mock_fixture.py
+    - backend/tests/test_diagram_html_streaming.py
+    - backend/tests/test_diagram_revision_cleanup.py
+    - backend/tests/test_embed_diff_version_contract.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_mermaid_embed_streaming.py
+    - backend/tests/test_store_embed_diff_authorization.py
+    - docs/architecture/apps/diagrams.md
+    - docs/plans/editable-diagram-design/plan.yml
+    - frontend/apps/web_app/tests/components/diagram-html-embed.spec.ts
+    - frontend/apps/web_app/tests/diagram-html-editing.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/diagramHtml.ts
+    - frontend/packages/openmates-cli/src/embedCreator.ts
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/openmates-cli/src/fileEmbed.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/diagramHtml.test.ts
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedFullscreen.compile.test.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlContent.test.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlContent.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlDecorativeFixture.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlEditorRuntime.js
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlExampleDark.html
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlExampleLight.html
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlFont.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeometry.test.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeometry.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlHistory.test.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlHistory.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlReceipt.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlRevision.test.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlRevision.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlRuntime.test.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlRuntime.ts
+    - frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/fileHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/codeEmbedService.ts
+    - frontend/packages/ui/src/components/enter_message/services/diagramHtmlUploadDetection.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/diagramHtmlUploadDetection.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/diagrams.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    - frontend/packages/ui/src/services/embedDiffStore.ts
+    - frontend/packages/ui/src/utils/embedUnifiedDiff.ts
+    - frontend/packages/ui/static/icons/edit.svg
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_run_tests.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:diagrams
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/diagrams/app.yml
+    - id: embed:diagrams:html
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:diagrams
+      source: backend/apps/diagrams/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:diagrams, embed:diagrams:html'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add web-aligned terminal mention suggestions and preserve chat refresh'
+    section: features
+    commits:
+    - 4b59f5518
+    authored_at: '2026-10-11T11:01:30+00:00'
+    changed_paths:
+    - docs/plans/tui-startup-performance/plan.yml
+    - docs/plans/tui-startup-performance/report.md
+    - frontend/apps/web_app/tests/cli-tui-mentions-proof.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiLayout.ts
+    - frontend/packages/openmates-cli/src/tuiMentionCatalog.ts
+    - frontend/packages/openmates-cli/src/tuiMentions.ts
+    - frontend/packages/openmates-cli/src/tuiPointer.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tuiWorkspaceController.ts
+    - frontend/packages/openmates-cli/tests/fixtures/tui-cache-startup-proof.mjs
+    - frontend/packages/openmates-cli/tests/tuiMentionCatalog.test.ts
+    - frontend/packages/openmates-cli/tests/tuiMentions.test.ts
+    - frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: accelerate chat routing and add queued steering with response feedback'
+    section: features
+    commits:
+    - 8fff53e54
+    authored_at: '2026-10-11T08:15:12+00:00'
+    changed_paths:
+    - DESIGN.md
+    - backend/apps/ai/processing/context_preselection.py
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/queued_steering.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/workflows/skills/saved_workflow_context.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/revise_queued_message_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/workflow_metadata_warmup_handler.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/services/cache_chat_mixin.py
+    - backend/core/api/app/services/chat_recovery_service.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/core/directus/schemas/messages.yml
+    - backend/tests/test_context_preselection.py
+    - backend/tests/test_early_typing_lifecycle.py
+    - backend/tests/test_legacy_queued_handoff.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_preprocessor_context_startup.py
+    - backend/tests/test_preprocessor_jev.py
+    - backend/tests/test_project_focus_early_routing.py
+    - backend/tests/test_queued_message_persistence.py
+    - backend/tests/test_queued_steering.py
+    - backend/tests/test_saved_workflow_context.py
+    - backend/tests/test_sdk_chat_recovery.py
+    - backend/tests/test_workflow_metadata_warmup.py
+    - docs/architecture/messaging/embeds.md
+    - docs/architecture/messaging/message-input-field.md
+    - docs/architecture/messaging/message-processing.md
+    - docs/plans/assistant-response-ui/plan.yml
+    - docs/plans/audio-transcript-composer/plan.yml
+    - docs/plans/chat-latency-improvements/benchmark-before.json
+    - docs/plans/chat-latency-improvements/interleaved-skills-evaluation.md
+    - docs/plans/chat-latency-improvements/plan.yml
+    - docs/plans/chat-latency-improvements/report.md
+    - docs/plans/chat-latency-improvements/verification.md
+    - docs/plans/chat-queued-followups/plan.yml
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    - frontend/apps/web_app/tests/audio-recording-live-provider.spec.ts
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/apps/web_app/tests/chat-queued-followups-protocol.spec.ts
+    - frontend/apps/web_app/tests/chat-queued-followups.spec.ts
+    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    - frontend/apps/web_app/tests/components/chat-assistant-response-activity.spec.ts
+    - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
+    - frontend/apps/web_app/tests/components/chat-history-saved-assistant.spec.ts
+    - frontend/apps/web_app/tests/components/embed-preview-info-top.spec.ts
+    - frontend/apps/web_app/tests/components/queued-followup-controls.spec.ts
+    - frontend/apps/web_app/tests/components/read-only-message-parsed-doc.spec.ts
+    - frontend/apps/web_app/tests/composer-workspace-layout.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-hydration.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/helpers/composer-focus.ts
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/apps/web_app/tests/workflow-metadata-warmup.spec.ts
+    - frontend/apps/web_app/vite.config.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/serverQuickTest.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/AssistantActivityGroup.svelte
+    - frontend/packages/ui/src/components/ChatHistory.preview.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.preview.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/chats/QueuedFollowupControls.preview.ts
+    - frontend/packages/ui/src/components/chats/QueuedFollowupControls.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageResultEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/assistantActivityCompletion.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageReopenParity.test.ts
+    - frontend/packages/ui/src/message_parsing/assistantActivityCompletion.ts
+    - frontend/packages/ui/src/message_parsing/assistantActivityRuns.ts
+    - frontend/packages/ui/src/message_parsing/assistantActivityStatus.ts
+    - frontend/packages/ui/src/message_parsing/embedGrouping.ts
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceReconnect.test.ts
+    - frontend/packages/ui/src/services/__tests__/incognitoQueuedMessage.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesDispatchFailure.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/__tests__/recentChatMessageMutation.test.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/services/draftService.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    - frontend/packages/ui/src/services/e2eTestHooks.ts
+    - frontend/packages/ui/src/services/incognitoChatService.ts
+    - frontend/packages/ui/src/services/queuedMessageLifecycle.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/services/sendersChatMessagesDispatchFailure.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - frontend/packages/ui/src/utils/messageHighlights.ts
+    - scripts/benchmark_chat_latency_web.cjs
+    - scripts/ci_coverage_manifest.json
+    - scripts/summarize_chat_latency_backend.py
+    - scripts/summarize_chat_latency_cli.py
+    - scripts/tests/test_message_input_welcome_contract.py
+    - specifications/features/ai-model-routing/examples.yml
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/features/chat-processing-feedback/examples.yml
+    - specifications/features/chat-processing-feedback/specification.yml
+    - specifications/features/chat-queued-followups/examples.yml
+    - specifications/features/chat-queued-followups/specification.yml
+    - specifications/features/chats/examples.yml
+    - specifications/features/chats/specification.yml
+    - specifications/features/message-input/examples.yml
+    - specifications/features/message-input/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: embed:images:image_result
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:workflows, embed:images:image_result, embed:images:search, platform:workflows,
+      skill:ai:ask'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: retrieve saved CLI embeds outside sync windows'
+    section: bug_fixes
+    commits:
+    - 37576cbd2
+    authored_at: '2026-10-11T17:01:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-embed-diff-versions.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve CLI recovery ownership during revision retries'
+    section: bug_fixes
+    commits:
+    - a9582f60b
+    authored_at: '2026-10-11T16:34:01+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve Diagram Design connectors and durable revisions'
+    section: bug_fixes
+    commits:
+    - b9ad1a640
+    authored_at: '2026-10-11T16:04:22+00:00'
+    changed_paths:
+    - .gitattributes
+    - backend/apps/ai/utils/diagram_html_fences.py
+    - backend/apps/diagrams/diagram_guidance.py
+    - backend/shared/testing/mock_context.py
+    - backend/tests/test_diagram_guidance.py
+    - backend/tests/test_diagram_html_fences.py
+    - backend/tests/test_diagram_html_live_mock_fixture.py
+    - backend/tests/test_native_cache_mock_transport.py
+    - docs/architecture/apps/diagrams.md
+    - frontend/apps/web_app/tests/components/diagram-html-embed.spec.ts
+    - frontend/apps/web_app/tests/components/diagram-html-real-examples.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlContent.test.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlContent.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlEditorRuntime.js
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedArtifacts.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedPasswordlessSequenceDark.html
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedProvenance.json
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlRuntime.test.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:diagrams
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/diagrams/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:diagrams'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: protect terminal mention popup from streaming animation'
+    section: bug_fixes
+    commits:
+    - 03f5ed3dd
+    authored_at: '2026-10-11T11:10:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-tui-streaming-render-proof.spec.ts
+    - frontend/packages/openmates-cli/src/tuiStreamingRender.ts
+    - frontend/packages/openmates-cli/tests/fixtures/tui-streaming-proof.mjs
+    - frontend/packages/openmates-cli/tests/tuiStreamingRender.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep chat send readiness consistent during model restoration'
+    section: bug_fixes
+    commits:
+    - 23319f80f
+    authored_at: '2026-10-11T09:23:01+00:00'
+    changed_paths:
+    - docs/plans/audio-transcript-composer/plan.yml
+    - docs/plans/chat-latency-improvements/ordinary-chats-after.json
+    - docs/plans/chat-latency-improvements/report.md
+    - docs/plans/chat-latency-improvements/verification.md
+    - frontend/apps/web_app/tests/components/composer-send-readiness.spec.ts
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.preview.ts
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/__tests__/sendReadiness.test.ts
+    - frontend/packages/ui/src/components/enter_message/sendReadiness.ts
+    - scripts/benchmark_chat_latency_web.cjs
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: 'perf: reduce chat send and prompt overhead'
+    section: improvements
+    commits:
+    - 9bd203923
+    authored_at: '2026-10-11T16:22:55+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - docs/architecture/messaging/message-processing.md
+    - docs/plans/chat-latency-improvements/ordinary-chats-after.json
+    - docs/plans/chat-latency-improvements/plan.yml
+    - docs/plans/chat-latency-improvements/report.md
+    - docs/plans/chat-latency-improvements/verification.md
+    - frontend/apps/web_app/tests/workflow-metadata-warmup.spec.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceReconnect.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: shorten ordinary chat preparation'
+    section: improvements
+    commits:
+    - d59e93d48
+    authored_at: '2026-10-11T14:44:09+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/related_work.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tests/test_ask_skill_task.py
+    - backend/core/api/app/routes/recent_work_internal.py
+    - backend/shared/python_utils/recent_work_summary_cache.py
+    - backend/shared/python_utils/recent_work_summary_client.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_recent_work_summary_cache.py
+    - backend/tests/test_related_work.py
+    - docs/architecture/messaging/message-processing.md
+    - docs/plans/chat-latency-improvements/ordinary-chats-after.json
+    - docs/plans/chat-latency-improvements/plan.yml
+    - docs/plans/chat-latency-improvements/report.md
+    - docs/plans/chat-latency-improvements/verification.md
+    - frontend/apps/web_app/tests/workflow-metadata-warmup.spec.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceReconnect.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: reuse validated personal chat authentication'
+    section: improvements
+    commits:
+    - f42ae96f2
+    authored_at: '2026-10-11T13:52:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: skip empty chat context reads for fresh SDK requests'
+    section: improvements
+    commits:
+    - 0f67bdefa
+    authored_at: '2026-10-11T12:37:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
+    - frontend/packages/openmates-cli/src/cliJevContext.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cliJevContext.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: warm chat metadata and overlap ordinary request preparation'
+    section: improvements
+    commits:
+    - a6231ae52
+    authored_at: '2026-10-11T11:21:16+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/agentic_context.py
+    - backend/apps/ai/processing/context_preselection.py
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/workflow_metadata_warmup_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/tests/test_context_preselection.py
+    - backend/tests/test_main_agentic_context.py
+    - backend/tests/test_preprocessor_context_startup.py
+    - backend/tests/test_preprocessor_jev.py
+    - backend/tests/test_project_focus_early_routing.py
+    - backend/tests/test_workflow_metadata_warmup.py
+    - docs/architecture/messaging/message-processing.md
+    - docs/plans/assistant-response-ui/plan.yml
+    - docs/plans/chat-latency-improvements/benchmark-after.json
+    - docs/plans/chat-latency-improvements/benchmark-comparison.json
+    - docs/plans/chat-latency-improvements/ordinary-chats-after.json
+    - docs/plans/chat-latency-improvements/plan.yml
+    - docs/plans/chat-latency-improvements/report.md
+    - docs/plans/chat-latency-improvements/verification.md
+    - docs/plans/chat-queued-followups/plan.yml
+    - frontend/apps/web_app/tests/workflow-metadata-warmup.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/http.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/http.test.ts
+    - frontend/packages/openmates-cli/tests/teams-permissions.test.ts
+    - frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatMetadataWarmup.test.ts
+    - frontend/packages/ui/src/services/__tests__/ruleDocumentService.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/agenticProjectContextService.ts
+    - frontend/packages/ui/src/services/chatMetadataWarmup.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/ruleDocumentService.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: render cached terminal chats before older history'
+    section: improvements
+    commits:
+    - df3e2da42
+    authored_at: '2026-10-11T09:49:19+00:00'
+    changed_paths:
+    - docs/plans/tui-startup-performance/benchmark.json
+    - docs/plans/tui-startup-performance/plan.yml
+    - docs/plans/tui-startup-performance/report.md
+    - frontend/apps/web_app/tests/cli-tui-proof-helpers.ts
+    - frontend/apps/web_app/tests/cli-tui-rich-chat-proof.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-streaming-render-proof.spec.ts
+    - frontend/packages/openmates-cli/scripts/tui-startup-benchmark.mjs
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/crypto.ts
+    - frontend/packages/openmates-cli/src/tuiHome.ts
+    - frontend/packages/openmates-cli/tests/clientStartup.test.ts
+    - frontend/packages/openmates-cli/tests/cryptoBatch.test.ts
+    - frontend/packages/openmates-cli/tests/fixtures/tui-cache-startup-proof.mjs
+    - frontend/packages/openmates-cli/tests/tuiHome.test.ts
+    - scripts/cli_video_capture.py
+    - scripts/tests/test_cli_video_capture.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs:
+  - title: 'docs: record ordinary chat regression and completed UI checks'
+    section: docs
+    commits:
+    - a10936146
+    authored_at: '2026-10-11T17:02:36+00:00'
+    changed_paths:
+    - docs/architecture/messaging/message-processing.md
+    - docs/plans/chat-latency-improvements/ordinary-chats-after.json
+    - docs/plans/chat-latency-improvements/plan.yml
+    - docs/plans/chat-latency-improvements/report.md
+    - docs/plans/chat-latency-improvements/verification.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record terminal performance and mention verification'
+    section: docs
+    commits:
+    - 3c021ba3b
+    authored_at: '2026-10-11T11:51:13+00:00'
+    changed_paths:
+    - docs/plans/tui-startup-performance/plan.yml
+    - docs/plans/tui-startup-performance/report.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: activate durable chat protocol for warmup checks'
+    section: tests
+    commits:
+    - 42f4da7ed
+    authored_at: '2026-10-11T13:55:32+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_maps_recovery_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align terminal proof fixtures with persisted session identity'
+    section: tests
+    commits:
+    - 9aa12825c
+    authored_at: '2026-10-11T11:16:43+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/tests/fixtures/tui-cache-startup-proof.mjs
+    - frontend/packages/openmates-cli/tests/fixtures/tui-streaming-proof.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: classify terminal mention picker proof for isolated CI'
+    section: tests
+    commits:
+    - 78bcd7e2a
+    authored_at: '2026-10-11T10:52:05+00:00'
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for terminal workspace before carousel navigation'
+    section: tests
+    commits:
+    - c662b4b15
+    authored_at: '2026-10-11T10:08:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-tui-streaming-render-proof.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: retain account fences in terminal cache fixtures'
+    section: tests
+    commits:
+    - 73275eaba
+    authored_at: '2026-10-11T10:01:53+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: verify atomic chat identity cleanup in isolated database'
+    section: tests
+    commits:
+    - 9750e952e
+    authored_at: '2026-10-11T09:05:49+00:00'
+    changed_paths:
+    - scripts/ci_account_chat_key_lifecycle_probe.sql
+    - scripts/ci_schema_bundle.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: provision isolated three-account Team DM fixtures'
+    section: tests
+    commits:
+    - 12994e977
+    authored_at: '2026-10-11T09:01:49+00:00'
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_environment.py
+    - scripts/tests/test_ci_run_tests.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'docs: record ordinary chat regression and completed UI checks'
+    commits:
+    - a10936146
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: retrieve saved CLI embeds outside sync windows'
+    commits:
+    - 37576cbd2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve CLI recovery ownership during revision retries'
+    commits:
+    - a9582f60b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'perf: reduce chat send and prompt overhead'
+    commits:
+    - 9bd203923
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: preserve Diagram Design connectors and durable revisions'
+    commits:
+    - b9ad1a640
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:diagrams
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/diagrams/app.yml
+  - title: 'feat: add encrypted participant-private Team chats'
+    commits:
+    - b37aaf97f
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'perf: shorten ordinary chat preparation'
+    commits:
+    - d59e93d48
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: integrate editable Diagram Design embeds'
+    commits:
+    - d0080e354
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:diagrams
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/diagrams/app.yml
+    - id: embed:diagrams:html
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:diagrams
+      source: backend/apps/diagrams/app.yml
+  - title: 'test: activate durable chat protocol for warmup checks'
+    commits:
+    - 42f4da7ed
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'perf: reuse validated personal chat authentication'
+    commits:
+    - f42ae96f2
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'perf: skip empty chat context reads for fresh SDK requests'
+    commits:
+    - 0f67bdefa
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record terminal performance and mention verification'
+    commits:
+    - 3c021ba3b
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'perf: warm chat metadata and overlap ordinary request preparation'
+    commits:
+    - a6231ae52
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: align terminal proof fixtures with persisted session identity'
+    commits:
+    - 9aa12825c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: protect terminal mention popup from streaming animation'
+    commits:
+    - 03f5ed3dd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add web-aligned terminal mention suggestions and preserve chat refresh'
+    commits:
+    - 4b59f5518
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: classify terminal mention picker proof for isolated CI'
+    commits:
+    - 78bcd7e2a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: wait for terminal workspace before carousel navigation'
+    commits:
+    - c662b4b15
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: retain account fences in terminal cache fixtures'
+    commits:
+    - 73275eaba
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'perf: render cached terminal chats before older history'
+    commits:
+    - df3e2da42
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep chat send readiness consistent during model restoration'
+    commits:
+    - 23319f80f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: verify atomic chat identity cleanup in isolated database'
+    commits:
+    - 9750e952e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: provision isolated three-account Team DM fixtures'
+    commits:
+    - 12994e977
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: accelerate chat routing and add queued steering with response feedback'
+    commits:
+    - 8fff53e54
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: embed:images:image_result
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'perf: reduce chat send and prompt overhead'
+    commits:
+    - 9bd203923
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: add encrypted participant-private Team chats'
+    commits:
+    - b37aaf97f
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'perf: shorten ordinary chat preparation'
+    commits:
+    - d59e93d48
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: integrate editable Diagram Design embeds'
+    commits:
+    - d0080e354
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:diagrams
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/diagrams/app.yml
+    - id: embed:diagrams:html
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:diagrams
+      source: backend/apps/diagrams/app.yml
+  - title: 'perf: warm chat metadata and overlap ordinary request preparation'
+    commits:
+    - a6231ae52
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: accelerate chat routing and add queued steering with response feedback'
+    commits:
+    - 8fff53e54
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: embed:images:image_result
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: retrieve saved CLI embeds outside sync windows'
+    commits:
+    - 37576cbd2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve CLI recovery ownership during revision retries'
+    commits:
+    - a9582f60b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'perf: reduce chat send and prompt overhead'
+    commits:
+    - 9bd203923
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve Diagram Design connectors and durable revisions'
+    commits:
+    - b9ad1a640
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:diagrams
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/diagrams/app.yml
+    newsletter_ready: false
+  - title: 'feat: add encrypted participant-private Team chats'
+    commits:
+    - b37aaf97f
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'perf: shorten ordinary chat preparation'
+    commits:
+    - d59e93d48
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: integrate editable Diagram Design embeds'
+    commits:
+    - d0080e354
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:diagrams
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/diagrams/app.yml
+    - id: embed:diagrams:html
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:diagrams
+      source: backend/apps/diagrams/app.yml
+    newsletter_ready: false
+  - title: 'perf: reuse validated personal chat authentication'
+    commits:
+    - f42ae96f2
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'perf: skip empty chat context reads for fresh SDK requests'
+    commits:
+    - 0f67bdefa
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'perf: warm chat metadata and overlap ordinary request preparation'
+    commits:
+    - a6231ae52
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: protect terminal mention popup from streaming animation'
+    commits:
+    - 03f5ed3dd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add web-aligned terminal mention suggestions and preserve chat refresh'
+    commits:
+    - 4b59f5518
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'perf: render cached terminal chats before older history'
+    commits:
+    - df3e2da42
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep chat send readiness consistent during model restoration'
+    commits:
+    - 23319f80f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: accelerate chat routing and add queued steering with response feedback'
+    commits:
+    - 8fff53e54
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: embed:images:image_result
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: a10936146eaa06a36130b7396a4a6c66b7d7204c
+    short_sha: a10936146
+    authored_at: '2026-10-11T17:02:36+00:00'
+    subject: 'docs: record ordinary chat regression and completed UI checks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/messaging/message-processing.md
+    - docs/plans/chat-latency-improvements/ordinary-chats-after.json
+    - docs/plans/chat-latency-improvements/plan.yml
+    - docs/plans/chat-latency-improvements/report.md
+    - docs/plans/chat-latency-improvements/verification.md
+    related_feature_ids: []
+  - sha: 37576cbd23afcada89698d415e1fb0c4f779fd47
+    short_sha: 37576cbd2
+    authored_at: '2026-10-11T17:01:42+00:00'
+    subject: 'fix: retrieve saved CLI embeds outside sync windows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-embed-diff-versions.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: a9582f60b300810dc22d5cf7cedbf3889707fce3
+    short_sha: a9582f60b
+    authored_at: '2026-10-11T16:34:01+00:00'
+    subject: 'fix: preserve CLI recovery ownership during revision retries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 9bd203923b684f7e7606026840ed6a07239a2d40
+    short_sha: 9bd203923
+    authored_at: '2026-10-11T16:22:55+00:00'
+    subject: 'perf: reduce chat send and prompt overhead'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - docs/architecture/messaging/message-processing.md
+    - docs/plans/chat-latency-improvements/ordinary-chats-after.json
+    - docs/plans/chat-latency-improvements/plan.yml
+    - docs/plans/chat-latency-improvements/report.md
+    - docs/plans/chat-latency-improvements/verification.md
+    - frontend/apps/web_app/tests/workflow-metadata-warmup.spec.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceReconnect.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: b9ad1a640a1ee31e3049c62c9ba72988d7be9e8a
+    short_sha: b9ad1a640
+    authored_at: '2026-10-11T16:04:22+00:00'
+    subject: 'fix: preserve Diagram Design connectors and durable revisions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .gitattributes
+    - backend/apps/ai/utils/diagram_html_fences.py
+    - backend/apps/diagrams/diagram_guidance.py
+    - backend/shared/testing/mock_context.py
+    - backend/tests/test_diagram_guidance.py
+    - backend/tests/test_diagram_html_fences.py
+    - backend/tests/test_diagram_html_live_mock_fixture.py
+    - backend/tests/test_native_cache_mock_transport.py
+    - docs/architecture/apps/diagrams.md
+    - frontend/apps/web_app/tests/components/diagram-html-embed.spec.ts
+    - frontend/apps/web_app/tests/components/diagram-html-real-examples.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlContent.test.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlContent.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlEditorRuntime.js
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedArtifacts.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedPasswordlessSequenceDark.html
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedProvenance.json
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlRuntime.test.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:diagrams
+  - sha: b37aaf97fb19c619290afef584625c8d464fc60a
+    short_sha: b37aaf97f
+    authored_at: '2026-10-11T15:44:59+00:00'
+    subject: 'feat: add encrypted participant-private Team chats'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/chats.py
+    - backend/core/api/app/routes/direct_chats.py
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/core/api/app/routes/generated_assets_api.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_content_batch_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/draft_scope.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/initial_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/offline_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/request_embed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_keys_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/sync_message_hydration.py
+    - backend/core/api/app/routes/recent_work_internal.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/routes/teams.py
+    - backend/core/api/app/services/account_export_service.py
+    - backend/core/api/app/services/chat_email_notification_service.py
+    - backend/core/api/app/services/cold_archive_service.py
+    - backend/core/api/app/services/direct_chat_access.py
+    - backend/core/api/app/services/direct_chat_key_service.py
+    - backend/core/api/app/services/direct_chat_notification_service.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/services/team_billing_service.py
+    - backend/core/api/app/services/team_chat_notification_service.py
+    - backend/core/api/app/services/team_data_portability_service.py
+    - backend/core/api/app/services/team_realtime_service.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/app/tasks/auto_delete_tasks.py
+    - backend/core/api/app/tasks/push_notification_task.py
+    - backend/core/api/main.py
+    - backend/core/directus/Dockerfile.setup.selfhost
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/core/directus/schemas/account_chat_keys.yml
+    - backend/core/directus/schemas/chats.yml
+    - backend/core/directus/setup/migrate_account_chat_keys.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/tests/test_chat_activity.py
+    - backend/tests/test_chat_email_notification_service.py
+    - backend/tests/test_chat_turn_preflight_handler.py
+    - backend/tests/test_direct_chat_access.py
+    - backend/tests/test_direct_chat_embed_access.py
+    - backend/tests/test_direct_chat_keys.py
+    - backend/tests/test_direct_chat_recent_work.py
+    - backend/tests/test_phased_sync_handler.py
+    - backend/tests/test_recent_work_summary_cache.py
+    - backend/tests/test_sdk_chat_recovery.py
+    - backend/tests/test_sync_message_hydration.py
+    - backend/tests/test_team_usage_privacy.py
+    - backend/tests/test_team_workflow_source_projection.py
+    - docs/architecture/teams.md
+    - docs/plans/team-direct-chats/plan.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - frontend/apps/web_app/tests/cli-tui-team-direct-chat.spec.ts
+    - frontend/apps/web_app/tests/components/team-direct-message-action.spec.ts
+    - frontend/apps/web_app/tests/helpers/direct-chat-cli.ts
+    - frontend/apps/web_app/tests/helpers/direct-chat-fixture.ts
+    - frontend/apps/web_app/tests/teams-direct-chat.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/directChats.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/storage.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiActions.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tweetnacl.d.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/directChatWindowMiss.test.ts
+    - frontend/packages/openmates-cli/tests/directChats.test.ts
+    - frontend/packages/openmates-cli/tests/directChatsOffline.test.ts
+    - frontend/packages/openmates-cli/tests/directChatsSdk.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-teams.test.ts
+    - frontend/packages/openmates-cli/tests/teams-permissions.test.ts
+    - frontend/packages/pairing-crypto/package.json
+    - frontend/packages/pairing-crypto/src/directChatCrypto.ts
+    - frontend/packages/pairing-crypto/src/tweetnacl.d.ts
+    - frontend/packages/pairing-crypto/tests/directChatCrypto.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.preview.ts
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/settings/SettingsTeams.svelte
+    - frontend/packages/ui/src/components/settings/TeamMemberMessageAction.preview.ts
+    - frontend/packages/ui/src/components/settings/TeamMemberMessageAction.svelte
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/notifications.yml
+    - frontend/packages/ui/src/i18n/sources/settings/teams_ui.yml
+    - frontend/packages/ui/src/services/__tests__/chatKeyWriteGuard.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceReconnect.test.ts
+    - frontend/packages/ui/src/services/__tests__/directChatService.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/chatKeyWriteGuard.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/directChatService.ts
+    - frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - packages/openmates-python/openmates/direct_chats.py
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/pyproject.toml
+    - packages/openmates-python/tests/test_direct_chat_crypto.py
+    - packages/openmates-python/tests/test_sdk_team_direct_chats.py
+    - pnpm-lock.yaml
+    - specifications/features/teams/examples.yml
+    - specifications/features/teams/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - platform:teams
+    - platform:workflows
+  - sha: d59e93d482f1c16c44b501c9e3d338a6103771c6
+    short_sha: d59e93d48
+    authored_at: '2026-10-11T14:44:09+00:00'
+    subject: 'perf: shorten ordinary chat preparation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/related_work.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tests/test_ask_skill_task.py
+    - backend/core/api/app/routes/recent_work_internal.py
+    - backend/shared/python_utils/recent_work_summary_cache.py
+    - backend/shared/python_utils/recent_work_summary_client.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_recent_work_summary_cache.py
+    - backend/tests/test_related_work.py
+    - docs/architecture/messaging/message-processing.md
+    - docs/plans/chat-latency-improvements/ordinary-chats-after.json
+    - docs/plans/chat-latency-improvements/plan.yml
+    - docs/plans/chat-latency-improvements/report.md
+    - docs/plans/chat-latency-improvements/verification.md
+    - frontend/apps/web_app/tests/workflow-metadata-warmup.spec.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceReconnect.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: d0080e35482bf87b2a5704bc52d5ba8606d8353f
+    short_sha: d0080e354
+    authored_at: '2026-10-11T14:08:46+00:00'
+    subject: 'feat: integrate editable Diagram Design embeds'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/mates/software_development.md
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/rule_context.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/apps/ai/testing/diagram_html_fixture.py
+    - backend/apps/ai/testing/fixtures/diagram_html_web.html
+    - backend/apps/ai/utils/diagram_html_fences.py
+    - backend/apps/diagrams/app.disabled.yml
+    - backend/apps/diagrams/app.yml
+    - backend/apps/diagrams/diagram_guidance.py
+    - backend/apps/diagrams/memories/type-architecture-delta.md
+    - backend/apps/diagrams/memories/type-architecture.md
+    - backend/apps/diagrams/memories/type-axonometric-plan.md
+    - backend/apps/diagrams/memories/type-bar.md
+    - backend/apps/diagrams/memories/type-data-flow.md
+    - backend/apps/diagrams/memories/type-db-schema.md
+    - backend/apps/diagrams/memories/type-dependency.md
+    - backend/apps/diagrams/memories/type-deployment.md
+    - backend/apps/diagrams/memories/type-dp-integration.md
+    - backend/apps/diagrams/memories/type-dp-security-matrix.md
+    - backend/apps/diagrams/memories/type-er.md
+    - backend/apps/diagrams/memories/type-exploded.md
+    - backend/apps/diagrams/memories/type-fishbone.md
+    - backend/apps/diagrams/memories/type-flowchart.md
+    - backend/apps/diagrams/memories/type-gantt.md
+    - backend/apps/diagrams/memories/type-heatmap.md
+    - backend/apps/diagrams/memories/type-high-level.md
+    - backend/apps/diagrams/memories/type-it-state.md
+    - backend/apps/diagrams/memories/type-journey.md
+    - backend/apps/diagrams/memories/type-kanban.md
+    - backend/apps/diagrams/memories/type-layers.md
+    - backend/apps/diagrams/memories/type-line.md
+    - backend/apps/diagrams/memories/type-loop.md
+    - backend/apps/diagrams/memories/type-medallion.md
+    - backend/apps/diagrams/memories/type-nested.md
+    - backend/apps/diagrams/memories/type-org-chart.md
+    - backend/apps/diagrams/memories/type-polar.md
+    - backend/apps/diagrams/memories/type-process.md
+    - backend/apps/diagrams/memories/type-pyramid.md
+    - backend/apps/diagrams/memories/type-quadrant.md
+    - backend/apps/diagrams/memories/type-radar.md
+    - backend/apps/diagrams/memories/type-sankey.md
+    - backend/apps/diagrams/memories/type-scatter.md
+    - backend/apps/diagrams/memories/type-sequence.md
+    - backend/apps/diagrams/memories/type-state.md
+    - backend/apps/diagrams/memories/type-story-map.md
+    - backend/apps/diagrams/memories/type-swimlane.md
+    - backend/apps/diagrams/memories/type-timeline.md
+    - backend/apps/diagrams/memories/type-tree.md
+    - backend/apps/diagrams/memories/type-treemap.md
+    - backend/apps/diagrams/memories/type-uml-class.md
+    - backend/apps/diagrams/memories/type-venn.md
+    - backend/apps/diagrams/memories/type-wardley.md
+    - backend/apps/diagrams/memories/type-waterfall.md
+    - backend/apps/diagrams/vendor/diagram_design/LICENSE
+    - backend/apps/diagrams/vendor/diagram_design/audit.json
+    - backend/apps/diagrams/vendor/diagram_design/guide.md
+    - backend/apps/diagrams/vendor/diagram_design/manifest.json
+    - backend/apps/diagrams/vendor/diagram_design/references/layout-budget.md
+    - backend/apps/diagrams/vendor/diagram_design/references/output-spec.md
+    - backend/apps/diagrams/vendor/diagram_design/references/primitives-core.md
+    - backend/apps/diagrams/vendor/diagram_design/references/semantic-patterns.md
+    - backend/apps/diagrams/vendor/diagram_design/references/style-guide.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-architecture-delta.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-architecture.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-axonometric-plan.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-bar.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-data-flow.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-db-schema.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-dependency.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-deployment.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-dp-integration.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-dp-security-matrix.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-er.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-exploded.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-fishbone.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-flowchart.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-gantt.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-heatmap.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-high-level.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-it-state.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-journey.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-kanban.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-layers.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-line.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-loop.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-medallion.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-nested.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-org-chart.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-polar.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-process.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-pyramid.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-quadrant.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-radar.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-sankey.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-scatter.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-sequence.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-state.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-story-map.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-swimlane.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-timeline.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-tree.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-treemap.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-uml-class.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-venn.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-wardley.md
+    - backend/apps/diagrams/vendor/diagram_design/references/type-waterfall.md
+    - backend/apps/diagrams/vendor/diagram_design/templates/template-dark.html
+    - backend/apps/diagrams/vendor/diagram_design/templates/template-full.html
+    - backend/apps/diagrams/vendor/diagram_design/templates/template.html
+    - backend/core/api/Dockerfile.celery
+    - backend/core/api/Dockerfile.selfhost
+    - backend/core/api/app/routes/handlers/websocket_handlers/commit_chat_diagram_revision_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_diff_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/services/embed_version_transaction_service.py
+    - backend/core/api/app/services/storage_reference_service.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/directus/extensions/embed-version-transaction/src/index.js
+    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
+    - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
+    - backend/core/directus/schemas/embed_diffs.yml
+    - backend/shared/providers/typesafe/client.py
+    - backend/tests/test_ai_instruction_contracts.py
+    - backend/tests/test_diagram_guidance.py
+    - backend/tests/test_diagram_html_fences.py
+    - backend/tests/test_diagram_html_live_mock_fixture.py
+    - backend/tests/test_diagram_html_streaming.py
+    - backend/tests/test_diagram_revision_cleanup.py
+    - backend/tests/test_embed_diff_version_contract.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_mermaid_embed_streaming.py
+    - backend/tests/test_store_embed_diff_authorization.py
+    - docs/architecture/apps/diagrams.md
+    - docs/plans/editable-diagram-design/plan.yml
+    - frontend/apps/web_app/tests/components/diagram-html-embed.spec.ts
+    - frontend/apps/web_app/tests/diagram-html-editing.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/diagramHtml.ts
+    - frontend/packages/openmates-cli/src/embedCreator.ts
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/openmates-cli/src/fileEmbed.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/diagramHtml.test.ts
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedFullscreen.compile.test.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlContent.test.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlContent.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlDecorativeFixture.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlEditorRuntime.js
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlExampleDark.html
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlExampleLight.html
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlFont.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeometry.test.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeometry.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlHistory.test.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlHistory.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlReceipt.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlRevision.test.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlRevision.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlRuntime.test.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlRuntime.ts
+    - frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/fileHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/codeEmbedService.ts
+    - frontend/packages/ui/src/components/enter_message/services/diagramHtmlUploadDetection.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/diagramHtmlUploadDetection.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/diagrams.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    - frontend/packages/ui/src/services/embedDiffStore.ts
+    - frontend/packages/ui/src/utils/embedUnifiedDiff.ts
+    - frontend/packages/ui/static/icons/edit.svg
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_run_tests.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:diagrams
+    - embed:diagrams:html
+  - sha: 42f4da7ed8c5fe3565b9cc55e9ff163a9c3363ce
+    short_sha: 42f4da7ed
+    authored_at: '2026-10-11T13:55:32+00:00'
+    subject: 'test: activate durable chat protocol for warmup checks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_maps_recovery_profile.py
+    related_feature_ids: []
+  - sha: f42ae96f2d3f48da646a13beca17b097150722c6
+    short_sha: f42ae96f2
+    authored_at: '2026-10-11T13:52:34+00:00'
+    subject: 'perf: reuse validated personal chat authentication'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 0f67bdefa1f3cbac9fe635570e829cff21d81f68
+    short_sha: 0f67bdefa
+    authored_at: '2026-10-11T12:37:37+00:00'
+    subject: 'perf: skip empty chat context reads for fresh SDK requests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
+    - frontend/packages/openmates-cli/src/cliJevContext.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cliJevContext.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 3c021ba3b9523560bb7ca963f93c4e896843791a
+    short_sha: 3c021ba3b
+    authored_at: '2026-10-11T11:51:13+00:00'
+    subject: 'docs: record terminal performance and mention verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/tui-startup-performance/plan.yml
+    - docs/plans/tui-startup-performance/report.md
+    related_feature_ids: []
+  - sha: a6231ae528ff5910c23249aba84c8800424bd8b3
+    short_sha: a6231ae52
+    authored_at: '2026-10-11T11:21:16+00:00'
+    subject: 'perf: warm chat metadata and overlap ordinary request preparation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/agentic_context.py
+    - backend/apps/ai/processing/context_preselection.py
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/workflow_metadata_warmup_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/tests/test_context_preselection.py
+    - backend/tests/test_main_agentic_context.py
+    - backend/tests/test_preprocessor_context_startup.py
+    - backend/tests/test_preprocessor_jev.py
+    - backend/tests/test_project_focus_early_routing.py
+    - backend/tests/test_workflow_metadata_warmup.py
+    - docs/architecture/messaging/message-processing.md
+    - docs/plans/assistant-response-ui/plan.yml
+    - docs/plans/chat-latency-improvements/benchmark-after.json
+    - docs/plans/chat-latency-improvements/benchmark-comparison.json
+    - docs/plans/chat-latency-improvements/ordinary-chats-after.json
+    - docs/plans/chat-latency-improvements/plan.yml
+    - docs/plans/chat-latency-improvements/report.md
+    - docs/plans/chat-latency-improvements/verification.md
+    - docs/plans/chat-queued-followups/plan.yml
+    - frontend/apps/web_app/tests/workflow-metadata-warmup.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/http.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/http.test.ts
+    - frontend/packages/openmates-cli/tests/teams-permissions.test.ts
+    - frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatMetadataWarmup.test.ts
+    - frontend/packages/ui/src/services/__tests__/ruleDocumentService.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/agenticProjectContextService.ts
+    - frontend/packages/ui/src/services/chatMetadataWarmup.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/ruleDocumentService.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - platform:workflows
+  - sha: 9aa12825c4c092af42e29a0bbc99129c7477a2d5
+    short_sha: 9aa12825c
+    authored_at: '2026-10-11T11:16:43+00:00'
+    subject: 'test: align terminal proof fixtures with persisted session identity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/tests/fixtures/tui-cache-startup-proof.mjs
+    - frontend/packages/openmates-cli/tests/fixtures/tui-streaming-proof.mjs
+    related_feature_ids: []
+  - sha: 03f5ed3dd2a96e5dd20f9ae97ab0f9ffb81d6f0d
+    short_sha: 03f5ed3dd
+    authored_at: '2026-10-11T11:10:33+00:00'
+    subject: 'fix: protect terminal mention popup from streaming animation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-tui-streaming-render-proof.spec.ts
+    - frontend/packages/openmates-cli/src/tuiStreamingRender.ts
+    - frontend/packages/openmates-cli/tests/fixtures/tui-streaming-proof.mjs
+    - frontend/packages/openmates-cli/tests/tuiStreamingRender.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 4b59f55188b171856e985035ace79435c1f3f196
+    short_sha: 4b59f5518
+    authored_at: '2026-10-11T11:01:30+00:00'
+    subject: 'feat: add web-aligned terminal mention suggestions and preserve chat refresh'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/tui-startup-performance/plan.yml
+    - docs/plans/tui-startup-performance/report.md
+    - frontend/apps/web_app/tests/cli-tui-mentions-proof.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiLayout.ts
+    - frontend/packages/openmates-cli/src/tuiMentionCatalog.ts
+    - frontend/packages/openmates-cli/src/tuiMentions.ts
+    - frontend/packages/openmates-cli/src/tuiPointer.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tuiWorkspaceController.ts
+    - frontend/packages/openmates-cli/tests/fixtures/tui-cache-startup-proof.mjs
+    - frontend/packages/openmates-cli/tests/tuiMentionCatalog.test.ts
+    - frontend/packages/openmates-cli/tests/tuiMentions.test.ts
+    - frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 78bcd7e2a81b7a808d6ebbc18c2731554a2e93e9
+    short_sha: 78bcd7e2a
+    authored_at: '2026-10-11T10:52:05+00:00'
+    subject: 'test: classify terminal mention picker proof for isolated CI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    related_feature_ids: []
+  - sha: c662b4b153325c1fe7908a6a772dcb83b0f016b9
+    short_sha: c662b4b15
+    authored_at: '2026-10-11T10:08:44+00:00'
+    subject: 'test: wait for terminal workspace before carousel navigation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-tui-streaming-render-proof.spec.ts
+    related_feature_ids: []
+  - sha: 73275eaba437cc8b79dd5cd1096b6f29295d934b
+    short_sha: 73275eaba
+    authored_at: '2026-10-11T10:01:53+00:00'
+    subject: 'test: retain account fences in terminal cache fixtures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: df3e2da4209c20bfe7835ace6ae8c82cbf08a5a8
+    short_sha: df3e2da42
+    authored_at: '2026-10-11T09:49:19+00:00'
+    subject: 'perf: render cached terminal chats before older history'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/tui-startup-performance/benchmark.json
+    - docs/plans/tui-startup-performance/plan.yml
+    - docs/plans/tui-startup-performance/report.md
+    - frontend/apps/web_app/tests/cli-tui-proof-helpers.ts
+    - frontend/apps/web_app/tests/cli-tui-rich-chat-proof.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-streaming-render-proof.spec.ts
+    - frontend/packages/openmates-cli/scripts/tui-startup-benchmark.mjs
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/crypto.ts
+    - frontend/packages/openmates-cli/src/tuiHome.ts
+    - frontend/packages/openmates-cli/tests/clientStartup.test.ts
+    - frontend/packages/openmates-cli/tests/cryptoBatch.test.ts
+    - frontend/packages/openmates-cli/tests/fixtures/tui-cache-startup-proof.mjs
+    - frontend/packages/openmates-cli/tests/tuiHome.test.ts
+    - scripts/cli_video_capture.py
+    - scripts/tests/test_cli_video_capture.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 23319f80fc1792bd483df322debb69d78829f0f8
+    short_sha: 23319f80f
+    authored_at: '2026-10-11T09:23:01+00:00'
+    subject: 'fix: keep chat send readiness consistent during model restoration'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/audio-transcript-composer/plan.yml
+    - docs/plans/chat-latency-improvements/ordinary-chats-after.json
+    - docs/plans/chat-latency-improvements/report.md
+    - docs/plans/chat-latency-improvements/verification.md
+    - frontend/apps/web_app/tests/components/composer-send-readiness.spec.ts
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.preview.ts
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/__tests__/sendReadiness.test.ts
+    - frontend/packages/ui/src/components/enter_message/sendReadiness.ts
+    - scripts/benchmark_chat_latency_web.cjs
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 9750e952ec92281088c6b3f05089ca1e47fd7acf
+    short_sha: 9750e952e
+    authored_at: '2026-10-11T09:05:49+00:00'
+    subject: 'test: verify atomic chat identity cleanup in isolated database'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_account_chat_key_lifecycle_probe.sql
+    - scripts/ci_schema_bundle.py
+    related_feature_ids: []
+  - sha: 12994e9779475e488b19e7201fccecc7af358138
+    short_sha: 12994e977
+    authored_at: '2026-10-11T09:01:49+00:00'
+    subject: 'test: provision isolated three-account Team DM fixtures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_environment.py
+    - scripts/tests/test_ci_run_tests.py
+    related_feature_ids: []
+  - sha: 8fff53e54ceae234f3643814b69e561e8390b2a6
+    short_sha: 8fff53e54
+    authored_at: '2026-10-11T08:15:12+00:00'
+    subject: 'feat: accelerate chat routing and add queued steering with response feedback'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - DESIGN.md
+    - backend/apps/ai/processing/context_preselection.py
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/queued_steering.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/workflows/skills/saved_workflow_context.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/revise_queued_message_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/workflow_metadata_warmup_handler.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/services/cache_chat_mixin.py
+    - backend/core/api/app/services/chat_recovery_service.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/core/directus/schemas/messages.yml
+    - backend/tests/test_context_preselection.py
+    - backend/tests/test_early_typing_lifecycle.py
+    - backend/tests/test_legacy_queued_handoff.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_preprocessor_context_startup.py
+    - backend/tests/test_preprocessor_jev.py
+    - backend/tests/test_project_focus_early_routing.py
+    - backend/tests/test_queued_message_persistence.py
+    - backend/tests/test_queued_steering.py
+    - backend/tests/test_saved_workflow_context.py
+    - backend/tests/test_sdk_chat_recovery.py
+    - backend/tests/test_workflow_metadata_warmup.py
+    - docs/architecture/messaging/embeds.md
+    - docs/architecture/messaging/message-input-field.md
+    - docs/architecture/messaging/message-processing.md
+    - docs/plans/assistant-response-ui/plan.yml
+    - docs/plans/audio-transcript-composer/plan.yml
+    - docs/plans/chat-latency-improvements/benchmark-before.json
+    - docs/plans/chat-latency-improvements/interleaved-skills-evaluation.md
+    - docs/plans/chat-latency-improvements/plan.yml
+    - docs/plans/chat-latency-improvements/report.md
+    - docs/plans/chat-latency-improvements/verification.md
+    - docs/plans/chat-queued-followups/plan.yml
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    - frontend/apps/web_app/tests/audio-recording-live-provider.spec.ts
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/apps/web_app/tests/chat-queued-followups-protocol.spec.ts
+    - frontend/apps/web_app/tests/chat-queued-followups.spec.ts
+    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    - frontend/apps/web_app/tests/components/chat-assistant-response-activity.spec.ts
+    - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
+    - frontend/apps/web_app/tests/components/chat-history-saved-assistant.spec.ts
+    - frontend/apps/web_app/tests/components/embed-preview-info-top.spec.ts
+    - frontend/apps/web_app/tests/components/queued-followup-controls.spec.ts
+    - frontend/apps/web_app/tests/components/read-only-message-parsed-doc.spec.ts
+    - frontend/apps/web_app/tests/composer-workspace-layout.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-hydration.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/helpers/composer-focus.ts
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/apps/web_app/tests/workflow-metadata-warmup.spec.ts
+    - frontend/apps/web_app/vite.config.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/serverQuickTest.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/AssistantActivityGroup.svelte
+    - frontend/packages/ui/src/components/ChatHistory.preview.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.preview.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/chats/QueuedFollowupControls.preview.ts
+    - frontend/packages/ui/src/components/chats/QueuedFollowupControls.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageResultEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/assistantActivityCompletion.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageReopenParity.test.ts
+    - frontend/packages/ui/src/message_parsing/assistantActivityCompletion.ts
+    - frontend/packages/ui/src/message_parsing/assistantActivityRuns.ts
+    - frontend/packages/ui/src/message_parsing/assistantActivityStatus.ts
+    - frontend/packages/ui/src/message_parsing/embedGrouping.ts
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceReconnect.test.ts
+    - frontend/packages/ui/src/services/__tests__/incognitoQueuedMessage.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesDispatchFailure.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/__tests__/recentChatMessageMutation.test.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/services/draftService.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    - frontend/packages/ui/src/services/e2eTestHooks.ts
+    - frontend/packages/ui/src/services/incognitoChatService.ts
+    - frontend/packages/ui/src/services/queuedMessageLifecycle.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/services/sendersChatMessagesDispatchFailure.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - frontend/packages/ui/src/utils/messageHighlights.ts
+    - scripts/benchmark_chat_latency_web.cjs
+    - scripts/ci_coverage_manifest.json
+    - scripts/summarize_chat_latency_backend.py
+    - scripts/summarize_chat_latency_cli.py
+    - scripts/tests/test_message_input_welcome_contract.py
+    - specifications/features/ai-model-routing/examples.yml
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/features/chat-processing-feedback/examples.yml
+    - specifications/features/chat-processing-feedback/specification.yml
+    - specifications/features/chat-queued-followups/examples.yml
+    - specifications/features/chat-queued-followups/specification.yml
+    - specifications/features/chats/examples.yml
+    - specifications/features/chats/specification.yml
+    - specifications/features/message-input/examples.yml
+    - specifications/features/message-input/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:workflows
+    - embed:images:image_result
+    - embed:images:search
+    - platform:workflows
+    - skill:ai:ask
+llm_summary:
+  overview: OpenMates focused on significant performance optimizations for chat latency and the initial integration of editable
+    diagramming tools. Development also progressed on terminal-based mention suggestions and encrypted team communication,
+    alongside a heavy emphasis on benchmarking and test infrastructure.
+  released_changes: []
+  bug_fixes:
+  - text: OpenMates addressed CLI issues where saved embeds were not correctly retrieved outside of sync windows and recovery
+      ownership was lost during revision retries.
+    evidence:
+      commits:
+      - 37576cbd2
+      - a9582f60b
+    release_status: dev_only
+  - text: The Diagram Design integration was updated to preserve connectors and ensure revisions remain durable.
+    evidence:
+      commits:
+      - b9ad1a640
+    release_status: dev_only
+  - text: The terminal mention popup is now protected from being disrupted by streaming animations.
+    evidence:
+      commits:
+      - 03f5ed3dd
+    release_status: dev_only
+  - text: UI logic was corrected to ensure chat send readiness remains consistent when a model is restored.
+    evidence:
+      commits:
+      - 23319f80f
+    release_status: dev_only
+  unreleased_progress:
+  - text: OpenMates is accelerating chat routing and reducing prompt overhead by warming metadata and overlapping request
+      preparation.
+    evidence:
+      commits:
+      - 8fff53e54
+      - 9bd203923
+      - d59e93d48
+      - a6231ae52
+    release_status: dev_only
+  - text: Integration of editable Diagram Design embeds is underway, allowing for interactive diagramming within the application.
+    evidence:
+      commits:
+      - d0080e354
+    release_status: dev_only
+  - text: The terminal experience is being enhanced with web-aligned mention suggestions, optimized rendering order for cached
+      chats, and faster SDK request preparation.
+    evidence:
+      commits:
+      - 4b59f5518
+      - df3e2da42
+      - f42ae96f2
+      - 0f67bdefa
+    release_status: dev_only
+  - text: Encrypted, participant-private chats for Teams are in development to ensure secure collaboration.
+    evidence:
+      commits:
+      - b37aaf97f
+    release_status: dev_only
+  internal_progress:
+  - text: The project expanded its testing suite with isolated Team DM fixtures, atomic identity cleanup verification, and
+      improved terminal proof fixtures for CI.
+    evidence:
+      commits:
+      - 42f4da7ed
+      - 9aa12825c
+      - 78bcd7e2a
+      - c662b4b15
+      - 73275eaba
+      - 9750e952e
+      - 12994e977
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Chat latency and routing optimizations.
+      evidence:
+        commits:
+        - 8fff53e54
+        - 9bd203923
+        - d59e93d48
+        - a6231ae52
+      reason: These performance and routing improvements are currently in dev_only status and not yet merged to main.
+    - text: Editable Diagram Design embeds.
+      evidence:
+        commits:
+        - d0080e354
+      reason: The Diagram Design integration is a major feature currently in dev_only status.
+    - text: Encrypted Team chats.
+      evidence:
+        commits:
+        - b37aaf97f
+      reason: Team features are currently disabled in the platform configuration and the commit is dev_only.
+    rationale: No user-facing changes were released to the main branch during this period. All significant features and improvements
+      are currently in development (dev_only).
+  social_video_recommendations:
+  - idea: A demo of the new editable Diagram Design embeds showing how users can modify architecture diagrams directly within
+      the chat.
+    priority: medium
+    reason: This is a highly visual feature that demonstrates the power of the OpenMates embed system.
+    evidence:
+      commits:
+      - d0080e354
+      - b9ad1a640
+  - idea: A side-by-side comparison of the terminal (CLI) and web app mention systems to show cross-platform consistency.
+    priority: low
+    reason: Useful for the developer audience, though less broadly appealing than visual diagramming.
+    evidence:
+      commits:
+      - 4b59f5518
+      - df3e2da42
+  quality_notes:
+  - The project is maintaining a high standard of performance verification, with multiple commits dedicated to recording latency
+    benchmarks and terminal startup reports.
+  - Extensive work on CLI/TUI parity with the web app suggests a focus on developer experience.
+  validation_warnings: []
