@@ -1,3 +1,13 @@
+landing:
+  order: 21
+  capability:
+    type: skill
+    id: get_transcript
+  caption:
+    en: Summarize this video
+    de: Fasse dieses Video zusammen
+  example_chat_id: example-ted-talk-transcript-summary
+
 name_translation_key: videos
 description_translation_key: videos.description
 icon_image: |

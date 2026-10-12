@@ -2,20 +2,47 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parse } from 'yaml';
 
-// The first entries follow the public landing's capability tour. Keep the
-// complete order here so newly available apps cannot silently enter the rail.
-const appOrder = [
-  'events', 'travel', 'code', 'home', 'health', 'social_media', 'fitness', 'mail', 'jobs',
-  'web', 'maps', 'weather', 'calendar', 'shopping', 'nutrition', 'news', 'docs',
-  'mindmaps', 'math', 'images', 'audio', 'videos', 'books', 'study', 'business',
-  'finance', 'design', 'electronics', 'hosting', 'models3d', 'music',
-  'life_coaching', 'plants', 'politics', 'pdf', 'ai'
-];
+const excluded = new Set(['openmates', 'projects', 'tasks', 'plans', 'reminder', 'workflows', 'plants']);
+const capabilityTypes = new Set(['skill', 'focus', 'artifact', 'app']);
 
-/** Read only the capability fields needed by the public landing from canonical app sources. */
+/** Check that a published default points to an available capability in this app. */
+export function validateLandingMetadata(id, landing, skills, focuses, artifacts) {
+  if (!landing || typeof landing !== 'object' || Array.isArray(landing)) {
+    throw new Error(`Missing landing metadata for public app: ${id}`);
+  }
+  if (!Number.isInteger(landing.order) || landing.order < 0) {
+    throw new Error(`Invalid landing order for ${id}`);
+  }
+  const { type, id: capabilityId } = landing.capability ?? {};
+  if (!capabilityTypes.has(type) || typeof capabilityId !== 'string' || !capabilityId.trim()) {
+    throw new Error(`Invalid landing capability for ${id}`);
+  }
+  const available = { skill: skills, focus: focuses, artifact: artifacts, app: new Set([id]) }[type];
+  if (!available.has(capabilityId)) {
+    throw new Error(`Unavailable landing capability for ${id}: ${type}:${capabilityId}`);
+  }
+  for (const locale of ['en', 'de']) {
+    const caption = landing.caption?.[locale];
+    if (typeof caption !== 'string' || !caption.trim() || caption !== caption.trim()) {
+      throw new Error(`Missing or invalid ${locale} landing caption for ${id}`);
+    }
+  }
+  if (typeof landing.example_chat_id !== 'string' || !/^example-[a-z0-9-]+$/.test(landing.example_chat_id)) {
+    throw new Error(`Missing or invalid landing example for ${id}`);
+  }
+  if (type === 'app') {
+    const { request_excerpt: excerpt, rationale } = landing.source_evidence ?? {};
+    if (typeof excerpt !== 'string' || excerpt.trim() !== excerpt || (excerpt.match(/\p{L}+/gu) ?? []).length < 5 ||
+        typeof rationale !== 'string' || rationale.trim() !== rationale || rationale.length < 24) {
+      throw new Error(`Missing reviewed app-level landing source evidence for ${id}`);
+    }
+  }
+  return landing;
+}
+
+/** Read public tour defaults from canonical app sources. */
 export function compilePublicApps(root) {
   const appsRoot = resolve(root, 'backend/apps');
-  const excluded = new Set(['openmates', 'projects', 'tasks', 'plans', 'reminder', 'workflows']);
   const apps = [];
   for (const entry of readdirSync(appsRoot, { withFileTypes: true }).filter((item) => item.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) {
     const id = entry.name;
@@ -24,9 +51,9 @@ export function compilePublicApps(root) {
     const app = parse(readFileSync(appPath, 'utf8'));
     if (!app || app.default_enabled === false || app.internal === true || excluded.has(id)) continue;
 
-    const skills = Array.isArray(app.skills) ? app.skills.filter((skill) => skill?.default_enabled !== false && skill?.internal !== true && skill?.id) : [];
+    const skills = new Set(Array.isArray(app.skills) ? app.skills.filter((skill) => skill?.default_enabled !== false && skill?.internal !== true && skill?.id).map((skill) => skill.id) : []);
     const focusRoot = resolve(appsRoot, id, 'focus_modes');
-    const focusIds = new Set();
+    const focuses = new Set();
     if (existsSync(focusRoot)) {
       for (const focusDir of readdirSync(focusRoot, { withFileTypes: true }).filter((item) => item.isDirectory())) {
         const skillPath = resolve(focusRoot, focusDir.name, 'SKILL.md');
@@ -35,25 +62,25 @@ export function compilePublicApps(root) {
         const frontmatter = raw.match(/^---\s*\n([\s\S]*?)\n---(?:\s*\n|$)/);
         if (!frontmatter) continue;
         const focus = parse(frontmatter[1]);
-        if (focus?.default_enabled !== false) focusIds.add(focus?.id || focusDir.name.replaceAll('-', '_'));
+        if (focus?.default_enabled !== false) focuses.add(focus?.id || focusDir.name.replaceAll('-', '_'));
       }
     }
     const legacy = app.focuses || app.focus_modes || [];
     if (Array.isArray(legacy)) for (const focus of legacy) {
-      if (focus?.id && !focusIds.has(focus.id) && focus.default_enabled !== false) focusIds.add(focus.id);
+      if (focus?.id && focus.default_enabled !== false) focuses.add(focus.id);
     }
+    const directEmbeds = Array.isArray(app.embed_types) ? app.embed_types.filter((embed) => embed?.category === 'direct' && embed?.id) : [];
+    const artifacts = new Set(directEmbeds.map((embed) => embed.id));
 
-    // Docs and Mind Maps are live direct-artifact pipelines without declared skills.
-    if (!skills.length && !focusIds.size && id !== 'docs' && id !== 'mindmaps') continue;
+    // An app with no available behavior does not enter the tour.
+    if (!skills.size && !focuses.size && !artifacts.size) continue;
     const icon_image = typeof app.icon_image === 'string' ? app.icon_image.trim() : '';
     if (!icon_image) throw new Error(`Missing public app icon: ${id}`);
-    apps.push({ id, icon_image });
+    const landing = validateLandingMetadata(id, app.landing, skills, focuses, artifacts);
+    const selectedArtifact = directEmbeds.find((embed) => embed.id === landing.capability.id);
+    const evidence_types = selectedArtifact ? [selectedArtifact.id, selectedArtifact.frontend_type, selectedArtifact.backend_type].filter(Boolean) : [];
+    apps.push({ id, icon_image, order: landing.order, capability: landing.capability, caption: landing.caption, example_chat_id: landing.example_chat_id, source_evidence: landing.source_evidence, evidence_types });
   }
-  const order = new Map(appOrder.map((id, index) => [id, index]));
-  const unknown = apps.filter((app) => !order.has(app.id));
-  const unavailable = appOrder.filter((id) => !apps.some((app) => app.id === id));
-  if (unknown.length || unavailable.length) {
-    throw new Error(`Public app order differs from live capabilities: unknown=${unknown.map((app) => app.id).join(',')} unavailable=${unavailable.join(',')}`);
-  }
-  return apps.sort((a, b) => order.get(a.id) - order.get(b.id));
+  if (new Set(apps.map((app) => app.order)).size !== apps.length) throw new Error('Duplicate public landing app order');
+  return apps.sort((a, b) => a.order - b.order);
 }

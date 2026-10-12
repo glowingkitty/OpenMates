@@ -1,3 +1,16 @@
+landing:
+  order: 25
+  capability:
+    type: app
+    id: finance
+  caption:
+    en: Summarize my finances
+    de: Fasse meine Finanzen zusammen
+  example_chat_id: example-net-cash-from-supplied
+  source_evidence:
+    request_excerpt: current balances from statements I have in front of me
+    rationale: The user supplies balances for a personal finance summary; no connected account access is claimed.
+
 id: finance
 name_translation_key: finance
 description_translation_key: finance.description

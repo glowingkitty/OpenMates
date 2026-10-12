@@ -1,3 +1,13 @@
+landing:
+  order: 1
+  capability:
+    type: skill
+    id: search_connections
+  caption:
+    en: Find train connections
+    de: Finde Zugverbindungen
+  example_chat_id: example-deutschlandticket-train-fare-breakdown
+
 name_translation_key: travel
 description_translation_key: travel.description
 icon_image: |

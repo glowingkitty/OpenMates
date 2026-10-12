@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.marketing-landing@3
+specification: feature.marketing-landing@4
 scrolling:
 - id: visitor-controls-reading-time
   given: Alex opens the standalone website while signed out and JavaScript is unavailable.
@@ -63,16 +63,45 @@ hero:
   given: Alex opens the hero on a laptop and leaves it running for several complete cycles.
   when: The ordered capability icons, including Docs and Mindmaps, pass through the rail.
   then: One icon row moves without a visible reset, uses faded edges and a matching natural request. Internal
-    workspaces and OpenMates are absent; the public AI app remains eligible.
+    workspaces, OpenMates and Plants are absent; the public AI app remains eligible. Resizing the page
+    and resuming after a background tab preserve continuous movement and matching highlighting.
 - id: ordered-capability-rail
   given: Alex opens the German landing hero.
   when: The rail passes Events, Travel, Code, Home, Health, Social Media, Fitness, Mail, Jobs, Docs and
     Mindmaps.
   then: The headline reads “Deine KI-Teamkollegen\nmit Privatsphäre” with a right-of-center highlight;
-    prompts are natural capability requests each linked to a matching existing example chat, and each
-    icon opens its app in a new tab. OpenMates, Projects, Tasks, Plans, Reminders and Workflows are absent.
+    prompts are short generic capability requests each linked to a matching existing example chat,
+    without an added link icon. The icon corners have the same proportional shape as the signup background.
+    OpenMates, Projects, Tasks, Plans, Reminders, Workflows and Plants are absent.
     The responsive bubble keeps its position while fading, and the aligned scroll cue remains readable.
     Every eligible shown app has a real matching example; a missing source is treated as unfinished work.
+manual_rail:
+- id: select-and-resume
+  assertion_ids: [marketing-landing.interactive-rail]
+  given: Alex watches the moving app row on a laptop, with Events highlighted.
+  when: Alex clicks Travel, waits two seconds and then scrolls horizontally through the icons.
+  then: Travel moves into focus and shows Find train connections without opening another tab. It stays
+    in focus for two seconds, then movement continues from Travel. Manual scrolling updates the selected
+    app and message without a jump when automatic movement resumes.
+- id: touch-and-keyboard-selection
+  assertion_ids: [marketing-landing.interactive-rail]
+  given: Sam uses a phone, while Jo uses a keyboard with reduced motion enabled.
+  when: Sam swipes the app row horizontally and scrolls the page vertically; Jo selects another app.
+  then: Sam can explore apps without blocking page scrolling. Jo can select and read every app's request
+    without automatic movement, and neither interaction opens an app page.
+metadata_defaults:
+- id: app-owned-defaults
+  assertion_ids: [marketing-landing.app-metadata-defaults]
+  given: Travel metadata declares its available train-search capability, Find train connections caption
+    and a real chat showing a natural train-search request.
+  when: The public website is built and a visitor selects Travel.
+  then: The compiled app catalogue supplies that caption and example destination without a runtime
+    app metadata request or a separate landing mapping. The message opens the real train example.
+- id: reject-incomplete-defaults
+  assertion_ids: [marketing-landing.app-metadata-defaults]
+  given: A displayed app's metadata refers to an unavailable capability or a missing example chat.
+  when: The website build compiles the public app catalogue.
+  then: The build reports the invalid default instead of publishing a misleading app or fabricated example.
 preferences:
 - id: dark-startup-without-flash
   given: Alex previously chose dark theme and opens the website or /landing on a cold start.

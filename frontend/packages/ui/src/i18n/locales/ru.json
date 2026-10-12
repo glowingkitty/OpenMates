@@ -10499,7 +10499,7 @@
         "text": "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
       },
       "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"59da3895-7f69-4e16-b430-cc2280c70f2e\", \"app_id\": \"videos\", \"skill_id\": \"get_transcript\"}\n```\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
+        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
       }
     },
     "upcoming_reminders_list": {
@@ -10683,6 +10683,70 @@
       },
       "follow_up_6": {
         "text": "Сравнить различные методы превращения устных идей в организованные задачи"
+      }
+    },
+    "calendar_week_from_supplied_events": {
+      "title": {
+        "text": "Календарная неделя по списку событий"
+      },
+      "summary": {
+        "text": "Краткий обзор вымышленной недели на основе событий, указанных в чате, без доступа к подключенному аккаунту."
+      },
+      "message_1": {
+        "text": "@mate:general_knowledge пожалуйста, составь краткий обзор моей календарной недели с 12 по 18 октября (берлинское время) на основе этих событий: Пн 09:00–09:30 командная встреча; Вт 14:00–15:00 стоматолог; Ср 10:00–11:00 обзор проекта и 18:30–19:30 йога; Пт 16:00–17:00 забрать продукты; Сб 11:00–13:00 смена в общественном саду. В какой день больше всего дел, а какие дни свободны?"
+      },
+      "message_2": {
+        "text": "Вот краткий обзор твоего расписания на неделю с 12 по 18 октября 2026 года (время: Европа/Берлин):\n\n### Обзор расписания\n* **Понедельник, 12 окт:** 09:00–09:30 – Командная встреча (30 мин)\n* **Вторник, 13 окт:** 14:00–15:00 – Стоматолог (1 ч)\n* **Среда, 14 окт:**\n  * 10:00–11:00 – Обзор проекта (1 ч)\n  * 18:30–19:30 – Йога (1 ч)\n* **Четверг, 15 окт:** *Нет запланированных событий*\n* **Пятница, 16 окт:** 16:00–17:00 – Забрать продукты (1 ч)\n* **Суббота, 17 окт:** 11:00–13:00 – Смена в общественном саду (2 ч)\n* **Воскресенье, 18 окт:** *Нет запланированных событий*\n\n---\n\n### Основные выводы\n* **День с наибольшим количеством дел:** **Среда, 14 октября** (2 отдельных события общей длительностью 2 часа). *Примечание: В субботу самый длинный непрерывный блок занятого времени (2 часа), но в среду больше всего событий.*\n* **Полностью свободные дни:** **Четверг, 15 октября** и **Воскресенье, 18 октября**.\n\n---\n\n### Рекомендуемые действия\n1. [Добавить время на подготовку в четверг](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)\n2. [Запланировать напоминания о встречах](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)"
+      },
+      "follow_up_1": {
+        "text": "Найти рецепты здоровой еды, чтобы приготовить в четверг"
+      },
+      "follow_up_2": {
+        "text": "Как эффективно организовать плотный график на неделю"
+      },
+      "follow_up_3": {
+        "text": "Установить напоминание о визите к стоматологу во вторник"
+      },
+      "follow_up_4": {
+        "text": "Советы по совмещению рабочих и личных дел"
+      },
+      "follow_up_5": {
+        "text": "Создать задачу: подготовка к обзору проекта в среду"
+      },
+      "follow_up_6": {
+        "text": "Сравнить различные техники тайм-менеджмента для специалистов"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "Теплый сигнал для общественного сада"
+      },
+      "summary": {
+        "text": "Создай короткий двухнотный звук уведомления для вымышленного приложения общественного сада."
+      },
+      "message_1": {
+        "text": "Создай короткий, теплый звук уведомления для приложения общественного сада, который звучит при регистрации волонтера. Мягкий двухнотный сигнал, без речи, длительностью менее трех секунд."
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nЯ создаю теплый, мягкий двухнотный сигнал для твоего приложения общественного сада. Он сейчас обрабатывается и появится в чате, как только будет готов.\n\n### Рекомендуемые следующие шаги\n- [Создать естественный праздничный сигнал для разблокировки значка](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Разработать макет карточки подтверждения для волонтера](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "Создай праздничный сигнал разблокировки значка за выполнение задачи"
+      },
+      "follow_up_2": {
+        "text": "Объясни, как звуковой дизайн влияет на вовлеченность пользователей в мобильных приложениях"
+      },
+      "follow_up_3": {
+        "text": "Создай мягкий сигнал напоминания для графика утреннего полива"
+      },
+      "follow_up_4": {
+        "text": "Перечисли лучшие практики создания ненавязчивых звуков уведомлений для интерфейса"
+      },
+      "follow_up_5": {
+        "text": "Создай мягкий звук предупреждения об ошибке при сбое валидации формы"
+      },
+      "follow_up_6": {
+        "text": "Опиши, как интегрировать собственные звуковые эффекты в мобильные приложения"
       }
     }
   },

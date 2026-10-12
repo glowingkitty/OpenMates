@@ -1,3 +1,13 @@
+landing:
+  order: 30
+  capability:
+    type: skill
+    id: generate
+  caption:
+    en: Create a short melody
+    de: Erstelle eine kurze Melodie
+  example_chat_id: example-community-garden-welcome-melody
+
 name_translation_key: music
 description_translation_key: music.description
 icon_image: music.svg

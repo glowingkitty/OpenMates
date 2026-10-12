@@ -1,3 +1,13 @@
+landing:
+  order: 24
+  capability:
+    type: skill
+    id: company_financials
+  caption:
+    en: Find company financials
+    de: Finde Unternehmenskennzahlen
+  example_chat_id: example-vital-farms-sec-financials
+
 id: business
 name_translation_key: business
 description_translation_key: business.description

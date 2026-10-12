@@ -81,20 +81,32 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     await expect(groups.nth(1).locator('.rail-icon')).toHaveCount(landingAppOrder.length);
     for (const icon of await groups.nth(1).locator('.rail-icon').all()) {
       const id = await icon.getAttribute('data-app-id');
-      await expect(icon).toHaveAttribute('href', `${APP}/#apps/${id}`);
-      await expect(icon).toHaveAttribute('target', '_blank');
-      await expect(icon).toHaveAttribute('rel', /noopener/);
+      await expect(icon).toHaveAttribute('type', 'button');
+      await expect(icon).toHaveAttribute('aria-label', `Show ${id} example`);
     }
     const railGeometry = await groups.nth(1).locator('.rail-icon').evaluateAll(nodes => nodes.map(node => {
       const rect = node.getBoundingClientRect();
-      const style = getComputedStyle(node, '::before');
-      return { centerY: rect.y + rect.height / 2, width: rect.width, radius: getComputedStyle(node).borderTopLeftRadius, mask: style.maskImage || style.webkitMaskImage };
+      const glyph = node.querySelector<HTMLElement>('.rail-glyph')!;
+      const glyphRect = glyph.getBoundingClientRect();
+      const style = getComputedStyle(glyph);
+      return { id: node.getAttribute('data-app-id'), centerY: rect.y + rect.height / 2, width: rect.width, height: rect.height, baseWidth: parseFloat(getComputedStyle(node).width), radius: getComputedStyle(node).borderTopLeftRadius, glyphWidth: glyphRect.width, glyphHeight: glyphRect.height, glyphOffsetX: glyphRect.x + glyphRect.width / 2 - (rect.x + rect.width / 2), glyphOffsetY: glyphRect.y + glyphRect.height / 2 - (rect.y + rect.height / 2), glyphColor: style.backgroundColor, mask: style.maskImage || style.webkitMaskImage };
     }));
     expect(Math.max(...railGeometry.map(icon => icon.centerY)) - Math.min(...railGeometry.map(icon => icon.centerY))).toBeLessThan(2);
     expect(railGeometry.every(icon => icon.width >= 60 && icon.width <= 122 && icon.mask.includes('url('))).toBe(true);
-    expect(railGeometry.every(icon => icon.radius === '34%')).toBe(true);
+    const nonSquareIcons = railGeometry.filter(icon => Math.abs(icon.width - icon.height) >= 1);
+    expect(nonSquareIcons, `App icons must be square: ${JSON.stringify(nonSquareIcons)}`).toEqual([]);
+    const glyphDefects = railGeometry.filter(icon => icon.glyphWidth < (width < 760 ? 20 : 30) || icon.glyphHeight < (width < 760 ? 20 : 30) || Math.abs(icon.glyphWidth / icon.width - 0.53) > 0.02 || Math.abs(icon.glyphHeight / icon.height - 0.53) > 0.02 || Math.abs(icon.glyphOffsetX) > 1 || Math.abs(icon.glyphOffsetY) > 1 || icon.glyphColor === 'rgba(0, 0, 0, 0)' || !icon.mask.includes('url('));
+    expect(glyphDefects, `Rendered app glyph geometry: ${JSON.stringify(glyphDefects)}`).toEqual([]);
+    expect(railGeometry.every(icon => icon.radius === `${Math.round(icon.baseWidth * 0.25)}px`)).toBe(true);
+    for (const path of ['/icons/event.svg', '/icons/travel.svg']) {
+      const response = await page.request.get(new URL(path, page.url()).toString());
+      expect(response.ok()).toBe(true);
+      expect(response.headers()['content-type']).toMatch(/image\/svg\+xml/);
+      expect(await response.text()).toMatch(/<svg\b/);
+    }
     const prompt = page.getByTestId('landing-prompt');
     await expect(prompt).toHaveCSS('opacity', '1');
+    await expect(prompt).not.toContainText('↗');
     const initialPrompt = await prompt.evaluate((element) => ({ id: (element as HTMLElement).dataset.activeApp, href: element.getAttribute('href'), target: element.getAttribute('target') }));
     const initialApp = initialPrompt.id;
     if (initialApp && landingAppExamples[initialApp]) {
@@ -124,27 +136,12 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     await expect(prompt).toHaveCSS('opacity', '1');
     await page.screenshot({ path: testInfo.outputPath(`landing-hero-${width}.png`) });
 
-    // Pause at the real repeating boundary: matching visible icons must not jump.
-    const seam = await root.evaluate(element => {
-      const windowEl = element.querySelector('[data-testid="landing-app-rail"]')!;
-      const track = element.querySelector('.rail-track')!;
-      const animation = track.getAnimations()[0];
-      animation.pause();
-      const duration = Number(animation.effect!.getTiming().duration);
-      const sample = () => {
-        const clip = windowEl.getBoundingClientRect();
-        return [...track.querySelectorAll<HTMLElement>('[data-app-id]')].map(node => ({ id: node.dataset.appId, rect: node.getBoundingClientRect() })).filter(item => item.rect.left > clip.left + 10 && item.rect.right < clip.right - 10).map(item => ({ id: item.id, left: item.rect.left }));
-      };
-      animation.currentTime = duration - 1;
-      const before = sample();
-      animation.currentTime = duration;
-      const after = sample();
-      animation.play();
-      return { before, after };
-    });
-    expect(seam.before.length).toBeGreaterThan(1);
-    expect(seam.after.map(item => item.id)).toEqual(seam.before.map(item => item.id));
-    for (let i = 0; i < seam.before.length; i++) expect(Math.abs(seam.before[i].left - seam.after[i].left)).toBeLessThan(1);
+    // A full-cycle manual move must render the same icons at the same coordinates.
+    const seamBefore = await groups.nth(1).locator('.rail-icon').first().boundingBox();
+    const period = await groups.nth(1).evaluate(element => element.getBoundingClientRect().width);
+    await page.getByTestId('landing-app-rail').dispatchEvent('wheel', { deltaX: period, deltaY: 0 });
+    expect(seamBefore).not.toBeNull();
+    await expect.poll(async () => Math.abs((await groups.nth(1).locator('.rail-icon').first().boundingBox())!.x - seamBefore!.x)).toBeLessThan(2);
 
     const icons: string[] = [];
     for (const id of sections) {
@@ -240,4 +237,135 @@ test('320px reduced-motion landing offers language-only settings and all event/s
     await expect(social).toHaveAttribute('rel', /noopener.*noreferrer/);
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+});
+
+// contract-test: direct surface=gui.web assertions=marketing-landing.interactive-rail,marketing-landing.hero-app-rail
+test('landing app rail selects, pauses, resumes and accepts manual input', async ({ page }) => {
+  test.setTimeout(35_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto(preview(1440), { waitUntil: 'domcontentloaded' });
+  await waitForComponentPreview(page, 30_000);
+  const rail = page.getByTestId('landing-app-rail');
+  const icons = rail.getByTestId('landing-rail-group').nth(1).locator('.rail-icon');
+  const prompt = page.getByTestId('landing-prompt');
+  const selected = landingAppOrder[1];
+  const travel = icons.nth(1);
+  await expect(travel).toBeVisible();
+  await expect(travel).toBeEnabled();
+  const travelBounds = (await travel.boundingBox())!;
+  const railBounds = (await rail.boundingBox())!;
+  const clickX = travelBounds.x + travelBounds.width / 2;
+  const clickY = travelBounds.y + travelBounds.height / 2;
+  expect(clickX).toBeGreaterThan(railBounds.x + 10);
+  expect(clickX).toBeLessThan(railBounds.x + railBounds.width - 10);
+  await page.mouse.click(clickX, clickY);
+  await expect(prompt).toHaveAttribute('data-active-app', selected);
+  await expect(rail).toHaveAttribute('data-active-app', selected);
+  await expect(icons.nth(1)).toHaveAttribute('aria-pressed', 'true');
+  const position = () => rail.locator('.rail-track').evaluate(element => getComputedStyle(element).transform);
+  await expect.poll(async () => {
+    const bounds = await icons.nth(1).boundingBox();
+    const window = await rail.boundingBox();
+    return Math.abs((bounds!.x + bounds!.width / 2) - (window!.x + window!.width / 2 + Math.min(window!.width * 0.08, 110)));
+  }).toBeLessThan(2);
+  await expect.poll(async () => {
+    const first = await position();
+    await page.waitForTimeout(80);
+    return first === await position();
+  }).toBe(true);
+  const held = await position();
+  await page.waitForTimeout(900);
+  expect(await position()).toBe(held);
+  await expect.poll(async () => (await position()) !== held, { timeout: 3000 }).toBe(true);
+
+  const beforeWheel = await position();
+  const wheelResult = await rail.evaluate(element => {
+    const event = new WheelEvent('wheel', { deltaX: 90, deltaY: 0, bubbles: true, cancelable: true });
+    element.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(wheelResult).toBe(true);
+  expect(await position()).not.toBe(beforeWheel);
+  const verticalWheel = await rail.evaluate(element => {
+    const event = new WheelEvent('wheel', { deltaX: 0, deltaY: 90, bubbles: true, cancelable: true });
+    element.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(verticalWheel).toBe(false);
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const reducedPosition = await position();
+  await page.waitForTimeout(200);
+  expect(await position()).toBe(reducedPosition);
+  await rail.focus();
+  const beforeKey = (await prompt.getAttribute('data-active-app'))!;
+  await rail.press('ArrowRight');
+  await expect(prompt).toHaveAttribute('data-active-app', landingAppOrder[(landingAppOrder.indexOf(beforeKey) + 1) % landingAppOrder.length]);
+  await expect(rail).toHaveCSS('touch-action', 'pan-y');
+  await page.setViewportSize({ width: 390, height: 844 });
+  const afterResize = await position();
+  await page.waitForTimeout(150);
+  expect(await position()).toBe(afterResize);
+  const box = (await rail.boundingBox())!;
+  const x = box.x + box.width * 0.65;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, box.y - 30);
+  await page.mouse.up();
+  expect(await position()).toBe(afterResize);
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x - 120, y, { steps: 4 });
+  await page.mouse.up();
+  expect(await position()).not.toBe(afterResize);
+  const beforeTouch = await position();
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x - 140, y, id: 1 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  expect(await position()).not.toBe(beforeTouch);
+  await cdp.detach();
+});
+
+// contract-test: direct surface=gui.web assertions=marketing-landing.hero-app-rail,marketing-landing.interactive-rail
+test('landing app rail crosses its automatic loop without a visible seam', async ({ page }) => {
+  test.setTimeout(40_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto(preview(1440), { waitUntil: 'domcontentloaded' });
+  await waitForComponentPreview(page, 30_000);
+  const rail = page.getByTestId('landing-app-rail');
+  await rail.getByTestId('landing-rail-group').nth(1).locator('.rail-icon').last().evaluate((button: HTMLButtonElement) => button.click());
+  await expect(rail).toHaveAttribute('data-active-app', landingAppOrder.at(-1)!);
+  await expect.poll(async () => {
+    const first = await rail.locator('.rail-track').evaluate(element => getComputedStyle(element).transform);
+    await page.waitForTimeout(80);
+    return first === await rail.locator('.rail-track').evaluate(element => getComputedStyle(element).transform);
+  }).toBe(true);
+  const seam = await rail.evaluate(async (windowEl, ids) => {
+    const track = windowEl.querySelector<HTMLElement>('.rail-track')!;
+    const period = windowEl.querySelector<HTMLElement>('.rail-group')!.getBoundingClientRect().width;
+    const center = windowEl.getBoundingClientRect().left + windowEl.clientWidth / 2;
+    const visualX = (id: string) => [...track.querySelectorAll<HTMLElement>(`[data-app-id="${id}"]`)]
+      .map(icon => icon.getBoundingClientRect().left)
+      .sort((a, b) => Math.abs(a - center) - Math.abs(b - center))[0];
+    let previous = { transform: new DOMMatrix(getComputedStyle(track).transform).m41, last: visualX(ids.last), first: visualX(ids.first) };
+    const deadline = performance.now() + 8500;
+    while (performance.now() < deadline) {
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+      const current = { transform: new DOMMatrix(getComputedStyle(track).transform).m41, last: visualX(ids.last), first: visualX(ids.first) };
+      if (current.transform - previous.transform > period / 2) {
+        return { wrapped: true, lastMovement: Math.abs(current.last - previous.last), firstMovement: Math.abs(current.first - previous.first), period };
+      }
+      previous = current;
+    }
+    return { wrapped: false, lastMovement: Infinity, firstMovement: Infinity, period };
+  }, { last: landingAppOrder.at(-1)!, first: landingAppOrder[0] });
+  expect(seam.wrapped).toBe(true);
+  expect(Math.abs(seam.period / landingAppOrder.length - Math.round(seam.period / landingAppOrder.length))).toBeGreaterThan(0.01);
+  expect(seam.lastMovement).toBeLessThan(3);
+  expect(seam.firstMovement).toBeLessThan(3);
 });

@@ -1,3 +1,13 @@
+landing:
+  order: 8
+  capability:
+    type: focus
+    id: career_insights
+  caption:
+    en: Help with career advice
+    de: Hilf mir bei Karrierefragen
+  example_chat_id: example-adjacent-career-portfolio-experiments
+
 name_translation_key: jobs
 description_translation_key: jobs.description
 icon_image: |

@@ -1,3 +1,13 @@
+landing:
+  order: 33
+  capability:
+    type: skill
+    id: read
+  caption:
+    en: Summarize this PDF
+    de: Fasse dieses PDF zusammen
+  example_chat_id: example-community-garden-budget-review
+
 # backend/apps/pdf/app.yml
 #
 # App configuration for the PDF processor.

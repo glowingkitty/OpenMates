@@ -10499,7 +10499,7 @@
         "text": "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
       },
       "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"59da3895-7f69-4e16-b430-cc2280c70f2e\", \"app_id\": \"videos\", \"skill_id\": \"get_transcript\"}\n```\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
+        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
       }
     },
     "upcoming_reminders_list": {
@@ -10683,6 +10683,70 @@
       },
       "follow_up_6": {
         "text": "Porovnat různé metody převodu mluvených nápadů na uspořádané úkoly"
+      }
+    },
+    "calendar_week_from_supplied_events": {
+      "title": {
+        "text": "Kalendářní týden ze zadaných událostí"
+      },
+      "summary": {
+        "text": "Shrnutí fiktivního týdne kalendářních událostí zadaných v konverzaci, bez přístupu k propojenému účtu."
+      },
+      "message_1": {
+        "text": "@mate:general_knowledge prosím shrň můj kalendářní týden od 12. do 18. října (berlínského času) z těchto událostí, které jsem sem zkopíroval: Po 09:00–09:30 team check-in; Út 14:00–15:00 zubař; St 10:00–11:00 projektová revize a 18:30–19:30 jóga; Pá 16:00–17:00 vyzvednutí nákupu; So 11:00–13:00 směna v komunitní zahradě. Který den má nejvíce povinností a které dny jsou volné?"
+      },
+      "message_2": {
+        "text": "Zde je shrnutí tvého rozvrhu na týden od 12. do 18. října 2026 (časové pásmo Evropa/Berlín):\n\n### Přehled rozvrhu\n* **Pondělí 12. října:** 09:00–09:30 – Team check-in (30 min)\n* **Úterý 13. října:** 14:00–15:00 – Zubař (1 hod)\n* **Středa 14. října:**\n  * 10:00–11:00 – Projektová revize (1 hod)\n  * 18:30–19:30 – Jóga (1 hod)\n* **Čtvrtek 15. října:** *Žádné naplánované události*\n* **Pátek 16. října:** 16:00–17:00 – Vyzvednutí nákupu (1 hod)\n* **Sobota 17. října:** 11:00–13:00 – Směna v komunitní zahradě (2 hod)\n* **Neděle 18. října:** *Žádné naplánované události*\n\n---\n\n### Hlavní poznatky\n* **Den s nejvíce povinnostmi:** **Středa 14. října** (2 samostatné události v celkové délce 2 hodin). *Poznámka: Sobota má nejdelší souvislý blok času (2 hodiny), ale středa má nejvyšší počet událostí.*\n* **Zcela volné dny:** **Čtvrtek 15. října** a **Neděle 18. října**.\n\n---\n\n### Navrhované další kroky\n1. [Přidat čas na přípravu ve čtvrtek](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)\n2. [Naplánovat připomenutí schůzek](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)"
+      },
+      "follow_up_1": {
+        "text": "Vyhledat zdravé recepty na vaření na čtvrtek"
+      },
+      "follow_up_2": {
+        "text": "Vysvětlit, jak efektivně organizovat nabitý týdenní rozvrh"
+      },
+      "follow_up_3": {
+        "text": "Nastavit připomenutí na návštěvu zubaře v úterý"
+      },
+      "follow_up_4": {
+        "text": "Vypsat tipy pro vyvážení pracovních a osobních schůzek"
+      },
+      "follow_up_5": {
+        "text": "Vytvořit úkol pro přípravu na středeční projektovou revizi"
+      },
+      "follow_up_6": {
+        "text": "Porovnat různé techniky time managementu pro profesionály"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "Hřejivá znělka pro komunitní zahradu"
+      },
+      "summary": {
+        "text": "Vygeneruj krátký dvoutónový zvuk oznámení pro fiktivní aplikaci pro komunitní zahradu."
+      },
+      "message_1": {
+        "text": "Vytvoř krátký, hřejivý zvuk oznámení pro aplikaci pro komunitní zahradu při přihlášení dobrovolníka. Jemná dvoutónová znělka, beze slov a pod tři sekundy."
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nPrávě generuji hřejivou, jemnou dvoutónovou znělku pro tvou aplikaci pro komunitní zahradu. Právě se zpracovává a v chatu se objeví, jakmile bude hotová.\n\n### Navrhované další kroky\n- [Vygeneruj zemitou, oslavnou znělku pro odemknutí odznaku](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Navrhni rozvržení potvrzovací karty pro dobrovolníky](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "Vygeneruj oslavnou znělku pro odemknutí odznaku za splnění úkolu"
+      },
+      "follow_up_2": {
+        "text": "Vysvětli, jak zvukový design ovlivňuje zapojení uživatelů v mobilních aplikacích"
+      },
+      "follow_up_3": {
+        "text": "Vytvoř jemnou připomínací znělku pro ranní rozvrh zalévání"
+      },
+      "follow_up_4": {
+        "text": "Uveď osvědčené postupy pro návrh nevtíravých zvuků oznámení v UI"
+      },
+      "follow_up_5": {
+        "text": "Vygeneruj jemný zvuk upozornění na chybu při selhání validace formuláře"
+      },
+      "follow_up_6": {
+        "text": "Popiš, jak integrovat vlastní zvukové efekty do mobilních aplikací"
       }
     }
   },

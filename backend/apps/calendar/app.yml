@@ -1,3 +1,16 @@
+landing:
+  order: 12
+  capability:
+    type: app
+    id: calendar
+  caption:
+    en: Summarize my calendar week
+    de: Fasse meine Kalenderwoche zusammen
+  example_chat_id: example-calendar-week-from-supplied
+  source_evidence:
+    request_excerpt: calendar week of October 12–18 (Berlin time) from these events I've copied here
+    rationale: The user supplies calendar events for a week summary; no connected calendar read is claimed.
+
 name_translation_key: calendar
 description_translation_key: calendar.description
 icon_image: |

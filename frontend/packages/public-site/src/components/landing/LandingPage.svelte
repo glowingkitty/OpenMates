@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { landingAppOrder, landingAppExamples, type LandingPublication } from './landingPageContent';
+  import { landingAppExamples, type LandingPublication } from './landingPageContent';
   import DeviceScreenshots from '../DeviceScreenshots.svelte';
   import NewsletterSignup from '../NewsletterSignup.svelte';
   import PublicSiteHeader from './PublicSiteHeader.svelte';
@@ -23,17 +23,18 @@
   const siteUrl = (path: string) => `${websiteBaseUrl.replace(/\/$/, '')}${path}`;
 
   const promptIntervalMs = 3400;
-  const orderedApps = landingAppOrder.map((id) => publicApps.find((app) => app.id === id)).filter((app): app is (typeof publicApps)[number] => !!app);
-  const firstVisibleIndex = 0;
-  let activeIndex = $state(firstVisibleIndex);
+  const orderedApps = publicApps;
+  let activeIndex = $state(0);
   let activeApp = $derived(orderedApps[activeIndex] ?? orderedApps[0]);
   let promptHasChanged = $state(false);
-  let railPlaying = $state(false);
   let reducedMotion = $state(false);
   let chosenLanguage = $state('en');
   let copy = $derived(landingCopy[chosenLanguage === 'de' ? 'de' : 'en']);
   let landingRoot: HTMLDivElement;
   let scrollContainer: HTMLElement;
+  let railWindow: HTMLDivElement;
+  let railTrack: HTMLDivElement;
+  let selectApp = (_index: number) => {};
 
   function selectLanguage(code: string): void {
     chosenLanguage = code;
@@ -51,17 +52,126 @@
 
     const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     let frame = 0;
-    let startedAt = 0;
+    let position = 0;
+    let pitch = 1;
+    let iconSize = 1;
+    let target: number | null = null;
+    let lastFrame = performance.now();
+    let pauseUntil = 0;
+    let pointer: { id: number; x: number; y: number; position: number; dragging: boolean } | null = null;
+    let suppressClick = false;
     let observer: IntersectionObserver | undefined;
+    const scheduleFrame = () => {
+      if (!frame && !document.hidden && (!reducedMotion || target !== null)) {
+        lastFrame = performance.now();
+        frame = requestAnimationFrame(tick);
+      }
+    };
 
-    const tick = (now: number) => {
-      if (!railPlaying || orderedApps.length === 0) return;
-      const nextIndex = (firstVisibleIndex + Math.floor((now - startedAt) / promptIntervalMs)) % orderedApps.length;
-      if (nextIndex !== activeIndex) {
-        activeIndex = nextIndex;
+    const modulo = (value: number) => ((value % orderedApps.length) + orderedApps.length) % orderedApps.length;
+    const setActive = (index: number) => {
+      if (index !== activeIndex) {
+        activeIndex = index;
         promptHasChanged = true;
       }
-      frame = requestAnimationFrame(tick);
+    };
+    const renderRail = () => {
+      if (!orderedApps.length) return;
+      if (target === null && (position >= orderedApps.length || position < 0)) position = modulo(position);
+      // Group 1 is the canonical cycle; identical groups on either side cover the seam.
+      const groupWidth = orderedApps.length * pitch;
+      const rightOfCenter = Math.min(railWindow.clientWidth * 0.08, 110);
+      railTrack.style.transform = `translate3d(${-groupWidth - iconSize / 2 + rightOfCenter - position * pitch}px, 0, 0)`;
+    };
+    const measureRail = () => {
+      const icons = railTrack.querySelectorAll<HTMLElement>('.rail-group:nth-child(2) .rail-icon');
+      if (!icons.length) return;
+      iconSize = parseFloat(getComputedStyle(icons[0]).width);
+      railWindow.style.setProperty('--rail-corner-radius', `${Math.round(iconSize * 0.25)}px`);
+      pitch = railTrack.querySelector<HTMLElement>('.rail-group')!.getBoundingClientRect().width / icons.length;
+      renderRail();
+    };
+    selectApp = (index: number) => {
+      if (!orderedApps.length) return;
+      target = index + Math.round((position - index) / orderedApps.length) * orderedApps.length;
+      setActive(index);
+      if (reducedMotion) {
+        position = target;
+        target = null;
+        renderRail();
+      }
+      pauseUntil = performance.now() + 2000;
+      scheduleFrame();
+    };
+    const tick = (now: number) => {
+      const elapsed = Math.min(now - lastFrame, 64);
+      lastFrame = now;
+      if (target !== null) {
+        const distance = target - position;
+        position += distance * Math.min(1, elapsed / 135);
+        if (Math.abs(target - position) < 0.002) {
+          position = target;
+          target = null;
+          pauseUntil = now + 2000;
+        }
+      } else if (!reducedMotion && !document.hidden && !pointer?.dragging && now >= pauseUntil) {
+        position += elapsed / promptIntervalMs;
+        setActive(modulo(Math.round(position)));
+      }
+      renderRail();
+      frame = 0;
+      scheduleFrame();
+    };
+    const onWheel = (event: WheelEvent) => {
+      const horizontal = event.shiftKey ? event.deltaY : event.deltaX;
+      if (Math.abs(horizontal) <= Math.abs(event.shiftKey ? event.deltaX : event.deltaY)) return;
+      event.preventDefault();
+      target = null;
+      position += horizontal / pitch;
+      setActive(modulo(Math.round(position)));
+      pauseUntil = performance.now() + 2000;
+      renderRail();
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.button !== 0 || pointer) return;
+      pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, position, dragging: false };
+    };
+    const onPointerMove = (event: PointerEvent) => {
+      if (!pointer || event.pointerId !== pointer.id) return;
+      const dx = event.clientX - pointer.x;
+      const dy = event.clientY - pointer.y;
+      if (!pointer.dragging && Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) {
+        pointer.dragging = true;
+        railWindow.setPointerCapture(event.pointerId);
+      }
+      if (!pointer.dragging) return;
+      target = null;
+      position = pointer.position - dx / pitch;
+      setActive(modulo(Math.round(position)));
+      pauseUntil = performance.now() + 2000;
+      renderRail();
+    };
+    const onPointerEnd = (event: PointerEvent) => {
+      if (!pointer || event.pointerId !== pointer.id) return;
+      if (pointer.dragging) {
+        suppressClick = event.type === 'pointerup';
+        if (suppressClick) window.setTimeout(() => { suppressClick = false; }, 0);
+        pauseUntil = performance.now() + 2000;
+      }
+      pointer = null;
+    };
+    const onClickCapture = (event: MouseEvent) => {
+      if (!suppressClick) return;
+      event.preventDefault();
+      event.stopPropagation();
+      suppressClick = false;
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      event.preventDefault();
+      const index = modulo(activeIndex + (event.key === 'ArrowRight' ? 1 : -1));
+      selectApp(index);
+      railTrack.querySelectorAll<HTMLButtonElement>('.rail-group:nth-child(2) .rail-icon')[index]?.focus({ preventScroll: true });
     };
     const onScroll = () => {
       if (reducedMotion) return;
@@ -69,14 +179,12 @@
     };
     const updateMotion = () => {
       reducedMotion = motionQuery.matches;
-      cancelAnimationFrame(frame);
-      activeIndex = firstVisibleIndex;
-      promptHasChanged = false;
-      railPlaying = !reducedMotion && orderedApps.length > 0;
-      if (railPlaying) {
-        startedAt = performance.now();
-        frame = requestAnimationFrame(tick);
+      if (reducedMotion && target !== null) {
+        position = target;
+        target = null;
+        renderRail();
       }
+      scheduleFrame();
       observer?.disconnect();
       landingRoot.querySelectorAll<HTMLElement>('[data-reveal]').forEach((element) => {
         element.classList.remove('reveal-ready');
@@ -97,12 +205,42 @@
     };
     motionQuery.addEventListener('change', updateMotion);
     scrollContainer.addEventListener('scroll', onScroll, { passive: true });
+    railWindow.addEventListener('wheel', onWheel, { passive: false });
+    railWindow.addEventListener('pointerdown', onPointerDown);
+    railWindow.addEventListener('pointermove', onPointerMove);
+    railWindow.addEventListener('pointerup', onPointerEnd);
+    railWindow.addEventListener('pointercancel', onPointerEnd);
+    window.addEventListener('pointerup', onPointerEnd);
+    window.addEventListener('pointercancel', onPointerEnd);
+    railWindow.addEventListener('click', onClickCapture, true);
+    railWindow.addEventListener('keydown', onKeyDown);
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(frame);
+        frame = 0;
+      } else scheduleFrame();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    const resizeObserver = new ResizeObserver(measureRail);
+    resizeObserver.observe(railWindow);
+    measureRail();
     updateMotion();
     return () => {
       cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
       observer?.disconnect();
       motionQuery.removeEventListener('change', updateMotion);
       scrollContainer.removeEventListener('scroll', onScroll);
+      railWindow.removeEventListener('wheel', onWheel);
+      railWindow.removeEventListener('pointerdown', onPointerDown);
+      railWindow.removeEventListener('pointermove', onPointerMove);
+      railWindow.removeEventListener('pointerup', onPointerEnd);
+      railWindow.removeEventListener('pointercancel', onPointerEnd);
+      window.removeEventListener('pointerup', onPointerEnd);
+      window.removeEventListener('pointercancel', onPointerEnd);
+      railWindow.removeEventListener('click', onClickCapture, true);
+      railWindow.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   });
 </script>
@@ -120,19 +258,19 @@
         {#if activeApp}
           {#key activeApp.id}
             {#if landingAppExamples[activeApp.id]}
-              <a class="prompt-bubble" class:transitioning={promptHasChanged} href={appUrl(`/#chat-id=${encodeURIComponent(landingAppExamples[activeApp.id])}`)} target="_blank" rel="noopener noreferrer" data-testid="landing-prompt" data-active-app={activeApp.id} aria-live="polite">{chosenLanguage === 'de' ? activeApp.promptDe : activeApp.promptEn} ↗</a>
+              <a class="prompt-bubble" class:transitioning={promptHasChanged} href={appUrl(`/#chat-id=${encodeURIComponent(landingAppExamples[activeApp.id])}`)} target="_blank" rel="noopener noreferrer" data-testid="landing-prompt" data-active-app={activeApp.id} aria-live="polite">{chosenLanguage === 'de' ? activeApp.promptDe : activeApp.promptEn}</a>
             {:else}
               <p class="prompt-bubble" class:transitioning={promptHasChanged} data-testid="landing-prompt" data-active-app={activeApp.id} aria-live="polite">{chosenLanguage === 'de' ? activeApp.promptDe : activeApp.promptEn}</p>
             {/if}
           {/key}
         {/if}
         <p class="hero-speed" data-testid="landing-hero-speed">{copy.inSeconds}</p>
-        <div class="rail-window" data-testid="landing-app-rail" data-active-app={activeApp?.id} aria-label="OpenMates apps">
-          <div class="rail-track" class:playing={railPlaying} style={`--rail-duration:${Math.max(orderedApps.length, 1) * promptIntervalMs}ms`}>
+        <div class="rail-window" bind:this={railWindow} data-testid="landing-app-rail" data-active-app={activeApp?.id} role="toolbar" aria-label="OpenMates apps" tabindex="0">
+          <div class="rail-track" bind:this={railTrack}>
             {#each [0, 1, 2] as group (group)}
               <div class="rail-group" data-testid="landing-rail-group" aria-hidden={group === 1 ? undefined : 'true'}>
-                {#each orderedApps as app (app.id)}
-                  <a class="rail-icon" class:highlighted={activeApp?.id === app.id} href={appUrl(`/#apps/${app.id}`)} target="_blank" rel="noopener noreferrer" tabindex={group === 1 ? undefined : -1} aria-label={`${app.id} app`} data-app-id={app.id} style={`--rail-icon-bg:${app.gradient};--rail-icon-url:url('${app.iconUrl}')`}></a>
+                {#each orderedApps as app, index (app.id)}
+                  <button type="button" class="rail-icon" class:highlighted={activeApp?.id === app.id} onclick={() => selectApp(index)} tabindex={group === 1 && activeApp?.id === app.id ? 0 : -1} aria-label={`Show ${app.id} example`} aria-pressed={group === 1 ? activeApp?.id === app.id : undefined} data-app-id={app.id} style={`--rail-icon-bg:${app.gradient};--rail-icon-url:url('${app.iconUrl}')`}><span class="rail-glyph" aria-hidden="true"></span></button>
                 {/each}
               </div>
             {/each}
@@ -263,14 +401,15 @@
   .prompt-bubble::after { content: ''; position: absolute; inset-inline-end: -12px; bottom: 10px; width: 12px; height: 20px; background: var(--color-grey-blue); -webkit-mask: url('/icons/speechbubble.svg') center / contain no-repeat; mask: url('/icons/speechbubble.svg') center / contain no-repeat; transform: scaleX(-1); }
   @keyframes prompt-appear { from { opacity: 0; transform: scale(0.88); } to { opacity: 1; transform: scale(1); } }
   .hero-speed { margin: 0; color: var(--color-font-button); font-size: var(--font-size-p); font-weight: 700; }
-  .rail-window { --icon-size: clamp(74px, 6.5vw, 96px); --icon-gap: clamp(18px, 2vw, 30px); position: relative; flex: 0 0 calc(var(--icon-size) + 12px); width: 100%; overflow: hidden; -webkit-mask-image: linear-gradient(to right, transparent, var(--color-font-button) 9%, var(--color-font-button) 91%, transparent); mask-image: linear-gradient(to right, transparent, var(--color-font-button) 9%, var(--color-font-button) 91%, transparent); }
-  .rail-track { position: absolute; inset-block: 0; left: 50%; display: flex; width: max-content; transform: translateX(calc(-33.333333333% - var(--icon-size) / 2 + min(8vw, 110px))); }
-  .rail-track.playing { animation: rail-loop var(--rail-duration) linear infinite; }
+  .rail-window { --icon-size: clamp(74px, 6.5vw, 96px); --icon-gap: clamp(18px, 2vw, 30px); position: relative; flex: 0 0 calc(var(--icon-size) + 12px); width: 100%; overflow: hidden; touch-action: pan-y; cursor: grab; -webkit-mask-image: linear-gradient(to right, transparent, var(--color-font-button) 9%, var(--color-font-button) 91%, transparent); mask-image: linear-gradient(to right, transparent, var(--color-font-button) 9%, var(--color-font-button) 91%, transparent); }
+  .rail-window:active { cursor: grabbing; }
+  .rail-track { position: absolute; inset-block: 0; left: 50%; display: flex; width: max-content; will-change: transform; }
   .rail-group { display: flex; align-items: center; gap: var(--icon-gap); width: max-content; padding-inline-end: var(--icon-gap); }
-  .rail-icon { display: inline-grid; place-items: center; flex: 0 0 var(--icon-size); width: var(--icon-size); height: var(--icon-size); border-radius: 34%; background: var(--rail-icon-bg); opacity: 0.42; transition: opacity var(--duration-normal) var(--easing-default), scale var(--duration-normal) var(--easing-default); }
-  .rail-icon::before { content: ''; width: 53%; height: 53%; background: var(--color-font-button); -webkit-mask: var(--rail-icon-url) center / contain no-repeat; mask: var(--rail-icon-url) center / contain no-repeat; }
+  .rail-icon { display: inline-grid; place-items: center; flex: 0 0 var(--icon-size); width: var(--icon-size); min-width: 0; max-width: var(--icon-size); height: var(--icon-size); margin: 0; padding: 0; border: 0; border-radius: var(--rail-corner-radius, 25%); background: var(--rail-icon-bg); filter: none; opacity: 0.42; cursor: pointer; transition: opacity var(--duration-normal) var(--easing-default), scale var(--duration-normal) var(--easing-default); }
+  .rail-icon:hover, .rail-icon:active { background: var(--rail-icon-bg); filter: none; }
+  .rail-glyph { display: block; width: calc(var(--icon-size) * 0.53); height: calc(var(--icon-size) * 0.53); background: var(--color-font-button); -webkit-mask: var(--rail-icon-url) center / contain no-repeat; mask: var(--rail-icon-url) center / contain no-repeat; }
   .rail-icon.highlighted, .rail-icon:hover, .rail-icon:focus-visible { opacity: 1; scale: 1.08; }
-  @keyframes rail-loop { from { transform: translateX(calc(-33.333333333% - var(--icon-size) / 2 + min(8vw, 110px))); } to { transform: translateX(calc(-66.666666667% - var(--icon-size) / 2 + min(8vw, 110px))); } }
+  .rail-window:focus-visible .rail-icon.highlighted, .rail-icon:focus-visible { outline: 3px solid var(--color-font-button); outline-offset: 3px; }
   .scroll-cue { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-6); min-height: 32px; color: var(--color-font-button); font-size: var(--font-size-small); font-weight: 700; animation: cue-pulse 1.8s ease-in-out infinite alternate; }
   .cue-arrow { display: block; flex: 0 0 20px; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
   @keyframes cue-pulse { from { opacity: .3; } to { opacity: .8; } }

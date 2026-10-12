@@ -10499,7 +10499,7 @@
         "text": "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
       },
       "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"59da3895-7f69-4e16-b430-cc2280c70f2e\", \"app_id\": \"videos\", \"skill_id\": \"get_transcript\"}\n```\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
+        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
       }
     },
     "upcoming_reminders_list": {
@@ -10683,6 +10683,70 @@
       },
       "follow_up_6": {
         "text": "เปรียบเทียบวิธีต่างๆ ในการเปลี่ยนไอเดียจากการพูดให้เป็นงานที่เป็นระเบียบ"
+      }
+    },
+    "calendar_week_from_supplied_events": {
+      "title": {
+        "text": "ปฏิทินรายสัปดาห์จากเหตุการณ์ที่ให้ไว้"
+      },
+      "summary": {
+        "text": "สรุปเหตุการณ์ในปฏิทินรายสัปดาห์สมมติที่ให้ไว้ในการสนทนา โดยไม่ต้องเข้าถึงบัญชีที่เชื่อมต่อไว้"
+      },
+      "message_1": {
+        "text": "@mate:general_knowledge ช่วยสรุปปฏิทินรายสัปดาห์ของฉันตั้งแต่วันที่ 12–18 ตุลาคม (เวลาเบอร์ลิน) จากเหตุการณ์ที่ฉันคัดลอกมาที่นี่หน่อย: จันทร์ 09:00–09:30 เช็คอินทีม; อังคาร 14:00–15:00 ทันตแพทย์; พุธ 10:00–11:00 ทบทวนโครงการ และ 18:30–19:30 โยคะ; ศุกร์ 16:00–17:00 รับของชำ; เสาร์ 11:00–13:00 เวรจัดสวนชุมชน วันไหนมีภารกิจมากที่สุด และวันไหนว่างบ้าง?"
+      },
+      "message_2": {
+        "text": "นี่คือสรุปตารางเวลาของคุณสำหรับสัปดาห์วันที่ 12–18 ตุลาคม 2026 (เวลา ยุโรป/เบอร์ลิน):\n\n### ภาพรวมตารางเวลา\n* **วันจันทร์ที่ 12 ต.ค.:** 09:00–09:30 – เช็คอินทีม (30 นาที)\n* **วันอังคารที่ 13 ต.ค.:** 14:00–15:00 – ทันตแพทย์ (1 ชม.)\n* **วันพุธที่ 14 ต.ค.:**\n  * 10:00–11:00 – ทบทวนโครงการ (1 ชม.)\n  * 18:30–19:30 – โยคะ (1 ชม.)\n* **วันพฤหัสบดีที่ 15 ต.ค.:** *ไม่มีกิจกรรมที่กำหนดไว้*\n* **วันศุกร์ที่ 16 ต.ค.:** 16:00–17:00 – รับของชำ (1 ชม.)\n* **วันเสาร์ที่ 17 ต.ค.:** 11:00–13:00 – เวรจัดสวนชุมชน (2 ชม.)\n* **วันอาทิตย์ที่ 18 ต.ค.:** *ไม่มีกิจกรรมที่กำหนดไว้*\n\n---\n\n### ข้อมูลสำคัญ\n* **วันที่มีภารกิจมากที่สุด:** **วันพุธที่ 14 ตุลาคม** (2 กิจกรรม รวม 2 ชั่วโมง) *หมายเหตุ: วันเสาร์มีช่วงเวลาที่ใช้ไปกับกิจกรรมเดียวที่ยาวที่สุด (2 ชั่วโมง) แต่วันพุธมีจำนวนกิจกรรมมากที่สุด*\n* **วันที่ว่างทั้งหมด:** **วันพฤหัสบดีที่ 15 ตุลาคม** และ **วันอาทิตย์ที่ 18 ตุลาคม**\n\n---\n\n### การดำเนินการถัดไปที่แนะนำ\n1. [เพิ่มเวลาเตรียมตัวในวันพฤหัสบดี](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)\n2. [วางแผนการแจ้งเตือนสำหรับการนัดหมาย](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)"
+      },
+      "follow_up_1": {
+        "text": "ค้นหาสูตรอาหารเพื่อสุขภาพสำหรับทำในวันพฤหัสบดี"
+      },
+      "follow_up_2": {
+        "text": "อธิบายวิธีจัดตารางเวลาประจำสัปดาห์ที่ยุ่งเหยิงอย่างมีประสิทธิภาพ"
+      },
+      "follow_up_3": {
+        "text": "ตั้งการแจ้งเตือนสำหรับการนัดหมายทันตแพทย์ในวันอังคาร"
+      },
+      "follow_up_4": {
+        "text": "รายการเคล็ดลับในการสร้างสมดุลระหว่างงานและการนัดหมายส่วนตัว"
+      },
+      "follow_up_5": {
+        "text": "สร้างงานสำหรับการเตรียมการทบทวนโครงการในวันพุธ"
+      },
+      "follow_up_6": {
+        "text": "เปรียบเทียบเทคนิคการจัดการเวลาแบบต่างๆ สำหรับมืออาชีพ"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "เสียงกริ่งที่แสนอบอุ่นสำหรับสวนชุมชน"
+      },
+      "summary": {
+        "text": "สร้างเสียงแจ้งเตือนสั้นๆ สองตัวโน้ตสำหรับแอปสวนชุมชนสมมติ"
+      },
+      "message_1": {
+        "text": "สร้างเสียงแจ้งเตือนที่สั้นและอบอุ่นสำหรับแอปสวนชุมชนเมื่อมีอาสาสมัครลงทะเบียน ขอเป็นเสียงกริ่งสองตัวโน้ตที่นุ่มนวล ไม่มีเสียงพูด และความยาวไม่เกินสามวินาที"
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nฉันกำลังสร้างเสียงกริ่งสองตัวโน้ตที่นุ่มนวลและอบอุ่นสำหรับแอปสวนชุมชนของคุณในขณะนี้ ระบบกำลังประมวลผลและจะแสดงในแชททันทีที่พร้อมใช้งาน\n\n### ขั้นตอนถัดไปที่แนะนำ\n- [สร้างเสียงกริ่งฉลองการปลดล็อกเหรียญรางวัลที่ให้ความรู้สึกเป็นธรรมชาติ](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [ออกแบบเลย์เอาต์การ์ดยืนยันอาสาสมัคร](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "สร้างเสียงกริ่งฉลองการปลดล็อกเหรียญรางวัลเมื่อทำงานเสร็จสิ้น"
+      },
+      "follow_up_2": {
+        "text": "อธิบายว่าการออกแบบเสียงส่งผลต่อการมีส่วนร่วมของผู้ใช้ในแอปมือถืออย่างไร"
+      },
+      "follow_up_3": {
+        "text": "สร้างเสียงกริ่งเตือนความจำที่นุ่มนวลสำหรับตารางการรดน้ำต้นไม้ตอนเช้า"
+      },
+      "follow_up_4": {
+        "text": "รายการแนวทางปฏิบัติที่ดีที่สุดสำหรับการออกแบบเสียงแจ้งเตือน UI ที่ไม่รบกวนผู้ใช้"
+      },
+      "follow_up_5": {
+        "text": "สร้างเสียงแจ้งเตือนข้อผิดพลาดที่นุ่มนวลสำหรับกรณีการตรวจสอบความถูกต้องของฟอร์มไม่ผ่าน"
+      },
+      "follow_up_6": {
+        "text": "อธิบายวิธีผสานรวมเอฟเฟกต์เสียงที่กำหนดเองเข้ากับแอปพลิเคชันมือถือ"
       }
     }
   },

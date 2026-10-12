@@ -4,6 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { expect, test } from './helpers/cookie-audit';
 import publicationManifest from '../../../packages/public-site/src/publications/publicationManifest.v1.json';
 import newsReleases from '../../../packages/public-site/src/generated/newsReleases.generated.json';
+import publicApps from '../../../packages/public-site/src/generated/publicApps.generated.json';
 
 // playwright-account: not_required reason=isolated_runner_local_public_website
 
@@ -103,6 +104,31 @@ const site = (pathname: string) => `${website}${pathname}`;
 const blog = publicationManifest.publications.find((record) => record.kind === 'blog');
 const release = newsReleases[0];
 if (!blog || !release) throw new Error('Canonical public blog/news records are required for route coverage');
+
+// contract-test: direct surface=gui.web assertions=marketing-landing.app-metadata-defaults,marketing-landing.interactive-rail,marketing-landing.capability-rail-and-prompts,marketing-landing.independent-scroll
+test('standalone hero uses built app defaults and selects icons without app startup', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const noPrivateStartup = watchPrivateStartup(page);
+  const metadataRequests: string[] = [];
+  page.on('request', request => {
+    if (['fetch', 'xhr'].includes(request.resourceType()) && /\/v1\/apps(?:\/|$)/.test(new URL(request.url()).pathname)) metadataRequests.push(request.url());
+  });
+  await page.goto(site('/'), { waitUntil: 'networkidle' });
+  const rail = page.getByTestId('landing-app-rail');
+  const icons = rail.getByTestId('landing-rail-group').nth(1).locator('.rail-icon');
+  expect(await icons.evaluateAll(nodes => nodes.map(node => node.getAttribute('data-app-id')))).toEqual(publicApps.map(app => app.id));
+  expect(publicApps.some(app => app.id === 'plants')).toBe(false);
+  const travel = publicApps.find(app => app.id === 'travel')!;
+  await rail.locator('.rail-group:nth-child(2) [data-app-id="travel"]').click();
+  const prompt = page.getByTestId('landing-prompt');
+  await expect(prompt).toHaveText('Find train connections');
+  await expect(prompt).toHaveAttribute('href', `${app}/#chat-id=${encodeURIComponent(travel.exampleChatId)}`);
+  await expect(prompt).toHaveAttribute('target', '_blank');
+  await expect(prompt).toHaveCSS('opacity', '1');
+  await expect(rail).toHaveAttribute('data-active-app', 'travel');
+  expect(metadataRequests).toEqual([]);
+  noPrivateStartup();
+});
 
 // contract-test: direct surface=gui.web assertions=marketing-landing.independent-scroll,marketing-landing.destinations,marketing-landing.public-content
 test('standalone landing and publication indexes are server-rendered without app startup', async ({ page, request }) => {

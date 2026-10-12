@@ -10499,7 +10499,7 @@
         "text": "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
       },
       "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"59da3895-7f69-4e16-b430-cc2280c70f2e\", \"app_id\": \"videos\", \"skill_id\": \"get_transcript\"}\n```\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
+        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
       }
     },
     "upcoming_reminders_list": {
@@ -10683,6 +10683,70 @@
       },
       "follow_up_6": {
         "text": "Söylenen fikirleri düzenli görevlere dönüştürmek için farklı yöntemleri karşılaştır"
+      }
+    },
+    "calendar_week_from_supplied_events": {
+      "title": {
+        "text": "Paylaşılan etkinliklerden haftalık takvim oluşturma"
+      },
+      "summary": {
+        "text": "Bağlı hesap erişimi olmadan, konuşmada paylaşılan kurgusal bir haftalık takvim etkinliklerini özetle."
+      },
+      "message_1": {
+        "text": "@mate:general_knowledge lütfen buraya kopyaladığım şu etkinliklerden 12–18 Ekim (Berlin saati) haftalık takvimimi özetle: Pzt 09:00–09:30 ekip toplantısı; Sal 14:00–15:00 diş hekimi; Çar 10:00–11:00 proje incelemesi ve 18:30–19:30 yoga; Cum 16:00–17:00 market alışverişi; Cmt 11:00–13:00 topluluk bahçesi vardiyası. En çok işin olduğu gün hangisi ve hangi günler boş?"
+      },
+      "message_2": {
+        "text": "İşte 12–18 Ekim 2026 (Avrupa/Berlin saati) haftası için programının özeti:\n\n### Programa Genel Bakış\n* **12 Ekim Pazartesi:** 09:00–09:30 – Ekip toplantısı (30 dk)\n* **13 Ekim Salı:** 14:00–15:00 – Diş hekimi (1 sa)\n* **14 Ekim Çarşamba:**\n  * 10:00–11:00 – Proje incelemesi (1 sa)\n  * 18:30–19:30 – Yoga (1 sa)\n* **15 Ekim Perşembe:** *Planlanmış etkinlik yok*\n* **16 Ekim Cuma:** 16:00–17:00 – Market alışverişi (1 sa)\n* **17 Ekim Cumartesi:** 11:00–13:00 – Topluluk bahçesi vardiyası (2 sa)\n* **18 Ekim Pazar:** *Planlanmış etkinlik yok*\n\n---\n\n### Önemli Notlar\n* **En çok işin olduğu gün:** **14 Ekim Çarşamba** (toplam 2 saat süren 2 ayrı etkinlik). *Not: Cumartesi günü tek seferde en uzun süreli işe (2 saat) sahipsin, ancak Çarşamba günü etkinlik sayısı daha fazla.*\n* **Tamamen boş günler:** **15 Ekim Perşembe** ve **18 Ekim Pazar**.\n\n---\n\n### Önerilen Sonraki Adımlar\n1. [Perşembe hazırlık zamanı ekle](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)\n2. [Randevular için hatırlatıcı planla](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)"
+      },
+      "follow_up_1": {
+        "text": "Perşembe günü pişirmek için sağlıklı tarifler ara"
+      },
+      "follow_up_2": {
+        "text": "Yoğun bir haftalık programın nasıl etkili bir şekilde organize edileceğini açıkla"
+      },
+      "follow_up_3": {
+        "text": "Salı günkü diş randevum için bir hatırlatıcı ayarla"
+      },
+      "follow_up_4": {
+        "text": "İş ve kişisel randevuları dengelemek için ipuçlarını listele"
+      },
+      "follow_up_5": {
+        "text": "Çarşamba günkü proje inceleme hazırlığı için bir görev oluştur"
+      },
+      "follow_up_6": {
+        "text": "Profesyoneller için farklı zaman yönetimi tekniklerini karşılaştır"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "Bir topluluk bahçesi için sıcak bir çan sesi"
+      },
+      "summary": {
+        "text": "Kurgusal bir topluluk bahçesi uygulaması için kısa, iki notalı bir bildirim sesi oluştur."
+      },
+      "message_1": {
+        "text": "Bir gönüllü kaydolduğunda topluluk bahçesi uygulaması için çalacak kısa ve sıcak bir bildirim sesi oluştur. Nazik, iki notalı bir çan sesi olsun, konuşma içermesin ve üç saniyenin altında olsun."
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nTopluluk bahçesi uygulaman için sıcak ve nazik iki notalı çan sesini şimdi oluşturuyorum. Şu anda işleniyor ve hazır olur olmaz sohbette görünecek.\n\n### Önerilen Sonraki Adımlar\n- [Toprak tonlarında, kutlama amaçlı bir rozet açma sesi oluştur](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Gönüllü onay kartı düzeni tasarla](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "Görev tamamlama için kutlama amaçlı bir rozet açma sesi oluştur"
+      },
+      "follow_up_2": {
+        "text": "Ses tasarımının mobil uygulamalarda kullanıcı etkileşimini nasıl etkilediğini açıkla"
+      },
+      "follow_up_3": {
+        "text": "Sabah sulama programları için nazik bir hatırlatıcı sesi oluştur"
+      },
+      "follow_up_4": {
+        "text": "Rahatsız etmeyen kullanıcı arayüzü bildirim sesleri tasarlamak için en iyi uygulamaları listele"
+      },
+      "follow_up_5": {
+        "text": "Form doğrulama hataları için yumuşak bir hata uyarı sesi oluştur"
+      },
+      "follow_up_6": {
+        "text": "Özel ses efektlerinin mobil uygulamalara nasıl entegre edileceğini açıkla"
       }
     }
   },

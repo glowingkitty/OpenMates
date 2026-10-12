@@ -10499,7 +10499,7 @@
         "text": "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
       },
       "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"59da3895-7f69-4e16-b430-cc2280c70f2e\", \"app_id\": \"videos\", \"skill_id\": \"get_transcript\"}\n```\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
+        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
       }
     },
     "upcoming_reminders_list": {
@@ -10683,6 +10683,70 @@
       },
       "follow_up_6": {
         "text": "बोले गए विचारों को व्यवस्थित टास्क में बदलने के विभिन्न तरीकों की तुलना करें"
+      }
+    },
+    "calendar_week_from_supplied_events": {
+      "title": {
+        "text": "दिए गए इवेंट्स से कैलेंडर सप्ताह"
+      },
+      "summary": {
+        "text": "कनेक्टेड-अकाउंट एक्सेस के बिना, बातचीत में दिए गए काल्पनिक सप्ताह के कैलेंडर इवेंट्स का सारांश दें।"
+      },
+      "message_1": {
+        "text": "@mate:general_knowledge कृपया मेरे द्वारा यहाँ कॉपी किए गए इन इवेंट्स से 12-18 अक्टूबर (बर्लिन समय) के मेरे कैलेंडर सप्ताह का सारांश दें: सोम 09:00–09:30 टीम चेक-इन; मंगल 14:00–15:00 डेंटिस्ट; बुध 10:00–11:00 प्रोजेक्ट समीक्षा और 18:30–19:30 योग; शुक्र 16:00–17:00 ग्रोसरी पिकअप; शनि 11:00–13:00 कम्युनिटी गार्डन शिफ्ट। किस दिन सबसे अधिक व्यस्तता है, और कौन से दिन खाली हैं?"
+      },
+      "message_2": {
+        "text": "यहाँ 12-18 अक्टूबर, 2026 (यूरोप/बर्लिन समय) के सप्ताह के लिए आपके शेड्यूल का सारांश दिया गया है:\n\n### शेड्यूल का अवलोकन\n* **सोमवार, 12 अक्टूबर:** 09:00–09:30 – टीम चेक-इन (30 मिनट)\n* **मंगलवार, 13 अक्टूबर:** 14:00–15:00 – डेंटिस्ट (1 घंटा)\n* **बुधवार, 14 अक्टूबर:**\n  * 10:00–11:00 – प्रोजेक्ट समीक्षा (1 घंटा)\n  * 18:30–19:30 – योग (1 घंटा)\n* **गुरुवार, 15 अक्टूबर:** *कोई निर्धारित इवेंट नहीं*\n* **शुक्रवार, 16 अक्टूबर:** 16:00–17:00 – ग्रोसरी पिकअप (1 घंटा)\n* **शनिवार, 17 अक्टूबर:** 11:00–13:00 – कम्युनिटी गार्डन शिफ्ट (2 घंटे)\n* **रविवार, 18 अक्टूबर:** *कोई निर्धारित इवेंट नहीं*\n\n---\n\n### मुख्य बातें\n* **सबसे अधिक व्यस्तता वाला दिन:** **बुधवार, 14 अक्टूबर** (कुल 2 घंटे के 2 अलग-अलग इवेंट)। *नोट: शनिवार को व्यस्त समय का सबसे लंबा सिंगल ब्लॉक (2 घंटे) है, लेकिन बुधवार को इवेंट्स की संख्या सबसे अधिक है।*\n* **पूरी तरह से खाली दिन:** **गुरुवार, 15 अक्टूबर** और **रविवार, 18 अक्टूबर**।\n\n---\n\n### सुझाए गए अगले कदम\n1. [गुरुवार के लिए तैयारी का समय जोड़ें](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)\n2. [अपॉइंटमेंट के लिए रिमाइंडर प्लान करें](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)"
+      },
+      "follow_up_1": {
+        "text": "गुरुवार को पकाने के लिए स्वस्थ व्यंजनों की खोज करें"
+      },
+      "follow_up_2": {
+        "text": "एक व्यस्त साप्ताहिक शेड्यूल को प्रभावी ढंग से व्यवस्थित करने का तरीका बताएं"
+      },
+      "follow_up_3": {
+        "text": "मंगलवार को मेरे डेंटिस्ट अपॉइंटमेंट के लिए रिमाइंडर सेट करें"
+      },
+      "follow_up_4": {
+        "text": "काम और व्यक्तिगत अपॉइंटमेंट को संतुलित करने के टिप्स सूचीबद्ध करें"
+      },
+      "follow_up_5": {
+        "text": "बुधवार की प्रोजेक्ट समीक्षा की तैयारी के लिए एक टास्क बनाएं"
+      },
+      "follow_up_6": {
+        "text": "पेशेवरों के लिए समय प्रबंधन की विभिन्न तकनीकों की तुलना करें"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "कम्युनिटी गार्डन के लिए एक वॉर्म चाइम"
+      },
+      "summary": {
+        "text": "एक काल्पनिक कम्युनिटी गार्डन ऐप के लिए दो-नोट वाला एक छोटा नोटिफिकेशन साउंड जनरेट करें।"
+      },
+      "message_1": {
+        "text": "एक कम्युनिटी गार्डन ऐप के लिए एक छोटा, वॉर्म नोटिफिकेशन साउंड बनाएं, जो तब बजे जब कोई वॉलंटियर साइन अप करे। एक सौम्य दो-नोट वाली चाइम, कोई आवाज़ नहीं, और तीन सेकंड से कम।"
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nमैं अभी तुम्हारे कम्युनिटी गार्डन ऐप के लिए वॉर्म और सौम्य दो-नोट वाली चाइम जनरेट कर रहा हूँ। यह अभी प्रोसेस हो रही है और तैयार होते ही चैट में दिखाई देगी।\n\n### सुझाए गए अगले कदम\n- [एक अर्थी, जश्न वाली बैज अनलॉक चाइम जनरेट करें](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [एक वॉलंटियर कन्फर्मेशन कार्ड लेआउट डिज़ाइन करें](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "टास्क पूरा होने पर मिलने वाले बैज के लिए एक जश्न वाली चाइम जनरेट करें"
+      },
+      "follow_up_2": {
+        "text": "बताएं कि साउंड डिज़ाइन मोबाइल ऐप्स में यूज़र एंगेजमेंट को कैसे प्रभावित करता है"
+      },
+      "follow_up_3": {
+        "text": "सुबह पौधों को पानी देने के शेड्यूल के लिए एक सौम्य रिमाइंडर चाइम बनाएं"
+      },
+      "follow_up_4": {
+        "text": "दखल न देने वाले UI नोटिफिकेशन साउंड डिज़ाइन करने के सर्वोत्तम तरीके बताएं"
+      },
+      "follow_up_5": {
+        "text": "फॉर्म वैलिडेशन फेल होने पर एक सॉफ्ट एरर अलर्ट साउंड जनरेट करें"
+      },
+      "follow_up_6": {
+        "text": "बताएं कि मोबाइल एप्लिकेशन में कस्टम साउंड इफेक्ट्स को कैसे इंटीग्रेट किया जाए"
       }
     }
   },

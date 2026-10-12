@@ -10499,7 +10499,7 @@
         "text": "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
       },
       "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"59da3895-7f69-4e16-b430-cc2280c70f2e\", \"app_id\": \"videos\", \"skill_id\": \"get_transcript\"}\n```\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
+        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
       }
     },
     "upcoming_reminders_list": {
@@ -10683,6 +10683,70 @@
       },
       "follow_up_6": {
         "text": "Vergelijk verschillende methoden om gesproken ideeën om te zetten in georganiseerde taken"
+      }
+    },
+    "calendar_week_from_supplied_events": {
+      "title": {
+        "text": "Kalenderweek op basis van opgegeven afspraken"
+      },
+      "summary": {
+        "text": "Vat een fictieve week samen op basis van afspraken die in het gesprek zijn opgegeven, zonder toegang tot een gekoppeld account."
+      },
+      "message_1": {
+        "text": "@mate:general_knowledge vat mijn kalenderweek van 12 tot en met 18 oktober (Berlijnse tijd) samen op basis van deze afspraken die ik hier heb gekopieerd: ma. 09:00–09:30 teamoverleg; di. 14:00–15:00 tandarts; wo. 10:00–11:00 projectbespreking en 18:30–19:30 yoga; vr. 16:00–17:00 boodschappen ophalen; za. 11:00–13:00 vrijwilligersdienst in de buurttuin. Op welke dag heb ik de meeste afspraken en welke dagen zijn vrij?"
+      },
+      "message_2": {
+        "text": "Hier is een overzicht van je agenda voor de week van 12 tot en met 18 oktober 2026 (Berlijnse tijd):\n\n### Overzicht per dag\n* **Maandag 12 oktober:** 09:00–09:30 – Teamoverleg (30 min)\n* **Dinsdag 13 oktober:** 14:00–15:00 – Tandarts (1 uur)\n* **Woensdag 14 oktober:**\n  * 10:00–11:00 – Projectbespreking (1 uur)\n  * 18:30–19:30 – Yoga (1 uur)\n* **Donderdag 15 oktober:** *Geen afspraken gepland*\n* **Vrijdag 16 oktober:** 16:00–17:00 – Boodschappen ophalen (1 uur)\n* **Zaterdag 17 oktober:** 11:00–13:00 – Vrijwilligersdienst in de buurttuin (2 uur)\n* **Zondag 18 oktober:** *Geen afspraken gepland*\n\n---\n\n### Belangrijkste punten\n* **Dag met de meeste afspraken:** **woensdag 14 oktober** (twee afzonderlijke afspraken van samen twee uur). *Let op: zaterdag heeft het langste aaneengesloten blok van twee uur, maar woensdag telt de meeste afspraken.*\n* **Helemaal vrije dagen:** **donderdag 15 oktober** en **zondag 18 oktober**.\n\n---\n\n### Voorgestelde vervolgstappen\n1. [Donderdag voorbereidingstijd inplannen](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)\n2. [Herinneringen voor afspraken plannen](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)"
+      },
+      "follow_up_1": {
+        "text": "Zoek gezonde recepten om donderdag te koken"
+      },
+      "follow_up_2": {
+        "text": "Leg uit hoe ik een drukke week goed kan indelen"
+      },
+      "follow_up_3": {
+        "text": "Stel een herinnering in voor mijn tandartsafspraak op dinsdag"
+      },
+      "follow_up_4": {
+        "text": "Geef tips om werk en persoonlijke afspraken in balans te houden"
+      },
+      "follow_up_5": {
+        "text": "Maak een taak aan ter voorbereiding op de projectbespreking van woensdag"
+      },
+      "follow_up_6": {
+        "text": "Vergelijk verschillende timemanagementtechnieken voor professionals"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "Een warme chime voor een gemeenschapstuin"
+      },
+      "summary": {
+        "text": "Genereer een kort tweekleurig meldingsgeluid voor een fictieve app voor een gemeenschapstuin."
+      },
+      "message_1": {
+        "text": "Maak een kort, warm meldingsgeluid voor een app voor een gemeenschapstuin voor wanneer een vrijwilliger zich aanmeldt. Een zachte tweekleurige chime, geen spraak en korter dan drie seconden."
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nIk genereer nu de warme, zachte tweekleurige chime voor je gemeenschapstuin-app. Deze wordt momenteel verwerkt en verschijnt in de chat zodra hij klaar is.\n\n### Voorgestelde vervolgstappen\n- [Genereer een aards, feestelijk geluid voor het ontgrendelen van een badge](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Ontwerp een lay-out voor een vrijwilligersbevestigingskaart](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "Genereer een feestelijk geluid voor het ontgrendelen van een badge na voltooiing van een taak"
+      },
+      "follow_up_2": {
+        "text": "Leg uit hoe geluidsontwerp de gebruikersbetrokkenheid in mobiele apps beïnvloedt"
+      },
+      "follow_up_3": {
+        "text": "Maak een zacht herinneringsgeluid voor de ochtendbewateringsschema's"
+      },
+      "follow_up_4": {
+        "text": "Lijst met best practices voor het ontwerpen van niet-opdringerige UI-meldingsgeluiden"
+      },
+      "follow_up_5": {
+        "text": "Genereer een zacht foutmeldingsgeluid voor mislukte formuliervalidaties"
+      },
+      "follow_up_6": {
+        "text": "Beschrijf hoe je aangepaste geluidseffecten integreert in mobiele applicaties"
       }
     }
   },

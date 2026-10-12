@@ -248,6 +248,8 @@
         "landing-app-examples-phone-b.spec.ts",
         "landing-app-examples-laptop-a.spec.ts",
         "landing-app-examples-laptop-b.spec.ts",
+        "landing-app-replacements-phone.spec.ts",
+        "landing-app-replacements-laptop.spec.ts",
         "feature-availability.spec.ts",
         "finance-check-accounts.spec.ts",
         "components/focus-mode-activation.spec.ts",

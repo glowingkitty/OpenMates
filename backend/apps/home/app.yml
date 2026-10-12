@@ -1,3 +1,13 @@
+landing:
+  order: 3
+  capability:
+    type: skill
+    id: search
+  caption:
+    en: Find apartments
+    de: Finde Wohnungen
+  example_chat_id: example-furnished-apartments-berlin
+
 # Home app — German apartment and housing search
 #
 # Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht for apartments,

@@ -59,6 +59,12 @@ export function resolveRegistryKey(
 		if (childKey && childKey in EMBED_FULLSCREEN_COMPONENTS) {
 			return childKey;
 		}
+		// Generated media can carry a payload type (for example "audio")
+		// without a direct fullscreen. Keep its registered app/skill route usable.
+		const appSkillKey = `app:${appId}:${skillId}`;
+		if (!hasFullscreenComponent(normalized) && hasFullscreenComponent(appSkillKey)) {
+			return appSkillKey;
+		}
 	}
 	return normalized;
 }

@@ -1,0 +1,753 @@
+title:
+  context: "Title of example chat: Calendar week from supplied events"
+  en: "Calendar week from supplied events"
+  de: Kalenderwoche aus bereitgestellten Terminen
+  zh: 根据提供的活动总结日历周
+  es: Semana de calendario a partir de eventos proporcionados
+  fr: "Semaine de calendrier à partir d'événements fournis"
+  pt: Semana de calendário a partir de eventos fornecidos
+  ru: Календарная неделя по списку событий
+  ja: 入力されたイベントから1週間の予定を要約
+  ko: 제공된 일정 기반 주간 캘린더
+  it: Settimana di calendario dagli eventi forniti
+  tr: Paylaşılan etkinliklerden haftalık takvim oluşturma
+  vi: Tuần lịch từ các sự kiện đã cung cấp
+  id: Minggu kalender dari acara yang diberikan
+  pl: Tydzień kalendarzowy na podstawie podanych wydarzeń
+  nl: Kalenderweek op basis van opgegeven afspraken
+  ar: أسبوع التقويم من الأحداث المقدمة
+  hi: दिए गए इवेंट्स से कैलेंडर सप्ताह
+  th: ปฏิทินรายสัปดาห์จากเหตุการณ์ที่ให้ไว้
+  cs: Kalendářní týden ze zadaných událostí
+  sv: Kalendervecka från angivna händelser
+  he: שבוע קלנדרי מאירועים שסופקו
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Calendar week from supplied events"
+  en: "Summarize a fictional week of calendar events supplied in the conversation, without connected-account access."
+  de: Fasse eine fiktive Woche mit Kalenderereignissen zusammen, die im Chat bereitgestellt wurden, ohne Zugriff auf ein verknüpftes Konto.
+  zh: 在不访问关联账户的情况下，总结对话中提供的虚构日历周活动。
+  es: Resume una semana ficticia de eventos de calendario proporcionados en la conversación, sin acceder a una cuenta conectada.
+  fr: "Résume une semaine fictive d'événements de calendrier fournis dans la conversation, sans accès à un compte connecté."
+  pt: Resume uma semana fictícia de eventos de calendário fornecidos na conversa, sem acesso a contas ligadas.
+  ru: Краткий обзор вымышленной недели на основе событий, указанных в чате, без доступа к подключенному аккаунту.
+  ja: アカウント連携なしで、会話内に入力された架空の1週間のカレンダーイベントを要約します。
+  ko: 계정 연결 없이 대화에 제공된 가상의 주간 일정을 요약합니다.
+  it: "Riassume una settimana fittizia di eventi di calendario forniti nella conversazione, senza accesso all'account collegato."
+  tr: Bağlı hesap erişimi olmadan, konuşmada paylaşılan kurgusal bir haftalık takvim etkinliklerini özetle.
+  vi: Tóm tắt một tuần giả định gồm các sự kiện lịch được cung cấp trong cuộc hội thoại, mà không cần quyền truy cập vào tài khoản đã kết nối.
+  id: Rangkum minggu fiktif dari acara kalender yang diberikan dalam percakapan, tanpa akses akun terhubung.
+  pl: Podsumuj fikcyjny tydzień wydarzeń z kalendarza podanych w rozmowie, bez dostępu do połączonego konta.
+  nl: Vat een fictieve week samen op basis van afspraken die in het gesprek zijn opgegeven, zonder toegang tot een gekoppeld account.
+  ar: تلخيص أسبوع خيالي من أحداث التقويم المقدمة في المحادثة، دون الوصول إلى الحساب المتصل.
+  hi: कनेक्टेड-अकाउंट एक्सेस के बिना, बातचीत में दिए गए काल्पनिक सप्ताह के कैलेंडर इवेंट्स का सारांश दें।
+  th: สรุปเหตุการณ์ในปฏิทินรายสัปดาห์สมมติที่ให้ไว้ในการสนทนา โดยไม่ต้องเข้าถึงบัญชีที่เชื่อมต่อไว้
+  cs: Shrnutí fiktivního týdne kalendářních událostí zadaných v konverzaci, bez přístupu k propojenému účtu.
+  sv: Sammanfatta en fiktiv vecka med kalenderhändelser som tillhandahålls i konversationen, utan åtkomst till anslutna konton.
+  he: סיכום שבוע דמיוני של אירועי לוח שנה שסופקו בשיחה, ללא גישה לחשבון מחובר.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Calendar week from supplied events. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "@mate:general_knowledge please summarize my calendar week of October 12–18 (Berlin time) from these events I've copied here: Mon 09:00–09:30 team check-in; Tue 14:00–15:00 dentist; Wed 10:00–11:00 project review and 18:30–19:30 yoga; Fri 16:00–17:00 grocery pickup; Sat 11:00–13:00 community garden shift. Which day has the most commitments, and which days are free?"
+  de: "@mate:general_knowledge bitte fasse meine Kalenderwoche vom 12. bis 18. Oktober (Berliner Zeit) anhand dieser hier kopierten Termine zusammen: Mo 09:00–09:30 Team-Check-in; Di 14:00–15:00 Zahnarzt; Mi 10:00–11:00 Projektbesprechung und 18:30–19:30 Yoga; Fr 16:00–17:00 Einkäufe abholen; Sa 11:00–13:00 Schicht im Gemeinschaftsgarten. Welcher Tag hat die meisten Verpflichtungen und welche Tage sind frei?"
+  zh: "@mate:general_knowledge 请根据我在这里复制的这些活动，总结一下我 10 月 12 日至 18 日（柏林时间）的日历周：周一 09:00–09:30 团队签到；周二 14:00–15:00 牙医；周三 10:00–11:00 项目回顾和 18:30–19:30 瑜伽；周五 16:00–17:00 杂货取货；周六 11:00–13:00 社区花园轮班。哪一天的安排最满，哪些天是空闲的？"
+  es: "@mate:general_knowledge resume mi semana del 12 al 18 de octubre (hora de Berlín) a partir de estos eventos que he copiado aquí: lun. 09:00–09:30 reunión de equipo; mar. 14:00–15:00 dentista; mié. 10:00–11:00 revisión del proyecto y 18:30–19:30 yoga; vie. 16:00–17:00 recogida de la compra; sáb. 11:00–13:00 turno de voluntariado en el huerto comunitario. ¿Qué día tengo más compromisos y qué días están libres?"
+  fr: "@mate:general_knowledge résume ma semaine de calendrier du 12 au 18 octobre (heure de Berlin) à partir de ces événements que j'ai copiés ici : Lun 09:00–09:30 point d'équipe ; Mar 14:00–15:00 dentiste ; Mer 10:00–11:00 revue de projet et 18:30–19:30 yoga ; Ven 16:00–17:00 retrait des courses ; Sam 11:00–13:00 créneau au jardin communautaire. Quel jour est le plus chargé et quels jours sont libres ?"
+  pt: "@mate:general_knowledge por favor, resume a minha semana de calendário de 12 a 18 de outubro (hora de Berlim) a partir destes eventos que copiei aqui: Seg 09:00–09:30 check-in de equipa; Ter 14:00–15:00 dentista; Qua 10:00–11:00 revisão de projeto e 18:30–19:30 ioga; Sex 16:00–17:00 levantamento de compras; Sáb 11:00–13:00 turno na horta comunitária. Qual é o dia com mais compromissos e quais são os dias livres?"
+  ru: "@mate:general_knowledge пожалуйста, составь краткий обзор моей календарной недели с 12 по 18 октября (берлинское время) на основе этих событий: Пн 09:00–09:30 командная встреча; Вт 14:00–15:00 стоматолог; Ср 10:00–11:00 обзор проекта и 18:30–19:30 йога; Пт 16:00–17:00 забрать продукты; Сб 11:00–13:00 смена в общественном саду. В какой день больше всего дел, а какие дни свободны?"
+  ja: "@mate:general_knowledge ここにコピーしたイベントをもとに、10月12日〜18日の週（ベルリン時間）の予定を要約してください：月 09:00–09:30 チームチェックイン、火 14:00–15:00 歯医者、水 10:00–11:00 プロジェクトレビューと18:30–19:30 ヨガ、金 16:00–17:00 食料品の受け取り、土 11:00–13:00 コミュニティガーデンの当番。予定が一番多い日はいつですか？また、空いている日はいつですか？"
+  ko: "@mate:general_knowledge 여기에 복사한 일정을 바탕으로 10월 12~18일(베를린 시간) 주간 일정을 요약해 줘: 월 09:00–09:30 팀 체크인; 화 14:00–15:00 치과; 수 10:00–11:00 프로젝트 리뷰 및 18:30–19:30 요가; 금 16:00–17:00 식료품 픽업; 토 11:00–13:00 커뮤니티 정원 봉사. 일정이 가장 많은 날은 언제고, 한가한 날은 언제야?"
+  it: "@mate:general_knowledge per favore riassumi la mia settimana di calendario dal 12 al 18 ottobre (ora di Berlino) da questi eventi che ho copiato qui: lun 09:00–09:30 check-in del team; mar 14:00–15:00 dentista; mer 10:00–11:00 revisione del progetto e 18:30–19:30 yoga; ven 16:00–17:00 ritiro spesa; sab 11:00–13:00 turno orto comunitario. Quale giorno ha più impegni e quali giorni sono liberi?"
+  tr: "@mate:general_knowledge lütfen buraya kopyaladığım şu etkinliklerden 12–18 Ekim (Berlin saati) haftalık takvimimi özetle: Pzt 09:00–09:30 ekip toplantısı; Sal 14:00–15:00 diş hekimi; Çar 10:00–11:00 proje incelemesi ve 18:30–19:30 yoga; Cum 16:00–17:00 market alışverişi; Cmt 11:00–13:00 topluluk bahçesi vardiyası. En çok işin olduğu gün hangisi ve hangi günler boş?"
+  vi: "@mate:general_knowledge vui lòng tóm tắt tuần lịch từ ngày 12–18 tháng 10 (giờ Berlin) của tôi từ các sự kiện tôi đã sao chép ở đây: Thứ Hai 09:00–09:30 họp nhóm; Thứ Ba 14:00–15:00 nha sĩ; Thứ Tư 10:00–11:00 đánh giá dự án và 18:30–19:30 yoga; Thứ Sáu 16:00–17:00 lấy đồ tạp hóa; Thứ Bảy 11:00–13:00 ca làm vườn cộng đồng. Ngày nào có nhiều lịch hẹn nhất và những ngày nào rảnh?"
+  id: "@mate:general_knowledge tolong rangkum minggu kalender saya dari tanggal 12–18 Oktober (waktu Berlin) dari acara-acara yang saya salin di sini: Sen 09:00–09:30 team check-in; Sel 14:00–15:00 dokter gigi; Rab 10:00–11:00 tinjauan proyek dan 18:30–19:30 yoga; Jum 16:00–17:00 ambil belanjaan; Sab 11:00–13:00 giliran kebun komunitas. Hari mana yang memiliki komitmen paling banyak, dan hari mana yang kosong?"
+  pl: "@mate:general_knowledge proszę, podsumuj mój tydzień w kalendarzu od 12 do 18 października (czas berliński) na podstawie tych wydarzeń, które tutaj wkleiłem: pon. 09:00–09:30 spotkanie zespołu; wt. 14:00–15:00 dentysta; śr. 10:00–11:00 przegląd projektu i 18:30–19:30 joga; pt. 16:00–17:00 odbiór zakupów; sob. 11:00–13:00 dyżur w ogrodzie społecznościowym. Który dzień ma najwięcej zobowiązań, a które dni są wolne?"
+  nl: "@mate:general_knowledge vat mijn kalenderweek van 12 tot en met 18 oktober (Berlijnse tijd) samen op basis van deze afspraken die ik hier heb gekopieerd: ma. 09:00–09:30 teamoverleg; di. 14:00–15:00 tandarts; wo. 10:00–11:00 projectbespreking en 18:30–19:30 yoga; vr. 16:00–17:00 boodschappen ophalen; za. 11:00–13:00 vrijwilligersdienst in de buurttuin. Op welke dag heb ik de meeste afspraken en welke dagen zijn vrij?"
+  ar: "@mate:general_knowledge يرجى تلخيص أسبوع التقويم الخاص بي من 12 إلى 18 أكتوبر (بتوقيت برلين) بناءً على هذه الأحداث التي نسختها هنا: الاثنين 09:00–09:30 اجتماع الفريق؛ الثلاثاء 14:00–15:00 طبيب الأسنان؛ الأربعاء 10:00–11:00 مراجعة المشروع و18:30–19:30 يوغا؛ الجمعة 16:00–17:00 استلام البقالة؛ السبت 11:00–13:00 نوبة عمل في حديقة المجتمع. أي يوم لديه أكبر عدد من الالتزامات، وأي الأيام شاغرة؟"
+  hi: "@mate:general_knowledge कृपया मेरे द्वारा यहाँ कॉपी किए गए इन इवेंट्स से 12-18 अक्टूबर (बर्लिन समय) के मेरे कैलेंडर सप्ताह का सारांश दें: सोम 09:00–09:30 टीम चेक-इन; मंगल 14:00–15:00 डेंटिस्ट; बुध 10:00–11:00 प्रोजेक्ट समीक्षा और 18:30–19:30 योग; शुक्र 16:00–17:00 ग्रोसरी पिकअप; शनि 11:00–13:00 कम्युनिटी गार्डन शिफ्ट। किस दिन सबसे अधिक व्यस्तता है, और कौन से दिन खाली हैं?"
+  th: "@mate:general_knowledge ช่วยสรุปปฏิทินรายสัปดาห์ของฉันตั้งแต่วันที่ 12–18 ตุลาคม (เวลาเบอร์ลิน) จากเหตุการณ์ที่ฉันคัดลอกมาที่นี่หน่อย: จันทร์ 09:00–09:30 เช็คอินทีม; อังคาร 14:00–15:00 ทันตแพทย์; พุธ 10:00–11:00 ทบทวนโครงการ และ 18:30–19:30 โยคะ; ศุกร์ 16:00–17:00 รับของชำ; เสาร์ 11:00–13:00 เวรจัดสวนชุมชน วันไหนมีภารกิจมากที่สุด และวันไหนว่างบ้าง?"
+  cs: "@mate:general_knowledge prosím shrň můj kalendářní týden od 12. do 18. října (berlínského času) z těchto událostí, které jsem sem zkopíroval: Po 09:00–09:30 team check-in; Út 14:00–15:00 zubař; St 10:00–11:00 projektová revize a 18:30–19:30 jóga; Pá 16:00–17:00 vyzvednutí nákupu; So 11:00–13:00 směna v komunitní zahradě. Který den má nejvíce povinností a které dny jsou volné?"
+  sv: "@mate:general_knowledge sammanfatta gärna min kalendervecka 12–18 oktober (Berlintid) utifrån dessa händelser som jag har kopierat in här: mån 09:00–09:30 team-avstämning; tis 14:00–15:00 tandläkare; ons 10:00–11:00 projektgenomgång och 18:30–19:30 yoga; fre 16:00–17:00 hämta matvaror; lör 11:00–13:00 pass i gemenskapsträdgården. Vilken dag har flest åtaganden, och vilka dagar är lediga?"
+  he: "@mate:general_knowledge אנא סכם את שבוע לוח השנה שלי ב-12–18 באוקטובר (זמן ברלין) מהאירועים האלה שהעתקתי לכאן: ב' 09:00–09:30 צ'ק-אין צוות; ג' 14:00–15:00 רופא שיניים; ד' 10:00–11:00 סקירת פרויקט ו-18:30–19:30 יוגה; ו' 16:00–17:00 איסוף מצרכים; ש' 11:00–13:00 משמרת בגינה קהילתית. באיזה יום יש הכי הרבה התחייבויות, ואילו ימים פנויים?"
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Calendar week from supplied events. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Here is the summary of your schedule for the week of October 12–18, 2026 (Europe/Berlin time):
+
+    ### Schedule Overview
+    * **Monday, Oct 12:** 09:00–09:30 – Team check-in (30 min)
+    * **Tuesday, Oct 13:** 14:00–15:00 – Dentist (1 hr)
+    * **Wednesday, Oct 14:**
+      * 10:00–11:00 – Project review (1 hr)
+      * 18:30–19:30 – Yoga (1 hr)
+    * **Thursday, Oct 15:** *No scheduled events*
+    * **Friday, Oct 16:** 16:00–17:00 – Grocery pickup (1 hr)
+    * **Saturday, Oct 17:** 11:00–13:00 – Community garden shift (2 hrs)
+    * **Sunday, Oct 18:** *No scheduled events*
+
+    ---
+
+    ### Key Takeaways
+    * **Day with the most commitments:** **Wednesday, October 14** (2 distinct events totaling 2 hours). *Note: Saturday has the longest single block of committed time (2 hours), but Wednesday has the highest event count.*
+    * **Completely free days:** **Thursday, October 15** and **Sunday, October 18**.
+
+    ---
+
+    ### Suggested Next Actions
+    1. [Add Thursday prep time](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [Plan reminders for appointments](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  de: |
+    Hier ist die Zusammenfassung deines Zeitplans für die Woche vom 12. bis 18. Oktober 2026 (Zeitzone Europa/Berlin):
+
+    ### Terminübersicht
+    * **Montag, 12. Okt.:** 09:00–09:30 – Team-Check-in (30 Min.)
+    * **Dienstag, 13. Okt.:** 14:00–15:00 – Zahnarzt (1 Std.)
+    * **Mittwoch, 14. Okt.:**
+      * 10:00–11:00 – Projektbesprechung (1 Std.)
+      * 18:30–19:30 – Yoga (1 Std.)
+    * **Donnerstag, 15. Okt.:** *Keine Termine geplant*
+    * **Freitag, 16. Okt.:** 16:00–17:00 – Einkäufe abholen (1 Std.)
+    * **Samstag, 17. Okt.:** 11:00–13:00 – Schicht im Gemeinschaftsgarten (2 Std.)
+    * **Sonntag, 18. Okt.:** *Keine Termine geplant*
+
+    ---
+
+    ### Wichtigste Erkenntnisse
+    * **Tag mit den meisten Verpflichtungen:** **Mittwoch, 14. Oktober** (2 verschiedene Termine, insgesamt 2 Stunden). *Hinweis: Der Samstag hat den längsten zusammenhängenden Zeitblock (2 Stunden), aber der Mittwoch hat die höchste Anzahl an Terminen.*
+    * **Komplett freie Tage:** **Donnerstag, 15. Oktober** und **Sonntag, 18. Oktober**.
+
+    ---
+
+    ### Vorschläge für nächste Schritte
+    1. [Vorbereitungszeit für Donnerstag hinzufügen](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [Erinnerungen für Termine planen](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  zh: |
+    以下是你 2026 年 10 月 12 日至 18 日（欧洲/柏林时间）的日程总结：
+
+    ### 日程概览
+    * **10 月 12 日，周一：** 09:00–09:30 – 团队签到（30 分钟）
+    * **10 月 13 日，周二：** 14:00–15:00 – 牙医（1 小时）
+    * **10 月 14 日，周三：**
+      * 10:00–11:00 – 项目回顾（1 小时）
+      * 18:30–19:30 – 瑜伽（1 小时）
+    * **10 月 15 日，周四：** *无预定活动*
+    * **10 月 16 日，周五：** 16:00–17:00 – 杂货取货（1 小时）
+    * **10 月 17 日，周六：** 11:00–13:00 – 社区花园轮班（2 小时）
+    * **10 月 18 日，周日：** *无预定活动*
+
+    ---
+
+    ### 关键信息
+    * **安排最满的一天：** **10 月 14 日，星期三**（共有 2 项独立活动，总计 2 小时）。*注：周六的单次活动时长最长（2 小时），但周三的活动数量最多。*
+    * **完全空闲的日子：** **10 月 15 日，星期四** 和 **10 月 18 日，星期日**。
+
+    ---
+
+    ### 建议的后续行动
+    1. [添加周四的准备时间](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [计划预约提醒](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  es: |
+    Aquí tienes un resumen de tu agenda para la semana del 12 al 18 de octubre de 2026 (hora de Berlín):
+
+    ### Resumen por día
+    * **Lunes, 12 de octubre:** 09:00–09:30 – Reunión de equipo (30 min)
+    * **Martes, 13 de octubre:** 14:00–15:00 – Dentista (1 h)
+    * **Miércoles, 14 de octubre:**
+      * 10:00–11:00 – Revisión del proyecto (1 h)
+      * 18:30–19:30 – Yoga (1 h)
+    * **Jueves, 15 de octubre:** *Sin eventos programados*
+    * **Viernes, 16 de octubre:** 16:00–17:00 – Recogida de la compra (1 h)
+    * **Sábado, 17 de octubre:** 11:00–13:00 – Turno en el huerto comunitario (2 h)
+    * **Domingo, 18 de octubre:** *Sin eventos programados*
+
+    ---
+
+    ### Puntos clave
+    * **Día con más compromisos:** **miércoles, 14 de octubre** (dos eventos distintos, con un total de dos horas). *Nota: el sábado tiene el bloque individual más largo, de dos horas, pero el miércoles tiene más eventos.*
+    * **Días totalmente libres:** **jueves, 15 de octubre** y **domingo, 18 de octubre**.
+
+    ---
+
+    ### Próximos pasos sugeridos
+    1. [Reservar tiempo de preparación el jueves](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [Planificar recordatorios para las citas](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  fr: |
+    Voici le résumé de ton emploi du temps pour la semaine du 12 au 18 octobre 2026 (heure Europe/Berlin) :
+
+    ### Aperçu du planning
+    * **Lundi 12 oct. :** 09:00–09:30 – Point d'équipe (30 min)
+    * **Mardi 13 oct. :** 14:00–15:00 – Dentiste (1 h)
+    * **Mercredi 14 oct. :**
+      * 10:00–11:00 – Revue de projet (1 h)
+      * 18:30–19:30 – Yoga (1 h)
+    * **Jeudi 15 oct. :** *Aucun événement prévu*
+    * **Vendredi 16 oct. :** 16:00–17:00 – Retrait des courses (1 h)
+    * **Samedi 17 oct. :** 11:00–13:00 – Créneau au jardin communautaire (2 h)
+    * **Dimanche 18 oct. :** *Aucun événement prévu*
+
+    ---
+
+    ### Points clés
+    * **Jour le plus chargé :** **Mercredi 14 octobre** (2 événements distincts totalisant 2 heures). *Note : Le samedi a le bloc de temps réservé le plus long (2 heures), mais le mercredi a le plus grand nombre d'événements.*
+    * **Jours entièrement libres :** **Jeudi 15 octobre** et **Dimanche 18 octobre**.
+
+    ---
+
+    ### Actions suggérées
+    1. [Ajouter du temps de préparation jeudi](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [Planifier des rappels pour les rendez-vous](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  pt: |
+    Aqui está o resumo da tua agenda para a semana de 12 a 18 de outubro de 2026 (hora da Europa/Berlim):
+
+    ### Visão Geral da Agenda
+    * **Segunda-feira, 12 out:** 09:00–09:30 – Check-in de equipa (30 min)
+    * **Terça-feira, 13 out:** 14:00–15:00 – Dentista (1 h)
+    * **Quarta-feira, 14 out:**
+      * 10:00–11:00 – Revisão de projeto (1 h)
+      * 18:30–19:30 – Ioga (1 h)
+    * **Quinta-feira, 15 out:** *Sem eventos agendados*
+    * **Sexta-feira, 16 out:** 16:00–17:00 – Levantamento de compras (1 h)
+    * **Sábado, 17 out:** 11:00–13:00 – Turno na horta comunitária (2 h)
+    * **Domingo, 18 out:** *Sem eventos agendados*
+
+    ---
+
+    ### Conclusões Principais
+    * **Dia com mais compromissos:** **Quarta-feira, 14 de outubro** (2 eventos distintos totalizando 2 horas). *Nota: O sábado tem o bloco individual mais longo de tempo ocupado (2 horas), mas a quarta-feira tem o maior número de eventos.*
+    * **Dias completamente livres:** **Quinta-feira, 15 de outubro** e **Domingo, 18 de outubro**.
+
+    ---
+
+    ### Próximas Ações Sugeridas
+    1. [Adicionar tempo de preparação na quinta-feira](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [Planear lembretes para consultas](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  ru: |
+    Вот краткий обзор твоего расписания на неделю с 12 по 18 октября 2026 года (время: Европа/Берлин):
+
+    ### Обзор расписания
+    * **Понедельник, 12 окт:** 09:00–09:30 – Командная встреча (30 мин)
+    * **Вторник, 13 окт:** 14:00–15:00 – Стоматолог (1 ч)
+    * **Среда, 14 окт:**
+      * 10:00–11:00 – Обзор проекта (1 ч)
+      * 18:30–19:30 – Йога (1 ч)
+    * **Четверг, 15 окт:** *Нет запланированных событий*
+    * **Пятница, 16 окт:** 16:00–17:00 – Забрать продукты (1 ч)
+    * **Суббота, 17 окт:** 11:00–13:00 – Смена в общественном саду (2 ч)
+    * **Воскресенье, 18 окт:** *Нет запланированных событий*
+
+    ---
+
+    ### Основные выводы
+    * **День с наибольшим количеством дел:** **Среда, 14 октября** (2 отдельных события общей длительностью 2 часа). *Примечание: В субботу самый длинный непрерывный блок занятого времени (2 часа), но в среду больше всего событий.*
+    * **Полностью свободные дни:** **Четверг, 15 октября** и **Воскресенье, 18 октября**.
+
+    ---
+
+    ### Рекомендуемые действия
+    1. [Добавить время на подготовку в четверг](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [Запланировать напоминания о встречах](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  ja: |
+    2026年10月12日〜18日の週（ヨーロッパ/ベルリン時間）のスケジュールの要約です：
+
+    ### スケジュールの概要
+    * **10月12日（月）:** 09:00–09:30 – チームチェックイン（30分）
+    * **10月13日（火）:** 14:00–15:00 – 歯医者（1時間）
+    * **10月14日（水）:**
+      * 10:00–11:00 – プロジェクトレビュー（1時間）
+      * 18:30–19:30 – ヨガ（1時間）
+    * **10月15日（木）:** *予定なし*
+    * **10月16日（金）:** 16:00–17:00 – 食料品の受け取り（1時間）
+    * **10月17日（土）:** 11:00–13:00 – コミュニティガーデンの当番（2時間）
+    * **10月18日（日）:** *予定なし*
+
+    ---
+
+    ### 主なポイント
+    * **予定が最も多い日:** **10月14日（水）**（合計2時間の予定が2件）。*注：土曜日は単一の予定としては最長（2時間）ですが、水曜日は予定の件数が最も多いです。*
+    * **完全に空いている日:** **10月15日（木）**および**10月18日（日）**。
+
+    ---
+
+    ### 次のアクションの提案
+    1. [木曜日の準備時間を追加する](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [予約のリマインダーを計画する](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  ko: |
+    2026년 10월 12~18일(유럽/베를린 시간) 주간 일정 요약입니다:
+
+    ### 일정 개요
+    * **10월 12일 월요일:** 09:00–09:30 – 팀 체크인 (30분)
+    * **10월 13일 화요일:** 14:00–15:00 – 치과 (1시간)
+    * **10월 14일 수요일:**
+      * 10:00–11:00 – 프로젝트 리뷰 (1시간)
+      * 18:30–19:30 – 요가 (1시간)
+    * **10월 15일 목요일:** *예정된 일정 없음*
+    * **10월 16일 금요일:** 16:00–17:00 – 식료품 픽업 (1시간)
+    * **10월 17일 토요일:** 11:00–13:00 – 커뮤니티 정원 봉사 (2시간)
+    * **10월 18일 일요일:** *예정된 일정 없음*
+
+    ---
+
+    ### 주요 요점
+    * **일정이 가장 많은 날:** **10월 14일 수요일** (총 2시간, 2개의 개별 일정). *참고: 토요일은 단일 일정으로 가장 긴 시간(2시간)을 차지하지만, 일정 개수는 수요일이 가장 많습니다.*
+    * **완전히 비어 있는 날:** **10월 15일 목요일** 및 **10월 18일 일요일**.
+
+    ---
+
+    ### 추천 후속 작업
+    1. [목요일 준비 시간 추가하기](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [일정 알림 계획하기](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  it: |
+    Ecco il riassunto del tuo programma per la settimana dal 12 al 18 ottobre 2026 (ora Europa/Berlino):
+
+    ### Panoramica del programma
+    * **Lunedì 12 ott:** 09:00–09:30 – Check-in del team (30 min)
+    * **Martedì 13 ott:** 14:00–15:00 – Dentista (1 ora)
+    * **Mercoledì 14 ott:**
+      * 10:00–11:00 – Revisione del progetto (1 ora)
+      * 18:30–19:30 – Yoga (1 ora)
+    * **Giovedì 15 ott:** *Nessun evento in programma*
+    * **Venerdì 16 ott:** 16:00–17:00 – Ritiro spesa (1 ora)
+    * **Sabato 17 ott:** 11:00–13:00 – Turno orto comunitario (2 ore)
+    * **Domenica 18 ott:** *Nessun evento in programma*
+
+    ---
+
+    ### Punti chiave
+    * **Giorno con più impegni:** **Mercoledì 14 ottobre** (2 eventi distinti per un totale di 2 ore). *Nota: sabato ha il blocco singolo di tempo impegnato più lungo (2 ore), ma mercoledì ha il maggior numero di eventi.*
+    * **Giorni completamente liberi:** **Giovedì 15 ottobre** e **Domenica 18 ottobre**.
+
+    ---
+
+    ### Prossime azioni suggerite
+    1. [Aggiungi tempo di preparazione giovedì](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [Pianifica promemoria per gli appuntamenti](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  tr: |
+    İşte 12–18 Ekim 2026 (Avrupa/Berlin saati) haftası için programının özeti:
+
+    ### Programa Genel Bakış
+    * **12 Ekim Pazartesi:** 09:00–09:30 – Ekip toplantısı (30 dk)
+    * **13 Ekim Salı:** 14:00–15:00 – Diş hekimi (1 sa)
+    * **14 Ekim Çarşamba:**
+      * 10:00–11:00 – Proje incelemesi (1 sa)
+      * 18:30–19:30 – Yoga (1 sa)
+    * **15 Ekim Perşembe:** *Planlanmış etkinlik yok*
+    * **16 Ekim Cuma:** 16:00–17:00 – Market alışverişi (1 sa)
+    * **17 Ekim Cumartesi:** 11:00–13:00 – Topluluk bahçesi vardiyası (2 sa)
+    * **18 Ekim Pazar:** *Planlanmış etkinlik yok*
+
+    ---
+
+    ### Önemli Notlar
+    * **En çok işin olduğu gün:** **14 Ekim Çarşamba** (toplam 2 saat süren 2 ayrı etkinlik). *Not: Cumartesi günü tek seferde en uzun süreli işe (2 saat) sahipsin, ancak Çarşamba günü etkinlik sayısı daha fazla.*
+    * **Tamamen boş günler:** **15 Ekim Perşembe** ve **18 Ekim Pazar**.
+
+    ---
+
+    ### Önerilen Sonraki Adımlar
+    1. [Perşembe hazırlık zamanı ekle](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [Randevular için hatırlatıcı planla](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  vi: |
+    Dưới đây là tóm tắt lịch trình của bạn cho tuần từ ngày 12–18 tháng 10 năm 2026 (giờ Europe/Berlin):
+
+    ### Tổng quan lịch trình
+    * **Thứ Hai, ngày 12 tháng 10:** 09:00–09:30 – Họp nhóm (30 phút)
+    * **Thứ Ba, ngày 13 tháng 10:** 14:00–15:00 – Nha sĩ (1 giờ)
+    * **Thứ Tư, ngày 14 tháng 10:**
+      * 10:00–11:00 – Đánh giá dự án (1 giờ)
+      * 18:30–19:30 – Yoga (1 giờ)
+    * **Thứ Năm, ngày 15 tháng 10:** *Không có sự kiện nào được lên lịch*
+    * **Thứ Sáu, ngày 16 tháng 10:** 16:00–17:00 – Lấy đồ tạp hóa (1 giờ)
+    * **Thứ Bảy, ngày 17 tháng 10:** 11:00–13:00 – Ca làm vườn cộng đồng (2 giờ)
+    * **Chủ Nhật, ngày 18 tháng 10:** *Không có sự kiện nào được lên lịch*
+
+    ---
+
+    ### Thông tin chính
+    * **Ngày có nhiều lịch hẹn nhất:** **Thứ Tư, ngày 14 tháng 10** (2 sự kiện riêng biệt với tổng cộng 2 giờ). *Lưu ý: Thứ Bảy có khoảng thời gian bận liên tục dài nhất (2 giờ), nhưng Thứ Tư có số lượng sự kiện cao nhất.*
+    * **Các ngày hoàn toàn rảnh:** **Thứ Năm, ngày 15 tháng 10** và **Chủ Nhật, ngày 18 tháng 10**.
+
+    ---
+
+    ### Hành động tiếp theo gợi ý
+    1. [Thêm thời gian chuẩn bị cho Thứ Năm](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [Lên kế hoạch nhắc nhở cho các cuộc hẹn](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  id: |
+    Berikut adalah ringkasan jadwalmu untuk minggu 12–18 Oktober 2026 (waktu Eropa/Berlin):
+
+    ### Ikhtisar Jadwal
+    * **Senin, 12 Okt:** 09:00–09:30 – Team check-in (30 mnt)
+    * **Selasa, 13 Okt:** 14:00–15:00 – Dokter gigi (1 jam)
+    * **Rabu, 14 Okt:**
+      * 10:00–11:00 – Tinjauan proyek (1 jam)
+      * 18:30–19:30 – Yoga (1 jam)
+    * **Kamis, 15 Okt:** *Tidak ada acara terjadwal*
+    * **Jumat, 16 Okt:** 16:00–17:00 – Ambil belanjaan (1 jam)
+    * **Sabtu, 17 Okt:** 11:00–13:00 – Giliran kebun komunitas (2 jam)
+    * **Minggu, 18 Okt:** *Tidak ada acara terjadwal*
+
+    ---
+
+    ### Poin Penting
+    * **Hari dengan komitmen terbanyak:** **Rabu, 14 Oktober** (2 acara berbeda dengan total 2 jam). *Catatan: Sabtu memiliki blok waktu komitmen tunggal terlama (2 jam), tetapi Rabu memiliki jumlah acara terbanyak.*
+    * **Hari yang benar-benar kosong:** **Kamis, 15 Oktober** dan **Minggu, 18 Oktober**.
+
+    ---
+
+    ### Saran Tindakan Selanjutnya
+    1. [Tambahkan waktu persiapan hari Kamis](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [Rencanakan pengingat untuk janji temu](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  pl: |
+    Oto podsumowanie Twojego harmonogramu na tydzień od 12 do 18 października 2026 r. (czas Europa/Berlin):
+
+    ### Przegląd harmonogramu
+    * **Poniedziałek, 12 paź:** 09:00–09:30 – Spotkanie zespołu (30 min)
+    * **Wtorek, 13 paź:** 14:00–15:00 – Dentysta (1 godz.)
+    * **Środa, 14 paź:**
+      * 10:00–11:00 – Przegląd projektu (1 godz.)
+      * 18:30–19:30 – Joga (1 godz.)
+    * **Czwartek, 15 paź:** *Brak zaplanowanych wydarzeń*
+    * **Piątek, 16 paź:** 16:00–17:00 – Odbiór zakupów (1 godz.)
+    * **Sobota, 17 paź:** 11:00–13:00 – Dyżur w ogrodzie społecznościowym (2 godz.)
+    * **Niedziela, 18 paź:** *Brak zaplanowanych wydarzeń*
+
+    ---
+
+    ### Kluczowe wnioski
+    * **Dzień z największą liczbą zobowiązań:** **Środa, 14 października** (2 oddzielne wydarzenia trwające łącznie 2 godziny). *Uwaga: Sobota ma najdłuższy pojedynczy blok czasu (2 godziny), ale środa ma największą liczbę wydarzeń.*
+    * **Dni całkowicie wolne:** **Czwartek, 15 października** i **Niedziela, 18 października**.
+
+    ---
+
+    ### Sugerowane dalsze działania
+    1. [Dodaj czas na przygotowania w czwartek](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [Zaplanuj przypomnienia o wizytach](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  nl: |
+    Hier is een overzicht van je agenda voor de week van 12 tot en met 18 oktober 2026 (Berlijnse tijd):
+
+    ### Overzicht per dag
+    * **Maandag 12 oktober:** 09:00–09:30 – Teamoverleg (30 min)
+    * **Dinsdag 13 oktober:** 14:00–15:00 – Tandarts (1 uur)
+    * **Woensdag 14 oktober:**
+      * 10:00–11:00 – Projectbespreking (1 uur)
+      * 18:30–19:30 – Yoga (1 uur)
+    * **Donderdag 15 oktober:** *Geen afspraken gepland*
+    * **Vrijdag 16 oktober:** 16:00–17:00 – Boodschappen ophalen (1 uur)
+    * **Zaterdag 17 oktober:** 11:00–13:00 – Vrijwilligersdienst in de buurttuin (2 uur)
+    * **Zondag 18 oktober:** *Geen afspraken gepland*
+
+    ---
+
+    ### Belangrijkste punten
+    * **Dag met de meeste afspraken:** **woensdag 14 oktober** (twee afzonderlijke afspraken van samen twee uur). *Let op: zaterdag heeft het langste aaneengesloten blok van twee uur, maar woensdag telt de meeste afspraken.*
+    * **Helemaal vrije dagen:** **donderdag 15 oktober** en **zondag 18 oktober**.
+
+    ---
+
+    ### Voorgestelde vervolgstappen
+    1. [Donderdag voorbereidingstijd inplannen](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [Herinneringen voor afspraken plannen](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  ar: |
+    إليك ملخص جدولك للأسبوع من 12 إلى 18 أكتوبر 2026 (بتوقيت أوروبا/برلين):
+
+    ### نظرة عامة على الجدول
+    * **الاثنين، 12 أكتوبر:** 09:00–09:30 – اجتماع الفريق (30 دقيقة)
+    * **الثلاثاء، 13 أكتوبر:** 14:00–15:00 – طبيب الأسنان (ساعة واحدة)
+    * **الأربعاء، 14 أكتوبر:**
+      * 10:00–11:00 – مراجعة المشروع (ساعة واحدة)
+      * 18:30–19:30 – يوغا (ساعة واحدة)
+    * **الخميس، 15 أكتوبر:** *لا توجد أحداث مجدولة*
+    * **الجمعة، 16 أكتوبر:** 16:00–17:00 – استلام البقالة (ساعة واحدة)
+    * **السبت، 17 أكتوبر:** 11:00–13:00 – نوبة عمل في حديقة المجتمع (ساعتان)
+    * **الأحد، 18 أكتوبر:** *لا توجد أحداث مجدولة*
+
+    ---
+
+    ### أهم الاستنتاجات
+    * **اليوم الذي يضم أكبر عدد من الالتزامات:** **الأربعاء، 14 أكتوبر** (حدثان منفصلان بإجمالي ساعتين). *ملاحظة: يوم السبت لديه أطول فترة زمنية واحدة للالتزام (ساعتان)، لكن يوم الأربعاء لديه أكبر عدد من الأحداث.*
+    * **الأيام الشاغرة تماماً:** **الخميس، 15 أكتوبر** و**الأحد، 18 أكتوبر**.
+
+    ---
+
+    ### الإجراءات التالية المقترحة
+    1. [إضافة وقت للتحضير يوم الخميس](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [التخطيط لتذكيرات المواعيد](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  hi: |
+    यहाँ 12-18 अक्टूबर, 2026 (यूरोप/बर्लिन समय) के सप्ताह के लिए आपके शेड्यूल का सारांश दिया गया है:
+
+    ### शेड्यूल का अवलोकन
+    * **सोमवार, 12 अक्टूबर:** 09:00–09:30 – टीम चेक-इन (30 मिनट)
+    * **मंगलवार, 13 अक्टूबर:** 14:00–15:00 – डेंटिस्ट (1 घंटा)
+    * **बुधवार, 14 अक्टूबर:**
+      * 10:00–11:00 – प्रोजेक्ट समीक्षा (1 घंटा)
+      * 18:30–19:30 – योग (1 घंटा)
+    * **गुरुवार, 15 अक्टूबर:** *कोई निर्धारित इवेंट नहीं*
+    * **शुक्रवार, 16 अक्टूबर:** 16:00–17:00 – ग्रोसरी पिकअप (1 घंटा)
+    * **शनिवार, 17 अक्टूबर:** 11:00–13:00 – कम्युनिटी गार्डन शिफ्ट (2 घंटे)
+    * **रविवार, 18 अक्टूबर:** *कोई निर्धारित इवेंट नहीं*
+
+    ---
+
+    ### मुख्य बातें
+    * **सबसे अधिक व्यस्तता वाला दिन:** **बुधवार, 14 अक्टूबर** (कुल 2 घंटे के 2 अलग-अलग इवेंट)। *नोट: शनिवार को व्यस्त समय का सबसे लंबा सिंगल ब्लॉक (2 घंटे) है, लेकिन बुधवार को इवेंट्स की संख्या सबसे अधिक है।*
+    * **पूरी तरह से खाली दिन:** **गुरुवार, 15 अक्टूबर** और **रविवार, 18 अक्टूबर**।
+
+    ---
+
+    ### सुझाए गए अगले कदम
+    1. [गुरुवार के लिए तैयारी का समय जोड़ें](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [अपॉइंटमेंट के लिए रिमाइंडर प्लान करें](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  th: |
+    นี่คือสรุปตารางเวลาของคุณสำหรับสัปดาห์วันที่ 12–18 ตุลาคม 2026 (เวลา ยุโรป/เบอร์ลิน):
+
+    ### ภาพรวมตารางเวลา
+    * **วันจันทร์ที่ 12 ต.ค.:** 09:00–09:30 – เช็คอินทีม (30 นาที)
+    * **วันอังคารที่ 13 ต.ค.:** 14:00–15:00 – ทันตแพทย์ (1 ชม.)
+    * **วันพุธที่ 14 ต.ค.:**
+      * 10:00–11:00 – ทบทวนโครงการ (1 ชม.)
+      * 18:30–19:30 – โยคะ (1 ชม.)
+    * **วันพฤหัสบดีที่ 15 ต.ค.:** *ไม่มีกิจกรรมที่กำหนดไว้*
+    * **วันศุกร์ที่ 16 ต.ค.:** 16:00–17:00 – รับของชำ (1 ชม.)
+    * **วันเสาร์ที่ 17 ต.ค.:** 11:00–13:00 – เวรจัดสวนชุมชน (2 ชม.)
+    * **วันอาทิตย์ที่ 18 ต.ค.:** *ไม่มีกิจกรรมที่กำหนดไว้*
+
+    ---
+
+    ### ข้อมูลสำคัญ
+    * **วันที่มีภารกิจมากที่สุด:** **วันพุธที่ 14 ตุลาคม** (2 กิจกรรม รวม 2 ชั่วโมง) *หมายเหตุ: วันเสาร์มีช่วงเวลาที่ใช้ไปกับกิจกรรมเดียวที่ยาวที่สุด (2 ชั่วโมง) แต่วันพุธมีจำนวนกิจกรรมมากที่สุด*
+    * **วันที่ว่างทั้งหมด:** **วันพฤหัสบดีที่ 15 ตุลาคม** และ **วันอาทิตย์ที่ 18 ตุลาคม**
+
+    ---
+
+    ### การดำเนินการถัดไปที่แนะนำ
+    1. [เพิ่มเวลาเตรียมตัวในวันพฤหัสบดี](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [วางแผนการแจ้งเตือนสำหรับการนัดหมาย](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  cs: |
+    Zde je shrnutí tvého rozvrhu na týden od 12. do 18. října 2026 (časové pásmo Evropa/Berlín):
+
+    ### Přehled rozvrhu
+    * **Pondělí 12. října:** 09:00–09:30 – Team check-in (30 min)
+    * **Úterý 13. října:** 14:00–15:00 – Zubař (1 hod)
+    * **Středa 14. října:**
+      * 10:00–11:00 – Projektová revize (1 hod)
+      * 18:30–19:30 – Jóga (1 hod)
+    * **Čtvrtek 15. října:** *Žádné naplánované události*
+    * **Pátek 16. října:** 16:00–17:00 – Vyzvednutí nákupu (1 hod)
+    * **Sobota 17. října:** 11:00–13:00 – Směna v komunitní zahradě (2 hod)
+    * **Neděle 18. října:** *Žádné naplánované události*
+
+    ---
+
+    ### Hlavní poznatky
+    * **Den s nejvíce povinnostmi:** **Středa 14. října** (2 samostatné události v celkové délce 2 hodin). *Poznámka: Sobota má nejdelší souvislý blok času (2 hodiny), ale středa má nejvyšší počet událostí.*
+    * **Zcela volné dny:** **Čtvrtek 15. října** a **Neděle 18. října**.
+
+    ---
+
+    ### Navrhované další kroky
+    1. [Přidat čas na přípravu ve čtvrtek](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [Naplánovat připomenutí schůzek](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  sv: |
+    Här är sammanfattningen av ditt schema för veckan 12–18 oktober 2026 (Europa/Berlin-tid):
+
+    ### Schemaöversikt
+    * **Måndag 12 okt:** 09:00–09:30 – Team-avstämning (30 min)
+    * **Tisdag 13 okt:** 14:00–15:00 – Tandläkare (1 tim)
+    * **Onsdag 14 okt:**
+      * 10:00–11:00 – Projektgenomgång (1 tim)
+      * 18:30–19:30 – Yoga (1 tim)
+    * **Torsdag 15 okt:** *Inga inbokade händelser*
+    * **Fredag 16 okt:** 16:00–17:00 – Hämta matvaror (1 tim)
+    * **Lördag 17 okt:** 11:00–13:00 – Pass i gemenskapsträdgården (2 tim)
+    * **Söndag 18 okt:** *Inga inbokade händelser*
+
+    ---
+
+    ### Viktiga punkter
+    * **Dag med flest åtaganden:** **Onsdag 14 oktober** (2 separata händelser på totalt 2 timmar). *Notera: Lördagen har det längsta sammanhängande tidsblocket (2 timmar), men onsdagen har flest antal händelser.*
+    * **Helt lediga dagar:** **Torsdag 15 oktober** och **Söndag 18 oktober**.
+
+    ---
+
+    ### Förslag på nästa steg
+    1. [Lägg till förberedelsetid på torsdag](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [Planera påminnelser för möten](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  he: |
+    להלן סיכום הלו"ז שלך לשבוע של ה-12–18 באוקטובר 2026 (זמן אירופה/ברלין):
+
+    ### סקירת הלו"ז
+    * **יום שני, 12 באוקטובר:** 09:00–09:30 – צ'ק-אין צוות (30 דקות)
+    * **יום שלישי, 13 באוקטובר:** 14:00–15:00 – רופא שיניים (שעה אחת)
+    * **יום רביעי, 14 באוקטובר:**
+      * 10:00–11:00 – סקירת פרויקט (שעה אחת)
+      * 18:30–19:30 – יוגה (שעה אחת)
+    * **יום חמישי, 15 באוקטובר:** *אין אירועים מתוזמנים*
+    * **יום שישי, 16 באוקטובר:** 16:00–17:00 – איסוף מצרכים (שעה אחת)
+    * **יום שבת, 17 באוקטובר:** 11:00–13:00 – משמרת בגינה קהילתית (שעתיים)
+    * **יום ראשון, 18 באוקטובר:** *אין אירועים מתוזמנים*
+
+    ---
+
+    ### תובנות מרכזיות
+    * **היום עם הכי הרבה התחייבויות:** **יום רביעי, 14 באוקטובר** (2 אירועים נפרדים באורך כולל של שעתיים). *הערה: ליום שבת יש את משבצת הזמן הרציפה הארוכה ביותר (שעתיים), אך ליום רביעי יש את מספר האירועים הגבוה ביותר.*
+    * **ימים פנויים לחלוטין:** **יום חמישי, 15 באוקטובר** ו-**יום ראשון, 18 באוקטובר**.
+
+    ---
+
+    ### פעולות מומלצות להמשך
+    1. [הוספת זמן הכנה ליום חמישי](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)
+    2. [תכנון תזכורות לתורים](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for healthy recipes to cook on Thursday"
+  de: Suche nach gesunden Rezepten zum Kochen am Donnerstag
+  zh: 搜索周四可以做的健康食谱
+  es: Buscar recetas saludables para cocinar el jueves
+  fr: Chercher des recettes saines à cuisiner jeudi
+  pt: Procurar receitas saudáveis para cozinhar na quinta-feira
+  ru: Найти рецепты здоровой еды, чтобы приготовить в четверг
+  ja: 木曜日に作る健康的なレシピを探す
+  ko: 목요일에 요리할 건강한 레시피 검색
+  it: Cerca ricette sane da cucinare giovedì
+  tr: Perşembe günü pişirmek için sağlıklı tarifler ara
+  vi: Tìm kiếm các công thức nấu ăn lành mạnh cho Thứ Năm
+  id: Cari resep sehat untuk dimasak pada hari Kamis
+  pl: Znajdź zdrowe przepisy do ugotowania w czwartek
+  nl: Zoek gezonde recepten om donderdag te koken
+  ar: البحث عن وصفات صحية لطهيها يوم الخميس
+  hi: गुरुवार को पकाने के लिए स्वस्थ व्यंजनों की खोज करें
+  th: ค้นหาสูตรอาหารเพื่อสุขภาพสำหรับทำในวันพฤหัสบดี
+  cs: Vyhledat zdravé recepty na vaření na čtvrtek
+  sv: Sök efter hälsosamma recept att laga på torsdag
+  he: חיפוש מתכונים בריאים לבישול ביום חמישי
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain how to organize a busy weekly schedule effectively"
+  de: Erkläre, wie man eine arbeitsreiche Woche effektiv organisiert
+  zh: 解释如何有效地组织繁忙的周计划
+  es: Explicar cómo organizar eficazmente una semana ocupada
+  fr: Expliquer comment organiser efficacement un emploi du temps hebdomadaire chargé
+  pt: Explicar como organizar uma agenda semanal atarefada de forma eficaz
+  ru: Как эффективно организовать плотный график на неделю
+  ja: 忙しい週のスケジュールを効果的に整理する方法を説明して
+  ko: 바쁜 주간 일정을 효과적으로 정리하는 방법 설명
+  it: Spiega come organizzare efficacemente una settimana piena di impegni
+  tr: Yoğun bir haftalık programın nasıl etkili bir şekilde organize edileceğini açıkla
+  vi: Giải thích cách sắp xếp lịch trình hàng tuần bận rộn một cách hiệu quả
+  id: Jelaskan cara mengatur jadwal mingguan yang sibuk secara efektif
+  pl: Wyjaśnij, jak skutecznie zorganizować napięty tygodniowy grafik
+  nl: Leg uit hoe ik een drukke week goed kan indelen
+  ar: شرح كيفية تنظيم جدول أسبوعي مزدحم بفعالية
+  hi: एक व्यस्त साप्ताहिक शेड्यूल को प्रभावी ढंग से व्यवस्थित करने का तरीका बताएं
+  th: อธิบายวิธีจัดตารางเวลาประจำสัปดาห์ที่ยุ่งเหยิงอย่างมีประสิทธิภาพ
+  cs: Vysvětlit, jak efektivně organizovat nabitý týdenní rozvrh
+  sv: Förklara hur man organiserar ett hektiskt veckoschema effektivt
+  he: הסבר איך לארגן לוח זמנים שבועי עמוס בצורה יעילה
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Set a reminder for my dentist appointment on Tuesday"
+  de: Erinnere mich an meinen Zahnarzttermin am Dienstag
+  zh: 为我周二的牙医预约设置提醒
+  es: Poner un recordatorio para mi cita con el dentista el martes
+  fr: Définir un rappel pour mon rendez-vous chez le dentiste mardi
+  pt: Definir um lembrete para a minha consulta no dentista na terça-feira
+  ru: Установить напоминание о визите к стоматологу во вторник
+  ja: 火曜日の歯医者の予約のリマインダーを設定して
+  ko: 화요일 치과 예약 알림 설정
+  it: Imposta un promemoria per il mio appuntamento dal dentista martedì
+  tr: Salı günkü diş randevum için bir hatırlatıcı ayarla
+  vi: Đặt lời nhắc cho cuộc hẹn nha sĩ của tôi vào Thứ Ba
+  id: Pasang pengingat untuk janji temu dokter gigi saya pada hari Selasa
+  pl: Ustaw przypomnienie o mojej wizycie u dentysty we wtorek
+  nl: Stel een herinnering in voor mijn tandartsafspraak op dinsdag
+  ar: ضبط تذكير لموعد طبيب الأسنان يوم الثلاثاء
+  hi: मंगलवार को मेरे डेंटिस्ट अपॉइंटमेंट के लिए रिमाइंडर सेट करें
+  th: ตั้งการแจ้งเตือนสำหรับการนัดหมายทันตแพทย์ในวันอังคาร
+  cs: Nastavit připomenutí na návštěvu zubaře v úterý
+  sv: Ställ in en påminnelse för mitt tandläkarbesök på tisdag
+  he: הגדרת תזכורת לתור לרופא השיניים ביום שלישי
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "List tips for balancing work and personal appointments"
+  de: Tipps für die Vereinbarkeit von Beruf und privaten Terminen
+  zh: 列出平衡工作和个人预约的建议
+  es: Enumerar consejos para equilibrar el trabajo y las citas personales
+  fr: Lister des conseils pour équilibrer travail et rendez-vous personnels
+  pt: Listar dicas para equilibrar o trabalho e compromissos pessoais
+  ru: Советы по совмещению рабочих и личных дел
+  ja: 仕事とプライベートの予定を両立させるためのヒントを教えて
+  ko: 업무와 개인 일정의 균형을 맞추는 팁 목록
+  it: Elenca consigli per bilanciare lavoro e appuntamenti personali
+  tr: İş ve kişisel randevuları dengelemek için ipuçlarını listele
+  vi: Liệt kê các mẹo để cân bằng giữa công việc và các cuộc hẹn cá nhân
+  id: Daftar tips untuk menyeimbangkan pekerjaan dan janji temu pribadi
+  pl: Wymień wskazówki dotyczące zachowania równowagi między pracą a spotkaniami prywatnymi
+  nl: Geef tips om werk en persoonlijke afspraken in balans te houden
+  ar: سرد نصائح للموازنة بين العمل والمواعيد الشخصية
+  hi: काम और व्यक्तिगत अपॉइंटमेंट को संतुलित करने के टिप्स सूचीबद्ध करें
+  th: รายการเคล็ดลับในการสร้างสมดุลระหว่างงานและการนัดหมายส่วนตัว
+  cs: Vypsat tipy pro vyvážení pracovních a osobních schůzek
+  sv: Lista tips för att balansera arbete och personliga möten
+  he: רשימת טיפים לאיזון בין עבודה לתורים אישיים
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Create a task for the Wednesday project review preparation"
+  de: Erstelle eine Aufgabe für die Vorbereitung der Projektbesprechung am Mittwoch
+  zh: 为周三的项目回顾准备创建一个任务
+  es: Crear una tarea para preparar la revisión del proyecto del miércoles
+  fr: Créer une tâche pour la préparation de la revue de projet de mercredi
+  pt: Criar uma tarefa para a preparação da revisão do projeto de quarta-feira
+  ru: "Создать задачу: подготовка к обзору проекта в среду"
+  ja: 水曜日のプロジェクトレビューの準備タスクを作成して
+  ko: 수요일 프로젝트 리뷰 준비 작업 생성
+  it: "Crea un'attività per la preparazione della revisione del progetto di mercoledì"
+  tr: Çarşamba günkü proje inceleme hazırlığı için bir görev oluştur
+  vi: Tạo một nhiệm vụ để chuẩn bị cho buổi đánh giá dự án vào Thứ Tư
+  id: Buat tugas untuk persiapan tinjauan proyek hari Rabu
+  pl: Utwórz zadanie dotyczące przygotowania do środowego przeglądu projektu
+  nl: Maak een taak aan ter voorbereiding op de projectbespreking van woensdag
+  ar: إنشاء مهمة للتحضير لمراجعة مشروع يوم الأربعاء
+  hi: बुधवार की प्रोजेक्ट समीक्षा की तैयारी के लिए एक टास्क बनाएं
+  th: สร้างงานสำหรับการเตรียมการทบทวนโครงการในวันพุธ
+  cs: Vytvořit úkol pro přípravu na středeční projektovou revizi
+  sv: Skapa en uppgift för förberedelser inför projektgenomgången på onsdag
+  he: יצירת משימה להכנה לסקירת הפרויקט ביום רביעי
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Compare different time management techniques for professionals"
+  de: Vergleiche verschiedene Zeitmanagement-Techniken für Berufstätige
+  zh: 比较适合职场人士的不同时间管理技巧
+  es: Comparar técnicas de gestión del tiempo para profesionales
+  fr: Comparer différentes techniques de gestion du temps pour les professionnels
+  pt: Comparar diferentes técnicas de gestão de tempo para profissionais
+  ru: Сравнить различные техники тайм-менеджмента для специалистов
+  ja: 専門職向けのさまざまなタイムマネジメント手法を比較して
+  ko: 전문가를 위한 다양한 시간 관리 기법 비교
+  it: Confronta diverse tecniche di gestione del tempo per professionisti
+  tr: Profesyoneller için farklı zaman yönetimi tekniklerini karşılaştır
+  vi: So sánh các kỹ thuật quản lý thời gian khác nhau dành cho chuyên gia
+  id: Bandingkan berbagai teknik manajemen waktu untuk para profesional
+  pl: Porównaj różne techniki zarządzania czasem dla profesjonalistów
+  nl: Vergelijk verschillende timemanagementtechnieken voor professionals
+  ar: مقارنة تقنيات إدارة الوقت المختلفة للمهنيين
+  hi: पेशेवरों के लिए समय प्रबंधन की विभिन्न तकनीकों की तुलना करें
+  th: เปรียบเทียบเทคนิคการจัดการเวลาแบบต่างๆ สำหรับมืออาชีพ
+  cs: Porovnat různé techniky time managementu pro profesionály
+  sv: Jämför olika tidshanteringstekniker för yrkesverksamma
+  he: השוואה בין טכניקות שונות לניהול זמן לאנשי מקצוע
+  verified_by_human: []

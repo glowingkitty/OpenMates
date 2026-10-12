@@ -11794,7 +11794,7 @@
         "text": "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
       },
       "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"59da3895-7f69-4e16-b430-cc2280c70f2e\", \"app_id\": \"videos\", \"skill_id\": \"get_transcript\"}\n```\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
+        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
       }
     },
     "upcoming_reminders_list": {
@@ -11978,6 +11978,70 @@
       },
       "follow_up_6": {
         "text": "Compare different methods for turning spoken ideas into organized tasks"
+      }
+    },
+    "calendar_week_from_supplied_events": {
+      "title": {
+        "text": "Calendar week from supplied events"
+      },
+      "summary": {
+        "text": "Summarize a fictional week of calendar events supplied in the conversation, without connected-account access."
+      },
+      "message_1": {
+        "text": "@mate:general_knowledge please summarize my calendar week of October 12–18 (Berlin time) from these events I've copied here: Mon 09:00–09:30 team check-in; Tue 14:00–15:00 dentist; Wed 10:00–11:00 project review and 18:30–19:30 yoga; Fri 16:00–17:00 grocery pickup; Sat 11:00–13:00 community garden shift. Which day has the most commitments, and which days are free?"
+      },
+      "message_2": {
+        "text": "Here is the summary of your schedule for the week of October 12–18, 2026 (Europe/Berlin time):\n\n### Schedule Overview\n* **Monday, Oct 12:** 09:00–09:30 – Team check-in (30 min)\n* **Tuesday, Oct 13:** 14:00–15:00 – Dentist (1 hr)\n* **Wednesday, Oct 14:**\n  * 10:00–11:00 – Project review (1 hr)\n  * 18:30–19:30 – Yoga (1 hr)\n* **Thursday, Oct 15:** *No scheduled events*\n* **Friday, Oct 16:** 16:00–17:00 – Grocery pickup (1 hr)\n* **Saturday, Oct 17:** 11:00–13:00 – Community garden shift (2 hrs)\n* **Sunday, Oct 18:** *No scheduled events*\n\n---\n\n### Key Takeaways\n* **Day with the most commitments:** **Wednesday, October 14** (2 distinct events totaling 2 hours). *Note: Saturday has the longest single block of committed time (2 hours), but Wednesday has the highest event count.*\n* **Completely free days:** **Thursday, October 15** and **Sunday, October 18**.\n\n---\n\n### Suggested Next Actions\n1. [Add Thursday prep time](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)\n2. [Plan reminders for appointments](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)"
+      },
+      "follow_up_1": {
+        "text": "Search for healthy recipes to cook on Thursday"
+      },
+      "follow_up_2": {
+        "text": "Explain how to organize a busy weekly schedule effectively"
+      },
+      "follow_up_3": {
+        "text": "Set a reminder for my dentist appointment on Tuesday"
+      },
+      "follow_up_4": {
+        "text": "List tips for balancing work and personal appointments"
+      },
+      "follow_up_5": {
+        "text": "Create a task for the Wednesday project review preparation"
+      },
+      "follow_up_6": {
+        "text": "Compare different time management techniques for professionals"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "A warm chime for a community garden"
+      },
+      "summary": {
+        "text": "Generate a short two-note notification sound for a fictional community garden app."
+      },
+      "message_1": {
+        "text": "Create a short, warm notification sound for a community garden app when a volunteer signs up. A gentle two-note chime, no speech, and under three seconds."
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nI am generating the warm, gentle two-note chime for your community garden app now. It is currently processing and will appear in the chat as soon as it's ready.\n\n### Suggested Next Steps\n- [Generate an earthy, celebratory badge unlock chime](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Design a volunteer confirmation card layout](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "Generate a celebratory badge unlock chime for task completion"
+      },
+      "follow_up_2": {
+        "text": "Explain how sound design affects user engagement in mobile apps"
+      },
+      "follow_up_3": {
+        "text": "Create a gentle reminder chime for morning watering schedules"
+      },
+      "follow_up_4": {
+        "text": "List best practices for designing non-intrusive UI notification sounds"
+      },
+      "follow_up_5": {
+        "text": "Generate a soft error alert sound for form validation failures"
+      },
+      "follow_up_6": {
+        "text": "Describe how to integrate custom sound effects into mobile applications"
       }
     }
   },

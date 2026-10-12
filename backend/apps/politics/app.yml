@@ -1,3 +1,13 @@
+landing:
+  order: 32
+  capability:
+    type: focus
+    id: prepare_discussion
+  caption:
+    en: Prepare a discussion
+    de: Bereite eine Diskussion vor
+  example_chat_id: example-housing-policy-dinner-discussion
+
 name_translation_key: politics
 description_translation_key: politics.description
 icon_image: |

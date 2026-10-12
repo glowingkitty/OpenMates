@@ -10499,7 +10499,7 @@
         "text": "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
       },
       "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"59da3895-7f69-4e16-b430-cc2280c70f2e\", \"app_id\": \"videos\", \"skill_id\": \"get_transcript\"}\n```\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
+        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
       }
     },
     "upcoming_reminders_list": {
@@ -10683,6 +10683,70 @@
       },
       "follow_up_6": {
         "text": "Bandingkan berbagai metode untuk mengubah ide lisan menjadi tugas yang terorganisir"
+      }
+    },
+    "calendar_week_from_supplied_events": {
+      "title": {
+        "text": "Minggu kalender dari acara yang diberikan"
+      },
+      "summary": {
+        "text": "Rangkum minggu fiktif dari acara kalender yang diberikan dalam percakapan, tanpa akses akun terhubung."
+      },
+      "message_1": {
+        "text": "@mate:general_knowledge tolong rangkum minggu kalender saya dari tanggal 12–18 Oktober (waktu Berlin) dari acara-acara yang saya salin di sini: Sen 09:00–09:30 team check-in; Sel 14:00–15:00 dokter gigi; Rab 10:00–11:00 tinjauan proyek dan 18:30–19:30 yoga; Jum 16:00–17:00 ambil belanjaan; Sab 11:00–13:00 giliran kebun komunitas. Hari mana yang memiliki komitmen paling banyak, dan hari mana yang kosong?"
+      },
+      "message_2": {
+        "text": "Berikut adalah ringkasan jadwalmu untuk minggu 12–18 Oktober 2026 (waktu Eropa/Berlin):\n\n### Ikhtisar Jadwal\n* **Senin, 12 Okt:** 09:00–09:30 – Team check-in (30 mnt)\n* **Selasa, 13 Okt:** 14:00–15:00 – Dokter gigi (1 jam)\n* **Rabu, 14 Okt:**\n  * 10:00–11:00 – Tinjauan proyek (1 jam)\n  * 18:30–19:30 – Yoga (1 jam)\n* **Kamis, 15 Okt:** *Tidak ada acara terjadwal*\n* **Jumat, 16 Okt:** 16:00–17:00 – Ambil belanjaan (1 jam)\n* **Sabtu, 17 Okt:** 11:00–13:00 – Giliran kebun komunitas (2 jam)\n* **Minggu, 18 Okt:** *Tidak ada acara terjadwal*\n\n---\n\n### Poin Penting\n* **Hari dengan komitmen terbanyak:** **Rabu, 14 Oktober** (2 acara berbeda dengan total 2 jam). *Catatan: Sabtu memiliki blok waktu komitmen tunggal terlama (2 jam), tetapi Rabu memiliki jumlah acara terbanyak.*\n* **Hari yang benar-benar kosong:** **Kamis, 15 Oktober** dan **Minggu, 18 Oktober**.\n\n---\n\n### Saran Tindakan Selanjutnya\n1. [Tambahkan waktu persiapan hari Kamis](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)\n2. [Rencanakan pengingat untuk janji temu](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)"
+      },
+      "follow_up_1": {
+        "text": "Cari resep sehat untuk dimasak pada hari Kamis"
+      },
+      "follow_up_2": {
+        "text": "Jelaskan cara mengatur jadwal mingguan yang sibuk secara efektif"
+      },
+      "follow_up_3": {
+        "text": "Pasang pengingat untuk janji temu dokter gigi saya pada hari Selasa"
+      },
+      "follow_up_4": {
+        "text": "Daftar tips untuk menyeimbangkan pekerjaan dan janji temu pribadi"
+      },
+      "follow_up_5": {
+        "text": "Buat tugas untuk persiapan tinjauan proyek hari Rabu"
+      },
+      "follow_up_6": {
+        "text": "Bandingkan berbagai teknik manajemen waktu untuk para profesional"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "Denting hangat untuk kebun komunitas"
+      },
+      "summary": {
+        "text": "Buat suara notifikasi dua nada singkat untuk aplikasi kebun komunitas fiktif."
+      },
+      "message_1": {
+        "text": "Buat suara notifikasi yang singkat dan hangat untuk aplikasi kebun komunitas saat ada sukarelawan yang mendaftar. Denting dua nada yang lembut, tanpa ucapan, dan berdurasi kurang dari tiga detik."
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nAku sedang membuat denting dua nada yang hangat dan lembut untuk aplikasi kebun komunitasmu sekarang. Ini sedang diproses dan akan muncul di obrolan segera setelah siap.\n\n### Langkah Selanjutnya yang Disarankan\n- [Buat denting pembukaan lencana perayaan yang bernuansa alami](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Desain tata letak kartu konfirmasi sukarelawan](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "Buat denting pembukaan lencana perayaan untuk penyelesaian tugas"
+      },
+      "follow_up_2": {
+        "text": "Jelaskan bagaimana desain suara memengaruhi keterlibatan pengguna di aplikasi seluler"
+      },
+      "follow_up_3": {
+        "text": "Buat denting pengingat lembut untuk jadwal penyiraman pagi hari"
+      },
+      "follow_up_4": {
+        "text": "Sebutkan praktik terbaik untuk mendesain suara notifikasi UI yang tidak mengganggu"
+      },
+      "follow_up_5": {
+        "text": "Buat suara peringatan kesalahan yang lembut untuk kegagalan validasi formulir"
+      },
+      "follow_up_6": {
+        "text": "Jelaskan cara mengintegrasikan efek suara kustom ke dalam aplikasi seluler"
       }
     }
   },

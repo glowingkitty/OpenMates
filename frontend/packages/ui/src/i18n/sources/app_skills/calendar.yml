@@ -21,6 +21,7 @@ list_calendars:
   cs: Seznam kalendářů
   sv: Lista kalendrar
   he: רשימת לוחות שנה
+  verified_by_human: []
 list_calendars.description:
   context: Description of connected calendar discovery
   en: List calendars, timezones, and access roles in a connected account.
@@ -44,6 +45,7 @@ list_calendars.description:
   cs: Vypíše kalendáře, časová pásma a přístupová práva připojeného účtu.
   sv: Lista kalendrar, tidszoner och åtkomstroller för ett anslutet konto.
   he: הצגת לוחות שנה, אזורי זמן והרשאות גישה בחשבון מחובר.
+  verified_by_human: []
 get_events:
   context: Skill name for searching connected calendar events
   en: Search

@@ -1,3 +1,13 @@
+landing:
+  order: 22
+  capability:
+    type: focus
+    id: book_discussion
+  caption:
+    en: Recommend a book
+    de: Empfiehl mir ein Buch
+  example_chat_id: example-books-after-left-hand
+
 name_translation_key: books
 description_translation_key: books.description
 icon_image: |

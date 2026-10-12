@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- The shared browser helpers use CommonJS. */
-import type { Page, APIRequestContext, TestInfo } from '@playwright/test';
+import type { Page, APIRequestContext, TestInfo, Locator } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { landingAppExamples } from '../../../packages/public-site/src/components/landing/landingPageContent';
 import { ALL_EXAMPLE_CHATS } from '../../../packages/ui/src/demo_chats/exampleChatData';
@@ -46,6 +46,22 @@ async function inspectSeoEntry(request: APIRequestContext, chat: ExampleChat): P
   for (const marker of forbidden) expect(html, `${chat.slug}: ${marker}`).not.toContain(marker);
 }
 
+async function expandCompletedActivity(history: Locator, context: string): Promise<void> {
+  // Finished skill runs mount their saved previews only after the user opens
+  // the activity disclosure. Message hydration is checked by the caller first.
+  const groups = history.getByTestId('assistant-activity-group');
+  for (let i = 0, count = await groups.count(); i < count; i++) {
+    const group = groups.nth(i);
+    const toggle = group.getByTestId('assistant-activity-toggle');
+    await expect(toggle, `${context}: activity ${i} disclosure state`).toHaveAttribute('aria-expanded', /^(true|false)$/);
+    if (await toggle.getAttribute('aria-expanded') === 'false') {
+      await toggle.click();
+    }
+    await expect(toggle, `${context}: activity ${i} opens`).toHaveAttribute('aria-expanded', 'true');
+    await expect(group.getByTestId('assistant-activity-body'), `${context}: activity ${i} body`).toBeVisible();
+  }
+}
+
 async function inspectChat(page: Page, chat: ExampleChat, checkpoint: string, exerciseFollowUps = false): Promise<{ messages: number; embeds: number; suggestions: number }> {
   await closeSidebar(page);
   const history = page.getByTestId('chat-history-content');
@@ -58,11 +74,12 @@ async function inspectChat(page: Page, chat: ExampleChat, checkpoint: string, ex
     await expect(rendered).not.toHaveAttribute('data-status', /^(streaming|processing|sending)$/);
     await expect(rendered.getByTestId('message-content').first()).not.toBeEmpty();
   }
+  await expect(page.getByTestId('active-chat-history-loading')).toHaveCount(0);
+  await expandCompletedActivity(history, `${checkpoint}: ${chat.slug}`);
   const text = await history.innerText();
   for (const marker of forbidden) expect(text, `${checkpoint}: ${chat.slug}: ${marker}`).not.toContain(marker);
   expect(text).not.toMatch(/(?:^|\n)\s*(?:app_id|skill_id|embed_ref):\s*[^\n]+/m);
   expect(text).not.toMatch(/\{\s*"type"\s*:\s*"(?:app_skill_use|focus_mode_activation)"/);
-  await expect(page.getByTestId('active-chat-history-loading')).toHaveCount(0);
 
   const isFocusActivation = (type: string) => type === 'focus-mode-activation' || type === 'focus_mode_activation';
   const focusActivations = chat.embeds.filter(embed => isFocusActivation(embed.type));
@@ -82,15 +99,21 @@ async function inspectChat(page: Page, chat: ExampleChat, checkpoint: string, ex
 
   const artifactEmbeds = chat.embeds.filter(embed => !isFocusActivation(embed.type));
   const embedPreviews = history.getByTestId('embed-preview');
+  if (artifactEmbeds.length > 0) {
+    await expect(embedPreviews, `${checkpoint}: ${chat.slug}: saved embeds need a rendered preview`)
+      .not.toHaveCount(0, { timeout: 15_000 });
+  }
   const embedCount = await embedPreviews.count();
   if (artifactEmbeds.length > 0) {
     expect(embedCount, `${chat.slug}: saved embeds need a visible preview`).toBeGreaterThan(0);
     const pdfArtifact = artifactEmbeds.find(embed => embed.type === 'pdf');
     const documentArtifact = artifactEmbeds.find(embed => embed.type === 'document');
     const recordingArtifact = artifactEmbeds.find(embed => embed.type === 'audio-recording');
+    const generatedAudioArtifact = chat.metadata.app_skill_examples?.includes('audio.generate')
+      ? artifactEmbeds.find(embed => embed.type === 'app_skill_use' && embed.content.includes('skill_id: generate')) : undefined;
     const musicArtifact = chat.chat_id === 'example-community-garden-welcome-melody'
       ? artifactEmbeds.find(embed => embed.type === 'app_skill_use') : undefined;
-    const selectedArtifact = pdfArtifact ?? documentArtifact ?? recordingArtifact ?? musicArtifact;
+    const selectedArtifact = pdfArtifact ?? documentArtifact ?? recordingArtifact ?? generatedAudioArtifact ?? musicArtifact;
     const preview = selectedArtifact
       ? history.locator(`[data-testid="embed-preview"][data-embed-id="${selectedArtifact.embed_id}"]`)
       : embedPreviews.first();
@@ -129,6 +152,19 @@ async function inspectChat(page: Page, chat: ExampleChat, checkpoint: string, ex
       await expect.poll(() => player.evaluate((audio: HTMLAudioElement) => audio.readyState), { timeout: 15_000 }).toBeGreaterThanOrEqual(2);
       const duration = await player.evaluate((audio: HTMLAudioElement) => audio.duration);
       expect(duration, `${chat.slug}: real music should have a measurable duration`).toBeGreaterThan(1);
+      await player.evaluate(async (audio: HTMLAudioElement) => { audio.muted = true; await audio.play(); });
+      await expect.poll(() => player.evaluate((audio: HTMLAudioElement) => audio.currentTime), { timeout: 5_000 }).toBeGreaterThan(0);
+      await player.evaluate((audio: HTMLAudioElement) => audio.pause());
+    }
+    if (checkpoint === 'direct' && generatedAudioArtifact) {
+      const player = fullscreen.getByTestId('audio-generate-fullscreen-audio');
+      await expect(player).toHaveCount(1);
+      await expect(fullscreen.getByTestId('audio-generate-fullscreen-play-button')).toBeVisible();
+      await expect.poll(() => player.evaluate((audio: HTMLAudioElement) => audio.readyState), { timeout: 15_000 }).toBeGreaterThanOrEqual(1);
+      const publicPath = generatedAudioArtifact.content.match(/(?:^|\n)previewAudioUrl:\s*(\/store-examples\/[^\s]+)/)?.[1];
+      expect(publicPath, `${chat.slug}: generated sound needs a reviewed public fixture`).toBeTruthy();
+      expect(await player.evaluate((audio: HTMLAudioElement) => new URL(audio.currentSrc).pathname)).toBe(publicPath);
+      expect(await player.evaluate((audio: HTMLAudioElement) => audio.duration), `${chat.slug}: generated sound duration`).toBeGreaterThan(1);
       await player.evaluate(async (audio: HTMLAudioElement) => { audio.muted = true; await audio.play(); });
       await expect.poll(() => player.evaluate((audio: HTMLAudioElement) => audio.currentTime), { timeout: 5_000 }).toBeGreaterThan(0);
       await player.evaluate((audio: HTMLAudioElement) => audio.pause());
@@ -203,6 +239,16 @@ export type LandingViewport = 'phone' | 'laptop';
 
 export function landingAdmissionCases(shard: 0 | 1): typeof cases {
   return cases.filter((_, index) => index % 2 === shard);
+}
+
+const replacementAppIds = new Set(['travel', 'maps', 'audio', 'videos', 'calendar']);
+
+export function landingReplacementCases(): typeof cases {
+  const selected = cases.filter(({ appId }) => replacementAppIds.has(appId));
+  if (selected.length !== replacementAppIds.size) {
+    throw new Error(`Expected ${replacementAppIds.size} landing replacement apps, found ${selected.length}`);
+  }
+  return selected;
 }
 
 export async function admitLandingExample(

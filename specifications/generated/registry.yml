@@ -515,10 +515,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.marketing-landing:
-    version: 3
+    version: 4
     status: draft
     path: features/marketing-landing
-    fingerprint: 64d9fce1cf7fbe6cc02aad25ad5fad3d888fae4f3af65d5357b56dd63d8c8ab5
+    fingerprint: f9edcb68f49a35dd15ae35c71c30d3156529c3cdf2f3fd820796a0a48b32abf6
     required_applies_to:
     - gui.web
   feature.message-input:
@@ -6485,73 +6485,87 @@ assertions:
     - gui.web
     - gui.apple
   marketing-landing.independent-scroll:
-    specification: feature.marketing-landing@3
+    specification: feature.marketing-landing@4
     specification_id: feature.marketing-landing
     type: behavior
     fingerprint: 5e24ef8ff5a66ea39b4f835c46eefc8c8f50adc092e2b5e104f5c312be87cb90
     required_applies_to:
     - gui.web
   marketing-landing.feature-layout:
-    specification: feature.marketing-landing@3
+    specification: feature.marketing-landing@4
     specification_id: feature.marketing-landing
     type: behavior
     fingerprint: 3624b1d3ba3b31a4ae11da839f2d3fb71ce5b26f21de27bc6c956592e91e83eb
     required_applies_to:
     - gui.web
   marketing-landing.destinations:
-    specification: feature.marketing-landing@3
+    specification: feature.marketing-landing@4
     specification_id: feature.marketing-landing
     type: behavior
     fingerprint: 3de231af3dcd91ebe72c317243b061eaf444e16d275d40b841d69e26ff77eed0
     required_applies_to:
     - gui.web
   marketing-landing.composer-focus:
-    specification: feature.marketing-landing@3
+    specification: feature.marketing-landing@4
     specification_id: feature.marketing-landing
     type: behavior
     fingerprint: 8e1d9fe6b3757099cc0a60db6c65fca848c2ba57806a82ae50813e967d7feff8
     required_applies_to:
     - gui.web
   marketing-landing.real-screenshots:
-    specification: feature.marketing-landing@3
+    specification: feature.marketing-landing@4
     specification_id: feature.marketing-landing
     type: behavior
     fingerprint: 4aa69e59b885b0c4b08632983d1d4ee77b95ca2f76dec5ab0628a9b55c4ebb19
     required_applies_to:
     - gui.web
   marketing-landing.public-content:
-    specification: feature.marketing-landing@3
+    specification: feature.marketing-landing@4
     specification_id: feature.marketing-landing
     type: behavior
     fingerprint: a81fd81194218b78f53bb4f23d028d73c974d36845d38dbe1541279ccba4e273
     required_applies_to:
     - gui.web
   marketing-landing.hero-app-rail:
-    specification: feature.marketing-landing@3
+    specification: feature.marketing-landing@4
     specification_id: feature.marketing-landing
     type: behavior
-    fingerprint: cbfaf1dccfa6ac7bd12a8f06a40e7e84712025ba75c030b0242fee594c86312a
+    fingerprint: 6567bda43f50db67b61bcbd1aa6a34193f118ba6d6bf6d233f7d20c8f5c3b05a
     required_applies_to:
     - gui.web
   marketing-landing.language-theme:
-    specification: feature.marketing-landing@3
+    specification: feature.marketing-landing@4
     specification_id: feature.marketing-landing
     type: behavior
     fingerprint: 5933ce8a644b7bbbafe60e279b891ddee1e28d123408f8e56953cfdac453517a
     required_applies_to:
     - gui.web
   marketing-landing.six-feature-viewport:
-    specification: feature.marketing-landing@3
+    specification: feature.marketing-landing@4
     specification_id: feature.marketing-landing
     type: behavior
     fingerprint: f303dc9f1e08795ce94f7bfd33e9ceee05f1f4e99ca51cbe315ba024a305886e
     required_applies_to:
     - gui.web
   marketing-landing.capability-rail-and-prompts:
-    specification: feature.marketing-landing@3
+    specification: feature.marketing-landing@4
     specification_id: feature.marketing-landing
     type: behavior
-    fingerprint: e945209a864083c719122b3850db60357d548f89d25165547ddbdcdae6bba1f3
+    fingerprint: c204372e5d8748dcfc8b3fab20551039bfd45db70d912fe1dcca17677a24fd1b
+    required_applies_to:
+    - gui.web
+  marketing-landing.interactive-rail:
+    specification: feature.marketing-landing@4
+    specification_id: feature.marketing-landing
+    type: behavior
+    fingerprint: b7668cfa54d211fd976f3a913ee9e14f2ad6b38792f7f30ebaed48020e8bfa1f
+    required_applies_to:
+    - gui.web
+  marketing-landing.app-metadata-defaults:
+    specification: feature.marketing-landing@4
+    specification_id: feature.marketing-landing
+    type: behavior
+    fingerprint: 5325b580d2082b9e4337023283af38524382223647607c5e4588422450e65668
     required_applies_to:
     - gui.web
   message-input.focus.parent-state:

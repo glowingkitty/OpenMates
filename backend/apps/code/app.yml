@@ -1,3 +1,13 @@
+landing:
+  order: 2
+  capability:
+    type: artifact
+    id: application
+  caption:
+    en: Create a web app
+    de: Erstelle eine Web-App
+  example_chat_id: example-habit-garden-web-application
+
 name_translation_key: code
 description_translation_key: code.description
 icon_image: |

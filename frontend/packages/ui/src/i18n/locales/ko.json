@@ -10499,7 +10499,7 @@
         "text": "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
       },
       "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"59da3895-7f69-4e16-b430-cc2280c70f2e\", \"app_id\": \"videos\", \"skill_id\": \"get_transcript\"}\n```\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
+        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
       }
     },
     "upcoming_reminders_list": {
@@ -10683,6 +10683,70 @@
       },
       "follow_up_6": {
         "text": "음성 아이디어를 체계적인 작업으로 전환하는 다양한 방법 비교하기"
+      }
+    },
+    "calendar_week_from_supplied_events": {
+      "title": {
+        "text": "제공된 일정 기반 주간 캘린더"
+      },
+      "summary": {
+        "text": "계정 연결 없이 대화에 제공된 가상의 주간 일정을 요약합니다."
+      },
+      "message_1": {
+        "text": "@mate:general_knowledge 여기에 복사한 일정을 바탕으로 10월 12~18일(베를린 시간) 주간 일정을 요약해 줘: 월 09:00–09:30 팀 체크인; 화 14:00–15:00 치과; 수 10:00–11:00 프로젝트 리뷰 및 18:30–19:30 요가; 금 16:00–17:00 식료품 픽업; 토 11:00–13:00 커뮤니티 정원 봉사. 일정이 가장 많은 날은 언제고, 한가한 날은 언제야?"
+      },
+      "message_2": {
+        "text": "2026년 10월 12~18일(유럽/베를린 시간) 주간 일정 요약입니다:\n\n### 일정 개요\n* **10월 12일 월요일:** 09:00–09:30 – 팀 체크인 (30분)\n* **10월 13일 화요일:** 14:00–15:00 – 치과 (1시간)\n* **10월 14일 수요일:**\n  * 10:00–11:00 – 프로젝트 리뷰 (1시간)\n  * 18:30–19:30 – 요가 (1시간)\n* **10월 15일 목요일:** *예정된 일정 없음*\n* **10월 16일 금요일:** 16:00–17:00 – 식료품 픽업 (1시간)\n* **10월 17일 토요일:** 11:00–13:00 – 커뮤니티 정원 봉사 (2시간)\n* **10월 18일 일요일:** *예정된 일정 없음*\n\n---\n\n### 주요 요점\n* **일정이 가장 많은 날:** **10월 14일 수요일** (총 2시간, 2개의 개별 일정). *참고: 토요일은 단일 일정으로 가장 긴 시간(2시간)을 차지하지만, 일정 개수는 수요일이 가장 많습니다.*\n* **완전히 비어 있는 날:** **10월 15일 목요일** 및 **10월 18일 일요일**.\n\n---\n\n### 추천 후속 작업\n1. [목요일 준비 시간 추가하기](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)\n2. [일정 알림 계획하기](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)"
+      },
+      "follow_up_1": {
+        "text": "목요일에 요리할 건강한 레시피 검색"
+      },
+      "follow_up_2": {
+        "text": "바쁜 주간 일정을 효과적으로 정리하는 방법 설명"
+      },
+      "follow_up_3": {
+        "text": "화요일 치과 예약 알림 설정"
+      },
+      "follow_up_4": {
+        "text": "업무와 개인 일정의 균형을 맞추는 팁 목록"
+      },
+      "follow_up_5": {
+        "text": "수요일 프로젝트 리뷰 준비 작업 생성"
+      },
+      "follow_up_6": {
+        "text": "전문가를 위한 다양한 시간 관리 기법 비교"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "커뮤니티 정원을 위한 따뜻한 차임벨"
+      },
+      "summary": {
+        "text": "가상의 커뮤니티 정원 앱을 위한 짧은 두 음절 알림음을 생성해."
+      },
+      "message_1": {
+        "text": "자원봉사자가 등록할 때 커뮤니티 정원 앱에서 사용할 짧고 따뜻한 알림음을 만들어줘. 부드러운 두 음절 차임벨이어야 하고, 음성은 없어야 하며, 3초 미만이어야 해."
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\n지금 커뮤니티 정원 앱을 위한 따뜻하고 부드러운 두 음절 차임벨을 생성하고 있어. 현재 처리 중이며 준비되는 대로 채팅창에 나타날 거야.\n\n### 추천 다음 단계\n- [자연의 느낌이 나는 축하 배지 획득 차임벨 생성](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [자원봉사자 확인 카드 레이아웃 디자인](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "작업 완료를 위한 축하 배지 획득 차임벨 생성"
+      },
+      "follow_up_2": {
+        "text": "사운드 디자인이 모바일 앱의 사용자 참여에 미치는 영향 설명"
+      },
+      "follow_up_3": {
+        "text": "아침 물 주기 일정을 위한 부드러운 알림 차임벨 생성"
+      },
+      "follow_up_4": {
+        "text": "방해되지 않는 UI 알림음 디자인을 위한 모범 사례 목록"
+      },
+      "follow_up_5": {
+        "text": "양식 유효성 검사 실패를 위한 부드러운 오류 알림음 생성"
+      },
+      "follow_up_6": {
+        "text": "모바일 애플리케이션에 맞춤형 사운드 효과를 통합하는 방법 설명"
       }
     }
   },

@@ -1,0 +1,396 @@
+title:
+  context: "Title of example chat: A warm chime for a community garden"
+  en: "A warm chime for a community garden"
+  de: Ein warmer Chime für einen Gemeinschaftsgarten
+  zh: 社区花园的温暖提示音
+  es: Un timbre cálido para un jardín comunitario
+  fr: Un carillon chaleureux pour un jardin communautaire
+  pt: Um toque acolhedor para uma horta comunitária
+  ru: Теплый сигнал для общественного сада
+  ja: コミュニティガーデンのための温かいチャイム
+  ko: 커뮤니티 정원을 위한 따뜻한 차임벨
+  it: Un rintocco caldo per un orto comunitario
+  tr: Bir topluluk bahçesi için sıcak bir çan sesi
+  vi: Tiếng chuông ấm áp cho vườn cộng đồng
+  id: Denting hangat untuk kebun komunitas
+  pl: Ciepły sygnał dla ogrodu społecznościowego
+  nl: Een warme chime voor een gemeenschapstuin
+  ar: رنين دافئ لحديقة مجتمعية
+  hi: कम्युनिटी गार्डन के लिए एक वॉर्म चाइम
+  th: เสียงกริ่งที่แสนอบอุ่นสำหรับสวนชุมชน
+  cs: Hřejivá znělka pro komunitní zahradu
+  sv: En varm ljudsignal för en gemenskapsträdgård
+  he: צליל חם עבור גינה קהילתית
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: A warm chime for a community garden"
+  en: "Generate a short two-note notification sound for a fictional community garden app."
+  de: Erstelle einen kurzen Zwei-Ton-Benachrichtigungssound für eine fiktive Gemeinschaftsgarten-App.
+  zh: 为一个虚构的社区花园应用生成一段简短的双音节通知音。
+  es: Genera un sonido de notificación corto de dos notas para una aplicación ficticia de un jardín comunitario.
+  fr: Génère un court son de notification à deux notes pour une application fictive de jardin communautaire.
+  pt: Gere um som de notificação curto de duas notas para um aplicativo fictício de horta comunitária.
+  ru: Создай короткий двухнотный звук уведомления для вымышленного приложения общественного сада.
+  ja: 架空のコミュニティガーデンアプリ向けの、短い2音の通知音を生成します。
+  ko: 가상의 커뮤니티 정원 앱을 위한 짧은 두 음절 알림음을 생성해.
+  it: "Genera un breve suono di notifica a due note per un'app fittizia di un orto comunitario."
+  tr: Kurgusal bir topluluk bahçesi uygulaması için kısa, iki notalı bir bildirim sesi oluştur.
+  vi: Tạo âm thanh thông báo hai nốt ngắn cho một ứng dụng vườn cộng đồng giả tưởng.
+  id: Buat suara notifikasi dua nada singkat untuk aplikasi kebun komunitas fiktif.
+  pl: Wygeneruj krótki, dwutonowy dźwięk powiadomienia dla fikcyjnej aplikacji ogrodu społecznościowego.
+  nl: Genereer een kort tweekleurig meldingsgeluid voor een fictieve app voor een gemeenschapstuin.
+  ar: أنشئ صوت إشعار قصير من نغمتين لتطبيق حديقة مجتمعية خيالي.
+  hi: एक काल्पनिक कम्युनिटी गार्डन ऐप के लिए दो-नोट वाला एक छोटा नोटिफिकेशन साउंड जनरेट करें।
+  th: สร้างเสียงแจ้งเตือนสั้นๆ สองตัวโน้ตสำหรับแอปสวนชุมชนสมมติ
+  cs: Vygeneruj krátký dvoutónový zvuk oznámení pro fiktivní aplikaci pro komunitní zahradu.
+  sv: Generera ett kort aviseringsljud med två toner för en fiktiv app för en gemenskapsträdgård.
+  he: צור צליל התראה קצר בן שני תווים עבור אפליקציית גינה קהילתית בדיונית.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: A warm chime for a community garden. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Create a short, warm notification sound for a community garden app when a volunteer signs up. A gentle two-note chime, no speech, and under three seconds."
+  de: Erstelle einen kurzen, warmen Benachrichtigungston für eine Gemeinschaftsgarten-App, wenn sich ein Freiwilliger anmeldet. Ein sanfter Zwei-Ton-Chime, ohne Sprache und unter drei Sekunden.
+  zh: 为社区花园应用创建一个简短、温暖的通知音，用于志愿者报名时。要求是温和的双音节提示音，无语音，时长在三秒以内。
+  es: Crea un sonido de notificación corto y cálido para una aplicación de un jardín comunitario cuando un voluntario se registra. Un timbre suave de dos notas, sin voz y de menos de tres segundos.
+  fr: "Crée un son de notification court et chaleureux pour une application de jardin communautaire lorsqu'un bénévole s'inscrit. Un carillon doux à deux notes, sans paroles, et de moins de trois secondes."
+  pt: Crie um som de notificação curto e acolhedor para um aplicativo de horta comunitária para quando um voluntário se inscrever. Um toque suave de duas notas, sem fala e com menos de três segundos.
+  ru: Создай короткий, теплый звук уведомления для приложения общественного сада, который звучит при регистрации волонтера. Мягкий двухнотный сигнал, без речи, длительностью менее трех секунд.
+  ja: コミュニティガーデンアプリでボランティアが登録した時のための、短くて温かみのある通知音を作成して。優しい2音のチャイムで、音声なし、3秒以内で。
+  ko: 자원봉사자가 등록할 때 커뮤니티 정원 앱에서 사용할 짧고 따뜻한 알림음을 만들어줘. 부드러운 두 음절 차임벨이어야 하고, 음성은 없어야 하며, 3초 미만이어야 해.
+  it: "Crea un suono di notifica breve e caldo per un'app di un orto comunitario quando un volontario si iscrive. Un rintocco delicato a due note, senza parlato e sotto i tre secondi."
+  tr: Bir gönüllü kaydolduğunda topluluk bahçesi uygulaması için çalacak kısa ve sıcak bir bildirim sesi oluştur. Nazik, iki notalı bir çan sesi olsun, konuşma içermesin ve üç saniyenin altında olsun.
+  vi: Tạo một âm thanh thông báo ngắn, ấm áp cho ứng dụng vườn cộng đồng khi có tình nguyện viên đăng ký. Một tiếng chuông hai nốt nhẹ nhàng, không có tiếng nói và dưới ba giây.
+  id: Buat suara notifikasi yang singkat dan hangat untuk aplikasi kebun komunitas saat ada sukarelawan yang mendaftar. Denting dua nada yang lembut, tanpa ucapan, dan berdurasi kurang dari tiga detik.
+  pl: Stwórz krótki, ciepły dźwięk powiadomienia dla aplikacji ogrodu społecznościowego, gdy zgłosi się wolontariusz. Delikatny dwutonowy sygnał, bez mowy, poniżej trzech sekund.
+  nl: Maak een kort, warm meldingsgeluid voor een app voor een gemeenschapstuin voor wanneer een vrijwilliger zich aanmeldt. Een zachte tweekleurige chime, geen spraak en korter dan drie seconden.
+  ar: أنشئ صوت إشعار قصير ودافئ لتطبيق حديقة مجتمعية عند تسجيل متطوع. رنين لطيف من نغمتين، بدون كلام، وأقل من ثلاث ثوانٍ.
+  hi: एक कम्युनिटी गार्डन ऐप के लिए एक छोटा, वॉर्म नोटिफिकेशन साउंड बनाएं, जो तब बजे जब कोई वॉलंटियर साइन अप करे। एक सौम्य दो-नोट वाली चाइम, कोई आवाज़ नहीं, और तीन सेकंड से कम।
+  th: สร้างเสียงแจ้งเตือนที่สั้นและอบอุ่นสำหรับแอปสวนชุมชนเมื่อมีอาสาสมัครลงทะเบียน ขอเป็นเสียงกริ่งสองตัวโน้ตที่นุ่มนวล ไม่มีเสียงพูด และความยาวไม่เกินสามวินาที
+  cs: Vytvoř krátký, hřejivý zvuk oznámení pro aplikaci pro komunitní zahradu při přihlášení dobrovolníka. Jemná dvoutónová znělka, beze slov a pod tři sekundy.
+  sv: Skapa ett kort, varmt aviseringsljud för en app för en gemenskapsträdgård när en volontär anmäler sig. En mild tvåtonssignal, inget tal och under tre sekunder.
+  he: צור צליל התראה קצר וחם עבור אפליקציית גינה קהילתית כשמתנדב נרשם. צליל עדין של שני תווים, ללא דיבור, ובאורך של פחות משלוש שניות.
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: A warm chime for a community garden. Keep markdown, embed links, source quote links, and placeholders unchanged."
+  en: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    I am generating the warm, gentle two-note chime for your community garden app now. It is currently processing and will appear in the chat as soon as it's ready.
+
+    ### Suggested Next Steps
+    - [Generate an earthy, celebratory badge unlock chime](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [Design a volunteer confirmation card layout](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  de: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    Ich erstelle jetzt den warmen, sanften Zwei-Ton-Chime für deine Gemeinschaftsgarten-App. Er wird gerade verarbeitet und erscheint im Chat, sobald er fertig ist.
+
+    ### Vorgeschlagene nächste Schritte
+    - [Erstelle einen erdigen, feierlichen Chime für das Freischalten eines Abzeichens](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [Entwirf ein Layout für eine Bestätigungskarte für Freiwillige](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  zh: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    我正在为你的社区花园应用生成温和、温暖的双音节提示音。目前正在处理中，准备就绪后会立即出现在对话中。
+
+    ### 建议的后续步骤
+    - [生成充满泥土气息的庆祝勋章解锁提示音](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [设计志愿者确认卡片布局](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  es: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    Estoy generando el timbre cálido y suave de dos notas para tu aplicación de jardín comunitario. Se está procesando y aparecerá en el chat en cuanto esté listo.
+
+    ### Siguientes pasos sugeridos
+    - [Genera un timbre de desbloqueo de insignia festivo y natural](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [Diseña una tarjeta de confirmación de voluntariado](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  fr: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    Je génère actuellement le carillon doux et chaleureux à deux notes pour ton application de jardin communautaire. Il est en cours de traitement et apparaîtra dans le chat dès qu'il sera prêt.
+
+    ### Prochaines étapes suggérées
+    - [Générer un carillon acoustique et festif pour le déblocage d'un badge](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [Concevoir une mise en page de carte de confirmation pour les bénévoles](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  pt: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    Estou gerando o toque suave e acolhedor de duas notas para o seu aplicativo de horta comunitária agora. Ele está sendo processado e aparecerá no chat assim que estiver pronto.
+
+    ### Próximos passos sugeridos
+    - [Gerar um toque de desbloqueio de emblema festivo e natural](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [Projetar o layout de um cartão de confirmação de voluntário](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  ru: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    Я создаю теплый, мягкий двухнотный сигнал для твоего приложения общественного сада. Он сейчас обрабатывается и появится в чате, как только будет готов.
+
+    ### Рекомендуемые следующие шаги
+    - [Создать естественный праздничный сигнал для разблокировки значка](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [Разработать макет карточки подтверждения для волонтера](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  ja: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    コミュニティガーデンアプリ用の、温かみのある優しい2音のチャイムを生成しています。現在処理中ですので、準備ができ次第チャットに表示されます。
+
+    ### 次のステップの提案
+    - [土のぬくもりを感じる、お祝いのバッジ獲得チャイムを生成する](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [ボランティア登録完了カードのレイアウトをデザインする](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  ko: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    지금 커뮤니티 정원 앱을 위한 따뜻하고 부드러운 두 음절 차임벨을 생성하고 있어. 현재 처리 중이며 준비되는 대로 채팅창에 나타날 거야.
+
+    ### 추천 다음 단계
+    - [자연의 느낌이 나는 축하 배지 획득 차임벨 생성](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [자원봉사자 확인 카드 레이아웃 디자인](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  it: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    Sto generando il rintocco caldo e delicato a due note per la tua app dell'orto comunitario. È in fase di elaborazione e apparirà nella chat non appena sarà pronto.
+
+    ### Prossimi passi suggeriti
+    - [Genera un rintocco acustico celebrativo per quando un giardiniere completa un'attività di volontariato](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [Progetta il layout di una scheda di conferma per i volontari](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  tr: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    Topluluk bahçesi uygulaman için sıcak ve nazik iki notalı çan sesini şimdi oluşturuyorum. Şu anda işleniyor ve hazır olur olmaz sohbette görünecek.
+
+    ### Önerilen Sonraki Adımlar
+    - [Toprak tonlarında, kutlama amaçlı bir rozet açma sesi oluştur](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [Gönüllü onay kartı düzeni tasarla](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  vi: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    Tôi đang tạo tiếng chuông hai nốt ấm áp, nhẹ nhàng cho ứng dụng vườn cộng đồng của bạn. Yêu cầu đang được xử lý và sẽ xuất hiện trong đoạn chat ngay khi sẵn sàng.
+
+    ### Các bước tiếp theo gợi ý
+    - [Tạo âm thanh mở khóa huy hiệu mang âm hưởng mộc mạc, hân hoan](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [Thiết kế bố cục thẻ xác nhận tình nguyện viên](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  id: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    Aku sedang membuat denting dua nada yang hangat dan lembut untuk aplikasi kebun komunitasmu sekarang. Ini sedang diproses dan akan muncul di obrolan segera setelah siap.
+
+    ### Langkah Selanjutnya yang Disarankan
+    - [Buat denting pembukaan lencana perayaan yang bernuansa alami](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [Desain tata letak kartu konfirmasi sukarelawan](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  pl: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    Generuję teraz ciepły, delikatny dwutonowy sygnał dla Twojej aplikacji ogrodu społecznościowego. Jest on obecnie przetwarzany i pojawi się na czacie, gdy tylko będzie gotowy.
+
+    ### Sugerowane kolejne kroki
+    - [Wygeneruj radosny sygnał odblokowania odznaki w naturalnym stylu](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [Zaprojektuj układ karty potwierdzenia wolontariusza](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  nl: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    Ik genereer nu de warme, zachte tweekleurige chime voor je gemeenschapstuin-app. Deze wordt momenteel verwerkt en verschijnt in de chat zodra hij klaar is.
+
+    ### Voorgestelde vervolgstappen
+    - [Genereer een aards, feestelijk geluid voor het ontgrendelen van een badge](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [Ontwerp een lay-out voor een vrijwilligersbevestigingskaart](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  ar: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    أقوم الآن بإنشاء الرنين الدافئ واللطيف المكون من نغمتين لتطبيق الحديقة المجتمعية الخاص بك. جاري المعالجة وسيظهر في الدردشة بمجرد جاهزيته.
+
+    ### الخطوات التالية المقترحة
+    - [أنشئ رنينًا احتفاليًا ذا طابع طبيعي لفتح شارة](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [صمم تخطيط بطاقة تأكيد المتطوع](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  hi: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    मैं अभी तुम्हारे कम्युनिटी गार्डन ऐप के लिए वॉर्म और सौम्य दो-नोट वाली चाइम जनरेट कर रहा हूँ। यह अभी प्रोसेस हो रही है और तैयार होते ही चैट में दिखाई देगी।
+
+    ### सुझाए गए अगले कदम
+    - [एक अर्थी, जश्न वाली बैज अनलॉक चाइम जनरेट करें](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [एक वॉलंटियर कन्फर्मेशन कार्ड लेआउट डिज़ाइन करें](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  th: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    ฉันกำลังสร้างเสียงกริ่งสองตัวโน้ตที่นุ่มนวลและอบอุ่นสำหรับแอปสวนชุมชนของคุณในขณะนี้ ระบบกำลังประมวลผลและจะแสดงในแชททันทีที่พร้อมใช้งาน
+
+    ### ขั้นตอนถัดไปที่แนะนำ
+    - [สร้างเสียงกริ่งฉลองการปลดล็อกเหรียญรางวัลที่ให้ความรู้สึกเป็นธรรมชาติ](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [ออกแบบเลย์เอาต์การ์ดยืนยันอาสาสมัคร](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  cs: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    Právě generuji hřejivou, jemnou dvoutónovou znělku pro tvou aplikaci pro komunitní zahradu. Právě se zpracovává a v chatu se objeví, jakmile bude hotová.
+
+    ### Navrhované další kroky
+    - [Vygeneruj zemitou, oslavnou znělku pro odemknutí odznaku](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [Navrhni rozvržení potvrzovací karty pro dobrovolníky](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  sv: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    Jag genererar den varma, milda tvåtonssignalen för din trädgårdsapp nu. Den bearbetas för närvarande och kommer att visas i chatten så snart den är klar.
+
+    ### Föreslagna nästa steg
+    - [Generera en jordnära, festlig signal för upplåsta märken](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [Designa en layout för ett bekräftelsekort för volontärer](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  he: |
+    [!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)
+
+    אני יוצר כעת את הצליל החם והעדין בן שני התווים עבור אפליקציית הגינה הקהילתית שלך. הוא נמצא כעת בעיבוד ויופיע בצ'אט ברגע שיהיה מוכן.
+
+    ### צעדים הבאים מומלצים
+    - [צור צליל חגיגי וארצי עבור פתיחת תג](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)
+    - [עצב פריסה לכרטיס אישור מתנדב](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Generate a celebratory badge unlock chime for task completion"
+  de: Erstelle einen feierlichen Chime für das Freischalten eines Abzeichens nach Abschluss einer Aufgabe
+  zh: 生成任务完成时的庆祝勋章解锁提示音
+  es: Genera un timbre de desbloqueo de insignia festivo por completar tareas
+  fr: "Générer un carillon festif de déblocage de badge pour l'achèvement d'une tâche"
+  pt: Gerar um toque de desbloqueio de emblema festivo para a conclusão de tarefas
+  ru: Создай праздничный сигнал разблокировки значка за выполнение задачи
+  ja: タスク完了時のバッジ獲得を祝うチャイムを生成して
+  ko: 작업 완료를 위한 축하 배지 획득 차임벨 생성
+  it: "Genera un rintocco celebrativo per lo sblocco di un badge al completamento di un'attività"
+  tr: Görev tamamlama için kutlama amaçlı bir rozet açma sesi oluştur
+  vi: Tạo âm thanh chúc mừng mở khóa huy hiệu khi hoàn thành nhiệm vụ
+  id: Buat denting pembukaan lencana perayaan untuk penyelesaian tugas
+  pl: Wygeneruj radosny sygnał odblokowania odznaki za ukończenie zadania
+  nl: Genereer een feestelijk geluid voor het ontgrendelen van een badge na voltooiing van een taak
+  ar: أنشئ رنينًا احتفاليًا لفتح شارة عند إكمال مهمة
+  hi: टास्क पूरा होने पर मिलने वाले बैज के लिए एक जश्न वाली चाइम जनरेट करें
+  th: สร้างเสียงกริ่งฉลองการปลดล็อกเหรียญรางวัลเมื่อทำงานเสร็จสิ้น
+  cs: Vygeneruj oslavnou znělku pro odemknutí odznaku za splnění úkolu
+  sv: Generera en festlig ljudsignal för när en användare låser upp ett märke vid slutförd uppgift
+  he: צור צליל התראה חגיגי עבור פתיחת תג בסיום משימה
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain how sound design affects user engagement in mobile apps"
+  de: Erkläre, wie Sounddesign das Nutzerengagement in mobilen Apps beeinflusst
+  zh: 解释声音设计如何影响移动应用的用户参与度
+  es: Explica cómo el diseño de sonido afecta la participación del usuario en aplicaciones móviles
+  fr: "Expliquer comment le design sonore influence l'engagement des utilisateurs dans les applications mobiles"
+  pt: Explicar como o design de som afeta o engajamento do usuário em aplicativos móveis
+  ru: Объясни, как звуковой дизайн влияет на вовлеченность пользователей в мобильных приложениях
+  ja: サウンドデザインがモバイルアプリのユーザーエンゲージメントに与える影響を説明して
+  ko: 사운드 디자인이 모바일 앱의 사용자 참여에 미치는 영향 설명
+  it: Spiega come il sound design influisce sul coinvolgimento degli utenti nelle app mobili
+  tr: Ses tasarımının mobil uygulamalarda kullanıcı etkileşimini nasıl etkilediğini açıkla
+  vi: Giải thích thiết kế âm thanh ảnh hưởng thế nào đến sự tương tác của người dùng trong ứng dụng di động
+  id: Jelaskan bagaimana desain suara memengaruhi keterlibatan pengguna di aplikasi seluler
+  pl: Wyjaśnij, jak projektowanie dźwięku wpływa na zaangażowanie użytkowników w aplikacjach mobilnych
+  nl: Leg uit hoe geluidsontwerp de gebruikersbetrokkenheid in mobiele apps beïnvloedt
+  ar: اشرح كيف يؤثر تصميم الصوت على تفاعل المستخدم في تطبيقات الجوال
+  hi: बताएं कि साउंड डिज़ाइन मोबाइल ऐप्स में यूज़र एंगेजमेंट को कैसे प्रभावित करता है
+  th: อธิบายว่าการออกแบบเสียงส่งผลต่อการมีส่วนร่วมของผู้ใช้ในแอปมือถืออย่างไร
+  cs: Vysvětli, jak zvukový design ovlivňuje zapojení uživatelů v mobilních aplikacích
+  sv: Förklara hur ljuddesign påverkar användarengagemang i mobilappar
+  he: הסבר כיצד עיצוב סאונד משפיע על מעורבות משתמשים באפליקציות לנייד
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Create a gentle reminder chime for morning watering schedules"
+  de: Erstelle einen sanften Erinnerungston für morgendliche Bewässerungspläne
+  zh: 为早间浇水计划创建一个温和的提醒音
+  es: Crea un timbre de recordatorio suave para los horarios de riego matutinos
+  fr: "Créer un carillon de rappel doux pour les horaires d'arrosage du matin"
+  pt: Criar um toque de lembrete suave para cronogramas de rega matinais
+  ru: Создай мягкий сигнал напоминания для графика утреннего полива
+  ja: 朝の水やりスケジュールのための優しいリマインダー音を作成して
+  ko: 아침 물 주기 일정을 위한 부드러운 알림 차임벨 생성
+  it: Crea un rintocco di promemoria delicato per i programmi di irrigazione mattutini
+  tr: Sabah sulama programları için nazik bir hatırlatıcı sesi oluştur
+  vi: Tạo âm thanh nhắc nhở nhẹ nhàng cho lịch tưới cây buổi sáng
+  id: Buat denting pengingat lembut untuk jadwal penyiraman pagi hari
+  pl: Stwórz delikatny sygnał przypomnienia o porannym grafiku podlewania
+  nl: "Maak een zacht herinneringsgeluid voor de ochtendbewateringsschema's"
+  ar: أنشئ رنين تذكير لطيف لجدول الري الصباحي
+  hi: सुबह पौधों को पानी देने के शेड्यूल के लिए एक सौम्य रिमाइंडर चाइम बनाएं
+  th: สร้างเสียงกริ่งเตือนความจำที่นุ่มนวลสำหรับตารางการรดน้ำต้นไม้ตอนเช้า
+  cs: Vytvoř jemnou připomínací znělku pro ranní rozvrh zalévání
+  sv: Skapa en mild påminnelsesignal för morgonens bevattningsschema
+  he: צור צליל תזכורת עדין ללוחות זמנים של השקיית בוקר
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "List best practices for designing non-intrusive UI notification sounds"
+  de: Liste Best Practices für das Design unaufdringlicher UI-Benachrichtigungstöne auf
+  zh: 列出设计非侵入式 UI 通知声音的最佳实践
+  es: Enumera las mejores prácticas para diseñar sonidos de notificación de interfaz de usuario no intrusivos
+  fr: Lister les meilleures pratiques pour concevoir des sons de notification UI non intrusifs
+  pt: Listar as melhores práticas para projetar sons de notificação de interface não intrusivos
+  ru: Перечисли лучшие практики создания ненавязчивых звуков уведомлений для интерфейса
+  ja: 邪魔にならないUI通知音をデザインするためのベストプラクティスを教えて
+  ko: 방해되지 않는 UI 알림음 디자인을 위한 모범 사례 목록
+  it: Elenca le migliori pratiche per progettare suoni di notifica UI non intrusivi
+  tr: Rahatsız etmeyen kullanıcı arayüzü bildirim sesleri tasarlamak için en iyi uygulamaları listele
+  vi: Liệt kê các phương pháp hay nhất để thiết kế âm thanh thông báo UI không gây phiền nhiễu
+  id: Sebutkan praktik terbaik untuk mendesain suara notifikasi UI yang tidak mengganggu
+  pl: Wymień najlepsze praktyki projektowania nieinwazyjnych dźwięków powiadomień UI
+  nl: Lijst met best practices voor het ontwerpen van niet-opdringerige UI-meldingsgeluiden
+  ar: اذكر أفضل الممارسات لتصميم أصوات إشعارات واجهة مستخدم غير مزعجة
+  hi: दखल न देने वाले UI नोटिफिकेशन साउंड डिज़ाइन करने के सर्वोत्तम तरीके बताएं
+  th: รายการแนวทางปฏิบัติที่ดีที่สุดสำหรับการออกแบบเสียงแจ้งเตือน UI ที่ไม่รบกวนผู้ใช้
+  cs: Uveď osvědčené postupy pro návrh nevtíravých zvuků oznámení v UI
+  sv: Lista bästa praxis för att designa icke-påträngande ljudsignaler för UI-notiser
+  he: פרט שיטות מומלצות לעיצוב צלילי התראות ממשק משתמש שאינם פולשניים
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Generate a soft error alert sound for form validation failures"
+  de: Erstelle einen sanften Fehlerton für fehlgeschlagene Formularvalidierungen
+  zh: 为表单验证失败生成一个柔和的错误警报声
+  es: Genera un sonido de alerta de error suave para fallos de validación de formularios
+  fr: "Générer un son d'alerte d'erreur doux pour les échecs de validation de formulaire"
+  pt: Gerar um som de alerta de erro suave para falhas de validação de formulário
+  ru: Создай мягкий звук предупреждения об ошибке при сбое валидации формы
+  ja: フォームの入力エラー用の柔らかなアラート音を生成して
+  ko: 양식 유효성 검사 실패를 위한 부드러운 오류 알림음 생성
+  it: Genera un suono di errore leggero per i fallimenti della validazione dei moduli
+  tr: Form doğrulama hataları için yumuşak bir hata uyarı sesi oluştur
+  vi: Tạo âm thanh báo lỗi nhẹ nhàng khi xác thực biểu mẫu thất bại
+  id: Buat suara peringatan kesalahan yang lembut untuk kegagalan validasi formulir
+  pl: Wygeneruj łagodny dźwięk błędu dla niepowodzeń walidacji formularza
+  nl: Genereer een zacht foutmeldingsgeluid voor mislukte formuliervalidaties
+  ar: أنشئ صوت تنبيه خطأ ناعم لفشل التحقق من صحة النماذج
+  hi: फॉर्म वैलिडेशन फेल होने पर एक सॉफ्ट एरर अलर्ट साउंड जनरेट करें
+  th: สร้างเสียงแจ้งเตือนข้อผิดพลาดที่นุ่มนวลสำหรับกรณีการตรวจสอบความถูกต้องของฟอร์มไม่ผ่าน
+  cs: Vygeneruj jemný zvuk upozornění na chybu při selhání validace formuláře
+  sv: Generera ett mjukt felmeddelandeljud för misslyckad formulärvalidering
+  he: צור צליל התראת שגיאה רך עבור כשלים באימות טפסים
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Describe how to integrate custom sound effects into mobile applications"
+  de: Beschreibe, wie man benutzerdefinierte Soundeffekte in mobile Anwendungen integriert
+  zh: 描述如何将自定义音效集成到移动应用程序中
+  es: Describe cómo integrar efectos de sonido personalizados en aplicaciones móviles
+  fr: Décrire comment intégrer des effets sonores personnalisés dans des applications mobiles
+  pt: Descrever como integrar efeitos sonoros personalizados em aplicativos móveis
+  ru: Опиши, как интегрировать собственные звуковые эффекты в мобильные приложения
+  ja: モバイルアプリにカスタム効果音を組み込む方法を教えて
+  ko: 모바일 애플리케이션에 맞춤형 사운드 효과를 통합하는 방법 설명
+  it: Descrivi come integrare effetti sonori personalizzati nelle applicazioni mobili
+  tr: Özel ses efektlerinin mobil uygulamalara nasıl entegre edileceğini açıkla
+  vi: Mô tả cách tích hợp hiệu ứng âm thanh tùy chỉnh vào ứng dụng di động
+  id: Jelaskan cara mengintegrasikan efek suara kustom ke dalam aplikasi seluler
+  pl: Opisz, jak zintegrować niestandardowe efekty dźwiękowe z aplikacjami mobilnymi
+  nl: Beschrijf hoe je aangepaste geluidseffecten integreert in mobiele applicaties
+  ar: صف كيفية دمج المؤثرات الصوتية المخصصة في تطبيقات الجوال
+  hi: बताएं कि मोबाइल एप्लिकेशन में कस्टम साउंड इफेक्ट्स को कैसे इंटीग्रेट किया जाए
+  th: อธิบายวิธีผสานรวมเอฟเฟกต์เสียงที่กำหนดเองเข้ากับแอปพลิเคชันมือถือ
+  cs: Popiš, jak integrovat vlastní zvukové efekty do mobilních aplikací
+  sv: Beskriv hur man integrerar anpassade ljudeffekter i mobilapplikationer
+  he: תאר כיצד לשלב אפקטים קוליים מותאמים אישית באפליקציות לנייד
+  verified_by_human: []

@@ -15,19 +15,14 @@ for (const [source, target] of [
   ['legal/trainingPolicies.generated.ts', 'legal/trainingPolicies.generated.ts']
 ]) copyFileSync(resolve(root, 'frontend/packages/ui/src', source), resolve(root, 'frontend/packages/public-site/src', target));
 const landingSource = parse(readFileSync(resolve(root, 'frontend/packages/public-site/src/i18n/landing.yml'), 'utf8'));
-const prompts = landingSource.appPrompts;
-const promptIds = Object.keys(prompts);
 writeFileSync(resolve(output, 'landingLocale.generated.json'), `${JSON.stringify(landingSource.copy, null, 2)}\n`);
 const eligible = compilePublicApps(root);
 if (eligible.length === 0 || new Set(eligible.map((app) => app.id)).size !== eligible.length) throw new Error('Public app metadata must contain unique available apps');
-const eligibleIds = new Set(eligible.map((app) => app.id));
-if (promptIds.length !== eligibleIds.size || promptIds.some((id) => !eligibleIds.has(id))) throw new Error('Landing prompt IDs differ from live app capabilities');
-validateLandingAppExamples(root, eligibleIds);
+validateLandingAppExamples(root, eligible);
 const apps = eligible.map((app) => {
-  const prompt = prompts[app.id];
   const iconName = app.icon_image?.replace(/\.svg$/, '').trim();
-  const icon = iconName === 'plants' ? 'plant' : iconName;
-  if (!prompt || !icon) throw new Error(`Missing public prompt/icon for ${app.id}`);
+  const icon = iconName;
+  if (!icon) throw new Error(`Missing public icon for ${app.id}`);
   const iconPath = resolve(root, 'frontend/packages/ui/static/icons', `${icon}.svg`);
   const siteIconPath = resolve(root, 'frontend/apps/website/static/icons', `${icon}.svg`);
   mkdirSync(dirname(siteIconPath), { recursive: true });
@@ -35,7 +30,7 @@ const apps = eligible.map((app) => {
   const appIconPath = resolve(root, 'frontend/apps/web_app/static/icons', `${icon}.svg`);
   mkdirSync(dirname(appIconPath), { recursive: true });
   copyFileSync(iconPath, appIconPath);
-  return { id: app.id, iconUrl: `/icons/${icon}.svg`, gradient: `var(--color-app-${app.id})`, promptEn: prompt.en, promptDe: prompt.de };
+  return { id: app.id, iconUrl: `/icons/${icon}.svg`, gradient: `var(--color-app-${app.id})`, capability: app.capability, exampleChatId: app.example_chat_id, promptEn: app.caption.en, promptDe: app.caption.de };
 });
 writeFileSync(resolve(output, 'publicApps.generated.json'), `${JSON.stringify(apps, null, 2)}\n`);
 

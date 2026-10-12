@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.marketing-landing
-version: 3
+version: 4
 status: draft
 title: Lightweight Public Website and Scrollable Landing Page
 summary: A lightweight standalone website owns the scrollable landing page, news, blog and legal content,
@@ -89,7 +89,9 @@ assertions:
     shows the relevant available capability apps in the order and exclusions defined by marketing-landing.capability-rail-and-prompts;
     Docs and Mindmaps are included for their direct content capabilities. Each highlighted app has a capability-matched
     prompt. Icons adapt to the available hero space with a desktop size cap; translucent edge gradients
-    fade entry and exit. Prompt bubbles have the real user-message tail and transition by opacity and
+    fade entry and exit. Automatic movement, highlighting and manual selection share one position,
+    so completing a loop, resuming interaction or resizing does not cause a visible reset.
+    Prompt bubbles have the real user-message tail and transition by opacity and
     scale from the bottom-right without changing position. The aligned scroll cue smoothly cycles opacity
     between 0.3 and 0.8. Reduced motion keeps the rail and prompts usable without continuous animation.
   depends_on:
@@ -115,15 +117,34 @@ assertions:
   type: behavior
   must: The single hero app rail orders Events, Travel, Code, Home, Health, Social Media, Fitness, Mail
     and Jobs before remaining available capability apps, and excludes OpenMates, Projects, Tasks, Plans,
-    Reminders and Workflows. The public AI app remains eligible. Docs and Mindmaps appear for their direct
-    content capabilities. Icons remain proportionally rounded; a selected icon opens its actual app in
-    a new tab. The highlighted request is a natural example of that app capability and opens a matching
+    Reminders, Workflows and Plants. The public AI app remains eligible. Docs and Mindmaps appear for their direct
+    content capabilities. Icons use the same corner-radius-to-size ratio as the signup/login app background.
+    The highlighted request describes a general category, such as Find events or
+    Summarize this video, rather than a specific person's request, and opens a matching
     existing example chat in a new tab, never a fabricated skill, chat or internal command; every eligible
     shown app requires a matching real example chat and a missing source remains incomplete implementation.
-    The German heading reads exactly “Deine KI-Teamkollegen\nmit Privatsphäre”, with its highlight right
+    The prompt has no added link icon. The German heading reads exactly “Deine KI-Teamkollegen\nmit Privatsphäre”, with its highlight right
     of center.
   depends_on:
   - examples.hero
+- id: marketing-landing.interactive-rail
+  type: behavior
+  must: Visitors can horizontally scroll or swipe the app row while vertical page scrolling remains
+    available. Selecting an icon brings that app into focus, switches the prompt and holds it for two
+    seconds before continuing from that position; the icon does not open a new tab. Keyboard and
+    reduced-motion visitors can select apps without continuous animation.
+  depends_on:
+  - examples.manual_rail
+- id: marketing-landing.app-metadata-defaults
+  type: behavior
+  must: The canonical app metadata defines each displayed app's default demonstrated capability,
+    localized short generic request caption and real example-chat destination. The website compiles
+    that metadata during its build and rejects missing or invalid defaults rather than maintaining
+    a separate prompt or example mapping. Defaults refer to real available app capabilities and
+    matching natural-language example chats; generated content must not imply a skill was used when
+    the real example instead demonstrates a direct artifact or ordinary app response.
+  depends_on:
+  - examples.metadata_defaults
 applies_to:
   rest_api:
     required: false
@@ -153,7 +174,9 @@ examples:
   - screenshots
   - public_content
   - hero
+  - manual_rail
+  - metadata_defaults
   - preferences
 approval_source:
-  instruction: User directly requested implementation and relevant specification updates on 2026-10-09
+  instruction: User directly requested these app metadata, generic caption, interactive wheel and seamless-loop corrections on 2026-10-11
     in this Codex thread; no new exact-fingerprint approval is claimed.

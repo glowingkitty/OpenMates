@@ -1,3 +1,13 @@
+landing:
+  order: 16
+  capability:
+    type: artifact
+    id: doc
+  caption:
+    en: Create a document
+    de: Erstelle ein Dokument
+  example_chat_id: example-community-garden-volunteer-onboarding
+
 # Docs App Configuration
 # Handles document generation and management (Word/Google Docs-like documents)
 # Documents are created via docx_model fenced code blocks in the AI response stream

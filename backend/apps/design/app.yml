@@ -1,3 +1,13 @@
+landing:
+  order: 26
+  capability:
+    type: skill
+    id: search_icons
+  caption:
+    en: Find icons
+    de: Finde Icons
+  example_chat_id: example-dashboard-sidebar-svg-icons
+
 id: design
 name_translation_key: design
 description_translation_key: design.description
