@@ -80,7 +80,7 @@ def test_legacy_commit_artifact_is_preserved_and_new_layout_is_generated(monkeyp
     commit = "a" * 40
     monkeypatch.setattr(translations, "source_commit", lambda _checkout: commit)
     monkeypatch.setattr(translations, "_node24_executable", lambda: "node")
-    legacy = store / commit
+    legacy = store / f"{commit}-v2"
     legacy_locales = legacy / "locales"
     legacy_locales.mkdir(parents=True)
     for name in ("en.json", "de.json"):
@@ -90,7 +90,7 @@ def test_legacy_commit_artifact_is_preserved_and_new_layout_is_generated(monkeyp
         "files": {name: translations._sha256(legacy_locales / name) for name in ("en.json", "de.json")},
     }), encoding="utf-8")
     old_overlay = translations._overlay_content(legacy_locales)
-    for service in ("core-worker", "reminder-worker", "user-init-worker", "user-tasks-worker"):
+    for service in ("core-worker", "reminder-worker", "user-init-worker", "user-tasks-worker", "app-ai-routing-worker"):
         old_overlay["services"].pop(service)
     (legacy / translations.OVERLAY_NAME).write_text(json.dumps(old_overlay), encoding="utf-8")
     original = {path.name: path.read_bytes() for path in legacy.rglob("*") if path.is_file()}
@@ -107,7 +107,7 @@ def test_legacy_commit_artifact_is_preserved_and_new_layout_is_generated(monkeyp
 
     monkeypatch.setattr(translations.subprocess, "run", run)
     overlay = translations.prepare_artifact(checkout, store)
-    assert overlay == store / f"{commit}-v2" / translations.OVERLAY_NAME
+    assert overlay == store / f"{commit}-v3" / translations.OVERLAY_NAME
     assert translations.selected_overlay(checkout, store) == overlay
     assert json.loads((overlay.parent / translations.MANIFEST_NAME).read_text(encoding="utf-8"))["commit"] == commit
     assert set(json.loads(overlay.read_text(encoding="utf-8"))["services"]) == translations.TRANSLATION_SERVICES

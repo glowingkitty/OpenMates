@@ -18,10 +18,10 @@ from pathlib import Path
 TRANSLATION_SERVICES = frozenset({
     "api", "task-worker", "workflow-worker", "task-scheduler",
     "core-worker", "reminder-worker", "user-init-worker", "user-tasks-worker",
-    "app-ai-worker", "app-images-worker", "app-music-worker", "app-videos-worker",
+    "app-ai-worker", "app-ai-routing-worker", "app-images-worker", "app-music-worker", "app-videos-worker",
     "app-pdf-worker", "app-docs-worker", "app-code-worker", "app-social-media-worker",
 })
-ARTIFACT_FORMAT_VERSION = 2
+ARTIFACT_FORMAT_VERSION = 3
 MANIFEST_NAME = "manifest.json"
 OVERLAY_NAME = "docker-compose.translations.json"
 
