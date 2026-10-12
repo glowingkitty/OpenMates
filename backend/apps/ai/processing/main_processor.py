@@ -140,7 +140,7 @@ from backend.apps.ai.processing.task_queue_continuation import (
     task_queue_llm_history_role,
     task_queue_post_turn_prompt,
 )
-from backend.apps.ai.processing.task_tool_context import build_task_context_prompt, refresh_task_tool_context, resolve_task_tool_context
+from backend.apps.ai.processing.task_tool_context import build_task_context_prompt, extract_task_mentions, refresh_task_tool_context, resolve_task_tool_context
 
 from backend.apps.ai.processing.task_tool_executor import (
     TASK_TOOL_CANONICAL_NAMES,
@@ -212,6 +212,46 @@ from backend.shared.python_utils.billing_utils import (
     MINIMUM_CREDITS_CHARGED,
 )
 from backend.shared.python_utils.skill_provider_attribution import resolve_skill_usage_provider_id
+
+
+def _skip_empty_task_runtime_for_simple_answer(request: AskSkillRequest,
+                                               preprocessing: PreprocessingResult) -> bool:
+    """Omit Task lookup/create only for a proven empty English fact question."""
+    admission = getattr(request, "admission_context", None)
+    text = getattr(request, "current_user_content", None)
+    related = getattr(request, "related_task_candidates", [])
+    if not isinstance(related, list) or any(
+        not isinstance(row, dict) or row.get("explicit_dependency") is not False
+        for row in related
+    ):
+        return False
+    if (not getattr(preprocessing, "context_fast_path", False)
+            or getattr(preprocessing, "early_task_area", None) != "general"
+            or getattr(preprocessing, "output_language", None) != "en"
+            or getattr(preprocessing, "selected_app_ids", None) != []
+            or any(getattr(preprocessing, key, None) for key in (
+                "relevant_app_skills", "relevant_focus_modes", "load_app_settings_and_memories",
+            ))
+            or not isinstance(admission, dict) or admission.get("scope_complete") is not True
+            or admission.get("context_revision") != "server-admission-v1"
+            or admission.get("explicit_related_task_ids")
+            or getattr(request, "team_id", None)
+            or any(getattr(request, key, None) for key in (
+                "active_focus_id", "active_project_focus", "current_project", "accepted_plan_context",
+                "user_task_id", "is_sub_chat", "is_sub_chat_continuation",
+                "is_async_skill_continuation", "is_focus_mode_continuation",
+                "is_app_settings_memories_continuation", "is_connected_account_permission_continuation",
+            ))
+            or not isinstance(text, str) or len(text) > 240):
+        return False
+    if (not re.match(r"^\s*(?:what|who|where|when|which)\b", text, re.IGNORECASE)
+            or not text.rstrip().endswith("?") or extract_task_mentions(text)):
+        return False
+    return not re.search(
+        r"\b(?:i|we|my|our|you|me|us|should|could|would|can|need|please|help|create|make|set|schedule|"
+        r"tasks?|to-?dos?|remind(?:er|ers)?|follow[- ]?ups?|action items?|tickets?|issues?|deadlines?|plans?|workflows?)\b",
+        text, re.IGNORECASE,
+    )
 
 
 def _trusted_focus_override(overrides: UserOverrides | None, focus_id: str) -> bool:
@@ -4043,6 +4083,7 @@ async def handle_main_processing(
     task_tool_context = None
     task_context_prompt = ""
     task_tools_enabled = "task_update_jobs" in (getattr(request_data, "client_capabilities", None) or [])
+    skip_empty_task_runtime = _skip_empty_task_runtime_for_simple_answer(request_data, preprocessing_results)
     project_capabilities = getattr(request_data, "client_capabilities", None) or []
     project_file_tools_enabled = (
         "project_file_jobs" in project_capabilities
@@ -4074,6 +4115,8 @@ async def handle_main_processing(
             logger.warning("%s Project focus authorization failed closed", log_prefix, exc_info=True)
             active_project_focus = None
     if active_project_focus:
+        # An activation after admission restores the full Task lookup path.
+        skip_empty_task_runtime = False
         try:
             from backend.core.api.app.services.project_remote_access_service import (
                 ProjectRemoteAccessError,
@@ -4190,7 +4233,7 @@ async def handle_main_processing(
             "%s [USER_SKILLS] Suppressing legacy task runtime tools because a Tasks app skill was explicitly requested.",
             log_prefix,
         )
-    if task_tools_enabled and not request_data.is_incognito and not suppress_task_runtime_tools:
+    if task_tools_enabled and not request_data.is_incognito and not suppress_task_runtime_tools and not skip_empty_task_runtime:
         task_methods = getattr(directus_service, "user_task", None)
         if task_methods is not None:
             try:

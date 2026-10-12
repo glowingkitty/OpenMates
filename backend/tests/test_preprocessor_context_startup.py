@@ -9,7 +9,7 @@ import pytest
 
 from backend.apps.ai.processing import agentic_context, context_preselection, jev_preprocessing, preprocessor
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
-from backend.core.api.app.services import project_focus_request_service
+from backend.core.api.app.services import client_context_continuation, project_focus_request_service
 from backend.core.api.app.services.billing_service import BillingService
 from backend.core.api.app.utils import server_mode
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
@@ -213,3 +213,169 @@ def test_empty_context_fast_path_requires_complete_server_scope(missing):
                                    "needs_related_work": False},
                "selected_app_ids": [], "project_target_outcome": "none"}
     assert _simple_context_fast_path(request, routing, None) is (missing is None)
+
+# contract-test: supporting surface=cli assertions=chat-processing-feedback.selected-mate-identity,projects.focus.inferred-consent
+@pytest.mark.parametrize("change", [
+    "none", "missing_route", "selected_project", "uncertain_route", "named_project",
+    "file_request", "active_project", "active_focus", "explicit_dependency", "stale_revision", "missing_scope",
+    "selected_app", "detailed_context", "explicit_focus_override",
+])
+def test_sealed_stage_one_no_project_reuse_keeps_context_boundaries(change):
+    request = AskSkillRequest(
+        chat_id="chat", message_id="turn", user_id="owner", user_id_hash="hash",
+        current_user_content="What's the capital of Spain?",
+        message_history=[{"role": "user", "content": "What's the capital of Spain?", "created_at": 1}],
+        project_focus_candidates=[{"project_id": "project-1", "name": "OpenMates"}],
+        admission_context={"scope_complete": True, "active_project_id": None,
+            "active_project_activation_id": None, "active_focus_id": None,
+            "accepted_plan_ref": None, "explicit_related_task_ids": [],
+            "context_revision": "server-admission-v1"},
+    )
+    routing = {"project_target_outcome": "none", "selected_app_ids": [],
+        "early_decisions": {"needs_detailed_context": False, "needs_related_work": False,
+                            "public_decisions": {}}}
+    if change == "missing_route":
+        routing = None
+    elif change == "selected_project":
+        routing["project_target_outcome"] = "selected"
+    elif change == "uncertain_route":
+        routing["project_target_outcome"] = "low_confidence"
+    elif change == "named_project":
+        request.current_user_content = "Tell me about my OpenMates project"
+    elif change == "file_request":
+        request.current_user_content = "Read the README in my project"
+    elif change == "active_project":
+        request.current_project = {"project_id": "project-1"}
+    elif change == "active_focus":
+        request.active_focus_id = "web-research"
+    elif change == "explicit_dependency":
+        request.admission_context["explicit_related_task_ids"] = ["TASK-1"]
+    elif change == "stale_revision":
+        request.admission_context["context_revision"] = "old"
+    elif change == "missing_scope":
+        request.admission_context["scope_complete"] = False
+    elif change == "selected_app":
+        routing["selected_app_ids"] = ["projects"]
+    elif change == "detailed_context":
+        routing["early_decisions"]["needs_detailed_context"] = True
+    overrides = SimpleNamespace(has_overrides=True) if change == "explicit_focus_override" else None
+    assert preprocessor._reusable_stage_one_project_none(request, routing, overrides) is (change == "none")
+
+
+# contract-test: supporting surface=cli assertions=projects.focus.inferred-consent,chat-processing-feedback.selected-mate-identity
+@pytest.mark.asyncio
+async def test_main_reuses_sealed_no_project_route_without_second_candidate_read(monkeypatch):
+    import uuid
+
+    class ReachedMainSetup(BaseException):
+        pass
+
+    class FakeRedis:
+        values = {}
+
+        async def get(self, key):
+            return self.values.get(key)
+
+    class FakeVault:
+        values = {}
+
+        async def encrypt_with_user_key(self, plaintext, key):
+            token = uuid.uuid4().hex
+            self.values[token] = (key, plaintext)
+            return token, "nonce"
+
+        async def decrypt_with_user_key(self, token, key):
+            stored_key, plaintext = self.values[token]
+            assert stored_key == key
+            return plaintext
+
+    class FakeCache:
+        get_user_by_id = AsyncMock(return_value={})
+        get_mates_configs = AsyncMock(return_value=[])
+
+        @property
+        async def client(self):
+            return redis
+
+        async def get_user_vault_key_id(self, user_id):
+            return f"vault:{user_id}"
+
+    redis, vault, cache = FakeRedis(), FakeVault(), FakeCache()
+    request_id = str(uuid.uuid4())
+
+    request = AskSkillRequest(
+        chat_id="chat", message_id="turn", user_id="owner", user_id_hash="hash",
+        current_user_content="What's the capital of Spain?", chat_has_title=False,
+        message_history=[{"role": "user", "content": "What's the capital of Spain?", "created_at": 1}],
+        project_focus_candidates=[{"project_id": "project-1", "name": "OpenMates"}],
+        client_capabilities=["project_file_jobs"],
+        client_context_pending=True,
+        client_context_request_id=request_id, recovery_turn_id="admitted-turn",
+        admission_context={"scope_complete": False, "active_project_id": None,
+            "active_project_activation_id": None, "active_focus_id": None,
+            "accepted_plan_ref": None, "explicit_related_task_ids": [],
+            "context_revision": "server-admission-v1"},
+    )
+    scope = client_context_continuation._scope(
+        user_id=request.user_id, chat_id=request.chat_id, turn_id=request.recovery_turn_id,
+        message_id=request.message_id, request_id=request_id,
+    )
+    reference = client_context_continuation._reference(scope)
+    request.client_context_binding_ref = reference
+    request.__dict__["_client_context_routing_loaded"] = True
+    key = client_context_continuation._key(reference)
+    redis.values[key] = await client_context_continuation._seal(
+        vault, "vault:owner", {"scope": scope, "device": "admitted-device"},
+    )
+    redis.values[key + ":details"] = await client_context_continuation._seal(
+        vault, "vault:owner", {"scope": scope, "phase": "details", "context": {}},
+    )
+    routing = {"project_target_outcome": "none", "selected_app_ids": [],
+        "early_decisions": {"task_area": "general", "complexity": "simple",
+            "needs_detailed_context": False, "needs_related_work": False,
+            "public_decisions": {}}}
+    validate = AsyncMock(side_effect=AssertionError("Unrelated Project candidate reread"))
+    monkeypatch.setattr(project_focus_request_service, "validated_project_candidates", validate)
+    stage_one_jev = AsyncMock(side_effect=AssertionError("Duplicate paid Stage-one Jev"))
+    monkeypatch.setattr(jev_preprocessing, "decide_app_and_project_routing_with_jev", stage_one_jev)
+    monkeypatch.setattr(server_mode, "is_payment_enabled", lambda: False)
+    monkeypatch.setattr(preprocessor, "load_skill_ledger", AsyncMock(return_value=preprocessor.RoutingLedgerSnapshot(
+        available=True, prompt_rows=())))
+    selected_model = AsyncMock(return_value={
+        "selected_llm_for_main_id": "google/test-answer",
+        "selected_llm_for_main_name": "Test Answer",
+        "complexity_val": "simple", "model_override_applied": False,
+    })
+    monkeypatch.setattr(preprocessor, "_select_main_model", selected_model)
+    detailed_decision = AsyncMock(side_effect=ReachedMainSetup)
+    monkeypatch.setattr(preprocessor, "decide_preprocessing_with_jev", detailed_decision)
+    hydration_calls = []
+
+    hydrate_actual_details = client_context_continuation.await_client_context_phase
+
+    async def hydrate_details(**kwargs):
+        assert kwargs["phase"] == "details"
+        assert kwargs["request"] is request
+        assert validate.await_count == 0 and selected_model.await_count == 0
+        assert request.admission_context["scope_complete"] is False
+        await hydrate_actual_details(**kwargs)
+        assert request.admission_context["scope_complete"] is True
+        assert request.client_context_pending is False
+        hydration_calls.append("details")
+
+    monkeypatch.setattr(client_context_continuation, "await_client_context_phase", hydrate_details)
+    with pytest.raises(ReachedMainSetup):
+        await preprocessor.handle_preprocessing(
+            request_data=request, base_instructions={"preprocess_request_tool": {}},
+            skill_config=SimpleNamespace(default_llms=SimpleNamespace(
+                preprocessing_model="test/preprocessing", decision_model="test/jev")),
+            cache_service=cache, secrets_manager=None, directus_service=object(),
+            encryption_service=vault, discovered_apps_metadata={},
+            precomputed_stage_one=routing,
+        )
+    validate.assert_not_awaited()
+    stage_one_jev.assert_not_awaited()
+    selected_model.assert_awaited_once()
+    detailed_decision.assert_awaited_once()
+    assert hydration_calls == ["details"]
+    assert request.project_focus_candidates == []

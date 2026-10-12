@@ -96,6 +96,7 @@ def run_case(args: argparse.Namespace, case: str, temperature: str, directory: P
             return re.sub(r"[^a-z0-9]", "", value.lower())
         result["painted_model_matches"] = any(normalize(args.expected_model) in normalize(model) for model in painted_models)
         result["actual_provider_verification"] = "pending_server_log_correlation"
+        result["simple_no_app_skill_progress"] = "tool_progress" not in by_name if case == "spain" else None
         result["completed"] = "final" in by_name
         result["timing_targets_met"] = result["selected_mate_within_1500ms"] and result["authored_within_3000ms"] is not False
         result["status"] = ("timing_targets_met" if result["timing_targets_met"] else "timing_target_missed") if result["completed"] else "incomplete"
@@ -151,7 +152,7 @@ def main() -> int:
         "warm_definition": "Fresh TUI process with idle startup preparation before Return.",
         "graphical_capture": "Use scripts/cli_video_capture.py --input-plan CASE/capture-input.json --no-response-media with the same environment and built CLI; set OPENMATES_TUI_LATENCY_EVENTS to a fresh per-capture path."})
     print(str(args.output_dir / "summary.json"))
-    return 0 if not args.execute or all(result["completed"] and result["timing_targets_met"] and result["painted_model_matches"] for result in results) else 1
+    return 0 if not args.execute or all(result["completed"] and result["timing_targets_met"] and result["painted_model_matches"] and result["simple_no_app_skill_progress"] is not False for result in results) else 1
 
 if __name__ == "__main__":
     raise SystemExit(main())

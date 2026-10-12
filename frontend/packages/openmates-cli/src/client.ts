@@ -3355,6 +3355,7 @@ export class OpenMatesClient {
   private pendingWhoAmIAuthHandoff: PersonalSendAuthHandoff | null = null;
   private personalMemoryAuthHandoff: { snapshot: WeakRef<DecryptedMemoryEntry[]>; auth: PersonalSendAuthHandoff } | null = null;
   private personalMemoryReadInFlight: { ownerKey: string; promise: Promise<DecryptedMemoryEntry[]> } | null = null;
+  private whoAmIInFlight: { ownerKey: string; promise: Promise<Record<string, unknown>> } | null = null;
   readonly apiUrl: string;
   private session: OpenMatesSession | null;
   private readonly http: OpenMatesHttpClient;
@@ -5181,7 +5182,16 @@ export class OpenMatesClient {
   }
 
   async whoAmI(): Promise<Record<string, unknown>> {
-    return this.withFreshStoredSession(async () => {
+    const session = this.requireSession();
+    const ownerKey = JSON.stringify([session.apiUrl, session.hashedEmail, session.sessionId,
+      session.createdAt, session.masterKeyExportedB64, session.activeTeamId,
+      authCookieFingerprint(session.cookies), authCookieFingerprint(this.http.getCookieMap())]);
+    const current = this.whoAmIInFlight;
+    if (current?.ownerKey === ownerKey) return current.promise;
+    // Home identity and an exact Personal memory snapshot may ask for the same
+    // live auth result at once. Share only the pending validation; completed
+    // results are never cached, and the send receipt remains one-shot.
+    const promise = this.withFreshStoredSession(async () => {
       this.pendingWhoAmIAuthHandoff = null;
       const session = this.requireSession();
       const previousRefreshToken = session.cookies.auth_refresh_token;
@@ -5224,6 +5234,10 @@ export class OpenMatesClient {
       }
       return response.data.user ?? {};
     });
+    const entry = { ownerKey, promise };
+    this.whoAmIInFlight = entry;
+    try { return await promise; }
+    finally { if (this.whoAmIInFlight === entry) this.whoAmIInFlight = null; }
   }
 
   private async ownDirectChatHash(): Promise<string> {
@@ -5888,23 +5902,55 @@ export class OpenMatesClient {
 
   private preparedChatKey: {
     chatId: string;
-    session: OpenMatesSession;
-    teamId: string | null;
+    owner: {
+      apiUrl: string;
+      hashedEmail: string;
+      sessionId: string;
+      createdAt: number;
+      masterKeyExportedB64: string;
+      activeTeamId: string | null | undefined;
+      teamId: string | null;
+      teamKeyFingerprint: string | null;
+    };
     value: Promise<{ key: Uint8Array; encryptedKey: string; wrappingKey: Uint8Array }>;
   } | null = null;
 
+  private preparedChatOwner(session: OpenMatesSession, teamId: string | null): NonNullable<typeof this.preparedChatKey>["owner"] {
+    const teamKey = teamId ? loadLocalTeamKey(session.hashedEmail, teamId) : null;
+    return {
+      apiUrl: session.apiUrl, hashedEmail: session.hashedEmail, sessionId: session.sessionId,
+      createdAt: session.createdAt, masterKeyExportedB64: session.masterKeyExportedB64,
+      activeTeamId: session.activeTeamId, teamId,
+      teamKeyFingerprint: teamKey ? createHash("sha256").update(teamKey).digest("hex") : null,
+    };
+  }
+
+  private preparedChatOwnerCurrent(owner: NonNullable<typeof this.preparedChatKey>["owner"], teamId: string | null): boolean {
+    if (!this.hasSession()) return false;
+    const current = this.preparedChatOwner(this.requireSession(), teamId);
+    return owner.apiUrl === current.apiUrl && owner.hashedEmail === current.hashedEmail
+      && owner.sessionId === current.sessionId && owner.createdAt === current.createdAt
+      && owner.masterKeyExportedB64 === current.masterKeyExportedB64
+      && owner.activeTeamId === current.activeTeamId && owner.teamId === current.teamId
+      && owner.teamKeyFingerprint === current.teamKeyFingerprint;
+  }
+
   /** Prepare encryption and the opted-in local privacy worker while the composer is idle. */
   private warmChatSendPreparation(): void {
-    const session = this.session;
-    if (!session) return;
+    if (!this.hasSession()) return;
+    const session = this.requireSession();
     const teamId = this.getActiveTeamId();
-    if (this.preparedChatKey?.session === session && this.preparedChatKey.teamId === teamId) return;
+    if (this.preparedChatKey && this.preparedChatOwnerCurrent(this.preparedChatKey.owner, teamId)) return;
+    const owner = this.preparedChatOwner(session, teamId);
     const value = (async () => {
       const wrappingKey = await this.getChatWrappingKey(teamId, this.getMasterKeyBytes());
+      // An uncached Team key may be fetched during warmup. Bind the prepared
+      // chat to the key actually used to wrap it, including after that fetch.
+      if (teamId) owner.teamKeyFingerprint = createHash("sha256").update(bytesToBase64(wrappingKey)).digest("hex");
       const key = new Uint8Array(randomBytes(32));
       return { key, encryptedKey: await encryptBytesWithAesGcm(key, wrappingKey), wrappingKey };
     })();
-    this.preparedChatKey = { chatId: randomUUID(), session, teamId, value };
+    this.preparedChatKey = { chatId: randomUUID(), owner, value };
     void value.catch(() => {
       if (this.preparedChatKey?.value === value) this.preparedChatKey = null;
     });
@@ -8620,8 +8666,8 @@ export class OpenMatesClient {
     if (params.incognito && params.projectId) {
       throw new Error("Project file execution requires a saved chat.");
     }
-    const ownsPreparedId = this.preparedChatKey?.session === this.session
-      && this.preparedChatKey?.teamId === teamId && this.preparedChatKey?.chatId === params.newChatId;
+    const ownsPreparedId = Boolean(params.newChatId && this.preparedChatKey?.chatId === params.newChatId
+      && this.preparedChatOwnerCurrent(this.preparedChatKey.owner, teamId));
     const sdkMintedChatId = params.chatId === undefined && params.projectId === undefined
       && (params.newChatId === undefined || ownsPreparedId);
     let chatId: string;
@@ -8842,8 +8888,8 @@ export class OpenMatesClient {
 
     if (!params.incognito) {
       const masterKey = this.getMasterKeyBytes();
-      const preparedKey = isNewChat && this.preparedChatKey?.session === this.session
-        && this.preparedChatKey.teamId === teamId ? this.preparedChatKey : null;
+      const preparedKey = isNewChat && ownsPreparedId && this.preparedChatKey?.chatId === chatId
+        && this.preparedChatOwnerCurrent(this.preparedChatKey.owner, teamId) ? this.preparedChatKey : null;
       if (preparedKey) this.preparedChatKey = null;
       const prepared = preparedKey ? await preparedKey.value : null;
       const wrappingKey = prepared?.wrappingKey ?? await this.getChatWrappingKey(teamId, masterKey);

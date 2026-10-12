@@ -1283,6 +1283,7 @@ class PreprocessingResult(BaseModel):
     ai_model_topics: List[str] = Field(default_factory=list, description="AI model families whose current catalogue context is relevant to this request.")
     selected_app_ids: Optional[List[str]] = Field(None, exclude=True, description="Transient Jev app shortlist plus deterministic tool owners; None means the legacy fallback did not shortlist apps.")
     context_fast_path: bool = Field(False, exclude=True, description="Complete Stage-one and authoritative empty-context proof; main still rechecks the live Project binding.")
+    early_task_area: Optional[str] = Field(None, exclude=True, description="Validated Stage-one task area for narrow main setup decisions.")
     pending_project_focus_id: Optional[str] = Field(None, exclude=True, description="Routing-only consent proposal; no main inference or Project authority.")
     pending_project_catalog_id: Optional[str] = Field(None, exclude=True, description="Selected Project needs minimal owner-client Focus metadata before consent.")
     pending_project_specialist: Optional[Dict[str, str]] = Field(None, exclude=True, repr=False, description="Validated specialist selection metadata; its body remains hidden until consent.")
@@ -2139,6 +2140,45 @@ def _simple_context_fast_path(request_data: AskSkillRequest, early_routing: Dict
     return not request_data.is_focus_mode_continuation and not request_data.is_app_settings_memories_continuation
 
 
+def _stage_one_project_none_candidate(request_data: AskSkillRequest,
+                                      routing: Dict[str, Any] | None,
+                                      user_overrides: UserOverrides | None) -> bool:
+    """Select only when to await mandatory details; this grants no routing reuse."""
+    if not isinstance(routing, dict) or routing.get("project_target_outcome") != "none":
+        return False
+    decisions = routing.get("early_decisions")
+    admission = getattr(request_data, "admission_context", None)
+    if (not isinstance(decisions, dict) or decisions.get("needs_detailed_context") is not False
+            or decisions.get("needs_related_work") is not False
+            or not isinstance(decisions.get("public_decisions"), dict)
+            or routing.get("selected_app_ids") != []
+            or routing.get("pending_project_focus_id") or routing.get("pending_project_catalog_id")
+            or not isinstance(admission, dict)
+            or admission.get("context_revision") != "server-admission-v1"
+            or any(admission.get(key) for key in (
+                "active_project_id", "active_project_activation_id", "active_focus_id",
+                "accepted_plan_ref", "explicit_related_task_ids",
+            ))
+            or request_data.active_project_focus or request_data.current_project
+            or request_data.active_focus_id or request_data.project_routing_focus_id
+            or request_data.project_access_declined
+            or (user_overrides and user_overrides.has_overrides)):
+        return False
+    from backend.apps.ai.processing.project_file_tools import requests_project_file_work
+    from backend.core.api.app.services.project_focus_request_service import explicitly_named_project_focus_ids
+    text = request_data.current_user_content or ""
+    return (not requests_project_file_work(text)
+            and not explicitly_named_project_focus_ids(text, request_data.project_focus_candidates or []))
+
+
+def _reusable_stage_one_project_none(request_data: AskSkillRequest,
+                                     routing: Dict[str, Any] | None,
+                                     user_overrides: UserOverrides | None) -> bool:
+    """Reuse a sealed no-Project route only after complete admission hydration."""
+    return (_stage_one_project_none_candidate(request_data, routing, user_overrides)
+            and request_data.admission_context.get("scope_complete") is True)
+
+
 async def handle_preprocessing(
     request_data: AskSkillRequest,
     base_instructions: Dict[str, Any],
@@ -2336,6 +2376,29 @@ async def handle_preprocessing(
         selected_app_ids is not None,
         bool(getattr(request_data, "project_routing_focus_id", None)),
     )
+    # A candidate only moves the already-mandatory details hydration before the
+    # reuse decision. Client details complete the admission snapshot; they do not
+    # authorize Project access or grant a file tool.
+    from backend.core.api.app.services.client_context_continuation import await_client_context_phase
+    details_awaited_early = False
+    if (not stage_one_only and selected_app_ids is None
+            and _stage_one_project_none_candidate(request_data, precomputed_stage_one, user_overrides)):
+        await await_client_context_phase(
+            cache_service=cache_service, request=request_data, phase="details",
+            encryption_service=encryption_service,
+        )
+        details_awaited_early = True
+    # `precomputed_stage_one` comes only from the sealed, same-task handoff in
+    # ask_skill_task. Its confident no-Project decision is still subject to the
+    # live Project binding checks in main_processor; it grants no file access.
+    if (not stage_one_only and selected_app_ids is None
+            and _reusable_stage_one_project_none(request_data, precomputed_stage_one, user_overrides)):
+        request_data.project_focus_candidates = []
+        project_candidates_validated = True
+        early_routing = dict(precomputed_stage_one)
+        selected_app_ids = []
+        suppress_implicit_project_focus = True
+        logger.info("%s Reused same-turn Stage-one no-Project route", log_prefix)
     if (request_data.project_focus_candidates
             and "project_file_jobs" in (request_data.client_capabilities or [])
             and not request_data.active_project_focus
@@ -3001,11 +3064,11 @@ async def handle_preprocessing(
 
     # Private details can arrive while Stage one resolves and publishes the Mate.
     # Missing details must never be silently reinterpreted as an empty context.
-    from backend.core.api.app.services.client_context_continuation import await_client_context_phase
-    await await_client_context_phase(
-        cache_service=cache_service, request=request_data, phase="details",
-        encryption_service=encryption_service,
-    )
+    if not details_awaited_early:
+        await await_client_context_phase(
+            cache_service=cache_service, request=request_data, phase="details",
+            encryption_service=encryption_service,
+        )
     second_stage_started_at = time.monotonic()
     simple_context_fast_path = bool(
         decision_model and early_model_selection is not None and is_first_message
@@ -4230,6 +4293,7 @@ async def handle_preprocessing(
         ai_model_topics=ai_model_topics,
         selected_app_ids=final_selected_app_ids,
         context_fast_path=simple_context_fast_path,
+        early_task_area=task_area_val if simple_context_fast_path else None,
         topic_area=_normalize_topic_area(llm_analysis_args.get("topic_area")),
         topic_shift=llm_analysis_args.get("topic_shift") if isinstance(llm_analysis_args.get("topic_shift"), str) else None,
         llm_response_temp=llm_response_temp_val,  # Use validated temperature (clamped to 0.0-2.0)

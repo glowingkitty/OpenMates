@@ -169,6 +169,7 @@ const {
   clearSession,
   loadSession: loadStoredSession,
   loadSyncCache,
+  saveLocalTeamKey,
   saveSyncCache,
 } = await import("../src/storage.ts");
 const { OpenMatesWsClient } = await import("../src/ws.ts");
@@ -771,6 +772,57 @@ describe("OpenMatesClient session API URL", () => {
       assert.strictEqual(saved.cookies.auth_refresh_token, "rotated-refresh-token");
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle,auth.session.isolation,chats.completion.lease-fenced
+  it("shares a pending home identity validation with a Personal memory read, then validates again", async () => {
+    let authCalls = 0;
+    let resolveFirstRequest!: () => void;
+    const firstRequest = new Promise<void>(resolve => { resolveFirstRequest = resolve; });
+    let releaseFirstResponse!: () => void;
+    const firstResponse = new Promise<void>(resolve => { releaseFirstResponse = resolve; });
+    const server = createServer((request, response) => {
+      response.setHeader("content-type", "application/json");
+      if (request.url === "/v1/auth/session") {
+        authCalls++;
+        if (authCalls === 1) {
+          resolveFirstRequest();
+          void firstResponse.then(() => response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: "owner-id" } })));
+        } else response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: "owner-id" } }));
+      } else if (request.url === "/v1/sdk/memories") response.end(JSON.stringify({ memories: [] }));
+      else { response.writeHead(404); response.end(JSON.stringify({})); }
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      const homeIdentity = client.whoAmI();
+      await firstRequest;
+      let resolveDocumentRead!: () => void;
+      const documentRead = new Promise<void>(resolve => { resolveDocumentRead = resolve; });
+      const internal = client as unknown as { getCustomRuleDocuments: () => Promise<unknown[]> };
+      const getDocuments = internal.getCustomRuleDocuments.bind(client);
+      internal.getCustomRuleDocuments = () => {
+        const pending = getDocuments();
+        resolveDocumentRead();
+        return pending;
+      };
+      const memories = client.listMemories({ personal: true });
+      await documentRead;
+      releaseFirstResponse();
+      assert.equal((await homeIdentity).id, "owner-id");
+      assert.deepEqual(await memories, []);
+      assert.equal(authCalls, 1);
+      await client.whoAmI();
+      assert.equal(authCalls, 2, "a completed validation must not be reused");
+    } finally {
+      releaseFirstResponse();
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
     }
   });
 
@@ -2827,6 +2879,31 @@ describe("CLI saved-chat recovery preflight", () => {
   });
 
   // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
+  it("keeps a prepared chat across a same-owner reload and discards it after owner changes", () => {
+    for (const change of ["apiUrl", "hashedEmail", "sessionId", "createdAt", "masterKeyExportedB64", "activeTeamId"] as const) {
+      writeLegacySession();
+      const client = OpenMatesClient.load();
+      const preparedId = client.preparedNewChatId();
+      const original = client.getSession();
+      const internal = client as unknown as { session: typeof original };
+      internal.session = { ...original };
+      assert.equal(client.preparedNewChatId(), preparedId, "an equivalent persisted profile keeps the prepared ID");
+      internal.session = { ...original, [change]: change === "createdAt" ? original.createdAt + 1
+        : change === "masterKeyExportedB64" ? "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
+        : change === "activeTeamId" ? "different-team" : `different-${change}` };
+      assert.notEqual(client.preparedNewChatId(), preparedId, `${change} must invalidate the prepared ID`);
+    }
+    writeLegacySession();
+    const teamClient = OpenMatesClient.load();
+    const teamId = "22222222-2222-4222-8222-222222222222";
+    teamClient.setActiveTeamId(teamId);
+    saveLocalTeamKey("test-hashed-email", teamId, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+    const teamPreparedId = teamClient.preparedNewChatId();
+    saveLocalTeamKey("test-hashed-email", teamId, "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=");
+    assert.notEqual(teamClient.preparedNewChatId(), teamPreparedId, "Team key rotation must invalidate the prepared ID");
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
   for (const mutation of ["setter", "live session"] as const) it(`rejects prepared context after a ${mutation} Team change`, async () => {
     let client: OpenMatesClient | null = null;
     let socket: import("ws").WebSocket | null = null;
@@ -3249,6 +3326,9 @@ describe("CLI saved-chat recovery preflight", () => {
       writeLegacySession(`http://127.0.0.1:${address.port}`);
       const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
       const preparedChatId = client.preparedNewChatId();
+      const preparedSession = client.getSession();
+      await client.whoAmI();
+      assert.notStrictEqual(client.getSession(), preparedSession, "auth reloads the same owner into a new session object");
       const result = await client.sendMessage({
         newChatId: preparedChatId,
         message: "Email [EMAIL_1_com] or call [PHONE_1_567].",

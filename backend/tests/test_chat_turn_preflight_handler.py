@@ -12,6 +12,7 @@ import json
 import base64
 from copy import deepcopy
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -194,6 +195,59 @@ async def test_epoch_zero_acknowledges_without_persisting_recovery_state(monkeyp
             "turn_id": payload["turn_id"],
         },
     }
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+async def test_epoch_zero_first_chat_commits_ciphertext_before_legacy_ack(monkeypatch) -> None:
+    class FirstChatRecoveryService(FakeRecoveryService):
+        async def execute(self, operation: str, data: dict) -> dict:
+            self.calls.append((operation, deepcopy(data)))
+            if operation == "get_cutover_state":
+                return {"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 0}
+            assert operation == "prepare_preflight"
+            assert len(manager.messages) == sum(
+                call[0] == "prepare_preflight" for call in self.calls[:-1]
+            )
+            assert data["expected_messages_v"] == 0
+            assert data["encrypted_chat_metadata"]["encrypted_chat_key"] == data["wrapped_chat_key"]
+            assert data["encrypted_user_message"]["client_message_id"] == data["user_message_id"]
+            assert "inference_request" not in data
+            return {"preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                    "state": "PREPARED", "committed_messages_v": 1}
+
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", FirstChatRecoveryService)
+    FirstChatRecoveryService.calls = []
+    manager = FakeManager()
+    payload = _payload()
+    payload["expected_messages_v"] = 0
+    payload["encrypted_chat_metadata"] = {
+        "encrypted_title": "encrypted-empty-title",
+        "encrypted_chat_key": payload["encrypted_chat_key"],
+        "created_at": 100, "updated_at": 100,
+    }
+    directus = SimpleNamespace(chat=SimpleNamespace(get_chat_metadata=AsyncMock(return_value=None)))
+
+    first = await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        manager=manager, directus_service=directus, user_id="user-1", user_id_hash="owner-hash",
+        device_fingerprint_hash="device-hash", payload=payload,
+    )
+    second = await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        manager=manager, directus_service=directus, user_id="user-1", user_id_hash="owner-hash",
+        device_fingerprint_hash="device-hash", payload=deepcopy(payload),
+    )
+
+    assert first == second == {
+        "preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "state": "LEGACY", "committed_messages_v": 1, "turn_id": payload["turn_id"],
+    }
+    assert [operation for operation, _ in FirstChatRecoveryService.calls] == [
+        "get_cutover_state", "prepare_preflight", "get_cutover_state", "prepare_preflight",
+    ]
+    assert FirstChatRecoveryService.calls[1][1] == FirstChatRecoveryService.calls[3][1]
+    assert manager.messages[0][0]["payload"] == first
+    assert manager.messages[1][0]["payload"] == second
 
 
 @pytest.mark.asyncio

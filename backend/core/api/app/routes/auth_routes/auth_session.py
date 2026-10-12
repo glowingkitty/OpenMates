@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import HTTPException, APIRouter, Depends, Request, Response, Cookie
 import logging
 import time
@@ -84,6 +85,7 @@ async def get_session(
     without granting WebSocket access or changing sibling session authority.
     """
     try:
+        request_started = time.perf_counter()
         logger.info("Processing POST /session")
 
         try:
@@ -152,16 +154,6 @@ async def get_session(
                 require_invite_code=require_invite_code  # Include the invite code requirement
              )
 
-        # Basic auth intentionally permits pending risk so clients can discover
-        # the challenge. The durable ledger remains authoritative even if this
-        # request has returned to a previously trusted device or country.
-        security_state = await get_session_state_cached(
-            directus_service, cache_service,
-            hashlib.sha256(refresh_token.encode()).hexdigest(),
-            user_id=user_id,
-        )
-        risk_pending = bool(security_state and security_state.get("risk_pending"))
-
         # Step 2: Generate current fingerprint hash and detailed geo data
         
         # Extract session_id from the request body
@@ -183,8 +175,46 @@ async def get_session(
         device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id, session_id)
         client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
 
+        # Basic auth intentionally permits pending risk so clients can discover
+        # the challenge. The durable ledger remains authoritative even if this
+        # request has returned to a previously trusted device or country.
+        # These four reads are independent. Finish all of them before making a
+        # risk decision, and raise a ledger failure before using another result.
+        reads_started = time.perf_counter()
+        read_durations_ms: dict[str, float] = {}
+
+        async def timed_read(name: str, operation):
+            started = time.perf_counter()
+            try:
+                return await operation
+            finally:
+                read_durations_ms[name] = (time.perf_counter() - started) * 1000
+
+        security_state, known_device_hashes, previous_country, has_free_testing_credits_grant = await asyncio.gather(
+            timed_read("ledger", get_session_state_cached(
+                directus_service, cache_service,
+                hashlib.sha256(refresh_token.encode()).hexdigest(),
+                user_id=user_id,
+            )),
+            timed_read("devices", directus_service.get_user_device_hashes(user_id)),
+            timed_read("country", get_session_security_country(cache_service, user_id, refresh_token)),
+            timed_read("grant", _has_free_testing_credits_grant(user_id, directus_service, cache_service)),
+            return_exceptions=True,
+        )
+        parallel_reads_ms = (time.perf_counter() - reads_started) * 1000
+        logger.info(
+            "Auth session reads timing: ledger_ms=%.1f devices_ms=%.1f country_ms=%.1f grant_ms=%.1f parallel_ms=%.1f",
+            read_durations_ms["ledger"], read_durations_ms["devices"],
+            read_durations_ms["country"], read_durations_ms["grant"], parallel_reads_ms,
+        )
+        # The durable read is the authorization fence. In particular, a stale
+        # device/profile cache must not turn a revoked session into success.
+        for result in (security_state, known_device_hashes, previous_country, has_free_testing_credits_grant):
+            if isinstance(result, BaseException):
+                raise result
+        risk_pending = bool(security_state and security_state.get("risk_pending"))
+
         # Step 3: Check if this device hash is already known for the user
-        known_device_hashes = await directus_service.get_user_device_hashes(user_id)
         # Accept the old location-coupled hash during migration. A successful
         # session writes the stable replacement below, so this compatibility
         # path naturally disappears per device without forcing a logout.
@@ -200,9 +230,6 @@ async def get_session(
         # Step 3b: Check for sudden country change within this logical session.
         # This detects suspicious location changes (e.g., VPN switch, session hijacking)
         # even when the device hash is already known from a previous session.
-        previous_country = await get_session_security_country(
-            cache_service, user_id, refresh_token
-        )
         is_country_change = session_country_changed(previous_country, country_code)
         if is_country_change:
             logger.warning(
@@ -518,13 +545,7 @@ async def get_session(
                     "city": city,
                 }
 
-        logger.info(f"Session valid for user_id={user_id}. Returning user data.")
-        has_free_testing_credits_grant = await _has_free_testing_credits_grant(
-            user_id,
-            directus_service,
-            cache_service,
-        )
-        return SessionResponse(
+        session_response = SessionResponse(
             success=True,
             message="Session valid",
             user=UserResponse( # Map from user_data dictionary
@@ -561,6 +582,9 @@ async def get_session(
             session_device_info=session_device_info_data,
             session_meta_registered=session_meta_already_registered,
         )
+        logger.info("Auth session response timing: total_ms=%.1f", (time.perf_counter() - request_started) * 1000)
+        logger.info(f"Session valid for user_id={user_id}. Returning user data.")
+        return session_response
 
     except HTTPException:
         raise

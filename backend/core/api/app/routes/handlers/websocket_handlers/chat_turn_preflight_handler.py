@@ -247,7 +247,12 @@ async def handle_chat_turn_preflight(
                 or message.get("encrypted_content") != encrypted_message.get("encrypted_content")
             ):
                 raise ChatRecoveryProtocolError(409, "message_identity_mismatch")
-        if cutover_state.get("protocol_epoch") == 0 and not ordinary_team_turn:
+        legacy_dispatch = cutover_state.get("protocol_epoch") == 0 and not ordinary_team_turn
+        # A first saved-chat send carries the encrypted chat metadata and user
+        # ciphertext in this frame. Commit both before acknowledging it: the
+        # legacy inference admission requires an existing owner-scoped chat.
+        # Existing chats without initial metadata retain the epoch-zero path.
+        if legacy_dispatch and payload.get("encrypted_chat_metadata") is None:
             legacy_preflight_id = str(
                 uuid.uuid5(uuid.UUID(payload["turn_id"]), "legacy-preflight")
             )
@@ -364,6 +369,11 @@ async def handle_chat_turn_preflight(
             except Exception:
                 # Notification delivery must never invalidate a durable message commit.
                 logger.exception("Team chat notification fanout failed after committed preflight")
+        if legacy_dispatch:
+            # The durable first turn is committed, but inference still follows
+            # the epoch-zero legacy task/billing path. No recovery outbox is
+            # enqueued for this preflight.
+            result["state"] = "LEGACY"
         result["turn_id"] = payload["turn_id"]
         await send_response({"type": "chat_turn_preflight_ack", "payload": result})
         logger.info("Chat preflight phase=ack_sent turn=%s", turn_id[:8])

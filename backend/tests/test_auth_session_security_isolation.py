@@ -293,3 +293,94 @@ def test_session_risk_state_must_belong_to_authenticated_user(durable_session):
     assert exc.value.status_code == 401
     durable_session.ws_tokens.assert_not_called()
     durable_session.directus._update_item.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=auth.session.lifecycle,auth.session.risk-reauth
+def test_session_independent_reads_start_together_and_finish_before_success(durable_session, monkeypatch):
+    state = durable_session
+    started = []
+
+    async def scenario():
+        all_started = asyncio.Event()
+
+        async def read(name, value):
+            started.append(name)
+            if len(started) == 4:
+                all_started.set()
+            await all_started.wait()
+            return value
+
+        async def devices(*_args):
+            return await read("devices", ["known-device"])
+
+        monkeypatch.setattr(auth_session, "get_session_state_cached", lambda *_args, **_kwargs: read("ledger", state.rows[token_hash("sibling-token")]))
+        state.directus.get_user_device_hashes.side_effect = devices
+        monkeypatch.setattr(auth_session, "get_session_security_country", lambda *_args: read("country", "DE"))
+        monkeypatch.setattr(auth_session, "_has_free_testing_credits_grant", lambda *_args: read("grant", True))
+        return await asyncio.wait_for(state.call("sibling-token"), timeout=1)
+
+    result = asyncio.run(scenario())
+    assert set(started) == {"ledger", "devices", "country", "grant"}
+    assert result.success is True
+    assert result.user.has_free_testing_credits_grant is True
+    state.directus.add_user_device_hash.assert_awaited_once()
+
+
+# contract-test: direct surface=rest_api assertions=auth.session.lifecycle,auth.session.risk-reauth
+def test_session_rejects_failed_durable_read_after_parallel_reads(durable_session, monkeypatch):
+    state = durable_session
+    monkeypatch.setattr(auth_session, "get_session_state_cached", AsyncMock(side_effect=HTTPException(401, "Session revoked")))
+    grant = AsyncMock(return_value=True)
+    monkeypatch.setattr(auth_session, "_has_free_testing_credits_grant", grant)
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(state.call("sibling-token"))
+
+    assert exc.value.status_code == 401
+    state.directus.get_user_device_hashes.assert_awaited_once()
+    grant.assert_awaited_once()
+    state.directus.add_user_device_hash.assert_not_awaited()
+    state.directus.update_user.assert_not_awaited()
+    state.ws_tokens.assert_not_called()
+
+
+# contract-test: direct surface=rest_api assertions=auth.session.risk-reauth
+@pytest.mark.parametrize("risk_source", ["new_device", "country_change"])
+def test_parallel_reads_keep_new_device_and_country_challenges(durable_session, monkeypatch, risk_source):
+    state = durable_session
+    if risk_source == "new_device":
+        state.directus.get_user_device_hashes.return_value = []
+    else:
+        monkeypatch.setattr(auth_session, "generate_device_fingerprint_hash", Mock(
+            return_value=("known-device", "connection", "Linux", "FI", None, None, None, None)))
+    grant = AsyncMock(return_value=True)
+    monkeypatch.setattr(auth_session, "_has_free_testing_credits_grant", grant)
+
+    result = asyncio.run(state.call("sibling-token"))
+
+    assert result.success is False
+    assert result.re_auth_required == "2fa"
+    assert result.re_auth_reason == ("new_device" if risk_source == "new_device" else "location_change")
+    assert result.ws_token is None
+    assert state.rows[token_hash("sibling-token")]["risk_pending"] is True
+    grant.assert_awaited_once()
+    state.directus.add_user_device_hash.assert_not_awaited()
+    state.directus.update_user.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=auth.session.lifecycle
+def test_invalid_basic_auth_does_not_start_parallel_reads(durable_session, monkeypatch):
+    state = durable_session
+    monkeypatch.setattr(auth_session, "verify_authenticated_user", AsyncMock(return_value=(False, {}, None, "authentication_failed")))
+    ledger = AsyncMock()
+    grant = AsyncMock()
+    monkeypatch.setattr(auth_session, "get_session_state_cached", ledger)
+    monkeypatch.setattr(auth_session, "_has_free_testing_credits_grant", grant)
+
+    result = asyncio.run(state.call("sibling-token"))
+
+    assert result.success is False
+    ledger.assert_not_awaited()
+    grant.assert_not_awaited()
+    state.directus.get_user_device_hashes.assert_not_awaited()
+    state.ws_tokens.assert_not_called()

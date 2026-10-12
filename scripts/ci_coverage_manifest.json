@@ -401,6 +401,7 @@
         "hidden-chats-flow.spec.ts",
         "incognito-mode.spec.ts",
         "interactive-questions.spec.ts",
+        "legacy-first-chat-admission.spec.ts",
         "logout-blocked-userdb-relogin.spec.ts",
         "message-highlights-touch.spec.ts",
         "model-override.spec.ts",

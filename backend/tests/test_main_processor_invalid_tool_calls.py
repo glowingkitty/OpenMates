@@ -1026,6 +1026,48 @@ async def test_tool_guidance_matches_final_forwarded_capability(monkeypatch, for
         assert main_processor.ANSWER_RECOVERY_INSTRUCTION in recovery_calls[1]["system_prompt"]
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible,ai-model-routing.defaults.google-tier-profiles
+@pytest.mark.parametrize("question, expects_task_tool", [
+    ("What's the capital of Spain?", False),
+    ("What task should I create?", True),
+])
+async def test_simple_personal_turn_forwards_task_tool_only_for_task_intent(
+    monkeypatch, question: str, expects_task_tool: bool,
+) -> None:
+    """Exercise the real main loop's Task boundary with a mocked provider."""
+    from backend.apps.ai.processing.task_tool_context import TaskToolContext
+
+    task_lookup = AsyncMock(return_value=TaskToolContext(user_id="user-1", chat_id="chat-1"))
+    monkeypatch.setattr(main_processor, "resolve_task_tool_context", task_lookup)
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["Madrid."]],
+        directus_service=SimpleNamespace(user_task=object()),
+        request_overrides={
+            "current_user_content": question,
+            "message_history": [{"role": "user", "content": question}],
+            "client_capabilities": ["task_update_jobs"],
+            "admission_context": {
+                "scope_complete": True,
+                "context_revision": "server-admission-v1",
+                "explicit_related_task_ids": [],
+            },
+            "related_task_candidates": [],
+        },
+        preprocessing_overrides={
+            "context_fast_path": True,
+            "early_task_area": "general",
+            "selected_app_ids": [],
+        },
+    )
+
+    assert len(calls) == 1
+    assert [tool["function"]["name"] for tool in calls[0]["tools"]] == (
+        ["task_create"] if expects_task_tool else []
+    )
+    assert task_lookup.await_count == int(expects_task_tool)
+    assert "Madrid." in "".join(chunk for chunk in output if isinstance(chunk, str))
+
+
 # contract-test: supporting surface=rest_api assertions=app-memories.transparency.loaded-set,app-memories.privacy.client-encrypted
 @pytest.mark.parametrize("diagram_selected", [True, False])
 async def test_no_tool_diagram_guidance_survives_primary_and_recovery_prompts(

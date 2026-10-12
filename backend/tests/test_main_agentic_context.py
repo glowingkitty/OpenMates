@@ -249,3 +249,54 @@ async def test_stage_two_related_selection_revalidates_without_third_inference(m
     if selected_revision is None:
         chats.assert_not_awaited()
         tasks.assert_not_awaited()
+
+# contract-test: supporting surface=cli assertions=chat-processing-feedback.selected-mate-identity
+@pytest.mark.parametrize("change", [
+    "none", "unknown_area", "non_english", "task_request", "task_reference",
+    "related_task", "unrelated_task", "malformed_related", "selected_app", "selected_focus", "active_project", "team",
+    "continuation", "missing_scope", "non_question", "ambiguous_action",
+])
+def test_empty_fact_question_omits_task_runtime_only_with_complete_proof(change):
+    request = SimpleNamespace(
+        current_user_content="What's the capital of Spain?", team_id=None,
+        admission_context={"scope_complete": True, "context_revision": "server-admission-v1",
+                           "explicit_related_task_ids": []}, related_task_candidates=[],
+    )
+    preprocessing = SimpleNamespace(
+        context_fast_path=True, early_task_area="general", output_language="en",
+        selected_app_ids=[], relevant_app_skills=[], relevant_focus_modes=[],
+        load_app_settings_and_memories=[],
+    )
+    if change == "unknown_area":
+        preprocessing.early_task_area = None
+    elif change == "non_english":
+        preprocessing.output_language = "fr"
+        request.current_user_content = "Quelle tâche dois-je créer ?"
+    elif change == "task_request":
+        request.current_user_content = "What task should I create?"
+    elif change == "task_reference":
+        request.current_user_content = "What happened to TASK-42?"
+    elif change == "related_task":
+        request.related_task_candidates = [{"task_id": "TASK-42", "explicit_dependency": True}]
+    elif change == "unrelated_task":
+        request.related_task_candidates = [{"task_id": "TASK-42", "explicit_dependency": False}]
+    elif change == "malformed_related":
+        request.related_task_candidates = [{"task_id": "TASK-42"}]
+    elif change == "selected_app":
+        preprocessing.selected_app_ids = ["tasks"]
+    elif change == "selected_focus":
+        preprocessing.relevant_focus_modes = ["tasks-daily-meeting"]
+    elif change == "active_project":
+        request.current_project = {"project_id": "project"}
+    elif change == "team":
+        request.team_id = "team"
+    elif change == "continuation":
+        request.is_focus_mode_continuation = True
+    elif change == "missing_scope":
+        request.admission_context["scope_complete"] = False
+    elif change == "non_question":
+        request.current_user_content = "Tell me the capital of Spain"
+    elif change == "ambiguous_action":
+        request.current_user_content = "What should I do next?"
+    assert main._skip_empty_task_runtime_for_simple_answer(request, preprocessing) is (change in {"none", "unrelated_task"})
+
