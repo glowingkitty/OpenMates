@@ -481,12 +481,56 @@
 
 /* Editor content wrapper */
 .content-wrapper {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
   box-sizing: border-box;
   min-height: 40px;
   padding: 0 1rem;
+}
+
+.content-wrapper:has(.composer-ghost-suggestion) { display: grid; }
+.content-wrapper:has(.composer-ghost-suggestion) .editor-content { grid-area: 1 / 1; }
+
+.composer-ghost-suggestion {
+  position: relative;
+  z-index: 2;
+  grid-area: 1 / 1;
+  padding-top: 0.5rem;
+  color: var(--color-font-tertiary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  pointer-events: none;
+  overflow-wrap: anywhere;
+}
+
+.message-field.has-ghost-suggestion :global(.ProseMirror p.is-editor-empty:first-child::before) {
+  opacity: 0;
+}
+
+.composer-ghost-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 1rem 0.5rem;
+  color: var(--color-font-tertiary);
+  font-size: 0.75rem;
+}
+
+.composer-ghost-hint { font-style: italic; }
+
+.composer-ghost-actions button {
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-ghost-suggestion { animation-duration: 0ms !important; transition-duration: 0ms !important; }
 }
 
 /* Tiptap editor element */

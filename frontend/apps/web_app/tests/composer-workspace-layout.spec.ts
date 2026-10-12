@@ -67,20 +67,15 @@ async function checkFocusedLayout(page: Page, surface: 'tasks' | 'workflows' | '
   await expect.poll(() => cancel.evaluate((element: HTMLElement) => element.getBoundingClientRect().height)).toBe(0);
   await input.fill(draft);
   await expect(input).toBeFocused();
-  await expect(page.getByTestId(ids.backdrop)).toBeVisible();
-  await expect.poll(() => page.getByTestId(ids.backdrop).evaluate((element) => {
-    const box = element.getBoundingClientRect();
-    const parent = element.parentElement!.getBoundingClientRect();
-    return Math.max(Math.abs(box.width - parent.width), Math.abs(box.height - parent.height));
-  })).toBeLessThanOrEqual(1);
+  await expect(page.getByTestId(ids.backdrop)).toHaveCount(0);
   await expect(background).toHaveAttribute('inert', '');
-  await expect(background).toHaveCSS('opacity', '0');
-  await expect(background).toHaveCSS('visibility', 'hidden');
+  await expect(background).toHaveCSS('opacity', '1');
+  await expect(background).toHaveCSS('visibility', 'visible');
   if (surface === 'editor') {
-    await expect(page.getByTestId('workflow-graph-renderer')).toBeHidden();
+    await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible();
   } else {
-    await expect(page.getByTestId(`${surface}-daily-inspiration-area`)).toBeHidden();
-    if (surface === 'tasks') await expect(page.getByTestId('tasks-board-workspace')).toBeHidden();
+    await expect(page.getByTestId(`${surface}-daily-inspiration-area`)).toBeVisible();
+    if (surface === 'tasks') await expect(page.getByTestId('tasks-board-workspace')).toBeVisible();
   }
   await expect(cancel).toBeVisible();
 
@@ -95,7 +90,7 @@ async function checkFocusedLayout(page: Page, surface: 'tasks' | 'workflows' | '
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
   await page.screenshot({ path: test.info().outputPath(`${surface}-focused-390x${height}.png`), fullPage: true });
 
-  await page.getByTestId(ids.backdrop).click({ position: { x: 8, y: 8 } });
+  await page.locator(surface === 'editor' ? '.workflow-management' : `.workspace-home-shell[data-surface="${surface}"]`).click({ position: { x: 8, y: 8 } });
   await expect(page.getByTestId(ids.backdrop)).toHaveCount(0);
   await expect(background).not.toHaveAttribute('inert', '');
   await expect(background).toHaveCSS('opacity', '1');
@@ -136,8 +131,9 @@ test.describe('Actual workspace composer layout', () => {
       await field.click();
       await expect(field).toHaveAttribute('data-focused', 'true');
       await expect(background).toHaveAttribute('inert', '');
-      await expect(background).toHaveCSS('opacity', '0');
-      await expect(background).toHaveCSS('visibility', 'hidden');
+      await expect(background).toHaveCSS('opacity', '1');
+      await expect(background).toHaveCSS('visibility', 'visible');
+      await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
       await expect(page.getByTestId('chat-welcome-suggestions')).toHaveCSS('visibility', 'hidden');
       await expect(page.getByTestId('chat-welcome-suggestions')).toHaveAttribute('inert', '');
       await expect(page.getByTestId('new-chat-suggestion-card').first()).toBeHidden();
@@ -162,7 +158,7 @@ test.describe('Actual workspace composer layout', () => {
       await field.click();
       await expect(field).toHaveAttribute('data-focused', 'true');
       await expect(background).toHaveAttribute('inert', '');
-      await expect(background).toHaveCSS('opacity', '0.15');
+      await expect(background).toHaveCSS('opacity', '1');
       await expect(background).toHaveCSS('visibility', 'visible');
       await expect(transcript).toBeVisible();
       await page.screenshot({ path: test.info().outputPath(`chat-example-focused-390x${height}.png`), fullPage: true });

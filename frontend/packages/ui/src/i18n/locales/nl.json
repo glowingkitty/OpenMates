@@ -93,6 +93,14 @@
         }
       }
     },
+    "business": {
+      "find_brand_name": {
+        "text": "Een merknaam vinden",
+        "description": {
+          "text": "Maak een selectie van herkenbare namen en controleer domeinen en merkconflicten van de finalisten."
+        }
+      }
+    },
     "code": {
       "test_git_repo": {
         "text": "Git-repository testen",
@@ -1282,6 +1290,12 @@
         "text": "Get company financials",
         "description": {
           "text": "Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR."
+        }
+      },
+      "search_trademarks": {
+        "text": "Handelsmerken zoeken",
+        "description": {
+          "text": "Zoek merknamen per regio met bronnen en dekkingsgrenzen."
         }
       }
     },
@@ -7623,6 +7637,86 @@
         "not_available": {
           "text": "n.v.t."
         }
+      },
+      "search_trademarks": {
+        "records": {
+          "text": "Registraties: {count}"
+        },
+        "preliminary": {
+          "text": "Voorlopige zoekopdracht"
+        },
+        "checked": {
+          "text": "Doorzocht"
+        },
+        "not_searched": {
+          "text": "Niet doorzocht"
+        },
+        "partial": {
+          "text": "Gedeeltelijk"
+        },
+        "empty": {
+          "text": "Geen overeenkomende registraties"
+        },
+        "limitation": {
+          "text": "Geen overeenkomsten bewijzen geen juridische beschikbaarheid."
+        },
+        "open_record": {
+          "text": "Bekijk officiële registratie"
+        },
+        "open_register": {
+          "text": "Open officiële zoekopdracht"
+        },
+        "classes": {
+          "text": "Nice-klassen"
+        },
+        "all_classes": {
+          "text": "Alle klassen"
+        },
+        "owner": {
+          "text": "Houder"
+        },
+        "goods": {
+          "text": "Goederen en diensten"
+        },
+        "application": {
+          "text": "Aanvraag"
+        },
+        "registration": {
+          "text": "Registratie"
+        },
+        "filed": {
+          "text": "Ingediend"
+        },
+        "registered": {
+          "text": "Geregistreerd"
+        },
+        "pending": {
+          "text": "In behandeling"
+        },
+        "ended": {
+          "text": "Beëindigd"
+        },
+        "unknown": {
+          "text": "Status onbekend"
+        },
+        "exact": {
+          "text": "Exacte naam"
+        },
+        "similar": {
+          "text": "Vergelijkbare spelling"
+        },
+        "active": {
+          "text": "Actieve registraties"
+        },
+        "all_statuses": {
+          "text": "Alle statussen"
+        },
+        "more": {
+          "text": "Meer overeenkomsten in het officiële register"
+        },
+        "failed": {
+          "text": "Zoekgegevens niet beschikbaar"
+        }
       }
     },
     "reviews": {
@@ -7874,6 +7968,14 @@
       },
       "exit_fullscreen": {
         "text": "Volledig scherm sluiten"
+      }
+    },
+    "ghost_suggestion": {
+      "press_tab": {
+        "text": "Druk op Tab om de suggestie te gebruiken"
+      },
+      "use_suggestion": {
+        "text": "Suggestie gebruiken"
       }
     },
     "location": {
@@ -8954,6 +9056,38 @@
       },
       "follow_up_6": {
         "text": "Leg uit hoe je visuele elementen rangschikt in een lay-out voor drukwerk"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "Een warme chime voor een gemeenschapstuin"
+      },
+      "summary": {
+        "text": "Genereer een kort tweekleurig meldingsgeluid voor een fictieve app voor een gemeenschapstuin."
+      },
+      "message_1": {
+        "text": "Maak een kort, warm meldingsgeluid voor een app voor een gemeenschapstuin voor wanneer een vrijwilliger zich aanmeldt. Een zachte tweekleurige chime, geen spraak en korter dan drie seconden."
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nIk genereer nu de warme, zachte tweekleurige chime voor je gemeenschapstuin-app. Deze wordt momenteel verwerkt en verschijnt in de chat zodra hij klaar is.\n\n### Voorgestelde vervolgstappen\n- [Genereer een aards, feestelijk geluid voor het ontgrendelen van een badge](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Ontwerp een lay-out voor een vrijwilligersbevestigingskaart](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "Genereer een feestelijk geluid voor het ontgrendelen van een badge na voltooiing van een taak"
+      },
+      "follow_up_2": {
+        "text": "Leg uit hoe geluidsontwerp de gebruikersbetrokkenheid in mobiele apps beïnvloedt"
+      },
+      "follow_up_3": {
+        "text": "Maak een zacht herinneringsgeluid voor de ochtendbewateringsschema's"
+      },
+      "follow_up_4": {
+        "text": "Lijst met best practices voor het ontwerpen van niet-opdringerige UI-meldingsgeluiden"
+      },
+      "follow_up_5": {
+        "text": "Genereer een zacht foutmeldingsgeluid voor mislukte formuliervalidaties"
+      },
+      "follow_up_6": {
+        "text": "Beschrijf hoe je aangepaste geluidseffecten integreert in mobiele applicaties"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -10038,6 +10172,38 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"6da89032-d370-43c5-91c1-b07fa5df5a85\", \"app_id\": \"images\", \"skill_id\": \"generate\"}\n```\n\nI'm generating that SVG app icon for your climate data dashboard now. \n\nI've focused on a clean, [flat](wiki:Flat_design) [vector](wiki:Vector_graphics) aesthetic with a teal and mint palette to reflect both nature and data. This style is excellent for scalability, ensuring the icon stays crisp whether it's on a mobile home screen or a tiny browser favicon.\n\nOnce it's ready, we could experiment with different color schemes for dark mode or even create a [UI mockup](wiki:Mockup) to see how it looks in context.\n\nWhat kind of interface are you imagining for this dashboard—something very data-heavy with charts, or a more simplified overview?"
       }
     },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Stroomdiagram voor afrekenproces webshop"
+      },
+      "summary": {
+        "text": "Een bewerkbaar checkout-stroomdiagram met betalingsherhaling en orderbevestiging."
+      },
+      "message_1": {
+        "text": "Maak een bewerkbaar stroomdiagram voor een kleine webshop: winkelmandje, checkout-gegevens, betaling en orderbevestiging. Als de betaling wordt geweigerd, laat dan zien dat de klant het opnieuw probeert. Houd alle informatie binnen het diagram en link niet naar externe websites."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Analyse van de flow & UX-overwegingen\n\n1. **Sequentiële voortgang**: De klant doorloopt lineair het **Winkelmandje**, de **Checkout-gegevens** (verzending/facturering) en de **Betalingsverwerking**.\n2. **Geweigerde betalingen & foutherstel**:\n   - In plaats van de klant terug te sturen naar een lege sessie, leidt een weigering naar een beslissingsstap **Methode wijzigen**.\n   - Het gestippelde orthogonale pad leidt direct terug naar de **Checkout-gegevens**, zodat de klant van betaalmethode kan wisselen, typefouten in kaartgegevens kan corrigeren of een alternatieve digitale portemonnee kan kiezen zonder de items in het winkelmandje te verliezen.\n   - Als ze besluiten het niet opnieuw te proberen, eindigt de sessie netjes in een eindstatus **Winkelmandje opgeslagen**, wat de deur openzet voor vervolg-e-mails over verlaten winkelmandjes.\n3. **Bewerkbare structuur**: Elke stap en elk pad bevat standaard `data-om-*` bindings, zodat je labels kunt aanpassen, een stap voor kortingsbonnen kunt toevoegen of direct vertakkingen voor gast-checkouts kunt integreren.\n\n---\n\n**Volgende stappen & iteraties:**\n- Wil je een vertakking **Gast-checkout vs. Ingelogd account** toevoegen vóór de verzendgegevens?\n- Als je gebruikersinterfaces of aangepaste illustraties voor deze flow ontwerpt, kunnen we kijken naar het integreren van wireframes of handgetekende icoon-badges om de stappen aan te vullen."
+      },
+      "follow_up_1": {
+        "text": "Zoek naar gratis SVG-iconen voor checkout-knoppen"
+      },
+      "follow_up_2": {
+        "text": "Leg uit hoe je een vertakking voor gast-checkouts toevoegt vóór de verzendgegevens"
+      },
+      "follow_up_3": {
+        "text": "Zoek naar best practices en UX-trends voor het afrekenproces in webshops"
+      },
+      "follow_up_4": {
+        "text": "Beschrijf hoe je effectief omgaat met e-mails voor het herstellen van verlaten winkelmandjes"
+      },
+      "follow_up_5": {
+        "text": "Vind aankomende e-commerce designworkshops en webinars"
+      },
+      "follow_up_6": {
+        "text": "Maak een lijst van veelvoorkomende UX-valkuilen in online betaalprocessen"
+      }
+    },
     "open_meteo_weather_notebook": {
       "title": {
         "text": "Berlin Weekend Bike Weather Notebook"
@@ -10684,70 +10850,6 @@
       "follow_up_6": {
         "text": "Vergelijk verschillende methoden om gesproken ideeën om te zetten in georganiseerde taken"
       }
-    },
-    "community_garden_volunteer_chime": {
-      "title": {
-        "text": "Een warme chime voor een gemeenschapstuin"
-      },
-      "summary": {
-        "text": "Genereer een kort tweekleurig meldingsgeluid voor een fictieve app voor een gemeenschapstuin."
-      },
-      "message_1": {
-        "text": "Maak een kort, warm meldingsgeluid voor een app voor een gemeenschapstuin voor wanneer een vrijwilliger zich aanmeldt. Een zachte tweekleurige chime, geen spraak en korter dan drie seconden."
-      },
-      "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nIk genereer nu de warme, zachte tweekleurige chime voor je gemeenschapstuin-app. Deze wordt momenteel verwerkt en verschijnt in de chat zodra hij klaar is.\n\n### Voorgestelde vervolgstappen\n- [Genereer een aards, feestelijk geluid voor het ontgrendelen van een badge](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Ontwerp een lay-out voor een vrijwilligersbevestigingskaart](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
-      },
-      "follow_up_1": {
-        "text": "Genereer een feestelijk geluid voor het ontgrendelen van een badge na voltooiing van een taak"
-      },
-      "follow_up_2": {
-        "text": "Leg uit hoe geluidsontwerp de gebruikersbetrokkenheid in mobiele apps beïnvloedt"
-      },
-      "follow_up_3": {
-        "text": "Maak een zacht herinneringsgeluid voor de ochtendbewateringsschema's"
-      },
-      "follow_up_4": {
-        "text": "Lijst met best practices voor het ontwerpen van niet-opdringerige UI-meldingsgeluiden"
-      },
-      "follow_up_5": {
-        "text": "Genereer een zacht foutmeldingsgeluid voor mislukte formuliervalidaties"
-      },
-      "follow_up_6": {
-        "text": "Beschrijf hoe je aangepaste geluidseffecten integreert in mobiele applicaties"
-      }
-    },
-    "online_shop_checkout_flow_diagram": {
-      "title": {
-        "text": "Stroomdiagram voor afrekenproces webshop"
-      },
-      "summary": {
-        "text": "Een bewerkbaar checkout-stroomdiagram met betalingsherhaling en orderbevestiging."
-      },
-      "message_1": {
-        "text": "Maak een bewerkbaar stroomdiagram voor een kleine webshop: winkelmandje, checkout-gegevens, betaling en orderbevestiging. Als de betaling wordt geweigerd, laat dan zien dat de klant het opnieuw probeert. Houd alle informatie binnen het diagram en link niet naar externe websites."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Analyse van de flow & UX-overwegingen\n\n1. **Sequentiële voortgang**: De klant doorloopt lineair het **Winkelmandje**, de **Checkout-gegevens** (verzending/facturering) en de **Betalingsverwerking**.\n2. **Geweigerde betalingen & foutherstel**:\n   - In plaats van de klant terug te sturen naar een lege sessie, leidt een weigering naar een beslissingsstap **Methode wijzigen**.\n   - Het gestippelde orthogonale pad leidt direct terug naar de **Checkout-gegevens**, zodat de klant van betaalmethode kan wisselen, typefouten in kaartgegevens kan corrigeren of een alternatieve digitale portemonnee kan kiezen zonder de items in het winkelmandje te verliezen.\n   - Als ze besluiten het niet opnieuw te proberen, eindigt de sessie netjes in een eindstatus **Winkelmandje opgeslagen**, wat de deur openzet voor vervolg-e-mails over verlaten winkelmandjes.\n3. **Bewerkbare structuur**: Elke stap en elk pad bevat standaard `data-om-*` bindings, zodat je labels kunt aanpassen, een stap voor kortingsbonnen kunt toevoegen of direct vertakkingen voor gast-checkouts kunt integreren.\n\n---\n\n**Volgende stappen & iteraties:**\n- Wil je een vertakking **Gast-checkout vs. Ingelogd account** toevoegen vóór de verzendgegevens?\n- Als je gebruikersinterfaces of aangepaste illustraties voor deze flow ontwerpt, kunnen we kijken naar het integreren van wireframes of handgetekende icoon-badges om de stappen aan te vullen."
-      },
-      "follow_up_1": {
-        "text": "Zoek naar gratis SVG-iconen voor checkout-knoppen"
-      },
-      "follow_up_2": {
-        "text": "Leg uit hoe je een vertakking voor gast-checkouts toevoegt vóór de verzendgegevens"
-      },
-      "follow_up_3": {
-        "text": "Zoek naar best practices en UX-trends voor het afrekenproces in webshops"
-      },
-      "follow_up_4": {
-        "text": "Beschrijf hoe je effectief omgaat met e-mails voor het herstellen van verlaten winkelmandjes"
-      },
-      "follow_up_5": {
-        "text": "Vind aankomende e-commerce designworkshops en webinars"
-      },
-      "follow_up_6": {
-        "text": "Maak een lijst van veelvoorkomende UX-valkuilen in online betaalprocessen"
-      }
     }
   },
   "focus_modes": {
@@ -10764,6 +10866,15 @@
       "text": "Boekaanbevelingen",
       "description": {
         "text": "Krijg boekaanbevelingen op basis van je smaak."
+      }
+    },
+    "business_find_brand_name": {
+      "text": "Een merknaam vinden",
+      "description": {
+        "text": "Maak een selectie van herkenbare namen en controleer domeinen en merkconflicten van de finalisten."
+      },
+      "process": {
+        "text": "- Begrijp de vraag\n- selecteer namen\n- controleer finalisten\n- vergelijk bewijs"
       }
     },
     "code_analyze_logs": {
@@ -12512,6 +12623,13 @@
             },
             "description": {
               "text": "Mastodon wordt geraadpleegd wanneer je openbare Mastodon-profielberichten ophaalt. De betreffende Mastodon-server ontvangt profiel-ID's of openbare profiel-URL's zonder een OpenMates-gebruikers-ID."
+            }
+          }
+        },
+        "business_data": {
+          "uspto": {
+            "description": {
+              "text": "USPTO ontvangt kandidaatnamen en filters voor status, spelling en Nice-klassen voor Amerikaanse zoekopdrachten. Verzoeken komen van onze servers zonder OpenMates-gebruikersidentificatie of chatgeschiedenis."
             }
           }
         }

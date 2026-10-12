@@ -93,6 +93,14 @@
         }
       }
     },
+    "business": {
+      "find_brand_name": {
+        "text": "Najít název značky",
+        "description": {
+          "text": "Vyberte zapamatovatelné názvy a poté prověřte domény a kolize ochranných známek finalistů."
+        }
+      }
+    },
     "code": {
       "test_git_repo": {
         "text": "Otestovat git úložiště",
@@ -1282,6 +1290,12 @@
         "text": "Get company financials",
         "description": {
           "text": "Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR."
+        }
+      },
+      "search_trademarks": {
+        "text": "Hledat ochranné známky",
+        "description": {
+          "text": "Hledejte známky podle regionu se zdroji a mezemi pokrytí."
         }
       }
     },
@@ -7623,6 +7637,86 @@
         "not_available": {
           "text": "N/A"
         }
+      },
+      "search_trademarks": {
+        "records": {
+          "text": "Záznamy: {count}"
+        },
+        "preliminary": {
+          "text": "Předběžné hledání"
+        },
+        "checked": {
+          "text": "Prohledáno"
+        },
+        "not_searched": {
+          "text": "Neprohledáno"
+        },
+        "partial": {
+          "text": "Částečně"
+        },
+        "empty": {
+          "text": "Žádné odpovídající záznamy"
+        },
+        "limitation": {
+          "text": "Žádné výsledky nedokazují právní dostupnost."
+        },
+        "open_record": {
+          "text": "Zobrazit úřední záznam"
+        },
+        "open_register": {
+          "text": "Otevřít úřední hledání"
+        },
+        "classes": {
+          "text": "Niceské třídy"
+        },
+        "all_classes": {
+          "text": "Všechny třídy"
+        },
+        "owner": {
+          "text": "Vlastník"
+        },
+        "goods": {
+          "text": "Výrobky a služby"
+        },
+        "application": {
+          "text": "Přihláška"
+        },
+        "registration": {
+          "text": "Registrace"
+        },
+        "filed": {
+          "text": "Podáno"
+        },
+        "registered": {
+          "text": "Zaregistrováno"
+        },
+        "pending": {
+          "text": "V řízení"
+        },
+        "ended": {
+          "text": "Ukončeno"
+        },
+        "unknown": {
+          "text": "Stav neznámý"
+        },
+        "exact": {
+          "text": "Přesný název"
+        },
+        "similar": {
+          "text": "Podobný pravopis"
+        },
+        "active": {
+          "text": "Aktivní záznamy"
+        },
+        "all_statuses": {
+          "text": "Všechny stavy"
+        },
+        "more": {
+          "text": "Další výsledky v úředním rejstříku"
+        },
+        "failed": {
+          "text": "Údaje hledání nejsou dostupné"
+        }
       }
     },
     "reviews": {
@@ -7874,6 +7968,14 @@
       },
       "exit_fullscreen": {
         "text": "Opustit celou obrazovku"
+      }
+    },
+    "ghost_suggestion": {
+      "press_tab": {
+        "text": "Stisknutím Tab přijmete návrh"
+      },
+      "use_suggestion": {
+        "text": "Použít návrh"
       }
     },
     "location": {
@@ -8954,6 +9056,38 @@
       },
       "follow_up_6": {
         "text": "Vysvětli, jak uspořádat vizuální prvky v tiskovém rozvržení"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "Hřejivá znělka pro komunitní zahradu"
+      },
+      "summary": {
+        "text": "Vygeneruj krátký dvoutónový zvuk oznámení pro fiktivní aplikaci pro komunitní zahradu."
+      },
+      "message_1": {
+        "text": "Vytvoř krátký, hřejivý zvuk oznámení pro aplikaci pro komunitní zahradu při přihlášení dobrovolníka. Jemná dvoutónová znělka, beze slov a pod tři sekundy."
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nPrávě generuji hřejivou, jemnou dvoutónovou znělku pro tvou aplikaci pro komunitní zahradu. Právě se zpracovává a v chatu se objeví, jakmile bude hotová.\n\n### Navrhované další kroky\n- [Vygeneruj zemitou, oslavnou znělku pro odemknutí odznaku](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Navrhni rozvržení potvrzovací karty pro dobrovolníky](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "Vygeneruj oslavnou znělku pro odemknutí odznaku za splnění úkolu"
+      },
+      "follow_up_2": {
+        "text": "Vysvětli, jak zvukový design ovlivňuje zapojení uživatelů v mobilních aplikacích"
+      },
+      "follow_up_3": {
+        "text": "Vytvoř jemnou připomínací znělku pro ranní rozvrh zalévání"
+      },
+      "follow_up_4": {
+        "text": "Uveď osvědčené postupy pro návrh nevtíravých zvuků oznámení v UI"
+      },
+      "follow_up_5": {
+        "text": "Vygeneruj jemný zvuk upozornění na chybu při selhání validace formuláře"
+      },
+      "follow_up_6": {
+        "text": "Popiš, jak integrovat vlastní zvukové efekty do mobilních aplikací"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -10038,6 +10172,38 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"6da89032-d370-43c5-91c1-b07fa5df5a85\", \"app_id\": \"images\", \"skill_id\": \"generate\"}\n```\n\nI'm generating that SVG app icon for your climate data dashboard now. \n\nI've focused on a clean, [flat](wiki:Flat_design) [vector](wiki:Vector_graphics) aesthetic with a teal and mint palette to reflect both nature and data. This style is excellent for scalability, ensuring the icon stays crisp whether it's on a mobile home screen or a tiny browser favicon.\n\nOnce it's ready, we could experiment with different color schemes for dark mode or even create a [UI mockup](wiki:Mockup) to see how it looks in context.\n\nWhat kind of interface are you imagining for this dashboard—something very data-heavy with charts, or a more simplified overview?"
       }
     },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Diagram procesu pokladny e-shopu"
+      },
+      "summary": {
+        "text": "Upravitelný vývojový diagram pokladny s opakováním platby a potvrzením objednávky."
+      },
+      "message_1": {
+        "text": "Vytvoř upravitelný vývojový diagram pro malý e-shop: košík, údaje v pokladně, platba a potvrzení objednávky. Pokud je platba zamítnuta, ukaž, jak zákazník pokus opakuje. Všechny informace ponech v diagramu a neodkazuj na externí webové stránky."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Rozbor toku a UX aspekty\n\n1. **Sekvenční postup**: Zákazník postupuje lineárně přes **Košík**, **Údaje v pokladně** (doprava/fakturace) a **Zpracování platby**.\n2. **Zamítnutí a náprava chyb**:\n   - Místo toho, aby byl zákazník vrácen do prázdné relace, zamítnutí vede k rozhodovacímu kroku **Změnit metodu**.\n   - Přerušovaná kolmá cesta vede přímo zpět do **Údajů v pokladně**, což zákazníkovi umožňuje změnit platební metodu, opravit překlepy v údajích o kartě nebo vybrat jinou digitální peněženku, aniž by přišel o položky v košíku.\n   - Pokud se rozhodnou pokus neopakovat, relace čistě končí v koncovém stavu **Košík uložen**, což otevírá dveře pro následné e-maily o opuštěném košíku.\n3. **Upravitelná struktura**: Každý krok a cesta obsahuje standardní vazby `data-om-*`, takže si můžeš přizpůsobit popisky, přidat krok se slevovým kupónem nebo přímo integrovat větve pro nákup bez registrace.\n\n---\n\n**Další kroky a iterace:**\n- Chceš před dodací údaje vložit větev **Nákup bez registrace vs. Přihlášený účet**?\n- Pokud pro tento tok navrhuješ uživatelská rozhraní nebo vlastní ilustrace, můžeme prozkoumat integraci drátěných modelů (wireframes) nebo vlastních ručně kreslených ikon pro doplnění jednotlivých kroků."
+      },
+      "follow_up_1": {
+        "text": "Vyhledej bezplatné ikony SVG pro tlačítka pokladny"
+      },
+      "follow_up_2": {
+        "text": "Vysvětli, jak přidat větev pro nákup bez registrace před dodací údaje"
+      },
+      "follow_up_3": {
+        "text": "Vyhledej osvědčené postupy a UX trendy pro pokladny e-shopů"
+      },
+      "follow_up_4": {
+        "text": "Popiš, jak efektivně řešit e-maily pro obnovu opuštěného košíku"
+      },
+      "follow_up_5": {
+        "text": "Najdi nadcházející workshopy a webináře o designu e-commerce"
+      },
+      "follow_up_6": {
+        "text": "Vyjmenuj běžné UX chyby v procesech online plateb v pokladně"
+      }
+    },
     "open_meteo_weather_notebook": {
       "title": {
         "text": "Berlin Weekend Bike Weather Notebook"
@@ -10684,70 +10850,6 @@
       "follow_up_6": {
         "text": "Porovnat různé metody převodu mluvených nápadů na uspořádané úkoly"
       }
-    },
-    "community_garden_volunteer_chime": {
-      "title": {
-        "text": "Hřejivá znělka pro komunitní zahradu"
-      },
-      "summary": {
-        "text": "Vygeneruj krátký dvoutónový zvuk oznámení pro fiktivní aplikaci pro komunitní zahradu."
-      },
-      "message_1": {
-        "text": "Vytvoř krátký, hřejivý zvuk oznámení pro aplikaci pro komunitní zahradu při přihlášení dobrovolníka. Jemná dvoutónová znělka, beze slov a pod tři sekundy."
-      },
-      "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nPrávě generuji hřejivou, jemnou dvoutónovou znělku pro tvou aplikaci pro komunitní zahradu. Právě se zpracovává a v chatu se objeví, jakmile bude hotová.\n\n### Navrhované další kroky\n- [Vygeneruj zemitou, oslavnou znělku pro odemknutí odznaku](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Navrhni rozvržení potvrzovací karty pro dobrovolníky](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
-      },
-      "follow_up_1": {
-        "text": "Vygeneruj oslavnou znělku pro odemknutí odznaku za splnění úkolu"
-      },
-      "follow_up_2": {
-        "text": "Vysvětli, jak zvukový design ovlivňuje zapojení uživatelů v mobilních aplikacích"
-      },
-      "follow_up_3": {
-        "text": "Vytvoř jemnou připomínací znělku pro ranní rozvrh zalévání"
-      },
-      "follow_up_4": {
-        "text": "Uveď osvědčené postupy pro návrh nevtíravých zvuků oznámení v UI"
-      },
-      "follow_up_5": {
-        "text": "Vygeneruj jemný zvuk upozornění na chybu při selhání validace formuláře"
-      },
-      "follow_up_6": {
-        "text": "Popiš, jak integrovat vlastní zvukové efekty do mobilních aplikací"
-      }
-    },
-    "online_shop_checkout_flow_diagram": {
-      "title": {
-        "text": "Diagram procesu pokladny e-shopu"
-      },
-      "summary": {
-        "text": "Upravitelný vývojový diagram pokladny s opakováním platby a potvrzením objednávky."
-      },
-      "message_1": {
-        "text": "Vytvoř upravitelný vývojový diagram pro malý e-shop: košík, údaje v pokladně, platba a potvrzení objednávky. Pokud je platba zamítnuta, ukaž, jak zákazník pokus opakuje. Všechny informace ponech v diagramu a neodkazuj na externí webové stránky."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Rozbor toku a UX aspekty\n\n1. **Sekvenční postup**: Zákazník postupuje lineárně přes **Košík**, **Údaje v pokladně** (doprava/fakturace) a **Zpracování platby**.\n2. **Zamítnutí a náprava chyb**:\n   - Místo toho, aby byl zákazník vrácen do prázdné relace, zamítnutí vede k rozhodovacímu kroku **Změnit metodu**.\n   - Přerušovaná kolmá cesta vede přímo zpět do **Údajů v pokladně**, což zákazníkovi umožňuje změnit platební metodu, opravit překlepy v údajích o kartě nebo vybrat jinou digitální peněženku, aniž by přišel o položky v košíku.\n   - Pokud se rozhodnou pokus neopakovat, relace čistě končí v koncovém stavu **Košík uložen**, což otevírá dveře pro následné e-maily o opuštěném košíku.\n3. **Upravitelná struktura**: Každý krok a cesta obsahuje standardní vazby `data-om-*`, takže si můžeš přizpůsobit popisky, přidat krok se slevovým kupónem nebo přímo integrovat větve pro nákup bez registrace.\n\n---\n\n**Další kroky a iterace:**\n- Chceš před dodací údaje vložit větev **Nákup bez registrace vs. Přihlášený účet**?\n- Pokud pro tento tok navrhuješ uživatelská rozhraní nebo vlastní ilustrace, můžeme prozkoumat integraci drátěných modelů (wireframes) nebo vlastních ručně kreslených ikon pro doplnění jednotlivých kroků."
-      },
-      "follow_up_1": {
-        "text": "Vyhledej bezplatné ikony SVG pro tlačítka pokladny"
-      },
-      "follow_up_2": {
-        "text": "Vysvětli, jak přidat větev pro nákup bez registrace před dodací údaje"
-      },
-      "follow_up_3": {
-        "text": "Vyhledej osvědčené postupy a UX trendy pro pokladny e-shopů"
-      },
-      "follow_up_4": {
-        "text": "Popiš, jak efektivně řešit e-maily pro obnovu opuštěného košíku"
-      },
-      "follow_up_5": {
-        "text": "Najdi nadcházející workshopy a webináře o designu e-commerce"
-      },
-      "follow_up_6": {
-        "text": "Vyjmenuj běžné UX chyby v procesech online plateb v pokladně"
-      }
     }
   },
   "focus_modes": {
@@ -10764,6 +10866,15 @@
       "text": "Doporučení knih",
       "description": {
         "text": "Získejte doporučení knih podle vašeho vkusu."
+      }
+    },
+    "business_find_brand_name": {
+      "text": "Najít název značky",
+      "description": {
+        "text": "Vyberte zapamatovatelné názvy a poté prověřte domény a kolize ochranných známek finalistů."
+      },
+      "process": {
+        "text": "- Pochopit zadání\n- vybrat názvy\n- prověřit finalisty\n- porovnat důkazy"
       }
     },
     "code_analyze_logs": {
@@ -12512,6 +12623,13 @@
             },
             "description": {
               "text": "Mastodon je dotazován, když načítáš veřejné příspěvky z profilů na Mastodonu. Příslušný server Mastodon obdrží identifikátory profilů nebo adresy URL veřejných profilů bez identifikátoru uživatele OpenMates."
+            }
+          }
+        },
+        "business_data": {
+          "uspto": {
+            "description": {
+              "text": "USPTO dostává navržené názvy a filtry stavu, pravopisu a tříd Niceského třídění pro hledání v USA. Požadavky odesílají naše servery bez identifikátorů OpenMates či historie chatu."
             }
           }
         }

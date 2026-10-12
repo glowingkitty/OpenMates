@@ -56,6 +56,7 @@ export function route(state: TuiState, workspace: TuiWorkspace, screen: TuiScree
   if(state.settings)closeTuiSettings(state);
   if (state.input) rememberDraft(state);
   state.workspace = workspace; state.screen = screen;
+  state.suggestedFollowupMessage = null; state.suggestedFollowupChatId = null;
   state.navigationIndex = WORKSPACES.indexOf(workspace); state.focus = workspace === "chats" && !["start","chats"].includes(screen) ? "composer" : "content";
   state.input = ""; state.inputCursor = null; state.filter = ""; state.scrollOffset = 0; state.selectedIndex = 0;
   state.sidebarIndex = 0;
@@ -843,6 +844,9 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
     render();return true;
   }
   if (key.name === "escape") {
+    if (state.focus === "composer" && state.screen === "chat" && state.suggestedFollowupMessage) {
+      state.suggestedFollowupMessage = null; state.suggestedFollowupChatId = null; render(); return true;
+    }
     if (state.chatProjectBusy) return true;
     if (state.chatProjectOperation) { state.chatProjectOperation = null; state.status = null; render(); return true; }
     if (state.focus === "sidebar") { state.sidebarOpen = false; state.focus = chatHome ? "content" : state.workspace === "chats" ? "composer" : "content"; }
@@ -857,6 +861,12 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
     render(); return true;
   }
   if (key.name === "tab") {
+    if (!key.shift && state.focus === "composer" && state.screen === "chat" && !state.input &&
+        state.activeChatId === state.suggestedFollowupChatId && state.suggestedFollowupMessage) {
+      state.input = state.suggestedFollowupMessage; state.inputCursor = null;
+      state.suggestedFollowupMessage = null; state.suggestedFollowupChatId = null;
+      rememberDraft(state); render(); return true;
+    }
     if (state.input.startsWith("/")) {const choices = TUI_ACTIONS.filter((a) => a.command.startsWith(state.input)); if (choices.length) state.input = choices[state.paletteIndex % choices.length].command + " ";}
     else {const focuses = ["content","composer",...(isWorkspaceHome(state)?["inspiration"]:[]),...(state.sidebarOpen?["sidebar"]:[]),...(isTuiFullscreen(state)?["header"]:[]),"navigation"] as TuiState["focus"][]; state.focus = focuses[(focuses.indexOf(state.focus) + (key.shift ? -1 : 1) + focuses.length) % focuses.length];}
     render(); return true;

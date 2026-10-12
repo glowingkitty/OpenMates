@@ -197,9 +197,10 @@ test.describe('Chat composer focus and draft preservation', () => {
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('docsMessagePrefill', { detail: { text: 'Unsent deep link\nKeep this second line', autoSend: false } })));
     await expect(field).toHaveAttribute('data-focused', 'true');
     await expect(side).toHaveAttribute('inert', '');
-    await expect(side).toHaveCSS('opacity', '0');
-    await expect(side).toHaveCSS('visibility', 'hidden');
-    await expect(side).not.toBeVisible();
+    await expect(side).toHaveCSS('opacity', '1');
+    await expect(side).toHaveCSS('visibility', 'visible');
+    await expect(side).toBeVisible();
+    await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
     await expect(page.getByTestId('chat-welcome-suggestions')).toHaveCSS('opacity', '0');
     await expect(page.getByTestId('chat-welcome-suggestions')).toHaveAttribute('inert', '');
     await expect(page.getByTestId('new-chat-suggestion-card').first()).toBeHidden();

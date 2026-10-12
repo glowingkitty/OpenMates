@@ -17,10 +17,12 @@
     import { isMarkdownContent } from '../components/enter_message/utils/markdownParser';
     import { parse_message } from '../message_parsing/parse_message';
     import { applyIncrementalUpdate } from '../message_parsing/streamingDocDiff';
+    import { appendedTextRanges } from '../message_parsing/streamingTextFade';
     import { createEventDispatcher } from 'svelte';
     import { contentCache } from '../utils/contentCache';
     import { locale } from 'svelte-i18n';
     import { Decoration, DecorationSet } from 'prosemirror-view';
+    import { Plugin, PluginKey } from '@tiptap/pm/state';
     import { piiVisibilityStore } from '../stores/piiVisibilityStore';
     import { getPIILabel } from '../components/enter_message/services/piiDetectionService';
     import type { PIIMapping } from '../types/chat';
@@ -199,53 +201,29 @@
     // We preserve the previous height as min-height to prevent this visual glitch.
     let preservedMinHeight = $state<number | null>(null);
 
-    const STREAM_CHUNK_FADE_DURATION_MS = 220;
-    let streamFadeResetTimer: ReturnType<typeof setTimeout> | null = null;
-    let streamFadeTargetEl: HTMLElement | null = null;
+    const STREAM_CHUNK_FADE_DURATION_MS = 180;
+    const streamFadePluginKey = new PluginKey<DecorationSet>('readOnlyStreamChunkFade');
+    const streamFadeTimers = new Map<number, ReturnType<typeof setTimeout>>();
+    let nextStreamFadeId = 0;
 
-    function getStreamFadeTargetElement(): HTMLElement | null {
-        if (!editorElement) return null;
-
-        const proseRoot = editorElement.querySelector('.ProseMirror');
-        if (!(proseRoot instanceof HTMLElement)) return null;
-
-        let candidate: Element | null = proseRoot.lastElementChild;
-        if (!candidate) return proseRoot;
-
-        while (candidate?.lastElementChild) {
-            candidate = candidate.lastElementChild;
-        }
-
-        return candidate instanceof HTMLElement ? candidate : proseRoot;
+    function fadeTextRanges(ranges: Array<{ from: number; to: number }>) {
+        if (!isStreaming || !editor || editor.isDestroyed ||
+            window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+        if (ranges.length === 0) return;
+        const id = ++nextStreamFadeId;
+        editor.view.dispatch(editor.state.tr.setMeta(streamFadePluginKey, { add: ranges, id }));
+        const targetEditor = editor;
+        streamFadeTimers.set(id, setTimeout(() => {
+            streamFadeTimers.delete(id);
+            if (!targetEditor.isDestroyed) {
+                targetEditor.view.dispatch(targetEditor.state.tr.setMeta(streamFadePluginKey, { removeId: id }));
+            }
+        }, STREAM_CHUNK_FADE_DURATION_MS));
     }
 
-    function triggerStreamChunkFadePulse() {
-        if (!isStreaming) return;
-
-        const targetEl = getStreamFadeTargetElement();
-        if (!targetEl) return;
-
-        if (streamFadeTargetEl && streamFadeTargetEl !== targetEl) {
-            streamFadeTargetEl.classList.remove('stream-fade-tail');
-        }
-
-        streamFadeTargetEl = targetEl;
-        streamFadeTargetEl.classList.remove('stream-fade-tail');
-
-        requestAnimationFrame(() => {
-            if (streamFadeTargetEl === targetEl) {
-                targetEl.classList.add('stream-fade-tail');
-            }
-        });
-
-        if (streamFadeResetTimer) {
-            clearTimeout(streamFadeResetTimer);
-        }
-
-        streamFadeResetTimer = setTimeout(() => {
-            streamFadeTargetEl?.classList.remove('stream-fade-tail');
-            streamFadeResetTimer = null;
-        }, STREAM_CHUNK_FADE_DURATION_MS);
+    function fadeAppendedText(oldDoc: import('@tiptap/pm/model').Node) {
+        if (!editor) return;
+        fadeTextRanges(appendedTextRanges(oldDoc, editor.state.doc));
     }
 
     // Logger for debugging
@@ -782,6 +760,43 @@
             editorCreated = true;
             return;
         }
+
+        editor.registerPlugin(new Plugin({
+            key: streamFadePluginKey,
+            state: {
+                init: () => DecorationSet.empty,
+                apply(transaction, previous) {
+                    let decorations = previous.map(transaction.mapping, transaction.doc);
+                    const update = transaction.getMeta(streamFadePluginKey) as
+                        | { add?: Array<{ from: number; to: number }>; id?: number; removeId?: number }
+                        | undefined;
+                    if (update?.removeId !== undefined) {
+                        decorations = decorations.remove(decorations.find(undefined, undefined,
+                            spec => spec.id === update.removeId));
+                    }
+                    if (update?.add && update.id !== undefined) {
+                        decorations = decorations.add(transaction.doc, update.add.map(range =>
+                            Decoration.inline(range.from, range.to, {
+                                class: 'stream-fade-chunk',
+                                'data-stream-fade-chunk': String(update.id)
+                            }, { id: update.id })));
+                    }
+                    return decorations;
+                }
+            },
+            props: {
+                decorations: state => streamFadePluginKey.getState(state) ?? DecorationSet.empty
+            }
+        }));
+        if (isStreaming) {
+            const initialRanges: Array<{ from: number; to: number }> = [];
+            editor.state.doc.descendants((node, position) => {
+                if (node.isText && node.nodeSize > 0) {
+                    initialRanges.push({ from: position, to: position + node.nodeSize });
+                }
+            });
+            fadeTextRanges(initialRanges);
+        }
         
         // Listen for right-clicks on the editor (for embed context menu)
         // Left clicks are handled by UnifiedEmbedPreview components directly
@@ -1091,6 +1106,7 @@
             }
         }
 
+        const oldDoc = editor.state.doc;
         const result = applyIncrementalUpdate(editor, processedContent);
         if (!result.applied) {
             console.error('[ReadOnlyMessage] Incremental content update rejected; preserving last good document', {
@@ -1103,8 +1119,8 @@
         refreshProjectMentionNames();
         applyPIIDecorations(editor);
 
-        // Visual polish: fade in every freshly rendered streaming update chunk.
-        triggerStreamChunkFadePulse();
+        // Decorate only newly inserted text; prior content and embed NodeViews stay stable.
+        if (streamingPresentation && result.stepsApplied > 0) fadeAppendedText(oldDoc);
         
         // Update min-height to match actual rendered content
         if (streamingPresentation && editorElement) {
@@ -1194,12 +1210,8 @@
             editor.view.dom.removeEventListener('keydown', handlePIIInteraction as EventListener);
             // Clear any pending touch timers
             clearTouchTimer();
-            if (streamFadeResetTimer) {
-                clearTimeout(streamFadeResetTimer);
-                streamFadeResetTimer = null;
-            }
-            streamFadeTargetEl?.classList.remove('stream-fade-tail');
-            streamFadeTargetEl = null;
+            for (const timer of streamFadeTimers.values()) clearTimeout(timer);
+            streamFadeTimers.clear();
             editor.destroy();
             editor = null;
         }
@@ -1267,13 +1279,13 @@
         overflow-anchor: none;
     }
 
-    .read-only-message.is-streaming :global(.stream-fade-tail) {
-        animation: stream-chunk-fade var(--stream-chunk-fade-duration, 220ms) ease-out;
+    .read-only-message.is-streaming :global(.stream-fade-chunk) {
+        animation: stream-chunk-fade 180ms ease-out both;
     }
 
     @keyframes stream-chunk-fade {
         0% {
-            opacity: 0.5;
+            opacity: 0;
         }
         100% {
             opacity: 1;
@@ -1281,7 +1293,7 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-        .read-only-message.is-streaming :global(.stream-fade-tail) {
+        .read-only-message.is-streaming :global(.stream-fade-chunk) {
             animation: none;
         }
     }

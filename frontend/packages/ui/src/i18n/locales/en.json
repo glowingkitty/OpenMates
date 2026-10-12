@@ -93,6 +93,14 @@
         }
       }
     },
+    "business": {
+      "find_brand_name": {
+        "text": "Find a brand name",
+        "description": {
+          "text": "Shortlist memorable names, then check finalist domains and trademark conflicts."
+        }
+      }
+    },
     "code": {
       "test_git_repo": {
         "text": "Test git repo",
@@ -1306,6 +1314,12 @@
         "text": "Get company financials",
         "description": {
           "text": "Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR."
+        }
+      },
+      "search_trademarks": {
+        "text": "Search trademarks",
+        "description": {
+          "text": "Search trademark names by region with sources and coverage limits."
         }
       }
     },
@@ -4141,6 +4155,39 @@
       },
       "writing": {
         "text": "Writing…"
+      },
+      "list_last": {
+        "text": "{items} & {last}"
+      },
+      "used_single": {
+        "text": "Used the {apps} app"
+      },
+      "used_multiple": {
+        "text": "Used the {apps} apps"
+      },
+      "thought_used_single": {
+        "text": "Thought & used the {apps} app"
+      },
+      "thought_used_multiple": {
+        "text": "Thought & used the {apps} apps"
+      },
+      "focus_activated": {
+        "text": "Activated ''{focus}''"
+      },
+      "focus_sub_chats": {
+        "text": "Activated ''{focus}'' & worked in sub chats."
+      },
+      "sub_chats": {
+        "text": "Worked in sub chats."
+      },
+      "focus_cancelled": {
+        "text": "Cancelled focus activation"
+      },
+      "focus_activating": {
+        "text": "Activating ''{focus}''"
+      },
+      "sub_chats_working": {
+        "text": "Working in sub chats"
       }
     },
     "new_chat_suggestions": {
@@ -8750,6 +8797,86 @@
         "not_available": {
           "text": "N/A"
         }
+      },
+      "search_trademarks": {
+        "records": {
+          "text": "Records: {count}"
+        },
+        "preliminary": {
+          "text": "Preliminary search"
+        },
+        "checked": {
+          "text": "Checked"
+        },
+        "not_searched": {
+          "text": "Not searched"
+        },
+        "partial": {
+          "text": "Partial"
+        },
+        "empty": {
+          "text": "No matching records"
+        },
+        "limitation": {
+          "text": "No matches do not establish legal availability."
+        },
+        "open_record": {
+          "text": "View official record"
+        },
+        "open_register": {
+          "text": "Open official search"
+        },
+        "classes": {
+          "text": "Nice classes"
+        },
+        "all_classes": {
+          "text": "All classes"
+        },
+        "owner": {
+          "text": "Owner"
+        },
+        "goods": {
+          "text": "Goods and services"
+        },
+        "application": {
+          "text": "Application"
+        },
+        "registration": {
+          "text": "Registration"
+        },
+        "filed": {
+          "text": "Filed"
+        },
+        "registered": {
+          "text": "Registered"
+        },
+        "pending": {
+          "text": "Pending"
+        },
+        "ended": {
+          "text": "Ended"
+        },
+        "unknown": {
+          "text": "Status unknown"
+        },
+        "exact": {
+          "text": "Exact name"
+        },
+        "similar": {
+          "text": "Similar spelling"
+        },
+        "active": {
+          "text": "Active records"
+        },
+        "all_statuses": {
+          "text": "All statuses"
+        },
+        "more": {
+          "text": "More matches in the official register"
+        },
+        "failed": {
+          "text": "Search data unavailable"
+        }
       }
     },
     "reviews": {
@@ -9166,6 +9293,14 @@
       },
       "exit_fullscreen": {
         "text": "Exit fullscreen"
+      }
+    },
+    "ghost_suggestion": {
+      "press_tab": {
+        "text": "Press Tab to accept suggestion"
+      },
+      "use_suggestion": {
+        "text": "Use suggestion"
       }
     },
     "location": {
@@ -10251,6 +10386,38 @@
         "text": "Explain how to arrange visual elements in a print layout"
       }
     },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "A warm chime for a community garden"
+      },
+      "summary": {
+        "text": "Generate a short two-note notification sound for a fictional community garden app."
+      },
+      "message_1": {
+        "text": "Create a short, warm notification sound for a community garden app when a volunteer signs up. A gentle two-note chime, no speech, and under three seconds."
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nI am generating the warm, gentle two-note chime for your community garden app now. It is currently processing and will appear in the chat as soon as it's ready.\n\n### Suggested Next Steps\n- [Generate an earthy, celebratory badge unlock chime](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Design a volunteer confirmation card layout](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "Generate a celebratory badge unlock chime for task completion"
+      },
+      "follow_up_2": {
+        "text": "Explain how sound design affects user engagement in mobile apps"
+      },
+      "follow_up_3": {
+        "text": "Create a gentle reminder chime for morning watering schedules"
+      },
+      "follow_up_4": {
+        "text": "List best practices for designing non-intrusive UI notification sounds"
+      },
+      "follow_up_5": {
+        "text": "Generate a soft error alert sound for form validation failures"
+      },
+      "follow_up_6": {
+        "text": "Describe how to integrate custom sound effects into mobile applications"
+      }
+    },
     "community_garden_volunteer_onboarding": {
       "title": {
         "text": "Community Garden Volunteer Onboarding"
@@ -11333,6 +11500,38 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"6da89032-d370-43c5-91c1-b07fa5df5a85\", \"app_id\": \"images\", \"skill_id\": \"generate\"}\n```\n\nI'm generating that SVG app icon for your climate data dashboard now. \n\nI've focused on a clean, [flat](wiki:Flat_design) [vector](wiki:Vector_graphics) aesthetic with a teal and mint palette to reflect both nature and data. This style is excellent for scalability, ensuring the icon stays crisp whether it's on a mobile home screen or a tiny browser favicon.\n\nOnce it's ready, we could experiment with different color schemes for dark mode or even create a [UI mockup](wiki:Mockup) to see how it looks in context.\n\nWhat kind of interface are you imagining for this dashboard—something very data-heavy with charts, or a more simplified overview?"
       }
     },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Online Shop Checkout Flow Diagram"
+      },
+      "summary": {
+        "text": "An editable checkout flowchart with payment retry and order confirmation."
+      },
+      "message_1": {
+        "text": "Create an editable flowchart for a small online shop: cart, checkout details, payment, and order confirmation. If payment is declined, show the customer retrying. Keep all information within the diagram and do not link to external websites."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Flow Breakdown & UX Considerations\n\n1. **Sequential Progression**: The customer progresses linearly through **Cart**, **Checkout Details** (shipping/billing), and **Payment Processing**.\n2. **Decline & Error Recovery**:\n   - Rather than dropping the customer back to an empty session, a decline routes to a **Change Method** decision step.\n   - The dashed orthogonal path routes directly back to **Checkout Details**, allowing the customer to switch payment methods, correct typos in card data, or pick an alternative digital wallet without losing their cart items.\n   - If they choose not to retry, the session ends cleanly in a **Cart Saved** terminal state, leaving the door open for follow-up abandoned-cart emails.\n3. **Editable Structure**: Every step and path contains standard `data-om-*` bindings so you can customize labels, add a discount coupon step, or integrate guest checkout branches directly.\n\n---\n\n**Next Steps & Iterations:**\n- Would you like to introduce a **Guest Checkout vs. Logged-in Account** branch before the shipping details?\n- If you're designing user interfaces or custom illustrations for this flow, we could explore integrating wireframes or custom hand-drawn icon badges to complement the steps."
+      },
+      "follow_up_1": {
+        "text": "Search for free SVG icons for checkout buttons"
+      },
+      "follow_up_2": {
+        "text": "Explain how to add a guest checkout branch before shipping details"
+      },
+      "follow_up_3": {
+        "text": "Search online shop checkout best practices and UX trends"
+      },
+      "follow_up_4": {
+        "text": "Describe how to handle abandoned cart recovery emails effectively"
+      },
+      "follow_up_5": {
+        "text": "Find upcoming e-commerce design workshops and webinars"
+      },
+      "follow_up_6": {
+        "text": "List common UX pitfalls in online payment checkout flows"
+      }
+    },
     "open_meteo_weather_notebook": {
       "title": {
         "text": "Berlin Weekend Bike Weather Notebook"
@@ -11979,70 +12178,6 @@
       "follow_up_6": {
         "text": "Compare different methods for turning spoken ideas into organized tasks"
       }
-    },
-    "community_garden_volunteer_chime": {
-      "title": {
-        "text": "A warm chime for a community garden"
-      },
-      "summary": {
-        "text": "Generate a short two-note notification sound for a fictional community garden app."
-      },
-      "message_1": {
-        "text": "Create a short, warm notification sound for a community garden app when a volunteer signs up. A gentle two-note chime, no speech, and under three seconds."
-      },
-      "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nI am generating the warm, gentle two-note chime for your community garden app now. It is currently processing and will appear in the chat as soon as it's ready.\n\n### Suggested Next Steps\n- [Generate an earthy, celebratory badge unlock chime](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Design a volunteer confirmation card layout](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
-      },
-      "follow_up_1": {
-        "text": "Generate a celebratory badge unlock chime for task completion"
-      },
-      "follow_up_2": {
-        "text": "Explain how sound design affects user engagement in mobile apps"
-      },
-      "follow_up_3": {
-        "text": "Create a gentle reminder chime for morning watering schedules"
-      },
-      "follow_up_4": {
-        "text": "List best practices for designing non-intrusive UI notification sounds"
-      },
-      "follow_up_5": {
-        "text": "Generate a soft error alert sound for form validation failures"
-      },
-      "follow_up_6": {
-        "text": "Describe how to integrate custom sound effects into mobile applications"
-      }
-    },
-    "online_shop_checkout_flow_diagram": {
-      "title": {
-        "text": "Online Shop Checkout Flow Diagram"
-      },
-      "summary": {
-        "text": "An editable checkout flowchart with payment retry and order confirmation."
-      },
-      "message_1": {
-        "text": "Create an editable flowchart for a small online shop: cart, checkout details, payment, and order confirmation. If payment is declined, show the customer retrying. Keep all information within the diagram and do not link to external websites."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Flow Breakdown & UX Considerations\n\n1. **Sequential Progression**: The customer progresses linearly through **Cart**, **Checkout Details** (shipping/billing), and **Payment Processing**.\n2. **Decline & Error Recovery**:\n   - Rather than dropping the customer back to an empty session, a decline routes to a **Change Method** decision step.\n   - The dashed orthogonal path routes directly back to **Checkout Details**, allowing the customer to switch payment methods, correct typos in card data, or pick an alternative digital wallet without losing their cart items.\n   - If they choose not to retry, the session ends cleanly in a **Cart Saved** terminal state, leaving the door open for follow-up abandoned-cart emails.\n3. **Editable Structure**: Every step and path contains standard `data-om-*` bindings so you can customize labels, add a discount coupon step, or integrate guest checkout branches directly.\n\n---\n\n**Next Steps & Iterations:**\n- Would you like to introduce a **Guest Checkout vs. Logged-in Account** branch before the shipping details?\n- If you're designing user interfaces or custom illustrations for this flow, we could explore integrating wireframes or custom hand-drawn icon badges to complement the steps."
-      },
-      "follow_up_1": {
-        "text": "Search for free SVG icons for checkout buttons"
-      },
-      "follow_up_2": {
-        "text": "Explain how to add a guest checkout branch before shipping details"
-      },
-      "follow_up_3": {
-        "text": "Search online shop checkout best practices and UX trends"
-      },
-      "follow_up_4": {
-        "text": "Describe how to handle abandoned cart recovery emails effectively"
-      },
-      "follow_up_5": {
-        "text": "Find upcoming e-commerce design workshops and webinars"
-      },
-      "follow_up_6": {
-        "text": "List common UX pitfalls in online payment checkout flows"
-      }
     }
   },
   "focus_modes": {
@@ -12059,6 +12194,18 @@
       "text": "Book recommendations",
       "description": {
         "text": "Get book recommendations based on your taste."
+      }
+    },
+    "business_find_brand_name": {
+      "text": "Find a brand name",
+      "description": {
+        "text": "Shortlist memorable names, then check finalist domains and trademark conflicts."
+      },
+      "process": {
+        "text": "- Understand the brief\n- shortlist names\n- check chosen finalists\n- compare the evidence"
+      },
+      "systemprompt": {
+        "text": "Help the user find a memorable brand or product name and a suitable domain. Stay concise.\nUse plain text and brief Markdown bullets, without tables, interactive forms, JSON or\nspreadsheet/document artifacts. Keep intake under 60 words and each candidate on one line.\n\n1. Reuse the brief. If essential context is missing, ask one compact question about\n   the product, audience, target markets, language and desired feel; domain or\n   budget constraints are optional. Wait for the reply. Honor requests to skip\n   questions and state assumptions.\n2. Offer 6–8 varied, pronounceable names with one brief reason each. Consider\n   memorability, fit and unintended meanings in the target languages. Mark this\n   shortlist unchecked; avoid generic keyword piles.\n3. Let the user pick 2–3 finalists, or choose if asked. Batch hosting.search_domains\n   for actual availability and quoted prices, web.search for existing brands and\n   search conflicts, and business.search_trademarks for explicit target regions.\n   Set max_results=5 for the initial trademark search. Search all classes unless\n   actual goods/services justify filters. Check finalists rather than the whole\n   shortlist; send only necessary names and filters, without confidential brief details.\n4. Compare in compact bullets, recommend a direction with its tradeoff, and refine\n   only what is needed next. Separate creative judgments from dated evidence;\n   identify failed, truncated or missing regional checks.\n\nNever infer domain availability from DNS, HTTP or WHOIS alone. Report only quoted\nprices and renewal terms. Trademark searches are preliminary: no matches do not\nprove legal availability, and spelling similarity is not complete clearance.\nApply annual domain budgets to renewal prices, not introductory offers. A known\nover-budget renewal is no fit. Limit trademark absence claims to returned records\nand filters; a truncated similar-name search cannot establish exact-name absence.\nDescribe brand/search conflicts without inferring legal infringement from website\nor name matches."
       }
     },
     "code_analyze_logs": {
@@ -13976,10 +14123,10 @@
         },
         "business_data": {
           "heading": {
-            "text": "Public company data"
+            "text": "Public business data"
           },
           "description": {
-            "text": "This provider is used only when you explicitly request public company financial information."
+            "text": "These providers are used when you request company financial information or trademark searches."
           },
           "sec_edgar": {
             "heading": {
@@ -13987,6 +14134,14 @@
             },
             "description": {
               "text": "The SEC receives the explicit company name, ticker, or CIK and the filing or period fields needed for a public-company lookup. Requests are sent server-side without an OpenMates user identifier."
+            }
+          },
+          "uspto": {
+            "heading": {
+              "text": "USPTO"
+            },
+            "description": {
+              "text": "USPTO receives candidate names and status, spelling-match and Nice-class filters for US trademark searches. Requests are sent from our servers without OpenMates user identifiers or chat history."
             }
           }
         },
@@ -27241,6 +27396,12 @@
     "run_embed": {
       "title": {
         "text": "Workflow run"
+      },
+      "triggered_by": {
+        "text": "Triggered by ''{name}''"
+      },
+      "started_at": {
+        "text": "Started"
       },
       "open_detail": {
         "text": "Open the steps and results of this run"

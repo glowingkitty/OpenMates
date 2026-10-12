@@ -215,3 +215,24 @@ it('transmits complete canonical and genuine legacy definitions through selected
     assert.deepEqual(target, expected); assert.deepEqual(f.reads, ['selected-embed', 'selected-embed']);
   }
 });
+
+// contract-test: supporting surface=cli assertions=focus-modes.project-specialist-composition,chats.direction.context-assessment
+it('publishes routing metadata before selected private Project documents finish loading', async () => {
+  const f = await contextFixture();
+  let release!: () => void;
+  const bodyGate = new Promise<void>(resolve => { release = resolve; });
+  const read = f.client.readEncryptedProjectFile;
+  f.client.readEncryptedProjectFile = async (...args) => { await bodyGate; return read(...args); };
+  let headers!: (value: unknown) => void;
+  const routing = new Promise<unknown>(resolve => { headers = resolve; });
+  const client = { ...f.client, async listProjects() { return []; }, async listUserTasks() { return []; }, async listUserPlans() { return []; } };
+  let completed = false;
+  const preparing = prepareCliJevContext(client as never, 'chat', {}, {}, 'Use guidance', { onRouting: headers })
+    .then(value => { completed = true; return value; });
+  const result = await routing;
+  assert.equal(completed, false);
+  assert.doesNotMatch(JSON.stringify(result), /Full private instructions|project_focus_documents/);
+  assert.equal((result as { project_focus_catalog: unknown[] }).project_focus_catalog.length, 2);
+  release();
+  assert.equal((await preparing).project_focus_documents?.[0].document, 'Full private instructions');
+});

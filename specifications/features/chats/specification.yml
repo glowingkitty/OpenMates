@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.chats
-version: 4
+version: 5
 status: draft
 title: Chats
 summary: 'OpenMates chats preserve client-side encryption boundaries, stable message identities, visible local message
@@ -233,6 +233,14 @@ models:
         messages_unobstructed_by_composer: true
         horizontal_overflow_forbidden: true
 assertions:
+- id: chats.send.immediate-admission
+  type: behavior
+  must: Eligible personal web and TUI submissions immediately hand off the user snapshot, clear the composer and send the encrypted durable admission with transient inference intent without waiting for its acknowledgement or unrelated context discovery. Saved turn, message, task and billing identities remain idempotent. Required private context may arrive in correlated phases, missing context fails safely, and pending encrypted recovery is retained until admission and required context are acknowledged. Team human-only messages do not start AI.
+  depends_on: [examples.immediate_admission]
+- id: chats.followups.main-generated-composer
+  type: privacy
+  must: Main inference may emit one optional contextual next-user message as trailing metadata separate from the authored answer and existing postprocessor chips. Split delimiters cannot expose metadata in visible or stored answer text. Only a successful eligible current turn delivers the suggestion; durable storage and device sync retain client ciphertext, never its plaintext, and stale sources cannot replace a newer turn's suggestion.
+  depends_on: [examples.main_composer_suggestion]
 - id: chats.persistence.client-encrypted
   type: privacy
   must: Durable authenticated private-chat rows store client ciphertext and non-sensitive routing metadata only;
@@ -314,7 +322,8 @@ assertions:
   type: behavior
   must: Accepted non-final content snapshots become visibly available in order on one stable assistant turn before
     a later snapshot or terminal state replaces them. Web server-accepted processing may use one transient Thinking
-    response container before content arrives, without persisting an empty assistant row; Apple and CLI retain their
+    response container after first-stage routing confirms the current turn's Mate and before content arrives,
+    without persisting an empty assistant row; Apple and CLI retain their
     existing transient typing presentation. First content replaces the same web response slot.
   depends_on:
   - models.ChatStreamDelivery
@@ -417,6 +426,26 @@ assertions:
     specialized previews without an existing base information bar do not acquire an invented one.
   depends_on:
   - examples.preview_info_top
+- id: chats.streaming.web-chunk-fade
+  type: behavior
+  must: Newly streamed assistant text in the web app smoothly fades from zero to full opacity in brief successive
+    chunks. Earlier text remains stable rather than fading again on every update. Rendering preserves canonical
+    content, Markdown structure, links, selection, copy behavior and source-order embeds. Animation does not buffer
+    incoming content, delay ordered streaming events or change terminal delivery. Reduced-motion preferences show
+    content immediately at full opacity.
+  depends_on:
+  - models.ChatStreamDelivery
+  - models.AssistantRenderDocument
+  - examples.web_chunk_fade
+- id: chats.rendering.web-history-entrance
+  type: behavior
+  must: Opening an existing chat in the web app smoothly fades its loaded history once from zero to full opacity.
+    Later message updates, streamed chunks, history pagination and composer focus do not restart that entrance.
+    A newly submitted optimistic user row remains immediate. The animation preserves layout, scrolling and message
+    interactions. Reduced-motion preferences show the loaded history immediately at full opacity.
+  depends_on:
+  - models.ResponsiveChatHistory
+  - examples.web_history_entrance
 applies_to:
   rest_api:
     required: false
@@ -445,9 +474,9 @@ applies_to:
     exceptions:
     - id: web-response-redesign-first
       implementation: apple
-      reason: The user requested the chronological response redesign and preview header placement for the web app.
+      reason: The user requested the chronological response redesign, preview header placement and opacity animations for the web app.
       equivalent_outcome: Native clients preserve canonical encrypted content and existing readable skill results;
-        chronological grouping and preview geometry are deferred.
+        chronological grouping, preview geometry and new opacity animations are deferred.
 examples:
   file: examples.yml
   required_groups:
@@ -470,3 +499,5 @@ examples:
   - direction_assessment
   - reviewed_correction
   - preview_info_top
+  - web_chunk_fade
+  - web_history_entrance

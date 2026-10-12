@@ -27,13 +27,14 @@
   }
 </script>
 
+<svelte:window onpointerdown={(event) => { if (surface === 'editor' && focused && event.target instanceof Element && event.target.closest('.editor-surface') && !event.target.closest('.editor-composer')) focused = false; }} />
+
 <div class="fixture" data-testid="composer-focus-fixture">
   {#if surface === 'editor'}
     <section class="editor-surface">
-      <div class="editor-graph" data-testid="fixture-editor-graph" inert={focused} class:dimmed={focused}>
+      <div class="editor-graph" data-testid="fixture-editor-graph" inert={focused}>
         <button type="button" data-testid="fixture-card" onclick={() => cardClicks += 1}>Graph control</button>
       </div>
-      {#if focused}<button type="button" class="editor-backdrop" data-testid="fixture-editor-backdrop" aria-label="Dismiss editor" onpointerdown={(event) => event.preventDefault()} onclick={() => focused = false}></button>{/if}
       <div class="editor-composer"><WorkspacePromptComposer surface="workflows" bind:value bind:focusActive={focused} placeholder="Describe an edit" submitLabel="Send" submittingLabel="Sending" disabled={false} {submitting} onSubmit={send} onMicClick={() => micClicks += 1} /></div>
     </section>
   {:else}
@@ -52,13 +53,7 @@
 <style>
   .fixture { height: min(720px, 100dvh); min-height: 500px; width: min(900px, 100%); position: relative; }
   .editor-surface { position: relative; height: 100%; background: var(--color-grey-20); }
-  .editor-graph { height: 100%; padding: 60px; visibility: visible; transition: opacity .18s ease, visibility 0s; }
-  .editor-graph.dimmed { opacity: 0; visibility: hidden; transition-delay: 0s, .18s; }
-  @media (prefers-reduced-motion: reduce) {
-    .editor-graph, .editor-graph.dimmed { transition: none; }
-  }
-  .editor-backdrop { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; filter: none; scale: none; transform: none; transition: none; background: transparent; cursor: default; }
-  .editor-backdrop:hover, .editor-backdrop:active { background: transparent; scale: none; transform: none; filter: none; }
+  .editor-graph { height: 100%; padding: 60px; }
   .editor-composer { position: absolute; inset: auto 16px 16px; z-index: 3; }
   output { position: absolute; top: -1000px; }
   .fixture-settle { position: absolute; top: 8px; right: 8px; z-index: 10; }

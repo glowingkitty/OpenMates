@@ -657,6 +657,21 @@ test("a failed chat request finishing after Escape leaves the landing page intac
   assert.equal(state.screen,'start');assert.equal(state.headerState,'new');assert.equal(state.status,null);
 });
 
+// contract-test: supporting surface=cli assertions=terminal-ui.chat.rich-content
+test('composer ghost Tab inserts an editable draft without sending, Escape dismisses, and typed drafts win', async()=>{
+  const state=createInitialTuiState();state.screen='chat';state.workspace='chats';state.focus='composer';state.activeChatId='chat';
+  let sends=0;
+  const context:WorkspaceContext={state,client:{} as never,terminal:{} as never,render:()=>{},command:async()=>{},send:async()=>{sends++;}};
+  const suggest=()=>{state.suggestedFollowupMessage='Tell me more';state.suggestedFollowupChatId='chat';state.focus='composer';};
+  suggest();await handleWorkspaceKey(context,'',{name:'tab'});
+  assert.equal(state.input,'Tell me more');assert.equal(state.drafts.chat,'Tell me more');assert.equal(sends,0);
+  assert.equal(state.suggestedFollowupMessage,null);
+  state.input='';suggest();await handleWorkspaceKey(context,'',{name:'escape'});
+  assert.equal(state.screen,'chat');assert.equal(state.input,'');assert.equal(state.suggestedFollowupMessage,null);
+  suggest();state.input='My attachment @file:notes.txt';await handleWorkspaceKey(context,'',{name:'tab'});
+  assert.equal(state.input,'My attachment @file:notes.txt');assert.equal(sends,0);
+});
+
 // contract-test: supporting surface=cli assertions=terminal-ui.offline.cache-first,chat-navigation.open.local-first-coherent
 test('chat home refresh preserves an older selected card and draft without rerouting or duplicate sync', async () => {
   const state=createInitialTuiState();state.signedIn=true;state.workspace='chats';state.screen='chats';

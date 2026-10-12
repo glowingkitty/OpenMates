@@ -1,0 +1,128 @@
+"""One-frame admission preserves persistence, identity and dispatch boundaries."""
+import copy
+import sys
+from types import ModuleType, SimpleNamespace
+from unittest.mock import AsyncMock
+
+import pytest
+
+from backend.core.api.app.routes.handlers.websocket_handlers import chat_turn_admit_handler as handler
+
+
+@pytest.fixture
+def admission(monkeypatch):
+    dispatch = AsyncMock()
+    module = ModuleType("backend.core.api.app.routes.handlers.websocket_handlers.message_received_handler")
+    module.handle_message_received = dispatch
+    monkeypatch.setitem(sys.modules, module.__name__, module)
+    preflight = AsyncMock(return_value={
+        "preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "state": "PREPARED",
+    })
+    monkeypatch.setattr(handler, "handle_chat_turn_preflight", preflight)
+    payload = {
+        "protocol_version": 1,
+        "chat_id": "11111111-1111-4111-8111-111111111111",
+        "turn_id": "22222222-2222-4222-8222-222222222222",
+        "message_id": "1111111111-33333333-3333-4333-8333-333333333333",
+        "encrypted_user_message": {"encrypted_content": "client-ciphertext"},
+    }
+    payload["inference_request"] = {
+        "chat_id": payload["chat_id"], "turn_id": payload["turn_id"],
+        "message": {"message_id": payload["message_id"], "content": "What’s the capital of Spain?"},
+        "is_incognito": False,
+    }
+    args = dict(websocket=SimpleNamespace(send_json=AsyncMock()), manager=object(),
+                cache_service=object(), directus_service=object(), encryption_service=object(),
+                user_id="owner", user_id_hash="owner-hash", device_fingerprint_hash="device",
+                payload=payload)
+    return args, preflight, dispatch
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+@pytest.mark.asyncio
+async def test_committed_ack_dispatches_same_turn_without_second_client_frame(admission):
+    args, preflight, dispatch = admission
+    original = copy.deepcopy(args["payload"])
+    await handler.handle_chat_turn_admit(**args)
+    preflight.assert_awaited_once()
+    dispatch.assert_awaited_once()
+    request = dispatch.await_args.kwargs["payload"]
+    assert request["preflight_id"] == "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    assert request["protocol_version"] == 1
+    assert request["turn_id"] == original["turn_id"]
+    assert request["message"] == original["inference_request"]["message"]
+    assert args["payload"] == original
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.asyncio
+async def test_rejected_persistence_never_dispatches(admission):
+    args, preflight, dispatch = admission
+    preflight.return_value = None
+    await handler.handle_chat_turn_admit(**args)
+    dispatch.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
+@pytest.mark.asyncio
+@pytest.mark.parametrize("change", ["chat", "turn", "message", "team", "incognito", "authority"])
+async def test_scope_mismatch_rejected_before_persistence(admission, change):
+    args, preflight, dispatch = admission
+    request = args["payload"]["inference_request"]
+    if change in {"chat", "turn"}:
+        request[change + "_id"] = "different"
+    elif change == "message":
+        request["message"]["message_id"] = "different"
+    elif change == "team":
+        request["team_id"] = "another-team"
+    elif change == "incognito":
+        request["is_incognito"] = True
+    else:
+        request["admission_context"] = {"scope_complete": True}
+    await handler.handle_chat_turn_admit(**args)
+    preflight.assert_not_awaited()
+    dispatch.assert_not_awaited()
+    assert args["websocket"].send_json.await_args.args[0]["payload"]["code"] == "invalid_chat_turn_admission"
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+@pytest.mark.asyncio
+@pytest.mark.parametrize("message_id", ["", "x" * 256, 123])
+async def test_invalid_message_identity_rejected_before_persistence(admission, message_id):
+    args, preflight, dispatch = admission
+    args["payload"]["message_id"] = message_id
+    args["payload"]["inference_request"]["message"]["message_id"] = message_id
+    await handler.handle_chat_turn_admit(**args)
+    preflight.assert_not_awaited()
+    dispatch.assert_not_awaited()
+    assert args["websocket"].send_json.await_args.args[0]["payload"]["code"] == "invalid_chat_turn_admission"
+
+
+# contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
+@pytest.mark.asyncio
+async def test_cold_context_binding_registered_after_commit_before_dispatch(admission, monkeypatch):
+    args, preflight, dispatch = admission
+    from backend.core.api.app.services import client_context_continuation
+    register = AsyncMock(return_value="server-binding")
+    monkeypatch.setattr(client_context_continuation, "register_client_context", register)
+    request = args["payload"]["inference_request"]
+    request.update(client_context_pending=True, client_context_request_id="44444444-4444-4444-8444-444444444444")
+    async def commit(**kwargs):
+        register.assert_not_awaited()
+        dispatch.assert_not_awaited()
+        return {"preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "state": "PREPARED"}
+    preflight.side_effect = commit
+    await handler.handle_chat_turn_admit(**args)
+    assert dispatch.await_args.kwargs["client_context_binding_ref"] == "server-binding"
+    assert "client_context_binding_ref" not in dispatch.await_args.kwargs["payload"]
+    assert register.await_args.kwargs["message_id"] == args["payload"]["message_id"]
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.asyncio
+async def test_epoch_zero_uses_existing_legacy_dispatch(admission):
+    args, preflight, dispatch = admission
+    preflight.return_value["state"] = "LEGACY"
+    await handler.handle_chat_turn_admit(**args)
+    assert "protocol_version" not in dispatch.await_args.kwargs["payload"]
+    assert "preflight_id" not in dispatch.await_args.kwargs["payload"]

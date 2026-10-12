@@ -2171,6 +2171,7 @@ async def _async_process_ai_skill_ask_task(
     skill_config: AskSkillDefaultConfig,
     completion_timing: Optional[AICompletionTiming] = None,
     legacy_batch_proof: Optional[dict] = None,
+    stage_one_routing_ref: Optional[str] = None,
 ):
     """
     Asynchronous core logic for processing the AI skill ask task.
@@ -2178,6 +2179,10 @@ async def _async_process_ai_skill_ask_task(
     Returns a dictionary with processing results and status flags.
     """
     logger.info(f"[Task ID: {task_id}] Async task execution started.")
+    from backend.apps.ai.processing.stage_one_handoff import request_fingerprint, load_stage_one
+    routing_fingerprint = (request_fingerprint(request_data.model_dump(mode="json"), skill_config.model_dump(mode="json"))
+                           if stage_one_routing_ref else "")
+    stage_one_snapshot = None
     # Phase transition JSON is stored as an encrypted system message for chat UI.
     # The phase state is supplied separately, so these notices need no model role.
     request_data.message_history = filter_focus_phase_history(
@@ -2229,6 +2234,11 @@ async def _async_process_ai_skill_ask_task(
             )
             logger.info(f"[Task ID: {task_id}] DirectusService initialized.")
 
+        stage_one_snapshot = await load_stage_one(
+            cache=cache_service_instance, encryption=encryption_service_instance,
+            request=request_data, directus=directus_service_instance, task_id=task_id, fingerprint=routing_fingerprint,
+            reference=stage_one_routing_ref,
+        )
         from backend.shared.python_utils.recent_work_summary_client import restore_private_context_payload, bind_restored_context_turn, restore_async_tool_completion_message
         from backend.shared.python_utils.recent_work_summary_cache import PRIVATE_CONTEXT_FIELDS
         transient = await restore_private_context_payload(request_data.model_dump())
@@ -2864,6 +2874,7 @@ async def _async_process_ai_skill_ask_task(
 
         preprocessing_result: Optional[PreprocessingResult] = None
         typing_lifecycle = EarlyTypingLifecycle(cache_service_instance, request_data, task_id)
+        typing_lifecycle.started = bool(stage_one_snapshot and stage_one_snapshot.get("typing_started"))
 
         async def time_pre_main(stage: str, operation):
             started = time.monotonic()
@@ -2925,6 +2936,12 @@ async def _async_process_ai_skill_ask_task(
             if not cache_service_instance:
                 logger.error(f"[Task ID: {task_id}] CacheService instance is not available. Cannot proceed with preprocessing credit check.")
                 raise RuntimeError("CacheService not available for preprocessing.")
+
+            from backend.core.api.app.services.client_context_continuation import await_client_context_phase
+            await await_client_context_phase(
+                cache_service=cache_service_instance, request=request_data, phase="routing",
+                encryption_service=encryption_service_instance,
+            )
 
             # Build the preprocessing stream channel so the preprocessor can emit real-time step events.
             # Channel format: preprocessing_stream::{user_id_hash}
@@ -3000,6 +3017,7 @@ async def _async_process_ai_skill_ask_task(
                         is_new_chat=is_new_chat_for_preprocessing,
                         selected_app_ids=selected_app_ids,
                         on_early_routing=publish_early_typing,
+                        precomputed_stage_one=(stage_one_snapshot or {}).get("routing"),
                     )
                     _log_team_ai_pipeline_stage(request_data, task_id, "preprocess", "completed")
                 new_ref = await time_pre_main("resume_store", store_preprocessing_resume(
@@ -4511,6 +4529,9 @@ def process_ai_skill_ask_task(
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
+    from backend.apps.ai.llm_providers.google_client import register_google_client_loop
+
+    register_google_client_loop(loop)
     
     task_result_dict: Optional[Dict[str, Any]] = None
     legacy_completion_requires_persistence = False
@@ -4678,6 +4699,7 @@ def process_ai_skill_ask_task(
                 skill_config,
                 completion_timing=completion_timing,
                 legacy_batch_proof=legacy_batch_proof,
+                stage_one_routing_ref=(getattr(self.request, "headers", None) or {}).get("x-openmates-stage-one-ref"),
             )
         )
         from backend.apps.ai.utils.preprocessing_history import STANDARDIZED_USER_ERROR_MESSAGE
@@ -4990,5 +5012,13 @@ def process_ai_skill_ask_task(
             terminal_class=terminal_class,
         )
         turn_scope.__exit__(None, None, None)
+        # Provider transports belong to this task's event loop. Close them while
+        # that loop is alive; cleanup must never replace the task outcome.
+        try:
+            from backend.apps.ai.llm_providers.google_client import close_google_clients_for_current_loop
+
+            loop.run_until_complete(close_google_clients_for_current_loop())
+        except Exception:
+            logger.warning("Provider transport cleanup failed", exc_info=True)
         loop.close()
         logger.info(f"[Task ID: {task_id}] Async event loop closed.")

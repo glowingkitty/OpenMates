@@ -1,9 +1,9 @@
 schema_version: 1
 id: feature.message-input
-version: 4
+version: 5
 status: draft
 title: Message Input
-summary: 'The OpenMates chat composer owns user text, embeds, draft state, focus-driven surrounding UI suppression,
+summary: 'The OpenMates chat composer owns user text, embeds, draft state, focus-driven background interaction gating,
   recording controls, contextual suggestions, and send/start-new-chat handoff while preserving privacy, accessibility,
   and first-party GUI parity.
 
@@ -13,10 +13,10 @@ scope:
   - First-party chat composer behavior in the web ActiveChat and MessageInput surfaces.
   - Focus, blur, content, map-open, height, and anonymous-file pending state propagated from MessageInput to its
     parent shell.
-  - Logged-out welcome composer behavior, including suppression of guest welcome cards/prompts while the composer
-    or recording overlay is active.
-  - Focus and expansion suppression of surrounding Chat, Project, Task and Workflow creation/editor workspace content,
-    with Cancel and outside-tap restoration.
+  - Logged-out welcome composer behavior, keeping guest welcome content visible and inert during ordinary focus,
+    with suppression for recording, map and anonymous-attachment overlays.
+  - Focus and expansion interaction gating of surrounding Chat, Project, Task and Workflow creation/editor workspace content,
+    without dimming or a gray backdrop, with Cancel and outside-tap restoration.
   - Text, mention, paste, file, camera, sketch, map, audio-recording, draft-preview, and send handoff behavior owned
     by the composer.
   - Focus-mode, incognito, IdeaBucket, PII warning, anonymous terms, and credit/signup UI context rendered inside
@@ -87,7 +87,8 @@ models:
       type: visual_and_interaction_state
       required: true
       constraints:
-        opacity_zero: true
+        ordinary_composer_focus_opacity: 1
+        special_overlay_opacity_zero: true
         inert_or_pointer_disabled: true
         message_input_remains_mounted: true
   ActionControlState:
@@ -252,25 +253,28 @@ assertions:
   - examples.parent_state
 - id: message-input.focus.guest-welcome-suppression
   type: behavior
-  must: In the logged-out new-chat welcome surface, focusing the composer, pressing/holding record, or showing the
-    recording overlay hides and disables the surrounding active-chat welcome UI, including Daily Inspiration, top
-    buttons, welcome prompts, guest interest tags, example cards, and example links, while keeping the message input
-    mounted and usable.
+  must: In the logged-out new-chat welcome surface, ordinary composer focus keeps the surrounding welcome UI,
+    including Daily Inspiration, top buttons, prompts, interest tags, example cards and links, visible at full
+    opacity while disabling background interaction. Recording, map and anonymous-attachment overlays retain
+    their separate welcome suppression. The message input stays mounted and usable.
   depends_on:
   - models.WelcomeSuppressionState
   - models.RecordingState.overlay
   - examples.focus_visibility
 - id: message-input.focus.workspace-suppression
   type: behavior
-  must: Focusing or expanding a new-chat, Project, Task or Workflow creation/editor composer fully fades out and
-    disables surrounding workspace content while the composer remains usable. In an existing chat with history,
-    focus or expansion dims the transcript while keeping it visually present and disabling background interaction.
+  must: In the shared web GUI, focusing or expanding a Project, Task or Workflow creation/editor composer keeps
+    existing surrounding workspace content visible at full opacity while disabling background interaction and
+    keeping the composer usable. An established chat transcript likewise stays visible at full opacity. Composer
+    focus or expansion adds no gray or translucent backdrop and does not fade or dim existing content. Ordinary
+    empty-chat welcome content remains visible and inert; special recording, map and attachment overlays retain
+    their separate suppression.
     Cancel or an outside tap collapses expansion, dismisses keyboard focus and restores the default workspace layout
     without discarding text or attachment drafts. Whenever shown, the microphone remains in the bottom right action
     group in empty, focused and expanded composer states.
   depends_on:
   - models.ComposerState
-  - examples.focus_visibility
+  - examples.workspace_focus_visibility
 - id: message-input.actions.visibility
   type: behavior
   must: Expanded composer action controls remain hidden in the empty unfocused inline state, become visible for
@@ -364,6 +368,26 @@ assertions:
   depends_on:
   - models.RecordingState
   - examples.editable_transcript
+- id: message-input.suggestion.editable-acceptance
+  type: behavior
+  must: An eligible completed assistant turn may offer one contextual next-message suggestion as ghost text in an empty composer. The suggestion remains outside the editor document until accepted, and acceptance inserts an editable draft without sending it. Existing postprocessed suggestion chips remain separate.
+  depends_on: [examples.composer_ghost]
+- id: message-input.suggestion.keyboard-ownership
+  type: behavior
+  must: With the empty composer focused, localized guidance explains Tab acceptance. Tab accepts the visible ghost; Shift+Tab retains normal navigation. User typing owns the draft and hides the ghost.
+  depends_on: [examples.composer_ghost]
+- id: message-input.suggestion.dismissal
+  type: behavior
+  must: Escape dismisses the current ghost without altering the draft, and switching chat, account or Team prevents stale turn suggestions from appearing in the new context. Disabled followups and private volatile chats do not expose a ghost.
+  depends_on: [examples.composer_ghost]
+- id: message-input.suggestion.draft-priority
+  type: behavior
+  must: User text, attachments, recording and queued-message editing take precedence over ghost suggestions. A suggestion fades into an eligible empty composer and respects reduced motion; encrypted reload or device sync cannot overwrite a newer draft or display a stale turn.
+  depends_on: [examples.composer_ghost]
+- id: message-input.suggestion.touch-acceptance
+  type: behavior
+  must: A touch user can accept the visible ghost through a localized Use suggestion control and review or change the inserted draft before choosing Send.
+  depends_on: [examples.composer_ghost]
 applies_to:
   rest_api:
     required: false
@@ -414,3 +438,4 @@ examples:
   - responsive_layout
   - editable_transcript
   - gated_attachments
+  - composer_ghost

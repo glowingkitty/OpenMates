@@ -1168,6 +1168,18 @@ import { storageArchiveFetch } from "../config/api";
 
   // Show/hide the messages block for fade-out animation using $state (Svelte 5 runes mode)
   let showMessages = $state(true);
+  const HISTORY_REVEAL_DURATION_MS = 180;
+  let historyRevealMessageIds = $state<Set<string>>(new Set());
+  let historyRevealTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function revealLoadedHistory(messageIds: string[]) {
+    if (historyRevealTimer) clearTimeout(historyRevealTimer);
+    historyRevealMessageIds = new Set(messageIds);
+    historyRevealTimer = setTimeout(() => {
+      historyRevealMessageIds = new Set();
+      historyRevealTimer = null;
+    }, HISTORY_REVEAL_DURATION_MS);
+  }
 
   // Reference to the chat history container for scrolling.
   let container: HTMLDivElement;
@@ -1206,6 +1218,7 @@ import { storageArchiveFetch } from "../config/api";
     currentChatId = undefined,
     processingPhase = null,
     pendingAssistantResponse = null,
+    activeAssistantTurn = null,
     thinkingContentByTask = new Map(),
     // Chat header props: shown at the top of new chats only.
     // chatTitle / chatCategory / chatIcon are the decrypted metadata once received.
@@ -1258,6 +1271,7 @@ import { storageArchiveFetch } from "../config/api";
       taskId: string; userMessageId: string; category?: string | null;
       modelName?: string | null; serverRegion?: string | null;
     } | null;
+    activeAssistantTurn?: { taskId: string; userMessageId: string } | null;
     thinkingContentByTask?: Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>; // Thinking content from thinking models
 
     /** Decrypted title to show in the permanent header card (new chats only). */
@@ -2212,6 +2226,15 @@ import { storageArchiveFetch } from "../config/api";
     const prunedWindow = pruneDecryptedMessageWindow(newInternalMessages, {
       compressionCheckpoints,
     });
+    if (!isNewChat && previousMessagesLength === 0 && currentChatId && newInternalMessages.length > 0 &&
+        newInternalMessages.every(message => message.status === 'synced')) {
+      // Only saved rows participate in the one-time reveal. An optimistic user
+      // message and a live assistant stream remain immediately visible.
+      const savedIds = newInternalMessages
+        .filter(message => message.status === 'synced')
+        .map(message => message.id);
+      if (savedIds.length > 0) revealLoadedHistory(savedIds);
+    }
     if (prunedWindow.prunedCount > 0) {
       console.debug(`[ChatHistory] Pruned ${prunedWindow.prunedCount} decrypted normal message(s) from active UI window`);
     }
@@ -2865,6 +2888,7 @@ import { storageArchiveFetch } from "../config/api";
   // Cleanup on component destroy
   onDestroy(() => {
     cancelAllStreamingRenders();
+    if (historyRevealTimer) clearTimeout(historyRevealTimer);
     // Cancel any pending scroll tracking operations
     if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
     if (scrollFrame) cancelAnimationFrame(scrollFrame);
@@ -3043,6 +3067,7 @@ import { storageArchiveFetch } from "../config/api";
                       data-testid="message-{msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
                       data-forgotten={isForgottenMessage(msg) ? 'true' : 'false'}
                       data-message-id={msg.id}
+					  data-history-reveal={historyRevealMessageIds.has(msg.id) ? 'true' : 'false'}
 					  data-status={msg.status}
                       data-streaming={msg.status === 'streaming' ? 'true' : 'false'}
                       aria-describedby={isForgottenMessage(msg) ? 'forgotten-messages-note' : undefined}
@@ -3051,7 +3076,7 @@ import { storageArchiveFetch } from "../config/api";
                          ${($editMessageStore && $editMessageStore.chatId === currentChatId && (msg.original_message?.created_at ?? 0) >= $editMessageStore.createdAt) ? 'pointer-events: none;' : ''}
                          ${msg.status === 'failed' ? 'border: 1px solid var(--color-error); border-radius: 12px; padding: 2px;' : ''}
                       `}
-                      in:fade={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 300 }}
+                      in:fade={{ duration: 0 }}
                       animate:flip={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 250 }}>
                     {#if agentContext}
                       <AgentContextMessage event={agentContext} onAuthoring={startContextAuthoring} jobs={Object.values($projectAuthoringJobs)} onSaveJob={saveProjectAuthoring} />
@@ -3076,9 +3101,13 @@ import { storageArchiveFetch } from "../config/api";
                           ? pendingAssistantResponse.serverRegion : undefined}
                         content={msg.content as string | Record<string, unknown> | null}
                         status={msg.status}
-                        assistantTurnActive={msg.role === 'assistant' && !!pendingAssistantResponse
-                          && (msg.id === pendingAssistantResponse.taskId
-                            || msg.original_message?.user_message_id === pendingAssistantResponse.userMessageId)}
+                        assistantTurnActive={msg.role === 'assistant' && (
+                          (!!activeAssistantTurn && (msg.id === activeAssistantTurn.taskId
+                            || (!!msg.original_message?.user_message_id
+                              && msg.original_message.user_message_id === activeAssistantTurn.userMessageId)))
+                          || (!!pendingAssistantResponse && (msg.id === pendingAssistantResponse.taskId
+                            || (!!msg.original_message?.user_message_id
+                              && msg.original_message.user_message_id === pendingAssistantResponse.userMessageId))))}
                         is_truncated={msg.is_truncated}
                         original_message={msg.original_message}
                         containerWidth={containerWidth}
@@ -3409,6 +3438,19 @@ import { storageArchiveFetch } from "../config/api";
     max-width: var(--chat-content-max-width, 1000px);
     margin: 0 auto;
     box-sizing: border-box;
+  }
+
+  .message-wrapper[data-history-reveal='true'] {
+    animation: loaded-history-reveal 180ms ease-out both;
+  }
+
+  @keyframes loaded-history-reveal {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .message-wrapper[data-history-reveal='true'] { animation: none; }
   }
 
   /* Only apply padding-top and min-height when there are messages */

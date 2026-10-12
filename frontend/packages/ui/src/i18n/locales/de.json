@@ -93,6 +93,14 @@
         }
       }
     },
+    "business": {
+      "find_brand_name": {
+        "text": "Markennamen finden",
+        "description": {
+          "text": "Einprägsame Namen auswählen, dann Domains und Markenkonflikte der Favoriten prüfen."
+        }
+      }
+    },
     "code": {
       "test_git_repo": {
         "text": "Git-Repository testen",
@@ -1290,6 +1298,12 @@
         "text": "Unternehmenszahlen abrufen",
         "description": {
           "text": "Ruft Umsatz, Gewinn, Bilanzdaten und Quellen aus SEC EDGAR ab."
+        }
+      },
+      "search_trademarks": {
+        "text": "Marken suchen",
+        "description": {
+          "text": "Markennamen nach Region mit Quellen und Abdeckungsgrenzen suchen."
         }
       }
     },
@@ -4120,6 +4134,39 @@
       },
       "writing": {
         "text": "Schreibe…"
+      },
+      "list_last": {
+        "text": "{items} & {last}"
+      },
+      "used_single": {
+        "text": "Die {apps}-App verwendet"
+      },
+      "used_multiple": {
+        "text": "Die Apps {apps} verwendet"
+      },
+      "thought_used_single": {
+        "text": "Nachgedacht und die {apps}-App verwendet"
+      },
+      "thought_used_multiple": {
+        "text": "Nachgedacht und die Apps {apps} verwendet"
+      },
+      "focus_activated": {
+        "text": "„{focus}“ aktiviert"
+      },
+      "focus_sub_chats": {
+        "text": "„{focus}“ aktiviert und in Unterchats gearbeitet."
+      },
+      "sub_chats": {
+        "text": "In Unterchats gearbeitet."
+      },
+      "focus_cancelled": {
+        "text": "Fokusaktivierung abgebrochen"
+      },
+      "focus_activating": {
+        "text": "„{focus}“ wird aktiviert"
+      },
+      "sub_chats_working": {
+        "text": "Arbeitet in Unterchats"
       }
     },
     "new_chat_suggestions": {
@@ -8705,6 +8752,86 @@
         "not_available": {
           "text": "N/V"
         }
+      },
+      "search_trademarks": {
+        "records": {
+          "text": "Einträge: {count}"
+        },
+        "preliminary": {
+          "text": "Vorläufige Suche"
+        },
+        "checked": {
+          "text": "Geprüft"
+        },
+        "not_searched": {
+          "text": "Nicht durchsucht"
+        },
+        "partial": {
+          "text": "Teilweise"
+        },
+        "empty": {
+          "text": "Keine passenden Einträge"
+        },
+        "limitation": {
+          "text": "Keine Treffer bedeuten keine rechtliche Verfügbarkeit."
+        },
+        "open_record": {
+          "text": "Amtlichen Eintrag ansehen"
+        },
+        "open_register": {
+          "text": "Amtliche Suche öffnen"
+        },
+        "classes": {
+          "text": "Nizza-Klassen"
+        },
+        "all_classes": {
+          "text": "Alle Klassen"
+        },
+        "owner": {
+          "text": "Inhaber"
+        },
+        "goods": {
+          "text": "Waren und Dienstleistungen"
+        },
+        "application": {
+          "text": "Anmeldung"
+        },
+        "registration": {
+          "text": "Eintragung"
+        },
+        "filed": {
+          "text": "Angemeldet"
+        },
+        "registered": {
+          "text": "Eingetragen"
+        },
+        "pending": {
+          "text": "Ausstehend"
+        },
+        "ended": {
+          "text": "Beendet"
+        },
+        "unknown": {
+          "text": "Status unbekannt"
+        },
+        "exact": {
+          "text": "Exakter Name"
+        },
+        "similar": {
+          "text": "Ähnliche Schreibweise"
+        },
+        "active": {
+          "text": "Aktive Einträge"
+        },
+        "all_statuses": {
+          "text": "Alle Status"
+        },
+        "more": {
+          "text": "Weitere Treffer im amtlichen Register"
+        },
+        "failed": {
+          "text": "Suchdaten nicht verfügbar"
+        }
       }
     },
     "reviews": {
@@ -9121,6 +9248,14 @@
       },
       "exit_fullscreen": {
         "text": "Schließe Vollbild"
+      }
+    },
+    "ghost_suggestion": {
+      "press_tab": {
+        "text": "Tab drücken, um den Vorschlag zu übernehmen"
+      },
+      "use_suggestion": {
+        "text": "Vorschlag verwenden"
       }
     },
     "location": {
@@ -10206,6 +10341,38 @@
         "text": "Erkläre, wie man visuelle Elemente in einem Drucklayout anordnet"
       }
     },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "Ein warmer Chime für einen Gemeinschaftsgarten"
+      },
+      "summary": {
+        "text": "Erstelle einen kurzen Zwei-Ton-Benachrichtigungssound für eine fiktive Gemeinschaftsgarten-App."
+      },
+      "message_1": {
+        "text": "Erstelle einen kurzen, warmen Benachrichtigungston für eine Gemeinschaftsgarten-App, wenn sich ein Freiwilliger anmeldet. Ein sanfter Zwei-Ton-Chime, ohne Sprache und unter drei Sekunden."
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nIch erstelle jetzt den warmen, sanften Zwei-Ton-Chime für deine Gemeinschaftsgarten-App. Er wird gerade verarbeitet und erscheint im Chat, sobald er fertig ist.\n\n### Vorgeschlagene nächste Schritte\n- [Erstelle einen erdigen, feierlichen Chime für das Freischalten eines Abzeichens](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Entwirf ein Layout für eine Bestätigungskarte für Freiwillige](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "Erstelle einen feierlichen Chime für das Freischalten eines Abzeichens nach Abschluss einer Aufgabe"
+      },
+      "follow_up_2": {
+        "text": "Erkläre, wie Sounddesign das Nutzerengagement in mobilen Apps beeinflusst"
+      },
+      "follow_up_3": {
+        "text": "Erstelle einen sanften Erinnerungston für morgendliche Bewässerungspläne"
+      },
+      "follow_up_4": {
+        "text": "Liste Best Practices für das Design unaufdringlicher UI-Benachrichtigungstöne auf"
+      },
+      "follow_up_5": {
+        "text": "Erstelle einen sanften Fehlerton für fehlgeschlagene Formularvalidierungen"
+      },
+      "follow_up_6": {
+        "text": "Beschreibe, wie man benutzerdefinierte Soundeffekte in mobile Anwendungen integriert"
+      }
+    },
     "community_garden_volunteer_onboarding": {
       "title": {
         "text": "Onboarding für Freiwillige im Gemeinschaftsgarten"
@@ -11288,6 +11455,38 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"6da89032-d370-43c5-91c1-b07fa5df5a85\", \"app_id\": \"images\", \"skill_id\": \"generate\"}\n```\n\nIch generiere jetzt das SVG-App-Icon für dein Klimadaten-Dashboard. \n\nIch habe mich auf eine klare [Flat-Design](wiki:Flat_design)-[Vektor](wiki:Vector_graphics)-Ästhetik mit einer Farbpalette in Petrol und Minze konzentriert, um sowohl Natur als auch Daten widerzuspiegeln. Dieser Stil eignet sich hervorragend für die Skalierbarkeit und stellt sicher, dass das Icon scharf bleibt, egal ob auf einem mobilen Startbildschirm oder als winziges Browser-Favicon.\n\nSobald es fertig ist, könnten wir mit verschiedenen Farbschemata für den Dark Mode experimentieren oder sogar ein [UI-Mockup](wiki:Mockup) erstellen, um zu sehen, wie es im Kontext wirkt.\n\nWelche Art von Interface stellst du dir für dieses Dashboard vor – etwas sehr datenintensives mit Diagrammen oder eher eine vereinfachte Übersicht?"
       }
     },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Online-Shop Checkout-Ablaufdiagramm"
+      },
+      "summary": {
+        "text": "Ein editierbares Checkout-Flussdiagramm mit Zahlungs-Wiederholung und Bestellbestätigung."
+      },
+      "message_1": {
+        "text": "Erstelle ein editierbares Flussdiagramm für einen kleinen Online-Shop: Warenkorb, Checkout-Details, Zahlung und Bestellbestätigung. Wenn die Zahlung abgelehnt wird, zeige, wie der Kunde es erneut versucht. Behalte alle Informationen innerhalb des Diagramms und verlinke nicht auf externe Websites."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Ablaufanalyse & UX-Überlegungen\n\n1. **Sequenzieller Fortschritt**: Der Kunde durchläuft linear den **Warenkorb**, die **Checkout-Details** (Versand/Rechnung) und die **Zahlungsabwicklung**.\n2. **Ablehnung & Fehlerbehebung**:\n   - Anstatt den Kunden zurück zu einer leeren Sitzung zu führen, leitet eine Ablehnung zu einem Entscheidungsschritt **Methode ändern** weiter.\n   - Der gestrichelte orthogonale Pfad führt direkt zurück zu den **Checkout-Details**, sodass der Kunde die Zahlungsmethode wechseln, Tippfehler in den Kartendaten korrigieren oder eine alternative digitale Geldbörse wählen kann, ohne die Artikel im Warenkorb zu verlieren.\n   - Wenn sie sich gegen einen erneuten Versuch entscheiden, endet die Sitzung sauber im Endzustand **Warenkorb gespeichert**, was die Tür für Follow-up-E-Mails bei Warenkorbabbrüchen offen hält.\n3. **Editierbare Struktur**: Jeder Schritt und Pfad enthält Standard-`data-om-*`-Bindungen, sodass du Beschriftungen anpassen, einen Rabattgutschein-Schritt hinzufügen oder Gast-Checkout-Zweige direkt integrieren kannst.\n\n---\n\n**Nächste Schritte & Iterationen:**\n- Möchtest du einen Zweig für **Gast-Checkout vs. Angemeldetes Konto** vor den Versanddetails einführen?\n- Wenn du Benutzeroberflächen oder individuelle Illustrationen für diesen Ablauf entwirfst, könnten wir die Integration von Wireframes oder handgezeichneten Icon-Badges untersuchen, um die Schritte zu ergänzen."
+      },
+      "follow_up_1": {
+        "text": "Suche nach kostenlosen SVG-Icons für Checkout-Buttons"
+      },
+      "follow_up_2": {
+        "text": "Erkläre, wie man einen Gast-Checkout-Zweig vor den Versanddetails hinzufügt"
+      },
+      "follow_up_3": {
+        "text": "Suche nach Best Practices und UX-Trends für den Online-Shop-Checkout"
+      },
+      "follow_up_4": {
+        "text": "Beschreibe, wie man E-Mails zur Rückgewinnung abgebrochener Warenkörbe effektiv handhabt"
+      },
+      "follow_up_5": {
+        "text": "Finde kommende E-Commerce-Design-Workshops und Webinare"
+      },
+      "follow_up_6": {
+        "text": "Liste häufige UX-Fallstricke in Online-Zahlungs-Checkout-Abläufen auf"
+      }
+    },
     "open_meteo_weather_notebook": {
       "title": {
         "text": "Berlin-Wochenendradwetter-Notebook"
@@ -11934,70 +12133,6 @@
       "follow_up_6": {
         "text": "Vergleiche verschiedene Methoden, um gesprochene Ideen in organisierte Aufgaben umzuwandeln"
       }
-    },
-    "community_garden_volunteer_chime": {
-      "title": {
-        "text": "Ein warmer Chime für einen Gemeinschaftsgarten"
-      },
-      "summary": {
-        "text": "Erstelle einen kurzen Zwei-Ton-Benachrichtigungssound für eine fiktive Gemeinschaftsgarten-App."
-      },
-      "message_1": {
-        "text": "Erstelle einen kurzen, warmen Benachrichtigungston für eine Gemeinschaftsgarten-App, wenn sich ein Freiwilliger anmeldet. Ein sanfter Zwei-Ton-Chime, ohne Sprache und unter drei Sekunden."
-      },
-      "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nIch erstelle jetzt den warmen, sanften Zwei-Ton-Chime für deine Gemeinschaftsgarten-App. Er wird gerade verarbeitet und erscheint im Chat, sobald er fertig ist.\n\n### Vorgeschlagene nächste Schritte\n- [Erstelle einen erdigen, feierlichen Chime für das Freischalten eines Abzeichens](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Entwirf ein Layout für eine Bestätigungskarte für Freiwillige](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
-      },
-      "follow_up_1": {
-        "text": "Erstelle einen feierlichen Chime für das Freischalten eines Abzeichens nach Abschluss einer Aufgabe"
-      },
-      "follow_up_2": {
-        "text": "Erkläre, wie Sounddesign das Nutzerengagement in mobilen Apps beeinflusst"
-      },
-      "follow_up_3": {
-        "text": "Erstelle einen sanften Erinnerungston für morgendliche Bewässerungspläne"
-      },
-      "follow_up_4": {
-        "text": "Liste Best Practices für das Design unaufdringlicher UI-Benachrichtigungstöne auf"
-      },
-      "follow_up_5": {
-        "text": "Erstelle einen sanften Fehlerton für fehlgeschlagene Formularvalidierungen"
-      },
-      "follow_up_6": {
-        "text": "Beschreibe, wie man benutzerdefinierte Soundeffekte in mobile Anwendungen integriert"
-      }
-    },
-    "online_shop_checkout_flow_diagram": {
-      "title": {
-        "text": "Online-Shop Checkout-Ablaufdiagramm"
-      },
-      "summary": {
-        "text": "Ein editierbares Checkout-Flussdiagramm mit Zahlungs-Wiederholung und Bestellbestätigung."
-      },
-      "message_1": {
-        "text": "Erstelle ein editierbares Flussdiagramm für einen kleinen Online-Shop: Warenkorb, Checkout-Details, Zahlung und Bestellbestätigung. Wenn die Zahlung abgelehnt wird, zeige, wie der Kunde es erneut versucht. Behalte alle Informationen innerhalb des Diagramms und verlinke nicht auf externe Websites."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Ablaufanalyse & UX-Überlegungen\n\n1. **Sequenzieller Fortschritt**: Der Kunde durchläuft linear den **Warenkorb**, die **Checkout-Details** (Versand/Rechnung) und die **Zahlungsabwicklung**.\n2. **Ablehnung & Fehlerbehebung**:\n   - Anstatt den Kunden zurück zu einer leeren Sitzung zu führen, leitet eine Ablehnung zu einem Entscheidungsschritt **Methode ändern** weiter.\n   - Der gestrichelte orthogonale Pfad führt direkt zurück zu den **Checkout-Details**, sodass der Kunde die Zahlungsmethode wechseln, Tippfehler in den Kartendaten korrigieren oder eine alternative digitale Geldbörse wählen kann, ohne die Artikel im Warenkorb zu verlieren.\n   - Wenn sie sich gegen einen erneuten Versuch entscheiden, endet die Sitzung sauber im Endzustand **Warenkorb gespeichert**, was die Tür für Follow-up-E-Mails bei Warenkorbabbrüchen offen hält.\n3. **Editierbare Struktur**: Jeder Schritt und Pfad enthält Standard-`data-om-*`-Bindungen, sodass du Beschriftungen anpassen, einen Rabattgutschein-Schritt hinzufügen oder Gast-Checkout-Zweige direkt integrieren kannst.\n\n---\n\n**Nächste Schritte & Iterationen:**\n- Möchtest du einen Zweig für **Gast-Checkout vs. Angemeldetes Konto** vor den Versanddetails einführen?\n- Wenn du Benutzeroberflächen oder individuelle Illustrationen für diesen Ablauf entwirfst, könnten wir die Integration von Wireframes oder handgezeichneten Icon-Badges untersuchen, um die Schritte zu ergänzen."
-      },
-      "follow_up_1": {
-        "text": "Suche nach kostenlosen SVG-Icons für Checkout-Buttons"
-      },
-      "follow_up_2": {
-        "text": "Erkläre, wie man einen Gast-Checkout-Zweig vor den Versanddetails hinzufügt"
-      },
-      "follow_up_3": {
-        "text": "Suche nach Best Practices und UX-Trends für den Online-Shop-Checkout"
-      },
-      "follow_up_4": {
-        "text": "Beschreibe, wie man E-Mails zur Rückgewinnung abgebrochener Warenkörbe effektiv handhabt"
-      },
-      "follow_up_5": {
-        "text": "Finde kommende E-Commerce-Design-Workshops und Webinare"
-      },
-      "follow_up_6": {
-        "text": "Liste häufige UX-Fallstricke in Online-Zahlungs-Checkout-Abläufen auf"
-      }
     }
   },
   "focus_modes": {
@@ -12014,6 +12149,15 @@
       "text": "Buchempfehlungen",
       "description": {
         "text": "Buchempfehlungen basierend auf deinem Geschmack."
+      }
+    },
+    "business_find_brand_name": {
+      "text": "Markennamen finden",
+      "description": {
+        "text": "Einprägsame Namen auswählen, dann Domains und Markenkonflikte der Favoriten prüfen."
+      },
+      "process": {
+        "text": "- Anforderungen verstehen\n- Namen auswählen\n- Favoriten prüfen\n- Ergebnisse vergleichen"
       }
     },
     "code_analyze_logs": {
@@ -13762,6 +13906,13 @@
             },
             "description": {
               "text": "Mastodon wird abgefragt, wenn du öffentliche Mastodon-Profil-Beiträge abrufst. Der jeweilige Mastodon-Server erhält Profil-Kennungen oder öffentliche Profil-URLs ohne eine OpenMates-Benutzerkennung."
+            }
+          }
+        },
+        "business_data": {
+          "uspto": {
+            "description": {
+              "text": "Das USPTO erhält Kandidatennamen sowie Status-, Schreibweisen- und Nizza-Klassenfilter für US-Markensuchen. Anfragen kommen von unseren Servern ohne OpenMates-Nutzerkennungen oder Chatverlauf."
             }
           }
         }

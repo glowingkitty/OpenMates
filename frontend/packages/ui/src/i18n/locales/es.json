@@ -93,6 +93,14 @@
         }
       }
     },
+    "business": {
+      "find_brand_name": {
+        "text": "Encontrar un nombre de marca",
+        "description": {
+          "text": "Preselecciona nombres memorables y comprueba dominios y conflictos de marca de los finalistas."
+        }
+      }
+    },
     "code": {
       "test_git_repo": {
         "text": "Probar repositorio git",
@@ -1282,6 +1290,12 @@
         "text": "Get company financials",
         "description": {
           "text": "Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR."
+        }
+      },
+      "search_trademarks": {
+        "text": "Buscar marcas",
+        "description": {
+          "text": "Busca marcas por región con fuentes y límites de cobertura."
         }
       }
     },
@@ -7650,6 +7664,86 @@
         "not_available": {
           "text": "N/D"
         }
+      },
+      "search_trademarks": {
+        "records": {
+          "text": "Registros: {count}"
+        },
+        "preliminary": {
+          "text": "Búsqueda preliminar"
+        },
+        "checked": {
+          "text": "Consultado"
+        },
+        "not_searched": {
+          "text": "Sin buscar"
+        },
+        "partial": {
+          "text": "Parcial"
+        },
+        "empty": {
+          "text": "Sin registros coincidentes"
+        },
+        "limitation": {
+          "text": "La ausencia de coincidencias no demuestra disponibilidad legal."
+        },
+        "open_record": {
+          "text": "Ver registro oficial"
+        },
+        "open_register": {
+          "text": "Abrir búsqueda oficial"
+        },
+        "classes": {
+          "text": "Clases de Niza"
+        },
+        "all_classes": {
+          "text": "Todas las clases"
+        },
+        "owner": {
+          "text": "Titular"
+        },
+        "goods": {
+          "text": "Productos y servicios"
+        },
+        "application": {
+          "text": "Solicitud"
+        },
+        "registration": {
+          "text": "Registro"
+        },
+        "filed": {
+          "text": "Presentado"
+        },
+        "registered": {
+          "text": "Registrado"
+        },
+        "pending": {
+          "text": "Pendiente"
+        },
+        "ended": {
+          "text": "Finalizado"
+        },
+        "unknown": {
+          "text": "Estado desconocido"
+        },
+        "exact": {
+          "text": "Nombre exacto"
+        },
+        "similar": {
+          "text": "Ortografía similar"
+        },
+        "active": {
+          "text": "Registros activos"
+        },
+        "all_statuses": {
+          "text": "Todos los estados"
+        },
+        "more": {
+          "text": "Más coincidencias en el registro oficial"
+        },
+        "failed": {
+          "text": "Datos de búsqueda no disponibles"
+        }
       }
     },
     "reviews": {
@@ -7901,6 +7995,14 @@
       },
       "exit_fullscreen": {
         "text": "Cerrar pantalla completa"
+      }
+    },
+    "ghost_suggestion": {
+      "press_tab": {
+        "text": "Pulsa Tab para aceptar la sugerencia"
+      },
+      "use_suggestion": {
+        "text": "Usar sugerencia"
       }
     },
     "location": {
@@ -8981,6 +9083,38 @@
       },
       "follow_up_6": {
         "text": "Explica cómo organizar los elementos visuales en un diseño de impresión"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "Un timbre cálido para un jardín comunitario"
+      },
+      "summary": {
+        "text": "Genera un sonido de notificación corto de dos notas para una aplicación ficticia de un jardín comunitario."
+      },
+      "message_1": {
+        "text": "Crea un sonido de notificación corto y cálido para una aplicación de un jardín comunitario cuando un voluntario se registra. Un timbre suave de dos notas, sin voz y de menos de tres segundos."
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nEstoy generando el timbre cálido y suave de dos notas para tu aplicación de jardín comunitario. Se está procesando y aparecerá en el chat en cuanto esté listo.\n\n### Siguientes pasos sugeridos\n- [Genera un timbre de desbloqueo de insignia festivo y natural](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Diseña una tarjeta de confirmación de voluntariado](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "Genera un timbre de desbloqueo de insignia festivo por completar tareas"
+      },
+      "follow_up_2": {
+        "text": "Explica cómo el diseño de sonido afecta la participación del usuario en aplicaciones móviles"
+      },
+      "follow_up_3": {
+        "text": "Crea un timbre de recordatorio suave para los horarios de riego matutinos"
+      },
+      "follow_up_4": {
+        "text": "Enumera las mejores prácticas para diseñar sonidos de notificación de interfaz de usuario no intrusivos"
+      },
+      "follow_up_5": {
+        "text": "Genera un sonido de alerta de error suave para fallos de validación de formularios"
+      },
+      "follow_up_6": {
+        "text": "Describe cómo integrar efectos de sonido personalizados en aplicaciones móviles"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -10065,6 +10199,38 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"6da89032-d370-43c5-91c1-b07fa5df5a85\", \"app_id\": \"images\", \"skill_id\": \"generate\"}\n```\n\nI'm generating that SVG app icon for your climate data dashboard now. \n\nI've focused on a clean, [flat](wiki:Flat_design) [vector](wiki:Vector_graphics) aesthetic with a teal and mint palette to reflect both nature and data. This style is excellent for scalability, ensuring the icon stays crisp whether it's on a mobile home screen or a tiny browser favicon.\n\nOnce it's ready, we could experiment with different color schemes for dark mode or even create a [UI mockup](wiki:Mockup) to see how it looks in context.\n\nWhat kind of interface are you imagining for this dashboard—something very data-heavy with charts, or a more simplified overview?"
       }
     },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Diagrama de flujo de pago de tienda online"
+      },
+      "summary": {
+        "text": "Un diagrama de flujo de pago editable con reintento de pago y confirmación de pedido."
+      },
+      "message_1": {
+        "text": "Crea un diagrama de flujo editable para una pequeña tienda online: carrito, detalles de pago, pago y confirmación del pedido. Si se rechaza el pago, muestra al cliente reintentándolo. Mantén toda la información dentro del diagrama y no enlaces a sitios web externos."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Desglose del flujo y consideraciones de UX\n\n1. **Progresión secuencial**: El cliente avanza linealmente a través del **Carrito**, los **Detalles de pago** (envío/facturación) y el **Procesamiento del pago**.\n2. **Rechazo y recuperación de errores**:\n   - En lugar de devolver al cliente a una sesión vacía, un rechazo lo dirige a un paso de decisión de **Cambiar método**.\n   - La ruta ortogonal discontinua redirige directamente a los **Detalles de pago**, lo que permite al cliente cambiar de método de pago, corregir errores tipográficos en los datos de la tarjeta o elegir una billetera digital alternativa sin perder los artículos de su carrito.\n   - Si decide no reintentarlo, la sesión finaliza limpiamente en un estado terminal de **Carrito guardado**, dejando la puerta abierta a correos electrónicos de seguimiento por carrito abandonado.\n3. **Estructura editable**: Cada paso y ruta contiene enlaces `data-om-*` estándar para que puedas personalizar las etiquetas, añadir un paso de cupón de descuento o integrar directamente ramas de pago como invitado.\n\n---\n\n**Próximos pasos e iteraciones:**\n- ¿Te gustaría introducir una rama de **Pago como invitado vs. Cuenta de usuario** antes de los detalles de envío?\n- Si estás diseñando interfaces de usuario o ilustraciones personalizadas para este flujo, podríamos explorar la integración de wireframes o iconos personalizados dibujados a mano para complementar los pasos."
+      },
+      "follow_up_1": {
+        "text": "Busca iconos SVG gratuitos para botones de pago"
+      },
+      "follow_up_2": {
+        "text": "Explica cómo añadir una rama de pago como invitado antes de los detalles de envío"
+      },
+      "follow_up_3": {
+        "text": "Busca mejores prácticas y tendencias de UX para el proceso de pago en tiendas online"
+      },
+      "follow_up_4": {
+        "text": "Describe cómo gestionar eficazmente los correos electrónicos de recuperación de carritos abandonados"
+      },
+      "follow_up_5": {
+        "text": "Encuentra próximos talleres y seminarios web sobre diseño de comercio electrónico"
+      },
+      "follow_up_6": {
+        "text": "Enumera errores comunes de UX en los flujos de pago online"
+      }
+    },
     "open_meteo_weather_notebook": {
       "title": {
         "text": "Berlin Weekend Bike Weather Notebook"
@@ -10711,70 +10877,6 @@
       "follow_up_6": {
         "text": "Comparar diferentes métodos para convertir ideas habladas en tareas organizadas"
       }
-    },
-    "community_garden_volunteer_chime": {
-      "title": {
-        "text": "Un timbre cálido para un jardín comunitario"
-      },
-      "summary": {
-        "text": "Genera un sonido de notificación corto de dos notas para una aplicación ficticia de un jardín comunitario."
-      },
-      "message_1": {
-        "text": "Crea un sonido de notificación corto y cálido para una aplicación de un jardín comunitario cuando un voluntario se registra. Un timbre suave de dos notas, sin voz y de menos de tres segundos."
-      },
-      "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nEstoy generando el timbre cálido y suave de dos notas para tu aplicación de jardín comunitario. Se está procesando y aparecerá en el chat en cuanto esté listo.\n\n### Siguientes pasos sugeridos\n- [Genera un timbre de desbloqueo de insignia festivo y natural](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Diseña una tarjeta de confirmación de voluntariado](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
-      },
-      "follow_up_1": {
-        "text": "Genera un timbre de desbloqueo de insignia festivo por completar tareas"
-      },
-      "follow_up_2": {
-        "text": "Explica cómo el diseño de sonido afecta la participación del usuario en aplicaciones móviles"
-      },
-      "follow_up_3": {
-        "text": "Crea un timbre de recordatorio suave para los horarios de riego matutinos"
-      },
-      "follow_up_4": {
-        "text": "Enumera las mejores prácticas para diseñar sonidos de notificación de interfaz de usuario no intrusivos"
-      },
-      "follow_up_5": {
-        "text": "Genera un sonido de alerta de error suave para fallos de validación de formularios"
-      },
-      "follow_up_6": {
-        "text": "Describe cómo integrar efectos de sonido personalizados en aplicaciones móviles"
-      }
-    },
-    "online_shop_checkout_flow_diagram": {
-      "title": {
-        "text": "Diagrama de flujo de pago de tienda online"
-      },
-      "summary": {
-        "text": "Un diagrama de flujo de pago editable con reintento de pago y confirmación de pedido."
-      },
-      "message_1": {
-        "text": "Crea un diagrama de flujo editable para una pequeña tienda online: carrito, detalles de pago, pago y confirmación del pedido. Si se rechaza el pago, muestra al cliente reintentándolo. Mantén toda la información dentro del diagrama y no enlaces a sitios web externos."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Desglose del flujo y consideraciones de UX\n\n1. **Progresión secuencial**: El cliente avanza linealmente a través del **Carrito**, los **Detalles de pago** (envío/facturación) y el **Procesamiento del pago**.\n2. **Rechazo y recuperación de errores**:\n   - En lugar de devolver al cliente a una sesión vacía, un rechazo lo dirige a un paso de decisión de **Cambiar método**.\n   - La ruta ortogonal discontinua redirige directamente a los **Detalles de pago**, lo que permite al cliente cambiar de método de pago, corregir errores tipográficos en los datos de la tarjeta o elegir una billetera digital alternativa sin perder los artículos de su carrito.\n   - Si decide no reintentarlo, la sesión finaliza limpiamente en un estado terminal de **Carrito guardado**, dejando la puerta abierta a correos electrónicos de seguimiento por carrito abandonado.\n3. **Estructura editable**: Cada paso y ruta contiene enlaces `data-om-*` estándar para que puedas personalizar las etiquetas, añadir un paso de cupón de descuento o integrar directamente ramas de pago como invitado.\n\n---\n\n**Próximos pasos e iteraciones:**\n- ¿Te gustaría introducir una rama de **Pago como invitado vs. Cuenta de usuario** antes de los detalles de envío?\n- Si estás diseñando interfaces de usuario o ilustraciones personalizadas para este flujo, podríamos explorar la integración de wireframes o iconos personalizados dibujados a mano para complementar los pasos."
-      },
-      "follow_up_1": {
-        "text": "Busca iconos SVG gratuitos para botones de pago"
-      },
-      "follow_up_2": {
-        "text": "Explica cómo añadir una rama de pago como invitado antes de los detalles de envío"
-      },
-      "follow_up_3": {
-        "text": "Busca mejores prácticas y tendencias de UX para el proceso de pago en tiendas online"
-      },
-      "follow_up_4": {
-        "text": "Describe cómo gestionar eficazmente los correos electrónicos de recuperación de carritos abandonados"
-      },
-      "follow_up_5": {
-        "text": "Encuentra próximos talleres y seminarios web sobre diseño de comercio electrónico"
-      },
-      "follow_up_6": {
-        "text": "Enumera errores comunes de UX en los flujos de pago online"
-      }
     }
   },
   "focus_modes": {
@@ -10791,6 +10893,15 @@
       "text": "Recomendaciones de libros",
       "description": {
         "text": "Obtén recomendaciones de libros según tu gusto."
+      }
+    },
+    "business_find_brand_name": {
+      "text": "Encontrar un nombre de marca",
+      "description": {
+        "text": "Preselecciona nombres memorables y comprueba dominios y conflictos de marca de los finalistas."
+      },
+      "process": {
+        "text": "- Entender el proyecto\n- preseleccionar nombres\n- comprobar finalistas\n- comparar evidencias"
       }
     },
     "code_analyze_logs": {
@@ -12539,6 +12650,13 @@
             },
             "description": {
               "text": "Se consulta a Mastodon cuando obtienes publicaciones de perfiles públicos de Mastodon. El servidor de Mastodon correspondiente recibe identificadores de perfil o URL de perfiles públicos sin un identificador de usuario de OpenMates."
+            }
+          }
+        },
+        "business_data": {
+          "uspto": {
+            "description": {
+              "text": "USPTO recibe los nombres candidatos y filtros de estado, ortografía y clases de Niza para buscar marcas en EE. UU. Las solicitudes salen de nuestros servidores sin identificadores OpenMates ni historial de chat."
             }
           }
         }

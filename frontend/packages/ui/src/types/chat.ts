@@ -517,6 +517,7 @@ export interface Chat {
   encrypted_share_cta_text?: string | null; // Encrypted short call-to-open line for shared chat previews and OG images
   encrypted_chat_tags?: string | null; // Encrypted array of max 10 tags for categorizing the chat
   encrypted_follow_up_request_suggestions?: string | null; // Encrypted array of 6 follow-up request suggestions
+  encrypted_suggested_followup_message?: string | null; // Encrypted, turn-identified composer ghost suggestion
   encrypted_top_recommended_apps_for_chat?: string | null; // Encrypted array of up to 5 recommended app IDs for this chat, generated during post-processing
   encrypted_quick_tip_slugs?: string | null; // Encrypted array of product quick tip slugs selected during post-processing
   encrypted_chat_key?: string | null; // Chat-specific encryption key, encrypted with user's master key for device sync
@@ -772,6 +773,7 @@ export interface AIMessageUpdatePayload {
   recovery_job_id?: string | null;
   recovery_protocol_version?: number | null;
   recovery_turn_id?: string | null;
+  suggested_followup_message?: string | null;
 }
 
 export interface AITypingStartedPayload {

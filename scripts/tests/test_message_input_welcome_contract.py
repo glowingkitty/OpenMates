@@ -1,9 +1,9 @@
 """Message input workspace-focus contract guards.
 
-The approved composer behavior keeps the workspace measurable while fading and
-disabling it for every user, except when queued follow-up controls must remain
-reachable. Isolated Playwright coverage verifies the rendered focus and
-dismissal transitions; these guards protect the shared predicates.
+The approved composer behavior keeps the workspace measurable at full opacity
+and disables background interaction except for reachable queued controls. Only
+recording, map and attachment overlays suppress welcome content. Isolated
+Playwright coverage verifies rendered focus and dismissal transitions.
 """
 
 from __future__ import annotations
@@ -21,29 +21,26 @@ def _active_chat_source() -> str:
     return ACTIVE_CHAT_PATH.read_text(encoding="utf-8")
 
 
-# contract-test: direct surface=gui.web assertions=message-input.focus.guest-welcome-suppression,chat-queued-followups.editing.stable-revision
+# contract-test: direct surface=gui.web assertions=message-input.focus.guest-welcome-suppression,message-input.focus.workspace-suppression,chat-queued-followups.editing.stable-revision
 def test_focused_workspace_preserves_reachable_queued_controls() -> None:
     source = _active_chat_source()
     workspace = re.search(r'<div\s+class="chat-side"\s+(.*?)\n\s*>', source, re.S)
     assert workspace, "ActiveChat must keep a shared workspace container"
-    assert "class:composer-background-faded={messageInputFocused && !hasQueuedFollowUpActions}" in workspace.group(1)
-    assert "class:composer-welcome-hidden={messageInputFocused && (showWelcome || isActiveDraftOnlyChat)}" in workspace.group(1)
+    assert "composer-background-faded" not in source, "Ordinary focus must not dim the workspace"
+    assert "class:composer-welcome-hidden={hideWelcomeForComposerOverlay && (showWelcome || isActiveDraftOnlyChat)}" in workspace.group(1)
+    overlay = re.search(r"let\s+hideWelcomeForComposerOverlay\s*=\s*\$derived\((.*?)\);", source, re.S)
+    assert overlay, "Welcome suppression must have a distinct overlay predicate"
+    predicate = re.sub(r"\s+", "", overlay.group(1))
+    assert predicate == "messageInputFocused&&(messageInputMapsOpen||anonymousFileAttachmentPending||$recordingState.showRecordAudioUI)", (
+        "Ordinary composer focus must keep welcome content visible; special overlays suppress it"
+    )
     assert "inert={messageInputFocused && !hasQueuedFollowUpActions}" in workspace.group(1), (
         "Focus must disable the normal workspace for all users while leaving queued controls reachable"
     )
     assert "const hideWelcomeForKeyboard = false;" in source, (
         "Focus must preserve welcome layout measurements while hiding its content"
     )
-    faded_rule = re.search(r"\.composer-background-faded\s*\{([^}]*)\}", source, re.S)
-    assert faded_rule, "Focused workspace must define a fading rule"
-    declarations = re.sub(r"\s+", "", faded_rule.group(1))
-    opacity = re.search(r"opacity:([0-9.]+);", declarations)
-    assert opacity and float(opacity.group(1)) == 0.15, (
-        "An established chat transcript must retain its reduced-opacity fade"
-    )
-    assert "pointer-events:none;" in declarations
-    assert "display:none;" not in declarations
-    assert "visibility:hidden;" not in declarations
+    assert not re.search(r"opacity\s*:\s*0\.15\s*;", source), "Existing transcripts must stay at full opacity"
     welcome_rule = re.search(r"\.composer-welcome-hidden\s*\{([^}]*)\}", source, re.S)
     assert welcome_rule, "Empty-chat workspace must have a separate complete fade"
     welcome = re.sub(r"\s+", "", welcome_rule.group(1))

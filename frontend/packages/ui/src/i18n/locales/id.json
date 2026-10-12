@@ -93,6 +93,14 @@
         }
       }
     },
+    "business": {
+      "find_brand_name": {
+        "text": "Temukan nama merek",
+        "description": {
+          "text": "Pilih nama yang mudah diingat, lalu periksa domain dan konflik merek kandidat akhir."
+        }
+      }
+    },
     "code": {
       "test_git_repo": {
         "text": "Uji repo git",
@@ -1282,6 +1290,12 @@
         "text": "Get company financials",
         "description": {
           "text": "Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR."
+        }
+      },
+      "search_trademarks": {
+        "text": "Cari merek dagang",
+        "description": {
+          "text": "Cari merek menurut wilayah dengan sumber dan batas cakupan."
         }
       }
     },
@@ -7623,6 +7637,86 @@
         "not_available": {
           "text": "T/A"
         }
+      },
+      "search_trademarks": {
+        "records": {
+          "text": "{count} catatan"
+        },
+        "preliminary": {
+          "text": "Pencarian awal"
+        },
+        "checked": {
+          "text": "Telah dicari"
+        },
+        "not_searched": {
+          "text": "Belum dicari"
+        },
+        "partial": {
+          "text": "Sebagian"
+        },
+        "empty": {
+          "text": "Tidak ada catatan yang cocok"
+        },
+        "limitation": {
+          "text": "Tidak adanya hasil tidak membuktikan ketersediaan secara hukum."
+        },
+        "open_record": {
+          "text": "Lihat catatan resmi"
+        },
+        "open_register": {
+          "text": "Buka pencarian resmi"
+        },
+        "classes": {
+          "text": "Kelas Nice"
+        },
+        "all_classes": {
+          "text": "Semua kelas"
+        },
+        "owner": {
+          "text": "Pemilik"
+        },
+        "goods": {
+          "text": "Barang dan jasa"
+        },
+        "application": {
+          "text": "Permohonan"
+        },
+        "registration": {
+          "text": "Pendaftaran"
+        },
+        "filed": {
+          "text": "Diajukan"
+        },
+        "registered": {
+          "text": "Terdaftar"
+        },
+        "pending": {
+          "text": "Dalam proses"
+        },
+        "ended": {
+          "text": "Berakhir"
+        },
+        "unknown": {
+          "text": "Status tidak diketahui"
+        },
+        "exact": {
+          "text": "Nama persis"
+        },
+        "similar": {
+          "text": "Ejaan serupa"
+        },
+        "active": {
+          "text": "Catatan aktif"
+        },
+        "all_statuses": {
+          "text": "Semua status"
+        },
+        "more": {
+          "text": "Hasil lain di daftar resmi"
+        },
+        "failed": {
+          "text": "Data pencarian tidak tersedia"
+        }
       }
     },
     "reviews": {
@@ -7874,6 +7968,14 @@
       },
       "exit_fullscreen": {
         "text": "Keluar dari layar penuh"
+      }
+    },
+    "ghost_suggestion": {
+      "press_tab": {
+        "text": "Tekan Tab untuk menerima saran"
+      },
+      "use_suggestion": {
+        "text": "Gunakan saran"
       }
     },
     "location": {
@@ -8954,6 +9056,38 @@
       },
       "follow_up_6": {
         "text": "Jelaskan cara menyusun elemen visual dalam tata letak cetak"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "Denting hangat untuk kebun komunitas"
+      },
+      "summary": {
+        "text": "Buat suara notifikasi dua nada singkat untuk aplikasi kebun komunitas fiktif."
+      },
+      "message_1": {
+        "text": "Buat suara notifikasi yang singkat dan hangat untuk aplikasi kebun komunitas saat ada sukarelawan yang mendaftar. Denting dua nada yang lembut, tanpa ucapan, dan berdurasi kurang dari tiga detik."
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nAku sedang membuat denting dua nada yang hangat dan lembut untuk aplikasi kebun komunitasmu sekarang. Ini sedang diproses dan akan muncul di obrolan segera setelah siap.\n\n### Langkah Selanjutnya yang Disarankan\n- [Buat denting pembukaan lencana perayaan yang bernuansa alami](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Desain tata letak kartu konfirmasi sukarelawan](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "Buat denting pembukaan lencana perayaan untuk penyelesaian tugas"
+      },
+      "follow_up_2": {
+        "text": "Jelaskan bagaimana desain suara memengaruhi keterlibatan pengguna di aplikasi seluler"
+      },
+      "follow_up_3": {
+        "text": "Buat denting pengingat lembut untuk jadwal penyiraman pagi hari"
+      },
+      "follow_up_4": {
+        "text": "Sebutkan praktik terbaik untuk mendesain suara notifikasi UI yang tidak mengganggu"
+      },
+      "follow_up_5": {
+        "text": "Buat suara peringatan kesalahan yang lembut untuk kegagalan validasi formulir"
+      },
+      "follow_up_6": {
+        "text": "Jelaskan cara mengintegrasikan efek suara kustom ke dalam aplikasi seluler"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -10038,6 +10172,38 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"6da89032-d370-43c5-91c1-b07fa5df5a85\", \"app_id\": \"images\", \"skill_id\": \"generate\"}\n```\n\nI'm generating that SVG app icon for your climate data dashboard now. \n\nI've focused on a clean, [flat](wiki:Flat_design) [vector](wiki:Vector_graphics) aesthetic with a teal and mint palette to reflect both nature and data. This style is excellent for scalability, ensuring the icon stays crisp whether it's on a mobile home screen or a tiny browser favicon.\n\nOnce it's ready, we could experiment with different color schemes for dark mode or even create a [UI mockup](wiki:Mockup) to see how it looks in context.\n\nWhat kind of interface are you imagining for this dashboard—something very data-heavy with charts, or a more simplified overview?"
       }
     },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Diagram Alur Checkout Toko Online"
+      },
+      "summary": {
+        "text": "Diagram alur checkout yang dapat diedit dengan percobaan ulang pembayaran dan konfirmasi pesanan."
+      },
+      "message_1": {
+        "text": "Buat diagram alur yang dapat diedit untuk toko online kecil: keranjang, detail checkout, pembayaran, dan konfirmasi pesanan. Jika pembayaran ditolak, tunjukkan pelanggan mencoba lagi. Simpan semua informasi di dalam diagram dan jangan menautkan ke situs web eksternal."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Rincian Alur & Pertimbangan UX\n\n1. **Kemajuan Berurutan**: Pelanggan maju secara linier melalui **Keranjang**, **Detail Checkout** (pengiriman/penagihan), dan **Pemrosesan Pembayaran**.\n2. **Penolakan & Pemulihan Kesalahan**:\n   - Alih-alih mengembalikan pelanggan ke sesi kosong, penolakan diarahkan ke langkah keputusan **Ubah Metode**.\n   - Jalur ortogonal putus-putus mengarah langsung kembali ke **Detail Checkout**, memungkinkan pelanggan untuk mengganti metode pembayaran, memperbaiki kesalahan ketik pada data kartu, atau memilih dompet digital alternatif tanpa kehilangan item keranjang mereka.\n   - Jika mereka memilih untuk tidak mencoba lagi, sesi berakhir dengan bersih dalam status terminal **Keranjang Disimpan**, membuka peluang untuk email tindak lanjut keranjang yang ditinggalkan.\n3. **Struktur yang Dapat Diedit**: Setiap langkah dan jalur berisi pengikatan `data-om-*` standar sehingga kamu dapat menyesuaikan label, menambahkan langkah kupon diskon, atau mengintegrasikan cabang checkout tamu secara langsung.\n\n---\n\n**Langkah Selanjutnya & Iterasi:**\n- Apakah kamu ingin memperkenalkan cabang **Checkout Tamu vs. Akun Masuk** sebelum detail pengiriman?\n- Jika kamu sedang merancang antarmuka pengguna atau ilustrasi khusus untuk alur ini, kita dapat mengeksplorasi integrasi wireframe atau lencana ikon gambar tangan khusus untuk melengkapi langkah-langkah tersebut."
+      },
+      "follow_up_1": {
+        "text": "Cari ikon SVG gratis untuk tombol checkout"
+      },
+      "follow_up_2": {
+        "text": "Jelaskan cara menambahkan cabang checkout tamu sebelum detail pengiriman"
+      },
+      "follow_up_3": {
+        "text": "Cari praktik terbaik checkout toko online dan tren UX"
+      },
+      "follow_up_4": {
+        "text": "Jelaskan cara menangani email pemulihan keranjang yang ditinggalkan secara efektif"
+      },
+      "follow_up_5": {
+        "text": "Temukan lokakarya dan webinar desain e-commerce mendatang"
+      },
+      "follow_up_6": {
+        "text": "Daftar kesalahan umum UX dalam alur checkout pembayaran online"
+      }
+    },
     "open_meteo_weather_notebook": {
       "title": {
         "text": "Berlin Weekend Bike Weather Notebook"
@@ -10684,70 +10850,6 @@
       "follow_up_6": {
         "text": "Bandingkan berbagai metode untuk mengubah ide lisan menjadi tugas yang terorganisir"
       }
-    },
-    "community_garden_volunteer_chime": {
-      "title": {
-        "text": "Denting hangat untuk kebun komunitas"
-      },
-      "summary": {
-        "text": "Buat suara notifikasi dua nada singkat untuk aplikasi kebun komunitas fiktif."
-      },
-      "message_1": {
-        "text": "Buat suara notifikasi yang singkat dan hangat untuk aplikasi kebun komunitas saat ada sukarelawan yang mendaftar. Denting dua nada yang lembut, tanpa ucapan, dan berdurasi kurang dari tiga detik."
-      },
-      "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nAku sedang membuat denting dua nada yang hangat dan lembut untuk aplikasi kebun komunitasmu sekarang. Ini sedang diproses dan akan muncul di obrolan segera setelah siap.\n\n### Langkah Selanjutnya yang Disarankan\n- [Buat denting pembukaan lencana perayaan yang bernuansa alami](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Desain tata letak kartu konfirmasi sukarelawan](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
-      },
-      "follow_up_1": {
-        "text": "Buat denting pembukaan lencana perayaan untuk penyelesaian tugas"
-      },
-      "follow_up_2": {
-        "text": "Jelaskan bagaimana desain suara memengaruhi keterlibatan pengguna di aplikasi seluler"
-      },
-      "follow_up_3": {
-        "text": "Buat denting pengingat lembut untuk jadwal penyiraman pagi hari"
-      },
-      "follow_up_4": {
-        "text": "Sebutkan praktik terbaik untuk mendesain suara notifikasi UI yang tidak mengganggu"
-      },
-      "follow_up_5": {
-        "text": "Buat suara peringatan kesalahan yang lembut untuk kegagalan validasi formulir"
-      },
-      "follow_up_6": {
-        "text": "Jelaskan cara mengintegrasikan efek suara kustom ke dalam aplikasi seluler"
-      }
-    },
-    "online_shop_checkout_flow_diagram": {
-      "title": {
-        "text": "Diagram Alur Checkout Toko Online"
-      },
-      "summary": {
-        "text": "Diagram alur checkout yang dapat diedit dengan percobaan ulang pembayaran dan konfirmasi pesanan."
-      },
-      "message_1": {
-        "text": "Buat diagram alur yang dapat diedit untuk toko online kecil: keranjang, detail checkout, pembayaran, dan konfirmasi pesanan. Jika pembayaran ditolak, tunjukkan pelanggan mencoba lagi. Simpan semua informasi di dalam diagram dan jangan menautkan ke situs web eksternal."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Rincian Alur & Pertimbangan UX\n\n1. **Kemajuan Berurutan**: Pelanggan maju secara linier melalui **Keranjang**, **Detail Checkout** (pengiriman/penagihan), dan **Pemrosesan Pembayaran**.\n2. **Penolakan & Pemulihan Kesalahan**:\n   - Alih-alih mengembalikan pelanggan ke sesi kosong, penolakan diarahkan ke langkah keputusan **Ubah Metode**.\n   - Jalur ortogonal putus-putus mengarah langsung kembali ke **Detail Checkout**, memungkinkan pelanggan untuk mengganti metode pembayaran, memperbaiki kesalahan ketik pada data kartu, atau memilih dompet digital alternatif tanpa kehilangan item keranjang mereka.\n   - Jika mereka memilih untuk tidak mencoba lagi, sesi berakhir dengan bersih dalam status terminal **Keranjang Disimpan**, membuka peluang untuk email tindak lanjut keranjang yang ditinggalkan.\n3. **Struktur yang Dapat Diedit**: Setiap langkah dan jalur berisi pengikatan `data-om-*` standar sehingga kamu dapat menyesuaikan label, menambahkan langkah kupon diskon, atau mengintegrasikan cabang checkout tamu secara langsung.\n\n---\n\n**Langkah Selanjutnya & Iterasi:**\n- Apakah kamu ingin memperkenalkan cabang **Checkout Tamu vs. Akun Masuk** sebelum detail pengiriman?\n- Jika kamu sedang merancang antarmuka pengguna atau ilustrasi khusus untuk alur ini, kita dapat mengeksplorasi integrasi wireframe atau lencana ikon gambar tangan khusus untuk melengkapi langkah-langkah tersebut."
-      },
-      "follow_up_1": {
-        "text": "Cari ikon SVG gratis untuk tombol checkout"
-      },
-      "follow_up_2": {
-        "text": "Jelaskan cara menambahkan cabang checkout tamu sebelum detail pengiriman"
-      },
-      "follow_up_3": {
-        "text": "Cari praktik terbaik checkout toko online dan tren UX"
-      },
-      "follow_up_4": {
-        "text": "Jelaskan cara menangani email pemulihan keranjang yang ditinggalkan secara efektif"
-      },
-      "follow_up_5": {
-        "text": "Temukan lokakarya dan webinar desain e-commerce mendatang"
-      },
-      "follow_up_6": {
-        "text": "Daftar kesalahan umum UX dalam alur checkout pembayaran online"
-      }
     }
   },
   "focus_modes": {
@@ -10764,6 +10866,15 @@
       "text": "Rekomendasi buku",
       "description": {
         "text": "Dapatkan rekomendasi buku sesuai selera Anda."
+      }
+    },
+    "business_find_brand_name": {
+      "text": "Temukan nama merek",
+      "description": {
+        "text": "Pilih nama yang mudah diingat, lalu periksa domain dan konflik merek kandidat akhir."
+      },
+      "process": {
+        "text": "- Pahami kebutuhan\n- pilih nama\n- periksa kandidat akhir\n- bandingkan bukti"
       }
     },
     "code_analyze_logs": {
@@ -12512,6 +12623,13 @@
             },
             "description": {
               "text": "Mastodon dipanggil saat kamu mengambil postingan profil Mastodon publik. Server Mastodon terkait menerima pengidentifikasi profil atau URL profil publik tanpa pengidentifikasi pengguna OpenMates."
+            }
+          }
+        },
+        "business_data": {
+          "uspto": {
+            "description": {
+              "text": "USPTO menerima calon nama dan filter status, ejaan, serta kelas Nice untuk pencarian merek AS. Permintaan dikirim dari server kami tanpa identitas pengguna OpenMates atau riwayat percakapan."
             }
           }
         }

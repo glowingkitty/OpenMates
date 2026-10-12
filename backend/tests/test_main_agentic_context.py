@@ -220,3 +220,32 @@ async def test_project_memories_use_exact_bodies_only_with_current_activation(mo
         assert document["document"] not in section
     else:
         assert memories == [] and document["document"] not in section
+
+
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
+@pytest.mark.asyncio
+@pytest.mark.parametrize("selected_revision", [None, "r1", "stale"])
+async def test_stage_two_related_selection_revalidates_without_third_inference(monkeypatch, selected_revision):
+    from backend.apps.ai.processing.related_work import RelatedWorkCandidate
+    request = SimpleNamespace(user_id="owner", chat_id="chat", is_external=False, is_incognito=False,
+                              current_project=None, current_user_content="Fix it", related_task_candidates=[])
+    candidate = RelatedWorkCandidate(id="source", kind="task", owner_id="owner", project_id=None,
+                                     text="Applicable fix", revision="r1", source="test", authorized=True,
+                                     status="in_progress")
+    snapshots = [] if selected_revision is None else [{"id": "source", "kind": "task", "revision": selected_revision}]
+    for name in ("fresh_project", "select_rule_guides", "select_existing_workflows", "selected_project_documents"):
+        monkeypatch.setattr(main.agentic_context, name, AsyncMock(return_value=[]))
+    chats, tasks, selector = AsyncMock(return_value=[]), AsyncMock(return_value=[candidate]), AsyncMock()
+    monkeypatch.setattr(main, "fetch_related_chat_summaries", chats)
+    monkeypatch.setattr(main, "fetch_related_task_candidates", tasks)
+    monkeypatch.setattr(main, "select_related_work", selector)
+    section, _ = await main._load_main_agentic_context(
+        request=request, task_id="task", preprocessing=SimpleNamespace(relevant_related_work=snapshots),
+        directus=object(), cache=object(), secrets_manager=None, eligible_app_ids=[], vault_key_id=None,
+        decision_model="jev", effective_instructions="", active_phase="", initial=True,
+    )
+    selector.assert_not_awaited()
+    assert ("Applicable fix" in section) is (selected_revision == "r1")
+    if selected_revision is None:
+        chats.assert_not_awaited()
+        tasks.assert_not_awaited()

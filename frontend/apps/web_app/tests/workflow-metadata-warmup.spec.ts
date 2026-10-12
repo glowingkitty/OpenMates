@@ -130,9 +130,9 @@ test.describe('Chat metadata warmup WebSocket contract', () => {
 	});
 
 	// contract-test: direct surface=gui.web assertions=message-input.send.ownership,chat-processing-feedback.selection-after-acceptance
-	test('personal send overlaps the empty connected-account lookup with durable local preparation', async ({ page }: { page: any }, testInfo: any) => {
+	test('first personal text turn admits once before connected-account discovery finishes', async ({ page }: { page: any }, testInfo: any) => {
 		// Observe real protocol frames without changing or delaying the socket.
-		const queueWire: Array<{ socket: number; at: number; type: string; chatId: string; uncertain?: boolean }> = [];
+		const queueWire: Array<{ socket: number; at: number; type: string; chatId: string; uncertain?: boolean; capabilities?: string[] }> = [];
 		let socketCount = 0;
 		page.on('websocket', (socket: any) => {
 			if (!new URL(socket.url()).pathname.endsWith('/v1/ws')) return;
@@ -142,9 +142,15 @@ test.describe('Chat metadata warmup WebSocket contract', () => {
 					try {
 						const envelope = JSON.parse(String(frame.payload || ''));
 						const type = envelope.type;
-						if (!['chat_message_added', 'get_queued_messages', 'queued_messages_snapshot',
+					if (!['server_capabilities', 'chat_turn_admit', 'chat_turn_context_ready', 'chat_message_added',
+						'chat_turn_preflight', 'get_queued_messages', 'queued_messages_snapshot',
 							'request_chat_content_batch'].includes(type)) return;
 						const payload = envelope.payload ?? {};
+						if (type === 'server_capabilities' && eventName === 'framereceived') {
+							queueWire.push({ socket: socketIndex, at: Date.now(), type, chatId: '',
+								capabilities: Array.isArray(payload.capabilities) ? payload.capabilities : [] });
+							return;
+						}
 						const chatId = typeof payload.chat_id === 'string' ? payload.chat_id : '';
 						if (type === 'request_chat_content_batch') {
 							for (const id of payload.chat_ids ?? []) {
@@ -174,9 +180,6 @@ test.describe('Chat metadata warmup WebSocket contract', () => {
 				&& state?.cachePrimed === true && state?.contextSyncCompleted === true
 				&& state?.teamContextActive === false;
 		}), { timeout: 45_000 }).toBe(true);
-		await startNewChat(page);
-		await waitForChatReady(page);
-		await expect(page.getByTestId('message-user')).toHaveCount(0);
 		await page.evaluate(() => {
 			sessionStorage.setItem('openmates:send-prep-timing', '1');
 			(window as any).__openmatesSendPrepPhases = [];
@@ -190,17 +193,16 @@ test.describe('Chat metadata warmup WebSocket contract', () => {
 			}).observe(document.body, { childList: true, subtree: true, characterData: true });
 		});
 		let lookupRequests = 0;
-		let localReadyBeforeContinue = false;
+		let admitBeforeDirectoryContinue = false;
 		let directoryResponse: { status: number; rowsArray: boolean; rowCount: number } | null = null;
 		const directoryPath = /\/v1\/connected-accounts(?:\?.*)?$/;
 		await page.route(directoryPath, async (route: any) => {
 			if (route.request().method() !== 'GET') return route.continue();
 			lookupRequests += 1;
 			if (lookupRequests === 1) {
-				localReadyBeforeContinue = await page.waitForFunction(() =>
-					((window as any).__openmatesSendPrepPhases ?? []).some((entry: { phase: string }) =>
-						entry.phase === 'local_message_ready'), null, { timeout: 15_000 })
-					.then(() => true).catch(() => false);
+				admitBeforeDirectoryContinue = await expect.poll(() =>
+					queueWire.some((frame) => frame.type === 'chat_turn_admit'),
+					{ timeout: 15_000 }).toBe(true).then(() => true).catch(() => false);
 			}
 			await route.continue();
 		});
@@ -213,6 +215,9 @@ test.describe('Chat metadata warmup WebSocket contract', () => {
 				};
 			}).catch(() => { directoryResponse = { status: response.status(), rowsArray: false, rowCount: -1 }; });
 		});
+		await startNewChat(page);
+		await waitForChatReady(page);
+		await expect(page.getByTestId('message-user')).toHaveCount(0);
 		try {
 			await sendMessage(page, withMockMarker('Capital of Germany?', 'chat_flow_capital', 'instant'));
 			await waitForAssistantMessage(page, { contains: 'Berlin', timeout: 60_000 });
@@ -229,7 +234,7 @@ test.describe('Chat metadata warmup WebSocket contract', () => {
 					.find((item: { phase: string }) => item.phase === 'connected_context_begin');
 				return entry ? performance.timeOrigin + entry.ms : null;
 			});
-			const userFrame = queueWire.find((frame) => frame.type === 'chat_message_added');
+			const userFrame = queueWire.find((frame) => frame.type === 'chat_turn_admit');
 			const overlappingUncertain = userFrame && sendBegin !== null
 				? queueWire.filter((frame) => frame.type === 'queued_messages_snapshot' && frame.uncertain
 					&& frame.chatId === userFrame.chatId && frame.socket === userFrame.socket
@@ -246,15 +251,22 @@ test.describe('Chat metadata warmup WebSocket contract', () => {
 				contentType: 'application/json',
 			});
 			expect(userFrame).toBeDefined();
+			expect(queueWire.some((frame) => frame.type === 'server_capabilities'
+				&& frame.socket === userFrame?.socket && frame.at <= userFrame.at
+				&& frame.capabilities?.includes('chat_turn_admit_v1')
+				&& frame.capabilities?.includes('chat_turn_context_v1'))).toBe(true);
+			expect(queueWire.filter((frame) => frame.chatId === userFrame?.chatId
+				&& ['chat_turn_admit', 'chat_turn_preflight', 'chat_message_added'].includes(frame.type))
+			).toHaveLength(1);
 			expect(prematureHistory).toHaveLength(0);
-			expect(localReadyBeforeContinue).toBe(true);
+			expect(admitBeforeDirectoryContinue).toBe(true);
 			await expect.poll(() => directoryResponse, { timeout: 15_000 }).not.toBeNull();
 			expect(directoryResponse).toEqual({ status: 200, rowsArray: true, rowCount: 0 });
-			expect(lookupRequests).toBe(1);
+			expect(lookupRequests).toBeGreaterThanOrEqual(1);
 			expect(phases.indexOf('connected_lookup_started')).toBeGreaterThanOrEqual(0);
 			expect(phases.indexOf('connected_lookup_started')).toBeLessThan(phases.indexOf('local_message_ready'));
-			expect(phases.indexOf('local_message_ready')).toBeLessThan(phases.indexOf('connected_lookup_ready'));
-			expect(phases.indexOf('connected_lookup_ready')).toBeLessThanOrEqual(phases.indexOf('connected_context_ready'));
+			expect(phases.indexOf('local_message_ready')).toBeLessThan(phases.indexOf('user_frame_dispatched'));
+			expect(phases.indexOf('user_frame_dispatched')).toBeLessThan(phases.indexOf('connected_lookup_ready'));
 			expect(await page.evaluate(() => (window as any).__sendPrepLoadingNoticeSeen)).toBe(false);
 		} catch (error) {
 			const diagnostics = await page.evaluate(() => ({
@@ -266,7 +278,7 @@ test.describe('Chat metadata warmup WebSocket contract', () => {
 				lastUserStatus: [...document.querySelectorAll('[data-testid="message-user"]')].at(-1)?.getAttribute('data-status') ?? null,
 			})).catch(() => null);
 			await testInfo.attach('connected-lookup-overlap-diagnostics', {
-				body: JSON.stringify({ diagnostics, lookupRequests, localReadyBeforeContinue, directoryResponse }),
+				body: JSON.stringify({ diagnostics, lookupRequests, admitBeforeDirectoryContinue, directoryResponse }),
 				contentType: 'application/json',
 			});
 			throw error;

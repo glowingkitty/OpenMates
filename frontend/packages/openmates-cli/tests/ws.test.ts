@@ -33,6 +33,27 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
+  // contract-test: supporting surface=cli assertions=sdk.surface.semantic-parity
+  it("tracks connection-local capabilities before recovery and defaults older servers to no support", async () => {
+    for (const advertised of [true, false]) {
+      server.once("connection", socket => {
+        if (advertised) socket.send(JSON.stringify({ type: "server_capabilities", payload: {
+          capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", 42],
+        } }));
+        socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+      });
+      const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+      assert.equal(client.supportsServerCapability("chat_turn_admit_v1"), false);
+      try {
+        await client.open();
+        await client.waitForRecoveryOutputDiscovery();
+        assert.equal(client.supportsServerCapability("chat_turn_admit_v1"), advertised);
+        assert.equal(client.supportsServerCapability("chat_turn_context_v1"), advertised);
+        assert.equal(client.supportsServerCapability("unannounced"), false);
+      } finally { client.close(); }
+    }
+  });
+
   it("forwards only the owned task's cumulative thinking and keeps authored text separate", async () => {
     const chatId = "thinking-chat";
     const userMessageId = "thinking-user";

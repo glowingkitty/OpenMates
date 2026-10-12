@@ -10,6 +10,7 @@
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui'; // Use text store
     import { chatSyncService } from '../../services/chatSyncService'; // Import chatSyncService
+    import { prepareChatForSend } from '../../services/preparedChatForSend';
     import {
         chatModelSelectionService,
         registerChatModelSelectionSync,
@@ -235,6 +236,8 @@
         guestCtaMode?: boolean;
         autoSpeakResponse?: boolean;
         onAssistantSpeechPreferenceChange: (enabled: boolean, chatId?: string) => Promise<void> | void;
+        ghostSuggestion?: string | null;
+        ghostSuggestionKey?: string | null;
     }
     let { 
         currentChatId = undefined,
@@ -262,7 +265,9 @@
         anonymousFileAttachmentPending = $bindable(false),
         guestCtaMode = false,
         autoSpeakResponse = false,
-        onAssistantSpeechPreferenceChange
+        onAssistantSpeechPreferenceChange,
+        ghostSuggestion = null,
+        ghostSuggestionKey = null,
     }: Props = $props();
 
     // --- Refs ---
@@ -753,6 +758,26 @@
     let draftPreviewSummary = $derived(formatDraftPreviewSummary(draftPreviewParts));
     let hasDraftPreviewEmbeds = $derived(draftPreviewParts.embeds.some(({ count }) => count > 0));
     let hasSendableDraft = $derived(hasContent || hasEmbedContent || hasDraftPreviewEmbeds);
+    let locallyDismissedGhostKey = $state<string | null>(null);
+    function dismissGhostSuggestion() {
+        locallyDismissedGhostKey = ghostSuggestionKey ?? ghostSuggestion;
+        dispatch('dismissGhostSuggestion');
+    }
+    let visibleGhostSuggestion = $derived(
+        !!ghostSuggestion?.trim() && locallyDismissedGhostKey !== (ghostSuggestionKey ?? ghostSuggestion) &&
+        !hasSendableDraft && !queuedEdit && !$editMessageStore &&
+        !$recordingState.isRecordingActive && !$recordingState.showRecordAudioUI &&
+        !recordingCorrectionPending && !showCamera && !showSketch && !showMaps &&
+        !startNewChatOnClick && !anonymousFileAttachmentPending
+    );
+
+    function acceptGhostSuggestion() {
+        if (!visibleGhostSuggestion || !ghostSuggestion || !editor || editor.isDestroyed || !editor.isEmpty) return;
+        const acceptedText = ghostSuggestion.trim();
+        locallyDismissedGhostKey = ghostSuggestionKey ?? ghostSuggestion;
+        dispatch('acceptGhostSuggestion');
+        setSuggestionText(acceptedText);
+    }
 
     // Draft preview mode is only for text drafts. Embed-only drafts must keep the
     // editor visible so audio/file preview controls remain reachable after blur.
@@ -2722,6 +2747,7 @@
         
         isMessageFieldFocused = true;
         isFocused = true; // Update bindable prop for parent components
+        prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
         chatSyncService.warmChatMetadata(currentChatId);
         if (editor.isEmpty) {
             editor.commands.setContent(getInitialContent(), { emitUpdate: false });
@@ -3278,6 +3304,7 @@
         // depends on cursor position, not content.
         const currentText = editor.getText();
         const textActuallyChanged = currentText !== lastEditorUpdateText;
+        if (textActuallyChanged && currentText.trim()) dismissGhostSuggestion();
 
         updateAutoConvertedPasteCandidateVisibility(editor);
         
@@ -4087,6 +4114,20 @@
         // The 'Enter' key logic is now handled by the custom Tiptap extension
         // in createKeyboardHandlingExtension() in sendHandlers.ts.
 
+        if (visibleGhostSuggestion && event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            dismissGhostSuggestion();
+            return;
+        }
+        if (visibleGhostSuggestion && event.key === 'Tab' && !event.shiftKey &&
+            !event.altKey && !event.ctrlKey && !event.metaKey) {
+            event.preventDefault();
+            event.stopPropagation();
+            acceptGhostSuggestion();
+            return;
+        }
+
         if (event.key === 'Backspace') {
             // Check if we're trying to delete a JSON code block (website preview)
             handleJsonCodeBlockBackspace(event);
@@ -4369,6 +4410,18 @@
     }
 
     function handleMessageWrapperKeyDown(event: KeyboardEvent) {
+        if (event.target === editor?.view.dom || editor?.view.dom.contains(event.target as Node)) {
+            if (event.key === 'Escape' && visibleGhostSuggestion) {
+                event.preventDefault();
+                dismissGhostSuggestion();
+                return;
+            }
+            if (event.key === 'Tab' && !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey && visibleGhostSuggestion) {
+                event.preventDefault();
+                acceptGhostSuggestion();
+                return;
+            }
+        }
         if (event.key !== 'Enter' && event.key !== ' ') return;
         const chip = (event.target as HTMLElement).closest('[data-testid="project-access-chip"]') as HTMLElement | null;
         if (!chip) return;
@@ -5540,12 +5593,12 @@
             if (awaitingAITaskTimeoutId) clearTimeout(awaitingAITaskTimeoutId);
             awaitingAITaskTimeoutId = null;
             if (!queuedEdit) triggerSaveDraft(currentChatId, editor);
-            // Restore DOM focus after the Send control is rendered again. A
-            // rejected request can otherwise focus the editor while Svelte is
-            // still replacing the disabled/hidden control from the click.
+            // The pending editor clear blurs synchronously. After a rejected
+            // send restores the draft and controls, restore this editor's DOM
+            // focus without a later blur frame stealing it.
             await tick();
             if (isFocused && editor === editorAtPreviewWait && currentChatId === chatIdAtPreviewWait && !editor.isDestroyed) {
-                editor.commands.focus(undefined, { scrollIntoView: false });
+                editor.view.focus();
             }
             return;
         }
@@ -5747,6 +5800,7 @@
                 return;
             }
             if ($recordingState.isRecordButtonPressed || $recordingState.showRecordAudioUI) return;
+            prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
             prepareEditorForRecording();
             await tick();
             const position = getKeyboardRecordStartPosition();
@@ -5877,6 +5931,7 @@
             await handleSignUpClick();
             return;
         }
+        prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
         prepareEditorForRecording();
         await tick();
         await handleRecordMouseDownLogic(event.detail.originalEvent);
@@ -5908,6 +5963,7 @@
             await handleSignUpClick();
             return;
         }
+        prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
         prepareEditorForRecording();
         await tick();
         await handleRecordTouchStartLogic(event.detail.originalEvent);
@@ -6748,6 +6804,7 @@
         class:inline-compact={isInlineCompact}
         class:placeholder-fading={isPlaceholderFading}
         class:empty-welcome-field={showEmptyInputAffordances}
+        class:has-ghost-suggestion={visibleGhostSuggestion}
         style={containerStyle}
         ondragover={handleDragOver}
         ondragleave={handleDragLeave}
@@ -6908,8 +6965,18 @@
         <div class="scrollable-content" bind:this={scrollableContent} style={scrollableStyle}>
             <div class="content-wrapper">
                 <div bind:this={editorElement} class="editor-content prose" data-testid="message-editor"></div>
+                {#if visibleGhostSuggestion}
+                    <div class="composer-ghost-suggestion" data-testid="composer-ghost-suggestion" role="status" transition:fade={{ duration: 250 }}>{ghostSuggestion}</div>
+                {/if}
             </div>
         </div>
+
+        {#if visibleGhostSuggestion && isMessageFieldFocused}
+            <div class="composer-ghost-actions" data-testid="composer-ghost-actions">
+                <span class="composer-ghost-hint">{$text('enter_message.ghost_suggestion.press_tab')}</span>
+                <button type="button" data-testid="composer-ghost-use" onclick={acceptGhostSuggestion}>{$text('enter_message.ghost_suggestion.use_suggestion')}</button>
+            </div>
+        {/if}
 
         {#if isDraftPreview && draftPreviewSummary}
             <div class="draft-preview-summary" data-testid="message-draft-summary" aria-hidden="true">

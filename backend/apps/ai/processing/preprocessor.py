@@ -1282,6 +1282,7 @@ class PreprocessingResult(BaseModel):
     enable_subchats: bool = False # Whether sub-chats are enabled for this request.
     ai_model_topics: List[str] = Field(default_factory=list, description="AI model families whose current catalogue context is relevant to this request.")
     selected_app_ids: Optional[List[str]] = Field(None, exclude=True, description="Transient Jev app shortlist plus deterministic tool owners; None means the legacy fallback did not shortlist apps.")
+    context_fast_path: bool = Field(False, exclude=True, description="Complete Stage-one and authoritative empty-context proof; main still rechecks the live Project binding.")
     pending_project_focus_id: Optional[str] = Field(None, exclude=True, description="Routing-only consent proposal; no main inference or Project authority.")
     pending_project_catalog_id: Optional[str] = Field(None, exclude=True, description="Selected Project needs minimal owner-client Focus metadata before consent.")
     pending_project_specialist: Optional[Dict[str, str]] = Field(None, exclude=True, repr=False, description="Validated specialist selection metadata; its body remains hidden until consent.")
@@ -1303,9 +1304,10 @@ class PreprocessingResult(BaseModel):
     relevant_app_skills: Optional[List[str]] = Field(None, description="List of relevant app skill identifiers (format: 'app_id-skill_id') for tool preselection.")
     relevant_focus_modes: Optional[List[str]] = Field(None, description="List of relevant focus mode identifiers (format: 'app_id-focus_id') that could help with this request.")
     relevant_rules: Optional[List[Dict[str, Any]]] = Field(None, exclude=True, description="Transient metadata snapshots selected by initial Jev; reload exact authorized revisions before use.")
+    relevant_workflows: Optional[List[Dict[str, Any]]] = Field(None, exclude=True, description="Transient owned saved Workflow snapshots; never execution authority.")
     relevant_diagram_types: Optional[List[str]] = Field(None, exclude=True, description="Transient Diagram Design type Memory identities selected by Jev; revalidate against the shipped manifest before use.")
     relevant_diagram_variant: Optional[str] = Field(None, exclude=True, description="Transient selected Diagram Design template; revalidate against the shipped variant map before use.")
-    relevant_workflows: Optional[List[Dict[str, Any]]] = Field(None, exclude=True, description="Transient owned saved Workflow snapshots; never execution authority.")
+    relevant_related_work: Optional[List[Dict[str, str]]] = Field(None, exclude=True, repr=False, description="Stage-two related-work identity/revision selection; main revalidates sources before prompt use.")
 
 
     selected_mate_id: Optional[str] = None
@@ -2100,6 +2102,43 @@ async def _select_main_model(
     }
 
 
+def _simple_context_fast_path(request_data: AskSkillRequest, early_routing: Dict[str, Any] | None,
+                              user_overrides: UserOverrides | None) -> bool:
+    """Require complete routing and a fresh, empty admission context."""
+    decisions = (early_routing or {}).get("early_decisions") or {}
+    admission = getattr(request_data, "admission_context", None)
+    if not isinstance(admission, dict) or admission.get("scope_complete") is not True:
+        return False
+    required_scope = {"active_project_id", "active_project_activation_id", "active_focus_id",
+                      "accepted_plan_ref", "explicit_related_task_ids", "context_revision"}
+    if not required_scope.issubset(admission):
+        return False
+    if not isinstance(admission.get("context_revision"), str) or not admission["context_revision"]:
+        return False
+    if not isinstance(decisions.get("public_decisions"), dict) or (
+        decisions.get("needs_detailed_context") is not False
+        or decisions.get("needs_related_work") is not False
+        or (early_routing or {}).get("selected_app_ids") != []
+        or (early_routing or {}).get("project_target_outcome") not in {"none", "no_eligible_candidate"}
+    ):
+        return False
+    if any(admission.get(key) for key in (
+        "active_project_id", "active_project_activation_id", "active_focus_id",
+        "accepted_plan_ref", "explicit_related_task_ids",
+    )):
+        return False
+    if any(getattr(request_data, key, None) for key in (
+        "active_project_focus", "current_project", "active_focus_id", "accepted_plan_context",
+        "custom_rule_documents", "project_focus_documents", "project_context_documents",
+        "mentioned_settings_memories_cleartext", "project_routing_focus_id",
+    )):
+        return False
+    if user_overrides and any((user_overrides.skills, user_overrides.focus_modes,
+                               user_overrides.memory_categories, user_overrides.memory_entries)):
+        return False
+    return not request_data.is_focus_mode_continuation and not request_data.is_app_settings_memories_continuation
+
+
 async def handle_preprocessing(
     request_data: AskSkillRequest,
     base_instructions: Dict[str, Any],
@@ -2115,6 +2154,8 @@ async def handle_preprocessing(
     preprocessing_stream_channel: Optional[str] = None,  # Redis channel for real-time step events
     is_new_chat: bool = False,  # True if this is the first message in a new chat (no title yet)
     on_early_routing: Optional[Callable[[Dict[str, Any]], Awaitable[None]]] = None,
+    stage_one_only: bool = False,
+    precomputed_stage_one: Optional[Dict[str, Any]] = None,
 ) -> PreprocessingResult:
     """
     Handles the preprocessing of an AI skill request.
@@ -2334,6 +2375,39 @@ async def handle_preprocessing(
             public_focuses = [f"{app_id}-{focus.id}"
                               for app_id, metadata in (discovered_apps_metadata or {}).items()
                               for focus in (getattr(metadata, "focuses", None) or [])]
+            project_early_feedback: Dict[str, Any] = {}
+
+            async def publish_project_routing(routing_result: Dict[str, Any]) -> None:
+                decisions = routing_result.get("early_decisions")
+                if not decisions or project_early_feedback:
+                    return
+                try:
+                    # Public definitions and model policy are safe before consent;
+                    # this does not create a main request or expose private bodies.
+                    mates = load_mates_config()
+                    selected_mate, _source = _resolve_explicit_mate(
+                        mates, user_overrides.mate_id if user_overrides else None, request_data.mate_id,
+                    )
+                    category = selected_mate.category if selected_mate else _resolve_category_from_topic_area(
+                        raw_topic_area=decisions.get("topic_area"), raw_topic_shift=decisions.get("topic_shift"),
+                        raw_task_area=decisions.get("task_area"),
+                        previous_category=_latest_assistant_category_from_history(request_data.message_history),
+                        available_category_ids=[mate.category for mate in mates],
+                    ) or "general_knowledge"
+                    selected_mate = selected_mate or next((mate for mate in mates if mate.category == category), None)
+                    model = await _select_main_model(decisions, request_data, skill_config, user_overrides, log_prefix)
+                    project_early_feedback.update(
+                        category=category, mate_id=selected_mate.id if selected_mate else None,
+                        model_id=model["selected_llm_for_main_id"], model_name=model["selected_llm_for_main_name"],
+                        complexity=model["complexity_val"],
+                    )
+                    if on_early_routing:
+                        await on_early_routing(project_early_feedback)
+                    logger.info("%s preprocess_stage1_project_feedback elapsed_ms=%.1f", log_prefix,
+                                (time.monotonic() - first_stage_started_at) * 1000)
+                except Exception as exc:
+                    logger.warning("%s Project early routing notification unavailable (%s)", log_prefix, type(exc).__name__)
+
             routing = await decide_app_and_project_routing_with_jev(
                 model_id=decision_model, secrets_manager=secrets_manager,
                 telemetry_task_id=f"{request_data.chat_id}_{request_data.message_id}",
@@ -2348,7 +2422,15 @@ async def handle_preprocessing(
                 selected_app_ids=selected_app_ids,
                 project_routing_focus_id=getattr(request_data, "project_routing_focus_id", None),
                 topic_areas=_build_topic_areas_list(),
+                on_project_routing_resolved=publish_project_routing,
+                stage_one_only=stage_one_only,
+                precomputed_stage_one=precomputed_stage_one,
             )
+            if stage_one_only:
+                request_data._stage_one_routing = routing
+                # Also publish when the compact decision selects no Project.
+                await publish_project_routing(routing)
+                return PreprocessingResult(can_proceed=True, routing_only=True)
             early_routing = routing
             selected_app_ids = routing["selected_app_ids"]
             # A confident none is a decision, not a routing failure. Keep its
@@ -2384,12 +2466,17 @@ async def handle_preprocessing(
                     if selected_app_ids is not None and "projects" not in selected_app_ids:
                         selected_app_ids.append("projects")
             if routing.get("pending_project_focus_id"):
+                # Also cover a mechanically unique named-Project fallback after an
+                # otherwise complete first-stage decision.
+                await publish_project_routing(routing)
                 logger.info("%s Project consent routed before detailed preprocessing and main setup", log_prefix)
                 return PreprocessingResult(
-                    can_proceed=True, routing_only=True, category="general_knowledge", output_language=user_system_language,
+                    can_proceed=True, routing_only=True,
+                    category=project_early_feedback.get("category", "general_knowledge"), output_language=user_system_language,
+                    selected_mate_id=project_early_feedback.get("mate_id"),
                     selected_app_ids=selected_app_ids,
-                    selected_main_llm_model_id=skill_config.default_llms.main_processing_simple,
-                    selected_main_llm_model_name=skill_config.default_llms.main_processing_simple_name,
+                    selected_main_llm_model_id=project_early_feedback.get("model_id", skill_config.default_llms.main_processing_simple),
+                    selected_main_llm_model_name=project_early_feedback.get("model_name", skill_config.default_llms.main_processing_simple_name),
                     relevant_app_skills=[], load_app_settings_and_memories=[],
                     relevant_focus_modes=[routing["pending_project_focus_id"]],
                     pending_project_focus_id=routing["pending_project_focus_id"],
@@ -2843,6 +2930,8 @@ async def handle_preprocessing(
                     conversation_summary=bounded_chat_summary,
                     topic_areas=dynamic_context["TOPIC_AREAS_LIST"],
                     skip_mate_routing=explicit_mate is not None,
+                    stage_one_only=stage_one_only,
+                    precomputed_stage_one=precomputed_stage_one,
                 )
             except Exception as exc:
                 early_route_failed = True
@@ -2906,26 +2995,115 @@ async def handle_preprocessing(
             logger.info("%s preprocess_stage1_done elapsed_ms=%.1f selected_apps=%d",
                         log_prefix, (time.monotonic() - first_stage_started_at) * 1000,
                         len(selected_app_ids or []))
+    if stage_one_only:
+        request_data._stage_one_routing = early_routing
+        return PreprocessingResult(can_proceed=True, routing_only=True)
+
+    # Private details can arrive while Stage one resolves and publishes the Mate.
+    # Missing details must never be silently reinterpreted as an empty context.
+    from backend.core.api.app.services.client_context_continuation import await_client_context_phase
+    await await_client_context_phase(
+        cache_service=cache_service, request=request_data, phase="details",
+        encryption_service=encryption_service,
+    )
     second_stage_started_at = time.monotonic()
+    simple_context_fast_path = bool(
+        decision_model and early_model_selection is not None and is_first_message
+        and _simple_context_fast_path(request_data, early_routing, user_overrides)
+        and sum(row.get("role") == "user" for row in sanitized_message_history) == 1
+    )
     from backend.apps.ai.processing.agentic_context import private_focus_candidates
-    try:
-        for candidate in await private_focus_candidates(request_data, directus_service, cache_service):
-            available_focus_mode_ids.append(candidate["id"])
-            available_focus_modes_list.append(
-                f"{candidate['id']}: {candidate['title']}. {candidate['summary']} "
-                "Owned private specialist for the already accepted Project. Changing specialist retains the Project base. "
-                "Use the standard cancellable four-second Focus countdown. Metadata grants no authority."
-            )
-    except Exception:
-        logger.warning("%s Private Project Focus catalog unavailable", log_prefix)
+    if not simple_context_fast_path:
+        try:
+            for candidate in await private_focus_candidates(request_data, directus_service, cache_service):
+                available_focus_mode_ids.append(candidate["id"])
+                available_focus_modes_list.append(
+                    f"{candidate['id']}: {candidate['title']}. {candidate['summary']} "
+                    "Owned private specialist for the already accepted Project. Changing specialist retains the Project base. "
+                    "Use the standard cancellable four-second Focus countdown. Metadata grants no authority."
+                )
+        except Exception:
+            logger.warning("%s Private Project Focus catalog unavailable", log_prefix)
 
     dynamic_context["AVAILABLE_FOCUS_MODES"] = available_focus_modes_list
+    related_work_candidates: List[Dict[str, Any]] = []
+    related_discovery_complete = False
+    early_decisions_for_context = (early_routing or {}).get("early_decisions") or {}
+    admission_for_context = getattr(request_data, "admission_context", None)
+    explicit_related_ids = frozenset(
+        str(value) for value in (admission_for_context.get("explicit_related_task_ids") or [])
+        if isinstance(value, str) and value
+    ) if isinstance(admission_for_context, dict) and admission_for_context.get("scope_complete") is True else frozenset()
+    if isinstance(early_decisions_for_context.get("needs_related_work"), bool):
+        if (not early_decisions_for_context["needs_related_work"] and not explicit_related_ids
+                and isinstance(admission_for_context, dict)
+                and admission_for_context.get("scope_complete") is True):
+            related_discovery_complete = True
+        elif request_data.recovery_task_id and request_data.user_id:
+            from backend.apps.ai.processing.related_work import (
+                RelatedWorkCandidate, bounded_candidates, fetch_related_chat_summaries,
+                fetch_related_task_candidates,
+            )
+            chats, tasks = await asyncio.gather(
+                fetch_related_chat_summaries(request_data, request_data.recovery_task_id,
+                                             cache_service, directus_service),
+                fetch_related_task_candidates(
+                    request_data, directus_service,
+                    client_summaries=request_data.related_task_candidates or [],
+                    explicit_dependency_task_ids=explicit_related_ids,
+                ), return_exceptions=True,
+            )
+            if not isinstance(chats, BaseException) and not isinstance(tasks, BaseException):
+                project = request_data.current_project or {}
+                candidates = bounded_candidates(
+                    [RelatedWorkCandidate.from_chat_summary(row, authorized=True) for row in chats] + tasks,
+                    owner_id=request_data.user_id,
+                    current_project_id=project.get("project_id"), current_chat_id=request_data.chat_id,
+                )
+                related_work_candidates = [row.as_context() for row in candidates]
+                related_discovery_complete = True
     initial_workflow_metadata: List[Dict[str, Any]] = []
-    if decision_model and (request_data.user_preferences or {}).get("workflow_ai") is not True:
+    if decision_model and not simple_context_fast_path and (request_data.user_preferences or {}).get("workflow_ai") is not True:
         from backend.apps.ai.processing.context_preselection import discover_rule_metadata, discover_workflow_metadata
         initial_workflow_metadata = await discover_workflow_metadata(request_data, cache_service)
     llm_call_result: Optional[LLMPreprocessingCallResult] = None
-    if (request_data.user_preferences or {}).get("workflow_ai") is True:
+    if simple_context_fast_path:
+        try:
+            decision_arguments = await decide_preprocessing_with_jev(
+                model_id=decision_model, secrets_manager=secrets_manager,
+                message_history=sanitized_message_history,
+                topic_areas=dynamic_context["TOPIC_AREAS_LIST"],
+                available_skills=[], available_focus_modes=[],
+                available_settings_and_memories={}, recent_skill_activity=list(routing_ledger.prompt_rows),
+                conversation_summary=bounded_chat_summary, previous_category=previous_category,
+                is_first_message=is_first_message, skip_mate_routing=explicit_mate is not None,
+                available_rules=[], available_workflows=[], effective_focus={},
+                telemetry_task_id=f"{request_data.chat_id}_{request_data.message_id}",
+                available_apps=[], selected_app_ids=[], early_decisions=early_routing["early_decisions"],
+                candidate_discovery_complete=True,
+                related_discovery_complete=True,
+            )
+            llm_call_result = LLMPreprocessingCallResult(
+                arguments=decision_arguments,
+                raw_provider_response_summary={"model_id": decision_model, "provider": "openrouter",
+                                               "purpose": "complete_stage1_fast_path", "generated_text": False},
+            )
+            logger.info("%s preprocess_stage2_skipped complete_empty_context", log_prefix)
+        except Exception as exc:
+            simple_context_fast_path = False
+            logger.warning("%s Empty-context route could not be reused (%s); running detailed pass",
+                           log_prefix, type(exc).__name__)
+            try:
+                for candidate in await private_focus_candidates(request_data, directus_service, cache_service):
+                    available_focus_mode_ids.append(candidate["id"])
+                    available_focus_modes_list.append(
+                        f"{candidate['id']}: {candidate['title']}. {candidate['summary']}"
+                    )
+                from backend.apps.ai.processing.context_preselection import discover_workflow_metadata
+                initial_workflow_metadata = await discover_workflow_metadata(request_data, cache_service)
+            except Exception:
+                logger.warning("%s Detailed catalogue recovery unavailable", log_prefix)
+    if llm_call_result is None and (request_data.user_preferences or {}).get("workflow_ai") is True:
         # The Workflow graph already chose the source app and values. Keep credit,
         # safety, model, and language handling below, but skip classification AI.
         llm_call_result = LLMPreprocessingCallResult(
@@ -2944,7 +3122,7 @@ async def handle_preprocessing(
             },
             raw_provider_response_summary={"purpose": "workflow_deterministic_preprocessing", "generated_text": False},
         )
-    elif decision_model and not early_route_failed:
+    elif llm_call_result is None and decision_model and not early_route_failed:
         try:
             logger.info(f"{log_prefix} Firing Jev bounded preprocessing decisions via {decision_model}.")
             from backend.apps.ai.processing.agentic_context import fresh_project
@@ -2999,6 +3177,8 @@ async def handle_preprocessing(
                 selected_app_ids=selected_app_ids,
                 authorized_project_id=(authorized_project or {}).get("project_id"),
                 early_decisions=(early_routing or {}).get("early_decisions"),
+                available_related_work=related_work_candidates,
+                related_discovery_complete=related_discovery_complete,
                 candidate_discovery_complete=lambda: (
                     getattr(request_data, "_rule_metadata_discovery_complete", False) is True
                     and getattr(request_data, "_workflow_metadata_discovery_complete", False) is True
@@ -3056,9 +3236,10 @@ async def handle_preprocessing(
     # Live inference snapshots must not enter durable summaries, recorder dumps,
     # logs or raw preprocessing receipts.
     preselected_rule_snapshots = llm_analysis_args.pop("relevant_rules", None)
+    preselected_workflow_snapshots = llm_analysis_args.pop("relevant_workflows", None)
     preselected_diagram_types = llm_analysis_args.pop("relevant_diagram_types", None)
     preselected_diagram_variant = llm_analysis_args.pop("relevant_diagram_variant", None)
-    preselected_workflow_snapshots = llm_analysis_args.pop("relevant_workflows", None)
+    preselected_related_snapshots = llm_analysis_args.pop("relevant_related_work", None)
     preselected_app_ids = llm_analysis_args.pop("selected_app_ids", None)
     ai_model_topics = complete_ai_model_topics(
         llm_analysis_args.get("ai_model_topics"),
@@ -4030,6 +4211,13 @@ async def handle_preprocessing(
         validated_relevant_skills,
         list(discovered_apps_metadata or {}),
     )
+    simple_context_fast_path = bool(
+        simple_context_fast_path and not final_selected_app_ids
+        and not validated_relevant_skills and not validated_relevant_focus_modes
+        and not load_app_settings_and_memories_val
+        and preselected_rule_snapshots == [] and preselected_workflow_snapshots == []
+        and preselected_related_snapshots == []
+    )
     
     # Use validated values instead of raw llm_analysis_args values
     # This ensures all fields meet their constraints and prevents downstream errors
@@ -4041,6 +4229,7 @@ async def handle_preprocessing(
         enable_subchats=enable_subchats_val,  # Set whether sub-chats are enabled for this request
         ai_model_topics=ai_model_topics,
         selected_app_ids=final_selected_app_ids,
+        context_fast_path=simple_context_fast_path,
         topic_area=_normalize_topic_area(llm_analysis_args.get("topic_area")),
         topic_shift=llm_analysis_args.get("topic_shift") if isinstance(llm_analysis_args.get("topic_shift"), str) else None,
         llm_response_temp=llm_response_temp_val,  # Use validated temperature (clamped to 0.0-2.0)
@@ -4055,9 +4244,10 @@ async def handle_preprocessing(
         relevant_app_skills=validated_relevant_skills,  # Use validated relevant skills (filtered against available skills)
         relevant_focus_modes=validated_relevant_focus_modes,  # Use validated relevant focus modes (filtered against available focus modes)
         relevant_rules=preselected_rule_snapshots if isinstance(preselected_rule_snapshots, list) else None,
+        relevant_workflows=preselected_workflow_snapshots if isinstance(preselected_workflow_snapshots, list) else None,
         relevant_diagram_types=preselected_diagram_types if isinstance(preselected_diagram_types, list) else None,
         relevant_diagram_variant=preselected_diagram_variant if isinstance(preselected_diagram_variant, str) else None,
-        relevant_workflows=preselected_workflow_snapshots if isinstance(preselected_workflow_snapshots, list) else None,
+        relevant_related_work=preselected_related_snapshots if isinstance(preselected_related_snapshots, list) else None,
 
         user_requested_skills_only=user_requested_skills_only,
         user_requested_focus_only=user_requested_focus_only,  # True when user specified @focus
@@ -4072,7 +4262,7 @@ async def handle_preprocessing(
         filtered_cn_models=filtered_cn_models,  # True if CN models were filtered due to sensitive content
         selected_mate_id=selected_mate_id,
         raw_llm_response={key: value for key, value in llm_analysis_args.items()
-                          if key not in {"relevant_rules", "relevant_workflows"}},
+                          if key not in {"relevant_rules", "relevant_workflows", "relevant_related_work"}},
         error_message=None
     )
 

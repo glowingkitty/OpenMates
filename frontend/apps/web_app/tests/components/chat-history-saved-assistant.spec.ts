@@ -18,3 +18,16 @@ test('renders saved assistant history without live turn metadata or pending feed
   await expect(page.getByTestId('pending-assistant-response')).toHaveCount(0);
   expect(rendererErrors).toEqual([]);
 });
+
+// contract-test: direct surface=gui.web assertions=chat-processing-feedback.turn-lifecycle,chat-processing-feedback.response-container-glow
+test('keeps the first assistant active while a newer follow-up sends and becomes queued', async ({ page }) => {
+  for (const variant of ['activeResponseSendingFollowUp', 'activeResponseQueuedFollowUp']) {
+    await page.goto(`/dev/preview/ChatHistory?variant=${variant}&theme=light&width=680&chrome=0`);
+    await waitForComponentPreview(page);
+    const assistant = page.getByTestId('message-assistant');
+    await expect(assistant.getByTestId('mate-message-content')).toHaveClass(/assistant-response-active/);
+    await expect(assistant.getByTestId('using-model')).toBeVisible();
+    await expect(assistant.getByTestId('generated-by')).toHaveCount(0);
+    await expect(page.getByTestId('message-user').last()).toContainText('Please shorten that reply.');
+  }
+});

@@ -23,6 +23,23 @@ class RecordingManager:
         self.messages.append(message)
 
 
+class NewChatDirectus:
+    """A fresh chat has no metadata row; Team authorization remains active."""
+
+    def __init__(self) -> None:
+        self.chat = self
+        self.team = self
+
+    async def get_chat_metadata(self, chat_id: str, admin_required: bool = False):
+        assert chat_id == preflight_payload()["chat_id"]
+        assert admin_required is True
+        return None
+
+    async def require_team_role(self, team_id: str, user_id: str, roles: set[str]):
+        assert (team_id, user_id) == ("team-1", "user-id")
+        assert {"owner", "admin", "member"} <= roles
+
+
 class RecordingRecoveryService:
     calls: list[tuple[str, dict]] = []
     failure: Exception | None = None
@@ -75,7 +92,7 @@ async def test_preflight_ack_is_emitted_only_after_durable_commit(monkeypatch) -
 
     await chat_turn_preflight_handler.handle_chat_turn_preflight(
         manager=manager,
-        directus_service=object(),
+        directus_service=NewChatDirectus(),
         user_id="user-id",
         user_id_hash="owner-hash",
         device_fingerprint_hash="device-hash",
@@ -106,7 +123,7 @@ async def test_preflight_persists_canonical_server_identity_without_plaintext(mo
 
     await chat_turn_preflight_handler.handle_chat_turn_preflight(
         manager=manager,
-        directus_service=object(),
+        directus_service=NewChatDirectus(),
         user_id="user-id",
         user_id_hash="owner-hash",
         device_fingerprint_hash="device-hash",
@@ -143,11 +160,7 @@ async def test_team_preflight_persists_canonical_team_scope(monkeypatch) -> None
         "team_id": "team-1", "chat_id": payload["chat_id"],
         "message": {"message_id": payload["message_id"], "encrypted_content": ciphertext},
     }
-    directus_service = type("Directus", (), {
-        "team": type("Team", (), {
-            "require_team_role": staticmethod(lambda *_args: _async_none()),
-        })(),
-    })()
+    directus_service = NewChatDirectus()
 
     await chat_turn_preflight_handler.handle_chat_turn_preflight(
         manager=manager,
@@ -162,10 +175,6 @@ async def test_team_preflight_persists_canonical_team_scope(monkeypatch) -> None
     assert operation == "prepare_preflight"
     assert data["hashed_team_id"] == hash_id("team-1")
     assert data["encrypted_user_message"]["encrypted_content"] == ciphertext
-
-
-async def _async_none() -> None:
-    return None
 
 
 # contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent,chats.completion.lease-fenced

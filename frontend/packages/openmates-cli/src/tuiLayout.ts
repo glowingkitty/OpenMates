@@ -381,7 +381,9 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
       if(style?.action)addPointerTarget(state,left,bodyRow+2,popWidth,style.action);
     }
   }
-  const placeholder = state.screen === "example" ? "Continue from this example, or ask your own question..."
+  const ghostSuggestion = state.screen === "chat" && state.focus === "composer" && !state.input &&
+    state.activeChatId === state.suggestedFollowupChatId ? state.suggestedFollowupMessage : null;
+  const placeholder = ghostSuggestion ? `${ghostSuggestion}  ·  Tab to edit` : state.screen === "example" ? "Continue from this example, or ask your own question..."
     : state.workspace === "chats" ? state.screen === "chat" ? "Ask a follow-up, use @file, or type /help" : "Ask anything..."
     : state.workspace === "projects" ? "Name a new project  ·  /search to browse"
     : state.workspace === "workflows" ? "Describe new workflow  ·  /search to browse"
@@ -398,7 +400,7 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
     else {
       const edge = (left: string, right: string) => placeInput(foreground(left + line.repeat(composerWidth - 2) + right, "#6b6b6b", mode));
       const inputRow = (text: string, color?: string) => placeInput(foreground(vertical, "#6b6b6b", mode) + " " + foreground(padCells(text, composerWidth - 4), color ?? "#e6e6e6", mode) + " " + foreground(vertical, "#6b6b6b", mode));
-      composer.push(edge(ascii ? "+" : "╭", ascii ? "+" : "╮"), ...inputRows.map((text) => inputRow(text)));
+      composer.push(edge(ascii ? "+" : "╭", ascii ? "+" : "╮"), ...inputRows.map((text) => inputRow(text, ghostSuggestion ? "#8994a3" : undefined)));
       if(aiComposer){
         const inner=Math.max(1,composerWidth-4),base=gutter+sidebarWidth+composerInset+2;
         const sendLabel=inner>=14?'Send ↵':'Send';

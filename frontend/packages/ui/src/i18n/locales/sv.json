@@ -93,6 +93,14 @@
         }
       }
     },
+    "business": {
+      "find_brand_name": {
+        "text": "Hitta ett varumärkesnamn",
+        "description": {
+          "text": "Välj minnesvärda namn och kontrollera sedan finalisternas domäner och varumärkeskonflikter."
+        }
+      }
+    },
     "code": {
       "test_git_repo": {
         "text": "Testa git-repo",
@@ -1282,6 +1290,12 @@
         "text": "Get company financials",
         "description": {
           "text": "Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR."
+        }
+      },
+      "search_trademarks": {
+        "text": "Sök varumärken",
+        "description": {
+          "text": "Sök varumärken per region med källor och täckningsgränser."
         }
       }
     },
@@ -7623,6 +7637,86 @@
         "not_available": {
           "text": "Ej tillgängligt"
         }
+      },
+      "search_trademarks": {
+        "records": {
+          "text": "Poster: {count}"
+        },
+        "preliminary": {
+          "text": "Preliminär sökning"
+        },
+        "checked": {
+          "text": "Sökt"
+        },
+        "not_searched": {
+          "text": "Inte sökt"
+        },
+        "partial": {
+          "text": "Delvis"
+        },
+        "empty": {
+          "text": "Inga matchande poster"
+        },
+        "limitation": {
+          "text": "Inga träffar bevisar inte att namnet är juridiskt tillgängligt."
+        },
+        "open_record": {
+          "text": "Visa officiell post"
+        },
+        "open_register": {
+          "text": "Öppna officiell sökning"
+        },
+        "classes": {
+          "text": "Nice-klasser"
+        },
+        "all_classes": {
+          "text": "Alla klasser"
+        },
+        "owner": {
+          "text": "Innehavare"
+        },
+        "goods": {
+          "text": "Varor och tjänster"
+        },
+        "application": {
+          "text": "Ansökan"
+        },
+        "registration": {
+          "text": "Registrering"
+        },
+        "filed": {
+          "text": "Inlämnad"
+        },
+        "registered": {
+          "text": "Registrerad"
+        },
+        "pending": {
+          "text": "Under behandling"
+        },
+        "ended": {
+          "text": "Avslutad"
+        },
+        "unknown": {
+          "text": "Okänd status"
+        },
+        "exact": {
+          "text": "Exakt namn"
+        },
+        "similar": {
+          "text": "Liknande stavning"
+        },
+        "active": {
+          "text": "Aktiva poster"
+        },
+        "all_statuses": {
+          "text": "Alla statusar"
+        },
+        "more": {
+          "text": "Fler träffar i det officiella registret"
+        },
+        "failed": {
+          "text": "Sökdata är inte tillgängliga"
+        }
       }
     },
     "reviews": {
@@ -7874,6 +7968,14 @@
       },
       "exit_fullscreen": {
         "text": "Stäng helskärm"
+      }
+    },
+    "ghost_suggestion": {
+      "press_tab": {
+        "text": "Tryck på Tab för att använda förslaget"
+      },
+      "use_suggestion": {
+        "text": "Använd förslaget"
       }
     },
     "location": {
@@ -8954,6 +9056,38 @@
       },
       "follow_up_6": {
         "text": "Förklara hur man arrangerar visuella element i en layout för tryck"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "En varm ljudsignal för en gemenskapsträdgård"
+      },
+      "summary": {
+        "text": "Generera ett kort aviseringsljud med två toner för en fiktiv app för en gemenskapsträdgård."
+      },
+      "message_1": {
+        "text": "Skapa ett kort, varmt aviseringsljud för en app för en gemenskapsträdgård när en volontär anmäler sig. En mild tvåtonssignal, inget tal och under tre sekunder."
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nJag genererar den varma, milda tvåtonssignalen för din trädgårdsapp nu. Den bearbetas för närvarande och kommer att visas i chatten så snart den är klar.\n\n### Föreslagna nästa steg\n- [Generera en jordnära, festlig signal för upplåsta märken](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Designa en layout för ett bekräftelsekort för volontärer](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "Generera en festlig ljudsignal för när en användare låser upp ett märke vid slutförd uppgift"
+      },
+      "follow_up_2": {
+        "text": "Förklara hur ljuddesign påverkar användarengagemang i mobilappar"
+      },
+      "follow_up_3": {
+        "text": "Skapa en mild påminnelsesignal för morgonens bevattningsschema"
+      },
+      "follow_up_4": {
+        "text": "Lista bästa praxis för att designa icke-påträngande ljudsignaler för UI-notiser"
+      },
+      "follow_up_5": {
+        "text": "Generera ett mjukt felmeddelandeljud för misslyckad formulärvalidering"
+      },
+      "follow_up_6": {
+        "text": "Beskriv hur man integrerar anpassade ljudeffekter i mobilapplikationer"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -10038,6 +10172,38 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"6da89032-d370-43c5-91c1-b07fa5df5a85\", \"app_id\": \"images\", \"skill_id\": \"generate\"}\n```\n\nI'm generating that SVG app icon for your climate data dashboard now. \n\nI've focused on a clean, [flat](wiki:Flat_design) [vector](wiki:Vector_graphics) aesthetic with a teal and mint palette to reflect both nature and data. This style is excellent for scalability, ensuring the icon stays crisp whether it's on a mobile home screen or a tiny browser favicon.\n\nOnce it's ready, we could experiment with different color schemes for dark mode or even create a [UI mockup](wiki:Mockup) to see how it looks in context.\n\nWhat kind of interface are you imagining for this dashboard—something very data-heavy with charts, or a more simplified overview?"
       }
     },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Flödesschema för utcheckning i webbutik"
+      },
+      "summary": {
+        "text": "Ett redigerbart flödesschema för utcheckning med betalningsförsök och orderbekräftelse."
+      },
+      "message_1": {
+        "text": "Skapa ett redigerbart flödesschema för en liten webbutik: varukorg, utcheckningsuppgifter, betalning och orderbekräftelse. Om betalningen nekas, visa hur kunden försöker igen. Håll all information inom diagrammet och länka inte till externa webbplatser."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Genomgång av flödet och UX-överväganden\n\n1. **Sekventiellt förlopp**: Kunden rör sig linjärt genom **Varukorg**, **Utcheckningsuppgifter** (frakt/fakturering) och **Betalningshantering**.\n2. **Nekad betalning och felhantering**:\n   - Istället för att kunden hamnar i en tom session igen, leder en nekad betalning till ett beslutsteg för att **Ändra metod**.\n   - Den streckade ortogonala vägen leder direkt tillbaka till **Utcheckningsuppgifter**, vilket gör att kunden kan byta betalningsmetod, korrigera felskrivningar i kortuppgifter eller välja en annan digital plånbok utan att förlora sina varor i korgen.\n   - Om de väljer att inte försöka igen, avslutas sessionen snyggt i sluttillståndet **Varukorg sparad**, vilket lämnar dörren öppen för uppföljande e-postmeddelanden om övergivna varukorgar.\n3. **Redigerbar struktur**: Varje steg och väg innehåller standardiserade `data-om-*`-bindningar så att du kan anpassa etiketter, lägga till ett steg för rabattkoder eller integrera grenar för gästutcheckning direkt.\n\n---\n\n**Nästa steg och iterationer:**\n- Vill du införa en gren för **Gästutcheckning kontra inloggat konto** före leveransuppgifterna?\n- Om du designar användargränssnitt eller anpassade illustrationer för det här flödet, kan vi utforska att integrera trådskisser eller anpassade handritade ikonmärken för att komplettera stegen."
+      },
+      "follow_up_1": {
+        "text": "Sök efter gratis SVG-ikoner för utcheckningsknappar"
+      },
+      "follow_up_2": {
+        "text": "Förklara hur man lägger till en gren för gästutcheckning före leveransuppgifter"
+      },
+      "follow_up_3": {
+        "text": "Sök efter bästa praxis och UX-trender för utcheckning i webbutiker"
+      },
+      "follow_up_4": {
+        "text": "Beskriv hur man hanterar e-postmeddelanden för återställning av övergivna varukorgar på ett effektivt sätt"
+      },
+      "follow_up_5": {
+        "text": "Hitta kommande workshops och webbinarier om e-handelsdesign"
+      },
+      "follow_up_6": {
+        "text": "Lista vanliga UX-fallgropar i betalningsflöden online"
+      }
+    },
     "open_meteo_weather_notebook": {
       "title": {
         "text": "Berlin Weekend Bike Weather Notebook"
@@ -10684,70 +10850,6 @@
       "follow_up_6": {
         "text": "Jämför olika metoder för att omvandla talade idéer till organiserade uppgifter"
       }
-    },
-    "community_garden_volunteer_chime": {
-      "title": {
-        "text": "En varm ljudsignal för en gemenskapsträdgård"
-      },
-      "summary": {
-        "text": "Generera ett kort aviseringsljud med två toner för en fiktiv app för en gemenskapsträdgård."
-      },
-      "message_1": {
-        "text": "Skapa ett kort, varmt aviseringsljud för en app för en gemenskapsträdgård när en volontär anmäler sig. En mild tvåtonssignal, inget tal och under tre sekunder."
-      },
-      "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nJag genererar den varma, milda tvåtonssignalen för din trädgårdsapp nu. Den bearbetas för närvarande och kommer att visas i chatten så snart den är klar.\n\n### Föreslagna nästa steg\n- [Generera en jordnära, festlig signal för upplåsta märken](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Designa en layout för ett bekräftelsekort för volontärer](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
-      },
-      "follow_up_1": {
-        "text": "Generera en festlig ljudsignal för när en användare låser upp ett märke vid slutförd uppgift"
-      },
-      "follow_up_2": {
-        "text": "Förklara hur ljuddesign påverkar användarengagemang i mobilappar"
-      },
-      "follow_up_3": {
-        "text": "Skapa en mild påminnelsesignal för morgonens bevattningsschema"
-      },
-      "follow_up_4": {
-        "text": "Lista bästa praxis för att designa icke-påträngande ljudsignaler för UI-notiser"
-      },
-      "follow_up_5": {
-        "text": "Generera ett mjukt felmeddelandeljud för misslyckad formulärvalidering"
-      },
-      "follow_up_6": {
-        "text": "Beskriv hur man integrerar anpassade ljudeffekter i mobilapplikationer"
-      }
-    },
-    "online_shop_checkout_flow_diagram": {
-      "title": {
-        "text": "Flödesschema för utcheckning i webbutik"
-      },
-      "summary": {
-        "text": "Ett redigerbart flödesschema för utcheckning med betalningsförsök och orderbekräftelse."
-      },
-      "message_1": {
-        "text": "Skapa ett redigerbart flödesschema för en liten webbutik: varukorg, utcheckningsuppgifter, betalning och orderbekräftelse. Om betalningen nekas, visa hur kunden försöker igen. Håll all information inom diagrammet och länka inte till externa webbplatser."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Genomgång av flödet och UX-överväganden\n\n1. **Sekventiellt förlopp**: Kunden rör sig linjärt genom **Varukorg**, **Utcheckningsuppgifter** (frakt/fakturering) och **Betalningshantering**.\n2. **Nekad betalning och felhantering**:\n   - Istället för att kunden hamnar i en tom session igen, leder en nekad betalning till ett beslutsteg för att **Ändra metod**.\n   - Den streckade ortogonala vägen leder direkt tillbaka till **Utcheckningsuppgifter**, vilket gör att kunden kan byta betalningsmetod, korrigera felskrivningar i kortuppgifter eller välja en annan digital plånbok utan att förlora sina varor i korgen.\n   - Om de väljer att inte försöka igen, avslutas sessionen snyggt i sluttillståndet **Varukorg sparad**, vilket lämnar dörren öppen för uppföljande e-postmeddelanden om övergivna varukorgar.\n3. **Redigerbar struktur**: Varje steg och väg innehåller standardiserade `data-om-*`-bindningar så att du kan anpassa etiketter, lägga till ett steg för rabattkoder eller integrera grenar för gästutcheckning direkt.\n\n---\n\n**Nästa steg och iterationer:**\n- Vill du införa en gren för **Gästutcheckning kontra inloggat konto** före leveransuppgifterna?\n- Om du designar användargränssnitt eller anpassade illustrationer för det här flödet, kan vi utforska att integrera trådskisser eller anpassade handritade ikonmärken för att komplettera stegen."
-      },
-      "follow_up_1": {
-        "text": "Sök efter gratis SVG-ikoner för utcheckningsknappar"
-      },
-      "follow_up_2": {
-        "text": "Förklara hur man lägger till en gren för gästutcheckning före leveransuppgifter"
-      },
-      "follow_up_3": {
-        "text": "Sök efter bästa praxis och UX-trender för utcheckning i webbutiker"
-      },
-      "follow_up_4": {
-        "text": "Beskriv hur man hanterar e-postmeddelanden för återställning av övergivna varukorgar på ett effektivt sätt"
-      },
-      "follow_up_5": {
-        "text": "Hitta kommande workshops och webbinarier om e-handelsdesign"
-      },
-      "follow_up_6": {
-        "text": "Lista vanliga UX-fallgropar i betalningsflöden online"
-      }
     }
   },
   "focus_modes": {
@@ -10764,6 +10866,15 @@
       "text": "Bokrekommendationer",
       "description": {
         "text": "Få bokrekommendationer baserat på din smak."
+      }
+    },
+    "business_find_brand_name": {
+      "text": "Hitta ett varumärkesnamn",
+      "description": {
+        "text": "Välj minnesvärda namn och kontrollera sedan finalisternas domäner och varumärkeskonflikter."
+      },
+      "process": {
+        "text": "- Förstå uppdraget\n- välj namn\n- kontrollera finalister\n- jämför belägg"
       }
     },
     "code_analyze_logs": {
@@ -12512,6 +12623,13 @@
             },
             "description": {
               "text": "Mastodon anropas när du hämtar inlägg från offentliga Mastodon-profiler. Den relevanta Mastodon-servern tar emot profilidentifierare eller offentliga profil-URL:er utan en OpenMates-användaridentifierare."
+            }
+          }
+        },
+        "business_data": {
+          "uspto": {
+            "description": {
+              "text": "USPTO tar emot namnförslag och filter för status, stavning och Nice-klasser vid sökningar i USA. Förfrågningar skickas från våra servrar utan OpenMates användaridentifierare eller chatthistorik."
             }
           }
         }

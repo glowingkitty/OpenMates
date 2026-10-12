@@ -137,7 +137,7 @@ EXPORT_CIPHERTEXT_FIELDS = {
     "encrypted_sender_name", "encrypted_category", "encrypted_model_name",
     "encrypted_thinking_content", "encrypted_thinking_signature", "encrypted_pii_mappings",
     "encrypted_active_focus_id", "encrypted_auto_speak_response", "encrypted_share_cta_text",
-    "encrypted_chat_tags", "encrypted_follow_up_request_suggestions",
+    "encrypted_chat_tags", "encrypted_follow_up_request_suggestions", "encrypted_suggested_followup_message",
     "encrypted_top_recommended_apps_for_chat", "encrypted_quick_tip_slugs",
     "encrypted_icon", "encrypted_shared_short_url", "encrypted_settings_memories_suggestions",
 }

@@ -6,6 +6,7 @@ import { hasActualContent, vibrateMessageField } from "../utils";
 import { Extension } from "@tiptap/core";
 import { chatDB } from "../../../services/db";
 import { chatKeyManager } from "../../../services/encryption/ChatKeyManager";
+import { forgetPreparedChatForSend } from "../../../services/preparedChatForSend";
 import { chatSyncService, recordSendPreparationPhase } from "../../../services/chatSyncService"; // Import chatSyncService
 import { failPersonalChatTurn, reservePersonalChatTurn, type PersonalChatTurn } from "../../../services/personalChatTurnBarrier";
 import type { Chat, Message, PIIMapping } from "../../../types/chat"; // Import Message type
@@ -50,6 +51,7 @@ import {
   shouldDispatchDraftChatAsNewChat,
 } from "./sendClassification";
 import { isPreflightAcknowledgementTimeout } from "../../../services/sendersChatMessages";
+import { PendingAdmissionCompatibilityError } from "../../../services/serverCapabilityGate";
 import { selectAudioTranscriptUseCorrected } from "../../embeds/audio/audioTranscriptSelection";
 import { notifyDeferredMessageFinalized } from "./deferredSendMessageEvents";
 import { getActiveTeamContextSnapshot, isActiveTeamContext } from "../../../stores/teamStore";
@@ -374,8 +376,15 @@ function resetEditorContent(editor: Editor, shouldKeepFocus?: boolean) {
       "[resetEditorContent] Keeping focus on editor (desktop behavior)",
     );
   } else {
-    // Blur the editor on touch devices to make it compact
-    editor.commands.blur();
+    // TipTap schedules commands.blur() for the next animation frame. A failed
+    // send may restore this editor's focus before that frame, only to lose it
+    // again. Blur now and clear Safari's retained caret only while its anchor
+    // still belongs to this editor.
+    editor.view.dom.blur();
+    const selection = window.getSelection();
+    if (selection?.anchorNode && editor.view.dom.contains(selection.anchorNode)) {
+      selection.removeAllRanges();
+    }
     console.debug(
       "[resetEditorContent] Blurring editor (touch device behavior)",
     );
@@ -1829,6 +1838,10 @@ export async function handleSend(
         source_demo_id: sourceDemoId, // Track source for duplication flow
       };
 
+      // Focus/microphone preparation may have generated this key already. Its
+      // invisible shell never entered the chat list; the first message remains
+      // the sole visible chat creation and does not await preparation.
+
       if (newChatData.team_id) {
         if (isUnsupportedTeamIncognitoContext(teamId, isIncognitoEnabled)) {
           throw new Error("Team chats cannot be created in incognito mode");
@@ -1968,6 +1981,7 @@ export async function handleSend(
         // Create regular chat in IndexedDB
         if (!contextIsCurrent()) return;
         await chatDB.addChat(newChatData); // Save new chat metadata
+        forgetPreparedChatForSend(chatIdToUse);
         createdLocalChatId = chatIdToUse;
         await chatDB.saveMessage(messagePayload); // Save the first message separately
         persistedMessageId = messagePayload.message_id;
@@ -2281,11 +2295,13 @@ export async function handleSend(
 		});
 		if (!contextIsCurrent()) return;
 		recordSendPreparationPhase('set_active_chat_begin');
-		await chatSyncService.sendSetActiveChat(chatIdToUse);
-		recordSendPreparationPhase('set_active_chat_ready');
-		recordSendDebugStep("send_set_active_chat_complete", {
-			chatIdToUse,
-			messageId: messagePayload.message_id,
+		void chatSyncService.sendSetActiveChat(chatIdToUse).then(() => {
+			recordSendPreparationPhase('set_active_chat_ready');
+			recordSendDebugStep("send_set_active_chat_complete", {
+				chatIdToUse, messageId: messagePayload.message_id,
+			});
+		}).catch((error) => {
+			console.warn("[handleSend] Active chat notification failed", error);
 		});
     console.debug(
       "[handleSend] Notified backend about active chat before sending message:",
@@ -2396,7 +2412,7 @@ export async function handleSend(
     cleanupSpan.end();
     return !wasCancelledAfterSend;
   } catch (error) {
-    if (isPreflightAcknowledgementTimeout(error) && persistedMessageId) {
+    if ((isPreflightAcknowledgementTimeout(error) || error instanceof PendingAdmissionCompatibilityError) && persistedMessageId) {
       // The sender retained this exact ID for reconnect as waiting_for_internet.
       sendAccepted = true;
       return true;

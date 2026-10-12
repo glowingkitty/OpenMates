@@ -257,3 +257,17 @@ test('Escape discards transient response state and stale events cannot reach the
   f.calls[0].onStream?.(stream('chunk','Old response'));f.pending.resolve(result('chat-1','Old response'));await send;
   assert.deepEqual(f.state.messages.map(m=>m.content),['New chat']);assert.equal(f.state.isAwaitingAi,false);
 });
+
+// contract-test: supporting surface=cli assertions=chats.streaming.progressive-presentation
+test('final suggestion remains a ghost and never overwrites a newer draft', async()=>{
+  for (const draft of ['', 'My own next question']) {
+    const f=fixture();
+    const send=sendTuiMessage({message:'Ask something',state:f.state,client:f.client,render:f.render,modelShell:f.modelShell});
+    await tick();
+    f.state.input=draft;f.state.drafts['chat-1']=draft;
+    f.calls[0].onStream?.({...stream('done','Finished'),suggestedFollowupMessage:'Tell me more'});
+    assert.equal(f.state.input,draft);
+    assert.equal(f.state.suggestedFollowupMessage,draft?null:'Tell me more');
+    f.pending.resolve(result('chat-1','Finished'));await send;
+  }
+});

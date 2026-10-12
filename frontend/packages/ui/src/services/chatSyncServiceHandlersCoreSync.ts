@@ -188,6 +188,7 @@ export async function handleInitialSyncResponseImpl(
           title: cleartextTitle,
           encrypted_title: serverChat.encrypted_title,
           encrypted_chat_summary: serverChat.encrypted_chat_summary,
+          encrypted_suggested_followup_message: serverChat.encrypted_suggested_followup_message,
           messages_v: serverChat.versions.messages_v,
           title_v: serverChat.versions.title_v,
           metadata_v: serverChat.versions.metadata_v,

@@ -14,8 +14,63 @@ approval_basis: >-
   Send, removal of the focused gray backdrop, two-stage routing with immediate model
   resolution and selected-Mate feedback, metadata-only focus warm-up, and then
   directed implementation and deployed CLI/web before-and-after testing.
+approvals:
+  specification:
+    status: approved
+    basis: User approved the updated architecture and contextual composer semantics and directed implementation; exact bundle fingerprints are recorded by the Plan-backed batch receipt.
+  plan:
+    status: approved
+    basis: Explicit user approval of the updated implementation and testing Plan, including TUI verification before web.
 review: report.md
 baseline: baseline-summary.json
+architecture_increment:
+  status: implementing
+  approved_by_user: true
+  approval_basis: >-
+    The user approved the updated Plan and directed implementation and testing for
+    web and CLI/TUI, including immediate send, warm-up and the contextual composer
+    suggestion. Selected-Mate feedback is measured in the interactive TUI first,
+    then the web app, against 1500 ms; simple authored streaming targets 2-3 seconds.
+  goal: >-
+    Focus on presenting me the diagram / implementation plan for the drastically
+    speed up processing for me to approve or correct so we can asap start working
+    on implementing and testing the improved architecture.
+  review: critical-path-2026-10-12.md
+  timing_targets:
+    warm_client_dispatch_ms: 50
+    selected_mate_ms: 1500
+    preferred_selected_mate_ms: 1000
+    simple_first_authored_stream_ms: 3000
+  catalogue_policy:
+    public_definitions: Load global skill schemas, Focus definitions and shipped app Memory guides once per worker at startup; cache in RAM by deployment/configuration revision, with no Dragonfly requirement.
+    user_discovery: Warm encrypted owner/Team-scoped Project, Project Focus, Workflow and available-memory discovery indexes in Dragonfly for two sliding hours, with revision/generation invalidation.
+    private_bodies: Load only selected bodies through their existing authorized transport; cache metadata without introducing a new private-rule store or extending private-content retention.
+    approved_user_memories: Preserve consent-bound chat-specific encrypted content caching, whose current default is 24 hours; scope/revision changes and chat eviction invalidate access.
+    selection: Stage one receives compact routing metadata; Stage two sees relevant detailed catalogues, including app guidance even when no app skill is called.
+  hydration_dependencies: Stage two precedes loads whose IDs it selects. Already active/explicit context can load during selection; independent selected-resource authorization/read/decryption operations run concurrently afterward, followed by one main-context assembly.
+  contextual_composer_suggestion:
+    reference_chat: codex:01a12fbd-a832-7bb1-b765-a48ca7fd378d
+    generation: Main processor emits one optional trailing suggested_followup_message metadata block in the same response inference; retain existing postprocessed follow-up request chips separately.
+    delivery: Extract across stream chunk boundaries before display/persistence, then deliver as turn-identified successful-completion metadata without delaying first authored output.
+    interaction: Fade a natural-language ghost suggestion into an empty composer; show a separate italic Press Tab to accept suggestion hint on focus. Tab or touch Use suggestion inserts editable text without sending; typing hides it and Escape dismisses it.
+    persistence: Ghost text stays outside the editor/draft until accepted; use existing client-encrypted chat metadata/sync for allowed persistence and preserve follow-up settings, privacy, chat/account/Team fences and active drafts/attachments.
+  implementation_order:
+    - Add end-to-end phase spans and correct terminal completion measurement; retain the existing real-inference cohort rather than repeating diagnosis.
+    - Prepare or reuse the chat ID, key and provisional draft shell on composer focus or microphone activation, plus crypto/storage and shared versioned metadata; authenticated TUI startup warms the same preparation. Coalesce and renew encrypted Workflow discovery for two hours.
+    - Dispatch immediately on Send using the prepared ID and privacy/encryption path, without awaiting chat activation, full history persistence, warm-up completion or client context reads. A cold/racing request carries idempotent chat-creation data in the same admission; preserve durable offline intent and exact-ID idempotency.
+    - Isolate compact Stage-one routing from long-running main/tool work; resolve the permitted model and publish turn-identified Mate feedback immediately.
+    - Run Stage two and selected-context hydration only when routing, explicit overrides or authoritative active context require them; fold required related-work selection into that pass.
+    - Reuse provider clients, instrument actual HTTP/first-byte timing, prefer healthy permitted routes and avoid repeating failed routes within a turn; separately remove avoidable completion tail work.
+    - Add the main-generated contextual composer suggestion and robust trailing-metadata parser, separate from existing postprocessed chips and without another inference request.
+    - Verify deterministic security/recovery/queue contracts in isolated CI, deploy scoped dev source, then measure actual interactive TUI first and web second under the authorized real-inference exception; report one-shot CLI startup separately.
+  required_checks:
+    - Fast Send before preparation completes, repeated focus/microphone activation, cancelled recording and scope changes reuse or invalidate prepared draft identity correctly; no duplicate or unwanted visible empty chat.
+    - Saved personal and Team human-only behavior, offline/crash recovery, duplicate Send, queued followup/edit/steer, account and Team switches, revocation and cache miss/invalidation.
+    - Routing-selected Mate is correct and first-stage feedback precedes detailed selection; simple no-capability/no-context requests skip irrelevant discovery with uncertainty retaining the complete path.
+    - Retain exact model/thinking/region policy and required privacy, safety, output and question instructions.
+    - Measure every sample to selected-Mate paint and first authored paint separately from tool progress, final marker and command completion; preserve misses, retries and recordings.
+    - Compare capital-of-Spain and Berlin-events prompts with Project-bound and contextual-followup controls; report warm/cold cache and already-running TUI separately from cold one-shot CLI startup.
+    - Contextual suggestion tests cover split/malformed metadata markers, exact visible final answer, no automatic draft/send, Tab and touch acceptance, normal keyboard navigation, draft/attachment/queued-edit precedence, chat switching, reduced motion, encrypted reload/sync and disabled suggestions.
 scope:
   in:
     - Immediate web submitted-snapshot handoff to sending history and empty composer, preserving new drafts and existing offline recovery.

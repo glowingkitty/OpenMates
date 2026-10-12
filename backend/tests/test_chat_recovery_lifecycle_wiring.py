@@ -9,6 +9,7 @@ surfacing real cleanup failures to Celery.
 
 import ast
 from pathlib import Path
+import re
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -134,7 +135,11 @@ def test_epoch_zero_admission_identity_chain_and_acknowledgment_retry_are_wired(
         "persist_ai_response_to_directus",
     )
 
-    assert "dispatch_task_id = request.recovery_task_id or request.legacy_cutover_task_id or str(uuid.uuid4())" in ask_skill_source
+    assert re.search(
+        r"dispatch_task_id = \(request\.recovery_task_id or request\.legacy_cutover_task_id"
+        r"\s+or request\.volatile_dispatch_task_id or str\(uuid\.uuid4\(\)\)\)",
+        ask_skill_source,
+    )
     assert '"bind_ordinary_legacy_dispatch"' in ask_skill_source
     assert '"broker_task_id": dispatch_task_id' in ask_skill_source
     assert "assistant_message_id = _assistant_message_id(task_id, request_data)" in stream_source

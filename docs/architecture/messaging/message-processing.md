@@ -207,3 +207,8 @@ The web, authenticated CLI and Apple share backend routing improvements. Web own
 - [Security](../core/security.md) — encryption tiers (vault vs. client)
 - [Sync](../data/sync.md) — sync cache usage during login
 - [Sensitive Data Redaction](../privacy/sensitive-data-redaction.md) — PII protection before LLM
+
+
+## Reserved compact routing and prepared admission
+
+The approved chat-latency increment uses a one-frame durable admission and a reserved `app_ai_routing` worker before long main/tool processing. See [the implemented request and cache diagrams](../../plans/chat-latency-improvements/implemented-flow.md) for stage inputs, conditional detail hydration, main-generated composer metadata and retention boundaries. Existing conversation history, Team human-only behavior, consent, billing and recovery remain authoritative.

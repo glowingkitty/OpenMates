@@ -945,6 +945,7 @@ export async function handleNewChatMessageImpl(
     /** Encrypted title — sent by sync_inspiration_chat_handler for cross-device inspiration chats */
     encrypted_title?: string;
     encrypted_chat_summary?: string;
+    encrypted_suggested_followup_message?: string;
     /** Encrypted category — sent by sync_inspiration_chat_handler for cross-device inspiration chats */
     encrypted_category?: string;
     /** Inspiration video embed data — sent by sync_inspiration_chat_handler so
@@ -2241,6 +2242,7 @@ export async function handleEncryptedChatMetadataImpl(
     encrypted_chat_key?: string;
     encrypted_title?: string;
     encrypted_chat_summary?: string;
+    encrypted_suggested_followup_message?: string;
     encrypted_icon?: string;
     encrypted_category?: string;
     encrypted_chat_category?: string;
@@ -2470,6 +2472,7 @@ export async function handleEncryptedChatMetadataImpl(
     for (const field of [
       "encrypted_title",
       "encrypted_chat_summary",
+      "encrypted_suggested_followup_message",
       "encrypted_icon",
       "encrypted_category",
       "encrypted_auto_speak_response",
@@ -2478,7 +2481,7 @@ export async function handleEncryptedChatMetadataImpl(
       const incoming =
         field === "encrypted_category" ? encryptedCategory : payload[field];
       if (
-        (field === "encrypted_title" || field === "encrypted_chat_summary") &&
+        (field === "encrypted_title" || field === "encrypted_chat_summary" || field === "encrypted_suggested_followup_message") &&
         !acceptsMetadataRevision
       ) {
         continue;
@@ -2519,6 +2522,8 @@ export async function handleEncryptedChatMetadataImpl(
         if (field === "encrypted_title") chat.encrypted_title = incoming;
         else if (field === "encrypted_chat_summary")
           chat.encrypted_chat_summary = incoming;
+        else if (field === "encrypted_suggested_followup_message")
+          chat.encrypted_suggested_followup_message = incoming;
         else if (field === "encrypted_focus_phase_state")
           chat.encrypted_focus_phase_state = incoming;
         else if (field === "encrypted_auto_speak_response")

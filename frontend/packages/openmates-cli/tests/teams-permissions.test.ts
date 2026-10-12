@@ -219,6 +219,7 @@ it('keeps encrypted Team chat metadata for bounded cross-member reads after an o
     waiters.delete(type);
   };
   const ws = {
+    supportsServerCapability: () => true,
     waitForRecoveryOutputDiscovery: async () => {},
     waitForMessage: (type: string, match: (value: unknown) => boolean = () => true) =>
       new Promise(resolve => { const pending = waiters.get(type) ?? [];pending.push({ match, resolve });waiters.set(type, pending); }),
@@ -226,10 +227,11 @@ it('keeps encrypted Team chat metadata for bounded cross-member reads after an o
     sendAsync: async (type: string, payload: Record<string, unknown>) => {
       if (type === 'team_notification_preview_capabilities')
         emit('team_notification_preview_capabilities_result', { request_id: payload.request_id, recipient_count: 0 });
-      if (type === 'chat_turn_preflight')
+      if (type === 'chat_turn_admit')
         emit('chat_turn_preflight_ack', { turn_id: payload.turn_id, preflight_id: 'durable-preflight', committed_messages_v: 2 });
-      if (type === 'chat_message_added') {
-        sentEnvelope = payload.message as Record<string, unknown>;
+      if (type === 'chat_turn_admit' || type === 'chat_message_added') {
+        const inference = type === 'chat_turn_admit' ? payload.inference_request as Record<string, unknown> : payload;
+        sentEnvelope = inference.message as Record<string, unknown>;
         emit('chat_message_confirmed', { chat_id: chatId, message_id: sentEnvelope.message_id });
       }
     },

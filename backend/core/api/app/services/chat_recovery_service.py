@@ -30,6 +30,7 @@ RECOVERY_OPERATIONS = {
     "list_pending_queued_messages",
     "get_sealed_job_receipt",
     "get_queued_revision_state",
+    "verify_routing_admission",
     "mark_queued_message_started",
     "advance_user_message_version",
     "restore_queued_message_pending",

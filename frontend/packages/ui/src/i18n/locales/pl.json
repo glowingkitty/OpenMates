@@ -93,6 +93,14 @@
         }
       }
     },
+    "business": {
+      "find_brand_name": {
+        "text": "Znajdź nazwę marki",
+        "description": {
+          "text": "Wybierz zapadające w pamięć nazwy, a następnie sprawdź domeny i konflikty znaków finalistów."
+        }
+      }
+    },
     "code": {
       "test_git_repo": {
         "text": "Przetestuj repozytorium git",
@@ -1282,6 +1290,12 @@
         "text": "Get company financials",
         "description": {
           "text": "Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR."
+        }
+      },
+      "search_trademarks": {
+        "text": "Szukaj znaków towarowych",
+        "description": {
+          "text": "Szukaj znaków według regionu ze źródłami i zakresem wyszukiwania."
         }
       }
     },
@@ -7623,6 +7637,86 @@
         "not_available": {
           "text": "N/D"
         }
+      },
+      "search_trademarks": {
+        "records": {
+          "text": "Wpisy: {count}"
+        },
+        "preliminary": {
+          "text": "Wstępne wyszukiwanie"
+        },
+        "checked": {
+          "text": "Sprawdzono"
+        },
+        "not_searched": {
+          "text": "Nie wyszukano"
+        },
+        "partial": {
+          "text": "Częściowo"
+        },
+        "empty": {
+          "text": "Brak pasujących wpisów"
+        },
+        "limitation": {
+          "text": "Brak wyników nie dowodzi dostępności prawnej."
+        },
+        "open_record": {
+          "text": "Zobacz oficjalny wpis"
+        },
+        "open_register": {
+          "text": "Otwórz oficjalne wyszukiwanie"
+        },
+        "classes": {
+          "text": "Klasy nicejskie"
+        },
+        "all_classes": {
+          "text": "Wszystkie klasy"
+        },
+        "owner": {
+          "text": "Właściciel"
+        },
+        "goods": {
+          "text": "Towary i usługi"
+        },
+        "application": {
+          "text": "Zgłoszenie"
+        },
+        "registration": {
+          "text": "Rejestracja"
+        },
+        "filed": {
+          "text": "Zgłoszono"
+        },
+        "registered": {
+          "text": "Zarejestrowano"
+        },
+        "pending": {
+          "text": "W toku"
+        },
+        "ended": {
+          "text": "Zakończono"
+        },
+        "unknown": {
+          "text": "Status nieznany"
+        },
+        "exact": {
+          "text": "Dokładna nazwa"
+        },
+        "similar": {
+          "text": "Podobna pisownia"
+        },
+        "active": {
+          "text": "Aktywne wpisy"
+        },
+        "all_statuses": {
+          "text": "Wszystkie statusy"
+        },
+        "more": {
+          "text": "Więcej wyników w oficjalnym rejestrze"
+        },
+        "failed": {
+          "text": "Dane wyszukiwania niedostępne"
+        }
       }
     },
     "reviews": {
@@ -7874,6 +7968,14 @@
       },
       "exit_fullscreen": {
         "text": "Wyjdź z trybu pełnoekranowego"
+      }
+    },
+    "ghost_suggestion": {
+      "press_tab": {
+        "text": "Naciśnij Tab, aby przyjąć sugestię"
+      },
+      "use_suggestion": {
+        "text": "Użyj sugestii"
       }
     },
     "location": {
@@ -8954,6 +9056,38 @@
       },
       "follow_up_6": {
         "text": "Wyjaśnij, jak rozmieścić elementy wizualne w układzie do druku"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "Ciepły sygnał dla ogrodu społecznościowego"
+      },
+      "summary": {
+        "text": "Wygeneruj krótki, dwutonowy dźwięk powiadomienia dla fikcyjnej aplikacji ogrodu społecznościowego."
+      },
+      "message_1": {
+        "text": "Stwórz krótki, ciepły dźwięk powiadomienia dla aplikacji ogrodu społecznościowego, gdy zgłosi się wolontariusz. Delikatny dwutonowy sygnał, bez mowy, poniżej trzech sekund."
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nGeneruję teraz ciepły, delikatny dwutonowy sygnał dla Twojej aplikacji ogrodu społecznościowego. Jest on obecnie przetwarzany i pojawi się na czacie, gdy tylko będzie gotowy.\n\n### Sugerowane kolejne kroki\n- [Wygeneruj radosny sygnał odblokowania odznaki w naturalnym stylu](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Zaprojektuj układ karty potwierdzenia wolontariusza](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "Wygeneruj radosny sygnał odblokowania odznaki za ukończenie zadania"
+      },
+      "follow_up_2": {
+        "text": "Wyjaśnij, jak projektowanie dźwięku wpływa na zaangażowanie użytkowników w aplikacjach mobilnych"
+      },
+      "follow_up_3": {
+        "text": "Stwórz delikatny sygnał przypomnienia o porannym grafiku podlewania"
+      },
+      "follow_up_4": {
+        "text": "Wymień najlepsze praktyki projektowania nieinwazyjnych dźwięków powiadomień UI"
+      },
+      "follow_up_5": {
+        "text": "Wygeneruj łagodny dźwięk błędu dla niepowodzeń walidacji formularza"
+      },
+      "follow_up_6": {
+        "text": "Opisz, jak zintegrować niestandardowe efekty dźwiękowe z aplikacjami mobilnymi"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -10038,6 +10172,38 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"6da89032-d370-43c5-91c1-b07fa5df5a85\", \"app_id\": \"images\", \"skill_id\": \"generate\"}\n```\n\nI'm generating that SVG app icon for your climate data dashboard now. \n\nI've focused on a clean, [flat](wiki:Flat_design) [vector](wiki:Vector_graphics) aesthetic with a teal and mint palette to reflect both nature and data. This style is excellent for scalability, ensuring the icon stays crisp whether it's on a mobile home screen or a tiny browser favicon.\n\nOnce it's ready, we could experiment with different color schemes for dark mode or even create a [UI mockup](wiki:Mockup) to see how it looks in context.\n\nWhat kind of interface are you imagining for this dashboard—something very data-heavy with charts, or a more simplified overview?"
       }
     },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Schemat procesu zakupowego w sklepie internetowym"
+      },
+      "summary": {
+        "text": "Edytowalny schemat procesu zakupowego z ponowną próbą płatności i potwierdzeniem zamówienia."
+      },
+      "message_1": {
+        "text": "Stwórz edytowalny schemat blokowy dla małego sklepu internetowego: koszyk, dane do zamówienia, płatność i potwierdzenie zamówienia. Jeśli płatność zostanie odrzucona, pokaż ponowną próbę klienta. Zachowaj wszystkie informacje wewnątrz diagramu i nie linkuj do zewnętrznych stron internetowych."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Analiza przepływu i kwestie UX\n\n1. **Postęp sekwencyjny**: Klient przechodzi liniowo przez **Koszyk**, **Dane do zamówienia** (wysyłka/fakturowanie) i **Przetwarzanie płatności**.\n2. **Odrzucenie i przywracanie po błędzie**:\n   - Zamiast cofać klienta do pustej sesji, odrzucenie kieruje do kroku decyzyjnego **Zmień metodę**.\n   - Przerywana ścieżka prostopadła prowadzi bezpośrednio z powrotem do **Danych do zamówienia**, umożliwiając klientowi zmianę metody płatności, poprawienie literówek w danych karty lub wybranie innego portfela cyfrowego bez utraty produktów w koszyku.\n   - Jeśli klient zdecyduje się nie ponawiać próby, sesja kończy się stanem końcowym **Koszyk zapisany**, co otwiera drogę do e-maili przypominających o porzuconym koszyku.\n3. **Edytowalna struktura**: Każdy krok i ścieżka zawiera standardowe powiązania `data-om-*`, dzięki czemu możesz dostosować etykiety, dodać krok z kuponem rabatowym lub bezpośrednio zintegrować ścieżki dla gości.\n\n---\n\n**Następne kroki i iteracje:**\n- Czy chcesz wprowadzić rozgałęzienie **Zakupy jako gość vs. Zalogowane konto** przed danymi do wysyłki?\n- Jeśli projektujesz interfejsy użytkownika lub niestandardowe ilustracje dla tego przepływu, możemy zbadać możliwość zintegrowania makiet lub ręcznie rysowanych ikon, aby uzupełnić poszczególne kroki."
+      },
+      "follow_up_1": {
+        "text": "Wyszukaj darmowe ikony SVG dla przycisków płatności"
+      },
+      "follow_up_2": {
+        "text": "Wyjaśnij, jak dodać ścieżkę zakupów bez rejestracji przed danymi do wysyłki"
+      },
+      "follow_up_3": {
+        "text": "Wyszukaj najlepsze praktyki i trendy UX dla procesów zakupowych w sklepach internetowych"
+      },
+      "follow_up_4": {
+        "text": "Opisz, jak skutecznie obsługiwać e-maile odzyskujące porzucone koszyki"
+      },
+      "follow_up_5": {
+        "text": "Znajdź nadchodzące warsztaty i webinary dotyczące projektowania e-commerce"
+      },
+      "follow_up_6": {
+        "text": "Wymień typowe pułapki UX w procesach płatności online"
+      }
+    },
     "open_meteo_weather_notebook": {
       "title": {
         "text": "Berlin Weekend Bike Weather Notebook"
@@ -10684,70 +10850,6 @@
       "follow_up_6": {
         "text": "Porównaj różne metody zamiany wypowiedzianych pomysłów w uporządkowane zadania"
       }
-    },
-    "community_garden_volunteer_chime": {
-      "title": {
-        "text": "Ciepły sygnał dla ogrodu społecznościowego"
-      },
-      "summary": {
-        "text": "Wygeneruj krótki, dwutonowy dźwięk powiadomienia dla fikcyjnej aplikacji ogrodu społecznościowego."
-      },
-      "message_1": {
-        "text": "Stwórz krótki, ciepły dźwięk powiadomienia dla aplikacji ogrodu społecznościowego, gdy zgłosi się wolontariusz. Delikatny dwutonowy sygnał, bez mowy, poniżej trzech sekund."
-      },
-      "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nGeneruję teraz ciepły, delikatny dwutonowy sygnał dla Twojej aplikacji ogrodu społecznościowego. Jest on obecnie przetwarzany i pojawi się na czacie, gdy tylko będzie gotowy.\n\n### Sugerowane kolejne kroki\n- [Wygeneruj radosny sygnał odblokowania odznaki w naturalnym stylu](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Zaprojektuj układ karty potwierdzenia wolontariusza](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
-      },
-      "follow_up_1": {
-        "text": "Wygeneruj radosny sygnał odblokowania odznaki za ukończenie zadania"
-      },
-      "follow_up_2": {
-        "text": "Wyjaśnij, jak projektowanie dźwięku wpływa na zaangażowanie użytkowników w aplikacjach mobilnych"
-      },
-      "follow_up_3": {
-        "text": "Stwórz delikatny sygnał przypomnienia o porannym grafiku podlewania"
-      },
-      "follow_up_4": {
-        "text": "Wymień najlepsze praktyki projektowania nieinwazyjnych dźwięków powiadomień UI"
-      },
-      "follow_up_5": {
-        "text": "Wygeneruj łagodny dźwięk błędu dla niepowodzeń walidacji formularza"
-      },
-      "follow_up_6": {
-        "text": "Opisz, jak zintegrować niestandardowe efekty dźwiękowe z aplikacjami mobilnymi"
-      }
-    },
-    "online_shop_checkout_flow_diagram": {
-      "title": {
-        "text": "Schemat procesu zakupowego w sklepie internetowym"
-      },
-      "summary": {
-        "text": "Edytowalny schemat procesu zakupowego z ponowną próbą płatności i potwierdzeniem zamówienia."
-      },
-      "message_1": {
-        "text": "Stwórz edytowalny schemat blokowy dla małego sklepu internetowego: koszyk, dane do zamówienia, płatność i potwierdzenie zamówienia. Jeśli płatność zostanie odrzucona, pokaż ponowną próbę klienta. Zachowaj wszystkie informacje wewnątrz diagramu i nie linkuj do zewnętrznych stron internetowych."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Analiza przepływu i kwestie UX\n\n1. **Postęp sekwencyjny**: Klient przechodzi liniowo przez **Koszyk**, **Dane do zamówienia** (wysyłka/fakturowanie) i **Przetwarzanie płatności**.\n2. **Odrzucenie i przywracanie po błędzie**:\n   - Zamiast cofać klienta do pustej sesji, odrzucenie kieruje do kroku decyzyjnego **Zmień metodę**.\n   - Przerywana ścieżka prostopadła prowadzi bezpośrednio z powrotem do **Danych do zamówienia**, umożliwiając klientowi zmianę metody płatności, poprawienie literówek w danych karty lub wybranie innego portfela cyfrowego bez utraty produktów w koszyku.\n   - Jeśli klient zdecyduje się nie ponawiać próby, sesja kończy się stanem końcowym **Koszyk zapisany**, co otwiera drogę do e-maili przypominających o porzuconym koszyku.\n3. **Edytowalna struktura**: Każdy krok i ścieżka zawiera standardowe powiązania `data-om-*`, dzięki czemu możesz dostosować etykiety, dodać krok z kuponem rabatowym lub bezpośrednio zintegrować ścieżki dla gości.\n\n---\n\n**Następne kroki i iteracje:**\n- Czy chcesz wprowadzić rozgałęzienie **Zakupy jako gość vs. Zalogowane konto** przed danymi do wysyłki?\n- Jeśli projektujesz interfejsy użytkownika lub niestandardowe ilustracje dla tego przepływu, możemy zbadać możliwość zintegrowania makiet lub ręcznie rysowanych ikon, aby uzupełnić poszczególne kroki."
-      },
-      "follow_up_1": {
-        "text": "Wyszukaj darmowe ikony SVG dla przycisków płatności"
-      },
-      "follow_up_2": {
-        "text": "Wyjaśnij, jak dodać ścieżkę zakupów bez rejestracji przed danymi do wysyłki"
-      },
-      "follow_up_3": {
-        "text": "Wyszukaj najlepsze praktyki i trendy UX dla procesów zakupowych w sklepach internetowych"
-      },
-      "follow_up_4": {
-        "text": "Opisz, jak skutecznie obsługiwać e-maile odzyskujące porzucone koszyki"
-      },
-      "follow_up_5": {
-        "text": "Znajdź nadchodzące warsztaty i webinary dotyczące projektowania e-commerce"
-      },
-      "follow_up_6": {
-        "text": "Wymień typowe pułapki UX w procesach płatności online"
-      }
     }
   },
   "focus_modes": {
@@ -10764,6 +10866,15 @@
       "text": "Rekomendacje książek",
       "description": {
         "text": "Otrzymaj rekomendacje książek na podstawie gustu."
+      }
+    },
+    "business_find_brand_name": {
+      "text": "Znajdź nazwę marki",
+      "description": {
+        "text": "Wybierz zapadające w pamięć nazwy, a następnie sprawdź domeny i konflikty znaków finalistów."
+      },
+      "process": {
+        "text": "- Poznaj potrzeby\n- wybierz nazwy\n- sprawdź finalistów\n- porównaj wyniki"
       }
     },
     "code_analyze_logs": {
@@ -12512,6 +12623,13 @@
             },
             "description": {
               "text": "Mastodon jest odpytywany podczas pobierania publicznych postów z profilu Mastodon. Odpowiedni serwer Mastodon otrzymuje identyfikatory profilu lub publiczne adresy URL profilu bez identyfikatora użytkownika OpenMates."
+            }
+          }
+        },
+        "business_data": {
+          "uspto": {
+            "description": {
+              "text": "USPTO otrzymuje proponowane nazwy oraz filtry statusu, pisowni i klas nicejskich do wyszukiwania w USA. Żądania pochodzą z naszych serwerów bez identyfikatorów OpenMates ani historii czatu."
             }
           }
         }

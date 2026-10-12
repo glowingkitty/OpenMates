@@ -373,3 +373,53 @@ async def test_named_file_fallback_requires_intent_unique_eligible_project_and_c
     assert not result.routing_only
     assert result.pending_project_focus_id is None
     mates.assert_awaited_once()
+
+
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution,projects.focus.inferred-consent
+@pytest.mark.asyncio
+async def test_project_mate_feedback_precedes_specialist_and_consent(monkeypatch):
+    from backend.core.api.app.services import project_focus_request_service
+    from backend.core.api.app.services import project_focus_routing
+    from backend.core.api.app.utils import server_mode
+    events = []
+    request = AskSkillRequest(chat_id="chat", message_id="turn", user_id="user", user_id_hash="hash",
+        message_history=[{"role": "user", "content": PROMPT, "created_at": 1}], current_user_content=PROMPT,
+        client_capabilities=["project_file_jobs"],
+        project_focus_candidates=[{"project_id": PROJECT, "name": "OpenMates", "focuses": []}])
+    monkeypatch.setattr(server_mode, "is_payment_enabled", lambda: False)
+    monkeypatch.setattr(preprocessor, "load_skill_ledger", AsyncMock(return_value=preprocessor.RoutingLedgerSnapshot(available=True, prompt_rows=())))
+    monkeypatch.setattr(project_focus_request_service, "validated_project_candidates", AsyncMock(return_value=request.project_focus_candidates))
+    monkeypatch.setattr(preprocessor, "load_mates_config", lambda: [SimpleNamespace(id="mate", category="general_knowledge")])
+    monkeypatch.setattr(preprocessor, "_select_main_model", AsyncMock(return_value={
+        "selected_llm_for_main_id": "permitted/model", "selected_llm_for_main_name": "Permitted", "complexity_val": "simple"}))
+    async def catalog(*args, **kwargs):
+        assert events == ["stage1", "mate"]
+        events.append("catalog")
+        return [{"focus_id": f"project-focus:{PROJECT}:{ITEM}", "item_id": ITEM,
+                 "revision": "a" * 64, "title": "Docs"}]
+    monkeypatch.setattr(project_focus_routing, "validated_focus_candidates_for_project", catalog)
+    async def evaluate(**kwargs):
+        specialist = "project_specialist" in kwargs["questions"]
+        if specialist:
+            assert events == ["stage1", "mate", "catalog"]
+        events.append("specialist" if specialist else "stage1")
+        return answers_for(kwargs["questions"], specialist=specialist)
+    monkeypatch.setattr(jev_preprocessing, "_evaluate_preprocessing_questions", evaluate)
+    async def feedback(payload):
+        assert payload["model_id"] == "permitted/model"
+        assert payload["mate_id"] == "mate"
+        events.append("mate")
+    result = await preprocessor.handle_preprocessing(
+        request_data=request, base_instructions={"preprocess_request_tool": {}},
+        skill_config=SimpleNamespace(default_llms=SimpleNamespace(decision_model="test/jev",
+            main_processing_simple="test/main", main_processing_simple_name="Main")),
+        cache_service=SimpleNamespace(get_user_by_id=AsyncMock(return_value={})),
+        secrets_manager=None, directus_service=None, encryption_service=None, discovered_apps_metadata={},
+        on_early_routing=feedback,
+    )
+    assert events == ["stage1", "mate", "catalog", "specialist"]
+    assert result.routing_only and result.pending_project_focus_id == f"project-{PROJECT}"
+    assert result.pending_project_specialist["revision"] == "a" * 64
+    assert result.selected_main_llm_model_id == "permitted/model"
+    assert result.selected_mate_id == "mate"
+    assert result.relevant_app_skills == []

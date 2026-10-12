@@ -15,8 +15,10 @@ import { createTuiStartup, type TuiStartupServices } from "./tuiStartup.js";
 import { createInterface } from "node:readline/promises";
 import { stdin as nodeStdin, stdout as nodeStdout } from "node:process";
 import { randomUUID } from "node:crypto";
+import { appendFileSync } from "node:fs";
+import { parseMessageSegments } from "./messageSegments.js";
 
-import { shouldWaitForTeamAi, type OpenMatesClient, type WorkflowGraph, type WorkflowRunDetail } from "./client.js";
+import { MATE_NAMES, shouldWaitForTeamAi, type OpenMatesClient, type WorkflowGraph, type WorkflowRunDetail } from "./client.js";
 import type { StreamEvent } from "./ws.js";
 import { getExampleChatConversation, listExampleChats } from "./exampleChats.js";
 import { buildExampleContinuationHistory } from "./tuiExampleContinuation.js";
@@ -53,6 +55,8 @@ import {createTuiMentionShell,type TuiMentionShell} from './tuiMentions.js';
 
 export type CliDefaultMode = "tui" | "quickstart";
 export type TuiResult = { action: "exit" | "signup" | "restart" };
+export type TuiPaintMilestone = { milestone: "optimistic_user" | "selected_mate" | "tool_progress" | "authored_first" | "final"; elapsedMs: number; wallTimeMs: number; chatId: string | null; taskId: string | null; mateName?: string | null; modelName?: string | null };
+
 const teamMemberActions = new WeakMap<TuiState, { teamId: string; isCurrent: () => boolean; members: Array<{ hash: string; label: string }> }>();
 
 function showSelectedTeamMember(state: TuiState): void {
@@ -74,6 +78,7 @@ export async function runTui(
   client: OpenMatesClient,
   terminal = new TuiTerminal(),
   startupServices?: TuiStartupServices,
+  onPaintMilestone?: (event: TuiPaintMilestone) => void,
 ): Promise<TuiResult> {
   const state = createInitialTuiState();
   client.beginInteractiveViewerSession();
@@ -82,6 +87,17 @@ export async function runTui(
   let resolveResult: ((result: TuiResult) => void) | null = null;
   let renderTimer: NodeJS.Timeout | null = null;
   let lastFrameOwner: (() => boolean) | null = null;
+  let measuredTurn: { keypressAt: number; painted: Set<TuiPaintMilestone["milestone"]> } | null = null;
+  const recordPaint = (milestone: TuiPaintMilestone["milestone"]) => {
+    if (!measuredTurn || measuredTurn.painted.has(milestone)) return;
+    measuredTurn.painted.add(milestone);
+    const assistant = state.streamingMessage ?? state.messages.slice().reverse().find(message => message.role === "assistant");
+    const event: TuiPaintMilestone = { milestone, elapsedMs: Math.round(performance.now() - measuredTurn.keypressAt), wallTimeMs: Date.now(),
+      chatId: state.activeChatId, taskId: state.aiTaskId, mateName: assistant?.title, modelName: assistant?.modelName };
+    onPaintMilestone?.(event);
+    const path = process.env.OPENMATES_TUI_LATENCY_EVENTS;
+    if (path) try { appendFileSync(path, `${JSON.stringify(event)}\n`, { mode: 0o600 }); } catch { /* Measurement never blocks chat. */ }
+  };
 
   let closed = false;
   let stopActivity: (() => void) | undefined;
@@ -221,6 +237,17 @@ export async function runTui(
       syncSessionView();
       lastFrameOwner = client.hasSession() ? captureTuiWorkspaceOwner(client) : () => !client.hasSession();
       terminal.render(renderTuiFrame(state, terminal.width, terminal.height, { colorMode: terminal.colorMode, ascii: terminal.ascii,reducedMotion:terminal.reducedMotion }),tuiComposerCursor(state,terminal.width,terminal.height),state.textSelection);
+      if (measuredTurn) {
+        if (state.isBusy && state.messages.at(-1)?.role === "user") recordPaint("optimistic_user");
+        const assistant = state.streamingMessage ?? (!state.isBusy ? state.messages.slice().reverse().find(message => message.role === "assistant") : null);
+        if (assistant && assistant.title && !["Assistant", "Error"].includes(assistant.title)) recordPaint("selected_mate");
+        if (assistant?.content && assistant.title !== "Error") {
+          const segments = parseMessageSegments(assistant.content, { preserveCodeFences: true });
+          if (segments.some(segment => segment.type === "embed")) recordPaint("tool_progress");
+          if (segments.some(segment => segment.type === "text" && segment.value.replace(/```(?:json_embed|json)[\s\S]*$/, "").trim())) recordPaint("authored_first");
+          if (!state.isBusy) recordPaint("final");
+        }
+      }
     }, 16);
   };
 
@@ -261,6 +288,11 @@ export async function runTui(
   terminal.onResize(render);
   terminal.onKey((chunk, key) => {
     if (key.ctrl && key.name === "c") { finish({ action: "exit" }); return; }
+    if (key.name === "return" && state.focus === "composer" && state.workspace === "chats" &&
+        !state.isBusy && state.input.trim() && !state.input.startsWith("/")) {
+      measuredTurn = onPaintMilestone || process.env.OPENMATES_TUI_LATENCY_EVENTS
+        ? { keypressAt: performance.now(), painted: new Set() } : null;
+    }
     void (async () => {
       if(key.name==='mouseclick'){await handleKey({chunk,key,state,client,terminal,render,finish,modelShell:modelShell!,mentionShell:mentionShell!});return;}
       if (await startup.handleKey(chunk, key)) return;
@@ -652,6 +684,7 @@ export async function sendTuiMessage(params: {
   if (state.isBusy) return;
   const initialMessage = params.message.trim();
   if (!initialMessage) return;
+  state.suggestedFollowupMessage = null; state.suggestedFollowupChatId = null;
   const preparingOwner = client.hasSession()
     ? captureTuiWorkspaceOwner(client)
     : () => !client.hasSession();
@@ -727,7 +760,8 @@ export async function sendTuiMessage(params: {
   const separator = modelSelection.indexOf('/');
   const modelDirective = separator > 0 ? `@ai-model:${modelSelection.slice(separator+1)}:${modelSelection.slice(0,separator)} ` : '';
   const existingChatId = sourceExample ? null : state.activeChatId;
-  const chatId = existingChatId ?? randomUUID();
+  const chatId = existingChatId ?? (client.hasSession() && typeof client.preparedNewChatId === "function"
+    ? client.preparedNewChatId() : randomUUID());
   let ownedMessages = messages, ownedChatId: string | null = chatId;
   const ownsSend = () => preparingOwner() && state.routeVersion === preparingRoute
     && state.messages === ownedMessages && state.activeChatId === ownedChatId;
@@ -797,6 +831,16 @@ export async function sendTuiMessage(params: {
         onStream: (event: StreamEvent) => {
           if (!ownsSend()) return;
           if (event.taskId) state.aiTaskId = event.taskId;
+          if (assistantMessage && event.kind === "typing" && event.category) {
+            assistantMessage.category = event.category;
+            assistantMessage.title = event.mateName ?? MATE_NAMES[event.category] ?? assistantMessage.title;
+            if (state.activeChat) state.activeChat.mateName = assistantMessage.title;
+          }
+          if (event.kind === "done" && event.suggestedFollowupMessage && !state.input &&
+              !state.drafts[chatId] && !state.drafts.new && state.screen === "chat") {
+            state.suggestedFollowupMessage = event.suggestedFollowupMessage;
+            state.suggestedFollowupChatId = chatId;
+          }
           if(assistantMessage&&event.thinkingContent!==undefined)assistantMessage.thinkingContent=event.thinkingContent;
           if(assistantMessage&&event.thinkingActive!==undefined)assistantMessage.thinkingActive=event.thinkingActive;
           if (assistantMessage && event.modelName) assistantMessage.modelName = event.modelName;

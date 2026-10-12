@@ -54,6 +54,7 @@ from backend.shared.python_utils.learning_mode import (
     is_learning_mode_enabled,
 )
 from backend.shared.python_utils.tracing.ai_observability import ai_phase_span, observe_ai_stream
+from backend.apps.ai.processing.suggested_followup_stream import SuggestedFollowupStream
 from backend.shared.python_utils.app_memory_policy import is_removed_app_memory_key
 from backend.apps.ai.utils.llm_utils import (
     call_main_llm_stream,
@@ -261,6 +262,9 @@ async def _load_main_agentic_context(
     async def related():
         if not agentic_context.first_party(request):
             return []
+        snapshots = getattr(preprocessing, "relevant_related_work", None) if initial else None
+        if snapshots == [] and not explicit_dependency_task_ids:
+            return []
         chats, tasks = await asyncio.gather(
             timed("related_chats", fetch_related_chat_summaries(request, task_id, cache, directus)),
             timed("related_tasks", fetch_related_task_candidates(
@@ -273,6 +277,29 @@ async def _load_main_agentic_context(
             return []
         candidates = [RelatedWorkCandidate.from_chat_summary(item, authorized=True) for item in chats] + tasks
         project = request.current_project or {}
+        if snapshots is not None:
+            from backend.apps.ai.processing.related_work import (
+                bounded_candidates, MAX_CROSS_PROJECT_SELECTIONS, MAX_SELECTED_RELATED_WORK,
+            )
+            identities = {(row.get("kind"), row.get("id"), row.get("revision"))
+                          for row in snapshots if isinstance(row, dict)}
+            selected = []
+            cross_count = 0
+            for candidate in bounded_candidates(
+                candidates, owner_id=request.user_id, current_project_id=project.get("project_id"),
+                current_chat_id=request.chat_id,
+            ):
+                if ((candidate.kind, candidate.id, candidate.revision) not in identities
+                        and not candidate.explicit_dependency):
+                    continue
+                if candidate.project_id != project.get("project_id") and not candidate.explicit_dependency:
+                    if cross_count >= MAX_CROSS_PROJECT_SELECTIONS:
+                        continue
+                    cross_count += 1
+                selected.append(candidate.as_context())
+                if len(selected) >= MAX_SELECTED_RELATED_WORK:
+                    break
+            return selected
         selected = await select_related_work(
             candidates=candidates, owner_id=request.user_id, current_project_id=project.get("project_id"),
             current_chat_id=request.chat_id, request=request.current_user_content or "",
@@ -280,6 +307,15 @@ async def _load_main_agentic_context(
         )
         return [item.as_context() for item in selected]
     initial_binding = await timed("initial_binding", agentic_context.fresh_project(request, directus, cache))
+    if (initial and getattr(preprocessing, "context_fast_path", False)
+            and not initial_binding and not effective_instructions and not active_phase
+            and not explicit_dependency_task_ids):
+        # The preprocessing proof used a complete Stage-one decision and an
+        # authoritative empty admission snapshot. Recheck the live Project
+        # binding after that decision before omitting optional discovery.
+        if not await timed("fast_path_binding", agentic_context.fresh_project(request, directus, cache)):
+            logger.info("[Task ID: %s] [AGENTIC_CONTEXT] complete_empty_context_skipped", task_id)
+            return "", []
     outcomes = await asyncio.gather(
         timed("rules", rules()), timed("workflows", workflows()), timed("related", related()),
         timed("project_documents", agentic_context.selected_project_documents(
@@ -3736,9 +3772,18 @@ async def handle_main_processing(
 
     # Keep shared, time-independent rules first so provider prompt caches can
     # reuse them across turns. The clock and private artifact context follow.
+    composer_suggestion_enabled = (
+        (request_data.user_preferences or {}).get("follow_up_suggestions_enabled", True) is not False
+        and not request_data.is_sub_chat
+        and not request_data.is_sub_chat_continuation
+        and not request_data.is_incognito
+        and not request_data.is_async_skill_continuation
+        and not request_data.awaiting_async_skill_continuation
+        and not request_data.is_external
+    )
     stable_prefix_parts = [
         base_instructions.get("base_ethics_instruction", ""),
-        base_instructions.get("follow_up_instruction", ""),
+        base_instructions.get("follow_up_instruction", "") if composer_suggestion_enabled else "",
         base_instructions.get("base_link_encouragement_instruction", ""),
         base_instructions.get("base_wikipedia_linking_instruction", ""),
         base_instructions.get("base_url_sourcing_instruction", ""),
@@ -5278,6 +5323,10 @@ async def handle_main_processing(
         # A failed provider attempt may still consume tokens; one model keeps the
         # quoted allowance bound to one provider call.
         models_to_try = models_to_try[:1]
+    # A first-chunk timeout or transport error can recur when answer-only
+    # recovery revisits the same logical model. Remember only routes that
+    # actually failed during this turn; later turns start with a fresh set.
+    failed_servers_in_turn: set[str] = set()
 
     # Track which model we're currently using (may change if we need to fallback)
     current_model_index = 0
@@ -5997,6 +6046,7 @@ async def handle_main_processing(
                     pre_dispatch_admission=admit_actual_provider,
                     customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
                     native_cache_context=native_prepared_context,
+                    failed_servers_in_turn=failed_servers_in_turn,
                 )
                 # Stream created successfully - break out of retry loop
                 break
@@ -6056,6 +6106,7 @@ async def handle_main_processing(
 
         protocol_guard = ToolProtocolGuard()
         current_turn_text_buffer = []
+        suggested_followup_stream = SuggestedFollowupStream()
         tool_calls_for_this_turn: List[Union[ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedBedrockToolCall, ParsedOpenAIToolCall]] = []
         # Hallucinated tool calls that must round-trip through the history as
         # matched (tool_use, tool_result) pairs. If we appended only the tool
@@ -6675,10 +6726,12 @@ async def handle_main_processing(
                 elif chunk.type == StreamChunkType.TEXT:
                     # Text content wrapped in UnifiedStreamChunk - extract and yield as string
                     if chunk.content:
-                        llm_turn_had_content = llm_turn_had_content or _has_visible_text(chunk.content)
-                        yield chunk.content
-                        current_turn_text_buffer.append(chunk.content)
-                        published_answer_text.append(chunk.content)
+                        visible_text = suggested_followup_stream.feed(chunk.content)
+                        if visible_text:
+                            llm_turn_had_content = llm_turn_had_content or _has_visible_text(visible_text)
+                            yield visible_text
+                            current_turn_text_buffer.append(visible_text)
+                            published_answer_text.append(visible_text)
                 else:
                     logger.warning(f"{log_prefix} Unknown UnifiedStreamChunk type: {chunk.type}")
             elif isinstance(chunk, str):
@@ -6686,12 +6739,14 @@ async def handle_main_processing(
                 # This ensures paragraph-by-paragraph streaming works correctly
                 # Tool calls will be executed after the LLM finishes its turn, but text should stream immediately
                 if chunk:
-                    llm_turn_had_content = llm_turn_had_content or _has_visible_text(chunk)
-                    yield chunk
+                    visible_text = suggested_followup_stream.feed(chunk)
+                    if visible_text:
+                        llm_turn_had_content = llm_turn_had_content or _has_visible_text(visible_text)
+                        yield visible_text
                     # Retain every safe, published chunk. Besides tool history, this
                     # lets a guarded partial answer continue without replaying it.
-                    current_turn_text_buffer.append(chunk)
-                    published_answer_text.append(chunk)
+                        current_turn_text_buffer.append(visible_text)
+                        published_answer_text.append(visible_text)
             else:
                 logger.warning(f"{log_prefix} Received unexpected chunk type from stream: {type(chunk)}")
         except (AuthenticatedReservationLimitError, AuthenticatedReservationError) as admission_error:
@@ -6750,6 +6805,13 @@ async def handle_main_processing(
                 yield main_processing_failure("provider_exhausted")
                 break
 
+        trailing_answer_text = suggested_followup_stream.finish()
+        if trailing_answer_text:
+            llm_turn_had_content = llm_turn_had_content or _has_visible_text(trailing_answer_text)
+            yield trailing_answer_text
+            current_turn_text_buffer.append(trailing_answer_text)
+            published_answer_text.append(trailing_answer_text)
+
         if iteration_usage is not None:
             usage = iteration_usage
             successful_model_id = current_model_id or preprocessing_results.selected_main_llm_model_id
@@ -6804,6 +6866,9 @@ async def handle_main_processing(
                 and iteration_native_output.provider_prefix == native_prepared_context.get("provider_prefix")
                 and iteration_native_output.model_id == native_prepared_context.get("server_model_id")
                 and not protocol_guard.detected
+                # Native provider replay retains raw model output. A trailer
+                # cannot enter later conversation history through that path.
+                and suggested_followup_stream.suggestion is None
             ):
                 try:
                     append_provider_output(
@@ -6987,6 +7052,11 @@ async def handle_main_processing(
                 [*current_message_history, {"role": "assistant", "content": final_buffered_text_for_turn}],
             ):
                 yield phase_state_marker()
+            if composer_suggestion_enabled and suggested_followup_stream.suggestion:
+                yield {
+                    "__suggested_followup_message__": True,
+                    "suggested_followup_message": suggested_followup_stream.suggestion,
+                }
             break
 
         # Tool calls normally trigger another model pass. Count that extra pass

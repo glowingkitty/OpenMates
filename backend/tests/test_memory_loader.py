@@ -40,3 +40,22 @@ def test_memory_prompt_preserves_user_specs_and_tool_authority():
     prompt = memories_prompt([memory])
     assert memory.body in prompt and memory.revision in prompt
     assert "approved Specifications" in prompt and "grant no permission" in prompt
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.selection.source-scoped
+def test_startup_warm_serves_subsets_and_configuration_revision_invalidates(monkeypatch):
+    from backend.shared.python_utils import memory_loader as loader
+    reads = []
+    monkeypatch.setattr(loader, "_read_app_memories", lambda ids, root: reads.append(tuple(ids)) or [])
+    loader._shipped_app_memories.cache_clear()
+    monkeypatch.setenv("OPENMATES_CONFIG_REVISION", "test-r1")
+    try:
+        loader.warm_app_memories(["code", "design"])
+        loader.load_app_memories(["code"])
+        loader.load_app_memories(["design", "code"])
+        assert reads == [("code",), ("design",)]
+        monkeypatch.setenv("OPENMATES_CONFIG_REVISION", "test-r2")
+        loader.load_app_memories(["code"])
+        assert reads == [("code",), ("design",), ("code",)]
+    finally:
+        loader._shipped_app_memories.cache_clear()

@@ -155,7 +155,7 @@ async def handle_chat_turn_preflight(
     payload: dict[str, Any],
     stable_device_fingerprint_hash: str | None = None,
     user_otel_attrs: dict | None = None,
-) -> None:
+) -> dict[str, Any] | None:
     async def send_response(message: dict[str, Any]) -> None:
         if websocket is not None:
             await websocket.send_json(message)
@@ -251,8 +251,7 @@ async def handle_chat_turn_preflight(
             legacy_preflight_id = str(
                 uuid.uuid5(uuid.UUID(payload["turn_id"]), "legacy-preflight")
             )
-            await send_response(
-                {
+            acknowledgement = {
                     "type": "chat_turn_preflight_ack",
                     "payload": {
                         "preflight_id": legacy_preflight_id,
@@ -260,8 +259,8 @@ async def handle_chat_turn_preflight(
                         "turn_id": payload["turn_id"],
                     },
                 }
-            )
-            return
+            await send_response(acknowledgement)
+            return acknowledgement["payload"]
         encrypted_user_message = dict(payload["encrypted_user_message"])
         encrypted_user_message["hashed_user_id"] = user_id_hash
         inference_request = dict(payload["inference_request"])
@@ -368,6 +367,7 @@ async def handle_chat_turn_preflight(
         result["turn_id"] = payload["turn_id"]
         await send_response({"type": "chat_turn_preflight_ack", "payload": result})
         logger.info("Chat preflight phase=ack_sent turn=%s", turn_id[:8])
+        return result
     except ChatRecoveryProtocolError as exc:
         await send_response(
             {

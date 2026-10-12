@@ -74,9 +74,61 @@ async def test_authorized_warm_hit_renews_two_hour_retention_without_discovery(m
         async def get_user_vault_key_id(self, user_id): return "vault"
         async def get(self, key): return {"ciphertext": "encrypted metadata"}
     monkeypatch.setattr(handler, "_versioned_workflow_metadata_key", AsyncMock(return_value="versioned-key"))
+    monkeypatch.setattr(handler, "_cached_workflow_metadata", AsyncMock(return_value=[{"workflow_id": "saved"}]))
     discover = AsyncMock(side_effect=AssertionError("hit should reuse metadata"))
     monkeypatch.setattr(handler, "discover_workflow_metadata", discover)
     assert await warm_workflow_metadata(cache_service=Cache(), directus_service=SimpleNamespace(team=None),
                                        user_id="alice", team_id=None) == "ready"
     redis.expire.assert_awaited_once_with("versioned-key", 7200)
     discover.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.chat.metadata-warmup
+@pytest.mark.asyncio
+async def test_unreadable_workflow_cache_is_not_renewed_or_reported_ready(monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    from backend.core.api.app.routes.handlers.websocket_handlers import workflow_metadata_warmup_handler as handler
+
+    redis = SimpleNamespace(
+        set=AsyncMock(return_value=True),
+        expire=AsyncMock(return_value=True),
+        eval=AsyncMock(return_value=1),
+    )
+    class Cache:
+        @property
+        async def client(self): return redis
+        async def get_user_vault_key_id(self, user_id): return "vault"
+
+    monkeypatch.setattr(handler, "_versioned_workflow_metadata_key", AsyncMock(return_value="versioned-key"))
+    monkeypatch.setattr(handler, "_cached_workflow_metadata", AsyncMock(return_value=None))
+    discover = AsyncMock(return_value=[])
+    monkeypatch.setattr(handler, "discover_workflow_metadata", discover)
+    assert await warm_workflow_metadata(
+        cache_service=Cache(), directus_service=SimpleNamespace(team=None),
+        user_id="alice", team_id=None,
+    ) == "unavailable"
+    redis.expire.assert_not_awaited()
+    discover.assert_awaited_once()
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.chat.metadata-warmup
+@pytest.mark.asyncio
+async def test_generation_change_during_discovery_does_not_report_ready(monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    from backend.core.api.app.routes.handlers.websocket_handlers import workflow_metadata_warmup_handler as handler
+
+    redis = SimpleNamespace(set=AsyncMock(return_value=True), eval=AsyncMock(return_value=1))
+    class Cache:
+        @property
+        async def client(self): return redis
+        async def get_user_vault_key_id(self, user_id): return "vault"
+
+    monkeypatch.setattr(handler, "_versioned_workflow_metadata_key", AsyncMock(side_effect=["old-key", "new-key"]))
+    monkeypatch.setattr(handler, "_cached_workflow_metadata", AsyncMock(return_value=None))
+    monkeypatch.setattr(handler, "discover_workflow_metadata", AsyncMock(return_value=[{"workflow_id": "old"}]))
+    assert await warm_workflow_metadata(
+        cache_service=Cache(), directus_service=SimpleNamespace(team=None),
+        user_id="alice", team_id=None,
+    ) == "unavailable"

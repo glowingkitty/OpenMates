@@ -133,6 +133,10 @@ class AskSkillRequest(BaseModel):
     project_focus_documents: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, max_length=8, description="Selected client-decrypted Project Focus documents with fresh item revisions; never Project consent.")
     project_context_documents: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, max_length=20, description="Transient authorized Project Specification, fact and folder context; data never grants access.")
     related_task_candidates: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, max_length=60, description="Client-decrypted Task summaries; server ownership, lifecycle and freshness remain authoritative.")
+    admission_context: Optional[Dict[str, Any]] = Field(default=None, repr=False, description="Server-only request admission scope; client payloads cannot grant authority.")
+    client_context_pending: bool = Field(default=False, description="Admitted two-phase client context is pending.")
+    client_context_request_id: Optional[str] = Field(default=None, max_length=36)
+    client_context_binding_ref: Optional[str] = Field(default=None, repr=False, description="Server-only owner/device/Team/turn binding.")
     agentic_context_ref: Optional[str] = Field(default=None, repr=False, description="Opaque API-memory private context reference; never client authority.")
     agentic_context_turn_id: Optional[str] = Field(default=None, description="Server-only original user turn binding of the opaque handoff.")
     agentic_context_request_id: Optional[str] = Field(default=None, description="Content-free binding for the memory handoff.")
@@ -532,18 +536,23 @@ class AskSkill(BaseSkill):
                         message_id=request.message_id, main_task_id=dispatch_task_id,
                         hashed_team_id=request.team_id_hash,
                     )
-            task_signature = process_ai_skill_ask_task.apply_async(
-                kwargs={
-                    "request_data_dict": request_data_dict,
-                    "skill_config_dict": skill_config_dict
-                },
-                queue="app_ai",  # Route to the 'app_ai' queue, as configured in celery_config.py
-                exchange="app_ai",  # Match the exchange declared in celery_config.py task_queues
-                routing_key="app_ai",  # Match the routing_key declared in celery_config.py task_queues
-                task_id=dispatch_task_id,
+            from backend.apps.ai.tasks.stage_one_task import (
+                eligible_for_routing_lane, process_ai_stage_one_task,
+            )
+            use_routing_lane = eligible_for_routing_lane(request_data_dict)
+            dispatch = process_ai_stage_one_task if use_routing_lane else process_ai_skill_ask_task
+            dispatch_kwargs = {"request_data_dict": request_data_dict,
+                               "skill_config_dict": skill_config_dict}
+            queue = "app_ai_routing" if use_routing_lane else "app_ai"
+            if use_routing_lane:
+                dispatch_kwargs["inference_task_id"] = dispatch_task_id
+            dispatch.apply_async(
+                kwargs=dispatch_kwargs, queue=queue, exchange=queue, routing_key=queue,
+                task_id=f"{dispatch_task_id}:routing" if use_routing_lane else dispatch_task_id,
                 headers=headers,
             )
-            task_id = task_signature.id
+            # All client, cancellation, billing and durable identities remain main's ID.
+            task_id = dispatch_task_id
             logger.info(f"Celery task 'apps.ai.tasks.skill_ask' dispatched by AskSkill with ID: {task_id} for message_id: {request.message_id} to queue 'app_ai'.")
         except (HTTPException, ChatRecoveryProtocolError):
             raise

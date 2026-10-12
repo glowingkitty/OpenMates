@@ -92,6 +92,7 @@ import type {
 import type { ProjectFocusSendIntent } from "./projectFocusSendPreflight";
 import { prepareConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
 import { buildConnectedAccountSendContext, getConnectedAccountMutationEpoch, listConnectedAccounts } from "./connectedAccountStorageService";
+import { ServerCapabilityGate } from "./serverCapabilityGate";
 import { chatListCache } from "./chatListCache";
 import { ActiveAITaskMap, runningChatIds, activityChats, subChatActivityIds } from "../stores/chatActivityStore";
 import { chatMetadataCache } from "./chatMetadataCache";
@@ -106,6 +107,9 @@ import {
 const CHAT_CONTENT_BATCH_WS_READY_TIMEOUT_MS = 8_000;
 
 type EarlyEmptyConnectedAccounts = { scope: string; mutationEpoch: number; empty: boolean } | null;
+const EARLY_EMPTY_ACCOUNT_MAX_AGE_MS = 30_000;
+let recentEmptyConnectedAccounts: { result: Exclude<EarlyEmptyConnectedAccounts, null>; checkedAt: number } | null = null;
+let pendingEmptyConnectedAccounts: { scope: string; mutationEpoch: number; promise: Promise<EarlyEmptyConnectedAccounts> } | null = null;
 
 type QueuedSnapshotSendScope = {
   chatId: string;
@@ -176,6 +180,7 @@ interface PendingProjectFileCommit {
 }
 
 export class ChatSynchronizationService extends EventTarget {
+  private readonly serverCapabilityGate = new ServerCapabilityGate();
   private lastWorkflowWarmup: { scope: string; at: number } | null = null;
   private lastChatMetadataPrefetch: { scope: string; at: number } | null = null;
   private lastQueuedSnapshotChat: string | null = null;
@@ -570,6 +575,8 @@ export class ChatSynchronizationService extends EventTarget {
 
   constructor() {
     super();
+    webSocketService.addEventListener("open", () => this.serverCapabilityGate.reset());
+    webSocketService.addEventListener("close", () => this.serverCapabilityGate.reset());
     activeChatStore.subscribe((chatId) => {
       if (chatId === this.lastQueuedSnapshotChat) return;
       this.lastQueuedSnapshotChat = chatId;
@@ -694,6 +701,7 @@ export class ChatSynchronizationService extends EventTarget {
       });
       window.addEventListener('focus', () => { if (this.webSocketConnected) void this.refreshChatActivity(); });
       window.addEventListener('userLoggingOut', () => {
+        this.serverCapabilityGate.reset();
         this.resetCacheStatusCountEvidence();
         chatSyncActivity.clear();
       });
@@ -1346,6 +1354,10 @@ export class ChatSynchronizationService extends EventTarget {
     this.handlersRegistered = true;
     // Lifecycle ACK must be observed before the first recovery discovery page.
     prepareRecoveryLifecycleImpl(this);
+
+    webSocketService.on("server_capabilities", (payload) => {
+      if (webSocketService.isConnected()) this.serverCapabilityGate.accept(payload);
+    });
 
     webSocketService.on("project_focus_catalog_requested", async (payload) => {
       const event = payload as { chat_id?: string; request_id?: string; project_id?: string; team_id?: string | null };
@@ -2966,13 +2978,39 @@ export class ChatSynchronizationService extends EventTarget {
     let userFrameDispatched = false;
     try {
     recordSendPreparationPhase('connected_context_begin');
-    const early = earlyEmptyConnectedAccounts ? await earlyEmptyConnectedAccounts : null;
+    // Ordinary personal text is admitted with one durable frame. Its server
+    // context selection performs authoritative discovery after admission, so
+    // this client HTTP lookup cannot hold the user's outbound frame.
+    const supportsAdmissionNow = () => this.webSocketConnected
+      && webSocketService.isConnected()
+      && get(authStore).isAuthenticated
+      && this.serverCapabilityGate.supportsImmediateChatAdmission();
+    const admissionProtocolSupported = supportsAdmissionNow();
+    const fastPersonalTextCandidate = admissionProtocolSupported
+      && newLocalChat === true
+      && !get(activeTeamId) && !connectedAccountContext
+      && !projectFocusIntent && !encryptedSuggestionToDelete
+      && typeof message.content === 'string'
+      && !message.content.includes('```')
+      && !message.content.includes('embed_id')
+      && !message.content.includes('| ');
+    const cachedEmpty = recentEmptyConnectedAccounts
+      && Date.now() - recentEmptyConnectedAccounts.checkedAt < EARLY_EMPTY_ACCOUNT_MAX_AGE_MS
+      ? recentEmptyConnectedAccounts.result : null;
+    const accountScope = {
+      scope: getWorkspaceCacheIdentity(), mutationEpoch: getConnectedAccountMutationEpoch(),
+      authenticated: get(authStore).isAuthenticated, teamId: get(activeTeamId),
+    };
+    const early = fastPersonalTextCandidate ? null
+      : cachedEmpty && canReuseEarlyEmptyConnectedAccounts(cachedEmpty, accountScope)
+      ? cachedEmpty : earlyEmptyConnectedAccounts ? await earlyEmptyConnectedAccounts : null;
     const skipEmptyLookup = canReuseEarlyEmptyConnectedAccounts(early, {
       scope: getWorkspaceCacheIdentity(), mutationEpoch: getConnectedAccountMutationEpoch(),
       authenticated: get(authStore).isAuthenticated, teamId: get(activeTeamId),
     });
+    const fastPersonalText = fastPersonalTextCandidate;
     const context = connectedAccountContext != null ? connectedAccountContext
-      : skipEmptyLookup ? undefined : await this.buildDefaultConnectedAccountSendContext();
+      : fastPersonalText || skipEmptyLookup ? undefined : await this.buildDefaultConnectedAccountSendContext();
     recordSendPreparationPhase('connected_context_ready');
     let preparedConnectedAccountContext: PreparedConnectedAccountSendContext | undefined;
     try {
@@ -2987,6 +3025,23 @@ export class ChatSynchronizationService extends EventTarget {
         error,
       );
     }
+    const postAdmissionConnectedAccounts = fastPersonalText ? (async () => {
+      const firstLookup = earlyEmptyConnectedAccounts ? await earlyEmptyConnectedAccounts : null;
+      if (canReuseEarlyEmptyConnectedAccounts(firstLookup, {
+        scope: getWorkspaceCacheIdentity(), mutationEpoch: getConnectedAccountMutationEpoch(),
+        authenticated: get(authStore).isAuthenticated, teamId: get(activeTeamId),
+      })) return undefined;
+      // The directory is encrypted at rest. Read and decrypt it on the client
+      // after admission, then send only the bounded redacted routing form.
+      const rows = await listConnectedAccounts();
+      const laterContext = await buildConnectedAccountSendContext({
+        rows, appId: 'calendar', defaultAllowedActions: ['read'],
+      });
+      return prepareConnectedAccountSendContext({
+        chatId: message.chat_id, messageId: message.message_id, context: laterContext,
+      });
+    })() : undefined;
+    void postAdmissionConnectedAccounts?.catch(() => undefined);
     await senders.sendNewMessageImpl(
       this,
       message,
@@ -2995,7 +3050,13 @@ export class ChatSynchronizationService extends EventTarget {
       projectFocusIntent,
       newLocalChat,
       turn,
-      () => { userFrameDispatched = true; },
+      () => {
+        userFrameDispatched = true;
+        recordSendPreparationPhase('user_frame_dispatched');
+      },
+      fastPersonalText,
+      postAdmissionConnectedAccounts,
+      supportsAdmissionNow,
     );
     recordSendPreparationPhase('sender_complete');
     if (!turn.turnId) failPersonalChatTurn(turn, new Error('The encrypted chat turn was not dispatched.'));
@@ -3012,14 +3073,30 @@ export class ChatSynchronizationService extends EventTarget {
     const scope = getWorkspaceCacheIdentity();
     if (!scope || !get(authStore).isAuthenticated || get(activeTeamId)) return Promise.resolve(null);
     const mutationEpoch = getConnectedAccountMutationEpoch();
+    if (recentEmptyConnectedAccounts && Date.now() - recentEmptyConnectedAccounts.checkedAt < EARLY_EMPTY_ACCOUNT_MAX_AGE_MS
+      && canReuseEarlyEmptyConnectedAccounts(recentEmptyConnectedAccounts.result, {
+        scope, mutationEpoch, authenticated: true, teamId: null,
+      })) return Promise.resolve(recentEmptyConnectedAccounts.result);
+    if (pendingEmptyConnectedAccounts?.scope === scope && pendingEmptyConnectedAccounts.mutationEpoch === mutationEpoch) {
+      return pendingEmptyConnectedAccounts.promise;
+    }
     recordSendPreparationPhase('connected_lookup_started');
-    return listConnectedAccounts().then((rows) => {
+    const promise = listConnectedAccounts().then((rows) => {
       recordSendPreparationPhase('connected_lookup_ready');
-      return { scope, mutationEpoch, empty: rows.length === 0 };
+      const result = { scope, mutationEpoch, empty: rows.length === 0 };
+      if (result.empty && getWorkspaceCacheIdentity() === scope && getConnectedAccountMutationEpoch() === mutationEpoch) {
+        recentEmptyConnectedAccounts = { result, checkedAt: Date.now() };
+      }
+      return result;
     }).catch(() => {
       recordSendPreparationPhase('connected_lookup_failed');
       return null;
     });
+    pendingEmptyConnectedAccounts = { scope, mutationEpoch, promise };
+    void promise.finally(() => {
+      if (pendingEmptyConnectedAccounts?.promise === promise) pendingEmptyConnectedAccounts = null;
+    });
+    return promise;
   }
 
   private async buildDefaultConnectedAccountSendContext(): Promise<ConnectedAccountSendContext | undefined> {

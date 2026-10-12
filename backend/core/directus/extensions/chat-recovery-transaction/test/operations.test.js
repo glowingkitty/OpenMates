@@ -3712,3 +3712,49 @@ test('batch cutover requires worker completion and canonical persistence togethe
     protocol_version: 1, target_epoch: 1,
   }, now)).activated, true);
 });
+
+const routingBody = () => ({ protocol_version: 1, preflight_id: PREFLIGHT_ID,
+  inference_task_id: TASK_ID, hashed_user_id: OWNER, hashed_team_id: null,
+  chat_id: CHAT_ID, message_id: 'user-message-1', turn_id: TURN_ID });
+const routingSeed = () => {
+  const seed = preparedSeed();
+  seed.chat_recovery_protocol_state = [{ id: 'chat-recovery', protocol_epoch: 1, sends_paused: false }];
+  Object.assign(seed.chat_turn_preflights[0], { state: 'ENQUEUED', inference_task_id: TASK_ID, outbox_id: OUTBOX_ID });
+  seed.chat_inference_outbox = [{ id: OUTBOX_ID, preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    hashed_user_id: OWNER, chat_id: CHAT_ID, turn_id: TURN_ID, state: 'PENDING' }];
+  return seed;
+};
+test('routing admission validates without claiming or changing the original main task', async () => {
+  const database = fakeDatabase(routingSeed());
+  const before = structuredClone(database.rows);
+  for (let i = 0; i < 2; i++) {
+    assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: true });
+  }
+  assert.deepEqual(database.rows, before);
+});
+test('routing admission rejects changed versions, held or running turns, expired sources and human-only chats', async () => {
+  for (const change of [
+    seed => { seed.chats[0].messages_v = 2; },
+    seed => { seed.chat_turn_preflights[0].state = 'RUNNING'; },
+    seed => { seed.chat_turn_preflights[0].expires_at = new Date('2000-01-01'); },
+    seed => { seed.chat_turn_preflights[0].deletion_invalidated_at = new Date(); },
+    seed => { seed.chat_inference_outbox[0].state = 'HELD'; },
+    seed => { seed.messages[0].queue_pending_revision = 2; },
+    seed => { seed.chat_recovery_protocol_state[0].sends_paused = true; },
+    seed => { seed.chats[0].chat_visibility = 'direct'; },
+  ]) {
+    const seed = routingSeed(); change(seed);
+    assert.deepEqual(await executeOperation(fakeDatabase(seed), 'verify_routing_admission', routingBody()), { authorized: false });
+  }
+});
+test('routing admission rechecks current Team membership', async () => {
+  const seed = routingSeed();
+  seed.chats[0].hashed_team_id = TEAM_HASH;
+  seed.teams = [{ hashed_team_id: TEAM_HASH, status: 'active' }];
+  seed.team_memberships = [{ hashed_team_id: TEAM_HASH, hashed_user_id: OWNER, status: 'active', role: 'member' }];
+  const database = fakeDatabase(seed);
+  const body = { ...routingBody(), hashed_team_id: TEAM_HASH };
+  assert.deepEqual(await executeOperation(database, 'verify_routing_admission', body), { authorized: true });
+  database.rows.team_memberships[0].status = 'revoked';
+  await assert.rejects(executeOperation(database, 'verify_routing_admission', body), /chat_not_found/);
+});

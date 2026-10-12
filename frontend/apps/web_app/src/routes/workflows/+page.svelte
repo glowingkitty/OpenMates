@@ -1659,6 +1659,7 @@
 						class:opening={workflowOpening}
 						class:closing={workflowClosing}
 						class:composer-docked={!!provisionalFullscreen || (!!selectedWorkflow && !isRunsView && !!editorGraph)}
+						class:composer-focused={editorComposerFocused}
 						data-testid="workflow-management"
 						transition:fullscreenWorkflowMotion
 						onintrostart={() => {
@@ -1671,7 +1672,7 @@
 							workflowClosing = true;
 						}}
 					>
-						<div class="management-grid" inert={editorComposerFocused} class:composer-background-dimmed={editorComposerFocused}>
+						<div class="management-grid" inert={editorComposerFocused}>
 							<section class="workflow-detail" data-testid="workflow-detail">
 								{#if guestTemplate && !canRenderWorkflowData}
 									<WorkflowDetailPage
@@ -1844,7 +1845,6 @@
 								{/if}
 							</section>
 						</div>
-						{#if editorComposerFocused}<button type="button" class="workflow-editor-backdrop" data-testid="workflow-editor-composer-backdrop" aria-label={$text('common.cancel')} onpointerdown={(event) => event.preventDefault()} onclick={() => { editorComposerFocused = false; }}></button>{/if}
 						{#if provisionalFullscreen}
 							<div class="workflow-ai-composer" data-testid="workflow-ai-editor-composer">
 								<WorkspacePromptComposer surface="workflows" bind:value={editorInstruction}
@@ -1967,17 +1967,11 @@
 
 <NotificationStack />
 
+<svelte:window onpointerdown={(event) => { if (editorComposerFocused && event.target instanceof Element && event.target.closest('.workflow-management') && !event.target.closest('.workflow-ai-composer')) editorComposerFocused = false; }} />
+
 <style>
-	.workflow-management .management-grid { visibility: visible; transition: opacity var(--duration-normal) var(--easing-default), visibility 0s; }
-	.workflow-management .management-grid.composer-background-dimmed { opacity: 0; visibility: hidden; transition-delay: 0s, var(--duration-normal); }
-	@media (prefers-reduced-motion: reduce) {
-		.workflow-management .management-grid,
-		.workflow-management .management-grid.composer-background-dimmed { transition: none; }
-	}
-	.workflow-editor-backdrop { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; filter: none; scale: none; transform: none; transition: none; background: transparent; cursor: default; }
-  .workflow-editor-backdrop:hover, .workflow-editor-backdrop:active { background: transparent; scale: none; transform: none; filter: none; }
 	.workflow-ai-composer{position:relative;z-index:var(--z-index-raised-2);flex:none;box-sizing:border-box;width:100%;margin:-36px 0 0;padding:36px 1rem max(12px,env(safe-area-inset-bottom));background:linear-gradient(to bottom,transparent,var(--color-grey-10) 36px);pointer-events:none}
-	.workflow-management:has(.workflow-editor-backdrop) .workflow-ai-composer { z-index: 3; }
+	.workflow-management.composer-focused .workflow-ai-composer { background: transparent; }
 	.workflow-ai-composer :global(.workspace-prompt-composer),.workflow-ai-pending{pointer-events:auto}
 	.workflow-import-dropzone{display:grid;justify-items:center;gap:.4rem;width:100%;border:2px dashed transparent;border-radius:var(--radius-5)}.workflow-import-dropzone.dragging{border-color:var(--color-button-primary);background:var(--color-grey-10)}.workflow-import-hint{font-size:var(--font-size-small);color:var(--color-font-secondary)}
 	.workflow-ai-assumptions{max-width:42rem;margin:.75rem auto;text-align:center;color:var(--color-font-secondary);font-size:var(--font-size-small)}

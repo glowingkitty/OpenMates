@@ -71,3 +71,9 @@ export async function prepareCliMessagePrivacy(text: string, memories: Decrypted
   const message = await privacy.redactResult(text) as string;
   return { message, mappings: mappings.map((mapping) => ({ ...mapping, type: mapping.type ?? "OTHER" })) };
 }
+
+/** Warm only an already enabled worker; send-time detection remains authoritative. */
+export async function warmCliMessagePrivacy(): Promise<void> {
+  const preferences = await readPrivacyPreferences();
+  if (enhancedScopeEnabled(preferences, { kind: "message" })) await ensurePrivacyDaemon();
+}

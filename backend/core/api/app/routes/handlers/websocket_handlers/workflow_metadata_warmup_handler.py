@@ -17,7 +17,8 @@ from types import SimpleNamespace
 from typing import Any
 
 from backend.apps.ai.processing.context_preselection import (
-    WORKFLOW_METADATA_TTL_SECONDS, _versioned_workflow_metadata_key, discover_workflow_metadata,
+    WORKFLOW_METADATA_TTL_SECONDS, _cached_workflow_metadata,
+    _versioned_workflow_metadata_key, discover_workflow_metadata,
 )
 
 _TRACEPARENT = re.compile(r"^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$")
@@ -37,11 +38,23 @@ async def warm_workflow_metadata(
     if team_id:
         await directus_service.team.require_team_role(
             team_id, user_id, {"owner", "admin", "member", "viewer"})
+    await warm_encrypted_discovery_indices(
+        cache_service=cache_service, directus_service=directus_service,
+        user_id=user_id, team_id=team_id,
+    )
     vault_key_id = await cache_service.get_user_vault_key_id(user_id)
     if not vault_key_id:
         return "unavailable"
     key = await _versioned_workflow_metadata_key(cache_service, user_id, team_id, vault_key_id)
-    if await cache_service.get(key) is not None:
+    async def readable_metadata() -> bool:
+        try:
+            return await _cached_workflow_metadata(cache_service, key, vault_key_id) is not None
+        except Exception:
+            return False
+
+    if await readable_metadata() and key == await _versioned_workflow_metadata_key(
+        cache_service, user_id, team_id, vault_key_id,
+    ):
         await client.expire(key, WORKFLOW_METADATA_TTL_SECONDS)
         return "ready"
     lock_key = f"{key}:warming"
@@ -52,10 +65,55 @@ async def warm_workflow_metadata(
         await discover_workflow_metadata(
             SimpleNamespace(user_id=user_id, team_id=team_id, is_external=False,
                             is_incognito=False, is_anonymous=False), cache_service)
-        return "ready" if await cache_service.get(key) is not None else "unavailable"
+        # Discovery can fail closed without raising. A leftover unreadable cache
+        # entry must never make a warm-up look successful.
+        current_key = await _versioned_workflow_metadata_key(cache_service, user_id, team_id, vault_key_id)
+        if current_key != key:
+            return "unavailable"
+        return "ready" if await readable_metadata() else "unavailable"
     finally:
         await client.eval("if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
                           1, lock_key, lock_token)
+
+
+async def warm_encrypted_discovery_indices(
+    *, cache_service: Any, directus_service: Any, user_id: str, team_id: str | None,
+    project_id: str | None = None,
+) -> None:
+    """Best-effort metadata warm-up after caller has authenticated scope."""
+    # Prepare encrypted summaries and opaque keys. Failures cannot block Send.
+    try:
+        from backend.core.api.app.services.encrypted_discovery_index import (
+            list_encrypted_project_discovery, list_project_focus_discovery,
+            list_team_memory_key_discovery,
+        )
+        projects = await list_encrypted_project_discovery(
+            cache=cache_service, directus=directus_service, user_id=user_id, team_id=team_id,
+        )
+        # Bound speculative Focus metadata reads to the three most relevant
+        # Projects. Each remains fresh owner/Team scoped and contains no body.
+        project_ids = [project_id] if project_id else [
+            project.get("project_id") for project in projects[:3] if isinstance(project, dict)
+        ]
+        for selected_project_id in project_ids:
+            if isinstance(selected_project_id, str):
+                try:
+                    await list_project_focus_discovery(
+                        cache=cache_service, directus=directus_service, user_id=user_id,
+                        team_id=team_id, project_id=selected_project_id,
+                    )
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    if team_id:
+        try:
+            from backend.core.api.app.services.encrypted_discovery_index import list_team_memory_key_discovery
+            await list_team_memory_key_discovery(
+                cache=cache_service, directus=directus_service, user_id=user_id, team_id=team_id,
+            )
+        except Exception:
+            pass
 
 
 def accept_workflow_warmup_request(times: list[float], payload: Any) -> tuple[str, str | None]:

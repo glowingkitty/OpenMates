@@ -19,7 +19,6 @@
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
   import { resolveIconName } from '../../utils/iconNameResolver';
   import { hasRoomForLargeContinueCards } from '../../utils/continueCardLayout';
-  import { text } from '../../i18n/translations';
   import { activeTeam } from '../../stores/teamStore';
   import TeamWorkspaceIdentity from '../teams/TeamWorkspaceIdentity.svelte';
 
@@ -237,6 +236,8 @@
   }
 
 </script>
+
+<svelte:window onpointerdown={(event) => { if (composerFocused && shellElement?.contains(event.target as Node) && !composerElement?.contains(event.target as Node)) onComposerDismiss?.(); }} />
 
 <section class="workspace-home-shell" class:all-items-mode={showAllMode} class:content-slot-mode={contentSlotVisible} class:composer-focused={composerFocused} data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth} bind:this={shellElement}>
   <div class="workspace-scroll-layer" inert={composerFocused} data-testid={contentSlotVisible ? `${surface}-workspace-scroll-layer` : undefined} style:--workspace-composer-height={`${composerHeight}px`}>
@@ -504,9 +505,6 @@
     {/if}
   </div>
 
-  {#if composerFocused}
-    <button type="button" class="workspace-composer-backdrop" data-testid={`${surface}-composer-backdrop`} aria-label={$text('common.cancel')} onpointerdown={(event) => event.preventDefault()} onclick={() => onComposerDismiss?.()}></button>
-  {/if}
   {#if showComposer}
     <div class="workspace-composer-slot" data-testid="workspace-composer-slot" bind:this={composerElement}>
       <slot name="composer" />
@@ -564,44 +562,6 @@
     container-name: chat-side;
     visibility: visible;
     transition: opacity var(--duration-normal) var(--easing-default), visibility 0s;
-  }
-
-  .workspace-home-shell.composer-focused .workspace-scroll-layer {
-    opacity: 0;
-    visibility: hidden;
-    transition-delay: 0s, var(--duration-normal);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .workspace-scroll-layer,
-    .workspace-home-shell.composer-focused .workspace-scroll-layer { transition: none; }
-  }
-
-  .workspace-composer-backdrop {
-    position: absolute;
-    inset: 0;
-    z-index: 3;
-    border: 0;
-    width: 100%;
-    height: 100%;
-    min-width: 0;
-    margin: 0;
-    padding: 0;
-    border-radius: 0;
-    box-shadow: none;
-    filter: none;
-    scale: none;
-    transform: none;
-    transition: none;
-    background: transparent;
-    cursor: default;
-  }
-
-  .workspace-composer-backdrop:hover, .workspace-composer-backdrop:active {
-    background: transparent;
-    scale: none;
-    transform: none;
-    filter: none;
   }
 
   .workspace-home-shell.composer-focused .workspace-composer-slot { z-index: 4; }

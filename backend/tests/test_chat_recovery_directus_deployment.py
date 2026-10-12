@@ -47,7 +47,7 @@ def test_directus_image_bakes_extension_and_fails_closed() -> None:
     assert "pg_indexes" in dockerfile
     assert len(required_indexes) == len(set(required_indexes)) == 17
     assert all(index_name in dockerfile for index_name in required_indexes)
-    assert len(sub_chat_indexes) == 20
+    assert len(sub_chat_indexes) == len(set(sub_chat_indexes)) == 24
     assert all(index_name in dockerfile for index_name in sub_chat_indexes)
     assert "team_credit_accounts_team_uq" not in dockerfile
     protocol_schema = yaml.safe_load(

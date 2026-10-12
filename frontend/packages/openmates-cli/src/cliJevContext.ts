@@ -57,7 +57,7 @@ export async function discoverCliProjectCandidates(client: OpenMatesClient, opti
 }
 
 /** Metadata selection precedes private file reads; fresh accepted specialists are retained. */
-export async function loadActiveCliProjectContext(client: OpenMatesClient, chatId: string, text?: string): Promise<CliJevContext & { projectId?: string; focusCatalogComplete?: boolean }> {
+export async function loadActiveCliProjectContext(client: OpenMatesClient, chatId: string, text?: string, onCatalog?: (catalog: ProjectFocusCatalogEntry[]) => void): Promise<CliJevContext & { projectId?: string; focusCatalogComplete?: boolean }> {
   const active = await client.getActiveProjectFocus(chatId);
   if (!active) return {};
   const options = { teamId: active.team_id, personal: !active.team_id };
@@ -94,6 +94,7 @@ export async function loadActiveCliProjectContext(client: OpenMatesClient, chatI
     const description = typeof folder.encrypted_description === "string" ? await decryptWithAesGcmCombined(folder.encrypted_description, key) : "";
     if (title && description) candidates.push({ kind: "folder", id: folder.folder_id, title: title.slice(0, 200), description: description.slice(0, 640), when_to_use: "", revision: revision(folder) });
   }
+  onCatalog?.(result.project_focus_catalog ?? []);
   let selected: Array<{ id: string; kind: string; revision: string }> = [];
   if (text?.trim() && candidates.length) selected = await client.selectProjectContext(active.project_id,
     { chat_id: chatId, text: text.slice(0, 8000), candidates: candidates.slice(0, 24) }, options);
@@ -228,24 +229,32 @@ export async function collectRelatedCliTaskContext(client: OpenMatesClient, chat
 }
 
 export async function prepareCliJevContext(client: OpenMatesClient, chatId: string, options: TeamContextOptions, supplied: CliJevContext = {}, text?: string,
-  discovery: { sdkMintedChatId?: boolean } = {}): Promise<CliJevContext> {
+  discovery: { sdkMintedChatId?: boolean; onRouting?: (context: CliJevContext) => void } = {}): Promise<CliJevContext> {
   let candidates: CliJevContext["project_focus_candidates"] = [];
   let active: Awaited<ReturnType<typeof loadActiveCliProjectContext>> = {};
   let tasks: RelatedTaskCandidate[] = [];
   let ownedTaskRecords: UserTaskRecord[] = [];
+  let resolveCatalog!: (catalog: ProjectFocusCatalogEntry[]) => void;
+  const catalogReady = new Promise<ProjectFocusCatalogEntry[]>(resolve => { resolveCatalog = resolve; });
+  const activeReady = discovery.sdkMintedChatId ? Promise.resolve().then(() => resolveCatalog([]))
+    : loadActiveCliProjectContext(client, chatId, text, resolveCatalog)
+      .then(value => { active = value; }).catch(() => {}).finally(() => resolveCatalog([]));
   await Promise.all([
     discoverCliProjectCandidates(client, options).then(value => { candidates = value; }).catch(() => {}),
-    ...(discovery.sdkMintedChatId ? [] : [loadActiveCliProjectContext(client, chatId, text).then(value => { active = value; }).catch(() => {})]),
     (async () => {
       const records = await client.listUserTasks({ ...options, limit: 500 });
       ownedTaskRecords = records;
       tasks = await collectRelatedCliTaskContext(client, chatId, options, records);
     })().catch(() => {}),
   ]);
-  // Only the SDK may assert that it minted this UUID for this send. It cannot
-  // already have server-side Focus or Plan linkage; caller-provided IDs may.
   const acceptedPlan = discovery.sdkMintedChatId ? null
     : await collectAcceptedCliPlanContext(client, chatId, options, ownedTaskRecords).catch(() => null);
+  const catalog = await catalogReady;
+  discovery.onRouting?.({ accepted_plan_context: acceptedPlan,
+    project_focus_candidates: (supplied.project_focus_candidates ?? candidates).slice(0, 40),
+    related_task_candidates: (supplied.related_task_candidates ?? tasks).slice(0, 24),
+    project_focus_catalog: catalog.slice(0, 20) });
+  await activeReady;
   const { projectId, focusCatalogComplete: _complete, ...loaded } = active;
   const current = discovery.sdkMintedChatId ? null : await client.getActiveProjectFocus(chatId).catch(() => null);
   if (current?.project_id !== projectId) {

@@ -5884,8 +5884,40 @@ export class OpenMatesClient {
     lastWarmupScope: string | null;
   } | null = null;
 
+  private preparedChatKey: {
+    chatId: string;
+    session: OpenMatesSession;
+    teamId: string | null;
+    value: Promise<{ key: Uint8Array; encryptedKey: string; wrappingKey: Uint8Array }>;
+  } | null = null;
+
+  /** Prepare encryption and the opted-in local privacy worker while the composer is idle. */
+  private warmChatSendPreparation(): void {
+    const session = this.session;
+    if (!session) return;
+    const teamId = this.getActiveTeamId();
+    if (this.preparedChatKey?.session === session && this.preparedChatKey.teamId === teamId) return;
+    const value = (async () => {
+      const wrappingKey = await this.getChatWrappingKey(teamId, this.getMasterKeyBytes());
+      const key = new Uint8Array(randomBytes(32));
+      return { key, encryptedKey: await encryptBytesWithAesGcm(key, wrappingKey), wrappingKey };
+    })();
+    this.preparedChatKey = { chatId: randomUUID(), session, teamId, value };
+    void value.catch(() => {
+      if (this.preparedChatKey?.value === value) this.preparedChatKey = null;
+    });
+    void import("./privacyScan.js").then(module => module.warmCliMessagePrivacy()).catch(() => {});
+  }
+
+  /** SDK-minted local identity; no server draft exists until the user sends. */
+  preparedNewChatId(): string {
+    this.warmChatSendPreparation();
+    return this.preparedChatKey?.chatId ?? randomUUID();
+  }
+
   /** Warm the active chat scope over the TUI's existing authenticated activity socket. */
   warmChatMetadata(): void {
+    this.warmChatSendPreparation();
     const activity = this.chatActivitySocket;
     if (!activity || !activity.ownerCurrent()) return;
     const teamId = this.getActiveTeamId();
@@ -8548,6 +8580,8 @@ export class OpenMatesClient {
     mateName: string | null;
     /** Follow-up suggestions from post-processing (may be empty for incognito chats). */
     followUpSuggestions: string[];
+    /** Optional authored composer suggestion, distinct from follow-up chips. */
+    suggestedFollowupMessage?: string | null;
     /** Review-only task proposals from post-processing. */
     taskProposals: TaskProposalEvent[];
     /** Review-only task update proposals from post-processing. */
@@ -8584,8 +8618,10 @@ export class OpenMatesClient {
     if (params.incognito && params.projectId) {
       throw new Error("Project file execution requires a saved chat.");
     }
-    const sdkMintedChatId = params.chatId === undefined && params.newChatId === undefined
-      && params.projectId === undefined;
+    const ownsPreparedId = this.preparedChatKey?.session === this.session
+      && this.preparedChatKey?.teamId === teamId && this.preparedChatKey?.chatId === params.newChatId;
+    const sdkMintedChatId = params.chatId === undefined && params.projectId === undefined
+      && (params.newChatId === undefined || ownsPreparedId);
     let chatId: string;
     if (params.newChatId) {
       chatId = params.newChatId;
@@ -8707,6 +8743,8 @@ export class OpenMatesClient {
     } = contextSession;
     const contextScope = { teamId, personal: !teamId };
     const contextStartedAt = Date.now();
+    let publishRouting!: (context: CliJevContext) => void;
+    const routingContext = new Promise<CliJevContext>(resolve => { publishRouting = resolve; });
     let recoveryMs = 0;
     const contextOwnerIsCurrent = () => {
       const current = this.session;
@@ -8720,7 +8758,7 @@ export class OpenMatesClient {
     const earlyContextAbort = new AbortController();
     const earlyContext = !params.incognito && !params.chatId && !params.projectId
       ? withHttpAbortSignal(earlyContextAbort.signal, () =>
-          prepareCliJevContext(this, chatId, contextScope, params.jevContext, finalMessage, { sdkMintedChatId }))
+          prepareCliJevContext(this, chatId, contextScope, params.jevContext, finalMessage, { sdkMintedChatId, onRouting: publishRouting }))
         .then(value => ({ ok: true as const, value, elapsedMs: Date.now() - contextStartedAt }),
           error => ({ ok: false as const, error: error as unknown, elapsedMs: Date.now() - contextStartedAt }))
       : null;
@@ -8781,10 +8819,17 @@ export class OpenMatesClient {
 
     if (!params.incognito) {
       const masterKey = this.getMasterKeyBytes();
-      const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
+      const preparedKey = isNewChat && this.preparedChatKey?.session === this.session
+        && this.preparedChatKey.teamId === teamId ? this.preparedChatKey : null;
+      if (preparedKey) this.preparedChatKey = null;
+      const prepared = preparedKey ? await preparedKey.value : null;
+      const wrappingKey = prepared?.wrappingKey ?? await this.getChatWrappingKey(teamId, masterKey);
       chatSlugLookupKey = wrappingKey;
 
-      if (isNewChat) {
+      if (isNewChat && prepared) {
+        chatKeyBytes = prepared.key;
+        encryptedChatKey = prepared.encryptedKey;
+      } else if (isNewChat) {
         chatKeyBytes = globalThis.crypto
           ? new Uint8Array(globalThis.crypto.getRandomValues(new Uint8Array(32)))
           : new Uint8Array(
@@ -8949,17 +8994,31 @@ export class OpenMatesClient {
         chat_has_title: Boolean(params.chatId),
       },
     };
-    if (!params.incognito) {
-      const serialContextStartedAt = Date.now();
-      const prepared = earlyContext
-        ? await earlyContext
-        : { ok: true as const, value: await prepareCliJevContext(this, chatId, contextScope, params.jevContext, finalMessage, { sdkMintedChatId }), elapsedMs: Date.now() - serialContextStartedAt };
-      if (!prepared.ok) throw prepared.error;
-      if (!contextOwnerIsCurrent()) throw new Error("Chat workspace changed while preparing context.");
-      if (process.env.OPENMATES_DEBUG === "1") {
-        console.error(`[chat preparation] pre_ws_ms=${preWsMs} memory_ms=${memoryPrepMs} privacy_ms=${privacyPrepMs} auth_ws_ms=${authSocketMs} recovery_ms=${recoveryMs} context_ms=${prepared.elapsedMs}`);
+    const useCombinedAdmission = ws.supportsServerCapability?.("chat_turn_admit_v1") === true;
+    // Existing/Team/Project turns may queue longer than the continuation TTL.
+    // Carry their complete context in the durable admission until queue-aware
+    // continuation hydration is available on the server.
+    const useDeferredContext = useCombinedAdmission && !params.chatId && !params.projectId && !teamId
+      && ws.supportsServerCapability?.("chat_turn_context_v1") === true;
+    const contextRequestId = !params.incognito && shouldWaitForAi && useDeferredContext ? randomUUID() : null;
+    let pendingContext: Promise<CliJevContext> | null = null;
+    if (!params.incognito && shouldWaitForAi) {
+      if (contextRequestId) {
+        messagePayload.client_context_pending = true;
+        messagePayload.client_context_request_id = contextRequestId;
       }
-      Object.assign(messagePayload, prepared.value);
+      pendingContext = (async () => {
+        const prepared = earlyContext
+          ? await earlyContext
+          : { ok: true as const, value: await withHttpAbortSignal(earlyContextAbort.signal, () => prepareCliJevContext(this, chatId, contextScope, params.jevContext, finalMessage, { sdkMintedChatId, onRouting: publishRouting })), elapsedMs: Date.now() - contextStartedAt };
+        if (!prepared.ok) throw prepared.error;
+        if (!contextOwnerIsCurrent()) throw new Error("Chat workspace changed while preparing context.");
+        if (process.env.OPENMATES_DEBUG === "1") {
+          console.error(`[chat preparation] pre_ws_ms=${preWsMs} memory_ms=${memoryPrepMs} privacy_ms=${privacyPrepMs} auth_ws_ms=${authSocketMs} recovery_ms=${recoveryMs} context_ms=${prepared.elapsedMs}`);
+        }
+        return prepared.value;
+      })();
+      void pendingContext.catch(() => {});
     }
     if (params.testMockMarker !== undefined) {
       const { capacityReplayMarker } = await import("./capacityReplayMarker.js");
@@ -9086,6 +9145,7 @@ export class OpenMatesClient {
 
     let dispatchHandlersReady: () => void = () => {};
     const handlersReady = new Promise<void>((resolve) => { dispatchHandlersReady = resolve; });
+    let admissionPayload: Record<string, unknown> | null = null;
     let precollectedResponse = params.precollectResponse && params.incognito && shouldWaitForAi
       ? ws.collectAiResponse(messageId, chatId, { onStream: params.onStream, timeoutMs: params.responseTimeoutMs })
       : null;
@@ -9197,7 +9257,6 @@ export class OpenMatesClient {
         };
       }
 
-      let ackPayload: Record<string, unknown>;
       try {
         if (teamId) {
           await stageCliTeamNotificationPreview(ws, {
@@ -9218,34 +9277,13 @@ export class OpenMatesClient {
           // Explicit Project activation changes the authorized private snapshot.
           const focusedContext = await prepareCliJevContext(this, chatId,
             { teamId, personal: !teamId }, params.jevContext, finalMessage);
-          Object.assign(messagePayload, focusedContext);
-          Object.assign(preflightInferenceRequest, focusedContext);
+          pendingContext = Promise.resolve(focusedContext);
         }
-        const preflightAck = ws.waitForMessage(
-          "chat_turn_preflight_ack",
-          (payload) => (payload as Record<string, unknown>).turn_id === turnId,
-        );
-        try {
-          await ws.sendAsync("chat_turn_preflight", preflightPayload);
-        } catch (error) {
-          void preflightAck.catch(() => {});
-          throw error;
-        }
-        ackPayload = (await preflightAck).payload as Record<string, unknown>;
+        // Install all turn observers before the admission frame can trigger inference.
+        admissionPayload = preflightPayload;
       } catch (error) {
         ws.close();
         throw error;
-      }
-      if (typeof ackPayload.preflight_id !== "string" || !ackPayload.preflight_id) {
-        ws.close();
-        throw new Error("Encrypted chat preflight acknowledgement omitted preflight_id.");
-      }
-      Object.assign(messagePayload, {
-        protocol_version: protocolVersion,
-        preflight_id: ackPayload.preflight_id,
-      });
-      if (typeof ackPayload.committed_messages_v === "number" && Number.isSafeInteger(ackPayload.committed_messages_v)) {
-        terminalExpectedMessagesV = ackPayload.committed_messages_v;
       }
     }
     if (!params.incognito && shouldWaitForAi) {
@@ -9286,7 +9324,50 @@ export class OpenMatesClient {
     );
     let confirmedPayload: Record<string, unknown>;
     try {
-      await ws.sendAsync("chat_message_added", messagePayload);
+      if (admissionPayload) {
+        // Unknown/older servers keep the complete context in the established
+        // encrypted preflight, then receive the ordinary inference frame.
+        if (!contextRequestId && pendingContext) {
+          const context = await pendingContext;
+          Object.assign(messagePayload, context);
+          Object.assign(admissionPayload.inference_request as Record<string, unknown>, context);
+        }
+        if (!contextOwnerIsCurrent()) throw new Error("Chat workspace changed while preparing context.");
+        const admissionAck = ws.waitForMessage("chat_turn_preflight_ack", payload =>
+          (payload as Record<string, unknown>).turn_id === savedTurnId);
+        void admissionAck.catch(() => {});
+        await ws.sendAsync(useCombinedAdmission ? "chat_turn_admit" : "chat_turn_preflight", admissionPayload);
+        const ackPayload = (await admissionAck).payload as Record<string, unknown>;
+        if (typeof ackPayload.preflight_id !== "string" || !ackPayload.preflight_id) {
+          throw new Error("Encrypted chat admission acknowledgement omitted preflight_id.");
+        }
+        if (typeof ackPayload.committed_messages_v === "number" && Number.isSafeInteger(ackPayload.committed_messages_v)) {
+          terminalExpectedMessagesV = ackPayload.committed_messages_v;
+        }
+        if (!useCombinedAdmission) {
+          Object.assign(messagePayload, { protocol_version: admissionPayload.protocol_version, preflight_id: ackPayload.preflight_id });
+          await ws.sendAsync("chat_message_added", messagePayload);
+        }
+        if (pendingContext && contextRequestId) {
+          const routing = params.projectId ? await pendingContext : await Promise.race([routingContext, pendingContext]);
+          if (!contextOwnerIsCurrent()) throw new Error("Chat workspace changed while preparing context.");
+          const identity = { chat_id: chatId, turn_id: savedTurnId, message_id: messageId,
+            request_id: contextRequestId, ...(teamId ? { team_id: teamId } : {}) };
+          const { project_focus_candidates, related_task_candidates, project_focus_catalog, accepted_plan_context } = routing;
+          await ws.sendAsync("chat_turn_context_ready", { ...identity, phase: "routing", context: {
+            project_focus_candidates, related_task_candidates, project_focus_catalog, accepted_plan_context,
+          } });
+          const context = await pendingContext;
+          if (!contextOwnerIsCurrent()) throw new Error("Chat workspace changed while preparing context.");
+          await ws.sendAsync("chat_turn_context_ready", { ...identity, phase: "details", context: {
+            custom_memory_documents: context.custom_memory_documents ?? [],
+            project_focus_documents: context.project_focus_documents ?? [],
+            project_context_documents: context.project_context_documents ?? [],
+          } });
+        }
+      } else {
+        await ws.sendAsync("chat_message_added", messagePayload);
+      }
       confirmedPayload = (await confirmed).payload as Record<string, unknown>;
     } catch (error) {
       dispatchHandlersReady();
@@ -9316,6 +9397,7 @@ export class OpenMatesClient {
     let tokenUsage: AiResponseTokenUsage | null = null;
     let promptBudget: AiResponsePromptBudget | null = null;
     let followUpSuggestions: string[] = [];
+    let suggestedFollowupMessage: string | null = null;
     let taskProposals: TaskProposalEvent[] = [];
     let taskUpdateProposals: TaskUpdateProposalEvent[] = [];
     let taskEvents: TaskEventFrame[] = [];
@@ -9667,6 +9749,7 @@ export class OpenMatesClient {
         tokenUsage = resp.tokenUsage;
         promptBudget = resp.promptBudget;
         followUpSuggestions = resp.followUpSuggestions;
+        suggestedFollowupMessage = resp.suggestedFollowupMessage;
         taskProposals = resp.taskProposals;
         taskUpdateProposals = resp.taskUpdateProposals;
         taskEvents = resp.taskEvents;
@@ -10000,6 +10083,7 @@ export class OpenMatesClient {
             teamId,
             chatKeyBytes,
             followUpSuggestions: resp.followUpSuggestions,
+            suggestedFollowupMessage: resp.suggestedFollowupMessage,
             newChatSuggestions: resp.newChatSuggestions,
             chatSummary: resp.chatSummary,
             chatTags: resp.chatTags,
@@ -10055,6 +10139,7 @@ export class OpenMatesClient {
       modelName,
       mateName,
       followUpSuggestions,
+      suggestedFollowupMessage,
       taskProposals,
       taskUpdateProposals,
       taskEvents,
@@ -10648,6 +10733,7 @@ export class OpenMatesClient {
     teamId?: string | null;
     chatKeyBytes: Uint8Array;
     followUpSuggestions: string[];
+    suggestedFollowupMessage: string | null;
     newChatSuggestions: string[];
     chatSummary: string | null;
     chatTags: string[];
@@ -10661,6 +10747,9 @@ export class OpenMatesClient {
           JSON.stringify(params.followUpSuggestions.slice(0, 18)),
           params.chatKeyBytes,
         )
+      : "";
+    const encryptedSuggestedFollowup = params.suggestedFollowupMessage
+      ? await encryptWithAesGcmCombined(params.suggestedFollowupMessage, params.chatKeyBytes)
       : "";
     const masterKey = this.getMasterKeyBytes();
     const encryptedNewChatSuggestions = await Promise.all(
@@ -10685,12 +10774,14 @@ export class OpenMatesClient {
       nextTitleVersion,
     );
 
-    if (!encryptedFollowUps && encryptedNewChatSuggestions.length === 0 && !encryptedChatSummary && !encryptedChatTags && !encryptedUpdatedTitle) return;
+    if (!encryptedFollowUps && !encryptedSuggestedFollowup && encryptedNewChatSuggestions.length === 0 && !encryptedChatSummary && !encryptedChatTags && !encryptedUpdatedTitle) return;
 
     await params.ws.sendAsync("update_post_processing_metadata", {
       chat_id: params.chatId,
       ...(params.teamId ? { team_id: params.teamId } : {}),
       encrypted_follow_up_suggestions: encryptedFollowUps,
+      ...(params.ws.supportsServerCapability?.("suggested_followup_message_v1") === true
+        ? { encrypted_suggested_followup_message: encryptedSuggestedFollowup } : {}),
       encrypted_new_chat_suggestions: encryptedNewChatSuggestions,
       encrypted_chat_summary: encryptedChatSummary,
       encrypted_chat_tags: encryptedChatTags,

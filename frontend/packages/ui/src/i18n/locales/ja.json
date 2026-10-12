@@ -93,6 +93,14 @@
         }
       }
     },
+    "business": {
+      "find_brand_name": {
+        "text": "ブランド名を考える",
+        "description": {
+          "text": "覚えやすい名前を絞り込み、最終候補のドメインと商標の競合を確認します。"
+        }
+      }
+    },
     "code": {
       "test_git_repo": {
         "text": "Gitリポジトリをテスト",
@@ -1282,6 +1290,12 @@
         "text": "Get company financials",
         "description": {
           "text": "Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR."
+        }
+      },
+      "search_trademarks": {
+        "text": "商標を検索",
+        "description": {
+          "text": "地域別に商標名を検索し、情報源と検索範囲の限界を表示します。"
         }
       }
     },
@@ -7623,6 +7637,86 @@
         "not_available": {
           "text": "N/A"
         }
+      },
+      "search_trademarks": {
+        "records": {
+          "text": "{count} 件の記録"
+        },
+        "preliminary": {
+          "text": "予備検索"
+        },
+        "checked": {
+          "text": "検索済み"
+        },
+        "not_searched": {
+          "text": "未検索"
+        },
+        "partial": {
+          "text": "一部"
+        },
+        "empty": {
+          "text": "一致する記録はありません"
+        },
+        "limitation": {
+          "text": "一致がないことは法的に使用可能である証明にはなりません。"
+        },
+        "open_record": {
+          "text": "公式記録を見る"
+        },
+        "open_register": {
+          "text": "公式検索を開く"
+        },
+        "classes": {
+          "text": "ニース分類"
+        },
+        "all_classes": {
+          "text": "すべての分類"
+        },
+        "owner": {
+          "text": "権利者"
+        },
+        "goods": {
+          "text": "商品・役務"
+        },
+        "application": {
+          "text": "出願"
+        },
+        "registration": {
+          "text": "登録"
+        },
+        "filed": {
+          "text": "出願日"
+        },
+        "registered": {
+          "text": "登録済み"
+        },
+        "pending": {
+          "text": "審査中"
+        },
+        "ended": {
+          "text": "終了"
+        },
+        "unknown": {
+          "text": "状態不明"
+        },
+        "exact": {
+          "text": "完全一致の名称"
+        },
+        "similar": {
+          "text": "似た綴り"
+        },
+        "active": {
+          "text": "有効な記録"
+        },
+        "all_statuses": {
+          "text": "すべての状態"
+        },
+        "more": {
+          "text": "公式登録簿に他の一致があります"
+        },
+        "failed": {
+          "text": "検索データを利用できません"
+        }
       }
     },
     "reviews": {
@@ -7874,6 +7968,14 @@
       },
       "exit_fullscreen": {
         "text": "全画面表示を終了する"
+      }
+    },
+    "ghost_suggestion": {
+      "press_tab": {
+        "text": "Tab キーで提案を採用"
+      },
+      "use_suggestion": {
+        "text": "提案を使う"
       }
     },
     "location": {
@@ -8954,6 +9056,38 @@
       },
       "follow_up_6": {
         "text": "印刷レイアウトの視覚要素の配置方法を教えて"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "コミュニティガーデンのための温かいチャイム"
+      },
+      "summary": {
+        "text": "架空のコミュニティガーデンアプリ向けの、短い2音の通知音を生成します。"
+      },
+      "message_1": {
+        "text": "コミュニティガーデンアプリでボランティアが登録した時のための、短くて温かみのある通知音を作成して。優しい2音のチャイムで、音声なし、3秒以内で。"
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nコミュニティガーデンアプリ用の、温かみのある優しい2音のチャイムを生成しています。現在処理中ですので、準備ができ次第チャットに表示されます。\n\n### 次のステップの提案\n- [土のぬくもりを感じる、お祝いのバッジ獲得チャイムを生成する](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [ボランティア登録完了カードのレイアウトをデザインする](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "タスク完了時のバッジ獲得を祝うチャイムを生成して"
+      },
+      "follow_up_2": {
+        "text": "サウンドデザインがモバイルアプリのユーザーエンゲージメントに与える影響を説明して"
+      },
+      "follow_up_3": {
+        "text": "朝の水やりスケジュールのための優しいリマインダー音を作成して"
+      },
+      "follow_up_4": {
+        "text": "邪魔にならないUI通知音をデザインするためのベストプラクティスを教えて"
+      },
+      "follow_up_5": {
+        "text": "フォームの入力エラー用の柔らかなアラート音を生成して"
+      },
+      "follow_up_6": {
+        "text": "モバイルアプリにカスタム効果音を組み込む方法を教えて"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -10038,6 +10172,38 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"6da89032-d370-43c5-91c1-b07fa5df5a85\", \"app_id\": \"images\", \"skill_id\": \"generate\"}\n```\n\nI'm generating that SVG app icon for your climate data dashboard now. \n\nI've focused on a clean, [flat](wiki:Flat_design) [vector](wiki:Vector_graphics) aesthetic with a teal and mint palette to reflect both nature and data. This style is excellent for scalability, ensuring the icon stays crisp whether it's on a mobile home screen or a tiny browser favicon.\n\nOnce it's ready, we could experiment with different color schemes for dark mode or even create a [UI mockup](wiki:Mockup) to see how it looks in context.\n\nWhat kind of interface are you imagining for this dashboard—something very data-heavy with charts, or a more simplified overview?"
       }
     },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "オンラインショップのチェックアウトフロー図"
+      },
+      "summary": {
+        "text": "決済の再試行と注文完了を含む、編集可能なチェックアウトフローチャート。"
+      },
+      "message_1": {
+        "text": "小規模なオンラインショップ向けの編集可能なフローチャートを作成して。内容は、カート、チェックアウト詳細、決済、注文完了。決済が拒否された場合は、顧客が再試行する様子を表示して。すべての情報は図の中に収め、外部サイトへのリンクは含めないで。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### フローの解説とUXの考慮事項\n\n1. **順次進行**: 顧客は、**カート**、**チェックアウト詳細**（配送/請求先）、**決済処理**へと直線的に進みます。\n2. **拒否とエラーからの復帰**:\n   - 決済が拒否された際、顧客を空のセッションに戻すのではなく、**支払い方法の変更**という判断ステップに誘導します。\n   - 点線の直交パスは**チェックアウト詳細**に直接戻るようになっており、顧客はカートの中身を失うことなく、支払い方法の切り替え、カード情報の入力ミスの修正、または別のデジタルウォレットの選択が可能です。\n   - 再試行しないことを選択した場合、セッションは**カート保存済み**という終了状態でクリーンに終了し、その後のカゴ落ちフォローアップメールに繋げることができます。\n3. **編集可能な構造**: すべてのステップとパスには標準の `data-om-*` バインディングが含まれているため、ラベルのカスタマイズ、割引クーポンのステップの追加、ゲスト購入の分岐の統合などを直接行うことができます。\n\n---\n\n**次のステップと改善案:**\n- 配送情報の前に、**ゲスト購入 vs. ログインアカウント**の分岐を導入しますか？\n- このフローのユーザーインターフェースやカスタムイラストをデザインしている場合は、ワイヤーフレームや手書き風のアイコンバッジを統合して、各ステップを補完することも可能です。"
+      },
+      "follow_up_1": {
+        "text": "チェックアウトボタン用の無料SVGアイコンを検索して"
+      },
+      "follow_up_2": {
+        "text": "配送情報の前にゲスト購入の分岐を追加する方法を教えて"
+      },
+      "follow_up_3": {
+        "text": "オンラインショップのチェックアウトのベストプラクティスとUXトレンドを検索して"
+      },
+      "follow_up_4": {
+        "text": "カゴ落ち（カート放棄）リカバリーメールを効果的に運用する方法を説明して"
+      },
+      "follow_up_5": {
+        "text": "今後のEコマースデザインのワークショップやウェビナーを探して"
+      },
+      "follow_up_6": {
+        "text": "オンライン決済のチェックアウトフローにおける一般的なUXの落とし穴をリストアップして"
+      }
+    },
     "open_meteo_weather_notebook": {
       "title": {
         "text": "Berlin Weekend Bike Weather Notebook"
@@ -10684,70 +10850,6 @@
       "follow_up_6": {
         "text": "話したアイデアを整理されたタスクに変換するさまざまな方法を比較する"
       }
-    },
-    "community_garden_volunteer_chime": {
-      "title": {
-        "text": "コミュニティガーデンのための温かいチャイム"
-      },
-      "summary": {
-        "text": "架空のコミュニティガーデンアプリ向けの、短い2音の通知音を生成します。"
-      },
-      "message_1": {
-        "text": "コミュニティガーデンアプリでボランティアが登録した時のための、短くて温かみのある通知音を作成して。優しい2音のチャイムで、音声なし、3秒以内で。"
-      },
-      "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nコミュニティガーデンアプリ用の、温かみのある優しい2音のチャイムを生成しています。現在処理中ですので、準備ができ次第チャットに表示されます。\n\n### 次のステップの提案\n- [土のぬくもりを感じる、お祝いのバッジ獲得チャイムを生成する](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [ボランティア登録完了カードのレイアウトをデザインする](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
-      },
-      "follow_up_1": {
-        "text": "タスク完了時のバッジ獲得を祝うチャイムを生成して"
-      },
-      "follow_up_2": {
-        "text": "サウンドデザインがモバイルアプリのユーザーエンゲージメントに与える影響を説明して"
-      },
-      "follow_up_3": {
-        "text": "朝の水やりスケジュールのための優しいリマインダー音を作成して"
-      },
-      "follow_up_4": {
-        "text": "邪魔にならないUI通知音をデザインするためのベストプラクティスを教えて"
-      },
-      "follow_up_5": {
-        "text": "フォームの入力エラー用の柔らかなアラート音を生成して"
-      },
-      "follow_up_6": {
-        "text": "モバイルアプリにカスタム効果音を組み込む方法を教えて"
-      }
-    },
-    "online_shop_checkout_flow_diagram": {
-      "title": {
-        "text": "オンラインショップのチェックアウトフロー図"
-      },
-      "summary": {
-        "text": "決済の再試行と注文完了を含む、編集可能なチェックアウトフローチャート。"
-      },
-      "message_1": {
-        "text": "小規模なオンラインショップ向けの編集可能なフローチャートを作成して。内容は、カート、チェックアウト詳細、決済、注文完了。決済が拒否された場合は、顧客が再試行する様子を表示して。すべての情報は図の中に収め、外部サイトへのリンクは含めないで。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### フローの解説とUXの考慮事項\n\n1. **順次進行**: 顧客は、**カート**、**チェックアウト詳細**（配送/請求先）、**決済処理**へと直線的に進みます。\n2. **拒否とエラーからの復帰**:\n   - 決済が拒否された際、顧客を空のセッションに戻すのではなく、**支払い方法の変更**という判断ステップに誘導します。\n   - 点線の直交パスは**チェックアウト詳細**に直接戻るようになっており、顧客はカートの中身を失うことなく、支払い方法の切り替え、カード情報の入力ミスの修正、または別のデジタルウォレットの選択が可能です。\n   - 再試行しないことを選択した場合、セッションは**カート保存済み**という終了状態でクリーンに終了し、その後のカゴ落ちフォローアップメールに繋げることができます。\n3. **編集可能な構造**: すべてのステップとパスには標準の `data-om-*` バインディングが含まれているため、ラベルのカスタマイズ、割引クーポンのステップの追加、ゲスト購入の分岐の統合などを直接行うことができます。\n\n---\n\n**次のステップと改善案:**\n- 配送情報の前に、**ゲスト購入 vs. ログインアカウント**の分岐を導入しますか？\n- このフローのユーザーインターフェースやカスタムイラストをデザインしている場合は、ワイヤーフレームや手書き風のアイコンバッジを統合して、各ステップを補完することも可能です。"
-      },
-      "follow_up_1": {
-        "text": "チェックアウトボタン用の無料SVGアイコンを検索して"
-      },
-      "follow_up_2": {
-        "text": "配送情報の前にゲスト購入の分岐を追加する方法を教えて"
-      },
-      "follow_up_3": {
-        "text": "オンラインショップのチェックアウトのベストプラクティスとUXトレンドを検索して"
-      },
-      "follow_up_4": {
-        "text": "カゴ落ち（カート放棄）リカバリーメールを効果的に運用する方法を説明して"
-      },
-      "follow_up_5": {
-        "text": "今後のEコマースデザインのワークショップやウェビナーを探して"
-      },
-      "follow_up_6": {
-        "text": "オンライン決済のチェックアウトフローにおける一般的なUXの落とし穴をリストアップして"
-      }
     }
   },
   "focus_modes": {
@@ -10764,6 +10866,15 @@
       "text": "本の推奨",
       "description": {
         "text": "好みに基づいた本のおすすめを取得。"
+      }
+    },
+    "business_find_brand_name": {
+      "text": "ブランド名を考える",
+      "description": {
+        "text": "覚えやすい名前を絞り込み、最終候補のドメインと商標の競合を確認します。"
+      },
+      "process": {
+        "text": "- 目的を理解\n- 名前を絞る\n- 最終候補を確認\n- 証拠を比較。"
       }
     },
     "code_analyze_logs": {
@@ -12512,6 +12623,13 @@
             },
             "description": {
               "text": "公開されているMastodonプロフィールの投稿を取得する際、Mastodonにクエリが送信されます。対象のMastodonサーバーは、OpenMatesのユーザー識別子を含まない形で、プロフィールの識別子または公開プロフィールURLを受け取ります。"
+            }
+          }
+        },
+        "business_data": {
+          "uspto": {
+            "description": {
+              "text": "米国商標検索では候補名と状態、綴り、ニース分類の条件を USPTO に送信します。リクエストはサーバーから送信し、OpenMates のユーザー識別情報やチャット履歴は含めません。"
             }
           }
         }

@@ -4,10 +4,12 @@ import { storageArchiveFetch } from "../config/api";
     import HeaderActionMenu from './HeaderActionMenu.svelte';
     import { headerOverlayControls } from '../actions/headerOverlayControls';
     import MessageInput from './enter_message/MessageInput.svelte';
+    import { recordingState } from './enter_message/recordingStore';
     import { messageInputPlaceholderVariant } from './enter_message/extensions/Placeholder';
     import type { Content } from '@tiptap/core';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
+    import { responseUserMessageId } from '../message_parsing/assistantResponseTurn';
     import SharedAuxiliaryLoadButton from './SharedAuxiliaryLoadButton.svelte';
     import ChatProcessingIndicator from './ChatProcessingIndicator.svelte';
     import AssistantSpeechPlayer from './AssistantSpeechPlayer.svelte';
@@ -34,6 +36,7 @@ import { storageArchiveFetch } from "../config/api";
     import { getRecentChatRevision, getRecentChatSelection, getRecentChatWindow, invalidateRecentChatWindow, isRecentChatReadCurrent, putRecentChatWindow, recentChatHeaderMatches, RecentChatWarmReadGuard, reconcileRecentChatMessages, subscribeRecentChatWindowInvalidation } from '../services/recentChatWindowCache';
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
+    import { chatAllowsComposerGhostSuggestion, decryptComposerGhostSuggestion, type ComposerGhostSuggestion } from '../services/composerGhostSuggestion';
     import { deactivateFocusForChat, isProjectFocusId } from '../services/projectFocusSendPreflight';
     import { getActiveProjectFocus, getProject, getProjectContents } from '../services/projectService';
     import { activeChatFocusStore } from '../stores/activeChatFocusStore';
@@ -4234,7 +4237,7 @@ import { storageArchiveFetch } from "../config/api";
 
     // Reactive trigger for AI task state changes - incremented when AI tasks start/end
     // Note: Prefixed with underscore as linter reports unused, but it's used as a reactivity trigger
-    let _aiTaskStateTrigger = 0;
+    let _aiTaskStateTrigger = $state(0);
     let _subChatProcessingStateTrigger = 0;
 
     // ─── Progressive AI Status Indicator ─────────────────────────────────
@@ -4976,6 +4979,8 @@ import { storageArchiveFetch } from "../config/api";
     
     // Track if message input is focused (for showing follow-up suggestions)
     let messageInputFocused = $state(false);
+    let hideWelcomeForComposerOverlay = $derived(messageInputFocused &&
+        (messageInputMapsOpen || anonymousFileAttachmentPending || $recordingState.showRecordAudioUI));
 
     // Track whether this runtime is touch-capable (phone/tablet).
     let isTouchEnvironment = $state(false);
@@ -5254,6 +5259,9 @@ import { storageArchiveFetch } from "../config/api";
 
     // Track follow-up suggestions for the current chat
     let followUpSuggestions = $state<string[]>([]);
+    let composerGhostSuggestion = $state<ComposerGhostSuggestion | null>(null);
+    let composerGhostChatId = $state<string | null>(null);
+    let dismissedComposerGhostKey = $state<string | null>(null);
     let dismissedFollowUpSuggestionsKey = $state<string | null>(null);
     let pendingTaskProposals = $state<UserTaskProposal[]>([]);
     let pendingTaskUpdateProposals = $state<UserTaskUpdateProposal[]>([]);
@@ -5262,6 +5270,27 @@ import { storageArchiveFetch } from "../config/api";
         if (!currentChat?.chat_id || followUpSuggestions.length === 0) return null;
         return `${currentChat.chat_id}:${followUpSuggestions.join(FOLLOW_UP_SUGGESTION_KEY_SEPARATOR)}`;
     });
+
+    let visibleComposerGhostText = $derived.by(() => {
+        const chat = currentChat;
+        const suggestion = composerGhostSuggestion;
+        if (!chat || showWelcome || !suggestion || composerGhostChatId !== chat.chat_id ||
+            !followUpSuggestionsEnabled || !$authStore.isAuthenticated ||
+            $userProfile.user_id !== chat.user_id || (chat.team_id ?? null) !== $activeTeamId ||
+            !chatAllowsComposerGhostSuggestion(chat) ||
+            dismissedComposerGhostKey === `${chat.chat_id}:${suggestion.sourceMessageId}`) return null;
+        const sourceIndex = currentMessages.findIndex((message) => message.message_id === suggestion.sourceMessageId && message.role === 'assistant');
+        if (sourceIndex < 0) return null;
+        // A newer user turn or assistant answer makes this turn's proposal stale.
+        if (currentMessages.slice(sourceIndex + 1).some((message) => message.role === 'user' || message.role === 'assistant')) return null;
+        return suggestion.text;
+    });
+
+    function dismissComposerGhostSuggestion(): void {
+        if (currentChat && composerGhostSuggestion) {
+            dismissedComposerGhostKey = `${currentChat.chat_id}:${composerGhostSuggestion.sourceMessageId}`;
+        }
+    }
 
     let quickTipSlugs = $state<string[]>([]);
 
@@ -5831,21 +5860,46 @@ import { storageArchiveFetch } from "../config/api";
 
     // Accepted-turn presentation is transient until the first canonical assistant row.
     // No empty assistant message is persisted or sent to another device.
+    function expectedResponseUserMessageId(chatId: string): string | null {
+        return responseUserMessageId(
+            chatSyncService.getActiveAIUserMessageIdForChat(chatId),
+            processingFeedbackTurn?.chatId === chatId ? processingFeedbackTurn.userMessageId : null,
+            currentMessages,
+        );
+    }
     const pendingAssistantResponse = $derived.by(() => {
-        const feedback = processingFeedbackTurn;
-        if (!feedback || feedback.chatId !== currentChat?.chat_id) return null;
-        if (terminalProcessingFeedbackTurns.has(processingFeedbackTurnKey(feedback.chatId, feedback.userMessageId))) return null;
-        const typing = currentTypingStatus?.isTyping
-            && currentTypingStatus.chatId === feedback.chatId
-            && currentTypingStatus.userMessageId === feedback.userMessageId
-            ? currentTypingStatus : null;
+        void _aiTaskStateTrigger;
+        const typing = currentTypingStatus;
+        const chatId = currentChat?.chat_id;
+        if (!chatId || !typing?.isTyping || typing.chatId !== chatId
+            || !typing.userMessageId || !typing.aiMessageId || !typing.category) return null;
+        // Stage 1 preprocessing events only carry chat_id. The typing event carries
+        // the selected Mate and the triggering user ID, so a late event for an
+        // older turn cannot lend its identity to the current response.
+        if (expectedResponseUserMessageId(chatId) !== typing.userMessageId
+            || terminalProcessingFeedbackTurns.has(processingFeedbackTurnKey(chatId, typing.userMessageId))) return null;
         return {
-            taskId: typing?.aiMessageId || feedback.taskId,
-            userMessageId: feedback.userMessageId,
-            category: typing?.category || feedback.explicitMateCategory,
-            modelName: typing?.modelName,
-            serverRegion: typing?.serverRegion,
+            taskId: typing.aiMessageId,
+            userMessageId: typing.userMessageId,
+            category: typing.category,
+            modelName: typing.modelName,
+            serverRegion: typing.serverRegion,
         };
+    });
+    const activeAssistantTurn = $derived.by(() => {
+        void _aiTaskStateTrigger;
+        const chatId = currentChat?.chat_id;
+        if (!chatId) return null;
+        const expectedUserMessageId = expectedResponseUserMessageId(chatId);
+        const typing = currentTypingStatus?.chatId === chatId && currentTypingStatus.isTyping
+            && currentTypingStatus.userMessageId === expectedUserMessageId
+            ? currentTypingStatus : null;
+        const taskId = typing?.aiMessageId || chatSyncService.getActiveAITaskIdForChat(chatId);
+        const userMessageId = typing?.userMessageId || chatSyncService.getActiveAIUserMessageIdForChat(chatId);
+        if (!taskId || !userMessageId
+            || userMessageId !== expectedUserMessageId
+            || terminalProcessingFeedbackTurns.has(processingFeedbackTurnKey(chatId, userMessageId))) return null;
+        return { taskId, userMessageId };
     });
 
     // Thinking/Reasoning state for thinking models (Gemini, Anthropic Claude)
@@ -6930,7 +6984,8 @@ import { storageArchiveFetch } from "../config/api";
                 // For rejection messages (e.g., insufficient credits), keep 'waiting_for_user' status
                 // so the chat shows "Waiting for you..." instead of appearing as a completed response
                 const isRejection = !!chunk.rejection_reason;
-                const finalStatus = isRejection ? 'waiting_for_user' as const : 'synced' as const;
+                const finalStatus = isRejection ? 'waiting_for_user' as const
+                    : chunk.awaiting_async_skill_continuation ? 'streaming' as const : 'synced' as const;
 
                 // If this was a credits rejection on a new chat, transition the header banner
                 // from "Creating new chat..." (loading shimmer) to "Not enough credits" (static).
@@ -11109,6 +11164,20 @@ import { storageArchiveFetch } from "../config/api";
             followUpSuggestions = [];
         }
 
+        // The persisted proposal stays encrypted in chat metadata. Hydrate it only
+        // for the currently selected owner/Team, then let the source-turn check
+        // decide whether it still belongs beside this composer.
+        if (currentChat.encrypted_suggested_followup_message) {
+            const ghost = await decryptComposerGhostSuggestion(currentChat);
+            if (isCurrentLoadTarget()) {
+                composerGhostSuggestion = ghost;
+                composerGhostChatId = ghost ? currentChat.chat_id : null;
+            }
+        } else if (isCurrentLoadTarget() && composerGhostChatId !== currentChat.chat_id) {
+            composerGhostSuggestion = null;
+            composerGhostChatId = null;
+        }
+
         quickTipSlugs = [];
         if (!isProvidedDraftOnlyChat) {
             await hydrateQuickTipSlugs(currentChat.chat_id, currentChat.encrypted_quick_tip_slugs);
@@ -12625,7 +12694,26 @@ import { storageArchiveFetch } from "../config/api";
         // Add event listeners for both chat updates and message status changes
         const chatUpdateHandler = ((event: CustomEvent) => {
             handleChatUpdated(event);
+            const updated = event.detail?.chat as Chat | undefined;
+            if (updated && updated.chat_id === currentChat?.chat_id && updated.encrypted_suggested_followup_message &&
+                updated.encrypted_suggested_followup_message !== currentChat?.encrypted_suggested_followup_message) {
+                const chatWithSuggestion = updated;
+                void decryptComposerGhostSuggestion(chatWithSuggestion).then((suggestion) => {
+                    if (suggestion && currentChat?.chat_id === chatWithSuggestion.chat_id && chatAllowsComposerGhostSuggestion(currentChat)) {
+                        composerGhostSuggestion = suggestion;
+                        composerGhostChatId = chatWithSuggestion.chat_id;
+                        currentChat = { ...currentChat, encrypted_suggested_followup_message: chatWithSuggestion.encrypted_suggested_followup_message };
+                    }
+                });
+            }
         }) as EventListenerCallback;
+
+        const composerGhostSuggestionHandler: EventListenerCallback = (event) => {
+            const detail = (event as CustomEvent<ComposerGhostSuggestion & { chat_id: string }>).detail;
+            if (currentChat?.chat_id !== detail.chat_id || !chatAllowsComposerGhostSuggestion(currentChat)) return;
+            composerGhostSuggestion = detail;
+            composerGhostChatId = detail.chat_id;
+        };
 
         const messageStatusHandler = ((event: CustomEvent) => {
             // Call the component's own method which correctly updates currentMessages,
@@ -12651,6 +12739,7 @@ import { storageArchiveFetch } from "../config/api";
 
         // Listen to events directly from chatSyncService
         chatSyncService.addEventListener('chatUpdated', chatUpdateHandler);
+        chatSyncService.addEventListener('composerGhostSuggestion', composerGhostSuggestionHandler);
         chatSyncService.addEventListener('messageStatusChanged', messageStatusHandler);
         chatSyncService.addEventListener('messageQueued', queuedMessageRefreshHandler);
         chatSyncService.addEventListener('queuedMessageUpdated', queuedMessageRefreshHandler);
@@ -12748,6 +12837,11 @@ import { storageArchiveFetch } from "../config/api";
                 }
                 const feedbackTurn = processingFeedbackTurn;
                 if (feedbackTurn && !matchesProcessingFeedbackTerminal(feedbackTurn, event.detail)) return;
+                if (event.detail.userMessageId) {
+                    terminalProcessingFeedbackTurns.add(processingFeedbackTurnKey(
+                        event.detail.chatId, event.detail.userMessageId,
+                    ));
+                }
                 _aiTaskStateTrigger++;
                 if (feedbackTurn) {
                     clearProcessingFeedback(event.detail.chatId, feedbackTurn.userMessageId, true);
@@ -13683,6 +13777,7 @@ import { storageArchiveFetch } from "../config/api";
             // Remove listeners from chatSyncService
             uninstallChatReplayCommand();
             chatSyncService.removeEventListener('chatUpdated', chatUpdateHandler);
+            chatSyncService.removeEventListener('composerGhostSuggestion', composerGhostSuggestionHandler);
             chatSyncService.removeEventListener('messageStatusChanged', messageStatusHandler);
             chatSyncService.removeEventListener('messageQueued', queuedMessageRefreshHandler);
             chatSyncService.removeEventListener('queuedMessageUpdated', queuedMessageRefreshHandler);
@@ -13871,8 +13966,7 @@ import { storageArchiveFetch } from "../config/api";
                 <!-- Left side container for chat history and buttons -->
                 <div
                     class="chat-side"
-                    class:composer-background-faded={messageInputFocused && !hasQueuedFollowUpActions}
-                    class:composer-welcome-hidden={messageInputFocused && (showWelcome || isActiveDraftOnlyChat)}
+                    class:composer-welcome-hidden={hideWelcomeForComposerOverlay && (showWelcome || isActiveDraftOnlyChat)}
                     inert={messageInputFocused && !hasQueuedFollowUpActions}
                     class:welcome-chat-side={showWelcome}
                     data-testid="chat-side"
@@ -14811,6 +14905,7 @@ import { storageArchiveFetch } from "../config/api";
                          currentChatId={currentChat?.chat_id}
                          {processingPhase}
                          {pendingAssistantResponse}
+                         {activeAssistantTurn}
                          {thinkingContentByTask}
                          chatTitle={activeChatDecryptedTitle}
                          {provisionalChatTitle}
@@ -15107,6 +15202,10 @@ import { storageArchiveFetch } from "../config/api";
                                     on:draftSaved={handleDraftSaved}
                                     placeholderText={showWelcome && !$authStore.isAuthenticated ? $text(activeGuestInputPlaceholderKey) : undefined}
                                     guestCtaMode={showWelcome && !$authStore.isAuthenticated}
+                                    ghostSuggestion={visibleComposerGhostText}
+                                    ghostSuggestionKey={composerGhostSuggestion && composerGhostChatId ? `${composerGhostChatId}:${composerGhostSuggestion.sourceMessageId}` : null}
+                                    on:dismissGhostSuggestion={dismissComposerGhostSuggestion}
+                                    on:acceptGhostSuggestion={dismissComposerGhostSuggestion}
                                     {autoSpeakResponse}
                                     onAssistantSpeechPreferenceChange={updateAssistantSpeechPreference}
                                     on:textchange={(e) => {
@@ -16921,10 +17020,6 @@ import { storageArchiveFetch } from "../config/api";
     .chat-side, .composer-suggestions {
         visibility: visible;
         transition: opacity var(--duration-normal) var(--easing-default), visibility 0s;
-    }
-    .chat-side.composer-background-faded {
-        opacity: 0.15;
-        pointer-events: none;
     }
     .chat-side.composer-welcome-hidden, .composer-suggestions.composer-welcome-hidden {
         opacity: 0;

@@ -7,7 +7,9 @@ change the user's goal, or weaken required Specification/protocol obligations.
 from __future__ import annotations
 
 import hashlib
+import os
 import re
+from functools import lru_cache
 from pathlib import Path
 from typing import Iterable, Literal
 
@@ -90,9 +92,13 @@ def parse_memory_md(
     )
 
 
-def load_app_memories(app_ids: Iterable[str], *, apps_root: Path | None = None) -> list[MemoryDefinition]:
-    """Load shipped guides only for the caller's eligible app catalog."""
-    root = apps_root or Path(__file__).resolve().parents[2] / "apps"
+@lru_cache(maxsize=256)
+def _shipped_app_memories(app_id: str, revision: str) -> tuple[MemoryDefinition, ...]:
+    """Keep immutable shipped definitions in worker RAM for this configuration."""
+    return tuple(_read_app_memories((app_id,), Path(__file__).resolve().parents[2] / "apps"))
+
+
+def _read_app_memories(app_ids: Iterable[str], root: Path) -> list[MemoryDefinition]:
     result: list[MemoryDefinition] = []
     for app_id in sorted(set(app_ids)):
         if not _APP_ID.fullmatch(app_id):
@@ -109,6 +115,22 @@ def load_app_memories(app_ids: Iterable[str], *, apps_root: Path | None = None) 
                 source="app", app_id=app_id,
             ))
     return result
+
+
+def load_app_memories(app_ids: Iterable[str], *, apps_root: Path | None = None) -> list[MemoryDefinition]:
+    """Load only eligible shipped guides; explicit test roots remain uncached."""
+    ids = tuple(sorted(set(app_ids)))
+    if apps_root is not None:
+        return _read_app_memories(ids, apps_root)
+    # A worker process is pinned to one deployed source/config revision. Explicit
+    # revision changes invalidate this RAM view without changing private content.
+    revision = os.getenv("OPENMATES_CONFIG_REVISION") or os.getenv("BUILD_COMMIT_SHA") or "process-start"
+    return [memory for app_id in ids for memory in _shipped_app_memories(app_id, revision)]
+
+
+def warm_app_memories(app_ids: Iterable[str]) -> None:
+    """Prime the public definition cache after app discovery at worker startup."""
+    load_app_memories(app_ids)
 
 
 def memories_prompt(rules: Iterable[MemoryDefinition]) -> str:

@@ -93,6 +93,14 @@
         }
       }
     },
+    "business": {
+      "find_brand_name": {
+        "text": "Marka adı bul",
+        "description": {
+          "text": "Akılda kalıcı adları seçin, ardından finalistlerin alan adlarını ve marka çakışmalarını kontrol edin."
+        }
+      }
+    },
     "code": {
       "test_git_repo": {
         "text": "Git repo test et",
@@ -1282,6 +1290,12 @@
         "text": "Get company financials",
         "description": {
           "text": "Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR."
+        }
+      },
+      "search_trademarks": {
+        "text": "Marka ara",
+        "description": {
+          "text": "Bölgeye göre markaları kaynaklar ve kapsam sınırlarıyla arayın."
         }
       }
     },
@@ -7623,6 +7637,86 @@
         "not_available": {
           "text": "N/A"
         }
+      },
+      "search_trademarks": {
+        "records": {
+          "text": "{count} kayıt"
+        },
+        "preliminary": {
+          "text": "Ön arama"
+        },
+        "checked": {
+          "text": "Arandı"
+        },
+        "not_searched": {
+          "text": "Aranmadı"
+        },
+        "partial": {
+          "text": "Kısmi"
+        },
+        "empty": {
+          "text": "Eşleşen kayıt yok"
+        },
+        "limitation": {
+          "text": "Eşleşme bulunmaması yasal kullanılabilirliği kanıtlamaz."
+        },
+        "open_record": {
+          "text": "Resmî kaydı görüntüle"
+        },
+        "open_register": {
+          "text": "Resmî aramayı aç"
+        },
+        "classes": {
+          "text": "Nice sınıfları"
+        },
+        "all_classes": {
+          "text": "Tüm sınıflar"
+        },
+        "owner": {
+          "text": "Hak sahibi"
+        },
+        "goods": {
+          "text": "Mal ve hizmetler"
+        },
+        "application": {
+          "text": "Başvuru"
+        },
+        "registration": {
+          "text": "Tescil"
+        },
+        "filed": {
+          "text": "Başvuru tarihi"
+        },
+        "registered": {
+          "text": "Tescilli"
+        },
+        "pending": {
+          "text": "Beklemede"
+        },
+        "ended": {
+          "text": "Sona ermiş"
+        },
+        "unknown": {
+          "text": "Durum bilinmiyor"
+        },
+        "exact": {
+          "text": "Tam ad"
+        },
+        "similar": {
+          "text": "Benzer yazım"
+        },
+        "active": {
+          "text": "Aktif kayıtlar"
+        },
+        "all_statuses": {
+          "text": "Tüm durumlar"
+        },
+        "more": {
+          "text": "Resmî sicilde başka eşleşmeler var"
+        },
+        "failed": {
+          "text": "Arama verileri kullanılamıyor"
+        }
       }
     },
     "reviews": {
@@ -7874,6 +7968,14 @@
       },
       "exit_fullscreen": {
         "text": "Tam ekrandan çık"
+      }
+    },
+    "ghost_suggestion": {
+      "press_tab": {
+        "text": "Öneriyi kabul etmek için Tab tuşuna basın"
+      },
+      "use_suggestion": {
+        "text": "Öneriyi kullan"
       }
     },
     "location": {
@@ -8954,6 +9056,38 @@
       },
       "follow_up_6": {
         "text": "Görsel öğelerin bir baskı düzeninde nasıl yerleştirileceğini açıkla"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "Bir topluluk bahçesi için sıcak bir çan sesi"
+      },
+      "summary": {
+        "text": "Kurgusal bir topluluk bahçesi uygulaması için kısa, iki notalı bir bildirim sesi oluştur."
+      },
+      "message_1": {
+        "text": "Bir gönüllü kaydolduğunda topluluk bahçesi uygulaması için çalacak kısa ve sıcak bir bildirim sesi oluştur. Nazik, iki notalı bir çan sesi olsun, konuşma içermesin ve üç saniyenin altında olsun."
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nTopluluk bahçesi uygulaman için sıcak ve nazik iki notalı çan sesini şimdi oluşturuyorum. Şu anda işleniyor ve hazır olur olmaz sohbette görünecek.\n\n### Önerilen Sonraki Adımlar\n- [Toprak tonlarında, kutlama amaçlı bir rozet açma sesi oluştur](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Gönüllü onay kartı düzeni tasarla](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "Görev tamamlama için kutlama amaçlı bir rozet açma sesi oluştur"
+      },
+      "follow_up_2": {
+        "text": "Ses tasarımının mobil uygulamalarda kullanıcı etkileşimini nasıl etkilediğini açıkla"
+      },
+      "follow_up_3": {
+        "text": "Sabah sulama programları için nazik bir hatırlatıcı sesi oluştur"
+      },
+      "follow_up_4": {
+        "text": "Rahatsız etmeyen kullanıcı arayüzü bildirim sesleri tasarlamak için en iyi uygulamaları listele"
+      },
+      "follow_up_5": {
+        "text": "Form doğrulama hataları için yumuşak bir hata uyarı sesi oluştur"
+      },
+      "follow_up_6": {
+        "text": "Özel ses efektlerinin mobil uygulamalara nasıl entegre edileceğini açıkla"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -10038,6 +10172,38 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"6da89032-d370-43c5-91c1-b07fa5df5a85\", \"app_id\": \"images\", \"skill_id\": \"generate\"}\n```\n\nI'm generating that SVG app icon for your climate data dashboard now. \n\nI've focused on a clean, [flat](wiki:Flat_design) [vector](wiki:Vector_graphics) aesthetic with a teal and mint palette to reflect both nature and data. This style is excellent for scalability, ensuring the icon stays crisp whether it's on a mobile home screen or a tiny browser favicon.\n\nOnce it's ready, we could experiment with different color schemes for dark mode or even create a [UI mockup](wiki:Mockup) to see how it looks in context.\n\nWhat kind of interface are you imagining for this dashboard—something very data-heavy with charts, or a more simplified overview?"
       }
     },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Çevrimiçi Mağaza Ödeme Akış Şeması"
+      },
+      "summary": {
+        "text": "Ödeme tekrarı ve sipariş onayı içeren düzenlenebilir bir ödeme akış şeması."
+      },
+      "message_1": {
+        "text": "Küçük bir çevrimiçi mağaza için düzenlenebilir bir akış şeması oluştur: sepet, ödeme ayrıntıları, ödeme ve sipariş onayı. Ödeme reddedilirse müşterinin tekrar denediğini göster. Tüm bilgileri diyagram içinde tut ve harici web sitelerine bağlantı verme."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Akış Dökümü ve UX Değerlendirmeleri\n\n1. **Sıralı İlerleme**: Müşteri; **Sepet**, **Ödeme Ayrıntıları** (teslimat/fatura) ve **Ödeme İşlemi** adımlarından doğrusal olarak geçer.\n2. **Reddetme ve Hata Kurtarma**:\n   - Müşteriyi boş bir oturuma geri döndürmek yerine, bir reddetme durumu **Yöntemi Değiştir** karar adımına yönlendirir.\n   - Kesikli dikey yol doğrudan **Ödeme Ayrıntıları**'na geri döner; bu da müşterinin sepetindeki ürünleri kaybetmeden ödeme yöntemlerini değiştirmesine, kart verilerindeki yazım hatalarını düzeltmesine veya alternatif bir dijital cüzdan seçmesine olanak tanır.\n   - Tekrar denememeyi seçerlerse oturum, takip eden \"terk edilmiş sepet\" e-postalarına kapı açacak şekilde **Sepet Kaydedildi** terminal durumunda temiz bir şekilde sona erer.\n3. **Düzenlenebilir Yapı**: Her adım ve yol, etiketleri özelleştirebilmen, bir indirim kuponu adımı ekleyebilmen veya misafir ödeme dallarını doğrudan entegre edebilmen için standart `data-om-*` bağlamalarını içerir.\n\n---\n\n**Sonraki Adımlar ve Yinelemeler:**\n- Gönderim bilgilerinden önce bir **Misafir Ödemesi ve Kayıtlı Hesap** dalı eklemek ister misin?\n- Bu akış için kullanıcı arayüzleri veya özel illüstrasyonlar tasarlıyorsan, adımları tamamlamak için tel kafesler (wireframes) veya özel el çizimi ikon rozetleri entegre etmeyi keşfedebiliriz."
+      },
+      "follow_up_1": {
+        "text": "Ödeme düğmeleri için ücretsiz SVG simgeleri ara"
+      },
+      "follow_up_2": {
+        "text": "Gönderim bilgilerinden önce misafir ödeme dalının nasıl ekleneceğini açıkla"
+      },
+      "follow_up_3": {
+        "text": "Çevrimiçi mağaza ödeme süreci en iyi uygulamalarını ve UX trendlerini ara"
+      },
+      "follow_up_4": {
+        "text": "Terk edilmiş sepet kurtarma e-postalarının etkili bir şekilde nasıl yönetileceğini açıkla"
+      },
+      "follow_up_5": {
+        "text": "Gelecek e-ticaret tasarım atölyelerini ve web seminerlerini bul"
+      },
+      "follow_up_6": {
+        "text": "Çevrimiçi ödeme süreçlerinde yaygın UX hatalarını listele"
+      }
+    },
     "open_meteo_weather_notebook": {
       "title": {
         "text": "Berlin Weekend Bike Weather Notebook"
@@ -10684,70 +10850,6 @@
       "follow_up_6": {
         "text": "Söylenen fikirleri düzenli görevlere dönüştürmek için farklı yöntemleri karşılaştır"
       }
-    },
-    "community_garden_volunteer_chime": {
-      "title": {
-        "text": "Bir topluluk bahçesi için sıcak bir çan sesi"
-      },
-      "summary": {
-        "text": "Kurgusal bir topluluk bahçesi uygulaması için kısa, iki notalı bir bildirim sesi oluştur."
-      },
-      "message_1": {
-        "text": "Bir gönüllü kaydolduğunda topluluk bahçesi uygulaması için çalacak kısa ve sıcak bir bildirim sesi oluştur. Nazik, iki notalı bir çan sesi olsun, konuşma içermesin ve üç saniyenin altında olsun."
-      },
-      "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nTopluluk bahçesi uygulaman için sıcak ve nazik iki notalı çan sesini şimdi oluşturuyorum. Şu anda işleniyor ve hazır olur olmaz sohbette görünecek.\n\n### Önerilen Sonraki Adımlar\n- [Toprak tonlarında, kutlama amaçlı bir rozet açma sesi oluştur](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Gönüllü onay kartı düzeni tasarla](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
-      },
-      "follow_up_1": {
-        "text": "Görev tamamlama için kutlama amaçlı bir rozet açma sesi oluştur"
-      },
-      "follow_up_2": {
-        "text": "Ses tasarımının mobil uygulamalarda kullanıcı etkileşimini nasıl etkilediğini açıkla"
-      },
-      "follow_up_3": {
-        "text": "Sabah sulama programları için nazik bir hatırlatıcı sesi oluştur"
-      },
-      "follow_up_4": {
-        "text": "Rahatsız etmeyen kullanıcı arayüzü bildirim sesleri tasarlamak için en iyi uygulamaları listele"
-      },
-      "follow_up_5": {
-        "text": "Form doğrulama hataları için yumuşak bir hata uyarı sesi oluştur"
-      },
-      "follow_up_6": {
-        "text": "Özel ses efektlerinin mobil uygulamalara nasıl entegre edileceğini açıkla"
-      }
-    },
-    "online_shop_checkout_flow_diagram": {
-      "title": {
-        "text": "Çevrimiçi Mağaza Ödeme Akış Şeması"
-      },
-      "summary": {
-        "text": "Ödeme tekrarı ve sipariş onayı içeren düzenlenebilir bir ödeme akış şeması."
-      },
-      "message_1": {
-        "text": "Küçük bir çevrimiçi mağaza için düzenlenebilir bir akış şeması oluştur: sepet, ödeme ayrıntıları, ödeme ve sipariş onayı. Ödeme reddedilirse müşterinin tekrar denediğini göster. Tüm bilgileri diyagram içinde tut ve harici web sitelerine bağlantı verme."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Akış Dökümü ve UX Değerlendirmeleri\n\n1. **Sıralı İlerleme**: Müşteri; **Sepet**, **Ödeme Ayrıntıları** (teslimat/fatura) ve **Ödeme İşlemi** adımlarından doğrusal olarak geçer.\n2. **Reddetme ve Hata Kurtarma**:\n   - Müşteriyi boş bir oturuma geri döndürmek yerine, bir reddetme durumu **Yöntemi Değiştir** karar adımına yönlendirir.\n   - Kesikli dikey yol doğrudan **Ödeme Ayrıntıları**'na geri döner; bu da müşterinin sepetindeki ürünleri kaybetmeden ödeme yöntemlerini değiştirmesine, kart verilerindeki yazım hatalarını düzeltmesine veya alternatif bir dijital cüzdan seçmesine olanak tanır.\n   - Tekrar denememeyi seçerlerse oturum, takip eden \"terk edilmiş sepet\" e-postalarına kapı açacak şekilde **Sepet Kaydedildi** terminal durumunda temiz bir şekilde sona erer.\n3. **Düzenlenebilir Yapı**: Her adım ve yol, etiketleri özelleştirebilmen, bir indirim kuponu adımı ekleyebilmen veya misafir ödeme dallarını doğrudan entegre edebilmen için standart `data-om-*` bağlamalarını içerir.\n\n---\n\n**Sonraki Adımlar ve Yinelemeler:**\n- Gönderim bilgilerinden önce bir **Misafir Ödemesi ve Kayıtlı Hesap** dalı eklemek ister misin?\n- Bu akış için kullanıcı arayüzleri veya özel illüstrasyonlar tasarlıyorsan, adımları tamamlamak için tel kafesler (wireframes) veya özel el çizimi ikon rozetleri entegre etmeyi keşfedebiliriz."
-      },
-      "follow_up_1": {
-        "text": "Ödeme düğmeleri için ücretsiz SVG simgeleri ara"
-      },
-      "follow_up_2": {
-        "text": "Gönderim bilgilerinden önce misafir ödeme dalının nasıl ekleneceğini açıkla"
-      },
-      "follow_up_3": {
-        "text": "Çevrimiçi mağaza ödeme süreci en iyi uygulamalarını ve UX trendlerini ara"
-      },
-      "follow_up_4": {
-        "text": "Terk edilmiş sepet kurtarma e-postalarının etkili bir şekilde nasıl yönetileceğini açıkla"
-      },
-      "follow_up_5": {
-        "text": "Gelecek e-ticaret tasarım atölyelerini ve web seminerlerini bul"
-      },
-      "follow_up_6": {
-        "text": "Çevrimiçi ödeme süreçlerinde yaygın UX hatalarını listele"
-      }
     }
   },
   "focus_modes": {
@@ -10764,6 +10866,15 @@
       "text": "Kitap önerileri",
       "description": {
         "text": "Zevkinize göre kitap önerileri alın."
+      }
+    },
+    "business_find_brand_name": {
+      "text": "Marka adı bul",
+      "description": {
+        "text": "Akılda kalıcı adları seçin, ardından finalistlerin alan adlarını ve marka çakışmalarını kontrol edin."
+      },
+      "process": {
+        "text": "- İhtiyaçları anlayın\n- adları seçin\n- finalistleri kontrol edin\n- bulguları karşılaştırın"
       }
     },
     "code_analyze_logs": {
@@ -12512,6 +12623,13 @@
             },
             "description": {
               "text": "Herkese açık Mastodon profil gönderilerini getirdiğinde Mastodon'a sorgu gönderilir. İlgili Mastodon sunucusu, bir OpenMates kullanıcı tanımlayıcısı olmadan profil tanımlayıcılarını veya herkese açık profil URL'lerini alır."
+            }
+          }
+        },
+        "business_data": {
+          "uspto": {
+            "description": {
+              "text": "ABD marka aramalarında USPTO aday adları, durum, yazım ve Nice sınıfı filtrelerini alır. İstekler sunucularımızdan OpenMates kullanıcı kimlikleri veya sohbet geçmişi olmadan gönderilir."
             }
           }
         }

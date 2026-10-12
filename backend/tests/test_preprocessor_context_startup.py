@@ -81,7 +81,8 @@ async def test_team_chat_member_precheck_uses_spendable_credits(monkeypatch):
 
 # contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution,chat-processing-feedback.selected-mate-identity
 @pytest.mark.asyncio
-async def test_normal_account_discovers_rules_only_after_app_selection(monkeypatch):
+@pytest.mark.parametrize("routing_lane", [False, True])
+async def test_normal_account_discovers_rules_only_after_app_selection(monkeypatch, routing_lane):
     """The Jev stage-one boundary sees no Rule catalogue and loads selected apps."""
     class DecisionBoundaryReached(Exception):
         pass
@@ -124,8 +125,19 @@ async def test_normal_account_discovers_rules_only_after_app_selection(monkeypat
         assert steps == ["mate_selected", "model_selected"]
         notices.append(routing)
 
+    detail_loads = []
+
+    async def context_phase(**kwargs):
+        assert kwargs["phase"] == "details"
+        assert notices, "Mate publication must precede waiting for private details"
+        detail_loads.append(kwargs["phase"])
+
+    from backend.core.api.app.services import client_context_continuation
+    monkeypatch.setattr(client_context_continuation, "await_client_context_phase", context_phase)
+
     async def decision(**kwargs):
         decision_calls.append(kwargs)
+        assert detail_loads == ["details"], "Stage two needs the delivered private details"
         assert notices and kwargs["early_decisions"] == early_decisions
         assert await kwargs["available_rules_loader"](["code"]) == rules
         raise RuntimeError("Stop after observing the decision boundary")
@@ -149,8 +161,8 @@ async def test_normal_account_discovers_rules_only_after_app_selection(monkeypat
     monkeypatch.setattr(preprocessor, "call_preprocessing_llm", stop_before_fallback_inference)
     monkeypatch.setattr(preprocessor, "utility_model_fallbacks", lambda *_args: [])
 
-    with pytest.raises(DecisionBoundaryReached):
-        await preprocessor.handle_preprocessing(
+    async def run_preprocessor():
+        return await preprocessor.handle_preprocessing(
             request_data=request,
             base_instructions={"preprocess_request_tool": {"function": {"parameters": {"required": []}}}},
             skill_config=config, cache_service=cache, secrets_manager=None,
@@ -158,7 +170,20 @@ async def test_normal_account_discovers_rules_only_after_app_selection(monkeypat
             discovered_apps_metadata={"code": SimpleNamespace(skills=[], focuses=[])},
             on_early_routing=early_notice,
             preprocessing_stream_channel="preprocessing_stream::hash-test",
+            stage_one_only=routing_lane,
         )
+
+    if routing_lane:
+        result = await run_preprocessor()
+        assert result.routing_only is True
+        assert request._stage_one_routing["early_decisions"] == early_decisions
+        assert notices[0]["mate_id"] == "mate-code"
+        assert detail_loads == [] and decision_calls == []
+        discover_rules.assert_not_awaited()
+        discover_workflows.assert_not_awaited()
+        return
+    with pytest.raises(DecisionBoundaryReached):
+        await run_preprocessor()
 
     admitted_balance.assert_awaited_once_with(user_id="user-test", user_id_hash="hash-test")
     cache.get_user_by_id.assert_not_awaited()
@@ -171,3 +196,20 @@ async def test_normal_account_discovers_rules_only_after_app_selection(monkeypat
     assert len(decision_calls) == 1
     assert "available_rules" not in decision_calls[0]
     assert decision_calls[0]["available_workflows"] == workflows
+
+
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
+@pytest.mark.parametrize("missing", [None, "scope_complete", "active_focus_id", "context_revision"])
+def test_empty_context_fast_path_requires_complete_server_scope(missing):
+    from backend.apps.ai.processing.preprocessor import _simple_context_fast_path
+    scope = {"scope_complete": True, "active_project_id": None, "active_project_activation_id": None,
+             "active_focus_id": None, "accepted_plan_ref": None, "explicit_related_task_ids": [],
+             "context_revision": "revision"}
+    if missing:
+        scope.pop(missing)
+    request = SimpleNamespace(admission_context=scope, is_focus_mode_continuation=False,
+                              is_app_settings_memories_continuation=False)
+    routing = {"early_decisions": {"public_decisions": {}, "needs_detailed_context": False,
+                                   "needs_related_work": False},
+               "selected_app_ids": [], "project_target_outcome": "none"}
+    assert _simple_context_fast_path(request, routing, None) is (missing is None)

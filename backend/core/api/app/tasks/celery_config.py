@@ -195,6 +195,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.persistence_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.team_auto_topup_task'},
     {'name': 'app_ai',      'module': 'backend.apps.ai.tasks'},
+    {'name': 'app_ai_routing', 'module': 'backend.apps.ai.tasks.stage_one_task'},
     {'name': 'app_web',     'module': 'backend.apps.web.tasks'},  # Web app tasks (to be implemented)
     {'name': 'health_check', 'module': 'backend.core.api.app.tasks.health_check_tasks'},  # Health check tasks
     {'name': 'usage',       'module': 'backend.core.api.app.tasks.usage_archive_tasks'},  # Usage archive tasks
@@ -530,7 +531,7 @@ def _worker_needs_ai_services():
     Only the app-ai-worker (app_ai queue) needs AI services.
     """
     worker_queues = _get_worker_queues()
-    return 'app_ai' in worker_queues
+    return bool({'app_ai', 'app_ai_routing'} & worker_queues)
 
 
 async def initialize_services():
@@ -1145,6 +1146,11 @@ def init_worker_process(*args, **kwargs):
             server_environment=os.getenv("SERVER_ENVIRONMENT", "development").lower(),
         )
         set_global_registry(worker_registry)
+        # These are shipped public guides, not user Memory contents. Warm them
+        # once per process/config revision before accepting inference work.
+        from backend.shared.python_utils.memory_loader import warm_app_memories
+
+        warm_app_memories(worker_metadata.keys())
         logger.info(
             f"[SkillRegistry] Worker registry initialized with {len(worker_metadata)} app(s): "
             f"{sorted(worker_metadata.keys())}"
@@ -1170,6 +1176,7 @@ task_routes = {
     # Explicit routing for tasks with custom names that don't match module patterns
     # These must come first to ensure they take precedence over pattern-based routing
     "apps.ai.tasks.skill_ask": {'queue': 'app_ai'},
+    "apps.ai.tasks.stage_one": {'queue': 'app_ai_routing'},
     "runtime_health.worker_probe": {'queue': 'app_ai'},
     "runtime_health.chat_plumbing_probe": {'queue': 'app_ai'},
     "runtime_health.scheduler_heartbeat": {'queue': 'health_check'},
@@ -1234,6 +1241,7 @@ for config in TASK_CONFIG:
 _EXPLICIT_TASK_ROUTES = {
     # AI App tasks
     "apps.ai.tasks.skill_ask": "app_ai",
+    "apps.ai.tasks.stage_one": "app_ai_routing",
     "apps.ai.tasks.rate_limit_followup": "app_ai",
     "apps.ai.tasks.focus_mode_auto_confirm": "app_ai",
     "runtime_health.worker_probe": "app_ai",

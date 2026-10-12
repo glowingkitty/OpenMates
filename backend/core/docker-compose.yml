@@ -570,6 +570,74 @@ services:
       cms-setup:
         condition: service_completed_successfully
 
+  # Reserved compact Stage-one routing; no main inference or tool tasks.
+  app-ai-routing-worker:
+    container_name: app-ai-routing-worker
+    build:
+      context: ../../
+      dockerfile: backend/core/api/Dockerfile.celery
+    restart: unless-stopped
+    user: root
+    env_file: ../../.env
+    environment:
+      PYTHONPATH: "/app"
+      PYTHONDONTWRITEBYTECODE: "1" # Prevent Python from writing .pyc files for hot reloading
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      TRANSLATIONS_DIR: "/translations"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      OPENMATES_CLOUD_OVERLAY_ENABLED: "${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}"
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: "${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}"
+      OPENMATES_DEPLOYMENT_MODE: "${OPENMATES_DEPLOYMENT_MODE:-self_host}"
+      MOCK_EXTERNAL_APIS: "true"
+      CELERY_QUEUES: "app_ai_routing" # Used by celery_config to determine which services to initialize
+      CELERY_AUTOSCALE_MAX: "${APP_AI_ROUTING_CONCURRENCY:-2}" # Maximum concurrent processes (default: 10)
+      CELERY_AUTOSCALE_MIN: "2" # Minimum concurrent processes (default: 3)
+      CELERY_METRICS_PORT: "9113" # Port for prometheus_client metrics server — scraped by Prometheus
+    command:
+      - sh
+      - -c
+      - |
+        chown -R celeryuser:celeryuser /vault-data && \
+        mkdir -p /app/logs /app/backend/core/api/logs && \
+        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+        chmod -R 777 /app/logs /app/backend/core/api/logs && \
+        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        --loglevel=info \
+        --queues=app_ai_routing \
+        --concurrency=${APP_AI_ROUTING_CONCURRENCY:-2} \
+        --max-tasks-per-child=50 \
+        --max-memory-per-child=600000 \
+        --prefetch-multiplier=1
+    volumes:
+      - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      # Mount apps directory for hot-reloading during development
+      # This overrides the code copied during Docker build
+      - ../../backend/apps:/app/apps
+      - ./api/logs:/app/logs
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../shared:/shared
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      cms:
+        condition: service_healthy
+      vault-setup:
+        condition: service_completed_successfully
+      cms-setup:
+        condition: service_completed_successfully
+
   # Celery worker for Images app tasks
   app-images-worker:
     container_name: app-images-worker

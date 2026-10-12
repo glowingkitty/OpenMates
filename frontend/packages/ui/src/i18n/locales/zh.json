@@ -93,6 +93,14 @@
         }
       }
     },
+    "business": {
+      "find_brand_name": {
+        "text": "寻找品牌名称",
+        "description": {
+          "text": "筛选易记的名称，再检查候选域名和商标冲突。"
+        }
+      }
+    },
     "code": {
       "test_git_repo": {
         "text": "测试git仓库",
@@ -1282,6 +1290,12 @@
         "text": "Get company financials",
         "description": {
           "text": "Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR."
+        }
+      },
+      "search_trademarks": {
+        "text": "搜索商标",
+        "description": {
+          "text": "按地区搜索商标名称，显示来源和覆盖范围限制。"
         }
       }
     },
@@ -7623,6 +7637,86 @@
         "not_available": {
           "text": "不适用"
         }
+      },
+      "search_trademarks": {
+        "records": {
+          "text": "{count} 条记录"
+        },
+        "preliminary": {
+          "text": "初步搜索"
+        },
+        "checked": {
+          "text": "已查询"
+        },
+        "not_searched": {
+          "text": "未搜索"
+        },
+        "partial": {
+          "text": "部分"
+        },
+        "empty": {
+          "text": "没有匹配记录"
+        },
+        "limitation": {
+          "text": "没有匹配记录并不代表法律上可用。"
+        },
+        "open_record": {
+          "text": "查看官方记录"
+        },
+        "open_register": {
+          "text": "打开官方搜索"
+        },
+        "classes": {
+          "text": "尼斯分类"
+        },
+        "all_classes": {
+          "text": "所有分类"
+        },
+        "owner": {
+          "text": "所有者"
+        },
+        "goods": {
+          "text": "商品和服务"
+        },
+        "application": {
+          "text": "申请"
+        },
+        "registration": {
+          "text": "注册"
+        },
+        "filed": {
+          "text": "申请日期"
+        },
+        "registered": {
+          "text": "已注册"
+        },
+        "pending": {
+          "text": "待处理"
+        },
+        "ended": {
+          "text": "已终止"
+        },
+        "unknown": {
+          "text": "状态未知"
+        },
+        "exact": {
+          "text": "精确名称"
+        },
+        "similar": {
+          "text": "相似拼写"
+        },
+        "active": {
+          "text": "有效记录"
+        },
+        "all_statuses": {
+          "text": "所有状态"
+        },
+        "more": {
+          "text": "官方注册库中还有更多匹配记录"
+        },
+        "failed": {
+          "text": "搜索数据不可用"
+        }
       }
     },
     "reviews": {
@@ -7874,6 +7968,14 @@
       },
       "exit_fullscreen": {
         "text": "退出全屏"
+      }
+    },
+    "ghost_suggestion": {
+      "press_tab": {
+        "text": "按 Tab 接受建议"
+      },
+      "use_suggestion": {
+        "text": "使用建议"
       }
     },
     "location": {
@@ -8954,6 +9056,38 @@
       },
       "follow_up_6": {
         "text": "解释如何在印刷布局中排列视觉元素"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "社区花园的温暖提示音"
+      },
+      "summary": {
+        "text": "为一个虚构的社区花园应用生成一段简短的双音节通知音。"
+      },
+      "message_1": {
+        "text": "为社区花园应用创建一个简短、温暖的通知音，用于志愿者报名时。要求是温和的双音节提示音，无语音，时长在三秒以内。"
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\n我正在为你的社区花园应用生成温和、温暖的双音节提示音。目前正在处理中，准备就绪后会立即出现在对话中。\n\n### 建议的后续步骤\n- [生成充满泥土气息的庆祝勋章解锁提示音](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [设计志愿者确认卡片布局](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "生成任务完成时的庆祝勋章解锁提示音"
+      },
+      "follow_up_2": {
+        "text": "解释声音设计如何影响移动应用的用户参与度"
+      },
+      "follow_up_3": {
+        "text": "为早间浇水计划创建一个温和的提醒音"
+      },
+      "follow_up_4": {
+        "text": "列出设计非侵入式 UI 通知声音的最佳实践"
+      },
+      "follow_up_5": {
+        "text": "为表单验证失败生成一个柔和的错误警报声"
+      },
+      "follow_up_6": {
+        "text": "描述如何将自定义音效集成到移动应用程序中"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -10038,6 +10172,38 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"6da89032-d370-43c5-91c1-b07fa5df5a85\", \"app_id\": \"images\", \"skill_id\": \"generate\"}\n```\n\nI'm generating that SVG app icon for your climate data dashboard now. \n\nI've focused on a clean, [flat](wiki:Flat_design) [vector](wiki:Vector_graphics) aesthetic with a teal and mint palette to reflect both nature and data. This style is excellent for scalability, ensuring the icon stays crisp whether it's on a mobile home screen or a tiny browser favicon.\n\nOnce it's ready, we could experiment with different color schemes for dark mode or even create a [UI mockup](wiki:Mockup) to see how it looks in context.\n\nWhat kind of interface are you imagining for this dashboard—something very data-heavy with charts, or a more simplified overview?"
       }
     },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "网店结账流程图"
+      },
+      "summary": {
+        "text": "一个带有支付重试和订单确认功能的可编辑结账流程图。"
+      },
+      "message_1": {
+        "text": "为一个小型网店创建一个可编辑的流程图：购物车、结账详情、支付和订单确认。如果支付被拒绝，显示客户重试。将所有信息保留在图表内，不要链接到外部网站。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### 流程分解与 UX 考量\n\n1. **线性推进**：客户线性地经过**购物车**、**结账详情**（收货/账单）和**支付处理**。\n2. **拒绝与错误恢复**：\n   - 支付被拒后，系统不会直接结束会话，而是将客户引导至**更改支付方式**决策步骤。\n   - 虚线正交路径直接导回**结账详情**，允许客户切换支付方式、纠正卡片信息拼写错误或选择其他电子钱包，而不会丢失购物车中的商品。\n   - 如果客户选择不再重试，会话将以**购物车已保存**状态正常结束，为后续发送弃购挽回邮件留出空间。\n3. **可编辑结构**：每个步骤和路径都包含标准的 `data-om-*` 绑定，因此你可以自定义标签、添加折扣券步骤或直接集成游客结账分支。\n\n---\n\n**后续步骤与迭代：**\n- 你是否想在收货详情前引入**游客结账 vs. 登录账户**分支？\n- 如果你正在为此流程设计用户界面或自定义插图，我们可以探索集成线框图或自定义手绘图标徽章来完善这些步骤。"
+      },
+      "follow_up_1": {
+        "text": "搜索结账按钮的免费 SVG 图标"
+      },
+      "follow_up_2": {
+        "text": "解释如何在填写收货详情前添加游客结账分支"
+      },
+      "follow_up_3": {
+        "text": "搜索网店结账最佳实践和 UX 趋势"
+      },
+      "follow_up_4": {
+        "text": "描述如何有效处理弃购挽回邮件"
+      },
+      "follow_up_5": {
+        "text": "查找即将举行的电子商务设计研讨会和网络研讨会"
+      },
+      "follow_up_6": {
+        "text": "列出在线支付结账流程中常见的 UX 陷阱"
+      }
+    },
     "open_meteo_weather_notebook": {
       "title": {
         "text": "Berlin Weekend Bike Weather Notebook"
@@ -10684,70 +10850,6 @@
       "follow_up_6": {
         "text": "比较将口头想法转化为有条理任务的不同方法"
       }
-    },
-    "community_garden_volunteer_chime": {
-      "title": {
-        "text": "社区花园的温暖提示音"
-      },
-      "summary": {
-        "text": "为一个虚构的社区花园应用生成一段简短的双音节通知音。"
-      },
-      "message_1": {
-        "text": "为社区花园应用创建一个简短、温暖的通知音，用于志愿者报名时。要求是温和的双音节提示音，无语音，时长在三秒以内。"
-      },
-      "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\n我正在为你的社区花园应用生成温和、温暖的双音节提示音。目前正在处理中，准备就绪后会立即出现在对话中。\n\n### 建议的后续步骤\n- [生成充满泥土气息的庆祝勋章解锁提示音](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [设计志愿者确认卡片布局](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
-      },
-      "follow_up_1": {
-        "text": "生成任务完成时的庆祝勋章解锁提示音"
-      },
-      "follow_up_2": {
-        "text": "解释声音设计如何影响移动应用的用户参与度"
-      },
-      "follow_up_3": {
-        "text": "为早间浇水计划创建一个温和的提醒音"
-      },
-      "follow_up_4": {
-        "text": "列出设计非侵入式 UI 通知声音的最佳实践"
-      },
-      "follow_up_5": {
-        "text": "为表单验证失败生成一个柔和的错误警报声"
-      },
-      "follow_up_6": {
-        "text": "描述如何将自定义音效集成到移动应用程序中"
-      }
-    },
-    "online_shop_checkout_flow_diagram": {
-      "title": {
-        "text": "网店结账流程图"
-      },
-      "summary": {
-        "text": "一个带有支付重试和订单确认功能的可编辑结账流程图。"
-      },
-      "message_1": {
-        "text": "为一个小型网店创建一个可编辑的流程图：购物车、结账详情、支付和订单确认。如果支付被拒绝，显示客户重试。将所有信息保留在图表内，不要链接到外部网站。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### 流程分解与 UX 考量\n\n1. **线性推进**：客户线性地经过**购物车**、**结账详情**（收货/账单）和**支付处理**。\n2. **拒绝与错误恢复**：\n   - 支付被拒后，系统不会直接结束会话，而是将客户引导至**更改支付方式**决策步骤。\n   - 虚线正交路径直接导回**结账详情**，允许客户切换支付方式、纠正卡片信息拼写错误或选择其他电子钱包，而不会丢失购物车中的商品。\n   - 如果客户选择不再重试，会话将以**购物车已保存**状态正常结束，为后续发送弃购挽回邮件留出空间。\n3. **可编辑结构**：每个步骤和路径都包含标准的 `data-om-*` 绑定，因此你可以自定义标签、添加折扣券步骤或直接集成游客结账分支。\n\n---\n\n**后续步骤与迭代：**\n- 你是否想在收货详情前引入**游客结账 vs. 登录账户**分支？\n- 如果你正在为此流程设计用户界面或自定义插图，我们可以探索集成线框图或自定义手绘图标徽章来完善这些步骤。"
-      },
-      "follow_up_1": {
-        "text": "搜索结账按钮的免费 SVG 图标"
-      },
-      "follow_up_2": {
-        "text": "解释如何在填写收货详情前添加游客结账分支"
-      },
-      "follow_up_3": {
-        "text": "搜索网店结账最佳实践和 UX 趋势"
-      },
-      "follow_up_4": {
-        "text": "描述如何有效处理弃购挽回邮件"
-      },
-      "follow_up_5": {
-        "text": "查找即将举行的电子商务设计研讨会和网络研讨会"
-      },
-      "follow_up_6": {
-        "text": "列出在线支付结账流程中常见的 UX 陷阱"
-      }
     }
   },
   "focus_modes": {
@@ -10764,6 +10866,15 @@
       "text": "图书推荐",
       "description": {
         "text": "根据你的喜好获取图书推荐。"
+      }
+    },
+    "business_find_brand_name": {
+      "text": "寻找品牌名称",
+      "description": {
+        "text": "筛选易记的名称，再检查候选域名和商标冲突。"
+      },
+      "process": {
+        "text": "- 了解需求\n- 筛选名称\n- 检查最终候选\n- 比较证据。"
       }
     },
     "code_analyze_logs": {
@@ -12512,6 +12623,13 @@
             },
             "description": {
               "text": "当你获取公开 Mastodon 个人资料帖子时，系统会查询 Mastodon。相关的 Mastodon 服务器会接收个人资料标识符或公开个人资料 URL，且不包含 OpenMates 用户标识符。"
+            }
+          }
+        },
+        "business_data": {
+          "uspto": {
+            "description": {
+              "text": "美国商标搜索会向 USPTO 发送候选名称、状态、拼写匹配及尼斯分类筛选条件。请求由我们的服务器发送，不含 OpenMates 用户标识或聊天记录。"
             }
           }
         }

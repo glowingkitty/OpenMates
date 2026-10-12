@@ -361,4 +361,13 @@ def test_fixed_ciphertext_projection_matches_existing_window_fields():
     projection = (
         result["query"]["sql"].split(" FROM messages", 1)[0].removeprefix("SELECT ")
     )
-    assert projection.split(", ") == MESSAGE_ALL_FIELDS.split(",")
+    projection_fields = projection.split(", ")
+    queue_fields = {
+        "queue_revision", "queue_dispatch_status", "queue_dispatch_task_id",
+        "queue_dispatch_mode", "queue_pause_reason",
+    }
+    expected_fields = set(MESSAGE_ALL_FIELDS.split(",")) - queue_fields
+    assert len(projection_fields) == len(set(projection_fields))
+    assert set(projection_fields) == expected_fields
+    assert {"encrypted_content", "encrypted_thinking_content",
+            "encrypted_pii_mappings", "hashed_user_id"} <= set(projection_fields)

@@ -93,6 +93,14 @@
         }
       }
     },
+    "business": {
+      "find_brand_name": {
+        "text": "브랜드 이름 찾기",
+        "description": {
+          "text": "기억하기 쉬운 이름을 추린 뒤 최종 후보의 도메인과 상표 충돌을 확인하세요."
+        }
+      }
+    },
     "code": {
       "test_git_repo": {
         "text": "Git 저장소 테스트",
@@ -1282,6 +1290,12 @@
         "text": "Get company financials",
         "description": {
           "text": "Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR."
+        }
+      },
+      "search_trademarks": {
+        "text": "상표 검색",
+        "description": {
+          "text": "지역별로 상표명을 검색하고 출처와 검색 범위의 한계를 확인하세요."
         }
       }
     },
@@ -7623,6 +7637,86 @@
         "not_available": {
           "text": "해당 없음"
         }
+      },
+      "search_trademarks": {
+        "records": {
+          "text": "{count}개 기록"
+        },
+        "preliminary": {
+          "text": "예비 검색"
+        },
+        "checked": {
+          "text": "검색됨"
+        },
+        "not_searched": {
+          "text": "검색하지 않음"
+        },
+        "partial": {
+          "text": "일부"
+        },
+        "empty": {
+          "text": "일치하는 기록 없음"
+        },
+        "limitation": {
+          "text": "일치 항목이 없다고 법적으로 사용 가능함이 입증되지는 않습니다."
+        },
+        "open_record": {
+          "text": "공식 기록 보기"
+        },
+        "open_register": {
+          "text": "공식 검색 열기"
+        },
+        "classes": {
+          "text": "니스 분류"
+        },
+        "all_classes": {
+          "text": "모든 분류"
+        },
+        "owner": {
+          "text": "권리자"
+        },
+        "goods": {
+          "text": "상품 및 서비스"
+        },
+        "application": {
+          "text": "출원"
+        },
+        "registration": {
+          "text": "등록"
+        },
+        "filed": {
+          "text": "출원일"
+        },
+        "registered": {
+          "text": "등록됨"
+        },
+        "pending": {
+          "text": "심사 중"
+        },
+        "ended": {
+          "text": "종료됨"
+        },
+        "unknown": {
+          "text": "상태 알 수 없음"
+        },
+        "exact": {
+          "text": "정확한 이름"
+        },
+        "similar": {
+          "text": "유사한 철자"
+        },
+        "active": {
+          "text": "유효한 기록"
+        },
+        "all_statuses": {
+          "text": "모든 상태"
+        },
+        "more": {
+          "text": "공식 등록부에 더 많은 일치 항목이 있습니다"
+        },
+        "failed": {
+          "text": "검색 데이터를 사용할 수 없음"
+        }
       }
     },
     "reviews": {
@@ -7874,6 +7968,14 @@
       },
       "exit_fullscreen": {
         "text": "전체 화면 종료"
+      }
+    },
+    "ghost_suggestion": {
+      "press_tab": {
+        "text": "Tab 키를 눌러 제안을 적용하세요"
+      },
+      "use_suggestion": {
+        "text": "제안 사용"
       }
     },
     "location": {
@@ -8954,6 +9056,38 @@
       },
       "follow_up_6": {
         "text": "인쇄 레이아웃에서 시각적 요소를 배치하는 방법 설명"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "커뮤니티 정원을 위한 따뜻한 차임벨"
+      },
+      "summary": {
+        "text": "가상의 커뮤니티 정원 앱을 위한 짧은 두 음절 알림음을 생성해."
+      },
+      "message_1": {
+        "text": "자원봉사자가 등록할 때 커뮤니티 정원 앱에서 사용할 짧고 따뜻한 알림음을 만들어줘. 부드러운 두 음절 차임벨이어야 하고, 음성은 없어야 하며, 3초 미만이어야 해."
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\n지금 커뮤니티 정원 앱을 위한 따뜻하고 부드러운 두 음절 차임벨을 생성하고 있어. 현재 처리 중이며 준비되는 대로 채팅창에 나타날 거야.\n\n### 추천 다음 단계\n- [자연의 느낌이 나는 축하 배지 획득 차임벨 생성](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [자원봉사자 확인 카드 레이아웃 디자인](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "작업 완료를 위한 축하 배지 획득 차임벨 생성"
+      },
+      "follow_up_2": {
+        "text": "사운드 디자인이 모바일 앱의 사용자 참여에 미치는 영향 설명"
+      },
+      "follow_up_3": {
+        "text": "아침 물 주기 일정을 위한 부드러운 알림 차임벨 생성"
+      },
+      "follow_up_4": {
+        "text": "방해되지 않는 UI 알림음 디자인을 위한 모범 사례 목록"
+      },
+      "follow_up_5": {
+        "text": "양식 유효성 검사 실패를 위한 부드러운 오류 알림음 생성"
+      },
+      "follow_up_6": {
+        "text": "모바일 애플리케이션에 맞춤형 사운드 효과를 통합하는 방법 설명"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -10038,6 +10172,38 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"6da89032-d370-43c5-91c1-b07fa5df5a85\", \"app_id\": \"images\", \"skill_id\": \"generate\"}\n```\n\nI'm generating that SVG app icon for your climate data dashboard now. \n\nI've focused on a clean, [flat](wiki:Flat_design) [vector](wiki:Vector_graphics) aesthetic with a teal and mint palette to reflect both nature and data. This style is excellent for scalability, ensuring the icon stays crisp whether it's on a mobile home screen or a tiny browser favicon.\n\nOnce it's ready, we could experiment with different color schemes for dark mode or even create a [UI mockup](wiki:Mockup) to see how it looks in context.\n\nWhat kind of interface are you imagining for this dashboard—something very data-heavy with charts, or a more simplified overview?"
       }
     },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "온라인 쇼핑몰 결제 프로세스 다이어그램"
+      },
+      "summary": {
+        "text": "결제 재시도 및 주문 확인 기능이 포함된 편집 가능한 결제 플로우차트입니다."
+      },
+      "message_1": {
+        "text": "소규모 온라인 쇼핑몰을 위한 편집 가능한 플로우차트를 만들어 줘. 장바구니, 결제 상세 정보, 결제, 주문 확인 단계가 포함되어야 해. 결제가 거절될 경우 고객이 재시도하는 과정을 보여줘. 모든 정보는 다이어그램 내에 유지하고 외부 웹사이트로 링크하지 마."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### 흐름 분석 및 UX 고려 사항\n\n1. **순차적 진행**: 고객은 **장바구니**, **결제 상세 정보**(배송/청구), **결제 처리** 단계를 거쳐 선형적으로 진행합니다.\n2. **거절 및 오류 복구**:\n   - 고객의 세션을 빈 상태로 되돌리는 대신, 결제 거절 시 **수단 변경** 결정 단계로 안내합니다.\n   - 점선으로 표시된 직교 경로는 **결제 상세 정보**로 직접 연결되어, 고객이 장바구니 상품을 잃지 않고도 결제 수단을 변경하거나 카드 데이터의 오타를 수정하고, 또는 다른 디지털 지갑을 선택할 수 있게 합니다.\n   - 재시도를 원하지 않을 경우 세션은 **장바구니 저장됨** 종료 상태로 깔끔하게 마무리되며, 이는 추후 장바구니 이탈 복구 이메일을 보낼 수 있는 여지를 남깁니다.\n3. **편집 가능한 구조**: 모든 단계와 경로에는 표준 `data-om-*` 바인딩이 포함되어 있어 라벨을 맞춤 설정하거나, 할인 쿠폰 단계를 추가하거나, 비회원 결제 분기를 직접 통합할 수 있습니다.\n\n---\n\n**다음 단계 및 반복 작업:**\n- 배송 정보 단계 앞에 **비회원 결제 vs. 로그인 계정** 분기를 추가하시겠습니까?\n- 이 흐름을 위한 사용자 인터페이스나 맞춤형 일러스트를 디자인 중이라면, 각 단계를 보완할 수 있는 와이어프레임이나 맞춤형 손그림 아이콘 배지 통합을 검토해 볼 수 있습니다."
+      },
+      "follow_up_1": {
+        "text": "결제 버튼용 무료 SVG 아이콘 검색하기"
+      },
+      "follow_up_2": {
+        "text": "배송 정보 입력 전 비회원 결제 분기를 추가하는 방법 설명해 줘"
+      },
+      "follow_up_3": {
+        "text": "온라인 쇼핑몰 결제 모범 사례 및 UX 트렌드 검색하기"
+      },
+      "follow_up_4": {
+        "text": "장바구니 이탈 복구 이메일을 효과적으로 처리하는 방법 설명해 줘"
+      },
+      "follow_up_5": {
+        "text": "향후 예정된 이커머스 디자인 워크숍 및 웨비나 찾기"
+      },
+      "follow_up_6": {
+        "text": "온라인 결제 프로세스에서 흔히 발생하는 UX 실수 목록 보기"
+      }
+    },
     "open_meteo_weather_notebook": {
       "title": {
         "text": "Berlin Weekend Bike Weather Notebook"
@@ -10684,70 +10850,6 @@
       "follow_up_6": {
         "text": "음성 아이디어를 체계적인 작업으로 전환하는 다양한 방법 비교하기"
       }
-    },
-    "community_garden_volunteer_chime": {
-      "title": {
-        "text": "커뮤니티 정원을 위한 따뜻한 차임벨"
-      },
-      "summary": {
-        "text": "가상의 커뮤니티 정원 앱을 위한 짧은 두 음절 알림음을 생성해."
-      },
-      "message_1": {
-        "text": "자원봉사자가 등록할 때 커뮤니티 정원 앱에서 사용할 짧고 따뜻한 알림음을 만들어줘. 부드러운 두 음절 차임벨이어야 하고, 음성은 없어야 하며, 3초 미만이어야 해."
-      },
-      "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\n지금 커뮤니티 정원 앱을 위한 따뜻하고 부드러운 두 음절 차임벨을 생성하고 있어. 현재 처리 중이며 준비되는 대로 채팅창에 나타날 거야.\n\n### 추천 다음 단계\n- [자연의 느낌이 나는 축하 배지 획득 차임벨 생성](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [자원봉사자 확인 카드 레이아웃 디자인](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
-      },
-      "follow_up_1": {
-        "text": "작업 완료를 위한 축하 배지 획득 차임벨 생성"
-      },
-      "follow_up_2": {
-        "text": "사운드 디자인이 모바일 앱의 사용자 참여에 미치는 영향 설명"
-      },
-      "follow_up_3": {
-        "text": "아침 물 주기 일정을 위한 부드러운 알림 차임벨 생성"
-      },
-      "follow_up_4": {
-        "text": "방해되지 않는 UI 알림음 디자인을 위한 모범 사례 목록"
-      },
-      "follow_up_5": {
-        "text": "양식 유효성 검사 실패를 위한 부드러운 오류 알림음 생성"
-      },
-      "follow_up_6": {
-        "text": "모바일 애플리케이션에 맞춤형 사운드 효과를 통합하는 방법 설명"
-      }
-    },
-    "online_shop_checkout_flow_diagram": {
-      "title": {
-        "text": "온라인 쇼핑몰 결제 프로세스 다이어그램"
-      },
-      "summary": {
-        "text": "결제 재시도 및 주문 확인 기능이 포함된 편집 가능한 결제 플로우차트입니다."
-      },
-      "message_1": {
-        "text": "소규모 온라인 쇼핑몰을 위한 편집 가능한 플로우차트를 만들어 줘. 장바구니, 결제 상세 정보, 결제, 주문 확인 단계가 포함되어야 해. 결제가 거절될 경우 고객이 재시도하는 과정을 보여줘. 모든 정보는 다이어그램 내에 유지하고 외부 웹사이트로 링크하지 마."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### 흐름 분석 및 UX 고려 사항\n\n1. **순차적 진행**: 고객은 **장바구니**, **결제 상세 정보**(배송/청구), **결제 처리** 단계를 거쳐 선형적으로 진행합니다.\n2. **거절 및 오류 복구**:\n   - 고객의 세션을 빈 상태로 되돌리는 대신, 결제 거절 시 **수단 변경** 결정 단계로 안내합니다.\n   - 점선으로 표시된 직교 경로는 **결제 상세 정보**로 직접 연결되어, 고객이 장바구니 상품을 잃지 않고도 결제 수단을 변경하거나 카드 데이터의 오타를 수정하고, 또는 다른 디지털 지갑을 선택할 수 있게 합니다.\n   - 재시도를 원하지 않을 경우 세션은 **장바구니 저장됨** 종료 상태로 깔끔하게 마무리되며, 이는 추후 장바구니 이탈 복구 이메일을 보낼 수 있는 여지를 남깁니다.\n3. **편집 가능한 구조**: 모든 단계와 경로에는 표준 `data-om-*` 바인딩이 포함되어 있어 라벨을 맞춤 설정하거나, 할인 쿠폰 단계를 추가하거나, 비회원 결제 분기를 직접 통합할 수 있습니다.\n\n---\n\n**다음 단계 및 반복 작업:**\n- 배송 정보 단계 앞에 **비회원 결제 vs. 로그인 계정** 분기를 추가하시겠습니까?\n- 이 흐름을 위한 사용자 인터페이스나 맞춤형 일러스트를 디자인 중이라면, 각 단계를 보완할 수 있는 와이어프레임이나 맞춤형 손그림 아이콘 배지 통합을 검토해 볼 수 있습니다."
-      },
-      "follow_up_1": {
-        "text": "결제 버튼용 무료 SVG 아이콘 검색하기"
-      },
-      "follow_up_2": {
-        "text": "배송 정보 입력 전 비회원 결제 분기를 추가하는 방법 설명해 줘"
-      },
-      "follow_up_3": {
-        "text": "온라인 쇼핑몰 결제 모범 사례 및 UX 트렌드 검색하기"
-      },
-      "follow_up_4": {
-        "text": "장바구니 이탈 복구 이메일을 효과적으로 처리하는 방법 설명해 줘"
-      },
-      "follow_up_5": {
-        "text": "향후 예정된 이커머스 디자인 워크숍 및 웨비나 찾기"
-      },
-      "follow_up_6": {
-        "text": "온라인 결제 프로세스에서 흔히 발생하는 UX 실수 목록 보기"
-      }
     }
   },
   "focus_modes": {
@@ -10764,6 +10866,15 @@
       "text": "책 추천",
       "description": {
         "text": "취향에 맞는 책 추천을 받으세요."
+      }
+    },
+    "business_find_brand_name": {
+      "text": "브랜드 이름 찾기",
+      "description": {
+        "text": "기억하기 쉬운 이름을 추린 뒤 최종 후보의 도메인과 상표 충돌을 확인하세요."
+      },
+      "process": {
+        "text": "- 요구 파악\n- 이름 선정\n- 최종 후보 확인\n- 근거 비교"
       }
     },
     "code_analyze_logs": {
@@ -12512,6 +12623,13 @@
             },
             "description": {
               "text": "공개 Mastodon 프로필 게시물을 가져올 때 Mastodon에 쿼리합니다. 관련 Mastodon 서버는 OpenMates 사용자 식별자 없이 프로필 식별자 또는 공개 프로필 URL을 수신합니다."
+            }
+          }
+        },
+        "business_data": {
+          "uspto": {
+            "description": {
+              "text": "미국 상표 검색을 위해 후보 이름과 상태, 철자 및 니스 분류 필터를 USPTO에 전송합니다. 요청은 서버에서 전송되며 OpenMates 사용자 식별자나 채팅 기록을 포함하지 않습니다."
             }
           }
         }

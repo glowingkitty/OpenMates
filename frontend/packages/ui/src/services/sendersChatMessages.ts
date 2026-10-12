@@ -14,6 +14,9 @@ import { getAssistantSpeechPreference, hasAssistantSpeechPreferenceIntent, setAs
 import { chatDB } from "./db";
 import { webSocketService } from "./websocketService";
 import { recordMessageDispatchFailure } from "./sendersChatMessagesDispatchFailure";
+import { FastAdmissionJournalGate, isRetainedFastAdmissionSnapshot } from "./fastAdmissionJournal";
+import { PendingAdmissionCompatibilityError } from "./serverCapabilityGate";
+import { retainOrReuseContextPhaseFrame, type AdmissionContextPhase, type AdmissionContextIdentity } from "./fastAdmissionPhaseJournal";
 import { notificationStore } from "../stores/notificationStore";
 import { normalizeToUnixSeconds } from "./timestampUtils";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
@@ -37,7 +40,8 @@ import { get } from "svelte/store";
 import { authStore } from "../stores/authStore";
 import { initializeServerStatus, serverStatusStore } from "../stores/serverStatusStore";
 import type { PreparedConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
-import { assertNoConnectedAccountSecretLeak } from "./connectedAccountTokenBrokerService";
+import { assertNoConnectedAccountSecretLeak, prepareConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
+import { buildConnectedAccountSendContext, listConnectedAccounts } from "./connectedAccountStorageService";
 import { deriveChatCompletionRecoveryKeypair } from "../utils/chatCompletionRecovery";
 import { generateUUID } from "../message_parsing/utils";
 import { isTeamAIInvocation } from "./teamService";
@@ -50,6 +54,8 @@ import {
 } from "./projectFocusSendPreflight";
 import { deactivateProjectFocus, getActiveProjectFocus, listProjects } from "./projectService";
 import { collectProjectFocusRoutingCandidates, type ProjectFocusRoutingCandidate } from "./agenticProjectContextService";
+import { collectRelatedTaskSnapshots } from "./relatedTaskContext";
+import { collectAcceptedPlanContext } from "./acceptedPlanContext";
 import { stageTeamNotificationPreview } from "./teamNotificationPreview";
 import { assertNoOmittedTeamTurns, loadLocalSavedHistoryForSend, loadTeamAIHistory } from "./teamAIHistory";
 import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
@@ -114,6 +120,7 @@ const DEFINITIVE_TEAM_PREFLIGHT_ERRORS = new Set([
 const teamPreflightConfirmListeners = new Map<string, (payload: unknown) => void>();
 const embedBundleConfirmListeners = new Map<string, (payload: unknown) => void>();
 const turnPreflightConfirmListeners = new Map<string, (payload: unknown) => void>();
+const fastAdmissionListeners = new Map<string, { confirmed: (payload: unknown) => void; context: (payload: unknown) => void }>();
 
 interface EncryptedEmbedForDirectus {
 	embed_id: string;
@@ -594,6 +601,33 @@ export function watchDurableTurnPreflightConfirmation(
 	webSocketService.on("chat_message_confirmed", confirmed);
 }
 
+function watchFastAdmissionCompletion(input: {
+	chatId: string; messageId: string; turnId: string; requestId: string;
+	committedMessagesVersion: number;
+}): void {
+	const key = `${input.chatId}:${input.messageId}`;
+	if (fastAdmissionListeners.has(key)) return;
+	const gate = new FastAdmissionJournalGate(input);
+	const complete = () => {
+		if (!gate.complete) return;
+		const listeners = fastAdmissionListeners.get(key);
+		if (!listeners) return;
+		webSocketService.off("chat_message_confirmed", listeners.confirmed);
+		webSocketService.off("chat_turn_context_ack", listeners.context);
+		fastAdmissionListeners.delete(key);
+		void Promise.all([
+			clearPendingMessageJournal(input.chatId, input.messageId, MESSAGE_TURN_PREFLIGHT_FIELD),
+			clearPendingMessageJournal(input.chatId, input.messageId, contextPhaseJournalField("routing")),
+			clearPendingMessageJournal(input.chatId, input.messageId, contextPhaseJournalField("details")),
+		]).catch((error) => console.warn("[ChatSyncService:Senders] Could not clear completed admission journal", error));
+	};
+	const confirmed = (payload: unknown) => { gate.acceptConfirmation(payload); complete(); };
+	const context = (payload: unknown) => { gate.acceptContextAck(payload); complete(); };
+	fastAdmissionListeners.set(key, { confirmed, context });
+	webSocketService.on("chat_message_confirmed", confirmed);
+	webSocketService.on("chat_turn_context_ack", context);
+}
+
 if (typeof window !== "undefined") {
 	window.addEventListener("userLoggingOut", () => {
 		// The account logout path deletes chatDB, including pending message rows.
@@ -604,6 +638,11 @@ if (typeof window !== "undefined") {
 		for (const [key, listener] of turnPreflightConfirmListeners) {
 			webSocketService.off("chat_message_confirmed", listener);
 			turnPreflightConfirmListeners.delete(key);
+		}
+		for (const [key, listeners] of fastAdmissionListeners) {
+			webSocketService.off("chat_message_confirmed", listeners.confirmed);
+			webSocketService.off("chat_turn_context_ack", listeners.context);
+			fastAdmissionListeners.delete(key);
 		}
 	});
 }
@@ -840,6 +879,267 @@ async function blockSendWithoutConfiguredAiModels(
 	return true;
 }
 
+const contextPhaseJournalField = (phase: AdmissionContextPhase) =>
+	`pending_encrypted_turn_context_${phase}_v1`;
+
+/** Seal each exact phase before network delivery; a duplicate retry must be byte-equivalent. */
+async function retainContextPhaseFrame(
+	message: Message, chatKey: Uint8Array, identity: AdmissionContextIdentity,
+	phase: AdmissionContextPhase, proposed?: Record<string, unknown>,
+): Promise<Record<string, unknown> | null> {
+	const field = contextPhaseJournalField(phase);
+	return retainOrReuseContextPhaseFrame({
+		identity, phase, proposed,
+		read: () => readPendingMessageJournal(message.chat_id, message.message_id, field),
+		commit: (sealed) => commitPendingMessageJournal(message.chat_id, message.message_id, field, sealed),
+		seal: (frame) => encryptWithChatKey(JSON.stringify(frame), chatKey),
+		open: (sealed) => decryptWithChatKey(sealed, chatKey, {
+			chatId: message.chat_id, fieldName: field,
+		}),
+	});
+}
+
+async function publishPostAdmissionContext(input: {
+	message: Message;
+	chat: Chat;
+	admission: Record<string, unknown>;
+	postAdmissionConnectedAccounts?: Promise<PreparedConnectedAccountSendContext | undefined>;
+}): Promise<void> {
+	const { message, chat, admission, postAdmissionConnectedAccounts } = input;
+	const request = admission.inference_request as Record<string, unknown>;
+	const requestId = request.client_context_request_id;
+	if (typeof requestId !== "string" || !requestId) throw new Error("Admitted turn has no client context request ID.");
+	const workspace = getWorkspaceCacheIdentity();
+	const team = getActiveTeamContextSnapshot();
+	const isCurrent = () => workspace !== null && getWorkspaceCacheIdentity() === workspace
+		&& get(authStore).isAuthenticated
+		&& getActiveTeamContextSnapshot().epoch === team.epoch
+		&& !team.teamId && !chat.team_id;
+	if (!isCurrent()) return;
+	const chatKey = chatKeyManager.getKeySync(message.chat_id) || await chatKeyManager.getKey(message.chat_id);
+	if (!chatKey) throw new Error("Admitted turn has no local chat key for context replay.");
+	const identity = {
+		chat_id: message.chat_id,
+		turn_id: admission.turn_id,
+		message_id: message.message_id,
+		request_id: requestId,
+	};
+	const accounts = postAdmissionConnectedAccounts ?? Promise.resolve(undefined);
+	let routingFrame = await retainContextPhaseFrame(message, chatKey, identity, "routing");
+	if (!routingFrame) {
+		const [projects, tasks, focusCatalog, plan, routedAccounts] = await Promise.all([
+			listProjects({ teamId: null }).then((projects) =>
+				collectProjectFocusRoutingCandidates(projects, null, message.content ?? "")),
+			collectRelatedTaskSnapshots(null, message.chat_id),
+			import("./agenticProjectContextService").then((context) =>
+				context.collectProjectFocusCatalog({ chatId: message.chat_id })),
+			collectAcceptedPlanContext({ chatId: message.chat_id, teamId: null }),
+			accounts,
+		]);
+		if (!isCurrent()) return;
+		routingFrame = await retainContextPhaseFrame(message, chatKey, identity, "routing", {
+			...identity, phase: "routing",
+			context: {
+				project_focus_candidates: projects.slice(0, 40),
+				related_task_candidates: tasks.slice(0, 60),
+				project_focus_catalog: focusCatalog.slice(0, 20),
+				...(plan ? { accepted_plan_context: plan } : {}),
+				connected_account_directory: routedAccounts?.directory ?? [],
+			},
+		});
+	}
+	if (!isCurrent()) return;
+	await webSocketService.sendMessage("chat_turn_context_ready", routingFrame);
+	let detailsFrame = await retainContextPhaseFrame(message, chatKey, identity, "details");
+	if (!detailsFrame) {
+		const context = await import("./agenticProjectContextService");
+		const { collectCustomRuleDocuments } = await import("./ruleDocumentService");
+		const sharedFocus = getActiveProjectFocus(message.chat_id);
+		const initialFocus = async () => isCurrent() ? await sharedFocus : null;
+		const [memoryDocs, focusDocs, projectDocs, detailedAccounts] = await Promise.all([
+			collectCustomRuleDocuments({ chatId: message.chat_id, initialFocus }),
+			context.collectPrivateFocusForRequest({ chatId: message.chat_id, text: message.content ?? "", initialFocus }),
+			context.collectProjectReferenceDocuments({ chatId: message.chat_id, text: message.content ?? "", initialFocus }),
+			accounts,
+		]);
+		if (!isCurrent()) return;
+		detailsFrame = await retainContextPhaseFrame(message, chatKey, identity, "details", {
+			...identity, phase: "details",
+			context: {
+				custom_memory_documents: memoryDocs.slice(0, 24),
+				project_focus_documents: focusDocs.slice(0, 8),
+				project_context_documents: projectDocs.slice(0, 20),
+				connected_account_token_refs: detailedAccounts?.tokenRefs ?? [],
+			},
+		});
+	}
+	if (!isCurrent()) return;
+	await webSocketService.sendMessage("chat_turn_context_ready", detailsFrame);
+}
+
+/** A reconnect replays the admitted frame and its context under the exact ID. */
+async function hasRetainedFastAdmission(chatId: string, messageId: string): Promise<boolean> {
+	const sealed = await readPendingMessageJournal(chatId, messageId, MESSAGE_TURN_PREFLIGHT_FIELD);
+	if (!sealed) return false;
+	const key = chatKeyManager.getKeySync(chatId) || await chatKeyManager.getKey(chatId);
+	if (!key) throw new Error("Pending turn has no chat key.");
+	const plaintext = await decryptWithChatKey(sealed, key, {
+		chatId, fieldName: MESSAGE_TURN_PREFLIGHT_FIELD,
+	});
+	if (!plaintext) throw new Error("Pending turn journal could not be decrypted.");
+	let snapshot: Record<string, unknown>;
+	try { snapshot = JSON.parse(plaintext) as Record<string, unknown>; }
+	catch { throw new Error("Pending turn journal is invalid."); }
+	return isRetainedFastAdmissionSnapshot(snapshot, chatId, messageId);
+}
+
+async function loadPostAdmissionConnectedAccounts(message: Message): Promise<PreparedConnectedAccountSendContext | undefined> {
+	const rows = await listConnectedAccounts();
+	const context = await buildConnectedAccountSendContext({
+		rows, appId: "calendar", defaultAllowedActions: ["read"],
+	});
+	return prepareConnectedAccountSendContext({
+		chatId: message.chat_id, messageId: message.message_id, context,
+	});
+}
+
+async function dispatchFastPersonalTurn(input: {
+	serviceInstance: ChatSynchronizationService;
+	message: Message;
+	chat: Chat;
+	personalTurn: PersonalChatTurn;
+	predecessorVersion: number | null;
+	includePreflightChatMetadata: boolean;
+	onUserFrameDispatched?: () => void;
+	postAdmissionConnectedAccounts?: Promise<PreparedConnectedAccountSendContext | undefined>;
+	retainedFastAdmission?: boolean;
+	supportsAdmissionNow: () => boolean;
+}): Promise<void> {
+	const { serviceInstance, message, chat, personalTurn, predecessorVersion,
+		includePreflightChatMetadata, onUserFrameDispatched,
+		postAdmissionConnectedAccounts, retainedFastAdmission, supportsAdmissionNow } = input;
+	const encryptedChatKey = await chatDB.getEncryptedChatKey(message.chat_id);
+	const chatKey = chatKeyManager.getKeySync(message.chat_id) || await chatKeyManager.getKey(message.chat_id);
+	if (!encryptedChatKey || !chatKey ||
+		!(await ensureChatKeySafeForWrite(message.chat_id, chatKey, "chat turn admission"))) {
+		throw new Error(`Saved chat ${message.chat_id} has no safe durable chat key.`);
+	}
+	const { userDB } = await import("./userDB");
+	const accountId = (await userDB.getUserProfile())?.user_id;
+	if (!accountId || !get(authStore).isAuthenticated) {
+		throw new Error("Durable turn admission requires an authenticated account.");
+	}
+	const turnId = generateUUID();
+	const clientContextRequestId = generateUUID();
+	const recoveryKeypair = await deriveChatCompletionRecoveryKeypair(
+		encodeBase64Url(chatKey), message.chat_id, CHAT_RECOVERY_KEY_VERSION,
+	);
+	const encryptedFields = await chatDB.getEncryptedFields(message, message.chat_id);
+	if (!encryptedFields.encrypted_content) throw new Error("Durable turn admission requires encrypted user content.");
+	const inferenceRequest: Record<string, unknown> = {
+		chat_id: message.chat_id,
+		turn_id: turnId,
+		recovery_public_key: recoveryKeypair.publicKey,
+		chat_key_version: CHAT_RECOVERY_KEY_VERSION,
+		client_context_pending: true,
+		client_context_request_id: clientContextRequestId,
+		parent_id: null,
+		broadcast: false,
+		encrypted_chat_key: encryptedChatKey,
+		is_incognito: false,
+		message: {
+			message_id: message.message_id,
+			role: "user",
+			content: message.content,
+			created_at: message.created_at,
+			sender_name: message.sender_name,
+			chat_has_title: (chat.title_v ?? 0) > 0,
+			current_chat_title_v: chat.title_v ?? 0,
+			current_chat_metadata_v: chat.metadata_v ?? chat.title_v ?? 0,
+		},
+	};
+	// These device-local index keys carry no private body or authority. Missing
+	// keys make the backend use its normal detail-request path.
+	try {
+		const keys = await chatDB.getAppSettingsMemoriesMetadataKeys();
+		if (keys.length) inferenceRequest.app_settings_memories_metadata = keys;
+	} catch (error) {
+		console.warn("[ChatSyncService:Senders] Device memory index unavailable", error);
+	}
+	injectTraceparent(inferenceRequest);
+	let admission: Record<string, unknown> = {
+		protocol_version: CHAT_RECOVERY_PROTOCOL_VERSION,
+		chat_id: message.chat_id,
+		turn_id: turnId,
+		message_id: message.message_id,
+		chat_key_version: CHAT_RECOVERY_KEY_VERSION,
+		encrypted_chat_key: encryptedChatKey,
+		recovery_public_key: recoveryKeypair.publicKey,
+		expected_messages_v: predecessorVersion ?? preflightExpectedMessagesVersion(chat.messages_v),
+		encrypted_user_message: {
+			client_message_id: message.message_id,
+			chat_id: message.chat_id,
+			role: "user",
+			encrypted_content: encryptedFields.encrypted_content,
+			encrypted_sender_name: encryptedFields.encrypted_sender_name,
+			encrypted_pii_mappings: encryptedFields.encrypted_pii_mappings,
+			created_at: message.created_at,
+			updated_at: message.created_at,
+		},
+		inference_request: inferenceRequest,
+	};
+	if (includePreflightChatMetadata) {
+		admission.encrypted_chat_metadata = {
+			encrypted_title: chat.encrypted_title ?? await encryptWithChatKey("", chatKey),
+			encrypted_chat_key: encryptedChatKey,
+			created_at: chat.created_at ?? message.created_at,
+			updated_at: chat.updated_at ?? message.created_at,
+		};
+	}
+	const retained = await retainOrReuseDurableTurnPreflight({
+		accountId, chatId: message.chat_id, messageId: message.message_id,
+		createdAt: message.created_at, finalContent: message.content,
+		chatKey, encryptedChatKey, recoveryPublicKey: recoveryKeypair.publicKey,
+	}, admission, {
+		read: () => readPendingMessageJournal(message.chat_id, message.message_id, MESSAGE_TURN_PREFLIGHT_FIELD),
+		commit: (candidate) => commitPendingMessageJournal(
+			message.chat_id, message.message_id, MESSAGE_TURN_PREFLIGHT_FIELD, candidate,
+		),
+	});
+	admission = retained.payload;
+	if (!retainedFastAdmission && predecessorVersion !== null && admission.expected_messages_v !== predecessorVersion) {
+		throw new Error("Retained encrypted turn admission has a stale canonical version.");
+	}
+	bindPersonalChatTurn(personalTurn, admission.turn_id as string);
+	const retainedRequest = admission.inference_request as Record<string, unknown>;
+	watchFastAdmissionCompletion({
+		chatId: message.chat_id, messageId: message.message_id,
+		turnId: admission.turn_id as string,
+		requestId: retainedRequest.client_context_request_id as string,
+		committedMessagesVersion: Number(admission.expected_messages_v) + 1,
+	});
+	if (!supportsAdmissionNow()) {
+		await updateMessageStatusForSendRetry(serviceInstance, message, "waiting_for_internet");
+		throw new PendingAdmissionCompatibilityError();
+	}
+	const started = performance.now();
+	try {
+		await webSocketService.sendMessage("chat_turn_admit", admission);
+		recordPreflightDebugStep("admission_frame_dispatched", {
+			turnId: admission.turn_id, elapsedMs: performance.now() - started,
+		});
+		onUserFrameDispatched?.();
+		void publishPostAdmissionContext({
+			message, chat, admission, postAdmissionConnectedAccounts,
+		}).catch((error) => {
+			console.warn("[ChatSyncService:Senders] Post-admission context unavailable", error);
+		});
+	} catch (error) {
+		const status = await recordMessageDispatchFailure(serviceInstance, message, true);
+		if (status !== "waiting_for_internet") throw error;
+	}
+}
+
 export async function sendNewMessageImpl(
 	serviceInstance: ChatSynchronizationService,
 	message: Message,
@@ -849,6 +1149,9 @@ export async function sendNewMessageImpl(
 	newLocalChat?: boolean,
 	reservedTurn?: PersonalChatTurn,
 	onUserFrameDispatched?: () => void,
+	fastAdmissionAllowed = false,
+	postAdmissionConnectedAccounts?: Promise<PreparedConnectedAccountSendContext | undefined>,
+	supportsAdmissionNow: () => boolean = () => false,
 ): Promise<void> {
 	const personalTurn = reservedTurn ?? reservePersonalChatTurn(message.chat_id, message.message_id);
 	const testMockMarker = ((message as unknown) as { testMockMarker?: unknown }).testMockMarker;
@@ -959,17 +1262,25 @@ export async function sendNewMessageImpl(
 	const usesPersonalRecovery = !!chat && !chat.team_id && !isIncognitoChat
 		&& !chat.is_sub_chat && !chat.parent_id;
 	let predecessorVersion: number | null = null;
+	let retainedJournal = false;
 	if (usesPersonalRecovery) {
 		try {
 			predecessorVersion = await awaitPersonalChatPredecessor(personalTurn);
-			const committedMessages = await chatDB.getMessagesForChat(message.chat_id);
-			const createdAt = nextPersonalUserCreatedAt(
-				Math.floor(Date.now() / 1000), message.created_at, committedMessages, message.message_id,
-			);
-			await reconcileOptimisticUserCreatedAt(
-				message.chat_id, message.message_id, message.created_at, createdAt,
-			);
-			message.created_at = createdAt;
+			retainedJournal = !!(await readPendingMessageJournal(
+				message.chat_id, message.message_id, MESSAGE_TURN_PREFLIGHT_FIELD,
+			));
+			// A retained frame binds created_at in its encrypted intent MAC. A retry
+			// after a long disconnect must preserve that exact timestamp and identity.
+			if (!retainedJournal) {
+				const committedMessages = await chatDB.getMessagesForChat(message.chat_id);
+				const createdAt = nextPersonalUserCreatedAt(
+					Math.floor(Date.now() / 1000), message.created_at, committedMessages, message.message_id,
+				);
+				await reconcileOptimisticUserCreatedAt(
+					message.chat_id, message.message_id, message.created_at, createdAt,
+				);
+				message.created_at = createdAt;
+			}
 		} catch (error) {
 			await updateMessageStatusForSendRetry(serviceInstance, message, "failed");
 			throw error;
@@ -990,6 +1301,43 @@ export async function sendNewMessageImpl(
 	// title_v starts at 0 and only increments to 1 when a title is actually stored — the correct signal.
 	const chatHasTitle = (chat?.title_v ?? 0) > 0;
 	const includePreflightChatMetadata = shouldIncludePreflightChatMetadata(chat?.messages_v, chat?.chat_visibility);
+
+	// A normal personal text turn can be admitted in one durable frame. The server
+	// owns history and private-context hydration for this protocol; local history
+	// reads and Project/Task/Plan HTTP collectors must not hold the user frame.
+	const retainedFastAdmission = usesPersonalRecovery && retainedJournal && !fastAdmissionAllowed
+		? await hasRetainedFastAdmission(message.chat_id, message.message_id) : false;
+	if (retainedFastAdmission && !supportsAdmissionNow()) {
+		await updateMessageStatusForSendRetry(serviceInstance, message, "waiting_for_internet");
+		throw new PendingAdmissionCompatibilityError();
+	}
+	const fastPersonalText = (fastAdmissionAllowed || retainedFastAdmission) && usesPersonalRecovery
+		&& (retainedFastAdmission ||
+			(predecessorVersion ?? preflightExpectedMessagesVersion(chat?.messages_v)) === 0
+			&& includePreflightChatMetadata)
+		&& !projectFocusIntent
+		&& !encryptedSuggestionToDelete && (!connectedAccountContext || retainedFastAdmission)
+		&& typeof message.content === "string"
+		&& !message.content.includes("```")
+		&& !message.content.includes("embed_id")
+		&& !message.content.includes("@memory")
+		&& !message.content.includes("| ");
+	if (fastPersonalText && chat) {
+		await dispatchFastPersonalTurn({
+			serviceInstance, message, chat, personalTurn, predecessorVersion,
+			includePreflightChatMetadata, onUserFrameDispatched,
+			retainedFastAdmission, supportsAdmissionNow,
+			postAdmissionConnectedAccounts: postAdmissionConnectedAccounts
+				?? (connectedAccountContext ? Promise.resolve(connectedAccountContext)
+					: loadPostAdmissionConnectedAccounts(message)),
+		});
+		return;
+	}
+	// If a local draft changed classification while connected-account discovery
+	// ran, retain the complete legacy payload and its token references.
+	if (postAdmissionConnectedAccounts) {
+		connectedAccountContext = await postAdmissionConnectedAccounts;
+	}
 
 	console.debug(
 		`[ChatSyncService:Senders] Chat has title: ${chatHasTitle} (title_v: ${chat?.title_v}, messages_v: ${chat?.messages_v}) - ${includePreflightChatMetadata ? "NEW CHAT" : "FOLLOW-UP"}, isIncognito: ${isIncognitoChat}`

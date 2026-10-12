@@ -15,6 +15,7 @@ import type { EmbedType } from "../message_parsing/types";
 import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { webSocketService } from "./websocketService"; // For notifying data activity during AI streaming
+import { persistComposerGhostSuggestion } from "./composerGhostSuggestion";
 import { normalizeToUnixSeconds } from "./timestampUtils";
 import { recordRecoveryFinalTimestamp } from "./recoveryAssistantTimestamp";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
@@ -717,7 +718,8 @@ export function handleAIMessageUpdateImpl(
       `preview: "${contentPreview}${contentLength > 100 ? "..." : ""}"`,
   );
 
-  console.debug("[ChatSyncService:AI] Full payload:", payload);
+  const { suggested_followup_message: _privateSuggestion, ...chunkPayloadForLog } = payload;
+  console.debug("[ChatSyncService:AI] Full payload:", chunkPayloadForLog);
 
   // Dispatch event for ActiveChat component
   console.log(
@@ -753,6 +755,14 @@ export function handleAIMessageUpdateImpl(
       console.warn(`[ChatSyncService:AI] Ignoring stale final chunk for task ${payload.task_id}; ${taskInfo.taskId} is active in chat ${payload.chat_id}.`);
       return;
     }
+
+    // The suggestion is authored in this successful turn, never as a typing-time
+    // inference. It remains separate from postprocessed request chips.
+    void persistComposerGhostSuggestion(payload, serviceInstance, (suggestion) => {
+      serviceInstance.dispatchEvent(new CustomEvent("composerGhostSuggestion", {
+        detail: { chat_id: payload.chat_id, ...suggestion },
+      }));
+    }).catch((error) => console.warn("[ChatSyncService:AI] Could not save encrypted composer suggestion", error));
 
     // Clear typing on a terminal final even if task tracking was missed.
     // Previously, clearTyping was only called if taskInfo existed AND task IDs matched,

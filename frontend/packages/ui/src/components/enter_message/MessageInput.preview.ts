@@ -9,6 +9,11 @@ export default {
 };
 
 export const variants = {
+  ghostSuggestion: {
+    showActionButtons: false,
+    ghostSuggestion: 'Could you compare the two approaches for me?',
+    ghostSuggestionKey: 'fixture-turn',
+  },
   inlineCompact: {
     showActionButtons: false,
     inlineCompact: true,

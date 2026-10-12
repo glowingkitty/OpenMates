@@ -76,6 +76,7 @@ from .handlers.websocket_handlers.sub_chat_stop_handler import handle_sub_chat_s
 from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
 from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
 from .handlers.websocket_handlers.chat_turn_preflight_handler import handle_chat_turn_preflight
+from .handlers.websocket_handlers.chat_turn_admit_handler import handle_chat_turn_admit
 from .handlers.websocket_handlers.assistant_speech_handler import handle_assistant_speech_event
 from .handlers.websocket_handlers.chat_metadata_recovery_handlers import (
     handle_metadata_recovery, send_available_metadata_jobs, filter_generated_metadata_storage,
@@ -106,6 +107,7 @@ from .handlers.websocket_handlers.task_update_job_handlers import (
     send_available_task_update_jobs,
 )
 from .handlers.websocket_handlers.post_processing_metadata_handler import handle_post_processing_metadata # Handler for post-processing metadata sync
+from .handlers.websocket_handlers.suggested_followup_metadata_handler import handle_suggested_followup_metadata
 from .handlers.websocket_handlers.phased_sync_handler import handle_phased_sync_request, handle_sync_status_request # Handlers for phased sync
 from .handlers.websocket_handlers.app_settings_memories_confirmed_handler import handle_app_settings_memories_confirmed # Handler for app settings/memories confirmations
 from .handlers.websocket_handlers.connected_account_permission_confirmed_handler import handle_connected_account_permission_confirmed
@@ -2628,6 +2630,8 @@ async def websocket_endpoint(
         ),
     )
 
+    await websocket.send_json({"type": "server_capabilities", "payload": {"capabilities": ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"]}})
+
     # A live socket must close at its absolute session deadline even if idle.
     pair_expiry_task: asyncio.Task | None = None
     pair_expires_at = auth_data.get("pair_expires_at")
@@ -2925,6 +2929,27 @@ async def websocket_endpoint(
             elif message_type == "ping":
                 await manager.send_personal_message({"type": "pong"}, user_id, device_fingerprint_hash)
             
+
+            elif message_type == "chat_turn_admit":
+                await handle_chat_turn_admit(
+                    websocket=websocket, manager=manager, cache_service=cache_service,
+                    directus_service=directus_service, encryption_service=encryption_service,
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    stable_device_fingerprint_hash=stable_device_fingerprint_hash,
+                    payload=payload, user_otel_attrs=user_otel_attrs,
+                    is_allowlisted_test_account=is_allowlisted_test_account,
+                )
+
+            elif message_type == "chat_turn_context_ready":
+                from .handlers.websocket_handlers.client_context_ready_handler import handle_client_context_ready
+
+                await handle_client_context_ready(
+                    manager=manager, cache_service=cache_service,
+                    directus_service=directus_service, encryption_service=encryption_service,
+                    user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                )
 
             elif message_type == "chat_turn_preflight":
                 await handle_chat_turn_preflight(
@@ -3873,6 +3898,16 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "encrypted_suggested_followup_message":
+                await handle_suggested_followup_metadata(
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
                 )
 
             elif message_type == "phased_sync_request":

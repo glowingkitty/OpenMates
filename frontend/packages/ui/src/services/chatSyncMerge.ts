@@ -140,6 +140,8 @@ export async function mergeServerChatWithLocal(
       pinned: serverChat.pinned,
       encrypted_follow_up_request_suggestions:
         serverChat.encrypted_follow_up_request_suggestions,
+      encrypted_suggested_followup_message:
+        serverChat.encrypted_suggested_followup_message,
       encrypted_chat_summary: serverChat.encrypted_chat_summary,
       encrypted_share_cta_text: serverChat.encrypted_share_cta_text,
       encrypted_shared_short_url: serverChat.encrypted_shared_short_url,
@@ -293,6 +295,11 @@ export async function mergeServerChatWithLocal(
         ? localChat.encrypted_follow_up_request_suggestions
         : serverChat.encrypted_follow_up_request_suggestions ??
           localChat.encrypted_follow_up_request_suggestions,
+    encrypted_suggested_followup_message:
+      keyMismatch
+        ? localChat.encrypted_suggested_followup_message
+        : serverChat.encrypted_suggested_followup_message ??
+          localChat.encrypted_suggested_followup_message,
     encrypted_chat_summary:
       keyMismatch
         ? localChat.encrypted_chat_summary

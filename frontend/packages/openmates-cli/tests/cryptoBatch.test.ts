@@ -1,6 +1,6 @@
 // contract-test-file: supporting surface=cli assertions=chats.persistence.client-encrypted
 import assert from "node:assert/strict";
-import { webcrypto } from "node:crypto";
+import { webcrypto, randomBytes } from "node:crypto";
 import { it, mock } from "node:test";
 
 import {
@@ -70,4 +70,18 @@ it("returns null for invalid AES key length in both decrypt APIs", async () => {
   const decrypt = await createAesGcmCombinedDecryptor(invalidKey);
   assert.equal(await decrypt(ciphertext), null);
   assert.equal(await decryptWithAesGcmCombined(ciphertext, invalidKey), null);
+});
+
+// contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
+it("batch chat decryptor authenticates each field and preserves associated-data binding", async () => {
+  const key = randomBytes(32);
+  const decrypt = await createAesGcmCombinedDecryptor(key);
+  const plain = await encryptWithAesGcmCombined("message", key);
+  const bound = await encryptWithAesGcmCombined("private metadata", key, "chat:one");
+  assert.deepEqual(await Promise.all([decrypt(plain), decrypt(bound, "chat:one"), decrypt(bound, "chat:two"), decrypt("invalid")]),
+    ["message", "private metadata", null, null]);
+  const wrongKey = await createAesGcmCombinedDecryptor(randomBytes(32));
+  assert.equal(await wrongKey(plain), null);
+  const tagged = Buffer.concat([Buffer.from([0x4f, 0x4d, 0, 0, 0, 0]), Buffer.from(plain, "base64")]).toString("base64");
+  assert.equal(await decrypt(tagged), "message");
 });

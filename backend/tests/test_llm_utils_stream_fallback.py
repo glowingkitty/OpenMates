@@ -150,6 +150,50 @@ def test_call_main_llm_stream_falls_back_after_empty_provider_stream(monkeypatch
     assert len(chunks) == 3
 
 
+def test_failed_server_is_not_retried_in_same_turn(monkeypatch):
+    calls = []
+    failed_servers = set()
+
+    async def primary_provider(**_kwargs):
+        calls.append("primary")
+
+        async def stream():
+            raise TimeoutError("first chunk timed out")
+            yield "unreachable"
+
+        return stream()
+
+    async def fallback_provider(**_kwargs):
+        calls.append("fallback")
+
+        async def stream():
+            yield "Answer"
+
+        return stream()
+
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda provider: {
+        "primary": primary_provider, "fallback": fallback_provider,
+    }[provider])
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config",
+                        lambda _model: ("primary", "primary/model-a"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config",
+                        lambda _model: ["fallback/model-a"])
+    monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda history: history)
+    monkeypatch.setattr(llm_utils, "_is_reasoning_model", lambda _model: False)
+
+    async def run_once():
+        return [chunk async for chunk in llm_utils.call_main_llm_stream(
+            task_id="task", model_id="logical/model-a", system_prompt="system",
+            message_history=[{"role": "user", "content": "hello"}], temperature=1.0,
+            failed_servers_in_turn=failed_servers,
+        )]
+
+    assert asyncio.run(run_once()) == ["Answer"]
+    assert asyncio.run(run_once()) == ["Answer"]
+    assert calls == ["primary", "fallback", "fallback"]
+    assert failed_servers == {"primary/model-a"}
+
+
 def test_call_main_llm_stream_falls_back_after_provider_error_marker(monkeypatch):
     calls = []
 

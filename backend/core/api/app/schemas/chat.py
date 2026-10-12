@@ -112,6 +112,7 @@ class CachedChatListItemData(BaseModel):
     encrypted_share_cta_text: Optional[str] = None  # Encrypted short call-to-open text for shared chat previews
     encrypted_chat_tags: Optional[str] = None  # Encrypted array of max 10 tags (encrypted as base64 string with chat-specific key)
     encrypted_follow_up_request_suggestions: Optional[str] = None  # Encrypted array of 6 follow-up suggestions (encrypted as base64 string with chat-specific key)
+    encrypted_suggested_followup_message: Optional[str] = None  # Client-encrypted contextual composer suggestion
     encrypted_top_recommended_apps_for_chat: Optional[str] = None  # Encrypted array of recommended app IDs for this chat
     encrypted_quick_tip_slugs: Optional[str] = None  # Encrypted array of selected product quick tip slugs
     encrypted_shared_short_url: Optional[str] = None  # Encrypted owner share URL for reopening copy/QR UI

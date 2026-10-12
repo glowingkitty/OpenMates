@@ -129,11 +129,9 @@ flowchart TD
     F[Composer focus or authenticated TUI startup] --> W[Metadata-only warm-up]
     W --> C[Scoped versioned caches and reusable connections]
     S[Send] --> U[Immediate user row and empty composer]
-    U --> P[Required privacy preparation and minimal encrypted envelope]
-    U --> D[Write durable outbox and chat/message data]
+    U --> P[Immediate prepared request through required privacy and encryption]
+    U --> D[Durable send journal and canonical local storage]
     P --> A[One server admission: identity, authority, deduplication and acceptance]
-    D --> X[Durable local commit before outbound dispatch]
-    X --> A
     C -. cache hits .-> A
     A --> R[Reserved fast routing lane: compact Jev Stage 1]
     R --> M[Resolve permitted model; publish selected Mate]
@@ -149,27 +147,32 @@ flowchart TD
     Z --> B[Background title, summary and metadata]
 ```
 
-The diagram preserves durable offline intent. A minimal encrypted outbox and
-privacy preparation can run concurrently, but dispatch must not race ahead of
-the durability point or privacy policy. Chat UI bookkeeping and optional
-projections need not hold dispatch once the canonical outbox contract permits it.
-Changing that contract requires explicit crash/reconnect/idempotency verification.
+Send must dispatch immediately using prepared identity/key material, without
+waiting for full chat/message writes or context discovery. Required privacy and
+encryption still apply. The small durable send journal and server-recoverable
+acceptance must jointly protect the submitted snapshot; canonical history writes
+can follow. Verify crash/reconnect/idempotency boundaries before changing the
+outbox handoff, including an offline Send and a click before preparation finishes.
 
 ### Client path
 
 1. Paint the submitted user message and clear the submitted composer snapshot in
    the current event turn. Preserve any newly typed draft. This feedback is already
    implemented and must not wait for network or IndexedDB.
-2. Build the smallest request envelope: stable message/chat IDs, encrypted
+2. Prepare or reuse the chat ID, key and provisional draft shell on composer
+   focus or microphone activation, before Send. Build the smallest request envelope: stable message/chat IDs, encrypted
    message, selected overrides, attachment references and context revision hints.
    Hints grant no authority. Avoid sending all Project, Task and Plan content.
 3. Batch fresh-chat and message persistence where possible. Audit the measured
    duplicate-content index scan for a genuinely new first message; retain exact-ID
    deduplication, recovery journaling, encryption and durable commits. Add child
    spans before choosing which storage operation to remove.
-4. Move user-facing chat activation, list projections and nonessential metadata
-   updates off the dispatch dependency. Overlap necessary privacy preparation,
-   local persistence and connection recovery where their inputs allow.
+4. Move user-facing chat activation, full history writes, list projections and
+   nonessential metadata updates off the dispatch dependency. Send does not wait
+   for warm-up completion. If creation/preparation races with Send, carry missing
+   creation data in the same idempotent admission rather than adding a setup round
+   trip. Overlap necessary privacy preparation, durable journal handoff and
+   connection recovery where their inputs allow.
 5. Replace separate client Focus/Plan/Project authorization reads with a server
    admission snapshot. The server should resolve the authoritative current
    binding once per request. The UI may keep its existing projection caches.
@@ -179,10 +182,26 @@ Changing that contract requires explicit crash/reconnect/idempotency verificatio
 
 ### Metadata-only warm-up
 
-Start on the first meaningful composer focus, authenticated TUI startup, later
+Start on the first meaningful composer focus or microphone activation, authenticated TUI startup, later
 login, scope change or reconnect. Coalesce concurrent calls, debounce repeated
 focus, and renew useful retention on real requests. Send identity/scope and
 version information only, with no draft text and no inference.
+
+On the client, focus can also load crypto/privacy modules and compiled rules,
+prepare the local key machinery and open the storage/connection paths. Reuse an
+already durable draft chat shell rather than repeating its creation on Send.
+Any prepared material must be fenced to account, Team, key and privacy-mode
+revisions. Prepare the provisional chat once and keep it out of visible saved
+history until it has content; repeated focus, microphone use or a cancelled
+recording must not create duplicate visible empty chats. Client-generated IDs do
+not require a server round trip; any needed server draft creation belongs in
+warm-up with an idempotent fallback in the actual Send request.
+
+Dragonfly metadata is shared with the inference workers. Provider connection
+pools and configuration objects are process local: initialize and reuse them in
+the routing/inference services themselves, preferably on service startup. An API
+warm-up alone cannot warm every Celery process's HTTP client. None of this calls
+a model speculatively.
 
 | Data | Preparation/cache policy | Still required on Send/use |
 | --- | --- | --- |
@@ -199,6 +218,90 @@ cache miss hydrates the necessary data on demand. A two-hour metadata TTL is not
 a two-hour session, Project-access or approval validity period. Cached failures
 must not turn temporary auth/cache trouble into hours of denial or stale access.
 
+### Catalogue timing and precise cache policy
+
+Public global skill schemas, Focus definitions and shipped app Memory guides are
+parsed once at routing/inference worker startup, indexed and retained in process
+RAM by deployment/configuration revision. They need no per-user fetch and no
+Dragonfly round trip. A configuration change replaces that revision. Their
+presence in RAM does not mean all their text is included in every model prompt.
+
+The warm-up prepares encrypted discovery indexes for permitted user/Team
+Workflows, Project associations, Project Focus modes and available user-memory
+categories. The proposed common discovery TTL is two hours, renewed by real
+requests and invalidated by create/edit/delete, access, scope or key-generation
+changes. Workflow discovery already has the two-hour sliding implementation;
+the remaining uniform discovery policy is proposed work. Stage two receives
+matching Project-scoped and unscoped Workflow candidates, plus explicit authorized
+references, without loading every graph. A cached index grants no permission.
+
+Private Project Focus/Memory instruction bodies stay on their existing authorized
+transport; this proposal does not introduce a private-rule store or upload all
+private documents during warm-up. Public app Memory guides are distinct from a
+user's saved personal memory values. Those values retain existing consent-bound,
+chat-specific encrypted caching (current default 24 hours), revision checks and
+eviction with the chat. Warm-up discovers availability without granting consent
+or exposing unapproved values to inference.
+
+### What parallel hydration means
+
+Stage two chooses specific IDs from catalogue metadata. Afterward the selected
+skill-schema lookup, Workflow invocation-contract load, Project Focus instruction
+load and consented-memory read can run concurrently. Each private-resource path
+performs its required authorization before forwarding content. Only context
+already selected explicitly or already active can be loaded while stage two is
+still deciding; unknown future selections cannot be hydrated beforehand. Main
+processing waits for the required selected resources, not unrelated catalogues.
+
+### Main-model context
+
+The main model still receives the selected Mate's instructions, required
+privacy/safety/question/output protocols, current request and attachment content,
+language/time/user settings, relevant conversation history and existing compressed
+context, and applicable already-active or explicitly requested instructions.
+Then add only selected skill schemas and required guidance, applicable app Memory
+guides, authorized user memory values, selected Focus/Project/Plan facts and any
+actually relevant related work. App guidance can be relevant without calling an
+app skill; zero tool calls alone is not a sufficient skip condition.
+
+For invoking a saved Workflow, supply its purpose, permitted invocation handle
+and typed input contract. Load its full graph into model context only when
+inspection/editing requires it; deterministic execution uses the authorized graph
+in the executor. This requires verifying the current Workflow contract extraction
+and preserving Checks, bindings and execution permissions.
+
+Current main processing already selects some schemas and memory content. The
+proposed change removes unconditional discovery/extra selection calls and
+irrelevant context dependencies rather than pretending every existing prompt
+contains every available resource. The measured capital prompt has 7,078 input
+tokens, but its per-section token attribution is not available yet. Instrument
+that attribution before claiming an exact prompt reduction or removing mandatory
+instructions. Dragonfly/process caching reduces retrieval/parse work; selective
+prompt composition separately reduces what the model must read.
+
+### Main-generated contextual composer suggestion
+
+Include the design from Codex chat
+`01a12fbd-a832-7bb1-b765-a48ca7fd378d`: the main response inference optionally
+emits a trailing `<<suggested_followup_message>>` block with a realistic next
+user message, usually one or two sentences. A stream-state parser handles split
+delimiters and extracts the block before displayed or persisted answer content.
+Malformed/oversized metadata produces no ghost suggestion. Deliver the extracted
+text as separate chat/assistant-turn-identified successful-completion metadata;
+it must not enter visible answer text or later conversation history as authored
+assistant prose. This adds output work at the end, not another inference request
+or a dependency before first response text. Existing postprocessed follow-up chips
+remain separate.
+
+When the composer is empty, fade the suggestion in as ghost text outside the
+editor document. On focus show a separately styled italic Tab hint. Plain Tab or
+the touch Use suggestion action inserts only the suggestion as an editable draft;
+acceptance never sends it. Typing hides the suggestion, Escape dismisses it and
+Shift+Tab/ordinary keyboard navigation remain intact when it is unavailable.
+Drafts, attachments, recording and queued-message editing take precedence. Keep
+existing follow-up settings, reduced motion, privacy and encrypted metadata
+reload/sync boundaries, with stale chat/account/Team/turn events ignored.
+
 ### Backend path and conditional work
 
 - **Admission:** resolve identity and authority once, decrypt/validate the
@@ -206,6 +309,10 @@ must not turn temporary auth/cache trouble into hours of denial or stale access.
   any required account gate. Pass a bounded request-scoped authority snapshot
   internally rather than repeating identical reads. Recheck changed scope or
   authority at selected-resource/execution boundaries.
+  Preserve Team human-only chat behavior: accepted human messages bypass AI
+  routing entirely. Concurrent token refresh should coalesce onto the published
+  successor result with bounded waiting; it must not accept stale authority to
+  avoid a 503.
 - **Stage one:** provide the current request, explicit overrides, a compact Mate
   catalogue, app descriptions, Project discovery metadata if potentially relevant,
   and minimal context needed to understand references. Select complexity, Mate,
@@ -244,7 +351,8 @@ must not turn temporary auth/cache trouble into hours of denial or stale access.
 
 Authentication and current authority precede private server-data access. Required
 privacy preparation precedes transmitting governed content. A durable local
-intent precedes sending, and server deduplication/recoverable acceptance precedes
+intent and recoverable server acceptance protect sending and execution without a
+full history-write barrier. Server deduplication/recoverable acceptance precedes
 execution. Stage-one selection precedes default model resolution and detailed
 capability selection. Required stage-two context precedes the main model using
 it. Selected-resource/consent/approval checks precede actions. Tool results
@@ -261,12 +369,12 @@ These are engineering budgets for warm ordinary requests, not measured promises:
 
 | Path to selected Mate | Budget |
 | --- | ---: |
-| Client durable intent + privacy + minimal dispatch, overlapped | 150–250 ms |
+| Warm client privacy/encryption and immediate dispatch handoff | 25–50 ms |
 | Transport and one admission | 100–200 ms |
 | Reserved routing setup/cache reads | 50–100 ms |
 | Compact Stage-one Jev | 300–500 ms |
 | Permitted model resolution + event delivery/paint | 50–100 ms |
-| Total | 650–1,150 ms |
+| Total | 525–950 ms |
 
 A 1,500 ms upper target leaves headroom for ordinary variance. The observed
 339 ms Jev call supports attempting this budget, but does not establish a

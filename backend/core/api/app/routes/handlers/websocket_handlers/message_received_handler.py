@@ -470,6 +470,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
     payload: Dict[str, Any], # Expected: {"chat_id": "...", "message": {"message_id": ..., "sender": ..., "content": ..., "timestamp": ...}}
     user_otel_attrs: dict = None,
     is_allowlisted_test_account: bool = False,
+    client_context_binding_ref: str | None = None,
 ):
     """
     Handles a new message sent from the client (now via "chat_message_added" type).
@@ -2406,6 +2407,23 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # They are candidates only; preprocessing validates Project ownership.
         project_candidates_from_client = payload.get("project_focus_candidates")
         from backend.apps.ai.processing.accepted_plan_context import bounded_accepted_plan_snapshot
+        # This snapshot is constructed after fresh server focus authorization.
+        # Client-supplied snapshots never grant the ordinary no-context shortcut.
+        client_has_context = bool(
+            active_focus_id_for_ai or payload.get("accepted_plan_context")
+            or payload.get("related_task_candidates") or payload.get("project_focus_documents")
+            or payload.get("project_context_documents") or payload.get("custom_memory_documents")
+            or payload.get("custom_rule_documents") or payload.get("client_context_pending")
+        )
+        admission_context = {
+            "scope_complete": not client_has_context,
+            "active_project_id": (current_project or {}).get("project_id"),
+            "active_project_activation_id": (active_project_focus or {}).get("activation_id"),
+            "active_focus_id": None,
+            "accepted_plan_ref": None,
+            "explicit_related_task_ids": [],
+            "context_revision": "server-admission-v1",
+        }
         ai_request_payload = AskSkillRequestSchema(
             chat_id=chat_id,
             message_id=message_id,
@@ -2431,6 +2449,10 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             project_focus_candidates=project_candidates_from_client[:40]
             if isinstance(project_candidates_from_client, list) else [],
             active_project_focus=active_project_focus,
+            admission_context=admission_context,
+            client_context_pending=bool(client_context_binding_ref),
+            client_context_request_id=payload.get("client_context_request_id") if client_context_binding_ref else None,
+            client_context_binding_ref=client_context_binding_ref,
             accepted_plan_context=bounded_accepted_plan_snapshot(payload.get("accepted_plan_context")) if not is_incognito else None,
             custom_rule_documents=(payload.get("custom_memory_documents", payload.get("custom_rule_documents")) or [])[:24] if isinstance(payload.get("custom_memory_documents", payload.get("custom_rule_documents")), list) and not is_incognito else [],
             project_focus_catalog=(payload.get("project_focus_catalog") or [])[:20] if isinstance(payload.get("project_focus_catalog"), list) and not is_incognito else [],

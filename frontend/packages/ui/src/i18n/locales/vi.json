@@ -93,6 +93,14 @@
         }
       }
     },
+    "business": {
+      "find_brand_name": {
+        "text": "Tìm tên thương hiệu",
+        "description": {
+          "text": "Chọn tên dễ nhớ rồi kiểm tra tên miền và xung đột nhãn hiệu của các ứng viên cuối."
+        }
+      }
+    },
     "code": {
       "test_git_repo": {
         "text": "Kiểm tra kho git",
@@ -1282,6 +1290,12 @@
         "text": "Get company financials",
         "description": {
           "text": "Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR."
+        }
+      },
+      "search_trademarks": {
+        "text": "Tìm nhãn hiệu",
+        "description": {
+          "text": "Tìm nhãn hiệu theo khu vực với nguồn và giới hạn phạm vi tìm kiếm."
         }
       }
     },
@@ -7623,6 +7637,86 @@
         "not_available": {
           "text": "N/A"
         }
+      },
+      "search_trademarks": {
+        "records": {
+          "text": "{count} hồ sơ"
+        },
+        "preliminary": {
+          "text": "Tìm kiếm sơ bộ"
+        },
+        "checked": {
+          "text": "Đã tra cứu"
+        },
+        "not_searched": {
+          "text": "Chưa tìm kiếm"
+        },
+        "partial": {
+          "text": "Một phần"
+        },
+        "empty": {
+          "text": "Không có hồ sơ trùng khớp"
+        },
+        "limitation": {
+          "text": "Không có kết quả không chứng minh tên có thể được sử dụng hợp pháp."
+        },
+        "open_record": {
+          "text": "Xem hồ sơ chính thức"
+        },
+        "open_register": {
+          "text": "Mở tìm kiếm chính thức"
+        },
+        "classes": {
+          "text": "Nhóm Nice"
+        },
+        "all_classes": {
+          "text": "Tất cả nhóm"
+        },
+        "owner": {
+          "text": "Chủ sở hữu"
+        },
+        "goods": {
+          "text": "Hàng hóa và dịch vụ"
+        },
+        "application": {
+          "text": "Đơn đăng ký"
+        },
+        "registration": {
+          "text": "Đăng ký"
+        },
+        "filed": {
+          "text": "Ngày nộp đơn"
+        },
+        "registered": {
+          "text": "Đã đăng ký"
+        },
+        "pending": {
+          "text": "Đang xử lý"
+        },
+        "ended": {
+          "text": "Đã kết thúc"
+        },
+        "unknown": {
+          "text": "Chưa rõ trạng thái"
+        },
+        "exact": {
+          "text": "Tên chính xác"
+        },
+        "similar": {
+          "text": "Cách viết tương tự"
+        },
+        "active": {
+          "text": "Hồ sơ còn hiệu lực"
+        },
+        "all_statuses": {
+          "text": "Tất cả trạng thái"
+        },
+        "more": {
+          "text": "Còn kết quả khác trong cơ sở chính thức"
+        },
+        "failed": {
+          "text": "Không có dữ liệu tìm kiếm"
+        }
       }
     },
     "reviews": {
@@ -7874,6 +7968,14 @@
       },
       "exit_fullscreen": {
         "text": "Thoát chế độ toàn màn hình"
+      }
+    },
+    "ghost_suggestion": {
+      "press_tab": {
+        "text": "Nhấn Tab để chấp nhận gợi ý"
+      },
+      "use_suggestion": {
+        "text": "Dùng gợi ý"
       }
     },
     "location": {
@@ -8954,6 +9056,38 @@
       },
       "follow_up_6": {
         "text": "Giải thích cách sắp xếp các yếu tố thị giác trong bố cục in ấn"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "Tiếng chuông ấm áp cho vườn cộng đồng"
+      },
+      "summary": {
+        "text": "Tạo âm thanh thông báo hai nốt ngắn cho một ứng dụng vườn cộng đồng giả tưởng."
+      },
+      "message_1": {
+        "text": "Tạo một âm thanh thông báo ngắn, ấm áp cho ứng dụng vườn cộng đồng khi có tình nguyện viên đăng ký. Một tiếng chuông hai nốt nhẹ nhàng, không có tiếng nói và dưới ba giây."
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nTôi đang tạo tiếng chuông hai nốt ấm áp, nhẹ nhàng cho ứng dụng vườn cộng đồng của bạn. Yêu cầu đang được xử lý và sẽ xuất hiện trong đoạn chat ngay khi sẵn sàng.\n\n### Các bước tiếp theo gợi ý\n- [Tạo âm thanh mở khóa huy hiệu mang âm hưởng mộc mạc, hân hoan](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Thiết kế bố cục thẻ xác nhận tình nguyện viên](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "Tạo âm thanh chúc mừng mở khóa huy hiệu khi hoàn thành nhiệm vụ"
+      },
+      "follow_up_2": {
+        "text": "Giải thích thiết kế âm thanh ảnh hưởng thế nào đến sự tương tác của người dùng trong ứng dụng di động"
+      },
+      "follow_up_3": {
+        "text": "Tạo âm thanh nhắc nhở nhẹ nhàng cho lịch tưới cây buổi sáng"
+      },
+      "follow_up_4": {
+        "text": "Liệt kê các phương pháp hay nhất để thiết kế âm thanh thông báo UI không gây phiền nhiễu"
+      },
+      "follow_up_5": {
+        "text": "Tạo âm thanh báo lỗi nhẹ nhàng khi xác thực biểu mẫu thất bại"
+      },
+      "follow_up_6": {
+        "text": "Mô tả cách tích hợp hiệu ứng âm thanh tùy chỉnh vào ứng dụng di động"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -10038,6 +10172,38 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"6da89032-d370-43c5-91c1-b07fa5df5a85\", \"app_id\": \"images\", \"skill_id\": \"generate\"}\n```\n\nI'm generating that SVG app icon for your climate data dashboard now. \n\nI've focused on a clean, [flat](wiki:Flat_design) [vector](wiki:Vector_graphics) aesthetic with a teal and mint palette to reflect both nature and data. This style is excellent for scalability, ensuring the icon stays crisp whether it's on a mobile home screen or a tiny browser favicon.\n\nOnce it's ready, we could experiment with different color schemes for dark mode or even create a [UI mockup](wiki:Mockup) to see how it looks in context.\n\nWhat kind of interface are you imagining for this dashboard—something very data-heavy with charts, or a more simplified overview?"
       }
     },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Sơ đồ luồng thanh toán cửa hàng trực tuyến"
+      },
+      "summary": {
+        "text": "Một sơ đồ luồng thanh toán có thể chỉnh sửa với tính năng thử lại thanh toán và xác nhận đơn hàng."
+      },
+      "message_1": {
+        "text": "Tạo một sơ đồ luồng có thể chỉnh sửa cho một cửa hàng trực tuyến nhỏ: giỏ hàng, chi tiết thanh toán, thanh toán và xác nhận đơn hàng. Nếu thanh toán bị từ chối, hãy hiển thị khách hàng đang thử lại. Giữ tất cả thông tin trong sơ đồ và không liên kết đến các trang web bên ngoài."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Phân tích Luồng & Cân nhắc UX\n\n1. **Tiến trình Tuần tự**: Khách hàng tiến triển tuyến tính qua **Giỏ hàng**, **Chi tiết Thanh toán** (giao hàng/hóa đơn) và **Xử lý Thanh toán**.\n2. **Từ chối & Khôi phục Lỗi**:\n   - Thay vì để khách hàng quay lại một phiên trống, việc thanh toán bị từ chối sẽ dẫn đến bước quyết định **Thay đổi Phương thức**.\n   - Đường dẫn trực giao nét đứt dẫn trực tiếp quay lại **Chi tiết Thanh toán**, cho phép khách hàng đổi phương thức thanh toán, sửa lỗi nhập liệu thẻ hoặc chọn ví điện tử khác mà không làm mất các mặt hàng trong giỏ.\n   - Nếu họ chọn không thử lại, phiên sẽ kết thúc gọn gàng ở trạng thái cuối là **Đã lưu Giỏ hàng**, tạo cơ hội cho các email theo dõi giỏ hàng bị bỏ quên.\n3. **Cấu trúc có thể Chỉnh sửa**: Mọi bước và đường dẫn đều chứa các liên kết `data-om-*` tiêu chuẩn để bạn có thể tùy chỉnh nhãn, thêm bước mã giảm giá hoặc tích hợp trực tiếp các nhánh thanh toán cho khách.\n\n---\n\n**Các bước tiếp theo & Lặp lại:**\n- Bạn có muốn thêm nhánh **Thanh toán cho khách so với Tài khoản đã đăng nhập** trước phần chi tiết giao hàng không?\n- Nếu bạn đang thiết kế giao diện người dùng hoặc minh họa tùy chỉnh cho luồng này, chúng ta có thể khám phá việc tích hợp khung dây (wireframe) hoặc các biểu tượng vẽ tay tùy chỉnh để bổ sung cho các bước."
+      },
+      "follow_up_1": {
+        "text": "Tìm kiếm biểu tượng SVG miễn phí cho các nút thanh toán"
+      },
+      "follow_up_2": {
+        "text": "Giải thích cách thêm nhánh thanh toán cho khách (guest checkout) trước phần thông tin giao hàng"
+      },
+      "follow_up_3": {
+        "text": "Tìm kiếm các phương pháp hay nhất và xu hướng UX cho quy trình thanh toán cửa hàng trực tuyến"
+      },
+      "follow_up_4": {
+        "text": "Mô tả cách xử lý email khôi phục giỏ hàng bị bỏ quên một cách hiệu quả"
+      },
+      "follow_up_5": {
+        "text": "Tìm các hội thảo và webinar về thiết kế thương mại điện tử sắp tới"
+      },
+      "follow_up_6": {
+        "text": "Liệt kê các lỗi UX thường gặp trong quy trình thanh toán trực tuyến"
+      }
+    },
     "open_meteo_weather_notebook": {
       "title": {
         "text": "Berlin Weekend Bike Weather Notebook"
@@ -10684,70 +10850,6 @@
       "follow_up_6": {
         "text": "So sánh các phương pháp khác nhau để chuyển ý tưởng nói thành các tác vụ có tổ chức"
       }
-    },
-    "community_garden_volunteer_chime": {
-      "title": {
-        "text": "Tiếng chuông ấm áp cho vườn cộng đồng"
-      },
-      "summary": {
-        "text": "Tạo âm thanh thông báo hai nốt ngắn cho một ứng dụng vườn cộng đồng giả tưởng."
-      },
-      "message_1": {
-        "text": "Tạo một âm thanh thông báo ngắn, ấm áp cho ứng dụng vườn cộng đồng khi có tình nguyện viên đăng ký. Một tiếng chuông hai nốt nhẹ nhàng, không có tiếng nói và dưới ba giây."
-      },
-      "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nTôi đang tạo tiếng chuông hai nốt ấm áp, nhẹ nhàng cho ứng dụng vườn cộng đồng của bạn. Yêu cầu đang được xử lý và sẽ xuất hiện trong đoạn chat ngay khi sẵn sàng.\n\n### Các bước tiếp theo gợi ý\n- [Tạo âm thanh mở khóa huy hiệu mang âm hưởng mộc mạc, hân hoan](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Thiết kế bố cục thẻ xác nhận tình nguyện viên](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
-      },
-      "follow_up_1": {
-        "text": "Tạo âm thanh chúc mừng mở khóa huy hiệu khi hoàn thành nhiệm vụ"
-      },
-      "follow_up_2": {
-        "text": "Giải thích thiết kế âm thanh ảnh hưởng thế nào đến sự tương tác của người dùng trong ứng dụng di động"
-      },
-      "follow_up_3": {
-        "text": "Tạo âm thanh nhắc nhở nhẹ nhàng cho lịch tưới cây buổi sáng"
-      },
-      "follow_up_4": {
-        "text": "Liệt kê các phương pháp hay nhất để thiết kế âm thanh thông báo UI không gây phiền nhiễu"
-      },
-      "follow_up_5": {
-        "text": "Tạo âm thanh báo lỗi nhẹ nhàng khi xác thực biểu mẫu thất bại"
-      },
-      "follow_up_6": {
-        "text": "Mô tả cách tích hợp hiệu ứng âm thanh tùy chỉnh vào ứng dụng di động"
-      }
-    },
-    "online_shop_checkout_flow_diagram": {
-      "title": {
-        "text": "Sơ đồ luồng thanh toán cửa hàng trực tuyến"
-      },
-      "summary": {
-        "text": "Một sơ đồ luồng thanh toán có thể chỉnh sửa với tính năng thử lại thanh toán và xác nhận đơn hàng."
-      },
-      "message_1": {
-        "text": "Tạo một sơ đồ luồng có thể chỉnh sửa cho một cửa hàng trực tuyến nhỏ: giỏ hàng, chi tiết thanh toán, thanh toán và xác nhận đơn hàng. Nếu thanh toán bị từ chối, hãy hiển thị khách hàng đang thử lại. Giữ tất cả thông tin trong sơ đồ và không liên kết đến các trang web bên ngoài."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Phân tích Luồng & Cân nhắc UX\n\n1. **Tiến trình Tuần tự**: Khách hàng tiến triển tuyến tính qua **Giỏ hàng**, **Chi tiết Thanh toán** (giao hàng/hóa đơn) và **Xử lý Thanh toán**.\n2. **Từ chối & Khôi phục Lỗi**:\n   - Thay vì để khách hàng quay lại một phiên trống, việc thanh toán bị từ chối sẽ dẫn đến bước quyết định **Thay đổi Phương thức**.\n   - Đường dẫn trực giao nét đứt dẫn trực tiếp quay lại **Chi tiết Thanh toán**, cho phép khách hàng đổi phương thức thanh toán, sửa lỗi nhập liệu thẻ hoặc chọn ví điện tử khác mà không làm mất các mặt hàng trong giỏ.\n   - Nếu họ chọn không thử lại, phiên sẽ kết thúc gọn gàng ở trạng thái cuối là **Đã lưu Giỏ hàng**, tạo cơ hội cho các email theo dõi giỏ hàng bị bỏ quên.\n3. **Cấu trúc có thể Chỉnh sửa**: Mọi bước và đường dẫn đều chứa các liên kết `data-om-*` tiêu chuẩn để bạn có thể tùy chỉnh nhãn, thêm bước mã giảm giá hoặc tích hợp trực tiếp các nhánh thanh toán cho khách.\n\n---\n\n**Các bước tiếp theo & Lặp lại:**\n- Bạn có muốn thêm nhánh **Thanh toán cho khách so với Tài khoản đã đăng nhập** trước phần chi tiết giao hàng không?\n- Nếu bạn đang thiết kế giao diện người dùng hoặc minh họa tùy chỉnh cho luồng này, chúng ta có thể khám phá việc tích hợp khung dây (wireframe) hoặc các biểu tượng vẽ tay tùy chỉnh để bổ sung cho các bước."
-      },
-      "follow_up_1": {
-        "text": "Tìm kiếm biểu tượng SVG miễn phí cho các nút thanh toán"
-      },
-      "follow_up_2": {
-        "text": "Giải thích cách thêm nhánh thanh toán cho khách (guest checkout) trước phần thông tin giao hàng"
-      },
-      "follow_up_3": {
-        "text": "Tìm kiếm các phương pháp hay nhất và xu hướng UX cho quy trình thanh toán cửa hàng trực tuyến"
-      },
-      "follow_up_4": {
-        "text": "Mô tả cách xử lý email khôi phục giỏ hàng bị bỏ quên một cách hiệu quả"
-      },
-      "follow_up_5": {
-        "text": "Tìm các hội thảo và webinar về thiết kế thương mại điện tử sắp tới"
-      },
-      "follow_up_6": {
-        "text": "Liệt kê các lỗi UX thường gặp trong quy trình thanh toán trực tuyến"
-      }
     }
   },
   "focus_modes": {
@@ -10764,6 +10866,15 @@
       "text": "Đề xuất sách",
       "description": {
         "text": "Nhận gợi ý sách dựa trên sở thích của bạn."
+      }
+    },
+    "business_find_brand_name": {
+      "text": "Tìm tên thương hiệu",
+      "description": {
+        "text": "Chọn tên dễ nhớ rồi kiểm tra tên miền và xung đột nhãn hiệu của các ứng viên cuối."
+      },
+      "process": {
+        "text": "- Hiểu nhu cầu\n- chọn tên\n- kiểm tra ứng viên cuối\n- so sánh bằng chứng"
       }
     },
     "code_analyze_logs": {
@@ -12512,6 +12623,13 @@
             },
             "description": {
               "text": "Mastodon được truy vấn khi bạn lấy các bài đăng hồ sơ Mastodon công khai. Máy chủ Mastodon liên quan sẽ nhận được mã định danh hồ sơ hoặc URL hồ sơ công khai mà không có mã định danh người dùng OpenMates."
+            }
+          }
+        },
+        "business_data": {
+          "uspto": {
+            "description": {
+              "text": "USPTO nhận tên đề xuất và bộ lọc trạng thái, chính tả và nhóm Nice để tìm nhãn hiệu tại Mỹ. Yêu cầu gửi từ máy chủ của chúng tôi, không kèm mã người dùng OpenMates hoặc lịch sử trò chuyện."
             }
           }
         }

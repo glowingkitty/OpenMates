@@ -31,7 +31,12 @@ const savedAssistant = { message_id: "preview-saved-assistant", chat_id: chatId,
 const queuedUser = { message_id: "preview-queued-user", chat_id: chatId,
   role: "user", content: "Please shorten that reply.", created_at: timestamp + 2,
   status: "queued", queue_mode: "steer", queue_revision: 3 };
+const activeAssistant = { ...savedAssistant, status: "streaming", user_message_id: userId };
+const sendingFollowUp = { ...queuedUser, status: "sending" };
 const props = { currentChatId: chatId, chatTitle: "Writing preferences", chatCategory: "general_knowledge", canAnnotate: false, isExampleChat: true, sourceMessages: [user, unknown, known] };
+const activeResponseProps = { ...props, activeAssistantTurn: {
+  taskId: activeAssistant.message_id, userMessageId: userId,
+} };
 export default props;
 export const variants = {
   teamReminder: { ...props, isExampleChat: false, chatTitle: 'Volunteer planning', sourceMessages: [
@@ -43,4 +48,6 @@ export const variants = {
   titlePending: { ...props, chatTitle: '', provisionalChatTitle: user.content, isNewChatGeneratingTitle: true, sourceMessages: [user] },
   titleReady: { ...props, chatTitle: 'Photography reply', provisionalChatTitle: user.content, isNewChatGeneratingTitle: false, sourceMessages: [user] },
   savedAssistant: { ...props, pendingAssistantResponse: null, sourceMessages: [user, savedAssistant, queuedUser] },
+  activeResponseSendingFollowUp: { ...activeResponseProps, sourceMessages: [user, activeAssistant, sendingFollowUp] },
+  activeResponseQueuedFollowUp: { ...activeResponseProps, sourceMessages: [user, activeAssistant, queuedUser] },
 };

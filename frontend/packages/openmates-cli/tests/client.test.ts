@@ -2618,13 +2618,14 @@ describe("CLI saved-chat recovery preflight", () => {
         if (variant === "revoked socket") { connection.destroy(); return; }
         upgraded = true;
         wss.handleUpgrade(request, connection, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
           ws.on("message", raw => {
             const frame = JSON.parse(raw.toString()) as { type: string; payload?: { chat_id?: string } };
             if (frame.type === "chat_metadata_warmup") {
               ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
             } else if (frame.type === "encrypted_chat_metadata") {
               ws.send(JSON.stringify({ type: "encrypted_metadata_stored", payload: { chat_id: frame.payload?.chat_id } }));
-            } else if (frame.type === "chat_turn_preflight") {
+            } else if (frame.type === "chat_turn_admit") {
               preflightSent = true;
               ws.send(JSON.stringify({ type: "error", payload: { code: "client_update_required" } }));
             }
@@ -2700,10 +2701,11 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, connection, head) => {
       wss.handleUpgrade(request, connection, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         socket = ws;
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string };
-          if (frame.type === "chat_turn_preflight") {
+          if (frame.type === "chat_turn_admit") {
             preflightSent = true;
             ws.send(JSON.stringify({ type: "error", payload: { code: "client_update_required" } }));
           }
@@ -2755,13 +2757,14 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, connection, head) => {
       wss.handleUpgrade(request, connection, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload?: { chat_id?: string } };
           if (frame.type === "chat_metadata_warmup") {
             ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
           } else if (frame.type === "encrypted_chat_metadata") {
             ws.send(JSON.stringify({ type: "encrypted_metadata_stored", payload: { chat_id: frame.payload?.chat_id } }));
-          } else if (frame.type === "chat_turn_preflight") {
+          } else if (frame.type === "chat_turn_admit") {
             ws.send(JSON.stringify({ type: "error", payload: { code: "client_update_required" } }));
           }
         });
@@ -2812,10 +2815,11 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, connection, head) => {
       wss.handleUpgrade(request, connection, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         socket = ws;
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string };
-          if (frame.type === "chat_turn_preflight") preflightSent = true;
+          if (frame.type === "chat_turn_admit") preflightSent = true;
         });
       });
     });
@@ -2859,6 +2863,7 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, connection, head) => {
       wss.handleUpgrade(request, connection, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         socket = ws;
         ws.on("close", () => { socketClosed = true; });
       });
@@ -2901,9 +2906,10 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, connection, head) => {
       wss.handleUpgrade(request, connection, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         ws.on("close", () => { socketClosed = true; });
         ws.on("message", (raw) => {
-          if ((JSON.parse(raw.toString()) as { type: string }).type === "chat_turn_preflight") preflightSent = true;
+          if ((JSON.parse(raw.toString()) as { type: string }).type === "chat_turn_admit") preflightSent = true;
         });
       });
     });
@@ -2967,11 +2973,12 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string };
           captured.frameTypes.push(frame.type);
-          if (frame.type === "chat_turn_preflight") {
+          if (frame.type === "chat_turn_admit") {
             ws.send(JSON.stringify({
               type: "error",
               payload: {
@@ -2995,7 +3002,7 @@ describe("CLI saved-chat recovery preflight", () => {
         client.sendMessage({ message: "This must not reach inference" }),
         /OpenMates CLI update required\. Run `openmates upgrade` and retry\./,
       );
-      assert.equal(captured.frameTypes.includes("chat_turn_preflight"), true);
+      assert.equal(captured.frameTypes.includes("chat_turn_admit"), true);
       assert.equal(captured.frameTypes.includes("chat_message_added"), false);
     } finally {
       wss.close();
@@ -3005,7 +3012,7 @@ describe("CLI saved-chat recovery preflight", () => {
   });
 
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity,workflows.chat.metadata-warmup
-  it("waits for preflight ack and keeps durable transaction content encrypted", async () => {
+  for (const supported of [true, false]) it(`uses ${supported ? "single admission" : "legacy preflight fallback"} with durable encrypted content`, async () => {
     const ownerId = "11111111-1111-4111-8111-111111111111";
     const assistantMessageId = "33333333-3333-4333-8333-333333333333";
     const recoveryJobId = "44444444-4444-4444-8444-444444444444";
@@ -3021,6 +3028,8 @@ describe("CLI saved-chat recovery preflight", () => {
       terminalSent: boolean;
     } = { frameTypes: [], preflightAcknowledged: false, terminalSent: false };
     let sealedPayloadForTest: string | null = null;
+    let deferredProjects: ServerResponse | null = null;
+    const contextFrames: Array<Record<string, unknown>> = [];
     const wss = new WebSocketServer({ noServer: true });
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       if (request.method === "POST" && request.url === "/v1/auth/session") {
@@ -3040,18 +3049,28 @@ describe("CLI saved-chat recovery preflight", () => {
         response.end(JSON.stringify({ data: { app_settings_memories: [] } }));
         return;
       }
+      if (request.url === "/v1/projects") {
+        // Deliberately stall discovery until the durable message reaches the server.
+        if (supported && !captured.preflightPayload) { deferredProjects = response; return; }
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ projects: [] })); return;
+      }
       response.writeHead(404);
       response.end();
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        if (supported) ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         ws.on("message", async (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           captured.frameTypes.push(frame.type);
           if (frame.type === "chat_metadata_warmup") captured.warmupPayload = frame.payload;
-          if (frame.type === "chat_turn_preflight") {
+          if (frame.type === "chat_turn_context_ready") contextFrames.push(frame.payload);
+          if (frame.type === "chat_turn_admit" || frame.type === "chat_turn_preflight") {
             captured.preflightPayload = frame.payload;
+            deferredProjects?.writeHead(200, { "content-type": "application/json" });
+            deferredProjects?.end(JSON.stringify({ projects: [] }));
             const sealedPayload = await sealChatCompletionRecoveryPayload(
               new TextEncoder().encode(JSON.stringify({
                 assistant_message_id: assistantMessageId,
@@ -3074,7 +3093,8 @@ describe("CLI saved-chat recovery preflight", () => {
               },
             );
             sealedPayloadForTest = JSON.stringify(sealedPayload);
-            setTimeout(() => {
+            await new Promise<void>(resolve => setTimeout(resolve, 10));
+            {
               captured.preflightAcknowledged = true;
               ws.send(JSON.stringify({
                 type: "chat_turn_preflight_ack",
@@ -3083,9 +3103,10 @@ describe("CLI saved-chat recovery preflight", () => {
                   turn_id: frame.payload.turn_id,
                 },
               }));
-            }, 10);
+            }
           }
-          if (frame.type === "chat_message_added") {
+          if (frame.type === "chat_turn_admit") frame.payload = frame.payload.inference_request as Record<string, unknown>;
+          if (frame.type === "chat_turn_admit" || frame.type === "chat_message_added") {
             assert.equal(captured.preflightAcknowledged, true);
             captured.messagePayload = frame.payload;
             const message = frame.payload.message as Record<string, unknown>;
@@ -3177,7 +3198,9 @@ describe("CLI saved-chat recovery preflight", () => {
     try {
       writeLegacySession(`http://127.0.0.1:${address.port}`);
       const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const preparedChatId = client.preparedNewChatId();
       const result = await client.sendMessage({
+        newChatId: preparedChatId,
         message: "Email [EMAIL_1_com] or call [PHONE_1_567].",
         piiMappings: [
           { placeholder: "[EMAIL_1_com]", original: "sarah@example.com", type: "EMAIL" },
@@ -3191,9 +3214,25 @@ describe("CLI saved-chat recovery preflight", () => {
       assert.equal(JSON.stringify(captured.messagePayload).includes("+1 (555) 123-4567"), false);
 
       assert.ok(captured.preflightPayload);
+      assert.equal(captured.preflightPayload.chat_id, preparedChatId);
+      const admitted = captured.preflightPayload.inference_request as Record<string, unknown>;
+      assert.equal(admitted.client_context_pending, supported ? true : undefined);
+      assert.equal(admitted.client_context_request_id === undefined, !supported);
+      if (supported) assert.equal(admitted.project_focus_candidates, undefined);
+      else assert.deepEqual(admitted.project_focus_candidates, []);
+      assert.deepEqual(contextFrames.map(frame => frame.phase), supported ? ["routing", "details"] : []);
+      for (const frame of contextFrames) {
+        assert.equal(frame.request_id, admitted.client_context_request_id);
+        assert.equal(frame.chat_id, captured.preflightPayload.chat_id);
+        assert.equal(frame.turn_id, captured.preflightPayload.turn_id);
+        assert.equal(frame.message_id, captured.preflightPayload.message_id);
+      }
       assert.deepEqual(captured.warmupPayload, {});
-      assert.equal(captured.frameTypes.indexOf("chat_metadata_warmup") < captured.frameTypes.indexOf("chat_turn_preflight"), true);
-      assert.equal(captured.frameTypes.indexOf("chat_turn_preflight") < captured.frameTypes.indexOf("chat_message_added"), true);
+      const sendType = supported ? "chat_turn_admit" : "chat_turn_preflight";
+      assert.equal(captured.frameTypes.indexOf("chat_metadata_warmup") < captured.frameTypes.indexOf(sendType), true);
+      assert.equal(captured.frameTypes.includes("chat_message_added"), !supported);
+      assert.equal(captured.frameTypes.includes("chat_turn_admit"), supported);
+      if (!supported) assert.ok(captured.frameTypes.indexOf("chat_message_added") > captured.frameTypes.indexOf("chat_turn_preflight"));
       assert.equal(captured.frameTypes.indexOf("encrypted_chat_metadata") > captured.frameTypes.indexOf("recovery_job_persist"), true);
       assert.equal(captured.metadataPayload?.message_id, undefined);
       const inferenceRequest = captured.preflightPayload.inference_request as Record<string, unknown>;
@@ -3337,11 +3376,12 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           captured.frameTypes.push(frame.type);
-          if (frame.type === "chat_turn_preflight") {
+          if (frame.type === "chat_turn_admit") {
             captured.preflightPayload = frame.payload;
             ws.send(JSON.stringify({
               type: "chat_turn_preflight_ack",
@@ -3351,7 +3391,8 @@ describe("CLI saved-chat recovery preflight", () => {
               },
             }));
           }
-          if (frame.type === "chat_message_added") {
+          if (frame.type === "chat_turn_admit") frame.payload = frame.payload.inference_request as Record<string, unknown>;
+          if (frame.type === "chat_turn_admit" || frame.type === "chat_message_added") {
             const message = frame.payload.message as Record<string, unknown>;
             ws.send(JSON.stringify({
               type: "chat_message_confirmed",
@@ -3497,10 +3538,11 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         ws.on("message", async (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, any> };
-          if (frame.type === "chat_turn_preflight") {
+          if (frame.type === "chat_turn_admit") {
             captured.preflight = frame.payload;
             captured.sealed = JSON.stringify(await sealChatCompletionRecoveryPayload(
               new TextEncoder().encode(JSON.stringify({
@@ -3518,7 +3560,9 @@ describe("CLI saved-chat recovery preflight", () => {
               preflight_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
               turn_id: frame.payload.turn_id,
             } }));
-          } else if (frame.type === "chat_message_added") {
+          }
+          if (frame.type === "chat_turn_admit") frame.payload = frame.payload.inference_request;
+          if (frame.type === "chat_turn_admit" || frame.type === "chat_message_added") {
             const message = frame.payload.message as Record<string, any>;
             ws.send(JSON.stringify({ type: "chat_message_confirmed", payload: {
               chat_id: frame.payload.chat_id, message_id: message.message_id,
@@ -3656,6 +3700,7 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         ws.on("message", async (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
@@ -3663,7 +3708,7 @@ describe("CLI saved-chat recovery preflight", () => {
           if (frame.type === "phased_sync_request") {
             ws.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
           }
-          if (frame.type === "chat_turn_preflight") {
+          if (frame.type === "chat_turn_admit") {
             captured.preflightPayload = frame.payload;
             sealedPayloadForTest = JSON.stringify(await sealChatCompletionRecoveryPayload(
               new TextEncoder().encode(JSON.stringify({
@@ -3692,7 +3737,8 @@ describe("CLI saved-chat recovery preflight", () => {
             }));
           }
           if (frame.type === "update_encrypted_active_focus_id") captured.focusUpdate = frame.payload;
-          if (frame.type === "chat_message_added") {
+          if (frame.type === "chat_turn_admit") frame.payload = frame.payload.inference_request as Record<string, unknown>;
+          if (frame.type === "chat_turn_admit" || frame.type === "chat_message_added") {
             ws.send(JSON.stringify({ type: "focus_mode_activated", payload: { chat_id: chatId, focus_id: "jobs-career_insights" } }));
             captured.messagePayload = frame.payload;
             const message = frame.payload.message as Record<string, unknown>;
@@ -3771,13 +3817,21 @@ describe("CLI saved-chat recovery preflight", () => {
       assert.equal(await decryptWithAesGcmCombined(String(captured.focusUpdate?.encrypted_active_focus_id), rawChatKey), "jobs-career_insights");
       assert.ok(captured.preflightPayload);
       assert.equal(captured.preflightPayload.expected_messages_v, 7);
+      const existingContext = captured.preflightPayload.inference_request as Record<string, unknown>;
+      assert.equal(existingContext.client_context_pending, undefined, "queued existing turns must not depend on a short-lived continuation");
+      assert.equal(existingContext.client_context_request_id, undefined);
+      assert.deepEqual(existingContext.project_focus_candidates, []);
+      assert.deepEqual(existingContext.project_focus_documents, []);
+      assert.equal(captured.frameTypes.includes("chat_turn_context_ready"), false);
       assert.equal(captured.preflightPayload.encrypted_chat_key, encryptedChatKey);
       assert.equal(captured.preflightPayload.chat_key_version, 1);
       assert.equal(typeof captured.preflightPayload.recovery_public_key, "string");
       assert.equal(captured.preflightPayload.encrypted_chat_metadata, undefined);
       assert.equal(captured.frameTypes.includes("encrypted_chat_metadata"), false);
-      assert.equal(captured.messagePayload?.protocol_version, 1);
-      assert.equal(captured.messagePayload?.preflight_id, "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+      assert.equal(captured.preflightPayload.protocol_version, 1);
+      assert.equal(captured.messagePayload?.preflight_id, undefined);
+      assert.equal(captured.frameTypes.filter(type => type === "chat_turn_admit").length, 1);
+      assert.equal(captured.frameTypes.includes("chat_message_added"), false);
       assert.equal(captured.messagePayload?.turn_id, captured.preflightPayload.turn_id);
       assert.equal(captured.messagePayload?.recovery_public_key, captured.preflightPayload.recovery_public_key);
       assert.equal(captured.messagePayload?.chat_key_version, 1);
@@ -3835,18 +3889,20 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           captured.frameTypes.push(frame.type);
-          if (frame.type === "chat_turn_preflight") {
+          if (frame.type === "chat_turn_admit") {
             captured.preflightPayload = frame.payload;
             ws.send(JSON.stringify({
               type: "chat_turn_preflight_ack",
               payload: { preflight_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", turn_id: frame.payload.turn_id },
             }));
           }
-          if (frame.type === "chat_message_added") {
+          if (frame.type === "chat_turn_admit") frame.payload = frame.payload.inference_request as Record<string, unknown>;
+          if (frame.type === "chat_turn_admit" || frame.type === "chat_message_added") {
             captured.messagePayload = frame.payload;
             const message = frame.payload.message as Record<string, unknown>;
             ws.send(JSON.stringify({
@@ -3923,15 +3979,17 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
-          if (frame.type === "chat_turn_preflight") {
+          if (frame.type === "chat_turn_admit") {
             ws.send(JSON.stringify({ type: "chat_turn_preflight_ack", payload: {
               preflight_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", turn_id: frame.payload.turn_id,
             } }));
           }
-          if (frame.type === "chat_message_added") {
+          if (frame.type === "chat_turn_admit") frame.payload = frame.payload.inference_request as Record<string, unknown>;
+          if (frame.type === "chat_turn_admit" || frame.type === "chat_message_added") {
             const user = frame.payload.message as Record<string, unknown>;
             ws.send(JSON.stringify({ type: "chat_message_confirmed", payload: {
               chat_id: frame.payload.chat_id, message_id: user.message_id, new_messages_v: 1,
@@ -3982,15 +4040,17 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
-          if (frame.type === "chat_turn_preflight") {
+          if (frame.type === "chat_turn_admit") {
             ws.send(JSON.stringify({ type: "chat_turn_preflight_ack", payload: {
               preflight_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", turn_id: frame.payload.turn_id,
             } }));
           }
-          if (frame.type === "chat_message_added") {
+          if (frame.type === "chat_turn_admit") frame.payload = frame.payload.inference_request as Record<string, unknown>;
+          if (frame.type === "chat_turn_admit" || frame.type === "chat_message_added") {
             const user = frame.payload.message as Record<string, unknown>;
             ws.send(JSON.stringify({ type: "chat_message_confirmed", payload: {
               chat_id: frame.payload.chat_id, message_id: user.message_id, new_messages_v: 1,
@@ -4104,6 +4164,7 @@ describe("CLI incognito chat payloads", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           captured.frameTypes.push(frame.type);
@@ -4182,6 +4243,7 @@ describe("CLI incognito chat payloads", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           if (frame.type !== "chat_message_added") return;
@@ -4260,6 +4322,7 @@ describe("CLI incognito chat payloads", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           if (frame.type !== "chat_message_added") return;

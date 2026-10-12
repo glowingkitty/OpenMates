@@ -932,6 +932,8 @@
   });
 </script>
 
+<svelte:window onpointerdown={(event) => { if (compact && taskComposerFocused && event.target instanceof Element && event.target.closest('.tasks-page.compact') && !event.target.closest('.compact-task-composer')) taskComposerFocused = false; }} />
+
 {#if !tasksEnabled && !plansEnabled}
   <section class="tasks-page" class:compact data-testid="tasks-feature-disabled">
     <div class="tasks-state">
@@ -1171,7 +1173,7 @@
   </section>
   {/if}
 
-  <div class="compact-task-background" class:dimmed={compact && taskComposerFocused} inert={compact && taskComposerFocused} data-testid={compact ? 'project-task-background' : undefined}>
+  <div class="compact-task-background" inert={compact && taskComposerFocused} data-testid={compact ? 'project-task-background' : undefined}>
   {#if compact}
     <div class="compact-task-toolbar" data-testid="project-task-toolbar">
       <label class="compact-task-search" for="project-task-search">
@@ -1217,7 +1219,6 @@
   {/if}
   </div>
   {#if compact}
-    {#if taskComposerFocused}<button type="button" class="compact-task-backdrop" data-testid="project-task-composer-backdrop" aria-label="Dismiss task editor" onpointerdown={(event) => event.preventDefault()} onclick={() => { taskComposerFocused = false; }}></button>{/if}
     <div class="compact-task-composer" data-testid="project-task-composer-shell">
       <WorkspacePromptComposer
         surface="tasks"
@@ -1287,18 +1288,6 @@
   .tasks-page.compact {
     padding: 0;
     overflow: visible;
-  }
-
-  .compact-task-background { visibility: visible; transition: opacity var(--duration-normal) var(--easing-default), visibility 0s; }
-  .compact-task-background.dimmed { opacity: 0; visibility: hidden; transition-delay: 0s, var(--duration-normal); }
-  @media (prefers-reduced-motion: reduce) {
-    .compact-task-background, .compact-task-background.dimmed { transition: none; }
-  }
-  .compact-task-backdrop { position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; filter: none; scale: none; transform: none; transition: none; background: transparent; cursor: default; }
-  .compact-task-backdrop:hover, .compact-task-backdrop:active { background: transparent; scale: none; transform: none; filter: none; }
-
-  @media (prefers-reduced-motion: reduce) {
-    .compact-task-background { transition: none; }
   }
 
   .compact-task-composer {

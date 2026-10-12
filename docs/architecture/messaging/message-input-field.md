@@ -100,7 +100,7 @@ Key extensions:
 - **Auto-expanding height** -- The input field grows with content up to a configurable max height.
 - **Fullscreen toggle** -- When max height is reached, a fullscreen button appears in the top-right corner. Clicking it expands the editor to full viewport height.
 - **Scroll minimization** -- When the user scrolls through chat history, the input field minimizes to show only the last few lines of the draft.
-- **Send button** -- A focused nonempty composer shows the translated Send label. A blurred nonempty composer minimizes and retains a round orange up-arrow Send button. Focus uses no translucent gray backdrop and does not intercept chat-history actions.
+- **Send button and focus** -- A focused nonempty composer shows the translated Send label. A blurred nonempty composer minimizes and retains a round orange up-arrow Send button. Ordinary text focus uses no gray or translucent backdrop and leaves welcome content, established chat transcripts and existing workspace, task and workflow-editor content at full opacity. Background controls remain inert while focused; a parent pointer handler dismisses focus without mounting a full-area backdrop button. Recording, map and anonymous-attachment overlays retain their separate welcome suppression.
 - **Workflow warm-up** -- Composer focus can send a debounced, authenticated metadata-only warm-up hint. Draft text is absent, and the hint invokes no AI inference. Server rate limits and a scoped lock bound the work; normal discovery handles cache misses or failure.
 
 ### Mentions
@@ -132,3 +132,9 @@ Opening a saved Study goal flushes the composer before entering the Apps workspa
 - [Message Previews Grouping](./message-previews-grouping.md) -- How consecutive embeds are grouped in the input
 - [Embeds Architecture](./embeds.md) -- Server-side embed storage and reference format
 - [Message Processing](./message-processing.md) -- Backend processing after the message is sent
+
+## Prepared sends and contextual suggestions
+
+Composer focus or microphone activation prepares one invisible chat identity and encryption key for the current account and Team. Eligible first personal text turns journal one `chat_turn_admit` frame and send it before related discovery completes; correlated routing and private-detail frames follow. The encrypted journal remains until message confirmation and both context acknowledgements, and retries reuse the original IDs and timestamp. Existing saved-chat history, attachment, Team and incognito paths retain their gates.
+
+Successful main inference can provide a separate next-message suggestion. Its ghost stays outside the editor document; Tab or the localized touch control inserts editable text without sending. Typing, Escape, recording, attachments, queued edits and scope changes keep user ownership. Clients encrypt the suggestion before durable storage and cross-device sync; postprocessor chips remain separate.

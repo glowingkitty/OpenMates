@@ -169,3 +169,20 @@ early_resolution:
     given: The current turn has already announced its selected Mate before detailed processing completes.
     when: Detailed processing fails or requires a user approval.
     then: The client clears that turn's typing indicator and shows the existing failure or user gate without beginning main inference.
+conditional_context:
+  - id: ordinary-factual-question-with-unrelated-projects
+    assertion_ids: [ai-model-routing.preprocessing.conditional-context]
+    given: Alice has unrelated Projects and Tasks but no active Focus, accepted Plan or explicit dependencies in a new chat.
+    when: She asks what the capital of Spain is and compact routing confidently needs no apps or additional context.
+    then: She sees the selected Mate immediately after model resolution; no detailed catalogue or related-work inference delays the answer.
+  - id: selected-events-capability
+    assertion_ids: [ai-model-routing.preprocessing.conditional-context]
+    given: Alice asks to find AI events in Berlin.
+    when: Compact routing selects Events and stage two selects its search capability.
+    then: The Mate appears before detailed selection, only relevant context is assembled, and the authorized events skill remains available to main processing.
+warm_catalogues:
+  - id: focused-preparation-with-cold-fallback
+    assertion_ids: [ai-model-routing.preprocessing.warm-catalogues]
+    given: Alice focuses the empty web composer, starts the TUI or begins a microphone transcript in her current account and Team.
+    when: Preparation warms discovery and she sends before it completes, or changes account before the next send.
+    then: No inference or draft text is sent by preparation; send reaches admission immediately, missing context loads safely, and another account cannot reuse her discovery or keys.

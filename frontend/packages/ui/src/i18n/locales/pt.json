@@ -93,6 +93,14 @@
         }
       }
     },
+    "business": {
+      "find_brand_name": {
+        "text": "Encontrar um nome de marca",
+        "description": {
+          "text": "Selecione nomes memoráveis e verifique domínios e conflitos de marcas dos finalistas."
+        }
+      }
+    },
     "code": {
       "test_git_repo": {
         "text": "Testar repositório git",
@@ -1282,6 +1290,12 @@
         "text": "Get company financials",
         "description": {
           "text": "Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR."
+        }
+      },
+      "search_trademarks": {
+        "text": "Pesquisar marcas",
+        "description": {
+          "text": "Pesquise marcas por região com fontes e limites de cobertura."
         }
       }
     },
@@ -7650,6 +7664,86 @@
         "not_available": {
           "text": "N/D"
         }
+      },
+      "search_trademarks": {
+        "records": {
+          "text": "Registros: {count}"
+        },
+        "preliminary": {
+          "text": "Pesquisa preliminar"
+        },
+        "checked": {
+          "text": "Consultado"
+        },
+        "not_searched": {
+          "text": "Não pesquisado"
+        },
+        "partial": {
+          "text": "Parcial"
+        },
+        "empty": {
+          "text": "Nenhum registro correspondente"
+        },
+        "limitation": {
+          "text": "A ausência de resultados não comprova disponibilidade legal."
+        },
+        "open_record": {
+          "text": "Ver registro oficial"
+        },
+        "open_register": {
+          "text": "Abrir pesquisa oficial"
+        },
+        "classes": {
+          "text": "Classes de Nice"
+        },
+        "all_classes": {
+          "text": "Todas as classes"
+        },
+        "owner": {
+          "text": "Titular"
+        },
+        "goods": {
+          "text": "Produtos e serviços"
+        },
+        "application": {
+          "text": "Pedido"
+        },
+        "registration": {
+          "text": "Registro"
+        },
+        "filed": {
+          "text": "Depositado"
+        },
+        "registered": {
+          "text": "Registrado"
+        },
+        "pending": {
+          "text": "Pendente"
+        },
+        "ended": {
+          "text": "Encerrado"
+        },
+        "unknown": {
+          "text": "Status desconhecido"
+        },
+        "exact": {
+          "text": "Nome exato"
+        },
+        "similar": {
+          "text": "Grafia semelhante"
+        },
+        "active": {
+          "text": "Registros ativos"
+        },
+        "all_statuses": {
+          "text": "Todos os status"
+        },
+        "more": {
+          "text": "Mais resultados no registro oficial"
+        },
+        "failed": {
+          "text": "Dados de pesquisa indisponíveis"
+        }
       }
     },
     "reviews": {
@@ -7901,6 +7995,14 @@
       },
       "exit_fullscreen": {
         "text": "Sair da tela cheia"
+      }
+    },
+    "ghost_suggestion": {
+      "press_tab": {
+        "text": "Prima Tab para aceitar a sugestão"
+      },
+      "use_suggestion": {
+        "text": "Usar sugestão"
       }
     },
     "location": {
@@ -8981,6 +9083,38 @@
       },
       "follow_up_6": {
         "text": "Explicar como organizar elementos visuais num layout de impressão"
+      }
+    },
+    "community_garden_volunteer_chime": {
+      "title": {
+        "text": "Um toque acolhedor para uma horta comunitária"
+      },
+      "summary": {
+        "text": "Gere um som de notificação curto de duas notas para um aplicativo fictício de horta comunitária."
+      },
+      "message_1": {
+        "text": "Crie um som de notificação curto e acolhedor para um aplicativo de horta comunitária para quando um voluntário se inscrever. Um toque suave de duas notas, sem fala e com menos de três segundos."
+      },
+      "message_2": {
+        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nEstou gerando o toque suave e acolhedor de duas notas para o seu aplicativo de horta comunitária agora. Ele está sendo processado e aparecerá no chat assim que estiver pronto.\n\n### Próximos passos sugeridos\n- [Gerar um toque de desbloqueio de emblema festivo e natural](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Projetar o layout de um cartão de confirmação de voluntário](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+      },
+      "follow_up_1": {
+        "text": "Gerar um toque de desbloqueio de emblema festivo para a conclusão de tarefas"
+      },
+      "follow_up_2": {
+        "text": "Explicar como o design de som afeta o engajamento do usuário em aplicativos móveis"
+      },
+      "follow_up_3": {
+        "text": "Criar um toque de lembrete suave para cronogramas de rega matinais"
+      },
+      "follow_up_4": {
+        "text": "Listar as melhores práticas para projetar sons de notificação de interface não intrusivos"
+      },
+      "follow_up_5": {
+        "text": "Gerar um som de alerta de erro suave para falhas de validação de formulário"
+      },
+      "follow_up_6": {
+        "text": "Descrever como integrar efeitos sonoros personalizados em aplicativos móveis"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -10065,6 +10199,38 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"6da89032-d370-43c5-91c1-b07fa5df5a85\", \"app_id\": \"images\", \"skill_id\": \"generate\"}\n```\n\nI'm generating that SVG app icon for your climate data dashboard now. \n\nI've focused on a clean, [flat](wiki:Flat_design) [vector](wiki:Vector_graphics) aesthetic with a teal and mint palette to reflect both nature and data. This style is excellent for scalability, ensuring the icon stays crisp whether it's on a mobile home screen or a tiny browser favicon.\n\nOnce it's ready, we could experiment with different color schemes for dark mode or even create a [UI mockup](wiki:Mockup) to see how it looks in context.\n\nWhat kind of interface are you imagining for this dashboard—something very data-heavy with charts, or a more simplified overview?"
       }
     },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Diagrama de Fluxo de Checkout de Loja Online"
+      },
+      "summary": {
+        "text": "Um fluxograma de checkout editável com nova tentativa de pagamento e confirmação de pedido."
+      },
+      "message_1": {
+        "text": "Cria um fluxograma editável para uma pequena loja online: carrinho, detalhes do checkout, pagamento e confirmação do pedido. Se o pagamento for recusado, mostra o cliente a tentar novamente. Mantém toda a informação dentro do diagrama e não coloques links para sites externos."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Análise do Fluxo e Considerações de UX\n\n1. **Progressão Sequencial**: O cliente progride linearmente através do **Carrinho**, **Detalhes do Checkout** (envio/faturação) e **Processamento de Pagamento**.\n2. **Recusa e Recuperação de Erros**:\n   - Em vez de devolver o cliente a uma sessão vazia, uma recusa encaminha para uma etapa de decisão de **Alterar Método**.\n   - O caminho ortogonal tracejado encaminha diretamente de volta para os **Detalhes do Checkout**, permitindo que o cliente altere os métodos de pagamento, corrija erros de digitação nos dados do cartão ou escolha uma carteira digital alternativa sem perder os itens do carrinho.\n   - Se optarem por não tentar novamente, a sessão termina de forma limpa num estado terminal de **Carrinho Guardado**, deixando a porta aberta para e-mails de acompanhamento de carrinhos abandonados.\n3. **Estrutura Editável**: Cada etapa e caminho contém vinculações `data-om-*` padrão para que possas personalizar etiquetas, adicionar uma etapa de cupão de desconto ou integrar ramos de checkout de convidado diretamente.\n\n---\n\n**Próximos Passos e Iterações:**\n- Gostarias de introduzir um ramo de **Checkout de Convidado vs. Conta Iniciada** antes dos detalhes de envio?\n- Se estiveres a desenhar interfaces de utilizador ou ilustrações personalizadas para este fluxo, poderíamos explorar a integração de wireframes ou ícones personalizados desenhados à mão para complementar as etapas."
+      },
+      "follow_up_1": {
+        "text": "Procurar ícones SVG gratuitos para botões de checkout"
+      },
+      "follow_up_2": {
+        "text": "Explicar como adicionar um ramo de checkout de convidado antes dos detalhes de envio"
+      },
+      "follow_up_3": {
+        "text": "Pesquisar boas práticas de checkout de lojas online e tendências de UX"
+      },
+      "follow_up_4": {
+        "text": "Descrever como gerir e-mails de recuperação de carrinhos abandonados de forma eficaz"
+      },
+      "follow_up_5": {
+        "text": "Encontrar workshops e webinars de design de e-commerce que se aproximam"
+      },
+      "follow_up_6": {
+        "text": "Listar erros comuns de UX em fluxos de checkout de pagamentos online"
+      }
+    },
     "open_meteo_weather_notebook": {
       "title": {
         "text": "Berlin Weekend Bike Weather Notebook"
@@ -10711,70 +10877,6 @@
       "follow_up_6": {
         "text": "Comparar diferentes métodos para transformar ideias faladas em tarefas organizadas"
       }
-    },
-    "community_garden_volunteer_chime": {
-      "title": {
-        "text": "Um toque acolhedor para uma horta comunitária"
-      },
-      "summary": {
-        "text": "Gere um som de notificação curto de duas notas para um aplicativo fictício de horta comunitária."
-      },
-      "message_1": {
-        "text": "Crie um som de notificação curto e acolhedor para um aplicativo de horta comunitária para quando um voluntário se inscrever. Um toque suave de duas notas, sem fala e com menos de três segundos."
-      },
-      "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nEstou gerando o toque suave e acolhedor de duas notas para o seu aplicativo de horta comunitária agora. Ele está sendo processado e aparecerá no chat assim que estiver pronto.\n\n### Próximos passos sugeridos\n- [Gerar um toque de desbloqueio de emblema festivo e natural](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Projetar o layout de um cartão de confirmação de voluntário](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
-      },
-      "follow_up_1": {
-        "text": "Gerar um toque de desbloqueio de emblema festivo para a conclusão de tarefas"
-      },
-      "follow_up_2": {
-        "text": "Explicar como o design de som afeta o engajamento do usuário em aplicativos móveis"
-      },
-      "follow_up_3": {
-        "text": "Criar um toque de lembrete suave para cronogramas de rega matinais"
-      },
-      "follow_up_4": {
-        "text": "Listar as melhores práticas para projetar sons de notificação de interface não intrusivos"
-      },
-      "follow_up_5": {
-        "text": "Gerar um som de alerta de erro suave para falhas de validação de formulário"
-      },
-      "follow_up_6": {
-        "text": "Descrever como integrar efeitos sonoros personalizados em aplicativos móveis"
-      }
-    },
-    "online_shop_checkout_flow_diagram": {
-      "title": {
-        "text": "Diagrama de Fluxo de Checkout de Loja Online"
-      },
-      "summary": {
-        "text": "Um fluxograma de checkout editável com nova tentativa de pagamento e confirmação de pedido."
-      },
-      "message_1": {
-        "text": "Cria um fluxograma editável para uma pequena loja online: carrinho, detalhes do checkout, pagamento e confirmação do pedido. Se o pagamento for recusado, mostra o cliente a tentar novamente. Mantém toda a informação dentro do diagrama e não coloques links para sites externos."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Análise do Fluxo e Considerações de UX\n\n1. **Progressão Sequencial**: O cliente progride linearmente através do **Carrinho**, **Detalhes do Checkout** (envio/faturação) e **Processamento de Pagamento**.\n2. **Recusa e Recuperação de Erros**:\n   - Em vez de devolver o cliente a uma sessão vazia, uma recusa encaminha para uma etapa de decisão de **Alterar Método**.\n   - O caminho ortogonal tracejado encaminha diretamente de volta para os **Detalhes do Checkout**, permitindo que o cliente altere os métodos de pagamento, corrija erros de digitação nos dados do cartão ou escolha uma carteira digital alternativa sem perder os itens do carrinho.\n   - Se optarem por não tentar novamente, a sessão termina de forma limpa num estado terminal de **Carrinho Guardado**, deixando a porta aberta para e-mails de acompanhamento de carrinhos abandonados.\n3. **Estrutura Editável**: Cada etapa e caminho contém vinculações `data-om-*` padrão para que possas personalizar etiquetas, adicionar uma etapa de cupão de desconto ou integrar ramos de checkout de convidado diretamente.\n\n---\n\n**Próximos Passos e Iterações:**\n- Gostarias de introduzir um ramo de **Checkout de Convidado vs. Conta Iniciada** antes dos detalhes de envio?\n- Se estiveres a desenhar interfaces de utilizador ou ilustrações personalizadas para este fluxo, poderíamos explorar a integração de wireframes ou ícones personalizados desenhados à mão para complementar as etapas."
-      },
-      "follow_up_1": {
-        "text": "Procurar ícones SVG gratuitos para botões de checkout"
-      },
-      "follow_up_2": {
-        "text": "Explicar como adicionar um ramo de checkout de convidado antes dos detalhes de envio"
-      },
-      "follow_up_3": {
-        "text": "Pesquisar boas práticas de checkout de lojas online e tendências de UX"
-      },
-      "follow_up_4": {
-        "text": "Descrever como gerir e-mails de recuperação de carrinhos abandonados de forma eficaz"
-      },
-      "follow_up_5": {
-        "text": "Encontrar workshops e webinars de design de e-commerce que se aproximam"
-      },
-      "follow_up_6": {
-        "text": "Listar erros comuns de UX em fluxos de checkout de pagamentos online"
-      }
     }
   },
   "focus_modes": {
@@ -10791,6 +10893,15 @@
       "text": "Recomendações de livros",
       "description": {
         "text": "Recomendações de livros com base no seu gosto."
+      }
+    },
+    "business_find_brand_name": {
+      "text": "Encontrar um nome de marca",
+      "description": {
+        "text": "Selecione nomes memoráveis e verifique domínios e conflitos de marcas dos finalistas."
+      },
+      "process": {
+        "text": "- Entender o projeto\n- selecionar nomes\n- verificar finalistas\n- comparar evidências"
       }
     },
     "code_analyze_logs": {
@@ -12539,6 +12650,13 @@
             },
             "description": {
               "text": "O Mastodon é consultado quando procuras publicações de perfis públicos do Mastodon. O servidor Mastodon relevante recebe identificadores de perfil ou URLs de perfis públicos sem um identificador de utilizador OpenMates."
+            }
+          }
+        },
+        "business_data": {
+          "uspto": {
+            "description": {
+              "text": "O USPTO recebe nomes candidatos e filtros de status, grafia e classes de Nice para buscas nos EUA. As solicitações saem dos nossos servidores sem identificadores OpenMates ou histórico de chat."
             }
           }
         }

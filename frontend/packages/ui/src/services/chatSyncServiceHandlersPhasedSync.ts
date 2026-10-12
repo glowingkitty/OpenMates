@@ -139,6 +139,8 @@ function buildMetadataOnlyChatFromDetails(
     encrypted_chat_tags: details.encrypted_chat_tags || null,
     encrypted_follow_up_request_suggestions:
       details.encrypted_follow_up_request_suggestions || null,
+    encrypted_suggested_followup_message:
+      details.encrypted_suggested_followup_message || null,
     encrypted_active_focus_id: details.encrypted_active_focus_id || null,
     encrypted_focus_phase_state: details.encrypted_focus_phase_state || null,
     encrypted_auto_speak_response: details.encrypted_auto_speak_response || null,

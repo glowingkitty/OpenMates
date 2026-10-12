@@ -297,6 +297,7 @@ async def test_explicit_mate_skips_routing_after_app_shortlist_and_keeps_telemet
     assert all(call["telemetry_task_id"] == "chat_message" for call in calls)
     assert set(calls[0]["questions"]) == {
         "app_0", "complexity", "task_area", "user_unhappy", "china_sensitive",
+        "needs_detailed_context", "needs_related_work",
     } | set(jev_preprocessing._public_decision_questions(True))
     stage_two_questions = set(calls[1]["questions"])
     assert {"topic_area", "topic_shift"}.isdisjoint(stage_two_questions)
@@ -363,6 +364,7 @@ async def test_app_shortlist_selects_multiple_apps_without_unrelated_stage_two_c
     assert set(calls[0]["questions"]) == {
         "app_0", "app_1", "app_2", "app_3", "complexity", "task_area",
         "user_unhappy", "china_sensitive", "topic_area", "topic_shift",
+        "needs_detailed_context", "needs_related_work",
     } | set(jev_preprocessing._public_decision_questions(False))
     assert {"complexity", "task_area", "topic_area", "topic_shift"}.isdisjoint(calls[1]["questions"])
     stage_one = repr(calls[0])
@@ -596,3 +598,36 @@ async def test_essential_latest_request_too_large_never_sends_a_prefix(monkeypat
             secrets_manager=None, model_id="jev",
         )
     evaluate.assert_not_awaited()
+
+
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
+@pytest.mark.asyncio
+async def test_reserved_stage_one_stops_before_project_specialist_and_reuses_snapshot(monkeypatch):
+    calls = []
+    async def evaluate(**kwargs):
+        calls.append("stage-one")
+        response = _routing_answer(kwargs["questions"])
+        response.answers["project_target"] = jev_preprocessing.ChoiceAnswer(
+            type="choice", choice="project-p1", confidence=.99,
+            probabilities={"none": .01, "project-p1": .99})
+        return response
+    async def specialist(**kwargs):
+        calls.append("specialist")
+        return None
+    async def publish(result):
+        calls.append("mate")
+    monkeypatch.setattr(jev_preprocessing, "_evaluate_preprocessing_questions", evaluate)
+    monkeypatch.setattr(jev_preprocessing, "_select_project_specialist_with_jev", specialist)
+    kwargs = dict(model_id="jev", secrets_manager=None, message_history=[],
+        available_apps=["projects"], available_skills=[], available_focus_modes=[],
+        project_candidates=[{"project_id": "p1", "name": "Project", "focuses": []}],
+        topic_areas=["general_misc: General"], is_first_message=True,
+        on_project_routing_resolved=publish)
+    snapshot = await jev_preprocessing.decide_app_and_project_routing_with_jev(**kwargs, stage_one_only=True)
+    assert calls == ["stage-one", "mate"]
+    await jev_preprocessing.decide_app_and_project_routing_with_jev(**kwargs, precomputed_stage_one=snapshot)
+    assert calls == ["stage-one", "mate", "mate", "specialist"]
+    revoked = await jev_preprocessing.decide_app_and_project_routing_with_jev(
+        **{**kwargs, "project_candidates": [{"project_id": "p2", "name": "Other"}]},
+        precomputed_stage_one=snapshot)
+    assert "pending_project_focus_id" not in revoked

@@ -217,6 +217,14 @@ models:
       constraints: {values: [followup_suggestions, quick_tips], detail_explainer_reachable: true}
 
 assertions:
+  - id: ai-model-routing.preprocessing.conditional-context
+    type: behavior
+    must: Compact stage one selects Mate, complexity, apps and Projects from bounded conversation and discovery metadata. Model resolution and selected-Mate feedback precede detailed selection and private-body loading. Only complete public decisions with freshly verified empty active context can skip stage two; selected capabilities, active context or uncertainty retain detailed selection. Stage two selects relevant skills, Focus, Memory, Workflows and related work once, and main processing revalidates selected sources without repeating that selection inference.
+    depends_on: [examples.conditional_context]
+  - id: ai-model-routing.preprocessing.warm-catalogues
+    type: privacy
+    must: Focus or microphone activation and authenticated TUI startup may prepare identity, encryption and authorized discovery without draft text, inference or execution. Public skill, Focus and app Memory definitions are cached by deployment revision; encrypted user discovery is owner and Team scoped for two sliding hours with invalidation. Access and selected revisions are checked freshly, selected private bodies use authorized transient transport, and warm-up failure retains a correct cold path.
+    depends_on: [examples.warm_catalogues]
   - id: ai-model-routing.preprocessing.early-resolution
     type: behavior
     must: The first preprocessing decision selects request complexity, Mate, relevant apps and Projects. Model resolution immediately follows that decision using existing exact-chat and tier-preference precedence. Selected-Mate typing metadata is published without waiting for detailed skill, Focus mode, Project Focus mode or Workflow selection. Main inference still waits for required detailed selection, consent, safety and billing gates; subsequent failures or user gates clear active typing.

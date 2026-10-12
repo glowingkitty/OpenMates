@@ -148,6 +148,8 @@ export type TuiState = {
   headerState: "new" | "loading" | "ready" | "error";
   headerError: string | null;
   followUpSuggestions: string[];
+  suggestedFollowupMessage: string | null;
+  suggestedFollowupChatId: string | null;
   drafts: Record<string, string>;
   routeVersion: number;
   inputCursor: number | null;
@@ -226,7 +228,7 @@ export function createInitialTuiState(): TuiState {
     taskContext: null, recentChats: [], runningChatIds: [], activityChats: [], sidebarLinkedChats: [], activityFrame: 0,
     chatSidebarProjects: [], chatSidebarLoadVersion: 0, chatActivityLoadVersion: 0, chatSidebarLocation: null, chatSidebarAncestors: false, chatProjectOperation: null, chatProjectBusy: false,
     activeChatId: null, activeChat: null,
-    headerState: "new", headerError: null, followUpSuggestions: [], drafts: {}, routeVersion: 0, inputCursor: null, aiTaskId: null,
+    headerState: "new", headerError: null, followUpSuggestions: [], suggestedFollowupMessage: null, suggestedFollowupChatId: null, drafts: {}, routeVersion: 0, inputCursor: null, aiTaskId: null,
     detailTitle: "", detailLines: [], projects: [], activeProject: null,
     projectFiles: [], projectTab: "overview", projectPath: "", projectFolderId: null, projectSourceId: null, selectedProjectId: null,
     workflowRunGraph: null,workflowInputSessionId:null,

@@ -1560,6 +1560,7 @@ class ChatCacheMixin:
             "last_mate_category",
             "encrypted_chat_key",
             "encrypted_chat_summary",
+            "encrypted_suggested_followup_message",
         ],
         value: Any,
     ) -> bool:

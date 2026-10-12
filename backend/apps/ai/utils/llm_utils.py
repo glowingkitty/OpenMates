@@ -1917,6 +1917,7 @@ async def call_main_llm_stream(
     customer_cache_pricing_enabled: bool = False,
     thinking_level: Optional[str] = None,
     native_cache_context: Optional[Dict[str, Any]] = None,
+    failed_servers_in_turn: Optional[set[str]] = None,
 ) -> AsyncIterator[str]:
     # Anonymous accounting reserves one dispatched attempt at a time. Returning
     # failures to its caller preserves ambiguous holds and makes any retry earn
@@ -2020,6 +2021,17 @@ async def call_main_llm_stream(
     if fallback_servers:
         servers_to_try.extend(fallback_servers)
         logger.info(f"{log_prefix} Will try {len(servers_to_try)} server(s): primary='{servers_to_try[0]}', fallbacks={servers_to_try[1:]}")
+    if failed_servers_in_turn:
+        skipped = [server for server in servers_to_try if server in failed_servers_in_turn]
+        servers_to_try = [server for server in servers_to_try if server not in failed_servers_in_turn]
+        if skipped:
+            logger.info("%s Skipping server route(s) that already failed in this turn: %s", log_prefix, skipped)
+    if not servers_to_try:
+        raise AllServersFailedError(original_model_id, [], "All configured routes already failed in this turn")
+
+    def _mark_failed_server(server_model_id: str) -> None:
+        if failed_servers_in_turn is not None:
+            failed_servers_in_turn.add(server_model_id)
 
     # Determine if an error is retryable (should try fallback)
     def is_retryable_error(error_message: Optional[str]) -> bool:
@@ -2349,6 +2361,9 @@ async def call_main_llm_stream(
     _any_content_yielded = False
     
     for server_model_id in servers_to_try:
+        if failed_servers_in_turn is not None and server_model_id in failed_servers_in_turn:
+            logger.info("%s Skipping route that failed earlier in this turn: %s", log_prefix, server_model_id)
+            continue
         attempted_servers.append(server_model_id)
         attempt_log_prefix = f"{log_prefix} [Attempt {len(attempted_servers)}/{len(servers_to_try)}: {server_model_id}]"
         
@@ -2511,7 +2526,7 @@ async def call_main_llm_stream(
                 first_chunk_timeout_seconds = get_first_chunk_timeout_seconds(is_reasoning=is_reasoning_model)
                 inter_chunk_timeout_seconds = get_inter_chunk_timeout_seconds(is_reasoning=is_reasoning_model)
                 logger.info(
-                    f"{attempt_log_prefix} Successfully connected to provider. "
+                    f"{attempt_log_prefix} Provider returned a lazy stream iterator. "
                     f"Streaming response with {first_chunk_timeout_seconds}s first-chunk timeout, "
                     f"{inter_chunk_timeout_seconds}s inter-chunk timeout..."
                 )
@@ -2580,6 +2595,7 @@ async def call_main_llm_stream(
                             logger.error("%s Provider emitted stream error marker: %s",
                                          attempt_log_prefix, reported_error)
                             last_error = reported_error
+                            _mark_failed_server(server_model_id)
                             if _any_content_yielded and not recoverable_attempt:
                                 yield STANDARDIZED_USER_ERROR_MESSAGE
                                 return
@@ -2600,6 +2616,7 @@ async def call_main_llm_stream(
                         )
                         logger.error(f"{attempt_log_prefix} {error_msg}")
                         last_error = error_msg
+                        _mark_failed_server(server_model_id)
                         if stop_after_provider_failure:
                             raise ValueError(error_msg)
                         if len(attempted_servers) < len(servers_to_try):
@@ -2624,6 +2641,7 @@ async def call_main_llm_stream(
                     )
                     logger.error("%s %s", attempt_log_prefix, reported_error)
                     last_error = reported_error
+                    _mark_failed_server(server_model_id)
                     if stop_after_provider_failure or (recoverable_attempt and _any_content_yielded):
                         # The caller owns the published prefix and must rebuild
                         # the next request before another provider can continue.
@@ -2643,6 +2661,7 @@ async def call_main_llm_stream(
                 error_msg = f"Expected a stream but did not receive one. Response type: {type(raw_chunk_stream)}"
                 logger.error(f"{attempt_log_prefix} {error_msg}")
                 last_error = error_msg
+                _mark_failed_server(server_model_id)
                 if stop_after_provider_failure:
                     raise ValueError(error_msg)
                 # If this is the last server to try, signal failure
@@ -2663,6 +2682,7 @@ async def call_main_llm_stream(
             logger.error("%s Client or stream error: %s", attempt_log_prefix,
                          reported_error, exc_info=native_cache_context is None)
             last_error = reported_error
+            _mark_failed_server(server_model_id)
             if stop_after_provider_failure or (recoverable_attempt and _any_content_yielded):
                 raise AllServersFailedError(original_model_id, attempted_servers, last_error) from e
             
@@ -2720,6 +2740,7 @@ async def call_main_llm_stream(
                          attempt_log_prefix, reported_error,
                          exc_info=native_cache_context is None)
             last_error = reported_error
+            _mark_failed_server(server_model_id)
             if stop_after_provider_failure or (recoverable_attempt and _any_content_yielded):
                 raise AllServersFailedError(original_model_id, attempted_servers, last_error) from e
             

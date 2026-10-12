@@ -290,6 +290,18 @@ services:
     command: >
       sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_ai --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
+  app-ai-routing-worker:
+    <<: *openmates-worker-base
+    container_name: app-ai-routing-worker
+    mem_limit: "${APP_AI_ROUTING_MEMORY_LIMIT:-1536m}"
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: "app_ai_routing"
+      CELERY_AUTOSCALE_MAX: "${APP_AI_ROUTING_CONCURRENCY:-2}"
+      CELERY_METRICS_PORT: "9113"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_ai_routing --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+
   app-images-worker:
     <<: *openmates-worker-base
     container_name: app-images-worker

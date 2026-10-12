@@ -63,6 +63,9 @@ export interface StreamEvent {
   modelName: string | null;
   /** Server AI task ID, when present in the stream. Used to request cancellation. */
   taskId?: string;
+  mateName?: string;
+  /** Transient suggestion from the final authored response. */
+  suggestedFollowupMessage?: string;
   /** Cumulative thinking text received for this response. */
   thinkingContent?: string;
   /** Whether the server is currently streaming thinking text. */
@@ -473,6 +476,7 @@ function parseAvailableRecoveryOutputs(value: unknown): AvailableRecoveryOutputF
 
 export class OpenMatesWsClient {
   private readonly interactiveHuman: boolean;
+  private readonly serverCapabilities = new Set<string>();
   private activeHumanChatId: string | null = null;
   private presenceTimer: ReturnType<typeof setInterval> | null = null;
   private readonly socket: InstanceType<typeof WebSocket>;
@@ -538,11 +542,26 @@ export class OpenMatesWsClient {
       this.presenceTimer = null;
     });
     this.socket.on("message", (rawData: RawData) => {
+      try {
+        const frame = JSON.parse(rawData.toString()) as { type?: string; payload?: { capabilities?: unknown } };
+        if (frame.type === "server_capabilities") {
+          this.serverCapabilities.clear();
+          const capabilities = frame.payload?.capabilities;
+          if (Array.isArray(capabilities)) for (const capability of capabilities) {
+            if (typeof capability === "string") this.serverCapabilities.add(capability);
+          }
+          return;
+        }
+      } catch { /* Other frame handlers retain their existing validation. */ }
       if (this.handleForceLogout(rawData, options.onForceLogout)) return;
       this.bufferRecoveryOutputs(rawData);
       if (this.activeResponseCollectors > 0) return;
       this.bufferPassiveTaskUpdateJobs(rawData);
     });
+  }
+
+  supportsServerCapability(capability: string): boolean {
+    return this.serverCapabilities.has(capability);
   }
 
   async open(timeoutMs = 10_000): Promise<void> {
@@ -1002,6 +1021,7 @@ export class OpenMatesWsClient {
     category: string | null;
     modelName: string | null;
     followUpSuggestions: string[];
+    suggestedFollowupMessage: string | null;
     newChatSuggestions: string[];
     chatSummary: string | null;
     chatTags: string[];
@@ -1042,6 +1062,7 @@ export class OpenMatesWsClient {
         ? recoveryFinal.createdAt : null;
       const compressionCheckpoints: ChatCompressionCheckpointEvent[] = [];
       let followUpSuggestions: string[] = [];
+      let suggestedFollowupMessage: string | null = null;
       let newChatSuggestions: string[] = [];
       let chatSummary: string | null = null;
       let chatTags: string[] = [];
@@ -1188,6 +1209,7 @@ export class OpenMatesWsClient {
             category,
             modelName,
             followUpSuggestions,
+            suggestedFollowupMessage,
             newChatSuggestions,
             chatSummary,
             chatTags,
@@ -1226,6 +1248,7 @@ export class OpenMatesWsClient {
               category,
               modelName,
               followUpSuggestions,
+              suggestedFollowupMessage,
               newChatSuggestions,
               chatSummary,
               chatTags,
@@ -1259,6 +1282,7 @@ export class OpenMatesWsClient {
           category,
           modelName,
           followUpSuggestions,
+          suggestedFollowupMessage,
           newChatSuggestions,
           chatSummary,
           chatTags,
@@ -1629,6 +1653,9 @@ export class OpenMatesWsClient {
               latestContent = p.full_content_so_far;
             }
             if (p.is_final_chunk === true) {
+              if (typeof p.suggested_followup_message === "string") {
+                suggestedFollowupMessage = p.suggested_followup_message.trim().slice(0, 400) || null;
+              }
               captureRecoveryFinal(p);
               if (p.awaiting_async_skill_continuation === true) {
                 awaitingUnidentifiedAsyncContinuation = true;
@@ -1643,6 +1670,7 @@ export class OpenMatesWsClient {
                 category,
                 modelName,
                 taskId: taskId ?? undefined,
+                suggestedFollowupMessage: suggestedFollowupMessage ?? undefined,
                 thinkingContent,
                 thinkingActive: false,
               });
@@ -1732,6 +1760,7 @@ export class OpenMatesWsClient {
               category,
               modelName,
               taskId: taskId ?? undefined,
+              mateName: typeof p.mate_name === "string" ? p.mate_name : undefined,
               thinkingContent,
               thinkingActive: false,
             });
@@ -1806,6 +1835,7 @@ export class OpenMatesWsClient {
             category,
             modelName,
             followUpSuggestions,
+            suggestedFollowupMessage,
             newChatSuggestions,
             chatSummary,
             chatTags,

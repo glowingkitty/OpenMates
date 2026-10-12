@@ -1148,12 +1148,20 @@ async def list_team_memories(
     team_id: str,
     app_id: str | None = Query(default=None),
     item_type: str | None = Query(default=None),
+    metadata_only: bool = False,
     current_user: User = Depends(_current_user),
     directus_service: "DirectusService" = Depends(get_directus_service),
 ) -> dict[str, Any]:
     del response
     try:
         await directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
+        if metadata_only:
+            from backend.core.api.app.services.encrypted_discovery_index import list_team_memory_key_discovery
+            memories = await list_team_memory_key_discovery(
+                cache=getattr(request.app.state, "cache_service", None), directus=directus_service,
+                user_id=current_user.id, team_id=team_id, app_id=app_id, item_type=item_type,
+            )
+            return {"memories": memories}
         filters: dict[str, Any] = {
             "hashed_team_id": {"_eq": hashlib.sha256(team_id.encode()).hexdigest()}
         }

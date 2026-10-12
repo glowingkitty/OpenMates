@@ -171,7 +171,11 @@ test('saved Personal follow-up sends canonical client message IDs in inference h
 			client.openWsClient=async (...args)=>{
 				const result=await open(...args),send=result.ws.sendAsync.bind(result.ws);
 				result.ws.sendAsync=async (type,payload)=>{
-					if(type==='chat_turn_preflight'){
+					if(type==='chat_turn_admit'){
+						if(payload.inference_request?.client_context_pending!==undefined || payload.inference_request?.client_context_request_id!==undefined)
+							throw Error('Existing chat admission must remain independent of continuation expiry');
+						if(!Array.isArray(payload.inference_request?.project_context_documents))
+							throw Error('Existing chat admission must include its fully collected context');
 						historyIds=payload.inference_request?.message_history?.map(message=>message.message_id)??null;
 						throw Error('EXPECTED_PRE_DISPATCH_STOP');
 					}
@@ -209,8 +213,8 @@ test('SDK-minted new chat skips only impossible Focus and Plan discovery', async
 			await client.whoAmI();
 			if(client.getActiveTeamId())throw Error('Expected paired Personal account');
 			let phase='minted';
-			const result={minted:{focus:0,plans:0,projects:0,tasks:0,preflight:null},
-				supplied:{focus:0,plans:0,projects:0,tasks:0,preflight:null}};
+			const result={minted:{focus:0,plans:0,projects:0,tasks:0,admission:null,routing:null,details:null},
+				supplied:{focus:0,plans:0,projects:0,tasks:0,admission:null,routing:null,details:null}};
 			for(const [method,field] of [['getActiveProjectFocus','focus'],['listUserPlans','plans'],
 				['listProjects','projects'],['listUserTasks','tasks']]){
 				const original=client[method].bind(client);
@@ -219,19 +223,40 @@ test('SDK-minted new chat skips only impossible Focus and Plan discovery', async
 			const open=client.openWsClient.bind(client);
 			client.openWsClient=async(...args)=>{
 				const opened=await open(...args),send=opened.ws.sendAsync.bind(opened.ws);
+				const wait=opened.ws.waitForMessage.bind(opened.ws);
+				let capturedAdmission=null,resolveCapturedAck=null;
+				// Observe real SDK envelopes after authorized discovery. Stub only the
+				// admission ACK; no admission/context frame reaches inference here.
+				opened.ws.waitForMessage=(type,...options)=>type==='chat_turn_preflight_ack'
+					? new Promise(resolve=>{resolveCapturedAck=resolve;}) : wait(type,...options);
+				const describeContext=context=>({
+					projectCandidates:Array.isArray(context.project_focus_candidates),
+					taskCandidates:Array.isArray(context.related_task_candidates),
+					plan:context.accepted_plan_context!=null,
+					memoryDocuments:(context.custom_memory_documents??[]).length,
+					projectRules:(context.custom_rule_documents??[]).length,
+					focusCatalog:(context.project_focus_catalog??[]).length,
+					focusDocuments:(context.project_focus_documents??[]).length,
+					projectDocuments:(context.project_context_documents??[]).length});
 				opened.ws.sendAsync=async(type,payload)=>{
-					if(type==='chat_turn_preflight'){
-						const context=payload.inference_request??{};
-						result[phase].preflight={
-							projectCandidates:Array.isArray(context.project_focus_candidates),
-							taskCandidates:Array.isArray(context.related_task_candidates),
-							plan:context.accepted_plan_context!=null,
-							memoryDocuments:(context.custom_memory_documents??[]).length,
-							projectRules:(context.custom_rule_documents??[]).length,
-							focusCatalog:(context.project_focus_catalog??[]).length,
-							focusDocuments:(context.project_focus_documents??[]).length,
-							projectDocuments:(context.project_context_documents??[]).length};
-						throw Error('EXPECTED_PRE_DISPATCH_STOP');
+					if(type==='chat_turn_admit'){
+						capturedAdmission=payload;
+						result[phase].admission={...describeContext(payload.inference_request??{}),
+							contextPending:payload.inference_request?.client_context_pending===true};
+						if(!resolveCapturedAck)throw Error('Missing admission ACK observer');
+						resolveCapturedAck({type:'chat_turn_preflight_ack',payload:{
+							turn_id:payload.turn_id,preflight_id:'capture-only-no-dispatch'}});
+						return;
+					}
+					if(type==='chat_turn_context_ready'){
+						if(!capturedAdmission||!['routing','details'].includes(payload.phase))throw Error('Unordered context');
+						const initial=capturedAdmission.inference_request;
+						const identitiesMatch=payload.chat_id===capturedAdmission.chat_id
+							&&payload.turn_id===capturedAdmission.turn_id&&payload.message_id===capturedAdmission.message_id
+							&&payload.request_id===initial.client_context_request_id;
+						result[phase][payload.phase]={...describeContext(payload.context??{}),identitiesMatch};
+						if(payload.phase==='details')throw Error('EXPECTED_PRE_DISPATCH_STOP');
+						return;
 					}
 					return send(type,payload);
 				};
@@ -248,7 +273,7 @@ test('SDK-minted new chat skips only impossible Focus and Plan discovery', async
 						jevContext:suppliedContext,...(current==='supplied'?{newChatId:randomUUID()}:{})});
 					throw Error('Inference preflight was not captured');
 				}catch(error){if(error.message!=='EXPECTED_PRE_DISPATCH_STOP')throw error;}
-				if(!result[current].preflight)throw Error('Missing preflight observation');
+				if(!result[current].admission||!result[current].routing||!result[current].details)throw Error('Missing phased context observation');
 			}
 			process.stdout.write(JSON.stringify(result));
 		`);
@@ -261,14 +286,21 @@ test('SDK-minted new chat skips only impossible Focus and Plan discovery', async
 		expect(observed.supplied.projects).toBeGreaterThan(0);
 		expect(observed.supplied.tasks).toBeGreaterThan(0);
 		for (const turn of [observed.minted, observed.supplied]) {
-			expect(turn.preflight.projectCandidates).toBe(true);
-			expect(turn.preflight.taskCandidates).toBe(true);
-			expect(turn.preflight.plan).toBe(false);
-			expect(turn.preflight.memoryDocuments).toBe(0);
-			expect(turn.preflight.projectRules).toBe(0);
-			expect(turn.preflight.focusCatalog).toBe(0);
-			expect(turn.preflight.focusDocuments).toBe(0);
-			expect(turn.preflight.projectDocuments).toBe(0);
+			expect(turn.admission.contextPending).toBe(true);
+			expect(turn.admission.projectCandidates).toBe(false);
+			expect(turn.admission.taskCandidates).toBe(false);
+			expect(turn.routing.projectCandidates).toBe(true);
+			expect(turn.routing.taskCandidates).toBe(true);
+			expect(turn.routing.identitiesMatch).toBe(true);
+			expect(turn.details.identitiesMatch).toBe(true);
+			for (const context of [turn.admission, turn.routing, turn.details]) {
+				expect(context.plan).toBe(false);
+				expect(context.memoryDocuments).toBe(0);
+				expect(context.projectRules).toBe(0);
+				expect(context.focusCatalog).toBe(0);
+				expect(context.focusDocuments).toBe(0);
+				expect(context.projectDocuments).toBe(0);
+			}
 		}
 	} finally {
 		removeWorkflowCliHome(home);
@@ -294,7 +326,7 @@ test('Personal SDK send reuses only its fresh validated session receipt before p
 			client.openWsClient=async(...args)=>{
 				const opened=await open(...args),send=opened.ws.sendAsync.bind(opened.ws);
 				opened.ws.sendAsync=async(type,payload)=>{
-					if(type==='chat_turn_preflight'){preflights++;throw Error('EXPECTED_PRE_DISPATCH_STOP');}
+					if(type==='chat_turn_admit'){preflights++;throw Error('EXPECTED_PRE_DISPATCH_STOP');}
 					return send(type,payload);
 				};
 				return opened;

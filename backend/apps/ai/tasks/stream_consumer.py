@@ -51,6 +51,7 @@ from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.processing.main_processor import handle_main_processing, INTERNAL_API_BASE_URL, INTERNAL_API_SHARED_TOKEN
+from backend.apps.ai.processing.suggested_followup_stream import may_publish_suggested_followup
 from backend.apps.ai.sub_chat_orchestration import (
     build_sequential_child_prompt,
     dispatch_sub_chat_task,
@@ -5857,6 +5858,7 @@ async def _consume_main_processing_stream(
     # Permission pauses may precede the model's debug metadata frame.
     # They must leave the authorized turn resumable rather than failing it.
     debug_metadata: Dict[str, Any] = {}
+    suggested_followup_message: Optional[str] = None
     
     pre_main_scope = ai_phase_span("pre_main")
     pre_main_scope.__enter__()
@@ -5900,6 +5902,12 @@ async def _consume_main_processing_stream(
             if isinstance(chunk, dict) and "__debug_metadata__" in chunk:
                 debug_metadata = chunk
                 logger.debug(f"{log_prefix} Captured debug metadata (system_prompt: {chunk.get('system_prompt_char_count', 0)} chars, tools: {chunk.get('available_tools_count', 0)})")
+                continue
+
+            if isinstance(chunk, dict) and chunk.get("__suggested_followup_message__") is True:
+                candidate = chunk.get("suggested_followup_message")
+                if isinstance(candidate, str) and 0 < len(candidate) <= 400:
+                    suggested_followup_message = candidate
                 continue
 
             failure_reason = main_processing_failure_reason(chunk)
@@ -10439,6 +10447,18 @@ async def _consume_main_processing_stream(
         llm_usage_breakdown=billing_info.get("llm_usage_breakdown"),
         assistant_created_at=canonical_assistant_created_at,
     )
+    if may_publish_suggested_followup(
+        request_data,
+        suggestion=suggested_followup_message,
+        response=aggregated_response,
+        is_error=is_error,
+        is_server_error=is_server_error,
+        stream_exception=stream_exception,
+        terminal_failure_reason=terminal_failure_reason,
+        was_revoked=was_revoked_during_stream,
+        was_soft_limited=was_soft_limited_during_stream,
+    ):
+        final_payload["suggested_followup_message"] = suggested_followup_message
     # This is the title already supplied/generated for this inference. It is
     # never recovered by decrypting the permanently stored chat title.
     notification_title = preprocessing_result.title or request_data.current_chat_title

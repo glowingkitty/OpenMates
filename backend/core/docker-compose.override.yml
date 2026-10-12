@@ -22,6 +22,8 @@ services:
     environment: *development-worker-environment
   app-ai-worker:
     environment: *development-worker-environment
+  app-ai-routing-worker:
+    environment: *development-worker-environment
   app-images-worker:
     environment: *development-worker-environment
   app-music-worker:

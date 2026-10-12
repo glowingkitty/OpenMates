@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.message-input@4
+specification: feature.message-input@5
 parent_state:
 - id: focus-and-text-update-parent
   given:
@@ -23,37 +23,31 @@ parent_state:
     parent_isMapsOpen: true
     new_chat_suggestions_visible: false
 focus_visibility:
-- id: logged-out-focus-hides-welcome-ui
-  given:
-    surface: gui.web
-    authenticated: false
-    showWelcome: true
-    viewport: desktop
-  action: focus_message_editor
-  expect:
-    message_editor_focused: true
-    message_input_mounted: true
-    hidden_or_inert:
-    - daily-inspiration-area
-    - top-buttons
-    - welcome-content
-    - guest-interest-tags-overlay
-    - recent-chats-scroll-container
-    - guest-example-link-row
+- id: logged-out-focus-keeps-welcome-visible
+  given: A logged-out user sees the welcome cards, Daily Inspiration and example links in the web app on a desktop or phone.
+  when: The user focuses the message editor to write a text draft.
+  then: The welcome content remains visible at full opacity with no gray focus backdrop, its controls are inert, and the editor remains mounted and usable.
+  assertion_ids:
+  - message-input.focus.guest-welcome-suppression
 - id: recording-overlay-hides-welcome-ui
-  given:
-    surface: gui.web
-    authenticated: false
-    showWelcome: true
-    mic_permission: granted
-  action: press_and_hold_record_button_until_overlay
-  expect:
-    recording_preview_visible: true
-    message_input_mounted: true
-    hidden_or_inert:
-    - daily-inspiration-area
-    - welcome-content
-    - guest-example-link-row
+  given: A logged-out user has granted microphone permission while the welcome composer is visible.
+  when: The user presses and holds Record until the recording overlay opens.
+  then: The recording preview is visible, the welcome content and example links are hidden and inert, and the message input remains mounted.
+  assertion_ids:
+  - message-input.focus.guest-welcome-suppression
+workspace_focus_visibility:
+- id: focused-existing-content-has-no-gray-overlay
+  given: A user can see an existing chat transcript, Task board or Workflow editor in the web app on a desktop or phone.
+  when: The user focuses or expands the message input.
+  then: Existing content stays visible at full opacity, no gray or translucent backdrop appears, background controls are disabled, and the composer remains usable.
+  assertion_ids:
+  - message-input.focus.workspace-suppression
+- id: outside-dismissal-preserves-draft-without-backdrop
+  given: The focused web composer contains an unsent text draft above an existing chat transcript or workspace.
+  when: The user taps outside the composer or presses Cancel.
+  then: The composer releases focus and restores the normal layout without losing the draft; a minimized sendable draft retains its round orange up-arrow Send control.
+  assertion_ids:
+  - message-input.focus.workspace-suppression
 action_controls:
 - id: empty-unfocused-inline-actions-hidden
   given:
@@ -291,3 +285,19 @@ gated_attachments:
   when: She attempts Send.
   then: Send waits for correction without creating an audio attachment; she can review the corrected normal text
     before sending.
+composer_ghost:
+- id: accept-contextual-next-message
+  assertion_ids:
+  - message-input.suggestion.editable-acceptance
+  - message-input.suggestion.keyboard-ownership
+  - message-input.suggestion.touch-acceptance
+  given: Alice receives a completed comparison and her empty web composer offers a relevant next question as faint ghost text.
+  when: Alice focuses the composer and presses Tab, or taps Use suggestion on her phone.
+  then: The suggestion becomes ordinary editable text without sending; Alice can change it before pressing Send, and separate followup chips remain available.
+- id: user-draft-and-context-own-composer
+  assertion_ids:
+  - message-input.suggestion.dismissal
+  - message-input.suggestion.draft-priority
+  given: Alice has a contextual ghost for chat A and begins typing, attaching a file, recording or editing a queued message.
+  when: She dismisses it with Escape or opens chat B, and an old completion or synchronized suggestion arrives.
+  then: Her own draft and current chat remain unchanged; no stale ghost appears. Reduced motion shows an eligible new ghost without a fade.

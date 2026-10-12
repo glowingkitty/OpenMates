@@ -10,6 +10,12 @@ import atexit
 import base64
 import binascii
 import re
+import asyncio
+import contextvars
+import hashlib
+import time
+from dataclasses import dataclass
+from weakref import WeakKeyDictionary, WeakSet
 from typing import Dict, Any, List, Optional, Union, AsyncIterator
 import tiktoken
 
@@ -18,6 +24,7 @@ from google import genai
 from google.genai import types
 from google.genai import errors as google_errors
 from pydantic import BaseModel
+import aiohttp
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_utils.thought_signature import serialize_thought_signature
@@ -31,6 +38,8 @@ GOOGLE_PROJECT_ID: Optional[str] = None
 GOOGLE_LOCATION: Optional[str] = None
 _google_client_initialized = False
 _temp_credentials_file: Optional[str] = None
+_temp_credentials_files: List[str] = []
+_google_credentials_fingerprint: Optional[bytes] = None
 
 # Google AI Studio (Gemini API) API key (optional; used for non-Vertex Gemini models)
 GOOGLE_AI_STUDIO_SECRET_PATH = "kv/data/providers/google_ai_studio"
@@ -46,6 +55,131 @@ GOOGLE_THOUGHT_SIGNATURE_PROVIDER_STATE_KEY = "google_thought_signature_provider
 # Reference: https://discuss.ai.google.dev/t/gemini-3-flash-preview-infinite-reasoning-loop-causing-max-token-exhaustion-raw-logic-leak/114528
 GEMINI_THINKING_MIN_TEMPERATURE = 1.0
 GOOGLE_MODEL_ALIASES = {}
+
+
+@dataclass
+class _GoogleStreamTiming:
+    task_id: str
+    host: str
+    model_id: str
+    started: float
+    first_http_body_seen: bool = False
+    first_text_seen: bool = False
+
+
+_active_google_stream: contextvars.ContextVar[Optional[_GoogleStreamTiming]] = contextvars.ContextVar(
+    "active_google_stream", default=None,
+)
+# Celery creates a fresh asyncio loop for each task. Clients may be shared by
+# multiple model iterations on that loop, but must be closed before it closes.
+_google_clients_by_loop: WeakKeyDictionary = WeakKeyDictionary()
+_managed_google_loops: WeakSet = WeakSet()
+
+
+def register_google_client_loop(loop: asyncio.AbstractEventLoop) -> None:
+    """Allow transport reuse on a loop with explicit shutdown cleanup."""
+    _managed_google_loops.add(loop)
+
+
+def _google_stream_phase(timing: _GoogleStreamTiming, phase: str) -> None:
+    logger.info(
+        "[%s] Google transport phase=%s host=%s model=%s elapsed_ms=%.1f",
+        timing.task_id, phase, timing.host, timing.model_id,
+        (time.monotonic() - timing.started) * 1000,
+    )
+
+
+def _log_google_stream_request_policy(timing: _GoogleStreamTiming, config: types.GenerateContentConfig) -> None:
+    """Record the exact stream request's non-private model and thinking policy."""
+    thinking_config = getattr(config, "thinking_config", None)
+    level = getattr(thinking_config, "thinking_level", None)
+    raw_level = getattr(level, "value", level)
+    level_name = str(raw_level).rsplit(".", 1)[-1].upper() if raw_level is not None else "NONE"
+    if level_name not in {"LOW", "MEDIUM", "HIGH", "NONE"}:
+        level_name = "UNKNOWN"
+    logger.info(
+        "[%s] Google stream request policy host=%s model=%s thinking_level=%s",
+        timing.task_id, timing.host, timing.model_id, level_name,
+    )
+
+
+async def _on_google_http_request_start(_session, _trace_context, _params) -> None:
+    timing = _active_google_stream.get()
+    if timing is not None:
+        _google_stream_phase(timing, "http_request_start")
+
+
+async def _on_google_http_request_end(_session, _trace_context, _params) -> None:
+    timing = _active_google_stream.get()
+    if timing is not None:
+        # aiohttp invokes this when the response headers are available. The
+        # streamed response body may still take much longer to produce a chunk.
+        _google_stream_phase(timing, "http_response_headers")
+
+
+async def _on_google_http_response_chunk(_session, _trace_context, _params) -> None:
+    timing = _active_google_stream.get()
+    if timing is not None and not timing.first_http_body_seen:
+        timing.first_http_body_seen = True
+        _google_stream_phase(timing, "http_first_body_chunk")
+
+
+def _new_google_http_session() -> aiohttp.ClientSession:
+    trace = aiohttp.TraceConfig()
+    trace.on_request_start.append(_on_google_http_request_start)
+    trace.on_request_end.append(_on_google_http_request_end)
+    trace.on_response_chunk_received.append(_on_google_http_response_chunk)
+    return aiohttp.ClientSession(trace_configs=[trace], trust_env=True)
+
+
+async def _get_loop_google_client(host: str, *, api_key: Optional[str] = None):
+    loop = asyncio.get_running_loop()
+    managed = loop in _managed_google_loops
+    clients = _google_clients_by_loop.setdefault(loop, {}) if managed else {}
+    if host == "google_ai_studio":
+        # A changed key creates a new client. The digest is only a local cache
+        # discriminator; neither the key nor digest is logged.
+        identity = (host, hashlib.sha256(api_key.encode()).digest())
+    else:
+        identity = (host, GOOGLE_PROJECT_ID, GOOGLE_LOCATION, os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"))
+    if identity not in clients:
+        session = _new_google_http_session()
+        try:
+            options = types.HttpOptions(aiohttp_client=session)
+            client = (genai.Client(api_key=api_key, http_options=options)
+                      if host == "google_ai_studio" else
+                      genai.Client(vertexai=True, project=GOOGLE_PROJECT_ID,
+                                   location=GOOGLE_LOCATION, http_options=options))
+        except BaseException:
+            await session.close()
+            raise
+        clients[identity] = (client, session)
+    client, session = clients[identity]
+    return client, (None if managed else session)
+
+
+async def _close_google_client(client, session: Optional[aiohttp.ClientSession]) -> None:
+    if session is None:
+        return
+    try:
+        await client.aio.aclose()
+    except Exception:
+        logger.warning("Failed to close Google async client", exc_info=True)
+    try:
+        client.close()
+    except Exception:
+        logger.warning("Failed to close Google sync client", exc_info=True)
+    finally:
+        await session.close()
+
+
+async def close_google_clients_for_current_loop() -> None:
+    """Release this Celery task's Google transports before its loop closes."""
+    loop = asyncio.get_running_loop()
+    _managed_google_loops.discard(loop)
+    clients = _google_clients_by_loop.pop(loop, {})
+    for client, session in clients.values():
+        await _close_google_client(client, session)
 
 def _clamp_temperature_for_thinking_model(model_id: str, temperature: float) -> float:
     """
@@ -185,10 +319,9 @@ class UnifiedGoogleResponse(BaseModel):
 
 
 async def initialize_google_client(secrets_manager: SecretsManager):
-    global _google_client_initialized, GOOGLE_PROJECT_ID, GOOGLE_LOCATION, _temp_credentials_file
-    if _google_client_initialized:
-        logger.debug("Google GenAI client already initialized.")
-        return
+    global _google_client_initialized, GOOGLE_PROJECT_ID, GOOGLE_LOCATION
+    global _temp_credentials_file, _google_credentials_fingerprint
+    new_credentials_file = None
 
     try:
         logger.info("Attempting to initialize Google GenAI client for Vertex AI...")
@@ -205,36 +338,47 @@ async def initialize_google_client(secrets_manager: SecretsManager):
         if not all([project_id, service_account_str]):
             logger.error(f"Google config (project_id, service_account_json) not found at '{secret_path}'. Initialization failed.")
             return
-        
-        GOOGLE_PROJECT_ID = project_id
-        GOOGLE_LOCATION = location
+
+        fingerprint = hashlib.sha256(
+            json.dumps([project_id, location, service_account_str]).encode("utf-8")
+        ).digest()
+        if _google_client_initialized and fingerprint == _google_credentials_fingerprint:
+            return
 
         with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=".json", encoding='utf-8') as fp:
             fp.write(service_account_str)
-            _temp_credentials_file = fp.name
-        
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = _temp_credentials_file
-        logger.info(f"Set GOOGLE_APPLICATION_CREDENTIALS to temporary file: {_temp_credentials_file}")
+            new_credentials_file = fp.name
+
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = new_credentials_file
+        GOOGLE_PROJECT_ID = project_id
+        GOOGLE_LOCATION = location
+        _temp_credentials_file = new_credentials_file
+        _temp_credentials_files.append(new_credentials_file)
+        logger.info(f"Set GOOGLE_APPLICATION_CREDENTIALS to temporary file: {new_credentials_file}")
 
         _google_client_initialized = True
+        _google_credentials_fingerprint = fingerprint
         logger.info(f"Google GenAI credentials initialized successfully for project '{GOOGLE_PROJECT_ID}' in '{GOOGLE_LOCATION}'.")
 
     except Exception as e:
         logger.error(f"Error during Google GenAI client initialization: {e}", exc_info=True)
-        if _temp_credentials_file and os.path.exists(_temp_credentials_file):
-            os.remove(_temp_credentials_file)
-        _google_client_initialized = False
+        if new_credentials_file and new_credentials_file != _temp_credentials_file:
+            try:
+                os.remove(new_credentials_file)
+            except OSError:
+                pass
 
 
 def _cleanup_google_client():
     global _temp_credentials_file
-    if _temp_credentials_file and os.path.exists(_temp_credentials_file):
+    for path in _temp_credentials_files:
         try:
-            os.remove(_temp_credentials_file)
-            logger.info(f"Cleaned up temporary Google credentials file: {_temp_credentials_file}")
-            _temp_credentials_file = None
+            if os.path.exists(path):
+                os.remove(path)
         except OSError as e:
-            logger.error(f"Error cleaning up temp credentials file {_temp_credentials_file}: {e}")
+            logger.error(f"Error cleaning up temp credentials file {path}: {e}")
+    _temp_credentials_files.clear()
+    _temp_credentials_file = None
 
 atexit.register(_cleanup_google_client)
 
@@ -260,16 +404,13 @@ async def _get_google_ai_studio_api_key(secrets_manager: Optional[SecretsManager
     """
     global _google_ai_studio_api_key
 
-    if _google_ai_studio_api_key:
-        return _google_ai_studio_api_key
-
     env_key = _get_non_empty_env("GEMINI_API_KEY") or _get_non_empty_env("SECRET__GOOGLE_AI_STUDIO__API_KEY")
     if env_key:
         _google_ai_studio_api_key = env_key
         return _google_ai_studio_api_key
 
     if not secrets_manager:
-        return None
+        return _google_ai_studio_api_key
 
     try:
         api_key = await secrets_manager.get_secret(
@@ -278,10 +419,10 @@ async def _get_google_ai_studio_api_key(secrets_manager: Optional[SecretsManager
         )
         if api_key:
             _google_ai_studio_api_key = api_key
-        return api_key
+        return api_key or _google_ai_studio_api_key
     except Exception as e:
         logger.error(f"Error retrieving Google AI Studio API key: {e}", exc_info=True)
-        return None
+        return _google_ai_studio_api_key
 
 
 async def initialize_google_ai_studio_client(secrets_manager: SecretsManager) -> None:
@@ -626,7 +767,7 @@ async def invoke_google_ai_studio_chat_completions(
         return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
 
     try:
-        google_genai_client = genai.Client(api_key=api_key)
+        google_genai_client, unmanaged_session = await _get_loop_google_client("google_ai_studio", api_key=api_key)
     except Exception as e:
         error_msg = f"Failed to create Google AI Studio GenAI client: {e}"
         logger.error(f"[{task_id}] {error_msg}", exc_info=True)
@@ -644,6 +785,7 @@ async def invoke_google_ai_studio_chat_completions(
             err_msg = "Message history is empty after processing."
             if stream:
                 raise ValueError(err_msg)
+            await _close_google_client(google_genai_client, unmanaged_session)
             return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
 
         google_tools = _map_tools_to_google_format(tools)
@@ -677,6 +819,7 @@ async def invoke_google_ai_studio_chat_completions(
     except Exception as e:
         err_msg = f"Error during request preparation: {e}"
         logger.error(f"{log_prefix} {err_msg}", exc_info=True)
+        await _close_google_client(google_genai_client, unmanaged_session)
         if stream:
             raise ValueError(err_msg)
         return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
@@ -753,10 +896,11 @@ async def invoke_google_ai_studio_chat_completions(
         - GoogleUsageMetadata: Token usage metadata
         - UnifiedStreamChunk: Thinking content (type=THINKING) and signatures (type=THINKING_SIGNATURE)
         """
-        logger.info(f"{log_prefix} Stream connection initiated.")
-        
+        logger.info(f"{log_prefix} Stream iterator started.")
         # Calculate token breakdown from input messages (estimate)
         token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
+        timing = _GoogleStreamTiming(task_id, "google_ai_studio", normalized_model_id, time.monotonic())
+        trace_token = _active_google_stream.set(timing)
 
         stream_iterator = None
         output_buffer = ""
@@ -770,13 +914,20 @@ async def invoke_google_ai_studio_chat_completions(
         last_finish_reason = None
         last_prompt_feedback = None
         try:
+            _log_google_stream_request_policy(timing, generation_config)
+            _google_stream_phase(timing, "sdk_stream_call_start")
             stream_iterator = await google_genai_client.aio.models.generate_content_stream(
                 model=normalized_model_id,
                 contents=contents,
                 config=generation_config,
             )
+            _google_stream_phase(timing, "sdk_stream_iterator_ready")
 
+            first_chunk_seen = False
             async for chunk in stream_iterator:
+                if not first_chunk_seen:
+                    first_chunk_seen = True
+                    _google_stream_phase(timing, "first_provider_chunk")
                 provider_request_id = provider_request_id or getattr(chunk, "response_id", None)
                 # Capture usage_metadata from each chunk — last one has cumulative totals
                 if hasattr(chunk, 'usage_metadata') and chunk.usage_metadata:
@@ -827,6 +978,9 @@ async def invoke_google_ai_studio_chat_completions(
                                             )
                                     elif hasattr(part, 'text') and part.text:
                                         # Regular text content
+                                        if not timing.first_text_seen:
+                                            timing.first_text_seen = True
+                                            _google_stream_phase(timing, "first_authored_text")
                                         output_buffer += part.text
                                         yield part.text
 
@@ -841,6 +995,9 @@ async def invoke_google_ai_studio_chat_completions(
                     # Fallback: If we can't parse candidates structure, use chunk.text
                     logger.warning(f"{log_prefix} Could not parse chunk candidates for thought handling: {e}")
                     if chunk.text:
+                        if not timing.first_text_seen:
+                            timing.first_text_seen = True
+                            _google_stream_phase(timing, "first_authored_text")
                         output_buffer += chunk.text
                         yield chunk.text
 
@@ -915,6 +1072,7 @@ async def invoke_google_ai_studio_chat_completions(
             logger.error(f"{log_prefix} {err_msg}", exc_info=True)
             raise IOError(f"Google API Unexpected Streaming Error: {e_stream}") from e_stream
         finally:
+            _active_google_stream.reset(trace_token)
             if not usage and stream_succeeded:
                 logger.warning(f"{log_prefix} Stream finished successfully but without usage data. Estimating tokens with tiktoken.")
                 try:
@@ -936,6 +1094,7 @@ async def invoke_google_ai_studio_chat_completions(
                     logger.error(f"{log_prefix} Failed to estimate tokens with tiktoken: {e}", exc_info=True)
             elif not usage and not stream_succeeded:
                 logger.info(f"{log_prefix} Stream failed with error. Not estimating usage - billing will be skipped.")
+            await _close_google_client(google_genai_client, unmanaged_session)
 
     if stream:
         return _iterate_stream_response()
@@ -958,6 +1117,8 @@ async def invoke_google_ai_studio_chat_completions(
             err_msg = f"Unexpected error during API call: {e_gen}"
             logger.error(f"{log_prefix} {err_msg}", exc_info=True)
             return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=str(e_gen))
+        finally:
+            await _close_google_client(google_genai_client, unmanaged_session)
 
 
 async def invoke_google_chat_completions(
@@ -972,15 +1133,16 @@ async def invoke_google_chat_completions(
     stream: bool = False,
     thinking_level: Optional[str] = None,
 ) -> Union[UnifiedGoogleResponse, AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata]]]:
-    if not _google_client_initialized:
-        if secrets_manager:
-            await initialize_google_client(secrets_manager)
-        else:
-            error_msg = "SecretsManager not provided, and Google client is not initialized."
-            logger.error(f"[{task_id}] {error_msg}")
-            if stream:
-                raise ValueError(error_msg)
-            return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
+    if secrets_manager:
+        # SecretsManager caches Vault reads for five minutes. Refreshing here
+        # picks up rotations/config changes without a process restart.
+        await initialize_google_client(secrets_manager)
+    elif not _google_client_initialized:
+        error_msg = "SecretsManager not provided, and Google client is not initialized."
+        logger.error(f"[{task_id}] {error_msg}")
+        if stream:
+            raise ValueError(error_msg)
+        return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
 
     if not _google_client_initialized:
         error_msg = "Google client credential initialization failed. Check logs for details."
@@ -990,7 +1152,7 @@ async def invoke_google_chat_completions(
         return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
 
     try:
-        google_genai_client = genai.Client(vertexai=True, project=GOOGLE_PROJECT_ID, location=GOOGLE_LOCATION)
+        google_genai_client, unmanaged_session = await _get_loop_google_client("google")
     except Exception as e:
         error_msg = f"Failed to create Google GenAI client: {e}"
         logger.error(f"[{task_id}] {error_msg}", exc_info=True)
@@ -1012,6 +1174,7 @@ async def invoke_google_chat_completions(
             err_msg = "Message history is empty after processing."
             if stream:
                 raise ValueError(err_msg)
+            await _close_google_client(google_genai_client, unmanaged_session)
             return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
 
         google_tools = _map_tools_to_google_format(tools)
@@ -1043,6 +1206,7 @@ async def invoke_google_chat_completions(
     except Exception as e:
         err_msg = f"Error during request preparation: {e}"
         logger.error(f"{log_prefix} {err_msg}", exc_info=True)
+        await _close_google_client(google_genai_client, unmanaged_session)
         if stream:
             raise ValueError(err_msg)
         return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
@@ -1119,10 +1283,11 @@ async def invoke_google_chat_completions(
         - GoogleUsageMetadata: Token usage metadata
         - UnifiedStreamChunk: Thinking content (type=THINKING) and signatures (type=THINKING_SIGNATURE)
         """
-        logger.info(f"{log_prefix} Stream connection initiated.")
-        
+        logger.info(f"{log_prefix} Stream iterator started.")
         # Calculate token breakdown from input messages (estimate)
         token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
+        timing = _GoogleStreamTiming(task_id, "google", normalized_model_id, time.monotonic())
+        trace_token = _active_google_stream.set(timing)
 
         stream_iterator = None
         output_buffer = ""
@@ -1136,13 +1301,20 @@ async def invoke_google_chat_completions(
         last_finish_reason = None
         last_prompt_feedback = None
         try:
+            _log_google_stream_request_policy(timing, generation_config)
+            _google_stream_phase(timing, "sdk_stream_call_start")
             stream_iterator = await google_genai_client.aio.models.generate_content_stream(
                 model=normalized_model_id,
                 contents=contents,
                 config=generation_config
             )
+            _google_stream_phase(timing, "sdk_stream_iterator_ready")
 
+            first_chunk_seen = False
             async for chunk in stream_iterator:
+                if not first_chunk_seen:
+                    first_chunk_seen = True
+                    _google_stream_phase(timing, "first_provider_chunk")
                 provider_request_id = provider_request_id or getattr(chunk, "response_id", None)
                 # Capture usage_metadata from each chunk — last one has cumulative totals
                 if hasattr(chunk, 'usage_metadata') and chunk.usage_metadata:
@@ -1193,6 +1365,9 @@ async def invoke_google_chat_completions(
                                             )
                                     elif hasattr(part, 'text') and part.text:
                                         # Regular text content
+                                        if not timing.first_text_seen:
+                                            timing.first_text_seen = True
+                                            _google_stream_phase(timing, "first_authored_text")
                                         output_buffer += part.text
                                         yield part.text
 
@@ -1207,6 +1382,9 @@ async def invoke_google_chat_completions(
                     # Fallback: If we can't parse candidates structure, use chunk.text
                     logger.warning(f"{log_prefix} Could not parse chunk candidates for thought handling: {e}")
                     if chunk.text:
+                        if not timing.first_text_seen:
+                            timing.first_text_seen = True
+                            _google_stream_phase(timing, "first_authored_text")
                         output_buffer += chunk.text
                         yield chunk.text
 
@@ -1285,6 +1463,7 @@ async def invoke_google_chat_completions(
             # Don't estimate usage for unexpected errors - stream failed
             raise IOError(f"Google API Unexpected Streaming Error: {e_stream}") from e_stream
         finally:
+            _active_google_stream.reset(trace_token)
             # Only estimate usage if stream completed successfully but didn't provide usage metadata
             # This handles cases where the stream finished but usage metadata wasn't available
             # We should NOT estimate usage when the stream failed due to errors
@@ -1307,6 +1486,7 @@ async def invoke_google_chat_completions(
                     logger.error(f"{log_prefix} Failed to estimate tokens with tiktoken: {e}", exc_info=True)
             elif not usage and not stream_succeeded:
                 logger.info(f"{log_prefix} Stream failed with error. Not estimating usage - billing will be skipped.")
+            await _close_google_client(google_genai_client, unmanaged_session)
 
 
     if stream:
@@ -1327,3 +1507,5 @@ async def invoke_google_chat_completions(
             err_msg = f"Unexpected error during API call: {e_gen}"
             logger.error(f"{log_prefix} {err_msg}", exc_info=True)
             return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=str(e_gen))
+        finally:
+            await _close_google_client(google_genai_client, unmanaged_session)

@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.chats@4
+specification: feature.chats@5
 encryption_boundary:
 - id: private-chat-durable-row
   durable_state:
@@ -199,7 +199,7 @@ streaming_presentation:
   then: Each accepted snapshot appears in order on the same response, and the final text equals the terminal snapshot.
 - id: web-accepted-thinking-container
   given: Alice’s web turn is accepted before answer, thinking text or embeds exist.
-  when: Processing starts and later emits the first answer content.
+  when: First-stage routing selects Sophia, processing continues and later emits the first answer content.
   then: One transient Thinking container becomes the same response slot containing that answer; no empty assistant
     row is durably persisted.
 follow_up_retention:
@@ -339,3 +339,35 @@ preview_info_top:
   when: It progresses from processing to finished or error, and she expands it.
   then: Exactly one existing information bar remains above the details; status, stop and fullscreen actions stay
     visible and usable.
+web_chunk_fade:
+- id: appended-text-fades-with-stable-prefix
+  given: Sophia's streamed response already shows a sentence and then begins a formatted paragraph with a link.
+  when: More text arrives in successive chunks and the response finishes.
+  then: Only newly arriving text briefly fades from transparent to fully visible. Earlier words stay visible and
+    stable, the link and formatting work, copy returns the exact final text and embedded app results stay in source order.
+- id: reduced-motion-stream-is-immediate
+  given: Alice has enabled reduced motion and is receiving an assistant response.
+  when: A new content chunk arrives.
+  then: Its text immediately appears at full opacity without a fade or additional streaming delay.
+web_history_entrance:
+- id: existing-history-fades-once
+  given: Alice opens a saved chat with existing user messages, assistant text and app results.
+  when: Its history becomes available, followed by synchronization, pagination and a new streamed response.
+  then: The loaded history briefly fades from transparent to fully visible once, preserving its layout and scroll.
+    Later updates and composer focus do not replay that fade, and a newly sent optimistic user message appears immediately.
+- id: reduced-motion-history-is-immediate
+  given: Alice has enabled reduced motion and opens a saved chat.
+  when: Its history loads.
+  then: The history immediately appears at full opacity with its message interactions available.
+immediate_admission:
+- id: cold-context-does-not-delay-send
+  assertion_ids: [chats.send.immediate-admission]
+  given: Alice submits a personal web or TUI message while account discovery or private Project context is still loading.
+  when: The network accepts her admission and later context arrives, or the device reconnects and retries the same turn.
+  then: The user row appeared once and the composer cleared immediately; processing uses correlated authorized context without duplicate inference or billing and missing context cannot be mistaken for empty context.
+main_composer_suggestion:
+- id: private-next-question-after-success
+  assertion_ids: [chats.followups.main-generated-composer]
+  given: An eligible main response includes a useful next question in its trailing suggestion metadata, possibly split across stream chunks.
+  when: The response completes successfully and Alice's client stores or synchronizes the suggestion.
+  then: The visible and stored answer excludes the metadata; only the current turn can offer the separate ghost, backend durable storage contains ciphertext, and postprocessed chips remain separate.

@@ -1,20 +1,21 @@
 schema_version: 1
-specification: feature.chat-processing-feedback@3
+specification: feature.chat-processing-feedback@4
 selection:
 - id: accepted-turn-before-model-resolution
   given: Alice’s message is sending and the server accepts its processing.
   when: Stage one has not selected a model yet.
-  then: One transient assistant container shows Thinking… beside a visible AI icon without a guessed Mate, model or region, without an empty
-    durable assistant row or a separate composer status.
+  then: Her submitted message remains visible as sending or accepted, but there is no generic Assistant Thinking
+    container, guessed Mate or empty durable assistant row. When stage one selects Sophia, one transient response
+    container immediately shows Sophia and Thinking… beside the AI icon without waiting for detailed skill selection.
 - id: unaccepted-offline-send
   given: Alice has pressed Send while offline.
   when: The server has not accepted the turn.
   then: Her message keeps its sending state without an assistant processing container.
 identity:
 - id: first-stage-identity-arrives
-  given: Alice sees the accepted turn’s Thinking… container.
+  given: Alice sees her accepted user message while stage one is selecting the Mate.
   when: Stage one resolves Sophia and the permitted Gemini model while detailed skill selection continues.
-  then: The same container gains Sophia’s navigable identity and the actual model with its known region flag below;
+  then: One response container appears with Sophia’s navigable identity, Thinking… and the actual model with its known region flag below;
     it does not wait for stage two or create another response.
 - id: unknown-region
   given: The current model is known but its region is unavailable.

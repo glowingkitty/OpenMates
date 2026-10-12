@@ -541,7 +541,15 @@ async def list_projects(
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
     membership = await _require_project_role(directus_service, team_id, current_user.id, TEAM_READ_ROLES)
-    projects = await directus_service.project.list_projects(current_user.id, include_archived=include_archived, team_id=team_id)
+    cache_service = getattr(request.app.state, "cache_service", None)
+    if not include_archived and cache_service is not None:
+        from backend.core.api.app.services.encrypted_discovery_index import list_encrypted_project_discovery
+        projects = await list_encrypted_project_discovery(
+            cache=cache_service, directus=directus_service,
+            user_id=current_user.id, team_id=team_id,
+        )
+    else:
+        projects = await directus_service.project.list_projects(current_user.id, include_archived=include_archived, team_id=team_id)
     role = str(membership.get("role")) if membership else None
     return {
         "projects": [
@@ -1737,6 +1745,7 @@ async def list_items(
     project_id: str,
     team_id: str | None = None,
     chat_only: bool = False,
+    discovery_only: bool = False,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
@@ -1744,6 +1753,12 @@ async def list_items(
     project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+    if discovery_only:
+        from backend.core.api.app.services.encrypted_discovery_index import list_project_focus_discovery
+        return {"items": await list_project_focus_discovery(
+            cache=getattr(request.app.state, "cache_service", None), directus=directus_service,
+            user_id=current_user.id, team_id=team_id, project_id=project_id,
+        )}
     if chat_only:
         folders = await directus_service.project.list_folders(project_id, current_user.id, team_id=team_id)
         items = await directus_service.project.list_items(project_id, current_user.id, team_id=team_id, item_type="chat")
