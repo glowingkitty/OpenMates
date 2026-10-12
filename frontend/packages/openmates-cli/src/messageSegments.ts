@@ -5,7 +5,39 @@ export type MessageSegment =
 
 /** Focus/tool continuations replace the stream prefix; their text starts anew. */
 export function streamingTextDelta(previous: string, current: string): string {
-  return current.startsWith(previous) ? current.slice(previous.length) : current;
+  if (current.startsWith(previous)) return current.slice(previous.length);
+  // Final source validation can remove/change link destinations while keeping
+  // their labels. Compare that visible prose without reprinting it, and map a
+  // genuinely appended suffix back to its original Markdown offsets.
+  const before = canonicalStreamText(previous);
+  const after = canonicalStreamText(current);
+  if (after.text.startsWith(before.text)) {
+    return current.slice(after.boundaries[before.text.length]);
+  }
+  return current; // A different focus/tool continuation starts a new phase.
+}
+
+function canonicalStreamText(raw: string): { text: string; boundaries: number[] } {
+  let text = "";
+  const boundaries = [0];
+  const append = (value: string, offset: number) => {
+    for (let index = 0; index < value.length; index++) {
+      text += value[index];
+      boundaries.push(offset + index + 1);
+    }
+  };
+  let end = 0;
+  // Complete inline links only; leave arbitrary prose, whitespace and partial
+  // Markdown untouched. One balanced URL-parenthesis level is supported.
+  for (const match of raw.matchAll(/(?<!!)\[([^\]\n]+)\]\((?:[^()\\\n]|\\.|\([^()\n]*\))*\)/g)) {
+    const start = match.index!;
+    append(raw.slice(end, start), end);
+    append(match[1], start + 1);
+    end = start + match[0].length;
+    boundaries[boundaries.length - 1] = end;
+  }
+  append(raw.slice(end), end);
+  return { text, boundaries };
 }
 
 export function parseMessageSegments(content: string, options: {preserveCodeFences?: boolean} = {}): MessageSegment[] {

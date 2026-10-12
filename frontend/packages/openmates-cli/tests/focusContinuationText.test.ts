@@ -22,3 +22,26 @@ test('focus activation followed by a shorter intake keeps the visible question e
   assert.equal(output.trim(), question);
   assert.deepEqual([...embeds], ['focus-activation']);
 });
+
+// contract-test: supporting surface=cli assertions=brand-naming.flow
+test('final source-link cleanup does not duplicate a finalist comparison', () => {
+  const streamed = 'A preliminary [USPTO search](https://tmsearch.uspto.gov/) returned similar marks.\nA [USPTO trademark query](https://tmsearch.uspto.gov/) was truncated.';
+  const finalized = 'A preliminary USPTO search returned similar marks.\nA USPTO trademark query was truncated.';
+  assert.equal(streamingTextDelta(streamed, finalized), '');
+  assert.equal(streamingTextDelta(finalized, streamed), '');
+});
+
+// contract-test: supporting surface=cli assertions=brand-naming.flow
+test('source-link revisions preserve a genuinely appended Markdown suffix once', () => {
+  const previous = 'See [the register](https://example.org/old).';
+  const current = 'See the register.\nThen [check the source](https://example.org/new).';
+  assert.equal(streamingTextDelta(previous, current), '\nThen [check the source](https://example.org/new).');
+  assert.equal(streamingTextDelta('See the register.', previous + ' More evidence.'), ' More evidence.');
+});
+
+// contract-test: supporting surface=cli assertions=brand-naming.activation,brand-naming.flow
+test('changed and shorter phases still print while non-link edits stay visible', () => {
+  assert.equal(streamingTextDelta('I will activate the brand naming focus now.', 'What does your product do?'), 'What does your product do?');
+  assert.equal(streamingTextDelta('Domain is available.', 'Domain is unavailable.'), 'Domain is unavailable.');
+  assert.equal(streamingTextDelta('An unfinished [source](', 'An unfinished source'), 'An unfinished source');
+});
