@@ -11,6 +11,28 @@ DEEP_RESEARCH_FOCUS_ID = "web-research"
 WORKFLOW_CLARIFY_FOCUS_ID = "workflows-clarify_workflows"
 WORKFLOW_CLARIFY_SKILLS = frozenset({"workflows-search", "workflows-create-or-modify"})
 
+BRAND_NAMING_RESEARCH_SKILLS = frozenset({
+    "hosting-search_domains", "web-search", "business-search_trademarks",
+})
+
+
+def brand_naming_research_skill_scope(
+    *, active_focus_id: str | None, preselected_skills: set[str] | None,
+    available_skills: set[str], exact_request: bool,
+) -> set[str] | None:
+    """Offer all finalist checks when an active naming conversation researches.
+
+    Preprocessing can select only domains/web for a finalist request. The naming
+    instructions need trademark search available too. Intake remains tool-free,
+    explicit skill selections stay exact, and unavailable skills stay excluded.
+    This offers capabilities; the focus prompt still decides what to call.
+    """
+    if (active_focus_id != "business-find_brand_name" or exact_request
+            or not preselected_skills
+            or not (preselected_skills & BRAND_NAMING_RESEARCH_SKILLS)):
+        return preselected_skills
+    return preselected_skills | (BRAND_NAMING_RESEARCH_SKILLS & available_skills)
+
 
 def workflow_clarification_skill_scope(
     *, active_focus_id: str | None, relevant_focus_modes: list[str], explicit_focus_mention: bool,

@@ -168,6 +168,7 @@ from backend.apps.ai.processing.connected_account_receipts import (
     attach_connected_account_action_metadata,
 )
 from backend.apps.ai.processing.focus_mode_routing import (
+    brand_naming_research_skill_scope,
     gate_tools_for_deep_research,
     resolve_deep_research_tool_choice,
     should_expose_subchat_tool,
@@ -3982,6 +3983,26 @@ async def handle_main_processing(
             )
         preselected_skills = preselected_skills | scoped_always_include
         logger.debug(f"{log_prefix} Final preselected skills (after merging always-include): {preselected_skills}")
+
+    # Active naming research needs all three finalist checks offered together.
+    # Relevance alone never broadens capabilities, and explicit requests stay exact.
+    naming_skills = brand_naming_research_skill_scope(
+        active_focus_id=request_data.active_focus_id,
+        preselected_skills=preselected_skills,
+        available_skills={
+            f"{app_id}-{skill.id}"
+            for app_id, metadata in (discovered_apps_metadata or {}).items()
+            for skill in metadata.skills or []
+        },
+        exact_request=user_requested_skills_only,
+    )
+    if naming_skills != preselected_skills:
+        added_naming_skills = naming_skills - preselected_skills
+        preselected_skills = naming_skills
+        if selected_app_ids is not None:
+            selected_app_ids |= {skill.split("-", 1)[0] for skill in added_naming_skills}
+        logger.info("%s [BRAND_NAMING_SKILLS] Offered finalist checks: %s",
+                    log_prefix, sorted(added_naming_skills))
 
     # === COMPANION SKILLS ===
     # Some skills naturally pair together — when the system prompt instructs the

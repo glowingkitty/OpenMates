@@ -154,6 +154,9 @@ def _focus_prompt_scope(active_focus_id="jobs-career_insights", *, language="en"
     instruction = "Full focus instruction: ask about constraints.\nPreserve all configured details."
     translator = SimpleNamespace(get_nested_translation=lambda key, lang="en": instruction if lang == "en" and translation_available else None)
     scope = dict(vars(focus_mode_routing))
+    # The production slice records setup timing; its enclosing helper is outside
+    # this prompt-only test. Preserve all prompt assertions while supplying it.
+    scope["mark_project_reference_setup"] = lambda stage: None
     scope.update(Optional=Optional, logger=logging.getLogger(__name__), log_prefix="test", request_data=SimpleNamespace(active_focus_id=active_focus_id), discovered_apps_metadata={"jobs": SimpleNamespace(focuses=[SimpleNamespace(id="career_insights", phases=None, system_prompt=inline, systemprompt_translation_key="focus_modes.jobs_career_insights.systemprompt")])}, prompt_parts=["Base instructions"], preprocessing_results=SimpleNamespace(output_language=language), translation_service=translator, TranslationService=lambda: translator, chat_depth=0)
     import asyncio
     run_slice = ast.AsyncFunctionDef(name="run_focus_slice",
