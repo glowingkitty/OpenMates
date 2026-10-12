@@ -22,10 +22,23 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "prompt": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "string",
           "description": "The question or task for the Workflow AI step."
         },
+        "model": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "string",
+          "description": "Auto or an exact provider/model ID from the chat model catalogue."
+        },
         "conversation": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string",
           "description": "Optional run-local conversation name for retaining previous Workflow AI context in the same run."
         }
@@ -38,9 +51,9 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "answer": {
-          "type": "string"
-        },
-        "conversation": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "string"
         }
       }
@@ -59,6 +72,9 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "minItems": 1,
           "maxItems": 5,
@@ -67,15 +83,27 @@ export const APP_SKILL_METADATA = [
             "type": "object",
             "properties": {
               "id": {
+                "x-ui": {
+                  "basic": false
+                },
                 "description": "Optional caller-supplied ID preserved in the result."
               },
               "prompt": {
+                "x-ui": {
+                  "basic": true,
+                  "apps": {
+                    "control": "textarea"
+                  }
+                },
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 400,
                 "description": "Non-speech sound effect prompt."
               },
               "provider": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "enum": [
                   "elevenlabs"
@@ -84,22 +112,43 @@ export const APP_SKILL_METADATA = [
                 "description": "Audio provider. v1 supports ElevenLabs only; keep explicit for future provider expansion."
               },
               "duration_seconds": {
+                "x-ui": {
+                  "basic": true,
+                  "apps": {
+                    "basic": false
+                  }
+                },
                 "type": "number",
                 "minimum": 0.5,
                 "maximum": 2.0,
                 "default": 1.0
               },
               "prompt_influence": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "number",
                 "minimum": 0,
                 "maximum": 1,
                 "default": 0.3
               },
               "loop": {
+                "x-ui": {
+                  "basic": true,
+                  "apps": {
+                    "basic": false
+                  }
+                },
                 "type": "boolean",
                 "default": false
               },
               "output_format": {
+                "x-ui": {
+                  "basic": true,
+                  "apps": {
+                    "basic": false
+                  }
+                },
                 "type": "string",
                 "enum": [
                   "mp3_22050_32",
@@ -113,6 +162,9 @@ export const APP_SKILL_METADATA = [
                 "default": "mp3_44100_128"
               },
               "model": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "enum": [
                   "eleven_text_to_sound_v2"
@@ -145,6 +197,9 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "minItems": 1,
           "maxItems": 3,
@@ -153,15 +208,24 @@ export const APP_SKILL_METADATA = [
             "type": "object",
             "properties": {
               "id": {
+                "x-ui": {
+                  "basic": false
+                },
                 "description": "Optional caller-supplied ID preserved in the result."
               },
               "text": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 2000,
                 "description": "Text to synthesize after safety approval."
               },
               "provider": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "enum": [
                   "elevenlabs"
@@ -170,6 +234,9 @@ export const APP_SKILL_METADATA = [
                 "description": "Audio provider. v1 supports ElevenLabs only; keep explicit for future provider expansion."
               },
               "voice": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "enum": [
                   "warm_neutral",
@@ -180,6 +247,9 @@ export const APP_SKILL_METADATA = [
                 "description": "OpenMates voice preset; raw provider voice IDs are not accepted."
               },
               "accent": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "enum": [
                   "en_us",
@@ -191,6 +261,9 @@ export const APP_SKILL_METADATA = [
                 "default": "en_us"
               },
               "style": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "enum": [
                   "natural",
@@ -201,6 +274,9 @@ export const APP_SKILL_METADATA = [
                 "default": "natural"
               },
               "speed": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "number",
                 "minimum": 0.7,
                 "maximum": 1.2,
@@ -208,6 +284,9 @@ export const APP_SKILL_METADATA = [
                 "description": "Speech speed. Eleven v4 and v4 Turbo require 1.0; custom speed is supported by the older models only."
               },
               "output_format": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "enum": [
                   "mp3_22050_32",
@@ -221,6 +300,9 @@ export const APP_SKILL_METADATA = [
                 "default": "mp3_44100_128"
               },
               "model": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "enum": [
                   "eleven_v3",
@@ -261,6 +343,188 @@ export const APP_SKILL_METADATA = [
   },
   {
     "app_id": "business",
+    "skill_id": "search_trademarks",
+    "app_namespace_ts": "business",
+    "skill_method_ts": "searchTrademarks",
+    "app_namespace_py": "business",
+    "skill_method_py": "search_trademarks",
+    "description_key": "app_skills.business.search_trademarks.description",
+    "description": "Search trademark names for explicit target regions when checking a brand or product name. US searches use the free USPTO public search endpoint. EU, Germany and worldwide searches currently return explicit coverage gaps and manual sources; never treat a missing region, failed search or no matches as legal clearance. Ask for the target market if it is unknown.",
+    "schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "queries": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "description": "Up to three explicit candidate brand or product names; search finalists rather than entire brainstorming lists.",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "regions": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "description": "Target territories to search. US is automated; EU, DE and WORLDWIDE currently return unsupported coverage with manual sources. Never substitute US results for another territory.",
+          "items": {
+            "type": "string",
+            "enum": [
+              "US",
+              "EU",
+              "DE",
+              "WORLDWIDE"
+            ]
+          }
+        },
+        "nice_classes": {
+          "x-ui": {
+            "basic": false
+          },
+          "type": "array",
+          "maxItems": 10,
+          "description": "Optional Nice classes based on actual goods/services; omitting searches all classes. Classes alone do not determine legal conflict.",
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 45
+          }
+        },
+        "status": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "string",
+          "enum": [
+            "active",
+            "all"
+          ],
+          "default": "active",
+          "description": "Active includes pending applications and live registrations; all also includes ended records."
+        },
+        "match": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "string",
+          "enum": [
+            "exact",
+            "similar"
+          ],
+          "default": "similar",
+          "description": "Exact wordmark or spelling similarity. Similar is an edit-distance name search, not comprehensive phonetic or legal clearance."
+        },
+        "max_results": {
+          "x-ui": {
+            "basic": false
+          },
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 10
+        }
+      },
+      "required": [
+        "queries",
+        "regions"
+      ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "result_count": {
+          "type": "integer",
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "matches": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "regions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "nice_classes": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "x-ui": {
+            "basic": false
+          }
+        },
+        "status_filter": {
+          "type": "string",
+          "x-ui": {
+            "basic": false
+          }
+        },
+        "match": {
+          "type": "string",
+          "x-ui": {
+            "basic": false
+          }
+        },
+        "coverage": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "partial": {
+          "type": "boolean",
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "limitation": {
+          "type": "string",
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "summary": {
+          "type": "string",
+          "x-ui": {
+            "basic": false
+          }
+        },
+        "error": {
+          "type": "string",
+          "x-ui": {
+            "basic": false
+          }
+        }
+      }
+    }
+  },
+  {
+    "app_id": "business",
     "skill_id": "company_financials",
     "app_namespace_ts": "business",
     "skill_method_ts": "companyFinancials",
@@ -272,6 +536,9 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "companies": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "Explicit public companies to look up by ticker, CIK, or exact company name. Do not pass broad categories such as \"egg producers\".",
           "minItems": 1,
@@ -280,10 +547,16 @@ export const APP_SKILL_METADATA = [
             "type": "object",
             "properties": {
               "query": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Ticker, CIK, or exact public company name, e.g. CALM, 0000016160, or Cal-Maine Foods Inc."
               },
               "identifier_type": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "enum": [
                   "auto",
@@ -294,6 +567,9 @@ export const APP_SKILL_METADATA = [
                 "default": "auto"
               },
               "display_name": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Optional user-facing label from the original request."
               }
@@ -304,6 +580,9 @@ export const APP_SKILL_METADATA = [
           }
         },
         "period": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "string",
           "enum": [
             "latest_annual",
@@ -314,6 +593,9 @@ export const APP_SKILL_METADATA = [
           "default": "latest_annual"
         },
         "metric_group": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "string",
           "enum": [
             "summary",
@@ -325,12 +607,18 @@ export const APP_SKILL_METADATA = [
           "default": "summary"
         },
         "years": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "integer",
           "minimum": 1,
           "maximum": 10,
           "default": 3
         },
         "include_sources": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "boolean",
           "default": true
         }
@@ -343,16 +631,153 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "summary": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string"
         },
         "result_count": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "integer"
         },
         "provider": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string"
         },
         "results": {
-          "type": "array"
+          "x-ui": {
+            "basic": true
+          },
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "company": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string"
+              },
+              "ticker": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string"
+              },
+              "period_type": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string"
+              },
+              "fiscal_year": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "integer"
+              },
+              "revenue": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "number"
+              },
+              "net_income": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "number"
+              },
+              "source_url": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string"
+              },
+              "cik": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string"
+              },
+              "country": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string"
+              },
+              "exchange": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string"
+              },
+              "fiscal_quarter": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string"
+              },
+              "period_start": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string"
+              },
+              "period_end": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string"
+              },
+              "currency": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string"
+              },
+              "gross_profit": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "number"
+              },
+              "operating_income": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "number"
+              },
+              "operating_cash_flow": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "number"
+              },
+              "assets": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "number"
+              },
+              "liabilities": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "number"
+              },
+              "equity": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "number"
+              }
+            }
+          }
         }
       }
     }
@@ -370,16 +795,25 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "Array of repository search requests. Each request searches GitHub for public licensed repositories matching the query.\n",
           "items": {
             "type": "object",
             "properties": {
               "query": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Repository search query, e.g. \"svelte markdown editor\", \"python cli framework\", or \"rust web server\".\n"
               },
               "count": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 10,
@@ -387,6 +821,9 @@ export const APP_SKILL_METADATA = [
                 "description": "Number of repositories to return."
               },
               "relevance_criteria": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "maxLength": 1000,
                 "description": "Optional concise natural-language repository-ranking goal, separate from the repository query. Set it only when the user explicitly states a purpose, audience, maintenance need, license constraint, desired quality, or preference that should change ordering. Omit it for broad or neutral discovery. Never add unstated defaults such as popular, modern, well-maintained, secure, documented, or compatible.\n"
@@ -416,10 +853,16 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "library": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "string",
           "description": "Library name to search for (e.g., \"Svelte 5\", \"React\", \"FastAPI\", \"Miro API\", etc.).\n"
         },
         "question": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "string",
           "description": "Natural language question about the documentation needed\n(e.g., \"How to use useState hook?\", \"How to setup routing?\").\n"
         }
@@ -813,16 +1256,25 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "Array of icon search requests backed by Iconify.",
           "items": {
             "type": "object",
             "properties": {
               "query": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Search query, e.g. \"home\", \"calendar\", or \"settings\"."
               },
               "count": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 50,
@@ -830,6 +1282,9 @@ export const APP_SKILL_METADATA = [
                 "description": "Maximum number of icon results to return."
               },
               "license_policy": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "enum": [
                   "permissive",
@@ -839,6 +1294,9 @@ export const APP_SKILL_METADATA = [
                 "description": "Filter to permissive/no-attribution licenses by default."
               },
               "include_prefixes": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "items": {
                   "type": "string"
@@ -846,6 +1304,9 @@ export const APP_SKILL_METADATA = [
                 "description": "Optional Iconify collection prefixes to include."
               },
               "exclude_prefixes": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "items": {
                   "type": "string"
@@ -877,15 +1338,24 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "Component search requests. Use one request per distinct power rail or component category.\n",
           "items": {
             "type": "object",
             "properties": {
               "id": {
+                "x-ui": {
+                  "basic": false
+                },
                 "description": "Optional caller-supplied ID for correlating responses."
               },
               "category": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "enum": [
                   "power_converters"
@@ -893,22 +1363,37 @@ export const APP_SKILL_METADATA = [
                 "description": "Component category. Currently only power_converters is supported."
               },
               "input_voltage_min": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "number",
                 "description": "Minimum input voltage in volts. For fixed input voltage, use the same value as input_voltage_max."
               },
               "input_voltage_max": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "number",
                 "description": "Maximum input voltage in volts. For fixed input voltage, use the same value as input_voltage_min."
               },
               "output_voltage": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "number",
                 "description": "Target output voltage in volts."
               },
               "output_current_max": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "number",
                 "description": "Maximum output current in amps."
               },
               "supply_type": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "enum": [
                   "dc",
@@ -918,16 +1403,25 @@ export const APP_SKILL_METADATA = [
                 "description": "dc for DC/DC converters, ac for AC/DC converters."
               },
               "isolated": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "boolean",
                 "default": false,
                 "description": "Whether the design should be isolated."
               },
               "ambient_temp_c": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "number",
                 "default": 30,
                 "description": "Maximum ambient temperature in degrees Celsius."
               },
               "optimization": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "enum": [
                   "balanced",
@@ -939,6 +1433,9 @@ export const APP_SKILL_METADATA = [
                 "description": "Optimization goal for WEBENCH ranking."
               },
               "max_results": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "default": 10,
                 "description": "Maximum number of candidate components to return."
@@ -972,6 +1469,9 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "provider": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string",
           "description": "The event provider to use. 'auto' (default) searches general sources in parallel and adds relevant specialist sources for the topic and region. Use a specific provider when the user asks about a particular platform/type: 'Eventbrite' for Eventbrite-only results, 'Resident Advisor' for electronic music/clubs, 'Siegess\u00e4ule' for Berlin LGBTQ+ events, 'GPN24', '39C3', '38C3', or '37C3' for official schedules of those events.\n",
           "enum": [
@@ -989,49 +1489,86 @@ export const APP_SKILL_METADATA = [
           ]
         },
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "REQUIRED: Array of event search request objects for parallel processing.\nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.\nExample for single search: {\"requests\": [{\"query\": \"AI\", \"location\": \"Berlin, Germany\"}]}\nExample for multiple searches: {\"requests\": [{\"query\": \"AI\", \"location\": \"Berlin\"}, {\"query\": \"Python\", \"location\": \"Munich\"}]}\nEach object must contain 'query' and either 'location' (or lat/lon) for city searches,\nevent_type 'ONLINE' for location-free online searches, or 'conference' for GPN/Congress\nschedule searches. All other parameters are optional.\nNote: The 'id' field is auto-generated if not provided.\n",
           "items": {
             "type": "object",
+            "x-ui": {
+              "control": "date-range",
+              "start_field": "start_date",
+              "end_field": "end_date",
+              "max_offset_days": 365,
+              "basic": false
+            },
             "properties": {
               "query": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Topic or theme of events to search for (e.g. 'AI', 'Python', 'hackathon', 'startup', 'networking'). Do NOT include platform or app names such as 'meetup', 'luma', or 'eventbrite' \u2014 these are stripped automatically and reduce result quality.\n"
               },
               "location": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "City name or 'city, country' string (e.g. 'Berlin, Germany', 'New York', 'Paris'). Used if lat/lon are not provided. Optional for ONLINE searches and GPN/Congress schedules; never invent a location for an online-only request."
               },
               "lat": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "number",
                 "description": "Latitude of search center (decimal degrees). Overrides location string if provided."
               },
               "lon": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "number",
                 "description": "Longitude of search center (decimal degrees). Overrides location string if provided."
               },
               "start_date": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Start of date range in ISO 8601 format. Include UTC offset if known (e.g. '2026-03-01T00:00:00+01:00'). An optional matching IANA annotation such as [Europe/Berlin] is accepted. Preserve the user's requested date range. If omitted, defaults to now."
               },
               "end_date": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "End of date range in ISO 8601 format (same format as start_date). If omitted, no upper bound is applied."
               },
               "event_type": {
                 "type": "string",
                 "description": "Filter by event type. Use 'PHYSICAL' when user searches for events in a city (default for location-based searches). Use 'ONLINE' when user explicitly asks for virtual/online/remote events. Omit only when user wants both types.",
+                "x-ui": {
+                  "basic": false
+                },
                 "enum": [
                   "PHYSICAL",
                   "ONLINE"
                 ]
               },
               "radius_miles": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "number",
                 "description": "Search radius in miles from the center coordinates (default: 25, ~40 km). Only applies to PHYSICAL events.",
                 "default": 25
               },
               "count": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "description": "Maximum number of events to return (default: 10, max: 50). Use 10 unless the user asks for more results.",
                 "minimum": 1,
@@ -1039,11 +1576,17 @@ export const APP_SKILL_METADATA = [
                 "default": 10
               },
               "relevance_criteria": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "maxLength": 1000,
                 "description": "Optional concise natural-language event-ranking goal, separate from the event query. Set it whenever the user states a purpose, intended audience, networking goal, desired activity, or preference such as promoting a product or finding a future speaking opportunity. Omit only for a neutral event search fully expressed by query and structured fields; never invent preferences. When present, up to 40 candidates (or the larger requested count) are scored against both the event topic and this goal. Results with no credible relationship are omitted, so fewer than count can be returned rather than padding the response with irrelevant events.\n"
               },
               "provider": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Provider for this request. Overrides the top-level provider when set.",
                 "enum": [
@@ -1061,6 +1604,9 @@ export const APP_SKILL_METADATA = [
                 ]
               },
               "providers": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "items": {
                   "type": "string",
@@ -1080,6 +1626,9 @@ export const APP_SKILL_METADATA = [
                 "description": "Specific providers for this request. Use only when the user asks to search multiple named event platforms."
               },
               "conference": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Known GPN/Congress schedule to search. Supported values: GPN24, 39C3, 38C3, 37C3.",
                 "enum": [
@@ -1090,11 +1639,17 @@ export const APP_SKILL_METADATA = [
                 ]
               },
               "past_events": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "boolean",
                 "description": "Default false. Set true only when the user explicitly asks to include past/completed conference sessions.",
                 "default": false
               },
               "concert_tags": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "items": {
                   "type": "string"
@@ -1113,67 +1668,115 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "summary": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string",
           "example": "Events search completed"
         },
         "result_count": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "integer",
           "example": 1
         },
         "provider": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string",
           "example": "Example events provider"
         },
         "results": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
               "id": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "example-event"
               },
               "source_id": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "example-event"
               },
               "title": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "example": "AI community meetup"
               },
               "url": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "example": "https://example.invalid/events/ai"
               },
               "canonical_url": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "https://example.invalid/events/ai"
               },
               "provider": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "Example events provider"
               },
               "description": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "An example meetup for people working with AI."
               },
               "date_start": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "example": "2026-09-23T18:00:00+02:00"
               },
               "date_end": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "2026-09-23T20:00:00+02:00"
               },
               "location": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "example": "Berlin"
               },
               "event_type": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "PHYSICAL"
               },
               "price_amount": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": [
                   "number",
                   "null"
@@ -1214,55 +1817,94 @@ export const APP_SKILL_METADATA = [
           ]
         },
         "events": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
               "id": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "example-event"
               },
               "source_id": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "example-event"
               },
               "title": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "AI community meetup"
               },
               "url": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "https://example.invalid/events/ai"
               },
               "canonical_url": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "https://example.invalid/events/ai"
               },
               "provider": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "Example events provider"
               },
               "description": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "An example meetup for people working with AI."
               },
               "date_start": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "2026-09-23T18:00:00+02:00"
               },
               "date_end": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "2026-09-23T20:00:00+02:00"
               },
               "location": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "Berlin"
               },
               "event_type": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "PHYSICAL"
               },
               "price_amount": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": [
                   "number",
                   "null"
@@ -1303,6 +1945,9 @@ export const APP_SKILL_METADATA = [
           ]
         },
         "warnings": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "array",
           "items": {
             "type": "string"
@@ -1310,6 +1955,9 @@ export const APP_SKILL_METADATA = [
           "example": []
         },
         "partial": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "boolean",
           "example": false
         }
@@ -1329,41 +1977,92 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
               "query": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string"
               },
               "city": {
+                "x-ui": {
+                  "basic": true,
+                  "control": "location",
+                  "location_mode": "city",
+                  "latitude_field": "lat",
+                  "longitude_field": "lon",
+                  "clear_fields": [
+                    "address"
+                  ]
+                },
                 "type": "string"
               },
               "address": {
+                "x-ui": {
+                  "basic": false,
+                  "control": "location",
+                  "location_mode": "place",
+                  "city_field": "city",
+                  "latitude_field": "lat",
+                  "longitude_field": "lon"
+                },
                 "type": "string"
               },
               "lat": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "number"
               },
               "lon": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "number"
               },
               "radius_km": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "number"
               },
               "plan": {
-                "type": "string"
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string",
+                "enum": [
+                  "essential",
+                  "classic",
+                  "premium",
+                  "max"
+                ]
               },
               "category": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string"
               },
               "limit": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 50,
                 "default": 10
               },
               "relevance_criteria": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "maxLength": 1000,
                 "description": "Optional concise natural-language venue-ranking goal, separate from the activity query. Set it whenever the user states a fitness purpose, intended activity, accessibility need, desired quality, or preference that should change ordering. Example: \"Broad yoga variety with explicit central-Berlin evidence.\" Omit only for a neutral search fully expressed by query and structured fields.\n"
@@ -1386,61 +2085,151 @@ export const APP_SKILL_METADATA = [
     "description": "Search available Urban Sports Club public fitness classes. Use this when the user asks for dated fitness classes, course availability, free spots, on-site classes, online classes, or plan-filtered Urban Sports classes. Omit plan unless the user explicitly asks for Essential, Classic, Premium, or Max. Keep query focused on the activity. Whenever the user states a fitness purpose, intended activity, audience level, desired quality, or preference that should change class ordering, put it in relevan",
     "schema": {
       "type": "object",
+      "required": [
+        "requests"
+      ],
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "items": {
             "type": "object",
+            "x-ui": {
+              "control": "date-range",
+              "start_field": "start_date",
+              "end_field": "end_date",
+              "max_offset_days": 365,
+              "max_span_days": 13
+            },
             "properties": {
               "query": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string"
               },
               "city": {
+                "x-ui": {
+                  "basic": true,
+                  "control": "location",
+                  "location_mode": "city",
+                  "latitude_field": "lat",
+                  "longitude_field": "lon",
+                  "clear_fields": [
+                    "address"
+                  ]
+                },
                 "type": "string"
               },
               "address": {
+                "x-ui": {
+                  "basic": false,
+                  "control": "location",
+                  "location_mode": "place",
+                  "city_field": "city",
+                  "latitude_field": "lat",
+                  "longitude_field": "lon"
+                },
                 "type": "string"
               },
               "lat": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "number"
               },
               "lon": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "number"
               },
               "radius_km": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "number"
               },
               "start_date": {
-                "type": "string"
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "format": "date"
               },
               "end_date": {
-                "type": "string"
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "format": "date"
               },
               "days": {
-                "type": "number"
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 14
               },
               "plan": {
-                "type": "string"
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string",
+                "enum": [
+                  "essential",
+                  "classic",
+                  "premium",
+                  "max"
+                ]
               },
               "attendance_mode": {
-                "type": "string"
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string",
+                "enum": [
+                  "onsite",
+                  "online",
+                  "all"
+                ]
               },
               "min_spots": {
-                "type": "number"
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "integer",
+                "minimum": 0
               },
               "category": {
-                "type": "string"
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string",
+                "description": "Urban Sports activity name (for example Dance or Yoga) or numeric provider ID."
               },
               "venue_id": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string"
               },
               "limit": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 50,
                 "default": 10
               },
               "relevance_criteria": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "maxLength": 1000,
                 "description": "Optional concise natural-language class-ranking goal, separate from the activity query. Set it whenever the user states a fitness purpose, intended activity, audience level, desired quality, or preference that should change ordering. Example: \"Evening on-site yoga classes with explicit remaining spots.\" Omit only for a neutral search fully expressed by query and structured fields.\n"
@@ -1465,20 +2254,34 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "Array of appointment search requests. Each request searches for available doctor appointments for a given speciality and city.\n",
           "items": {
             "type": "object",
             "properties": {
               "speciality": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Doctor speciality or type. Supports German and English names. Examples: \"augenarzt\", \"hautarzt\", \"allgemeinmedizin\", \"zahnarzt\", \"gyn\u00e4kologie\", \"kardiologie\", \"orthop\u00e4die\", \"neurologie\", \"kinderarzt\", \"hno\", \"physiotherapie\", \"urologie\", \"ophthalmologist\", \"dermatologist\", \"general_practitioner\", \"dentist\", \"cardiologist\", \"neurologist\", \"pediatrician\".\n"
               },
               "city": {
+                "x-ui": {
+                  "basic": true,
+                  "control": "location",
+                  "location_mode": "city"
+                },
                 "type": "string",
                 "description": "City where to search for appointments. Supports German and English city names. Examples: \"Berlin\", \"M\u00fcnchen\", \"Munich\", \"Hamburg\", \"K\u00f6ln\", \"Frankfurt\", \"Stuttgart\", \"D\u00fcsseldorf\", \"Dresden\", \"Leipzig\", \"Hannover\", \"N\u00fcrnberg\", \"Bonn\", \"Heidelberg\".\n"
               },
               "provider_platform": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Booking platform to search. \"both\" (default) searches Doctolib and Jameda in parallel and merges results sorted by soonest slot. \"doctolib_de\" for Doctolib Germany only. \"jameda\" for Jameda Germany only (includes ratings, prices, direct booking URLs).\n",
                 "enum": [
@@ -1489,6 +2292,9 @@ export const APP_SKILL_METADATA = [
                 "default": "both"
               },
               "insurance_sector": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Insurance type filter. \"public\" for gesetzliche Krankenversicherung (GKV), \"private\" for private Krankenversicherung (PKV). Omit to show results for all insurance types.\n",
                 "enum": [
@@ -1497,15 +2303,24 @@ export const APP_SKILL_METADATA = [
                 ]
               },
               "telehealth": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "boolean",
                 "description": "If true, only return doctors offering telehealth (video consultation) appointments. Defaults to false.\n",
                 "default": false
               },
               "language": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Filter for doctors who speak a specific language. Language codes: \"de\" (German), \"gb\" (English), \"ru\" (Russian), \"tr\" (Turkish), \"ar\" (Arabic), \"fr\" (French), \"es\" (Spanish), \"it\" (Italian), \"pl\" (Polish), \"ro\" (Romanian), \"zh\" (Chinese).\n"
               },
               "days_ahead": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "integer",
                 "description": "How many days ahead to search for appointments. Must be one of 1, 3, or 7 (Doctolib API caps availability queries at 7 days). Defaults to 7.\n",
                 "enum": [
@@ -1516,6 +2331,9 @@ export const APP_SKILL_METADATA = [
                 "default": 7
               },
               "max_doctors": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "description": "Maximum number of doctors to check for availability. Higher values return more results but take longer. Defaults to 10.\n",
                 "default": 10,
@@ -1523,6 +2341,9 @@ export const APP_SKILL_METADATA = [
                 "maximum": 30
               },
               "visit_motive_category": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Filter results by appointment type category for both providers. Omission means general consultation unless a supported specific procedure (such as CT or MRT) was requested. An initial injury examination must not be replaced by a treatment appointment. Matching filters apply before availability ranking. \"general\" = consultation, acute visit, new patient examination. \"checkup\" = preventive screening, health check, cancer screening. \"vaccination\" = immunisation appointments. \"followup\" = follow-up visit, existing patient, check-up after treatment.\n",
                 "enum": [
@@ -1572,16 +2393,25 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "Array of housing search requests. Each request searches for apartments and rooms in a German city across multiple platforms.\n",
           "items": {
             "type": "object",
             "properties": {
               "query": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "City or location name to search in, e.g. \"Berlin\", \"Munich\", \"Hamburg\".\n"
               },
               "listing_type": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Type of listing. \"rent\" for rentals (default), \"buy\" for purchases. Note: WG-Gesucht only has rentals and is skipped for \"buy\".\n",
                 "enum": [
@@ -1591,6 +2421,9 @@ export const APP_SKILL_METADATA = [
                 "default": "rent"
               },
               "providers": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "description": "Optional list of providers to search. Defaults to all three.\n",
                 "items": {
@@ -1603,6 +2436,9 @@ export const APP_SKILL_METADATA = [
                 }
               },
               "property_type": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "enum": [
                   "apartment",
@@ -1612,6 +2448,9 @@ export const APP_SKILL_METADATA = [
                 "description": "Entire apartments or shared rooms. Shared rooms use WG-Gesucht."
               },
               "sort": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "enum": [
                   "price_asc",
@@ -1621,26 +2460,41 @@ export const APP_SKILL_METADATA = [
                 "description": "Price ascending, or discovery order for monitoring. Newest order is supported by Kleinanzeigen; other providers retain their source order."
               },
               "max_price_eur": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "number",
                 "minimum": 0,
                 "description": "Maximum advertised monthly rent or purchase price in EUR. Price basis varies by provider."
               },
               "min_rooms": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "number",
                 "minimum": 0,
                 "description": "Minimum advertised rooms. Results with unknown rooms are excluded when set."
               },
               "min_size_sqm": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "number",
                 "minimum": 0,
                 "description": "Minimum advertised area in square metres. Unknown area is excluded when set."
               },
               "relevance_criteria": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "maxLength": 1000,
                 "description": "Optional concise natural-language housing-ranking goal, separate from the location query. Set it whenever the user states an intended use, household need, desired quality, or preference not represented by structured filters. Example: \"Prioritize explicit balcony and quiet-setting evidence.\" Omit only for a neutral search fully expressed by query and structured fields. Rank only explicit listing facts and never infer unstated qualities. Only max_results listings are returned.\n"
               },
               "max_results": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "description": "Maximum number of listings to return (1-20, default 10).",
                 "default": 10,
@@ -1662,47 +2516,80 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "summary": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string",
           "example": "Home search completed"
         },
         "result_count": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "integer",
           "example": 1
         },
         "provider": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string",
           "example": "Example housing provider"
         },
         "results": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
               "id": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "example-listing"
               },
               "source_id": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "example-listing"
               },
               "title": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "example": "Two-room apartment"
               },
               "url": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "example": "https://example.invalid/apartments/one"
               },
               "canonical_url": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "https://example.invalid/apartments/one"
               },
               "provider": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "Example housing provider"
               },
               "price": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": [
                   "number",
                   "null"
@@ -1710,10 +2597,16 @@ export const APP_SKILL_METADATA = [
                 "example": 1100
               },
               "price_label": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "example": "1.100 EUR/month"
               },
               "size_sqm": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": [
                   "number",
                   "null"
@@ -1721,6 +2614,9 @@ export const APP_SKILL_METADATA = [
                 "example": 55
               },
               "rooms": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": [
                   "number",
                   "null"
@@ -1728,18 +2624,30 @@ export const APP_SKILL_METADATA = [
                 "example": 2
               },
               "address": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "example": "Berlin"
               },
               "property_type": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "apartment"
               },
               "listing_type": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "rent"
               },
               "available_from": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": [
                   "string",
                   "null"
@@ -1781,35 +2689,59 @@ export const APP_SKILL_METADATA = [
           ]
         },
         "listings": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
               "id": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "example-listing"
               },
               "source_id": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "example-listing"
               },
               "title": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "Two-room apartment"
               },
               "url": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "https://example.invalid/apartments/one"
               },
               "canonical_url": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "https://example.invalid/apartments/one"
               },
               "provider": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "Example housing provider"
               },
               "price": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": [
                   "number",
                   "null"
@@ -1817,10 +2749,16 @@ export const APP_SKILL_METADATA = [
                 "example": 1100
               },
               "price_label": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "1.100 EUR/month"
               },
               "size_sqm": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": [
                   "number",
                   "null"
@@ -1828,6 +2766,9 @@ export const APP_SKILL_METADATA = [
                 "example": 55
               },
               "rooms": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": [
                   "number",
                   "null"
@@ -1835,18 +2776,30 @@ export const APP_SKILL_METADATA = [
                 "example": 2
               },
               "address": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "Berlin"
               },
               "property_type": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "apartment"
               },
               "listing_type": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "rent"
               },
               "available_from": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": [
                   "string",
                   "null"
@@ -1888,6 +2841,9 @@ export const APP_SKILL_METADATA = [
           ]
         },
         "warnings": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "array",
           "items": {
             "type": "string"
@@ -1895,8 +2851,1133 @@ export const APP_SKILL_METADATA = [
           "example": []
         },
         "partial": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "boolean",
           "example": false
+        }
+      }
+    }
+  },
+  {
+    "app_id": "hosting",
+    "skill_id": "search_domains",
+    "app_namespace_ts": "hosting",
+    "skill_method_ts": "searchDomains",
+    "app_namespace_py": "hosting",
+    "skill_method_py": "search_domains",
+    "description_key": "app_skills.hosting.search_domains.description",
+    "description": "Check an exact domain name or discover available domain names through Gandi. Use one grouped request per independent name or idea. A fully qualified domain is checked exactly. Put explicitly requested suffixes in tlds and explicit tax country and currency in country and currency; defaults are DE and EUR. Use availability=prefer_available by default: show confirmed available names first and checked in-use names only to fill remaining result slots. Use available_only only when the user wants no in",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "description": "One to five independent domain checks or name searches.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Optional caller ID echoed in this group's result.",
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ]
+              },
+              "query": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "description": "An exact fully qualified domain (up to 253 characters), a short name, or a keyword idea (up to 100 characters).",
+                "minLength": 1,
+                "maxLength": 253
+              },
+              "tlds": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "array",
+                "maxItems": 5,
+                "items": {
+                  "type": "string"
+                },
+                "description": "Optional suffixes such as .com or .net. For a short single-label name, check each exact name plus suffix before suggestions.\n"
+              },
+              "country": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string",
+                "default": "DE",
+                "description": "Two-letter tax country code; returned explicitly with prices."
+              },
+              "currency": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string",
+                "default": "EUR",
+                "enum": [
+                  "EUR",
+                  "USD"
+                ],
+                "description": "Supported quote currency. Unsupported currencies are rejected."
+              },
+              "max_results": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20,
+                "default": 10,
+                "description": "Maximum selected results per group. Checked pool remains at most 40."
+              },
+              "availability": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "enum": [
+                  "prefer_available",
+                  "available_only",
+                  "all"
+                ],
+                "default": "prefer_available",
+                "description": "prefer_available selects confirmed available first, then checked unavailable names only to fill a shortfall. available_only never fills with unavailable. all preserves ranked checked available and unavailable order. Unknown checks remain diagnostic only.\n"
+              },
+              "relevance_criteria": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "maxLength": 1000,
+                "description": "Optional natural-language goal for ranking checked candidates. Set when the user states a material brand, name-fit, renewal-price, term, premium, or restriction preference that should change order. Copy the goal faithfully; omit for neutral lookup or discovery. Ranking uses only evidenced provider facts and drops scores below 1.\n"
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        }
+      },
+      "required": [
+        "requests"
+      ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "x-ui": {
+            "basic": false
+          },
+          "type": "string"
+        },
+        "result_count": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "integer"
+        },
+        "provider": {
+          "x-ui": {
+            "basic": false
+          },
+          "type": "string"
+        },
+        "error": {
+          "x-ui": {
+            "basic": false
+          },
+          "type": "string"
+        },
+        "results": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "array",
+          "description": "Selected checked domains, flattened across request groups.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "domain_ascii": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string"
+              },
+              "domain_unicode": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string"
+              },
+              "availability": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "enum": [
+                  "available",
+                  "unavailable",
+                  "unknown"
+                ]
+              },
+              "url": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string"
+              },
+              "canonical_url": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string"
+              },
+              "source_id": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string"
+              },
+              "currency": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string"
+              },
+              "country": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string"
+              },
+              "provider": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string"
+              },
+              "taxes": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "type": "string"
+                    },
+                    "name_label": {
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "type": "string"
+                    },
+                    "type": {
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "type": "string"
+                    },
+                    "rate": {
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "type": "number"
+                    }
+                  }
+                }
+              },
+              "premium": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "boolean"
+              },
+              "reserved": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "boolean"
+              },
+              "restrictions": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "registration_phase": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string"
+              },
+              "registration_tiers": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "unit": {
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "type": "string"
+                    },
+                    "duration_range": {
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "type": "object",
+                      "properties": {
+                        "minimum": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "integer"
+                        },
+                        "maximum": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "minimum_term": {
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "type": "string"
+                    },
+                    "price_excluding_tax": {
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "type": "number"
+                    },
+                    "price_including_tax": {
+                      "x-ui": {
+                        "basic": true
+                      },
+                      "type": "number"
+                    },
+                    "normal_price": {
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "type": "number"
+                    },
+                    "discount": {
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "type": "boolean"
+                    },
+                    "product_taxes": {
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              },
+              "renewal_tiers": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "unit": {
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "type": "string"
+                    },
+                    "duration_range": {
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "type": "object",
+                      "properties": {
+                        "minimum": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "integer"
+                        },
+                        "maximum": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "minimum_term": {
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "type": "string"
+                    },
+                    "price_excluding_tax": {
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "type": "number"
+                    },
+                    "price_including_tax": {
+                      "x-ui": {
+                        "basic": true
+                      },
+                      "type": "number"
+                    },
+                    "normal_price": {
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "type": "number"
+                    },
+                    "discount": {
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "type": "boolean"
+                    },
+                    "product_taxes": {
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              },
+              "checked_at": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string"
+              },
+              "provider_url": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string"
+              }
+            }
+          }
+        },
+        "raw": {
+          "x-ui": {
+            "basic": false
+          },
+          "type": "object",
+          "description": "Full grouped response, including bounded checked candidates and partial context.",
+          "properties": {
+            "results": {
+              "x-ui": {
+                "basic": false
+              },
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "x-ui": {
+                      "basic": false
+                    },
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "query": {
+                    "x-ui": {
+                      "basic": false
+                    },
+                    "type": "string"
+                  },
+                  "country": {
+                    "x-ui": {
+                      "basic": false
+                    },
+                    "type": "string"
+                  },
+                  "currency": {
+                    "x-ui": {
+                      "basic": false
+                    },
+                    "type": "string"
+                  },
+                  "checked_at": {
+                    "x-ui": {
+                      "basic": false
+                    },
+                    "type": "string"
+                  },
+                  "partial": {
+                    "x-ui": {
+                      "basic": false
+                    },
+                    "type": "boolean"
+                  },
+                  "relevance_applied": {
+                    "x-ui": {
+                      "basic": false
+                    },
+                    "type": "boolean"
+                  },
+                  "warnings": {
+                    "x-ui": {
+                      "basic": false
+                    },
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "error": {
+                    "x-ui": {
+                      "basic": false
+                    },
+                    "type": "string"
+                  },
+                  "results": {
+                    "x-ui": {
+                      "basic": false
+                    },
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "domain_ascii": {
+                          "x-ui": {
+                            "basic": true
+                          },
+                          "type": "string"
+                        },
+                        "domain_unicode": {
+                          "x-ui": {
+                            "basic": true
+                          },
+                          "type": "string"
+                        },
+                        "availability": {
+                          "x-ui": {
+                            "basic": true
+                          },
+                          "type": "string",
+                          "enum": [
+                            "available",
+                            "unavailable",
+                            "unknown"
+                          ]
+                        },
+                        "url": {
+                          "x-ui": {
+                            "basic": true
+                          },
+                          "type": "string"
+                        },
+                        "canonical_url": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "string"
+                        },
+                        "source_id": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "string"
+                        },
+                        "currency": {
+                          "x-ui": {
+                            "basic": true
+                          },
+                          "type": "string"
+                        },
+                        "country": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "string"
+                        },
+                        "provider": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "string"
+                        },
+                        "taxes": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "string"
+                              },
+                              "name_label": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "string"
+                              },
+                              "type": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "string"
+                              },
+                              "rate": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "number"
+                              }
+                            }
+                          }
+                        },
+                        "premium": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "boolean"
+                        },
+                        "reserved": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "boolean"
+                        },
+                        "restrictions": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "registration_phase": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "string"
+                        },
+                        "registration_tiers": {
+                          "x-ui": {
+                            "basic": true
+                          },
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "unit": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "string"
+                              },
+                              "duration_range": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "object",
+                                "properties": {
+                                  "minimum": {
+                                    "x-ui": {
+                                      "basic": false
+                                    },
+                                    "type": "integer"
+                                  },
+                                  "maximum": {
+                                    "x-ui": {
+                                      "basic": false
+                                    },
+                                    "type": "integer"
+                                  }
+                                }
+                              },
+                              "minimum_term": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "string"
+                              },
+                              "price_excluding_tax": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "number"
+                              },
+                              "price_including_tax": {
+                                "x-ui": {
+                                  "basic": true
+                                },
+                                "type": "number"
+                              },
+                              "normal_price": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "number"
+                              },
+                              "discount": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "boolean"
+                              },
+                              "product_taxes": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "array",
+                                "items": {
+                                  "type": "object"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "renewal_tiers": {
+                          "x-ui": {
+                            "basic": true
+                          },
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "unit": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "string"
+                              },
+                              "duration_range": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "object",
+                                "properties": {
+                                  "minimum": {
+                                    "x-ui": {
+                                      "basic": false
+                                    },
+                                    "type": "integer"
+                                  },
+                                  "maximum": {
+                                    "x-ui": {
+                                      "basic": false
+                                    },
+                                    "type": "integer"
+                                  }
+                                }
+                              },
+                              "minimum_term": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "string"
+                              },
+                              "price_excluding_tax": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "number"
+                              },
+                              "price_including_tax": {
+                                "x-ui": {
+                                  "basic": true
+                                },
+                                "type": "number"
+                              },
+                              "normal_price": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "number"
+                              },
+                              "discount": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "boolean"
+                              },
+                              "product_taxes": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "array",
+                                "items": {
+                                  "type": "object"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "checked_at": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "string"
+                        },
+                        "provider_url": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "checked_results": {
+                    "x-ui": {
+                      "basic": false
+                    },
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "domain_ascii": {
+                          "x-ui": {
+                            "basic": true
+                          },
+                          "type": "string"
+                        },
+                        "domain_unicode": {
+                          "x-ui": {
+                            "basic": true
+                          },
+                          "type": "string"
+                        },
+                        "availability": {
+                          "x-ui": {
+                            "basic": true
+                          },
+                          "type": "string",
+                          "enum": [
+                            "available",
+                            "unavailable",
+                            "unknown"
+                          ]
+                        },
+                        "url": {
+                          "x-ui": {
+                            "basic": true
+                          },
+                          "type": "string"
+                        },
+                        "canonical_url": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "string"
+                        },
+                        "source_id": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "string"
+                        },
+                        "currency": {
+                          "x-ui": {
+                            "basic": true
+                          },
+                          "type": "string"
+                        },
+                        "country": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "string"
+                        },
+                        "provider": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "string"
+                        },
+                        "taxes": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "string"
+                              },
+                              "name_label": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "string"
+                              },
+                              "type": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "string"
+                              },
+                              "rate": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "number"
+                              }
+                            }
+                          }
+                        },
+                        "premium": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "boolean"
+                        },
+                        "reserved": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "boolean"
+                        },
+                        "restrictions": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "registration_phase": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "string"
+                        },
+                        "registration_tiers": {
+                          "x-ui": {
+                            "basic": true
+                          },
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "unit": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "string"
+                              },
+                              "duration_range": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "object",
+                                "properties": {
+                                  "minimum": {
+                                    "x-ui": {
+                                      "basic": false
+                                    },
+                                    "type": "integer"
+                                  },
+                                  "maximum": {
+                                    "x-ui": {
+                                      "basic": false
+                                    },
+                                    "type": "integer"
+                                  }
+                                }
+                              },
+                              "minimum_term": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "string"
+                              },
+                              "price_excluding_tax": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "number"
+                              },
+                              "price_including_tax": {
+                                "x-ui": {
+                                  "basic": true
+                                },
+                                "type": "number"
+                              },
+                              "normal_price": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "number"
+                              },
+                              "discount": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "boolean"
+                              },
+                              "product_taxes": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "array",
+                                "items": {
+                                  "type": "object"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "renewal_tiers": {
+                          "x-ui": {
+                            "basic": true
+                          },
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "unit": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "string"
+                              },
+                              "duration_range": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "object",
+                                "properties": {
+                                  "minimum": {
+                                    "x-ui": {
+                                      "basic": false
+                                    },
+                                    "type": "integer"
+                                  },
+                                  "maximum": {
+                                    "x-ui": {
+                                      "basic": false
+                                    },
+                                    "type": "integer"
+                                  }
+                                }
+                              },
+                              "minimum_term": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "string"
+                              },
+                              "price_excluding_tax": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "number"
+                              },
+                              "price_including_tax": {
+                                "x-ui": {
+                                  "basic": true
+                                },
+                                "type": "number"
+                              },
+                              "normal_price": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "number"
+                              },
+                              "discount": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "boolean"
+                              },
+                              "product_taxes": {
+                                "x-ui": {
+                                  "basic": false
+                                },
+                                "type": "array",
+                                "items": {
+                                  "type": "object"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "checked_at": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "string"
+                        },
+                        "provider_url": {
+                          "x-ui": {
+                            "basic": false
+                          },
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -1914,16 +3995,25 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "REQUIRED: Array of image generation request objects for parallel processing (up to 5 requests).\nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single image.\nExample for single image: {\"requests\": [{\"prompt\": \"a cute cat\"}]}\nEach object must contain 'prompt' (detailed description), and can include optional\n'aspect_ratio', 'output_filetype', and 'quality'.\n",
           "items": {
             "type": "object",
             "properties": {
               "prompt": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Detailed description of the image to generate"
               },
               "aspect_ratio": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Aspect ratio of the generated image",
                 "enum": [
@@ -1937,6 +4027,9 @@ export const APP_SKILL_METADATA = [
                 "default": "1:1"
               },
               "output_filetype": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Output file format. Use \"svg\" to generate a scalable vector graphic (SVG) via\nRecraft V4.1 \u2014 ideal for logos, icons, illustrations, and any graphic that needs\nto be scalable, editable in design tools, or used at any size without quality loss.\nUse \"png\" or \"jpg\" for photos, realistic scenes, and detailed raster images.\nWhen a Recraft model is selected, Recraft V4 is used for raster output as well.\n",
                 "enum": [
@@ -1947,6 +4040,9 @@ export const APP_SKILL_METADATA = [
                 "default": "png"
               },
               "quality": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Generation quality. Controls which model tier is used when Recraft is the provider.\nFor SVG output (output_filetype=\"svg\"):\n  \"default\" uses Recraft V4.1 Vector (100 credits \u2014 good for web/UI use).\n  \"max\" uses Recraft V4.1 Pro Vector (300 credits \u2014 best for print, large-format,\n  or highly detailed vector illustrations).\nFor raster output (output_filetype=\"png\"/\"jpg\") with a Recraft model selected:\n  \"default\" uses Recraft V4.1 (50 credits \u2014 fast, cost-effective).\n  \"max\" uses Recraft V4.1 Pro (250 credits \u2014 high-resolution, print-ready).\nFor other raster models (Google Gemini, GPT Image 2, FLUX), quality may be handled by the provider.\n",
                 "enum": [
@@ -1956,6 +4052,9 @@ export const APP_SKILL_METADATA = [
                 "default": "default"
               },
               "reference_images": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "description": "Optional list of reference image filenames (embed_refs) to use as visual\nreferences for this generation. Pass the exact embed_ref values (original\nfilenames, e.g. \"my_photo.jpg\") from the toon blocks in the conversation.\nThe server resolves all cryptographic and storage details automatically.\nSupports up to 14 reference images. When provided, enables image-to-image\nediting/style-transfer mode (Google Gemini: same endpoint; FLUX: switches\nto the 4B edit model). Ignored for SVG/Recraft output.\n",
                 "items": {
@@ -1988,16 +4087,25 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "REQUIRED: Array of image generation request objects for parallel processing (up to 5 requests).\nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single image.\nExample for single image: {\"requests\": [{\"prompt\": \"a cute cat\"}]}\nEach object must contain 'prompt' (description of the image).\n",
           "items": {
             "type": "object",
             "properties": {
               "prompt": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Description of the image to generate"
               },
               "reference_images": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "description": "Optional list of reference image filenames (embed_refs) to use as visual\nreferences for this generation. Pass the exact embed_ref values (original\nfilenames, e.g. \"my_photo.jpg\") from the toon blocks in the conversation.\nThe server resolves all cryptographic and storage details automatically.\nSupports up to 4 reference images. When provided, automatically switches to\nthe FLUX.2 [klein] 4B edit model (image-to-image, 27 credits).\n",
                 "items": {
@@ -2089,77 +4197,177 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "REQUIRED: Array of search request objects for parallel processing (up to 5 requests). \nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.\nExample for single search: {\"requests\": [{\"query\": \"restaurants in Berlin\"}]}\nExample for multiple searches: {\"requests\": [{\"query\": \"restaurants in Berlin\"}, {\"query\": \"museums in Berlin\"}]}\nEach object must contain 'query' (search query string), and can include optional parameters (pageSize, relevance_criteria, languageCode, locationBias, includedType, minRating, openNow, includeReviews).\nNote: The 'id' field is auto-generated if not provided - you don't need to include it.\n",
           "items": {
             "type": "object",
             "properties": {
               "query": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Text query string to search for places (e.g., \"restaurants in Berlin\", \"museums near Times Square\")"
               },
               "pageSize": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "integer",
                 "description": "Number of results to return per request (max 20)",
                 "minimum": 1,
                 "maximum": 20,
                 "default": 10
               },
+              "categories": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 6,
+                "uniqueItems": true,
+                "description": "Direct OpenStreetMap discovery via Geoapify. OR of these categories; requires area. No Google-only filters. Ruins does not include arbitrary abandoned places.\n",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "ruins",
+                    "viewpoints",
+                    "drinking_water",
+                    "toilets",
+                    "picnic_sites",
+                    "campsites"
+                  ]
+                }
+              },
+              "area": {
+                "type": "object",
+                "additionalProperties": false,
+                "description": "Discovery circle. Provide either a name (city/region and country) or both latitude and longitude. radiusMeters defaults to 10000 and is bounded to 50000. Only used with categories; never infer the user's current location.\n",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 200
+                  },
+                  "latitude": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "longitude": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  },
+                  "radiusMeters": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50000,
+                    "default": 10000
+                  }
+                }
+              },
               "relevance_criteria": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "maxLength": 1000,
                 "description": "Optional concise natural-language place-ranking goal, separate from the place and location query. Set it whenever the user states a purpose, intended activity, audience, or preference that should change ordering. Example: \"Suitable for working several hours on a laptop and taking a client call.\" Omit only for a neutral search fully expressed by query and structured fields; never invent preferences.\n"
               },
               "languageCode": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Language code for results (ISO 639-1, e.g., 'en', 'es', 'fr', 'de'). Defaults to 'en' if not specified.",
                 "default": "en"
               },
               "locationBias": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "object",
                 "description": "Optional location bias to prioritize results near a specific area. Can be a circle (center + radius) or rectangle (viewport).",
                 "properties": {
                   "circle": {
+                    "x-ui": {
+                      "basic": false
+                    },
                     "type": "object",
                     "properties": {
                       "center": {
+                        "x-ui": {
+                          "basic": false
+                        },
                         "type": "object",
                         "properties": {
                           "latitude": {
+                            "x-ui": {
+                              "basic": false
+                            },
                             "type": "number"
                           },
                           "longitude": {
+                            "x-ui": {
+                              "basic": false
+                            },
                             "type": "number"
                           }
                         }
                       },
                       "radius": {
+                        "x-ui": {
+                          "basic": false
+                        },
                         "type": "number",
                         "description": "Radius in meters (0.0 to 50000.0)"
                       }
                     }
                   },
                   "rectangle": {
+                    "x-ui": {
+                      "basic": false
+                    },
                     "type": "object",
                     "properties": {
                       "low": {
+                        "x-ui": {
+                          "basic": false
+                        },
                         "type": "object",
                         "properties": {
                           "latitude": {
+                            "x-ui": {
+                              "basic": false
+                            },
                             "type": "number"
                           },
                           "longitude": {
+                            "x-ui": {
+                              "basic": false
+                            },
                             "type": "number"
                           }
                         }
                       },
                       "high": {
+                        "x-ui": {
+                          "basic": false
+                        },
                         "type": "object",
                         "properties": {
                           "latitude": {
+                            "x-ui": {
+                              "basic": false
+                            },
                             "type": "number"
                           },
                           "longitude": {
+                            "x-ui": {
+                              "basic": false
+                            },
                             "type": "number"
                           }
                         }
@@ -2169,26 +4377,41 @@ export const APP_SKILL_METADATA = [
                 }
               },
               "includedType": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Optional place type filter (e.g., 'restaurant', 'museum', 'pharmacy'). See Google Places API place types documentation for full list."
               },
               "minRating": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "number",
                 "description": "Minimum rating filter (0.0 to 5.0, increments of 0.5). Only places with rating >= minRating will be returned.",
                 "minimum": 0.0,
                 "maximum": 5.0
               },
               "openNow": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "boolean",
                 "description": "If true, return only places that are currently open. Defaults to false.",
                 "default": false
               },
               "includeReviews": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "boolean",
                 "description": "If true, include user reviews in the response. Defaults to false to keep response size manageable. Reviews significantly increase response size.",
                 "default": false
               },
               "osmEnrichment": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "enum": [
                   "auto",
@@ -2199,16 +4422,25 @@ export const APP_SKILL_METADATA = [
                 "default": "auto"
               },
               "amenityFilters": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "object",
                 "description": "Optional OSM-backed amenity filters. Mark a value as required to keep only Geoapify/OSM-verified matches; unknown OSM fields are not treated as matches.",
                 "properties": {
                   "airConditioning": {
+                    "x-ui": {
+                      "basic": false
+                    },
                     "type": "string",
                     "enum": [
                       "required"
                     ]
                   },
                   "internetAccess": {
+                    "x-ui": {
+                      "basic": false
+                    },
                     "type": "string",
                     "enum": [
                       "free_required",
@@ -2216,30 +4448,48 @@ export const APP_SKILL_METADATA = [
                     ]
                   },
                   "wheelchair": {
+                    "x-ui": {
+                      "basic": false
+                    },
                     "type": "string",
                     "enum": [
                       "required"
                     ]
                   },
                   "outdoorSeating": {
+                    "x-ui": {
+                      "basic": false
+                    },
                     "type": "string",
                     "enum": [
                       "required"
                     ]
                   },
                   "toilets": {
+                    "x-ui": {
+                      "basic": false
+                    },
                     "type": "string",
                     "enum": [
                       "required"
                     ]
                   },
                   "smoking": {
+                    "x-ui": {
+                      "basic": false
+                    },
                     "type": "string"
                   },
                   "diet": {
+                    "x-ui": {
+                      "basic": false
+                    },
                     "type": "string"
                   },
                   "payment": {
+                    "x-ui": {
+                      "basic": false
+                    },
                     "type": "string"
                   }
                 }
@@ -2269,14 +4519,23 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "title": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string",
           "description": "A short human-readable title that explains why this calculation is being made. This is shown in the embed preview, so prefer concise context like \"Bike time to the Moon\" or \"Monthly mortgage estimate\".\n"
         },
         "expression": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "string",
           "description": "The mathematical expression, equation, or operation to evaluate. Examples: - Arithmetic: \"3.14159 * (42.7)^2 / cos(0.3)\" - Symbolic simplify: \"simplify((x^2 - 1) / (x - 1))\" - Solve equation: \"solve(x^2 - 4*x + 3, x)\" - Derivative: \"diff(sin(x) * exp(x), x)\" - Integral: \"integrate(x^2 * log(x), x)\" - Unit conversion: \"convert(100, kg, lbs)\" - With context vars: \"E = m * c^2 where m=1, c=299792458\"\n"
         },
         "mode": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "string",
           "description": "Evaluation mode. 'auto' (default) detects the appropriate mode from the expression. 'numeric' forces numerical evaluation. 'symbolic' forces symbolic computation. 'solve' solves an equation for a variable. 'simplify' simplifies an algebraic expression. 'diff' computes derivative. 'integrate' computes integral. 'convert' converts units.\n",
           "enum": [
@@ -2292,11 +4551,17 @@ export const APP_SKILL_METADATA = [
           "default": "auto"
         },
         "variable": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string",
           "description": "The variable to differentiate or integrate with respect to, or to solve for. Defaults to 'x'. Only needed when mode is 'diff', 'integrate', or 'solve'.\n",
           "default": "x"
         },
         "precision": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "integer",
           "description": "Number of significant digits for numeric results. Defaults to 15. Use higher values (e.g. 50) for high-precision calculations.\n",
           "default": 15,
@@ -2322,16 +4587,25 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "Array of 3D model search requests. Each request searches public 3D model catalogs and returns preview-only result cards.\n",
           "items": {
             "type": "object",
             "properties": {
               "query": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Search query, e.g. \"benchy\", \"phone stand\", or \"desk cable clip\"."
               },
               "providers": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "items": {
                   "type": "string",
@@ -2342,6 +4616,9 @@ export const APP_SKILL_METADATA = [
                 "description": "Optional provider filter. Defaults to Printables."
               },
               "count": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 20,
@@ -2349,6 +4626,9 @@ export const APP_SKILL_METADATA = [
                 "description": "Maximum total results to return after merging providers."
               },
               "sort": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "enum": [
                   "best_match",
@@ -2360,11 +4640,17 @@ export const APP_SKILL_METADATA = [
                 "description": "Sorting strategy applied after provider results are merged."
               },
               "free_only": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "boolean",
                 "default": false,
                 "description": "Return only results that the provider marks as free."
               },
               "relevance_criteria": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "maxLength": 1000,
                 "description": "Optional concise natural-language model-selection goal, separate from the object query. Set it only when the user explicitly states a purpose, compatibility need, desired quality, or preference that should change ordering. Omit it for broad or neutral discovery. Never add unstated defaults such as popular, high-quality, printable, portable, safe, or compatible.\n"
@@ -2394,16 +4680,25 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "REQUIRED: Array of music generation request objects. Each object must\ninclude a prompt and can specify duration_seconds, mode, lyrics, style,\nnegative_prompt, seed, and model.\n",
           "items": {
             "type": "object",
             "properties": {
               "prompt": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Text description of the music to generate."
               },
               "mode": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "enum": [
                   "song",
@@ -2416,14 +4711,23 @@ export const APP_SKILL_METADATA = [
                 "description": "Desired music type."
               },
               "lyrics": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Optional lyrics to include for vocal/song generation."
               },
               "style": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Optional genre, mood, instrumentation, tempo, or production style."
               },
               "duration_seconds": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "integer",
                 "minimum": 3,
                 "maximum": 184,
@@ -2431,14 +4735,23 @@ export const APP_SKILL_METADATA = [
                 "description": "Target duration in seconds. Lyria 3 Clip is 30s; Lyria 3 Pro supports longer tracks in preview."
               },
               "negative_prompt": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Optional sounds, genres, instruments, or qualities to avoid."
               },
               "seed": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "description": "Optional seed for more reproducible output when supported."
               },
               "model": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "enum": [
                   "lyria-3-pro-preview",
@@ -2473,16 +4786,25 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "REQUIRED: Array of search request objects for parallel processing (up to 5 requests). \nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.\nExample for single search: {\"requests\": [{\"query\": \"iPhone news\"}]}\nExample for multiple searches: {\"requests\": [{\"query\": \"iPhone news\"}, {\"query\": \"MacBook news\"}]}\nEach object must contain 'query' (search query string), and can include optional parameters (count, relevance_criteria, country, search_lang, safesearch, freshness).\nNote: The 'id' field is auto-generated if not provided - you don't need to include it.\n",
           "items": {
             "type": "object",
             "properties": {
               "query": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Search query string"
               },
               "count": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "integer",
                 "description": "Number of final results for this request (default 10, max 20).",
                 "minimum": 1,
@@ -2490,11 +4812,17 @@ export const APP_SKILL_METADATA = [
                 "default": 10
               },
               "relevance_criteria": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "maxLength": 1000,
                 "description": "Optional concise natural-language coverage-ranking goal, separate from the news query. Set it whenever the user states a purpose, audience, decision need, impact of interest, or coverage preference that should change ordering. Example: \"Changes most likely to affect small EU software startups.\" Omit only for a neutral search fully expressed by query and structured fields; never invent preferences. When present, up to 40 candidates are ranked and up to count are returned; candidates below the relevant-coverage threshold are omitted rather than used as padding.\n"
               },
               "country": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Country code for localized results. Must be one of: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, or ALL (case-insensitive). Defaults to 'us' if invalid.",
                 "enum": [
@@ -2578,11 +4906,17 @@ export const APP_SKILL_METADATA = [
                 "default": "us"
               },
               "search_lang": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Language code for search (ISO 639-1, e.g., 'en', 'es', 'fr')",
                 "default": "en"
               },
               "safesearch": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Safe search level",
                 "enum": [
@@ -2593,6 +4927,9 @@ export const APP_SKILL_METADATA = [
                 "default": "moderate"
               },
               "freshness": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Filter by freshness - \"pd\" (past 24 hours), \"pw\" (past week), \"pm\" (past month), \"py\" (past year). Defaults to \"pw\" (past week) to prioritize recent news content.",
                 "enum": [
@@ -2604,6 +4941,9 @@ export const APP_SKILL_METADATA = [
                 "default": "pw"
               },
               "filter_tabloids": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "boolean",
                 "description": "Filter out tabloid/boulevard media sources (e.g., BILD, Daily Mail, TMZ, The Sun) from results. Enabled by default for quality news. Set to false ONLY if the user explicitly asks for tabloid sources.",
                 "default": true
@@ -2623,50 +4963,86 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "summary": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string",
           "example": "News search completed"
         },
         "result_count": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "integer",
           "example": 1
         },
         "provider": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string",
           "example": "Example news provider"
         },
         "results": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
               "id": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string"
               },
               "source_id": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "https://example.invalid/news/ai"
               },
               "title": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "example": "New developments in artificial intelligence"
               },
               "url": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "example": "https://example.invalid/news/ai"
               },
               "canonical_url": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "https://example.invalid/news/ai"
               },
               "provider": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "Example news provider"
               },
               "description": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "example": "An example article excerpt from the search result."
               },
               "page_age": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "example": "2026-09-21T08:00:00Z"
               }
@@ -2694,38 +5070,65 @@ export const APP_SKILL_METADATA = [
           ]
         },
         "articles": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
               "id": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string"
               },
               "source_id": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "https://example.invalid/news/ai"
               },
               "title": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "New developments in artificial intelligence"
               },
               "url": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "https://example.invalid/news/ai"
               },
               "canonical_url": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "https://example.invalid/news/ai"
               },
               "provider": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "Example news provider"
               },
               "description": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "An example article excerpt from the search result."
               },
               "page_age": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "2026-09-21T08:00:00Z"
               }
@@ -2753,6 +5156,9 @@ export const APP_SKILL_METADATA = [
           ]
         },
         "warnings": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "array",
           "items": {
             "type": "string"
@@ -2760,6 +5166,9 @@ export const APP_SKILL_METADATA = [
           "example": []
         },
         "partial": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "boolean",
           "example": false
         }
@@ -2779,16 +5188,25 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "Array of recipe search requests. Each request searches for recipes matching a free-text query and optional Edamam filters.\n",
           "items": {
             "type": "object",
             "properties": {
               "query": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Free-text recipe query, e.g. \"quick vegan pasta\", \"gluten-free pancakes\", or \"miso salmon\".\n"
               },
               "health": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "array",
                 "description": "Optional Edamam health labels such as vegan, vegetarian, gluten-free, dairy-free, keto-friendly, peanut-free, tree-nut-free.\n",
                 "items": {
@@ -2796,6 +5214,9 @@ export const APP_SKILL_METADATA = [
                 }
               },
               "diet": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "description": "Optional Edamam diet labels such as balanced, high-fiber, high-protein, low-carb, low-fat, low-sodium.\n",
                 "items": {
@@ -2803,14 +5224,23 @@ export const APP_SKILL_METADATA = [
                 }
               },
               "time": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Optional cooking/prep time range, e.g. \"1-30\"."
               },
               "calories": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Optional calories range, e.g. \"100-600\"."
               },
               "cuisine_type": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "description": "Optional cuisine filters such as Italian, Japanese, Mexican.",
                 "items": {
@@ -2818,6 +5248,9 @@ export const APP_SKILL_METADATA = [
                 }
               },
               "meal_type": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "description": "Optional meal filters such as Breakfast, Dinner, Lunch, Snack.",
                 "items": {
@@ -2825,6 +5258,9 @@ export const APP_SKILL_METADATA = [
                 }
               },
               "dish_type": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "description": "Optional dish filters such as Main course, Soup, Salad, Pancake.",
                 "items": {
@@ -2832,6 +5268,9 @@ export const APP_SKILL_METADATA = [
                 }
               },
               "excluded": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "description": "Optional ingredients or terms to exclude from recipes.",
                 "items": {
@@ -2839,10 +5278,16 @@ export const APP_SKILL_METADATA = [
                 }
               },
               "ingredients": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Optional ingredient-count range, e.g. \"5-10\"."
               },
               "max_results": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "integer",
                 "description": "Maximum number of recipes to return with full details (1-10, default 6). Each returned result includes ingredients, step-by-step instructions, image data, source attribution, and nutrition metadata.\n",
                 "default": 6
@@ -2872,10 +5317,16 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "summary": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "string",
           "description": "A brief summary (2-5 sentences) of what the user wants to use OpenMates for, as discussed in the conversation. Should capture the key use cases and interests.\n"
         },
         "language": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "string",
           "description": "ISO 639-1 language code of the conversation (e.g., 'en', 'de')"
         }
@@ -2899,6 +5350,9 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "url": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "string",
           "description": "An openmates.org/docs URL or a docs slug path (e.g., 'architecture/chats' or 'https://openmates.org/docs/architecture/chats')\n"
         }
@@ -3078,28 +5532,6 @@ export const APP_SKILL_METADATA = [
       },
       "required": [
         "name"
-      ]
-    }
-  },
-  {
-    "app_id": "projects",
-    "skill_id": "search",
-    "app_namespace_ts": "projects",
-    "skill_method_ts": "search",
-    "app_namespace_py": "projects",
-    "skill_method_py": "search",
-    "description_key": "projects.skills.search.description",
-    "description": "Search the user's encrypted projects through a connected capable client. Do not use server-visible metadata as a private project-content fallback.",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "query": {
-          "type": "string",
-          "description": "Private project text to search for on a connected client."
-        }
-      },
-      "required": [
-        "query"
       ]
     }
   },
@@ -3307,16 +5739,25 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "Array of product search requests. Each request searches for products matching a query on a compatible shopping provider.\n",
           "items": {
             "type": "object",
             "properties": {
               "query": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Search query, e.g. \"bio joghurt\", \"coffee grinder\", \"wireless mouse\".\n"
               },
               "provider": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Product provider. If omitted, inferred from category: grocery routes to REWE, fabrics/sewing_supplies/patterns route to Stoffe.de, and marketplace categories route to Amazon. Invalid explicit provider/category combinations are rejected.\n",
                 "enum": [
@@ -3326,6 +5767,9 @@ export const APP_SKILL_METADATA = [
                 ]
               },
               "category": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Product category used for routing and provider compatibility. Fabrics can be searched on Stoffe.de or Amazon. Groceries can be searched on REWE or Amazon. Marketplace categories are Amazon-only.\n",
                 "enum": [
@@ -3353,6 +5797,9 @@ export const APP_SKILL_METADATA = [
                 ]
               },
               "max_results": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "integer",
                 "description": "Maximum number of products to return (1-20, default 10).",
                 "minimum": 1,
@@ -3360,11 +5807,17 @@ export const APP_SKILL_METADATA = [
                 "default": 10
               },
               "relevance_criteria": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "maxLength": 1000,
                 "description": "Optional concise natural-language product-ranking goal, separate from the product query. Set it whenever the user states an intended use, audience, compatibility need, desired quality, or preference that should change ordering. Example: \"Good for travel, with explicit quiet-click, long-battery, and multi-device evidence.\" Omit only for a neutral search fully expressed by query and structured fields.\n"
               },
               "sort": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Sort order for results. REWE supports: relevance, price_asc, price_desc, new. Amazon supports: relevance, price_asc, price_desc, review_rank, newest, best_sellers. Stoffe.de supports: relevance, price_asc, price_desc, new.\n",
                 "enum": [
@@ -3379,6 +5832,9 @@ export const APP_SKILL_METADATA = [
                 "default": "relevance"
               },
               "service_type": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "REWE-only fulfilment type. \"DELIVERY\" for home delivery (default). \"CLICK_AND_COLLECT\" for store pickup. Ignored for Amazon and Stoffe.de.\n",
                 "enum": [
@@ -3388,10 +5844,16 @@ export const APP_SKILL_METADATA = [
                 "default": "DELIVERY"
               },
               "country": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
-                "description": "Amazon-only marketplace country code. Example: us, uk, de, fr, it, es, ca, au, jp, in, br, mx, nl, sg, se, pl. If omitted, inferred from user language/locale with fallback to us.\n"
+                "description": "Amazon-only marketplace country code. Price amounts use this marketplace's currency; no currency conversion is performed. Euro marketplaces include de, fr, it, es, and nl. For a euro price limit with no destination specified, use de as the default euro marketplace. Other examples: us (USD), uk (GBP), jp (JPY), ca, au, in, br, mx, sg, se, pl. If the user specifies a destination, preserve that destination; do not silently reinterpret a stated currency. If omitted, country is inferred from user language/locale with fallback to us.\n"
               },
               "department": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Amazon-only category filter. Example: electronics, computers, fashion, home, books, sports, toys, beauty, grocery, automotive, health, music, movies, tools, office, pet_supplies, video_games, baby.\n",
                 "enum": [
@@ -3416,12 +5878,18 @@ export const APP_SKILL_METADATA = [
                 ]
               },
               "min_price": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "number",
-                "description": "Amazon-only minimum price filter (client-side after fetch)."
+                "description": "Amazon-only minimum price filter (client-side after fetch), in the selected marketplace's currency; no conversion is performed. Set country when the user states a currency.\n"
               },
               "max_price": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "number",
-                "description": "Amazon-only maximum price filter (client-side after fetch)."
+                "description": "Amazon-only maximum price filter (client-side after fetch), in the selected marketplace's currency; no conversion is performed. Set country when the user states a currency, for example de with max_price 150 for a 150-euro ceiling.\n"
               }
             },
             "required": [
@@ -3448,15 +5916,24 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "Array of social post fetch requests. For Reddit, page is the subreddit name without r/ (for example: privacy, selfhosted, buildinpublic). For Bluesky profile posts, page is the actor handle. For Mastodon, page is user@instance or a public profile URL.\n",
           "items": {
             "type": "object",
             "properties": {
               "id": {
+                "x-ui": {
+                  "basic": false
+                },
                 "description": "Optional caller-supplied ID for correlating responses."
               },
               "platform": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Social platform to fetch from.",
                 "enum": [
@@ -3467,10 +5944,16 @@ export const APP_SKILL_METADATA = [
                 "default": "reddit"
               },
               "page": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Platform page/profile identifier. For Reddit, this is the subreddit name. For Bluesky, this is an actor handle for profile feeds. For Mastodon, use user@instance or a profile URL."
               },
               "sort": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Post listing sort. Reddit supports new/hot/rising/top/comments. Comments means most discussed in the selected time range. Bluesky and Mastodon profile feeds ignore this value.",
                 "enum": [
@@ -3483,6 +5966,9 @@ export const APP_SKILL_METADATA = [
                 "default": "new"
               },
               "time_range": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Reddit time filter for top/comments sorts.",
                 "enum": [
@@ -3495,6 +5981,9 @@ export const APP_SKILL_METADATA = [
                 ]
               },
               "limit": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "integer",
                 "description": "Number of posts to fetch per page.",
                 "minimum": 1,
@@ -3502,11 +5991,17 @@ export const APP_SKILL_METADATA = [
                 "default": 10
               },
               "include_comments": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "boolean",
                 "description": "Whether to fetch comments/replies for returned posts when supported.",
                 "default": true
               },
               "comments_limit": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "description": "Number of comments/replies to fetch per post.",
                 "minimum": 0,
@@ -3514,6 +6009,9 @@ export const APP_SKILL_METADATA = [
                 "default": 5
               },
               "comments_sort": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Reddit comment sort. Bluesky and Mastodon ignore this value.",
                 "enum": [
@@ -3526,31 +6024,49 @@ export const APP_SKILL_METADATA = [
                 "default": "top"
               },
               "min_score": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "description": "Minimum Reddit score/upvotes to include.",
                 "minimum": 0
               },
               "min_comments": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "description": "Minimum Reddit comment count to include.",
                 "minimum": 0
               },
               "exclude_stickied": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "boolean",
                 "description": "Exclude stickied Reddit posts.",
                 "default": true
               },
               "exclude_nsfw": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "boolean",
                 "description": "Exclude NSFW Reddit posts.",
                 "default": true
               },
               "include_self_posts": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "boolean",
                 "description": "Include Reddit text/self posts.",
                 "default": true
               },
               "include_link_posts": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "boolean",
                 "description": "Include Reddit link/media posts.",
                 "default": true
@@ -3577,15 +6093,24 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "Array of social post search requests. For Bluesky, query is the topic to search and author optionally restricts results to a specific handle. For Mastodon, mastodon.social is searched by default and mastodon_instances can add more public instances.\n",
           "items": {
             "type": "object",
             "properties": {
               "id": {
+                "x-ui": {
+                  "basic": false
+                },
                 "description": "Optional caller-supplied ID for correlating responses."
               },
               "platform": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Social platform to search. Omit or use all to search every supported provider.",
                 "enum": [
@@ -3597,14 +6122,23 @@ export const APP_SKILL_METADATA = [
                 "default": "all"
               },
               "query": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Topic or search query to find posts around."
               },
               "page": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Optional subreddit/page to restrict Reddit search to, without r/. For Mastodon, optionally provide one extra instance such as fosstodon.org."
               },
               "mastodon_instances": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "description": "Optional additional Mastodon instances to search after mastodon.social, for example fosstodon.org or hachyderm.io.",
                 "items": {
@@ -3612,6 +6146,9 @@ export const APP_SKILL_METADATA = [
                 }
               },
               "sort": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Search sort. Bluesky supports latest/top. Reddit supports relevance/hot/top/new/comments/latest. Mastodon public search returns instance-ranked recent results and ignores sort.",
                 "enum": [
@@ -3625,6 +6162,9 @@ export const APP_SKILL_METADATA = [
                 "default": "latest"
               },
               "time_range": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Reddit time filter for top/comments search.",
                 "enum": [
@@ -3637,6 +6177,9 @@ export const APP_SKILL_METADATA = [
                 ]
               },
               "limit": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "integer",
                 "description": "Number of posts to fetch per search.",
                 "minimum": 1,
@@ -3644,15 +6187,24 @@ export const APP_SKILL_METADATA = [
                 "default": 10
               },
               "author": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Optional platform profile/handle filter. For Bluesky, this maps to the author filter."
               },
               "include_comments": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "boolean",
                 "description": "Whether to fetch comments/replies for returned posts when supported.",
                 "default": false
               },
               "comments_limit": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "description": "Number of comments/replies to fetch per returned post when supported.",
                 "minimum": 0,
@@ -3660,6 +6212,9 @@ export const APP_SKILL_METADATA = [
                 "default": 0
               },
               "comments_sort": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Reddit comment sort.",
                 "enum": [
@@ -3672,21 +6227,33 @@ export const APP_SKILL_METADATA = [
                 "default": "top"
               },
               "min_score": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "description": "Minimum Reddit score/upvotes to include.",
                 "minimum": 0
               },
               "min_comments": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "description": "Minimum Reddit comment count to include.",
                 "minimum": 0
               },
               "exclude_stickied": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "boolean",
                 "description": "Exclude stickied Reddit posts.",
                 "default": true
               },
               "exclude_nsfw": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "boolean",
                 "description": "Exclude NSFW Reddit posts.",
                 "default": true
@@ -3808,39 +6375,73 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "Array of connection search requests. Each request searches for transport connections for a complete trip (one-way, round trip, or multi-stop).\n",
           "items": {
             "type": "object",
             "properties": {
               "origin": {
+                "x-ui": {
+                  "basic": false,
+                  "control": "location",
+                  "location_mode": "place"
+                },
                 "type": "string",
                 "description": "Flat route origin accepted from LLM or CLI callers. Prefer legs for round trips and multi-stop trips; single-leg flat requests are normalized into legs before execution.\n"
               },
               "destination": {
+                "x-ui": {
+                  "basic": false,
+                  "control": "location",
+                  "location_mode": "place"
+                },
                 "type": "string",
                 "description": "Flat route destination accepted from LLM or CLI callers. Prefer legs for round trips and multi-stop trips; single-leg flat requests are normalized into legs before execution.\n"
               },
               "date": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
+                "format": "date",
                 "description": "Flat route departure date in YYYY-MM-DD format. Prefer legs for round trips and multi-stop trips; single-leg flat requests are normalized into legs before execution.\n"
               },
               "legs": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "array",
                 "description": "Ordered list of trip legs. One-way trip = 1 leg. Round trip = 2 legs (outbound + return). Multi-stop = N legs. Each leg specifies an origin, destination, and departure date.\n",
                 "items": {
                   "type": "object",
                   "properties": {
                     "origin": {
+                      "x-ui": {
+                        "basic": true,
+                        "control": "location",
+                        "location_mode": "place"
+                      },
                       "type": "string",
                       "description": "Origin city or location name (e.g. \"Munich\", \"London Heathrow\", \"Berlin\"). The system resolves this to airport codes or coordinates internally.\n"
                     },
                     "destination": {
+                      "x-ui": {
+                        "basic": true,
+                        "control": "location",
+                        "location_mode": "place"
+                      },
                       "type": "string",
                       "description": "Destination city or location name."
                     },
                     "date": {
+                      "x-ui": {
+                        "basic": true
+                      },
                       "type": "string",
+                      "format": "date",
                       "description": "Departure date in YYYY-MM-DD format."
                     }
                   },
@@ -3852,6 +6453,9 @@ export const APP_SKILL_METADATA = [
                 }
               },
               "transport_methods": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "array",
                 "description": "Transport types to search. Supported: \"airplane\" (worldwide via Google Flights), \"train\" (Germany + select European routes via Deutsche Bahn and FlixTrain). IMPORTANT: Set to [\"train\"] when user asks about trains, rail, or Deutsche Bahn.\n",
                 "items": {
@@ -3868,6 +6472,9 @@ export const APP_SKILL_METADATA = [
                 ]
               },
               "transport_method": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Singular transport method alias accepted from LLM or CLI callers. Normalized into transport_methods before execution.\n",
                 "enum": [
@@ -3878,6 +6485,9 @@ export const APP_SKILL_METADATA = [
                 ]
               },
               "providers": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "description": "Optional provider IDs to search. Use \"google_flights\" for flights, \"deutsche_bahn\" for Deutsche Bahn / ICE / Bahn.de / Sparpreis train searches, \"flix\" for FlixBus / FlixTrain, and \"transitous\" only for timetable-only public transport routing. If omitted, priced providers for the selected transport method are used, then filtered by countries if provided.\n",
                 "items": {
@@ -3891,6 +6501,9 @@ export const APP_SKILL_METADATA = [
                 }
               },
               "provider": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Singular provider alias accepted from LLM or CLI callers. Normalized into providers before execution.\n",
                 "enum": [
@@ -3901,6 +6514,9 @@ export const APP_SKILL_METADATA = [
                 ]
               },
               "countries": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "description": "ISO 3166-1 alpha-2 country codes involved in the route, inferred from origin, destination, and known stops. Country matching is OR: a provider is relevant when it supports at least one listed country. Google Flights is global and remains eligible for airplane searches in all countries.\n",
                 "items": {
@@ -3908,11 +6524,17 @@ export const APP_SKILL_METADATA = [
                 }
               },
               "passengers": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "description": "Number of adult passengers.",
                 "default": 1
               },
               "travel_class": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Cabin class for flights.",
                 "enum": [
@@ -3924,24 +6546,39 @@ export const APP_SKILL_METADATA = [
                 "default": "economy"
               },
               "max_results": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "integer",
                 "description": "Maximum number of connection options to return per transport method.",
                 "default": 6
               },
               "non_stop_only": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "boolean",
                 "description": "If true, only return direct/non-stop connections.",
                 "default": false
               },
               "max_stops": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "description": "Maximum number of stops allowed. Use 0 for direct/non-stop only, 1 for up to one stop, or 2 for up to two stops."
               },
               "max_price": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "number",
                 "description": "Maximum total price for the connection in the requested currency. Results above this price are filtered from strict matches."
               },
               "include_airlines": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "description": "Only show flights from these airlines. Use IATA carrier codes when known, such as LH, BA, VY, or FR.",
                 "items": {
@@ -3949,6 +6586,9 @@ export const APP_SKILL_METADATA = [
                 }
               },
               "exclude_airlines": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "description": "Exclude flights from these airlines. Use IATA carrier codes when known. Do not combine with include_airlines.",
                 "items": {
@@ -3956,6 +6596,9 @@ export const APP_SKILL_METADATA = [
                 }
               },
               "owned_passes": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "description": "Fare or mobility pass IDs the traveller already owns, such as \"deutschland_ticket\". Use for pass-aware train pricing when the user says they have a Deutschlandticket.\n",
                 "items": {
@@ -3963,11 +6606,17 @@ export const APP_SKILL_METADATA = [
                 }
               },
               "pass_only": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "boolean",
                 "description": "If true, prefer routes covered by owned fare passes when supported. Use with owned_passes [\"deutschland_ticket\"] for Deutschlandticket-only routing.\n",
                 "default": false
               },
               "rail_products": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "description": "Stable rail product filters for train searches. Use high_speed for ICE/high-speed, intercity for IC/EC, regional_express for IRE/RE-like services, regional for RB/local, s_bahn for S-Bahn, subway, tram, bus, or ferry.\n",
                 "items": {
@@ -3986,45 +6635,79 @@ export const APP_SKILL_METADATA = [
                 }
               },
               "min_departure_time": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
+                "format": "time",
                 "description": "Earliest acceptable local departure time in HH:MM format."
               },
               "max_departure_time": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
+                "format": "time",
                 "description": "Latest acceptable local departure time in HH:MM format."
               },
               "min_arrival_time": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
+                "format": "time",
                 "description": "Earliest acceptable local arrival time in HH:MM format."
               },
               "max_arrival_time": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
+                "format": "time",
                 "description": "Latest acceptable local arrival time in HH:MM format."
               },
               "max_duration_minutes": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "description": "Maximum total duration for the first leg, in minutes."
               },
               "min_transfer_minutes": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "description": "Minimum acceptable layover or transfer duration, in minutes. Defaults to 10.",
                 "default": 10
               },
               "max_layover_minutes": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "description": "Maximum allowed layover or transfer duration, in minutes."
               },
               "avoid_overnight_layovers": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "boolean",
                 "description": "If true, remove connections with overnight layovers or transfers.",
                 "default": false
               },
               "currency": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Preferred currency for prices (ISO 4217 code).",
                 "default": "EUR"
               },
               "sort_by": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "How to sort the results. Options: \"price_asc\" (cheapest first, default), \"price_desc\" (most expensive first), \"duration_asc\" (shortest first), \"duration_desc\" (longest first), \"departure_asc\" (earliest departure first), \"departure_desc\" (latest departure first), \"stops_asc\" (fewest stops first), \"stops_desc\" (most stops first).\n",
                 "enum": [
@@ -4061,56 +6744,100 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "Array of stay search requests. Each request searches for accommodation at a specific destination for given dates.\n",
           "items": {
             "type": "object",
+            "x-ui": {
+              "control": "date-range",
+              "start_field": "check_in_date",
+              "end_field": "check_out_date",
+              "max_offset_days": 365
+            },
             "properties": {
               "query": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Search query describing the destination or property (e.g. \"Hotels in Paris\", \"Hostels near Eiffel Tower\", \"Barcelona beachfront hotel\").\n"
               },
               "check_in_date": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
+                "format": "date",
                 "description": "Check-in date in YYYY-MM-DD format (e.g. \"2026-03-15\").\n"
               },
               "check_out_date": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
+                "format": "date",
                 "description": "Check-out date in YYYY-MM-DD format (e.g. \"2026-03-18\").\n"
               },
               "adults": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "integer",
                 "description": "Number of adult guests.",
                 "default": 2
               },
               "children": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "description": "Number of children.",
                 "default": 0
               },
               "currency": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Price currency (ISO 4217 code, e.g. \"EUR\", \"USD\").\n",
                 "default": "EUR"
               },
               "sort_by": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Sort order for results. Options: \"relevance\" (default), \"price_asc\" (lowest price first), \"rating_desc\" (highest rated first), \"reviews_desc\" (most reviewed).\n",
                 "default": "relevance"
               },
               "min_price": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "number",
                 "description": "Minimum nightly price filter."
               },
               "max_price": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "number",
                 "description": "Maximum nightly price filter."
               },
               "hotel_class": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Comma-separated star rating filter (e.g. \"3,4,5\" for 3-star and above).\n"
               },
               "max_results": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "description": "Maximum number of results to return (1-20, default 10).",
                 "minimum": 1,
@@ -4118,6 +6845,9 @@ export const APP_SKILL_METADATA = [
                 "default": 10
               },
               "relevance_criteria": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "maxLength": 1000,
                 "description": "Optional concise natural-language stay-ranking goal, separate from the destination query. Set it whenever the user states a trip purpose, intended activity, traveler need, desired quality, or preference that should change ordering. Example: \"Prioritize explicit reliable-Wi-Fi and workspace or desk evidence.\" Omit only for a neutral search fully expressed by query and structured fields; never invent preferences.\n"
@@ -4149,18 +6879,31 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "flight_number": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "string",
           "description": "IATA flight number including the carrier code prefix (e.g. 'LH2472', 'BA234', 'AF447'). Do NOT include spaces.\n"
         },
         "departure_date": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "string",
+          "format": "date",
           "description": "Departure date in YYYY-MM-DD format (e.g. '2026-03-05'). Must be a past/completed date \u2014 live tracking is not supported.\n"
         },
         "origin_iata": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string",
           "description": "Optional IATA code of the departure airport (e.g. 'MUC'). Used for disambiguation when a flight number has multiple legs.\n"
         },
         "destination_iata": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string",
           "description": "Optional IATA code of the destination airport (e.g. 'LHR'). Used for diversion detection.\n"
         }
@@ -4184,16 +6927,25 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "REQUIRED array of video generation request objects.",
           "items": {
             "type": "object",
             "properties": {
               "prompt": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Detailed text description of the video to generate."
               },
               "aspect_ratio": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "enum": [
                   "16:9",
@@ -4202,6 +6954,9 @@ export const APP_SKILL_METADATA = [
                 "default": "16:9"
               },
               "duration_seconds": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "integer",
                 "enum": [
                   4,
@@ -4211,6 +6966,9 @@ export const APP_SKILL_METADATA = [
                 "default": 8
               },
               "resolution": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "enum": [
                   "720p",
@@ -4220,10 +6978,16 @@ export const APP_SKILL_METADATA = [
                 "default": "720p"
               },
               "seed": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "description": "Optional seed for more reproducible output when supported."
               },
               "model": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "enum": [
                   "veo-3.1-generate-preview",
@@ -4257,10 +7021,16 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "source": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "string",
           "description": "Remotion TSX source code to render."
         },
         "filename": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "string",
           "description": "Source filename, for example ProductAnnouncement.tsx."
         }
@@ -4283,16 +7053,26 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "REQUIRED: Array of transcript request objects for parallel processing. \nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single transcript.\nExample for single transcript: {\"requests\": [{\"url\": \"https://youtube.com/watch?v=abc123\"}]}\nExample for multiple transcripts: {\"requests\": [{\"url\": \"https://youtube.com/watch?v=abc123\"}, {\"url\": \"https://youtube.com/watch?v=def456\"}]}\nEach object must contain 'url' (YouTube video URL), and can include optional parameters (languages).\nNote: The 'id' field is auto-generated if not provided - you don't need to include it.\n",
           "items": {
             "type": "object",
             "properties": {
               "url": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
+                "format": "uri",
                 "description": "YouTube video URL (supports youtube.com/watch?v= and youtu.be/ formats)"
               },
               "languages": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "array",
                 "description": "List of language codes to try for transcript (ISO 639-1, e.g., 'en', 'de', 'es', 'fr'). The API will use the first available language.",
                 "items": {
@@ -4330,16 +7110,25 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "REQUIRED: Array of search request objects for parallel processing (up to 5 requests). \nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.\nExample for single search: {\"requests\": [{\"query\": \"Python tutorial\"}]}\nExample for multiple searches: {\"requests\": [{\"query\": \"Python tutorial\"}, {\"query\": \"FastAPI tutorial\"}]}\nEach object must contain 'query' (search query string), and can include optional parameters (count, relevance_criteria, country, search_lang, safesearch, freshness).\nNote: The 'id' field is auto-generated if not provided - you don't need to include it.\n",
           "items": {
             "type": "object",
             "properties": {
               "query": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Search query string"
               },
               "count": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "integer",
                 "description": "Number of results for this request (max 20)",
                 "minimum": 1,
@@ -4347,11 +7136,17 @@ export const APP_SKILL_METADATA = [
                 "default": 6
               },
               "relevance_criteria": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "maxLength": 1000,
                 "description": "Optional concise natural-language video-ranking goal, separate from the topic query. Set it whenever the user states a viewing or learning purpose, audience level, desired depth, format, authority, or preference that should change ordering. Example: \"Advanced, hands-on production guidance with deployment and evaluation details.\" Omit only for a neutral search fully expressed by query and structured fields.\n"
               },
               "country": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Country code for localized results. Must be one of: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, or ALL (case-insensitive). Defaults to 'us' if invalid.",
                 "enum": [
@@ -4435,11 +7230,17 @@ export const APP_SKILL_METADATA = [
                 "default": "us"
               },
               "search_lang": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Language code for search (ISO 639-1, e.g., 'en', 'es', 'fr')",
                 "default": "en"
               },
               "safesearch": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Safe search level",
                 "enum": [
@@ -4482,6 +7283,9 @@ export const APP_SKILL_METADATA = [
       },
       "properties": {
         "location": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "string",
           "description": "Place name for the forecast, e.g. Berlin, Karlsruhe, Tokyo. Required unless latitude and longitude are provided."
         },
@@ -4492,32 +7296,51 @@ export const APP_SKILL_METADATA = [
           "maximum": 14,
           "default": 7,
           "x-ui": {
+            "basic": false,
             "hidden": true
           }
         },
         "start_date": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "string",
           "format": "date",
           "description": "First forecast date, inclusive, in the location timezone. Must be today or later and supplied with end_date."
         },
         "end_date": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "string",
           "format": "date",
           "description": "Last forecast date, inclusive, in the location timezone. Must be within the 14-day forecast window and supplied with start_date."
         },
         "latitude": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "number",
           "description": "Optional latitude in decimal degrees. Use with longitude for exact coordinates."
         },
         "longitude": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "number",
           "description": "Optional longitude in decimal degrees. Use with latitude for exact coordinates."
         },
         "timezone": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string",
           "description": "Optional IANA timezone. Defaults to provider/location timezone."
         },
         "units": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string",
           "description": "Unit system. Only metric is currently supported.",
           "enum": [
@@ -4534,19 +7357,32 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "summary": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string",
+          "description": "Location label only, such as Weather forecast for Berlin; it does not contain forecast data and remains present when no forecast was returned.",
           "example": "Weather forecast for Berlin"
         },
         "result_count": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "integer",
           "example": 1
         },
         "start_date": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string",
           "format": "date",
           "example": "2026-09-21"
         },
         "end_date": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string",
           "format": "date",
           "example": "2026-09-21"
@@ -4556,9 +7392,15 @@ export const APP_SKILL_METADATA = [
             "number",
             "null"
           ],
+          "x-ui": {
+            "basic": true
+          },
           "example": 60
         },
         "max_temperature_c": {
+          "x-ui": {
+            "basic": false
+          },
           "type": [
             "number",
             "null"
@@ -4570,28 +7412,49 @@ export const APP_SKILL_METADATA = [
             "boolean",
             "null"
           ],
+          "x-ui": {
+            "basic": true
+          },
           "example": true
         },
         "rain_summary": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string",
           "example": "Rain is forecast today: 12:00\u201314:00 (Europe/Berlin)."
         },
         "forecast_day": {
           "type": "object",
+          "x-ui": {
+            "basic": true
+          },
           "properties": {
             "date": {
+              "x-ui": {
+                "basic": true
+              },
               "type": "string",
               "example": "2026-09-21"
             },
             "title": {
+              "x-ui": {
+                "basic": false
+              },
               "type": "string",
               "example": "Berlin weather"
             },
             "timezone": {
+              "x-ui": {
+                "basic": false
+              },
               "type": "string",
               "example": "Europe/Berlin"
             },
             "condition": {
+              "x-ui": {
+                "basic": true
+              },
               "type": [
                 "string",
                 "null"
@@ -4599,6 +7462,9 @@ export const APP_SKILL_METADATA = [
               "example": "rain"
             },
             "temperature_min_c": {
+              "x-ui": {
+                "basic": true
+              },
               "type": [
                 "number",
                 "null"
@@ -4606,6 +7472,9 @@ export const APP_SKILL_METADATA = [
               "example": 12
             },
             "temperature_max_c": {
+              "x-ui": {
+                "basic": true
+              },
               "type": [
                 "number",
                 "null"
@@ -4613,6 +7482,9 @@ export const APP_SKILL_METADATA = [
               "example": 20
             },
             "precipitation_total_mm": {
+              "x-ui": {
+                "basic": false
+              },
               "type": [
                 "number",
                 "null"
@@ -4620,6 +7492,9 @@ export const APP_SKILL_METADATA = [
               "example": 1.2
             },
             "precipitation_probability_max_pct": {
+              "x-ui": {
+                "basic": false
+              },
               "type": [
                 "number",
                 "null"
@@ -4627,19 +7502,31 @@ export const APP_SKILL_METADATA = [
               "example": 60
             },
             "hourly": {
+              "x-ui": {
+                "basic": false
+              },
               "type": "array",
               "items": {
                 "type": "object",
                 "properties": {
                   "timestamp": {
+                    "x-ui": {
+                      "basic": false
+                    },
                     "type": "string",
                     "example": "2026-09-21T12:00:00+02:00"
                   },
                   "time": {
+                    "x-ui": {
+                      "basic": true
+                    },
                     "type": "string",
                     "example": "12:00"
                   },
                   "precipitation_mm": {
+                    "x-ui": {
+                      "basic": false
+                    },
                     "type": [
                       "number",
                       "null"
@@ -4647,6 +7534,9 @@ export const APP_SKILL_METADATA = [
                     "example": 0.4
                   },
                   "precipitation_probability_pct": {
+                    "x-ui": {
+                      "basic": true
+                    },
                     "type": [
                       "number",
                       "null"
@@ -4654,6 +7544,9 @@ export const APP_SKILL_METADATA = [
                     "example": 60
                   },
                   "condition": {
+                    "x-ui": {
+                      "basic": true
+                    },
                     "type": [
                       "string",
                       "null"
@@ -4661,6 +7554,9 @@ export const APP_SKILL_METADATA = [
                     "example": "rain"
                   },
                   "temperature_c": {
+                    "x-ui": {
+                      "basic": true
+                    },
                     "type": [
                       "number",
                       "null"
@@ -4710,24 +7606,81 @@ export const APP_SKILL_METADATA = [
             ]
           }
         },
+        "results": {
+          "x-ui": {
+            "basic": false
+          },
+          "type": "array",
+          "description": "Actual forecast day records for the requested dates. An empty array means no forecast was returned; use this value to detect and report a missing forecast.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "condition": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "temperature_min_c": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "temperature_max_c": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "precipitation_probability_max_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
         "forecast_days": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
               "date": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "example": "2026-09-21"
               },
               "title": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "Berlin weather"
               },
               "timezone": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "Europe/Berlin"
               },
               "condition": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": [
                   "string",
                   "null"
@@ -4735,6 +7688,9 @@ export const APP_SKILL_METADATA = [
                 "example": "rain"
               },
               "temperature_min_c": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": [
                   "number",
                   "null"
@@ -4742,6 +7698,9 @@ export const APP_SKILL_METADATA = [
                 "example": 12
               },
               "temperature_max_c": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": [
                   "number",
                   "null"
@@ -4749,6 +7708,9 @@ export const APP_SKILL_METADATA = [
                 "example": 20
               },
               "precipitation_total_mm": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": [
                   "number",
                   "null"
@@ -4756,6 +7718,9 @@ export const APP_SKILL_METADATA = [
                 "example": 1.2
               },
               "precipitation_probability_max_pct": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": [
                   "number",
                   "null"
@@ -4763,19 +7728,31 @@ export const APP_SKILL_METADATA = [
                 "example": 60
               },
               "hourly": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "array",
                 "items": {
                   "type": "object",
                   "properties": {
                     "timestamp": {
+                      "x-ui": {
+                        "basic": false
+                      },
                       "type": "string",
                       "example": "2026-09-21T12:00:00+02:00"
                     },
                     "time": {
+                      "x-ui": {
+                        "basic": true
+                      },
                       "type": "string",
                       "example": "12:00"
                     },
                     "precipitation_mm": {
+                      "x-ui": {
+                        "basic": false
+                      },
                       "type": [
                         "number",
                         "null"
@@ -4783,6 +7760,9 @@ export const APP_SKILL_METADATA = [
                       "example": 0.4
                     },
                     "precipitation_probability_pct": {
+                      "x-ui": {
+                        "basic": true
+                      },
                       "type": [
                         "number",
                         "null"
@@ -4790,6 +7770,9 @@ export const APP_SKILL_METADATA = [
                       "example": 60
                     },
                     "condition": {
+                      "x-ui": {
+                        "basic": true
+                      },
                       "type": [
                         "string",
                         "null"
@@ -4797,6 +7780,9 @@ export const APP_SKILL_METADATA = [
                       "example": "rain"
                     },
                     "temperature_c": {
+                      "x-ui": {
+                        "basic": true
+                      },
                       "type": [
                         "number",
                         "null"
@@ -4870,19 +7856,31 @@ export const APP_SKILL_METADATA = [
           ]
         },
         "hourly": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
               "timestamp": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "2026-09-21T12:00:00+02:00"
               },
               "time": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "example": "12:00"
               },
               "precipitation_mm": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": [
                   "number",
                   "null"
@@ -4890,6 +7888,9 @@ export const APP_SKILL_METADATA = [
                 "example": 0.4
               },
               "precipitation_probability_pct": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": [
                   "number",
                   "null"
@@ -4897,6 +7898,9 @@ export const APP_SKILL_METADATA = [
                 "example": 60
               },
               "condition": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": [
                   "string",
                   "null"
@@ -4904,6 +7908,9 @@ export const APP_SKILL_METADATA = [
                 "example": "rain"
               },
               "temperature_c": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": [
                   "number",
                   "null"
@@ -4933,26 +7940,44 @@ export const APP_SKILL_METADATA = [
         },
         "rain_periods": {
           "type": "array",
+          "x-ui": {
+            "basic": true
+          },
           "items": {
             "type": "object",
             "properties": {
               "start": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "2026-09-21T12:00:00+02:00"
               },
               "end": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "example": "2026-09-21T14:00:00+02:00"
               },
               "start_time": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "example": "12:00"
               },
               "end_time": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "example": "14:00"
               },
               "timezone": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": [
                   "string",
                   "null"
@@ -4960,6 +7985,9 @@ export const APP_SKILL_METADATA = [
                 "example": "Europe/Berlin"
               },
               "probability_pct": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": [
                   "number",
                   "null"
@@ -5003,18 +8031,30 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "location": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "string",
           "description": "German place name for the radar, e.g. Berlin, Hamburg, Munich. Required unless latitude and longitude are provided."
         },
         "latitude": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "number",
           "description": "Optional latitude in decimal degrees. Use with longitude for exact coordinates. V1 supports Germany only."
         },
         "longitude": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "number",
           "description": "Optional longitude in decimal degrees. Use with latitude for exact coordinates. V1 supports Germany only."
         },
         "radius_km": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "integer",
           "description": "Radar radius around the location in kilometers. Defaults to 5 for a neighborhood/city-part view. Maximum 100.",
           "minimum": 1,
@@ -5022,6 +8062,9 @@ export const APP_SKILL_METADATA = [
           "default": 5
         },
         "timezone": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string",
           "description": "Optional IANA timezone. Defaults to provider/location timezone."
         }
@@ -5044,16 +8087,25 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "REQUIRED: Array of search request objects for parallel processing (up to 5 requests). \nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.\nExample for single search: {\"requests\": [{\"query\": \"Python async\"}]}\nExample for multiple searches: {\"requests\": [{\"query\": \"Python async\"}, {\"query\": \"FastAPI best practices\"}]}\nEach object must contain 'query' (search query string), and can include optional parameters (count, relevance_criteria, country, search_lang, safesearch).\nNote: The 'id' field is auto-generated if not provided - you don't need to include it.\n",
           "items": {
             "type": "object",
             "properties": {
               "query": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Search query string"
               },
               "count": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "integer",
                 "description": "Number of final results for this request (default 10, max 20).",
                 "minimum": 1,
@@ -5061,11 +8113,17 @@ export const APP_SKILL_METADATA = [
                 "default": 10
               },
               "relevance_criteria": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "maxLength": 1000,
                 "description": "Optional concise natural-language ranking goal, separate from the retrieval query. Set it whenever the user states a purpose, intended use, audience, decision need, or preference that should change ordering, even if related terms also appear in query. Example: \"Research useful for deciding which framework to adopt.\" Omit only for a neutral search fully expressed by query and structured fields; never invent preferences. When present, up to 40 candidates are ranked and only count are returned.\n"
               },
               "country": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
                 "description": "Country code for localized results. Must be one of: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, or ALL (case-insensitive). Defaults to 'us' if invalid.",
                 "enum": [
@@ -5149,11 +8207,17 @@ export const APP_SKILL_METADATA = [
                 "default": "us"
               },
               "search_lang": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Language code for search (ISO 639-1, e.g., 'en', 'es', 'fr')",
                 "default": "en"
               },
               "safesearch": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "string",
                 "description": "Safe search level",
                 "enum": [
@@ -5164,6 +8228,9 @@ export const APP_SKILL_METADATA = [
                 "default": "moderate"
               },
               "filter_tabloids": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "boolean",
                 "description": "Filter out tabloid/boulevard media sources (e.g., BILD, Daily Mail, TMZ, The Sun) from results. Enabled by default for quality results. Set to false ONLY if the user explicitly asks for tabloid sources.",
                 "default": true
@@ -5183,10 +8250,69 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "summary": {
+          "x-ui": {
+            "basic": false
+          },
           "type": "string"
         },
         "result_count": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "integer"
+        },
+        "results": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string"
+              },
+              "url": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string"
+              },
+              "description": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string"
+              },
+              "page_age": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string"
+              },
+              "provider": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string"
+              },
+              "canonical_url": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string"
+              },
+              "source_id": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string"
+              }
+            }
+          }
         }
       }
     }
@@ -5204,16 +8330,26 @@ export const APP_SKILL_METADATA = [
       "type": "object",
       "properties": {
         "requests": {
+          "x-ui": {
+            "basic": true
+          },
           "type": "array",
           "description": "REQUIRED: Array of read request objects for parallel processing (up to 5 requests). \nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single URL.\nExample for single URL: {\"requests\": [{\"id\": 1, \"url\": \"https://example.com/article\"}]}\nExample for multiple URLs: {\"requests\": [{\"id\": 1, \"url\": \"https://example.com/article1\"}, {\"id\": 2, \"url\": \"https://example.com/article2\"}]}\nEach object must contain 'id' (unique identifier) and 'url' (webpage URL), and can include optional parameters (formats, only_main_content, max_age, timeout).\n",
           "items": {
             "type": "object",
             "properties": {
               "url": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "string",
+                "format": "uri",
                 "description": "URL of the webpage to read/scrape"
               },
               "formats": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "array",
                 "description": "List of output formats to include (e.g., 'markdown', 'html', 'summary')",
                 "items": {
@@ -5224,15 +8360,24 @@ export const APP_SKILL_METADATA = [
                 ]
               },
               "only_main_content": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "boolean",
                 "description": "Whether to return only main content (excluding headers, navs, footers, etc.)",
                 "default": true
               },
               "max_age": {
+                "x-ui": {
+                  "basic": true
+                },
                 "type": "integer",
                 "description": "Cache age in milliseconds (default: 172800000 = 2 days). Returns cached version if available."
               },
               "timeout": {
+                "x-ui": {
+                  "basic": false
+                },
                 "type": "integer",
                 "description": "Timeout in milliseconds for the request"
               }
@@ -5250,43 +8395,13 @@ export const APP_SKILL_METADATA = [
   },
   {
     "app_id": "workflows",
-    "skill_id": "create-or-modify",
-    "app_namespace_ts": "workflows",
-    "skill_method_ts": "createOrModify",
-    "app_namespace_py": "workflows",
-    "skill_method_py": "create_or_modify",
-    "description_key": "workflows.skills.create_or_modify.description",
-    "description": "Create or modify exactly one workflow from chat. Do not batch multiple workflows into one skill call.",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "workflow_id": {
-          "type": "string",
-          "description": "Existing workflow ID when modifying a workflow."
-        },
-        "title": {
-          "type": "string",
-          "description": "Short user-facing workflow title."
-        },
-        "graph": {
-          "type": "object",
-          "description": "Valid WorkflowGraph definition."
-        }
-      },
-      "required": [
-        "title"
-      ]
-    }
-  },
-  {
-    "app_id": "workflows",
     "skill_id": "search",
     "app_namespace_ts": "workflows",
     "skill_method_ts": "search",
     "app_namespace_py": "workflows",
     "skill_method_py": "search",
     "description_key": "workflows.skills.search.description",
-    "description": "Search the user's existing persisted workflows before proposing a new automation. Include temporary workflows only when the user explicitly asks about recent chat-created workflows.",
+    "description": "Look up a selected workflow by its exact ID before editing it. Otherwise search the user's persisted workflows by title. Include temporary workflows only when the user explicitly asks about recent chat-created workflows.",
     "schema": {
       "type": "object",
       "properties": {
@@ -5294,104 +8409,15 @@ export const APP_SKILL_METADATA = [
           "type": "string",
           "description": "Workflow title or intent text to search for."
         },
+        "workflow_id": {
+          "type": "string",
+          "description": "Exact owner-scoped workflow ID from the editor or a prior search result."
+        },
         "include_temporary": {
           "type": "boolean",
           "description": "Include temporary chat-created workflows in the search results."
         }
       }
-    }
-  },
-  {
-    "app_id": "hosting",
-    "skill_id": "search_domains",
-    "app_namespace_ts": "hosting",
-    "skill_method_ts": "searchDomains",
-    "app_namespace_py": "hosting",
-    "skill_method_py": "search_domains",
-    "description_key": "app_skills.hosting.search_domains.description",
-    "description": "Check an exact domain name or discover available domain names through Gandi. Use one grouped request per independent name or idea. A fully qualified domain is checked exactly. Put explicitly requested suffixes in tlds and explicit tax country and currency in country and currency; defaults are DE and EUR. Use availability=prefer_available by default: show confirmed available names first and checked in-use names only to fill remaining result slots. Use available_only only when the user wants no in",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "requests": {
-          "type": "array",
-          "minItems": 1,
-          "maxItems": 5,
-          "description": "One to five independent domain checks or name searches.",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "description": "Optional caller ID echoed in this group's result.",
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "integer"
-                  }
-                ]
-              },
-              "query": {
-                "type": "string",
-                "description": "An exact fully qualified domain (up to 253 characters), a short name, or a keyword idea (up to 100 characters).",
-                "minLength": 1,
-                "maxLength": 253
-              },
-              "tlds": {
-                "type": "array",
-                "maxItems": 5,
-                "items": {
-                  "type": "string"
-                },
-                "description": "Optional suffixes such as .com or .net. For a short single-label name, check each exact name plus suffix before suggestions.\n"
-              },
-              "country": {
-                "type": "string",
-                "default": "DE",
-                "description": "Two-letter tax country code; returned explicitly with prices."
-              },
-              "currency": {
-                "type": "string",
-                "default": "EUR",
-                "enum": [
-                  "EUR",
-                  "USD"
-                ],
-                "description": "Supported quote currency. Unsupported currencies are rejected."
-              },
-              "max_results": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 20,
-                "default": 10,
-                "description": "Maximum selected results per group. Checked pool remains at most 40."
-              },
-              "availability": {
-                "type": "string",
-                "enum": [
-                  "prefer_available",
-                  "available_only",
-                  "all"
-                ],
-                "default": "prefer_available",
-                "description": "prefer_available selects confirmed available first, then checked unavailable names only to fill a shortfall. available_only never fills with unavailable. all preserves ranked checked available and unavailable order. Unknown checks remain diagnostic only.\n"
-              },
-              "relevance_criteria": {
-                "type": "string",
-                "maxLength": 1000,
-                "description": "Optional natural-language goal for ranking checked candidates. Set when the user states a material brand, name-fit, renewal-price, term, premium, or restriction preference that should change order. Copy the goal faithfully; omit for neutral lookup or discovery. Ranking uses only evidenced provider facts and drops scores below 1.\n"
-              }
-            },
-            "required": [
-              "query"
-            ]
-          }
-        }
-      },
-      "required": [
-        "requests"
-      ]
     }
   }
 ] as const;
@@ -5461,6 +8487,14 @@ export class BusinessAppSkills {
    */
   async companyFinancials<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
     return this.runSkill<T>("business", "company_financials", input, options);
+  }
+  /**
+   * Search trademark names for explicit target regions when checking a brand or product name. US searches use the free USPTO public search endpoint. EU, Germany and worldwide searches currently return explicit coverage gaps and manual sources; never treat a missing region, failed search or no matches as legal clearance. Ask for the target market if it is unknown.
+   * Description key: app_skills.business.search_trademarks.description
+   * Skill: business/search_trademarks
+   */
+  async searchTrademarks<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("business", "search_trademarks", input, options);
   }
 }
 
@@ -5646,6 +8680,21 @@ export class HomeAppSkills {
    */
   async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
     return this.runSkill<T>("home", "search", input, options);
+  }
+}
+
+export class HostingAppSkills {
+  private readonly runSkill: AppSkillRunner;
+  constructor(runSkill: AppSkillRunner) {
+    this.runSkill = runSkill;
+  }
+  /**
+   * Check an exact domain name or discover available domain names through Gandi. Use one grouped request per independent name or idea. A fully qualified domain is checked exactly. Put explicitly requested suffixes in tlds and explicit tax country and currency in country and currency; defaults are DE and EUR. Use availability=prefer_available by default: show confirmed available names first and checked in-use names only to fill remaining result slots. Use available_only only when the user wants no in
+   * Description key: app_skills.hosting.search_domains.description
+   * Skill: hosting/search_domains
+   */
+  async searchDomains<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("hosting", "search_domains", input, options);
   }
 }
 
@@ -5867,14 +8916,6 @@ export class ProjectsAppSkills {
   async create<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
     return this.runSkill<T>("projects", "create", input, options);
   }
-  /**
-   * Search the user's encrypted projects through a connected capable client. Do not use server-visible metadata as a private project-content fallback.
-   * Description key: projects.skills.search.description
-   * Skill: projects/search
-   */
-  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
-    return this.runSkill<T>("projects", "search", input, options);
-  }
 }
 
 export class ReminderAppSkills {
@@ -6091,35 +9132,12 @@ export class WorkflowsAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Create or modify exactly one workflow from chat. Do not batch multiple workflows into one skill call.
-   * Description key: workflows.skills.create_or_modify.description
-   * Skill: workflows/create-or-modify
-   */
-  async createOrModify<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
-    return this.runSkill<T>("workflows", "create-or-modify", input, options);
-  }
-  /**
-   * Search the user's existing persisted workflows before proposing a new automation. Include temporary workflows only when the user explicitly asks about recent chat-created workflows.
+   * Look up a selected workflow by its exact ID before editing it. Otherwise search the user's persisted workflows by title. Include temporary workflows only when the user explicitly asks about recent chat-created workflows.
    * Description key: workflows.skills.search.description
    * Skill: workflows/search
    */
   async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
     return this.runSkill<T>("workflows", "search", input, options);
-  }
-}
-
-export class HostingAppSkills {
-  private readonly runSkill: AppSkillRunner;
-  constructor(runSkill: AppSkillRunner) {
-    this.runSkill = runSkill;
-  }
-  /**
-   * Check an exact domain name or discover available domain names through Gandi. Use one grouped request per independent name or idea. A fully qualified domain is checked exactly. Put explicitly requested suffixes in tlds and explicit tax country and currency in country and currency; defaults are DE and EUR. Use availability=prefer_available by default: show confirmed available names first and checked in-use names only to fill remaining result slots. Use available_only only when the user wants no in
-   * Description key: app_skills.hosting.search_domains.description
-   * Skill: hosting/search_domains
-   */
-  async searchDomains<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
-    return this.runSkill<T>("hosting", "search_domains", input, options);
   }
 }
 

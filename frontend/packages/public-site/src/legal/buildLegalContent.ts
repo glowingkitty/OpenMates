@@ -411,6 +411,7 @@ export function buildPrivacyPolicyContent(
   lines.push(t("legal.privacy.providers.business_data.description"));
   lines.push("");
   renderProvider("legal.privacy.providers.business_data.sec_edgar", privacyPolicyLinks.secEdgar);
+  renderProvider("legal.privacy.providers.business_data.uspto", privacyPolicyLinks.uspto);
 
   // Group J4 — Weather
   lines.push(`### ${t("legal.privacy.providers.weather.heading")}`);

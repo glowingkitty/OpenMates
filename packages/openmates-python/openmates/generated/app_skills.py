@@ -13,16 +13,21 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'app_namespace_ts': 'ai',
   'description': 'Run this OpenMates app skill.',
   'description_key': 'ai.ask.description',
-  'output_schema': {'properties': {'answer': {'type': 'string'},
-                                   'conversation': {'type': 'string'}},
+  'output_schema': {'properties': {'answer': {'type': 'string', 'x-ui': {'basic': True}}},
                     'type': 'object'},
   'schema': {'properties': {'conversation': {'description': 'Optional run-local conversation name '
                                                             'for retaining previous Workflow AI '
                                                             'context in the same run.',
-                                             'type': 'string'},
+                                             'type': 'string',
+                                             'x-ui': {'basic': False}},
+                            'model': {'description': 'Auto or an exact provider/model ID from the '
+                                                     'chat model catalogue.',
+                                      'type': 'string',
+                                      'x-ui': {'basic': True}},
                             'prompt': {'description': 'The question or task for the Workflow AI '
                                                       'step.',
-                                       'type': 'string'}},
+                                       'type': 'string',
+                                       'x-ui': {'basic': True}}},
              'required': ['prompt'],
              'type': 'object'},
   'skill_id': 'ask',
@@ -41,18 +46,24 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                          'items': {'properties': {'duration_seconds': {'default': 1.0,
                                                                                        'maximum': 2.0,
                                                                                        'minimum': 0.5,
-                                                                                       'type': 'number'},
+                                                                                       'type': 'number',
+                                                                                       'x-ui': {'apps': {'basic': False},
+                                                                                                'basic': True}},
                                                                   'id': {'description': 'Optional '
                                                                                         'caller-supplied '
                                                                                         'ID '
                                                                                         'preserved '
                                                                                         'in the '
-                                                                                        'result.'},
+                                                                                        'result.',
+                                                                         'x-ui': {'basic': False}},
                                                                   'loop': {'default': False,
-                                                                           'type': 'boolean'},
+                                                                           'type': 'boolean',
+                                                                           'x-ui': {'apps': {'basic': False},
+                                                                                    'basic': True}},
                                                                   'model': {'default': 'eleven_text_to_sound_v2',
                                                                             'enum': ['eleven_text_to_sound_v2'],
-                                                                            'type': 'string'},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': False}},
                                                                   'output_format': {'default': 'mp3_44100_128',
                                                                                     'enum': ['mp3_22050_32',
                                                                                              'mp3_24000_48',
@@ -61,18 +72,23 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                              'mp3_44100_96',
                                                                                              'mp3_44100_128',
                                                                                              'mp3_44100_192'],
-                                                                                    'type': 'string'},
+                                                                                    'type': 'string',
+                                                                                    'x-ui': {'apps': {'basic': False},
+                                                                                             'basic': True}},
                                                                   'prompt': {'description': 'Non-speech '
                                                                                             'sound '
                                                                                             'effect '
                                                                                             'prompt.',
                                                                              'maxLength': 400,
                                                                              'minLength': 1,
-                                                                             'type': 'string'},
+                                                                             'type': 'string',
+                                                                             'x-ui': {'apps': {'control': 'textarea'},
+                                                                                      'basic': True}},
                                                                   'prompt_influence': {'default': 0.3,
                                                                                        'maximum': 1,
                                                                                        'minimum': 0,
-                                                                                       'type': 'number'},
+                                                                                       'type': 'number',
+                                                                                       'x-ui': {'basic': False}},
                                                                   'provider': {'default': 'elevenlabs',
                                                                                'description': 'Audio '
                                                                                               'provider. '
@@ -87,12 +103,14 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                               'provider '
                                                                                               'expansion.',
                                                                                'enum': ['elevenlabs'],
-                                                                               'type': 'string'}},
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': False}}},
                                                    'required': ['prompt', 'provider'],
                                                    'type': 'object'},
                                          'maxItems': 5,
                                          'minItems': 1,
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'generate',
@@ -114,13 +132,15 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                       'de_de',
                                                                                       'es_es',
                                                                                       'fr_fr'],
-                                                                             'type': 'string'},
+                                                                             'type': 'string',
+                                                                             'x-ui': {'basic': False}},
                                                                   'id': {'description': 'Optional '
                                                                                         'caller-supplied '
                                                                                         'ID '
                                                                                         'preserved '
                                                                                         'in the '
-                                                                                        'result.'},
+                                                                                        'result.',
+                                                                         'x-ui': {'basic': False}},
                                                                   'model': {'default': 'eleven_v3',
                                                                             'description': 'ElevenLabs '
                                                                                            'TTS '
@@ -162,7 +182,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                      'eleven_flash_v2_5',
                                                                                      'eleven_v4',
                                                                                      'eleven_v4_turbo'],
-                                                                            'type': 'string'},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': False}},
                                                                   'output_format': {'default': 'mp3_44100_128',
                                                                                     'enum': ['mp3_22050_32',
                                                                                              'mp3_24000_48',
@@ -171,7 +192,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                              'mp3_44100_96',
                                                                                              'mp3_44100_128',
                                                                                              'mp3_44100_192'],
-                                                                                    'type': 'string'},
+                                                                                    'type': 'string',
+                                                                                    'x-ui': {'basic': False}},
                                                                   'provider': {'default': 'elevenlabs',
                                                                                'description': 'Audio '
                                                                                               'provider. '
@@ -186,7 +208,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                               'provider '
                                                                                               'expansion.',
                                                                                'enum': ['elevenlabs'],
-                                                                               'type': 'string'},
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': False}},
                                                                   'speed': {'default': 1.0,
                                                                             'description': 'Speech '
                                                                                            'speed. '
@@ -206,13 +229,15 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'only.',
                                                                             'maximum': 1.2,
                                                                             'minimum': 0.7,
-                                                                            'type': 'number'},
+                                                                            'type': 'number',
+                                                                            'x-ui': {'basic': True}},
                                                                   'style': {'default': 'natural',
                                                                             'enum': ['natural',
                                                                                      'calm',
                                                                                      'friendly',
                                                                                      'energetic'],
-                                                                            'type': 'string'},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
                                                                   'text': {'description': 'Text to '
                                                                                           'synthesize '
                                                                                           'after '
@@ -220,7 +245,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                           'approval.',
                                                                            'maxLength': 2000,
                                                                            'minLength': 1,
-                                                                           'type': 'string'},
+                                                                           'type': 'string',
+                                                                           'x-ui': {'basic': True}},
                                                                   'voice': {'default': 'warm_neutral',
                                                                             'description': 'OpenMates '
                                                                                            'voice '
@@ -235,12 +261,14 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                             'enum': ['warm_neutral',
                                                                                      'bright_neutral',
                                                                                      'calm_narrator'],
-                                                                            'type': 'string'}},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}}},
                                                    'required': ['text', 'provider'],
                                                    'type': 'object'},
                                          'maxItems': 3,
                                          'minItems': 1,
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'speak',
@@ -258,16 +286,144 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'business',
   'app_namespace_py': 'business',
   'app_namespace_ts': 'business',
+  'description': 'Search trademark names for explicit target regions when checking a brand or '
+                 'product name. US searches use the free USPTO public search endpoint. EU, Germany '
+                 'and worldwide searches currently return explicit coverage gaps and manual '
+                 'sources; never treat a missing region, failed search or no matches as legal '
+                 'clearance. Ask for the target market if it is unknown.',
+  'description_key': 'app_skills.business.search_trademarks.description',
+  'output_schema': {'properties': {'coverage': {'items': {'type': 'object'},
+                                                'type': 'array',
+                                                'x-ui': {'basic': True}},
+                                   'error': {'type': 'string', 'x-ui': {'basic': False}},
+                                   'limitation': {'type': 'string', 'x-ui': {'basic': True}},
+                                   'match': {'type': 'string', 'x-ui': {'basic': False}},
+                                   'matches': {'items': {'type': 'object'},
+                                               'type': 'array',
+                                               'x-ui': {'basic': True}},
+                                   'nice_classes': {'items': {'type': 'integer'},
+                                                    'type': 'array',
+                                                    'x-ui': {'basic': False}},
+                                   'partial': {'type': 'boolean', 'x-ui': {'basic': True}},
+                                   'regions': {'items': {'type': 'string'},
+                                               'type': 'array',
+                                               'x-ui': {'basic': True}},
+                                   'result_count': {'type': 'integer', 'x-ui': {'basic': True}},
+                                   'status_filter': {'type': 'string', 'x-ui': {'basic': False}},
+                                   'summary': {'type': 'string', 'x-ui': {'basic': False}}},
+                    'type': 'object'},
+  'schema': {'additionalProperties': False,
+             'properties': {'match': {'default': 'similar',
+                                      'description': 'Exact wordmark or spelling similarity. '
+                                                     'Similar is an edit-distance name search, not '
+                                                     'comprehensive phonetic or legal clearance.',
+                                      'enum': ['exact', 'similar'],
+                                      'type': 'string',
+                                      'x-ui': {'basic': True}},
+                            'max_results': {'default': 10,
+                                            'maximum': 20,
+                                            'minimum': 1,
+                                            'type': 'integer',
+                                            'x-ui': {'basic': False}},
+                            'nice_classes': {'description': 'Optional Nice classes based on actual '
+                                                            'goods/services; omitting searches all '
+                                                            'classes. Classes alone do not '
+                                                            'determine legal conflict.',
+                                             'items': {'maximum': 45,
+                                                       'minimum': 1,
+                                                       'type': 'integer'},
+                                             'maxItems': 10,
+                                             'type': 'array',
+                                             'x-ui': {'basic': False}},
+                            'queries': {'description': 'Up to three explicit candidate brand or '
+                                                       'product names; search finalists rather '
+                                                       'than entire brainstorming lists.',
+                                        'items': {'maxLength': 120,
+                                                  'minLength': 1,
+                                                  'type': 'string'},
+                                        'maxItems': 3,
+                                        'minItems': 1,
+                                        'type': 'array',
+                                        'x-ui': {'basic': True}},
+                            'regions': {'description': 'Target territories to search. US is '
+                                                       'automated; EU, DE and WORLDWIDE currently '
+                                                       'return unsupported coverage with manual '
+                                                       'sources. Never substitute US results for '
+                                                       'another territory.',
+                                        'items': {'enum': ['US', 'EU', 'DE', 'WORLDWIDE'],
+                                                  'type': 'string'},
+                                        'maxItems': 4,
+                                        'minItems': 1,
+                                        'type': 'array',
+                                        'uniqueItems': True,
+                                        'x-ui': {'basic': True}},
+                            'status': {'default': 'active',
+                                       'description': 'Active includes pending applications and '
+                                                      'live registrations; all also includes ended '
+                                                      'records.',
+                                       'enum': ['active', 'all'],
+                                       'type': 'string',
+                                       'x-ui': {'basic': True}}},
+             'required': ['queries', 'regions'],
+             'type': 'object'},
+  'skill_id': 'search_trademarks',
+  'skill_method_py': 'search_trademarks',
+  'skill_method_ts': 'searchTrademarks'},
+ {'app_id': 'business',
+  'app_namespace_py': 'business',
+  'app_namespace_ts': 'business',
   'description': 'Get official SEC EDGAR financial filing facts for explicit public company '
                  'tickers, CIKs, or exact company names, including revenue, profit, cash flow, and '
                  'balance sheet data. Use for company performance research and comparisons; do not '
                  'use for private companies, investment advice, stock-price forecasts, portfolio '
                  'decisions, or discovering companies by broad category.',
   'description_key': 'app_skills.business.company_financials.description',
-  'output_schema': {'properties': {'provider': {'type': 'string'},
-                                   'result_count': {'type': 'integer'},
-                                   'results': {'type': 'array'},
-                                   'summary': {'type': 'string'}},
+  'output_schema': {'properties': {'provider': {'type': 'string', 'x-ui': {'basic': False}},
+                                   'result_count': {'type': 'integer', 'x-ui': {'basic': False}},
+                                   'results': {'items': {'properties': {'assets': {'type': 'number',
+                                                                                   'x-ui': {'basic': False}},
+                                                                        'cik': {'type': 'string',
+                                                                                'x-ui': {'basic': False}},
+                                                                        'company': {'type': 'string',
+                                                                                    'x-ui': {'basic': True}},
+                                                                        'country': {'type': 'string',
+                                                                                    'x-ui': {'basic': False}},
+                                                                        'currency': {'type': 'string',
+                                                                                     'x-ui': {'basic': False}},
+                                                                        'equity': {'type': 'number',
+                                                                                   'x-ui': {'basic': False}},
+                                                                        'exchange': {'type': 'string',
+                                                                                     'x-ui': {'basic': False}},
+                                                                        'fiscal_quarter': {'type': 'string',
+                                                                                           'x-ui': {'basic': False}},
+                                                                        'fiscal_year': {'type': 'integer',
+                                                                                        'x-ui': {'basic': True}},
+                                                                        'gross_profit': {'type': 'number',
+                                                                                         'x-ui': {'basic': False}},
+                                                                        'liabilities': {'type': 'number',
+                                                                                        'x-ui': {'basic': False}},
+                                                                        'net_income': {'type': 'number',
+                                                                                       'x-ui': {'basic': True}},
+                                                                        'operating_cash_flow': {'type': 'number',
+                                                                                                'x-ui': {'basic': False}},
+                                                                        'operating_income': {'type': 'number',
+                                                                                             'x-ui': {'basic': False}},
+                                                                        'period_end': {'type': 'string',
+                                                                                       'x-ui': {'basic': False}},
+                                                                        'period_start': {'type': 'string',
+                                                                                         'x-ui': {'basic': False}},
+                                                                        'period_type': {'type': 'string',
+                                                                                        'x-ui': {'basic': True}},
+                                                                        'revenue': {'type': 'number',
+                                                                                    'x-ui': {'basic': True}},
+                                                                        'source_url': {'type': 'string',
+                                                                                       'x-ui': {'basic': True}},
+                                                                        'ticker': {'type': 'string',
+                                                                                   'x-ui': {'basic': True}}},
+                                                         'type': 'object'},
+                                               'type': 'array',
+                                               'x-ui': {'basic': True}},
+                                   'summary': {'type': 'string', 'x-ui': {'basic': False}}},
                     'type': 'object'},
   'schema': {'properties': {'companies': {'description': 'Explicit public companies to look up by '
                                                          'ticker, CIK, or exact company name. Do '
@@ -280,13 +436,15 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                    'the '
                                                                                                    'original '
                                                                                                    'request.',
-                                                                                    'type': 'string'},
+                                                                                    'type': 'string',
+                                                                                    'x-ui': {'basic': False}},
                                                                    'identifier_type': {'default': 'auto',
                                                                                        'enum': ['auto',
                                                                                                 'ticker',
                                                                                                 'cik',
                                                                                                 'company_name'],
-                                                                                       'type': 'string'},
+                                                                                       'type': 'string',
+                                                                                       'x-ui': {'basic': False}},
                                                                    'query': {'description': 'Ticker, '
                                                                                             'CIK, '
                                                                                             'or '
@@ -301,30 +459,37 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                             'Cal-Maine '
                                                                                             'Foods '
                                                                                             'Inc.',
-                                                                             'type': 'string'}},
+                                                                             'type': 'string',
+                                                                             'x-ui': {'basic': True}}},
                                                     'required': ['query'],
                                                     'type': 'object'},
                                           'maxItems': 10,
                                           'minItems': 1,
-                                          'type': 'array'},
-                            'include_sources': {'default': True, 'type': 'boolean'},
+                                          'type': 'array',
+                                          'x-ui': {'basic': True}},
+                            'include_sources': {'default': True,
+                                                'type': 'boolean',
+                                                'x-ui': {'basic': False}},
                             'metric_group': {'default': 'summary',
                                              'enum': ['summary',
                                                       'income',
                                                       'balance_sheet',
                                                       'cash_flow',
                                                       'all'],
-                                             'type': 'string'},
+                                             'type': 'string',
+                                             'x-ui': {'basic': True}},
                             'period': {'default': 'latest_annual',
                                        'enum': ['latest_annual',
                                                 'latest_quarter',
                                                 'annual_history',
                                                 'quarterly_history'],
-                                       'type': 'string'},
+                                       'type': 'string',
+                                       'x-ui': {'basic': True}},
                             'years': {'default': 3,
                                       'maximum': 10,
                                       'minimum': 1,
-                                      'type': 'integer'}},
+                                      'type': 'integer',
+                                      'x-ui': {'basic': True}}},
              'required': ['companies'],
              'type': 'object'},
   'skill_id': 'company_financials',
@@ -353,7 +518,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'return.',
                                                                             'maximum': 10,
                                                                             'minimum': 1,
-                                                                            'type': 'integer'},
+                                                                            'type': 'integer',
+                                                                            'x-ui': {'basic': True}},
                                                                   'query': {'description': 'Repository '
                                                                                            'search '
                                                                                            'query, '
@@ -368,7 +534,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            '"rust '
                                                                                            'web '
                                                                                            'server".\n',
-                                                                            'type': 'string'},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
                                                                   'relevance_criteria': {'description': 'Optional '
                                                                                                         'concise '
                                                                                                         'natural-language '
@@ -423,10 +590,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                         'or '
                                                                                                         'compatible.\n',
                                                                                          'maxLength': 1000,
-                                                                                         'type': 'string'}},
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': True}}},
                                                    'required': ['query'],
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'search_repos',
@@ -441,12 +610,14 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'schema': {'properties': {'library': {'description': 'Library name to search for (e.g., "Svelte '
                                                        '5", "React", "FastAPI", "Miro API", '
                                                        'etc.).\n',
-                                        'type': 'string'},
+                                        'type': 'string',
+                                        'x-ui': {'basic': True}},
                             'question': {'description': 'Natural language question about the '
                                                         'documentation needed\n'
                                                         '(e.g., "How to use useState hook?", "How '
                                                         'to setup routing?").\n',
-                                         'type': 'string'}},
+                                         'type': 'string',
+                                         'x-ui': {'basic': True}}},
              'required': ['library', 'question'],
              'type': 'object'},
   'skill_id': 'get_docs',
@@ -777,7 +948,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'return.',
                                                                             'maximum': 50,
                                                                             'minimum': 1,
-                                                                            'type': 'integer'},
+                                                                            'type': 'integer',
+                                                                            'x-ui': {'basic': True}},
                                                                   'exclude_prefixes': {'description': 'Optional '
                                                                                                       'Iconify '
                                                                                                       'collection '
@@ -785,7 +957,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                       'to '
                                                                                                       'exclude.',
                                                                                        'items': {'type': 'string'},
-                                                                                       'type': 'array'},
+                                                                                       'type': 'array',
+                                                                                       'x-ui': {'basic': False}},
                                                                   'include_prefixes': {'description': 'Optional '
                                                                                                       'Iconify '
                                                                                                       'collection '
@@ -793,7 +966,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                       'to '
                                                                                                       'include.',
                                                                                        'items': {'type': 'string'},
-                                                                                       'type': 'array'},
+                                                                                       'type': 'array',
+                                                                                       'x-ui': {'basic': False}},
                                                                   'license_policy': {'default': 'permissive',
                                                                                      'description': 'Filter '
                                                                                                     'to '
@@ -803,7 +977,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                     'default.',
                                                                                      'enum': ['permissive',
                                                                                               'all'],
-                                                                                     'type': 'string'},
+                                                                                     'type': 'string',
+                                                                                     'x-ui': {'basic': True}},
                                                                   'query': {'description': 'Search '
                                                                                            'query, '
                                                                                            'e.g. '
@@ -811,10 +986,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            '"calendar", '
                                                                                            'or '
                                                                                            '"settings".',
-                                                                            'type': 'string'}},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}}},
                                                    'required': ['query'],
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'search_icons',
@@ -839,7 +1016,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                     'in '
                                                                                                     'degrees '
                                                                                                     'Celsius.',
-                                                                                     'type': 'number'},
+                                                                                     'type': 'number',
+                                                                                     'x-ui': {'basic': False}},
                                                                   'category': {'description': 'Component '
                                                                                               'category. '
                                                                                               'Currently '
@@ -848,12 +1026,14 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                               'is '
                                                                                               'supported.',
                                                                                'enum': ['power_converters'],
-                                                                               'type': 'string'},
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': True}},
                                                                   'id': {'description': 'Optional '
                                                                                         'caller-supplied '
                                                                                         'ID for '
                                                                                         'correlating '
-                                                                                        'responses.'},
+                                                                                        'responses.',
+                                                                         'x-ui': {'basic': False}},
                                                                   'input_voltage_max': {'description': 'Maximum '
                                                                                                        'input '
                                                                                                        'voltage '
@@ -869,7 +1049,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                        'value '
                                                                                                        'as '
                                                                                                        'input_voltage_min.',
-                                                                                        'type': 'number'},
+                                                                                        'type': 'number',
+                                                                                        'x-ui': {'basic': True}},
                                                                   'input_voltage_min': {'description': 'Minimum '
                                                                                                        'input '
                                                                                                        'voltage '
@@ -885,7 +1066,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                        'value '
                                                                                                        'as '
                                                                                                        'input_voltage_max.',
-                                                                                        'type': 'number'},
+                                                                                        'type': 'number',
+                                                                                        'x-ui': {'basic': True}},
                                                                   'isolated': {'default': False,
                                                                                'description': 'Whether '
                                                                                               'the '
@@ -893,7 +1075,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                               'should '
                                                                                               'be '
                                                                                               'isolated.',
-                                                                               'type': 'boolean'},
+                                                                               'type': 'boolean',
+                                                                               'x-ui': {'basic': False}},
                                                                   'max_results': {'default': 10,
                                                                                   'description': 'Maximum '
                                                                                                  'number '
@@ -902,7 +1085,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  'components '
                                                                                                  'to '
                                                                                                  'return.',
-                                                                                  'type': 'integer'},
+                                                                                  'type': 'integer',
+                                                                                  'x-ui': {'basic': False}},
                                                                   'optimization': {'default': 'balanced',
                                                                                    'description': 'Optimization '
                                                                                                   'goal '
@@ -913,19 +1097,22 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                             'low_cost',
                                                                                             'high_efficiency',
                                                                                             'small_footprint'],
-                                                                                   'type': 'string'},
+                                                                                   'type': 'string',
+                                                                                   'x-ui': {'basic': False}},
                                                                   'output_current_max': {'description': 'Maximum '
                                                                                                         'output '
                                                                                                         'current '
                                                                                                         'in '
                                                                                                         'amps.',
-                                                                                         'type': 'number'},
+                                                                                         'type': 'number',
+                                                                                         'x-ui': {'basic': True}},
                                                                   'output_voltage': {'description': 'Target '
                                                                                                     'output '
                                                                                                     'voltage '
                                                                                                     'in '
                                                                                                     'volts.',
-                                                                                     'type': 'number'},
+                                                                                     'type': 'number',
+                                                                                     'x-ui': {'basic': True}},
                                                                   'supply_type': {'default': 'dc',
                                                                                   'description': 'dc '
                                                                                                  'for '
@@ -937,14 +1124,16 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  'converters.',
                                                                                   'enum': ['dc',
                                                                                            'ac'],
-                                                                                  'type': 'string'}},
+                                                                                  'type': 'string',
+                                                                                  'x-ui': {'basic': False}}},
                                                    'required': ['category',
                                                                 'input_voltage_min',
                                                                 'input_voltage_max',
                                                                 'output_voltage',
                                                                 'output_current_max'],
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'search_components',
@@ -991,11 +1180,14 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                     'title': 'AI community meetup',
                                                                     'url': 'https://example.invalid/events/ai'},
                                                         'properties': {'canonical_url': {'example': 'https://example.invalid/events/ai',
-                                                                                         'type': 'string'},
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': False}},
                                                                        'date_end': {'example': '2026-09-23T20:00:00+02:00',
-                                                                                    'type': 'string'},
+                                                                                    'type': 'string',
+                                                                                    'x-ui': {'basic': False}},
                                                                        'date_start': {'example': '2026-09-23T18:00:00+02:00',
-                                                                                      'type': 'string'},
+                                                                                      'type': 'string',
+                                                                                      'x-ui': {'basic': False}},
                                                                        'description': {'example': 'An '
                                                                                                   'example '
                                                                                                   'meetup '
@@ -1004,34 +1196,49 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                   'working '
                                                                                                   'with '
                                                                                                   'AI.',
-                                                                                       'type': 'string'},
+                                                                                       'type': 'string',
+                                                                                       'x-ui': {'basic': False}},
                                                                        'event_type': {'example': 'PHYSICAL',
-                                                                                      'type': 'string'},
+                                                                                      'type': 'string',
+                                                                                      'x-ui': {'basic': False}},
                                                                        'id': {'example': 'example-event',
-                                                                              'type': 'string'},
+                                                                              'type': 'string',
+                                                                              'x-ui': {'basic': False}},
                                                                        'location': {'example': 'Berlin',
-                                                                                    'type': 'string'},
+                                                                                    'type': 'string',
+                                                                                    'x-ui': {'basic': False}},
                                                                        'price_amount': {'example': 0,
                                                                                         'type': ['number',
-                                                                                                 'null']},
+                                                                                                 'null'],
+                                                                                        'x-ui': {'basic': False}},
                                                                        'provider': {'example': 'Example '
                                                                                                'events '
                                                                                                'provider',
-                                                                                    'type': 'string'},
+                                                                                    'type': 'string',
+                                                                                    'x-ui': {'basic': False}},
                                                                        'source_id': {'example': 'example-event',
-                                                                                     'type': 'string'},
+                                                                                     'type': 'string',
+                                                                                     'x-ui': {'basic': False}},
                                                                        'title': {'example': 'AI '
                                                                                             'community '
                                                                                             'meetup',
-                                                                                 'type': 'string'},
+                                                                                 'type': 'string',
+                                                                                 'x-ui': {'basic': False}},
                                                                        'url': {'example': 'https://example.invalid/events/ai',
-                                                                               'type': 'string'}},
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': False}}},
                                                         'type': 'object'},
-                                              'type': 'array'},
-                                   'partial': {'example': False, 'type': 'boolean'},
+                                              'type': 'array',
+                                              'x-ui': {'basic': False}},
+                                   'partial': {'example': False,
+                                               'type': 'boolean',
+                                               'x-ui': {'basic': False}},
                                    'provider': {'example': 'Example events provider',
-                                                'type': 'string'},
-                                   'result_count': {'example': 1, 'type': 'integer'},
+                                                'type': 'string',
+                                                'x-ui': {'basic': False}},
+                                   'result_count': {'example': 1,
+                                                    'type': 'integer',
+                                                    'x-ui': {'basic': False}},
                                    'results': {'example': [{'canonical_url': 'https://example.invalid/events/ai',
                                                             'date_end': '2026-09-23T20:00:00+02:00',
                                                             'date_start': '2026-09-23T18:00:00+02:00',
@@ -1064,11 +1271,14 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                      'title': 'AI community meetup',
                                                                      'url': 'https://example.invalid/events/ai'},
                                                          'properties': {'canonical_url': {'example': 'https://example.invalid/events/ai',
-                                                                                          'type': 'string'},
+                                                                                          'type': 'string',
+                                                                                          'x-ui': {'basic': False}},
                                                                         'date_end': {'example': '2026-09-23T20:00:00+02:00',
-                                                                                     'type': 'string'},
+                                                                                     'type': 'string',
+                                                                                     'x-ui': {'basic': False}},
                                                                         'date_start': {'example': '2026-09-23T18:00:00+02:00',
-                                                                                       'type': 'string'},
+                                                                                       'type': 'string',
+                                                                                       'x-ui': {'basic': True}},
                                                                         'description': {'example': 'An '
                                                                                                    'example '
                                                                                                    'meetup '
@@ -1077,35 +1287,47 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                    'working '
                                                                                                    'with '
                                                                                                    'AI.',
-                                                                                        'type': 'string'},
+                                                                                        'type': 'string',
+                                                                                        'x-ui': {'basic': False}},
                                                                         'event_type': {'example': 'PHYSICAL',
-                                                                                       'type': 'string'},
+                                                                                       'type': 'string',
+                                                                                       'x-ui': {'basic': False}},
                                                                         'id': {'example': 'example-event',
-                                                                               'type': 'string'},
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': False}},
                                                                         'location': {'example': 'Berlin',
-                                                                                     'type': 'string'},
+                                                                                     'type': 'string',
+                                                                                     'x-ui': {'basic': True}},
                                                                         'price_amount': {'example': 0,
                                                                                          'type': ['number',
-                                                                                                  'null']},
+                                                                                                  'null'],
+                                                                                         'x-ui': {'basic': False}},
                                                                         'provider': {'example': 'Example '
                                                                                                 'events '
                                                                                                 'provider',
-                                                                                     'type': 'string'},
+                                                                                     'type': 'string',
+                                                                                     'x-ui': {'basic': False}},
                                                                         'source_id': {'example': 'example-event',
-                                                                                      'type': 'string'},
+                                                                                      'type': 'string',
+                                                                                      'x-ui': {'basic': False}},
                                                                         'title': {'example': 'AI '
                                                                                              'community '
                                                                                              'meetup',
-                                                                                  'type': 'string'},
+                                                                                  'type': 'string',
+                                                                                  'x-ui': {'basic': True}},
                                                                         'url': {'example': 'https://example.invalid/events/ai',
-                                                                                'type': 'string'}},
+                                                                                'type': 'string',
+                                                                                'x-ui': {'basic': True}}},
                                                          'type': 'object'},
-                                               'type': 'array'},
+                                               'type': 'array',
+                                               'x-ui': {'basic': True}},
                                    'summary': {'example': 'Events search completed',
-                                               'type': 'string'},
+                                               'type': 'string',
+                                               'x-ui': {'basic': False}},
                                    'warnings': {'example': [],
                                                 'items': {'type': 'string'},
-                                                'type': 'array'}},
+                                                'type': 'array',
+                                                'x-ui': {'basic': False}}},
                     'type': 'object'},
   'schema': {'properties': {'provider': {'description': "The event provider to use. 'auto' "
                                                         '(default) searches general sources in '
@@ -1130,7 +1352,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                   '39C3',
                                                   '38C3',
                                                   '37C3'],
-                                         'type': 'string'},
+                                         'type': 'string',
+                                         'x-ui': {'basic': False}},
                             'requests': {'description': 'REQUIRED: Array of event search request '
                                                         'objects for parallel processing.\n'
                                                         'This parameter is MANDATORY - you MUST '
@@ -1192,7 +1415,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                   'other '
                                                                                                   'providers.\n',
                                                                                    'items': {'type': 'string'},
-                                                                                   'type': 'array'},
+                                                                                   'type': 'array',
+                                                                                   'x-ui': {'basic': False}},
                                                                   'conference': {'description': 'Known '
                                                                                                 'GPN/Congress '
                                                                                                 'schedule '
@@ -1208,7 +1432,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                           '39C3',
                                                                                           '38C3',
                                                                                           '37C3'],
-                                                                                 'type': 'string'},
+                                                                                 'type': 'string',
+                                                                                 'x-ui': {'basic': False}},
                                                                   'count': {'default': 10,
                                                                             'description': 'Maximum '
                                                                                            'number '
@@ -1230,7 +1455,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'results.',
                                                                             'maximum': 50,
                                                                             'minimum': 1,
-                                                                            'type': 'integer'},
+                                                                            'type': 'integer',
+                                                                            'x-ui': {'basic': False}},
                                                                   'end_date': {'description': 'End '
                                                                                               'of '
                                                                                               'date '
@@ -1250,7 +1476,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                               'bound '
                                                                                               'is '
                                                                                               'applied.',
-                                                                               'type': 'string'},
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': False}},
                                                                   'event_type': {'description': 'Filter '
                                                                                                 'by '
                                                                                                 'event '
@@ -1287,7 +1514,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                 'types.',
                                                                                  'enum': ['PHYSICAL',
                                                                                           'ONLINE'],
-                                                                                 'type': 'string'},
+                                                                                 'type': 'string',
+                                                                                 'x-ui': {'basic': False}},
                                                                   'lat': {'description': 'Latitude '
                                                                                          'of '
                                                                                          'search '
@@ -1299,7 +1527,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                          'string '
                                                                                          'if '
                                                                                          'provided.',
-                                                                          'type': 'number'},
+                                                                          'type': 'number',
+                                                                          'x-ui': {'basic': False}},
                                                                   'location': {'description': 'City '
                                                                                               'name '
                                                                                               'or '
@@ -1333,7 +1562,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                               'an '
                                                                                               'online-only '
                                                                                               'request.',
-                                                                               'type': 'string'},
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': True}},
                                                                   'lon': {'description': 'Longitude '
                                                                                          'of '
                                                                                          'search '
@@ -1345,7 +1575,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                          'string '
                                                                                          'if '
                                                                                          'provided.',
-                                                                          'type': 'number'},
+                                                                          'type': 'number',
+                                                                          'x-ui': {'basic': False}},
                                                                   'past_events': {'default': False,
                                                                                   'description': 'Default '
                                                                                                  'false. '
@@ -1362,7 +1593,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  'past/completed '
                                                                                                  'conference '
                                                                                                  'sessions.',
-                                                                                  'type': 'boolean'},
+                                                                                  'type': 'boolean',
+                                                                                  'x-ui': {'basic': False}},
                                                                   'provider': {'description': 'Provider '
                                                                                               'for '
                                                                                               'this '
@@ -1386,7 +1618,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                         '39C3',
                                                                                         '38C3',
                                                                                         '37C3'],
-                                                                               'type': 'string'},
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': False}},
                                                                   'providers': {'description': 'Specific '
                                                                                                'providers '
                                                                                                'for '
@@ -1417,7 +1650,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                    '38C3',
                                                                                                    '37C3'],
                                                                                           'type': 'string'},
-                                                                                'type': 'array'},
+                                                                                'type': 'array',
+                                                                                'x-ui': {'basic': False}},
                                                                   'query': {'description': 'Topic '
                                                                                            'or '
                                                                                            'theme '
@@ -1452,7 +1686,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'reduce '
                                                                                            'result '
                                                                                            'quality.\n',
-                                                                            'type': 'string'},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
                                                                   'radius_miles': {'default': 25,
                                                                                    'description': 'Search '
                                                                                                   'radius '
@@ -1471,7 +1706,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                   'to '
                                                                                                   'PHYSICAL '
                                                                                                   'events.',
-                                                                                   'type': 'number'},
+                                                                                   'type': 'number',
+                                                                                   'x-ui': {'basic': False}},
                                                                   'relevance_criteria': {'description': 'Optional '
                                                                                                         'concise '
                                                                                                         'natural-language '
@@ -1570,7 +1806,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                         'irrelevant '
                                                                                                         'events.\n',
                                                                                          'maxLength': 1000,
-                                                                                         'type': 'string'},
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': True}},
                                                                   'start_date': {'description': 'Start '
                                                                                                 'of '
                                                                                                 'date '
@@ -1607,9 +1844,16 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                 'defaults '
                                                                                                 'to '
                                                                                                 'now.',
-                                                                                 'type': 'string'}},
-                                                   'type': 'object'},
-                                         'type': 'array'}},
+                                                                                 'type': 'string',
+                                                                                 'x-ui': {'basic': False}}},
+                                                   'type': 'object',
+                                                   'x-ui': {'basic': False,
+                                                            'control': 'date-range',
+                                                            'end_field': 'end_date',
+                                                            'max_offset_days': 365,
+                                                            'start_field': 'start_date'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'search',
@@ -1627,18 +1871,41 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                  'relevance_criteria even if related w',
   'description_key': 'fitness.search_locations.description',
   'schema': {'properties': {'requests': {'description': 'Location search requests.',
-                                         'items': {'properties': {'address': {'type': 'string'},
-                                                                  'category': {'type': 'string'},
-                                                                  'city': {'type': 'string'},
-                                                                  'lat': {'type': 'number'},
+                                         'items': {'properties': {'address': {'type': 'string',
+                                                                              'x-ui': {'basic': False,
+                                                                                       'city_field': 'city',
+                                                                                       'control': 'location',
+                                                                                       'latitude_field': 'lat',
+                                                                                       'location_mode': 'place',
+                                                                                       'longitude_field': 'lon'}},
+                                                                  'category': {'type': 'string',
+                                                                               'x-ui': {'basic': True}},
+                                                                  'city': {'type': 'string',
+                                                                           'x-ui': {'basic': True,
+                                                                                    'clear_fields': ['address'],
+                                                                                    'control': 'location',
+                                                                                    'latitude_field': 'lat',
+                                                                                    'location_mode': 'city',
+                                                                                    'longitude_field': 'lon'}},
+                                                                  'lat': {'type': 'number',
+                                                                          'x-ui': {'basic': False}},
                                                                   'limit': {'default': 10,
                                                                             'maximum': 50,
                                                                             'minimum': 1,
-                                                                            'type': 'integer'},
-                                                                  'lon': {'type': 'number'},
-                                                                  'plan': {'type': 'string'},
-                                                                  'query': {'type': 'string'},
-                                                                  'radius_km': {'type': 'number'},
+                                                                            'type': 'integer',
+                                                                            'x-ui': {'basic': True}},
+                                                                  'lon': {'type': 'number',
+                                                                          'x-ui': {'basic': False}},
+                                                                  'plan': {'enum': ['essential',
+                                                                                    'classic',
+                                                                                    'premium',
+                                                                                    'max'],
+                                                                           'type': 'string',
+                                                                           'x-ui': {'basic': False}},
+                                                                  'query': {'type': 'string',
+                                                                            'x-ui': {'basic': True}},
+                                                                  'radius_km': {'type': 'number',
+                                                                                'x-ui': {'basic': False}},
                                                                   'relevance_criteria': {'description': 'Optional '
                                                                                                         'concise '
                                                                                                         'natural-language '
@@ -1692,9 +1959,11 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                         'structured '
                                                                                                         'fields.\n',
                                                                                          'maxLength': 1000,
-                                                                                         'type': 'string'}},
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': True}}},
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'type': 'object'},
   'skill_id': 'search_locations',
   'skill_method_py': 'search_locations',
@@ -1711,22 +1980,69 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                  'class ordering, put it in relevan',
   'description_key': 'fitness.search_classes.description',
   'schema': {'properties': {'requests': {'description': 'Class search requests.',
-                                         'items': {'properties': {'address': {'type': 'string'},
-                                                                  'attendance_mode': {'type': 'string'},
-                                                                  'category': {'type': 'string'},
-                                                                  'city': {'type': 'string'},
-                                                                  'days': {'type': 'number'},
-                                                                  'end_date': {'type': 'string'},
-                                                                  'lat': {'type': 'number'},
+                                         'items': {'properties': {'address': {'type': 'string',
+                                                                              'x-ui': {'basic': False,
+                                                                                       'city_field': 'city',
+                                                                                       'control': 'location',
+                                                                                       'latitude_field': 'lat',
+                                                                                       'location_mode': 'place',
+                                                                                       'longitude_field': 'lon'}},
+                                                                  'attendance_mode': {'enum': ['onsite',
+                                                                                               'online',
+                                                                                               'all'],
+                                                                                      'type': 'string',
+                                                                                      'x-ui': {'basic': False}},
+                                                                  'category': {'description': 'Urban '
+                                                                                              'Sports '
+                                                                                              'activity '
+                                                                                              'name '
+                                                                                              '(for '
+                                                                                              'example '
+                                                                                              'Dance '
+                                                                                              'or '
+                                                                                              'Yoga) '
+                                                                                              'or '
+                                                                                              'numeric '
+                                                                                              'provider '
+                                                                                              'ID.',
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': False}},
+                                                                  'city': {'type': 'string',
+                                                                           'x-ui': {'basic': True,
+                                                                                    'clear_fields': ['address'],
+                                                                                    'control': 'location',
+                                                                                    'latitude_field': 'lat',
+                                                                                    'location_mode': 'city',
+                                                                                    'longitude_field': 'lon'}},
+                                                                  'days': {'maximum': 14,
+                                                                           'minimum': 1,
+                                                                           'type': 'integer',
+                                                                           'x-ui': {'basic': False}},
+                                                                  'end_date': {'format': 'date',
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': True}},
+                                                                  'lat': {'type': 'number',
+                                                                          'x-ui': {'basic': False}},
                                                                   'limit': {'default': 10,
                                                                             'maximum': 50,
                                                                             'minimum': 1,
-                                                                            'type': 'integer'},
-                                                                  'lon': {'type': 'number'},
-                                                                  'min_spots': {'type': 'number'},
-                                                                  'plan': {'type': 'string'},
-                                                                  'query': {'type': 'string'},
-                                                                  'radius_km': {'type': 'number'},
+                                                                            'type': 'integer',
+                                                                            'x-ui': {'basic': False}},
+                                                                  'lon': {'type': 'number',
+                                                                          'x-ui': {'basic': False}},
+                                                                  'min_spots': {'minimum': 0,
+                                                                                'type': 'integer',
+                                                                                'x-ui': {'basic': False}},
+                                                                  'plan': {'enum': ['essential',
+                                                                                    'classic',
+                                                                                    'premium',
+                                                                                    'max'],
+                                                                           'type': 'string',
+                                                                           'x-ui': {'basic': False}},
+                                                                  'query': {'type': 'string',
+                                                                            'x-ui': {'basic': True}},
+                                                                  'radius_km': {'type': 'number',
+                                                                                'x-ui': {'basic': False}},
                                                                   'relevance_criteria': {'description': 'Optional '
                                                                                                         'concise '
                                                                                                         'natural-language '
@@ -1781,11 +2097,22 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                         'structured '
                                                                                                         'fields.\n',
                                                                                          'maxLength': 1000,
-                                                                                         'type': 'string'},
-                                                                  'start_date': {'type': 'string'},
-                                                                  'venue_id': {'type': 'string'}},
-                                                   'type': 'object'},
-                                         'type': 'array'}},
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': True}},
+                                                                  'start_date': {'format': 'date',
+                                                                                 'type': 'string',
+                                                                                 'x-ui': {'basic': True}},
+                                                                  'venue_id': {'type': 'string',
+                                                                               'x-ui': {'basic': False}}},
+                                                   'type': 'object',
+                                                   'x-ui': {'control': 'date-range',
+                                                            'end_field': 'end_date',
+                                                            'max_offset_days': 365,
+                                                            'max_span_days': 13,
+                                                            'start_field': 'start_date'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
+             'required': ['requests'],
              'type': 'object'},
   'skill_id': 'search_classes',
   'skill_method_py': 'search_classes',
@@ -1832,7 +2159,10 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                           '"Nürnberg", '
                                                                                           '"Bonn", '
                                                                                           '"Heidelberg".\n',
-                                                                           'type': 'string'},
+                                                                           'type': 'string',
+                                                                           'x-ui': {'basic': True,
+                                                                                    'control': 'location',
+                                                                                    'location_mode': 'city'}},
                                                                   'days_ahead': {'default': 7,
                                                                                  'description': 'How '
                                                                                                 'many '
@@ -1862,7 +2192,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                 'to '
                                                                                                 '7.\n',
                                                                                  'enum': [1, 3, 7],
-                                                                                 'type': 'integer'},
+                                                                                 'type': 'integer',
+                                                                                 'x-ui': {'basic': True}},
                                                                   'insurance_sector': {'description': 'Insurance '
                                                                                                       'type '
                                                                                                       'filter. '
@@ -1886,7 +2217,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                       'types.\n',
                                                                                        'enum': ['public',
                                                                                                 'private'],
-                                                                                       'type': 'string'},
+                                                                                       'type': 'string',
+                                                                                       'x-ui': {'basic': True}},
                                                                   'language': {'description': 'Filter '
                                                                                               'for '
                                                                                               'doctors '
@@ -1919,7 +2251,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                               '(Romanian), '
                                                                                               '"zh" '
                                                                                               '(Chinese).\n',
-                                                                               'type': 'string'},
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': False}},
                                                                   'max_doctors': {'default': 10,
                                                                                   'description': 'Maximum '
                                                                                                  'number '
@@ -1942,7 +2275,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  '10.\n',
                                                                                   'maximum': 30,
                                                                                   'minimum': 1,
-                                                                                  'type': 'integer'},
+                                                                                  'type': 'integer',
+                                                                                  'x-ui': {'basic': False}},
                                                                   'provider_platform': {'default': 'both',
                                                                                         'description': 'Booking '
                                                                                                        'platform '
@@ -1982,7 +2316,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                         'enum': ['both',
                                                                                                  'doctolib_de',
                                                                                                  'jameda'],
-                                                                                        'type': 'string'},
+                                                                                        'type': 'string',
+                                                                                        'x-ui': {'basic': False}},
                                                                   'speciality': {'description': 'Doctor '
                                                                                                 'speciality '
                                                                                                 'or '
@@ -2012,7 +2347,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                 '"cardiologist", '
                                                                                                 '"neurologist", '
                                                                                                 '"pediatrician".\n',
-                                                                                 'type': 'string'},
+                                                                                 'type': 'string',
+                                                                                 'x-ui': {'basic': True}},
                                                                   'telehealth': {'default': False,
                                                                                  'description': 'If '
                                                                                                 'true, '
@@ -2027,7 +2363,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                 'Defaults '
                                                                                                 'to '
                                                                                                 'false.\n',
-                                                                                 'type': 'boolean'},
+                                                                                 'type': 'boolean',
+                                                                                 'x-ui': {'basic': False}},
                                                                   'visit_motive_category': {'description': 'Filter '
                                                                                                            'results '
                                                                                                            'by '
@@ -2104,10 +2441,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                      'checkup',
                                                                                                      'vaccination',
                                                                                                      'followup'],
-                                                                                            'type': 'string'}},
+                                                                                            'type': 'string',
+                                                                                            'x-ui': {'basic': False}}},
                                                    'required': ['speciality', 'city'],
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'search_appointments',
@@ -2162,46 +2501,66 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                       'title': 'Two-room apartment',
                                                                       'url': 'https://example.invalid/apartments/one'},
                                                           'properties': {'address': {'example': 'Berlin',
-                                                                                     'type': 'string'},
+                                                                                     'type': 'string',
+                                                                                     'x-ui': {'basic': False}},
                                                                          'available_from': {'type': ['string',
-                                                                                                     'null']},
+                                                                                                     'null'],
+                                                                                            'x-ui': {'basic': False}},
                                                                          'canonical_url': {'example': 'https://example.invalid/apartments/one',
-                                                                                           'type': 'string'},
+                                                                                           'type': 'string',
+                                                                                           'x-ui': {'basic': False}},
                                                                          'id': {'example': 'example-listing',
-                                                                                'type': 'string'},
+                                                                                'type': 'string',
+                                                                                'x-ui': {'basic': False}},
                                                                          'listing_type': {'example': 'rent',
-                                                                                          'type': 'string'},
+                                                                                          'type': 'string',
+                                                                                          'x-ui': {'basic': False}},
                                                                          'price': {'example': 1100,
                                                                                    'type': ['number',
-                                                                                            'null']},
+                                                                                            'null'],
+                                                                                   'x-ui': {'basic': False}},
                                                                          'price_label': {'example': '1.100 '
                                                                                                     'EUR/month',
-                                                                                         'type': 'string'},
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': False}},
                                                                          'property_type': {'example': 'apartment',
-                                                                                           'type': 'string'},
+                                                                                           'type': 'string',
+                                                                                           'x-ui': {'basic': False}},
                                                                          'provider': {'example': 'Example '
                                                                                                  'housing '
                                                                                                  'provider',
-                                                                                      'type': 'string'},
+                                                                                      'type': 'string',
+                                                                                      'x-ui': {'basic': False}},
                                                                          'rooms': {'example': 2,
                                                                                    'type': ['number',
-                                                                                            'null']},
+                                                                                            'null'],
+                                                                                   'x-ui': {'basic': False}},
                                                                          'size_sqm': {'example': 55,
                                                                                       'type': ['number',
-                                                                                               'null']},
+                                                                                               'null'],
+                                                                                      'x-ui': {'basic': False}},
                                                                          'source_id': {'example': 'example-listing',
-                                                                                       'type': 'string'},
+                                                                                       'type': 'string',
+                                                                                       'x-ui': {'basic': False}},
                                                                          'title': {'example': 'Two-room '
                                                                                               'apartment',
-                                                                                   'type': 'string'},
+                                                                                   'type': 'string',
+                                                                                   'x-ui': {'basic': False}},
                                                                          'url': {'example': 'https://example.invalid/apartments/one',
-                                                                                 'type': 'string'}},
+                                                                                 'type': 'string',
+                                                                                 'x-ui': {'basic': False}}},
                                                           'type': 'object'},
-                                                'type': 'array'},
-                                   'partial': {'example': False, 'type': 'boolean'},
+                                                'type': 'array',
+                                                'x-ui': {'basic': False}},
+                                   'partial': {'example': False,
+                                               'type': 'boolean',
+                                               'x-ui': {'basic': False}},
                                    'provider': {'example': 'Example housing provider',
-                                                'type': 'string'},
-                                   'result_count': {'example': 1, 'type': 'integer'},
+                                                'type': 'string',
+                                                'x-ui': {'basic': False}},
+                                   'result_count': {'example': 1,
+                                                    'type': 'integer',
+                                                    'x-ui': {'basic': False}},
                                    'results': {'example': [{'address': 'Berlin',
                                                             'canonical_url': 'https://example.invalid/apartments/one',
                                                             'id': 'example-listing',
@@ -2231,47 +2590,64 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                      'title': 'Two-room apartment',
                                                                      'url': 'https://example.invalid/apartments/one'},
                                                          'properties': {'address': {'example': 'Berlin',
-                                                                                    'type': 'string'},
+                                                                                    'type': 'string',
+                                                                                    'x-ui': {'basic': True}},
                                                                         'available_from': {'type': ['string',
-                                                                                                    'null']},
+                                                                                                    'null'],
+                                                                                           'x-ui': {'basic': False}},
                                                                         'canonical_url': {'example': 'https://example.invalid/apartments/one',
-                                                                                          'type': 'string'},
+                                                                                          'type': 'string',
+                                                                                          'x-ui': {'basic': False}},
                                                                         'id': {'example': 'example-listing',
-                                                                               'type': 'string'},
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': False}},
                                                                         'listing_type': {'example': 'rent',
-                                                                                         'type': 'string'},
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': False}},
                                                                         'price': {'example': 1100,
                                                                                   'type': ['number',
-                                                                                           'null']},
+                                                                                           'null'],
+                                                                                  'x-ui': {'basic': False}},
                                                                         'price_label': {'example': '1.100 '
                                                                                                    'EUR/month',
-                                                                                        'type': 'string'},
+                                                                                        'type': 'string',
+                                                                                        'x-ui': {'basic': True}},
                                                                         'property_type': {'example': 'apartment',
-                                                                                          'type': 'string'},
+                                                                                          'type': 'string',
+                                                                                          'x-ui': {'basic': False}},
                                                                         'provider': {'example': 'Example '
                                                                                                 'housing '
                                                                                                 'provider',
-                                                                                     'type': 'string'},
+                                                                                     'type': 'string',
+                                                                                     'x-ui': {'basic': False}},
                                                                         'rooms': {'example': 2,
                                                                                   'type': ['number',
-                                                                                           'null']},
+                                                                                           'null'],
+                                                                                  'x-ui': {'basic': False}},
                                                                         'size_sqm': {'example': 55,
                                                                                      'type': ['number',
-                                                                                              'null']},
+                                                                                              'null'],
+                                                                                     'x-ui': {'basic': False}},
                                                                         'source_id': {'example': 'example-listing',
-                                                                                      'type': 'string'},
+                                                                                      'type': 'string',
+                                                                                      'x-ui': {'basic': False}},
                                                                         'title': {'example': 'Two-room '
                                                                                              'apartment',
-                                                                                  'type': 'string'},
+                                                                                  'type': 'string',
+                                                                                  'x-ui': {'basic': True}},
                                                                         'url': {'example': 'https://example.invalid/apartments/one',
-                                                                                'type': 'string'}},
+                                                                                'type': 'string',
+                                                                                'x-ui': {'basic': True}}},
                                                          'type': 'object'},
-                                               'type': 'array'},
+                                               'type': 'array',
+                                               'x-ui': {'basic': True}},
                                    'summary': {'example': 'Home search completed',
-                                               'type': 'string'},
+                                               'type': 'string',
+                                               'x-ui': {'basic': False}},
                                    'warnings': {'example': [],
                                                 'items': {'type': 'string'},
-                                                'type': 'array'}},
+                                                'type': 'array',
+                                                'x-ui': {'basic': False}}},
                     'type': 'object'},
   'schema': {'properties': {'requests': {'description': 'Array of housing search requests. Each '
                                                         'request searches for apartments and rooms '
@@ -2300,7 +2676,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                   '"buy".\n',
                                                                                    'enum': ['rent',
                                                                                             'buy'],
-                                                                                   'type': 'string'},
+                                                                                   'type': 'string',
+                                                                                   'x-ui': {'basic': True}},
                                                                   'max_price_eur': {'description': 'Maximum '
                                                                                                    'advertised '
                                                                                                    'monthly '
@@ -2316,7 +2693,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                    'by '
                                                                                                    'provider.',
                                                                                     'minimum': 0,
-                                                                                    'type': 'number'},
+                                                                                    'type': 'number',
+                                                                                    'x-ui': {'basic': True}},
                                                                   'max_results': {'default': 10,
                                                                                   'description': 'Maximum '
                                                                                                  'number '
@@ -2329,7 +2707,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  '10).',
                                                                                   'maximum': 20,
                                                                                   'minimum': 1,
-                                                                                  'type': 'integer'},
+                                                                                  'type': 'integer',
+                                                                                  'x-ui': {'basic': False}},
                                                                   'min_rooms': {'description': 'Minimum '
                                                                                                'advertised '
                                                                                                'rooms. '
@@ -2342,7 +2721,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'when '
                                                                                                'set.',
                                                                                 'minimum': 0,
-                                                                                'type': 'number'},
+                                                                                'type': 'number',
+                                                                                'x-ui': {'basic': False}},
                                                                   'min_size_sqm': {'description': 'Minimum '
                                                                                                   'advertised '
                                                                                                   'area '
@@ -2356,7 +2736,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                   'when '
                                                                                                   'set.',
                                                                                    'minimum': 0,
-                                                                                   'type': 'number'},
+                                                                                   'type': 'number',
+                                                                                   'x-ui': {'basic': False}},
                                                                   'property_type': {'default': 'apartment',
                                                                                     'description': 'Entire '
                                                                                                    'apartments '
@@ -2369,7 +2750,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                    'WG-Gesucht.',
                                                                                     'enum': ['apartment',
                                                                                              'shared_room'],
-                                                                                    'type': 'string'},
+                                                                                    'type': 'string',
+                                                                                    'x-ui': {'basic': True}},
                                                                   'providers': {'description': 'Optional '
                                                                                                'list '
                                                                                                'of '
@@ -2384,7 +2766,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                    'Kleinanzeigen',
                                                                                                    'WG-Gesucht'],
                                                                                           'type': 'string'},
-                                                                                'type': 'array'},
+                                                                                'type': 'array',
+                                                                                'x-ui': {'basic': False}},
                                                                   'query': {'description': 'City '
                                                                                            'or '
                                                                                            'location '
@@ -2396,7 +2779,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            '"Berlin", '
                                                                                            '"Munich", '
                                                                                            '"Hamburg".\n',
-                                                                            'type': 'string'},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
                                                                   'relevance_criteria': {'description': 'Optional '
                                                                                                         'concise '
                                                                                                         'natural-language '
@@ -2463,7 +2847,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                         'are '
                                                                                                         'returned.\n',
                                                                                          'maxLength': 1000,
-                                                                                         'type': 'string'},
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': True}},
                                                                   'sort': {'default': 'price_asc',
                                                                            'description': 'Price '
                                                                                           'ascending, '
@@ -2486,15 +2871,542 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                           'order.',
                                                                            'enum': ['price_asc',
                                                                                     'newest'],
-                                                                           'type': 'string'}},
+                                                                           'type': 'string',
+                                                                           'x-ui': {'basic': False}}},
                                                    'required': ['query'],
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'search',
   'skill_method_py': 'search',
   'skill_method_ts': 'search'},
+ {'app_id': 'hosting',
+  'app_namespace_py': 'hosting',
+  'app_namespace_ts': 'hosting',
+  'description': 'Check an exact domain name or discover available domain names through Gandi. Use '
+                 'one grouped request per independent name or idea. A fully qualified domain is '
+                 'checked exactly. Put explicitly requested suffixes in tlds and explicit tax '
+                 'country and currency in country and currency; defaults are DE and EUR. Use '
+                 'availability=prefer_available by default: show confirmed available names first '
+                 'and checked in-use names only to fill remaining result slots. Use available_only '
+                 'only when the user wants no in',
+  'description_key': 'app_skills.hosting.search_domains.description',
+  'output_schema': {'properties': {'error': {'type': 'string', 'x-ui': {'basic': False}},
+                                   'provider': {'type': 'string', 'x-ui': {'basic': False}},
+                                   'raw': {'description': 'Full grouped response, including '
+                                                          'bounded checked candidates and partial '
+                                                          'context.',
+                                           'properties': {'results': {'items': {'properties': {'checked_at': {'type': 'string',
+                                                                                                              'x-ui': {'basic': False}},
+                                                                                               'checked_results': {'items': {'properties': {'availability': {'enum': ['available',
+                                                                                                                                                                      'unavailable',
+                                                                                                                                                                      'unknown'],
+                                                                                                                                                             'type': 'string',
+                                                                                                                                                             'x-ui': {'basic': True}},
+                                                                                                                                            'canonical_url': {'type': 'string',
+                                                                                                                                                              'x-ui': {'basic': False}},
+                                                                                                                                            'checked_at': {'type': 'string',
+                                                                                                                                                           'x-ui': {'basic': False}},
+                                                                                                                                            'country': {'type': 'string',
+                                                                                                                                                        'x-ui': {'basic': False}},
+                                                                                                                                            'currency': {'type': 'string',
+                                                                                                                                                         'x-ui': {'basic': True}},
+                                                                                                                                            'domain_ascii': {'type': 'string',
+                                                                                                                                                             'x-ui': {'basic': True}},
+                                                                                                                                            'domain_unicode': {'type': 'string',
+                                                                                                                                                               'x-ui': {'basic': True}},
+                                                                                                                                            'premium': {'type': 'boolean',
+                                                                                                                                                        'x-ui': {'basic': False}},
+                                                                                                                                            'provider': {'type': 'string',
+                                                                                                                                                         'x-ui': {'basic': False}},
+                                                                                                                                            'provider_url': {'type': 'string',
+                                                                                                                                                             'x-ui': {'basic': False}},
+                                                                                                                                            'registration_phase': {'type': 'string',
+                                                                                                                                                                   'x-ui': {'basic': False}},
+                                                                                                                                            'registration_tiers': {'items': {'properties': {'discount': {'type': 'boolean',
+                                                                                                                                                                                                         'x-ui': {'basic': False}},
+                                                                                                                                                                                            'duration_range': {'properties': {'maximum': {'type': 'integer',
+                                                                                                                                                                                                                                          'x-ui': {'basic': False}},
+                                                                                                                                                                                                                              'minimum': {'type': 'integer',
+                                                                                                                                                                                                                                          'x-ui': {'basic': False}}},
+                                                                                                                                                                                                               'type': 'object',
+                                                                                                                                                                                                               'x-ui': {'basic': False}},
+                                                                                                                                                                                            'minimum_term': {'type': 'string',
+                                                                                                                                                                                                             'x-ui': {'basic': False}},
+                                                                                                                                                                                            'normal_price': {'type': 'number',
+                                                                                                                                                                                                             'x-ui': {'basic': False}},
+                                                                                                                                                                                            'price_excluding_tax': {'type': 'number',
+                                                                                                                                                                                                                    'x-ui': {'basic': False}},
+                                                                                                                                                                                            'price_including_tax': {'type': 'number',
+                                                                                                                                                                                                                    'x-ui': {'basic': True}},
+                                                                                                                                                                                            'product_taxes': {'items': {'type': 'object'},
+                                                                                                                                                                                                              'type': 'array',
+                                                                                                                                                                                                              'x-ui': {'basic': False}},
+                                                                                                                                                                                            'unit': {'type': 'string',
+                                                                                                                                                                                                     'x-ui': {'basic': False}}},
+                                                                                                                                                                             'type': 'object'},
+                                                                                                                                                                   'type': 'array',
+                                                                                                                                                                   'x-ui': {'basic': True}},
+                                                                                                                                            'renewal_tiers': {'items': {'properties': {'discount': {'type': 'boolean',
+                                                                                                                                                                                                    'x-ui': {'basic': False}},
+                                                                                                                                                                                       'duration_range': {'properties': {'maximum': {'type': 'integer',
+                                                                                                                                                                                                                                     'x-ui': {'basic': False}},
+                                                                                                                                                                                                                         'minimum': {'type': 'integer',
+                                                                                                                                                                                                                                     'x-ui': {'basic': False}}},
+                                                                                                                                                                                                          'type': 'object',
+                                                                                                                                                                                                          'x-ui': {'basic': False}},
+                                                                                                                                                                                       'minimum_term': {'type': 'string',
+                                                                                                                                                                                                        'x-ui': {'basic': False}},
+                                                                                                                                                                                       'normal_price': {'type': 'number',
+                                                                                                                                                                                                        'x-ui': {'basic': False}},
+                                                                                                                                                                                       'price_excluding_tax': {'type': 'number',
+                                                                                                                                                                                                               'x-ui': {'basic': False}},
+                                                                                                                                                                                       'price_including_tax': {'type': 'number',
+                                                                                                                                                                                                               'x-ui': {'basic': True}},
+                                                                                                                                                                                       'product_taxes': {'items': {'type': 'object'},
+                                                                                                                                                                                                         'type': 'array',
+                                                                                                                                                                                                         'x-ui': {'basic': False}},
+                                                                                                                                                                                       'unit': {'type': 'string',
+                                                                                                                                                                                                'x-ui': {'basic': False}}},
+                                                                                                                                                                        'type': 'object'},
+                                                                                                                                                              'type': 'array',
+                                                                                                                                                              'x-ui': {'basic': True}},
+                                                                                                                                            'reserved': {'type': 'boolean',
+                                                                                                                                                         'x-ui': {'basic': False}},
+                                                                                                                                            'restrictions': {'items': {'type': 'string'},
+                                                                                                                                                             'type': 'array',
+                                                                                                                                                             'x-ui': {'basic': False}},
+                                                                                                                                            'source_id': {'type': 'string',
+                                                                                                                                                          'x-ui': {'basic': False}},
+                                                                                                                                            'taxes': {'items': {'properties': {'name': {'type': 'string',
+                                                                                                                                                                                        'x-ui': {'basic': False}},
+                                                                                                                                                                               'name_label': {'type': 'string',
+                                                                                                                                                                                              'x-ui': {'basic': False}},
+                                                                                                                                                                               'rate': {'type': 'number',
+                                                                                                                                                                                        'x-ui': {'basic': False}},
+                                                                                                                                                                               'type': {'type': 'string',
+                                                                                                                                                                                        'x-ui': {'basic': False}}},
+                                                                                                                                                                'type': 'object'},
+                                                                                                                                                      'type': 'array',
+                                                                                                                                                      'x-ui': {'basic': False}},
+                                                                                                                                            'url': {'type': 'string',
+                                                                                                                                                    'x-ui': {'basic': True}}},
+                                                                                                                             'type': 'object'},
+                                                                                                                   'type': 'array',
+                                                                                                                   'x-ui': {'basic': False}},
+                                                                                               'country': {'type': 'string',
+                                                                                                           'x-ui': {'basic': False}},
+                                                                                               'currency': {'type': 'string',
+                                                                                                            'x-ui': {'basic': False}},
+                                                                                               'error': {'type': 'string',
+                                                                                                         'x-ui': {'basic': False}},
+                                                                                               'id': {'anyOf': [{'type': 'string'},
+                                                                                                                {'type': 'integer'}],
+                                                                                                      'x-ui': {'basic': False}},
+                                                                                               'partial': {'type': 'boolean',
+                                                                                                           'x-ui': {'basic': False}},
+                                                                                               'query': {'type': 'string',
+                                                                                                         'x-ui': {'basic': False}},
+                                                                                               'relevance_applied': {'type': 'boolean',
+                                                                                                                     'x-ui': {'basic': False}},
+                                                                                               'results': {'items': {'properties': {'availability': {'enum': ['available',
+                                                                                                                                                              'unavailable',
+                                                                                                                                                              'unknown'],
+                                                                                                                                                     'type': 'string',
+                                                                                                                                                     'x-ui': {'basic': True}},
+                                                                                                                                    'canonical_url': {'type': 'string',
+                                                                                                                                                      'x-ui': {'basic': False}},
+                                                                                                                                    'checked_at': {'type': 'string',
+                                                                                                                                                   'x-ui': {'basic': False}},
+                                                                                                                                    'country': {'type': 'string',
+                                                                                                                                                'x-ui': {'basic': False}},
+                                                                                                                                    'currency': {'type': 'string',
+                                                                                                                                                 'x-ui': {'basic': True}},
+                                                                                                                                    'domain_ascii': {'type': 'string',
+                                                                                                                                                     'x-ui': {'basic': True}},
+                                                                                                                                    'domain_unicode': {'type': 'string',
+                                                                                                                                                       'x-ui': {'basic': True}},
+                                                                                                                                    'premium': {'type': 'boolean',
+                                                                                                                                                'x-ui': {'basic': False}},
+                                                                                                                                    'provider': {'type': 'string',
+                                                                                                                                                 'x-ui': {'basic': False}},
+                                                                                                                                    'provider_url': {'type': 'string',
+                                                                                                                                                     'x-ui': {'basic': False}},
+                                                                                                                                    'registration_phase': {'type': 'string',
+                                                                                                                                                           'x-ui': {'basic': False}},
+                                                                                                                                    'registration_tiers': {'items': {'properties': {'discount': {'type': 'boolean',
+                                                                                                                                                                                                 'x-ui': {'basic': False}},
+                                                                                                                                                                                    'duration_range': {'properties': {'maximum': {'type': 'integer',
+                                                                                                                                                                                                                                  'x-ui': {'basic': False}},
+                                                                                                                                                                                                                      'minimum': {'type': 'integer',
+                                                                                                                                                                                                                                  'x-ui': {'basic': False}}},
+                                                                                                                                                                                                       'type': 'object',
+                                                                                                                                                                                                       'x-ui': {'basic': False}},
+                                                                                                                                                                                    'minimum_term': {'type': 'string',
+                                                                                                                                                                                                     'x-ui': {'basic': False}},
+                                                                                                                                                                                    'normal_price': {'type': 'number',
+                                                                                                                                                                                                     'x-ui': {'basic': False}},
+                                                                                                                                                                                    'price_excluding_tax': {'type': 'number',
+                                                                                                                                                                                                            'x-ui': {'basic': False}},
+                                                                                                                                                                                    'price_including_tax': {'type': 'number',
+                                                                                                                                                                                                            'x-ui': {'basic': True}},
+                                                                                                                                                                                    'product_taxes': {'items': {'type': 'object'},
+                                                                                                                                                                                                      'type': 'array',
+                                                                                                                                                                                                      'x-ui': {'basic': False}},
+                                                                                                                                                                                    'unit': {'type': 'string',
+                                                                                                                                                                                             'x-ui': {'basic': False}}},
+                                                                                                                                                                     'type': 'object'},
+                                                                                                                                                           'type': 'array',
+                                                                                                                                                           'x-ui': {'basic': True}},
+                                                                                                                                    'renewal_tiers': {'items': {'properties': {'discount': {'type': 'boolean',
+                                                                                                                                                                                            'x-ui': {'basic': False}},
+                                                                                                                                                                               'duration_range': {'properties': {'maximum': {'type': 'integer',
+                                                                                                                                                                                                                             'x-ui': {'basic': False}},
+                                                                                                                                                                                                                 'minimum': {'type': 'integer',
+                                                                                                                                                                                                                             'x-ui': {'basic': False}}},
+                                                                                                                                                                                                  'type': 'object',
+                                                                                                                                                                                                  'x-ui': {'basic': False}},
+                                                                                                                                                                               'minimum_term': {'type': 'string',
+                                                                                                                                                                                                'x-ui': {'basic': False}},
+                                                                                                                                                                               'normal_price': {'type': 'number',
+                                                                                                                                                                                                'x-ui': {'basic': False}},
+                                                                                                                                                                               'price_excluding_tax': {'type': 'number',
+                                                                                                                                                                                                       'x-ui': {'basic': False}},
+                                                                                                                                                                               'price_including_tax': {'type': 'number',
+                                                                                                                                                                                                       'x-ui': {'basic': True}},
+                                                                                                                                                                               'product_taxes': {'items': {'type': 'object'},
+                                                                                                                                                                                                 'type': 'array',
+                                                                                                                                                                                                 'x-ui': {'basic': False}},
+                                                                                                                                                                               'unit': {'type': 'string',
+                                                                                                                                                                                        'x-ui': {'basic': False}}},
+                                                                                                                                                                'type': 'object'},
+                                                                                                                                                      'type': 'array',
+                                                                                                                                                      'x-ui': {'basic': True}},
+                                                                                                                                    'reserved': {'type': 'boolean',
+                                                                                                                                                 'x-ui': {'basic': False}},
+                                                                                                                                    'restrictions': {'items': {'type': 'string'},
+                                                                                                                                                     'type': 'array',
+                                                                                                                                                     'x-ui': {'basic': False}},
+                                                                                                                                    'source_id': {'type': 'string',
+                                                                                                                                                  'x-ui': {'basic': False}},
+                                                                                                                                    'taxes': {'items': {'properties': {'name': {'type': 'string',
+                                                                                                                                                                                'x-ui': {'basic': False}},
+                                                                                                                                                                       'name_label': {'type': 'string',
+                                                                                                                                                                                      'x-ui': {'basic': False}},
+                                                                                                                                                                       'rate': {'type': 'number',
+                                                                                                                                                                                'x-ui': {'basic': False}},
+                                                                                                                                                                       'type': {'type': 'string',
+                                                                                                                                                                                'x-ui': {'basic': False}}},
+                                                                                                                                                        'type': 'object'},
+                                                                                                                                              'type': 'array',
+                                                                                                                                              'x-ui': {'basic': False}},
+                                                                                                                                    'url': {'type': 'string',
+                                                                                                                                            'x-ui': {'basic': True}}},
+                                                                                                                     'type': 'object'},
+                                                                                                           'type': 'array',
+                                                                                                           'x-ui': {'basic': False}},
+                                                                                               'warnings': {'items': {'type': 'string'},
+                                                                                                            'type': 'array',
+                                                                                                            'x-ui': {'basic': False}}},
+                                                                                'type': 'object'},
+                                                                      'type': 'array',
+                                                                      'x-ui': {'basic': False}}},
+                                           'type': 'object',
+                                           'x-ui': {'basic': False}},
+                                   'result_count': {'type': 'integer', 'x-ui': {'basic': True}},
+                                   'results': {'description': 'Selected checked domains, flattened '
+                                                              'across request groups.',
+                                               'items': {'properties': {'availability': {'enum': ['available',
+                                                                                                  'unavailable',
+                                                                                                  'unknown'],
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': True}},
+                                                                        'canonical_url': {'type': 'string',
+                                                                                          'x-ui': {'basic': False}},
+                                                                        'checked_at': {'type': 'string',
+                                                                                       'x-ui': {'basic': False}},
+                                                                        'country': {'type': 'string',
+                                                                                    'x-ui': {'basic': False}},
+                                                                        'currency': {'type': 'string',
+                                                                                     'x-ui': {'basic': True}},
+                                                                        'domain_ascii': {'type': 'string',
+                                                                                         'x-ui': {'basic': True}},
+                                                                        'domain_unicode': {'type': 'string',
+                                                                                           'x-ui': {'basic': True}},
+                                                                        'premium': {'type': 'boolean',
+                                                                                    'x-ui': {'basic': False}},
+                                                                        'provider': {'type': 'string',
+                                                                                     'x-ui': {'basic': False}},
+                                                                        'provider_url': {'type': 'string',
+                                                                                         'x-ui': {'basic': False}},
+                                                                        'registration_phase': {'type': 'string',
+                                                                                               'x-ui': {'basic': False}},
+                                                                        'registration_tiers': {'items': {'properties': {'discount': {'type': 'boolean',
+                                                                                                                                     'x-ui': {'basic': False}},
+                                                                                                                        'duration_range': {'properties': {'maximum': {'type': 'integer',
+                                                                                                                                                                      'x-ui': {'basic': False}},
+                                                                                                                                                          'minimum': {'type': 'integer',
+                                                                                                                                                                      'x-ui': {'basic': False}}},
+                                                                                                                                           'type': 'object',
+                                                                                                                                           'x-ui': {'basic': False}},
+                                                                                                                        'minimum_term': {'type': 'string',
+                                                                                                                                         'x-ui': {'basic': False}},
+                                                                                                                        'normal_price': {'type': 'number',
+                                                                                                                                         'x-ui': {'basic': False}},
+                                                                                                                        'price_excluding_tax': {'type': 'number',
+                                                                                                                                                'x-ui': {'basic': False}},
+                                                                                                                        'price_including_tax': {'type': 'number',
+                                                                                                                                                'x-ui': {'basic': True}},
+                                                                                                                        'product_taxes': {'items': {'type': 'object'},
+                                                                                                                                          'type': 'array',
+                                                                                                                                          'x-ui': {'basic': False}},
+                                                                                                                        'unit': {'type': 'string',
+                                                                                                                                 'x-ui': {'basic': False}}},
+                                                                                                         'type': 'object'},
+                                                                                               'type': 'array',
+                                                                                               'x-ui': {'basic': True}},
+                                                                        'renewal_tiers': {'items': {'properties': {'discount': {'type': 'boolean',
+                                                                                                                                'x-ui': {'basic': False}},
+                                                                                                                   'duration_range': {'properties': {'maximum': {'type': 'integer',
+                                                                                                                                                                 'x-ui': {'basic': False}},
+                                                                                                                                                     'minimum': {'type': 'integer',
+                                                                                                                                                                 'x-ui': {'basic': False}}},
+                                                                                                                                      'type': 'object',
+                                                                                                                                      'x-ui': {'basic': False}},
+                                                                                                                   'minimum_term': {'type': 'string',
+                                                                                                                                    'x-ui': {'basic': False}},
+                                                                                                                   'normal_price': {'type': 'number',
+                                                                                                                                    'x-ui': {'basic': False}},
+                                                                                                                   'price_excluding_tax': {'type': 'number',
+                                                                                                                                           'x-ui': {'basic': False}},
+                                                                                                                   'price_including_tax': {'type': 'number',
+                                                                                                                                           'x-ui': {'basic': True}},
+                                                                                                                   'product_taxes': {'items': {'type': 'object'},
+                                                                                                                                     'type': 'array',
+                                                                                                                                     'x-ui': {'basic': False}},
+                                                                                                                   'unit': {'type': 'string',
+                                                                                                                            'x-ui': {'basic': False}}},
+                                                                                                    'type': 'object'},
+                                                                                          'type': 'array',
+                                                                                          'x-ui': {'basic': True}},
+                                                                        'reserved': {'type': 'boolean',
+                                                                                     'x-ui': {'basic': False}},
+                                                                        'restrictions': {'items': {'type': 'string'},
+                                                                                         'type': 'array',
+                                                                                         'x-ui': {'basic': False}},
+                                                                        'source_id': {'type': 'string',
+                                                                                      'x-ui': {'basic': False}},
+                                                                        'taxes': {'items': {'properties': {'name': {'type': 'string',
+                                                                                                                    'x-ui': {'basic': False}},
+                                                                                                           'name_label': {'type': 'string',
+                                                                                                                          'x-ui': {'basic': False}},
+                                                                                                           'rate': {'type': 'number',
+                                                                                                                    'x-ui': {'basic': False}},
+                                                                                                           'type': {'type': 'string',
+                                                                                                                    'x-ui': {'basic': False}}},
+                                                                                            'type': 'object'},
+                                                                                  'type': 'array',
+                                                                                  'x-ui': {'basic': False}},
+                                                                        'url': {'type': 'string',
+                                                                                'x-ui': {'basic': True}}},
+                                                         'type': 'object'},
+                                               'type': 'array',
+                                               'x-ui': {'basic': True}},
+                                   'summary': {'type': 'string', 'x-ui': {'basic': False}}},
+                    'type': 'object'},
+  'schema': {'properties': {'requests': {'description': 'One to five independent domain checks or '
+                                                        'name searches.',
+                                         'items': {'properties': {'availability': {'default': 'prefer_available',
+                                                                                   'description': 'prefer_available '
+                                                                                                  'selects '
+                                                                                                  'confirmed '
+                                                                                                  'available '
+                                                                                                  'first, '
+                                                                                                  'then '
+                                                                                                  'checked '
+                                                                                                  'unavailable '
+                                                                                                  'names '
+                                                                                                  'only '
+                                                                                                  'to '
+                                                                                                  'fill '
+                                                                                                  'a '
+                                                                                                  'shortfall. '
+                                                                                                  'available_only '
+                                                                                                  'never '
+                                                                                                  'fills '
+                                                                                                  'with '
+                                                                                                  'unavailable. '
+                                                                                                  'all '
+                                                                                                  'preserves '
+                                                                                                  'ranked '
+                                                                                                  'checked '
+                                                                                                  'available '
+                                                                                                  'and '
+                                                                                                  'unavailable '
+                                                                                                  'order. '
+                                                                                                  'Unknown '
+                                                                                                  'checks '
+                                                                                                  'remain '
+                                                                                                  'diagnostic '
+                                                                                                  'only.\n',
+                                                                                   'enum': ['prefer_available',
+                                                                                            'available_only',
+                                                                                            'all'],
+                                                                                   'type': 'string',
+                                                                                   'x-ui': {'basic': True}},
+                                                                  'country': {'default': 'DE',
+                                                                              'description': 'Two-letter '
+                                                                                             'tax '
+                                                                                             'country '
+                                                                                             'code; '
+                                                                                             'returned '
+                                                                                             'explicitly '
+                                                                                             'with '
+                                                                                             'prices.',
+                                                                              'type': 'string',
+                                                                              'x-ui': {'basic': False}},
+                                                                  'currency': {'default': 'EUR',
+                                                                               'description': 'Supported '
+                                                                                              'quote '
+                                                                                              'currency. '
+                                                                                              'Unsupported '
+                                                                                              'currencies '
+                                                                                              'are '
+                                                                                              'rejected.',
+                                                                               'enum': ['EUR',
+                                                                                        'USD'],
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': False}},
+                                                                  'id': {'anyOf': [{'type': 'string'},
+                                                                                   {'type': 'integer'}],
+                                                                         'description': 'Optional '
+                                                                                        'caller ID '
+                                                                                        'echoed in '
+                                                                                        'this '
+                                                                                        "group's "
+                                                                                        'result.',
+                                                                         'x-ui': {'basic': False}},
+                                                                  'max_results': {'default': 10,
+                                                                                  'description': 'Maximum '
+                                                                                                 'selected '
+                                                                                                 'results '
+                                                                                                 'per '
+                                                                                                 'group. '
+                                                                                                 'Checked '
+                                                                                                 'pool '
+                                                                                                 'remains '
+                                                                                                 'at '
+                                                                                                 'most '
+                                                                                                 '40.',
+                                                                                  'maximum': 20,
+                                                                                  'minimum': 1,
+                                                                                  'type': 'integer',
+                                                                                  'x-ui': {'basic': False}},
+                                                                  'query': {'description': 'An '
+                                                                                           'exact '
+                                                                                           'fully '
+                                                                                           'qualified '
+                                                                                           'domain '
+                                                                                           '(up to '
+                                                                                           '253 '
+                                                                                           'characters), '
+                                                                                           'a '
+                                                                                           'short '
+                                                                                           'name, '
+                                                                                           'or a '
+                                                                                           'keyword '
+                                                                                           'idea '
+                                                                                           '(up to '
+                                                                                           '100 '
+                                                                                           'characters).',
+                                                                            'maxLength': 253,
+                                                                            'minLength': 1,
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
+                                                                  'relevance_criteria': {'description': 'Optional '
+                                                                                                        'natural-language '
+                                                                                                        'goal '
+                                                                                                        'for '
+                                                                                                        'ranking '
+                                                                                                        'checked '
+                                                                                                        'candidates. '
+                                                                                                        'Set '
+                                                                                                        'when '
+                                                                                                        'the '
+                                                                                                        'user '
+                                                                                                        'states '
+                                                                                                        'a '
+                                                                                                        'material '
+                                                                                                        'brand, '
+                                                                                                        'name-fit, '
+                                                                                                        'renewal-price, '
+                                                                                                        'term, '
+                                                                                                        'premium, '
+                                                                                                        'or '
+                                                                                                        'restriction '
+                                                                                                        'preference '
+                                                                                                        'that '
+                                                                                                        'should '
+                                                                                                        'change '
+                                                                                                        'order. '
+                                                                                                        'Copy '
+                                                                                                        'the '
+                                                                                                        'goal '
+                                                                                                        'faithfully; '
+                                                                                                        'omit '
+                                                                                                        'for '
+                                                                                                        'neutral '
+                                                                                                        'lookup '
+                                                                                                        'or '
+                                                                                                        'discovery. '
+                                                                                                        'Ranking '
+                                                                                                        'uses '
+                                                                                                        'only '
+                                                                                                        'evidenced '
+                                                                                                        'provider '
+                                                                                                        'facts '
+                                                                                                        'and '
+                                                                                                        'drops '
+                                                                                                        'scores '
+                                                                                                        'below '
+                                                                                                        '1.\n',
+                                                                                         'maxLength': 1000,
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': True}},
+                                                                  'tlds': {'description': 'Optional '
+                                                                                          'suffixes '
+                                                                                          'such as '
+                                                                                          '.com or '
+                                                                                          '.net. '
+                                                                                          'For a '
+                                                                                          'short '
+                                                                                          'single-label '
+                                                                                          'name, '
+                                                                                          'check '
+                                                                                          'each '
+                                                                                          'exact '
+                                                                                          'name '
+                                                                                          'plus '
+                                                                                          'suffix '
+                                                                                          'before '
+                                                                                          'suggestions.\n',
+                                                                           'items': {'type': 'string'},
+                                                                           'maxItems': 5,
+                                                                           'type': 'array',
+                                                                           'x-ui': {'basic': True}}},
+                                                   'required': ['query'],
+                                                   'type': 'object'},
+                                         'maxItems': 5,
+                                         'minItems': 1,
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
+             'required': ['requests'],
+             'type': 'object'},
+  'skill_id': 'search_domains',
+  'skill_method_py': 'search_domains',
+  'skill_method_ts': 'searchDomains'},
  {'app_id': 'images',
   'app_namespace_py': 'images',
   'app_namespace_ts': 'images',
@@ -2532,7 +3444,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                             '3:2',
                                                                                             '2:3',
                                                                                             '9:16'],
-                                                                                   'type': 'string'},
+                                                                                   'type': 'string',
+                                                                                   'x-ui': {'basic': True}},
                                                                   'output_filetype': {'default': 'png',
                                                                                       'description': 'Output '
                                                                                                      'file '
@@ -2605,7 +3518,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                       'enum': ['png',
                                                                                                'jpg',
                                                                                                'svg'],
-                                                                                      'type': 'string'},
+                                                                                      'type': 'string',
+                                                                                      'x-ui': {'basic': True}},
                                                                   'prompt': {'description': 'Detailed '
                                                                                             'description '
                                                                                             'of '
@@ -2613,7 +3527,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                             'image '
                                                                                             'to '
                                                                                             'generate',
-                                                                             'type': 'string'},
+                                                                             'type': 'string',
+                                                                             'x-ui': {'basic': True}},
                                                                   'quality': {'default': 'default',
                                                                               'description': 'Generation '
                                                                                              'quality. '
@@ -2713,7 +3628,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                              'provider.\n',
                                                                               'enum': ['default',
                                                                                        'max'],
-                                                                              'type': 'string'},
+                                                                              'type': 'string',
+                                                                              'x-ui': {'basic': True}},
                                                                   'reference_images': {'description': 'Optional '
                                                                                                       'list '
                                                                                                       'of '
@@ -2789,10 +3705,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                                 'uploaded '
                                                                                                                 'image',
                                                                                                  'type': 'string'},
-                                                                                       'type': 'array'}},
+                                                                                       'type': 'array',
+                                                                                       'x-ui': {'basic': False}}},
                                                    'required': ['prompt'],
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'generate',
@@ -2825,7 +3743,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                             'image '
                                                                                             'to '
                                                                                             'generate',
-                                                                             'type': 'string'},
+                                                                             'type': 'string',
+                                                                             'x-ui': {'basic': True}},
                                                                   'reference_images': {'description': 'Optional '
                                                                                                       'list '
                                                                                                       'of '
@@ -2894,10 +3813,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                                 'uploaded '
                                                                                                                 'image',
                                                                                                  'type': 'string'},
-                                                                                       'type': 'array'}},
+                                                                                       'type': 'array',
+                                                                                       'x-ui': {'basic': False}}},
                                                    'required': ['prompt'],
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'generate_draft',
@@ -3034,20 +3955,106 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                     'as '
                                                                                                     'matches.',
                                                                                      'properties': {'airConditioning': {'enum': ['required'],
-                                                                                                                        'type': 'string'},
-                                                                                                    'diet': {'type': 'string'},
+                                                                                                                        'type': 'string',
+                                                                                                                        'x-ui': {'basic': False}},
+                                                                                                    'diet': {'type': 'string',
+                                                                                                             'x-ui': {'basic': False}},
                                                                                                     'internetAccess': {'enum': ['free_required',
                                                                                                                                 'required'],
-                                                                                                                       'type': 'string'},
+                                                                                                                       'type': 'string',
+                                                                                                                       'x-ui': {'basic': False}},
                                                                                                     'outdoorSeating': {'enum': ['required'],
-                                                                                                                       'type': 'string'},
-                                                                                                    'payment': {'type': 'string'},
-                                                                                                    'smoking': {'type': 'string'},
+                                                                                                                       'type': 'string',
+                                                                                                                       'x-ui': {'basic': False}},
+                                                                                                    'payment': {'type': 'string',
+                                                                                                                'x-ui': {'basic': False}},
+                                                                                                    'smoking': {'type': 'string',
+                                                                                                                'x-ui': {'basic': False}},
                                                                                                     'toilets': {'enum': ['required'],
-                                                                                                                'type': 'string'},
+                                                                                                                'type': 'string',
+                                                                                                                'x-ui': {'basic': False}},
                                                                                                     'wheelchair': {'enum': ['required'],
-                                                                                                                   'type': 'string'}},
-                                                                                     'type': 'object'},
+                                                                                                                   'type': 'string',
+                                                                                                                   'x-ui': {'basic': False}}},
+                                                                                     'type': 'object',
+                                                                                     'x-ui': {'basic': False}},
+                                                                  'area': {'additionalProperties': False,
+                                                                           'description': 'Discovery '
+                                                                                          'circle. '
+                                                                                          'Provide '
+                                                                                          'either '
+                                                                                          'a name '
+                                                                                          '(city/region '
+                                                                                          'and '
+                                                                                          'country) '
+                                                                                          'or both '
+                                                                                          'latitude '
+                                                                                          'and '
+                                                                                          'longitude. '
+                                                                                          'radiusMeters '
+                                                                                          'defaults '
+                                                                                          'to '
+                                                                                          '10000 '
+                                                                                          'and is '
+                                                                                          'bounded '
+                                                                                          'to '
+                                                                                          '50000. '
+                                                                                          'Only '
+                                                                                          'used '
+                                                                                          'with '
+                                                                                          'categories; '
+                                                                                          'never '
+                                                                                          'infer '
+                                                                                          'the '
+                                                                                          "user's "
+                                                                                          'current '
+                                                                                          'location.\n',
+                                                                           'properties': {'latitude': {'maximum': 90,
+                                                                                                       'minimum': -90,
+                                                                                                       'type': 'number'},
+                                                                                          'longitude': {'maximum': 180,
+                                                                                                        'minimum': -180,
+                                                                                                        'type': 'number'},
+                                                                                          'name': {'maxLength': 200,
+                                                                                                   'minLength': 2,
+                                                                                                   'type': 'string'},
+                                                                                          'radiusMeters': {'default': 10000,
+                                                                                                           'maximum': 50000,
+                                                                                                           'minimum': 1,
+                                                                                                           'type': 'integer'}},
+                                                                           'type': 'object'},
+                                                                  'categories': {'description': 'Direct '
+                                                                                                'OpenStreetMap '
+                                                                                                'discovery '
+                                                                                                'via '
+                                                                                                'Geoapify. '
+                                                                                                'OR '
+                                                                                                'of '
+                                                                                                'these '
+                                                                                                'categories; '
+                                                                                                'requires '
+                                                                                                'area. '
+                                                                                                'No '
+                                                                                                'Google-only '
+                                                                                                'filters. '
+                                                                                                'Ruins '
+                                                                                                'does '
+                                                                                                'not '
+                                                                                                'include '
+                                                                                                'arbitrary '
+                                                                                                'abandoned '
+                                                                                                'places.\n',
+                                                                                 'items': {'enum': ['ruins',
+                                                                                                    'viewpoints',
+                                                                                                    'drinking_water',
+                                                                                                    'toilets',
+                                                                                                    'picnic_sites',
+                                                                                                    'campsites'],
+                                                                                           'type': 'string'},
+                                                                                 'maxItems': 6,
+                                                                                 'minItems': 1,
+                                                                                 'type': 'array',
+                                                                                 'uniqueItems': True},
                                                                   'includeReviews': {'default': False,
                                                                                      'description': 'If '
                                                                                                     'true, '
@@ -3070,7 +4077,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                     'increase '
                                                                                                     'response '
                                                                                                     'size.',
-                                                                                     'type': 'boolean'},
+                                                                                     'type': 'boolean',
+                                                                                     'x-ui': {'basic': False}},
                                                                   'includedType': {'description': 'Optional '
                                                                                                   'place '
                                                                                                   'type '
@@ -3089,7 +4097,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                   'for '
                                                                                                   'full '
                                                                                                   'list.',
-                                                                                   'type': 'string'},
+                                                                                   'type': 'string',
+                                                                                   'x-ui': {'basic': False}},
                                                                   'languageCode': {'default': 'en',
                                                                                    'description': 'Language '
                                                                                                   'code '
@@ -3108,7 +4117,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                   'if '
                                                                                                   'not '
                                                                                                   'specified.',
-                                                                                   'type': 'string'},
+                                                                                   'type': 'string',
+                                                                                   'x-ui': {'basic': False}},
                                                                   'locationBias': {'description': 'Optional '
                                                                                                   'location '
                                                                                                   'bias '
@@ -3129,25 +4139,38 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                   'or '
                                                                                                   'rectangle '
                                                                                                   '(viewport).',
-                                                                                   'properties': {'circle': {'properties': {'center': {'properties': {'latitude': {'type': 'number'},
-                                                                                                                                                      'longitude': {'type': 'number'}},
-                                                                                                                                       'type': 'object'},
+                                                                                   'properties': {'circle': {'properties': {'center': {'properties': {'latitude': {'type': 'number',
+                                                                                                                                                                   'x-ui': {'basic': False}},
+                                                                                                                                                      'longitude': {'type': 'number',
+                                                                                                                                                                    'x-ui': {'basic': False}}},
+                                                                                                                                       'type': 'object',
+                                                                                                                                       'x-ui': {'basic': False}},
                                                                                                                             'radius': {'description': 'Radius '
                                                                                                                                                       'in '
                                                                                                                                                       'meters '
                                                                                                                                                       '(0.0 '
                                                                                                                                                       'to '
                                                                                                                                                       '50000.0)',
-                                                                                                                                       'type': 'number'}},
-                                                                                                             'type': 'object'},
-                                                                                                  'rectangle': {'properties': {'high': {'properties': {'latitude': {'type': 'number'},
-                                                                                                                                                       'longitude': {'type': 'number'}},
-                                                                                                                                        'type': 'object'},
-                                                                                                                               'low': {'properties': {'latitude': {'type': 'number'},
-                                                                                                                                                      'longitude': {'type': 'number'}},
-                                                                                                                                       'type': 'object'}},
-                                                                                                                'type': 'object'}},
-                                                                                   'type': 'object'},
+                                                                                                                                       'type': 'number',
+                                                                                                                                       'x-ui': {'basic': False}}},
+                                                                                                             'type': 'object',
+                                                                                                             'x-ui': {'basic': False}},
+                                                                                                  'rectangle': {'properties': {'high': {'properties': {'latitude': {'type': 'number',
+                                                                                                                                                                    'x-ui': {'basic': False}},
+                                                                                                                                                       'longitude': {'type': 'number',
+                                                                                                                                                                     'x-ui': {'basic': False}}},
+                                                                                                                                        'type': 'object',
+                                                                                                                                        'x-ui': {'basic': False}},
+                                                                                                                               'low': {'properties': {'latitude': {'type': 'number',
+                                                                                                                                                                   'x-ui': {'basic': False}},
+                                                                                                                                                      'longitude': {'type': 'number',
+                                                                                                                                                                    'x-ui': {'basic': False}}},
+                                                                                                                                       'type': 'object',
+                                                                                                                                       'x-ui': {'basic': False}}},
+                                                                                                                'type': 'object',
+                                                                                                                'x-ui': {'basic': False}}},
+                                                                                   'type': 'object',
+                                                                                   'x-ui': {'basic': False}},
                                                                   'minRating': {'description': 'Minimum '
                                                                                                'rating '
                                                                                                'filter '
@@ -3168,7 +4191,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'returned.',
                                                                                 'maximum': 5.0,
                                                                                 'minimum': 0.0,
-                                                                                'type': 'number'},
+                                                                                'type': 'number',
+                                                                                'x-ui': {'basic': True}},
                                                                   'openNow': {'default': False,
                                                                               'description': 'If '
                                                                                              'true, '
@@ -3182,7 +4206,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                              'Defaults '
                                                                                              'to '
                                                                                              'false.',
-                                                                              'type': 'boolean'},
+                                                                              'type': 'boolean',
+                                                                              'x-ui': {'basic': True}},
                                                                   'osmEnrichment': {'default': 'auto',
                                                                                     'description': 'Optional '
                                                                                                    'OSM/Geoapify '
@@ -3210,7 +4235,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                     'enum': ['auto',
                                                                                              'disabled',
                                                                                              'required'],
-                                                                                    'type': 'string'},
+                                                                                    'type': 'string',
+                                                                                    'x-ui': {'basic': False}},
                                                                   'pageSize': {'default': 10,
                                                                                'description': 'Number '
                                                                                               'of '
@@ -3223,7 +4249,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                               '20)',
                                                                                'maximum': 20,
                                                                                'minimum': 1,
-                                                                               'type': 'integer'},
+                                                                               'type': 'integer',
+                                                                               'x-ui': {'basic': True}},
                                                                   'query': {'description': 'Text '
                                                                                            'query '
                                                                                            'string '
@@ -3239,7 +4266,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'near '
                                                                                            'Times '
                                                                                            'Square")',
-                                                                            'type': 'string'},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
                                                                   'relevance_criteria': {'description': 'Optional '
                                                                                                         'concise '
                                                                                                         'natural-language '
@@ -3300,10 +4328,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                         'invent '
                                                                                                         'preferences.\n',
                                                                                          'maxLength': 1000,
-                                                                                         'type': 'string'}},
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': True}}},
                                                    'required': ['query'],
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'search',
@@ -3331,7 +4361,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                           'x)" - Unit conversion: "convert(100, '
                                                           'kg, lbs)" - With context vars: "E = m * '
                                                           'c^2 where m=1, c=299792458"\n',
-                                           'type': 'string'},
+                                           'type': 'string',
+                                           'x-ui': {'basic': True}},
                             'mode': {'default': 'auto',
                                      'description': "Evaluation mode. 'auto' (default) detects the "
                                                     'appropriate mode from the expression. '
@@ -3350,7 +4381,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                               'diff',
                                               'integrate',
                                               'convert'],
-                                     'type': 'string'},
+                                     'type': 'string',
+                                     'x-ui': {'basic': True}},
                             'precision': {'default': 15,
                                           'description': 'Number of significant digits for numeric '
                                                          'results. Defaults to 15. Use higher '
@@ -3358,20 +4390,23 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                          'calculations.\n',
                                           'maximum': 100,
                                           'minimum': 1,
-                                          'type': 'integer'},
+                                          'type': 'integer',
+                                          'x-ui': {'basic': True}},
                             'title': {'description': 'A short human-readable title that explains '
                                                      'why this calculation is being made. This is '
                                                      'shown in the embed preview, so prefer '
                                                      'concise context like "Bike time to the Moon" '
                                                      'or "Monthly mortgage estimate".\n',
-                                      'type': 'string'},
+                                      'type': 'string',
+                                      'x-ui': {'basic': False}},
                             'variable': {'default': 'x',
                                          'description': 'The variable to differentiate or '
                                                         'integrate with respect to, or to solve '
                                                         "for. Defaults to 'x'. Only needed when "
                                                         "mode is 'diff', 'integrate', or "
                                                         "'solve'.\n",
-                                         'type': 'string'}},
+                                         'type': 'string',
+                                         'x-ui': {'basic': False}}},
              'required': ['expression'],
              'type': 'object'},
   'skill_id': 'calculate',
@@ -3402,7 +4437,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'providers.',
                                                                             'maximum': 20,
                                                                             'minimum': 1,
-                                                                            'type': 'integer'},
+                                                                            'type': 'integer',
+                                                                            'x-ui': {'basic': True}},
                                                                   'free_only': {'default': False,
                                                                                 'description': 'Return '
                                                                                                'only '
@@ -3413,7 +4449,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'marks '
                                                                                                'as '
                                                                                                'free.',
-                                                                                'type': 'boolean'},
+                                                                                'type': 'boolean',
+                                                                                'x-ui': {'basic': True}},
                                                                   'providers': {'description': 'Optional '
                                                                                                'provider '
                                                                                                'filter. '
@@ -3422,7 +4459,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'Printables.',
                                                                                 'items': {'enum': ['Printables'],
                                                                                           'type': 'string'},
-                                                                                'type': 'array'},
+                                                                                'type': 'array',
+                                                                                'x-ui': {'basic': False}},
                                                                   'query': {'description': 'Search '
                                                                                            'query, '
                                                                                            'e.g. '
@@ -3433,7 +4471,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            '"desk '
                                                                                            'cable '
                                                                                            'clip".',
-                                                                            'type': 'string'},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
                                                                   'relevance_criteria': {'description': 'Optional '
                                                                                                         'concise '
                                                                                                         'natural-language '
@@ -3485,7 +4524,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                         'or '
                                                                                                         'compatible.\n',
                                                                                          'maxLength': 1000,
-                                                                                         'type': 'string'},
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': True}},
                                                                   'sort': {'default': 'best_match',
                                                                            'description': 'Sorting '
                                                                                           'strategy '
@@ -3499,10 +4539,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                     'popular',
                                                                                     'downloads',
                                                                                     'newest'],
-                                                                           'type': 'string'}},
+                                                                           'type': 'string',
+                                                                           'x-ui': {'basic': False}}},
                                                    'required': ['query'],
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'search',
@@ -3543,7 +4585,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                       'preview.',
                                                                                        'maximum': 184,
                                                                                        'minimum': 3,
-                                                                                       'type': 'integer'},
+                                                                                       'type': 'integer',
+                                                                                       'x-ui': {'basic': True}},
                                                                   'lyrics': {'description': 'Optional '
                                                                                             'lyrics '
                                                                                             'to '
@@ -3551,7 +4594,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                             'for '
                                                                                             'vocal/song '
                                                                                             'generation.',
-                                                                             'type': 'string'},
+                                                                             'type': 'string',
+                                                                             'x-ui': {'basic': False}},
                                                                   'mode': {'default': 'background',
                                                                            'description': 'Desired '
                                                                                           'music '
@@ -3561,7 +4605,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                     'background',
                                                                                     'loop',
                                                                                     'jingle'],
-                                                                           'type': 'string'},
+                                                                           'type': 'string',
+                                                                           'x-ui': {'basic': True}},
                                                                   'model': {'default': 'lyria-3-pro-preview',
                                                                             'description': 'Google '
                                                                                            'Lyria '
@@ -3574,7 +4619,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                             'enum': ['lyria-3-pro-preview',
                                                                                      'lyria-3-clip-preview',
                                                                                      'lyria-002'],
-                                                                            'type': 'string'},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': False}},
                                                                   'negative_prompt': {'description': 'Optional '
                                                                                                      'sounds, '
                                                                                                      'genres, '
@@ -3583,7 +4629,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                      'qualities '
                                                                                                      'to '
                                                                                                      'avoid.',
-                                                                                      'type': 'string'},
+                                                                                      'type': 'string',
+                                                                                      'x-ui': {'basic': False}},
                                                                   'prompt': {'description': 'Text '
                                                                                             'description '
                                                                                             'of '
@@ -3591,7 +4638,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                             'music '
                                                                                             'to '
                                                                                             'generate.',
-                                                                             'type': 'string'},
+                                                                             'type': 'string',
+                                                                             'x-ui': {'basic': True}},
                                                                   'seed': {'description': 'Optional '
                                                                                           'seed '
                                                                                           'for '
@@ -3600,7 +4648,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                           'output '
                                                                                           'when '
                                                                                           'supported.',
-                                                                           'type': 'integer'},
+                                                                           'type': 'integer',
+                                                                           'x-ui': {'basic': False}},
                                                                   'style': {'description': 'Optional '
                                                                                            'genre, '
                                                                                            'mood, '
@@ -3609,10 +4658,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'or '
                                                                                            'production '
                                                                                            'style.',
-                                                                            'type': 'string'}},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}}},
                                                    'required': ['prompt'],
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'generate',
@@ -3654,7 +4705,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                'intelligence',
                                                                       'url': 'https://example.invalid/news/ai'},
                                                           'properties': {'canonical_url': {'example': 'https://example.invalid/news/ai',
-                                                                                           'type': 'string'},
+                                                                                           'type': 'string',
+                                                                                           'x-ui': {'basic': False}},
                                                                          'description': {'example': 'An '
                                                                                                     'example '
                                                                                                     'article '
@@ -3663,30 +4715,43 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                     'the '
                                                                                                     'search '
                                                                                                     'result.',
-                                                                                         'type': 'string'},
-                                                                         'id': {'type': 'string'},
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': False}},
+                                                                         'id': {'type': 'string',
+                                                                                'x-ui': {'basic': False}},
                                                                          'page_age': {'example': '2026-09-21T08:00:00Z',
-                                                                                      'type': 'string'},
+                                                                                      'type': 'string',
+                                                                                      'x-ui': {'basic': False}},
                                                                          'provider': {'example': 'Example '
                                                                                                  'news '
                                                                                                  'provider',
-                                                                                      'type': 'string'},
+                                                                                      'type': 'string',
+                                                                                      'x-ui': {'basic': False}},
                                                                          'source_id': {'example': 'https://example.invalid/news/ai',
-                                                                                       'type': 'string'},
+                                                                                       'type': 'string',
+                                                                                       'x-ui': {'basic': False}},
                                                                          'title': {'example': 'New '
                                                                                               'developments '
                                                                                               'in '
                                                                                               'artificial '
                                                                                               'intelligence',
-                                                                                   'type': 'string'},
+                                                                                   'type': 'string',
+                                                                                   'x-ui': {'basic': False}},
                                                                          'url': {'example': 'https://example.invalid/news/ai',
-                                                                                 'type': 'string'}},
+                                                                                 'type': 'string',
+                                                                                 'x-ui': {'basic': False}}},
                                                           'type': 'object'},
-                                                'type': 'array'},
-                                   'partial': {'example': False, 'type': 'boolean'},
+                                                'type': 'array',
+                                                'x-ui': {'basic': False}},
+                                   'partial': {'example': False,
+                                               'type': 'boolean',
+                                               'x-ui': {'basic': False}},
                                    'provider': {'example': 'Example news provider',
-                                                'type': 'string'},
-                                   'result_count': {'example': 1, 'type': 'integer'},
+                                                'type': 'string',
+                                                'x-ui': {'basic': False}},
+                                   'result_count': {'example': 1,
+                                                    'type': 'integer',
+                                                    'x-ui': {'basic': False}},
                                    'results': {'example': [{'canonical_url': 'https://example.invalid/news/ai',
                                                             'description': 'An example article '
                                                                            'excerpt from the '
@@ -3712,7 +4777,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                               'intelligence',
                                                                      'url': 'https://example.invalid/news/ai'},
                                                          'properties': {'canonical_url': {'example': 'https://example.invalid/news/ai',
-                                                                                          'type': 'string'},
+                                                                                          'type': 'string',
+                                                                                          'x-ui': {'basic': False}},
                                                                         'description': {'example': 'An '
                                                                                                    'example '
                                                                                                    'article '
@@ -3721,31 +4787,41 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                    'the '
                                                                                                    'search '
                                                                                                    'result.',
-                                                                                        'type': 'string'},
-                                                                        'id': {'type': 'string'},
+                                                                                        'type': 'string',
+                                                                                        'x-ui': {'basic': True}},
+                                                                        'id': {'type': 'string',
+                                                                               'x-ui': {'basic': False}},
                                                                         'page_age': {'example': '2026-09-21T08:00:00Z',
-                                                                                     'type': 'string'},
+                                                                                     'type': 'string',
+                                                                                     'x-ui': {'basic': True}},
                                                                         'provider': {'example': 'Example '
                                                                                                 'news '
                                                                                                 'provider',
-                                                                                     'type': 'string'},
+                                                                                     'type': 'string',
+                                                                                     'x-ui': {'basic': False}},
                                                                         'source_id': {'example': 'https://example.invalid/news/ai',
-                                                                                      'type': 'string'},
+                                                                                      'type': 'string',
+                                                                                      'x-ui': {'basic': False}},
                                                                         'title': {'example': 'New '
                                                                                              'developments '
                                                                                              'in '
                                                                                              'artificial '
                                                                                              'intelligence',
-                                                                                  'type': 'string'},
+                                                                                  'type': 'string',
+                                                                                  'x-ui': {'basic': True}},
                                                                         'url': {'example': 'https://example.invalid/news/ai',
-                                                                                'type': 'string'}},
+                                                                                'type': 'string',
+                                                                                'x-ui': {'basic': True}}},
                                                          'type': 'object'},
-                                               'type': 'array'},
+                                               'type': 'array',
+                                               'x-ui': {'basic': True}},
                                    'summary': {'example': 'News search completed',
-                                               'type': 'string'},
+                                               'type': 'string',
+                                               'x-ui': {'basic': False}},
                                    'warnings': {'example': [],
                                                 'items': {'type': 'string'},
-                                                'type': 'array'}},
+                                                'type': 'array',
+                                                'x-ui': {'basic': False}}},
                     'type': 'object'},
   'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of search request objects '
                                                         'for parallel processing (up to 5 '
@@ -3780,7 +4856,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            '20).',
                                                                             'maximum': 20,
                                                                             'minimum': 1,
-                                                                            'type': 'integer'},
+                                                                            'type': 'integer',
+                                                                            'x-ui': {'basic': True}},
                                                                   'country': {'default': 'us',
                                                                               'description': 'Country '
                                                                                              'code '
@@ -3912,7 +4989,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                        'gb',
                                                                                        'us',
                                                                                        'all'],
-                                                                              'type': 'string'},
+                                                                              'type': 'string',
+                                                                              'x-ui': {'basic': False}},
                                                                   'filter_tabloids': {'default': True,
                                                                                       'description': 'Filter '
                                                                                                      'out '
@@ -3946,7 +5024,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                      'for '
                                                                                                      'tabloid '
                                                                                                      'sources.',
-                                                                                      'type': 'boolean'},
+                                                                                      'type': 'boolean',
+                                                                                      'x-ui': {'basic': True}},
                                                                   'freshness': {'default': 'pw',
                                                                                 'description': 'Filter '
                                                                                                'by '
@@ -3979,11 +5058,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                          'pw',
                                                                                          'pm',
                                                                                          'py'],
-                                                                                'type': 'string'},
+                                                                                'type': 'string',
+                                                                                'x-ui': {'basic': True}},
                                                                   'query': {'description': 'Search '
                                                                                            'query '
                                                                                            'string',
-                                                                            'type': 'string'},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
                                                                   'relevance_criteria': {'description': 'Optional '
                                                                                                         'concise '
                                                                                                         'natural-language '
@@ -4068,7 +5149,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                         'as '
                                                                                                         'padding.\n',
                                                                                          'maxLength': 1000,
-                                                                                         'type': 'string'},
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': True}},
                                                                   'safesearch': {'default': 'moderate',
                                                                                  'description': 'Safe '
                                                                                                 'search '
@@ -4076,7 +5158,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                  'enum': ['off',
                                                                                           'moderate',
                                                                                           'strict'],
-                                                                                 'type': 'string'},
+                                                                                 'type': 'string',
+                                                                                 'x-ui': {'basic': False}},
                                                                   'search_lang': {'default': 'en',
                                                                                   'description': 'Language '
                                                                                                  'code '
@@ -4088,10 +5171,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  "'en', "
                                                                                                  "'es', "
                                                                                                  "'fr')",
-                                                                                  'type': 'string'}},
+                                                                                  'type': 'string',
+                                                                                  'x-ui': {'basic': False}}},
                                                    'required': ['query'],
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'search',
@@ -4115,7 +5200,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                               'range, '
                                                                                               'e.g. '
                                                                                               '"100-600".',
-                                                                               'type': 'string'},
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': False}},
                                                                   'cuisine_type': {'description': 'Optional '
                                                                                                   'cuisine '
                                                                                                   'filters '
@@ -4125,7 +5211,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                   'Japanese, '
                                                                                                   'Mexican.',
                                                                                    'items': {'type': 'string'},
-                                                                                   'type': 'array'},
+                                                                                   'type': 'array',
+                                                                                   'x-ui': {'basic': False}},
                                                                   'diet': {'description': 'Optional '
                                                                                           'Edamam '
                                                                                           'diet '
@@ -4138,7 +5225,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                           'low-fat, '
                                                                                           'low-sodium.\n',
                                                                            'items': {'type': 'string'},
-                                                                           'type': 'array'},
+                                                                           'type': 'array',
+                                                                           'x-ui': {'basic': False}},
                                                                   'dish_type': {'description': 'Optional '
                                                                                                'dish '
                                                                                                'filters '
@@ -4150,7 +5238,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'Salad, '
                                                                                                'Pancake.',
                                                                                 'items': {'type': 'string'},
-                                                                                'type': 'array'},
+                                                                                'type': 'array',
+                                                                                'x-ui': {'basic': False}},
                                                                   'excluded': {'description': 'Optional '
                                                                                               'ingredients '
                                                                                               'or '
@@ -4160,7 +5249,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                               'from '
                                                                                               'recipes.',
                                                                                'items': {'type': 'string'},
-                                                                               'type': 'array'},
+                                                                               'type': 'array',
+                                                                               'x-ui': {'basic': False}},
                                                                   'health': {'description': 'Optional '
                                                                                             'Edamam '
                                                                                             'health '
@@ -4175,13 +5265,15 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                             'peanut-free, '
                                                                                             'tree-nut-free.\n',
                                                                              'items': {'type': 'string'},
-                                                                             'type': 'array'},
+                                                                             'type': 'array',
+                                                                             'x-ui': {'basic': True}},
                                                                   'ingredients': {'description': 'Optional '
                                                                                                  'ingredient-count '
                                                                                                  'range, '
                                                                                                  'e.g. '
                                                                                                  '"5-10".',
-                                                                                  'type': 'string'},
+                                                                                  'type': 'string',
+                                                                                  'x-ui': {'basic': False}},
                                                                   'max_results': {'default': 6,
                                                                                   'description': 'Maximum '
                                                                                                  'number '
@@ -4209,7 +5301,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  'and '
                                                                                                  'nutrition '
                                                                                                  'metadata.\n',
-                                                                                  'type': 'integer'},
+                                                                                  'type': 'integer',
+                                                                                  'x-ui': {'basic': True}},
                                                                   'meal_type': {'description': 'Optional '
                                                                                                'meal '
                                                                                                'filters '
@@ -4220,7 +5313,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'Lunch, '
                                                                                                'Snack.',
                                                                                 'items': {'type': 'string'},
-                                                                                'type': 'array'},
+                                                                                'type': 'array',
+                                                                                'x-ui': {'basic': False}},
                                                                   'query': {'description': 'Free-text '
                                                                                            'recipe '
                                                                                            'query, '
@@ -4233,17 +5327,20 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'or '
                                                                                            '"miso '
                                                                                            'salmon".\n',
-                                                                            'type': 'string'},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
                                                                   'time': {'description': 'Optional '
                                                                                           'cooking/prep '
                                                                                           'time '
                                                                                           'range, '
                                                                                           'e.g. '
                                                                                           '"1-30".',
-                                                                           'type': 'string'}},
+                                                                           'type': 'string',
+                                                                           'x-ui': {'basic': True}}},
                                                    'required': ['query'],
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'search_recipes',
@@ -4258,12 +5355,14 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'description_key': 'openmates_app.share_usecase.description',
   'schema': {'properties': {'language': {'description': 'ISO 639-1 language code of the '
                                                         "conversation (e.g., 'en', 'de')",
-                                         'type': 'string'},
+                                         'type': 'string',
+                                         'x-ui': {'basic': True}},
                             'summary': {'description': 'A brief summary (2-5 sentences) of what '
                                                        'the user wants to use OpenMates for, as '
                                                        'discussed in the conversation. Should '
                                                        'capture the key use cases and interests.\n',
-                                        'type': 'string'}},
+                                        'type': 'string',
+                                        'x-ui': {'basic': True}}},
              'required': ['summary', 'language'],
              'type': 'object'},
   'skill_id': 'share-usecase',
@@ -4279,7 +5378,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'schema': {'properties': {'url': {'description': 'An openmates.org/docs URL or a docs slug path '
                                                    "(e.g., 'architecture/chats' or "
                                                    "'https://openmates.org/docs/architecture/chats')\n",
-                                    'type': 'string'}},
+                                    'type': 'string',
+                                    'x-ui': {'basic': True}}},
              'required': ['url'],
              'type': 'object'},
   'skill_id': 'get-docs',
@@ -4412,20 +5512,6 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'skill_id': 'create',
   'skill_method_py': 'create',
   'skill_method_ts': 'create'},
- {'app_id': 'projects',
-  'app_namespace_py': 'projects',
-  'app_namespace_ts': 'projects',
-  'description': "Search the user's encrypted projects through a connected capable client. Do not "
-                 'use server-visible metadata as a private project-content fallback.',
-  'description_key': 'projects.skills.search.description',
-  'schema': {'properties': {'query': {'description': 'Private project text to search for on a '
-                                                     'connected client.',
-                                      'type': 'string'}},
-             'required': ['query'],
-             'type': 'object'},
-  'skill_id': 'search',
-  'skill_method_py': 'search',
-  'skill_method_ts': 'search'},
  {'app_id': 'reminder',
   'app_namespace_py': 'reminder',
   'app_namespace_ts': 'reminder',
@@ -4654,30 +5740,84 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                         'pet_supplies',
                                                                                         'video_games',
                                                                                         'baby'],
-                                                                               'type': 'string'},
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': True}},
                                                                   'country': {'description': 'Amazon-only '
                                                                                              'marketplace '
                                                                                              'country '
                                                                                              'code. '
-                                                                                             'Example: '
-                                                                                             'us, '
-                                                                                             'uk, '
+                                                                                             'Price '
+                                                                                             'amounts '
+                                                                                             'use '
+                                                                                             'this '
+                                                                                             "marketplace's "
+                                                                                             'currency; '
+                                                                                             'no '
+                                                                                             'currency '
+                                                                                             'conversion '
+                                                                                             'is '
+                                                                                             'performed. '
+                                                                                             'Euro '
+                                                                                             'marketplaces '
+                                                                                             'include '
                                                                                              'de, '
                                                                                              'fr, '
                                                                                              'it, '
                                                                                              'es, '
+                                                                                             'and '
+                                                                                             'nl. '
+                                                                                             'For '
+                                                                                             'a '
+                                                                                             'euro '
+                                                                                             'price '
+                                                                                             'limit '
+                                                                                             'with '
+                                                                                             'no '
+                                                                                             'destination '
+                                                                                             'specified, '
+                                                                                             'use '
+                                                                                             'de '
+                                                                                             'as '
+                                                                                             'the '
+                                                                                             'default '
+                                                                                             'euro '
+                                                                                             'marketplace. '
+                                                                                             'Other '
+                                                                                             'examples: '
+                                                                                             'us '
+                                                                                             '(USD), '
+                                                                                             'uk '
+                                                                                             '(GBP), '
+                                                                                             'jp '
+                                                                                             '(JPY), '
                                                                                              'ca, '
                                                                                              'au, '
-                                                                                             'jp, '
                                                                                              'in, '
                                                                                              'br, '
                                                                                              'mx, '
-                                                                                             'nl, '
                                                                                              'sg, '
                                                                                              'se, '
                                                                                              'pl. '
                                                                                              'If '
+                                                                                             'the '
+                                                                                             'user '
+                                                                                             'specifies '
+                                                                                             'a '
+                                                                                             'destination, '
+                                                                                             'preserve '
+                                                                                             'that '
+                                                                                             'destination; '
+                                                                                             'do '
+                                                                                             'not '
+                                                                                             'silently '
+                                                                                             'reinterpret '
+                                                                                             'a '
+                                                                                             'stated '
+                                                                                             'currency. '
+                                                                                             'If '
                                                                                              'omitted, '
+                                                                                             'country '
+                                                                                             'is '
                                                                                              'inferred '
                                                                                              'from '
                                                                                              'user '
@@ -4686,7 +5826,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                              'fallback '
                                                                                              'to '
                                                                                              'us.\n',
-                                                                              'type': 'string'},
+                                                                              'type': 'string',
+                                                                              'x-ui': {'basic': False}},
                                                                   'department': {'description': 'Amazon-only '
                                                                                                 'category '
                                                                                                 'filter. '
@@ -4727,15 +5868,44 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                           'pet_supplies',
                                                                                           'video_games',
                                                                                           'baby'],
-                                                                                 'type': 'string'},
+                                                                                 'type': 'string',
+                                                                                 'x-ui': {'basic': False}},
                                                                   'max_price': {'description': 'Amazon-only '
                                                                                                'maximum '
                                                                                                'price '
                                                                                                'filter '
                                                                                                '(client-side '
                                                                                                'after '
-                                                                                               'fetch).',
-                                                                                'type': 'number'},
+                                                                                               'fetch), '
+                                                                                               'in '
+                                                                                               'the '
+                                                                                               'selected '
+                                                                                               "marketplace's "
+                                                                                               'currency; '
+                                                                                               'no '
+                                                                                               'conversion '
+                                                                                               'is '
+                                                                                               'performed. '
+                                                                                               'Set '
+                                                                                               'country '
+                                                                                               'when '
+                                                                                               'the '
+                                                                                               'user '
+                                                                                               'states '
+                                                                                               'a '
+                                                                                               'currency, '
+                                                                                               'for '
+                                                                                               'example '
+                                                                                               'de '
+                                                                                               'with '
+                                                                                               'max_price '
+                                                                                               '150 '
+                                                                                               'for '
+                                                                                               'a '
+                                                                                               '150-euro '
+                                                                                               'ceiling.\n',
+                                                                                'type': 'number',
+                                                                                'x-ui': {'basic': False}},
                                                                   'max_results': {'default': 10,
                                                                                   'description': 'Maximum '
                                                                                                  'number '
@@ -4748,15 +5918,34 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  '10).',
                                                                                   'maximum': 20,
                                                                                   'minimum': 1,
-                                                                                  'type': 'integer'},
+                                                                                  'type': 'integer',
+                                                                                  'x-ui': {'basic': True}},
                                                                   'min_price': {'description': 'Amazon-only '
                                                                                                'minimum '
                                                                                                'price '
                                                                                                'filter '
                                                                                                '(client-side '
                                                                                                'after '
-                                                                                               'fetch).',
-                                                                                'type': 'number'},
+                                                                                               'fetch), '
+                                                                                               'in '
+                                                                                               'the '
+                                                                                               'selected '
+                                                                                               "marketplace's "
+                                                                                               'currency; '
+                                                                                               'no '
+                                                                                               'conversion '
+                                                                                               'is '
+                                                                                               'performed. '
+                                                                                               'Set '
+                                                                                               'country '
+                                                                                               'when '
+                                                                                               'the '
+                                                                                               'user '
+                                                                                               'states '
+                                                                                               'a '
+                                                                                               'currency.\n',
+                                                                                'type': 'number',
+                                                                                'x-ui': {'basic': False}},
                                                                   'provider': {'description': 'Product '
                                                                                               'provider. '
                                                                                               'If '
@@ -4787,7 +5976,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                'enum': ['REWE',
                                                                                         'Amazon',
                                                                                         'Stoffe.de'],
-                                                                               'type': 'string'},
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': False}},
                                                                   'query': {'description': 'Search '
                                                                                            'query, '
                                                                                            'e.g. '
@@ -4797,7 +5987,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'grinder", '
                                                                                            '"wireless '
                                                                                            'mouse".\n',
-                                                                            'type': 'string'},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
                                                                   'relevance_criteria': {'description': 'Optional '
                                                                                                         'concise '
                                                                                                         'natural-language '
@@ -4853,7 +6044,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                         'structured '
                                                                                                         'fields.\n',
                                                                                          'maxLength': 1000,
-                                                                                         'type': 'string'},
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': True}},
                                                                   'service_type': {'default': 'DELIVERY',
                                                                                    'description': 'REWE-only '
                                                                                                   'fulfilment '
@@ -4874,7 +6066,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                   'Stoffe.de.\n',
                                                                                    'enum': ['DELIVERY',
                                                                                             'CLICK_AND_COLLECT'],
-                                                                                   'type': 'string'},
+                                                                                   'type': 'string',
+                                                                                   'x-ui': {'basic': False}},
                                                                   'sort': {'default': 'relevance',
                                                                            'description': 'Sort '
                                                                                           'order '
@@ -4907,10 +6100,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                     'review_rank',
                                                                                     'newest',
                                                                                     'best_sellers'],
-                                                                           'type': 'string'}},
+                                                                           'type': 'string',
+                                                                           'x-ui': {'basic': False}}},
                                                    'required': ['query'],
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'search_products',
@@ -4941,7 +6136,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                     'post.',
                                                                                      'maximum': 5,
                                                                                      'minimum': 0,
-                                                                                     'type': 'integer'},
+                                                                                     'type': 'integer',
+                                                                                     'x-ui': {'basic': False}},
                                                                   'comments_sort': {'default': 'top',
                                                                                     'description': 'Reddit '
                                                                                                    'comment '
@@ -4957,24 +6153,28 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                              'new',
                                                                                              'controversial',
                                                                                              'old'],
-                                                                                    'type': 'string'},
+                                                                                    'type': 'string',
+                                                                                    'x-ui': {'basic': False}},
                                                                   'exclude_nsfw': {'default': True,
                                                                                    'description': 'Exclude '
                                                                                                   'NSFW '
                                                                                                   'Reddit '
                                                                                                   'posts.',
-                                                                                   'type': 'boolean'},
+                                                                                   'type': 'boolean',
+                                                                                   'x-ui': {'basic': False}},
                                                                   'exclude_stickied': {'default': True,
                                                                                        'description': 'Exclude '
                                                                                                       'stickied '
                                                                                                       'Reddit '
                                                                                                       'posts.',
-                                                                                       'type': 'boolean'},
+                                                                                       'type': 'boolean',
+                                                                                       'x-ui': {'basic': False}},
                                                                   'id': {'description': 'Optional '
                                                                                         'caller-supplied '
                                                                                         'ID for '
                                                                                         'correlating '
-                                                                                        'responses.'},
+                                                                                        'responses.',
+                                                                         'x-ui': {'basic': False}},
                                                                   'include_comments': {'default': True,
                                                                                        'description': 'Whether '
                                                                                                       'to '
@@ -4985,19 +6185,22 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                       'posts '
                                                                                                       'when '
                                                                                                       'supported.',
-                                                                                       'type': 'boolean'},
+                                                                                       'type': 'boolean',
+                                                                                       'x-ui': {'basic': False}},
                                                                   'include_link_posts': {'default': True,
                                                                                          'description': 'Include '
                                                                                                         'Reddit '
                                                                                                         'link/media '
                                                                                                         'posts.',
-                                                                                         'type': 'boolean'},
+                                                                                         'type': 'boolean',
+                                                                                         'x-ui': {'basic': False}},
                                                                   'include_self_posts': {'default': True,
                                                                                          'description': 'Include '
                                                                                                         'Reddit '
                                                                                                         'text/self '
                                                                                                         'posts.',
-                                                                                         'type': 'boolean'},
+                                                                                         'type': 'boolean',
+                                                                                         'x-ui': {'basic': False}},
                                                                   'limit': {'default': 10,
                                                                             'description': 'Number '
                                                                                            'of '
@@ -5008,7 +6211,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'page.',
                                                                             'maximum': 25,
                                                                             'minimum': 1,
-                                                                            'type': 'integer'},
+                                                                            'type': 'integer',
+                                                                            'x-ui': {'basic': True}},
                                                                   'min_comments': {'description': 'Minimum '
                                                                                                   'Reddit '
                                                                                                   'comment '
@@ -5016,14 +6220,16 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                   'to '
                                                                                                   'include.',
                                                                                    'minimum': 0,
-                                                                                   'type': 'integer'},
+                                                                                   'type': 'integer',
+                                                                                   'x-ui': {'basic': False}},
                                                                   'min_score': {'description': 'Minimum '
                                                                                                'Reddit '
                                                                                                'score/upvotes '
                                                                                                'to '
                                                                                                'include.',
                                                                                 'minimum': 0,
-                                                                                'type': 'integer'},
+                                                                                'type': 'integer',
+                                                                                'x-ui': {'basic': False}},
                                                                   'page': {'description': 'Platform '
                                                                                           'page/profile '
                                                                                           'identifier. '
@@ -5049,7 +6255,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                           'or a '
                                                                                           'profile '
                                                                                           'URL.',
-                                                                           'type': 'string'},
+                                                                           'type': 'string',
+                                                                           'x-ui': {'basic': True}},
                                                                   'platform': {'default': 'reddit',
                                                                                'description': 'Social '
                                                                                               'platform '
@@ -5059,7 +6266,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                'enum': ['bluesky',
                                                                                         'mastodon',
                                                                                         'reddit'],
-                                                                               'type': 'string'},
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': True}},
                                                                   'sort': {'default': 'new',
                                                                            'description': 'Post '
                                                                                           'listing '
@@ -5088,7 +6296,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                     'rising',
                                                                                     'top',
                                                                                     'comments'],
-                                                                           'type': 'string'},
+                                                                           'type': 'string',
+                                                                           'x-ui': {'basic': True}},
                                                                   'time_range': {'description': 'Reddit '
                                                                                                 'time '
                                                                                                 'filter '
@@ -5101,9 +6310,11 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                           'month',
                                                                                           'year',
                                                                                           'all'],
-                                                                                 'type': 'string'}},
+                                                                                 'type': 'string',
+                                                                                 'x-ui': {'basic': False}}},
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'get-posts',
@@ -5136,7 +6347,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                             'the '
                                                                                             'author '
                                                                                             'filter.',
-                                                                             'type': 'string'},
+                                                                             'type': 'string',
+                                                                             'x-ui': {'basic': False}},
                                                                   'comments_limit': {'default': 0,
                                                                                      'description': 'Number '
                                                                                                     'of '
@@ -5150,7 +6362,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                     'supported.',
                                                                                      'maximum': 5,
                                                                                      'minimum': 0,
-                                                                                     'type': 'integer'},
+                                                                                     'type': 'integer',
+                                                                                     'x-ui': {'basic': False}},
                                                                   'comments_sort': {'default': 'top',
                                                                                     'description': 'Reddit '
                                                                                                    'comment '
@@ -5160,24 +6373,28 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                              'new',
                                                                                              'controversial',
                                                                                              'old'],
-                                                                                    'type': 'string'},
+                                                                                    'type': 'string',
+                                                                                    'x-ui': {'basic': False}},
                                                                   'exclude_nsfw': {'default': True,
                                                                                    'description': 'Exclude '
                                                                                                   'NSFW '
                                                                                                   'Reddit '
                                                                                                   'posts.',
-                                                                                   'type': 'boolean'},
+                                                                                   'type': 'boolean',
+                                                                                   'x-ui': {'basic': False}},
                                                                   'exclude_stickied': {'default': True,
                                                                                        'description': 'Exclude '
                                                                                                       'stickied '
                                                                                                       'Reddit '
                                                                                                       'posts.',
-                                                                                       'type': 'boolean'},
+                                                                                       'type': 'boolean',
+                                                                                       'x-ui': {'basic': False}},
                                                                   'id': {'description': 'Optional '
                                                                                         'caller-supplied '
                                                                                         'ID for '
                                                                                         'correlating '
-                                                                                        'responses.'},
+                                                                                        'responses.',
+                                                                         'x-ui': {'basic': False}},
                                                                   'include_comments': {'default': False,
                                                                                        'description': 'Whether '
                                                                                                       'to '
@@ -5188,7 +6405,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                       'posts '
                                                                                                       'when '
                                                                                                       'supported.',
-                                                                                       'type': 'boolean'},
+                                                                                       'type': 'boolean',
+                                                                                       'x-ui': {'basic': False}},
                                                                   'limit': {'default': 10,
                                                                             'description': 'Number '
                                                                                            'of '
@@ -5199,7 +6417,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'search.',
                                                                             'maximum': 25,
                                                                             'minimum': 1,
-                                                                            'type': 'integer'},
+                                                                            'type': 'integer',
+                                                                            'x-ui': {'basic': True}},
                                                                   'mastodon_instances': {'description': 'Optional '
                                                                                                         'additional '
                                                                                                         'Mastodon '
@@ -5214,7 +6433,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                         'or '
                                                                                                         'hachyderm.io.',
                                                                                          'items': {'type': 'string'},
-                                                                                         'type': 'array'},
+                                                                                         'type': 'array',
+                                                                                         'x-ui': {'basic': False}},
                                                                   'min_comments': {'description': 'Minimum '
                                                                                                   'Reddit '
                                                                                                   'comment '
@@ -5222,14 +6442,16 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                   'to '
                                                                                                   'include.',
                                                                                    'minimum': 0,
-                                                                                   'type': 'integer'},
+                                                                                   'type': 'integer',
+                                                                                   'x-ui': {'basic': False}},
                                                                   'min_score': {'description': 'Minimum '
                                                                                                'Reddit '
                                                                                                'score/upvotes '
                                                                                                'to '
                                                                                                'include.',
                                                                                 'minimum': 0,
-                                                                                'type': 'integer'},
+                                                                                'type': 'integer',
+                                                                                'x-ui': {'basic': False}},
                                                                   'page': {'description': 'Optional '
                                                                                           'subreddit/page '
                                                                                           'to '
@@ -5247,7 +6469,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                           'instance '
                                                                                           'such as '
                                                                                           'fosstodon.org.',
-                                                                           'type': 'string'},
+                                                                           'type': 'string',
+                                                                           'x-ui': {'basic': True}},
                                                                   'platform': {'default': 'all',
                                                                                'description': 'Social '
                                                                                               'platform '
@@ -5266,7 +6489,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                         'bluesky',
                                                                                         'mastodon',
                                                                                         'reddit'],
-                                                                               'type': 'string'},
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': True}},
                                                                   'query': {'description': 'Topic '
                                                                                            'or '
                                                                                            'search '
@@ -5275,7 +6499,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'find '
                                                                                            'posts '
                                                                                            'around.',
-                                                                            'type': 'string'},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
                                                                   'sort': {'default': 'latest',
                                                                            'description': 'Search '
                                                                                           'sort. '
@@ -5301,7 +6526,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                     'hot',
                                                                                     'relevance',
                                                                                     'comments'],
-                                                                           'type': 'string'},
+                                                                           'type': 'string',
+                                                                           'x-ui': {'basic': False}},
                                                                   'time_range': {'description': 'Reddit '
                                                                                                 'time '
                                                                                                 'filter '
@@ -5314,10 +6540,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                           'month',
                                                                                           'year',
                                                                                           'all'],
-                                                                                 'type': 'string'}},
+                                                                                 'type': 'string',
+                                                                                 'x-ui': {'basic': False}}},
                                                    'required': ['query'],
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'search',
@@ -5405,7 +6633,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                               'layovers '
                                                                                                               'or '
                                                                                                               'transfers.',
-                                                                                               'type': 'boolean'},
+                                                                                               'type': 'boolean',
+                                                                                               'x-ui': {'basic': False}},
                                                                   'countries': {'description': 'ISO '
                                                                                                '3166-1 '
                                                                                                'alpha-2 '
@@ -5452,7 +6681,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'all '
                                                                                                'countries.\n',
                                                                                 'items': {'type': 'string'},
-                                                                                'type': 'array'},
+                                                                                'type': 'array',
+                                                                                'x-ui': {'basic': False}},
                                                                   'currency': {'default': 'EUR',
                                                                                'description': 'Preferred '
                                                                                               'currency '
@@ -5461,7 +6691,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                               '(ISO '
                                                                                               '4217 '
                                                                                               'code).',
-                                                                               'type': 'string'},
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': False}},
                                                                   'date': {'description': 'Flat '
                                                                                           'route '
                                                                                           'departure '
@@ -5485,7 +6716,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                           'legs '
                                                                                           'before '
                                                                                           'execution.\n',
-                                                                           'type': 'string'},
+                                                                           'format': 'date',
+                                                                           'type': 'string',
+                                                                           'x-ui': {'basic': False}},
                                                                   'destination': {'description': 'Flat '
                                                                                                  'route '
                                                                                                  'destination '
@@ -5512,7 +6745,10 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  'legs '
                                                                                                  'before '
                                                                                                  'execution.\n',
-                                                                                  'type': 'string'},
+                                                                                  'type': 'string',
+                                                                                  'x-ui': {'basic': False,
+                                                                                           'control': 'location',
+                                                                                           'location_mode': 'place'}},
                                                                   'exclude_airlines': {'description': 'Exclude '
                                                                                                       'flights '
                                                                                                       'from '
@@ -5530,7 +6766,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                       'with '
                                                                                                       'include_airlines.',
                                                                                        'items': {'type': 'string'},
-                                                                                       'type': 'array'},
+                                                                                       'type': 'array',
+                                                                                       'x-ui': {'basic': False}},
                                                                   'include_airlines': {'description': 'Only '
                                                                                                       'show '
                                                                                                       'flights '
@@ -5551,7 +6788,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                       'or '
                                                                                                       'FR.',
                                                                                        'items': {'type': 'string'},
-                                                                                       'type': 'array'},
+                                                                                       'type': 'array',
+                                                                                       'x-ui': {'basic': False}},
                                                                   'legs': {'description': 'Ordered '
                                                                                           'list of '
                                                                                           'trip '
@@ -5582,13 +6820,18 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                                             'in '
                                                                                                                             'YYYY-MM-DD '
                                                                                                                             'format.',
-                                                                                                             'type': 'string'},
+                                                                                                             'format': 'date',
+                                                                                                             'type': 'string',
+                                                                                                             'x-ui': {'basic': True}},
                                                                                                     'destination': {'description': 'Destination '
                                                                                                                                    'city '
                                                                                                                                    'or '
                                                                                                                                    'location '
                                                                                                                                    'name.',
-                                                                                                                    'type': 'string'},
+                                                                                                                    'type': 'string',
+                                                                                                                    'x-ui': {'basic': True,
+                                                                                                                             'control': 'location',
+                                                                                                                             'location_mode': 'place'}},
                                                                                                     'origin': {'description': 'Origin '
                                                                                                                               'city '
                                                                                                                               'or '
@@ -5609,12 +6852,16 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                                               'or '
                                                                                                                               'coordinates '
                                                                                                                               'internally.\n',
-                                                                                                               'type': 'string'}},
+                                                                                                               'type': 'string',
+                                                                                                               'x-ui': {'basic': True,
+                                                                                                                        'control': 'location',
+                                                                                                                        'location_mode': 'place'}}},
                                                                                      'required': ['origin',
                                                                                                   'destination',
                                                                                                   'date'],
                                                                                      'type': 'object'},
-                                                                           'type': 'array'},
+                                                                           'type': 'array',
+                                                                           'x-ui': {'basic': True}},
                                                                   'max_arrival_time': {'description': 'Latest '
                                                                                                       'acceptable '
                                                                                                       'local '
@@ -5623,7 +6870,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                       'in '
                                                                                                       'HH:MM '
                                                                                                       'format.',
-                                                                                       'type': 'string'},
+                                                                                       'format': 'time',
+                                                                                       'type': 'string',
+                                                                                       'x-ui': {'basic': False}},
                                                                   'max_departure_time': {'description': 'Latest '
                                                                                                         'acceptable '
                                                                                                         'local '
@@ -5632,7 +6881,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                         'in '
                                                                                                         'HH:MM '
                                                                                                         'format.',
-                                                                                         'type': 'string'},
+                                                                                         'format': 'time',
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': False}},
                                                                   'max_duration_minutes': {'description': 'Maximum '
                                                                                                           'total '
                                                                                                           'duration '
@@ -5642,7 +6893,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                           'leg, '
                                                                                                           'in '
                                                                                                           'minutes.',
-                                                                                           'type': 'integer'},
+                                                                                           'type': 'integer',
+                                                                                           'x-ui': {'basic': False}},
                                                                   'max_layover_minutes': {'description': 'Maximum '
                                                                                                          'allowed '
                                                                                                          'layover '
@@ -5651,7 +6903,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                          'duration, '
                                                                                                          'in '
                                                                                                          'minutes.',
-                                                                                          'type': 'integer'},
+                                                                                          'type': 'integer',
+                                                                                          'x-ui': {'basic': False}},
                                                                   'max_price': {'description': 'Maximum '
                                                                                                'total '
                                                                                                'price '
@@ -5671,7 +6924,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'from '
                                                                                                'strict '
                                                                                                'matches.',
-                                                                                'type': 'number'},
+                                                                                'type': 'number',
+                                                                                'x-ui': {'basic': False}},
                                                                   'max_results': {'default': 6,
                                                                                   'description': 'Maximum '
                                                                                                  'number '
@@ -5683,7 +6937,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  'per '
                                                                                                  'transport '
                                                                                                  'method.',
-                                                                                  'type': 'integer'},
+                                                                                  'type': 'integer',
+                                                                                  'x-ui': {'basic': True}},
                                                                   'max_stops': {'description': 'Maximum '
                                                                                                'number '
                                                                                                'of '
@@ -5707,7 +6962,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'to '
                                                                                                'two '
                                                                                                'stops.',
-                                                                                'type': 'integer'},
+                                                                                'type': 'integer',
+                                                                                'x-ui': {'basic': False}},
                                                                   'min_arrival_time': {'description': 'Earliest '
                                                                                                       'acceptable '
                                                                                                       'local '
@@ -5716,7 +6972,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                       'in '
                                                                                                       'HH:MM '
                                                                                                       'format.',
-                                                                                       'type': 'string'},
+                                                                                       'format': 'time',
+                                                                                       'type': 'string',
+                                                                                       'x-ui': {'basic': False}},
                                                                   'min_departure_time': {'description': 'Earliest '
                                                                                                         'acceptable '
                                                                                                         'local '
@@ -5725,7 +6983,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                         'in '
                                                                                                         'HH:MM '
                                                                                                         'format.',
-                                                                                         'type': 'string'},
+                                                                                         'format': 'time',
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': False}},
                                                                   'min_transfer_minutes': {'default': 10,
                                                                                            'description': 'Minimum '
                                                                                                           'acceptable '
@@ -5738,7 +6998,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                           'Defaults '
                                                                                                           'to '
                                                                                                           '10.',
-                                                                                           'type': 'integer'},
+                                                                                           'type': 'integer',
+                                                                                           'x-ui': {'basic': False}},
                                                                   'non_stop_only': {'default': False,
                                                                                     'description': 'If '
                                                                                                    'true, '
@@ -5746,7 +7007,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                    'return '
                                                                                                    'direct/non-stop '
                                                                                                    'connections.',
-                                                                                    'type': 'boolean'},
+                                                                                    'type': 'boolean',
+                                                                                    'x-ui': {'basic': False}},
                                                                   'origin': {'description': 'Flat '
                                                                                             'route '
                                                                                             'origin '
@@ -5773,7 +7035,10 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                             'legs '
                                                                                             'before '
                                                                                             'execution.\n',
-                                                                             'type': 'string'},
+                                                                             'type': 'string',
+                                                                             'x-ui': {'basic': False,
+                                                                                      'control': 'location',
+                                                                                      'location_mode': 'place'}},
                                                                   'owned_passes': {'description': 'Fare '
                                                                                                   'or '
                                                                                                   'mobility '
@@ -5800,7 +7065,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                   'a '
                                                                                                   'Deutschlandticket.\n',
                                                                                    'items': {'type': 'string'},
-                                                                                   'type': 'array'},
+                                                                                   'type': 'array',
+                                                                                   'x-ui': {'basic': False}},
                                                                   'pass_only': {'default': False,
                                                                                 'description': 'If '
                                                                                                'true, '
@@ -5820,13 +7086,15 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'for '
                                                                                                'Deutschlandticket-only '
                                                                                                'routing.\n',
-                                                                                'type': 'boolean'},
+                                                                                'type': 'boolean',
+                                                                                'x-ui': {'basic': False}},
                                                                   'passengers': {'default': 1,
                                                                                  'description': 'Number '
                                                                                                 'of '
                                                                                                 'adult '
                                                                                                 'passengers.',
-                                                                                 'type': 'integer'},
+                                                                                 'type': 'integer',
+                                                                                 'x-ui': {'basic': False}},
                                                                   'provider': {'description': 'Singular '
                                                                                               'provider '
                                                                                               'alias '
@@ -5845,7 +7113,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                         'deutsche_bahn',
                                                                                         'flix',
                                                                                         'transitous'],
-                                                                               'type': 'string'},
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': False}},
                                                                   'providers': {'description': 'Optional '
                                                                                                'provider '
                                                                                                'IDs '
@@ -5902,7 +7171,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                    'flix',
                                                                                                    'transitous'],
                                                                                           'type': 'string'},
-                                                                                'type': 'array'},
+                                                                                'type': 'array',
+                                                                                'x-ui': {'basic': False}},
                                                                   'rail_products': {'description': 'Stable '
                                                                                                    'rail '
                                                                                                    'product '
@@ -5942,7 +7212,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                        'bus',
                                                                                                        'ferry'],
                                                                                               'type': 'string'},
-                                                                                    'type': 'array'},
+                                                                                    'type': 'array',
+                                                                                    'x-ui': {'basic': False}},
                                                                   'sort_by': {'default': 'price_asc',
                                                                               'description': 'How '
                                                                                              'to '
@@ -5988,7 +7259,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                        'departure_desc',
                                                                                        'stops_asc',
                                                                                        'stops_desc'],
-                                                                              'type': 'string'},
+                                                                              'type': 'string',
+                                                                              'x-ui': {'basic': False}},
                                                                   'transport_method': {'description': 'Singular '
                                                                                                       'transport '
                                                                                                       'method '
@@ -6008,7 +7280,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                 'train',
                                                                                                 'bus',
                                                                                                 'boat'],
-                                                                                       'type': 'string'},
+                                                                                       'type': 'string',
+                                                                                       'x-ui': {'basic': False}},
                                                                   'transport_methods': {'default': ['airplane'],
                                                                                         'description': 'Transport '
                                                                                                        'types '
@@ -6049,7 +7322,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                            'bus',
                                                                                                            'boat'],
                                                                                                   'type': 'string'},
-                                                                                        'type': 'array'},
+                                                                                        'type': 'array',
+                                                                                        'x-ui': {'basic': True}},
                                                                   'travel_class': {'default': 'economy',
                                                                                    'description': 'Cabin '
                                                                                                   'class '
@@ -6059,9 +7333,11 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                             'premium_economy',
                                                                                             'business',
                                                                                             'first'],
-                                                                                   'type': 'string'}},
+                                                                                   'type': 'string',
+                                                                                   'x-ui': {'basic': False}}},
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'search_connections',
@@ -6086,7 +7362,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                             'of '
                                                                                             'adult '
                                                                                             'guests.',
-                                                                             'type': 'integer'},
+                                                                             'type': 'integer',
+                                                                             'x-ui': {'basic': True}},
                                                                   'check_in_date': {'description': 'Check-in '
                                                                                                    'date '
                                                                                                    'in '
@@ -6094,7 +7371,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                    'format '
                                                                                                    '(e.g. '
                                                                                                    '"2026-03-15").\n',
-                                                                                    'type': 'string'},
+                                                                                    'format': 'date',
+                                                                                    'type': 'string',
+                                                                                    'x-ui': {'basic': True}},
                                                                   'check_out_date': {'description': 'Check-out '
                                                                                                     'date '
                                                                                                     'in '
@@ -6102,12 +7381,15 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                     'format '
                                                                                                     '(e.g. '
                                                                                                     '"2026-03-18").\n',
-                                                                                     'type': 'string'},
+                                                                                     'format': 'date',
+                                                                                     'type': 'string',
+                                                                                     'x-ui': {'basic': True}},
                                                                   'children': {'default': 0,
                                                                                'description': 'Number '
                                                                                               'of '
                                                                                               'children.',
-                                                                               'type': 'integer'},
+                                                                               'type': 'integer',
+                                                                               'x-ui': {'basic': False}},
                                                                   'currency': {'default': 'EUR',
                                                                                'description': 'Price '
                                                                                               'currency '
@@ -6117,7 +7399,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                               'e.g. '
                                                                                               '"EUR", '
                                                                                               '"USD").\n',
-                                                                               'type': 'string'},
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': False}},
                                                                   'hotel_class': {'description': 'Comma-separated '
                                                                                                  'star '
                                                                                                  'rating '
@@ -6128,12 +7411,14 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  '3-star '
                                                                                                  'and '
                                                                                                  'above).\n',
-                                                                                  'type': 'string'},
+                                                                                  'type': 'string',
+                                                                                  'x-ui': {'basic': False}},
                                                                   'max_price': {'description': 'Maximum '
                                                                                                'nightly '
                                                                                                'price '
                                                                                                'filter.',
-                                                                                'type': 'number'},
+                                                                                'type': 'number',
+                                                                                'x-ui': {'basic': False}},
                                                                   'max_results': {'default': 10,
                                                                                   'description': 'Maximum '
                                                                                                  'number '
@@ -6146,12 +7431,14 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  '10).',
                                                                                   'maximum': 20,
                                                                                   'minimum': 1,
-                                                                                  'type': 'integer'},
+                                                                                  'type': 'integer',
+                                                                                  'x-ui': {'basic': False}},
                                                                   'min_price': {'description': 'Minimum '
                                                                                                'nightly '
                                                                                                'price '
                                                                                                'filter.',
-                                                                                'type': 'number'},
+                                                                                'type': 'number',
+                                                                                'x-ui': {'basic': False}},
                                                                   'query': {'description': 'Search '
                                                                                            'query '
                                                                                            'describing '
@@ -6170,7 +7457,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            '"Barcelona '
                                                                                            'beachfront '
                                                                                            'hotel").\n',
-                                                                            'type': 'string'},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
                                                                   'relevance_criteria': {'description': 'Optional '
                                                                                                         'concise '
                                                                                                         'natural-language '
@@ -6228,7 +7516,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                         'invent '
                                                                                                         'preferences.\n',
                                                                                          'maxLength': 1000,
-                                                                                         'type': 'string'},
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': True}},
                                                                   'sort_by': {'default': 'relevance',
                                                                               'description': 'Sort '
                                                                                              'order '
@@ -6248,12 +7537,18 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                              '"reviews_desc" '
                                                                                              '(most '
                                                                                              'reviewed).\n',
-                                                                              'type': 'string'}},
+                                                                              'type': 'string',
+                                                                              'x-ui': {'basic': False}}},
                                                    'required': ['query',
                                                                 'check_in_date',
                                                                 'check_out_date'],
-                                                   'type': 'object'},
-                                         'type': 'array'}},
+                                                   'type': 'object',
+                                                   'x-ui': {'control': 'date-range',
+                                                            'end_field': 'check_out_date',
+                                                            'max_offset_days': 365,
+                                                            'start_field': 'check_in_date'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'search_stays',
@@ -6272,21 +7567,26 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                               "(e.g. '2026-03-05'). Must be a "
                                                               'past/completed date — live tracking '
                                                               'is not supported.\n',
-                                               'type': 'string'},
+                                               'format': 'date',
+                                               'type': 'string',
+                                               'x-ui': {'basic': True}},
                             'destination_iata': {'description': 'Optional IATA code of the '
                                                                 "destination airport (e.g. 'LHR'). "
                                                                 'Used for diversion detection.\n',
-                                                 'type': 'string'},
+                                                 'type': 'string',
+                                                 'x-ui': {'basic': False}},
                             'flight_number': {'description': 'IATA flight number including the '
                                                              "carrier code prefix (e.g. 'LH2472', "
                                                              "'BA234', 'AF447'). Do NOT include "
                                                              'spaces.\n',
-                                              'type': 'string'},
+                                              'type': 'string',
+                                              'x-ui': {'basic': True}},
                             'origin_iata': {'description': 'Optional IATA code of the departure '
                                                            "airport (e.g. 'MUC'). Used for "
                                                            'disambiguation when a flight number '
                                                            'has multiple legs.\n',
-                                            'type': 'string'}},
+                                            'type': 'string',
+                                            'x-ui': {'basic': False}}},
              'required': ['flight_number', 'departure_date'],
              'type': 'object'},
   'skill_id': 'get_flight',
@@ -6308,17 +7608,20 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                          'items': {'properties': {'aspect_ratio': {'default': '16:9',
                                                                                    'enum': ['16:9',
                                                                                             '9:16'],
-                                                                                   'type': 'string'},
+                                                                                   'type': 'string',
+                                                                                   'x-ui': {'basic': True}},
                                                                   'duration_seconds': {'default': 8,
                                                                                        'enum': [4,
                                                                                                 6,
                                                                                                 8],
-                                                                                       'type': 'integer'},
+                                                                                       'type': 'integer',
+                                                                                       'x-ui': {'basic': True}},
                                                                   'model': {'default': 'veo-3.1-generate-preview',
                                                                             'enum': ['veo-3.1-generate-preview',
                                                                                      'veo-3.1-fast-generate-preview',
                                                                                      'veo-3.0-generate-001'],
-                                                                            'type': 'string'},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': False}},
                                                                   'prompt': {'description': 'Detailed '
                                                                                             'text '
                                                                                             'description '
@@ -6327,12 +7630,14 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                             'video '
                                                                                             'to '
                                                                                             'generate.',
-                                                                             'type': 'string'},
+                                                                             'type': 'string',
+                                                                             'x-ui': {'basic': True}},
                                                                   'resolution': {'default': '720p',
                                                                                  'enum': ['720p',
                                                                                           '1080p',
                                                                                           '4k'],
-                                                                                 'type': 'string'},
+                                                                                 'type': 'string',
+                                                                                 'x-ui': {'basic': True}},
                                                                   'seed': {'description': 'Optional '
                                                                                           'seed '
                                                                                           'for '
@@ -6341,10 +7646,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                           'output '
                                                                                           'when '
                                                                                           'supported.',
-                                                                           'type': 'integer'}},
+                                                                           'type': 'integer',
+                                                                           'x-ui': {'basic': False}}},
                                                    'required': ['prompt'],
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'generate',
@@ -6361,9 +7668,11 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'description_key': 'app_skills.videos.create.description',
   'schema': {'properties': {'filename': {'description': 'Source filename, for example '
                                                         'ProductAnnouncement.tsx.',
-                                         'type': 'string'},
+                                         'type': 'string',
+                                         'x-ui': {'basic': True}},
                             'source': {'description': 'Remotion TSX source code to render.',
-                                       'type': 'string'}},
+                                       'type': 'string',
+                                       'x-ui': {'basic': True}}},
              'required': ['source'],
              'type': 'object'},
   'skill_id': 'create',
@@ -6421,7 +7730,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'available '
                                                                                                'language.',
                                                                                 'items': {'type': 'string'},
-                                                                                'type': 'array'},
+                                                                                'type': 'array',
+                                                                                'x-ui': {'basic': True}},
                                                                   'url': {'description': 'YouTube '
                                                                                          'video '
                                                                                          'URL '
@@ -6430,10 +7740,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                          'and '
                                                                                          'youtu.be/ '
                                                                                          'formats)',
-                                                                          'type': 'string'}},
+                                                                          'format': 'uri',
+                                                                          'type': 'string',
+                                                                          'x-ui': {'basic': True}}},
                                                    'required': ['url'],
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'get_transcript',
@@ -6481,7 +7794,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            '20)',
                                                                             'maximum': 20,
                                                                             'minimum': 1,
-                                                                            'type': 'integer'},
+                                                                            'type': 'integer',
+                                                                            'x-ui': {'basic': True}},
                                                                   'country': {'default': 'us',
                                                                               'description': 'Country '
                                                                                              'code '
@@ -6613,11 +7927,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                        'gb',
                                                                                        'us',
                                                                                        'all'],
-                                                                              'type': 'string'},
+                                                                              'type': 'string',
+                                                                              'x-ui': {'basic': True}},
                                                                   'query': {'description': 'Search '
                                                                                            'query '
                                                                                            'string',
-                                                                            'type': 'string'},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
                                                                   'relevance_criteria': {'description': 'Optional '
                                                                                                         'concise '
                                                                                                         'natural-language '
@@ -6675,7 +7991,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                         'structured '
                                                                                                         'fields.\n',
                                                                                          'maxLength': 1000,
-                                                                                         'type': 'string'},
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': True}},
                                                                   'safesearch': {'default': 'moderate',
                                                                                  'description': 'Safe '
                                                                                                 'search '
@@ -6683,7 +8000,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                  'enum': ['off',
                                                                                           'moderate',
                                                                                           'strict'],
-                                                                                 'type': 'string'},
+                                                                                 'type': 'string',
+                                                                                 'x-ui': {'basic': False}},
                                                                   'search_lang': {'default': 'en',
                                                                                   'description': 'Language '
                                                                                                  'code '
@@ -6695,10 +8013,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  "'en', "
                                                                                                  "'es', "
                                                                                                  "'fr')",
-                                                                                  'type': 'string'}},
+                                                                                  'type': 'string',
+                                                                                  'x-ui': {'basic': False}}},
                                                    'required': ['query'],
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'search',
@@ -6714,7 +8034,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'description_key': 'apps.weather.forecast.description',
   'output_schema': {'properties': {'end_date': {'example': '2026-09-21',
                                                 'format': 'date',
-                                                'type': 'string'},
+                                                'type': 'string',
+                                                'x-ui': {'basic': False}},
                                    'forecast_day': {'example': {'condition': 'rain',
                                                                 'date': '2026-09-21',
                                                                 'hourly': [{'condition': 'rain',
@@ -6731,9 +8052,11 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                 'title': 'Berlin weather'},
                                                     'properties': {'condition': {'example': 'rain',
                                                                                  'type': ['string',
-                                                                                          'null']},
+                                                                                          'null'],
+                                                                                 'x-ui': {'basic': True}},
                                                                    'date': {'example': '2026-09-21',
-                                                                            'type': 'string'},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
                                                                    'hourly': {'example': [{'condition': 'rain',
                                                                                            'precipitation_mm': 0.4,
                                                                                            'precipitation_probability_pct': 60,
@@ -6748,40 +8071,54 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                     'timestamp': '2026-09-21T12:00:00+02:00'},
                                                                                         'properties': {'condition': {'example': 'rain',
                                                                                                                      'type': ['string',
-                                                                                                                              'null']},
+                                                                                                                              'null'],
+                                                                                                                     'x-ui': {'basic': True}},
                                                                                                        'precipitation_mm': {'example': 0.4,
                                                                                                                             'type': ['number',
-                                                                                                                                     'null']},
+                                                                                                                                     'null'],
+                                                                                                                            'x-ui': {'basic': False}},
                                                                                                        'precipitation_probability_pct': {'example': 60,
                                                                                                                                          'type': ['number',
-                                                                                                                                                  'null']},
+                                                                                                                                                  'null'],
+                                                                                                                                         'x-ui': {'basic': True}},
                                                                                                        'temperature_c': {'example': 18,
                                                                                                                          'type': ['number',
-                                                                                                                                  'null']},
+                                                                                                                                  'null'],
+                                                                                                                         'x-ui': {'basic': True}},
                                                                                                        'time': {'example': '12:00',
-                                                                                                                'type': 'string'},
+                                                                                                                'type': 'string',
+                                                                                                                'x-ui': {'basic': True}},
                                                                                                        'timestamp': {'example': '2026-09-21T12:00:00+02:00',
-                                                                                                                     'type': 'string'}},
+                                                                                                                     'type': 'string',
+                                                                                                                     'x-ui': {'basic': False}}},
                                                                                         'type': 'object'},
-                                                                              'type': 'array'},
+                                                                              'type': 'array',
+                                                                              'x-ui': {'basic': False}},
                                                                    'precipitation_probability_max_pct': {'example': 60,
                                                                                                          'type': ['number',
-                                                                                                                  'null']},
+                                                                                                                  'null'],
+                                                                                                         'x-ui': {'basic': False}},
                                                                    'precipitation_total_mm': {'example': 1.2,
                                                                                               'type': ['number',
-                                                                                                       'null']},
+                                                                                                       'null'],
+                                                                                              'x-ui': {'basic': False}},
                                                                    'temperature_max_c': {'example': 20,
                                                                                          'type': ['number',
-                                                                                                  'null']},
+                                                                                                  'null'],
+                                                                                         'x-ui': {'basic': True}},
                                                                    'temperature_min_c': {'example': 12,
                                                                                          'type': ['number',
-                                                                                                  'null']},
+                                                                                                  'null'],
+                                                                                         'x-ui': {'basic': True}},
                                                                    'timezone': {'example': 'Europe/Berlin',
-                                                                                'type': 'string'},
+                                                                                'type': 'string',
+                                                                                'x-ui': {'basic': False}},
                                                                    'title': {'example': 'Berlin '
                                                                                         'weather',
-                                                                             'type': 'string'}},
-                                                    'type': 'object'},
+                                                                             'type': 'string',
+                                                                             'x-ui': {'basic': False}}},
+                                                    'type': 'object',
+                                                    'x-ui': {'basic': True}},
                                    'forecast_days': {'example': [{'condition': 'rain',
                                                                   'date': '2026-09-21',
                                                                   'hourly': [{'condition': 'rain',
@@ -6813,9 +8150,11 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                     'weather'},
                                                                'properties': {'condition': {'example': 'rain',
                                                                                             'type': ['string',
-                                                                                                     'null']},
+                                                                                                     'null'],
+                                                                                            'x-ui': {'basic': True}},
                                                                               'date': {'example': '2026-09-21',
-                                                                                       'type': 'string'},
+                                                                                       'type': 'string',
+                                                                                       'x-ui': {'basic': True}},
                                                                               'hourly': {'example': [{'condition': 'rain',
                                                                                                       'precipitation_mm': 0.4,
                                                                                                       'precipitation_probability_pct': 60,
@@ -6830,41 +8169,55 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                                'timestamp': '2026-09-21T12:00:00+02:00'},
                                                                                                    'properties': {'condition': {'example': 'rain',
                                                                                                                                 'type': ['string',
-                                                                                                                                         'null']},
+                                                                                                                                         'null'],
+                                                                                                                                'x-ui': {'basic': True}},
                                                                                                                   'precipitation_mm': {'example': 0.4,
                                                                                                                                        'type': ['number',
-                                                                                                                                                'null']},
+                                                                                                                                                'null'],
+                                                                                                                                       'x-ui': {'basic': False}},
                                                                                                                   'precipitation_probability_pct': {'example': 60,
                                                                                                                                                     'type': ['number',
-                                                                                                                                                             'null']},
+                                                                                                                                                             'null'],
+                                                                                                                                                    'x-ui': {'basic': True}},
                                                                                                                   'temperature_c': {'example': 18,
                                                                                                                                     'type': ['number',
-                                                                                                                                             'null']},
+                                                                                                                                             'null'],
+                                                                                                                                    'x-ui': {'basic': True}},
                                                                                                                   'time': {'example': '12:00',
-                                                                                                                           'type': 'string'},
+                                                                                                                           'type': 'string',
+                                                                                                                           'x-ui': {'basic': True}},
                                                                                                                   'timestamp': {'example': '2026-09-21T12:00:00+02:00',
-                                                                                                                                'type': 'string'}},
+                                                                                                                                'type': 'string',
+                                                                                                                                'x-ui': {'basic': False}}},
                                                                                                    'type': 'object'},
-                                                                                         'type': 'array'},
+                                                                                         'type': 'array',
+                                                                                         'x-ui': {'basic': False}},
                                                                               'precipitation_probability_max_pct': {'example': 60,
                                                                                                                     'type': ['number',
-                                                                                                                             'null']},
+                                                                                                                             'null'],
+                                                                                                                    'x-ui': {'basic': False}},
                                                                               'precipitation_total_mm': {'example': 1.2,
                                                                                                          'type': ['number',
-                                                                                                                  'null']},
+                                                                                                                  'null'],
+                                                                                                         'x-ui': {'basic': False}},
                                                                               'temperature_max_c': {'example': 20,
                                                                                                     'type': ['number',
-                                                                                                             'null']},
+                                                                                                             'null'],
+                                                                                                    'x-ui': {'basic': True}},
                                                                               'temperature_min_c': {'example': 12,
                                                                                                     'type': ['number',
-                                                                                                             'null']},
+                                                                                                             'null'],
+                                                                                                    'x-ui': {'basic': True}},
                                                                               'timezone': {'example': 'Europe/Berlin',
-                                                                                           'type': 'string'},
+                                                                                           'type': 'string',
+                                                                                           'x-ui': {'basic': False}},
                                                                               'title': {'example': 'Berlin '
                                                                                                    'weather',
-                                                                                        'type': 'string'}},
+                                                                                        'type': 'string',
+                                                                                        'x-ui': {'basic': False}}},
                                                                'type': 'object'},
-                                                     'type': 'array'},
+                                                     'type': 'array',
+                                                     'x-ui': {'basic': False}},
                                    'hourly': {'example': [{'condition': 'rain',
                                                            'precipitation_mm': 0.4,
                                                            'precipitation_probability_pct': 60,
@@ -6879,24 +8232,35 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                     'timestamp': '2026-09-21T12:00:00+02:00'},
                                                         'properties': {'condition': {'example': 'rain',
                                                                                      'type': ['string',
-                                                                                              'null']},
+                                                                                              'null'],
+                                                                                     'x-ui': {'basic': True}},
                                                                        'precipitation_mm': {'example': 0.4,
                                                                                             'type': ['number',
-                                                                                                     'null']},
+                                                                                                     'null'],
+                                                                                            'x-ui': {'basic': False}},
                                                                        'precipitation_probability_pct': {'example': 60,
                                                                                                          'type': ['number',
-                                                                                                                  'null']},
+                                                                                                                  'null'],
+                                                                                                         'x-ui': {'basic': True}},
                                                                        'temperature_c': {'example': 18,
                                                                                          'type': ['number',
-                                                                                                  'null']},
+                                                                                                  'null'],
+                                                                                         'x-ui': {'basic': True}},
                                                                        'time': {'example': '12:00',
-                                                                                'type': 'string'},
+                                                                                'type': 'string',
+                                                                                'x-ui': {'basic': True}},
                                                                        'timestamp': {'example': '2026-09-21T12:00:00+02:00',
-                                                                                     'type': 'string'}},
+                                                                                     'type': 'string',
+                                                                                     'x-ui': {'basic': False}}},
                                                         'type': 'object'},
-                                              'type': 'array'},
-                                   'max_temperature_c': {'example': 20, 'type': ['number', 'null']},
-                                   'rain_expected': {'example': True, 'type': ['boolean', 'null']},
+                                              'type': 'array',
+                                              'x-ui': {'basic': False}},
+                                   'max_temperature_c': {'example': 20,
+                                                         'type': ['number', 'null'],
+                                                         'x-ui': {'basic': False}},
+                                   'rain_expected': {'example': True,
+                                                     'type': ['boolean', 'null'],
+                                                     'x-ui': {'basic': True}},
                                    'rain_periods': {'example': [{'end': '2026-09-21T14:00:00+02:00',
                                                                  'end_time': '14:00',
                                                                  'probability_pct': 60,
@@ -6910,31 +8274,68 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                           'start_time': '12:00',
                                                                           'timezone': 'Europe/Berlin'},
                                                               'properties': {'end': {'example': '2026-09-21T14:00:00+02:00',
-                                                                                     'type': 'string'},
+                                                                                     'type': 'string',
+                                                                                     'x-ui': {'basic': False}},
                                                                              'end_time': {'example': '14:00',
-                                                                                          'type': 'string'},
+                                                                                          'type': 'string',
+                                                                                          'x-ui': {'basic': True}},
                                                                              'probability_pct': {'example': 60,
                                                                                                  'type': ['number',
-                                                                                                          'null']},
+                                                                                                          'null'],
+                                                                                                 'x-ui': {'basic': True}},
                                                                              'start': {'example': '2026-09-21T12:00:00+02:00',
-                                                                                       'type': 'string'},
+                                                                                       'type': 'string',
+                                                                                       'x-ui': {'basic': False}},
                                                                              'start_time': {'example': '12:00',
-                                                                                            'type': 'string'},
+                                                                                            'type': 'string',
+                                                                                            'x-ui': {'basic': True}},
                                                                              'timezone': {'example': 'Europe/Berlin',
                                                                                           'type': ['string',
-                                                                                                   'null']}},
+                                                                                                   'null'],
+                                                                                          'x-ui': {'basic': False}}},
                                                               'type': 'object'},
-                                                    'type': 'array'},
-                                   'rain_probability': {'example': 60, 'type': ['number', 'null']},
+                                                    'type': 'array',
+                                                    'x-ui': {'basic': True}},
+                                   'rain_probability': {'example': 60,
+                                                        'type': ['number', 'null'],
+                                                        'x-ui': {'basic': True}},
                                    'rain_summary': {'example': 'Rain is forecast today: '
                                                                '12:00–14:00 (Europe/Berlin).',
-                                                    'type': 'string'},
-                                   'result_count': {'example': 1, 'type': 'integer'},
+                                                    'type': 'string',
+                                                    'x-ui': {'basic': False}},
+                                   'result_count': {'example': 1,
+                                                    'type': 'integer',
+                                                    'x-ui': {'basic': False}},
+                                   'results': {'description': 'Actual forecast day records for the '
+                                                              'requested dates. An empty array '
+                                                              'means no forecast was returned; use '
+                                                              'this value to detect and report a '
+                                                              'missing forecast.',
+                                               'items': {'properties': {'condition': {'type': ['string',
+                                                                                               'null']},
+                                                                        'date': {'type': 'string'},
+                                                                        'precipitation_probability_max_pct': {'type': ['number',
+                                                                                                                       'null']},
+                                                                        'temperature_max_c': {'type': ['number',
+                                                                                                       'null']},
+                                                                        'temperature_min_c': {'type': ['number',
+                                                                                                       'null']},
+                                                                        'title': {'type': 'string'}},
+                                                         'type': 'object'},
+                                               'type': 'array',
+                                               'x-ui': {'basic': False}},
                                    'start_date': {'example': '2026-09-21',
                                                   'format': 'date',
-                                                  'type': 'string'},
-                                   'summary': {'example': 'Weather forecast for Berlin',
-                                               'type': 'string'}},
+                                                  'type': 'string',
+                                                  'x-ui': {'basic': False}},
+                                   'summary': {'description': 'Location label only, such as '
+                                                              'Weather forecast for Berlin; it '
+                                                              'does not contain forecast data and '
+                                                              'remains present when no forecast '
+                                                              'was returned.',
+                                               'example': 'Weather forecast for Berlin',
+                                               'type': 'string',
+                                               'x-ui': {'basic': False}}},
                     'type': 'object'},
   'schema': {'properties': {'days': {'default': 7,
                                      'description': 'Compatibility input for older clients. Number '
@@ -6943,36 +8344,43 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                      'maximum': 14,
                                      'minimum': 1,
                                      'type': 'integer',
-                                     'x-ui': {'hidden': True}},
+                                     'x-ui': {'basic': False, 'hidden': True}},
                             'end_date': {'description': 'Last forecast date, inclusive, in the '
                                                         'location timezone. Must be within the '
                                                         '14-day forecast window and supplied with '
                                                         'start_date.',
                                          'format': 'date',
-                                         'type': 'string'},
+                                         'type': 'string',
+                                         'x-ui': {'basic': True}},
                             'latitude': {'description': 'Optional latitude in decimal degrees. Use '
                                                         'with longitude for exact coordinates.',
-                                         'type': 'number'},
+                                         'type': 'number',
+                                         'x-ui': {'basic': False}},
                             'location': {'description': 'Place name for the forecast, e.g. Berlin, '
                                                         'Karlsruhe, Tokyo. Required unless '
                                                         'latitude and longitude are provided.',
-                                         'type': 'string'},
+                                         'type': 'string',
+                                         'x-ui': {'basic': True}},
                             'longitude': {'description': 'Optional longitude in decimal degrees. '
                                                          'Use with latitude for exact coordinates.',
-                                          'type': 'number'},
+                                          'type': 'number',
+                                          'x-ui': {'basic': False}},
                             'start_date': {'description': 'First forecast date, inclusive, in the '
                                                           'location timezone. Must be today or '
                                                           'later and supplied with end_date.',
                                            'format': 'date',
-                                           'type': 'string'},
+                                           'type': 'string',
+                                           'x-ui': {'basic': True}},
                             'timezone': {'description': 'Optional IANA timezone. Defaults to '
                                                         'provider/location timezone.',
-                                         'type': 'string'},
+                                         'type': 'string',
+                                         'x-ui': {'basic': False}},
                             'units': {'default': 'metric',
                                       'description': 'Unit system. Only metric is currently '
                                                      'supported.',
                                       'enum': ['metric'],
-                                      'type': 'string'}},
+                                      'type': 'string',
+                                      'x-ui': {'basic': False}}},
              'required': ['location'],
              'type': 'object',
              'x-ui': {'control': 'date-range',
@@ -6996,15 +8404,18 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'schema': {'properties': {'latitude': {'description': 'Optional latitude in decimal degrees. Use '
                                                         'with longitude for exact coordinates. V1 '
                                                         'supports Germany only.',
-                                         'type': 'number'},
+                                         'type': 'number',
+                                         'x-ui': {'basic': False}},
                             'location': {'description': 'German place name for the radar, e.g. '
                                                         'Berlin, Hamburg, Munich. Required unless '
                                                         'latitude and longitude are provided.',
-                                         'type': 'string'},
+                                         'type': 'string',
+                                         'x-ui': {'basic': True}},
                             'longitude': {'description': 'Optional longitude in decimal degrees. '
                                                          'Use with latitude for exact coordinates. '
                                                          'V1 supports Germany only.',
-                                          'type': 'number'},
+                                          'type': 'number',
+                                          'x-ui': {'basic': False}},
                             'radius_km': {'default': 5,
                                           'description': 'Radar radius around the location in '
                                                          'kilometers. Defaults to 5 for a '
@@ -7012,10 +8423,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                          '100.',
                                           'maximum': 100,
                                           'minimum': 1,
-                                          'type': 'integer'},
+                                          'type': 'integer',
+                                          'x-ui': {'basic': True}},
                             'timezone': {'description': 'Optional IANA timezone. Defaults to '
                                                         'provider/location timezone.',
-                                         'type': 'string'}},
+                                         'type': 'string',
+                                         'x-ui': {'basic': False}}},
              'required': ['location'],
              'type': 'object'},
   'skill_id': 'rain_radar',
@@ -7032,8 +8445,25 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                  'also be added to query. For example, query "laptop-friendly cafes Berlin" with '
                  'relevance_criteria "Places suita',
   'description_key': 'app_skills.web.search.description',
-  'output_schema': {'properties': {'result_count': {'type': 'integer'},
-                                   'summary': {'type': 'string'}},
+  'output_schema': {'properties': {'result_count': {'type': 'integer', 'x-ui': {'basic': True}},
+                                   'results': {'items': {'properties': {'canonical_url': {'type': 'string',
+                                                                                          'x-ui': {'basic': False}},
+                                                                        'description': {'type': 'string',
+                                                                                        'x-ui': {'basic': True}},
+                                                                        'page_age': {'type': 'string',
+                                                                                     'x-ui': {'basic': True}},
+                                                                        'provider': {'type': 'string',
+                                                                                     'x-ui': {'basic': False}},
+                                                                        'source_id': {'type': 'string',
+                                                                                      'x-ui': {'basic': False}},
+                                                                        'title': {'type': 'string',
+                                                                                  'x-ui': {'basic': True}},
+                                                                        'url': {'type': 'string',
+                                                                                'x-ui': {'basic': True}}},
+                                                         'type': 'object'},
+                                               'type': 'array',
+                                               'x-ui': {'basic': True}},
+                                   'summary': {'type': 'string', 'x-ui': {'basic': False}}},
                     'type': 'object'},
   'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of search request objects '
                                                         'for parallel processing (up to 5 '
@@ -7067,7 +8497,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            '20).',
                                                                             'maximum': 20,
                                                                             'minimum': 1,
-                                                                            'type': 'integer'},
+                                                                            'type': 'integer',
+                                                                            'x-ui': {'basic': True}},
                                                                   'country': {'default': 'us',
                                                                               'description': 'Country '
                                                                                              'code '
@@ -7199,7 +8630,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                        'gb',
                                                                                        'us',
                                                                                        'all'],
-                                                                              'type': 'string'},
+                                                                              'type': 'string',
+                                                                              'x-ui': {'basic': True}},
                                                                   'filter_tabloids': {'default': True,
                                                                                       'description': 'Filter '
                                                                                                      'out '
@@ -7233,11 +8665,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                      'for '
                                                                                                      'tabloid '
                                                                                                      'sources.',
-                                                                                      'type': 'boolean'},
+                                                                                      'type': 'boolean',
+                                                                                      'x-ui': {'basic': False}},
                                                                   'query': {'description': 'Search '
                                                                                            'query '
                                                                                            'string',
-                                                                            'type': 'string'},
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
                                                                   'relevance_criteria': {'description': 'Optional '
                                                                                                         'concise '
                                                                                                         'natural-language '
@@ -7314,7 +8748,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                         'are '
                                                                                                         'returned.\n',
                                                                                          'maxLength': 1000,
-                                                                                         'type': 'string'},
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': True}},
                                                                   'safesearch': {'default': 'moderate',
                                                                                  'description': 'Safe '
                                                                                                 'search '
@@ -7322,7 +8757,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                  'enum': ['off',
                                                                                           'moderate',
                                                                                           'strict'],
-                                                                                 'type': 'string'},
+                                                                                 'type': 'string',
+                                                                                 'x-ui': {'basic': False}},
                                                                   'search_lang': {'default': 'en',
                                                                                   'description': 'Language '
                                                                                                  'code '
@@ -7334,10 +8770,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  "'en', "
                                                                                                  "'es', "
                                                                                                  "'fr')",
-                                                                                  'type': 'string'}},
+                                                                                  'type': 'string',
+                                                                                  'x-ui': {'basic': False}}},
                                                    'required': ['query'],
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'search',
@@ -7378,7 +8816,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                              "'html', "
                                                                                              "'summary')",
                                                                               'items': {'type': 'string'},
-                                                                              'type': 'array'},
+                                                                              'type': 'array',
+                                                                              'x-ui': {'basic': True}},
                                                                   'max_age': {'description': 'Cache '
                                                                                              'age '
                                                                                              'in '
@@ -7392,7 +8831,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                              'version '
                                                                                              'if '
                                                                                              'available.',
-                                                                              'type': 'integer'},
+                                                                              'type': 'integer',
+                                                                              'x-ui': {'basic': True}},
                                                                   'only_main_content': {'default': True,
                                                                                         'description': 'Whether '
                                                                                                        'to '
@@ -7405,23 +8845,28 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                        'navs, '
                                                                                                        'footers, '
                                                                                                        'etc.)',
-                                                                                        'type': 'boolean'},
+                                                                                        'type': 'boolean',
+                                                                                        'x-ui': {'basic': True}},
                                                                   'timeout': {'description': 'Timeout '
                                                                                              'in '
                                                                                              'milliseconds '
                                                                                              'for '
                                                                                              'the '
                                                                                              'request',
-                                                                              'type': 'integer'},
+                                                                              'type': 'integer',
+                                                                              'x-ui': {'basic': False}},
                                                                   'url': {'description': 'URL of '
                                                                                          'the '
                                                                                          'webpage '
                                                                                          'to '
                                                                                          'read/scrape',
-                                                                          'type': 'string'}},
+                                                                          'format': 'uri',
+                                                                          'type': 'string',
+                                                                          'x-ui': {'basic': True}}},
                                                    'required': ['url'],
                                                    'type': 'object'},
-                                         'type': 'array'}},
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
              'required': ['requests'],
              'type': 'object'},
   'skill_id': 'read',
@@ -7430,230 +8875,22 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'workflows',
   'app_namespace_py': 'workflows',
   'app_namespace_ts': 'workflows',
-  'description': 'Create or modify exactly one workflow from chat. Do not batch multiple workflows '
-                 'into one skill call.',
-  'description_key': 'workflows.skills.create_or_modify.description',
-  'schema': {'properties': {'graph': {'description': 'Valid WorkflowGraph definition.',
-                                      'type': 'object'},
-                            'title': {'description': 'Short user-facing workflow title.',
-                                      'type': 'string'},
-                            'workflow_id': {'description': 'Existing workflow ID when modifying a '
-                                                           'workflow.',
-                                            'type': 'string'}},
-             'required': ['title'],
-             'type': 'object'},
-  'skill_id': 'create-or-modify',
-  'skill_method_py': 'create_or_modify',
-  'skill_method_ts': 'createOrModify'},
- {'app_id': 'workflows',
-  'app_namespace_py': 'workflows',
-  'app_namespace_ts': 'workflows',
-  'description': "Search the user's existing persisted workflows before proposing a new "
-                 'automation. Include temporary workflows only when the user explicitly asks about '
-                 'recent chat-created workflows.',
+  'description': 'Look up a selected workflow by its exact ID before editing it. Otherwise search '
+                 "the user's persisted workflows by title. Include temporary workflows only when "
+                 'the user explicitly asks about recent chat-created workflows.',
   'description_key': 'workflows.skills.search.description',
   'schema': {'properties': {'include_temporary': {'description': 'Include temporary chat-created '
                                                                  'workflows in the search results.',
                                                   'type': 'boolean'},
                             'query': {'description': 'Workflow title or intent text to search for.',
-                                      'type': 'string'}},
+                                      'type': 'string'},
+                            'workflow_id': {'description': 'Exact owner-scoped workflow ID from '
+                                                           'the editor or a prior search result.',
+                                            'type': 'string'}},
              'type': 'object'},
   'skill_id': 'search',
   'skill_method_py': 'search',
-  'skill_method_ts': 'search'},
- {'app_id': 'hosting',
-  'app_namespace_py': 'hosting',
-  'app_namespace_ts': 'hosting',
-  'description': 'Check an exact domain name or discover available domain names through Gandi. Use '
-                 'one grouped request per independent name or idea. A fully qualified domain is '
-                 'checked exactly. Put explicitly requested suffixes in tlds and explicit tax '
-                 'country and currency in country and currency; defaults are DE and EUR. Use '
-                 'availability=prefer_available by default: show confirmed available names first '
-                 'and checked in-use names only to fill remaining result slots. Use available_only '
-                 'only when the user wants no in',
-  'description_key': 'app_skills.hosting.search_domains.description',
-  'schema': {'properties': {'requests': {'description': 'One to five independent domain checks or '
-                                                        'name searches.',
-                                         'items': {'properties': {'availability': {'default': 'prefer_available',
-                                                                                   'description': 'prefer_available '
-                                                                                                  'selects '
-                                                                                                  'confirmed '
-                                                                                                  'available '
-                                                                                                  'first, '
-                                                                                                  'then '
-                                                                                                  'checked '
-                                                                                                  'unavailable '
-                                                                                                  'names '
-                                                                                                  'only '
-                                                                                                  'to '
-                                                                                                  'fill '
-                                                                                                  'a '
-                                                                                                  'shortfall. '
-                                                                                                  'available_only '
-                                                                                                  'never '
-                                                                                                  'fills '
-                                                                                                  'with '
-                                                                                                  'unavailable. '
-                                                                                                  'all '
-                                                                                                  'preserves '
-                                                                                                  'ranked '
-                                                                                                  'checked '
-                                                                                                  'available '
-                                                                                                  'and '
-                                                                                                  'unavailable '
-                                                                                                  'order. '
-                                                                                                  'Unknown '
-                                                                                                  'checks '
-                                                                                                  'remain '
-                                                                                                  'diagnostic '
-                                                                                                  'only.\n',
-                                                                                   'enum': ['prefer_available',
-                                                                                            'available_only',
-                                                                                            'all'],
-                                                                                   'type': 'string'},
-                                                                  'country': {'default': 'DE',
-                                                                              'description': 'Two-letter '
-                                                                                             'tax '
-                                                                                             'country '
-                                                                                             'code; '
-                                                                                             'returned '
-                                                                                             'explicitly '
-                                                                                             'with '
-                                                                                             'prices.',
-                                                                              'type': 'string'},
-                                                                  'currency': {'default': 'EUR',
-                                                                               'description': 'Supported '
-                                                                                              'quote '
-                                                                                              'currency. '
-                                                                                              'Unsupported '
-                                                                                              'currencies '
-                                                                                              'are '
-                                                                                              'rejected.',
-                                                                               'enum': ['EUR',
-                                                                                        'USD'],
-                                                                               'type': 'string'},
-                                                                  'id': {'description': 'Optional '
-                                                                                        'caller ID '
-                                                                                        'echoed in '
-                                                                                        'this '
-                                                                                        "group's "
-                                                                                        'result.',
-                                                                         'anyOf': [{'type': 'string'},
-                                                                                   {'type': 'integer'}]},
-                                                                  'max_results': {'default': 10,
-                                                                                  'description': 'Maximum '
-                                                                                                 'selected '
-                                                                                                 'results '
-                                                                                                 'per '
-                                                                                                 'group. '
-                                                                                                 'Checked '
-                                                                                                 'pool '
-                                                                                                 'remains '
-                                                                                                 'at '
-                                                                                                 'most '
-                                                                                                 '40.',
-                                                                                  'maximum': 20,
-                                                                                  'minimum': 1,
-                                                                                  'type': 'integer'},
-                                                                  'query': {'description': 'An '
-                                                                                           'exact '
-                                                                                           'fully '
-                                                                                           'qualified '
-                                                                                           'domain '
-                                                                                           '(up to '
-                                                                                           '253 '
-                                                                                           'characters), '
-                                                                                           'a '
-                                                                                           'short '
-                                                                                           'name, '
-                                                                                           'or a '
-                                                                                           'keyword '
-                                                                                           'idea '
-                                                                                           '(up to '
-                                                                                           '100 '
-                                                                                           'characters).',
-                                                                            'maxLength': 253,
-                                                                            'minLength': 1,
-                                                                            'type': 'string'},
-                                                                  'relevance_criteria': {'description': 'Optional '
-                                                                                                        'natural-language '
-                                                                                                        'goal '
-                                                                                                        'for '
-                                                                                                        'ranking '
-                                                                                                        'checked '
-                                                                                                        'candidates. '
-                                                                                                        'Set '
-                                                                                                        'when '
-                                                                                                        'the '
-                                                                                                        'user '
-                                                                                                        'states '
-                                                                                                        'a '
-                                                                                                        'material '
-                                                                                                        'brand, '
-                                                                                                        'name-fit, '
-                                                                                                        'renewal-price, '
-                                                                                                        'term, '
-                                                                                                        'premium, '
-                                                                                                        'or '
-                                                                                                        'restriction '
-                                                                                                        'preference '
-                                                                                                        'that '
-                                                                                                        'should '
-                                                                                                        'change '
-                                                                                                        'order. '
-                                                                                                        'Copy '
-                                                                                                        'the '
-                                                                                                        'goal '
-                                                                                                        'faithfully; '
-                                                                                                        'omit '
-                                                                                                        'for '
-                                                                                                        'neutral '
-                                                                                                        'lookup '
-                                                                                                        'or '
-                                                                                                        'discovery. '
-                                                                                                        'Ranking '
-                                                                                                        'uses '
-                                                                                                        'only '
-                                                                                                        'evidenced '
-                                                                                                        'provider '
-                                                                                                        'facts '
-                                                                                                        'and '
-                                                                                                        'drops '
-                                                                                                        'scores '
-                                                                                                        'below '
-                                                                                                        '1.\n',
-                                                                                         'maxLength': 1000,
-                                                                                         'type': 'string'},
-                                                                  'tlds': {'description': 'Optional '
-                                                                                          'suffixes '
-                                                                                          'such as '
-                                                                                          '.com or '
-                                                                                          '.net. '
-                                                                                          'For a '
-                                                                                          'short '
-                                                                                          'single-label '
-                                                                                          'name, '
-                                                                                          'check '
-                                                                                          'each '
-                                                                                          'exact '
-                                                                                          'name '
-                                                                                          'plus '
-                                                                                          'suffix '
-                                                                                          'before '
-                                                                                          'suggestions.\n',
-                                                                           'items': {'type': 'string'},
-                                                                           'maxItems': 5,
-                                                                           'type': 'array'}},
-                                                   'required': ['query'],
-                                                   'type': 'object'},
-                                         'maxItems': 5,
-                                         'minItems': 1,
-                                         'type': 'array'}},
-             'required': ['requests'],
-             'type': 'object'},
-  'skill_id': 'search_domains',
-  'skill_method_py': 'search_domains',
-  'skill_method_ts': 'searchDomains'}]
+  'skill_method_ts': 'search'}]
 
 SkillRunner = Callable[..., dict[str, Any]]
 
@@ -7712,6 +8949,14 @@ class BusinessAppSkills:
         Skill: business/company_financials
         """
         return self._run_skill("business", "company_financials", input_data, prompt_injection_protection=prompt_injection_protection)
+
+    def search_trademarks(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Search trademark names for explicit target regions when checking a brand or product name. US searches use the free USPTO public search endpoint. EU, Germany and worldwide searches currently return explicit coverage gaps and manual sources; never treat a missing region, failed search or no matches as legal clearance. Ask for the target market if it is unknown.
+
+        Description key: app_skills.business.search_trademarks.description
+        Skill: business/search_trademarks
+        """
+        return self._run_skill("business", "search_trademarks", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class CodeAppSkills:
     def __init__(self, run_skill: SkillRunner):
@@ -7876,6 +9121,18 @@ class HomeAppSkills:
         Skill: home/search
         """
         return self._run_skill("home", "search", input_data, prompt_injection_protection=prompt_injection_protection)
+
+class HostingAppSkills:
+    def __init__(self, run_skill: SkillRunner):
+        self._run_skill = run_skill
+
+    def search_domains(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Check an exact domain name or discover available domain names through Gandi. Use one grouped request per independent name or idea. A fully qualified domain is checked exactly. Put explicitly requested suffixes in tlds and explicit tax country and currency in country and currency; defaults are DE and EUR. Use availability=prefer_available by default: show confirmed available names first and checked in-use names only to fill remaining result slots. Use available_only only when the user wants no in
+
+        Description key: app_skills.hosting.search_domains.description
+        Skill: hosting/search_domains
+        """
+        return self._run_skill("hosting", "search_domains", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class ImagesAppSkills:
     def __init__(self, run_skill: SkillRunner):
@@ -8060,14 +9317,6 @@ class ProjectsAppSkills:
         Skill: projects/create
         """
         return self._run_skill("projects", "create", input_data, prompt_injection_protection=prompt_injection_protection)
-
-    def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search the user's encrypted projects through a connected capable client. Do not use server-visible metadata as a private project-content fallback.
-
-        Description key: projects.skills.search.description
-        Skill: projects/search
-        """
-        return self._run_skill("projects", "search", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class ReminderAppSkills:
     def __init__(self, run_skill: SkillRunner):
@@ -8257,33 +9506,13 @@ class WorkflowsAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def create_or_modify(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Create or modify exactly one workflow from chat. Do not batch multiple workflows into one skill call.
-
-        Description key: workflows.skills.create_or_modify.description
-        Skill: workflows/create-or-modify
-        """
-        return self._run_skill("workflows", "create-or-modify", input_data, prompt_injection_protection=prompt_injection_protection)
-
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search the user's existing persisted workflows before proposing a new automation. Include temporary workflows only when the user explicitly asks about recent chat-created workflows.
+        """Look up a selected workflow by its exact ID before editing it. Otherwise search the user's persisted workflows by title. Include temporary workflows only when the user explicitly asks about recent chat-created workflows.
 
         Description key: workflows.skills.search.description
         Skill: workflows/search
         """
         return self._run_skill("workflows", "search", input_data, prompt_injection_protection=prompt_injection_protection)
-
-class HostingAppSkills:
-    def __init__(self, run_skill: SkillRunner):
-        self._run_skill = run_skill
-
-    def search_domains(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Check an exact domain name or discover available domain names through Gandi. Use one grouped request per independent name or idea. A fully qualified domain is checked exactly. Put explicitly requested suffixes in tlds and explicit tax country and currency in country and currency; defaults are DE and EUR. Use availability=prefer_available by default: show confirmed available names first and checked in-use names only to fill remaining result slots. Use available_only only when the user wants no in
-
-        Description key: app_skills.hosting.search_domains.description
-        Skill: hosting/search_domains
-        """
-        return self._run_skill("hosting", "search_domains", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class GeneratedAppSkills:
     def __init__(self, run_skill: SkillRunner):

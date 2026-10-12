@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
   sendMessage: vi.fn(async (_type: string, _payload: unknown) => {}),
   addChat: vi.fn(async (..._args: unknown[]) => {}),
   getChat: vi.fn(async () => null as Record<string, unknown> | null),
-  putEncrypted: vi.fn(async () => {}),
+  putEncrypted: vi.fn(async (..._args: unknown[]) => {}),
   getEmbedKey: vi.fn(async () => new Uint8Array(32).fill(7)),
   getEmbedKeyEntries: vi.fn(async () => [] as Array<Record<string, unknown>>),
   get: vi.fn(async () => undefined as Record<string, unknown> | undefined),
@@ -138,6 +138,23 @@ describe("Apps result persistence", () => {
     } }, randomUUID: () => "00000000-0000-4000-8000-000000000000" });
   });
 
+  // contract-test: supporting surface=gui.web assertions=trademarks.coverage,trademarks.parity
+  it.each([0, 1])("retains trademark count %i and coverage in one encrypted parent", async (count) => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ root_embed_id: "95000000-0000-4000-8000-000000000001", linked_embed_ids: [] }), { status: 200 })));
+    const service = await import("../appsWorkspaceResultsService");
+    const coverage = [{ region: "US", status: "searched", checked_at: "2026-10-12" }, { region: "DE", status: "unsupported" }];
+    const matches = count ? [{ mark: "PUBLIC MARK", region: "US" }] : [];
+    await service.retainAppsResult({ appId: "business", skillId: "search_trademarks", input: { queries: ["PUBLIC MARK"], regions: ["US", "DE"] },
+      response: { data: { result_count: count, matches, coverage, limitation: "Preliminary search" } },
+      requestId: "95000000-0000-4000-8000-000000000001", newRequest: true });
+    const saved = mocks.putEncrypted.mock.calls[mocks.putEncrypted.mock.calls.length - 1];
+    const content = JSON.parse(decrypt((saved?.[1] as { encrypted_content: string }).encrypted_content));
+    expect(content.result_count).toBe(count);
+    expect(content.matches).toEqual(matches);
+    expect(content.coverage).toEqual(coverage);
+    expect(content.embed_ids).toEqual([]);
+  });
+
   // contract-test: direct surface=gui.web assertions=apps.results.web-retained-graph,apps.execution.direct-shared-contract
   it("makes sync results locally available before a single finished upload is acknowledged", async () => {
     const rootId = "94000000-0000-4000-8000-000000000001";
@@ -237,7 +254,7 @@ describe("Apps result persistence", () => {
   it("turns a cold unaccepted processing draft into an encrypted interrupted result", async () => {
     const rootId = "94000000-0000-4000-8000-000000000005";
     const initial = await import("../appsWorkspaceResultsService");
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ root_embed_id: rootId, linked_embed_ids: [] }), { status: 200 }));
+    const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => new Response(JSON.stringify({ root_embed_id: rootId, linked_embed_ids: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     await initial.retainAppsResult({ appId: "events", skillId: "search", input: { query: "Private draft" },
       response: { status: "processing" }, requestId: rootId, newRequest: true, persistence: "background" });

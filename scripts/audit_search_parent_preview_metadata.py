@@ -26,6 +26,7 @@ APPS_DIR = REPO_ROOT / "backend/apps"
 # parent metadata builder. New result-list parent embeds should be added here
 # only after tests prove they store enough parent-level preview metadata.
 PARENT_PREVIEW_METADATA_COVERAGE: set[str] = {
+    "business:company_financials",
     "code:search_repos",
     "electronics:search_components",
     "events:search",

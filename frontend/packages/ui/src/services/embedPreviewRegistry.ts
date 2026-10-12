@@ -194,6 +194,17 @@ for (const skillId of ["search", "read"] as const) {
   });
 }
 
+resolvers.set("app:business:search_trademarks", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import("../components/embeds/business/BusinessTrademarkSearchEmbedPreview.svelte");
+  return { component, props: {
+    id: embedId,
+    data: decodedContent,
+    status: normalizeStatus(embedData.status ?? decodedContent.status),
+    isMobile: false,
+    onFullscreen,
+  } };
+});
+
 resolvers.set("app:hosting:search_domains", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
   const { default: component } = await import("../components/embeds/hosting/HostingSearchEmbedPreview.svelte");
   return { component, props: {

@@ -216,6 +216,12 @@ export function formatEmbedPreviewLines(embed: DecryptedEmbed, maxContentLines =
   const status = stripAnsi(statusIcon(str(c.status)) || statusIcon("finished"));
   const lines = [`┌─ ${status} ${label}${title ? ` · ${trunc(title, 56)}` : ""}`];
 
+  if (app === 'business' && skill === 'search_trademarks') {
+    lines.push(...trademarkLines(c).map(line => `│  ${line}`));
+    lines.push(`└─ openmates embeds show ${shortId}`);
+    return lines;
+  }
+
   const fileNames = extractFileNames(c);
   if (fileNames.length > 0) {
     lines.push(`│  Files: ${trunc(fileNames.slice(0, 4).join(", "), 72)}`);
@@ -394,6 +400,10 @@ export async function renderEmbedPreview(
       await renderHealthSearchPreview(c, ln, client);
       break;
 
+    case "business/search_trademarks":
+      trademarkLines(c).forEach(ln);
+      break;
+
     case "audio/transcribe":
       renderAudioTranscribePreview(c, ln);
       break;
@@ -469,6 +479,9 @@ export async function renderEmbedFullscreen(
   // Type-specific detail
   const key = `${app}/${skill}`;
   switch (key) {
+    case "business/search_trademarks":
+      trademarkLines(c, true).forEach(line => writeEmbedLine(write, line));
+      break;
     case "web/search":
     case "news/search":
     case "shopping/search_products":
@@ -553,6 +566,54 @@ export async function renderEmbedFullscreen(
 // ---------------------------------------------------------------------------
 // Search types (web, news, shopping, images, mail)
 // ---------------------------------------------------------------------------
+
+/** Preserve coverage and real counts inside the saved outer results envelope. */
+function trademarkLines(content: Record<string, unknown>, fullscreen = false): string[] {
+  const rows = (value: unknown): Record<string, unknown>[] => Array.isArray(value)
+    ? value.filter((row): row is Record<string, unknown> => !!row && typeof row === 'object' && !Array.isArray(row)).slice(0, 60) : [];
+  const data = rows(content.results).find(row => Array.isArray(row.matches) || Array.isArray(row.coverage)) ?? content;
+  const text = (value: unknown): string => typeof value === 'string' ? terminalText(value) : '';
+  const list = (value: unknown): string => Array.isArray(value) ? value.map(item => terminalText(String(item))).join(', ') : text(value);
+  const matches = rows(data.matches);
+  const coverage = rows(data.coverage);
+  const count = typeof data.result_count === 'number' ? data.result_count : matches.length;
+  const lines = [`Records: ${count} · ${text(data.provider) || 'USPTO'}`, 'Preliminary name search'];
+  const labels: Record<string, string> = { searched: 'Checked', partial: 'Partial', unsupported: 'Not searched', error: 'Search failed' };
+  const source = (value: unknown): string | null => {
+    try {
+      const url = new URL(text(value));
+      return url.protocol === 'https:' && !url.username && !url.password && (!url.port || url.port === '443')
+        && ['tsdr.uspto.gov', 'tmsearch.uspto.gov', 'www.tmdn.org', 'register.dpma.de', 'www.wipo.int'].includes(url.hostname) ? url.href : null;
+    } catch { return null; }
+  };
+  if (!fullscreen) {
+    for (const region of new Set(coverage.map(row => text(row.region)))) {
+      const states = coverage.filter(row => row.region === region).map(row => text(row.status));
+      lines.push(`${region}: ${states.every(value => value === states[0]) ? labels[states[0]] || 'Unknown' : 'Partial'}`);
+    }
+    if (data.error) lines.push(`Error: ${text(data.error)}`);
+    return lines;
+  }
+  for (const row of coverage) {
+    lines.push(`${text(row.query)} · ${text(row.region)}: ${labels[text(row.status)] || 'Unknown'}${fullscreen && row.checked_at ? ' · ' + text(row.checked_at) : ''}`);
+    if (fullscreen && row.message) lines.push(text(row.message));
+    if (fullscreen && row.more_results) lines.push('More matching records exist.');
+    const url = source(row.source_url);
+    if (url) lines.push(url);
+  }
+  if (data.error) lines.push(`Error: ${text(data.error)}`);
+  lines.push(`Filters: ${text(data.match)} · ${text(data.status_filter)} · classes ${list(data.nice_classes) || 'all'}`);
+  for (const row of matches) {
+    lines.push('', `${text(row.mark)} · ${text(row.status)} · ${text(row.region)}`,
+      `Owner: ${list(row.owners) || '—'} · Classes: ${list(row.nice_classes) || '—'}`,
+      `Application: ${text(row.application_number)} · Registration: ${text(row.registration_number) || '—'}`,
+      list(row.goods_services));
+    const url = source(row.source_url);
+    if (url) lines.push(url);
+  }
+  lines.push('', text(data.limitation) || 'No matches do not establish legal availability.');
+  return lines;
+}
 
 /** Complete fullscreen content for the TUI, without terminal writes or share mutations. */
 export async function formatEmbedFullscreenLines(embed: DecryptedEmbed, client: OpenMatesClient): Promise<string[]> {

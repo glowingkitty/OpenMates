@@ -41,7 +41,7 @@
   });
 </script>
 
-{#if data?.status === 'error' || data?.status === 'cancelled'}
+{#if (data?.status === 'error' && key !== 'app:business:search_trademarks') || data?.status === 'cancelled'}
   <UnifiedEmbedFullscreen {appId} {onClose} showShare={false} embedHeaderTitle={$text('apps_workspace.request_error')}>
     {#snippet content()}<p role="alert">{$text('apps_workspace.request_error')}</p>{/snippet}
   </UnifiedEmbedFullscreen>

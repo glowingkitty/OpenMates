@@ -99,6 +99,7 @@ import WeatherForecastEmbedPreview from "../../../embeds/weather/WeatherForecast
 import WeatherRainRadarEmbedPreview from "../../../embeds/weather/WeatherRainRadarEmbedPreview.svelte";
 import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
 import BusinessCompanyFinancialsEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialsEmbedPreview.svelte";
+import BusinessTrademarkSearchEmbedPreview from "../../../embeds/business/BusinessTrademarkSearchEmbedPreview.svelte";
 import BusinessCompanyFinancialResultEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte";
 import FinanceCheckAccountsEmbedPreview from "../../../embeds/finance/FinanceCheckAccountsEmbedPreview.svelte";
 import GenericAppSkillEmbedPreview from "../../../embeds/app_skill/GenericAppSkillEmbedPreview.svelte";
@@ -2302,6 +2303,18 @@ export class GroupRenderer implements EmbedRenderer {
             isMobile: false,
             onFullscreen: handleFullscreen,
           },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "business" && skillId === "search_trademarks") {
+        const component = mount(BusinessTrademarkSearchEmbedPreview, {
+          target,
+          props: {id: embedId, data: decodedContent || {}, query: query || "", status,
+            taskId, onFullscreen: (updated?: Record<string, unknown>) => this.openFullscreen(item, embedData, {
+              ...fullscreenContent, ...(updated ?? {}), app_id: "business", skill_id: "search_trademarks",
+            })},
         });
         mountedComponents.set(target, component);
         return;

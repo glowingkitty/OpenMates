@@ -82,6 +82,7 @@ import WeatherForecastEmbedPreview from "../../../embeds/weather/WeatherForecast
 import WeatherRainRadarEmbedPreview from "../../../embeds/weather/WeatherRainRadarEmbedPreview.svelte";
 import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
 import BusinessCompanyFinancialsEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialsEmbedPreview.svelte";
+import BusinessTrademarkSearchEmbedPreview from "../../../embeds/business/BusinessTrademarkSearchEmbedPreview.svelte";
 import BusinessCompanyFinancialResultEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte";
 import FinanceCheckAccountsEmbedPreview from "../../../embeds/finance/FinanceCheckAccountsEmbedPreview.svelte";
 import { normalizeFinanceOverview } from "../../../embeds/finance/financeCheckAccountsContent";
@@ -744,6 +745,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           decodedContent,
           content,
         );
+      }
+
+      if (appId === "business" && skillId === "search_trademarks") {
+        return this.renderTrademarkSearchComponent(attrs, embedData, decodedContent, content);
       }
 
       if (appId === "business" && skillId === "company_financial_result") {
@@ -3087,6 +3092,27 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   }
 
   /** Render the business.company_financials parent preview component. */
+  private renderTrademarkSearchComponent(attrs: EmbedNodeAttributes, embedData: any, decodedContent: any, content: HTMLElement): void {
+    const existing = mountedComponents.get(content);
+    if (existing) unmount(existing);
+    disposeEmbedTree(content, false);
+    content.replaceChildren();
+    const payload = decodedContent ?? {};
+    const component = mount(BusinessTrademarkSearchEmbedPreview, {
+      target: content,
+      props: {
+        id: attrs.contentRef?.replace("embed:", "") || "",
+        data: payload,
+        query: payload.query || (attrs as any).query || "",
+        status: (payload.status || embedData?.status || attrs.status || "processing") as "processing" | "finished" | "error" | "cancelled",
+        onFullscreen: (updated?: Record<string, unknown>) => this.openFullscreen(attrs, embedData, {
+          ...(updated ?? payload), app_id: "business", skill_id: "search_trademarks",
+        }),
+      },
+    });
+    mountedComponents.set(content, component);
+  }
+
   private renderBusinessCompanyFinancialsComponent(
     attrs: EmbedNodeAttributes,
     embedData: any,

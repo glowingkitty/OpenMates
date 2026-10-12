@@ -47,3 +47,51 @@ company_financials.description:
   sv: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
   he: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
   verified_by_human: [en, de]
+search_trademarks:
+  context: Trademark search skill name
+  en: Search trademarks
+  de: Marken suchen
+  zh: 搜索商标
+  es: Buscar marcas
+  fr: Rechercher des marques
+  pt: Pesquisar marcas
+  ru: Поиск товарных знаков
+  ja: 商標を検索
+  ko: 상표 검색
+  it: Cerca marchi
+  tr: Marka ara
+  vi: Tìm nhãn hiệu
+  id: Cari merek dagang
+  pl: Szukaj znaków towarowych
+  nl: Handelsmerken zoeken
+  ar: البحث عن علامات تجارية
+  hi: ट्रेडमार्क खोजें
+  th: ค้นหาเครื่องหมายการค้า
+  cs: Hledat ochranné známky
+  sv: Sök varumärken
+  he: חיפוש סימני מסחר
+  verified_by_human: []
+search_trademarks.description:
+  context: Regional trademark search with explicit coverage gaps
+  en: Search trademark names by region with sources and coverage limits.
+  de: Markennamen nach Region mit Quellen und Abdeckungsgrenzen suchen.
+  zh: 按地区搜索商标名称，显示来源和覆盖范围限制。
+  es: Busca marcas por región con fuentes y límites de cobertura.
+  fr: Recherchez des marques par région avec sources et limites de couverture.
+  pt: Pesquise marcas por região com fontes e limites de cobertura.
+  ru: Поиск товарных знаков по регионам с источниками и пределами охвата.
+  ja: 地域別に商標名を検索し、情報源と検索範囲の限界を表示します。
+  ko: 지역별로 상표명을 검색하고 출처와 검색 범위의 한계를 확인하세요.
+  it: Cerca marchi per regione con fonti e limiti di copertura.
+  tr: Bölgeye göre markaları kaynaklar ve kapsam sınırlarıyla arayın.
+  vi: Tìm nhãn hiệu theo khu vực với nguồn và giới hạn phạm vi tìm kiếm.
+  id: Cari merek menurut wilayah dengan sumber dan batas cakupan.
+  pl: Szukaj znaków według regionu ze źródłami i zakresem wyszukiwania.
+  nl: Zoek merknamen per regio met bronnen en dekkingsgrenzen.
+  ar: ابحث عن العلامات حسب المنطقة مع المصادر وحدود التغطية.
+  hi: क्षेत्र के अनुसार ट्रेडमार्क खोजें और स्रोत तथा कवरेज की सीमाएँ देखें।
+  th: ค้นหาเครื่องหมายการค้าตามภูมิภาค พร้อมแหล่งข้อมูลและขอบเขตการค้นหา
+  cs: Hledejte známky podle regionu se zdroji a mezemi pokrytí.
+  sv: Sök varumärken per region med källor och täckningsgränser.
+  he: חיפוש סימני מסחר לפי אזור עם מקורות ומגבלות כיסוי.
+  verified_by_human: []

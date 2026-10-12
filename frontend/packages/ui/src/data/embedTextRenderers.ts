@@ -75,7 +75,7 @@ import { renderNewsSearch } from '../components/embeds/news/newsEmbedText';
 import { renderDoc } from '../components/embeds/docs/docsEmbedText';
 import { renderSocialMediaGetPosts, renderSocialMediaPost, renderSocialMediaSearch } from '../components/embeds/social_media/socialMediaEmbedText';
 import { renderWeatherDay, renderWeatherForecast, renderWeatherRainRadar } from '../components/embeds/weather/weatherEmbedText';
-import { renderCompanyFinancialResult, renderCompanyFinancials } from '../components/embeds/business/businessEmbedText';
+import { renderCompanyFinancialResult, renderCompanyFinancials, renderTrademarkSearch } from '../components/embeds/business/businessEmbedText';
 import { normalizeFinanceOverview } from '../components/embeds/finance/financeCheckAccountsContent';
 import { renderMindMapText } from '../components/embeds/mindmaps/mindMapContent';
 import { renderDiagramText } from '../components/embeds/diagrams/diagramHtmlContent';
@@ -261,6 +261,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:weather:forecast': renderWeatherForecast,
 	'app:weather:rain_radar': renderWeatherRainRadar,
 	'app:business:company_financials': renderCompanyFinancials,
+	'app:business:search_trademarks': renderTrademarkSearch,
 	'app:finance:check_accounts': renderFinanceCheckAccounts,
 	'app:tasks:create': renderTasksParent,
 	'app:tasks:search': renderTasksParent,

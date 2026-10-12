@@ -5,9 +5,13 @@ import type { EmbedType } from '../../message_parsing/types';
 export const rootId = '90000000-0000-4000-8000-000000000001';
 export const childIds = ['90000000-0000-4000-8000-000000000002', '90000000-0000-4000-8000-000000000003'];
 const emptyId = '90000000-0000-4000-8000-000000000004';
+const trademarkId = '90000000-0000-4000-8000-000000000005';
 const onOpen = (id: string, parent: string) => window.dispatchEvent(new CustomEvent('apps-inline-preview-open', { detail: { id, parent } }));
 export default { embedId: rootId, appId: 'web', skillId: 'search', onOpen };
-export const variants = { empty: { embedId: emptyId, appId: 'web', skillId: 'search', onOpen } };
+export const variants = {
+  empty: { embedId: emptyId, appId: 'web', skillId: 'search', onOpen },
+  trademarkEmpty: { embedId: trademarkId, appId: 'business', skillId: 'search_trademarks', onOpen },
+};
 
 // Seed a synthetic encrypted graph using the same store/key path as a request.
 export const ready = (async () => {
@@ -15,9 +19,11 @@ export const ready = (async () => {
   for (const [id, type, content] of [
     [rootId, 'app_skill_use', { app_id: 'web', skill_id: 'search', input: { requests: [{ query: 'Preview search', count: 2 }] }, embed_ids: childIds, result_count: 2 }],
     [emptyId, 'app_skill_use', { app_id: 'web', skill_id: 'search', embed_ids: [], result_count: 0 }],
+    [trademarkId, 'app_skill_use', { app_id: 'business', skill_id: 'search_trademarks', query: 'Proposed name', status: 'finished',
+      embed_ids: [], result_count: 0, matches: [], coverage: [{ region: 'US', status: 'searched' }], provider: 'USPTO' }],
     ...childIds.map((id, index) => [id, 'search_result', { type: 'search_result', app_id: 'web', skill_id: 'search', title: `Preview page ${index + 1}`, url: `https://example.test/${index + 1}`, description: 'A normal website result preview.' }]),
   ] as Array<[string, 'app_skill_use' | 'search_result', Record<string, unknown>]>) {
-    await embedStore.putEncrypted(`embed:${id}`, { embed_id: id, status: 'finished', is_private: true, encrypted_type: await encryptWithEmbedKey(type, key), encrypted_content: await encryptWithEmbedKey(JSON.stringify(content), key), createdAt: Date.now(), updatedAt: Date.now() }, type as EmbedType, undefined, { app_id: 'web', skill_id: 'search' });
+    await embedStore.putEncrypted(`embed:${id}`, { embed_id: id, status: 'finished', is_private: true, encrypted_type: await encryptWithEmbedKey(type, key), encrypted_content: await encryptWithEmbedKey(JSON.stringify(content), key), createdAt: Date.now(), updatedAt: Date.now() }, type as EmbedType, undefined, { app_id: content.app_id as string, skill_id: content.skill_id as string });
     embedStore.setEmbedKeyInCache(id, key);
   }
 })();

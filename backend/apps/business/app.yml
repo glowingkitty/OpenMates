@@ -13,9 +13,35 @@ name_translation_key: business
 description_translation_key: business.description
 icon_image: business.svg
 category: work
-last_updated: "2026-07-19"
+last_updated: "2026-10-12"
 settings_and_memories: []
 embed_types:
+  - id: search_trademarks
+    preview_component: business/BusinessTrademarkSearchEmbedPreview.svelte
+    fullscreen_component: business/BusinessTrademarkSearchEmbedFullscreen.svelte
+    category: app-skill-use
+    skill_id: search_trademarks
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    groupable: true
+    icon: business
+    gradient_var: "--color-app-business"
+    i18n_namespace: embeds.business.search_trademarks
+    content_fields:
+      - {name: query, type: string}
+      - {name: regions, type: object}
+      - {name: provider, type: string}
+      - {name: result_count, type: number}
+      - {name: results, type: object}
+      - {name: matches, type: object}
+      - {name: nice_classes, type: object}
+      - {name: status_filter, type: string}
+      - {name: match, type: string}
+      - {name: coverage, type: object}
+      - {name: partial, type: boolean}
+      - {name: limitation, type: string}
+      - {name: error, type: string}
   - id: company_financials
     category: app-skill-use
     skill_id: company_financials
@@ -114,7 +140,96 @@ embed_types:
       - name: notes
         type: object
 skills:
+  - id: search_trademarks
+    name_translation_key: app_skills.business.search_trademarks
+    description_translation_key: app_skills.business.search_trademarks.description
+    icon_image: business.svg
+    api_config: {expose_get: true, expose_post: true}
+    preprocessor_hint: >
+      Search trademark names for explicit target regions when checking a brand or
+      product name. US searches use the free USPTO public search endpoint. EU,
+      Germany and worldwide searches currently return explicit coverage gaps and
+      manual sources; never treat a missing region, failed search or no matches
+      as legal clearance. Ask for the target market if it is unknown.
+    class_path: backend.apps.business.skills.search_trademarks.SearchTrademarksSkill
+    pricing: {fixed: 1}
+    external_data: true
+    providers:
+      - {name: USPTO, no_api_key: true}
+    suggestions_follow_up_requests:
+      - "Compare another name"
+      - "Search similar spellings"
+      - "Review the matching goods and services"
+    exclude_fields_for_llm: [source_url]
+    tool_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        queries:
+          x-ui: {basic: true}
+          type: array
+          minItems: 1
+          maxItems: 3
+          description: Up to three explicit candidate brand or product names; search finalists rather than entire brainstorming lists.
+          items: {type: string, minLength: 1, maxLength: 120}
+        regions:
+          x-ui: {basic: true}
+          type: array
+          minItems: 1
+          maxItems: 4
+          uniqueItems: true
+          description: Target territories to search. US is automated; EU, DE and WORLDWIDE currently return unsupported coverage with manual sources. Never substitute US results for another territory.
+          items: {type: string, enum: [US, EU, DE, WORLDWIDE]}
+        nice_classes:
+          x-ui: {basic: false}
+          type: array
+          maxItems: 10
+          description: Optional Nice classes based on actual goods/services; omitting searches all classes. Classes alone do not determine legal conflict.
+          items: {type: integer, minimum: 1, maximum: 45}
+        status:
+          x-ui: {basic: true}
+          type: string
+          enum: [active, all]
+          default: active
+          description: Active includes pending applications and live registrations; all also includes ended records.
+        match:
+          x-ui: {basic: true}
+          type: string
+          enum: [exact, similar]
+          default: similar
+          description: Exact wordmark or spelling similarity. Similar is an edit-distance name search, not comprehensive phonetic or legal clearance.
+        max_results:
+          x-ui: {basic: false}
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 10
+      required: [queries, regions]
+    workflow:
+      available: true
+      execution_mode: sync
+      effect: read
+      unattended: true
+      approval: never
+      binding_requirements: [none]
+      test_allowed: true
+      test_example_input: {queries: [ADIDAS], regions: [US], match: exact, max_results: 3}
+      output_schema:
+        type: object
+        properties:
+          result_count: {type: integer, x-ui: {basic: true}}
+          matches: {type: array, items: {type: object}, x-ui: {basic: true}}
+          regions: {type: array, items: {type: string}, x-ui: {basic: true}}
+          nice_classes: {type: array, items: {type: integer}, x-ui: {basic: false}}
+          status_filter: {type: string, x-ui: {basic: false}}
+          match: {type: string, x-ui: {basic: false}}
+          coverage: {type: array, items: {type: object}, x-ui: {basic: true}}
+          partial: {type: boolean, x-ui: {basic: true}}
+          limitation: {type: string, x-ui: {basic: true}}
+          summary: {type: string, x-ui: {basic: false}}
+          error: {type: string, x-ui: {basic: false}}
   - id: company_financials
+    pricing: {fixed: 1} # Preserves the existing minimum-credit fallback.
     anonymous_access: inline
     name_translation_key: app_skills.business.company_financials
     description_translation_key: app_skills.business.company_financials.description
@@ -315,6 +430,22 @@ skills:
                   x-ui:
                     basic: false
                   type: number
+
+focuses:
+  - id: find_brand_name
+    icon_image: business.svg
+    name_translation_key: business.find_brand_name
+    description_translation_key: business.find_brand_name.description
+    process_translation_key: focus_modes.business_find_brand_name.process
+    systemprompt_translation_key: focus_modes.business_find_brand_name.systemprompt
+    how_to_use:
+      - Help me find a name for my new product.
+      - I need a calm, memorable brand name for a budgeting app for US freelancers.
+      - Compare these two finalists and their .com domains before I choose.
+    preprocessor_hint: >
+      Select when the user wants help creating or choosing a brand, business or
+      product name and its domain, including Help me find a name for my new product.
+      For a standalone trademark or domain lookup, use the relevant search skill.
 
 marketing_discovery:
   skills:

@@ -255,6 +255,17 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.app-skill.trademark-search:
+    version: 1
+    status: draft
+    path: features/app-skills/trademark-search
+    fingerprint: 3340d27a84f0015edbf55ea30b0c27fc7eb18a97c276464ef16a669f088946d8
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   feature.app-skill.travel-search:
     version: 1
     status: draft
@@ -3703,6 +3714,83 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  trademarks.request:
+    specification: feature.app-skill.trademark-search@1
+    specification_id: feature.app-skill.trademark-search
+    type: validation
+    fingerprint: 84cd2605dc04bc7a7f30f054726b57c5f51a932fde229af91825ccd552c6e9a7
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  trademarks.coverage:
+    specification: feature.app-skill.trademark-search@1
+    specification_id: feature.app-skill.trademark-search
+    type: invariant
+    fingerprint: 73b4fc6f34b93999a097f972cbe4d5f460bd67aac7a6afb6bd9aa6cd034b9928
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  trademarks.evidence:
+    specification: feature.app-skill.trademark-search@1
+    specification_id: feature.app-skill.trademark-search
+    type: security
+    fingerprint: b5ffd6ec6c8432bb5c0f7aad92efc61a543f9b0e2553920d17e8d637ad86ce53
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  trademarks.provider:
+    specification: feature.app-skill.trademark-search@1
+    specification_id: feature.app-skill.trademark-search
+    type: failure
+    fingerprint: 3fef8531924eb20ce63aa9f06b109a2c477130162582cd1c77c0416ea8cafd27
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  trademarks.parity:
+    specification: feature.app-skill.trademark-search@1
+    specification_id: feature.app-skill.trademark-search
+    type: behavior
+    fingerprint: 537733f6a3d5622672f0dc100afda39b6d2903440fac58ffcf907787106cd506
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  brand-naming.activation:
+    specification: feature.app-skill.trademark-search@1
+    specification_id: feature.app-skill.trademark-search
+    type: behavior
+    fingerprint: 1601d466bb6b12fd1bafb3a981cb67574a28fe575ed5deaa5436d90664c7a7a1
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  brand-naming.flow:
+    specification: feature.app-skill.trademark-search@1
+    specification_id: feature.app-skill.trademark-search
+    type: behavior
+    fingerprint: 0099b76080dace0b6b57eb4dddcd7e4e4fc3557e99c162ef0ff684757e080b04
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   travel-search.departure-window.upstream:
     specification: feature.app-skill.travel-search@1
     specification_id: feature.app-skill.travel-search

@@ -1,0 +1,184 @@
+business_find_brand_name:
+  context: Brand naming focus display name
+  en: "Find a brand name"
+  de: "Markennamen finden"
+  zh: "寻找品牌名称"
+  es: "Encontrar un nombre de marca"
+  fr: "Trouver un nom de marque"
+  pt: "Encontrar um nome de marca"
+  ru: "Найти название бренда"
+  ja: "ブランド名を考える"
+  ko: "브랜드 이름 찾기"
+  it: "Trova un nome per il marchio"
+  tr: "Marka adı bul"
+  vi: "Tìm tên thương hiệu"
+  id: "Temukan nama merek"
+  pl: "Znajdź nazwę marki"
+  nl: "Een merknaam vinden"
+  ar: "العثور على اسم علامة تجارية"
+  hi: "ब्रांड का नाम खोजें"
+  th: "หาชื่อแบรนด์"
+  cs: "Najít název značky"
+  sv: "Hitta ett varumärkesnamn"
+  he: "מציאת שם למותג"
+  verified_by_human: []
+description:
+  context: Brand naming focus description
+  en: "Shortlist memorable names, then check finalist domains and trademark conflicts."
+  de: "Einprägsame Namen auswählen, dann Domains und Markenkonflikte der Favoriten prüfen."
+  zh: "筛选易记的名称，再检查候选域名和商标冲突。"
+  es: "Preselecciona nombres memorables y comprueba dominios y conflictos de marca de los finalistas."
+  fr: "Présélectionnez des noms mémorables, puis vérifiez les domaines et conflits de marques des finalistes."
+  pt: "Selecione nomes memoráveis e verifique domínios e conflitos de marcas dos finalistas."
+  ru: "Составьте список запоминающихся названий и проверьте домены и товарные знаки финалистов."
+  ja: "覚えやすい名前を絞り込み、最終候補のドメインと商標の競合を確認します。"
+  ko: "기억하기 쉬운 이름을 추린 뒤 최종 후보의 도메인과 상표 충돌을 확인하세요."
+  it: "Seleziona nomi memorabili, poi verifica domini e conflitti di marchio dei finalisti."
+  tr: "Akılda kalıcı adları seçin, ardından finalistlerin alan adlarını ve marka çakışmalarını kontrol edin."
+  vi: "Chọn tên dễ nhớ rồi kiểm tra tên miền và xung đột nhãn hiệu của các ứng viên cuối."
+  id: "Pilih nama yang mudah diingat, lalu periksa domain dan konflik merek kandidat akhir."
+  pl: "Wybierz zapadające w pamięć nazwy, a następnie sprawdź domeny i konflikty znaków finalistów."
+  nl: "Maak een selectie van herkenbare namen en controleer domeinen en merkconflicten van de finalisten."
+  ar: "اختر أسماء يسهل تذكرها ثم تحقق من نطاقات المرشحين النهائيين وتعارضات العلامات التجارية."
+  hi: "याद रहने वाले नाम चुनें, फिर अंतिम विकल्पों के डोमेन और ट्रेडमार्क टकराव जाँचें।"
+  th: "คัดเลือกชื่อที่จำง่าย แล้วตรวจสอบโดเมนและความขัดแย้งของเครื่องหมายการค้าของชื่อสุดท้าย"
+  cs: "Vyberte zapamatovatelné názvy a poté prověřte domény a kolize ochranných známek finalistů."
+  sv: "Välj minnesvärda namn och kontrollera sedan finalisternas domäner och varumärkeskonflikter."
+  he: "בחרו שמות זכירים ואז בדקו דומיינים והתנגשויות בסימני מסחר של המועמדים הסופיים."
+  verified_by_human: []
+process:
+  context: Four concise brand naming process bullets
+  en: |
+    - Understand the brief
+    - shortlist names
+    - check chosen finalists
+    - compare the evidence
+  de: |
+    - Anforderungen verstehen
+    - Namen auswählen
+    - Favoriten prüfen
+    - Ergebnisse vergleichen
+  zh: |
+    - 了解需求
+    - 筛选名称
+    - 检查最终候选
+    - 比较证据。
+  es: |
+    - Entender el proyecto
+    - preseleccionar nombres
+    - comprobar finalistas
+    - comparar evidencias
+  fr: |
+    - Comprendre le projet
+    - présélectionner des noms
+    - vérifier les finalistes
+    - comparer les preuves
+  pt: |
+    - Entender o projeto
+    - selecionar nomes
+    - verificar finalistas
+    - comparar evidências
+  ru: |
+    - Понять задачу
+    - выбрать названия
+    - проверить финалистов
+    - сравнить данные
+  ja: |
+    - 目的を理解
+    - 名前を絞る
+    - 最終候補を確認
+    - 証拠を比較。
+  ko: |
+    - 요구 파악
+    - 이름 선정
+    - 최종 후보 확인
+    - 근거 비교
+  it: |
+    - Comprendere il progetto
+    - selezionare nomi
+    - verificare i finalisti
+    - confrontare le prove
+  tr: |
+    - İhtiyaçları anlayın
+    - adları seçin
+    - finalistleri kontrol edin
+    - bulguları karşılaştırın
+  vi: |
+    - Hiểu nhu cầu
+    - chọn tên
+    - kiểm tra ứng viên cuối
+    - so sánh bằng chứng
+  id: |
+    - Pahami kebutuhan
+    - pilih nama
+    - periksa kandidat akhir
+    - bandingkan bukti
+  pl: |
+    - Poznaj potrzeby
+    - wybierz nazwy
+    - sprawdź finalistów
+    - porównaj wyniki
+  nl: |
+    - Begrijp de vraag
+    - selecteer namen
+    - controleer finalisten
+    - vergelijk bewijs
+  ar: |
+    - فهم المشروع
+    - اختيار الأسماء
+    - فحص المرشحين النهائيين
+    - مقارنة الأدلة
+  hi: |
+    - आवश्यकता समझें
+    - नाम चुनें
+    - अंतिम विकल्प जाँचें
+    - प्रमाण की तुलना करें।
+  th: |
+    - เข้าใจความต้องการ
+    - คัดชื่อ
+    - ตรวจสอบชื่อสุดท้าย
+    - เปรียบเทียบหลักฐาน
+  cs: |
+    - Pochopit zadání
+    - vybrat názvy
+    - prověřit finalisty
+    - porovnat důkazy
+  sv: |
+    - Förstå uppdraget
+    - välj namn
+    - kontrollera finalister
+    - jämför belägg
+  he: |
+    - הבנת הצורך
+    - בחירת שמות
+    - בדיקת המועמדים הסופיים
+    - השוואת הראיות
+  verified_by_human: []
+
+systemprompt:
+  context: Canonical naming instructions
+  en: |
+    Help the user find a memorable brand or product name and a suitable domain. Stay concise.
+    
+    1. Reuse the brief already given. If essential context is missing, ask one compact
+       intake question covering the product, audience, target markets, language and
+       desired feel; include optional domain or budget constraints. Wait for the reply.
+       Honor requests to skip questions and state assumptions.
+    2. Offer 6–8 varied, pronounceable candidates with one brief reason each. Consider
+       memorability, product fit, pronunciation and unintended meanings in the target
+       languages. Label this shortlist as unchecked; avoid generic keyword piles.
+    3. Let the user choose 2–3 finalists, or choose if asked. Then batch checks with
+       hosting.search_domains for actual domain availability and supplied prices,
+       web.search for existing brands and search conflicts, and business.search_trademarks
+       for the explicit target regions. Use at most five trademark records per name
+       initially. Search all classes unless the actual goods/services justify a filter.
+       Research finalists rather than every brainstormed name; send only necessary
+       names and filters, without confidential brief details.
+    4. Compare finalists in a compact table, recommend a direction with its tradeoff,
+       and refine only what the user needs next. Keep creative judgments separate
+       from dated checked evidence and identify missing or failed regional coverage.
+    
+    Never infer domain availability from DNS, HTTP or WHOIS alone. Preserve supplied
+    renewal prices and terms. Trademark searches are preliminary: no matches do not
+    prove legal availability, and spelling similarity is not complete legal clearance.
+  verified_by_human: []

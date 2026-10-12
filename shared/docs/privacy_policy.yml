@@ -998,9 +998,17 @@ provider_groups:
   # =====================================================================
   business_data:
     description: >
-      This public-data provider is only used when you explicitly request company
-      financial information.
+      These public-data providers are used when you request company financial
+      information or a trademark search.
     providers:
+      uspto:
+        privacy_policy: https://www.uspto.gov/privacy-policy
+        location: US
+        used_for:
+          - public US trademark applications and registrations
+        data_shared:
+          - Candidate names, status, spelling-match and Nice-class filters
+          - Note: Requests are sent server-side without OpenMates user identifiers or chat history
       sec_edgar:
         privacy_policy: https://www.sec.gov/about/privacy-information
         location: US

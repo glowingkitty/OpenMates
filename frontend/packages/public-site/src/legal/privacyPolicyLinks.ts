@@ -96,6 +96,7 @@ export const privacyPolicyLinks = {
 
   // Group J3 — Public company data
   secEdgar: "https://www.sec.gov/about/privacy-information",
+  uspto: "https://www.uspto.gov/privacy-policy", // verified 2026-10-11
 
   // Group J4 — Weather
   openMeteo: "https://open-meteo.com/en/terms",

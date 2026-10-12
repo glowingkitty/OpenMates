@@ -20,7 +20,9 @@
         if (!content) throw new Error('RESULT_UNAVAILABLE');
         if (cancelled) return;
         ids = Array.isArray(content.embed_ids) ? content.embed_ids.filter((id): id is string => typeof id === 'string') : [];
-        empty = ids.length === 0 && content.result_count === 0;
+        // A trademark search with zero matches still has coverage evidence to inspect.
+        const trademarkSearch = appId === 'business' && skillId === 'search_trademarks';
+        empty = !trademarkSearch && ids.length === 0 && content.result_count === 0;
         if (!empty && !ids.length) ids = [embedId];
       } catch { if (!cancelled) error = true; }
       finally { if (!cancelled) loading = false; }

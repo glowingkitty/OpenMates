@@ -817,6 +817,10 @@ export async function retainAppsResult(args: RetainAppsResultInput): Promise<str
     ? (args.response as { data: Record<string, unknown> }).data : args.response;
   const metadata = responseData && typeof responseData === "object" ? responseData as Record<string, unknown> : {};
   const { results: _nestedResults, ...responseMetadata } = metadata;
+  // Trademark rows live under matches so inference retains zero-match coverage.
+  const resultCount = args.appId === "business" && args.skillId === "search_trademarks"
+    && typeof metadata.result_count === "number" && Number.isInteger(metadata.result_count) && metadata.result_count >= 0
+    ? metadata.result_count : results.length;
   let acceptedTaskIds: string[] = [];
   if (status === "processing") {
     const previous = await embedStore.get(`embed:${rootId}`);
@@ -836,7 +840,7 @@ export async function retainAppsResult(args: RetainAppsResultInput): Promise<str
     ...responseMetadata,
     app_id: args.appId, skill_id: args.skillId, input: args.input,
     ...(acceptedTaskIds.length ? { task_ids: acceptedTaskIds } : {}),
-    ...(childType ? {} : { results }), result_count: results.length,
+    ...(childType ? {} : { results }), result_count: resultCount,
     embed_ids: [...childIds, ...persistedIds], status,
   };
   const root: CipherRow = {
