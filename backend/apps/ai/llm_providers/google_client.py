@@ -153,6 +153,12 @@ async def _get_loop_google_client(host: str, *, api_key: Optional[str] = None):
         except BaseException:
             await session.close()
             raise
+        # google-genai 1.58.0 omits this empty request-options slot when a
+        # custom aiohttp session is supplied, but its streaming path requires it.
+        # Keep the traced, loop-owned session; do not replace initialized SDK args.
+        api_client = getattr(client, "_api_client", None)
+        if api_client is not None and not hasattr(api_client, "_async_client_session_request_args"):
+            api_client._async_client_session_request_args = {}
         clients[identity] = (client, session)
     client, session = clients[identity]
     return client, (None if managed else session)
