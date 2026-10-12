@@ -53,14 +53,20 @@
   const terminalChildIds = new Set<string>();
   const activationTimers = new Set<ReturnType<typeof setTimeout>>();
 
-  function focusPending(item: Record<string, unknown>): boolean {
+  function pendingForFocus(item: Record<string, unknown>) {
     const pending = $pendingFocusActivationStore[String(item.id)];
-    return !!pending && pending.chatId === chatId && pending.focusId === item.focus_id;
+    return pending?.chatId === chatId && pending.focusId === item.focus_id ? pending : undefined;
+  }
+  function focusPending(item: Record<string, unknown>): boolean {
+    const pending = pendingForFocus(item);
+    return !!pending && !pending.confirmed && !pending.expired && pending.expiresAt > Date.now();
   }
   function focusOpen(item: Record<string, unknown>): boolean {
     if (rejectedFocusIds.includes(String(item.id))) return false;
+    const pending = pendingForFocus(item);
     return focusPending(item) || lingeringFocusIds.includes(String(item.id)) ||
-      (active && !observedActivations.has(String(item.id)));
+      (active && !pending?.confirmed && !pending?.expired && !observedActivations.has(String(item.id)) &&
+        $activeChatFocusStore[chatId ?? ''] !== item.focus_id);
   }
   function batchOpen(item: Record<string, unknown>): boolean {
     const status = batchStatuses[String(item.id)] ?? item.status;
@@ -71,8 +77,10 @@
     // Only a live activation gets the one-second acknowledgement. History never replays it.
     for (const item of focuses) {
       const id = String(item.id);
+      const confirmed = pendingForFocus(item)?.confirmed || (!!chatId && $activeChatFocusStore[chatId] === item.focus_id);
+      // A remounted history row already knows this activation was settled.
+      if (confirmed && !liveFocusIds.has(id)) { observedActivations.add(id); continue; }
       if (active || focusPending(item)) liveFocusIds.add(id);
-      const confirmed = !!chatId && $activeChatFocusStore[chatId] === item.focus_id;
       if (!confirmed || !liveFocusIds.has(id) || observedActivations.has(id)) continue;
       observedActivations.add(id);
       lingeringFocusIds = [...lingeringFocusIds, id];

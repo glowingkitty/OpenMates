@@ -29,8 +29,12 @@ if (typeof window !== 'undefined') {
     pendingFocusActivationStore.set(String(liveFocus.id), { chatId: liveChatId, focusId: 'web-research', expiresAt: Date.now() + 4000 });
   });
   window.document.addEventListener('preview:activate-focus', () => {
+    // Match catalog WebSocket activation: confirmation updates active focus;
+    // its transient countdown entry can remain in the pending store.
     activeChatFocusStore.setActiveFocus(liveChatId, 'web-research');
-    pendingFocusActivationStore.clear(String(liveFocus.id));
+  });
+  window.document.addEventListener('preview:deactivate-focus', () => {
+    activeChatFocusStore.clearActiveFocus(liveChatId);
   });
 }
 // Actual IndexedDB child records let the real batch renderer show in-progress cards.

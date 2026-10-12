@@ -104,7 +104,7 @@
   let isProjectRequest = $derived(focusId.startsWith('project-') && !focusId.startsWith('project-focus:'));
   let isActivated = $derived(projectAccepted || alreadyActive || (!!chatId && $activeChatFocusStore[chatId] === focusId));
   let now = $state(Date.now());
-  let deadline = $derived(pendingUntil || ($pendingFocusActivationStore[id]?.chatId === chatId && $pendingFocusActivationStore[id]?.focusId === focusId ? $pendingFocusActivationStore[id].expiresAt : 0));
+  let deadline = $derived(pendingUntil || ($pendingFocusActivationStore[id]?.chatId === chatId && $pendingFocusActivationStore[id]?.focusId === focusId && !$pendingFocusActivationStore[id]?.confirmed && !$pendingFocusActivationStore[id]?.expired ? $pendingFocusActivationStore[id].expiresAt : 0));
   let activationPolicy = $derived(isProjectRequest
     ? ((pendingUntil ? previewActivationPolicy : undefined) ?? $pendingFocusActivationStore[id]?.activationPolicy ?? 'delayed')
     : 'delayed');

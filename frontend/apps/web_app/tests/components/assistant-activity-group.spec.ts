@@ -67,11 +67,15 @@ test.describe('Completed assistant activity disclosure', () => {
     await page.clock.runFor(100);
     await expect(body.getByTestId('focus-progress-bar')).toBeVisible();
     await expect(body.getByTestId('focus-status-value')).toContainText('4');
+    // Real catalog activation leaves its countdown entry in the pending store.
     await page.evaluate(() => document.dispatchEvent(new Event('preview:activate-focus')));
     await expect(body.getByTestId('focus-status-value')).toContainText('activated');
     await page.clock.runFor(999);
     await expect(body.getByTestId('focus-mode-bar')).toBeVisible();
     await page.clock.runFor(1);
+    await expect(body.getByTestId('focus-mode-bar')).toHaveCount(0);
+    // A stale countdown must not reopen an already acknowledged activation.
+    await page.evaluate(() => document.dispatchEvent(new Event('preview:deactivate-focus')));
     await expect(body.getByTestId('focus-mode-bar')).toHaveCount(0);
     await page.clock.resume();
     await expect(body.getByTestId('sub-chat-card')).toHaveCount(2);
