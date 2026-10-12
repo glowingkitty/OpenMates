@@ -45,8 +45,10 @@ Pass only when:
   do not add a universal API/CLI/SDK/web/Apple ladder or a generic dev-API check.
 - Visual smoke, user confirmation, and extra edited/captioned demonstrations are
   gates only when the accepted Plan explicitly marks them required. Existing
-  web/CLI E2E recordings must still be downloaded/uploaded and linked in the final
-  chat under `.claude/rules/testing.md`, even without a Plan video requirement.
+  web/CLI E2E recordings still follow `.claude/rules/testing.md`: final chat links
+  only the latest success per requested check/flow, or its latest available failure
+  if that request never succeeded, with distinct required views and no duplicates
+  or appendix of all attempts, even without a Plan video requirement.
   Preserve explicit user waivers and their scoped decision receipts.
 - Privacy/security criteria, documentation impact, assumptions, open questions,
   and explicitly required proof evidence are resolved or explicitly accepted.
