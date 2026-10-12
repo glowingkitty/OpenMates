@@ -9,15 +9,15 @@ const catalog = Object.assign([
   { id: "openai/gpt-6-astra", name: "GPT 6 Astra", providerId: "openai", providerName: "OpenAI", description: "", available: true },
   { id: "qwen/qwen3-235b-a22b-2507", name: "Qwen Fast", providerId: "qwen", providerName: "Qwen", description: "", available: true },
 ], { authoritative: true }) as ChatModelCatalog;
-function fixture() {
+function fixture(options?: { catalog?: () => Promise<ChatModelCatalog>; restore?: (chatId: string) => Promise<{ selection: string; pending: boolean; restored: boolean }> }) {
   const state = createInitialTuiState();
   state.signedIn = true; state.workspace = "chats"; state.screen = "chat"; state.activeChatId = "chat-one"; state.headerState = "ready";
   let session = { apiUrl: "https://example.test", hashedEmail: "alice", createdAt: "1", masterKeyExportedB64: "YWJj", activeTeamId: null };
   const client = { apiUrl: session.apiUrl, hasSession: () => !!session, getSession: () => session,
     resolveTeamContext: () => null } as unknown as OpenMatesClient;
   const writes: Array<[string, string]> = [], subscribed: string[] = [];
-  const prefs = { catalog: async () => catalog,
-    restore: async (_chatId: string) => ({ selection: "auto", pending: false, restored: true }),
+  const prefs = { catalog: options?.catalog ?? (async () => catalog),
+    restore: options?.restore ?? (async (_chatId: string) => ({ selection: "auto", pending: false, restored: true })),
     current: (_chatId: string) => ({ selection: "auto", pending: false, restored: false }),
     select: async (chatId: string, selection: string) => { writes.push([chatId, selection]); return { selection, pending: false, restored: true }; },
     subscribe: (chatId: string) => { subscribed.push(chatId); return () => {}; },
@@ -28,6 +28,45 @@ function fixture() {
   const settle = async () => { await Promise.resolve(); await new Promise(resolve => setImmediate(resolve)); };
   return { state, shell, writes, subscribed, settle, draws: () => draws, signOut: () => { session = null as never; } };
 }
+
+// contract-test: supporting surface=cli assertions=chats.streaming.progressive-presentation,ai-model-routing.chat-selection.encrypted-user-chat-scope
+test("new-chat Auto can send during cold catalog loading", async () => {
+  const { state, shell } = fixture({ catalog: () => new Promise<ChatModelCatalog>(() => {}) });
+  state.screen = "start"; state.activeChatId = null;
+  shell.sync();
+  assert.equal(shell.selectionForSend(), "auto");
+  assert.equal(await shell.selectionForSendWhenReady(() => true), "auto");
+  assert.equal(state.modelSelector?.ready, false);
+  shell.dispose();
+});
+
+// contract-test: supporting surface=cli assertions=ai-model-routing.chat-selection.encrypted-user-chat-scope
+test("saved chat waits for restored exact choice", async () => {
+  let release!: (selection: { selection: string; pending: boolean; restored: boolean }) => void;
+  const restore = () => new Promise<{ selection: string; pending: boolean; restored: boolean }>((resolve) => { release = resolve; });
+  const { state, shell, settle } = fixture({ restore });
+  shell.sync(); await settle();
+  assert.equal(shell.selectionForSend(), null);
+  const selected = shell.selectionForSendWhenReady(() => state.screen === "chat");
+  release({ selection: "openai/gpt-6-astra", pending: false, restored: true });
+  assert.equal(await selected, "openai/gpt-6-astra");
+  shell.dispose();
+});
+
+// contract-test: supporting surface=cli assertions=ai-model-routing.chat-selection.encrypted-user-chat-scope
+test("pending saved-chat send cancels after route or owner changes", async () => {
+  const { state, shell, settle, signOut } = fixture({ restore: () => new Promise(() => {}) });
+  shell.sync(); await settle();
+  const pending = shell.selectionForSendWhenReady(() => state.screen === "chat");
+  state.screen = "start"; state.activeChatId = null; shell.sync();
+  assert.equal(await pending, null);
+  state.screen = "chat"; state.activeChatId = "chat-one"; shell.sync(); await settle();
+  let ownerCurrent = true;
+  const ownerPending = shell.selectionForSendWhenReady(() => ownerCurrent && state.screen === "chat");
+  signOut(); ownerCurrent = false; shell.sync();
+  assert.equal(await ownerPending, null);
+  shell.dispose();
+});
 
 // contract-test: supporting surface=cli assertions=ai-model-routing.chat-selection.encrypted-user-chat-scope,ai-model-routing.surface.semantic-parity
 test("restored chat model follows the active chat and cannot leak into a new chat", async () => {

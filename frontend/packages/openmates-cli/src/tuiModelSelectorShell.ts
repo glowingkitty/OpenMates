@@ -32,6 +32,10 @@ export function createTuiModelSelectorShell(args: {
   let unsubscribe: (() => void) | null = null;
   let ownerFence: (() => boolean) | null = null;
   let waitingForChat = false;
+  let restorePending = false;
+  let restoreInFlight: Promise<void> | null = null;
+  const selectionWaiters = new Set<() => void>();
+  const wakeSelectionWaiters = () => { for (const wake of selectionWaiters) wake(); selectionWaiters.clear(); };
   const clearSubscription = () => { unsubscribe?.(); unsubscribe = null; };
   const context = (): TuiModelSelectorContext | null => {
     if (!state.modelSelector || !ownerFence) return null;
@@ -81,26 +85,35 @@ export function createTuiModelSelectorShell(args: {
     if (chatId) unsubscribe = preferences.subscribe(chatId, (preference) => updateFromSync(chatId, preference));
   };
   const restoreAndReconcile = async (ctx: TuiModelSelectorContext) => {
-    await restoreTuiModelSelection(ctx);
-    const chatId = ctx.state.chatId;
-    if (chatId && state.modelSelector === ctx.state && ownerFence?.()) {
-      const latest = preferences.current(chatId);
-      if (latest.restored) updateFromSync(chatId, latest);
-    }
+    const restore = (async () => {
+      await restoreTuiModelSelection(ctx);
+      const chatId = ctx.state.chatId;
+      if (chatId && state.modelSelector === ctx.state && ownerFence?.()) {
+        const latest = preferences.current(chatId);
+        if (latest.restored) updateFromSync(chatId, latest);
+      }
+    })();
+    restorePending = false;
+    restoreInFlight = restore;
+    try { await restore; }
+    finally { if (restoreInFlight === restore) restoreInFlight = null; wakeSelectionWaiters(); }
   };
 
   /** Called before each scheduled render; starts one fenced restore per view. */
   const sync = () => {
     const owner = ownerId(client);
     if (!owner || !isTuiAiComposer(state)) {
-      clearSubscription(); ownerFence = null; state.modelSelector = null; return;
+      clearSubscription(); ownerFence = null; state.modelSelector = null; restorePending = false; wakeSelectionWaiters(); return;
     }
     const chatId = chatIdForView(state);
     if (state.modelSelector?.owner === owner && state.modelSelector.chatId === chatId && ownerFence?.()) {
       if (!waitingForChat || state.headerState !== "ready") return;
       waitingForChat = false;
+      restorePending = true;
+      wakeSelectionWaiters();
       const ctx = context();
-      if (ctx) queueMicrotask(() => { if (state.modelSelector === ctx.state && ownerFence?.()) void restoreAndReconcile(ctx); });
+      if (ctx) queueMicrotask(() => { if (state.modelSelector === ctx.state && ownerFence?.()) void restoreAndReconcile(ctx);
+        else { restorePending = false; wakeSelectionWaiters(); } });
       return;
     }
     clearSubscription();
@@ -109,11 +122,14 @@ export function createTuiModelSelectorShell(args: {
     subscribe(chatId);
     const picker = state.modelSelector;
     waitingForChat = !!chatId && state.headerState !== "ready";
+    restorePending = !waitingForChat;
+    wakeSelectionWaiters();
     if (waitingForChat) return;
     queueMicrotask(() => {
-      if (state.modelSelector !== picker || !ownerFence?.()) return;
+      if (state.modelSelector !== picker || !ownerFence?.()) { restorePending = false; wakeSelectionWaiters(); return; }
       const ctx = context();
       if (ctx) void restoreAndReconcile(ctx);
+      else { restorePending = false; wakeSelectionWaiters(); }
     });
   };
 
@@ -139,7 +155,23 @@ export function createTuiModelSelectorShell(args: {
     if (typeof client.getSession !== "function") return "auto";
     sync();
     if (waitingForChat) return null;
-    return state.modelSelector ? tuiModelSelectionForSend(state.modelSelector) : null;
+    const picker = state.modelSelector;
+    // A draft without a chat cannot have a saved preference to restore.
+    if (picker?.chatId === null && picker.selection === "auto" && !picker.open) return "auto";
+    return picker ? tuiModelSelectionForSend(picker) : null;
+  };
+  const selectionForSendWhenReady = async (isCurrent: () => boolean): Promise<string | null> => {
+    while (isCurrent()) {
+      const selection = selectionForSend();
+      if (selection !== null) return selection;
+      const picker = state.modelSelector;
+      if (!picker || (!restorePending && !restoreInFlight && !waitingForChat && !picker.busy)) return null;
+      await new Promise<void>((resolve) => {
+        const wake = () => { selectionWaiters.delete(wake); resolve(); };
+        selectionWaiters.add(wake);
+      });
+    }
+    return null;
   };
   /** Resolve editor model mentions against the live catalog and keep routing tokens out of the visible draft. */
   const consumeMention = async (message: string, complete = false): Promise<{ message: string; blocked: boolean }> => {
@@ -223,7 +255,7 @@ export function createTuiModelSelectorShell(args: {
       }
     }
   };
-  return { sync, open, action, key, selectionForSend, consumeMention, adoptNewChat, persistCreatedChat,
+  return { sync, open, action, key, selectionForSend, selectionForSendWhenReady, consumeMention, adoptNewChat, persistCreatedChat,
     close: () => { const ctx = context(); if (ctx?.state.open) handleTuiModelSelectorAction(ctx, "close"); },
     dispose: clearSubscription };
 }

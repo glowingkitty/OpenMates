@@ -2630,7 +2630,10 @@ async def websocket_endpoint(
         ),
     )
 
-    await websocket.send_json({"type": "server_capabilities", "payload": {"capabilities": ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"]}})
+    await websocket.send_json({"type": "server_capabilities", "payload": {"capabilities": [
+        "chat_turn_admit_v1", "chat_turn_context_v1",
+        "chat_turn_context_selection_details_v2", "suggested_followup_message_v1",
+    ]}})
 
     # A live socket must close at its absolute session deadline even if idle.
     pair_expiry_task: asyncio.Task | None = None

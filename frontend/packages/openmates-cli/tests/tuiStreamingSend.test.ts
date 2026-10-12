@@ -120,12 +120,12 @@ test('attachment preparation failure rolls back the optimistic row and restores 
 });
 
 // contract-test: supporting surface=cli assertions=chats.streaming.progressive-presentation
-test('loading model selection blocks send and returns the draft to the composer',async()=>{
+test('unrestorable model selection blocks send and returns the draft to the composer',async()=>{
   const f=fixture({selection:null});
   await sendTuiMessage({message:'Ask something',state:f.state,client:f.client,render:f.render,modelShell:f.modelShell});
   assert.equal(f.calls.length,0);assert.equal(f.state.messages.length,0);
   assert.equal(f.state.input,'Ask something');assert.equal(f.state.isBusy,false);
-  assert.match(f.state.status??'',/Model selection is loading/);
+  assert.match(f.state.status??'',/Model selection could not be restored/);
 });
 
 // contract-test: supporting surface=cli assertions=chats.streaming.ordered-final
@@ -200,6 +200,17 @@ test('continuing an example shows the new turn immediately and sends only the ex
   assert.ok(f.calls[0].newChatId);
   f.pending.resolve(result(f.calls[0].newChatId!,'New answer'));await send;
   assert.deepEqual(f.state.messages.map(m=>m.content),['Earlier question','Earlier answer','Follow up','New answer']);
+});
+
+// contract-test: supporting surface=cli assertions=chats.streaming.progressive-presentation,chats.completion.lease-fenced
+test('a new Personal TUI turn forwards its SDK-prepared chat ID to admission',async()=>{
+  const f=fixture();f.state.activeChatId=null;
+  const preparedId='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  (f.client as unknown as {preparedNewChatId:()=>string}).preparedNewChatId=()=>preparedId;
+  const send=sendTuiMessage({message:'Ask something',state:f.state,client:f.client,render:f.render,modelShell:f.modelShell});
+  await tick();
+  assert.equal(f.calls[0]?.newChatId,preparedId);
+  f.pending.resolve(result(preparedId,'Answer'));await send;
 });
 
 // contract-test: supporting surface=cli assertions=chats.streaming.ordered-final

@@ -201,6 +201,9 @@ def test_exact_project_name_remains_a_routing_hint_without_access(message, expec
     {"messages_v": 0, "title_v": None},
     {"messages_v": 0, "title_v": None, "encrypted_title": "cipher-title"},
     {"messages_v": 0, "title_v": 0, "encrypted_title": "cipher-title"},
+    {"hashed_user_id": hash_id("user-123"), "chat_visibility": None, "messages_v": 0, "title_v": 0},
+    {"id": "chat-123", "hashed_user_id": hash_id("user-123"), "chat_visibility": None,
+     "messages_v": 0, "title_v": 0},
 ])
 def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypatch, chat_metadata):
     from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
@@ -300,6 +303,14 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
     }
     assert not any(call[0] == "broadcast_to_user_specific_event" and call[1] == "chat_message_confirmed" for call in manager.calls)
     cutover.get_epoch.assert_awaited_once_with(authoritative=True)
+    if chat_metadata and chat_metadata.get("id") == "chat-123":
+        directus_service.chat.check_chat_ownership.assert_awaited_once_with(
+            "chat-123", "user-123", authoritative_metadata=chat_metadata,
+        )
+    elif chat_metadata:
+        directus_service.chat.check_chat_ownership.assert_awaited_once_with(
+            "chat-123", "user-123",
+        )
     cache_service.try_claim_active_ai_task.assert_awaited_once_with("chat-123", hashlib.sha256(b"user-123:chat-123:msg-123").hexdigest())
     cache_service.set_active_ai_task.assert_not_awaited()
     cache_service.increment_and_tombstone_user_draft.assert_awaited_once_with("user-123", "chat-123")
@@ -458,11 +469,89 @@ def test_recovery_send_requires_preflight_even_while_another_task_is_active(monk
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
+def test_authoritative_epoch_and_chat_read_overlap_before_preflight_rejection(monkeypatch):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
+
+    manager = FakeManager()
+    metadata_started = asyncio.Event()
+    reads = []
+
+    async def get_epoch(*, authoritative):
+        assert authoritative is True
+        reads.append("epoch")
+        await metadata_started.wait()
+        return 1
+
+    async def get_metadata(chat_id):
+        assert chat_id == "chat-123"
+        reads.append("metadata")
+        metadata_started.set()
+        return {"id": chat_id, "hashed_user_id": hash_id("user-123")}
+
+    monkeypatch.setattr(
+        message_received_handler, "ChatRecoveryCutoverController",
+        lambda *_args: SimpleNamespace(get_epoch=get_epoch),
+    )
+    directus = SimpleNamespace(chat=SimpleNamespace(
+        get_chat_metadata=get_metadata,
+        check_chat_ownership=AsyncMock(return_value=True),
+    ))
+
+    async def run():
+        await asyncio.wait_for(message_received_handler.handle_message_received(
+            websocket=SimpleNamespace(), manager=manager,
+            cache_service=SimpleNamespace(), directus_service=directus,
+            encryption_service=SimpleNamespace(), user_id="user-123",
+            device_fingerprint_hash="device-123",
+            payload={"chat_id": "chat-123", "message": {"message_id": "msg-123", "content": "hello"},
+                     "protocol_version": 1},
+        ), timeout=1)
+
+    asyncio.run(run())
+    assert reads == ["epoch", "metadata"]
+    directus.chat.check_chat_ownership.assert_not_awaited()
+    assert manager.calls == [("send_personal_message", "error", "user-123", "device-123")]
+
+
+# contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
+def test_chat_row_never_authorizes_send_when_epoch_read_fails(monkeypatch):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
+
+    manager = FakeManager()
+    metadata = AsyncMock(return_value={"id": "chat-123", "hashed_user_id": hash_id("user-123")})
+    ownership = AsyncMock(return_value=True)
+    epoch = AsyncMock(side_effect=RuntimeError("cutover unavailable"))
+    monkeypatch.setattr(
+        message_received_handler, "ChatRecoveryCutoverController",
+        lambda *_args: SimpleNamespace(get_epoch=epoch),
+    )
+
+    asyncio.run(message_received_handler.handle_message_received(
+        websocket=SimpleNamespace(), manager=manager,
+        cache_service=SimpleNamespace(),
+        directus_service=SimpleNamespace(chat=SimpleNamespace(
+            get_chat_metadata=metadata, check_chat_ownership=ownership,
+        )),
+        encryption_service=SimpleNamespace(), user_id="user-123",
+        device_fingerprint_hash="device-123",
+        payload={"chat_id": "chat-123", "message": {"message_id": "msg-123", "content": "hello"},
+                 "protocol_version": 1, "preflight_id": "prepared-turn"},
+    ))
+
+    epoch.assert_awaited_once_with(authoritative=True)
+    metadata.assert_awaited_once_with("chat-123")
+    ownership.assert_not_awaited()
+    assert manager.calls == [("send_personal_message", "error", "user-123", "device-123")]
+
+
 @pytest.mark.parametrize("active_task,stale_queue", [
     (None, False), ("active-task-123", False), (None, True),
 ])
 def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch, active_task, stale_queue):
     from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
+
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "test-chat-recovery-commitment")
 
     manager = FakeManager()
     cutover = SimpleNamespace(get_epoch=AsyncMock(return_value=1))

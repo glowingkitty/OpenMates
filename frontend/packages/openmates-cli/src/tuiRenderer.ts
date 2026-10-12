@@ -669,7 +669,10 @@ export function renderChat(state: TuiState, width: number, height: number, fullH
   const wrappedFooter=footer.flatMap<TuiLine>(line=>typeof line==='string'?wrap(line,width):[line]);
   const blocks:TuiLine[][]=[];
   let rowCount=wrappedFooter.length;
-  if(state.isAwaitingAi&&!state.streamingMessage?.content.trim()){
+  const selectedMateKnown = !!(state.streamingMessage?.title &&
+    !/^(assistant|ai assistant|ai|openmates)$/i.test(state.streamingMessage.title.trim()) ||
+    MATE_NAMES[state.streamingMessage?.category??'']);
+  if(state.isAwaitingAi&&selectedMateKnown&&!state.streamingMessage?.content.trim()){
     const mate=messageLabel('assistant',state.streamingMessage?.title,state.streamingMessage?.category,state.activeChat);
     const waiting=[...renderTuiThinking(mate,width,state.streamingMessage?.modelName),...renderTuiReasoning(state.streamingMessage,width),renderTuiStreamingGlow(width,state.streamingPhase),''];
     blocks.push(waiting);rowCount+=waiting.length;
@@ -692,7 +695,7 @@ export function renderChat(state: TuiState, width: number, height: number, fullH
         {...cacheContext,variant:questionBlocks?'questions':'literal-questions',cacheable:cacheable.has(index)},
         ()=>prepareMessageContent(message.content,width,state,questionBlocks));
       const label=messageLabel(message.role,message.title,message.category,state.activeChat,message.remoteUser);
-      if(state.isAwaitingAi&&message===state.streamingMessage)rows.push(...renderTuiThinking(label,width,message.modelName,message.thinkingActive?'Thinking':tuiResponsePhase(prepared.segments)));
+      if(state.isAwaitingAi&&selectedMateKnown&&message===state.streamingMessage)rows.push(...renderTuiThinking(label,width,message.modelName,message.thinkingActive?'Thinking':tuiResponsePhase(prepared.segments)));
       else {rows.push({text:label,color:'#5a85eb',bold:true});
         if(message.role==='assistant'&&message.modelName)rows.push({text:message.modelName,color:'#808080'});}
       if(message.role==='assistant')rows.push(...renderTuiReasoning(message,width));

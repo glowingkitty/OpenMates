@@ -477,6 +477,8 @@ function parseAvailableRecoveryOutputs(value: unknown): AvailableRecoveryOutputF
 export class OpenMatesWsClient {
   private readonly interactiveHuman: boolean;
   private readonly serverCapabilities = new Set<string>();
+  private readonly serverCapabilitiesReady: Promise<void>;
+  private resolveServerCapabilities!: () => void;
   private activeHumanChatId: string | null = null;
   private presenceTimer: ReturnType<typeof setInterval> | null = null;
   private readonly socket: InstanceType<typeof WebSocket>;
@@ -502,6 +504,7 @@ export class OpenMatesWsClient {
     onForceLogout?: (payload: ForceLogoutPayload) => void | Promise<void>;
   }) {
     this.interactiveHuman = options.interactiveHuman === true;
+    this.serverCapabilitiesReady = new Promise(resolve => { this.resolveServerCapabilities = resolve; });
     const wsBase = options.apiUrl.replace(/^http/, "ws").replace(/\/$/, "");
     // Refresh credentials may travel as protected cookies, never in a URL.
     const token = options.wsToken || "";
@@ -550,6 +553,7 @@ export class OpenMatesWsClient {
           if (Array.isArray(capabilities)) for (const capability of capabilities) {
             if (typeof capability === "string") this.serverCapabilities.add(capability);
           }
+          this.resolveServerCapabilities();
           return;
         }
       } catch { /* Other frame handlers retain their existing validation. */ }
@@ -562,6 +566,11 @@ export class OpenMatesWsClient {
 
   supportsServerCapability(capability: string): boolean {
     return this.serverCapabilities.has(capability);
+  }
+
+  /** Resolve once the advertised capability set has arrived; older servers may omit it. */
+  waitForServerCapabilities(): Promise<void> {
+    return this.serverCapabilitiesReady;
   }
 
   async open(timeoutMs = 10_000): Promise<void> {

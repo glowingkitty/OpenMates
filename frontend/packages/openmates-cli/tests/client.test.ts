@@ -1793,6 +1793,33 @@ describe("memory type registry", () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
+
+  // contract-test: supporting surface=sdks.npm assertions=chats.completion.lease-fenced
+  it("shares only an in-flight Personal memory read for the same owner", async () => {
+    writeLegacySession();
+    const client = OpenMatesClient.load();
+    const internal = client as unknown as {
+      sdkGetPersonalMemories: () => Promise<Array<Record<string, unknown>>>;
+      getCustomRuleDocuments: () => Promise<[]>;
+    };
+    const finish: Array<(rows: Array<Record<string, unknown>>) => void> = [];
+    internal.sdkGetPersonalMemories = () => new Promise(resolve => { finish.push(resolve); });
+    internal.getCustomRuleDocuments = async () => [];
+    const first = client.listMemories({ personal: true });
+    const shared = client.listMemories({ personal: true });
+    assert.equal(finish.length, 1);
+    finish[0]!([]);
+    const [firstRows, sharedRows] = await Promise.all([first, shared]);
+    assert.equal(sharedRows, firstRows, "privacy snapshot and auth handoff must retain array identity");
+    const fresh = client.listMemories({ personal: true });
+    assert.equal(finish.length, 2, "a settled read is never cached");
+    client.getSession()!.hashedEmail = "another-owner";
+    const changedOwner = client.listMemories({ personal: true });
+    assert.equal(finish.length, 3, "an in-flight read cannot cross owner identity");
+    finish[1]!([]);
+    finish[2]!([]);
+    await Promise.all([fresh, changedOwner]);
+  });
 });
 
 describe("saved embed on-demand lookup", () => {
@@ -2676,9 +2703,10 @@ describe("CLI saved-chat recovery preflight", () => {
     let projectReadBeforeDiscovery = false;
     let discoverySent = false;
     let preflightSent = false;
+    let admissionBeforeDiscovery = false;
     let focusReads = 0;
     let planReads = 0;
-    let socket: import("ws").WebSocket | null = null;
+    let _socket: import("ws").WebSocket | null = null;
     const wss = new WebSocketServer({ noServer: true });
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       if (request.method === "POST" && request.url === "/v1/auth/session") {
@@ -2690,8 +2718,6 @@ describe("CLI saved-chat recovery preflight", () => {
         projectReadBeforeDiscovery = !discoverySent;
         response.writeHead(200, { "content-type": "application/json" });
         response.end(JSON.stringify({ projects: [] }));
-        socket?.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
-        discoverySent = true;
         return;
       }
       if (request.method === "GET" && request.url?.startsWith("/v1/projects/focus/current")) focusReads++;
@@ -2702,11 +2728,14 @@ describe("CLI saved-chat recovery preflight", () => {
     server.on("upgrade", (request, connection, head) => {
       wss.handleUpgrade(request, connection, head, (ws) => {
         ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
-        socket = ws;
+        _socket = ws;
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string };
           if (frame.type === "chat_turn_admit") {
             preflightSent = true;
+            admissionBeforeDiscovery = !discoverySent;
+            ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+            discoverySent = true;
             ws.send(JSON.stringify({ type: "error", payload: { code: "client_update_required" } }));
           }
         });
@@ -2721,6 +2750,7 @@ describe("CLI saved-chat recovery preflight", () => {
       await assert.rejects(client.sendMessage({ message: "ordinary question", piiDetection: false }), /update required/i);
       assert.equal(projectReadBeforeDiscovery, true);
       assert.equal(preflightSent, true);
+      assert.equal(admissionBeforeDiscovery, true);
       assert.equal(focusReads, 0);
       assert.equal(planReads, 0);
     } finally {
@@ -2734,6 +2764,8 @@ describe("CLI saved-chat recovery preflight", () => {
   for (const variant of ["caller newChatId", "explicit Project"] as const) it(`retains Focus and Plan discovery for ${variant}`, async () => {
     let focusReads = 0;
     let planReads = 0;
+    let discoverySent = false;
+    let admissionBeforeDiscovery = false;
     const wss = new WebSocketServer({ noServer: true });
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       const path = request.url ?? "";
@@ -2761,10 +2793,14 @@ describe("CLI saved-chat recovery preflight", () => {
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload?: { chat_id?: string } };
           if (frame.type === "chat_metadata_warmup") {
-            ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+            setTimeout(() => {
+              discoverySent = true;
+              ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+            }, 30);
           } else if (frame.type === "encrypted_chat_metadata") {
             ws.send(JSON.stringify({ type: "encrypted_metadata_stored", payload: { chat_id: frame.payload?.chat_id } }));
           } else if (frame.type === "chat_turn_admit") {
+            admissionBeforeDiscovery = !discoverySent;
             ws.send(JSON.stringify({ type: "error", payload: { code: "client_update_required" } }));
           }
         });
@@ -2782,6 +2818,7 @@ describe("CLI saved-chat recovery preflight", () => {
       await assert.rejects(client.sendMessage({ message: "ordinary question", piiDetection: false, ...options }));
       assert.equal(focusReads, 2);
       assert.equal(planReads, 1);
+      assert.equal(admissionBeforeDiscovery, false);
     } finally {
       wss.close();
       server.closeAllConnections();
@@ -2841,6 +2878,7 @@ describe("CLI saved-chat recovery preflight", () => {
   // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
   it("aborts an unfinished context read when recovery discovery fails", { timeout: 5_000 }, async () => {
     let socket: import("ws").WebSocket | null = null;
+    let discoveryFailurePending = false;
     let projectAborted = false;
     let socketClosed = false;
     let projectReadStarted = false;
@@ -2854,6 +2892,7 @@ describe("CLI saved-chat recovery preflight", () => {
       if (request.method === "GET" && request.url === "/v1/projects") {
         projectReadStarted = true;
         response.on("close", () => { if (!response.writableEnded) projectAborted = true; });
+        discoveryFailurePending = true;
         socket?.send(JSON.stringify({ type: "error", payload: { code: "client_update_required", message: "Recovery discovery failed." } }));
         // Leave this response open: the scoped abort must close it promptly.
         return;
@@ -2865,6 +2904,7 @@ describe("CLI saved-chat recovery preflight", () => {
       wss.handleUpgrade(request, connection, head, (ws) => {
         ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         socket = ws;
+        if (discoveryFailurePending) setTimeout(() => ws.send(JSON.stringify({ type: "error", payload: { code: "client_update_required", message: "Recovery discovery failed." } })), 10);
         ws.on("close", () => { socketClosed = true; });
       });
     });
@@ -2889,7 +2929,7 @@ describe("CLI saved-chat recovery preflight", () => {
   });
 
   // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
-  it("closes an opened socket when the session disappears before context setup", async () => {
+  it("closes an opened socket when the session disappears during early context setup", async () => {
     let socketClosed = false;
     let contextRead = false;
     let preflightSent = false;
@@ -2932,7 +2972,7 @@ describe("CLI saved-chat recovery preflight", () => {
       await assert.rejects(client.sendMessage({ message: "ordinary question", piiDetection: false }), /Not logged in/);
       await new Promise<void>((resolve) => setTimeout(resolve, 30));
       assert.equal(socketClosed, true);
-      assert.equal(contextRead, false);
+      assert.equal(contextRead, true);
       assert.equal(preflightSent, false);
     } finally {
       wss.close();
@@ -3029,6 +3069,8 @@ describe("CLI saved-chat recovery preflight", () => {
     } = { frameTypes: [], preflightAcknowledged: false, terminalSent: false };
     let sealedPayloadForTest: string | null = null;
     let deferredProjects: ServerResponse | null = null;
+    let discoverySent = false;
+    let admissionBeforeDiscovery = false;
     const contextFrames: Array<Record<string, unknown>> = [];
     const wss = new WebSocketServer({ noServer: true });
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
@@ -3060,8 +3102,11 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
-        if (supported) ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
-        ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+        if (supported) setTimeout(() => ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } })), 50);
+        else {
+          discoverySent = true;
+          ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+        }
         ws.on("message", async (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           captured.frameTypes.push(frame.type);
@@ -3069,6 +3114,11 @@ describe("CLI saved-chat recovery preflight", () => {
           if (frame.type === "chat_turn_context_ready") contextFrames.push(frame.payload);
           if (frame.type === "chat_turn_admit" || frame.type === "chat_turn_preflight") {
             captured.preflightPayload = frame.payload;
+            if (supported) {
+              admissionBeforeDiscovery = !discoverySent;
+              discoverySent = true;
+              ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+            }
             deferredProjects?.writeHead(200, { "content-type": "application/json" });
             deferredProjects?.end(JSON.stringify({ projects: [] }));
             const sealedPayload = await sealChatCompletionRecoveryPayload(
@@ -3232,6 +3282,7 @@ describe("CLI saved-chat recovery preflight", () => {
       assert.equal(captured.frameTypes.indexOf("chat_metadata_warmup") < captured.frameTypes.indexOf(sendType), true);
       assert.equal(captured.frameTypes.includes("chat_message_added"), !supported);
       assert.equal(captured.frameTypes.includes("chat_turn_admit"), supported);
+      if (supported) assert.equal(admissionBeforeDiscovery, true);
       if (!supported) assert.ok(captured.frameTypes.indexOf("chat_message_added") > captured.frameTypes.indexOf("chat_turn_preflight"));
       assert.equal(captured.frameTypes.indexOf("encrypted_chat_metadata") > captured.frameTypes.indexOf("recovery_job_persist"), true);
       assert.equal(captured.metadataPayload?.message_id, undefined);

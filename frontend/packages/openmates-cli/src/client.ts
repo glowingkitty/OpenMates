@@ -3354,6 +3354,7 @@ export class OpenMatesClient {
   private readonly ownTeamDisplayNames = new Map<string, { name: string; expiresAt: number }>();
   private pendingWhoAmIAuthHandoff: PersonalSendAuthHandoff | null = null;
   private personalMemoryAuthHandoff: { snapshot: WeakRef<DecryptedMemoryEntry[]>; auth: PersonalSendAuthHandoff } | null = null;
+  private personalMemoryReadInFlight: { ownerKey: string; promise: Promise<DecryptedMemoryEntry[]> } | null = null;
   readonly apiUrl: string;
   private session: OpenMatesSession | null;
   private readonly http: OpenMatesHttpClient;
@@ -3435,6 +3436,7 @@ export class OpenMatesClient {
   }
 
   setActiveTeamId(teamId: string | null): void {
+    this.personalMemoryReadInFlight = null;
     const session = this.requireSession();
     this.session = { ...session, activeTeamId: teamId };
     saveSession(this.session);
@@ -8709,30 +8711,10 @@ export class OpenMatesClient {
     const explicitTasksAppSkill = messageExplicitlyRequestsTasksAppSkill(finalMessage);
     const taskUpdateJobsEnabled = params.taskUpdateJobs !== false && !explicitTasksAppSkill;
     const preWsMs = Math.round(performance.now() - preWsStartedAt);
-    const authSocketStartedAt = Date.now();
-    const { ws, ownerId } = await this.openWsClient({
-      personalSendAuthHandoff,
-      taskUpdateJobs: taskUpdateJobsEnabled,
-      projectFileJobs: !params.incognito,
-      remoteCommandJobs: !params.incognito,
-      interactiveHuman: params.interactiveHuman === true && this.interactiveViewerAllowed
-        && process.stdin.isTTY === true && process.stdout.isTTY === true,
-    });
-    if (!params.incognito && !ownerId) {
-      ws.close();
-      throw new Error("Authenticated user identity is required for saved chat recovery.");
-    }
-    const authSocketMs = Date.now() - authSocketStartedAt;
     // A new chat without an explicit Project cannot have an existing active
     // Project focus. Start its read-only context discovery while the socket
     // completes recovery discovery and we prepare the encrypted turn.
-    let contextSession: OpenMatesSession;
-    try {
-      contextSession = this.requireSession();
-    } catch (error) {
-      ws.close();
-      throw error;
-    }
+    const contextSession = this.requireSession();
     const {
       apiUrl: contextApiUrl,
       hashedEmail: contextHashedEmail,
@@ -8745,6 +8727,12 @@ export class OpenMatesClient {
     const contextStartedAt = Date.now();
     let publishRouting!: (context: CliJevContext) => void;
     const routingContext = new Promise<CliJevContext>(resolve => { publishRouting = resolve; });
+    let publishProjectRouting!: (context: CliJevContext) => void;
+    let rejectProjectRouting!: (error: unknown) => void;
+    const projectRoutingContext = new Promise<CliJevContext>((resolve, reject) => {
+      publishProjectRouting = resolve; rejectProjectRouting = reject;
+    });
+    void projectRoutingContext.catch(() => {});
     let recoveryMs = 0;
     const contextOwnerIsCurrent = () => {
       const current = this.session;
@@ -8758,22 +8746,57 @@ export class OpenMatesClient {
     const earlyContextAbort = new AbortController();
     const earlyContext = !params.incognito && !params.chatId && !params.projectId
       ? withHttpAbortSignal(earlyContextAbort.signal, () =>
-          prepareCliJevContext(this, chatId, contextScope, params.jevContext, finalMessage, { sdkMintedChatId, onRouting: publishRouting }))
+          prepareCliJevContext(this, chatId, contextScope, params.jevContext, finalMessage, {
+            sdkMintedChatId, onRouting: publishRouting,
+            onProjectRouting: publishProjectRouting, onProjectRoutingError: rejectProjectRouting,
+          }))
         .then(value => ({ ok: true as const, value, elapsedMs: Date.now() - contextStartedAt }),
           error => ({ ok: false as const, error: error as unknown, elapsedMs: Date.now() - contextStartedAt }))
       : null;
+    const authSocketStartedAt = Date.now();
+    let opened: Awaited<ReturnType<OpenMatesClient["openWsClient"]>>;
+    try {
+      opened = await this.openWsClient({
+        personalSendAuthHandoff,
+        taskUpdateJobs: taskUpdateJobsEnabled,
+        projectFileJobs: !params.incognito,
+        remoteCommandJobs: !params.incognito,
+        interactiveHuman: params.interactiveHuman === true && this.interactiveViewerAllowed
+          && process.stdin.isTTY === true && process.stdout.isTTY === true,
+      });
+    } catch (error) {
+      earlyContextAbort.abort();
+      if (earlyContext) await earlyContext;
+      throw error;
+    }
+    const { ws, ownerId } = opened;
+    if (!params.incognito && !ownerId) {
+      earlyContextAbort.abort();
+      ws.close();
+      if (earlyContext) await earlyContext;
+      throw new Error("Authenticated user identity is required for saved chat recovery.");
+    }
+    const authSocketMs = Date.now() - authSocketStartedAt;
+    const mayDeferRecovery = !params.incognito && sdkMintedChatId
+      && !teamId && !params.projectId && shouldWaitForAi;
+    let recoveryDiscovery: Promise<void> | null = null;
+    let recoveryDiscoveryError: unknown = null;
     try {
     if (!params.incognito) {
       try { ws.send("chat_metadata_warmup", teamId ? { team_id: teamId } : {}); }
       catch { /* Optional warmup cannot delay the actual message. */ }
-      try {
-        const recoveryStartedAt = Date.now();
-        await ws.waitForRecoveryOutputDiscovery();
-        recoveryMs = Date.now() - recoveryStartedAt;
-      } catch (error) {
-        ws.close();
-        throw error;
-      }
+      const recoveryStartedAt = Date.now();
+      recoveryDiscovery = ws.waitForRecoveryOutputDiscovery().then(
+        () => { recoveryMs = Date.now() - recoveryStartedAt; },
+        error => { recoveryDiscoveryError = error; throw error; },
+      );
+      void recoveryDiscovery.catch(() => {});
+      if (mayDeferRecovery) {
+        // The socket can open before its first server_capabilities frame.
+        // Wait for that frame or ordinary recovery completion before choosing
+        // an admission protocol; otherwise a modern server looks legacy.
+        await Promise.race([ws.waitForServerCapabilities(), recoveryDiscovery]);
+      } else await recoveryDiscovery;
     }
 
     const messageId = randomUUID();
@@ -9000,6 +9023,8 @@ export class OpenMatesClient {
     // continuation hydration is available on the server.
     const useDeferredContext = useCombinedAdmission && !params.chatId && !params.projectId && !teamId
       && ws.supportsServerCapability?.("chat_turn_context_v1") === true;
+    const useSelectionDetailsV2 = useDeferredContext && sdkMintedChatId
+      && ws.supportsServerCapability?.("chat_turn_context_selection_details_v2") === true;
     const contextRequestId = !params.incognito && shouldWaitForAi && useDeferredContext ? randomUUID() : null;
     let pendingContext: Promise<CliJevContext> | null = null;
     if (!params.incognito && shouldWaitForAi) {
@@ -9010,7 +9035,10 @@ export class OpenMatesClient {
       pendingContext = (async () => {
         const prepared = earlyContext
           ? await earlyContext
-          : { ok: true as const, value: await withHttpAbortSignal(earlyContextAbort.signal, () => prepareCliJevContext(this, chatId, contextScope, params.jevContext, finalMessage, { sdkMintedChatId, onRouting: publishRouting })), elapsedMs: Date.now() - contextStartedAt };
+          : { ok: true as const, value: await withHttpAbortSignal(earlyContextAbort.signal, () => prepareCliJevContext(this, chatId, contextScope, params.jevContext, finalMessage, {
+              sdkMintedChatId, onRouting: publishRouting,
+              onProjectRouting: publishProjectRouting, onProjectRoutingError: rejectProjectRouting,
+            })), elapsedMs: Date.now() - contextStartedAt };
         if (!prepared.ok) throw prepared.error;
         if (!contextOwnerIsCurrent()) throw new Error("Chat workspace changed while preparing context.");
         if (process.env.OPENMATES_DEBUG === "1") {
@@ -9325,6 +9353,10 @@ export class OpenMatesClient {
     let confirmedPayload: Record<string, unknown>;
     try {
       if (admissionPayload) {
+        // Only a newly minted Personal turn on the deferred-context protocol
+        // may enter admission while unrelated recovery outputs are discovered.
+        if (!useDeferredContext && recoveryDiscovery) await recoveryDiscovery;
+        if (recoveryDiscoveryError) throw recoveryDiscoveryError;
         // Unknown/older servers keep the complete context in the established
         // encrypted preflight, then receive the ordinary inference frame.
         if (!contextRequestId && pendingContext) {
@@ -9349,20 +9381,27 @@ export class OpenMatesClient {
           await ws.sendAsync("chat_message_added", messagePayload);
         }
         if (pendingContext && contextRequestId) {
-          const routing = params.projectId ? await pendingContext : await Promise.race([routingContext, pendingContext]);
+          const routing = useSelectionDetailsV2 ? await projectRoutingContext
+            : params.projectId ? await pendingContext : await Promise.race([routingContext, pendingContext]);
           if (!contextOwnerIsCurrent()) throw new Error("Chat workspace changed while preparing context.");
           const identity = { chat_id: chatId, turn_id: savedTurnId, message_id: messageId,
             request_id: contextRequestId, ...(teamId ? { team_id: teamId } : {}) };
           const { project_focus_candidates, related_task_candidates, project_focus_catalog, accepted_plan_context } = routing;
-          await ws.sendAsync("chat_turn_context_ready", { ...identity, phase: "routing", context: {
-            project_focus_candidates, related_task_candidates, project_focus_catalog, accepted_plan_context,
-          } });
+          await ws.sendAsync("chat_turn_context_ready", { ...identity, phase: "routing", context: useSelectionDetailsV2
+            ? { project_focus_candidates }
+            : { project_focus_candidates, related_task_candidates, project_focus_catalog, accepted_plan_context } });
           const context = await pendingContext;
           if (!contextOwnerIsCurrent()) throw new Error("Chat workspace changed while preparing context.");
           await ws.sendAsync("chat_turn_context_ready", { ...identity, phase: "details", context: {
             custom_memory_documents: context.custom_memory_documents ?? [],
             project_focus_documents: context.project_focus_documents ?? [],
             project_context_documents: context.project_context_documents ?? [],
+            ...(useSelectionDetailsV2 ? {
+              related_task_candidates: context.related_task_candidates ?? [],
+              project_focus_catalog: context.project_focus_catalog ?? [],
+              accepted_plan_context: context.accepted_plan_context ?? null,
+              ...(connectedAccountDirectory ? { connected_account_directory: connectedAccountDirectory } : {}),
+            } : {}),
           } });
         }
       } else {
@@ -9690,6 +9729,15 @@ export class OpenMatesClient {
     } else {
       try {
         const recoverCurrentTurnOutputs = async () => {
+          if (recoveryDiscovery) {
+            try { await recoveryDiscovery; }
+            catch (error) {
+              // Admission already succeeded. Leave unrelated outputs durable
+              // for the next reconnect instead of replaying a partial page.
+              if (!useDeferredContext) throw error;
+              return;
+            }
+          }
           const pages = ws.drainAvailableRecoveryOutputPages();
           if (pages.length === 0) return;
           if (!ownerId) throw new Error("Saved chat recovery output requires the owner identity.");
@@ -14527,11 +14575,28 @@ export class OpenMatesClient {
   }
 
   async listMemories(options: TeamContextOptions = {}): Promise<DecryptedMemoryEntry[]> {
+    if (this.resolveTeamContext(options)) return this.listMemoriesUnshared(options);
+    const session = this.requireSession();
+    const ownerKey = JSON.stringify([session.apiUrl, session.hashedEmail, session.sessionId,
+      session.createdAt, session.masterKeyExportedB64, session.activeTeamId,
+      authCookieFingerprint(session.cookies), authCookieFingerprint(this.http.getCookieMap())]);
+    const current = this.personalMemoryReadInFlight;
+    if (current?.ownerKey === ownerKey) return current.promise;
+    const entry = { ownerKey, promise: this.listMemoriesUnshared({ personal: true }) };
+    this.personalMemoryReadInFlight = entry;
+    try { return await entry.promise; }
+    finally { if (this.personalMemoryReadInFlight === entry) this.personalMemoryReadInFlight = null; }
+  }
+
+  private async listMemoriesUnshared(options: TeamContextOptions): Promise<DecryptedMemoryEntry[]> {
+    const startedAt = performance.now();
     const masterKey = this.getMasterKeyBytes();
+    const keyMs = Math.round(performance.now() - startedAt);
     const teamId = this.resolveTeamContext(options);
     const rawEntries = teamId
       ? await this.sdkGetTeamMemories(teamId)
       : await this.sdkGetPersonalMemories();
+    const fetchMs = Math.round(performance.now() - startedAt) - keyMs;
     const results: DecryptedMemoryEntry[] = [];
 
     for (const raw of rawEntries) {
@@ -14567,6 +14632,7 @@ export class OpenMatesClient {
         data: parsed,
       });
     }
+    const decryptMs = Math.round(performance.now() - startedAt) - keyMs - fetchMs;
     if (!teamId) {
       let accountDocuments: Awaited<ReturnType<OpenMatesClient['getCustomRuleDocuments']>> = [];
       // Bind the account-settings auth receipt to this exact decrypted
@@ -14583,6 +14649,10 @@ export class OpenMatesClient {
           item_key_hash: '', data: { title, document: memory.document }, created_at: 0, updated_at: 0, item_version: 1 });
       }
       if (accountDocumentsLoaded && handoff) this.personalMemoryAuthHandoff = { snapshot: new WeakRef(results), auth: handoff };
+    }
+    if (process.env.OPENMATES_DEBUG === "1") {
+      const totalMs = Math.round(performance.now() - startedAt);
+      console.error(`[memory preparation] key_ms=${keyMs} fetch_ms=${fetchMs} decrypt_ms=${decryptMs} auth_ms=${totalMs - keyMs - fetchMs - decryptMs} total_ms=${totalMs}`);
     }
     return results;
   }
@@ -14650,6 +14720,7 @@ export class OpenMatesClient {
    * WebSocket. The server deletes from Directus and broadcasts to all devices.
    */
   async deleteMemory(entryId: string, options: TeamContextOptions = {}): Promise<{ success: boolean }> {
+    if (!this.resolveTeamContext(options)) this.personalMemoryReadInFlight = null;
     if (entryId.startsWith('account-memory-')) {
       if (this.resolveTeamContext(options)) throw new Error('Account Memories belong to the personal OpenMates category.');
       await this.mutateAccountMemory(entryId);
@@ -14680,6 +14751,7 @@ export class OpenMatesClient {
 
   /** Edit legacy account guides in their encrypted owner store, never as public app data. */
   private async mutateAccountMemory(entryId: string, value?: Record<string, unknown>): Promise<void> {
+    this.personalMemoryReadInFlight = null;
     const sessionId = this.requireSession().sessionId;
     const user = await this.whoAmI();
     const settings = await this.decryptSettingsRecord(user.encrypted_settings);
@@ -14722,6 +14794,7 @@ export class OpenMatesClient {
     teamId?: string | null;
     personal?: boolean;
   }): Promise<{ success: boolean; id: string }> {
+    if (!this.resolveTeamContext(params)) this.personalMemoryReadInFlight = null;
     const masterKey = this.getMasterKeyBytes();
     const registryKey = `${params.appId}/${params.itemType}`;
     const schema = MEMORY_TYPE_REGISTRY[registryKey];

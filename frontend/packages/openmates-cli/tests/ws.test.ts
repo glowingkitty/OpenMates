@@ -46,6 +46,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       assert.equal(client.supportsServerCapability("chat_turn_admit_v1"), false);
       try {
         await client.open();
+        if (advertised) await client.waitForServerCapabilities();
         await client.waitForRecoveryOutputDiscovery();
         assert.equal(client.supportsServerCapability("chat_turn_admit_v1"), advertised);
         assert.equal(client.supportsServerCapability("chat_turn_context_v1"), advertised);
@@ -54,6 +55,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     }
   });
 
+  // contract-test: supporting surface=cli assertions=chats.streaming.progressive-presentation,chats.streaming.ordered-final
   it("forwards only the owned task's cumulative thinking and keeps authored text separate", async () => {
     const chatId = "thinking-chat";
     const userMessageId = "thinking-user";
@@ -92,6 +94,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     } finally { client.close(); }
   });
 
+  // contract-test: supporting surface=cli assertions=chats.streaming.progressive-presentation,chats.streaming.ordered-final
   it("keeps legacy typing task IDs and accepts matching camel case user IDs", async () => {
     const chatId = "typing-legacy-chat";
     const userMessageId = "typing-legacy-user";
@@ -121,6 +124,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     } finally { client.close(); }
   });
 
+  // contract-test: supporting surface=cli assertions=chats.streaming.ordered-final
   it("does not retarget thinking when another turn streams in the same chat", async () => {
     const chatId = "interleaved-chat";
     const userMessageId = "owned-user";
@@ -149,6 +153,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     } finally { client.close(); }
   });
 
+  // contract-test: supporting surface=cli assertions=chats.streaming.ordered-final
   it("preserves response thinking across a continuation while rejecting the old task", async () => {
     const chatId = "thinking-continuation-chat";
     const userMessageId = "thinking-continuation-user";

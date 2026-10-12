@@ -236,3 +236,50 @@ it('publishes routing metadata before selected private Project documents finish 
   release();
   assert.equal((await preparing).project_focus_documents?.[0].document, 'Full private instructions');
 });
+
+// contract-test: supporting surface=cli assertions=chats.direction.context-assessment,chats.completion.lease-fenced
+it('publishes completed Project selection before slow Task discovery, with full legacy routing later', async () => {
+  let releaseTasks!: () => void;
+  const taskGate = new Promise<void>(resolve => { releaseTasks = resolve; });
+  let publishProject!: (value: unknown) => void;
+  const projectRouting = new Promise<unknown>(resolve => { publishProject = resolve; });
+  let legacyPublished = false;
+  const client = {
+    async listProjects() { return []; },
+    async listUserTasks() { await taskGate; return []; },
+  };
+  const preparing = prepareCliJevContext(client as never, 'new-chat', { personal: true }, {}, 'Question', {
+    sdkMintedChatId: true,
+    onProjectRouting: publishProject,
+    onRouting: () => { legacyPublished = true; },
+  });
+  assert.deepEqual(await projectRouting, { project_focus_candidates: [] });
+  assert.equal(legacyPublished, false, 'Task and Plan work must not gate Project selection');
+  releaseTasks();
+  await preparing;
+  assert.equal(legacyPublished, true);
+});
+
+// contract-test: supporting surface=cli assertions=chats.direction.context-assessment,chats.completion.lease-fenced
+it('does not publish an empty Project selection when directory discovery is incomplete', async () => {
+  for (const failurePoint of ['directory', 'metadata'] as const) {
+    let published = false;
+    let failure: unknown;
+    const client = {
+      async listProjects() {
+        if (failurePoint === 'directory') throw new Error('Project directory unavailable');
+        return [{ project_id: 'unreadable', encrypted_name: 'invalid' }];
+      },
+      async decryptProjectKey() { throw new Error('Project key unavailable'); },
+      async getProjectSettings() { return { auto_selection: true }; },
+      async listUserTasks() { return []; },
+    };
+    await prepareCliJevContext(client as never, 'new-chat', { personal: true }, {}, 'Question', {
+      sdkMintedChatId: true,
+      onProjectRouting: () => { published = true; },
+      onProjectRoutingError: error => { failure = error; },
+    });
+    assert.equal(published, false);
+    assert.match(String(failure), failurePoint === 'directory' ? /Project directory unavailable/ : /Project key unavailable/);
+  }
+});

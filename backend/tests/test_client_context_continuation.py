@@ -103,6 +103,52 @@ async def test_encrypted_two_phase_delivery_hydrates_only_requested_phase(setup)
 
 # contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
 @pytest.mark.asyncio
+async def test_selection_details_v2_waits_for_details_before_plan_fast_path(setup):
+    from backend.apps.ai.processing.preprocessor import _simple_context_fast_path
+
+    cache, _redis, vault, scope = setup
+    reference = await context.register_client_context(cache_service=cache, encryption_service=vault,
+        device_fingerprint_hash='device', **scope)
+    admission = {"scope_complete": False, "active_project_id": None,
+                 "active_project_activation_id": None, "active_focus_id": None,
+                 "accepted_plan_ref": None, "explicit_related_task_ids": [],
+                 "context_revision": "server-admission-v1"}
+    request = SimpleNamespace(**scope, recovery_turn_id=scope['turn_id'], client_context_pending=True,
+        client_context_request_id=scope['request_id'], client_context_binding_ref=reference,
+        admission_context=admission, is_focus_mode_continuation=False,
+        is_app_settings_memories_continuation=False)
+    routing = {'project_focus_candidates': []}
+    details = {
+        'related_task_candidates': [{'task_id': 'related', 'summary': 'Safe summary'}],
+        'project_focus_catalog': [{'id': 'focus', 'title': 'Focus'}],
+        'accepted_plan_context': {'plan_id': 'plan', 'summary': 'Approved summary'},
+        'connected_account_directory': [{'app_id': 'calendar', 'connection_id': 'opaque'}],
+    }
+    for phase, payload in [('routing', routing), ('details', details)]:
+        assert await context.receive_client_context(cache_service=cache, encryption_service=vault,
+            device_fingerprint_hash='device', phase=phase, context=payload, **scope) == 'accepted'
+    await context.await_client_context_phase(cache_service=cache, encryption_service=vault,
+                                            request=request, phase='routing')
+    assert request.project_focus_candidates == []
+    assert not hasattr(request, 'accepted_plan_context')
+    assert not hasattr(request, 'related_task_candidates')
+    assert request.client_context_pending is True
+    await context.await_client_context_phase(cache_service=cache, encryption_service=vault,
+                                            request=request, phase='details')
+    assert request.related_task_candidates == details['related_task_candidates']
+    assert request.project_focus_catalog == details['project_focus_catalog']
+    assert request.accepted_plan_context == details['accepted_plan_context']
+    assert request.connected_account_directory == details['connected_account_directory']
+    assert request.client_context_pending is False
+    assert _simple_context_fast_path(request, {
+        'early_decisions': {'public_decisions': {}, 'needs_detailed_context': False,
+                            'needs_related_work': False},
+        'selected_app_ids': [], 'project_target_outcome': 'none',
+    }, None) is False
+
+
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
+@pytest.mark.asyncio
 @pytest.mark.parametrize('changed', ['user_id', 'chat_id', 'turn_id', 'message_id', 'team_id', 'device'])
 async def test_other_scope_or_device_cannot_deliver(setup, changed):
     cache, redis, vault, scope = setup
@@ -134,6 +180,52 @@ async def test_duplicate_phase_idempotent_but_replacement_rejected(setup):
 
 # contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
 @pytest.mark.asyncio
+@pytest.mark.parametrize('first_phase', ['routing', 'details'])
+async def test_cross_phase_selection_conflict_rejected(setup, first_phase):
+    cache, _redis, vault, scope = setup
+    await context.register_client_context(cache_service=cache, encryption_service=vault,
+                                         device_fingerprint_hash='device', **scope)
+    first = {'related_task_candidates': [{'task_id': 'one'}]}
+    second = {'related_task_candidates': [{'task_id': 'two'}]}
+    common = dict(cache_service=cache, encryption_service=vault,
+                  device_fingerprint_hash='device', **scope)
+    assert await context.receive_client_context(**common, phase=first_phase,
+                                                context=first) == 'accepted'
+    other_phase = 'details' if first_phase == 'routing' else 'routing'
+    with pytest.raises(context.ClientContextUnavailable, match='cross-phase'):
+        await context.receive_client_context(**common, phase=other_phase, context=second)
+    assert await context.receive_client_context(**common, phase=other_phase,
+                                                context=first) == 'accepted'
+
+
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
+@pytest.mark.asyncio
+async def test_concurrent_cross_phase_conflict_cannot_override_hydrated_routing(setup):
+    cache, redis, vault, scope = setup
+    reference = await context.register_client_context(cache_service=cache, encryption_service=vault,
+        device_fingerprint_hash='device', **scope)
+    routing = {'related_task_candidates': [{'task_id': 'first'}]}
+    await context.receive_client_context(cache_service=cache, encryption_service=vault,
+        device_fingerprint_hash='device', phase='routing', context=routing, **scope)
+    request = SimpleNamespace(**scope, recovery_turn_id=scope['turn_id'], client_context_pending=True,
+        client_context_request_id=scope['request_id'], client_context_binding_ref=reference)
+    await context.await_client_context_phase(cache_service=cache, encryption_service=vault,
+                                            request=request, phase='routing')
+    # Simulate two opposite-phase writes that both passed their pre-write reads.
+    conflicting = {'related_task_candidates': [{'task_id': 'second'}]}
+    sealed = await context._seal(vault, 'key:owner', {
+        'scope': scope, 'phase': 'details', 'context': conflicting,
+    })
+    redis.values[context._key(reference) + ':details'] = sealed
+    with pytest.raises(context.ClientContextUnavailable, match='cross-phase'):
+        await context.await_client_context_phase(cache_service=cache, encryption_service=vault,
+                                                request=request, phase='details')
+    assert request.related_task_candidates == routing['related_task_candidates']
+    assert request.client_context_pending is True
+
+
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
+@pytest.mark.asyncio
 async def test_missing_or_unbound_phase_never_becomes_empty_context(setup):
     cache, redis, vault, scope = setup
     reference = await context.register_client_context(cache_service=cache, encryption_service=vault,
@@ -150,6 +242,7 @@ async def test_missing_or_unbound_phase_never_becomes_empty_context(setup):
                                                  request=request, phase='routing', timeout=0)
 
 
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
 @pytest.mark.parametrize('phase,payload', [
     ('routing', {'project_context_documents': []}),
     ('routing', {'project_focus_candidates': [{'project_id': 'p', 'focuses': [{'document': 'private'}]}]}),
@@ -157,12 +250,31 @@ async def test_missing_or_unbound_phase_never_becomes_empty_context(setup):
     ('details', {'user_id': 'other'}),
     ('details', {'project_context_documents': [{}] * 21}),
     ('routing', {'related_task_candidates': [{'summary': 'x' * 256001}]}),
+    ('details', {'related_task_candidates': [{'summary': {'body': 'private'}}]}),
+    ('details', {'project_focus_catalog': [{'id': 'focus', 'summary': {'document': 'private'}}]}),
+    ('details', {'connected_account_directory': [{'access_token': 'secret'}]}),
+    ('details', {'connected_account_directory': [{'token': 'secret'}]}),
+    ('details', {'connected_account_directory': [{'provider_email': 'private'}]}),
+    ('details', {'accepted_plan_context': {'body': 'private'}}),
 ])
 def test_payload_allowlist_and_bounds(phase, payload):
     with pytest.raises(ValueError):
         context.validate_context(phase, payload)
 
 
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
+def test_legacy_routing_selection_fields_remain_valid():
+    payload = {
+        'project_focus_candidates': [],
+        'related_task_candidates': [{'task_id': 'related'}],
+        'project_focus_catalog': [{'id': 'focus'}],
+        'accepted_plan_context': {'plan_id': 'plan'},
+        'connected_account_directory': [{'app_id': 'calendar'}],
+    }
+    assert context.validate_context('routing', payload) == payload
+
+
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
 @pytest.mark.asyncio
 async def test_handler_rechecks_team_and_rejects_invalid_payload(setup):
     from backend.core.api.app.routes.handlers.websocket_handlers.client_context_ready_handler import handle_client_context_ready
@@ -176,6 +288,7 @@ async def test_handler_rechecks_team_and_rejects_invalid_payload(setup):
     assert redis.values == {}
 
 
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
 @pytest.mark.parametrize("authority", ["empty", "active_project", "plan", "missing"])
 def test_only_existing_empty_server_admission_can_be_completed(authority):
     snapshot = {"scope_complete": False, "active_project_id": None, "active_project_activation_id": None,
@@ -192,6 +305,7 @@ def test_only_existing_empty_server_admission_can_be_completed(authority):
     assert request.admission_context["scope_complete"] is (authority == "empty")
 
 
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
 def test_core_worker_dto_roundtrip_retains_admitted_context_and_private_phase_state():
     from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as CoreRequest
     from backend.apps.ai.skills.ask_skill import AskSkillRequest as WorkerRequest
@@ -208,6 +322,7 @@ def test_core_worker_dto_roundtrip_retains_admitted_context_and_private_phase_st
     assert "_client_context_routing_loaded" not in worker.model_dump()
 
 
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
 @pytest.mark.parametrize("explicit", [False, True])
 def test_unrelated_project_and_task_catalogues_do_not_block_empty_scope(explicit):
     snapshot = {"scope_complete": False, "active_project_id": None, "active_project_activation_id": None,
@@ -247,6 +362,7 @@ async def test_authenticated_exact_admission_rebind_keeps_expiry_and_phases(setu
     assert redis.expiry[key + ':details'] == 17
 
 
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
 @pytest.mark.asyncio
 async def test_rebind_rejects_wrong_stored_scope_and_inflight_old_device(setup, monkeypatch):
     cache, redis, vault, scope = setup

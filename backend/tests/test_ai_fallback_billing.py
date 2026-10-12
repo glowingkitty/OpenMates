@@ -75,6 +75,34 @@ def _preprocessing() -> SimpleNamespace:
     )
 
 
+# contract-test: supporting surface=gui.web assertions=chats.streaming.ordered-final
+@pytest.mark.parametrize("is_external, expected", [
+    (False, "Claude Sonnet 5.5"),
+    (True, "anthropic/claude-sonnet-5-5"),
+])
+def test_final_stream_model_uses_successful_fallback(is_external: bool, expected: str) -> None:
+    class DisplayConfig:
+        def get_model_display_name(self, model_id: str, provider_id: str) -> str:
+            assert (model_id, provider_id) == ("claude-sonnet-5-5", "anthropic")
+            return "Claude Sonnet 5.5"
+
+    resolved = stream_consumer._stream_model_name_after_usage(
+        "Gemini 3.8 Flash", "google/gemini-3-8-flash",
+        "anthropic/claude-sonnet-5-5", is_external=is_external,
+        config_manager=DisplayConfig(),
+    )
+    assert resolved == expected
+
+
+# contract-test: supporting surface=gui.web assertions=chats.streaming.ordered-final
+def test_stream_model_keeps_selection_without_successful_fallback() -> None:
+    for successful_model_id in (None, "google/gemini-3-8-flash"):
+        assert stream_consumer._stream_model_name_after_usage(
+            "Gemini 3.8 Flash", "google/gemini-3-8-flash", successful_model_id,
+            is_external=False, config_manager=None,
+        ) == "Gemini 3.8 Flash"
+
+
 def test_billing_uses_successful_fallback_model_instead_of_preprocessor_selection(monkeypatch) -> None:
     config_manager = FakeConfigManager()
     captured: dict[str, Any] = {}

@@ -132,7 +132,7 @@ test.describe('Chat metadata warmup WebSocket contract', () => {
 	// contract-test: direct surface=gui.web assertions=message-input.send.ownership,chat-processing-feedback.selection-after-acceptance
 	test('first personal text turn admits once before connected-account discovery finishes', async ({ page }: { page: any }, testInfo: any) => {
 		// Observe real protocol frames without changing or delaying the socket.
-		const queueWire: Array<{ socket: number; at: number; type: string; chatId: string; uncertain?: boolean; capabilities?: string[] }> = [];
+		const queueWire: Array<{ socket: number; at: number; type: string; chatId: string; uncertain?: boolean; capabilities?: string[]; phase?: string; contextFields?: string[] }> = [];
 		let socketCount = 0;
 		page.on('websocket', (socket: any) => {
 			if (!new URL(socket.url()).pathname.endsWith('/v1/ws')) return;
@@ -158,6 +158,11 @@ test.describe('Chat metadata warmup WebSocket contract', () => {
 							}
 						} else if (chatId) {
 							queueWire.push({ socket: socketIndex, at: Date.now(), type, chatId,
+								...(type === 'chat_turn_context_ready' ? {
+									phase: typeof payload.phase === 'string' ? payload.phase : '',
+									contextFields: payload.context && typeof payload.context === 'object'
+										? Object.keys(payload.context).sort() : [],
+								} : {}),
 								...(type === 'queued_messages_snapshot' ? { uncertain: payload.uncertain === true } : {}) });
 						}
 					} catch { /* WebSocket control frame. */ }
@@ -255,6 +260,25 @@ test.describe('Chat metadata warmup WebSocket contract', () => {
 				&& frame.socket === userFrame?.socket && frame.at <= userFrame.at
 				&& frame.capabilities?.includes('chat_turn_admit_v1')
 				&& frame.capabilities?.includes('chat_turn_context_v1'))).toBe(true);
+			const v2Capability = queueWire.some((frame) => frame.type === 'server_capabilities'
+				&& frame.socket === userFrame?.socket && frame.at <= userFrame.at
+				&& frame.capabilities?.includes('chat_turn_context_selection_details_v2'));
+			if (v2Capability) {
+				await expect.poll(() => queueWire.filter((frame) => frame.type === 'chat_turn_context_ready'
+					&& frame.chatId === userFrame?.chatId && frame.socket === userFrame?.socket).length,
+				{ timeout: 15_000 }).toBeGreaterThanOrEqual(2);
+				const contextFrames = queueWire.filter((frame) => frame.type === 'chat_turn_context_ready'
+					&& frame.chatId === userFrame?.chatId && frame.socket === userFrame?.socket);
+				const routing = contextFrames.find((frame) => frame.phase === 'routing');
+				const details = contextFrames.find((frame) => frame.phase === 'details');
+				expect(routing?.contextFields).toEqual(['project_focus_candidates']);
+				expect(details?.contextFields).toEqual(expect.arrayContaining([
+					'connected_account_directory', 'connected_account_token_refs',
+					'custom_memory_documents', 'project_context_documents', 'project_focus_catalog',
+					'project_focus_documents', 'related_task_candidates',
+				]));
+				expect(routing!.at).toBeLessThanOrEqual(details!.at);
+			}
 			expect(queueWire.filter((frame) => frame.chatId === userFrame?.chatId
 				&& ['chat_turn_admit', 'chat_turn_preflight', 'chat_message_added'].includes(frame.type))
 			).toHaveLength(1);

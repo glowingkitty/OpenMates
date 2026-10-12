@@ -17,11 +17,14 @@ from typing import Any
 TTL_SECONDS = 120
 WAIT_SECONDS = 20
 MAX_PAYLOAD_BYTES = 256_000
-_ROUTING_ROWS = {
-    "project_focus_candidates": (40, {"project_id", "name", "summary", "auto_selection", "focus_activation_policy", "focuses"}),
+_SELECTION_DETAILS_ROWS = {
     "related_task_candidates": (60, {"task_id", "id", "title", "summary", "project_id", "status", "changed_at", "revision", "version", "explicit_dependency"}),
     "project_focus_catalog": (20, {"id", "title", "summary", "revision"}),
     "connected_account_directory": (100, None),
+}
+_ROUTING_ROWS = {
+    "project_focus_candidates": (40, {"project_id", "name", "summary", "auto_selection", "focus_activation_policy", "focuses"}),
+    **_SELECTION_DETAILS_ROWS,  # Legacy clients still send these with routing.
 }
 _DETAILS_ROWS = {
     "custom_memory_documents": (24, {"id", "source", "project_id", "document", "item_revision"}),
@@ -29,8 +32,15 @@ _DETAILS_ROWS = {
     "project_focus_documents": (8, {"item_id", "document", "revision"}),
     "project_context_documents": (20, {"item_id", "kind", "title", "description", "document", "revision"}),
     "connected_account_token_refs": (100, None),
+    **_SELECTION_DETAILS_ROWS,
 }
 _PLAN_FIELDS = {"plan_id", "version", "approved_revision_id", "summary", "linked_task_id"}
+_CROSS_PHASE_FIELDS = frozenset(_SELECTION_DETAILS_ROWS) | {"accepted_plan_context"}
+_PRIVATE_METADATA_KEYS = {
+    "document", "body", "access_token", "refresh_token", "private_key", "token",
+    "provider_email", "email", "account_email", "provider_account_id",
+    "provider_account_email", "oauth_scopes", "scopes",
+}
 _PUT_PHASE = """
 local remaining = redis.call('ttl', KEYS[1])
 if remaining <= 0 then return 0 end
@@ -78,7 +88,7 @@ def validate_context(phase: str, context: Any) -> dict:
     rows = _ROUTING_ROWS if phase == "routing" else _DETAILS_ROWS if phase == "details" else None
     if rows is None or not isinstance(context, dict):
         raise ValueError("Invalid context phase")
-    allowed = set(rows) | ({"accepted_plan_context"} if phase == "routing" else set())
+    allowed = set(rows) | {"accepted_plan_context"}
     if set(context) - allowed:
         raise ValueError("Unexpected context field")
     if "custom_memory_documents" in context and "custom_rule_documents" in context:
@@ -96,19 +106,23 @@ def validate_context(phase: str, context: Any) -> dict:
             if not isinstance(row, dict) or (fields is not None and set(row) - fields):
                 raise ValueError("Invalid context row")
             # Routing is metadata only, including any nested Project Focus hints.
-            if phase == "routing" and _contains_private_body(row):
-                raise ValueError("Private body in routing metadata")
+            if (phase == "routing" or field in _SELECTION_DETAILS_ROWS) and _contains_private_body(row):
+                raise ValueError("Private body in selection metadata")
     plan = context.get("accepted_plan_context")
     if plan is not None and (not isinstance(plan, dict) or set(plan) - _PLAN_FIELDS):
         raise ValueError("Invalid Plan reference")
     if phase == "routing" and _contains_private_body(context):
         raise ValueError("Private body in routing metadata")
+    if phase == "details" and _contains_private_body({
+        field: context[field] for field in _CROSS_PHASE_FIELDS if field in context
+    }):
+        raise ValueError("Private body in selection metadata")
     return context
 
 
 def _contains_private_body(value: Any) -> bool:
     if isinstance(value, dict):
-        return any(key in {"document", "body", "access_token", "refresh_token", "private_key"}
+        return any(key in _PRIVATE_METADATA_KEYS
                    or _contains_private_body(item) for key, item in value.items())
     if isinstance(value, list):
         return any(_contains_private_body(item) for item in value)
@@ -131,6 +145,25 @@ async def _open(encryption: Any, vault_key_id: str, ciphertext: Any) -> dict:
     if not isinstance(result, dict):
         raise ClientContextUnavailable("Invalid encrypted context")
     return result
+
+
+async def _check_cross_phase_selection(*, client: Any, key: str, phase: str,
+                                       scope: dict, context: dict, encryption: Any,
+                                       vault_key_id: str) -> None:
+    """A later phase cannot replace selection metadata committed by the other."""
+    if not _CROSS_PHASE_FIELDS.intersection(context):
+        return
+    other_phase = "details" if phase == "routing" else "routing"
+    other_sealed = await client.get(key + ":" + other_phase)
+    if not other_sealed:
+        return
+    other = await _open(encryption, vault_key_id, other_sealed)
+    if other.get("scope") != scope or other.get("phase") != other_phase:
+        raise ClientContextUnavailable("Context scope mismatch")
+    other_context = validate_context(other_phase, other.get("context"))
+    if any(field in context and field in other_context
+           and context[field] != other_context[field] for field in _CROSS_PHASE_FIELDS):
+        raise ClientContextUnavailable("Conflicting cross-phase selection metadata")
 
 
 async def register_client_context(*, cache_service: Any, encryption_service: Any,
@@ -184,6 +217,10 @@ async def receive_client_context(*, cache_service: Any, encryption_service: Any,
     binding = await _open(encryption_service, vault_key_id, sealed_binding)
     if binding != {"scope": scope, "device": device_fingerprint_hash}:
         raise ClientContextUnavailable("Context binding mismatch")
+    await _check_cross_phase_selection(
+        client=client, key=key, phase=phase, scope=scope, context=context,
+        encryption=encryption_service, vault_key_id=vault_key_id,
+    )
     record = {"scope": scope, "phase": phase, "context": context}
     sealed = await _seal(encryption_service, vault_key_id, record)
     status = await client.eval(_PUT_PHASE, 2, key, key + ":" + phase, sealed, sealed_binding)
@@ -195,6 +232,11 @@ async def receive_client_context(*, cache_service: Any, encryption_service: Any,
         previous = await _open(encryption_service, vault_key_id, await client.get(key + ":" + phase))
         if previous != record:
             raise ClientContextUnavailable("Conflicting context duplicate")
+    # This also catches a concurrent opposite-phase write after the first read.
+    await _check_cross_phase_selection(
+        client=client, key=key, phase=phase, scope=scope, context=context,
+        encryption=encryption_service, vault_key_id=vault_key_id,
+    )
     return "accepted" if status == 1 else "duplicate"
 
 
@@ -231,6 +273,10 @@ async def await_client_context_phase(*, cache_service: Any, request: Any, phase:
             if record.get("scope") != scope or record.get("phase") != phase:
                 raise ClientContextUnavailable("Context scope mismatch")
             context = validate_context(phase, record.get("context"))
+            await _check_cross_phase_selection(
+                client=client, key=key, phase=phase, scope=scope, context=context,
+                encryption=encryption_service, vault_key_id=vault_key_id,
+            )
             for field, value in context.items():
                 setattr(request, "custom_rule_documents" if field == "custom_memory_documents" else field, value)
             setattr(request, "_client_context_" + phase + "_loaded", True)

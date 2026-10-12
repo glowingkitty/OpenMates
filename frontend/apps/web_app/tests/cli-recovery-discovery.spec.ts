@@ -224,6 +224,15 @@ test('SDK-minted new chat skips only impossible Focus and Plan discovery', async
 			client.openWsClient=async(...args)=>{
 				const opened=await open(...args),send=opened.ws.sendAsync.bind(opened.ws);
 				const wait=opened.ws.waitForMessage.bind(opened.ws);
+				const waitForDiscovery=opened.ws.waitForRecoveryOutputDiscovery.bind(opened.ws);
+				const currentPhase=phase;
+				let discoveryCompleted=false,releaseMintedDiscovery;
+				const mintedDiscoveryGate=new Promise(resolve=>{releaseMintedDiscovery=resolve;});
+				opened.ws.waitForRecoveryOutputDiscovery=async()=>{
+					await waitForDiscovery();
+					if(currentPhase==='minted')await mintedDiscoveryGate;
+					discoveryCompleted=true;
+				};
 				let capturedAdmission=null,resolveCapturedAck=null;
 				// Observe real SDK envelopes after authorized discovery. Stub only the
 				// admission ACK; no admission/context frame reaches inference here.
@@ -240,9 +249,13 @@ test('SDK-minted new chat skips only impossible Focus and Plan discovery', async
 					projectDocuments:(context.project_context_documents??[]).length});
 				opened.ws.sendAsync=async(type,payload)=>{
 					if(type==='chat_turn_admit'){
+						result[phase].selectionDetailsV2=currentPhase==='minted'
+							&&opened.ws.supportsServerCapability('chat_turn_context_selection_details_v2')===true;
 						capturedAdmission=payload;
 						result[phase].admission={...describeContext(payload.inference_request??{}),
-							contextPending:payload.inference_request?.client_context_pending===true};
+							contextPending:payload.inference_request?.client_context_pending===true,
+							discoveryCompleted};
+						if(currentPhase==='minted')releaseMintedDiscovery();
 						if(!resolveCapturedAck)throw Error('Missing admission ACK observer');
 						resolveCapturedAck({type:'chat_turn_preflight_ack',payload:{
 							turn_id:payload.turn_id,preflight_id:'capture-only-no-dispatch'}});
@@ -285,12 +298,17 @@ test('SDK-minted new chat skips only impossible Focus and Plan discovery', async
 		expect(observed.supplied.plans).toBe(1);
 		expect(observed.supplied.projects).toBeGreaterThan(0);
 		expect(observed.supplied.tasks).toBeGreaterThan(0);
+		expect(observed.minted.selectionDetailsV2).toBe(true);
+		expect(observed.supplied.selectionDetailsV2).toBe(false);
+		expect(observed.minted.admission.discoveryCompleted).toBe(false);
+		expect(observed.supplied.admission.discoveryCompleted).toBe(true);
 		for (const turn of [observed.minted, observed.supplied]) {
 			expect(turn.admission.contextPending).toBe(true);
 			expect(turn.admission.projectCandidates).toBe(false);
 			expect(turn.admission.taskCandidates).toBe(false);
 			expect(turn.routing.projectCandidates).toBe(true);
-			expect(turn.routing.taskCandidates).toBe(true);
+			expect(turn.routing.taskCandidates).toBe(!turn.selectionDetailsV2);
+			expect(turn.details.taskCandidates).toBe(turn.selectionDetailsV2);
 			expect(turn.routing.identitiesMatch).toBe(true);
 			expect(turn.details.identitiesMatch).toBe(true);
 			for (const context of [turn.admission, turn.routing, turn.details]) {

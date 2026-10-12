@@ -36,7 +36,7 @@ import {
   type TuiState,
 } from "./tuiRenderer.js";
 import { loadTuiTaskList } from "./tuiTaskList.js";
-import { handleWorkspaceKey, handleWorkspaceCommand, openSavedChat, rememberDraft, route, type WorkspaceContext } from "./tuiWorkspaceController.js";
+import { handleWorkspaceKey, handleWorkspaceCommand, rememberDraft, route, type WorkspaceContext } from "./tuiWorkspaceController.js";
 import { loadWorkflowRunGraph, orderedWorkflowNodes } from "./tuiWorkflowWorkspace.js";
 import { loadTuiProjects } from "./tuiProjectsWorkspace.js";
 import { captureTuiWorkspaceOwner, invalidateCachedTuiWorkspace, loadCachedTuiWorkspace, writeCachedTuiWorkspace } from "./tuiCachedWorkspaces.js";
@@ -51,20 +51,10 @@ import { registerChatEmbedAliases, hydrateChatEmbedPreviews } from './tuiEmbeds.
 import {createChatModelPreferences} from './chatModelPreferences.js';
 import {createTuiModelSelectorShell,isTuiAiComposer,type TuiModelSelectorShell} from './tuiModelSelectorShell.js';
 import {createTuiTeamChatRefresh,loadTuiTeamIdentity,reconcileTuiTeamSenderLabels} from './tuiTeamChat.js';
-import {createTuiMentionShell,type TuiMentionShell} from './tuiMentions.js';
 
 export type CliDefaultMode = "tui" | "quickstart";
 export type TuiResult = { action: "exit" | "signup" | "restart" };
 export type TuiPaintMilestone = { milestone: "optimistic_user" | "selected_mate" | "tool_progress" | "authored_first" | "final"; elapsedMs: number; wallTimeMs: number; chatId: string | null; taskId: string | null; mateName?: string | null; modelName?: string | null };
-
-const teamMemberActions = new WeakMap<TuiState, { teamId: string; isCurrent: () => boolean; members: Array<{ hash: string; label: string }> }>();
-
-function showSelectedTeamMember(state: TuiState): void {
-  const selection = teamMemberActions.get(state);
-  if (!selection?.members.length) { state.status = 'No other active Team members are available.'; return; }
-  const member = selection.members[state.selectedIndex] ?? selection.members[0];
-  state.status = `Team members ${state.selectedIndex + 1}/${selection.members.length}\n${member.label}\nMessage · Enter\nNext member · ↓`;
-}
 
 export function defaultModeForStreams(input: NodeJS.ReadStream, output: NodeJS.WriteStream): CliDefaultMode {
   return input.isTTY === true && output.isTTY === true ? "tui" : "quickstart";
@@ -113,7 +103,6 @@ export async function runTui(
   const scopedDrafts = new Map<string, Record<string,string>>();
   let teamChatRefresh: ReturnType<typeof createTuiTeamChatRefresh> | null = null;
   let modelShell:TuiModelSelectorShell|null=null;
-  let mentionShell:TuiMentionShell|null=null;
   const modelPreferences=createChatModelPreferences(client);
   const refreshActivity = async () => {
     if (closed || state.startup || refreshingActivity || !state.signedIn) return;
@@ -228,7 +217,6 @@ export async function runTui(
       identityRetryTimer=null;
     }
     modelShell?.sync();
-    mentionShell?.sync();
     if (state.screen !== "chat") client.clearInteractiveChatViewer();
     if (renderTimer) return;
     renderTimer = setTimeout(() => {
@@ -253,7 +241,6 @@ export async function runTui(
 
   teamChatRefresh=createTuiTeamChatRefresh(state,client,render);
   modelShell=createTuiModelSelectorShell({state,client,preferences:modelPreferences,render});
-  mentionShell=createTuiMentionShell({state,client,modelShell,render});
 
   const stopHomeSync=startHomeSync(state,client,render,()=>closed);
 
@@ -265,7 +252,6 @@ export async function runTui(
     stopHomeSync();stopActivity?.(); teamChatRefresh?.dispose(); clearTimeout(activityTimer); clearInterval(activityPoll); clearInterval(activityAnimation);
     if (identityRetryTimer) clearTimeout(identityRetryTimer);
     modelShell?.dispose();
-    mentionShell?.dispose();
     client.endInteractiveViewerSession();
     if (renderTimer) clearTimeout(renderTimer);
     renderTimer = null;
@@ -294,9 +280,9 @@ export async function runTui(
         ? { keypressAt: performance.now(), painted: new Set() } : null;
     }
     void (async () => {
-      if(key.name==='mouseclick'){await handleKey({chunk,key,state,client,terminal,render,finish,modelShell:modelShell!,mentionShell:mentionShell!});return;}
+      if(key.name==='mouseclick'){await handleKey({chunk,key,state,client,terminal,render,finish,modelShell:modelShell!});return;}
       if (await startup.handleKey(chunk, key)) return;
-      await handleKey({ chunk, key, state, client, terminal, render, finish, modelShell:modelShell!,mentionShell:mentionShell! });
+      await handleKey({ chunk, key, state, client, terminal, render, finish, modelShell:modelShell! });
     })().catch((error) => {
       state.status = error instanceof Error ? error.message : String(error);
       render();
@@ -315,9 +301,8 @@ async function handleKey(params: {
   render: () => void;
   finish: (result: TuiResult) => void;
   modelShell?:TuiModelSelectorShell;
-  mentionShell?:TuiMentionShell;
 }): Promise<void> {
-  const { chunk, key, state, client, terminal, render, finish, modelShell,mentionShell } = params;
+  const { chunk, key, state, client, terminal, render, finish, modelShell } = params;
   if (key.ctrl && key.name === "c") {
     finish({ action: "exit" });
     return;
@@ -330,29 +315,14 @@ async function handleKey(params: {
   }
   const context: WorkspaceContext = {
     state, client, terminal, render,
-    command: async (command) => {if(command.startsWith('/mention-select ')){await mentionShell?.select(command.slice(16));return;}if(command==='/refresh')mentionShell?.refresh();await handleCommand({command,state,client,terminal,render,finish,modelShell});},
+    command: (command) => handleCommand({command,state,client,terminal,render,finish,modelShell}),
     send: (message, options) => sendTuiMessage({message,state,client,render,modelShell,questionAnswer:options?.questionAnswer}),
     modelShell,
-    mentionShell,
   };
-  const memberActions = teamMemberActions.get(state);
-  if (state.screen === 'status' && memberActions && !memberActions.isCurrent()) teamMemberActions.delete(state);
-  if (state.screen === 'status' && memberActions && memberActions.isCurrent() && memberActions.teamId === client.getActiveTeamId()) {
-    if (memberActions.members.length > 0 && (key.name === 'up' || key.name === 'down')) {
-      state.selectedIndex = (state.selectedIndex + (key.name === 'down' ? 1 : -1) + memberActions.members.length) % memberActions.members.length;
-      showSelectedTeamMember(state); render(); return;
-    }
-    if (key.name === 'return' && !state.input.trim()) {
-      const member = memberActions.members[state.selectedIndex];
-      if (member) await handleCommand({ command: `/message ${member.hash}`, state, client, terminal, render, finish, modelShell });
-      return;
-    }
-  }
   if(key.name==='mouseclick'){
     if(!key.mouse||key.ctrl||key.meta||key.shift)return;
     const action=pointerTargetAt(state,key.mouse.column,key.mouse.row,terminal.width,terminal.height);
     if(action)await handleTuiPointer(context,action,(text,pressed)=>handleKey({...params,chunk:text,key:pressed}));
-    else if(state.mentionPicker){mentionShell?.close();}
     else if(state.modelSelector?.open){await modelShell?.action('close');}
     return;
   }
@@ -534,31 +504,6 @@ async function handleCommand(params: {
   const arg = parts.join(" ");
   rememberDraft(state);
   state.input = ""; state.inputCursor = null;
-  if (name === '/members') {
-    const teamId = client.getActiveTeamId();
-    if (!teamId) { state.status = 'Select a Team to view members.'; state.screen = 'status'; render(); return; }
-    const isCurrent = captureTuiWorkspaceOwner(client);
-    const members = await client.listTeamMembers(teamId);
-    if (!isCurrent() || client.getActiveTeamId() !== teamId) return;
-    const user = await client.whoAmI();
-    if (!isCurrent() || client.getActiveTeamId() !== teamId) return;
-    const ownId = typeof user.id === 'string' ? user.id : typeof user.user_id === 'string' ? user.user_id : '';
-    teamMemberActions.set(state, { teamId, isCurrent, members: members.filter(member => member.status === 'active' && member.hashed_user_id && member.user_id !== ownId)
-      .map(member => ({ hash: member.hashed_user_id!, label: `${member.profile?.display_name || member.user_id} · ${member.role}` })) });
-    state.selectedIndex = 0;
-    state.screen = 'status'; showSelectedTeamMember(state); render(); return;
-  }
-  if (name === '/message') {
-    const teamId = client.getActiveTeamId();
-    if (!teamId) { state.status = 'Select a Team to message a member.'; state.screen = 'status'; render(); return; }
-    const memberHash = parts[0];
-    if (!memberHash) { state.status = 'Use /members to find a member, then /message <member-hash>.'; state.screen = 'status'; render(); return; }
-    const chat = await client.openTeamDirectChat(teamId, memberHash);
-    if (client.getActiveTeamId() !== teamId) return;
-    state.recentChats = [chat, ...state.recentChats.filter(item => item.id !== chat.id)];
-    await openSavedChat({ state, client, terminal, render, command: async () => {}, send: async () => {} }, chat.id);
-    return;
-  }
   if (name === "/privacy") {
     const action = parts[0] ?? "status";
     if (action === "later") { state.privacyOffer = false; render(); return; }
@@ -751,10 +696,13 @@ export async function sendTuiMessage(params: {
   if (!ownsPreparation()) return;
   const sendTeamId=client.getActiveTeamId?.() ?? null;
   const waitForAi = !client.hasSession() || shouldWaitForTeamAi(prepared.message, sendTeamId);
-  const modelSelection = waitForAi && !params.questionAnswer && isTuiAiComposer(state) && client.hasSession()
+  const immediateSelection = waitForAi && !params.questionAnswer && isTuiAiComposer(state) && client.hasSession()
     ? params.modelShell?.selectionForSend() ?? null : 'auto';
+  const modelSelection = immediateSelection === null
+    ? await (params.modelShell?.selectionForSendWhenReady?.(ownsPreparation) ?? null) : immediateSelection;
+  if (!ownsPreparation()) return;
   if (modelSelection === null) {
-    restorePreparation('Model selection is loading. Retry or choose Auto before sending.');
+    restorePreparation('Model selection could not be restored. Retry or choose Auto before sending.');
     return;
   }
   const separator = modelSelection.indexOf('/');

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-/** Real-terminal composer and live-catalog picker proof, without AI inference. */
+/** Real-terminal composer and controlled-catalog picker proof, without AI inference. */
 export {};
 import type {ProofStep} from './cli-tui-proof-helpers';
 
@@ -10,6 +10,7 @@ const {loginWorkflowCliViaPair, removeWorkflowCliHome, workflowCliEnv} = require
 const {startNewChat, waitForChatReady} = require('./helpers/chat-test-helpers');
 const {execFileSync} = require('node:child_process');
 const {randomUUID} = require('node:crypto');
+const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '../../../..');
@@ -22,14 +23,14 @@ const choiceContract = {
 	id: 'cli-tui-composer-model-choice', title: 'Terminal composer model choice', surface: 'cli', devices: [PROFILE],
 	transcript: [
 		{id: 'composer', text: 'The chat keeps its encrypted draft and displays the Auto model control beside the composer.', checkpoint: 'chat-open', devices: [PROFILE]},
-		{id: 'picker', text: 'The model picker offers Auto and live providers, then shows the selected provider’s available models and capability.', checkpoint: 'provider-open', devices: [PROFILE]},
+		{id: 'picker', text: 'A controlled catalog marks one configured model available; the picker shows its provider, model, and capability beside Auto.', checkpoint: 'provider-open', devices: [PROFILE]},
 		{id: 'detail', text: 'A model details action explains the selected model and returns to its provider.', checkpoint: 'model-details', devices: [PROFILE]},
 		{id: 'selection', text: 'Pointer and keyboard choices switch between an exact model and Auto without changing the draft.', checkpoint: 'exact-again', devices: [PROFILE]},
 		{id: 'resize', text: 'The narrow composer retains the selected model and draft after resizing.', checkpoint: 'narrow', devices: [PROFILE]},
 	],
 	assertions: [
 		{id: 'ai-model-routing.composer.responsive-actions', checkpoint: 'narrow', visual: 'Model selection remains directly reachable and the composer draft survives picker interaction and resize.', devices: [PROFILE]},
-		{id: 'ai-model-routing.catalog.capability-recommendation-variants', checkpoint: 'provider-open', visual: 'Only available live-catalog entries are shown under their provider with capability and a separate details action.', devices: [PROFILE]},
+		{id: 'ai-model-routing.catalog.capability-recommendation-variants', checkpoint: 'provider-open', visual: 'The configured model marked available by this proof catalog appears under its provider with capability and a separate details action.', devices: [PROFILE]},
 		{id: 'ai-model-routing.chat-selection.encrypted-user-chat-scope', checkpoint: 'exact-again', visual: 'An exact choice is selected for this chat; Auto remains an explicit alternative.', devices: [PROFILE]},
 		{id: 'terminal-pointer.visible-action-parity', checkpoint: 'exact-again', visual: 'Visible model rows activate their exact selection through real terminal mouse clicks.', devices: [PROFILE]},
 		{id: 'terminal-pointer.viewport-coherent', checkpoint: 'narrow-picker-open', visual: 'After resizing, a click on the model trigger opens the currently displayed picker.', devices: [PROFILE]},
@@ -50,6 +51,76 @@ const restoreContract = {
 	tutorial: choiceContract.tutorial,
 };
 
+const coldSendContract = {
+  id: 'cli-tui-composer-cold-auto-send', title: 'Cold terminal Auto send', surface: 'cli', devices: [PROFILE],
+  transcript: [
+    {id: 'enter', text: 'Enter clears the new-chat composer and shows the user message while the model catalog is still loading.', checkpoint: 'sent', devices: [PROFILE]},
+    {id: 'mate', text: 'The selected Mate appears without a provisional Assistant Thinking label.', checkpoint: 'mate', devices: [PROFILE]},
+  ],
+  assertions: [
+    {id: 'chats.streaming.progressive-presentation', checkpoint: 'mate', visual: 'The cold Auto send keeps its optimistic user row and shows the named Mate before the response.', devices: [PROFILE]},
+    {id: 'ai-model-routing.chat-selection.encrypted-user-chat-scope', checkpoint: 'sent', visual: 'A new unsaved Auto chat sends while the catalog remains pending.', devices: [PROFILE]},
+  ],
+  tutorial: choiceContract.tutorial,
+};
+
+// contract-test: direct surface=cli assertions=chats.streaming.progressive-presentation,ai-model-routing.chat-selection.encrypted-user-chat-scope
+test('cold Auto Enter sends in the real terminal before catalog readiness', async ({page}: {page: any}, testInfo: any) => {
+  test.setTimeout(180_000);
+  test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted' || process.env.CI_TEST_MODE !== 'e2e', 'Requires isolated GitHub product stack');
+  skipWithoutCredentials(test, email, password, otpKey);
+  const cli = requireIsolatedCliBuild(); installRecorderDeps();
+  const apiUrl = workflowApiUrl(), home = createWorkflowCliHome('tui-cold-auto');
+  const adapterPath = path.join(home, 'cold-auto-adapter.mjs');
+  const captureFile = path.join(home, 'cold-auto-send.jsonl');
+  const latencyFile = path.join(home, 'cold-auto-latency.jsonl');
+  const previousOptions = process.env.NODE_OPTIONS, previousLatency = process.env.OPENMATES_TUI_LATENCY_EVENTS;
+  try {
+    await loginWorkflowCliViaPair(page, apiUrl, home, 'TUI_COLD_AUTO_SEND_PROOF');
+    const modulePath = path.join(path.dirname(cli), 'index.js');
+    fs.writeFileSync(adapterPath, `
+      import fs from 'node:fs'; import {pathToFileURL} from 'node:url';
+      const {OpenMatesClient}=await import(pathToFileURL(${JSON.stringify(modulePath)}).href);
+      OpenMatesClient.prototype.getChatModelCatalogSources=async function(){return new Promise(()=>{});};
+      OpenMatesClient.prototype.sendMessage=async function(options){
+        if(options.chatId||!options.newChatId||options.interactiveHuman!==true)throw Error('Cold proof expected a new interactive chat');
+        fs.appendFileSync(${JSON.stringify(captureFile)},JSON.stringify({message:options.message,newChatId:options.newChatId})+'\\n',{mode:0o600});
+        options.onStream?.({kind:'typing',content:'',category:'software_development',mateName:'Sophia',taskId:'cold-proof'});
+        await new Promise(resolve=>setTimeout(resolve,350));
+        return {assistant:'Cold Auto response recorded.',chatId:options.newChatId,mateName:'Sophia',category:'software_development',followUpSuggestions:[]};
+      };
+    `);
+    process.env.NODE_OPTIONS = [previousOptions, `--import=${adapterPath}`].filter(Boolean).join(' ');
+    process.env.OPENMATES_TUI_LATENCY_EVENTS = latencyFile;
+    const prompt = `Cold Auto proof ${randomUUID().slice(0, 8)}`;
+    const steps: TimedProofStep[] = [
+      {name: 'landing', wait_for: 'Ask anything', hold_ms: 100},
+      {name: 'draft', text: prompt, wait_for: prompt, hold_ms: 100},
+      {name: 'sent', key: 'Return', wait_for: 'You', hold_ms: 100},
+      {name: 'mate', wait_for: 'Sophia', hold_ms: 150},
+      {name: 'final', wait_for: 'Cold Auto response recorded.', hold_ms: 150},
+      {name: 'exit', key: 'ctrl+c'},
+    ];
+    const recording = await captureProof(apiUrl, home, cli, steps, coldSendContract, testInfo);
+    expect(frame(recording, 'sent')).toContain(prompt);
+    expect(frame(recording, 'sent')).toContain('Ask a follow-up');
+    expect(frame(recording, 'sent')).not.toContain('Model selection could not be restored');
+    expect(frame(recording, 'mate')).not.toContain('Assistant Thinking');
+    expect(frame(recording, 'mate')).toContain('Sophia');
+    const calls = fs.readFileSync(captureFile, 'utf8').trim().split('\n').map((line: string) => JSON.parse(line));
+    expect(calls).toHaveLength(1);
+    expect(calls[0].message).toBe(prompt);
+    const milestones = fs.readFileSync(latencyFile, 'utf8').trim().split('\n').map((line: string) => JSON.parse(line));
+    expect(milestones.find((event: {milestone: string}) => event.milestone === 'optimistic_user')).toBeTruthy();
+    expect(milestones.find((event: {milestone: string}) => event.milestone === 'selected_mate')?.elapsedMs).toBeLessThanOrEqual(1500);
+    await recording.attest();
+  } finally {
+    if (previousOptions === undefined) delete process.env.NODE_OPTIONS; else process.env.NODE_OPTIONS = previousOptions;
+    if (previousLatency === undefined) delete process.env.OPENMATES_TUI_LATENCY_EVENTS; else process.env.OPENMATES_TUI_LATENCY_EVENTS = previousLatency;
+    removeWorkflowCliHome(home);
+  }
+});
+
 function sdk(apiUrl: string, home: string, cli: string, program: string, input: unknown = {}): any {
 	const modulePath = path.join(path.dirname(cli), 'index.js');
 	const source = `
@@ -65,6 +136,33 @@ function sdk(apiUrl: string, home: string, cli: string, program: string, input: 
 	return JSON.parse(execFileSync('node', ['-e', source, modulePath, JSON.stringify(input)], {
 		cwd: ROOT, env: workflowCliEnv(apiUrl, home), encoding: 'utf8', timeout: 90_000,
 	}).trim());
+}
+
+function installControlledCatalog(home: string, cli: string): () => void {
+	// Matches backend/providers/google.yml and the four public catalog response shapes.
+	// The isolated stack has no provider credential; availability is controlled here only.
+	const model = {id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash', provider_id: 'google',
+		provider_name: 'Google', description: 'Gemini Flash model for automatic routing and explicit selection.'};
+	const skill = {apps: {ai: {skills: [{id: 'ask', models: [model]}]}}};
+	const sources = {
+		all: skill, available: skill,
+		routes: {data: [{id: 'google/gemini-3.8-flash', created: 1788307200,
+			openmates: {capability_level: 'high'}}]},
+		health: {providers: {google: {status: 'healthy'}}},
+	};
+	const adapterPath = path.join(home, 'controlled-model-catalog.mjs');
+	const modulePath = path.join(path.dirname(cli), 'index.js');
+	fs.writeFileSync(adapterPath, `
+		import {pathToFileURL} from 'node:url';
+		const {OpenMatesClient}=await import(pathToFileURL(${JSON.stringify(modulePath)}).href);
+		OpenMatesClient.prototype.getChatModelCatalogSources=async function(){return ${JSON.stringify(sources)};};
+	`, {mode: 0o600});
+	const previousOptions = process.env.NODE_OPTIONS;
+	process.env.NODE_OPTIONS = [previousOptions, `--import=${adapterPath}`].filter(Boolean).join(' ');
+	return () => {
+		if (previousOptions === undefined) delete process.env.NODE_OPTIONS;
+		else process.env.NODE_OPTIONS = previousOptions;
+	};
 }
 
 function scopedTestInfo(testInfo: any, name: string): any {
@@ -124,6 +222,7 @@ test('records provider-first model choice, Auto, details, resize and encrypted p
 		const apiUrl = workflowApiUrl(), home = createWorkflowCliHome('tui-composer-model');
 		const ids: string[] = [];
 		let proofError: unknown;
+		let restoreCatalog: (() => void) | undefined;
 		try {
 			await loginWorkflowCliViaPair(page, apiUrl, home, 'TUI_COMPOSER_MODEL_PROOF');
 			await captureWebReference(page, testInfo);
@@ -136,11 +235,13 @@ test('records provider-first model choice, Auto, details, resize and encrypted p
 				expect(draft.markdown).toBe(content);
 				expect(draft.encryptedDraftMd).not.toContain(content);
 			}
+			restoreCatalog = installControlledCatalog(home, cli);
 			const catalog: CatalogEntry[] = sdk(apiUrl, home, cli, `
 				const entries=await preferences.catalog();
 				process.stdout.write(JSON.stringify(entries.map(({id,name,providerId,providerName,providerBrandName,providerOrder,capability,releaseDate,available})=>
 					({id,name,providerId,providerName,providerBrandName,providerOrder,capability,releaseDate,available}))));
 			`);
+			expect(catalog.map(item => [item.id, item.available])).toEqual([['google/gemini-3.8-flash', true]]);
 			const eligible = catalog.filter(item => item.available && item.name && item.providerId && item.id);
 			const firstProviderId = [...eligible].sort((left, right) =>
 				(left.providerOrder ?? Number.MAX_SAFE_INTEGER) - (right.providerOrder ?? Number.MAX_SAFE_INTEGER))[0]?.providerId;
@@ -149,7 +250,7 @@ test('records provider-first model choice, Auto, details, resize and encrypted p
 				(right.releaseDate ?? '').localeCompare(left.releaseDate ?? '')
 				|| (capabilityRank[right.capability ?? 'low'] - capabilityRank[left.capability ?? 'low'])
 				|| left.name.localeCompare(right.name))[0];
-			expect(entry, 'Isolated live model catalog must have at least one healthy selectable model').toBeTruthy();
+			expect(entry, 'Controlled catalog must have the configured healthy selectable model').toBeTruthy();
 			const provider = entry!.providerBrandName || entry!.providerName;
 			const modelRow = `○ ${entry!.name}${entry!.capability ? ` [${entry!.capability}]` : ''}`;
 			const availableNames = eligible.filter(item => item.providerId === entry!.providerId).map(item => item.name);
@@ -158,7 +259,8 @@ test('records provider-first model choice, Auto, details, resize and encrypted p
 			const firstSteps: ProofStep[] = [
 				{name: 'home', wait_for: 'DAILY INSPIRATION', hold_ms: 300},
 				{name: 'chat-command', text: '/chat ' + ids[0]},
-				{name: 'chat-open', key: 'Return', wait_for: 'Model: Auto', wait_for_absent: 'Loading chat…', hold_ms: 500},
+				{name: 'chat-open', key: 'Return', wait_for: 'Model: Auto',
+					wait_for_absent: 'Continue where you left off', hold_ms: 500},
 				{name: 'picker-open', click: {text: 'Model: Auto'}, wait_for: 'Choose AI model', hold_ms: 300},
 				{name: 'provider-open', click: {text: provider}, wait_for: entry!.name, hold_ms: 350},
 				{name: 'model-details', click: {text: 'About ' + entry!.name}, wait_for: entry!.name, hold_ms: 350},
@@ -176,7 +278,8 @@ test('records provider-first model choice, Auto, details, resize and encrypted p
 				{name: 'narrow', resize: {width: 640, height: 600}, wait_for: 'Model:', hold_ms: 500},
 				{name: 'narrow-picker-open', click: {text: 'Model:'}, wait_for: 'Back to providers', hold_ms: 250},
 				{name: 'narrow-picker-back', key: 'Escape', wait_for: 'Auto select', hold_ms: 200},
-				{name: 'narrow-picker-close', key: 'Escape', wait_for: 'Model:', hold_ms: 250},
+				{name: 'narrow-picker-close', key: 'Escape', wait_for: 'Alt+M model',
+				wait_for_absent: 'Choose AI model'},
 				{name: 'exit', key: 'ctrl+c'},
 			];
 			const first = await captureProof(apiUrl, home, cli, firstSteps, choiceContract, scopedTestInfo(testInfo, 'choice'));
@@ -237,6 +340,7 @@ test('records provider-first model choice, Auto, details, resize and encrypted p
 			try { await runWorkflowCliJson(apiUrl, home, ['drafts', 'clear', id], 'clear proof draft'); }
 			catch (error) { cleanupErrors.push(error); }
 		}
+		restoreCatalog?.();
 		removeWorkflowCliHome(home);
 		if (cleanupErrors.length) throw new AggregateError(proofError ? [proofError, ...cleanupErrors] : cleanupErrors,
 			'Composer model proof cleanup failed');

@@ -403,7 +403,10 @@ class ChatMethods:
             logger.error(f"Error batch fetching chat metadata for {len(valid_ids)} chats: {e}", exc_info=True)
             return {}
 
-    async def check_chat_ownership(self, chat_id: str, user_id: str) -> bool:
+    async def check_chat_ownership(
+        self, chat_id: str, user_id: str,
+        *, authoritative_metadata: Optional[Dict[str, Any]] = None,
+    ) -> bool:
         """
         Checks if a user owns a chat by comparing hashed_user_id.
         Optimized to use cache first, falling back to Directus only if necessary.
@@ -416,11 +419,23 @@ class ChatMethods:
             True if the user owns the chat, False otherwise
         """
         try:
-            authoritative = await self.get_chat_metadata(chat_id, admin_required=True)
+            if authoritative_metadata is not None:
+                # Only a fresh Directus row fetched for this exact chat in the
+                # same request may replace the ownership read. A mismatched row
+                # fails closed instead of granting access or consulting cache.
+                if authoritative_metadata.get('id') != chat_id:
+                    return False
+                authoritative = authoritative_metadata
+            else:
+                authoritative = await self.get_chat_metadata(chat_id, admin_required=True)
             if authoritative is None:
                 return False
             if is_direct_chat(authoritative):
                 return False
+            if authoritative_metadata is not None:
+                # This fresh Directus row is stronger than a possibly stale
+                # sorted-set membership. Require its persisted owner hash.
+                return authoritative.get('hashed_user_id') == hashlib.sha256(user_id.encode()).hexdigest()
             # 1. Try cache first (most efficient)
             # If the chat_id is in the user's sorted set, they definitely own it.
             cache_exists = await self.directus_service.cache.check_chat_exists_for_user(user_id, chat_id)

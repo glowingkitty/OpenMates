@@ -5435,6 +5435,31 @@ async def _create_application_parent_embed_reference(
     return f"```json\n{application_embed_data['embed_reference']}\n```\n\n"
 
 
+def _stream_model_name_after_usage(
+    current_name: Optional[str],
+    selected_model_id: Optional[str],
+    successful_model_id: Optional[str],
+    *,
+    is_external: bool,
+    config_manager: Any,
+) -> Optional[str]:
+    """Use the model that authored the answer, keeping the early selected label until known."""
+    if not isinstance(successful_model_id, str) or not successful_model_id:
+        return current_name
+    if successful_model_id == selected_model_id:
+        return current_name
+    if is_external:
+        return successful_model_id
+    provider_id, separator, model_id = successful_model_id.partition("/")
+    if not separator:
+        model_id, provider_id = provider_id, None
+    display_name = (
+        config_manager.get_model_display_name(model_id, provider_id)
+        if config_manager else None
+    )
+    return display_name or model_id
+
+
 async def _consume_main_processing_stream(
     task_id: str,
     request_data: AskSkillRequest,
@@ -6102,6 +6127,13 @@ async def _consume_main_processing_stream(
                 cumulative_output_tokens = chunk.get("total_output_tokens")
                 tool_inference_iterations = chunk.get("tool_inference_iterations", 0)
                 successful_model_id = chunk.get("successful_model_id")
+                stream_model_name = _stream_model_name_after_usage(
+                    stream_model_name,
+                    preprocessing_result.selected_main_llm_model_id,
+                    successful_model_id,
+                    is_external=request_data.is_external,
+                    config_manager=celery_config.config_manager,
+                )
                 raw_usage_by_model = chunk.get("usage_by_model")
                 usage_by_model = raw_usage_by_model if isinstance(raw_usage_by_model, list) else []
                 billing_reservation_required = (

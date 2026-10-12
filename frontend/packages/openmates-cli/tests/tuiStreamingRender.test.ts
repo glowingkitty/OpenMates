@@ -26,6 +26,15 @@ test('transient Thinking keeps known identity left and status centered, with no 
   }
 });
 
+// contract-test: supporting surface=cli assertions=chats.streaming.progressive-presentation
+test('pending routing never labels a provisional assistant as Thinking',()=>{
+  const state=active();state.streamingMessage!.title='Assistant';
+  const pending=renderTuiFrame(state,100,24);
+  assert.doesNotMatch(pending,/Assistant\s+✦ Thinking|✦ Thinking…/);
+  state.streamingMessage!.title='Sophia';
+  assert.match(renderTuiFrame(state,100,24),/Sophia.*✦ Thinking…/);
+});
+
 // contract-test: supporting surface=cli assertions=chats.streaming.progressive-presentation,terminal-pointer.viewport-coherent
 test('rainbow ticks recolor exactly one response row without traversing history or changing pointer targets',()=>{
   const state=active('Answer [guide](wiki:Guide)');
