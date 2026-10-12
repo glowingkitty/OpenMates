@@ -8,6 +8,34 @@ function preview(component: string, width = 680, variant?: string, theme = 'ligh
 
 test.describe('Chat composer focus and draft preservation', () => {
   // contract-test: direct surface=gui.web assertions=message-input.send.ownership,message-input.actions.visibility
+  test('focuses the editor during a composer padding click before immediate typing', async ({ page }) => {
+    await page.goto(preview('enter_message/MessageInputFocusFixture'));
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('composer-focus-fixture')).toHaveAttribute('data-ready', 'true');
+    const field = page.getByTestId('message-field');
+    await page.evaluate(() => {
+      (window as any).__composerFocusAtMouseDown = null;
+      document.addEventListener('mousedown', (event) => {
+        if (!(event.target instanceof Element) || !event.target.closest('[data-testid="message-field"]')) return;
+        (window as any).__composerFocusAtMouseDown = {
+          clickedEditor: !!event.target.closest('.ProseMirror'),
+          focusedEditor: document.activeElement?.matches('.ProseMirror') ?? false,
+          visibleEditor: getComputedStyle(document.querySelector('.ProseMirror')!).visibility === 'visible',
+        };
+      }, { once: true });
+    });
+    await field.click({ position: { x: 8, y: 8 } });
+    expect(await page.evaluate(() => (window as any).__composerFocusAtMouseDown)).toEqual({
+      clickedEditor: false,
+      focusedEditor: true,
+      visibleEditor: true,
+    });
+    const prompt = 'Immediate typing survives the composer click.';
+    await page.keyboard.type(prompt);
+    await expect(page.getByTestId('message-editor')).toContainText(prompt);
+  });
+
+  // contract-test: direct surface=gui.web assertions=message-input.send.ownership,message-input.actions.visibility
   test('failed send keeps the expanded draft and accepted retry collapses and blurs', async ({ page }) => {
     const availability = { active: true, can_send_text: true, reason: null };
     await page.route('**/v1/settings/server-status', (route) => route.fulfill({ json: {
@@ -217,7 +245,6 @@ test.describe('Chat composer focus and draft preservation', () => {
     await page.screenshot({ path: test.info().outputPath(`chat-welcome-focused-${width}.png`) });
     // The document capture listener dismisses on the touch gesture itself.
     await page.getByTestId('chat-side').dispatchEvent('pointerdown', { pointerType: 'touch', button: 0 });
-    await expect(field).toHaveAttribute('data-focused', 'false');
     await expect(field).toHaveAttribute('data-focused', 'false');
     await expect(side).not.toHaveAttribute('inert', '');
     await expect(side).toHaveCSS('opacity', '1');

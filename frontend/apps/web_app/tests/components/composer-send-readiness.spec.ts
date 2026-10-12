@@ -7,13 +7,13 @@ const preview = (variant?: string) =>
 
 test.describe('Composer Send readiness', () => {
   // contract-test: direct surface=gui.web assertions=message-input.send.ownership,ai-model-routing.chat-selection.encrypted-user-chat-scope
-  test('shows model loading and keeps ordinary Send busy until selection is ready', async ({ page }) => {
+  test('shows model loading while ordinary Send stays available', async ({ page }) => {
     await page.goto(preview('restoringModel'));
     await waitForComponentPreview(page);
     await expect(page.getByTestId('composer-model-selector')).toBeDisabled();
     await expect(page.getByTestId('composer-model-selector')).toHaveAttribute('data-loading', 'true');
-    await expect(page.getByTestId('composer-send-button')).toBeDisabled();
-    await expect(page.getByTestId('composer-send-button')).toHaveAttribute('aria-busy', 'true');
+    await expect(page.getByTestId('composer-send-button')).toBeEnabled();
+    await expect(page.getByTestId('composer-send-button')).toHaveAttribute('aria-busy', 'false');
 
     await page.goto(preview());
     await waitForComponentPreview(page);

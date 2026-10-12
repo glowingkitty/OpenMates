@@ -95,6 +95,7 @@ import {
   reconcilePreservedDraftVersion,
   setCurrentChatContext,
   shouldPreserveSameChatDraftRestore,
+  shouldPreserveFocusedSameChatDraftRestore,
 } from '../draftCore';
 
 function createEditorMock() {
@@ -158,6 +159,27 @@ describe('draftCore setCurrentChatContext', () => {
     await setCurrentChatContext('chat-1', { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'older text' }] }] }, 2);
 
     expect(chain.setContent).not.toHaveBeenCalled();
+  });
+});
+
+describe('focused saved-chat draft restore', () => {
+  // contract-test: supporting surface=gui.web assertions=message-input.send.ownership
+  it('keeps text typed while the same chat is still binding its draft state', () => {
+    expect(shouldPreserveFocusedSameChatDraftRestore({
+      activeChatId: 'chat-1', incomingChatId: 'chat-1', draftStateChatId: null,
+      isFocused: true, currentMarkdown: 'Send', incomingMarkdown: '',
+    })).toBe(true);
+  });
+
+  it('allows a different chat, unfocused editor, or matching snapshot to restore', () => {
+    const input = {
+      activeChatId: 'chat-1', incomingChatId: 'chat-1', draftStateChatId: null,
+      isFocused: true, currentMarkdown: 'Send', incomingMarkdown: '',
+    };
+    expect(shouldPreserveFocusedSameChatDraftRestore({ ...input, incomingChatId: 'chat-2' })).toBe(false);
+    expect(shouldPreserveFocusedSameChatDraftRestore({ ...input, draftStateChatId: 'chat-2' })).toBe(false);
+    expect(shouldPreserveFocusedSameChatDraftRestore({ ...input, isFocused: false })).toBe(false);
+    expect(shouldPreserveFocusedSameChatDraftRestore({ ...input, incomingMarkdown: 'Send' })).toBe(false);
   });
 });
 

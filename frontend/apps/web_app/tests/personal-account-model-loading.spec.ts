@@ -19,7 +19,7 @@ const TEST_CREDENTIALS = {
 	otpKey: process.env.OPENMATES_TEST_ACCOUNT_OTP_KEY || ''
 };
 
-// contract-test: supporting surface=gui.web assertions=ai-model-routing.chat-selection.encrypted-user-chat-scope
+// contract-test: supporting surface=gui.web assertions=ai-model-routing.chat-selection.encrypted-user-chat-scope,message-input.send.ownership
 test('authenticated account loads its chat model selector without retry errors', async ({ page }) => {
 	test.setTimeout(180000);
 	expect(TEST_CREDENTIALS.email).not.toBe('');
@@ -89,6 +89,11 @@ test('authenticated account loads its chat model selector without retry errors',
 	await expect(selector).toBeVisible({ timeout: 30000 });
 	await expect(selector).toHaveAttribute('data-loading', 'false', { timeout: 30000 });
 	await expect(composer.getByTestId('composer-model-selector-label')).not.toHaveText('Loading...');
+	// The first send may finish while the selector restores. Enter the focused
+	// composer state before interacting with its controls, as a user would.
+	await editor.click();
+	await expect(composer).toHaveAttribute('data-focused', 'true');
+	await expect(selector).toBeVisible();
 	const notificationsBeforeSelection = await page.evaluate(() => (window as any).__issue4NPP9Notifications as string[]);
 	expect(notificationsBeforeSelection).not.toContain("Could not load this chat's model setting. Auto is being used.");
 
@@ -122,12 +127,71 @@ test('authenticated account loads its chat model selector without retry errors',
 
 	const persistedChatId = await activeChat.getAttribute('data-current-chat-id');
 	expect(persistedChatId).toBeTruthy();
+	await page.addInitScript(() => {
+		const trace: Array<Record<string, unknown>> = [];
+		(window as any).__savedComposerInputTrace = trace;
+		const ids = new WeakMap<Element, number>();
+		let nextId = 1;
+		let lastDom = '';
+		const describe = (element: Element | null): string => {
+			if (!element) return 'none';
+			if (element.matches('.ProseMirror')) return 'prosemirror';
+			if (element.matches('[data-testid="message-editor"]')) return 'editor-wrapper';
+			return element.getAttribute('data-testid') || element.tagName.toLowerCase();
+		};
+		const snapshot = (kind: string, detail?: string) => {
+			const editors = [...document.querySelectorAll('[data-testid="active-chat-container"] [data-testid="message-editor"]')];
+			const editorState = editors.map((element) => {
+				if (!ids.has(element)) ids.set(element, nextId++);
+				return { id: ids.get(element), length: element.textContent?.length ?? 0,
+					prefix: element.textContent?.slice(0, 40) ?? '', pm: !!element.querySelector('.ProseMirror') };
+			});
+			trace.push({ t: Math.round(performance.now()), kind, detail,
+				active: describe(document.activeElement), chat: document.querySelector('[data-testid="active-chat-container"]')?.getAttribute('data-current-chat-id'),
+				editors: editorState });
+			// Keep the first edit/focus transition even when later typing fills the tail.
+			if (trace.length > 600) trace.splice(180, trace.length - 600);
+		};
+		for (const kind of ['pointerdown', 'focusin', 'focusout', 'keydown', 'beforeinput', 'input']) {
+			document.addEventListener(kind, (event) => {
+				const detail = event instanceof KeyboardEvent ? event.key :
+					event instanceof InputEvent ? event.inputType : describe(event.target instanceof Element ? event.target : null);
+				snapshot(kind, detail);
+			}, true);
+		}
+		document.addEventListener('DOMContentLoaded', () => {
+			new MutationObserver(() => {
+				const current = [...document.querySelectorAll('[data-testid="active-chat-container"] [data-testid="message-editor"]')]
+					.map((element) => `${element.textContent?.length ?? 0}:${element.textContent?.slice(0, 40) ?? ''}`).join('|');
+				if (current !== lastDom) { lastDom = current; snapshot('dom'); }
+			}).observe(document.body, { childList: true, characterData: true, subtree: true });
+		});
+	});
 	await page.reload({ waitUntil: 'domcontentloaded' });
 	await expect(activeChat).toHaveAttribute('data-current-chat-id', persistedChatId!, { timeout: 60000 });
 
 	const restoredComposer = activeChat.getByTestId('message-field').last();
 	await expect(restoredComposer.getByTestId('message-editor')).toBeVisible({ timeout: 60000 });
 	await restoredComposer.getByTestId('message-editor').click();
+	const restoredPrompt = withMockMarker('Send immediately after the saved chat reloads.', 'chat_flow_capital');
+	await page.keyboard.type(restoredPrompt);
+	try {
+		await expect(restoredComposer.getByTestId('message-editor')).toHaveText(restoredPrompt);
+	} catch (error) {
+		console.log('[SAVED_COMPOSER_INPUT_TRACE]', JSON.stringify(await page.evaluate(() => ({
+			events: (window as any).__savedComposerInputTrace,
+			messageInput: (window as any).__openmatesMessageInputDraftDiagnostics,
+			draftRestore: (window as any).__openmatesDraftRestoreDiagnostics,
+		}))));
+		throw error;
+	}
+	const restoredSend = restoredComposer.getByTestId('composer-send-button');
+	await expect(restoredSend).toBeEnabled();
+	await restoredSend.click();
+	await expect(activeChat.getByTestId('message-user').last()).toContainText('Send immediately after the saved chat reloads.');
+	await expect(restoredComposer.getByTestId('message-editor')).not.toContainText('Send immediately after the saved chat reloads.');
+	await restoredComposer.getByTestId('message-editor').click();
+	await expect(restoredComposer).toHaveAttribute('data-focused', 'true');
 	const restoredSelector = restoredComposer.getByTestId('composer-model-selector');
 	await expect(restoredSelector).toBeVisible({ timeout: 30000 });
 	await expect(restoredSelector).toHaveAttribute('data-loading', 'false', { timeout: 30000 });
@@ -137,6 +201,7 @@ test('authenticated account loads its chat model selector without retry errors',
 
 	const notifications = await page.evaluate(() => (window as any).__issue4NPP9Notifications as string[]);
 	expect(notifications.filter((message) => message.trim().toLowerCase() === 'try again')).toEqual([]);
+	expect(notifications.some((message) => message.includes('Model selection is still loading'))).toBe(false);
 
 	await restoredSelector.click();
 	const cleanupFrameStart = preferenceFrames.length;

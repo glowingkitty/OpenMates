@@ -54,6 +54,7 @@ import { isPreflightAcknowledgementTimeout } from "../../../services/sendersChat
 import { PendingAdmissionCompatibilityError } from "../../../services/serverCapabilityGate";
 import { selectAudioTranscriptUseCorrected } from "../../embeds/audio/audioTranscriptSelection";
 import { notifyDeferredMessageFinalized } from "./deferredSendMessageEvents";
+import { applyChatModelSendRouting } from "./chatModelSendRouting";
 import { getActiveTeamContextSnapshot, isActiveTeamContext } from "../../../stores/teamStore";
 import { isTeamAIInvocation, wrapTeamChatKey } from "../../../services/teamService";
 import { encryptWithChatKey } from "../../../services/cryptoService";
@@ -575,7 +576,7 @@ export async function handleSend(
   isSendCancelled: (chatId: string) => boolean = () => false,
   e2eServerContentOverride?: E2ESendServerContentOverride,
   projectFocusDocumentAtSendRequest?: unknown,
-  options: { preserveDraft?: boolean } = {},
+  options: { preserveDraft?: boolean; resolveModelSelection?: () => Promise<string> } = {},
 ) {
   // Bind this click to its workspace before URL, PII, and draft work can yield.
   const sendContext = getActiveTeamContextSnapshot();
@@ -717,6 +718,15 @@ export async function handleSend(
   });
 
   try {
+
+  // The submitted row and editor clear above belong to the click. A saved chat's
+  // encrypted model preference may still be restoring; resolve it for that same
+  // click before building any durable payload or inference request.
+  let selectedChatModel = 'auto';
+  if (options.resolveModelSelection) {
+    selectedChatModel = await options.resolveModelSelection();
+    if (!contextIsCurrent()) return false;
+  }
 
   // This author marker stays in the local Message. The transport builds its own
   // encrypted envelope and the server assigns the authoritative author hash.
@@ -1033,6 +1043,7 @@ export async function handleSend(
       createdAt: Date.now(),
       piiExclusions: new Set(activePIIExclusions),
       piiRewriteMappings: getActivePIIMappingsForRewrite(),
+      modelSelection: selectedChatModel,
       partialMarkdown: "",
     };
 
@@ -1324,7 +1335,7 @@ export async function handleSend(
   // Strip leading empty lines that were auto-prepended to allow cursor placement
   // before the first embed node (see ensureLeadingParagraph in embedHandlers.ts).
   // Leading newlines are meaningless to the LLM and produce an ugly blank first line.
-  markdown = markdown.replace(/^\n+/, "");
+  markdown = applyChatModelSendRouting(markdown.replace(/^\n+/, ""), selectedChatModel);
 
   // CRITICAL: Process URLs before sending to convert them to proper embeds
   // This ensures that when user types "summarize https://example.com" and presses Enter,
@@ -2632,7 +2643,7 @@ export async function executeDeferredSend(
   // -------------------------------------------------------------------------
   let markdown = tipTapToCanonicalMarkdown(snapshot);
   // Strip leading empty lines (same as normal send path)
-  markdown = markdown.replace(/^\n+/, "");
+  markdown = applyChatModelSendRouting(markdown.replace(/^\n+/, ""), readyCtx.modelSelection ?? 'auto');
 
   // -------------------------------------------------------------------------
   // 4. Process URLs → embed references

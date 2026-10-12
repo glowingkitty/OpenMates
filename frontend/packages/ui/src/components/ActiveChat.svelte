@@ -99,6 +99,7 @@ import { storageArchiveFetch } from "../config/api";
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
+    import { shouldKeepComposerDuringNoDraftRestore } from '../services/drafts/draftRestoreGuard';
     import { recordE2EDraftSelectionDecision, waitForE2EDraftSelectionCommit } from '../services/e2eTestHooks';
     import { clearCurrentDraft } from '../services/drafts/draftSave'; // For cleaning up draft when navigating to existing chat
     import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
@@ -323,6 +324,7 @@ import { storageArchiveFetch } from "../config/api";
         flushCurrentDraft?: () => Promise<void> | void;
         sendCurrentMessage: () => Promise<void> | void;
         getTextContent: () => string;
+        hasLiveUserEditForChat: (chatId: string) => boolean;
         clearMessageField: (shouldSaveDraft: boolean, preserveContext?: boolean) => Promise<void>;
     };
 
@@ -11295,6 +11297,7 @@ import { storageArchiveFetch } from "../config/api";
                 diagnosticsWindow.__openmatesDraftRestoreDiagnostics = [
                     ...(diagnosticsWindow.__openmatesDraftRestoreDiagnostics ?? []),
                     {
+                        t: Math.round(performance.now()),
                         event,
                         chatId: draftRestoreChatId,
                         currentChatId: currentChat?.chat_id ?? null,
@@ -11581,8 +11584,22 @@ import { storageArchiveFetch } from "../config/api";
                     }
                 } else {
                     console.debug(`[ActiveChat] No draft found for current user in chat ${draftRestoreChatId}. Clearing editor.`);
-                    if (messageInputFieldRef.getTextContent().trim().length > 0
-                        && (!isWarmComposerContinuation || get(draftEditorUIState).currentChatId === draftRestoreChatId)) {
+                    const liveComposerLength = messageInputFieldRef.getTextContent().trim().length;
+                    const boundDraftChatId = get(draftEditorUIState).currentChatId;
+                    const hasLiveUserEditForChat = messageInputFieldRef.hasLiveUserEditForChat(draftRestoreChatId);
+                    const keepComposer = shouldKeepComposerDuringNoDraftRestore({
+                        restoredChatId: draftRestoreChatId,
+                        activeChatId: currentChat?.chat_id ?? null,
+                        boundDraftChatId,
+                        hasText: liveComposerLength > 0,
+                        isWarmComposerContinuation,
+                        hasLiveUserEditForChat,
+                    });
+                    const inputTrace = (window as typeof window & { __savedComposerInputTrace?: Array<Record<string, unknown>> }).__savedComposerInputTrace;
+                    if (inputTrace) inputTrace.push({ t: Math.round(performance.now()), kind: 'noDraftRestoreDecision',
+                        chat: draftRestoreChatId, boundDraftChatId, liveComposerLength,
+                        hasLiveUserEditForChat, isWarmComposerContinuation, keepComposer });
+                    if (keepComposer) {
                         console.debug(`[ActiveChat] Skipping no-draft clear for ${draftRestoreChatId}; composer has live input`);
                         return;
                     }
@@ -14921,7 +14938,6 @@ import { storageArchiveFetch } from "../config/api";
                           isIncognito={!!currentChat?.is_incognito}
                            isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id) && !$demoMode}
                            isSharedChat={!!currentChat?.is_shared_by_others && !$demoMode}
-                          isDirectChat={currentChat?.chat_visibility === 'direct'}
                            canAnnotate={!currentChat?.is_shared_by_others && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
                            videoMp4Url={activeLocaleVideo?.mp4_url ?? activePublicChatMetadata?.video_mp4_url ?? null}
                            videoTeaserUrl={activeLocaleVideo?.teaser_url ?? activePublicChatMetadata?.video_teaser_url ?? null}

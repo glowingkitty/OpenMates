@@ -1,6 +1,6 @@
 <!-- frontend/packages/ui/src/components/enter_message/MessageInput.svelte -->
 <script lang="ts">
-    import { onMount, onDestroy, tick, untrack } from 'svelte';
+    import { onMount, onDestroy, tick, untrack, flushSync } from 'svelte';
     import { Editor } from '@tiptap/core';
     import type { WikipediaArticleIdentity } from '../../utils/wikipediaLearning';
     import { createEventDispatcher } from 'svelte';
@@ -27,6 +27,7 @@
         clearEditorAndResetDraftState,
         reconcilePreservedDraftVersion,
         shouldPreserveSameChatDraftRestore,
+        shouldPreserveFocusedSameChatDraftRestore,
         triggerSaveDraft,
         flushSaveDraft,
         flushSaveDraftAndWaitForIdle,
@@ -64,7 +65,7 @@
     import SketchView from './SketchView.svelte';
     import PressAndHoldMenu from './in_message_previews/PressAndHoldMenu.svelte';
     import ActionButtons from './ActionButtons.svelte';
-    import { isComposerSendBusy } from './sendReadiness';
+    import { isComposerSendBusy, resolveSavedModelForAcceptedSend, shouldDismissComposerAfterSend } from './sendReadiness';
     import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
     import Toggle from '../Toggle.svelte';
     import { Decoration, DecorationSet } from 'prosemirror-view';
@@ -275,6 +276,15 @@
     let cameraInput: HTMLInputElement;
     let videoElement = $state<HTMLVideoElement>();
     let editor: Editor;
+    let lastDirectEditOwner: { editor: Editor; chatId: string; userId: string | null; teamId: string | null } | null = null;
+    let observedEditorChatId: string | undefined;
+
+    $effect(() => {
+        if (observedEditorChatId !== currentChatId) {
+            observedEditorChatId = currentChatId;
+            lastDirectEditOwner = null;
+        }
+    });
     let queuedEdit = $state<{
         chatId: string;
         messageId: string;
@@ -318,6 +328,7 @@
     let modelSelectionUserId = $state<string | null>(null);
     let pendingNewChatModelSelection = $state<{ selection: ChatModelSelection; draftChatId: string | null } | null>(null);
     let modelSelectionRestoreGeneration = 0;
+    let modelSelectionSettled: Promise<boolean> = Promise.resolve(true);
 
     function isModelSelectionUsable(selection: string): boolean {
         const profile = get(userProfile);
@@ -369,6 +380,7 @@
             modelSelectionUserId = null;
             modelSelectionChatId = chatId;
             modelSelectionReady = true;
+            modelSelectionSettled = Promise.resolve(true);
             pendingNewChatModelSelection = null;
             return;
         }
@@ -379,6 +391,7 @@
             modelSelectionChatId = chatId;
             if (contextChanged) modelSelection = 'auto';
             modelSelectionReady = true;
+            modelSelectionSettled = Promise.resolve(true);
             return;
         }
         if (!chatId) {
@@ -386,6 +399,7 @@
             modelSelectionUserId = userId;
             modelSelectionChatId = chatId;
             modelSelectionReady = true;
+            modelSelectionSettled = Promise.resolve(true);
             if (!chatId && !pendingSelection) modelSelection = 'auto';
             return;
         }
@@ -398,7 +412,7 @@
         if (pendingSelection && (!pendingSelection.draftChatId || pendingSelection.draftChatId === chatId)) {
             modelSelection = pendingSelection.selection;
             pendingNewChatModelSelection = null;
-            void chatModelSelectionService
+            modelSelectionSettled = chatModelSelectionService
                 .select({ userId, chatId, selection: pendingSelection.selection })
                 .then((persistedSelection) => {
                     if (restoreGeneration !== modelSelectionRestoreGeneration) return;
@@ -411,19 +425,21 @@
                 })
                 .finally(() => {
                     if (restoreGeneration === modelSelectionRestoreGeneration) modelSelectionReady = true;
-                });
+                }).then(() => true);
         } else {
             modelSelection = 'auto';
-            void chatModelSelectionService
+            modelSelectionSettled = chatModelSelectionService
                 .restore({ userId, chatId })
                 .then((selection) => recoverModelSelection('load', selection, userId, chatId))
                 .then((selection) => {
                     if (restoreGeneration === modelSelectionRestoreGeneration) modelSelection = selection;
+                    return true;
                 })
                 .catch((error) => {
-                    if (restoreGeneration !== modelSelectionRestoreGeneration) return;
+                    if (restoreGeneration !== modelSelectionRestoreGeneration) return false;
                     console.error('[MessageInput] Failed to restore chat model selection:', error);
                     notificationStore.error($text('enter_message.model_selector.load_failed'));
+                    return false;
                 })
                 .finally(() => {
                     if (restoreGeneration === modelSelectionRestoreGeneration) modelSelectionReady = true;
@@ -1050,6 +1066,8 @@
     
     // --- Blur timeout tracking ---
     let blurTimeoutId: NodeJS.Timeout | null = null; // Track blur timeout to cancel it if focus is regained
+    let editorFocusGeneration = 0;
+    let composerDestroyed = false;
     let preserveComposerFocusOnNextBlur = false;
     let preserveComposerFocusResetTimer: ReturnType<typeof setTimeout> | null = null;
     
@@ -2692,6 +2710,7 @@
     });
  
     onDestroy(() => {
+        composerDestroyed = true;
         invalidateRecordingContext('component-destroy');
         if (preserveComposerFocusResetTimer) {
             clearTimeout(preserveComposerFocusResetTimer);
@@ -2732,6 +2751,8 @@
             editor.commands.blur();
             return; // Exit early to prevent focus during mount
         }
+
+        editorFocusGeneration += 1;
         
         // Cancel any pending blur timeout - focus was regained
         if (blurTimeoutId) {
@@ -3292,6 +3313,25 @@
         }, 0);
     }
 
+    function noteDirectEditorInput(event: InputEvent) {
+        if (!event.isTrusted || !currentChatId || !editor || editor.isDestroyed ||
+            !editor.view.dom.contains(event.target as Node)) return;
+        lastDirectEditOwner = {
+            editor,
+            chatId: currentChatId,
+            userId: $userProfile.user_id ?? null,
+            teamId: get(activeTeamId),
+        };
+    }
+
+    export function hasLiveUserEditForChat(chatId: string): boolean {
+        return !!editor && !editor.isDestroyed && editor.view.dom.isConnected &&
+            currentChatId === chatId && editor.getText().trim().length > 0 &&
+            lastDirectEditOwner?.editor === editor && lastDirectEditOwner.chatId === chatId &&
+            lastDirectEditOwner.userId === ($userProfile.user_id ?? null) &&
+            lastDirectEditOwner.teamId === get(activeTeamId);
+    }
+
     function handleEditorUpdate({ editor, transaction }: { editor: Editor; transaction: Transaction }) {
         // --- Text-change guard ---
         // On iOS Firefox, double-tap to select text fires spurious `input` events
@@ -3428,6 +3468,7 @@
         editorElement?.addEventListener('embed-context-menu', handleEmbedContextMenu as EventListener);
         editorElement?.addEventListener('paste', handlePaste);
         editorElement?.addEventListener('input', scheduleEditorDomInputSync);
+        editorElement?.addEventListener('beforeinput', noteDirectEditorInput);
         editorElement?.addEventListener('custom-send-message', handleSendMessage as EventListener);
         editorElement?.addEventListener('custom-sign-up-click', handleSignUpClick as EventListener); // Handle Enter key for unauthenticated users
         editorElement?.addEventListener('keydown', handleKeyDown);
@@ -3690,6 +3731,7 @@
         editorElement?.removeEventListener('embed-context-menu', handleEmbedContextMenu as EventListener);
         editorElement?.removeEventListener('paste', handlePaste);
         editorElement?.removeEventListener('input', scheduleEditorDomInputSync);
+        editorElement?.removeEventListener('beforeinput', noteDirectEditorInput);
         editorElement?.removeEventListener('custom-send-message', handleSendMessage as EventListener);
         editorElement?.removeEventListener('custom-sign-up-click', handleSignUpClick as EventListener);
         editorElement?.removeEventListener('keydown', handleKeyDown);
@@ -4396,7 +4438,12 @@
         const target = event.target as HTMLElement;
         const preservesComposerFocus = target.closest('[data-preserve-composer-focus="true"]');
         const opensSeparateSurface = showMaps || showSketch || target.closest('[data-testid="composer-model-name"]');
-        if (preservesComposerFocus && !opensSeparateSurface) {
+        // Send owns its focus lifecycle: rejected sends explicitly restore the
+        // editor, while accepted empty sends collapse it. A queued refocus from
+        // this generic control handler would run after the send's focus snapshot
+        // and look like a newer user focus during an asynchronous submission.
+        const sendsMessage = target.closest('[data-action="send-message"], .minimized-send-button');
+        if (preservesComposerFocus && !opensSeparateSurface && !sendsMessage) {
             setTimeout(() => {
                 if (editor && !editor.isDestroyed) editor.commands.focus('end');
             }, 0);
@@ -4516,12 +4563,20 @@
             // Keep the editor focused by preventing default blur
             event.preventDefault();
             console.debug('[MessageInput] Click on wrapper UI detected, keeping editor focused');
-            isMessageFieldFocused = true;
-            isFocused = true;
+            // A restored draft hides TipTap while the field is collapsed. Make
+            // the focused state visible before asking the browser to focus it.
+            flushSync(() => {
+                isMessageFieldFocused = true;
+                isFocused = true;
+            });
             
             // Re-focus the editor
             if (editor && !editor.isDestroyed) {
                 editor.commands.focus('end');
+                // TipTap schedules DOM focus for the next animation frame. The
+                // pointer default was prevented above, so focus the visible
+                // view now or immediate typing goes to the page.
+                editor.view.focus();
             }
         }
     }
@@ -5432,13 +5487,20 @@
             sendRequestedWhilePending = true;
             return;
         }
-        if (!modelSelectionReady) {
-            notificationStore.error($text('enter_message.model_selector.loading_wait'));
-            return;
-        }
-
         if (sendClickInProgress) return;
         sendClickInProgress = true;
+        const focusGenerationAtSend = editorFocusGeneration;
+        const modelOwner = {
+            generation: modelSelectionRestoreGeneration,
+            userId: $userProfile.user_id,
+            chatId: currentChatId,
+            draftChatId: get(draftEditorUIState).currentChatId,
+            teamId: get(activeTeamId),
+            editor,
+            settled: modelSelectionSettled,
+            selection: modelSelection,
+            wasReady: modelSelectionReady,
+        };
         invalidateRecordingContext('send');
         // Project mention authority belongs to the exact document the user saw
         // when pressing Send. Later awaits can rebind or restore the composer.
@@ -5539,34 +5601,6 @@
             }
         }
 
-        if (modelSelection !== 'auto' && !editor.getText().includes('@ai-model:') && !editor.getText().includes('@best-model:')) {
-            const userId = $userProfile.user_id;
-            try {
-                if (userId && currentChatId) {
-                    modelSelection = await recoverModelSelection('send', modelSelection, userId, currentChatId);
-                }
-            } catch (error) {
-                console.error('[MessageInput] Failed to recover the chat model selection before send:', error);
-                modelSelection = 'auto';
-                notificationStore.error($text('enter_message.model_selector.unavailable_reset'));
-                hasContent = !isContentEmptyExceptMention(editor);
-                refreshDraftPreviewState(editor);
-                awaitingAITaskStart = false;
-                if (awaitingAITaskTimeoutId) {
-                    clearTimeout(awaitingAITaskTimeoutId);
-                    awaitingAITaskTimeoutId = null;
-                }
-                sendClickInProgress = false;
-                return;
-            }
-            const separator = modelSelection.indexOf('/');
-            if (separator > 0) {
-                const provider = modelSelection.slice(0, separator);
-                const modelId = modelSelection.slice(separator + 1);
-                editor.commands.insertContentAt(0, `@ai-model:${modelId}:${provider} `);
-            }
-        }
-
         const accepted = await handleSend(
             editor,
             dispatch,
@@ -5579,7 +5613,28 @@
             broadcastToSiblings,
             (chatId) => cancelledNewChatSendIds.has(chatId),
             getE2EServerContentOverride(event),
-            projectFocusDocumentAtSendRequest
+            projectFocusDocumentAtSendRequest,
+            {
+                resolveModelSelection: async () => {
+                    // A new chat has no saved preference to restore. Keep the
+                    // selection visible at this click, including a chosen model.
+                    if (!modelOwner.chatId) return modelOwner.selection;
+                    const stillOwned = () => modelOwner.generation === modelSelectionRestoreGeneration &&
+                        modelOwner.userId === $userProfile.user_id &&
+                        modelOwner.chatId === currentChatId &&
+                        modelOwner.draftChatId === get(draftEditorUIState).currentChatId &&
+                        modelOwner.teamId === get(activeTeamId) &&
+                        modelOwner.editor === editor;
+                    return resolveSavedModelForAcceptedSend({
+                        settled: modelOwner.settled,
+                        readyAtClick: modelOwner.wasReady,
+                        selectionAtClick: modelOwner.selection,
+                        readRestoredSelection: () => modelSelection,
+                        stillOwned,
+                        recover: (selection) => recoverModelSelection('send', selection, modelOwner.userId!, modelOwner.chatId!),
+                    });
+                },
+            }
         ).catch((error) => {
             console.error('[MessageInput] Send preparation failed:', error);
             vibrateMessageField();
@@ -5604,7 +5659,14 @@
         }
         // The composer may already contain the next message. Keep its focus and
         // detection state when the previous send finishes in the background.
-        if (inspectDraftContent(editor.getJSON()).hasMeaningfulContent) return;
+        if (!shouldDismissComposerAfterSend({
+            focusGenerationAtSend,
+            currentFocusGeneration: editorFocusGeneration,
+            sameOwner: !composerDestroyed && editor === editorAtPreviewWait && !editor.isDestroyed &&
+                currentChatId === chatIdAtPreviewWait && $userProfile.user_id === modelOwner.userId &&
+                get(activeTeamId) === modelOwner.teamId,
+            hasNewDraft: !editor.isDestroyed && inspectDraftContent(editor.getJSON()).hasMeaningfulContent,
+        })) return;
         dismissFocus();
         
         // Clear PII state after sending
@@ -5643,7 +5705,7 @@
         const selectionChatId = currentChatId;
         const selectionGeneration = modelSelectionRestoreGeneration;
         modelSelectionReady = false;
-
+        modelSelectionSettled = (async () => {
         try {
             const persistedSelection = await chatModelSelectionService.select({
                 userId,
@@ -5674,6 +5736,9 @@
                 modelSelectionReady = true;
             }
         }
+        return true;
+        })();
+        await modelSelectionSettled;
     }
 
     function handleModelSelect(event: CustomEvent<{ selection: string }>): void {
@@ -6204,7 +6269,7 @@
         const appendMessageInputDiagnostic = (event: string, data: Record<string, unknown> = {}) => {
             diagnosticsWindow.__openmatesMessageInputDraftDiagnostics = [
                 ...(diagnosticsWindow.__openmatesMessageInputDraftDiagnostics ?? []),
-                { event, chatId, hasEditor: !!editor && !editor.isDestroyed, version, hasDraftContent: draftContent !== null, ...data },
+                { t: Math.round(performance.now()), event, chatId, hasEditor: !!editor && !editor.isDestroyed, version, hasDraftContent: draftContent !== null, ...data },
             ].slice(-20);
         };
 
@@ -6221,14 +6286,22 @@
             (inspectDraftContent(editor.getJSON()).hasPendingEmbed || draftState.hasUnsavedChanges || draftState.isSaveInProgress) &&
             isSameOrPendingDraftContext &&
             isActiveComposerContext;
-        const shouldPreserveNewerLocalDraft = !!editor && !editor.isDestroyed &&
-            draftContent !== null &&
-            shouldPreserveSameChatDraftRestore(
-                chatId,
-                tipTapToCanonicalMarkdown(draftContent),
-                tipTapToCanonicalMarkdown(editor.getJSON()),
-                draftState,
-            );
+        const currentEditorMarkdown = editor && !editor.isDestroyed
+            ? tipTapToCanonicalMarkdown(editor.getJSON()) : '';
+        const incomingMarkdown = draftContent !== null
+            ? tipTapToCanonicalMarkdown(draftContent) : '';
+        const shouldPreserveNewerLocalDraft = !!editor && !editor.isDestroyed && (
+            (draftContent !== null && shouldPreserveSameChatDraftRestore(
+                chatId, incomingMarkdown, currentEditorMarkdown, draftState,
+            )) || shouldPreserveFocusedSameChatDraftRestore({
+                activeChatId: currentChatId,
+                incomingChatId: chatId,
+                draftStateChatId,
+                isFocused: editor.isFocused,
+                currentMarkdown: currentEditorMarkdown,
+                incomingMarkdown,
+            })
+        );
 
         if (shouldPreserveNewerLocalDraft) {
             appendMessageInputDiagnostic('setDraftContent-preserve-local-editor', {
@@ -6241,7 +6314,18 @@
                 currentChatId,
                 draftStateChatId,
             });
-            draftEditorUIState.update((state) => reconcilePreservedDraftVersion(state, chatId, version));
+            draftEditorUIState.update((state) => {
+                if (state.currentChatId === null && chatId && chatId === currentChatId) {
+                    return {
+                        ...state,
+                        currentChatId: chatId,
+                        currentUserDraftVersion: Math.max(state.currentUserDraftVersion, version),
+                        hasUnsavedChanges: true,
+                    };
+                }
+                return reconcilePreservedDraftVersion(state, chatId, version);
+            });
+            if (chatId && editor && !queuedEdit) triggerSaveDraft(chatId, editor);
             return;
         }
 
@@ -6355,7 +6439,14 @@
      *                          without deleting the previous chat's draft.
      */
     export async function clearMessageField(shouldFocus: boolean = true, preserveContext: boolean = false) {
+        const inputTrace = (window as typeof window & { __savedComposerInputTrace?: Array<Record<string, unknown>> }).__savedComposerInputTrace;
+        if (inputTrace) inputTrace.push({ t: Math.round(performance.now()), kind: 'clearMessageField',
+            chat: currentChatId, boundChat: get(draftEditorUIState).currentChatId,
+            length: editor && !editor.isDestroyed ? editor.getText().length : null,
+            liveEdit: currentChatId ? hasLiveUserEditForChat(currentChatId) : false,
+            preserveContext });
         invalidateRecordingContext('clear-message-field');
+        lastDirectEditOwner = null;
         await clearEditorAndResetDraftState(shouldFocus, preserveContext);
         hasContent = false;
         refreshDraftPreviewState(editor);

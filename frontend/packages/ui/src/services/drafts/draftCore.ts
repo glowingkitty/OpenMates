@@ -32,6 +32,21 @@ export function shouldPreserveSameChatDraftRestore(
 			currentEditorMarkdown !== state.lastSavedContentMarkdown);
 }
 
+/** A user may type before the saved chat's draft version finishes loading. */
+export function shouldPreserveFocusedSameChatDraftRestore(input: {
+	activeChatId: string | undefined;
+	incomingChatId: string | null;
+	draftStateChatId: string | null;
+	isFocused: boolean;
+	currentMarkdown: string;
+	incomingMarkdown: string;
+}): boolean {
+	return !!input.activeChatId && input.activeChatId === input.incomingChatId
+		&& (input.draftStateChatId === null || input.draftStateChatId === input.incomingChatId)
+		&& input.isFocused && input.currentMarkdown.trim().length > 0
+		&& input.currentMarkdown !== input.incomingMarkdown;
+}
+
 export function reconcilePreservedDraftVersion(
 	state: DraftEditorState,
 	chatId: string | null,

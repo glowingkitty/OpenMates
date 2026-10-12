@@ -17,6 +17,7 @@ import { recordMessageDispatchFailure } from "./sendersChatMessagesDispatchFailu
 import { FastAdmissionJournalGate, isRetainedFastAdmissionSnapshot } from "./fastAdmissionJournal";
 import { PendingAdmissionCompatibilityError } from "./serverCapabilityGate";
 import { retainOrReuseContextPhaseFrame, type AdmissionContextPhase, type AdmissionContextIdentity } from "./fastAdmissionPhaseJournal";
+import { isSelectionDetailsV2Routing, publishSelectionDetailsPhases } from "./postAdmissionContextPhases";
 import { notificationStore } from "../stores/notificationStore";
 import { normalizeToUnixSeconds } from "./timestampUtils";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
@@ -904,8 +905,9 @@ async function publishPostAdmissionContext(input: {
 	chat: Chat;
 	admission: Record<string, unknown>;
 	postAdmissionConnectedAccounts?: Promise<PreparedConnectedAccountSendContext | undefined>;
+	supportsSelectionDetailsV2Now: () => boolean;
 }): Promise<void> {
-	const { message, chat, admission, postAdmissionConnectedAccounts } = input;
+	const { message, chat, admission, postAdmissionConnectedAccounts, supportsSelectionDetailsV2Now } = input;
 	const request = admission.inference_request as Record<string, unknown>;
 	const requestId = request.client_context_request_id;
 	if (typeof requestId !== "string" || !requestId) throw new Error("Admitted turn has no client context request ID.");
@@ -926,6 +928,80 @@ async function publishPostAdmissionContext(input: {
 	};
 	const accounts = postAdmissionConnectedAccounts ?? Promise.resolve(undefined);
 	let routingFrame = await retainContextPhaseFrame(message, chatKey, identity, "routing");
+	const useSelectionDetailsV2 = routingFrame
+		? isSelectionDetailsV2Routing(routingFrame)
+		: supportsSelectionDetailsV2Now();
+	if (useSelectionDetailsV2) {
+		if (!supportsSelectionDetailsV2Now()) throw new PendingAdmissionCompatibilityError();
+		const isV2Current = () => isCurrent() && supportsSelectionDetailsV2Now();
+		// Start slower metadata collection before awaiting Projects. Its rejection
+		// is observed until details awaits it, so a failed collector cannot turn
+		// into a falsely confirmed empty catalog.
+		const collectSelectionDetails = () => Promise.all([
+			collectRelatedTaskSnapshots(null, message.chat_id),
+			import("./agenticProjectContextService").then((context) =>
+				context.collectProjectFocusCatalog({ chatId: message.chat_id })),
+			collectAcceptedPlanContext({ chatId: message.chat_id, teamId: null }),
+			accounts,
+		]);
+		let selectionDetails = routingFrame ? null : collectSelectionDetails();
+		void selectionDetails?.catch(() => undefined);
+		// Routing must distinguish a confirmed empty Project list from a stale
+		// cached list whose background refresh failed.
+		const projects = routingFrame ? null : listProjects({ teamId: null, force: true }).then((rows) =>
+			collectProjectFocusRoutingCandidates(rows, null, message.content ?? ""));
+		await publishSelectionDetailsPhases({
+			isCurrent: isV2Current,
+			routing: async () => {
+				if (routingFrame) return routingFrame;
+				const candidates = await projects!;
+				if (!isV2Current()) throw new Error("Post-admission routing owner changed.");
+				routingFrame = await retainContextPhaseFrame(message, chatKey, identity, "routing", {
+					...identity, phase: "routing",
+					context: { project_focus_candidates: candidates.slice(0, 40) },
+				});
+				return routingFrame!;
+			},
+			details: async () => {
+				let detailsFrame = await retainContextPhaseFrame(message, chatKey, identity, "details");
+				if (detailsFrame) return detailsFrame;
+				selectionDetails ??= collectSelectionDetails();
+				void selectionDetails.catch(() => undefined);
+				const context = await import("./agenticProjectContextService");
+				const { collectCustomRuleDocuments } = await import("./ruleDocumentService");
+				const sharedFocus = getActiveProjectFocus(message.chat_id);
+				void sharedFocus.catch(() => undefined);
+				const initialFocus = async () => isV2Current() ? await sharedFocus : null;
+				const [[tasks, focusCatalog, plan, routedAccounts], [memoryDocs, focusDocs, projectDocs]] = await Promise.all([
+					selectionDetails,
+					Promise.all([
+						collectCustomRuleDocuments({ chatId: message.chat_id, initialFocus }),
+						context.collectPrivateFocusForRequest({ chatId: message.chat_id, text: message.content ?? "", initialFocus }),
+						context.collectProjectReferenceDocuments({ chatId: message.chat_id, text: message.content ?? "", initialFocus }),
+					]),
+				]);
+				if (!isV2Current()) throw new Error("Post-admission details owner changed.");
+				detailsFrame = await retainContextPhaseFrame(message, chatKey, identity, "details", {
+					...identity, phase: "details",
+					context: {
+						related_task_candidates: tasks.slice(0, 60),
+						project_focus_catalog: focusCatalog.slice(0, 20),
+						...(plan ? { accepted_plan_context: plan } : {}),
+						connected_account_directory: routedAccounts?.directory ?? [],
+						custom_memory_documents: memoryDocs.slice(0, 24),
+						project_focus_documents: focusDocs.slice(0, 8),
+						project_context_documents: projectDocs.slice(0, 20),
+						connected_account_token_refs: routedAccounts?.tokenRefs ?? [],
+					},
+				});
+				return detailsFrame!;
+			},
+			send: async (_phase, frame) => {
+				await webSocketService.sendMessage("chat_turn_context_ready", frame);
+			},
+		});
+		return;
+	}
 	if (!routingFrame) {
 		const [projects, tasks, focusCatalog, plan, routedAccounts] = await Promise.all([
 			listProjects({ teamId: null }).then((projects) =>
@@ -1014,10 +1090,12 @@ async function dispatchFastPersonalTurn(input: {
 	postAdmissionConnectedAccounts?: Promise<PreparedConnectedAccountSendContext | undefined>;
 	retainedFastAdmission?: boolean;
 	supportsAdmissionNow: () => boolean;
+	supportsSelectionDetailsV2Now: () => boolean;
 }): Promise<void> {
 	const { serviceInstance, message, chat, personalTurn, predecessorVersion,
 		includePreflightChatMetadata, onUserFrameDispatched,
-		postAdmissionConnectedAccounts, retainedFastAdmission, supportsAdmissionNow } = input;
+		postAdmissionConnectedAccounts, retainedFastAdmission, supportsAdmissionNow,
+		supportsSelectionDetailsV2Now } = input;
 	const encryptedChatKey = await chatDB.getEncryptedChatKey(message.chat_id);
 	const chatKey = chatKeyManager.getKeySync(message.chat_id) || await chatKeyManager.getKey(message.chat_id);
 	if (!encryptedChatKey || !chatKey ||
@@ -1130,7 +1208,7 @@ async function dispatchFastPersonalTurn(input: {
 		});
 		onUserFrameDispatched?.();
 		void publishPostAdmissionContext({
-			message, chat, admission, postAdmissionConnectedAccounts,
+			message, chat, admission, postAdmissionConnectedAccounts, supportsSelectionDetailsV2Now,
 		}).catch((error) => {
 			console.warn("[ChatSyncService:Senders] Post-admission context unavailable", error);
 		});
@@ -1152,6 +1230,7 @@ export async function sendNewMessageImpl(
 	fastAdmissionAllowed = false,
 	postAdmissionConnectedAccounts?: Promise<PreparedConnectedAccountSendContext | undefined>,
 	supportsAdmissionNow: () => boolean = () => false,
+	supportsSelectionDetailsV2Now: () => boolean = () => false,
 ): Promise<void> {
 	const personalTurn = reservedTurn ?? reservePersonalChatTurn(message.chat_id, message.message_id);
 	const testMockMarker = ((message as unknown) as { testMockMarker?: unknown }).testMockMarker;
@@ -1326,7 +1405,7 @@ export async function sendNewMessageImpl(
 		await dispatchFastPersonalTurn({
 			serviceInstance, message, chat, personalTurn, predecessorVersion,
 			includePreflightChatMetadata, onUserFrameDispatched,
-			retainedFastAdmission, supportsAdmissionNow,
+			retainedFastAdmission, supportsAdmissionNow, supportsSelectionDetailsV2Now,
 			postAdmissionConnectedAccounts: postAdmissionConnectedAccounts
 				?? (connectedAccountContext ? Promise.resolve(connectedAccountContext)
 					: loadPostAdmissionConnectedAccounts(message)),

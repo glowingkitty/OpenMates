@@ -20,6 +20,11 @@ export class ServerCapabilityGate {
     return this.capabilities?.has('chat_turn_admit_v1') === true
       && this.capabilities.has('chat_turn_context_v1');
   }
+
+  supportsSelectionDetailsV2(): boolean {
+    return this.supportsImmediateChatAdmission()
+      && this.capabilities?.has('chat_turn_context_selection_details_v2') === true;
+  }
 }
 
 export class PendingAdmissionCompatibilityError extends Error {

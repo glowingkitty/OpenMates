@@ -139,6 +139,8 @@ export interface PendingSendContext {
   piiExclusions: Set<string>;
   /** Owner-local mappings captured at send time for deferred placeholder rewrite */
   piiRewriteMappings: PIIMapping[];
+  /** Exact chat model preference captured after restoration for this send. */
+  modelSelection?: string;
   /** Original PII-anonymized markdown text (partial — may be updated when embeds finish) */
   partialMarkdown: string;
 }

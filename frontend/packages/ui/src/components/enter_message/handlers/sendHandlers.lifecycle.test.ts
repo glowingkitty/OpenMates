@@ -138,7 +138,7 @@ function makeEditor(includeEmbeds = true) {
     state: { doc: document },
     getText: vi.fn(() => 'Send these attachments'),
     getJSON: vi.fn(() => structuredClone(document)),
-    view: { state: { doc: { descendants(callback: (node: { type: { name: string }; attrs: Record<string, unknown> }) => boolean): void {
+    view: { dom: { blur, contains: vi.fn(() => false) }, state: { doc: { descendants(callback: (node: { type: { name: string }; attrs: Record<string, unknown> }) => boolean): void {
       for (const item of document.content) {
         if (item.type === 'embed' && 'attrs' in item) {
           callback({ type: { name: 'embed' }, attrs: item.attrs });
@@ -165,6 +165,7 @@ function makeUploadedImageEditor(contentRef: string | null = null) {
     isDestroyed: false, isEmpty: false, state,
     getText: vi.fn(() => 'Team photo'),
     getJSON: vi.fn(() => structuredClone(state.doc)),
+    view: { dom: { blur, contains: vi.fn(() => false) } },
     commands: { clearContent, setContent, blur, focus: vi.fn() },
   };
   const editDocument = () => {

@@ -3057,6 +3057,7 @@ export class ChatSynchronizationService extends EventTarget {
       fastPersonalText,
       postAdmissionConnectedAccounts,
       supportsAdmissionNow,
+      () => supportsAdmissionNow() && this.serverCapabilityGate.supportsSelectionDetailsV2(),
     );
     recordSendPreparationPhase('sender_complete');
     if (!turn.turnId) failPersonalChatTurn(turn, new Error('The encrypted chat turn was not dispatched.'));
