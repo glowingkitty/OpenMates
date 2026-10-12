@@ -10685,38 +10685,6 @@
         "text": "Bandingkan berbagai metode untuk mengubah ide lisan menjadi tugas yang terorganisir"
       }
     },
-    "calendar_week_from_supplied_events": {
-      "title": {
-        "text": "Minggu kalender dari acara yang diberikan"
-      },
-      "summary": {
-        "text": "Rangkum minggu fiktif dari acara kalender yang diberikan dalam percakapan, tanpa akses akun terhubung."
-      },
-      "message_1": {
-        "text": "@mate:general_knowledge tolong rangkum minggu kalender saya dari tanggal 12–18 Oktober (waktu Berlin) dari acara-acara yang saya salin di sini: Sen 09:00–09:30 team check-in; Sel 14:00–15:00 dokter gigi; Rab 10:00–11:00 tinjauan proyek dan 18:30–19:30 yoga; Jum 16:00–17:00 ambil belanjaan; Sab 11:00–13:00 giliran kebun komunitas. Hari mana yang memiliki komitmen paling banyak, dan hari mana yang kosong?"
-      },
-      "message_2": {
-        "text": "Berikut adalah ringkasan jadwalmu untuk minggu 12–18 Oktober 2026 (waktu Eropa/Berlin):\n\n### Ikhtisar Jadwal\n* **Senin, 12 Okt:** 09:00–09:30 – Team check-in (30 mnt)\n* **Selasa, 13 Okt:** 14:00–15:00 – Dokter gigi (1 jam)\n* **Rabu, 14 Okt:**\n  * 10:00–11:00 – Tinjauan proyek (1 jam)\n  * 18:30–19:30 – Yoga (1 jam)\n* **Kamis, 15 Okt:** *Tidak ada acara terjadwal*\n* **Jumat, 16 Okt:** 16:00–17:00 – Ambil belanjaan (1 jam)\n* **Sabtu, 17 Okt:** 11:00–13:00 – Giliran kebun komunitas (2 jam)\n* **Minggu, 18 Okt:** *Tidak ada acara terjadwal*\n\n---\n\n### Poin Penting\n* **Hari dengan komitmen terbanyak:** **Rabu, 14 Oktober** (2 acara berbeda dengan total 2 jam). *Catatan: Sabtu memiliki blok waktu komitmen tunggal terlama (2 jam), tetapi Rabu memiliki jumlah acara terbanyak.*\n* **Hari yang benar-benar kosong:** **Kamis, 15 Oktober** dan **Minggu, 18 Oktober**.\n\n---\n\n### Saran Tindakan Selanjutnya\n1. [Tambahkan waktu persiapan hari Kamis](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)\n2. [Rencanakan pengingat untuk janji temu](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)"
-      },
-      "follow_up_1": {
-        "text": "Cari resep sehat untuk dimasak pada hari Kamis"
-      },
-      "follow_up_2": {
-        "text": "Jelaskan cara mengatur jadwal mingguan yang sibuk secara efektif"
-      },
-      "follow_up_3": {
-        "text": "Pasang pengingat untuk janji temu dokter gigi saya pada hari Selasa"
-      },
-      "follow_up_4": {
-        "text": "Daftar tips untuk menyeimbangkan pekerjaan dan janji temu pribadi"
-      },
-      "follow_up_5": {
-        "text": "Buat tugas untuk persiapan tinjauan proyek hari Rabu"
-      },
-      "follow_up_6": {
-        "text": "Bandingkan berbagai teknik manajemen waktu untuk para profesional"
-      }
-    },
     "community_garden_volunteer_chime": {
       "title": {
         "text": "Denting hangat untuk kebun komunitas"
@@ -10747,6 +10715,38 @@
       },
       "follow_up_6": {
         "text": "Jelaskan cara mengintegrasikan efek suara kustom ke dalam aplikasi seluler"
+      }
+    },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Diagram Alur Checkout Toko Online"
+      },
+      "summary": {
+        "text": "Diagram alur checkout yang dapat diedit dengan percobaan ulang pembayaran dan konfirmasi pesanan."
+      },
+      "message_1": {
+        "text": "Buat diagram alur yang dapat diedit untuk toko online kecil: keranjang, detail checkout, pembayaran, dan konfirmasi pesanan. Jika pembayaran ditolak, tunjukkan pelanggan mencoba lagi. Simpan semua informasi di dalam diagram dan jangan menautkan ke situs web eksternal."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Rincian Alur & Pertimbangan UX\n\n1. **Kemajuan Berurutan**: Pelanggan maju secara linier melalui **Keranjang**, **Detail Checkout** (pengiriman/penagihan), dan **Pemrosesan Pembayaran**.\n2. **Penolakan & Pemulihan Kesalahan**:\n   - Alih-alih mengembalikan pelanggan ke sesi kosong, penolakan diarahkan ke langkah keputusan **Ubah Metode**.\n   - Jalur ortogonal putus-putus mengarah langsung kembali ke **Detail Checkout**, memungkinkan pelanggan untuk mengganti metode pembayaran, memperbaiki kesalahan ketik pada data kartu, atau memilih dompet digital alternatif tanpa kehilangan item keranjang mereka.\n   - Jika mereka memilih untuk tidak mencoba lagi, sesi berakhir dengan bersih dalam status terminal **Keranjang Disimpan**, membuka peluang untuk email tindak lanjut keranjang yang ditinggalkan.\n3. **Struktur yang Dapat Diedit**: Setiap langkah dan jalur berisi pengikatan `data-om-*` standar sehingga kamu dapat menyesuaikan label, menambahkan langkah kupon diskon, atau mengintegrasikan cabang checkout tamu secara langsung.\n\n---\n\n**Langkah Selanjutnya & Iterasi:**\n- Apakah kamu ingin memperkenalkan cabang **Checkout Tamu vs. Akun Masuk** sebelum detail pengiriman?\n- Jika kamu sedang merancang antarmuka pengguna atau ilustrasi khusus untuk alur ini, kita dapat mengeksplorasi integrasi wireframe atau lencana ikon gambar tangan khusus untuk melengkapi langkah-langkah tersebut."
+      },
+      "follow_up_1": {
+        "text": "Cari ikon SVG gratis untuk tombol checkout"
+      },
+      "follow_up_2": {
+        "text": "Jelaskan cara menambahkan cabang checkout tamu sebelum detail pengiriman"
+      },
+      "follow_up_3": {
+        "text": "Cari praktik terbaik checkout toko online dan tren UX"
+      },
+      "follow_up_4": {
+        "text": "Jelaskan cara menangani email pemulihan keranjang yang ditinggalkan secara efektif"
+      },
+      "follow_up_5": {
+        "text": "Temukan lokakarya dan webinar desain e-commerce mendatang"
+      },
+      "follow_up_6": {
+        "text": "Daftar kesalahan umum UX dalam alur checkout pembayaran online"
       }
     }
   },

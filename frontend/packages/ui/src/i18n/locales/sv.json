@@ -10685,38 +10685,6 @@
         "text": "Jämför olika metoder för att omvandla talade idéer till organiserade uppgifter"
       }
     },
-    "calendar_week_from_supplied_events": {
-      "title": {
-        "text": "Kalendervecka från angivna händelser"
-      },
-      "summary": {
-        "text": "Sammanfatta en fiktiv vecka med kalenderhändelser som tillhandahålls i konversationen, utan åtkomst till anslutna konton."
-      },
-      "message_1": {
-        "text": "@mate:general_knowledge sammanfatta gärna min kalendervecka 12–18 oktober (Berlintid) utifrån dessa händelser som jag har kopierat in här: mån 09:00–09:30 team-avstämning; tis 14:00–15:00 tandläkare; ons 10:00–11:00 projektgenomgång och 18:30–19:30 yoga; fre 16:00–17:00 hämta matvaror; lör 11:00–13:00 pass i gemenskapsträdgården. Vilken dag har flest åtaganden, och vilka dagar är lediga?"
-      },
-      "message_2": {
-        "text": "Här är sammanfattningen av ditt schema för veckan 12–18 oktober 2026 (Europa/Berlin-tid):\n\n### Schemaöversikt\n* **Måndag 12 okt:** 09:00–09:30 – Team-avstämning (30 min)\n* **Tisdag 13 okt:** 14:00–15:00 – Tandläkare (1 tim)\n* **Onsdag 14 okt:**\n  * 10:00–11:00 – Projektgenomgång (1 tim)\n  * 18:30–19:30 – Yoga (1 tim)\n* **Torsdag 15 okt:** *Inga inbokade händelser*\n* **Fredag 16 okt:** 16:00–17:00 – Hämta matvaror (1 tim)\n* **Lördag 17 okt:** 11:00–13:00 – Pass i gemenskapsträdgården (2 tim)\n* **Söndag 18 okt:** *Inga inbokade händelser*\n\n---\n\n### Viktiga punkter\n* **Dag med flest åtaganden:** **Onsdag 14 oktober** (2 separata händelser på totalt 2 timmar). *Notera: Lördagen har det längsta sammanhängande tidsblocket (2 timmar), men onsdagen har flest antal händelser.*\n* **Helt lediga dagar:** **Torsdag 15 oktober** och **Söndag 18 oktober**.\n\n---\n\n### Förslag på nästa steg\n1. [Lägg till förberedelsetid på torsdag](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)\n2. [Planera påminnelser för möten](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)"
-      },
-      "follow_up_1": {
-        "text": "Sök efter hälsosamma recept att laga på torsdag"
-      },
-      "follow_up_2": {
-        "text": "Förklara hur man organiserar ett hektiskt veckoschema effektivt"
-      },
-      "follow_up_3": {
-        "text": "Ställ in en påminnelse för mitt tandläkarbesök på tisdag"
-      },
-      "follow_up_4": {
-        "text": "Lista tips för att balansera arbete och personliga möten"
-      },
-      "follow_up_5": {
-        "text": "Skapa en uppgift för förberedelser inför projektgenomgången på onsdag"
-      },
-      "follow_up_6": {
-        "text": "Jämför olika tidshanteringstekniker för yrkesverksamma"
-      }
-    },
     "community_garden_volunteer_chime": {
       "title": {
         "text": "En varm ljudsignal för en gemenskapsträdgård"
@@ -10747,6 +10715,38 @@
       },
       "follow_up_6": {
         "text": "Beskriv hur man integrerar anpassade ljudeffekter i mobilapplikationer"
+      }
+    },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Flödesschema för utcheckning i webbutik"
+      },
+      "summary": {
+        "text": "Ett redigerbart flödesschema för utcheckning med betalningsförsök och orderbekräftelse."
+      },
+      "message_1": {
+        "text": "Skapa ett redigerbart flödesschema för en liten webbutik: varukorg, utcheckningsuppgifter, betalning och orderbekräftelse. Om betalningen nekas, visa hur kunden försöker igen. Håll all information inom diagrammet och länka inte till externa webbplatser."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Genomgång av flödet och UX-överväganden\n\n1. **Sekventiellt förlopp**: Kunden rör sig linjärt genom **Varukorg**, **Utcheckningsuppgifter** (frakt/fakturering) och **Betalningshantering**.\n2. **Nekad betalning och felhantering**:\n   - Istället för att kunden hamnar i en tom session igen, leder en nekad betalning till ett beslutsteg för att **Ändra metod**.\n   - Den streckade ortogonala vägen leder direkt tillbaka till **Utcheckningsuppgifter**, vilket gör att kunden kan byta betalningsmetod, korrigera felskrivningar i kortuppgifter eller välja en annan digital plånbok utan att förlora sina varor i korgen.\n   - Om de väljer att inte försöka igen, avslutas sessionen snyggt i sluttillståndet **Varukorg sparad**, vilket lämnar dörren öppen för uppföljande e-postmeddelanden om övergivna varukorgar.\n3. **Redigerbar struktur**: Varje steg och väg innehåller standardiserade `data-om-*`-bindningar så att du kan anpassa etiketter, lägga till ett steg för rabattkoder eller integrera grenar för gästutcheckning direkt.\n\n---\n\n**Nästa steg och iterationer:**\n- Vill du införa en gren för **Gästutcheckning kontra inloggat konto** före leveransuppgifterna?\n- Om du designar användargränssnitt eller anpassade illustrationer för det här flödet, kan vi utforska att integrera trådskisser eller anpassade handritade ikonmärken för att komplettera stegen."
+      },
+      "follow_up_1": {
+        "text": "Sök efter gratis SVG-ikoner för utcheckningsknappar"
+      },
+      "follow_up_2": {
+        "text": "Förklara hur man lägger till en gren för gästutcheckning före leveransuppgifter"
+      },
+      "follow_up_3": {
+        "text": "Sök efter bästa praxis och UX-trender för utcheckning i webbutiker"
+      },
+      "follow_up_4": {
+        "text": "Beskriv hur man hanterar e-postmeddelanden för återställning av övergivna varukorgar på ett effektivt sätt"
+      },
+      "follow_up_5": {
+        "text": "Hitta kommande workshops och webbinarier om e-handelsdesign"
+      },
+      "follow_up_6": {
+        "text": "Lista vanliga UX-fallgropar i betalningsflöden online"
       }
     }
   },

@@ -1,15 +1,5 @@
 landing:
-  order: 23
-  capability:
-    type: app
-    id: study
-  caption:
-    en: Help me learn this topic
-    de: Hilf mir, dieses Thema zu lernen
-  example_chat_id: example-bayes-theorem-quick-quiz
-  source_evidence:
-    request_excerpt: statistics exam next week. Could you explain Bayes theorem
-    rationale: The user asks for an explanation and quiz, demonstrating ordinary study help without a focus activation.
+  enabled: false
 
 name_translation_key: study
 description_translation_key: study.description

@@ -21,6 +21,21 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     const scroller = page.getByTestId('landing-scroll-container');
     const compose = page.getByTestId('landing-compose');
     await expect(root).toBeVisible();
+    const deferredFeature = page.getByTestId('landing-feature-privacy');
+    await expect(deferredFeature).toHaveClass(/reveal-ready/);
+    await expect(deferredFeature).not.toHaveClass(/revealed/);
+    await expect(deferredFeature.locator('.feature-copy h2')).toHaveCSS('opacity', '0');
+    await expect(deferredFeature.locator('.feature-example')).toHaveCSS('opacity', '0');
+    const newsletter = page.getByTestId('landing-newsletter-reveal');
+    await expect(newsletter).toHaveClass(/reveal-ready/);
+    await expect(newsletter).not.toHaveClass(/revealed/);
+    await expect(newsletter).toHaveCSS('opacity', '0');
+    for (const id of ['landing-events', 'landing-news', 'landing-blog']) {
+      const row = page.getByTestId(id);
+      await expect(row).toHaveClass(/reveal-ready/);
+      await expect(row).not.toHaveClass(/revealed/);
+      await expect(row.locator('.publication-intro')).toHaveCSS('opacity', '0');
+    }
     await expect(root.getByTestId('public-site-header').locator('.wordmark')).toHaveAttribute('href', `${APP}/`);
     const geometry = await root.evaluate(element => {
       const rect = (id: string) => element.querySelector(`[data-testid="${id}"]`)!.getBoundingClientRect().toJSON();
@@ -29,15 +44,17 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     expect(Math.abs(geometry.hero.height - geometry.scroller.height)).toBeLessThan(2);
     expect(geometry.hero.top).toBeGreaterThanOrEqual(geometry.scroller.top - 1);
     const visualSlot = (await page.getByTestId('landing-hero-media').boundingBox())!;
-    const deviceScale = (await page.getByTestId('landing-hero-media').locator('.hero-device-scale').boundingBox())!;
+    const aiVisual = page.getByTestId('landing-hero-ai-icon');
+    const iconBox = (await aiVisual.boundingBox())!;
     expect(visualSlot.height).toBeGreaterThan(0);
-    expect(deviceScale.height).toBeLessThanOrEqual(visualSlot.height + 1);
+    expect(iconBox.height).toBeLessThanOrEqual(visualSlot.height + 1);
     const titleTop = (await root.locator('#hero-title').boundingBox())!.y;
-    for (const frame of await page.getByTestId('landing-hero-media').locator(width < 760 ? '.device-frame.phone' : '.device-frame').all()) {
-      const bounds = (await frame.boundingBox())!;
-      expect(bounds.y).toBeGreaterThanOrEqual(geometry.hero.top - 1);
-      expect(bounds.y + bounds.height).toBeLessThanOrEqual(titleTop + 1);
-    }
+    expect(iconBox.y).toBeGreaterThanOrEqual(geometry.hero.top - 1);
+    expect(iconBox.y + iconBox.height).toBeLessThanOrEqual(titleTop + 1);
+    await expect(aiVisual).toHaveAttribute('aria-hidden', 'true');
+    await expect(page.getByTestId('landing-hero-media').locator('.device-frame')).toHaveCount(0);
+    expect(await aiVisual.locator('.hero-ai-glyph').evaluate(element => getComputedStyle(element).maskImage)).toContain('/icons/ai.svg');
+    await expect(aiVisual).toHaveCSS('animation-name', /hero-ai-float$/);
     expect(geometry.cue.bottom).toBeLessThan(geometry.compose.top);
     const cueCenters = await page.getByTestId('landing-scroll-cue').locator('svg, span').evaluateAll(nodes => nodes.map(node => {
       const box = node.getBoundingClientRect();
@@ -148,13 +165,30 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
       const section = page.getByTestId(`landing-feature-${id}`);
       await section.scrollIntoViewIfNeeded();
       await expect(section.getByRole('heading')).toBeVisible();
+      await expect(section).toHaveClass(/revealed/);
+      if (id === 'privacy') {
+        await expect(section.locator('.feature-icon')).toHaveCSS('opacity', '1');
+        await expect(section.locator('.feature-copy h2')).toHaveCSS('opacity', '1');
+        await expect(section.locator('.feature-copy p')).toHaveCSS('opacity', '1');
+        await expect(section.locator('.feature-copy .text-link').first()).toHaveCSS('opacity', '1');
+        await expect(section.locator('.feature-example')).toHaveCSS('opacity', '1');
+        await expect(section.locator('.feature-example')).toHaveCSS('transform', 'none');
+      }
       expect((await section.boundingBox())!.height).toBeGreaterThanOrEqual(geometry.scroller.height - 1);
       const media = section.getByTestId(`landing-feature-media-${id}`);
+      await expect(media).toHaveCSS('transform', 'none');
       const copyRect = await section.locator('.feature-copy').boundingBox();
       const mediaRect = await media.boundingBox();
       expect(copyRect).not.toBeNull(); expect(mediaRect).not.toBeNull();
       if (width < 760) expect(mediaRect!.y).toBeGreaterThanOrEqual(copyRect!.y + copyRect!.height - 1);
       else expect(mediaRect!.x).toBeGreaterThanOrEqual(copyRect!.x + copyRect!.width - 1);
+      const exampleLink = media.locator('.example-link');
+      if (await exampleLink.count()) {
+        const linkRect = (await exampleLink.boundingBox())!;
+        const scrollerRect = (await scroller.boundingBox())!;
+        expect(linkRect.x).toBeGreaterThanOrEqual(scrollerRect.x - 1);
+        expect(linkRect.x + linkRect.width).toBeLessThanOrEqual(scrollerRect.x + scrollerRect.width + 1);
+      }
       icons.push(await section.getByTestId('landing-feature-icon').evaluate(element => getComputedStyle(element).maskImage));
       for (const image of await media.locator('img.device-screen:visible').all()) {
         await image.scrollIntoViewIfNeeded();
@@ -169,12 +203,25 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     }
     expect(new Set(icons).size).toBeGreaterThanOrEqual(5);
     expect(icons.every(icon => icon.includes('url('))).toBe(true);
+    await newsletter.scrollIntoViewIfNeeded();
+    await expect(newsletter).toHaveClass(/revealed/);
+    await expect(newsletter).toHaveCSS('opacity', '1');
+    await expect(newsletter).toHaveCSS('transform', 'none');
+    for (const id of ['landing-events', 'landing-news', 'landing-blog']) {
+      const row = page.getByTestId(id);
+      await row.scrollIntoViewIfNeeded();
+      await expect(row).toHaveClass(/revealed/);
+      await expect(row.locator('.publication-intro')).toHaveCSS('opacity', '1');
+      await expect(row.locator('.empty-publication')).toHaveCSS('opacity', '1');
+      await expect(row.locator('.empty-publication')).toHaveCSS('transform', 'none');
+    }
+    await expect(newsletter).toHaveCSS('opacity', '1');
     expect(await scroller.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     const after = await compose.boundingBox();
     expect(Math.abs(after!.y + after!.height - geometry.compose.bottom)).toBeLessThan(2);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
-    await expect(root.locator('img.device-screen:visible')).toHaveCount(width < 760 ? 7 : 14);
+    await expect(root.locator('img.device-screen:visible')).toHaveCount(width < 760 ? 6 : 12);
   });
 }
 
@@ -186,6 +233,22 @@ test('320px reduced-motion landing offers language-only settings and all event/s
   await page.goto(preview(320, 'dark', { events }), { waitUntil: 'domcontentloaded' });
   await waitForComponentPreview(page, 30_000);
   const root = page.getByTestId('landing-page');
+  const staticFeature = page.getByTestId('landing-feature-privacy');
+  await expect(staticFeature).not.toHaveClass(/reveal-ready/);
+  await expect(staticFeature.locator('.feature-copy h2')).toHaveCSS('opacity', '1');
+  await expect(staticFeature.locator('.feature-example')).toHaveCSS('opacity', '1');
+  await expect(staticFeature.locator('.feature-example')).toHaveCSS('transform', 'none');
+  const staticNewsletter = page.getByTestId('landing-newsletter-reveal');
+  await expect(staticNewsletter).not.toHaveClass(/reveal-ready/);
+  await expect(staticNewsletter).toHaveCSS('opacity', '1');
+  for (const id of ['landing-events', 'landing-news', 'landing-blog']) {
+    const row = page.getByTestId(id);
+    const content = row.locator(id === 'landing-events' ? '.event-cards' : '.empty-publication');
+    await expect(row).not.toHaveClass(/reveal-ready/);
+    await expect(row.locator('.publication-intro')).toHaveCSS('opacity', '1');
+    await expect(content).toHaveCSS('opacity', '1');
+    await expect(content).toHaveCSS('transform', 'none');
+  }
   const compactTab = await page.getByTestId('landing-nav-chats').boundingBox();
   expect(compactTab?.width).toBeLessThan(72);
   expect(compactTab?.width).toBeGreaterThanOrEqual(48);
@@ -267,7 +330,7 @@ test('landing app rail selects, pauses, resumes and accepts manual input', async
   await expect.poll(async () => {
     const bounds = await icons.nth(1).boundingBox();
     const window = await rail.boundingBox();
-    return Math.abs((bounds!.x + bounds!.width / 2) - (window!.x + window!.width / 2 + Math.min(window!.width * 0.08, 110)));
+    return Math.abs((bounds!.x + bounds!.width / 2) - (window!.x + window!.width / 2));
   }).toBeLessThan(2);
   await expect.poll(async () => {
     const first = await position();
@@ -329,6 +392,44 @@ test('landing app rail selects, pauses, resumes and accepts manual input', async
   expect(await position()).not.toBe(beforeTouch);
   await cdp.detach();
 });
+
+for (const width of [390, 1440]) {
+  // contract-test: direct surface=gui.web assertions=marketing-landing.hero-app-rail,marketing-landing.interactive-rail
+  test(`landing rail highlight crosses the speed-label center symmetrically at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width < 760 ? 844 : 900 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto(preview(width), { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page, 30_000);
+    const rail = page.getByTestId('landing-app-rail');
+    const speed = page.getByTestId('landing-hero-speed');
+    const icons = rail.getByTestId('landing-rail-group').nth(1).locator('.rail-icon');
+    const geometry = await rail.evaluate((element) => {
+      const first = element.querySelector<HTMLElement>('.rail-group:nth-child(2) .rail-icon')!;
+      const next = first.nextElementSibling as HTMLElement;
+      const railBox = element.getBoundingClientRect();
+      const speedBox = document.querySelector('[data-testid="landing-hero-speed"]')!.getBoundingClientRect();
+      const firstBox = first.getBoundingClientRect();
+      const nextBox = next.getBoundingClientRect();
+      const iconCenter = firstBox.left + firstBox.width / 2;
+      return { pitch: nextBox.left + nextBox.width / 2 - iconCenter, iconCenter, railCenter: railBox.left + railBox.width / 2, speedCenter: speedBox.left + speedBox.width / 2 };
+    });
+    expect(Math.abs(geometry.iconCenter - geometry.speedCenter)).toBeLessThan(2);
+    expect(Math.abs(geometry.railCenter - geometry.speedCenter)).toBeLessThan(2);
+    const wheel = async (deltaX: number) => rail.evaluate((element, delta) => element.dispatchEvent(new WheelEvent('wheel', { deltaX: delta, bubbles: true, cancelable: true })), deltaX);
+    await wheel(geometry.pitch * .49);
+    await expect(rail).toHaveAttribute('data-active-app', landingAppOrder[0]);
+    await wheel(geometry.pitch * .02);
+    await expect(rail).toHaveAttribute('data-active-app', landingAppOrder[1]);
+    const rightBoundary = await icons.nth(1).evaluate(element => { const box = element.getBoundingClientRect(); return box.left + box.width / 2; });
+    await wheel(geometry.pitch);
+    await expect(rail).toHaveAttribute('data-active-app', landingAppOrder[2]);
+    const leftBoundary = await icons.nth(1).evaluate(element => { const box = element.getBoundingClientRect(); return box.left + box.width / 2; });
+    expect(Math.abs((rightBoundary - geometry.speedCenter) + (leftBoundary - geometry.speedCenter))).toBeLessThan(geometry.pitch * .05);
+    expect(Math.abs(Math.abs(rightBoundary - geometry.speedCenter) - geometry.pitch / 2)).toBeLessThan(geometry.pitch * .05);
+    expect(Math.abs(Math.abs(leftBoundary - geometry.speedCenter) - geometry.pitch / 2)).toBeLessThan(geometry.pitch * .05);
+    await expect(speed).toHaveText('In seconds');
+  });
+}
 
 // contract-test: direct surface=gui.web assertions=marketing-landing.hero-app-rail,marketing-landing.interactive-rail
 test('landing app rail crosses its automatic loop without a visible seam', async ({ page }) => {

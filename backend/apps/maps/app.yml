@@ -1,12 +1,5 @@
 landing:
-  order: 10
-  capability:
-    type: skill
-    id: search
-  caption:
-    en: Find restaurants
-    de: Finde Restaurants
-  example_chat_id: example-berlin-mitte-work-friendly
+  enabled: false
 
 name_translation_key: maps
 description_translation_key: maps.description

@@ -10685,38 +10685,6 @@
         "text": "So sánh các phương pháp khác nhau để chuyển ý tưởng nói thành các tác vụ có tổ chức"
       }
     },
-    "calendar_week_from_supplied_events": {
-      "title": {
-        "text": "Tuần lịch từ các sự kiện đã cung cấp"
-      },
-      "summary": {
-        "text": "Tóm tắt một tuần giả định gồm các sự kiện lịch được cung cấp trong cuộc hội thoại, mà không cần quyền truy cập vào tài khoản đã kết nối."
-      },
-      "message_1": {
-        "text": "@mate:general_knowledge vui lòng tóm tắt tuần lịch từ ngày 12–18 tháng 10 (giờ Berlin) của tôi từ các sự kiện tôi đã sao chép ở đây: Thứ Hai 09:00–09:30 họp nhóm; Thứ Ba 14:00–15:00 nha sĩ; Thứ Tư 10:00–11:00 đánh giá dự án và 18:30–19:30 yoga; Thứ Sáu 16:00–17:00 lấy đồ tạp hóa; Thứ Bảy 11:00–13:00 ca làm vườn cộng đồng. Ngày nào có nhiều lịch hẹn nhất và những ngày nào rảnh?"
-      },
-      "message_2": {
-        "text": "Dưới đây là tóm tắt lịch trình của bạn cho tuần từ ngày 12–18 tháng 10 năm 2026 (giờ Europe/Berlin):\n\n### Tổng quan lịch trình\n* **Thứ Hai, ngày 12 tháng 10:** 09:00–09:30 – Họp nhóm (30 phút)\n* **Thứ Ba, ngày 13 tháng 10:** 14:00–15:00 – Nha sĩ (1 giờ)\n* **Thứ Tư, ngày 14 tháng 10:**\n  * 10:00–11:00 – Đánh giá dự án (1 giờ)\n  * 18:30–19:30 – Yoga (1 giờ)\n* **Thứ Năm, ngày 15 tháng 10:** *Không có sự kiện nào được lên lịch*\n* **Thứ Sáu, ngày 16 tháng 10:** 16:00–17:00 – Lấy đồ tạp hóa (1 giờ)\n* **Thứ Bảy, ngày 17 tháng 10:** 11:00–13:00 – Ca làm vườn cộng đồng (2 giờ)\n* **Chủ Nhật, ngày 18 tháng 10:** *Không có sự kiện nào được lên lịch*\n\n---\n\n### Thông tin chính\n* **Ngày có nhiều lịch hẹn nhất:** **Thứ Tư, ngày 14 tháng 10** (2 sự kiện riêng biệt với tổng cộng 2 giờ). *Lưu ý: Thứ Bảy có khoảng thời gian bận liên tục dài nhất (2 giờ), nhưng Thứ Tư có số lượng sự kiện cao nhất.*\n* **Các ngày hoàn toàn rảnh:** **Thứ Năm, ngày 15 tháng 10** và **Chủ Nhật, ngày 18 tháng 10**.\n\n---\n\n### Hành động tiếp theo gợi ý\n1. [Thêm thời gian chuẩn bị cho Thứ Năm](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)\n2. [Lên kế hoạch nhắc nhở cho các cuộc hẹn](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)"
-      },
-      "follow_up_1": {
-        "text": "Tìm kiếm các công thức nấu ăn lành mạnh cho Thứ Năm"
-      },
-      "follow_up_2": {
-        "text": "Giải thích cách sắp xếp lịch trình hàng tuần bận rộn một cách hiệu quả"
-      },
-      "follow_up_3": {
-        "text": "Đặt lời nhắc cho cuộc hẹn nha sĩ của tôi vào Thứ Ba"
-      },
-      "follow_up_4": {
-        "text": "Liệt kê các mẹo để cân bằng giữa công việc và các cuộc hẹn cá nhân"
-      },
-      "follow_up_5": {
-        "text": "Tạo một nhiệm vụ để chuẩn bị cho buổi đánh giá dự án vào Thứ Tư"
-      },
-      "follow_up_6": {
-        "text": "So sánh các kỹ thuật quản lý thời gian khác nhau dành cho chuyên gia"
-      }
-    },
     "community_garden_volunteer_chime": {
       "title": {
         "text": "Tiếng chuông ấm áp cho vườn cộng đồng"
@@ -10747,6 +10715,38 @@
       },
       "follow_up_6": {
         "text": "Mô tả cách tích hợp hiệu ứng âm thanh tùy chỉnh vào ứng dụng di động"
+      }
+    },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Sơ đồ luồng thanh toán cửa hàng trực tuyến"
+      },
+      "summary": {
+        "text": "Một sơ đồ luồng thanh toán có thể chỉnh sửa với tính năng thử lại thanh toán và xác nhận đơn hàng."
+      },
+      "message_1": {
+        "text": "Tạo một sơ đồ luồng có thể chỉnh sửa cho một cửa hàng trực tuyến nhỏ: giỏ hàng, chi tiết thanh toán, thanh toán và xác nhận đơn hàng. Nếu thanh toán bị từ chối, hãy hiển thị khách hàng đang thử lại. Giữ tất cả thông tin trong sơ đồ và không liên kết đến các trang web bên ngoài."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Phân tích Luồng & Cân nhắc UX\n\n1. **Tiến trình Tuần tự**: Khách hàng tiến triển tuyến tính qua **Giỏ hàng**, **Chi tiết Thanh toán** (giao hàng/hóa đơn) và **Xử lý Thanh toán**.\n2. **Từ chối & Khôi phục Lỗi**:\n   - Thay vì để khách hàng quay lại một phiên trống, việc thanh toán bị từ chối sẽ dẫn đến bước quyết định **Thay đổi Phương thức**.\n   - Đường dẫn trực giao nét đứt dẫn trực tiếp quay lại **Chi tiết Thanh toán**, cho phép khách hàng đổi phương thức thanh toán, sửa lỗi nhập liệu thẻ hoặc chọn ví điện tử khác mà không làm mất các mặt hàng trong giỏ.\n   - Nếu họ chọn không thử lại, phiên sẽ kết thúc gọn gàng ở trạng thái cuối là **Đã lưu Giỏ hàng**, tạo cơ hội cho các email theo dõi giỏ hàng bị bỏ quên.\n3. **Cấu trúc có thể Chỉnh sửa**: Mọi bước và đường dẫn đều chứa các liên kết `data-om-*` tiêu chuẩn để bạn có thể tùy chỉnh nhãn, thêm bước mã giảm giá hoặc tích hợp trực tiếp các nhánh thanh toán cho khách.\n\n---\n\n**Các bước tiếp theo & Lặp lại:**\n- Bạn có muốn thêm nhánh **Thanh toán cho khách so với Tài khoản đã đăng nhập** trước phần chi tiết giao hàng không?\n- Nếu bạn đang thiết kế giao diện người dùng hoặc minh họa tùy chỉnh cho luồng này, chúng ta có thể khám phá việc tích hợp khung dây (wireframe) hoặc các biểu tượng vẽ tay tùy chỉnh để bổ sung cho các bước."
+      },
+      "follow_up_1": {
+        "text": "Tìm kiếm biểu tượng SVG miễn phí cho các nút thanh toán"
+      },
+      "follow_up_2": {
+        "text": "Giải thích cách thêm nhánh thanh toán cho khách (guest checkout) trước phần thông tin giao hàng"
+      },
+      "follow_up_3": {
+        "text": "Tìm kiếm các phương pháp hay nhất và xu hướng UX cho quy trình thanh toán cửa hàng trực tuyến"
+      },
+      "follow_up_4": {
+        "text": "Mô tả cách xử lý email khôi phục giỏ hàng bị bỏ quên một cách hiệu quả"
+      },
+      "follow_up_5": {
+        "text": "Tìm các hội thảo và webinar về thiết kế thương mại điện tử sắp tới"
+      },
+      "follow_up_6": {
+        "text": "Liệt kê các lỗi UX thường gặp trong quy trình thanh toán trực tuyến"
       }
     }
   },

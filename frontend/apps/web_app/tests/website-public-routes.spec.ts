@@ -118,9 +118,7 @@ test('standalone hero uses built app defaults and selects icons without app star
   const icons = rail.getByTestId('landing-rail-group').nth(1).locator('.rail-icon');
   expect(await icons.evaluateAll(nodes => nodes.map(node => node.getAttribute('data-app-id')))).toEqual(publicApps.map(app => app.id));
   expect(publicApps.some(app => app.id === 'plants')).toBe(false);
-  // Unpublished entries must stay out until they have a reviewed real example.
-  expect(publicApps.some(app => app.id === 'diagrams')).toBe(false);
-  await expect(rail.locator('[data-app-id="diagrams"]')).toHaveCount(0);
+  expect(publicApps.every(app => Boolean(app.exampleChatId))).toBe(true);
   const travel = publicApps.find(app => app.id === 'travel')!;
   await rail.locator('.rail-group:nth-child(2) [data-app-id="travel"]').click();
   const prompt = page.getByTestId('landing-prompt');
@@ -131,6 +129,12 @@ test('standalone hero uses built app defaults and selects icons without app star
   await expect(rail).toHaveAttribute('data-active-app', 'travel');
   expect(metadataRequests).toEqual([]);
   noPrivateStartup();
+});
+
+// contract-test: direct surface=gui.web assertions=marketing-landing.app-metadata-defaults
+test('the supplied-events Calendar example is removed from the web app', async ({ request }) => {
+  const response = await request.get('/example/calendar-week-from-supplied-events');
+  expect(response.status()).toBe(404);
 });
 
 // contract-test: direct surface=gui.web assertions=marketing-landing.independent-scroll,marketing-landing.destinations,marketing-landing.public-content
@@ -278,9 +282,12 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     }
 
     await expect(page.getByTestId('landing-feature-model-choice')).toHaveCount(1);
-    const heroImages = page.getByTestId('landing-hero-media').locator('img.device-screen:visible, img.device-shell:visible');
-    await expect(heroImages).toHaveCount(width < 760 ? 2 : 4);
-    await expect.poll(() => heroImages.evaluateAll((images) => images.every((image) => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0))).toBe(true);
+    const heroMedia = page.getByTestId('landing-hero-media');
+    await expect(heroMedia.locator('.device-frame, img.device-screen, img.device-shell')).toHaveCount(0);
+    const aiVisual = page.getByTestId('landing-hero-ai-icon');
+    await expect(aiVisual).toHaveAttribute('aria-hidden', 'true');
+    await expect(aiVisual).toHaveCSS('animation-name', 'none');
+    expect(await aiVisual.locator('.hero-ai-glyph').evaluate(element => getComputedStyle(element).maskImage)).toContain('/icons/ai.svg');
     const before = await composer.boundingBox();
     expect(before).not.toBeNull();
     expect(Math.abs((await root.boundingBox())!.height - height)).toBeLessThan(2);

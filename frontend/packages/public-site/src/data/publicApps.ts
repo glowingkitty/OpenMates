@@ -4,7 +4,7 @@ export interface PublicApp {
   id: string;
   iconUrl: string;
   gradient: string;
-  capability: { type: 'skill' | 'focus' | 'artifact' | 'app'; id: string };
+  capability: { type: 'skill' | 'focus' | 'artifact'; id: string };
   exampleChatId: string;
   promptEn: string;
   promptDe: string;

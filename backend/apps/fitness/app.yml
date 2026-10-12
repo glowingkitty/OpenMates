@@ -1,12 +1,5 @@
 landing:
-  order: 6
-  capability:
-    type: skill
-    id: search_classes
-  caption:
-    en: Find fitness classes
-    de: Finde Fitnesskurse
-  example_chat_id: example-beginner-yoga-classes-berlin
+  enabled: false
 
 name_translation_key: fitness
 description_translation_key: fitness.description

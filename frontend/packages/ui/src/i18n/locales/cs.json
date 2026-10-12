@@ -10685,38 +10685,6 @@
         "text": "Porovnat různé metody převodu mluvených nápadů na uspořádané úkoly"
       }
     },
-    "calendar_week_from_supplied_events": {
-      "title": {
-        "text": "Kalendářní týden ze zadaných událostí"
-      },
-      "summary": {
-        "text": "Shrnutí fiktivního týdne kalendářních událostí zadaných v konverzaci, bez přístupu k propojenému účtu."
-      },
-      "message_1": {
-        "text": "@mate:general_knowledge prosím shrň můj kalendářní týden od 12. do 18. října (berlínského času) z těchto událostí, které jsem sem zkopíroval: Po 09:00–09:30 team check-in; Út 14:00–15:00 zubař; St 10:00–11:00 projektová revize a 18:30–19:30 jóga; Pá 16:00–17:00 vyzvednutí nákupu; So 11:00–13:00 směna v komunitní zahradě. Který den má nejvíce povinností a které dny jsou volné?"
-      },
-      "message_2": {
-        "text": "Zde je shrnutí tvého rozvrhu na týden od 12. do 18. října 2026 (časové pásmo Evropa/Berlín):\n\n### Přehled rozvrhu\n* **Pondělí 12. října:** 09:00–09:30 – Team check-in (30 min)\n* **Úterý 13. října:** 14:00–15:00 – Zubař (1 hod)\n* **Středa 14. října:**\n  * 10:00–11:00 – Projektová revize (1 hod)\n  * 18:30–19:30 – Jóga (1 hod)\n* **Čtvrtek 15. října:** *Žádné naplánované události*\n* **Pátek 16. října:** 16:00–17:00 – Vyzvednutí nákupu (1 hod)\n* **Sobota 17. října:** 11:00–13:00 – Směna v komunitní zahradě (2 hod)\n* **Neděle 18. října:** *Žádné naplánované události*\n\n---\n\n### Hlavní poznatky\n* **Den s nejvíce povinnostmi:** **Středa 14. října** (2 samostatné události v celkové délce 2 hodin). *Poznámka: Sobota má nejdelší souvislý blok času (2 hodiny), ale středa má nejvyšší počet událostí.*\n* **Zcela volné dny:** **Čtvrtek 15. října** a **Neděle 18. října**.\n\n---\n\n### Navrhované další kroky\n1. [Přidat čas na přípravu ve čtvrtek](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)\n2. [Naplánovat připomenutí schůzek](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)"
-      },
-      "follow_up_1": {
-        "text": "Vyhledat zdravé recepty na vaření na čtvrtek"
-      },
-      "follow_up_2": {
-        "text": "Vysvětlit, jak efektivně organizovat nabitý týdenní rozvrh"
-      },
-      "follow_up_3": {
-        "text": "Nastavit připomenutí na návštěvu zubaře v úterý"
-      },
-      "follow_up_4": {
-        "text": "Vypsat tipy pro vyvážení pracovních a osobních schůzek"
-      },
-      "follow_up_5": {
-        "text": "Vytvořit úkol pro přípravu na středeční projektovou revizi"
-      },
-      "follow_up_6": {
-        "text": "Porovnat různé techniky time managementu pro profesionály"
-      }
-    },
     "community_garden_volunteer_chime": {
       "title": {
         "text": "Hřejivá znělka pro komunitní zahradu"
@@ -10747,6 +10715,38 @@
       },
       "follow_up_6": {
         "text": "Popiš, jak integrovat vlastní zvukové efekty do mobilních aplikací"
+      }
+    },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Diagram procesu pokladny e-shopu"
+      },
+      "summary": {
+        "text": "Upravitelný vývojový diagram pokladny s opakováním platby a potvrzením objednávky."
+      },
+      "message_1": {
+        "text": "Vytvoř upravitelný vývojový diagram pro malý e-shop: košík, údaje v pokladně, platba a potvrzení objednávky. Pokud je platba zamítnuta, ukaž, jak zákazník pokus opakuje. Všechny informace ponech v diagramu a neodkazuj na externí webové stránky."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Rozbor toku a UX aspekty\n\n1. **Sekvenční postup**: Zákazník postupuje lineárně přes **Košík**, **Údaje v pokladně** (doprava/fakturace) a **Zpracování platby**.\n2. **Zamítnutí a náprava chyb**:\n   - Místo toho, aby byl zákazník vrácen do prázdné relace, zamítnutí vede k rozhodovacímu kroku **Změnit metodu**.\n   - Přerušovaná kolmá cesta vede přímo zpět do **Údajů v pokladně**, což zákazníkovi umožňuje změnit platební metodu, opravit překlepy v údajích o kartě nebo vybrat jinou digitální peněženku, aniž by přišel o položky v košíku.\n   - Pokud se rozhodnou pokus neopakovat, relace čistě končí v koncovém stavu **Košík uložen**, což otevírá dveře pro následné e-maily o opuštěném košíku.\n3. **Upravitelná struktura**: Každý krok a cesta obsahuje standardní vazby `data-om-*`, takže si můžeš přizpůsobit popisky, přidat krok se slevovým kupónem nebo přímo integrovat větve pro nákup bez registrace.\n\n---\n\n**Další kroky a iterace:**\n- Chceš před dodací údaje vložit větev **Nákup bez registrace vs. Přihlášený účet**?\n- Pokud pro tento tok navrhuješ uživatelská rozhraní nebo vlastní ilustrace, můžeme prozkoumat integraci drátěných modelů (wireframes) nebo vlastních ručně kreslených ikon pro doplnění jednotlivých kroků."
+      },
+      "follow_up_1": {
+        "text": "Vyhledej bezplatné ikony SVG pro tlačítka pokladny"
+      },
+      "follow_up_2": {
+        "text": "Vysvětli, jak přidat větev pro nákup bez registrace před dodací údaje"
+      },
+      "follow_up_3": {
+        "text": "Vyhledej osvědčené postupy a UX trendy pro pokladny e-shopů"
+      },
+      "follow_up_4": {
+        "text": "Popiš, jak efektivně řešit e-maily pro obnovu opuštěného košíku"
+      },
+      "follow_up_5": {
+        "text": "Najdi nadcházející workshopy a webináře o designu e-commerce"
+      },
+      "follow_up_6": {
+        "text": "Vyjmenuj běžné UX chyby v procesech online plateb v pokladně"
       }
     }
   },

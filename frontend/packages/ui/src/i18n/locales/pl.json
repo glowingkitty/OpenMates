@@ -10685,38 +10685,6 @@
         "text": "Porównaj różne metody zamiany wypowiedzianych pomysłów w uporządkowane zadania"
       }
     },
-    "calendar_week_from_supplied_events": {
-      "title": {
-        "text": "Tydzień kalendarzowy na podstawie podanych wydarzeń"
-      },
-      "summary": {
-        "text": "Podsumuj fikcyjny tydzień wydarzeń z kalendarza podanych w rozmowie, bez dostępu do połączonego konta."
-      },
-      "message_1": {
-        "text": "@mate:general_knowledge proszę, podsumuj mój tydzień w kalendarzu od 12 do 18 października (czas berliński) na podstawie tych wydarzeń, które tutaj wkleiłem: pon. 09:00–09:30 spotkanie zespołu; wt. 14:00–15:00 dentysta; śr. 10:00–11:00 przegląd projektu i 18:30–19:30 joga; pt. 16:00–17:00 odbiór zakupów; sob. 11:00–13:00 dyżur w ogrodzie społecznościowym. Który dzień ma najwięcej zobowiązań, a które dni są wolne?"
-      },
-      "message_2": {
-        "text": "Oto podsumowanie Twojego harmonogramu na tydzień od 12 do 18 października 2026 r. (czas Europa/Berlin):\n\n### Przegląd harmonogramu\n* **Poniedziałek, 12 paź:** 09:00–09:30 – Spotkanie zespołu (30 min)\n* **Wtorek, 13 paź:** 14:00–15:00 – Dentysta (1 godz.)\n* **Środa, 14 paź:**\n  * 10:00–11:00 – Przegląd projektu (1 godz.)\n  * 18:30–19:30 – Joga (1 godz.)\n* **Czwartek, 15 paź:** *Brak zaplanowanych wydarzeń*\n* **Piątek, 16 paź:** 16:00–17:00 – Odbiór zakupów (1 godz.)\n* **Sobota, 17 paź:** 11:00–13:00 – Dyżur w ogrodzie społecznościowym (2 godz.)\n* **Niedziela, 18 paź:** *Brak zaplanowanych wydarzeń*\n\n---\n\n### Kluczowe wnioski\n* **Dzień z największą liczbą zobowiązań:** **Środa, 14 października** (2 oddzielne wydarzenia trwające łącznie 2 godziny). *Uwaga: Sobota ma najdłuższy pojedynczy blok czasu (2 godziny), ale środa ma największą liczbę wydarzeń.*\n* **Dni całkowicie wolne:** **Czwartek, 15 października** i **Niedziela, 18 października**.\n\n---\n\n### Sugerowane dalsze działania\n1. [Dodaj czas na przygotowania w czwartek](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)\n2. [Zaplanuj przypomnienia o wizytach](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)"
-      },
-      "follow_up_1": {
-        "text": "Znajdź zdrowe przepisy do ugotowania w czwartek"
-      },
-      "follow_up_2": {
-        "text": "Wyjaśnij, jak skutecznie zorganizować napięty tygodniowy grafik"
-      },
-      "follow_up_3": {
-        "text": "Ustaw przypomnienie o mojej wizycie u dentysty we wtorek"
-      },
-      "follow_up_4": {
-        "text": "Wymień wskazówki dotyczące zachowania równowagi między pracą a spotkaniami prywatnymi"
-      },
-      "follow_up_5": {
-        "text": "Utwórz zadanie dotyczące przygotowania do środowego przeglądu projektu"
-      },
-      "follow_up_6": {
-        "text": "Porównaj różne techniki zarządzania czasem dla profesjonalistów"
-      }
-    },
     "community_garden_volunteer_chime": {
       "title": {
         "text": "Ciepły sygnał dla ogrodu społecznościowego"
@@ -10747,6 +10715,38 @@
       },
       "follow_up_6": {
         "text": "Opisz, jak zintegrować niestandardowe efekty dźwiękowe z aplikacjami mobilnymi"
+      }
+    },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Schemat procesu zakupowego w sklepie internetowym"
+      },
+      "summary": {
+        "text": "Edytowalny schemat procesu zakupowego z ponowną próbą płatności i potwierdzeniem zamówienia."
+      },
+      "message_1": {
+        "text": "Stwórz edytowalny schemat blokowy dla małego sklepu internetowego: koszyk, dane do zamówienia, płatność i potwierdzenie zamówienia. Jeśli płatność zostanie odrzucona, pokaż ponowną próbę klienta. Zachowaj wszystkie informacje wewnątrz diagramu i nie linkuj do zewnętrznych stron internetowych."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Analiza przepływu i kwestie UX\n\n1. **Postęp sekwencyjny**: Klient przechodzi liniowo przez **Koszyk**, **Dane do zamówienia** (wysyłka/fakturowanie) i **Przetwarzanie płatności**.\n2. **Odrzucenie i przywracanie po błędzie**:\n   - Zamiast cofać klienta do pustej sesji, odrzucenie kieruje do kroku decyzyjnego **Zmień metodę**.\n   - Przerywana ścieżka prostopadła prowadzi bezpośrednio z powrotem do **Danych do zamówienia**, umożliwiając klientowi zmianę metody płatności, poprawienie literówek w danych karty lub wybranie innego portfela cyfrowego bez utraty produktów w koszyku.\n   - Jeśli klient zdecyduje się nie ponawiać próby, sesja kończy się stanem końcowym **Koszyk zapisany**, co otwiera drogę do e-maili przypominających o porzuconym koszyku.\n3. **Edytowalna struktura**: Każdy krok i ścieżka zawiera standardowe powiązania `data-om-*`, dzięki czemu możesz dostosować etykiety, dodać krok z kuponem rabatowym lub bezpośrednio zintegrować ścieżki dla gości.\n\n---\n\n**Następne kroki i iteracje:**\n- Czy chcesz wprowadzić rozgałęzienie **Zakupy jako gość vs. Zalogowane konto** przed danymi do wysyłki?\n- Jeśli projektujesz interfejsy użytkownika lub niestandardowe ilustracje dla tego przepływu, możemy zbadać możliwość zintegrowania makiet lub ręcznie rysowanych ikon, aby uzupełnić poszczególne kroki."
+      },
+      "follow_up_1": {
+        "text": "Wyszukaj darmowe ikony SVG dla przycisków płatności"
+      },
+      "follow_up_2": {
+        "text": "Wyjaśnij, jak dodać ścieżkę zakupów bez rejestracji przed danymi do wysyłki"
+      },
+      "follow_up_3": {
+        "text": "Wyszukaj najlepsze praktyki i trendy UX dla procesów zakupowych w sklepach internetowych"
+      },
+      "follow_up_4": {
+        "text": "Opisz, jak skutecznie obsługiwać e-maile odzyskujące porzucone koszyki"
+      },
+      "follow_up_5": {
+        "text": "Znajdź nadchodzące warsztaty i webinary dotyczące projektowania e-commerce"
+      },
+      "follow_up_6": {
+        "text": "Wymień typowe pułapki UX w procesach płatności online"
       }
     }
   },

@@ -21,11 +21,7 @@ test('landing defaults require a real enabled tagged capability and localized ca
   assert.throws(() => validateLandingMetadata('events', { ...landing, capability: { type: 'artifact', id: 'search' } }, skills, focuses, artifacts), /Unavailable landing capability/);
   assert.throws(() => validateLandingMetadata('events', { ...landing, caption: { en: 'Find events' } }, skills, focuses, artifacts), /de landing caption/);
   assert.throws(() => validateLandingMetadata('events', { ...landing, example_chat_id: '' }, skills, focuses, artifacts), /landing example/);
-  assert.throws(() => validateLandingMetadata('events', { ...landing, capability: { type: 'app', id: 'events' } }, skills, focuses, artifacts), /reviewed app-level landing source evidence/);
-  assert.doesNotThrow(() => validateLandingMetadata('events', {
-    ...landing, capability: { type: 'app', id: 'events' },
-    source_evidence: { request_excerpt: 'Find local music events this weekend', rationale: 'The request demonstrates event discovery through ordinary app guidance.' }
-  }, skills, focuses, artifacts));
+  assert.throws(() => validateLandingMetadata('events', { ...landing, capability: { type: 'app', id: 'events' } }, skills, focuses, artifacts), /Invalid landing capability/);
 });
 
 // contract-test: supporting surface=gui.web assertions=marketing-landing.app-metadata-defaults

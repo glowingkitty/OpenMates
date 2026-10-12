@@ -111,7 +111,6 @@ import { beginnerYogaClassesBerlinChat } from "./data/example_chats/beginner-yog
 import { urbanHeatIslandAtNightChat } from "./data/example_chats/urban-heat-island-at-night";
 import { communityGardenVolunteerOnboardingChat } from "./data/example_chats/community-garden-volunteer-onboarding";
 import { booksAfterLeftHandOfDarknessChat } from "./data/example_chats/books-after-left-hand-of-darkness";
-import { communityGardenCalendarInvitationChat } from "./data/example_chats/community-garden-calendar-invitation";
 import { mastodonPublicPostThemesChat } from "./data/example_chats/mastodon-public-post-themes";
 import { adjacentCareerPortfolioExperimentsChat } from "./data/example_chats/adjacent-career-portfolio-experiments";
 import { calmManagerFollowUpChat } from "./data/example_chats/calm-manager-follow-up";
@@ -123,8 +122,8 @@ import { communityGardenWelcomeMelodyChat } from "./data/example_chats/community
 import { berlinEnglishSpeakingGpAppointmentsChat } from "./data/example_chats/berlin-english-speaking-gp-appointments";
 import { communityGardenSunflowerIllustrationChat } from "./data/example_chats/community-garden-sunflower-illustration";
 import { communityGardenBudgetReviewChat } from "./data/example_chats/community-garden-budget-review";
-import { calendarWeekFromSuppliedEventsChat } from "./data/example_chats/calendar-week-from-supplied-events";
 import { communityGardenVolunteerChimeChat } from "./data/example_chats/community-garden-volunteer-chime";
+import { onlineShopCheckoutFlowDiagramChat } from "./data/example_chats/online-shop-checkout-flow-diagram";
 
 export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   giganticAirplanesChat,
@@ -230,7 +229,6 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   urbanHeatIslandAtNightChat,
   communityGardenVolunteerOnboardingChat,
   booksAfterLeftHandOfDarknessChat,
-  communityGardenCalendarInvitationChat,
   mastodonPublicPostThemesChat,
   adjacentCareerPortfolioExperimentsChat,
   calmManagerFollowUpChat,
@@ -242,8 +240,8 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   berlinEnglishSpeakingGpAppointmentsChat,
   communityGardenSunflowerIllustrationChat,
   communityGardenBudgetReviewChat,
-  calendarWeekFromSuppliedEventsChat,
   communityGardenVolunteerChimeChat,
+  onlineShopCheckoutFlowDiagramChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 // Internal deterministic fixtures used by tests and direct hash navigation only.

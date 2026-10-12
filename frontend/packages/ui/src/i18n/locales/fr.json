@@ -10712,38 +10712,6 @@
         "text": "Comparer différentes méthodes pour transformer des idées orales en tâches organisées"
       }
     },
-    "calendar_week_from_supplied_events": {
-      "title": {
-        "text": "Semaine de calendrier à partir d'événements fournis"
-      },
-      "summary": {
-        "text": "Résume une semaine fictive d'événements de calendrier fournis dans la conversation, sans accès à un compte connecté."
-      },
-      "message_1": {
-        "text": "@mate:general_knowledge résume ma semaine de calendrier du 12 au 18 octobre (heure de Berlin) à partir de ces événements que j'ai copiés ici : Lun 09:00–09:30 point d'équipe ; Mar 14:00–15:00 dentiste ; Mer 10:00–11:00 revue de projet et 18:30–19:30 yoga ; Ven 16:00–17:00 retrait des courses ; Sam 11:00–13:00 créneau au jardin communautaire. Quel jour est le plus chargé et quels jours sont libres ?"
-      },
-      "message_2": {
-        "text": "Voici le résumé de ton emploi du temps pour la semaine du 12 au 18 octobre 2026 (heure Europe/Berlin) :\n\n### Aperçu du planning\n* **Lundi 12 oct. :** 09:00–09:30 – Point d'équipe (30 min)\n* **Mardi 13 oct. :** 14:00–15:00 – Dentiste (1 h)\n* **Mercredi 14 oct. :**\n  * 10:00–11:00 – Revue de projet (1 h)\n  * 18:30–19:30 – Yoga (1 h)\n* **Jeudi 15 oct. :** *Aucun événement prévu*\n* **Vendredi 16 oct. :** 16:00–17:00 – Retrait des courses (1 h)\n* **Samedi 17 oct. :** 11:00–13:00 – Créneau au jardin communautaire (2 h)\n* **Dimanche 18 oct. :** *Aucun événement prévu*\n\n---\n\n### Points clés\n* **Jour le plus chargé :** **Mercredi 14 octobre** (2 événements distincts totalisant 2 heures). *Note : Le samedi a le bloc de temps réservé le plus long (2 heures), mais le mercredi a le plus grand nombre d'événements.*\n* **Jours entièrement libres :** **Jeudi 15 octobre** et **Dimanche 18 octobre**.\n\n---\n\n### Actions suggérées\n1. [Ajouter du temps de préparation jeudi](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)\n2. [Planifier des rappels pour les rendez-vous](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)"
-      },
-      "follow_up_1": {
-        "text": "Chercher des recettes saines à cuisiner jeudi"
-      },
-      "follow_up_2": {
-        "text": "Expliquer comment organiser efficacement un emploi du temps hebdomadaire chargé"
-      },
-      "follow_up_3": {
-        "text": "Définir un rappel pour mon rendez-vous chez le dentiste mardi"
-      },
-      "follow_up_4": {
-        "text": "Lister des conseils pour équilibrer travail et rendez-vous personnels"
-      },
-      "follow_up_5": {
-        "text": "Créer une tâche pour la préparation de la revue de projet de mercredi"
-      },
-      "follow_up_6": {
-        "text": "Comparer différentes techniques de gestion du temps pour les professionnels"
-      }
-    },
     "community_garden_volunteer_chime": {
       "title": {
         "text": "Un carillon chaleureux pour un jardin communautaire"
@@ -10774,6 +10742,38 @@
       },
       "follow_up_6": {
         "text": "Décrire comment intégrer des effets sonores personnalisés dans des applications mobiles"
+      }
+    },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Diagramme du flux de paiement d'une boutique en ligne"
+      },
+      "summary": {
+        "text": "Un diagramme de flux de paiement modifiable avec relance de paiement et confirmation de commande."
+      },
+      "message_1": {
+        "text": "Crée un diagramme de flux modifiable pour une petite boutique en ligne : panier, détails du paiement, paiement et confirmation de commande. Si le paiement est refusé, montre le client qui réessaie. Conserve toutes les informations dans le diagramme et ne mets pas de liens vers des sites web externes."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Analyse du flux et considérations UX\n\n1. **Progression séquentielle** : Le client progresse de manière linéaire à travers le **Panier**, les **Détails de la commande** (livraison/facturation) et le **Traitement du paiement**.\n2. **Refus et récupération d'erreur** :\n   - Plutôt que de renvoyer le client vers une session vide, un refus mène à une étape de décision **Changer de méthode**.\n   - Le chemin orthogonal en pointillés renvoie directement aux **Détails de la commande**, permettant au client de changer de mode de paiement, de corriger des fautes de frappe dans les données de la carte ou de choisir un autre portefeuille numérique sans perdre les articles de son panier.\n   - S'il choisit de ne pas réessayer, la session se termine proprement par un état final **Panier enregistré**, laissant la porte ouverte aux e-mails de suivi pour panier abandonné.\n3. **Structure modifiable** : Chaque étape et chaque chemin contient des liaisons `data-om-*` standard afin que tu puisses personnaliser les étiquettes, ajouter une étape de coupon de réduction ou intégrer directement des branches de paiement pour les invités.\n\n---\n\n**Prochaines étapes et itérations :**\n- Souhaites-tu introduire une branche **Paiement invité vs Compte connecté** avant les détails de livraison ?\n- Si tu conçois des interfaces utilisateur ou des illustrations personnalisées pour ce flux, nous pourrions explorer l'intégration de maquettes filaires ou de badges d'icônes personnalisés dessinés à la main pour compléter les étapes."
+      },
+      "follow_up_1": {
+        "text": "Rechercher des icônes SVG gratuites pour les boutons de paiement"
+      },
+      "follow_up_2": {
+        "text": "Expliquer comment ajouter une branche de paiement invité avant les détails de livraison"
+      },
+      "follow_up_3": {
+        "text": "Rechercher les meilleures pratiques et tendances UX pour le paiement en ligne"
+      },
+      "follow_up_4": {
+        "text": "Décrire comment gérer efficacement les e-mails de récupération de panier abandonné"
+      },
+      "follow_up_5": {
+        "text": "Trouver des ateliers et webinaires à venir sur le design e-commerce"
+      },
+      "follow_up_6": {
+        "text": "Lister les pièges UX courants dans les flux de paiement en ligne"
       }
     }
   },

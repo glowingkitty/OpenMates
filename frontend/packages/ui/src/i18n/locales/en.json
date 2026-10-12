@@ -11980,38 +11980,6 @@
         "text": "Compare different methods for turning spoken ideas into organized tasks"
       }
     },
-    "calendar_week_from_supplied_events": {
-      "title": {
-        "text": "Calendar week from supplied events"
-      },
-      "summary": {
-        "text": "Summarize a fictional week of calendar events supplied in the conversation, without connected-account access."
-      },
-      "message_1": {
-        "text": "@mate:general_knowledge please summarize my calendar week of October 12–18 (Berlin time) from these events I've copied here: Mon 09:00–09:30 team check-in; Tue 14:00–15:00 dentist; Wed 10:00–11:00 project review and 18:30–19:30 yoga; Fri 16:00–17:00 grocery pickup; Sat 11:00–13:00 community garden shift. Which day has the most commitments, and which days are free?"
-      },
-      "message_2": {
-        "text": "Here is the summary of your schedule for the week of October 12–18, 2026 (Europe/Berlin time):\n\n### Schedule Overview\n* **Monday, Oct 12:** 09:00–09:30 – Team check-in (30 min)\n* **Tuesday, Oct 13:** 14:00–15:00 – Dentist (1 hr)\n* **Wednesday, Oct 14:**\n  * 10:00–11:00 – Project review (1 hr)\n  * 18:30–19:30 – Yoga (1 hr)\n* **Thursday, Oct 15:** *No scheduled events*\n* **Friday, Oct 16:** 16:00–17:00 – Grocery pickup (1 hr)\n* **Saturday, Oct 17:** 11:00–13:00 – Community garden shift (2 hrs)\n* **Sunday, Oct 18:** *No scheduled events*\n\n---\n\n### Key Takeaways\n* **Day with the most commitments:** **Wednesday, October 14** (2 distinct events totaling 2 hours). *Note: Saturday has the longest single block of committed time (2 hours), but Wednesday has the highest event count.*\n* **Completely free days:** **Thursday, October 15** and **Sunday, October 18**.\n\n---\n\n### Suggested Next Actions\n1. [Add Thursday prep time](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)\n2. [Plan reminders for appointments](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)"
-      },
-      "follow_up_1": {
-        "text": "Search for healthy recipes to cook on Thursday"
-      },
-      "follow_up_2": {
-        "text": "Explain how to organize a busy weekly schedule effectively"
-      },
-      "follow_up_3": {
-        "text": "Set a reminder for my dentist appointment on Tuesday"
-      },
-      "follow_up_4": {
-        "text": "List tips for balancing work and personal appointments"
-      },
-      "follow_up_5": {
-        "text": "Create a task for the Wednesday project review preparation"
-      },
-      "follow_up_6": {
-        "text": "Compare different time management techniques for professionals"
-      }
-    },
     "community_garden_volunteer_chime": {
       "title": {
         "text": "A warm chime for a community garden"
@@ -12042,6 +12010,38 @@
       },
       "follow_up_6": {
         "text": "Describe how to integrate custom sound effects into mobile applications"
+      }
+    },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Online Shop Checkout Flow Diagram"
+      },
+      "summary": {
+        "text": "An editable checkout flowchart with payment retry and order confirmation."
+      },
+      "message_1": {
+        "text": "Create an editable flowchart for a small online shop: cart, checkout details, payment, and order confirmation. If payment is declined, show the customer retrying. Keep all information within the diagram and do not link to external websites."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Flow Breakdown & UX Considerations\n\n1. **Sequential Progression**: The customer progresses linearly through **Cart**, **Checkout Details** (shipping/billing), and **Payment Processing**.\n2. **Decline & Error Recovery**:\n   - Rather than dropping the customer back to an empty session, a decline routes to a **Change Method** decision step.\n   - The dashed orthogonal path routes directly back to **Checkout Details**, allowing the customer to switch payment methods, correct typos in card data, or pick an alternative digital wallet without losing their cart items.\n   - If they choose not to retry, the session ends cleanly in a **Cart Saved** terminal state, leaving the door open for follow-up abandoned-cart emails.\n3. **Editable Structure**: Every step and path contains standard `data-om-*` bindings so you can customize labels, add a discount coupon step, or integrate guest checkout branches directly.\n\n---\n\n**Next Steps & Iterations:**\n- Would you like to introduce a **Guest Checkout vs. Logged-in Account** branch before the shipping details?\n- If you're designing user interfaces or custom illustrations for this flow, we could explore integrating wireframes or custom hand-drawn icon badges to complement the steps."
+      },
+      "follow_up_1": {
+        "text": "Search for free SVG icons for checkout buttons"
+      },
+      "follow_up_2": {
+        "text": "Explain how to add a guest checkout branch before shipping details"
+      },
+      "follow_up_3": {
+        "text": "Search online shop checkout best practices and UX trends"
+      },
+      "follow_up_4": {
+        "text": "Describe how to handle abandoned cart recovery emails effectively"
+      },
+      "follow_up_5": {
+        "text": "Find upcoming e-commerce design workshops and webinars"
+      },
+      "follow_up_6": {
+        "text": "List common UX pitfalls in online payment checkout flows"
       }
     }
   },

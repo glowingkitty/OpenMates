@@ -10712,38 +10712,6 @@
         "text": "Confronta diversi metodi per trasformare idee parlate in compiti organizzati"
       }
     },
-    "calendar_week_from_supplied_events": {
-      "title": {
-        "text": "Settimana di calendario dagli eventi forniti"
-      },
-      "summary": {
-        "text": "Riassume una settimana fittizia di eventi di calendario forniti nella conversazione, senza accesso all'account collegato."
-      },
-      "message_1": {
-        "text": "@mate:general_knowledge per favore riassumi la mia settimana di calendario dal 12 al 18 ottobre (ora di Berlino) da questi eventi che ho copiato qui: lun 09:00–09:30 check-in del team; mar 14:00–15:00 dentista; mer 10:00–11:00 revisione del progetto e 18:30–19:30 yoga; ven 16:00–17:00 ritiro spesa; sab 11:00–13:00 turno orto comunitario. Quale giorno ha più impegni e quali giorni sono liberi?"
-      },
-      "message_2": {
-        "text": "Ecco il riassunto del tuo programma per la settimana dal 12 al 18 ottobre 2026 (ora Europa/Berlino):\n\n### Panoramica del programma\n* **Lunedì 12 ott:** 09:00–09:30 – Check-in del team (30 min)\n* **Martedì 13 ott:** 14:00–15:00 – Dentista (1 ora)\n* **Mercoledì 14 ott:**\n  * 10:00–11:00 – Revisione del progetto (1 ora)\n  * 18:30–19:30 – Yoga (1 ora)\n* **Giovedì 15 ott:** *Nessun evento in programma*\n* **Venerdì 16 ott:** 16:00–17:00 – Ritiro spesa (1 ora)\n* **Sabato 17 ott:** 11:00–13:00 – Turno orto comunitario (2 ore)\n* **Domenica 18 ott:** *Nessun evento in programma*\n\n---\n\n### Punti chiave\n* **Giorno con più impegni:** **Mercoledì 14 ottobre** (2 eventi distinti per un totale di 2 ore). *Nota: sabato ha il blocco singolo di tempo impegnato più lungo (2 ore), ma mercoledì ha il maggior numero di eventi.*\n* **Giorni completamente liberi:** **Giovedì 15 ottobre** e **Domenica 18 ottobre**.\n\n---\n\n### Prossime azioni suggerite\n1. [Aggiungi tempo di preparazione giovedì](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)\n2. [Pianifica promemoria per gli appuntamenti](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)"
-      },
-      "follow_up_1": {
-        "text": "Cerca ricette sane da cucinare giovedì"
-      },
-      "follow_up_2": {
-        "text": "Spiega come organizzare efficacemente una settimana piena di impegni"
-      },
-      "follow_up_3": {
-        "text": "Imposta un promemoria per il mio appuntamento dal dentista martedì"
-      },
-      "follow_up_4": {
-        "text": "Elenca consigli per bilanciare lavoro e appuntamenti personali"
-      },
-      "follow_up_5": {
-        "text": "Crea un'attività per la preparazione della revisione del progetto di mercoledì"
-      },
-      "follow_up_6": {
-        "text": "Confronta diverse tecniche di gestione del tempo per professionisti"
-      }
-    },
     "community_garden_volunteer_chime": {
       "title": {
         "text": "Un rintocco caldo per un orto comunitario"
@@ -10774,6 +10742,38 @@
       },
       "follow_up_6": {
         "text": "Descrivi come integrare effetti sonori personalizzati nelle applicazioni mobili"
+      }
+    },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Diagramma del flusso di checkout di un negozio online"
+      },
+      "summary": {
+        "text": "Un diagramma di flusso di checkout modificabile con riprova del pagamento e conferma dell'ordine."
+      },
+      "message_1": {
+        "text": "Crea un diagramma di flusso modificabile per un piccolo negozio online: carrello, dettagli del checkout, pagamento e conferma dell'ordine. Se il pagamento viene rifiutato, mostra il cliente che riprova. Mantieni tutte le informazioni all'interno del diagramma e non inserire link a siti web esterni."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Analisi del flusso e considerazioni sulla UX\n\n1. **Progressione sequenziale**: Il cliente procede linearmente attraverso **Carrello**, **Dettagli del checkout** (spedizione/fatturazione) e **Elaborazione del pagamento**.\n2. **Rifiuto e recupero degli errori**:\n   - Invece di riportare il cliente a una sessione vuota, un rifiuto indirizza a una fase decisionale di **Cambio metodo**.\n   - Il percorso ortogonale tratteggiato riporta direttamente ai **Dettagli del checkout**, consentendo al cliente di cambiare metodo di pagamento, correggere errori di battitura nei dati della carta o scegliere un portafoglio digitale alternativo senza perdere gli articoli nel carrello.\n   - Se il cliente sceglie di non riprovare, la sessione termina in modo pulito in uno stato finale di **Carrello salvato**, lasciando aperta la possibilità di inviare email di follow-up per il carrello abbandonato.\n3. **Struttura modificabile**: Ogni passaggio e percorso contiene binding `data-om-*` standard, così puoi personalizzare le etichette, aggiungere un passaggio per i coupon sconto o integrare direttamente rami per il checkout come ospite.\n\n---\n\n**Prossimi passi e iterazioni:**\n- Vuoi introdurre una ramificazione **Checkout come ospite vs. Account registrato** prima dei dettagli di spedizione?\n- Se stai progettando interfacce utente o illustrazioni personalizzate per questo flusso, potremmo esplorare l'integrazione di wireframe o icone personalizzate disegnate a mano per completare i passaggi."
+      },
+      "follow_up_1": {
+        "text": "Cerca icone SVG gratuite per i pulsanti di checkout"
+      },
+      "follow_up_2": {
+        "text": "Spiega come aggiungere una ramificazione per il checkout come ospite prima dei dettagli di spedizione"
+      },
+      "follow_up_3": {
+        "text": "Cerca le migliori pratiche e le tendenze UX per il checkout dei negozi online"
+      },
+      "follow_up_4": {
+        "text": "Descrivi come gestire efficacemente le email di recupero del carrello abbandonato"
+      },
+      "follow_up_5": {
+        "text": "Trova workshop e webinar di design per l'e-commerce in programma"
+      },
+      "follow_up_6": {
+        "text": "Elenca i comuni errori UX nei flussi di pagamento online"
       }
     }
   },

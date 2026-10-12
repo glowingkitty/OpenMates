@@ -72,18 +72,6 @@
     "promptDe": "Fasse öffentliche Beiträge zusammen"
   },
   {
-    "id": "fitness",
-    "iconUrl": "/icons/fitness.svg",
-    "gradient": "var(--color-app-fitness)",
-    "capability": {
-      "type": "skill",
-      "id": "search_classes"
-    },
-    "exampleChatId": "example-beginner-yoga-classes-berlin",
-    "promptEn": "Find fitness classes",
-    "promptDe": "Finde Fitnesskurse"
-  },
-  {
     "id": "mail",
     "iconUrl": "/icons/mail.svg",
     "gradient": "var(--color-app-mail)",
@@ -120,18 +108,6 @@
     "promptDe": "Recherchiere gründlich im Web"
   },
   {
-    "id": "maps",
-    "iconUrl": "/icons/maps.svg",
-    "gradient": "var(--color-app-maps)",
-    "capability": {
-      "type": "skill",
-      "id": "search"
-    },
-    "exampleChatId": "example-berlin-mitte-work-friendly",
-    "promptEn": "Find restaurants",
-    "promptDe": "Finde Restaurants"
-  },
-  {
     "id": "weather",
     "iconUrl": "/icons/weather.svg",
     "gradient": "var(--color-app-weather)",
@@ -142,18 +118,6 @@
     "exampleChatId": "example-berlin-weather-bike-commute",
     "promptEn": "Check the weather",
     "promptDe": "Prüfe das Wetter"
-  },
-  {
-    "id": "calendar",
-    "iconUrl": "/icons/calendar.svg",
-    "gradient": "var(--color-app-calendar)",
-    "capability": {
-      "type": "app",
-      "id": "calendar"
-    },
-    "exampleChatId": "example-calendar-week-from-supplied",
-    "promptEn": "Summarize my calendar week",
-    "promptDe": "Fasse meine Kalenderwoche zusammen"
   },
   {
     "id": "shopping",
@@ -276,18 +240,6 @@
     "promptDe": "Empfiehl mir ein Buch"
   },
   {
-    "id": "study",
-    "iconUrl": "/icons/study.svg",
-    "gradient": "var(--color-app-study)",
-    "capability": {
-      "type": "app",
-      "id": "study"
-    },
-    "exampleChatId": "example-bayes-theorem-quick-quiz",
-    "promptEn": "Help me learn this topic",
-    "promptDe": "Hilf mir, dieses Thema zu lernen"
-  },
-  {
     "id": "business",
     "iconUrl": "/icons/business.svg",
     "gradient": "var(--color-app-business)",
@@ -298,18 +250,6 @@
     "exampleChatId": "example-vital-farms-sec-financials",
     "promptEn": "Find company financials",
     "promptDe": "Finde Unternehmenskennzahlen"
-  },
-  {
-    "id": "finance",
-    "iconUrl": "/icons/finance.svg",
-    "gradient": "var(--color-app-finance)",
-    "capability": {
-      "type": "app",
-      "id": "finance"
-    },
-    "exampleChatId": "example-net-cash-from-supplied",
-    "promptEn": "Summarize my finances",
-    "promptDe": "Fasse meine Finanzen zusammen"
   },
   {
     "id": "design",
@@ -372,18 +312,6 @@
     "promptDe": "Erstelle eine kurze Melodie"
   },
   {
-    "id": "life_coaching",
-    "iconUrl": "/icons/lifecoaching.svg",
-    "gradient": "var(--color-app-life_coaching)",
-    "capability": {
-      "type": "app",
-      "id": "life_coaching"
-    },
-    "exampleChatId": "example-calm-manager-follow-up",
-    "promptEn": "Give me advice",
-    "promptDe": "Gib mir einen Rat"
-  },
-  {
     "id": "politics",
     "iconUrl": "/icons/politics.svg",
     "gradient": "var(--color-app-politics)",
@@ -408,15 +336,15 @@
     "promptDe": "Fasse dieses PDF zusammen"
   },
   {
-    "id": "ai",
-    "iconUrl": "/icons/ai.svg",
-    "gradient": "var(--color-app-ai)",
+    "id": "diagrams",
+    "iconUrl": "/icons/diagram.svg",
+    "gradient": "var(--color-app-diagrams)",
     "capability": {
-      "type": "app",
-      "id": "ai"
+      "type": "artifact",
+      "id": "html"
     },
-    "exampleChatId": "example-urban-heat-island-at",
-    "promptEn": "Explain this concept",
-    "promptDe": "Erkläre mir dieses Konzept"
+    "exampleChatId": "example-online-shop-checkout-flow",
+    "promptEn": "Create a diagram",
+    "promptDe": "Erstelle ein Diagramm"
   }
 ]

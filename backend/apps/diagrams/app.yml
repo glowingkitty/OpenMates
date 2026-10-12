@@ -69,10 +69,8 @@ skills: []
 marketing_discovery:
   skills: {}
 
-# The public tour requires an admitted real example. The current HTML diagram
-# candidate failed immutable version validation, so keep this entry unpublished.
 landing:
-  enabled: false
+  enabled: true
   order: 35
   capability:
     type: artifact
@@ -80,3 +78,4 @@ landing:
   caption:
     en: Create a diagram
     de: Erstelle ein Diagramm
+  example_chat_id: example-online-shop-checkout-flow

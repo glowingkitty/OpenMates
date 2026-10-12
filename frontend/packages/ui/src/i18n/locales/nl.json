@@ -10685,38 +10685,6 @@
         "text": "Vergelijk verschillende methoden om gesproken ideeën om te zetten in georganiseerde taken"
       }
     },
-    "calendar_week_from_supplied_events": {
-      "title": {
-        "text": "Kalenderweek op basis van opgegeven afspraken"
-      },
-      "summary": {
-        "text": "Vat een fictieve week samen op basis van afspraken die in het gesprek zijn opgegeven, zonder toegang tot een gekoppeld account."
-      },
-      "message_1": {
-        "text": "@mate:general_knowledge vat mijn kalenderweek van 12 tot en met 18 oktober (Berlijnse tijd) samen op basis van deze afspraken die ik hier heb gekopieerd: ma. 09:00–09:30 teamoverleg; di. 14:00–15:00 tandarts; wo. 10:00–11:00 projectbespreking en 18:30–19:30 yoga; vr. 16:00–17:00 boodschappen ophalen; za. 11:00–13:00 vrijwilligersdienst in de buurttuin. Op welke dag heb ik de meeste afspraken en welke dagen zijn vrij?"
-      },
-      "message_2": {
-        "text": "Hier is een overzicht van je agenda voor de week van 12 tot en met 18 oktober 2026 (Berlijnse tijd):\n\n### Overzicht per dag\n* **Maandag 12 oktober:** 09:00–09:30 – Teamoverleg (30 min)\n* **Dinsdag 13 oktober:** 14:00–15:00 – Tandarts (1 uur)\n* **Woensdag 14 oktober:**\n  * 10:00–11:00 – Projectbespreking (1 uur)\n  * 18:30–19:30 – Yoga (1 uur)\n* **Donderdag 15 oktober:** *Geen afspraken gepland*\n* **Vrijdag 16 oktober:** 16:00–17:00 – Boodschappen ophalen (1 uur)\n* **Zaterdag 17 oktober:** 11:00–13:00 – Vrijwilligersdienst in de buurttuin (2 uur)\n* **Zondag 18 oktober:** *Geen afspraken gepland*\n\n---\n\n### Belangrijkste punten\n* **Dag met de meeste afspraken:** **woensdag 14 oktober** (twee afzonderlijke afspraken van samen twee uur). *Let op: zaterdag heeft het langste aaneengesloten blok van twee uur, maar woensdag telt de meeste afspraken.*\n* **Helemaal vrije dagen:** **donderdag 15 oktober** en **zondag 18 oktober**.\n\n---\n\n### Voorgestelde vervolgstappen\n1. [Donderdag voorbereidingstijd inplannen](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)\n2. [Herinneringen voor afspraken plannen](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)"
-      },
-      "follow_up_1": {
-        "text": "Zoek gezonde recepten om donderdag te koken"
-      },
-      "follow_up_2": {
-        "text": "Leg uit hoe ik een drukke week goed kan indelen"
-      },
-      "follow_up_3": {
-        "text": "Stel een herinnering in voor mijn tandartsafspraak op dinsdag"
-      },
-      "follow_up_4": {
-        "text": "Geef tips om werk en persoonlijke afspraken in balans te houden"
-      },
-      "follow_up_5": {
-        "text": "Maak een taak aan ter voorbereiding op de projectbespreking van woensdag"
-      },
-      "follow_up_6": {
-        "text": "Vergelijk verschillende timemanagementtechnieken voor professionals"
-      }
-    },
     "community_garden_volunteer_chime": {
       "title": {
         "text": "Een warme chime voor een gemeenschapstuin"
@@ -10747,6 +10715,38 @@
       },
       "follow_up_6": {
         "text": "Beschrijf hoe je aangepaste geluidseffecten integreert in mobiele applicaties"
+      }
+    },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Stroomdiagram voor afrekenproces webshop"
+      },
+      "summary": {
+        "text": "Een bewerkbaar checkout-stroomdiagram met betalingsherhaling en orderbevestiging."
+      },
+      "message_1": {
+        "text": "Maak een bewerkbaar stroomdiagram voor een kleine webshop: winkelmandje, checkout-gegevens, betaling en orderbevestiging. Als de betaling wordt geweigerd, laat dan zien dat de klant het opnieuw probeert. Houd alle informatie binnen het diagram en link niet naar externe websites."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Analyse van de flow & UX-overwegingen\n\n1. **Sequentiële voortgang**: De klant doorloopt lineair het **Winkelmandje**, de **Checkout-gegevens** (verzending/facturering) en de **Betalingsverwerking**.\n2. **Geweigerde betalingen & foutherstel**:\n   - In plaats van de klant terug te sturen naar een lege sessie, leidt een weigering naar een beslissingsstap **Methode wijzigen**.\n   - Het gestippelde orthogonale pad leidt direct terug naar de **Checkout-gegevens**, zodat de klant van betaalmethode kan wisselen, typefouten in kaartgegevens kan corrigeren of een alternatieve digitale portemonnee kan kiezen zonder de items in het winkelmandje te verliezen.\n   - Als ze besluiten het niet opnieuw te proberen, eindigt de sessie netjes in een eindstatus **Winkelmandje opgeslagen**, wat de deur openzet voor vervolg-e-mails over verlaten winkelmandjes.\n3. **Bewerkbare structuur**: Elke stap en elk pad bevat standaard `data-om-*` bindings, zodat je labels kunt aanpassen, een stap voor kortingsbonnen kunt toevoegen of direct vertakkingen voor gast-checkouts kunt integreren.\n\n---\n\n**Volgende stappen & iteraties:**\n- Wil je een vertakking **Gast-checkout vs. Ingelogd account** toevoegen vóór de verzendgegevens?\n- Als je gebruikersinterfaces of aangepaste illustraties voor deze flow ontwerpt, kunnen we kijken naar het integreren van wireframes of handgetekende icoon-badges om de stappen aan te vullen."
+      },
+      "follow_up_1": {
+        "text": "Zoek naar gratis SVG-iconen voor checkout-knoppen"
+      },
+      "follow_up_2": {
+        "text": "Leg uit hoe je een vertakking voor gast-checkouts toevoegt vóór de verzendgegevens"
+      },
+      "follow_up_3": {
+        "text": "Zoek naar best practices en UX-trends voor het afrekenproces in webshops"
+      },
+      "follow_up_4": {
+        "text": "Beschrijf hoe je effectief omgaat met e-mails voor het herstellen van verlaten winkelmandjes"
+      },
+      "follow_up_5": {
+        "text": "Vind aankomende e-commerce designworkshops en webinars"
+      },
+      "follow_up_6": {
+        "text": "Maak een lijst van veelvoorkomende UX-valkuilen in online betaalprocessen"
       }
     }
   },

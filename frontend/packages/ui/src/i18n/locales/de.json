@@ -11935,38 +11935,6 @@
         "text": "Vergleiche verschiedene Methoden, um gesprochene Ideen in organisierte Aufgaben umzuwandeln"
       }
     },
-    "calendar_week_from_supplied_events": {
-      "title": {
-        "text": "Kalenderwoche aus bereitgestellten Terminen"
-      },
-      "summary": {
-        "text": "Fasse eine fiktive Woche mit Kalenderereignissen zusammen, die im Chat bereitgestellt wurden, ohne Zugriff auf ein verknüpftes Konto."
-      },
-      "message_1": {
-        "text": "@mate:general_knowledge bitte fasse meine Kalenderwoche vom 12. bis 18. Oktober (Berliner Zeit) anhand dieser hier kopierten Termine zusammen: Mo 09:00–09:30 Team-Check-in; Di 14:00–15:00 Zahnarzt; Mi 10:00–11:00 Projektbesprechung und 18:30–19:30 Yoga; Fr 16:00–17:00 Einkäufe abholen; Sa 11:00–13:00 Schicht im Gemeinschaftsgarten. Welcher Tag hat die meisten Verpflichtungen und welche Tage sind frei?"
-      },
-      "message_2": {
-        "text": "Hier ist die Zusammenfassung deines Zeitplans für die Woche vom 12. bis 18. Oktober 2026 (Zeitzone Europa/Berlin):\n\n### Terminübersicht\n* **Montag, 12. Okt.:** 09:00–09:30 – Team-Check-in (30 Min.)\n* **Dienstag, 13. Okt.:** 14:00–15:00 – Zahnarzt (1 Std.)\n* **Mittwoch, 14. Okt.:**\n  * 10:00–11:00 – Projektbesprechung (1 Std.)\n  * 18:30–19:30 – Yoga (1 Std.)\n* **Donnerstag, 15. Okt.:** *Keine Termine geplant*\n* **Freitag, 16. Okt.:** 16:00–17:00 – Einkäufe abholen (1 Std.)\n* **Samstag, 17. Okt.:** 11:00–13:00 – Schicht im Gemeinschaftsgarten (2 Std.)\n* **Sonntag, 18. Okt.:** *Keine Termine geplant*\n\n---\n\n### Wichtigste Erkenntnisse\n* **Tag mit den meisten Verpflichtungen:** **Mittwoch, 14. Oktober** (2 verschiedene Termine, insgesamt 2 Stunden). *Hinweis: Der Samstag hat den längsten zusammenhängenden Zeitblock (2 Stunden), aber der Mittwoch hat die höchste Anzahl an Terminen.*\n* **Komplett freie Tage:** **Donnerstag, 15. Oktober** und **Sonntag, 18. Oktober**.\n\n---\n\n### Vorschläge für nächste Schritte\n1. [Vorbereitungszeit für Donnerstag hinzufügen](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)\n2. [Erinnerungen für Termine planen](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)"
-      },
-      "follow_up_1": {
-        "text": "Suche nach gesunden Rezepten zum Kochen am Donnerstag"
-      },
-      "follow_up_2": {
-        "text": "Erkläre, wie man eine arbeitsreiche Woche effektiv organisiert"
-      },
-      "follow_up_3": {
-        "text": "Erinnere mich an meinen Zahnarzttermin am Dienstag"
-      },
-      "follow_up_4": {
-        "text": "Tipps für die Vereinbarkeit von Beruf und privaten Terminen"
-      },
-      "follow_up_5": {
-        "text": "Erstelle eine Aufgabe für die Vorbereitung der Projektbesprechung am Mittwoch"
-      },
-      "follow_up_6": {
-        "text": "Vergleiche verschiedene Zeitmanagement-Techniken für Berufstätige"
-      }
-    },
     "community_garden_volunteer_chime": {
       "title": {
         "text": "Ein warmer Chime für einen Gemeinschaftsgarten"
@@ -11997,6 +11965,38 @@
       },
       "follow_up_6": {
         "text": "Beschreibe, wie man benutzerdefinierte Soundeffekte in mobile Anwendungen integriert"
+      }
+    },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Online-Shop Checkout-Ablaufdiagramm"
+      },
+      "summary": {
+        "text": "Ein editierbares Checkout-Flussdiagramm mit Zahlungs-Wiederholung und Bestellbestätigung."
+      },
+      "message_1": {
+        "text": "Erstelle ein editierbares Flussdiagramm für einen kleinen Online-Shop: Warenkorb, Checkout-Details, Zahlung und Bestellbestätigung. Wenn die Zahlung abgelehnt wird, zeige, wie der Kunde es erneut versucht. Behalte alle Informationen innerhalb des Diagramms und verlinke nicht auf externe Websites."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Ablaufanalyse & UX-Überlegungen\n\n1. **Sequenzieller Fortschritt**: Der Kunde durchläuft linear den **Warenkorb**, die **Checkout-Details** (Versand/Rechnung) und die **Zahlungsabwicklung**.\n2. **Ablehnung & Fehlerbehebung**:\n   - Anstatt den Kunden zurück zu einer leeren Sitzung zu führen, leitet eine Ablehnung zu einem Entscheidungsschritt **Methode ändern** weiter.\n   - Der gestrichelte orthogonale Pfad führt direkt zurück zu den **Checkout-Details**, sodass der Kunde die Zahlungsmethode wechseln, Tippfehler in den Kartendaten korrigieren oder eine alternative digitale Geldbörse wählen kann, ohne die Artikel im Warenkorb zu verlieren.\n   - Wenn sie sich gegen einen erneuten Versuch entscheiden, endet die Sitzung sauber im Endzustand **Warenkorb gespeichert**, was die Tür für Follow-up-E-Mails bei Warenkorbabbrüchen offen hält.\n3. **Editierbare Struktur**: Jeder Schritt und Pfad enthält Standard-`data-om-*`-Bindungen, sodass du Beschriftungen anpassen, einen Rabattgutschein-Schritt hinzufügen oder Gast-Checkout-Zweige direkt integrieren kannst.\n\n---\n\n**Nächste Schritte & Iterationen:**\n- Möchtest du einen Zweig für **Gast-Checkout vs. Angemeldetes Konto** vor den Versanddetails einführen?\n- Wenn du Benutzeroberflächen oder individuelle Illustrationen für diesen Ablauf entwirfst, könnten wir die Integration von Wireframes oder handgezeichneten Icon-Badges untersuchen, um die Schritte zu ergänzen."
+      },
+      "follow_up_1": {
+        "text": "Suche nach kostenlosen SVG-Icons für Checkout-Buttons"
+      },
+      "follow_up_2": {
+        "text": "Erkläre, wie man einen Gast-Checkout-Zweig vor den Versanddetails hinzufügt"
+      },
+      "follow_up_3": {
+        "text": "Suche nach Best Practices und UX-Trends für den Online-Shop-Checkout"
+      },
+      "follow_up_4": {
+        "text": "Beschreibe, wie man E-Mails zur Rückgewinnung abgebrochener Warenkörbe effektiv handhabt"
+      },
+      "follow_up_5": {
+        "text": "Finde kommende E-Commerce-Design-Workshops und Webinare"
+      },
+      "follow_up_6": {
+        "text": "Liste häufige UX-Fallstricke in Online-Zahlungs-Checkout-Abläufen auf"
       }
     }
   },

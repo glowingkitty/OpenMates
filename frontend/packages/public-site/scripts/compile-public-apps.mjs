@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { parse } from 'yaml';
 
 const excluded = new Set(['openmates', 'projects', 'tasks', 'plans', 'reminder', 'workflows', 'plants']);
-const capabilityTypes = new Set(['skill', 'focus', 'artifact', 'app']);
+const capabilityTypes = new Set(['skill', 'focus', 'artifact']);
 
 /** Check that a published default points to an available capability in this app. */
 export function validateLandingMetadata(id, landing, skills, focuses, artifacts) {
@@ -17,7 +17,7 @@ export function validateLandingMetadata(id, landing, skills, focuses, artifacts)
   if (!capabilityTypes.has(type) || typeof capabilityId !== 'string' || !capabilityId.trim()) {
     throw new Error(`Invalid landing capability for ${id}`);
   }
-  const available = { skill: skills, focus: focuses, artifact: artifacts, app: new Set([id]) }[type];
+  const available = { skill: skills, focus: focuses, artifact: artifacts }[type];
   if (!available.has(capabilityId)) {
     throw new Error(`Unavailable landing capability for ${id}: ${type}:${capabilityId}`);
   }
@@ -29,13 +29,6 @@ export function validateLandingMetadata(id, landing, skills, focuses, artifacts)
   }
   if (typeof landing.example_chat_id !== 'string' || !/^example-[a-z0-9-]+$/.test(landing.example_chat_id)) {
     throw new Error(`Missing or invalid landing example for ${id}`);
-  }
-  if (type === 'app') {
-    const { request_excerpt: excerpt, rationale } = landing.source_evidence ?? {};
-    if (typeof excerpt !== 'string' || excerpt.trim() !== excerpt || (excerpt.match(/\p{L}+/gu) ?? []).length < 5 ||
-        typeof rationale !== 'string' || rationale.trim() !== rationale || rationale.length < 24) {
-      throw new Error(`Missing reviewed app-level landing source evidence for ${id}`);
-    }
   }
   return landing;
 }
@@ -79,7 +72,7 @@ export function compilePublicApps(root) {
     const landing = validateLandingMetadata(id, app.landing, skills, focuses, artifacts);
     const selectedArtifact = directEmbeds.find((embed) => embed.id === landing.capability.id);
     const evidence_types = selectedArtifact ? [selectedArtifact.id, selectedArtifact.frontend_type, selectedArtifact.backend_type].filter(Boolean) : [];
-    apps.push({ id, icon_image, order: landing.order, capability: landing.capability, caption: landing.caption, example_chat_id: landing.example_chat_id, source_evidence: landing.source_evidence, evidence_types });
+    apps.push({ id, icon_image, order: landing.order, capability: landing.capability, caption: landing.caption, example_chat_id: landing.example_chat_id, evidence_types });
   }
   if (new Set(apps.map((app) => app.order)).size !== apps.length) throw new Error('Duplicate public landing app order');
   return apps.sort((a, b) => a.order - b.order);

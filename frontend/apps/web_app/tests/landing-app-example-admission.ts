@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { landingAppExamples } from '../../../packages/public-site/src/components/landing/landingPageContent';
 import { ALL_EXAMPLE_CHATS } from '../../../packages/ui/src/demo_chats/exampleChatData';
 import type { ExampleChat } from '../../../packages/ui/src/demo_chats/types';
+import { dismissComposerFocus } from './helpers/composer-focus';
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
@@ -217,11 +218,8 @@ async function inspectChat(page: Page, chat: ExampleChat, checkpoint: string, ex
   await editable.fill(draftText, { timeout: 10_000 });
   await expect(editor).toContainText(draftText);
   if (exerciseFollowUps && suggestionCount > 0) {
-    if (await page.getByTestId('message-field').getAttribute('data-focused') === 'true') {
-      await page.mouse.click(5, 5);
-      await expect(page.getByTestId('message-field')).toHaveAttribute('data-focused', 'false', { timeout: 5_000 });
-      await expect(restoredDraft).toContainText(draftText);
-    }
+    await dismissComposerFocus(page);
+    await expect(restoredDraft).toContainText(draftText);
     await page.evaluate(() => {
       (window as typeof window & { landingFollowUpSignup?: boolean }).landingFollowUpSignup = false;
       window.addEventListener('openSignupInterface', () => {
@@ -241,7 +239,7 @@ export function landingAdmissionCases(shard: 0 | 1): typeof cases {
   return cases.filter((_, index) => index % 2 === shard);
 }
 
-const replacementAppIds = new Set(['travel', 'maps', 'audio', 'videos', 'calendar']);
+const replacementAppIds = new Set(['travel', 'maps', 'audio', 'videos']);
 
 export function landingReplacementCases(): typeof cases {
   const selected = cases.filter(({ appId }) => replacementAppIds.has(appId));

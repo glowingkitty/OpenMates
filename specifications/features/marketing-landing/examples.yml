@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.marketing-landing@4
+specification: feature.marketing-landing@5
 scrolling:
 - id: visitor-controls-reading-time
   given: Alex opens the standalone website while signed out and JavaScript is unavailable.
@@ -15,13 +15,16 @@ layout:
   given: Sam opens the website on a phone with reduced motion enabled.
   when: Sam explores the hero, features and publication rows.
   then: Readable static copy and device images stack without horizontal page overflow; links remain reachable
-    and scrolling controls the reading pace.
+    and scrolling controls the reading pace. As each section enters view, its heading, copy and imagery
+    appear in a gentle stagger while Alex keeps control of scrolling; reduced motion shows them immediately.
 - id: six-full-screen-sections
   given: Alex scrolls the six website feature sections on a laptop, then opens the page on a phone.
   when: Alex reaches No ecosystem lock in and compares its device images.
   then: The six sections appear actionable, privacy, model choice, workflows, devices and open source;
     each occupies a viewport. Large desktop devices may crop intentionally, phones show only phone imagery,
     and the model selector captures are real with multiple providers, export and ownership explained.
+    As each section enters view, its heading, copy and imagery appear in a gentle stagger while Alex keeps
+    control of scrolling; reduced motion shows them immediately.
 destinations:
 - id: website-app-links
   given: Alex visits landing.dev.openmates.org while signed out.
@@ -47,6 +50,7 @@ screenshots:
   when: These views and the public OpenMates repository are prepared as website images.
   then: Large phone/laptop SVG frames contain matching real captures, including cross-device and open-source
     sections; images have useful alternative text, omit private account details and label mobile web truthfully.
+    Phone frames have a neutral bezel with no orange border.
 public_content:
 - id: all-upcoming-events-and-human-detail
   given: Published events include an ongoing free workshop, a future paid meetup and a finished event.
@@ -63,45 +67,56 @@ hero:
   given: Alex opens the hero on a laptop and leaves it running for several complete cycles.
   when: The ordered capability icons, including Docs and Mindmaps, pass through the rail.
   then: One icon row moves without a visible reset, uses faded edges and a matching natural request. Internal
-    workspaces, OpenMates and Plants are absent; the public AI app remains eligible. Resizing the page
-    and resuming after a background tab preserve continuous movement and matching highlighting.
+    workspaces, OpenMates and Plants are absent; only apps with admitted successful capability examples
+    appear. Resizing the page and resuming after a background tab preserve continuous movement and matching
+    highlighting. The header shows the existing AI icon with a soft gradient glow and gentle vertical
+    hover; no phone or laptop appears there. Each app begins and ends its highlight at equal distances
+    to either side of In seconds.
 - id: ordered-capability-rail
   given: Alex opens the German landing hero.
   when: The rail passes Events, Travel, Code, Home, Health, Social Media, Fitness, Mail, Jobs, Docs and
     Mindmaps.
-  then: The headline reads “Deine KI-Teamkollegen\nmit Privatsphäre” with a right-of-center highlight;
-    prompts are short generic capability requests each linked to a matching existing example chat,
-    without an added link icon. The icon corners have the same proportional shape as the signup background.
-    OpenMates, Projects, Tasks, Plans, Reminders, Workflows and Plants are absent.
-    The responsive bubble keeps its position while fading, and the aligned scroll cue remains readable.
-    Every eligible shown app has a real matching example; a missing source is treated as unfinished work.
+  then: The headline reads “Deine KI-Teamkollegen\nmit Privatsphäre” with the app highlight centered beneath
+    In seconds; prompts are short generic capability requests each linked to a matching existing example
+    chat, without an added link icon. The icon corners have the same proportional shape as the signup
+    background. OpenMates, Projects, Tasks, Plans, Reminders, Workflows and Plants are absent. The responsive
+    bubble keeps its position while fading, and the aligned scroll cue remains readable. Every shown app
+    has a real successful capability example; unpublished entries are absent. Selecting an icon centers
+    it under In seconds. With reduced motion, the AI icon, glow and section content are static.
 manual_rail:
 - id: select-and-resume
-  assertion_ids: [marketing-landing.interactive-rail]
+  assertion_ids:
+  - marketing-landing.interactive-rail
   given: Alex watches the moving app row on a laptop, with Events highlighted.
   when: Alex clicks Travel, waits two seconds and then scrolls horizontally through the icons.
   then: Travel moves into focus and shows Find train connections without opening another tab. It stays
     in focus for two seconds, then movement continues from Travel. Manual scrolling updates the selected
     app and message without a jump when automatic movement resumes.
 - id: touch-and-keyboard-selection
-  assertion_ids: [marketing-landing.interactive-rail]
+  assertion_ids:
+  - marketing-landing.interactive-rail
   given: Sam uses a phone, while Jo uses a keyboard with reduced motion enabled.
   when: Sam swipes the app row horizontally and scrolls the page vertically; Jo selects another app.
   then: Sam can explore apps without blocking page scrolling. Jo can select and read every app's request
     without automatic movement, and neither interaction opens an app page.
 metadata_defaults:
 - id: app-owned-defaults
-  assertion_ids: [marketing-landing.app-metadata-defaults]
+  assertion_ids:
+  - marketing-landing.app-metadata-defaults
   given: Travel metadata declares its available train-search capability, Find train connections caption
     and a real chat showing a natural train-search request.
   when: The public website is built and a visitor selects Travel.
-  then: The compiled app catalogue supplies that caption and example destination without a runtime
-    app metadata request or a separate landing mapping. The message opens the real train example.
-- id: reject-incomplete-defaults
-  assertion_ids: [marketing-landing.app-metadata-defaults]
-  given: A displayed app's metadata refers to an unavailable capability or a missing example chat.
-  when: The website build compiles the public app catalogue.
-  then: The build reports the invalid default instead of publishing a misleading app or fabricated example.
+  then: The compiled app catalogue supplies that caption and example destination without a runtime app
+    metadata request or a separate landing mapping. The message opens the real train example.
+- id: reject-unrelated-or-unsuccessful-defaults
+  assertion_ids:
+  - marketing-landing.app-metadata-defaults
+  given: A Calendar example summarizes only pasted events, while a Finance example invokes Math rather
+    than a Finance capability and a Maps example finds no restaurants meeting its required amenities.
+  when: The public landing examples are reviewed and the website catalogue is built.
+  then: Those entries stay unpublished; the supplied-events Calendar example is removed. The build rejects
+    any published default missing a successful matching capability instead of promoting a generic or failed
+    response.
 preferences:
 - id: dark-startup-without-flash
   given: Alex previously chose dark theme and opens the website or /landing on a cold start.

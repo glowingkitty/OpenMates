@@ -10685,38 +10685,6 @@
         "text": "Söylenen fikirleri düzenli görevlere dönüştürmek için farklı yöntemleri karşılaştır"
       }
     },
-    "calendar_week_from_supplied_events": {
-      "title": {
-        "text": "Paylaşılan etkinliklerden haftalık takvim oluşturma"
-      },
-      "summary": {
-        "text": "Bağlı hesap erişimi olmadan, konuşmada paylaşılan kurgusal bir haftalık takvim etkinliklerini özetle."
-      },
-      "message_1": {
-        "text": "@mate:general_knowledge lütfen buraya kopyaladığım şu etkinliklerden 12–18 Ekim (Berlin saati) haftalık takvimimi özetle: Pzt 09:00–09:30 ekip toplantısı; Sal 14:00–15:00 diş hekimi; Çar 10:00–11:00 proje incelemesi ve 18:30–19:30 yoga; Cum 16:00–17:00 market alışverişi; Cmt 11:00–13:00 topluluk bahçesi vardiyası. En çok işin olduğu gün hangisi ve hangi günler boş?"
-      },
-      "message_2": {
-        "text": "İşte 12–18 Ekim 2026 (Avrupa/Berlin saati) haftası için programının özeti:\n\n### Programa Genel Bakış\n* **12 Ekim Pazartesi:** 09:00–09:30 – Ekip toplantısı (30 dk)\n* **13 Ekim Salı:** 14:00–15:00 – Diş hekimi (1 sa)\n* **14 Ekim Çarşamba:**\n  * 10:00–11:00 – Proje incelemesi (1 sa)\n  * 18:30–19:30 – Yoga (1 sa)\n* **15 Ekim Perşembe:** *Planlanmış etkinlik yok*\n* **16 Ekim Cuma:** 16:00–17:00 – Market alışverişi (1 sa)\n* **17 Ekim Cumartesi:** 11:00–13:00 – Topluluk bahçesi vardiyası (2 sa)\n* **18 Ekim Pazar:** *Planlanmış etkinlik yok*\n\n---\n\n### Önemli Notlar\n* **En çok işin olduğu gün:** **14 Ekim Çarşamba** (toplam 2 saat süren 2 ayrı etkinlik). *Not: Cumartesi günü tek seferde en uzun süreli işe (2 saat) sahipsin, ancak Çarşamba günü etkinlik sayısı daha fazla.*\n* **Tamamen boş günler:** **15 Ekim Perşembe** ve **18 Ekim Pazar**.\n\n---\n\n### Önerilen Sonraki Adımlar\n1. [Perşembe hazırlık zamanı ekle](/#message=Help%20me%20block%20out%20focus%20time%20on%20Thursday%20for%20project%20follow-ups.)\n2. [Randevular için hatırlatıcı planla](/#message=Set%20a%20reminder%20for%20my%20dentist%20appointment%20on%20Tuesday%20at%2013:00.)"
-      },
-      "follow_up_1": {
-        "text": "Perşembe günü pişirmek için sağlıklı tarifler ara"
-      },
-      "follow_up_2": {
-        "text": "Yoğun bir haftalık programın nasıl etkili bir şekilde organize edileceğini açıkla"
-      },
-      "follow_up_3": {
-        "text": "Salı günkü diş randevum için bir hatırlatıcı ayarla"
-      },
-      "follow_up_4": {
-        "text": "İş ve kişisel randevuları dengelemek için ipuçlarını listele"
-      },
-      "follow_up_5": {
-        "text": "Çarşamba günkü proje inceleme hazırlığı için bir görev oluştur"
-      },
-      "follow_up_6": {
-        "text": "Profesyoneller için farklı zaman yönetimi tekniklerini karşılaştır"
-      }
-    },
     "community_garden_volunteer_chime": {
       "title": {
         "text": "Bir topluluk bahçesi için sıcak bir çan sesi"
@@ -10747,6 +10715,38 @@
       },
       "follow_up_6": {
         "text": "Özel ses efektlerinin mobil uygulamalara nasıl entegre edileceğini açıkla"
+      }
+    },
+    "online_shop_checkout_flow_diagram": {
+      "title": {
+        "text": "Çevrimiçi Mağaza Ödeme Akış Şeması"
+      },
+      "summary": {
+        "text": "Ödeme tekrarı ve sipariş onayı içeren düzenlenebilir bir ödeme akış şeması."
+      },
+      "message_1": {
+        "text": "Küçük bir çevrimiçi mağaza için düzenlenebilir bir akış şeması oluştur: sepet, ödeme ayrıntıları, ödeme ve sipariş onayı. Ödeme reddedilirse müşterinin tekrar denediğini göster. Tüm bilgileri diyagram içinde tut ve harici web sitelerine bağlantı verme."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\": \"diagram_html\", \"embed_id\": \"a80ba74c-c404-4b05-bcbb-fcb4bbc455b6\"}\n```\n\n### Akış Dökümü ve UX Değerlendirmeleri\n\n1. **Sıralı İlerleme**: Müşteri; **Sepet**, **Ödeme Ayrıntıları** (teslimat/fatura) ve **Ödeme İşlemi** adımlarından doğrusal olarak geçer.\n2. **Reddetme ve Hata Kurtarma**:\n   - Müşteriyi boş bir oturuma geri döndürmek yerine, bir reddetme durumu **Yöntemi Değiştir** karar adımına yönlendirir.\n   - Kesikli dikey yol doğrudan **Ödeme Ayrıntıları**'na geri döner; bu da müşterinin sepetindeki ürünleri kaybetmeden ödeme yöntemlerini değiştirmesine, kart verilerindeki yazım hatalarını düzeltmesine veya alternatif bir dijital cüzdan seçmesine olanak tanır.\n   - Tekrar denememeyi seçerlerse oturum, takip eden \"terk edilmiş sepet\" e-postalarına kapı açacak şekilde **Sepet Kaydedildi** terminal durumunda temiz bir şekilde sona erer.\n3. **Düzenlenebilir Yapı**: Her adım ve yol, etiketleri özelleştirebilmen, bir indirim kuponu adımı ekleyebilmen veya misafir ödeme dallarını doğrudan entegre edebilmen için standart `data-om-*` bağlamalarını içerir.\n\n---\n\n**Sonraki Adımlar ve Yinelemeler:**\n- Gönderim bilgilerinden önce bir **Misafir Ödemesi ve Kayıtlı Hesap** dalı eklemek ister misin?\n- Bu akış için kullanıcı arayüzleri veya özel illüstrasyonlar tasarlıyorsan, adımları tamamlamak için tel kafesler (wireframes) veya özel el çizimi ikon rozetleri entegre etmeyi keşfedebiliriz."
+      },
+      "follow_up_1": {
+        "text": "Ödeme düğmeleri için ücretsiz SVG simgeleri ara"
+      },
+      "follow_up_2": {
+        "text": "Gönderim bilgilerinden önce misafir ödeme dalının nasıl ekleneceğini açıkla"
+      },
+      "follow_up_3": {
+        "text": "Çevrimiçi mağaza ödeme süreci en iyi uygulamalarını ve UX trendlerini ara"
+      },
+      "follow_up_4": {
+        "text": "Terk edilmiş sepet kurtarma e-postalarının etkili bir şekilde nasıl yönetileceğini açıkla"
+      },
+      "follow_up_5": {
+        "text": "Gelecek e-ticaret tasarım atölyelerini ve web seminerlerini bul"
+      },
+      "follow_up_6": {
+        "text": "Çevrimiçi ödeme süreçlerinde yaygın UX hatalarını listele"
       }
     }
   },

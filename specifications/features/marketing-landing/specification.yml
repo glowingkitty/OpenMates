@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.marketing-landing
-version: 4
+version: 5
 status: draft
 title: Lightweight Public Website and Scrollable Landing Page
 summary: A lightweight standalone website owns the scrollable landing page, news, blog and legal content,
@@ -35,9 +35,10 @@ assertions:
     No ecosystem lock in model choice, workflow automation, cross-device experience, open source and resilience,
     newsletter signup, then events, news and blog. Its six feature sections have distinct suitable icons,
     occupy at least one viewport each, and show large device-framed screenshots beside copy on desktop
-    and stacked readable content on narrow screens. Reveal and restrained parallax effects preserve visitor-controlled
-    scrolling; reduced-motion visitors receive static readable content. The composer affordance remains
-    fixed at the viewport bottom.'
+    and stacked readable content on narrow screens. As each section first enters view, its icon and heading,
+    body copy and device imagery appear in a brief smooth stagger without hiding content being read or
+    controlling scrolling; reduced-motion visitors receive static readable content. The composer affordance
+    remains fixed at the viewport bottom.'
   depends_on:
   - examples.layout
 - id: marketing-landing.destinations
@@ -66,10 +67,11 @@ assertions:
   type: behavior
   must: 'Product screenshot areas display real rendered views captured within the authenticated personal
     dev test account: actionable results, privacy placeholders, Workflows and the same chat across desktop
-    and mobile web. Phone and laptop screenshots sit inside lightweight SVG device frames at matching
-    screen proportions. The open-source section shows real public repository evidence. Published images
-    exclude private identity and unrelated account content, have meaningful alternative text and accurately
-    identify mobile web captures without implying native iPhone UI.'
+    and mobile web. Phone and laptop screenshots in the feature sections sit inside lightweight SVG device
+    frames at matching screen proportions; phone frames use a neutral bezel without an orange border.
+    The open-source section shows real public repository evidence. Published images exclude private identity
+    and unrelated account content, have meaningful alternative text and accurately identify mobile web
+    captures without implying native iPhone UI.'
   depends_on:
   - examples.screenshots
 - id: marketing-landing.public-content
@@ -85,15 +87,18 @@ assertions:
   - examples.public_content
 - id: marketing-landing.hero-app-rail
   type: behavior
-  must: The hero has exactly one row of app icons moving right to left in a seamless infinite loop. It
-    shows the relevant available capability apps in the order and exclusions defined by marketing-landing.capability-rail-and-prompts;
-    Docs and Mindmaps are included for their direct content capabilities. Each highlighted app has a capability-matched
-    prompt. Icons adapt to the available hero space with a desktop size cap; translucent edge gradients
-    fade entry and exit. Automatic movement, highlighting and manual selection share one position,
-    so completing a loop, resuming interaction or resizing does not cause a visible reset.
-    Prompt bubbles have the real user-message tail and transition by opacity and
-    scale from the bottom-right without changing position. The aligned scroll cue smoothly cycles opacity
-    between 0.3 and 0.8. Reduced motion keeps the rail and prompts usable without continuous animation.
+  must: The full-viewport hero shows the existing AI icon with a subtle animated gradient glow and slight
+    vertical hover, instead of phone or laptop imagery. The hero has exactly one row of app icons moving
+    right to left in a seamless infinite loop. It shows the relevant available capability apps in the
+    order and exclusions defined by marketing-landing.capability-rail-and-prompts; Docs and Mindmaps are
+    included for their direct content capabilities. Each highlighted app has a capability-matched prompt.
+    Its highlight begins and ends at equal distances on the right and left of the centered In seconds
+    label; selecting an app centers its icon beneath that label. Icons adapt to the available hero space
+    with a desktop size cap; translucent edge gradients fade entry and exit. Automatic movement, highlighting
+    and manual selection share one position, so completing a loop, resuming interaction or resizing does
+    not cause a visible reset. Prompt bubbles have the real user-message tail and transition by opacity
+    and scale from the bottom-right without changing position. The aligned scroll cue smoothly cycles
+    opacity between 0.3 and 0.8. Reduced motion keeps the rail and prompts usable without continuous animation.
   depends_on:
   - examples.hero
 - id: marketing-landing.language-theme
@@ -117,32 +122,36 @@ assertions:
   type: behavior
   must: The single hero app rail orders Events, Travel, Code, Home, Health, Social Media, Fitness, Mail
     and Jobs before remaining available capability apps, and excludes OpenMates, Projects, Tasks, Plans,
-    Reminders, Workflows and Plants. The public AI app remains eligible. Docs and Mindmaps appear for their direct
-    content capabilities. Icons use the same corner-radius-to-size ratio as the signup/login app background.
-    The highlighted request describes a general category, such as Find events or
-    Summarize this video, rather than a specific person's request, and opens a matching
-    existing example chat in a new tab, never a fabricated skill, chat or internal command; every eligible
-    shown app requires a matching real example chat and a missing source remains incomplete implementation.
-    The prompt has no added link icon. The German heading reads exactly “Deine KI-Teamkollegen\nmit Privatsphäre”, with its highlight right
-    of center.
+    Reminders, Workflows and Plants. Calendar is hidden until it has an admitted successful Calendar example;
+    ordinary AI responses without a matching app capability are not eligible. Docs and Mindmaps appear
+    for their direct content capabilities. Icons use the same corner-radius-to-size ratio as the signup/login
+    app background. The highlighted request describes a general category, such as Find events or Summarize
+    this video, rather than a specific person's request, and opens a matching existing example chat in
+    a new tab, never a fabricated skill, chat or internal command; every shown app requires a real successful
+    capability example connected to the request, and entries without one remain unpublished. The prompt
+    has no added link icon. The German heading reads exactly “Deine KI-Teamkollegen\nmit Privatsphäre”,
+    with the app highlight centered beneath In seconds.
   depends_on:
   - examples.hero
 - id: marketing-landing.interactive-rail
   type: behavior
-  must: Visitors can horizontally scroll or swipe the app row while vertical page scrolling remains
-    available. Selecting an icon brings that app into focus, switches the prompt and holds it for two
-    seconds before continuing from that position; the icon does not open a new tab. Keyboard and
-    reduced-motion visitors can select apps without continuous animation.
+  must: Visitors can horizontally scroll or swipe the app row while vertical page scrolling remains available.
+    Selecting an icon brings that app into focus, switches the prompt and holds it for two seconds before
+    continuing from that position; the icon does not open a new tab. Keyboard and reduced-motion visitors
+    can select apps without continuous animation.
   depends_on:
   - examples.manual_rail
 - id: marketing-landing.app-metadata-defaults
   type: behavior
-  must: The canonical app metadata defines each displayed app's default demonstrated capability,
-    localized short generic request caption and real example-chat destination. The website compiles
-    that metadata during its build and rejects missing or invalid defaults rather than maintaining
-    a separate prompt or example mapping. Defaults refer to real available app capabilities and
-    matching natural-language example chats; generated content must not imply a skill was used when
-    the real example instead demonstrates a direct artifact or ordinary app response.
+  must: 'Canonical app metadata owns each published landing default: an available skill, activated focus
+    mode or direct generated artifact, a short general request in English and German, its order and a
+    registered real example destination. The website compiles these defaults during build without a runtime
+    app-catalogue request. Each linked source must show a successful matching capability that meets the
+    natural request; generic answers, unrelated skill use and unsuccessful-only results do not qualify.
+    Apps without an admitted example remain unpublished, and the supplied-events Calendar summary is removed
+    from the public example registry. Published defaults with missing, unavailable or unsuccessful capability
+    evidence fail validation. Direct Docs, Mail, Mindmaps and Diagrams artifacts remain eligible when
+    their generated content is valid, and focus examples show actual activation.'
   depends_on:
   - examples.metadata_defaults
 applies_to:
@@ -178,5 +187,6 @@ examples:
   - metadata_defaults
   - preferences
 approval_source:
-  instruction: User directly requested these app metadata, generic caption, interactive wheel and seamless-loop corrections on 2026-10-11
-    in this Codex thread; no new exact-fingerprint approval is claimed.
+  instruction: User explicitly instructed the centered app highlight, AI hero animation, neutral phone
+    bezel, section entrances, Calendar removal and successful-capability-only examples on 2026-10-12,
+    and explicitly directed deployment without repeating approvals for instructed work.

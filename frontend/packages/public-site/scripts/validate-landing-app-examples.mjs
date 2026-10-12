@@ -15,21 +15,44 @@ export function hasNaturalOpening(opening) {
   return (prose.match(/\p{L}+/gu) ?? []).length >= 3;
 }
 
-/** Generated example source stores embed content as escaped strings. */
+/** Inspect each recorded embed separately, so one failure cannot borrow another embed's result. */
 export function hasCapabilityEvidence(source, app) {
   const { type, id } = app.capability;
-  if (type === 'app') return true;
-  const normalized = source.replaceAll('\\n', '\n').replaceAll('\\"', '"');
+  if (!['skill', 'focus', 'artifact'].includes(type)) return false;
+  // Some generated examples build their embed list from named arrays and spread it.
+  const embeds = source.split(/\n\s*metadata:\s*\{/)[0];
+  const records = embeds.split(/\n\s*["']?embed_id["']?\s*:\s*["']/).slice(1);
   const escapeRegExp = (value) => value.replace(/[.*+?^$()|[\]{}\\]/g, '\\$&');
-  const appId = escapeRegExp(app.id);
-  const capabilityId = escapeRegExp(id);
-  const hasApp = new RegExp(`\\bapp_id:\\s*"?${appId}"?\\b|["']app_id["']:\\s*["']${appId}["']`).test(normalized);
-  if (!hasApp) return false;
-  if (type === 'skill') return new RegExp(`\\bskill_id:\\s*"?${capabilityId}"?\\b|["']skill_id["']:\\s*["']${capabilityId}["']`).test(normalized);
-  if (type === 'focus') return new RegExp(`\\bfocus_id:\\s*"?${appId}-${capabilityId}"?\\b|["']active_focus_id["']:\\s*["']${appId}-${capabilityId}["']`).test(normalized);
-  return (app.evidence_types?.length ? app.evidence_types : [id]).some((sourceType) => {
-    const alias = escapeRegExp(sourceType);
-    return new RegExp(`\\b(?:type|skill_id):\\s*"?${alias}"?\\b|["'](?:type|skill_id)["']:\\s*["']${alias}["']`).test(normalized);
+  const field = (name, value, text) => new RegExp(`(?:^|\\n)\\s*["']?${name}["']?:\\s*["']?${escapeRegExp(value)}(?:["']|\\s|$)`, 'm').test(text);
+  const substantive = (text, names) => {
+    const payload = new RegExp(`(?:^|\\n)\\s*(?:${names}):\\s*([^\\n]*)`, 'gim');
+    return [...text.matchAll(payload)].some((match) => {
+      const value = match[1].trim().replace(/^["'`]+|["'`}\],;\s]+$/g, '').trim();
+      return value !== '' && value !== '[]' && value !== '{}' && value !== 'null' && value !== 'unknown';
+    });
+  };
+  const normalizedRecords = records.map((record) => record.replaceAll('\\n', '\n').replaceAll('\\"', '"').replaceAll("\\'", "'").replace(/(?:["']content["']|\bcontent):\s*["'`]/, '\n'));
+  return normalizedRecords.some((normalized) => {
+    if (!field('app_id', app.id, normalized)) return false;
+    if (/(?:^|\n)\s*status:\s*(?:error|failed|failure|pending|running|started)\b/im.test(normalized)) return false;
+    if (/(?:^|\n)\s*provider_status:\s*(?:error|failed|failure|unknown)\b/im.test(normalized)) return false;
+    if (/(?:^|\n)\s*availability:\s*unknown\b/im.test(normalized)) return false;
+    if (substantive(normalized, 'check_error')) return false;
+    if (/(?:^|\n)\s*result_count:\s*0\b/im.test(normalized)) return false;
+    if (type === 'skill') {
+      if (!field('skill_id', id, normalized)) return false;
+      // A finished invocation needs a positive count or useful output. Some result
+      // embeds omit status, so inspect their own content with the same rule.
+      return /(?:^|\n)\s*result_count:\s*[1-9]\d*\b/m.test(normalized) ||
+        /(?:^|\n)\s*(?:items|preview_results)\[[1-9]\d*\][^\n]*:/m.test(normalized) ||
+        substantive(normalized, 'title|name|summary|description|text|url|previewAudioUrl|previewImageUrl|price|price_before_taxes|price_after_taxes|content|value|answer|data');
+    }
+    if (type === 'focus') return field('focus_id', `${app.id}-${id}`, normalized) && field('status', 'finished', normalized);
+    if (!field('status', 'finished', normalized)) return false;
+    const aliases = app.evidence_types?.length ? app.evidence_types : [id];
+    if (!aliases.some((alias) => field('type', alias, normalized) || field('skill_id', alias, normalized))) return false;
+    if (/(?:^|\n)\s*(?:file_refs|nodes|blocks)\[[1-9]\d*\][^\n]*:/m.test(normalized)) return true;
+    return substantive(normalized, 'filename|text|body|content|model|docx_model|source_json|html_source|plot_spec|url|file_url|image_url|audio_url|html|markdown|svg');
   });
 }
 
@@ -64,9 +87,6 @@ export function validateLandingAppExamples(root, apps) {
     const opening = parse(readFileSync(locale, 'utf8'))?.message_1?.en;
     if (!hasNaturalOpening(opening)) {
       throw new Error(`Landing example must have a natural opening: ${chatId}`);
-    }
-    if (app.capability.type === 'app' && !opening.includes(app.source_evidence.request_excerpt)) {
-      throw new Error(`Reviewed app-level landing source evidence does not match opening: ${app.id}`);
     }
   }
 }

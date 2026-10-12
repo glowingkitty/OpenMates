@@ -1,15 +1,5 @@
 landing:
-  order: 31
-  capability:
-    type: app
-    id: life_coaching
-  caption:
-    en: Give me advice
-    de: Gib mir einen Rat
-  example_chat_id: example-calm-manager-follow-up
-  source_evidence:
-    request_excerpt: tense conversation with my manager today and feel unsettled
-    rationale: The user asks for everyday guidance after a difficult conversation, without invoking crisis support.
+  enabled: false
 
 name_translation_key: life_coaching
 description_translation_key: life_coaching.description

@@ -1,15 +1,5 @@
 landing:
-  order: 34
-  capability:
-    type: app
-    id: ai
-  caption:
-    en: Explain this concept
-    de: Erkläre mir dieses Konzept
-  example_chat_id: example-urban-heat-island-at
-  source_evidence:
-    request_excerpt: Why do some cities feel much hotter than nearby rural areas at night?
-    rationale: A general explanation request demonstrates the AI app without asserting a tool call.
+  enabled: false
 
 name_translation_key: ai
 description_translation_key: ai.description
