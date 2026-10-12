@@ -3345,8 +3345,37 @@ type PersonalSendAuthHandoff = {
   cookieFingerprint: string;
 };
 
+type CliSendSocketOptions = {
+  taskUpdateJobs: boolean;
+  projectFileJobs: boolean;
+  remoteCommandJobs: boolean;
+  interactiveHuman: boolean;
+};
+
+type CliPreparedChatOwner = {
+  apiUrl: string;
+  hashedEmail: string;
+  sessionId: string;
+  createdAt: number;
+  masterKeyExportedB64: string;
+  activeTeamId: string | null | undefined;
+  teamId: string | null;
+  teamKeyFingerprint: string | null;
+};
+
 function authCookieFingerprint(cookies: Record<string, string>): string {
   return createHash("sha256").update(JSON.stringify(Object.entries(cookies).sort(([a], [b]) => a.localeCompare(b)))).digest("hex");
+}
+
+function wsTokenSessionBinding(token: string | null | undefined, refreshCookie: string | undefined): string {
+  const match = /^([0-9a-f]{64}):\d+:[0-9a-f]{64}$/.exec(token ?? "");
+  // This is only a narrowing check for an already-authenticated live socket.
+  // A parsed hash never grants authority; the persisted refresh cookie and
+  // exact account/key scope are independently checked before one-use borrow.
+  if (match && refreshCookie && match[1] === createHash("sha256").update(refreshCookie).digest("hex")) {
+    return match[1];
+  }
+  return token ?? "";
 }
 
 export class OpenMatesClient {
@@ -3437,6 +3466,7 @@ export class OpenMatesClient {
   }
 
   setActiveTeamId(teamId: string | null): void {
+    this.closePreparedSendSocket();
     this.personalMemoryReadInFlight = null;
     const session = this.requireSession();
     this.session = { ...session, activeTeamId: teamId };
@@ -5411,6 +5441,7 @@ export class OpenMatesClient {
   }
 
   async logout(): Promise<void> {
+    this.closePreparedSendSocket();
     if (this.session) {
       await this.http
         .post("/v1/auth/logout", {}, this.getCliRequestHeaders())
@@ -5900,22 +5931,144 @@ export class OpenMatesClient {
     lastWarmupScope: string | null;
   } | null = null;
 
+  private preparedSendSocket: {
+    opened: Awaited<ReturnType<OpenMatesClient["openWsClient"]>> | null;
+    pending: Promise<void>;
+    owner: CliPreparedChatOwner;
+    ownerKey: string;
+    optionsKey: string;
+    expiresAt: number;
+    timer: ReturnType<typeof setTimeout> | null;
+    controller: AbortController;
+    cancelled: boolean;
+    closed: boolean;
+  } | null = null;
+  private preparedSendSocketAttemptOwner: string | null = null;
+
+  private sendSocketOwnerKey(session: OpenMatesSession, teamId: string | null): string {
+    return JSON.stringify([this.preparedChatOwner(session, teamId),
+      authCookieFingerprint(session.cookies),
+      wsTokenSessionBinding(session.wsToken, session.cookies.auth_refresh_token)]);
+  }
+
+  private sendSocketOptionsKey(options: CliSendSocketOptions): string {
+    return JSON.stringify([options.taskUpdateJobs, options.projectFileJobs,
+      options.remoteCommandJobs, options.interactiveHuman]);
+  }
+
+  private closePreparedSendSocket(): void {
+    const slot = this.preparedSendSocket;
+    if (!slot) return;
+    this.preparedSendSocket = null;
+    slot.cancelled = true;
+    slot.controller.abort();
+    if (slot.timer) clearTimeout(slot.timer);
+    slot.opened?.ws.close();
+  }
+
+  /** Prepare one authenticated send socket for the interactive TUI's next turn. */
+  private warmSendSocket(): void {
+    if (!this.interactiveViewerAllowed || this.explicitSession || !this.hasSession()) return;
+    const session = this.requireSession();
+    const teamId = this.getActiveTeamId();
+    const owner = this.preparedChatOwner(session, teamId);
+    const ownerKey = this.sendSocketOwnerKey(session, teamId);
+    const existing = this.preparedSendSocket;
+    if (existing && !existing.cancelled && !existing.closed
+      && this.preparedChatOwnerCurrent(existing.owner, teamId)
+      && (!existing.opened || existing.ownerKey === ownerKey && existing.opened.ws.isOpen()
+        && performance.now() < existing.expiresAt)) return;
+    if (existing) this.closePreparedSendSocket();
+    if (this.preparedSendSocketAttemptOwner === ownerKey) return;
+    this.preparedSendSocketAttemptOwner = ownerKey;
+    const options: CliSendSocketOptions = {
+      taskUpdateJobs: true, projectFileJobs: true, remoteCommandJobs: true, interactiveHuman: true,
+    };
+    const slot = {
+      opened: null as Awaited<ReturnType<OpenMatesClient["openWsClient"]>> | null,
+      pending: Promise.resolve(), owner, ownerKey,
+      optionsKey: this.sendSocketOptionsKey(options), expiresAt: 0,
+      timer: null as ReturnType<typeof setTimeout> | null,
+      controller: new AbortController(), cancelled: false, closed: false,
+    };
+    this.preparedSendSocket = slot;
+    slot.pending = this.openWsClient({ ...options, signal: slot.controller.signal }).then(opened => {
+      if (slot.cancelled || this.preparedSendSocket !== slot
+        || !this.preparedChatOwnerCurrent(owner, teamId) || !opened.ownerId) {
+        opened.ws.close();
+        if (this.preparedSendSocket === slot) this.closePreparedSendSocket();
+        return;
+      }
+      slot.opened = opened;
+      slot.owner = this.preparedChatOwner(opened.session, teamId);
+      slot.ownerKey = this.sendSocketOwnerKey(opened.session, teamId);
+      this.preparedSendSocketAttemptOwner = slot.ownerKey;
+      slot.expiresAt = performance.now() + 45_000;
+      slot.timer = setTimeout(() => {
+        if (this.preparedSendSocket === slot) this.closePreparedSendSocket();
+      }, 45_000);
+      slot.timer.unref?.();
+      opened.ws.onClose(() => {
+        slot.closed = true;
+        if (this.preparedSendSocket === slot) this.closePreparedSendSocket();
+      });
+      if (!opened.ws.isOpen()) this.closePreparedSendSocket();
+    }).catch(() => {
+      if (this.preparedSendSocket === slot) this.closePreparedSendSocket();
+    });
+  }
+
+  private async takePreparedSendSocket(options: CliSendSocketOptions, teamId: string | null): Promise<Awaited<ReturnType<OpenMatesClient["openWsClient"]>> | null> {
+    const slot = this.preparedSendSocket;
+    if (!slot) return null;
+    if (slot.optionsKey !== this.sendSocketOptionsKey(options)
+      || !this.preparedChatOwnerCurrent(slot.owner, teamId)) {
+      this.closePreparedSendSocket();
+      return null;
+    }
+    // Give an identical nearly-ready socket one short chance. A stalled
+    // optional upgrade must not put a cold send behind its full open timeout.
+    if (!slot.opened) {
+      let timeout: ReturnType<typeof setTimeout> | null = null;
+      const ready = await Promise.race([
+        slot.pending.then(() => true),
+        new Promise<boolean>(resolve => { timeout = setTimeout(() => resolve(false), 75); }),
+      ]);
+      if (timeout) clearTimeout(timeout);
+      if (!ready) {
+        if (this.preparedSendSocket === slot) this.closePreparedSendSocket();
+        return null;
+      }
+    }
+    if (this.preparedSendSocket !== slot || !slot.opened) return null;
+    try {
+      return await this.withFreshStoredSession(async () => {
+        const session = this.requireSession();
+        if (this.preparedSendSocket !== slot || slot.cancelled || slot.closed
+          || !slot.opened?.ws.isOpen() || performance.now() >= slot.expiresAt
+          || !this.preparedChatOwnerCurrent(slot.owner, teamId)
+          || slot.ownerKey !== this.sendSocketOwnerKey(session, teamId)
+          || authCookieFingerprint(this.http.getCookieMap()) !== authCookieFingerprint(session.cookies)) {
+          if (this.preparedSendSocket === slot) this.closePreparedSendSocket();
+          return null;
+        }
+        this.preparedSendSocket = null;
+        if (slot.timer) clearTimeout(slot.timer);
+        return slot.opened;
+      });
+    } catch {
+      if (this.preparedSendSocket === slot) this.closePreparedSendSocket();
+      return null;
+    }
+  }
+
   private preparedChatKey: {
     chatId: string;
-    owner: {
-      apiUrl: string;
-      hashedEmail: string;
-      sessionId: string;
-      createdAt: number;
-      masterKeyExportedB64: string;
-      activeTeamId: string | null | undefined;
-      teamId: string | null;
-      teamKeyFingerprint: string | null;
-    };
+    owner: CliPreparedChatOwner;
     value: Promise<{ key: Uint8Array; encryptedKey: string; wrappingKey: Uint8Array }>;
   } | null = null;
 
-  private preparedChatOwner(session: OpenMatesSession, teamId: string | null): NonNullable<typeof this.preparedChatKey>["owner"] {
+  private preparedChatOwner(session: OpenMatesSession, teamId: string | null): CliPreparedChatOwner {
     const teamKey = teamId ? loadLocalTeamKey(session.hashedEmail, teamId) : null;
     return {
       apiUrl: session.apiUrl, hashedEmail: session.hashedEmail, sessionId: session.sessionId,
@@ -5925,7 +6078,7 @@ export class OpenMatesClient {
     };
   }
 
-  private preparedChatOwnerCurrent(owner: NonNullable<typeof this.preparedChatKey>["owner"], teamId: string | null): boolean {
+  private preparedChatOwnerCurrent(owner: CliPreparedChatOwner, teamId: string | null): boolean {
     if (!this.hasSession()) return false;
     const current = this.preparedChatOwner(this.requireSession(), teamId);
     return owner.apiUrl === current.apiUrl && owner.hashedEmail === current.hashedEmail
@@ -5966,6 +6119,7 @@ export class OpenMatesClient {
   /** Warm the active chat scope over the TUI's existing authenticated activity socket. */
   warmChatMetadata(): void {
     this.warmChatSendPreparation();
+    this.warmSendSocket();
     const activity = this.chatActivitySocket;
     if (!activity || !activity.ownerCurrent()) return;
     const teamId = this.getActiveTeamId();
@@ -8653,6 +8807,9 @@ export class OpenMatesClient {
     promptBudget: AiResponsePromptBudget | null;
   }> {
     const preWsStartedAt = performance.now();
+    // Optional TUI warming must release its auth refresh lock before this
+    // foreground turn starts fresh privacy and account-settings reads.
+    if (this.preparedSendSocket && !this.preparedSendSocket.opened) this.closePreparedSendSocket();
     const teamId = this.resolveTeamContext({ teamId: params.teamId, personal: params.personal });
     const teamSenderName = teamId ? await this.ownTeamSenderName(teamId) : "User";
     // Resolve short IDs (8-char prefix) to full UUIDs via sync cache.
@@ -8802,20 +8959,27 @@ export class OpenMatesClient {
     const authSocketStartedAt = Date.now();
     let opened: Awaited<ReturnType<OpenMatesClient["openWsClient"]>>;
     try {
-      opened = await this.openWsClient({
-        personalSendAuthHandoff,
+      const sendSocketOptions: CliSendSocketOptions = {
         taskUpdateJobs: taskUpdateJobsEnabled,
         projectFileJobs: !params.incognito,
         remoteCommandJobs: !params.incognito,
         interactiveHuman: params.interactiveHuman === true && this.interactiveViewerAllowed
           && process.stdin.isTTY === true && process.stdout.isTTY === true,
-      });
+      };
+      opened = (sendSocketOptions.interactiveHuman
+        ? await this.takePreparedSendSocket(sendSocketOptions, teamId) : null)
+        ?? await this.openWsClient({ ...sendSocketOptions, personalSendAuthHandoff });
     } catch (error) {
       earlyContextAbort.abort();
       if (earlyContext) await earlyContext;
       throw error;
     }
     const { ws, ownerId } = opened;
+    const socketReadyForSendAt = performance.now();
+    let capabilitiesWaitMs = 0;
+    let keyWaitMs = 0;
+    let recoveryKeypairMs = 0;
+    let encryptPayloadMs = 0;
     if (!params.incognito && !ownerId) {
       earlyContextAbort.abort();
       ws.close();
@@ -8841,7 +9005,9 @@ export class OpenMatesClient {
         // The socket can open before its first server_capabilities frame.
         // Wait for that frame or ordinary recovery completion before choosing
         // an admission protocol; otherwise a modern server looks legacy.
+        const capabilitiesWaitStartedAt = performance.now();
         await Promise.race([ws.waitForServerCapabilities(), recoveryDiscovery]);
+        capabilitiesWaitMs = Math.round(performance.now() - capabilitiesWaitStartedAt);
       } else await recoveryDiscovery;
     }
 
@@ -8891,8 +9057,10 @@ export class OpenMatesClient {
       const preparedKey = isNewChat && ownsPreparedId && this.preparedChatKey?.chatId === chatId
         && this.preparedChatOwnerCurrent(this.preparedChatKey.owner, teamId) ? this.preparedChatKey : null;
       if (preparedKey) this.preparedChatKey = null;
+      const keyWaitStartedAt = performance.now();
       const prepared = preparedKey ? await preparedKey.value : null;
       const wrappingKey = prepared?.wrappingKey ?? await this.getChatWrappingKey(teamId, masterKey);
+      keyWaitMs = Math.round(performance.now() - keyWaitStartedAt);
       chatSlugLookupKey = wrappingKey;
 
       if (isNewChat && prepared) {
@@ -9230,11 +9398,14 @@ export class OpenMatesClient {
       const turnId = randomUUID();
       savedTurnId = turnId;
       terminalExpectedMessagesV = baselineMessagesV + 1;
+      const recoveryKeypairStartedAt = performance.now();
       const recoveryKeypair = await deriveChatCompletionRecoveryKeypair(
         Buffer.from(chatKeyBytes).toString("base64url"),
         chatId,
         chatKeyVersion,
       );
+      recoveryKeypairMs = Math.round(performance.now() - recoveryKeypairStartedAt);
+      const encryptPayloadStartedAt = performance.now();
       const encryptedContent = await encryptWithAesGcmCombined(
         finalMessage,
         chatKeyBytes,
@@ -9330,6 +9501,7 @@ export class OpenMatesClient {
           updated_at: createdAt,
         };
       }
+      encryptPayloadMs = Math.round(performance.now() - encryptPayloadStartedAt);
 
       try {
         if (teamId) {
@@ -9414,7 +9586,11 @@ export class OpenMatesClient {
         const admissionAck = ws.waitForMessage("chat_turn_preflight_ack", payload =>
           (payload as Record<string, unknown>).turn_id === savedTurnId);
         void admissionAck.catch(() => {});
+        const frameDispatchAt = performance.now();
         await ws.sendAsync(useCombinedAdmission ? "chat_turn_admit" : "chat_turn_preflight", admissionPayload);
+        if (process.env.OPENMATES_DEBUG === "1") {
+          console.error(`[chat admission preparation] sdk_minted=${sdkMintedChatId} defer_recovery=${mayDeferRecovery} combined_admission=${useCombinedAdmission} caps_wait_ms=${capabilitiesWaitMs} key_wait_ms=${keyWaitMs} recovery_keypair_ms=${recoveryKeypairMs} encrypt_payload_ms=${encryptPayloadMs} socket_ready_to_frame_dispatch_ms=${Math.round(frameDispatchAt - socketReadyForSendAt)} frame_dispatch_from_send_start_ms=${Math.round(frameDispatchAt - preWsStartedAt)} wire_send_ms=${Math.round(performance.now() - frameDispatchAt)}`);
+        }
         const ackPayload = (await admissionAck).payload as Record<string, unknown>;
         if (typeof ackPayload.preflight_id !== "string" || !ackPayload.preflight_id) {
           throw new Error("Encrypted chat admission acknowledgement omitted preflight_id.");
@@ -15660,6 +15836,7 @@ export class OpenMatesClient {
     if (!this.session || typeof this.session.pairedSessionExpiresAt !== "number" ||
         this.session.pairedSessionExpiresAt > Date.now()) return;
     if (!this.explicitSession) purgeLocalPrivateData();
+    this.closePreparedSendSocket();
     this.session = null;
     this.http.replaceCookies({});
   }
@@ -15730,6 +15907,7 @@ export class OpenMatesClient {
       remoteCommandJobs: options.remoteCommandJobs,
       interactiveHuman: options.interactiveHuman,
       onForceLogout: () => {
+        this.closePreparedSendSocket();
         purgeLocalPrivateData();
         this.session = null;
       },
@@ -15751,17 +15929,24 @@ export class OpenMatesClient {
    * one-use, same-send validated auth receipt; every other use refreshes.
    */
   private async openWsClient(options: { taskUpdateJobs?: boolean; projectFileJobs?: boolean; remoteCommandJobs?: boolean; interactiveHuman?: boolean;
-    personalSendAuthHandoff?: PersonalSendAuthHandoff | null } = {}): Promise<{
+    personalSendAuthHandoff?: PersonalSendAuthHandoff | null; signal?: AbortSignal } = {}): Promise<{
     ws: OpenMatesWsClient;
     session: OpenMatesSession;
     ownerId: string | null;
   }> {
     const reusedOwner = options.personalSendAuthHandoff
       ? await this.reusePersonalSendAuthHandoff(options.personalSendAuthHandoff) : null;
-    const ownerId = reusedOwner ?? await this.refreshWsToken();
+    const ownerId = reusedOwner ?? (options.signal
+      ? await withHttpAbortSignal(options.signal, () => this.refreshWsToken(options.signal))
+      : await this.refreshWsToken());
+    if (options.signal?.aborted) throw new Error("WebSocket open cancelled");
     const session = this.requireSession();
     const ws = this.makeWsClient(session, options);
-    await ws.open();
+    await ws.open(10_000, options.signal);
+    if (options.signal?.aborted) {
+      ws.close();
+      throw new Error("WebSocket open cancelled");
+    }
     return { ws, session, ownerId };
   }
 
@@ -15792,10 +15977,13 @@ export class OpenMatesClient {
 
   beginInteractiveViewerSession(): void {
     this.interactiveViewerAllowed = process.stdin.isTTY === true && process.stdout.isTTY === true;
+    this.preparedSendSocketAttemptOwner = null;
   }
 
   endInteractiveViewerSession(): void {
     this.interactiveViewerAllowed = false;
+    this.closePreparedSendSocket();
+    this.preparedSendSocketAttemptOwner = null;
     this.clearInteractiveChatViewer();
   }
 
@@ -15843,8 +16031,9 @@ export class OpenMatesClient {
    * /auth/session call, but the CLI stores it from login and never updates it.
    * This method fetches a fresh ws_token and captures any rotated cookies.
    */
-  private async refreshWsToken(): Promise<string | null> {
+  private async refreshWsToken(signal?: AbortSignal): Promise<string | null> {
     return this.withFreshStoredSession(async () => {
+      signal?.throwIfAborted();
       const session = this.requireSession();
       const previousRefreshToken = session.cookies.auth_refresh_token;
       let res: HttpResponse<{
@@ -15859,11 +16048,14 @@ export class OpenMatesClient {
           user?: { id?: string; user_id?: string };
         }>("/v1/auth/session", { session_id: session.sessionId }, this.getCliRequestHeaders());
       } catch {
+        signal?.throwIfAborted();
         // Network failures are best-effort: proceed with the existing wsToken and
         // let the WebSocket auth cookie fallback handle it. Explicit server
         // invalidation below is different and must purge local private data.
         return null;
       }
+
+      signal?.throwIfAborted();
 
       if (res.status >= 500) {
         throw new Error(`Session validation temporarily unavailable (HTTP ${res.status}). Retry shortly.`);

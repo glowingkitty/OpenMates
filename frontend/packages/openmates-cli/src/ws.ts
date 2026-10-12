@@ -568,47 +568,70 @@ export class OpenMatesWsClient {
     return this.serverCapabilities.has(capability);
   }
 
+  isOpen(): boolean {
+    return this.socket.readyState === WebSocket.OPEN;
+  }
+
   /** Resolve once the advertised capability set has arrived; older servers may omit it. */
   waitForServerCapabilities(): Promise<void> {
     return this.serverCapabilitiesReady;
   }
 
-  async open(timeoutMs = 10_000): Promise<void> {
+  async open(timeoutMs = 10_000, signal?: AbortSignal): Promise<void> {
     await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(
-        () => reject(new Error("WebSocket open timeout")),
-        timeoutMs,
-      );
-      this.socket.once("open", () => {
-        clearTimeout(timeout);
+      let settled = false;
+      let timeout: ReturnType<typeof setTimeout> | null = null;
+      const cleanup = () => {
+        if (timeout) clearTimeout(timeout);
+        this.socket.off("open", onOpen);
+        this.socket.off("error", onError);
+        this.socket.off("unexpected-response", onUnexpectedResponse);
+        signal?.removeEventListener("abort", onAbort);
+      };
+      const fail = (error: Error) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        // A timed-out or cancelled upgrade must never deliver a late native
+        // lifecycle frame or remain authenticated after its owner is gone.
+        this.socket.on("error", () => {});
+        this.socket.terminate();
+        reject(error);
+      };
+      const onOpen = () => {
+        if (settled || signal?.aborted) { fail(new Error("WebSocket open cancelled")); return; }
         // Typed recovery discovery starts only after the foreground lifecycle
         // announcement. CLI commands also need this when no human viewer is active.
-        this.socket.send(JSON.stringify({ type: "native_client_lifecycle", payload: {
-          client_type: "cli", is_foreground: true, interactive: false,
-        } }));
+        try {
+          this.socket.send(JSON.stringify({ type: "native_client_lifecycle", payload: {
+            client_type: "cli", is_foreground: true, interactive: false,
+          } }));
+        } catch (error) {
+          fail(error instanceof Error ? error : new Error("WebSocket lifecycle send failed"));
+          return;
+        }
+        settled = true;
+        cleanup();
         resolve();
-      });
-      this.socket.once("error", (error: Error) => {
-        clearTimeout(timeout);
-        reject(error);
-      });
+      };
+      const onError = (error: Error) => fail(error);
       // ws library emits 'unexpected-response' when the server returns a non-101
       // status. When this listener exists, ws does NOT emit the generic 'error'
       // event for the upgrade failure, so there is no double-reject risk.
-      this.socket.once("unexpected-response", (_req: unknown, res: IncomingMessage) => {
-        clearTimeout(timeout);
+      const onUnexpectedResponse = (_req: unknown, res: IncomingMessage) => {
         if (res.statusCode === 401 || res.statusCode === 403) {
-          reject(
-            new Error(
-              "Session expired or invalid. Please run `openmates login` to re-authenticate.",
-            ),
-          );
+          fail(new Error("Session expired or invalid. Please run `openmates login` to re-authenticate."));
         } else {
-          reject(
-            new Error(`Unexpected server response: ${res.statusCode}`),
-          );
+          fail(new Error(`Unexpected server response: ${res.statusCode}`));
         }
-      });
+      };
+      const onAbort = () => fail(new Error("WebSocket open cancelled"));
+      this.socket.once("open", onOpen);
+      this.socket.once("error", onError);
+      this.socket.once("unexpected-response", onUnexpectedResponse);
+      signal?.addEventListener("abort", onAbort, { once: true });
+      timeout = setTimeout(() => fail(new Error("WebSocket open timeout")), timeoutMs);
+      if (signal?.aborted) onAbort();
     });
     if (this.interactiveHuman) {
       this.presenceTimer = setInterval(() => this.reportInteractivePresence(), 25_000);

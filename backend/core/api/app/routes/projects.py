@@ -3,6 +3,7 @@
 # Authenticated Projects V1 API. All user-facing metadata is already encrypted
 # by the client; the API only stores hashed identifiers and opaque ciphertexts.
 
+import asyncio
 import hashlib
 import logging
 import time
@@ -551,12 +552,23 @@ async def list_projects(
     else:
         projects = await directus_service.project.list_projects(current_user.id, include_archived=include_archived, team_id=team_id)
     role = str(membership.get("role")) if membership else None
-    return {
-        "projects": [
-            await _project_client_projection(directus_service, project, current_user.id, team_id, role)
-            for project in projects
-        ]
-    }
+    projection_limit = asyncio.Semaphore(8)
+
+    async def project_with_fresh_wrappers(project: Dict[str, Any]) -> Dict[str, Any]:
+        async with projection_limit:
+            return await _project_client_projection(directus_service, project, current_user.id, team_id, role)
+
+    # Each projection performs its own scoped wrapper read. Gather preserves
+    # source order; wait for all reads so a failure cannot leave background
+    # tasks using request services after the response has failed.
+    projected = await asyncio.gather(
+        *(project_with_fresh_wrappers(project) for project in projects),
+        return_exceptions=True,
+    )
+    for result in projected:
+        if isinstance(result, BaseException):
+            raise result
+    return {"projects": projected}
 
 
 @router.post("")

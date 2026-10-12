@@ -699,3 +699,47 @@ def test_project_activation_after_preflight_preserves_immutable_user_request(mon
     assert chat_turn_preflight_handler.build_inference_commitment(prepared) == chat_turn_preflight_handler.build_inference_commitment(dispatched)
     dispatched["message"] = {"content": "a different user request"}
     assert chat_turn_preflight_handler.build_inference_commitment(prepared) != chat_turn_preflight_handler.build_inference_commitment(dispatched)
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=gui.web assertions=projects.focus.mention-activation,chats.message.identity-idempotent
+async def test_preflight_commitment_ignores_untrusted_project_fields_without_focus_read(monkeypatch) -> None:
+    from backend.core.api.app.services import project_write_authorization_service
+
+    class FocusMustNotBeRead:
+        def __init__(self, *_args) -> None:
+            raise AssertionError("Preflight must not read live Project focus")
+
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", FakeRecoveryService)
+    monkeypatch.setattr(
+        project_write_authorization_service, "ProjectWriteAuthorizationService", FocusMustNotBeRead,
+    )
+    FakeRecoveryService.calls = []
+    websocket = FakeWebSocket()
+    websocket.app = SimpleNamespace(state=SimpleNamespace(cache_service=object()))
+    payload = _payload()
+    payload["inference_request"].update(
+        current_project={"project_id": "untrusted"},
+        active_project_focus={"project_id": "untrusted", "instruction": "untrusted"},
+    )
+    directus = SimpleNamespace(chat=SimpleNamespace(
+        get_chat_metadata=AsyncMock(return_value={
+            "id": payload["chat_id"], "hashed_user_id": "owner-hash", "chat_visibility": None,
+        }),
+    ))
+
+    await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        websocket=websocket, manager=FakeManager(), directus_service=directus,
+        user_id="user-1", user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        payload=payload,
+    )
+
+    committed = FakeRecoveryService.calls[1][1]
+    expected = dict(payload["inference_request"])
+    expected.update(client_capabilities=[], current_project=None, active_project_focus=None)
+    canonical = json.dumps(expected, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    assert committed["inference_commitment"] == hmac.new(
+        b"commitment-secret", canonical, hashlib.sha256,
+    ).hexdigest()
+    assert websocket.messages[-1]["type"] == "chat_turn_preflight_ack"
+

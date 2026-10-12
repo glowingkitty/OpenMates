@@ -367,3 +367,87 @@ test('Personal SDK send reuses only its fresh validated session receipt before p
 		removeWorkflowCliHome(home);
 	}
 });
+
+// contract-test: direct surface=cli assertions=chats.send.immediate-admission,chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('warmed interactive TUI send borrows its authenticated socket for one encrypted admission', async ({ page }: { page: any }) => {
+	test.setTimeout(300_000);
+	test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted'
+		|| process.env.CI_TEST_MODE !== 'e2e', 'Requires the isolated GitHub product stack');
+	skipWithoutCredentials(test, email, password, otpKey);
+	const apiUrl = workflowApiUrl();
+	const home = createWorkflowCliHome('warm-interactive-admission');
+	try {
+		await loginWorkflowCliViaPair(page, apiUrl, home, 'CLI_WARM_INTERACTIVE_ADMISSION');
+		const observed = canonicalHistorySdk(apiUrl, home, `
+			const stdinTTY=Object.getOwnPropertyDescriptor(process.stdin,'isTTY');
+			const stdoutTTY=Object.getOwnPropertyDescriptor(process.stdout,'isTTY');
+			Object.defineProperty(process.stdin,'isTTY',{configurable:true,value:true});
+			Object.defineProperty(process.stdout,'isTTY',{configurable:true,value:true});
+			try{
+				const owner=await client.whoAmI();
+				if(!owner.id||client.getActiveTeamId())throw Error('Expected paired Personal account');
+				const memorySnapshot=await client.listMemories({personal:true});
+				const newChatId=client.preparedNewChatId();
+				let openCount=0,admissionCount=0,admissionSocket=null,admissionType=null,admission=null;
+				const open=client.openWsClient.bind(client);
+				client.openWsClient=async(...args)=>{
+					const opened=await open(...args);openCount++;
+					const send=opened.ws.sendAsync.bind(opened.ws);
+					opened.ws.sendAsync=async(type,payload)=>{
+						if(type==='chat_turn_admit'||type==='chat_turn_preflight'){
+							admissionCount++;admissionSocket=opened.ws;admissionType=type;admission=payload;
+							throw Error('EXPECTED_PRE_DISPATCH_STOP');
+						}
+						return send(type,payload);
+					};
+					return opened;
+				};
+				client.beginInteractiveViewerSession();
+				client.warmChatMetadata();
+				const prepared=client.preparedSendSocket;
+				if(!prepared)throw Error('Interactive send socket was not prepared');
+				await prepared.pending;
+				if(!prepared.opened?.ownerId||!prepared.opened.ws.isOpen())throw Error('Authenticated warm socket is not ready');
+				const warmedSocket=prepared.opened.ws;
+				const opensAfterWarm=openCount;
+				try{
+					await client.sendMessage({message:'Ordinary warmed TUI admission check.',newChatId,
+						personal:true,interactiveHuman:true,piiDetection:false,memorySnapshot});
+					throw Error('Inference admission was not captured');
+				}catch(error){if(error.message!=='EXPECTED_PRE_DISPATCH_STOP')throw error;}
+				process.stdout.write(JSON.stringify({opensAfterWarm,openCount,admissionCount,admissionType,
+					borrowed:admissionSocket===warmedSocket,ownerMatches:prepared.opened.ownerId===owner.id,
+					chatIdMatches:admission?.chat_id===newChatId,
+					turnId:admission?.turn_id,messageId:admission?.message_id,
+					clientMessageIdMatches:admission?.encrypted_user_message?.client_message_id===admission?.message_id,
+					metadataKeyMatches:admission?.encrypted_chat_metadata?.encrypted_chat_key===admission?.encrypted_chat_key,
+					encryptedKey:typeof admission?.encrypted_chat_key==='string'&&admission.encrypted_chat_key.length>0,
+					encryptedContent:typeof admission?.encrypted_user_message?.encrypted_content==='string'
+						&&admission.encrypted_user_message.encrypted_content.length>0,
+					expectedMessagesV:admission?.expected_messages_v}));
+				client.endInteractiveViewerSession();
+			}finally{
+				if(stdinTTY)Object.defineProperty(process.stdin,'isTTY',stdinTTY);
+				else delete process.stdin.isTTY;
+				if(stdoutTTY)Object.defineProperty(process.stdout,'isTTY',stdoutTTY);
+				else delete process.stdout.isTTY;
+			}
+		`);
+		expect(observed.opensAfterWarm).toBe(1);
+		expect(observed.openCount).toBe(1);
+		expect(observed.admissionCount).toBe(1);
+		expect(observed.admissionType).toBe('chat_turn_admit');
+		expect(observed.borrowed).toBe(true);
+		expect(observed.ownerMatches).toBe(true);
+		expect(observed.chatIdMatches).toBe(true);
+		expect(observed.turnId).toBeTruthy();
+		expect(observed.messageId).toBeTruthy();
+		expect(observed.clientMessageIdMatches).toBe(true);
+		expect(observed.metadataKeyMatches).toBe(true);
+		expect(observed.encryptedKey).toBe(true);
+		expect(observed.encryptedContent).toBe(true);
+		expect(observed.expectedMessagesV).toBe(0);
+	} finally {
+		removeWorkflowCliHome(home);
+	}
+});

@@ -291,22 +291,10 @@ async def handle_chat_turn_preflight(
         cache_service = getattr(getattr(websocket, "app", None), "state", None)
         cache_service = getattr(cache_service, "cache_service", None)
         if cache_service is not None and not ordinary_team_turn:
-            from backend.core.api.app.services.project_write_authorization_service import (
-                ProjectWriteAuthorizationService,
-            )
-
-            project_focus = await ProjectWriteAuthorizationService(
-                directus_service, cache_service
-            ).get_active_focus(user_id=user_id, chat_id=str(payload["chat_id"]))
-            inference_request["active_project_focus"] = project_focus
-            inference_request["current_project"] = (
-                {
-                    key: project_focus.get(key)
-                    for key in ("project_id", "project_id_hash", "team_id", "team_id_hash")
-                }
-                if project_focus
-                else None
-            )
+            # Keep the commitment's field shape stable. Canonicalization replaces
+            # both values with null; live focus is checked at dispatch instead.
+            inference_request["active_project_focus"] = None
+            inference_request["current_project"] = None
         if hashed_team_id and not ordinary_team_turn:
             try:
                 inference_request = normalize_team_ai_inference_request(inference_request)

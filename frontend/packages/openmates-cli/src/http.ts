@@ -222,6 +222,7 @@ export class OpenMatesHttpClient {
         throw error;
       }
 
+      scopedSignal?.throwIfAborted();
       await this.captureCookies(response, path, sessionId, sentToken);
       scopedSignal?.throwIfAborted();
 

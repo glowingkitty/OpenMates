@@ -1,13 +1,13 @@
 # Chat processing architecture
 
-Implementation candidate; isolated checks and live latency measurements are still pending. Timing targets are 1.5 seconds from Enter/Send to selected-Mate paint, and 2–3 seconds to authored text for an ordinary factual request. The interactive TUI is measured first, then web. Tool progress, final response, persistence and command exit are separate measurements.
+The architecture revision (`fa6b90c`), Google transport repair (`e71c72b8`), immediate admission changes (`2453d85d`), and first measured SDK/auth/simple-turn fixes (`7a250696`) are deployed to development. Actual TUI measurements still miss the latency targets; no successful timing acceptance is claimed yet. Timing targets are 1.5 seconds from Enter/Send to selected-Mate paint, and 2–3 seconds to authored text for an ordinary factual request. The interactive TUI is measured first, then web. Tool progress, final response, persistence and command exit are separate measurements.
 
 ```mermaid
 flowchart TD
   Focus[Web focus or microphone / TUI startup] --> Prepare[Prepare invisible chat UUID and key; warm authorized discovery]
   Send[Enter / Send] --> Optimistic[One user row; clear submitted composer snapshot]
   Optimistic --> Admit[One encrypted chat_turn_admit frame]
-  Admit --> Durable[Fresh authentication and durable encrypted commit]
+  Admit --> Durable[Fresh authentication; atomic chat and first-message preparation; protocol admission]
   Prepare -. reused when ready .-> Admit
   Durable --> Router[Reserved app_ai_routing worker]
   Admit --> Headers[Correlated routing metadata]
@@ -17,10 +17,11 @@ flowchart TD
   Resolve --> Paint[Client paints Mate + Thinking]
   Resolve --> Handoff[Encrypted 120-second routing snapshot; original turn identity]
   Handoff --> MainQueue[Main worker; fresh snapshot and execution checks]
-  MainQueue --> Need{Detailed selection needed?}
+  MainQueue --> Complete[Complete correlated private-detail hydration and fresh execution checks]
+  Complete --> Need{Detailed selection needed?}
   Need -- complete empty context --> Minimal[Assemble required answer context]
   Need -- capabilities, active context or uncertainty --> Stage2[Jev stage 2: selected skills, Focus, Memory, Workflows, related work]
-  Details[Authorized active or explicit private details] --> Stage2
+  Details[Authorized active or explicit private details] --> Complete
   Stage2 --> Hydrate[Authorize and load selected resources in parallel]
   Hydrate --> Minimal
   Minimal --> Main[Main model streams authored text and ordered tool cycles]
@@ -30,7 +31,9 @@ flowchart TD
   Final --> Post[Postprocessor metadata and separate followup chips]
 ```
 
-Prepared identity does not create an unwanted visible empty chat. A cold request creates the chat and commits its message in the same admission. Capability negotiation retains the established protocol for older APIs. Deferred routing/private-detail frames currently apply to first ordinary Personal turns; existing-chat, Team, explicit-Project and attachment paths retain their complete context and established gates. This avoids expiring a queued turn's required context while it waits behind a long response.
+Prepared identity does not create an unwanted visible empty chat. With the durable protocol enabled, a cold request creates the chat and commits its message in the same admission. When the recovery cutover epoch is zero, first-frame admission atomically prepares the new chat and first encrypted user message before acknowledging `LEGACY`; subsequent inference follows the established dispatch path. Existing chats and human-only Team conversations keep their existing gates. The latency changes do not enable a global recovery cutover. Capability negotiation retains the established protocol for older APIs. Deferred routing/private-detail frames currently apply to first ordinary Personal turns; existing-chat, Team, explicit-Project and attachment paths retain their complete context and established gates. This avoids expiring a queued turn's required context while it waits behind a long response.
+
+With `chat_turn_context_selection_details_v2`, the routing continuation needs only the completed authorized Project candidate list. Task candidates, accepted Plan context, Project Focus discovery and the connected-account directory arrive in the separately correlated details continuation. These reads run concurrently and must complete before detailed selection or main-context assembly; they do not delay stage-one Mate feedback. Failed or incomplete Project discovery retains the complete path. Older APIs receive the established full routing payload.
 
 The preprocessor wrapper receives the authenticated request and server configuration. Cached discovery is data; access, source revision, consent, credit and execution checks remain authoritative.
 
@@ -73,7 +76,7 @@ flowchart LR
   Selection --> Load[Parallel selected-resource authorization and hydration]
 ```
 
-Minimal main context retains the instructions needed to answer correctly. It omits unrelated Project/Task/Workflow discovery, unused app guidance and unavailable tool-only instructions; it preserves mandatory safety, privacy, formatting, questions, model policy and selected context.
+Minimal main context retains the instructions needed to answer correctly. It omits unrelated private Project/Task/Workflow bodies and unused selected app guidance; it preserves mandatory safety, privacy, formatting, questions, model policy and selected context. A confirmed objective English factual first turn with complete empty context omits the empty Task runtime and its create tool. Unknown intent, actions, explicit Task dependencies and incomplete context retain the full path. The measured main prompt remains 7,163 tokens; this is a bounded tool/context omission, not a completed broad prompt reduction.
 
 ```mermaid
 flowchart LR
@@ -111,4 +114,21 @@ flowchart LR
 | Selected private details and routing handoff | Existing authorized transport; new phase/snapshot payloads Vault-encrypted for 120 seconds | Exact owner, Team, device/turn, source revision and consent |
 | Approved user Memory content | Existing consent-bound chat-specific encrypted retention, default 24 hours | Scope, revision, revocation and chat eviction |
 
-Project/Focus/Team-memory cache hits still require a small fresh Directus watermark read. These indexes reduce repeated full metadata reads; they are not permission caches. No warm-up sends draft text or invokes an AI model.
+Project/Focus/Team-memory cache hits still require a small fresh Directus watermark read. These indexes reduce repeated full metadata reads; they are not permission caches. No warm-up sends draft text or invokes an AI model. The TUI also prepares a separate one-use authenticated send connection with a 45-second lifetime. Borrowing requires the same account, session, refresh-cookie authority, device key, Team/key scope and socket options, plus a fresh persisted-state recheck. A foreground send cancels an unfinished optional connection before required preparation; a ready matching connection can be borrowed once. Token expiry renewal under the same refresh-cookie authority does not discard an already-authenticated live connection.
+
+## Measured TUI timing before the next optimization
+
+These are actual PTY Enter-to-paint measurements of “What’s the capital of Spain?”, with the same successful Google Gemini 3.8 Flash model and LOW thinking verified against the exact task and chat in server logs. Every sample completed without app skill calls. The two warmed samples after `7a250696` used a 20-second idle before Enter; the first also followed worker restart. They are individual observations, not a representative percentile or an apples-to-apples improvement claim.
+
+| Runtime / condition | Optimistic user row and composer clear | Selected Mate | First authored text | Provider request → authored paint | Acceptance |
+| --- | ---: | ---: | ---: | ---: | --- |
+| `2453d85d`, cold composer | 28 ms | 11,088 ms | 15,829 ms | 2,776 ms | Missed |
+| `2453d85d`, warmed | 28 ms | 3,168 ms | 5,634 ms | 1,578 ms | Missed |
+| `7a250696`, warmed after restart | 28 ms | 5,353 ms | 8,939 ms | 2,076 ms | Missed |
+| `7a250696`, warmed, subsequent request | 29 ms | 2,992 ms | 5,740 ms | 1,976 ms | Missed |
+
+The last sample spends 2,992 ms before selected-Mate paint, then 772 ms before the main provider request and 1,976 ms from that request to authored paint. The main worker reused the original validated no-Project decision and skipped the second Jev phase. Fresh credit verification took about 53 ms in that worker and 67 ms in routing; the first post-restart sample took about 506 and 527 ms respectively. The delay preceding its first credit-check substep is not separately instrumented.
+
+The next measured changes remove two discarded Project-focus reads, parallelize fresh Project key-wrapper projections with a bound of eight, and prepare a separately owned one-shot authenticated TUI send connection while idle. They retain current access/credit checks. Their timing benefit remains unverified. Command completion and postprocessing are recorded separately from first answer paint.
+
+The Personal Memory row and account-settings reads remain sequential in this revision. Both can rotate a shared refresh-cookie jar, and account settings supply a one-use auth receipt for the exact Memory snapshot. Parallelizing them requires coordinated response ownership; a plain concurrent call is not safe. The measured warmed preparation cost is about 588 ms (241 ms rows, 14 ms decryption, 333 ms settings/auth).

@@ -625,6 +625,9 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch, 
             "outbox_id": "outbox-123",
         }
     )
+    fresh_project = {"project_id": "authorized-project", "team_id": "team-123"}
+    fresh_focus = {**fresh_project, "activation_id": "authorized-activation"}
+    read_fresh_focus = AsyncMock(return_value=(fresh_project, fresh_focus))
     recovery_calls = []
 
     async def fake_broadcast_team_event(**_kwargs):
@@ -652,6 +655,7 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch, 
         SimpleNamespace(get_global_registry=lambda: FakeSkillRegistry(manager)),
     )
     monkeypatch.setattr(message_received_handler, "enqueue_chat_turn", enqueue)
+    monkeypatch.setattr(message_received_handler, "_active_project_context", read_fresh_focus)
     monkeypatch.setattr(message_received_handler, "ChatRecoveryService", FakeRecoveryService)
     monkeypatch.setattr(message_received_handler, "broadcast_team_event", fake_broadcast_team_event)
     monkeypatch.setattr(message_received_handler, "notify_team_member_mentions", fake_notify_team_member_mentions)
@@ -678,6 +682,8 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch, 
                 "turn_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
                 "recovery_public_key": "recovery-public-key",
                 "chat_key_version": 1,
+                "current_project": {"project_id": "untrusted-project"},
+                "active_project_focus": {"project_id": "untrusted-project"},
                 "message": {
                     "message_id": "msg-current",
                     "role": "user",
@@ -710,9 +716,18 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch, 
         assert ("dispatch_skill", "ai", "ask", "team-chat-123") in manager.calls
     assert not any(call[1] == "request_chat_history" for call in manager.calls if call[0] == "send_personal_message")
     enqueue.assert_awaited_once()
+    committed_request = enqueue.await_args.kwargs["inference_request"]
+    assert committed_request["current_project"] is None
+    assert committed_request["active_project_focus"] is None
+    read_fresh_focus.assert_awaited_once_with(
+        directus_service=directus_service, cache_service=cache_service,
+        user_id="user-123", chat_id="team-chat-123",
+    )
     if not active_task and not stale_queue:
         assert recovery_calls[0][0] == "mark_outbox_dispatched"
         cache_service.try_claim_active_ai_task.assert_awaited_once_with("team-chat-123", "task-123")
+        assert manager.request_payload["current_project"] == fresh_project
+        assert manager.request_payload["active_project_focus"] == fresh_focus
     cache_service.set_active_ai_task.assert_not_awaited()
     directus_service.chat.check_chat_ownership.assert_not_awaited()
 

@@ -803,14 +803,10 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 user_id,
                 device_fingerprint_hash,
             )
-            current_project, active_project_focus = await _active_project_context(
-                directus_service=directus_service,
-                cache_service=cache_service,
-                user_id=user_id,
-                chat_id=chat_id,
-            )
-            inference_request["current_project"] = current_project
-            inference_request["active_project_focus"] = active_project_focus
+            # The commitment canonicalizer replaces these values with null.
+            # Resolve fresh focus later when constructing the actual AI request.
+            inference_request["current_project"] = None
+            inference_request["active_project_focus"] = None
             try:
                 if is_team_chat:
                     inference_request = normalize_team_ai_inference_request(inference_request)

@@ -2668,6 +2668,233 @@ describe("task update job helpers", () => {
   });
 });
 
+describe("TUI one-shot send socket warmup", () => {
+  const sendOptions = { taskUpdateJobs: true, projectFileJobs: true, remoteCommandJobs: true, interactiveHuman: true };
+
+  function fixture() {
+    writeLegacySession();
+    const client = OpenMatesClient.load();
+    let open = true;
+    let closeCount = 0;
+    const closeHandlers: Array<() => void> = [];
+    const ws = {
+      isOpen: () => open,
+      close: () => { if (open) { open = false; closeCount++; closeHandlers.forEach(handler => handler()); } },
+      onClose: (handler: () => void) => { closeHandlers.push(handler); return () => {}; },
+    };
+    const opened = { ws, session: client.getSession(), ownerId: "11111111-1111-4111-8111-111111111111" };
+    const internal = client as unknown as {
+      interactiveViewerAllowed: boolean;
+      openWsClient: (options: typeof sendOptions & { signal?: AbortSignal }) => Promise<typeof opened>;
+      warmSendSocket: () => void;
+      takePreparedSendSocket: (options: typeof sendOptions, teamId: string | null) => Promise<typeof opened | null>;
+      preparedSendSocket: { pending: Promise<void>; expiresAt: number } | null;
+    };
+    internal.interactiveViewerAllowed = true;
+    let opens = 0;
+    internal.openWsClient = async options => {
+      const { signal, ...flags } = options;
+      assert.deepEqual(flags, sendOptions);
+      assert.ok(signal);
+      opens++;
+      return opened;
+    };
+    return { client, internal, opened, getOpens: () => opens, getCloseCount: () => closeCount };
+  }
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,auth.session.lifecycle
+  it("borrows an identical live socket once after a persisted-session recheck", async () => {
+    const { client, internal, opened, getOpens, getCloseCount } = fixture();
+    internal.warmSendSocket();
+    await internal.preparedSendSocket?.pending;
+    assert.equal(await internal.takePreparedSendSocket(sendOptions, null), opened);
+    assert.equal(await internal.takePreparedSendSocket(sendOptions, null), null);
+    assert.equal(getOpens(), 1);
+    client.endInteractiveViewerSession();
+    assert.equal(getCloseCount(), 0, "borrowed socket belongs to the send");
+    opened.ws.close();
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,auth.session.lifecycle
+  for (const tokenChange of ["same refresh authority", "different refresh authority"] as const) {
+    it(`${tokenChange} when auth issues a new WebSocket token`, async () => {
+      const { client, internal, opened, getCloseCount } = fixture();
+      const refreshHash = createHash("sha256").update("test-refresh-token").digest("hex");
+      const initialToken = `${refreshHash}:100:${"a".repeat(64)}`;
+      client.getSession()!.wsToken = initialToken;
+      const stored = JSON.parse(readFileSync(sessionPath, "utf8")) as Record<string, unknown>;
+      stored.wsToken = initialToken;
+      writeFileSync(sessionPath, JSON.stringify(stored), { mode: 0o600 });
+      internal.warmSendSocket();
+      await internal.preparedSendSocket?.pending;
+
+      stored.wsToken = `${tokenChange === "same refresh authority" ? refreshHash : "f".repeat(64)}:200:${"b".repeat(64)}`;
+      writeFileSync(sessionPath, JSON.stringify(stored), { mode: 0o600 });
+      const borrowed = await internal.takePreparedSendSocket(sendOptions, null);
+      if (tokenChange === "same refresh authority") {
+        assert.equal(borrowed, opened);
+        assert.equal(getCloseCount(), 0);
+        opened.ws.close();
+      } else {
+        assert.equal(borrowed, null);
+        assert.equal(getCloseCount(), 1);
+      }
+      client.endInteractiveViewerSession();
+    });
+  }
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,auth.session.lifecycle
+  for (const change of ["account", "session", "createdAt", "masterKey", "cookie", "options", "expired", "closed", "team"] as const) {
+    it(`closes an idle socket and rejects changed ${change}`, async () => {
+      const { client, internal, opened, getCloseCount } = fixture();
+      internal.warmSendSocket();
+      await internal.preparedSendSocket?.pending;
+      let options = sendOptions;
+      if (change === "options") options = { ...sendOptions, taskUpdateJobs: false };
+      else if (change === "expired") internal.preparedSendSocket!.expiresAt = performance.now() - 1;
+      else if (change === "closed") opened.ws.close();
+      else if (change === "team") client.setActiveTeamId("22222222-2222-4222-8222-222222222222");
+      else {
+        const stored = JSON.parse(readFileSync(sessionPath, "utf8")) as Record<string, unknown>;
+        if (change === "account") stored.hashedEmail = "other-account";
+        if (change === "session") stored.sessionId = "other-session";
+        if (change === "createdAt") stored.createdAt = Number(stored.createdAt) + 1;
+        if (change === "masterKey") stored.masterKeyExportedB64 = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=";
+        if (change === "cookie") stored.cookies = { auth_refresh_token: "rotated-by-memory-auth" };
+        writeFileSync(sessionPath, JSON.stringify(stored), { mode: 0o600 });
+      }
+      assert.equal(await internal.takePreparedSendSocket(options, null), null);
+      assert.equal(getCloseCount(), 1);
+      client.endInteractiveViewerSession();
+    });
+  }
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,auth.session.lifecycle
+  it("rejects a rotated Team key", async () => {
+    const { client, internal, getCloseCount } = fixture();
+    const teamId = "22222222-2222-4222-8222-222222222222";
+    client.setActiveTeamId(teamId);
+    saveLocalTeamKey("test-hashed-email", teamId, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+    internal.warmSendSocket();
+    await internal.preparedSendSocket?.pending;
+    saveLocalTeamKey("test-hashed-email", teamId, "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=");
+    assert.equal(await internal.takePreparedSendSocket(sendOptions, teamId), null);
+    assert.equal(getCloseCount(), 1);
+    client.endInteractiveViewerSession();
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle
+  it("closes an unused socket when the TUI ends", async () => {
+    const { client, internal, getCloseCount } = fixture();
+    internal.warmSendSocket();
+    await internal.preparedSendSocket?.pending;
+    client.endInteractiveViewerSession();
+    assert.equal(getCloseCount(), 1);
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle
+  it("joins the identical pending warmup without opening a second socket", async () => {
+    const { client, internal, opened } = fixture();
+    let resolveOpen!: (value: typeof opened) => void;
+    let opens = 0;
+    internal.openWsClient = () => {
+      opens++;
+      return new Promise(resolve => { resolveOpen = resolve; });
+    };
+    internal.warmSendSocket();
+    const borrowing = internal.takePreparedSendSocket(sendOptions, null);
+    resolveOpen(opened);
+    assert.equal(await borrowing, opened);
+    assert.equal(opens, 1);
+    client.endInteractiveViewerSession();
+    opened.ws.close();
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle
+  it("bounds a stalled optional warmup and cancels its late socket", async () => {
+    const { client, internal, opened, getCloseCount } = fixture();
+    let resolveOpen!: (value: typeof opened) => void;
+    let signal: AbortSignal | undefined;
+    internal.openWsClient = options => {
+      signal = options.signal;
+      return new Promise(resolve => { resolveOpen = resolve; });
+    };
+    internal.warmSendSocket();
+    const startedAt = performance.now();
+    assert.equal(await internal.takePreparedSendSocket(sendOptions, null), null);
+    assert.ok(performance.now() - startedAt < 250, "cold send must not await the optional open timeout");
+    assert.equal(signal?.aborted, true);
+    resolveOpen(opened);
+    await new Promise<void>(resolve => setImmediate(resolve));
+    assert.equal(getCloseCount(), 1, "a cancelled late upgrade cannot retain an idle socket");
+    client.endInteractiveViewerSession();
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle
+  it("falls back after a failed optional warmup", async () => {
+    const { client, internal } = fixture();
+    internal.openWsClient = async () => { throw new Error("warm socket unavailable"); };
+    internal.warmSendSocket();
+    await internal.preparedSendSocket?.pending;
+    assert.equal(await internal.takePreparedSendSocket(sendOptions, null), null);
+    client.endInteractiveViewerSession();
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle,auth.session.isolation
+  it("cancels stalled warm auth before foreground memory validation and ignores its late cookie", async () => {
+    let authCalls = 0;
+    let resolveFirstAuth!: () => void;
+    const firstAuth = new Promise<void>(resolve => { resolveFirstAuth = resolve; });
+    let stalledResponse: ServerResponse | null = null;
+    let upgrades = 0;
+    const server = createServer((request, response) => {
+      response.setHeader("content-type", "application/json");
+      if (request.url === "/v1/auth/session") {
+        authCalls++;
+        if (authCalls === 1) { stalledResponse = response; resolveFirstAuth(); return; }
+        response.setHeader("set-cookie", "auth_refresh_token=foreground-cookie; Path=/; HttpOnly");
+        response.end(JSON.stringify({ success: true, ws_token: "foreground-ws-token", user: { id: "owner-id" } }));
+        return;
+      }
+      if (request.url === "/v1/sdk/memories") {
+        response.end(JSON.stringify({ memories: [] }));
+        return;
+      }
+      response.writeHead(404);
+      response.end(JSON.stringify({}));
+    });
+    server.on("upgrade", (_request, socket) => { upgrades++; socket.destroy(); });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const internal = client as unknown as { interactiveViewerAllowed: boolean; warmSendSocket: () => void };
+      internal.interactiveViewerAllowed = true;
+      internal.warmSendSocket();
+      await firstAuth;
+      const startedAt = performance.now();
+      await assert.rejects(client.sendMessage({ message: "foreground turn", piiDetection: false,
+        onPrivacyPrepared: () => { throw new Error("stop after fresh memory auth"); } }),
+      /stop after fresh memory auth/);
+      assert.ok(performance.now() - startedAt < 2_000, "foreground memory auth must not wait on stalled optional auth");
+      assert.equal(authCalls, 2);
+      stalledResponse?.setHeader("set-cookie", "auth_refresh_token=stale-warm-cookie; Path=/; HttpOnly");
+      stalledResponse?.end(JSON.stringify({ success: true, ws_token: "stale-warm-token", user: { id: "wrong-owner" } }));
+      await new Promise<void>(resolve => setTimeout(resolve, 20));
+      assert.equal(client.getSession()?.cookies.auth_refresh_token, "foreground-cookie");
+      assert.equal((JSON.parse(readFileSync(sessionPath, "utf8")) as { cookies: { auth_refresh_token: string } }).cookies.auth_refresh_token, "foreground-cookie");
+      assert.equal(upgrades, 0);
+      client.endInteractiveViewerSession();
+    } finally {
+      stalledResponse?.end();
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+});
+
 describe("CLI saved-chat recovery preflight", () => {
   // contract-test: supporting surface=cli assertions=auth.session.lifecycle,auth.session.isolation,chats.completion.lease-fenced
   for (const variant of ["fresh", "memory-loaded", "arbitrary snapshot", "expired", "future", "missing owner", "rotated disk cookie", "changed account", "changed Team", "revoked socket"] as const) {
@@ -2734,9 +2961,10 @@ describe("CLI saved-chat recovery preflight", () => {
         if (variant === "changed Team") client.getSession()!.activeTeamId = "different-team";
         await assert.rejects(client.sendMessage({ message: "ordinary question", personal: true,
           ...(snapshot ? { memorySnapshot: snapshot } : {}), piiDetection: false }), variant === "revoked socket" ? undefined
-            : variant === "changed account" ? /Login account changed/i : /update required/i);
+            : variant === "changed account" ? /Login account changed/i
+              : variant === "changed Team" ? /Chat workspace changed while preparing context/i : /update required/i);
         assert.equal(authCalls, variant === "fresh" || variant === "memory-loaded" || variant === "revoked socket" || variant === "changed account" ? 1 : 2);
-        assert.equal(preflightSent, variant !== "revoked socket" && variant !== "changed account");
+        assert.equal(preflightSent, variant !== "revoked socket" && variant !== "changed account" && variant !== "changed Team");
         assert.equal(upgraded, variant !== "revoked socket" && variant !== "changed account");
         if (variant === "fresh") {
           await assert.rejects(client.sendMessage({ message: "second question", personal: true,
@@ -2908,6 +3136,7 @@ describe("CLI saved-chat recovery preflight", () => {
     let client: OpenMatesClient | null = null;
     let socket: import("ws").WebSocket | null = null;
     let preflightSent = false;
+    let completeProjectRead: (() => void) | null = null;
     const wss = new WebSocketServer({ noServer: true });
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       if (request.method === "POST" && request.url === "/v1/auth/session") {
@@ -2916,12 +3145,19 @@ describe("CLI saved-chat recovery preflight", () => {
         return;
       }
       if (request.method === "GET" && request.url === "/v1/projects") {
-        assert.ok(client);
-        if (mutation === "setter") client.setActiveTeamId("22222222-2222-4222-8222-222222222222");
-        else client.getSession().activeTeamId = "22222222-2222-4222-8222-222222222222";
-        response.writeHead(200, { "content-type": "application/json" });
-        response.end(JSON.stringify({ projects: [] }));
-        socket?.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+        // Context may start before the authenticated socket opens. Apply the
+        // mutation after auth refresh so it cannot be overwritten by its disk
+        // recheck, then finish the context read and recovery discovery.
+        const finish = () => {
+          assert.ok(client && socket);
+          if (mutation === "setter") client.setActiveTeamId("22222222-2222-4222-8222-222222222222");
+          else client.getSession().activeTeamId = "22222222-2222-4222-8222-222222222222";
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(JSON.stringify({ projects: [] }));
+          socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+        };
+        if (socket) finish();
+        else completeProjectRead = finish;
         return;
       }
       response.writeHead(404);
@@ -2931,6 +3167,7 @@ describe("CLI saved-chat recovery preflight", () => {
       wss.handleUpgrade(request, connection, head, (ws) => {
         ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         socket = ws;
+        completeProjectRead?.();
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string };
           if (frame.type === "chat_turn_admit") preflightSent = true;
@@ -3322,6 +3559,17 @@ describe("CLI saved-chat recovery preflight", () => {
     const address = server.address();
     assert.ok(address && typeof address === "object");
 
+    const previousDebug = process.env.OPENMATES_DEBUG;
+    const previousConsoleError = console.error;
+    const admissionDebugLines: string[] = [];
+    if (supported) {
+      process.env.OPENMATES_DEBUG = "1";
+      console.error = (...values: unknown[]) => {
+        if (typeof values[0] === "string" && values[0].startsWith("[chat admission preparation]")) {
+          admissionDebugLines.push(values[0]);
+        } else previousConsoleError(...values);
+      };
+    }
     try {
       writeLegacySession(`http://127.0.0.1:${address.port}`);
       const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
@@ -3337,6 +3585,16 @@ describe("CLI saved-chat recovery preflight", () => {
           { placeholder: "[PHONE_1_567]", original: "+1 (555) 123-4567", type: "PHONE" },
         ],
       });
+      if (supported) {
+        assert.equal(admissionDebugLines.length, 1);
+        const line = admissionDebugLines[0];
+        assert.match(line, /^\[chat admission preparation\] sdk_minted=true defer_recovery=true combined_admission=true caps_wait_ms=\d+ key_wait_ms=\d+ recovery_keypair_ms=\d+ encrypt_payload_ms=\d+ socket_ready_to_frame_dispatch_ms=\d+ frame_dispatch_from_send_start_ms=\d+ wire_send_ms=\d+$/);
+        for (const secret of [
+          "Email [EMAIL_1_com] or call [PHONE_1_567].", "test-refresh-token",
+          "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=", preparedChatId,
+          "sarah@example.com", ownerId,
+        ]) assert.equal(line.includes(secret), false);
+      }
 
       const userMessage = captured.messagePayload?.message as Record<string, unknown> | undefined;
       assert.equal(userMessage?.content, "Email [EMAIL_1_com] or call [PHONE_1_567].");
@@ -3461,6 +3719,9 @@ describe("CLI saved-chat recovery preflight", () => {
         "test-model",
       );
     } finally {
+      console.error = previousConsoleError;
+      if (previousDebug === undefined) delete process.env.OPENMATES_DEBUG;
+      else process.env.OPENMATES_DEBUG = previousDebug;
       wss.close();
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));

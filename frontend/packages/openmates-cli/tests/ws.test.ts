@@ -10,6 +10,7 @@
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
+import { createServer } from "node:http";
 import { createRequire } from "node:module";
 
 import { OpenMatesWsClient, WebSocketProtocolError, type StreamEvent } from "../src/ws.ts";
@@ -31,6 +32,57 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
 
   after(async () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  it("reports whether an authenticated socket is open", async () => {
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    assert.equal(client.isOpen(), false);
+    await client.open();
+    assert.equal(client.isOpen(), true);
+    const closed = client.waitForClose();
+    client.close();
+    await closed;
+    assert.equal(client.isOpen(), false);
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle
+  it("terminates a stalled upgrade before a late server accept can send lifecycle", async () => {
+    const slowServer = createServer();
+    const slowWss = new WebSocketServer({ noServer: true });
+    let accepted = 0;
+    let lifecycle = 0;
+    let upgraded = false;
+    slowServer.on("upgrade", (request, socket, head) => {
+      upgraded = true;
+      setTimeout(() => {
+        if (socket.destroyed) return;
+        slowWss.handleUpgrade(request, socket, head, peer => {
+          accepted++;
+          peer.on("message", raw => {
+            const frame = JSON.parse(raw.toString()) as { type?: string };
+            if (frame.type === "native_client_lifecycle") lifecycle++;
+          });
+        });
+      }, 80);
+    });
+    await new Promise<void>(resolve => slowServer.listen(0, "127.0.0.1", resolve));
+    const address = slowServer.address();
+    assert.ok(address && typeof address === "object");
+    const client = new OpenMatesWsClient({ apiUrl: `http://127.0.0.1:${address.port}`,
+      sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    try {
+      await assert.rejects(client.open(20), /WebSocket open timeout/);
+      await new Promise<void>(resolve => setTimeout(resolve, 110));
+      assert.equal(upgraded, true);
+      assert.equal(client.isOpen(), false);
+      assert.equal(accepted, 0);
+      assert.equal(lifecycle, 0);
+    } finally {
+      client.close();
+      slowServer.closeAllConnections();
+      await new Promise<void>(resolve => slowWss.close(() => resolve()));
+      await new Promise<void>(resolve => slowServer.close(() => resolve()));
+    }
   });
 
   // contract-test: supporting surface=cli assertions=sdk.surface.semantic-parity

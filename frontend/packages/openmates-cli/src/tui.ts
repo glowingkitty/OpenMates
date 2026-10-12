@@ -264,6 +264,7 @@ export async function runTui(
     updated: () => finish({ action: "restart" }),
     ready: () => {
       workspaceReady = true;
+      if (state.signedIn && typeof client.warmChatMetadata === 'function') client.warmChatMetadata();
       syncActivityObserver();
       void loadHomeData(state, client, render);
       void refreshActivity();

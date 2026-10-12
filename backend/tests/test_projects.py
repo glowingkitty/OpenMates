@@ -6,6 +6,7 @@ mocked Directus services so they run quickly without a live CMS.
 
 # contract-test-file: infrastructure
 
+import asyncio
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -248,6 +249,95 @@ async def test_team_project_projection_includes_authorized_wrapper_and_permissio
             "manage_own_items": True,
             "manage_own_sources": True,
         }
+
+
+# contract-test: supporting surface=rest_api assertions=projects.access.explicit-context,projects.surface.semantic-parity
+@pytest.mark.anyio
+async def test_project_list_projections_are_bounded_ordered_and_freshly_scoped() -> None:
+    project_ids = [f"project-{index}" for index in range(10)]
+    projects = [{"project_id": project_id, "encrypted_name": f"cipher-{project_id}"} for project_id in project_ids]
+    started = asyncio.Event()
+    release = asyncio.Event()
+    last_finished = asyncio.Event()
+    active = 0
+    maximum_active = 0
+    wrapper_calls = []
+    completion_order = []
+
+    async def wrappers(user_id: str, project_id: str, *, team_id: str | None = None):
+        nonlocal active, maximum_active
+        wrapper_calls.append((user_id, project_id, team_id))
+        active += 1
+        maximum_active = max(maximum_active, active)
+        if len(wrapper_calls) == 8:
+            started.set()
+        try:
+            await release.wait()
+            if project_id == project_ids[0]:
+                await last_finished.wait()
+            completion_order.append(project_id)
+            if project_id == project_ids[-1]:
+                last_finished.set()
+            return [{"encrypted_project_key": f"wrapper-{project_id}"}]
+        finally:
+            active -= 1
+
+    role = AsyncMock(return_value={"role": "member"})
+    directus = SimpleNamespace(
+        team=SimpleNamespace(require_team_role=role),
+        project=SimpleNamespace(
+            list_projects=AsyncMock(return_value=projects),
+            list_project_key_wrappers=AsyncMock(side_effect=wrappers),
+        ),
+    )
+    task = asyncio.create_task(list_projects(
+        request=make_request("GET"), include_archived=True, team_id="team-1",
+        current_user=SimpleNamespace(id="user-1"), directus_service=directus,
+    ))
+    try:
+        await asyncio.wait_for(started.wait(), timeout=1)
+        assert len(wrapper_calls) == 8
+        assert maximum_active == 8
+        release.set()
+        result = await asyncio.wait_for(task, timeout=1)
+    finally:
+        task.cancel()
+
+    assert [project["project_id"] for project in result["projects"]] == project_ids
+    assert completion_order.index(project_ids[0]) > completion_order.index(project_ids[-1])
+    assert set(wrapper_calls) == {("user-1", project_id, "team-1") for project_id in project_ids}
+    assert len(wrapper_calls) == len(project_ids)
+    assert all(project["key_wrappers"] == [{"encrypted_project_key": f"wrapper-{project['project_id']}"}]
+               for project in result["projects"])
+    assert all(project["mutation_permissions"]["delete"] is False for project in result["projects"])
+    role.assert_awaited_once_with("team-1", "user-1", {"owner", "admin", "member", "viewer"})
+
+
+# contract-test: supporting surface=rest_api assertions=projects.access.explicit-context
+@pytest.mark.anyio
+async def test_project_list_fails_as_a_whole_if_one_fresh_wrapper_read_fails() -> None:
+    project_ids = ["project-0", "project-1", "project-2"]
+    wrapper_calls = []
+
+    async def wrappers(user_id: str, project_id: str, *, team_id: str | None = None):
+        wrapper_calls.append((user_id, project_id, team_id))
+        if project_id == "project-1":
+            raise HTTPException(status_code=503, detail="Wrapper lookup unavailable")
+        return [{"encrypted_project_key": f"wrapper-{project_id}"}]
+
+    directus = SimpleNamespace(project=SimpleNamespace(
+        list_projects=AsyncMock(return_value=[{"project_id": project_id} for project_id in project_ids]),
+        list_project_key_wrappers=AsyncMock(side_effect=wrappers),
+    ))
+
+    with pytest.raises(HTTPException) as exc_info:
+        await list_projects(
+            request=make_request("GET"), include_archived=True, team_id=None,
+            current_user=SimpleNamespace(id="user-1"), directus_service=directus,
+        )
+
+    assert exc_info.value.status_code == 503
+    assert wrapper_calls == [("user-1", project_id, None) for project_id in project_ids]
 
 
 @pytest.mark.anyio
