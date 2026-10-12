@@ -213,7 +213,8 @@ export function formatEmbedPreviewLines(embed: DecryptedEmbed, maxContentLines =
   const skill = embed.skillId ?? str(c.skill_id) ?? "";
   const label = skill ? `${app}/${skill}` : (app || DIRECT_TYPE_LABELS[resolvedType] || resolvedType);
   const title = str(c.title) ?? str(c.name) ?? str(c.query) ?? embed.textPreview ?? "";
-  const status = stripAnsi(statusIcon(str(c.status)) || statusIcon("finished"));
+  const effectiveStatus = app === 'business' && skill === 'search_trademarks' ? trademarkData(c).status ?? c.status : c.status;
+  const status = stripAnsi(statusIcon(str(effectiveStatus)) || statusIcon("finished"));
   const lines = [`┌─ ${status} ${label}${title ? ` · ${trunc(title, 56)}` : ""}`];
 
   if (app === 'business' && skill === 'search_trademarks') {
@@ -306,7 +307,7 @@ export async function renderEmbedPreview(
   const app = embed.appId ?? str(embed.content?.app_id) ?? "";
   const skill = embed.skillId ?? str(embed.content?.skill_id) ?? "";
   const label = skill ? `${app}/${skill}` : app || "embed";
-  const status = str(c.status) ?? (embed.type ? null : null);
+  const status = str(app === 'business' && skill === 'search_trademarks' ? trademarkData(c).status ?? c.status : c.status);
 
   // Build header components
   const query = str(c.query) ?? str(c.search_query) ?? str(c.question);
@@ -453,7 +454,7 @@ export async function renderEmbedFullscreen(
   const app = embed.appId ?? str(embed.content?.app_id) ?? "";
   const skill = embed.skillId ?? str(embed.content?.skill_id) ?? "";
   const label = skill ? `${app}/${skill}` : app || "embed";
-  const status = str(c.status);
+  const status = str(app === 'business' && skill === 'search_trademarks' ? trademarkData(c).status ?? c.status : c.status);
 
   // Header
   write(`\x1b[1m${label}\x1b[0m`);
@@ -568,10 +569,15 @@ export async function renderEmbedFullscreen(
 // ---------------------------------------------------------------------------
 
 /** Preserve coverage and real counts inside the saved outer results envelope. */
+function trademarkData(content: Record<string, unknown>): Record<string, unknown> {
+  return (Array.isArray(content.results) ? content.results : []).find((row): row is Record<string, unknown> =>
+    !!row && typeof row === 'object' && (Array.isArray(row.matches) || Array.isArray(row.coverage))) ?? content;
+}
+
 function trademarkLines(content: Record<string, unknown>, fullscreen = false): string[] {
   const rows = (value: unknown): Record<string, unknown>[] => Array.isArray(value)
     ? value.filter((row): row is Record<string, unknown> => !!row && typeof row === 'object' && !Array.isArray(row)).slice(0, 60) : [];
-  const data = rows(content.results).find(row => Array.isArray(row.matches) || Array.isArray(row.coverage)) ?? content;
+  const data = trademarkData(content);
   const text = (value: unknown): string => typeof value === 'string' ? terminalText(value) : '';
   const list = (value: unknown): string => Array.isArray(value) ? value.map(item => terminalText(String(item))).join(', ') : text(value);
   const matches = rows(data.matches);

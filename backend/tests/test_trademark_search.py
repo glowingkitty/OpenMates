@@ -1,5 +1,6 @@
 """Boundaries for anonymous trademark reads and explicit regional coverage."""
 import json
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -151,4 +152,17 @@ async def test_invalid_requests_never_call_provider(invalid):
     data = await skill().execute(**args, provider_client=provider)
     assert not provider.calls
     assert data.error_code == "invalid_request"
+
+
+# contract-test: supporting surface=cli assertions=trademarks.request,trademarks.coverage,trademarks.parity,brand-naming.flow
+@pytest.mark.asyncio
+async def test_ai_execution_preserves_native_name_region_and_class_arrays(monkeypatch):
+    from backend.apps.ai.processing import skill_executor
+    execute = AsyncMock(return_value={"success": True, "matches": [], "coverage": []})
+    monkeypatch.setattr(skill_executor, "execute_skill", execute)
+    args = {"queries": ["Tidely", "Stillsum"], "regions": ["US", "DE"], "nice_classes": [9, 42], "max_results": 5}
+    result = await skill_executor.execute_skill_with_multiple_requests("business", "search_trademarks", args)
+    execute.assert_awaited_once()
+    assert execute.await_args.args[:3] == ("business", "search_trademarks", args)
+    assert result == [{"success": True, "matches": [], "coverage": []}]
 

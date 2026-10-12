@@ -547,7 +547,11 @@ async def execute_skill_with_multiple_requests(
             # Empty requests array
             return [{"error": "Empty requests array"}]
 
-    if should_keep_tasks_create_payload_as_single_request(app_id, skill_id, arguments):
+    # Names, regions and classes are data within one trademark search. Legacy
+    # list expansion would turn them into scalar kwargs and lose regional scope.
+    if should_keep_tasks_create_payload_as_single_request(app_id, skill_id, arguments) or (
+        app_id == "business" and skill_id == "search_trademarks"
+    ):
         result = await execute_skill(
             app_id, skill_id, arguments, timeout,
             extracted_chat_id, extracted_message_id, extracted_user_id,

@@ -6,7 +6,7 @@ import type { DecryptedEmbed } from '../src/client.ts';
 function embed(data: Record<string, unknown>): DecryptedEmbed {
   return { id: 'trademark', embedId: '12345678-1234-4234-9234-123456789abc',
     type: 'app_skill_use', appId: 'business', skillId: 'search_trademarks',
-    content: { query: 'Proposed name', results: [data] } } as DecryptedEmbed;
+    content: { query: 'Proposed name', status: 'finished', results: [data] } } as DecryptedEmbed;
 }
 
 // contract-test: supporting surface=cli assertions=trademarks.coverage,trademarks.parity
@@ -41,8 +41,9 @@ it('terminal fullscreen retains records, filters, failures and safe official lin
   assert.match(output, /https:\/\/register.dpma.de/);
   data.matches[0].source_url = 'https://tsdr.uspto.gov.evil.example/';
   assert.doesNotMatch((await formatEmbedFullscreenLines(embed(data), {} as never)).join('\n'), /evil\.example/);
-  const failed = (await formatEmbedFullscreenLines(embed({ matches: [], error: 'Provider unavailable',
+  const failed = (await formatEmbedFullscreenLines(embed({ status: 'error', matches: [], error: 'Provider unavailable',
     coverage: [{ region: 'US', status: 'error' }] }), {} as never)).join('\n');
   assert.match(failed, /Search failed/);
   assert.match(failed, /Error: Provider unavailable/);
+  assert.doesNotMatch(failed.split('\n')[0], /Completed/);
 });
