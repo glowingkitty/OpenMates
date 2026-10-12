@@ -18,6 +18,8 @@ interface GeneratedDiagram {
   background: string;
   diagram_kind: string;
   required_labels: string[];
+  generation_status?: string;
+  generation_error_code?: string;
 }
 const artifactsDirectory = resolve(process.cwd(), '../../packages/ui/src/components/embeds/diagrams');
 const examples = JSON.parse(readFileSync(resolve(artifactsDirectory, 'diagramHtmlGeneratedProvenance.json'), 'utf8')) as GeneratedDiagram[];
@@ -36,6 +38,7 @@ async function screenshot(page: Page, name: string) {
 for (const example of examples) {
   // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence,chats.layout.responsive-history
   test(`preserves the real natural-language ${example.id} result on desktop and phone`, async ({ page }) => {
+    test.setTimeout(60_000);
     const sourceBytes = readFileSync(resolve(artifactsDirectory, example.html_file));
     expect(createHash('sha256').update(sourceBytes).digest('hex')).toBe(example.sha256);
     expect(example.prompt.length).toBeGreaterThan(30);
@@ -48,7 +51,7 @@ for (const example of examples) {
       try {
         const requestFrame = request.frame();
         externalRequests.push(requestFrame.frameElement()
-          .then(async element => (await element.getAttribute('data-testid')) === 'diagram-html-frame' ? request.url() : null)
+          .then(async element => ['diagram-html-frame', 'diagram-html-measure-frame'].includes(await element.getAttribute('data-testid') ?? '') ? request.url() : null)
           .catch(() => requestFrame.url() === 'about:srcdoc' ? request.url() : null));
       } catch {
         // Browser-level requests without an initiating frame cannot come from the diagram iframe.
@@ -60,9 +63,12 @@ for (const example of examples) {
         await page.goto(preview(component, width, example.id));
         await waitForComponentPreview(page);
         if (component === 'Fullscreen') await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay'));
+        const surround = page.getByTestId(component === 'Preview' ? 'diagram-html-preview' : 'diagram-html-canvas');
+        await expect(surround).toHaveAttribute('data-layout-ready', 'true');
         const iframe = page.getByTestId('diagram-html-frame');
         await expect(iframe).toBeVisible();
         await expect(iframe).toHaveAttribute('sandbox', '');
+        await expect(page.getByTestId('diagram-html-measure-frame')).toHaveAttribute('sandbox', 'allow-scripts');
         const frame = page.frameLocator('[data-testid="diagram-html-frame"]');
         await expect(frame.locator('svg[data-om-diagram]')).toBeVisible();
         await frame.locator('body').evaluate(async () => { await document.fonts.ready; });
@@ -79,14 +85,15 @@ for (const example of examples) {
         }, sourceBytes.toString('utf8'));
         expect(fidelity.actualSvg).toBe(fidelity.expectedSvg);
         for (const label of example.required_labels) expect(fidelity.text).toContain(label);
+        expect(fidelity.viewportHeight).toBeGreaterThanOrEqual(example.render_height);
+        expect(fidelity.viewportHeight).toBeLessThanOrEqual(4096);
         expect(fidelity.scrollHeight).toBeLessThanOrEqual(fidelity.viewportHeight + 1);
-        const surround = page.getByTestId(component === 'Preview' ? 'diagram-html-preview' : 'diagram-html-canvas');
         await expect(surround).toHaveCSS('background-color', fidelity.background);
         if (component === 'Fullscreen') {
           await expect(page.getByTestId('embed-fullscreen-overlay')).toHaveCSS('background-color', fidelity.background);
         }
         const artboard = (await iframe.boundingBox())!;
-        expect(artboard.width / artboard.height).toBeCloseTo(example.render_width / example.render_height, 3);
+        expect(artboard.width / artboard.height).toBeCloseTo(example.render_width / fidelity.viewportHeight, 3);
         const container = (await surround.boundingBox())!;
         expect(container.x).toBeGreaterThanOrEqual(-1);
         expect(container.x + container.width).toBeLessThanOrEqual(width + 1);
@@ -96,7 +103,8 @@ for (const example of examples) {
     }
     expect((await Promise.all(externalRequests)).filter((url): url is string => url !== null)).toEqual([]);
     await test.info().attach('real-generation-provenance', {
-      body: JSON.stringify({ prompt: example.prompt, sha256: example.sha256, guidance_type: example.guidance_type, guidance_revision: example.guidance_revision }),
+      body: JSON.stringify({ prompt: example.prompt, sha256: example.sha256, guidance_type: example.guidance_type, guidance_revision: example.guidance_revision,
+        generation_status: example.generation_status, generation_error_code: example.generation_error_code }),
       contentType: 'application/json',
     });
   });

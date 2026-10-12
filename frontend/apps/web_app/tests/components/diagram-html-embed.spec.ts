@@ -26,6 +26,7 @@ for (const width of [390, 1280]) {
       await waitForComponentPreview(page);
       const rendered = page.getByTestId('diagram-html-preview');
       await expect(rendered).toBeVisible();
+      await expect(rendered).toHaveAttribute('data-layout-ready', 'true');
       await expect(page.getByTestId('embed-app-icon-mask')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
       const iframe = rendered.getByTestId('diagram-html-frame');
       await expect(iframe).toBeVisible();
@@ -74,6 +75,7 @@ test('fullscreen retains the source, provides matching edit/close controls, and 
   await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay'));
   const canvas = page.getByTestId('diagram-html-canvas');
   await expect(page.getByTestId('diagram-html-fullscreen')).toBeVisible();
+  await expect(canvas).toHaveAttribute('data-layout-ready', 'true');
   const frame = page.frameLocator('[data-testid="diagram-html-frame"]');
   await expect(frame.locator('svg[data-om-diagram]')).toBeVisible();
   const pageBackground = await frame.locator('body').evaluate(body => getComputedStyle(body).backgroundColor);
@@ -251,6 +253,40 @@ test('editor moves the primary diagram while preserving a leading decorative SVG
   await expect.poll(() => edge.getAttribute('d')).toBe(originalPath);
   await expect(decoration).toHaveJSProperty('outerHTML', decorationBefore);
   await expect(primary).toHaveCount(1);
+});
+
+// contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
+test('same-chat selections preserve an editable draft while a different chat closes fullscreen', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(preview('Fullscreen', 1280, 'chatLifecycle'));
+  await waitForComponentPreview(page);
+  const overlay = page.getByTestId('embed-fullscreen-overlay');
+  await expect(overlay).toBeVisible();
+  await page.getByTestId('embed-edit-button').click();
+  const canvas = page.getByTestId('diagram-html-canvas');
+  await expect(canvas).toHaveAttribute('data-editor-ready', 'true');
+  const frame = page.frameLocator('[data-testid="diagram-html-frame"]');
+  const label = frame.locator('text[data-om-text="nifi-text-2"]');
+  await label.click();
+  const input = frame.getByTestId('diagram-html-text-editor');
+  await input.fill('Unsaved diagram draft');
+  await input.press('Enter');
+  await expect(label).toHaveText('Unsaved diagram draft');
+
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('globalChatSelected', {
+    detail: { chatId: 'preview-diagrams-html-chat' },
+  })));
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('globalChatSelected', {
+    detail: { chat: { chat_id: 'preview-diagrams-html-chat' } },
+  })));
+  await expect(overlay).toBeVisible();
+  await expect(canvas).toHaveAttribute('data-editing', 'true');
+  await expect(label).toHaveText('Unsaved diagram draft');
+
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('globalChatSelected', {
+    detail: { chatId: 'another-chat' },
+  })));
+  await expect(overlay).toHaveCount(0);
 });
 
 // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence

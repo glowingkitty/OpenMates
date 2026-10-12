@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: editable-diagram-design
 title: Editable Diagram Design embeds
-status: implementing
+status: verified
 goal: >
   Fully implement and test Diagram Design in OpenMates with the same visual
   quality, copied and audited prompts instead of a package dependency, concise
@@ -28,9 +28,11 @@ scope:
     - Replacing upstream composition with a generic graph renderer.
 decisions:
   - Original SVG geometry, whitespace, hierarchy and semantic decoration remain authoritative; palette/font adaptation is narrowly scoped.
-  - Static diagrams run in an opaque sandbox; only the trusted OpenMates editor runtime can execute, with source/token-checked messaging.
+  - Static diagrams run in an opaque sandbox; executable code is restricted to trusted first-party measurement/editor runtimes with nonce CSP and source/token-checked messaging.
+  - Read-only visible frames remain script-free; a separate opaque measurement frame may run only a nonce-protected first-party reporter to fit complete pages beyond imperfect declared heights, without changing canonical source or editing authority.
   - Stage-2 type selection uses short app-owned Memory metadata without loading every guide body or loosening generic Memory limits.
   - Ordinary chat diagram edits receive an atomic revision path; Project-file approval gates remain authoritative and cannot be bypassed.
+  - A diagram fullscreen belongs to its originating chat; a repeated selection of that same chat must preserve its open view and local draft.
 acceptance:
   - All 44 guides are discoverable and audited; selected full instructions retain upstream design guidance and MIT attribution.
   - Generated artifacts stream as diagram embeds, preserve canonical source and render safely after reload.
@@ -97,4 +99,141 @@ evidence:
     summary: All eight laptop/phone rendering, editing, background, decorative SVG and safety cases passed; screenshots and all eight recordings uploaded.
   - check: Isolated marker-chat test registration
     status: passed
-    summary: Added the authenticated diagram test to the existing isolated chat protocol activation profile; all 23 local CI harness tests passed. Authenticated persistence proof remains pending.
+    summary: Added the authenticated diagram test to the existing isolated chat protocol activation profile; all 23 local CI harness tests passed. Subsequent authenticated persistence proof is recorded below.
+  - check: Rounded SVG connectors, selected guidance and signed transport
+    status: passed
+    source: 6e2c1747e0faac05e54395f896dda59aa03fac47
+    run: https://github.com/glowingkitty/OpenMates/actions/runs/38152095387
+    summary: All 88 focused backend checks passed, preserving curved connector geometry, reference integrity, routing budgets and signed fixture admission.
+  - check: Original sequence geometry and durable CLI first versions
+    status: passed
+    source: b9ad1a640a1ee31e3049c62c9ba72988d7be9e8a
+    summary: All 25 focused web editor tests and eight focused CLI persistence/recovery tests passed; the CLI checks used the reconciled current-upstream source before deployment.
+  - check: Corrected bare browser and actual sequence proof
+    status: passed
+    source: 6addb87aeb51b9c7fc8c8a16285b55ecc5408a08
+    runs:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/38152525625
+      - https://github.com/glowingkitty/OpenMates/actions/runs/38152528743
+    summary: All eight component cases passed. The exact real sequence rendered on desktop and phone, with its SVG, background and original message rows retained through participant dragging; the rendering case required one timeout retry. All recordings were retained and uploaded.
+  - check: Authenticated edit, reload and encrypted history
+    status: passed
+    source: 46c23e9aa460c6abaa4b1eb3c700efbb0bb251d7
+    run: https://github.com/glowingkitty/OpenMates/actions/runs/38154830074
+    summary: >-
+      The full-flow case passed without retry: text and layout edits saved as
+      v2, survived reload, original v1 stayed read-only, cancel discarded edits
+      and restore committed v3. Phone preview and disposable runtime/account
+      cleanup passed; its recording and screenshot were uploaded.
+  - check: Terminal revision-conflict recovery ownership
+    status: passed
+    source: 4d42ce3ec96826168b6293ca4ae00d8012fb6a09
+    summary: Nine focused CLI tests passed on reconstructed exact deployed source, including a forced terminal revision conflict, duplicate output discovery on two connections and one canonical recovery replay. Independent review confirmed ordinary recovery remains enabled and arbitrary missing outputs are not ignored.
+  - check: Targeted CLI embed retrieval
+    status: passed
+    source: 37576cbd23afcada89698d415e1fb0c4f779fd47
+    summary: Twelve exact-source CLI checks passed, including an embed missing from sync discovery, authorized Personal and Team decryption, encrypted cache persistence and denied/missing errors. The existing live-inference E2E case now checks full UUID lookup with the owning chat; its live lookup verification uses the approved real diagram request.
+  - check: Three real natural-language diagram requests
+    status: passed
+    source: 37576cbd23afcada89698d415e1fb0c4f779fd47
+    artifacts:
+      - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedSupportFlowLightClean.html
+      - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedPasswordlessSequenceDarkClean.html
+      - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedShopArchitectureDarkClean.html
+    summary: >-
+      Ordinary support flowchart, passwordless sequence and shop architecture
+      requests completed without stream errors. Each selected its matching
+      JEV guide, returned finished backend-valid HTML and preserved its original
+      bytes in the browser fixtures. The shop also proved full-UUID retrieval
+      with its known chat on the same busy account. All three recordings were
+      uploaded; disposable chats, Projects and account leases were cleaned up.
+      Final browser proof found 4px and 28px overflow beyond two declared
+      heights. The reviewed presentation-only measurement correction passed
+      complete-page browser bounds below; original source bytes are unchanged.
+  - check: Authenticated repeat after current upstream sync changes
+    status: passed
+    source: 588d90904cc80da77269ee3681c124947dc72bef
+    run: https://github.com/glowingkitty/OpenMates/actions/runs/38159510361
+    summary: >-
+      The unchanged edit/save/reload/history case passed without retry on the
+      current-dev source. Its video and screenshot were uploaded, and isolated
+      containers, volumes, private account files and allowlist entries were
+      cleaned up. This result predates the presentation-height correction.
+  - check: Presentation-fit local checks and independent security review
+    status: passed
+    source: 1a30a39cb875a1a804594a00a26b343142fb6183
+    summary: >-
+      All 42 tests across eight diagram UI suites passed; both Svelte components
+      compiled without warnings and scoped lint/Specification checks passed.
+      Independent review approved source/history/edit token resets, exact
+      current-frame/origin/schema/viewport checks, 4096px and three-step bounds,
+      unchanged nonce CSP, the script-free visible frame and canonical export
+      isolation. Subsequent exact-source browser fitting is recorded below.
+  - check: Final script-free preview and complete-page browser proof
+    status: passed
+    source: 55ae11247ead7622f0b0132e1341f5cb3eb969f6
+    runs:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/38160859472
+      - https://github.com/glowingkitty/OpenMates/actions/runs/38160862113
+    summary: >-
+      Both existing component suites passed with their strict assertions intact:
+      preview scroll width remains within its container, complete original pages
+      fit after fonts settle, and SVG source, background, pen position, safe
+      editing and original sequence message rows are preserved on desktop and
+      phone. The measurement frame is contained in a zero-size clipped shell;
+      font-settled microtask reporting avoids hidden-frame animation throttling.
+      Final screenshot inspection is recorded below. Authenticated lifecycle
+      verification and final-source screenshot review are recorded below.
+  - check: Manual review of three real final-source screenshots
+    status: passed
+    source: 55ae11247ead7622f0b0132e1341f5cb3eb969f6
+    run: https://github.com/glowingkitty/OpenMates/actions/runs/38160862113
+    artifact: frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedProvenance.json
+    summary: >-
+      The parent directly inspected the final-source desktop shop, support and
+      passwordless screenshots. Original layouts, connector shapes, complete
+      titles and legends remain visible; light/dark surrounds match and the
+      matching pen control sits immediately left of Close. The exact generated
+      HTML hashes remain unchanged. Phone preview/fullscreen checks also passed.
+  - check: Authenticated presentation-fit attempts and retained failure evidence
+    status: passed
+    sources:
+      - 1a30a39cb875a1a804594a00a26b343142fb6183
+      - 55ae11247ead7622f0b0132e1341f5cb3eb969f6
+    runs:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/38160675056
+      - https://github.com/glowingkitty/OpenMates/actions/runs/38161368808
+    summary: >-
+      Both complete encrypted edit/reload/history cases passed on retry. The
+      first presentation-fit attempt lost its fullscreen after reopening the
+      chat; the later attempt encountered a detached preview while streaming.
+      All failed and passing recordings were uploaded and isolated state was
+      cleaned up. Retained video shows the fullscreen disappearance but does
+      not identify its exact triggering event. A scoped owning-chat selection
+      guard and actionable preview opening passed their final checks below.
+  - check: Final owning-chat lifecycle and real-artifact component proof
+    status: passed
+    source: 30260931ede8f6c9b9a524e54fd89e2121f6ff0a
+    runs:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/38162618485
+      - https://github.com/glowingkitty/OpenMates/actions/runs/38162621587
+    summary: >-
+      All nine component safety/editing cases and all six real-artifact cases
+      passed without skips or retries. Selecting the owning chat preserves an
+      unsaved draft; selecting another chat closes fullscreen. The parent
+      directly inspected the final shop, support and passwordless desktop
+      screenshots, confirming complete original layouts, matching surroundings
+      and the pen immediately left of Close. Original HTML hashes are unchanged.
+      All recordings and screenshots were uploaded and retained for delivery.
+  - check: Final authenticated encrypted editing and restoration
+    status: passed
+    source: 30260931ede8f6c9b9a524e54fd89e2121f6ff0a
+    run: https://github.com/glowingkitty/OpenMates/actions/runs/38163094742
+    summary: >-
+      The full-flow case passed without skips or retries in 59 seconds. Text
+      and layout changes committed v2, survived reload, and original v1 remained
+      read-only. Cancel discarded the draft; restoration committed v3. Phone
+      preview passed. Its video and screenshot were uploaded. Isolated cleanup
+      verified zero containers/volumes, removed private account files and both
+      disposable allowlist identities. The final 18 product/test blobs are
+      preserved exactly in the documentation-only deployment candidate.

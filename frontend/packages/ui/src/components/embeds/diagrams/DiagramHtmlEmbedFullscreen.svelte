@@ -11,6 +11,7 @@
   import { webSocketService } from '../../../services/websocketService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { buildDiagramFrame, normalizeDiagramHtmlContent, validateDiagramHtml } from './diagramHtmlContent';
+  import { diagramMeasureScript, nextDiagramPresentationHeight, readDiagramMeasurement } from './diagramHtmlMeasure';
   import { diagramEditorScript } from './diagramHtmlRuntime';
   import { saveDiagramHtmlRevision } from './diagramHtmlRevision';
   import { classifyDiagramRevisionBroadcast } from './diagramHtmlReceipt';
@@ -45,6 +46,12 @@
   let canUndo = $state(false);
   let viewport = $state<HTMLElement | null>(null);
   let frame = $state<HTMLIFrameElement | null>(null);
+  let measureFrame = $state<HTMLIFrameElement | null>(null);
+  let measureToken = $state(crypto.randomUUID());
+  let measuredHeight = $state<number | null>(null);
+  let measureSteps = $state(0);
+  let layoutReady = $state(false);
+  let measureError = $state(false);
   let dimensions = $state({ width: 900, height: 620 });
   let zoom = $state(1);
   let panX = $state(0);
@@ -57,27 +64,61 @@
   const diagram = $derived(normalizeDiagramHtmlContent(raw));
   const versionView = $derived(resolveDiagramVersionView(diagram.versionNumber, diagram.htmlSource, historicalSelection));
   const effectiveChatId = $derived(chatId || get(activeChatStore) || '');
+  // Capture the chat at opening so a later active-chat switch cannot change ownership.
+  let owningChatId = $state<string | undefined>();
   const dirty = $derived(editing && draft !== diagram.htmlSource);
-  const fittedScale = $derived(Math.min(dimensions.width / diagram.renderWidth, dimensions.height / diagram.renderHeight));
+  const frameContent = $derived(editing ? frameSource : versionView.source);
+  const measureContent = $derived(editing ? draft : versionView.source);
+  const presentationHeight = $derived(Math.max(diagram.renderHeight, measuredHeight ?? 0));
+  const fittedScale = $derived(Math.min(dimensions.width / diagram.renderWidth, dimensions.height / presentationHeight));
   const scale = $derived(Math.min(5, Math.max(0.05, fittedScale * zoom)));
   const left = $derived((dimensions.width - diagram.renderWidth * scale) / 2 + panX);
-  const top = $derived((dimensions.height - diagram.renderHeight * scale) / 2 + panY);
+  const top = $derived((dimensions.height - presentationHeight * scale) / 2 + panY);
   const render = $derived.by(() => {
     try {
-      return { ...buildDiagramFrame(editing ? frameSource : versionView.source,
+      return { ...buildDiagramFrame(frameContent,
         editing ? diagramEditorScript(token) : undefined), error: '' };
     } catch (caught) {
       return { srcdoc: '', backgroundColor: '', error: caught instanceof Error ? caught.message : 'Unable to render diagram' };
     }
   });
+  const measured = $derived.by(() => {
+    try { return buildDiagramFrame(measureContent, diagramMeasureScript(measureToken)); }
+    catch { return null; }
+  });
+
+  $effect(() => {
+    void measureContent;
+    void editing;
+    void token;
+    void historicalSelection?.version;
+    void diagram.renderWidth;
+    void diagram.renderHeight;
+    measureToken = crypto.randomUUID();
+    measuredHeight = null;
+    measureSteps = 0;
+    layoutReady = false;
+    measureError = false;
+  });
+
+  $effect(() => {
+    const currentToken = measureToken;
+    if (diagram.status !== 'finished' || render.error) return;
+    const timeout = setTimeout(() => {
+      if (measureToken === currentToken && !layoutReady) measureError = true;
+    }, 10_000);
+    return () => clearTimeout(timeout);
+  });
 
   onMount(() => {
+    owningChatId = chatId || get(activeChatStore) || undefined;
     if (fixtureEditable) editable = true;
     const observer = new ResizeObserver(() => {
       if (viewport) dimensions = { width: viewport.clientWidth, height: viewport.clientHeight };
     });
     if (viewport) observer.observe(viewport);
     window.addEventListener('message', onFrameMessage);
+    window.addEventListener('message', onMeasureMessage);
     webSocketService.on('embed_revision_committed', onRemoteRevision);
     if (!fixtureEditable && embedId && effectiveChatId && diagram.status === 'finished') {
       void fetchEmbedVersions(embedId, { chatId: effectiveChatId }).then((result) => {
@@ -87,6 +128,7 @@
     return () => {
       observer.disconnect();
       window.removeEventListener('message', onFrameMessage);
+      window.removeEventListener('message', onMeasureMessage);
       webSocketService.off('embed_revision_committed', onRemoteRevision);
     };
   });
@@ -125,6 +167,15 @@
         resolve(draft);
       }
     }
+  }
+  function onMeasureMessage(event: MessageEvent) {
+    if (event.source !== measureFrame?.contentWindow || event.origin !== 'null') return;
+    const height = readDiagramMeasurement(event.data, measureToken, diagram.renderWidth, presentationHeight);
+    if (height === null) return;
+    const next = nextDiagramPresentationHeight(diagram.renderHeight, presentationHeight, height, measureSteps);
+    if (next.error) { measureError = true; return; }
+    if (next.height > presentationHeight) { measuredHeight = next.height; measureSteps += 1; return; }
+    layoutReady = next.ready;
   }
   function command(kind: 'undo' | 'source' | 'cancel') {
     frame?.contentWindow?.postMessage({ channel: 'openmates-diagram-editor-v1', token, kind }, '*');
@@ -255,6 +306,7 @@
 </script>
 
 <UnifiedEmbedFullscreen appId="diagrams" skillId="html" skillIconName="diagram" appIconName="diagram" onClose={onClose}
+  {owningChatId}
   contentBackgroundColor={render.backgroundColor || undefined}
   embedHeaderTitle={diagram.title} embedHeaderSubtitle={diagram.diagramKind}
   onEdit={editable && versionView.canEdit && diagram.status === 'finished' ? startEdit : undefined} editActive={editing}
@@ -262,20 +314,28 @@
   {navigateDirection} {showChatButton} {onShowChat} onEmbedDataUpdated={onUpdate}>
   {#snippet content()}
     <div class="diagram-fullscreen" data-testid="diagram-html-fullscreen" style:background-color={render.backgroundColor || undefined}>
-      <div bind:this={viewport} class="canvas" role="group" aria-label={`${diagram.title} diagram`} data-testid="diagram-html-canvas" data-editing={editing} data-editor-ready={editorReady} data-historical={versionView.historical}
+      <div bind:this={viewport} class="canvas" role="group" aria-label={`${diagram.title} diagram`} data-testid="diagram-html-canvas" data-editing={editing} data-editor-ready={editorReady} data-layout-ready={layoutReady} data-historical={versionView.historical}
         style:--diagram-scale={scale} style:--diagram-pan-x={`${panX}px`} style:--diagram-pan-y={`${panY}px`} style:background-color={render.backgroundColor || undefined}
         onpointerdown={panStart} onpointermove={panMove} onpointerup={panEnd} onpointercancel={panEnd}>
         {#if diagram.status === 'processing'}
           <div class="state" data-testid="diagram-html-loading">{$text('diagrams.loading')}</div>
         {:else if render.error}
           <div class="state error" data-testid="diagram-html-error">{render.error}</div>
+        {:else if measureError}
+          <div class="state error" data-testid="diagram-html-error">{$text('diagrams.invalid_source')}</div>
         {:else}
-          <div class="artboard" style:width={`${diagram.renderWidth}px`} style:height={`${diagram.renderHeight}px`}
+          {#if measured}
+            <div class="measure-shell" aria-hidden="true">
+              <iframe bind:this={measureFrame} class="measure-frame" data-testid="diagram-html-measure-frame" tabindex="-1" title="Diagram layout measurement"
+                sandbox="allow-scripts" srcdoc={measured.srcdoc} width={diagram.renderWidth} height={presentationHeight}></iframe>
+            </div>
+          {/if}
+          <div class="artboard" style:width={`${diagram.renderWidth}px`} style:height={`${presentationHeight}px`}
             style:transform={`translate(${left}px, ${top}px) scale(${scale})`}>
             {#key editing ? token : 'readonly'}
               <iframe bind:this={frame} data-testid="diagram-html-frame" title={`${diagram.title} diagram`}
                 sandbox={editing ? 'allow-scripts' : ''} srcdoc={render.srcdoc}
-                width={diagram.renderWidth} height={diagram.renderHeight}></iframe>
+                width={diagram.renderWidth} height={presentationHeight}></iframe>
             {/key}
           </div>
         {/if}
@@ -316,6 +376,7 @@
   .canvas[data-editing='true'] { cursor: default; touch-action: auto; }
   .artboard { position: absolute; top: 0; left: 0; transform-origin: top left; }
   iframe { display: block; border: 0; background: transparent; }
+  .measure-shell { position: absolute; top: 0; left: 0; width: 0; height: 0; overflow: hidden; opacity: 0; pointer-events: none; }
   .canvas[data-editing='false'] iframe { pointer-events: none; }
   .state { display: grid; place-items: center; height: 100%; color: var(--color-font-primary); }
   .error, .save-error { color: var(--color-error); }

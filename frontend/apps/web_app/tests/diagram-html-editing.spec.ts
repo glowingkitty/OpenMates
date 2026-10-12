@@ -9,6 +9,7 @@ const {
 } = require('./signup-flow-helpers');
 const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { reloadChatWorkspace } = require('./helpers/workspace-navigation');
 
 const { email, password, otpKey } = getTestAccount();
 
@@ -52,7 +53,7 @@ test('generated HTML diagram keeps its composition and saves text/layout changes
     await expect(preview).toBeVisible({ timeout: 90_000 });
     await expect(preview.getByTestId('diagram-html-preview')).toBeVisible();
     await expect(assistant).not.toContainText('<!DOCTYPE');
-    await preview.scrollIntoViewIfNeeded();
+    await preview.click({ trial: true });
     await screenshot(page, 'chat-scaled-diagram-preview');
     await preview.click();
     let overlay = page.getByTestId('embed-fullscreen-overlay');
@@ -98,11 +99,11 @@ test('generated HTML diagram keeps its composition and saves text/layout changes
     await screenshot(page, 'fullscreen-saved-version-2');
 
     await overlay.getByTestId('embed-minimize').click();
-    await page.reload();
-    await expect(page).toHaveURL(chatUrl);
+    await test.step('Reload saved diagram chat and wait for workspace readiness', async () => {
+      await reloadChatWorkspace(page, chatUrl, log);
+    });
     const reloadedPreview = page.getByTestId('message-assistant').last().locator('[data-testid="embed-preview"][data-app-id="diagrams"][data-status="finished"]').first();
     await expect(reloadedPreview).toBeVisible({ timeout: 45_000 });
-    await reloadedPreview.scrollIntoViewIfNeeded();
     await reloadedPreview.click();
     overlay = page.getByTestId('embed-fullscreen-overlay');
     frame = overlay.frameLocator('[data-testid="diagram-html-frame"]');
@@ -155,9 +156,10 @@ test('generated HTML diagram keeps its composition and saves text/layout changes
     await screenshot(page, 'failure-before-cleanup').catch(() => {});
     await testInfo.attach('diagram-failure-state', {
       body: JSON.stringify({
-        assistantMessages: await page.getByTestId('message-assistant').count(),
+        pageClosed: page.isClosed(),
+        assistantMessages: await page.getByTestId('message-assistant').count().catch(() => null),
         diagramPreviews: await page.locator('[data-testid="embed-preview"][data-app-id="diagrams"]').evaluateAll((nodes: Element[]) =>
-          nodes.map(node => ({ status: node.getAttribute('data-status'), hasHtml: Boolean(node.querySelector('[data-testid="diagram-html-preview"]')) }))),
+          nodes.map(node => ({ status: node.getAttribute('data-status'), hasHtml: Boolean(node.querySelector('[data-testid="diagram-html-preview"]')) }))).catch(() => []),
         revisionReceipts: revisions,
       }),
       contentType: 'application/json',

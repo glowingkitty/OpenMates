@@ -1,5 +1,9 @@
 import provenance from './diagramHtmlGeneratedProvenance.json';
 import passwordlessHtml from './diagramHtmlGeneratedPasswordlessSequenceDark.html?raw';
+import supportHtml from './diagramHtmlGeneratedSupportFlowLight.html?raw';
+import supportCleanHtml from './diagramHtmlGeneratedSupportFlowLightClean.html?raw';
+import passwordlessCleanHtml from './diagramHtmlGeneratedPasswordlessSequenceDarkClean.html?raw';
+import shopCleanHtml from './diagramHtmlGeneratedShopArchitectureDarkClean.html?raw';
 
 function artifact(id: string, htmlSource: string) {
   const record = provenance.find((item) => item.id === id);
@@ -19,4 +23,8 @@ function artifact(id: string, htmlSource: string) {
 /** Exact raw model exports; preview wrappers must never rewrite their source. */
 export const generatedDiagramArtifacts = {
   generatedPasswordless: artifact('generatedPasswordless', passwordlessHtml),
+  generatedSupport: artifact('generatedSupport', supportHtml),
+  generatedSupportClean: artifact('generatedSupportClean', supportCleanHtml),
+  generatedPasswordlessClean: artifact('generatedPasswordlessClean', passwordlessCleanHtml),
+  generatedShopClean: artifact('generatedShopClean', shopCleanHtml),
 };

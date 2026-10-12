@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en" data-om-render-width="1040" data-om-render-height="700" data-om-background="#2d3142">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Online Shop Architecture</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #2d3142;
+      --color-ink:     #f5f5f5;
+      --color-muted:   #bfc0c0;
+      --color-accent:  #f08a59;
+      --font-sans:     'Lexend', system-ui, sans-serif;
+      --font-serif:    'Lexend', 'Noto Serif', serif;
+      --font-mono:     ui-monospace, monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5rem 2rem;
+    }
+
+    .frame {
+      max-width: 1040px;
+      width: 100%;
+    }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.4rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: 1.85rem;
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    .diagram-container {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    svg {
+      width: 100%;
+      min-width: 960px;
+      display: block;
+    }
+
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Architecture · Diagram Design</p>
+    <h1>E-Commerce Order Pipeline</h1>
+
+    <div class="diagram-container">
+      <svg data-om-diagram="type-architecture" viewBox="0 0 960 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="shop-arch-title shop-arch-desc">
+        <title id="shop-arch-title">E-Commerce Order Pipeline Architecture</title>
+        <desc id="shop-arch-desc">Architecture diagram of a shop system with a browser sending requests to an API, caching with Redis, queuing orders via SQS, background workers processing fulfillment, and persistence in PostgreSQL.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#bfc0c0"/>
+          </marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#f08a59"/>
+          </marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#739fdf"/>
+          </marker>
+        </defs>
+
+        <!-- Canvas Background -->
+        <rect width="100%" height="100%" fill="#2d3142"/>
+
+        <!-- Zones / Boundaries -->
+        <!-- Zone 1: Client Layer -->
+        <rect x="28" y="70" width="168" height="380" rx="8"
+              fill="rgba(245,245,245,0.02)" stroke="rgba(245,245,245,0.12)" stroke-width="0.8"/>
+        <rect x="44" y="74" width="76" height="12" rx="2" fill="#2d3142"/>
+        <text x="82" y="83" fill="#949eb2" font-size="7.5" font-family="ui-monospace, monospace"
+              text-anchor="middle" letter-spacing="0.14em">CLIENT</text>
+
+        <!-- Zone 2: Application Services -->
+        <rect x="228" y="70" width="468" height="380" rx="8"
+              fill="rgba(245,245,245,0.02)" stroke="rgba(245,245,245,0.12)" stroke-width="0.8"/>
+        <rect x="244" y="74" width="124" height="12" rx="2" fill="#2d3142"/>
+        <text x="306" y="83" fill="#949eb2" font-size="7.5" font-family="ui-monospace, monospace"
+              text-anchor="middle" letter-spacing="0.14em">CORE BACKEND SERVICES</text>
+
+        <!-- Zone 3: Data & Storage -->
+        <rect x="728" y="70" width="204" height="380" rx="8"
+              fill="rgba(245,245,245,0.02)" stroke="rgba(245,245,245,0.12)" stroke-width="0.8"/>
+        <rect x="744" y="74" width="94" height="12" rx="2" fill="#2d3142"/>
+        <text x="791" y="83" fill="#949eb2" font-size="7.5" font-family="ui-monospace, monospace"
+              text-anchor="middle" letter-spacing="0.14em">DATA &amp; PERSISTENCE</text>
+
+        <!-- Connectors (Drawn before nodes) -->
+
+        <!-- 1. Browser -> API Gateway (Solid Link) -->
+        <g data-om-edge="edge-browser-api" data-om-from="node-browser" data-om-to="node-api" data-om-from-side="right" data-om-to-side="left">
+          <line x1="172" y1="260" x2="260" y2="260"
+                stroke="#739fdf" stroke-width="1.2" marker-end="url(#arrow-link)" data-om-path="true"/>
+          <rect data-om-label-mask="true" x="188" y="240" width="56" height="12" rx="2" fill="#2d3142"/>
+          <text data-om-text="label-browser-api" x="216" y="249" fill="#949eb2" font-size="8"
+                font-family="ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">HTTPS/REQ</text>
+        </g>
+
+        <!-- 2. API -> Cache (Up and Right Elbow) -->
+        <!-- Source (x=332, y=228), Dst (x=508, y=140) -->
+        <g data-om-edge="edge-api-cache" data-om-from="node-api" data-om-to="node-cache" data-om-from-side="top" data-om-to-side="left">
+          <!-- Leaves API top at x=332, y=228; goes up to y=140, turns right to x=508 -->
+          <path d="M 332,228 V 148 Q 332,140 340,140 H 508"
+                fill="none" stroke="#bfc0c0" stroke-width="1.2" marker-end="url(#arrow)" data-om-path="true"/>
+          <rect data-om-label-mask="true" x="382" y="120" width="52" height="12" rx="2" fill="#2d3142"/>
+          <text data-om-text="label-api-cache" x="408" y="129" fill="#949eb2" font-size="8"
+                font-family="ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">GET/PUT</text>
+        </g>
+
+        <!-- 3. API -> Queue (Down and Right Elbow, Accent Path) -->
+        <!-- Source (x=332, y=292), Dst (x=508, y=380) -->
+        <g data-om-edge="edge-api-queue" data-om-from="node-api" data-om-to="node-queue" data-om-from-side="bottom" data-om-to-side="left">
+          <!-- Leaves API bottom at x=332, y=292; goes down to y=380, turns right to x=508 -->
+          <path d="M 332,292 V 372 Q 332,380 340,380 H 508"
+                fill="none" stroke="#f08a59" stroke-width="1.2" marker-end="url(#arrow-accent)" data-om-path="true"/>
+          <rect data-om-label-mask="true" x="372" y="360" width="70" height="12" rx="2" fill="#2d3142"/>
+          <text data-om-text="label-api-queue" x="407" y="369" fill="#f08a59" font-size="8"
+                font-family="ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">ENQUEUE</text>
+        </g>
+
+        <!-- 4. Queue -> Worker (Orthogonal horizontal) -->
+        <g data-om-edge="edge-queue-worker" data-om-from="node-queue" data-om-to="node-worker" data-om-from-side="top" data-om-to-side="bottom">
+          <!-- From Queue top (580, 348) to Worker bottom (580, 292) -->
+          <line x1="580" y1="348" x2="580" y2="292"
+                stroke="#bfc0c0" stroke-width="1.2" marker-end="url(#arrow)" data-om-path="true"/>
+          <rect data-om-label-mask="true" x="590" y="314" width="46" height="12" rx="2" fill="#2d3142"/>
+          <text data-om-text="label-queue-worker" x="613" y="323" fill="#949eb2" font-size="8"
+                font-family="ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">POLL</text>
+        </g>
+
+        <!-- 5. Worker -> Database (Orthogonal horizontal into DB) -->
+        <g data-om-edge="edge-worker-db" data-om-from="node-worker" data-om-to="node-db" data-om-from-side="right" data-om-to-side="left">
+          <line x1="652" y1="260" x2="756" y2="260"
+                stroke="#f08a59" stroke-width="1.2" marker-end="url(#arrow-accent)" data-om-path="true"/>
+          <rect data-om-label-mask="true" x="674" y="240" width="62" height="12" rx="2" fill="#2d3142"/>
+          <text data-om-text="label-worker-db" x="705" y="249" fill="#f08a59" font-size="8"
+                font-family="ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">PERSIST</text>
+        </g>
+
+        <!-- Nodes -->
+
+        <!-- Node 1: Browser -->
+        <g data-om-component="node-browser" data-om-editable="true">
+          <rect x="44" y="228" width="128" height="64" rx="6" fill="#2d3142"/>
+          <rect x="44" y="228" width="128" height="64" rx="6"
+                fill="rgba(191,192,192,0.08)" stroke="#bfc0c0" stroke-width="1"/>
+          <rect x="52" y="234" width="34" height="12" rx="2"
+                fill="transparent" stroke="rgba(191,192,192,0.4)" stroke-width="0.8"/>
+          <text x="69" y="243" fill="#bfc0c0" font-size="7" font-family="ui-monospace, monospace"
+                text-anchor="middle" letter-spacing="0.08em">CLIENT</text>
+          <text data-om-text="name-browser" data-om-editable="text"
+                x="108" y="262" fill="#f5f5f5" font-size="12" font-weight="600"
+                font-family="'Lexend', system-ui, sans-serif" text-anchor="middle">Storefront UI</text>
+          <text data-om-text="sub-browser" data-om-editable="text"
+                x="108" y="278" fill="#bfc0c0" font-size="9"
+                font-family="ui-monospace, monospace" text-anchor="middle">SPA : Web / Mobile</text>
+        </g>
+
+        <!-- Node 2: API Service (Focal node 1) -->
+        <g data-om-component="node-api" data-om-editable="true">
+          <rect x="260" y="228" width="144" height="64" rx="6" fill="#2d3142"/>
+          <rect x="260" y="228" width="144" height="64" rx="6"
+                fill="rgba(240,138,89,0.10)" stroke="#f08a59" stroke-width="1.2"/>
+          <rect x="268" y="234" width="28" height="12" rx="2"
+                fill="transparent" stroke="rgba(240,138,89,0.5)" stroke-width="0.8"/>
+          <text x="282" y="243" fill="#f08a59" font-size="7" font-family="ui-monospace, monospace"
+                text-anchor="middle" letter-spacing="0.08em">HTTP</text>
+          <text data-om-text="name-api" data-om-editable="text"
+                x="332" y="262" fill="#f5f5f5" font-size="12" font-weight="600"
+                font-family="'Lexend', system-ui, sans-serif" text-anchor="middle">API Service</text>
+          <text data-om-text="sub-api" data-om-editable="text"
+                x="332" y="278" fill="#bfc0c0" font-size="9"
+                font-family="ui-monospace, monospace" text-anchor="middle">REST / GraphQL :443</text>
+        </g>
+
+        <!-- Node 3: Cache -->
+        <g data-om-component="node-cache" data-om-editable="true">
+          <rect x="508" y="108" width="144" height="64" rx="6" fill="#2d3142"/>
+          <rect x="508" y="108" width="144" height="64" rx="6"
+                fill="rgba(245,245,245,0.05)" stroke="#bfc0c0" stroke-width="1"/>
+          <rect x="516" y="114" width="36" height="12" rx="2"
+                fill="transparent" stroke="rgba(191,192,192,0.4)" stroke-width="0.8"/>
+          <text x="534" y="123" fill="#bfc0c0" font-size="7" font-family="ui-monospace, monospace"
+                text-anchor="middle" letter-spacing="0.08em">MEMORY</text>
+          <text data-om-text="name-cache" data-om-editable="text"
+                x="580" y="142" fill="#f5f5f5" font-size="12" font-weight="600"
+                font-family="'Lexend', system-ui, sans-serif" text-anchor="middle">Cache Store</text>
+          <text data-om-text="sub-cache" data-om-editable="text"
+                x="580" y="158" fill="#bfc0c0" font-size="9"
+                font-family="ui-monospace, monospace" text-anchor="middle">Redis :6379</text>
+        </g>
+
+        <!-- Node 4: Queue -->
+        <g data-om-component="node-queue" data-om-editable="true">
+          <rect x="508" y="348" width="144" height="64" rx="6" fill="#2d3142"/>
+          <rect x="508" y="348" width="144" height="64" rx="6"
+                fill="rgba(245,245,245,0.05)" stroke="#bfc0c0" stroke-width="1"/>
+          <rect x="516" y="354" width="34" height="12" rx="2"
+                fill="transparent" stroke="rgba(191,192,192,0.4)" stroke-width="0.8"/>
+          <text x="533" y="363" fill="#bfc0c0" font-size="7" font-family="ui-monospace, monospace"
+                text-anchor="middle" letter-spacing="0.08em">QUEUE</text>
+          <text data-om-text="name-queue" data-om-editable="text"
+                x="580" y="382" fill="#f5f5f5" font-size="12" font-weight="600"
+                font-family="'Lexend', system-ui, sans-serif" text-anchor="middle">Order Queue</text>
+          <text data-om-text="sub-queue" data-om-editable="text"
+                x="580" y="398" fill="#bfc0c0" font-size="9"
+                font-family="ui-monospace, monospace" text-anchor="middle">SQS / RabbitMQ</text>
+        </g>
+
+        <!-- Node 5: Worker -->
+        <g data-om-component="node-worker" data-om-editable="true">
+          <rect x="508" y="228" width="144" height="64" rx="6" fill="#2d3142"/>
+          <rect x="508" y="228" width="144" height="64" rx="6"
+                fill="#393e53" stroke="#bfc0c0" stroke-width="1"/>
+          <rect x="516" y="234" width="36" height="12" rx="2"
+                fill="transparent" stroke="rgba(191,192,192,0.4)" stroke-width="0.8"/>
+          <text x="534" y="243" fill="#bfc0c0" font-size="7" font-family="ui-monospace, monospace"
+                text-anchor="middle" letter-spacing="0.08em">ASYNC</text>
+          <text data-om-text="name-worker" data-om-editable="text"
+                x="580" y="262" fill="#f5f5f5" font-size="12" font-weight="600"
+                font-family="'Lexend', system-ui, sans-serif" text-anchor="middle">Order Worker</text>
+          <text data-om-text="sub-worker" data-om-editable="text"
+                x="580" y="278" fill="#bfc0c0" font-size="9"
+                font-family="ui-monospace, monospace" text-anchor="middle">Fulfillment daemon</text>
+        </g>
+
+        <!-- Node 6: Database (Focal node 2) -->
+        <g data-om-component="node-db" data-om-editable="true">
+          <rect x="756" y="228" width="148" height="64" rx="6" fill="#2d3142"/>
+          <rect x="756" y="228" width="148" height="64" rx="6"
+                fill="rgba(240,138,89,0.10)" stroke="#f08a59" stroke-width="1.2"/>
+          <rect x="764" y="234" width="30" height="12" rx="2"
+                fill="transparent" stroke="rgba(240,138,89,0.5)" stroke-width="0.8"/>
+          <text x="779" y="243" fill="#f08a59" font-size="7" font-family="ui-monospace, monospace"
+                text-anchor="middle" letter-spacing="0.08em">SQL</text>
+          <text data-om-text="name-db" data-om-editable="text"
+                x="830" y="262" fill="#f5f5f5" font-size="12" font-weight="600"
+                font-family="'Lexend', system-ui, sans-serif" text-anchor="middle">Order Database</text>
+          <text data-om-text="sub-db" data-om-editable="text"
+                x="830" y="278" fill="#bfc0c0" font-size="9"
+                font-family="ui-monospace, monospace" text-anchor="middle">PostgreSQL :5432</text>
+        </g>
+
+        <!-- Bottom Legend Strip -->
+        <line x1="30" y1="492" x2="930" y2="492" stroke="rgba(245,245,245,0.12)" stroke-width="0.8"/>
+        <text x="30" y="520" fill="#949eb2" font-size="8" font-family="ui-monospace, monospace" letter-spacing="0.14em">LEGEND</text>
+
+        <!-- Legend Item 1 -->
+        <line x1="104" y1="517" x2="136" y2="517" stroke="#739fdf" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <text x="146" y="520" fill="#bfc0c0" font-size="9" font-family="'Lexend', system-ui, sans-serif">External Client Request</text>
+
+        <!-- Legend Item 2 -->
+        <line x1="324" y1="517" x2="356" y2="517" stroke="#f08a59" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+        <text x="366" y="520" fill="#bfc0c0" font-size="9" font-family="'Lexend', system-ui, sans-serif">Asynchronous Order Path (Critical)</text>
+
+        <!-- Legend Item 3 -->
+        <line x1="624" y1="517" x2="656" y2="517" stroke="#bfc0c0" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <text x="666" y="520" fill="#bfc0c0" font-size="9" font-family="'Lexend', system-ui, sans-serif">Internal Service Connection</text>
+
+      </svg>
+    </div>
+  </div>
+</body>
+</html>

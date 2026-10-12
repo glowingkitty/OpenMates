@@ -101,6 +101,8 @@
     contentBackgroundColor?: string;
     /** Chat embeds close on chat selection; independent workspace details do not. */
     closeOnChatSelection?: boolean;
+    /** When supplied, selecting this embed's own chat keeps its fullscreen view open. */
+    owningChatId?: string;
     /** Optional copy handler (for copy button) - copies text version of embed */
     onCopy?: () => void;
     /** Optional download handler (for download button) - downloads the embed */
@@ -362,6 +364,7 @@
     editActive = false,
     contentBackgroundColor,
     closeOnChatSelection = true,
+    owningChatId,
     onCopy,
     onDownload,
     onImport,
@@ -940,8 +943,11 @@
   }
   
   // Close fullscreen when user switches to a different chat
-  function handleChatSelected() {
+  function handleChatSelected(event: Event) {
     if (!closeOnChatSelection || isDestroyed) return;
+    const detail = (event as CustomEvent<{ chatId?: unknown; chat?: { chat_id?: unknown } }>).detail;
+    const selectedId = detail?.chatId ?? detail?.chat?.chat_id;
+    if (owningChatId && selectedId === owningChatId) return;
     console.debug('[UnifiedEmbedFullscreen] Chat selected, closing fullscreen');
     onClose(); // Close immediately without animation for smoother UX
   }

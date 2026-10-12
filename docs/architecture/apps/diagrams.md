@@ -35,10 +35,19 @@ and scale the whole artboard uniformly. Root `data-om-render-width` and
 `data-om-background` matches its page background and colors the surrounding
 canvas, so fitting an artboard never introduces white gutters. Fullscreen adds fit, zoom, pan and HTML
 export. Generated scripts, event handlers and external resources are rejected;
-read-only frames have no script permission. The pen control sits immediately left
+visible read-only frames have no script permission. A separate opaque measurement
+frame runs only a first-party nonce-protected reporter after fonts settle. Its
+source, opaque origin and per-source token are checked before accepting bounded
+dimensions. Presentation can grow beyond an imperfect declared height to fit the
+complete page; canonical HTML remains unchanged. Source/history transitions
+invalidate old measurements, and excessive or non-converging pages show an error
+instead of clipping. The pen control sits immediately left
 of Close and uses the same button styling. Edit enables only a trusted runtime
 protected by a fresh CSP nonce and source/origin/token checked messages. Changing
 edit mode remounts the iframe with its permissions set before loading the HTML.
+The fullscreen captures its owning chat when opened. A late selection event for
+that same chat preserves the view and its draft; selecting a different chat
+still closes it.
 
 Stable, nonvisual SVG metadata identifies editable parts:
 
@@ -53,7 +62,8 @@ Stable, nonvisual SVG metadata identifies editable parts:
   each message retains its original chronological height and endpoint offset.
 
 Clicking text edits it in place. Dragging a group moves its shapes and labels
-together and reroutes attached orthogonal connectors. Undo and Cancel operate on
+together and updates attached connectors while preserving their original ports,
+rounded paths and message rows. Undo and Cancel operate on
 the local draft. Export strips all injected editor/runtime nodes.
 
 Save encrypts the new head and the existing unified-diff history format with the
@@ -69,6 +79,19 @@ The CLI can import/export HTML, summarize the embed and restore versions. Apple
 and TUI graphical editors can reuse the canonical source, stable component IDs
 and atomic revision contract; they are outside this web-editor implementation.
 
+The CLI waits for the correlated durable first-version receipt before finishing
+stream persistence. Retrying the same source reuses its existing encrypted
+snapshot. A terminal-message revision-conflict refresh reads the latest chat
+version without replaying typed recovery outputs on its second connection; the
+original send connection retains recovery ownership and acknowledges the output
+once. Ordinary sync continues to recover pending outputs normally.
+
+When a known embed falls outside the bounded sync window, the CLI can fetch its
+encrypted head and keys through the existing authorized `request_embed` path.
+`embeds show --chat <chat-id>` supplies the owning chat explicitly; live chat
+ownership and Team access checks remain authoritative. Missing and denied
+embeds still produce errors.
+
 ## Evidence and provenance
 
 The vendored `manifest.json`, `audit.json` and `LICENSE` retain provenance and
@@ -78,6 +101,13 @@ upstream example composition. Authenticated browser tests use signed offline
 provider responses through normal JEV and streaming, real chat encryption,
 storage, reload and revision restoration. Real inference is validated separately
 on dev with a leased disposable test account.
+
+The real-example fixture provenance records each ordinary request, selected
+guide revision and original HTML digest. Clean examples cover a dark shop
+architecture, a light support flowchart and a dark passwordless-login sequence.
+Their generated HTML is copied byte for byte; browser checks compare its SVG
+and complete artboard at desktop and phone widths. Earlier failed stream
+attempts retain their separate failure provenance and recordings.
 
 JEV still enforces its ordinary token budget for signed offline fixtures. Both
 worker images cache the pinned tokenizer tables during the build and verify
