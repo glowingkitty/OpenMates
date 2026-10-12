@@ -16,7 +16,10 @@ unsuccessful attempts with the same approach. Ask before unrelated infrastructur
 repair, uncertain behavior changes, or expanding the original task. Preserve
 useful evidence and keep the OpenMates Task status accurate. Always retrieve
 web/CLI E2E recordings (use `result <id>` after a failed wait), run the receipt's
-`codex_evidence_command`, and include all returned video links in the final chat,
-including failure/retry recordings. Report missing capture/upload failures
-explicitly; retry media delivery without rerunning passing tests. Shared policy:
+`codex_evidence_command`, and select final links from its inventory: only the latest
+successful recording per requested check/flow, or its latest available failed
+recording if that request never succeeded. Include distinct required views; omit
+duplicates and superseded attempts, with no appendix of all recordings. Report
+missing capture/upload failures for selected evidence explicitly; retry media
+delivery without rerunning passing tests. Shared policy:
 `.claude/rules/testing.md` and `AGENTS.md`.

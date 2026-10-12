@@ -59,14 +59,24 @@ Do not claim a pass from a queued, cancelled, unrelated or stale run.
 
 ## Required E2E recording delivery
 
-For every web/browser, component and OpenMates CLI E2E run used in this chat,
-always download its existing recordings, upload them and include clickable video
-links in the final response. This applies to successful and failed runs, retries
-and every recorded profile. Include available failure recordings when reporting
-a blocker. A passing test, GitHub run link, artifact archive or local file path
-alone does not fulfill video delivery. This is required by default; it does not
-depend on a Plan, a separate request or `--require-proof-video`. Honor an explicit
-user waiver of recording delivery.
+For web/browser, component and OpenMates CLI E2E checks used in this chat, retain
+existing recordings and deliver a concise selection of clickable video links in
+the final response:
+
+- For each requested check/flow, link only its latest successful recording across
+  all attempts, retries and reruns in the chat.
+- If that request never succeeded, link only its latest available failed recording.
+- Include distinct participant/device views only when required to demonstrate
+  the selected flow. Omit duplicate captures and incidental recorded profiles.
+- Never append superseded attempts, earlier failures or an exhaustive recording
+  list, including inside a collapsed section. Keep the full inventory in receipts.
+
+A passing test, GitHub run link, artifact archive or local file path alone does
+not fulfill delivery of the selected recording. This is required by default;
+it does not depend on a Plan, a separate request or `--require-proof-video`.
+Honor an explicit user waiver of recording delivery. Report the current test
+verdict accurately; an earlier successful recording does not turn a later failed
+check or a different source revision into a pass.
 
 1. Wait with `python3 scripts/ci_coordinator.py wait <request-id>`. A successful
    wait downloads and validates the artifact under `test-results/ci-runs/<id>`.
@@ -74,16 +84,17 @@ user waiver of recording delivery.
    `python3 scripts/ci_coordinator.py result <request-id>` to retrieve available
    artifacts; `wait` does not download those automatically. Reuse cached receipts
    instead of downloading them through a second path.
-2. Run the receipt's `codex_evidence_command`, normally
+2. For the selected runs, run the receipt's `codex_evidence_command`, normally
    `python3 scripts/codex_evidence.py <directory> --upload`. It enumerates browser
    attachments and real CLI terminal recordings, including attempts/profiles,
-   and uses the existing private, expiring response-media transport. Paste all
-   returned video links in the final chat response, with the test/profile and
+   and uses the existing private, expiring response-media transport. Its complete
+   output is an internal inventory: select final links using the rule above;
+   never paste it wholesale. Label selected links with the test/required view and
    result. Keep source/run identity attached to the evidence. Unit/lint/tooling
    checks do not need invented recordings.
 3. If capture never started, a recording is missing, an artifact expired, or an
-   upload fails, report the affected test and concrete reason beside its test
-   result. Link available recordings and retain local artifacts for upload retry.
+   upload fails for selected evidence, report the affected test and concrete
+   reason beside its test result. Retain local artifacts for upload retry.
    Report verification and delivery separately; never claim video was delivered
    from a download/upload alone. Use `--ack` only with an actual delivered chat
    message ID; leave delivery pending when the client does not expose one.
@@ -91,13 +102,15 @@ user waiver of recording delivery.
    CLI E2E must retain actual terminal-screen recordings using the existing
    `cli-tui-proof-helpers.ts` / `cli_video_capture.py` helpers. A blank browser
    video from a headless CLI test or replayed stdout is not CLI video proof.
-   For authorized dev-host real-inference runs, deliver their retained recordings
-   with `response_media.py <video-path> --output markdown`; the CI requirement
-   does not move these tests into CI.
+   For authorized dev-host real-inference runs, apply the same selection rule and
+   deliver the selected recordings with
+   `response_media.py <video-path> --output markdown`; the CI requirement does not
+   move these tests into CI.
 
 Extra proof-video editing, captions, additional device profiles, frame review and
 visual-smoke production follow the accepted task/Plan or explicit request through
-`create-demo-video`. They do not make delivery of existing E2E recordings optional.
+`create-demo-video`. Delivery of the selected existing E2E recordings remains
+required.
 Do not rerun a test solely to repair an upload or refresh an expired media link;
 retry/re-upload the retained artifact. Never publish private production evidence
 or unredacted personal data; report withheld evidence with its reason.

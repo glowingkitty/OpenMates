@@ -13,10 +13,13 @@ operations retain their specific approval boundaries.
 
 Update relevant E2E coverage and run the checks appropriate to the change, subject
 to explicit user waivers. Follow `.claude/rules/testing.md` for bounded debugging
-and isolated CI. Always download, upload and link existing web/CLI E2E recordings
-in the final chat response as required by the testing rule, including failures
-and retries. Run the receipt's `codex_evidence_command`; report missing capture or
-upload failure explicitly. Extra edited/captioned proof production follows the
+and isolated CI. Retrieve existing web/CLI E2E recordings and link only the latest
+successful recording per requested check/flow in the final chat; if that request
+never succeeded, link only its latest available failed recording. Include distinct
+required views, omit duplicate captures, and never append all attempts. Run the
+receipt's `codex_evidence_command` and select from its inventory under the testing
+rule; report missing capture/upload failure for selected evidence explicitly.
+Extra edited/captioned proof production follows the
 accepted scope. Preserve explicitly required product-contract checks.
 
 For frontend readiness use `sessions.py wait-deploy --commit <sha>` and wait on

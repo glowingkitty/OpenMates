@@ -9,8 +9,11 @@ argument-hint: "<spec.ts | CLI command> [visible claim]"
 
 Existing web/CLI E2E recording delivery is always required by
 `.claude/rules/testing.md`: download the run artifact, run its
-`codex_evidence_command` and paste the returned video links in the final chat,
-including failures/retries. That delivery needs no new contract or caption/render
+`codex_evidence_command` and select final links from its inventory: only the latest
+successful recording per requested check/flow, or its latest available failed
+recording if that request never succeeded. Include distinct required views; omit
+duplicates and superseded attempts, with no appendix of all recordings.
+That delivery needs no new contract or caption/render
 workflow. Use this skill when the accepted scope requires additional edited or
 captioned proof; do not delay existing recording links while preparing it.
 

@@ -60,10 +60,13 @@ not require a new preview fixture or spec. If Figma is involved, run
   mounting. It is not a product assertion or proof checkpoint.
 - Use phone and laptop profiles only when responsive behavior differs.
 - Retain the focused component artifact before moving to full-flow verification.
-  Always download/upload its existing recordings and link them in the final chat
-  using the receipt's `codex_evidence_command`, including failures and retries.
-  Report missing recordings/upload failures explicitly. Extra edited/captioned
-  proof production follows the accepted scope; recording delivery is mandatory.
+  Retrieve its existing recordings using the receipt's `codex_evidence_command`.
+  Final chat links only the latest successful recording per requested check/flow,
+  or its latest available failed recording if that request never succeeded.
+  Include distinct required views; omit duplicates and superseded attempts, with
+  no appendix of all recordings. Report missing recordings/upload failures for
+  selected evidence explicitly. Extra edited/captioned proof production follows
+  the accepted scope; selected recording delivery is mandatory.
 
 ## Stop Conditions
 

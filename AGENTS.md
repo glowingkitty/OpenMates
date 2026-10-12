@@ -57,12 +57,12 @@ Use light plans preserving intent. Clear fixes need no confirmation ceremony.
 Use durable YAML Plans for material architecture/risk or multi-session work, and
 Specifications when product intent changes. Existing approval authorizes work;
 optional Plan fields are not completion gates.
-Always download/upload existing web/component and CLI E2E recordings and include
-all video links in the final Codex chat, including failures, retries and recorded
-profiles, unless the user explicitly waives delivery. Run the CI receipt's
-`codex_evidence_command`; report missing capture/upload failures. Extra edited or
-captioned proof follows accepted scope. Retry uploads from retained artifacts
-without rerunning tests. Detailed policy: `.claude/rules/testing.md`.
+Final chat links only the latest successful web/component or CLI E2E recording
+per requested flow/check, or its latest failed recording if it never succeeded.
+Include required views; omit duplicates and all-attempt appendices. Honor waivers.
+Run the receipt's `codex_evidence_command`; select links from its inventory and
+report selected capture/upload failures. Edited proof follows scope. Retry
+uploads without rerunning tests. Details: `.claude/rules/testing.md`.
 
 ## Tasks, communication and tools
 
