@@ -135,6 +135,31 @@ The current daemon's deletion notification has no verified replay cursor. A conf
 
 After the pilot, add `--all-threads` to the configure command to inject context into every repository chat, including new chats. Event execution still requires a real local Codex session binding or explicit pilot registration. A Task visible in a Project cache cannot register a new execution owner by itself.
 
+### Project chat awareness
+
+The existing foreground adapter also maintains a bounded metadata-only inventory
+of other repository chats. It refreshes every 30 seconds and applies runtime
+status events between refreshes. The cache hook shows only same-Project active
+peers, with short titles, workspaces and advisory recorded file scope; registered
+workers are not duplicated. Task status alone never establishes a running turn.
+Startup, resume and compaction restore the full overview; unchanged refreshes
+emit no context heartbeat. Missing, stale, disconnected or incomplete inventory
+is explicitly unknown, rather than an empty Project.
+
+Project membership comes from configured Task links or explicit local
+`thread_projects` associations. For unlinked chats, one configured repository
+Project provides an unambiguous default. With multiple Project snapshots, use
+`configure --project <project-id>` to select that default and the current chat's
+association. The Project must be one of the configured snapshots. A directory
+alone cannot select a Project. Presence never registers execution permission or
+resumes an unrelated chat. Titles and paths remain quoted data, and existing
+session ownership/edit leases continue to enforce access.
+
+Rollback may set the repository configuration's `presence_enabled` to `false`;
+the existing Task context and execution registration remain independent. Keep
+the foreground remote-access connection running for fresh presence, and restart
+it deliberately after publishing adapter changes.
+
 The adapter attaches through `thread/resume` with metadata-only output and a bundled latest-turn summary. `thread/read` does not subscribe to events; using it alone would miss completion notifications. Resume here loads the existing chat without starting inference or changing its model, permissions or instructions. See the [official app-server lifecycle documentation](https://learn.chatgpt.com/docs/app-server).
 
 ## Dev rollout and hook readiness

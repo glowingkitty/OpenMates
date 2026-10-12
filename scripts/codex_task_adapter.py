@@ -23,9 +23,11 @@ import uuid
 
 try:
     from scripts.codex_cached_context import _save, state_root
+    from scripts import codex_chat_presence as presence
     from scripts.codex_rpc import CodexRPC, CodexRPCRejected
 except ModuleNotFoundError:
     from codex_cached_context import _save, state_root
+    import codex_chat_presence as presence
     from codex_rpc import CodexRPC, CodexRPCRejected
 
 
@@ -104,18 +106,7 @@ def dependency_ready(previous, current):
 
 def repository_checkout(root, location):
     """Recognize app-native linked worktrees through their local Git metadata."""
-    checkout = Path(location).resolve()
-    if checkout.is_relative_to(root):
-        return True
-    try:
-        pointer = (checkout / ".git").read_text().strip()
-        if not pointer.startswith("gitdir: "):
-            return False
-        gitdir = (checkout / pointer[len("gitdir: "):]).resolve()
-        common = (gitdir / (gitdir / "commondir").read_text().strip()).resolve()
-        return common == (root / ".git").resolve()
-    except (OSError, ValueError):
-        return False
+    return presence.repository_checkout(root, location)
 
 
 def execution_threads(root, config):
@@ -483,6 +474,33 @@ def registry(root, session):
     return json.loads(path.read_text()) if path.exists() else {}
 
 
+def stop_adapter(state, save, rpc=None):
+    """Persist a truthful stopped state without altering pending deliveries."""
+    state["presence"] = presence.unavailable(state.get("presence"), "Adapter stopped")
+    state["connection"] = {"state": "stopped"}
+    save()
+    if rpc:
+        rpc.close()
+
+
+def refresh_presence(rpc, root, config, state):
+    """Keep advisory inventory faults outside the Task delivery state machine."""
+    try:
+        state["presence"] = presence.collect_once(rpc, root, config, state.get("presence"))
+    except Exception:
+        state["presence"] = presence.unavailable(
+            state.get("presence"), "Presence refresh unavailable"
+        )
+    if state["presence"].get("reason", "").startswith(
+        "Codex inventory deadline exceeded"
+    ):
+        # A timed-out read can leave a partial WebSocket frame. Reconnect before
+        # any Task event call uses this stream.
+        rpc.close()
+        return CodexRPC(), True
+    return rpc, False
+
+
 def run(root, config):
     path = adapter_path(root)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -499,20 +517,21 @@ def run(root, config):
         first_failure = None
         tasks = {}
         subscribed = set()
+        next_presence_read = 0
         while True:
             # EOF binds child lifetime to remote-access, including parent crashes.
             readable = select.select(
                 [sys.stdin, *([rpc.socket] if rpc else [])], [], [], 5
             )[0]
             if sys.stdin in readable and not sys.stdin.readline():
-                if rpc:
-                    rpc.close()
+                stop_adapter(state, save, rpc)
                 return
             try:
                 current_config = json.loads(
                     (state_root() / "codex-adapter.json").read_text()
                 )["repositories"].get(str(root))
                 if not current_config or not current_config.get("enabled"):
+                    stop_adapter(state, save, rpc)
                     return
                 config = current_config
                 allowed = execution_threads(root, config)
@@ -560,6 +579,15 @@ def run(root, config):
                 if rpc is None:
                     rpc = CodexRPC()
                     subscribed = set()
+                    next_presence_read = 0
+                presence_enabled = config.get("presence_enabled") is not False
+                if not presence_enabled:
+                    next_presence_read = 0
+                if presence_enabled and time.time() >= next_presence_read:
+                    rpc, reset = refresh_presence(rpc, root, config, state)
+                    if reset:
+                        subscribed = set()
+                    next_presence_read = time.time() + 30
                 for owner in sorted(allowed - subscribed):
                     # Subscribe once per connection, without inference or full-history output.
                     if state["threads"].get(owner, {}).get("deleted"):
@@ -576,6 +604,8 @@ def run(root, config):
                     ).get("type", "unknown")
                     subscribed.add(owner)
                 for notification in rpc.poll_notifications(0):
+                    if presence_enabled:
+                        presence.observe_notification(state.get("presence", {}), notification)
                     observe_notification(state, notification, allowed, parents, tasks)
                 for item in state["deliveries"].values():
                     if item["kind"] != "chat_deleted":
@@ -614,6 +644,7 @@ def run(root, config):
                 if rpc:
                     rpc.close()
                     rpc = None
+                state["presence"] = presence.unavailable(state.get("presence"))
                 failures += 1
                 first_failure = first_failure or time.time()
                 retry_at = time.time() + min(120, 5 * 2 ** min(failures - 1, 5))
@@ -652,6 +683,7 @@ def main():
             json.dumps(
                 {
                     "threads": state["threads"],
+                    "presence": state.get("presence"),
                     "connection": state.get("connection"),
                     "deliveries": [
                         {k: v for k, v in item.items() if k != "data"}

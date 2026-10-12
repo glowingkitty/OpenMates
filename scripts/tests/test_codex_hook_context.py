@@ -175,3 +175,35 @@ def test_missing_cache_never_revives_stop_lifecycle(monkeypatch, tmp_path):
     assert "not configured" in task_instructions(tmp_path, "session", "thread", "SessionStart")
     for event in ("PreToolUse", "PostToolUse", "Stop"):
         assert task_instructions(tmp_path, "session", "thread", event) == ""
+
+
+# contract-test: tooling
+def test_hook_injects_project_peers_from_existing_cached_adapter(monkeypatch, tmp_path):
+    import json
+    import sys
+    from datetime import datetime, timezone
+    from scripts import codex_cached_context as cached
+    from scripts.codex_task_adapter import adapter_path
+
+    thread = "00000000-0000-0000-0000-000000000001"
+    peer = "00000000-0000-0000-0000-000000000003"
+    monkeypatch.setenv("OPENMATES_STATE_DIR", str(tmp_path / "cli"))
+    snapshot = tmp_path / "snapshot.json"
+    snapshot.write_text(json.dumps({"schema_version": 1, "project_id": "project", "connection": "stopped", "tasks": []}))
+    path = adapter_path(tmp_path)
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps({"presence": {
+        "schema_version": 1, "connection": "connected", "complete": True,
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "threads": {peer: {"project_ids": ["project"], "status": "active", "title": "Peer"}},
+    }}))
+    config = {"snapshots": [str(snapshot)]}
+    config_path = tmp_path / "cli/codex-adapter.json"
+    config_path.write_text(json.dumps({"repositories": {str(tmp_path): {"enabled": True, "all_threads": True, **config}}}))
+    monkeypatch.setitem(sys.modules, "codex_cached_context", cached)
+    result = hooks.task_instructions(tmp_path, "session", thread, "SessionStart")
+    merged = hooks.merge_outputs("SessionStart", json.dumps({
+        "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": result},
+    }))
+    assert peer in merged["hookSpecificOutput"]["additionalContext"]
+    assert 'Presence: current' in merged["hookSpecificOutput"]["additionalContext"]
