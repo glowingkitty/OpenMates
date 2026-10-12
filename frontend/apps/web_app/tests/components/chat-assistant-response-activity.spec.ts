@@ -13,6 +13,20 @@ function preview(variant: string, width = 820) {
 }
 
 test.describe('Assistant response activity', () => {
+  // contract-test: direct surface=gui.web assertions=chat-processing-feedback.completed-processing-summary
+  test('combines historical focus activation with legacy sub-chat cards', async ({ page }) => {
+    await page.goto(preview('completedFocusSubChats'));
+    await waitForComponentPreview(page);
+    const toggle = page.getByTestId('assistant-activity-toggle');
+    await expect(toggle).toHaveCount(1);
+    await expect(toggle).toHaveText("Activated 'Deep research' & worked in sub chats.");
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByText('A concise research answer.')).toBeVisible();
+    await toggle.click();
+    await expect(page.getByTestId('assistant-activity-body').getByTestId('sub-chat-card')).toHaveCount(3);
+    await expect(page.getByTestId('assistant-activity-body').getByTestId('focus-mode-bar')).toBeVisible();
+  });
+
   // contract-test: direct surface=gui.web assertions=chat-processing-feedback.response-container-glow,chat-processing-feedback.accessible-responsive,chat-processing-feedback.selected-mate-identity
   test('starts with a real assistant Thinking container and a bottom glow', async ({ page }) => {
     await page.goto(preview('responseThinking'));
@@ -133,6 +147,8 @@ test.describe('Assistant response activity', () => {
     await expect(groups.first().getByTestId('assistant-activity-toggle')).toHaveAttribute('aria-expanded', 'true');
     await expect(groups.first().getByTestId('assistant-activity-body')).toBeVisible();
     await expect(groups.first().getByTestId('assistant-response-thinking')).toContainText('Thinking for this response');
+    await expect(groups.first().getByTestId('thinking-header')).toHaveAttribute('aria-expanded', 'false');
+    await groups.first().getByTestId('thinking-header').click();
     await expect(groups.first().getByTestId('assistant-response-thinking')).toContainText('compare the available sources');
     await expect(groups.nth(1).getByTestId('assistant-response-thinking')).toHaveCount(0);
     const finishedBubble = (await page.getByTestId('mate-message-content').boundingBox())!;
@@ -176,6 +192,8 @@ test.describe('Assistant response activity', () => {
     await expect(page.getByText('A concise answer.')).toBeVisible();
     await group.getByTestId('assistant-activity-toggle').click();
     await expect(group.getByTestId('assistant-response-thinking')).toContainText('Thinking for this response');
+    await expect(group.getByTestId('thinking-header')).toHaveAttribute('aria-expanded', 'false');
+    await group.getByTestId('thinking-header').click();
     await expect(group.getByTestId('assistant-response-thinking')).toContainText('I checked the wording before answering.');
   });
 

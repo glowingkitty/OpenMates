@@ -6,6 +6,7 @@
   // Props for the component using Svelte 5 runes mode
   let {
     name = '',
+    appId = undefined,
     type = 'default',
     inline = false,
     poweredByAI = false,
@@ -22,6 +23,8 @@
     ariaLabel = undefined
   }: {
     name?: string;
+    /** App identity is separate from its SVG filename, for the canonical gradient. */
+    appId?: string;
     type?: 'default' | 'app' | 'skill' | 'provider' | 'focus' | 'memory' | 'clickable' | 'subsetting' | 'placeholder';
     inline?: boolean;
     poweredByAI?: boolean;
@@ -227,6 +230,9 @@
     };
   });
 
+  const gradientAppId = $derived(appId && /^[a-z0-9_-]+$/i.test(appId)
+    ? appId : getAppIdForCssVariable(lowerCaseName));
+
   // Compute the inline style for the icon using $derived (Svelte 5 runes mode)
   let style = $derived([
     size ? `width: ${size}; height: ${size}; min-width: ${size}; min-height: ${size};` : '',
@@ -239,7 +245,7 @@
       `--icon-name: ${lowerCaseName};`,
       `--icon-url: var(--icon-url-${iconUrlName});`,
       type === 'clickable' ? `--icon-mask-image: var(--icon-url-${iconUrlName});` : '',
-      type === 'app' ? `--icon-background: var(--color-app-${getAppIdForCssVariable(lowerCaseName)});` : '',
+      type === 'app' ? `--icon-background: var(--color-app-${gradientAppId});` : '',
       type === 'focus' ? `--icon-background: var(--icon-focus-background);` : '',
       type === 'skill' ? `--icon-background: var(--icon-skill-background);` : '',
       type === 'memory' ? `--icon-background: var(--icon-memory-background);` : '',

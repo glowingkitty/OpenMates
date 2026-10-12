@@ -3592,3 +3592,60 @@ response_activity.writing:
   sv: "Skriver…"
   he: "כותב…"
   verified_by_human: []
+
+response_activity.list_last:
+  context: Deterministic app-name list with the last name joined by an ampersand.
+  en: "{items} & {last}"
+  de: "{items} & {last}"
+  verified_by_human: []
+response_activity.used_single:
+  context: Completed activity using one app. The localized app name replaces {apps}.
+  en: "Used the {apps} app"
+  de: "Die {apps}-App verwendet"
+  verified_by_human: []
+response_activity.used_multiple:
+  context: Completed activity using several apps. The localized name list replaces {apps}.
+  en: "Used the {apps} apps"
+  de: "Die Apps {apps} verwendet"
+  verified_by_human: []
+response_activity.thought_used_single:
+  context: Completed visible thinking and one app; never implies a measured duration.
+  en: "Thought & used the {apps} app"
+  de: "Nachgedacht und die {apps}-App verwendet"
+  verified_by_human: []
+response_activity.thought_used_multiple:
+  context: Completed visible thinking and several apps; never implies a measured duration.
+  en: "Thought & used the {apps} apps"
+  de: "Nachgedacht und die Apps {apps} verwendet"
+  verified_by_human: []
+response_activity.focus_activated:
+  context: Completed focus-mode activation with its localized name.
+  en: "Activated ''{focus}''"
+  de: "„{focus}“ aktiviert"
+  verified_by_human: []
+response_activity.focus_sub_chats:
+  context: Completed focus-mode activation and sub-chat work in the same source group.
+  en: "Activated ''{focus}'' & worked in sub chats."
+  de: "„{focus}“ aktiviert und in Unterchats gearbeitet."
+  verified_by_human: []
+response_activity.sub_chats:
+  context: Completed sub-chat work.
+  en: "Worked in sub chats."
+  de: "In Unterchats gearbeitet."
+  verified_by_human: []
+response_activity.focus_cancelled:
+  context: A live focus activation was rejected rather than activated.
+  en: "Cancelled focus activation"
+  de: "Fokusaktivierung abgebrochen"
+  verified_by_human: []
+
+response_activity.focus_activating:
+  context: A live focus request has not yet been confirmed.
+  en: "Activating ''{focus}''"
+  de: "„{focus}“ wird aktiviert"
+  verified_by_human: []
+response_activity.sub_chats_working:
+  context: Active sub-chat work.
+  en: "Working in sub chats"
+  de: "Arbeitet in Unterchats"
+  verified_by_human: []

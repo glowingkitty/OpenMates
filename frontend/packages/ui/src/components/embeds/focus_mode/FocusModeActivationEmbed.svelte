@@ -121,6 +121,8 @@
       : focusModeName
   );
   let displayName = $derived.by(() => {
+    // Display names are already localized; only translation keys need lookup.
+    if (!focusModeName.includes('.')) return focusModeName;
     // First try looking up focusModeName as a translation key
     const translated = $text(focusModeName);
     // $text returns "[T:key]" when the key is not found

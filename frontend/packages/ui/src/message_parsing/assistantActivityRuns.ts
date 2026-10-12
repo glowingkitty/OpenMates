@@ -1,9 +1,4 @@
-// frontend/packages/ui/src/message_parsing/assistantActivityRuns.ts
-// Split a canonical assistant document into stable prose and adjacent skill runs.
-// Each run keeps its first source embed as identity while later calls complete.
-// Result previews, links and ordinary text stay in their original positions.
-// No private content is logged or synthesized for display.
-
+// Split assistant activity at its source positions; authored prose and results stay put.
 export type AssistantDocument = { type: 'doc'; content: Array<Record<string, unknown>> };
 export type AssistantActivityRun = {
   id: string;
@@ -13,14 +8,16 @@ export type AssistantActivityRun = {
   skillIds: string[];
 };
 
-function skillItems(node: Record<string, unknown>): Array<Record<string, unknown>> | null {
-  if (node.type !== 'paragraph') return null;
-  const children = node.content;
-  if (!Array.isArray(children) || children.length !== 1) return null;
-  const embed = children[0] as Record<string, unknown>;
+export function assistantActivityItems(document: AssistantDocument | undefined): Array<Record<string, unknown>> {
+  return (document?.content ?? []).flatMap((node) => activityItems(node) ?? []);
+}
+
+function activityItems(node: Record<string, unknown>): Array<Record<string, unknown>> | null {
+  if (node.type !== 'paragraph' || !Array.isArray(node.content) || node.content.length !== 1) return null;
+  const embed = node.content[0] as Record<string, unknown>;
   if (embed.type !== 'embed') return null;
   const attrs = embed.attrs as Record<string, unknown> | undefined;
-  if (attrs?.type === 'app-skill-use') return [attrs];
+  if (attrs?.type === 'app-skill-use' || attrs?.type === 'focus-mode-activation' || attrs?.type === 'sub-chat-batch') return [attrs];
   if (attrs?.type === 'app-skill-use-group' && Array.isArray(attrs.groupedItems)) {
     return attrs.groupedItems as Array<Record<string, unknown>>;
   }
@@ -32,46 +29,26 @@ export function splitAssistantActivityRuns(value: unknown): AssistantActivityRun
   const doc = value as AssistantDocument;
   if (doc.type !== 'doc' || !Array.isArray(doc.content)) return null;
   const runs: AssistantActivityRun[] = [];
-  let content: Array<Record<string, unknown>> = [];
-  let skillNodes: Array<Record<string, unknown>> = [];
-  let skillIds: string[] = [];
-  let appIds: string[] = [];
-  let calledSkillIds: string[] = [];
-  const flushContent = () => {
-    if (!content.length) return;
-    runs.push({ id: `content:${runs.length}`, kind: 'content', document: { type: 'doc', content }, appIds: [], skillIds: [] });
-    content = [];
-  };
-  const flushSkills = () => {
-    if (!skillNodes.length) return;
+  let nodes: Array<Record<string, unknown>> = [];
+  let currentKind: 'content' | 'skills' | null = null;
+  const flush = () => {
+    if (!nodes.length || !currentKind) return;
+    const document: AssistantDocument = { type: 'doc', content: nodes };
+    const items = assistantActivityItems(document);
+    const skills = items.filter((item) => item.type !== 'focus-mode-activation' && item.type !== 'sub-chat-batch');
     runs.push({
-      id: `skills:${skillIds[0]}`,
-      kind: 'skills',
-      document: { type: 'doc', content: skillNodes },
-      appIds: [...new Set(appIds)],
-      skillIds: [...calledSkillIds],
+      id: currentKind === 'skills' ? `skills:${items[0]?.id ?? runs.length}` : `content:${runs.length}`,
+      kind: currentKind, document,
+      appIds: [...new Set(skills.flatMap((item) => typeof item.app_id === 'string' ? [item.app_id] : []))],
+      skillIds: skills.flatMap((item) => typeof item.skill_id === 'string' ? [item.skill_id] : []),
     });
-    skillNodes = [];
-    skillIds = [];
-    appIds = [];
-    calledSkillIds = [];
+    nodes = [];
   };
   for (const node of doc.content) {
-    const items = skillItems(node);
-    if (items) {
-      flushContent();
-      skillNodes.push(node);
-      for (const item of items) {
-        if (typeof item.id === 'string') skillIds.push(item.id);
-        if (typeof item.app_id === 'string') appIds.push(item.app_id);
-        if (typeof item.skill_id === 'string') calledSkillIds.push(item.skill_id);
-      }
-    } else {
-      flushSkills();
-      content.push(node);
-    }
+    const kind = activityItems(node) ? 'skills' : 'content';
+    if (kind !== currentKind) { flush(); currentKind = kind; }
+    nodes.push(node);
   }
-  flushSkills();
-  flushContent();
+  flush();
   return runs;
 }

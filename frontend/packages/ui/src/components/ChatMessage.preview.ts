@@ -128,6 +128,13 @@ export default defaultProps;
 
 /** Named variants for different message types and states */
 export const variants = {
+  completedFocusSubChats: {
+    ...defaultProps, role: 'assistant' as const,
+    content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'embed', attrs: {
+      type: 'focus-mode-activation', id: 'preview-legacy-focus', app_id: 'web', focus_id: 'web-research', focus_mode_name: 'Deep research', status: 'finished',
+    } }] }, { type: 'paragraph', content: [{ type: 'text', text: 'A concise research answer.' }] }] },
+    original_message: { chat_id: 'example-us-egg-prices-deep', created_at: 1781095355, role: 'assistant', content: '' },
+  },
 	anonymousFeatureNotice: {
 		...defaultProps,
 		role: 'system' as const,
@@ -141,7 +148,7 @@ export const variants = {
 	},
 	workflowResults: {
 		...defaultProps, role: 'assistant' as const,
-		content: '[View workflow run](/workflows#workflow-id=998a335e-741f-582c-885c-bf61d12ace93&workflow-tab=runs&run-id=118a335e-741f-582c-885c-bf61d12ace93)\n\n' + widthResults,
+		content: '[View workflow run](/workflows#workflow-id=998a335e-741f-582c-885c-bf61d12ace93&workflow-tab=runs&run-id=118a335e-741f-582c-885c-bf61d12ace93&workflow-name=Upcoming+events&workflow-description=Find+relevant+events%0Aand+send+a+short+summary&run-started=1791745200)\n\n' + widthResults,
 	},
   focusPhase: {
     ...defaultProps, role: 'system' as const,
@@ -175,7 +182,7 @@ export const variants = {
 
 	workflowRun: {
 		role: 'assistant' as const,
-		content: 'Here are the upcoming events.\n\n[View workflow run](/workflows#workflow-id=998a335e-741f-582c-885c-bf61d12ace93&workflow-tab=runs&run-id=118a335e-741f-582c-885c-bf61d12ace93)',
+		content: 'Here are the upcoming events.\n\n[View workflow run](/workflows#workflow-id=998a335e-741f-582c-885c-bf61d12ace93&workflow-tab=runs&run-id=118a335e-741f-582c-885c-bf61d12ace93&workflow-name=Upcoming+events&workflow-description=Find+relevant+events%0Aand+send+a+short+summary&run-started=1791745200)',
 		status: 'synced' as const,
 		messageParts: [],
 		containerWidth: 800,

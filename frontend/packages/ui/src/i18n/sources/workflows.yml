@@ -2450,6 +2450,16 @@ run_embed.title:
   en: "Workflow run"
   verified_by_human: []
 
+run_embed.triggered_by:
+  context: Collapsed workflow run activity naming its source workflow
+  en: "Triggered by ''{name}''"
+  verified_by_human: []
+
+run_embed.started_at:
+  context: Label before the local start date and time in a workflow run preview
+  en: "Started"
+  verified_by_human: []
+
 run_embed.open_detail:
   context: Workflow run preview summary
   en: "Open the steps and results of this run"

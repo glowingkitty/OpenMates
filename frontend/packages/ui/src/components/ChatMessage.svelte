@@ -6,7 +6,7 @@
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
   import DemoMessageContent from './DemoMessageContent.svelte';
   import AssistantActivityGroup from './AssistantActivityGroup.svelte';
-  import { splitAssistantActivityRuns } from '../message_parsing/assistantActivityRuns';
+  import { assistantActivityItems, splitAssistantActivityRuns } from '../message_parsing/assistantActivityRuns';
   import { classifyAssistantSkillPhase } from '../message_parsing/assistantActivityStatus';
   import EmbedContextMenu from './embeds/EmbedContextMenu.svelte';
   import ChatContextMenu from './chats/ChatContextMenu.svelte';
@@ -59,7 +59,7 @@
   import { chatSettingsRouteFor } from '../stores/chatSettingsStore';
   import { buildChatMessageLink } from '../services/deepLinkHandler';
   import { dispatchEmbedFullscreen } from '../services/embedFullscreenController';
-  import WorkflowRunEmbedPreview from './embeds/workflows/WorkflowRunEmbedPreview.svelte';
+  import WorkflowRunActivity from './embeds/workflows/WorkflowRunActivity.svelte';
   import { workflowRunProvenance } from './embeds/workflows/workflowRunProvenance';
   import { assistantSpeechController } from '../services/assistantSpeechController';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
@@ -226,6 +226,8 @@
   const activityRuns = $derived(role === 'assistant' ? splitAssistantActivityRuns(content) : null);
   const hasSkillActivity = $derived(activityRuns?.some((run) => run.kind === 'skills') ?? false);
   const firstSkillActivityId = $derived(activityRuns?.find((run) => run.kind === 'skills')?.id);
+  const legacySubChatActivityId = $derived(activityRuns?.find((run) => assistantActivityItems(run.document).some((item) => item.type === 'focus-mode-activation'))?.id ?? firstSkillActivityId);
+  const legacySubChatsActive = $derived(subChatsOfThisMessage.some((chat) => ['thinking', 'waiting', 'queued'].includes(getSubChatCardStatus(chat).state)));
   const responseActive = $derived(role === 'assistant' && (assistantTurnActive ?? (status === 'processing' || status === 'streaming')));
   const responseStatus = $derived.by(() => {
     const lastRun = activityRuns?.[activityRuns.length - 1];
@@ -3116,6 +3118,62 @@
     fullContent = null;
   }
 </script>
+{#snippet legacySubChatCards()}
+          <div class="sub-chats-carousel" data-testid="sub-chats-carousel">
+            {#each subChatsOfThisMessage as sc (sc.chat_id)}
+              {@const subChatCategory = sc.previewCategory || 'general_knowledge'}
+              {@const SubChatIcon = getLucideIcon(sc.previewIcon || getValidIconName('', subChatCategory))}
+              {@const subChatStatus = getSubChatCardStatus(sc)}
+              <button
+                type="button"
+                class="sub-chat-card sub-chat-large-card"
+                data-testid="sub-chat-card"
+                data-chat-id={sc.chat_id}
+                style={getSubChatPreviewStyle(subChatCategory)}
+                oncontextmenu={(event) => handleSubChatContextMenu(event, sc)}
+                onclick={async () => {
+                  if (onChatNavigate) {
+                    await onChatNavigate(sc.chat_id);
+                    return;
+                  }
+                  const { activeChatStore } = await import('../stores/activeChatStore');
+                  activeChatStore.setActiveChat(sc.chat_id);
+                }}
+              >
+                <div
+                  class="sub-chat-status-pill"
+                  data-testid={subChatStatus.testId}
+                  data-status-state={subChatStatus.state}
+                >
+                  {subChatStatus.label}
+                </div>
+                <div class="sub-chat-large-orbs" aria-hidden="true">
+                  <div class="sub-chat-orb sub-chat-orb-1"></div>
+                  <div class="sub-chat-orb sub-chat-orb-2"></div>
+                  <div class="sub-chat-orb sub-chat-orb-3"></div>
+                </div>
+                <div class="sub-chat-large-deco sub-chat-large-deco-left" aria-hidden="true">
+                  <SubChatIcon size={80} color="white" />
+                </div>
+                <div class="sub-chat-large-deco sub-chat-large-deco-right" aria-hidden="true">
+                  <SubChatIcon size={80} color="white" />
+                </div>
+                <div class="sub-chat-large-content">
+                  <div class="sub-chat-large-icon" aria-hidden="true">
+                    <SubChatIcon size={32} color="white" />
+                  </div>
+                  <span class="sub-chat-large-title" data-testid="sub-chat-title">
+                    {sc.title || "Autonomous Task"}
+                  </span>
+                  {#if sc.previewSummary}
+                    <p class="sub-chat-large-summary">{sc.previewSummary}</p>
+                  {/if}
+                </div>
+              </button>
+            {/each}
+          </div>
+{/snippet}
+
 
 {#if effectiveRole === 'system'}
   <!-- System message: rendered as a smaller centered notice (e.g., reminders, insufficient credits) -->
@@ -3466,12 +3524,14 @@
              the TreeWalker that computes text-quote anchors. -->
         {#if workflowRun && !$chatDebugStore.rawTextMode}
           <div class="workflow-run-provenance" data-testid="workflow-run-provenance">
-            <WorkflowRunEmbedPreview runId={workflowRun.runId} onFullscreen={openWorkflowRun} />
+            <WorkflowRunActivity workflowId={workflowRun.workflowId} runId={workflowRun.runId}
+              title={workflowRun.title} description={workflowRun.description} startedAt={workflowRun.startedAt}
+              allowLookup={$authStore.isAuthenticated && !isSharedReadOnly} onFullscreen={openWorkflowRun} />
           </div>
         {/if}
         <div class="chat-message-body" class:has-workflow-run={!!workflowRun} bind:this={messageBodyElement}>
           {#if role === 'assistant' && !hasSkillActivity && (thinkingContent || isThinkingStreaming)}
-            <AssistantActivityGroup thinkingContent={thinkingContent || ''}
+            <AssistantActivityGroup thinkingContent={thinkingContent || ''} thinkingStreaming={isThinkingStreaming}
               active={responseActive && isThinkingStreaming} chatId={currentChatId}
               {piiMappings} {piiRevealed} />
           {/if}
@@ -3521,11 +3581,18 @@
                 <AssistantActivityGroup
                   document={run.document} appIds={run.appIds}
                   thinkingContent={run.id === firstSkillActivityId ? (thinkingContent || '') : ''}
+                  thinkingStreaming={run.id === firstSkillActivityId && isThinkingStreaming}
                   active={responseActive && activityRuns[activityRuns.length - 1]?.id === run.id}
                   chatId={currentChatId}
                   embedUpdateTimestamp={_embedUpdateTimestamp} {piiMappings} {piiRevealed}
                   onEmbedClick={handleEmbedClick}
-                />
+                  workedInSubChats={!hasInlineSubChatBatch && subChatsOfThisMessage.length > 0 && run.id === legacySubChatActivityId}
+                  subChatsActive={!hasInlineSubChatBatch && run.id === legacySubChatActivityId && legacySubChatsActive}
+                >
+                  {#if !hasInlineSubChatBatch && subChatsOfThisMessage.length > 0 && run.id === legacySubChatActivityId}
+                    {@render legacySubChatCards()}
+                  {/if}
+                </AssistantActivityGroup>
               {:else}
                 <ReadOnlyMessage
                   bind:this={readOnlyMessageComponent}
@@ -3557,62 +3624,12 @@
 
         </div>
 
-        {#if !hasInlineSubChatBatch && subChatsOfThisMessage.length > 0 && role === 'assistant'}
-          <div class="sub-chats-carousel" data-testid="sub-chats-carousel">
-            {#each subChatsOfThisMessage as sc (sc.chat_id)}
-              {@const subChatCategory = sc.previewCategory || 'general_knowledge'}
-              {@const SubChatIcon = getLucideIcon(sc.previewIcon || getValidIconName('', subChatCategory))}
-              {@const subChatStatus = getSubChatCardStatus(sc)}
-              <button
-                type="button"
-                class="sub-chat-card sub-chat-large-card"
-                data-testid="sub-chat-card"
-                data-chat-id={sc.chat_id}
-                style={getSubChatPreviewStyle(subChatCategory)}
-                oncontextmenu={(event) => handleSubChatContextMenu(event, sc)}
-                onclick={async () => {
-                  if (onChatNavigate) {
-                    await onChatNavigate(sc.chat_id);
-                    return;
-                  }
-                  const { activeChatStore } = await import('../stores/activeChatStore');
-                  activeChatStore.setActiveChat(sc.chat_id);
-                }}
-              >
-                <div
-                  class="sub-chat-status-pill"
-                  data-testid={subChatStatus.testId}
-                  data-status-state={subChatStatus.state}
-                >
-                  {subChatStatus.label}
-                </div>
-                <div class="sub-chat-large-orbs" aria-hidden="true">
-                  <div class="sub-chat-orb sub-chat-orb-1"></div>
-                  <div class="sub-chat-orb sub-chat-orb-2"></div>
-                  <div class="sub-chat-orb sub-chat-orb-3"></div>
-                </div>
-                <div class="sub-chat-large-deco sub-chat-large-deco-left" aria-hidden="true">
-                  <SubChatIcon size={80} color="white" />
-                </div>
-                <div class="sub-chat-large-deco sub-chat-large-deco-right" aria-hidden="true">
-                  <SubChatIcon size={80} color="white" />
-                </div>
-                <div class="sub-chat-large-content">
-                  <div class="sub-chat-large-icon" aria-hidden="true">
-                    <SubChatIcon size={32} color="white" />
-                  </div>
-                  <span class="sub-chat-large-title" data-testid="sub-chat-title">
-                    {sc.title || "Autonomous Task"}
-                  </span>
-                  {#if sc.previewSummary}
-                    <p class="sub-chat-large-summary">{sc.previewSummary}</p>
-                  {/if}
-                </div>
-              </button>
-            {/each}
-          </div>
+        {#if !hasInlineSubChatBatch && subChatsOfThisMessage.length > 0 && role === 'assistant' && !hasSkillActivity}
+          <AssistantActivityGroup workedInSubChats chatId={currentChatId} subChatsActive={legacySubChatsActive}>
+            {@render legacySubChatCards()}
+          </AssistantActivityGroup>
         {/if}
-        
+
         {#if is_truncated && role === 'user'}
           <div class="message-truncation-controls">
             {#if !showFullMessage}

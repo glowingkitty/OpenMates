@@ -21,6 +21,7 @@ from backend.core.api.app.services.workflow_chat_delivery_service import (
     WorkflowChatDelivery,
     WorkflowChatDeliveryService,
 )
+from backend.core.api.app.services.workflow_service import WorkflowNotFoundError
 
 
 logger = logging.getLogger(__name__)
@@ -33,10 +34,22 @@ def _source_reference(expression: str) -> str:
 
 
 def _with_run_link(message: str, context: dict[str, Any]) -> str:
+    from urllib.parse import urlencode
+
     execution = context.get("workflow") or {}
     workflow_id, run_id = execution.get("workflow_id"), execution.get("run_id")
     if workflow_id and run_id and not execution.get("step_test"):
-        return message + f"\n\n[View workflow run](/workflows#workflow-id={workflow_id}&workflow-tab=runs&run-id={run_id})"
+        params = {"workflow-id": workflow_id, "workflow-tab": "runs", "run-id": run_id}
+        title = execution.get("title")
+        description = execution.get("description")
+        started_at = execution.get("started_at")
+        if isinstance(title, str) and title.strip():
+            params["workflow-name"] = title.strip()[:200]
+        if isinstance(description, str) and description.strip():
+            params["workflow-description"] = description.strip()[:2000]
+        if isinstance(started_at, int) and started_at > 0:
+            params["run-started"] = str(started_at)
+        return message + f"\n\n[View workflow run](/workflows#{urlencode(params)})"
     return message
 
 
@@ -75,8 +88,12 @@ class WorkflowActionAdapter:
         source_chat_id = invocation.get("source_chat_id") if isinstance(invocation, dict) else None
         if not isinstance(source_chat_id, str) or not source_chat_id or self._workflow_service is None:
             return None
-        definition = await run_in_threadpool(
-            self._workflow_service.get_workflow_version, run.workflow_id, user_id, run.version_id)
+        try:
+            definition = await run_in_threadpool(
+                self._workflow_service.get_workflow_version, run.workflow_id, user_id, run.version_id)
+        except WorkflowNotFoundError:
+            # A retained terminal run can outlive its pinned definition.
+            return None
         if definition.lifecycle != WorkflowLifecycle.CHAT_EMBED or definition.source_chat_id != source_chat_id:
             return None
         cache_service = self._get_cache_service()
@@ -100,7 +117,8 @@ class WorkflowActionAdapter:
             "run_id": run.id,
         }}
         message = f"[!](embed:{embed_id})\n\n" + _with_run_link(
-            "One-time workflow definition", {"workflow": {"workflow_id": run.workflow_id, "run_id": run.id}})
+            "One-time workflow definition", {"workflow": {"workflow_id": run.workflow_id, "run_id": run.id,
+                "title": definition.title, "description": definition.description, "started_at": run.started_at}})
         delivery_service = self._get_chat_delivery_service()
         if self._chat_delivery_service_injected:
             delivery = delivery_service.create_delivery(
@@ -156,7 +174,20 @@ class WorkflowActionAdapter:
                 lines.append(f"{name}: {rendered[:2000]}")
         elif status == "failed" and isinstance(run.error_summary, str) and run.error_summary:
             lines.append(run.error_summary[:500])
-        message = _with_run_link("\n".join(lines)[:18_000], {"workflow": {"workflow_id": run.workflow_id, "run_id": run.id}})
+        definition = None
+        if self._workflow_service is not None:
+            try:
+                definition = await run_in_threadpool(
+                    self._workflow_service.get_workflow_version, run.workflow_id, user_id, run.version_id)
+            except WorkflowNotFoundError:
+                # The result still belongs in the source chat when metadata was pruned.
+                pass
+        message = _with_run_link("\n".join(lines)[:18_000], {"workflow": {
+            "workflow_id": run.workflow_id, "run_id": run.id,
+            "title": definition.title if definition else None,
+            "description": definition.description if definition else None,
+            "started_at": run.started_at,
+        }})
         delivery_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"openmates:workflow:{run.id}:caller-result"))
         message_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"openmates:workflow:{run.id}:caller-message"))
         terminal_at = next((timestamp for timestamp in (getattr(run, "finished_at", None), getattr(run, "started_at", None))

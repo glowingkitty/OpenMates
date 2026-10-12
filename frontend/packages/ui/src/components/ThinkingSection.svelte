@@ -29,17 +29,22 @@
     import { onMount, tick } from 'svelte';
     import ReadOnlyMessage from './ReadOnlyMessage.svelte';
     import { parse_message } from '../message_parsing/parse_message';
+    import type { PIIMapping } from '../types/chat';
     import { text } from '@repo/ui'; // For i18n translations
     
     // Props using Svelte 5 runes mode
     let {
         thinkingContent = '',
         isStreaming = false,
-        isExpanded = $bindable(false)
+        isExpanded = $bindable(false),
+        chatId, piiMappings, piiRevealed = false
     }: {
         thinkingContent: string;
         isStreaming: boolean;
         isExpanded?: boolean;
+        chatId?: string;
+        piiMappings?: PIIMapping[];
+        piiRevealed?: boolean;
     } = $props();
 
     // DOM ref for the content scroll container — used to auto-scroll to bottom
@@ -153,7 +158,7 @@
             >
                 <ReadOnlyMessage 
                     content={parsedThinkingContent}
-                    isStreaming={isStreaming}
+                    isStreaming={isStreaming} role="assistant" {chatId} {piiMappings} {piiRevealed}
                 />
             </div>
         {/if}
@@ -164,8 +169,8 @@
     .thinking-section {
         margin-bottom: var(--spacing-6);
         border-radius: var(--radius-3);
-        background: var(--color-surface-secondary, rgba(0, 0, 0, 0.03));
-        border: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08));
+        background: var(--color-grey-10);
+        border: 1px solid var(--color-grey-25);
         overflow: hidden;
         position: relative;
         transition: background-color var(--duration-normal) var(--easing-default);
@@ -188,7 +193,7 @@
         background: transparent;
         border: none;
         cursor: pointer;
-        color: var(--color-text-secondary, #666);
+        color: var(--color-font-secondary);
         font-size: var(--font-size-xs);
         font-family: inherit;
         text-align: left;
@@ -196,20 +201,20 @@
     }
     
     .thinking-header:hover {
-        background: var(--color-surface-hover, rgba(0, 0, 0, 0.04));
-        color: var(--color-primary, #007aff);
+        background: var(--color-grey-20);
+        color: var(--color-primary-start);
     }
     
     .thinking-header:hover .thinking-icon {
-        background-color: var(--color-primary, #007aff);
+        background-color: var(--color-primary-start);
     }
     
     .thinking-header:hover .expand-icon {
-        background-color: var(--color-primary, #007aff);
+        background-color: var(--color-primary-start);
     }
     
     .thinking-header:focus {
-        box-shadow: inset 0 0 0 2px var(--color-accent-primary, #3b82f6);
+        box-shadow: inset 0 0 0 2px var(--color-button-primary);
     }
     
     /* Reasoning icon using mask-image */
@@ -217,9 +222,9 @@
         width: 18px;
         height: 18px;
         flex-shrink: 0;
-        background-color: var(--color-text-tertiary, #888);
-        -webkit-mask-image: url('@openmates/ui/static/icons/reasoning.svg');
-        mask-image: url('@openmates/ui/static/icons/reasoning.svg');
+        background-color: var(--color-font-tertiary);
+        -webkit-mask-image: var(--icon-url-reasoning);
+        mask-image: var(--icon-url-reasoning);
         -webkit-mask-size: contain;
         mask-size: contain;
         -webkit-mask-position: center;
@@ -240,9 +245,9 @@
         width: 16px;
         height: 16px;
         flex-shrink: 0;
-        background-color: var(--color-text-tertiary, #888);
-        -webkit-mask-image: url('@openmates/ui/static/icons/dropdown.svg');
-        mask-image: url('@openmates/ui/static/icons/dropdown.svg');
+        background-color: var(--color-font-tertiary);
+        -webkit-mask-image: var(--icon-url-dropdown);
+        mask-image: var(--icon-url-dropdown);
         -webkit-mask-size: contain;
         mask-size: contain;
         -webkit-mask-position: center;
@@ -259,15 +264,16 @@
     
     .thinking-content {
         padding: 0 14px 14px;
-        border-top: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08));
+        border-top: 1px solid var(--color-grey-25);
         font-size: var(--font-size-small);
         line-height: 1.6;
-        color: var(--color-text-secondary, #555);
+        color: var(--color-font-secondary);
     }
     
     /* While streaming, cap the content height and auto-scroll so the thinking
      * area doesn't push the rest of the chat off-screen. */
     .thinking-content.streaming-content {
+        box-sizing: border-box;
         max-height: 200px;
         overflow-y: auto;
         scroll-behavior: smooth;
@@ -292,8 +298,8 @@
     
     /* Dark mode support */
     :global(.dark) .thinking-section {
-        background: var(--color-surface-secondary, rgba(255, 255, 255, 0.03));
-        border-color: var(--color-border-subtle, rgba(255, 255, 255, 0.1));
+        background: var(--color-grey-10);
+        border-color: var(--color-grey-25);
     }
 
     :global(.dark) .thinking-section.streaming {
@@ -301,19 +307,19 @@
     }
 
     :global(.dark) .thinking-section.expanded {
-        background: var(--color-surface-primary, #1a1a1a);
+        background: var(--color-grey-0);
     }
     
     :global(.dark) .thinking-header {
-        color: var(--color-text-secondary, #aaa);
+        color: var(--color-font-secondary);
     }
     
     :global(.dark) .thinking-header:hover {
-        background: var(--color-surface-hover, rgba(255, 255, 255, 0.05));
+        background: var(--color-grey-20);
     }
     
     :global(.dark) .thinking-content {
-        border-color: var(--color-border-subtle, rgba(255, 255, 255, 0.1));
-        color: var(--color-text-secondary, #bbb);
+        border-color: var(--color-grey-25);
+        color: var(--color-font-secondary);
     }
 </style>

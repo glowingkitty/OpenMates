@@ -139,6 +139,7 @@ class WorkflowRunner:
             self.workflow_service.validate_manual_run_input(workflow, input_payload)
         context: dict[str, Any] = {"trigger": input_payload or {}, "nodes": {}, "items": {}, "workflow": {
             "workflow_id": workflow.id, "run_id": run_id, "started_at": started_at,
+            "title": workflow.title, "description": workflow.description,
             "version_id": version_id, "vault_key_id": vault_key_id, "website_plan": website_execution_plan,
             "invocation": invocation or {},
             "timezone": ((trigger_node.config.get("schedule") or {}).get("timezone") or trigger_node.config.get("timezone") or "UTC") if trigger_node else "UTC",

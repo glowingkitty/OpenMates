@@ -12,11 +12,12 @@ from backend.core.api.app.routes import workflows as workflow_routes
 from backend.core.api.app.routes.workflows import WorkflowRunOnceRequest, WorkflowRunRequest, _validated_invocation
 from backend.core.api.app.services.workflow_models import WorkflowGraph, WorkflowLifecycle
 from backend.core.api.app.services.workflow_action_adapter import WorkflowActionAdapter
+from backend.core.api.app.services.workflow_action_adapter import _with_run_link
 from backend.core.api.app.services import workflow_action_adapter as workflow_action_adapter_module
 from backend.core.api.app.services.workflow_assistant_service import WorkflowAssistantService
 from backend.core.api.app.services.workflow_chat_delivery_service import WorkflowChatDeliveryService
 from backend.core.api.app.services.workflow_models import WorkflowRunDetail
-from backend.core.api.app.services.workflow_service import InMemoryWorkflowRepository, validate_workflow_return_outputs
+from backend.core.api.app.services.workflow_service import InMemoryWorkflowRepository, WorkflowNotFoundError, validate_workflow_return_outputs
 from backend.tests.workflow_test_utils import workflow_service
 
 
@@ -42,6 +43,21 @@ def _caller_return_graph() -> dict:
             "left": "$items.loop.item.keep", "op": "eq", "right": True,
         }}},
     ], "edges": [{"from": "start", "to": "loop"}, {"from": "loop", "to": "check", "branch": "body"}]}
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.run-provenance
+def test_run_link_retains_bounded_display_snapshot_in_encrypted_message() -> None:
+    from urllib.parse import parse_qs
+    message = _with_run_link("Result", {"workflow": {
+        "workflow_id": "998a335e-741f-582c-885c-bf61d12ace93",
+        "run_id": "118a335e-741f-582c-885c-bf61d12ace93",
+        "title": "Meetings & events", "description": "Today's brief", "started_at": 1791764400,
+    }})
+    fragment = message.split("/workflows#", 1)[1].rstrip(")")
+    params = parse_qs(fragment)
+    assert params["workflow-name"] == ["Meetings & events"]
+    assert params["workflow-description"] == ["Today's brief"]
+    assert params["run-started"] == ["1791764400"]
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.chat.result-return,workflows.control.for-each
@@ -333,3 +349,15 @@ async def test_production_caller_delivery_queues_result_and_retries_with_stable_
     assert first == retried
     assert len(chat_service.list_pending_for_owner(owner_id="alice")) == 2
     assert "processed: 3" in next(payload["message"] for payload in encrypted if payload["title"] == "Workflow result")
+    # Pruning the pinned version removes preview metadata, not the terminal chat result.
+    def missing_version(*_args: object) -> None:
+        raise WorkflowNotFoundError("pruned-version")
+
+    monkeypatch.setattr(service, "get_workflow_version", missing_version)
+    pruned_run = run.model_copy(update={"id": "run-pruned", "version_id": "pruned-version", "started_at": now[0]})
+    pruned_delivery = await adapter.deliver_caller_result(pruned_run, "alice", {"source_chat_id": "chat-1"})
+    assert pruned_delivery is not None and pruned_delivery["status"] == "delivery_pending"
+    pruned_message = encrypted[-1]["message"]
+    assert "processed: 3" in pruned_message
+    assert "run-started=" in pruned_message
+    assert "workflow-name=" not in pruned_message
