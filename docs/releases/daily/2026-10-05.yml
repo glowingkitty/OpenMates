@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-10-05'
-generated_at: '2026-10-06T00:20:25+00:00'
+generated_at: '2026-10-12T00:45:32+00:00'
 range:
   since: '2026-10-05T00:00:00+00:00'
   until: '2026-10-06T00:00:00+00:00'
@@ -6368,67 +6368,57 @@ sources:
     - scripts/tests/test_storage_billing_integration.py
     related_feature_ids: []
 llm_summary:
-  overview: 'Development focused on three primary pillars: expanding agentic project context for Jev, implementing automated
-    storage migration with integrated billing, and enhancing the Study app with Wikipedia-driven tutoring. Significant work
-    was also completed to stabilize the CLI and improve CI pipeline performance.'
+  overview: OpenMates focused on unifying AI context through Focus modes and source-scoped Memories, while advancing infrastructure
+    for automated storage migration and encrypted usage metering. Significant progress was also made on educational features,
+    including Wikipedia-based learning flows and phased tutoring in the Study app.
   released_changes: []
   bug_fixes:
-  - text: The OpenMates CLI received several stability fixes, including npm metadata refreshing before updates, restored TUI
-      chat history, and synchronized Caddy server updates with safe retries.
-    evidence:
-      commits:
-      - 4e36f50f8
-      - c8255622e
-      - 9cfcc0461
-    release_status: dev_only
-  - text: The chat composer layout was refined to correct mobile workspace spacing and ensure expansion triggers only for
-      overflowing drafts.
+  - text: The chat composer now only shows expansion options for overflowing drafts and maintains a consistent layout for
+      provisional titles.
     evidence:
       commits:
       - 07af65873
       - 894cb2fa8
-      - 252bc999b
     release_status: dev_only
-  - text: Messaging reliability was improved by restoring encrypted voice sends and preserving patches for streamed embed
-      replacements during chat recovery.
-    evidence:
-      commits:
-      - 75ce599e5
-      - 63d5914c6
-      - b3857334b
-    release_status: dev_only
-  - text: Assistant message rendering was adjusted to fill the available width for map and calendar views, and search skills
-      were restored for news and video content.
+  - text: Assistant message widths were adjusted to better accommodate map and calendar views.
     evidence:
       commits:
       - 4749aa174
+    release_status: dev_only
+  - text: Encrypted voice sends and chat resume states were restored to improve communication reliability.
+    evidence:
+      commits:
+      - 75ce599e5
+    release_status: dev_only
+  - text: AI processing was improved to prevent the reactivation of accepted specialists and ensure better preprocessing of
+      Jev context.
+    evidence:
+      commits:
+      - 5962c9c30
+      - bd5ae06c2
+    release_status: dev_only
+  - text: Search skills for news and videos were restored, and Geoapify discovery now handles slow responses more gracefully.
+    evidence:
+      commits:
       - 4df86d26f
+      - b6c858031
     release_status: dev_only
   unreleased_progress:
-  - text: OpenMates is unifying Focus modes with source-scoped Memories and expanding Jev project context to provide better
-      agentic guidance. This includes preserving saved focus phases during updates and ensuring focus resumes from the exact
-      user turn.
+  - text: Focus modes and source-scoped Memories were unified to provide more consistent agentic context across different
+      applications.
     evidence:
       commits:
       - 51dfcd58a
-      - e10c7f5af
-      - 5962c9c30
-      - e9e4a3203
-      - 62f40e9f2
-      - 7fad99675
     release_status: dev_only
-  - text: Work is progressing on automated storage migration and weekly encrypted storage metering. This update couples cloud
-      archive migration to storage billing and verifies portability for Team storage.
+  - text: Automated storage migration and encrypted usage metering systems are in development, including weekly billing cycles
+      and debt expiration logic.
     evidence:
       commits:
       - 8d50ac655
       - 7a6034a17
       - d63b7cc5e
-      - 2432ffee9
-      - 3e3f3bcf6
     release_status: dev_only
-  - text: The Study app is being enhanced with Wikipedia article learning and phased tutoring. New actions allow for private
-      study interests and immediate scoped quizzes while withholding answer-bearing follow-ups.
+  - text: The Study app is gaining Wikipedia-based learning actions, phased tutoring, and private interest tracking.
     evidence:
       commits:
       - 911e2f017
@@ -6436,87 +6426,98 @@ llm_summary:
       - '591700567'
       - c860c4e74
     release_status: dev_only
-  - text: Map discovery is being improved with the rendering of Geoapify discovery results and better handling of slow provider
-      responses.
+  - text: Development continues on Projects, Teams, and Workflows, including improved file authoring, portability grants,
+      and batch decision processing.
     evidence:
       commits:
-      - 5df32f6c0
-      - b6c858031
+      - e10c7f5af
+      - 2432ffee9
+      - 3e3f3bcf6
+      - e9e4a3203
+      - 16b97dfe9
+      - 7c64393fc
+      - ffe04427c
     release_status: dev_only
-  - text: The task board now supports scaling draggable task cards on mouse hover for better visual feedback.
+  - text: Task management improvements include scaling draggable cards on hover and refined mobile workspace spacing.
     evidence:
       commits:
       - f728f2639
+      - 252bc999b
     release_status: dev_only
-  internal_progress:
-  - text: CI efficiency was improved by preserving schema cache publication across pushes and coordinating disk budgets using
-      owner-wide capacity.
+  - text: Platform-specific updates for iOS and macOS focused on Focus phase inspection and protected receipt handling.
     evidence:
       commits:
-      - 08cfaa89d
-      - ef87372c0
-      - 9ac9b0691
+      - e10c7f5af
+      - e9e4a3203
+      - 16b97dfe9
     release_status: dev_only
-  - text: Infrastructure updates finalized safe storage admission for CI, restored prepared schema reuse, and stabilized isolated
-      schema restores for migration workers.
+  internal_progress:
+  - text: CI/CD pipelines were optimized with owner-wide capacity coordination, schema cache reuse, and disk budget management.
     evidence:
       commits:
       - 253e0b67a
       - d902d6974
-      - 09e01ba55
-      - c239876ea
-      - 3539f6d74
-      - 58885a969
+      - 08cfaa89d
+      - ef87372c0
+      - 9ac9b0691
     release_status: dev_only
-  - text: Test coverage was expanded for storage billing, wiki learning flows, and map recovery profiles within isolated CI
-      environments.
+  - text: Testing infrastructure was expanded to include isolated storage billing verification, maps recovery profiles, and
+      wiki learning flow replays.
     evidence:
       commits:
+      - 071a70dbb
       - 29bf4246d
       - 5a80b1331
       - 1502a87b2
       - 36cc5889a
       - 1bc2bb0ba
+      - bd2567697
+      - 6f53f7f65
       - 761fb3bc0
     release_status: dev_only
   newsletter_recommendation:
     include: []
     exclude:
-    - text: Unified Focus modes and expanded Jev project context.
+    - text: Unification of Focus modes and source-scoped Memories.
       evidence:
         commits:
         - 51dfcd58a
-        - e10c7f5af
-      reason: Jev project context and focus modes are currently disabled and in development.
-    - text: Automated storage migration and weekly metering.
+      reason: Feature is currently in development and marked as dev_only.
+    - text: Automated storage migration and encrypted usage metering.
       evidence:
         commits:
         - 8d50ac655
         - 7a6034a17
-      reason: Automated storage migration and metering are unreleased infrastructure changes.
-    - text: Wikipedia-based article learning and phased Study tutoring.
+      reason: Feature is currently in development and marked as dev_only.
+    - text: Wikipedia-based learning flows and phased tutoring.
       evidence:
         commits:
         - 911e2f017
         - 9ed06c734
-      reason: Study app tutoring and Wikipedia learning actions are in active development.
-    rationale: No changes were released to the main branch during this period. Major feature work remains behind development
-      gates.
+      reason: Feature is currently in development and marked as dev_only.
+    - text: Geoapify map discovery results rendering.
+      evidence:
+        commits:
+        - 5df32f6c0
+      reason: Feature is currently in development and marked as dev_only.
+    rationale: No items are currently marked as ready for public communication or released to the main branch.
   social_video_recommendations:
-  - idea: Showcase the new Geoapify map discovery results within a chat.
-    priority: medium
-    reason: Provides a clear visual product story for location-based discovery.
+  - idea: A video demonstrating how source-scoped Memories and Focus modes allow the AI to adapt its responses based on the
+      user's current task or technical stack.
+    priority: High
+    reason: The unification of Focus modes and Memories provides a clear product story about personalized AI context.
     evidence:
       commits:
-      - 5df32f6c0
-  - idea: Demonstrate the phased Study tutoring mode using Wikipedia articles.
-    priority: medium
-    reason: Highlights the educational capabilities of the AI in a structured format.
+      - 51dfcd58a
+  - idea: A walkthrough of the new Wikipedia learning flow, showing how the Study app generates phased tutoring and quizzes
+      from article content.
+    priority: Medium
+    reason: The Wikipedia learning flow is a concrete, visual feature that demonstrates the Study app's capabilities.
     evidence:
       commits:
+      - 911e2f017
       - 9ed06c734
   quality_notes:
-  - Extensive use of isolated CI profiles to verify storage and learning flows.
-  - Restoration of several regression-prone areas in the CLI and chat recovery protocols.
-  - Refinement of assistant message layout for complex embeds like maps.
+  - The project is undergoing significant infrastructure work to support automated storage migration and encrypted usage metering.
+  - CI/CD pipelines are being optimized for better schema reuse and resource management.
   validation_warnings: []

@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-10-06'
-generated_at: '2026-10-07T00:20:27+00:00'
+generated_at: '2026-10-12T00:46:06+00:00'
 range:
   since: '2026-10-06T00:00:00+00:00'
   until: '2026-10-07T00:00:00+00:00'
@@ -4814,122 +4814,133 @@ sources:
     - specifications/generated/assertion-index.yml
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates focused on building out the infrastructure for Teams, updating AI model support with Mistral Large 4,
-    and advancing a new video call experiment. Significant work was also dedicated to stabilizing the terminal interface and
-    native Apple platform components.
+  overview: OpenMates focused on expanding AI model support and refining experimental communication features. Key progress
+    includes the integration of Mistral Large 4, the development of a Gemini-powered video call experiment, and significant
+    stability improvements for the terminal interface and Apple platform components. Privacy was also enhanced by implementing
+    client-side metadata removal for file uploads.
   released_changes: []
   bug_fixes:
-  - text: The terminal interface now correctly renders interactive questions, preserves command input order, and supports
-      opening cached chats while offline.
+  - text: OpenMates now removes embedded metadata from files before they are uploaded from the client to improve user privacy.
     evidence:
       commits:
-      - e4831ab48
-      - ed1c2ae84
-      - 6fb27e5c5
-      - 9b219ad95
+      - 0e676decb
     release_status: dev_only
-  - text: The video call experiment was stabilized to maintain video playback during voice interactions and prevent call termination
-      when AI tools return sparse data.
+  - text: The video call experiment received several stability updates, including fixes for binary response handling, tool
+      scheduling in response schemas, and ensuring video playback continues during Gemini voice interactions.
     evidence:
       commits:
       - 8ebcbfc99
       - 24bb1fb28
+      - f555504a7
       - 4870058ed
       - 288f5bf3b
     release_status: dev_only
-  - text: Privacy protections were enhanced by stripping embedded metadata from files before client upload and removing tool-specific
-      metadata from push notification previews.
+  - text: The terminal interface was improved with support for interactive questions, better embed previews using app colors,
+      and the ability to load cached chats before background synchronization.
     evidence:
       commits:
-      - 0e676decb
+      - e4831ab48
+      - ef4cac73e
+      - 63b5d9bf8
+      - 102a5310b
+      - 6fb27e5c5
+      - 9b219ad95
+    release_status: dev_only
+  - text: Push notification previews are now filtered to ensure tool metadata is not visible to users.
+    evidence:
+      commits:
       - ad21c95ac
     release_status: dev_only
-  - text: Session management was improved by deferring encrypted recovery until the app is in the foreground and preserving
-      authenticated sessions during push registration.
+  - text: Fitness class search and request handling were restored following reliability improvements to the search skill.
     evidence:
       commits:
-      - df1517279
-      - b971d5334
-      - 97da90478
+      - '720244352'
     release_status: dev_only
   unreleased_progress:
-  - text: OpenMates implemented encrypted web settings for Teams and a weekly storage settlement system with automated billing
-      warnings.
+  - text: OpenMates added support for Mistral Large 4, refreshed the Mistral model catalog, and implemented TypeSafeAI routing
+      for Jev.
+    evidence:
+      commits:
+      - ed28bbd2b
+      - 00a882342
+      - f6f5fdc11
+    release_status: dev_only
+  - text: Development continued on Teams with the implementation of encrypted web settings and weekly storage billing mechanisms.
     evidence:
       commits:
       - bc006b4d4
       - a5ad0627a
     release_status: dev_only
-  - text: Native Apple platform development progressed with improved chat rendering, local model lab integration, and offline
-      speech stability.
+  - text: A new experiment was introduced combining Gemini voice with H3 Turbo for interactive video calls.
+    evidence:
+      commits:
+      - a9a7b1288
+    release_status: dev_only
+  - text: Stability and rendering updates were applied to the unreleased iOS, macOS, and Apple Watch platforms, including
+      improvements to native chat rendering and local model management.
     evidence:
       commits:
       - f24d6da9b
       - 25fdf752b
     release_status: dev_only
-  - text: AI capabilities were expanded with Mistral Large 4 support, a refreshed Mistral model catalog, and the routing of
-      Jev tasks to TypeSafeAI.
-    evidence:
-      commits:
-      - 00a882342
-      - ed28bbd2b
-      - f6f5fdc11
-    release_status: dev_only
-  - text: The fitness application now features improved reliability for class searches via the Urban Sports provider.
-    evidence:
-      commits:
-      - '720244352'
-    release_status: dev_only
   internal_progress:
-  - text: CI efficiency was improved by reusing unchanged preparation steps across attempts and isolating Python SDK dependencies.
+  - text: The project implemented significant CI environment isolation, including scoped storage qualification harnesses and
+      isolated email capture for testing.
     evidence:
       commits:
-      - a9ff8a8de
-      - fea2efd64
       - 19db816d3
+      - 54935c2c4
+      - 6aa4e63a0
+      - a9ff8a8de
+      - 24838f171
       - 4a4356138
+      - fea2efd64
     release_status: dev_only
-  - text: The project added a scoped storage qualification harness and frozen CI source fixtures for Team billing validation.
+  - text: Codex agent workflows now require E2E recording links for verification of UI changes and test fixes.
     evidence:
       commits:
-      - 545089c6b
-      - 24838f171
-      - 92fa1238e
+      - bc45193b0
+      - d9e2912dd
+    release_status: dev_only
+  - text: Diagnostic tools were added to investigate session cache lookup misses.
+    evidence:
+      commits:
+      - 1227a62d7
     release_status: dev_only
   newsletter_recommendation:
     include: []
     exclude:
-    - text: Encrypted Teams settings and weekly storage settlement.
+    - text: Mistral Large 4 Support and Catalog Refresh
+      evidence:
+        commits:
+        - ed28bbd2b
+        - 00a882342
+      reason: AI model updates for Mistral Large 4 and catalog refreshes are currently unreleased.
+    - text: Video Call Experiment with Gemini Voice
+      evidence:
+        commits:
+        - a9a7b1288
+      reason: The Gemini voice and H3 Turbo video call features are part of an unreleased experiment.
+    - text: Teams Web Settings and Storage Billing
       evidence:
         commits:
         - bc006b4d4
         - a5ad0627a
-      reason: The Teams platform and associated billing features are currently disabled via feature gates.
-    - text: Native Apple platform stability and local model lab.
-      evidence:
-        commits:
-        - f24d6da9b
-        - 25fdf752b
-      reason: Apple platform support (iOS, macOS, Apple Watch) is currently disabled.
-    - text: Gemini voice and H3 Turbo video call experiment.
-      evidence:
-        commits:
-        - a9a7b1288
-      reason: The video call experiment is a dev-only feature not yet ready for public communication.
-    rationale: All user-facing changes from this period are currently restricted to development branches or gated behind disabled
-      feature flags, making them unsuitable for public newsletter communication.
+      reason: Teams functionality and associated billing features are currently disabled and unreleased.
+    rationale: No features reached the main branch or were marked ready for public communication during this period. Significant
+      work remains in development for AI models, Teams, and the video call experiment.
   social_video_recommendations:
-  - idea: A walkthrough of the updated OpenMates CLI showing rich chat rendering, app-themed colors, and responsive workspace
-      layouts.
+  - idea: Demonstrate the new Gemini Live voice interaction paired with real-time H3 Turbo video generation in the experimental
+      call interface.
     priority: medium
-    reason: The terminal UI has reached a level of visual polish that demonstrates product depth beyond a standard command-line
-      tool.
+    reason: This provides a high-impact visual and auditory demonstration of the project's latest AI integration capabilities.
     evidence:
       commits:
-      - 63b5d9bf8
-      - 102a5310b
-      - ef4cac73e
+      - a9a7b1288
+      - 8ebcbfc99
   quality_notes:
-  - All 50 commits are currently in the development branch and have not yet reached the main branch.
-  - Extensive testing was added for Teams billing, storage metering, and terminal UI responsiveness.
+  - Extensive work on test isolation and CI environment stability was performed to support complex features like Teams and
+    storage billing.
+  - The project continues to maintain high test coverage for new experimental features like the video call panel and terminal
+    UI components.
   validation_warnings: []

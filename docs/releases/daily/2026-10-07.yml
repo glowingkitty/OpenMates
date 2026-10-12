@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-10-07'
-generated_at: '2026-10-08T00:20:26+00:00'
+generated_at: '2026-10-12T00:47:18+00:00'
 range:
   since: '2026-10-07T00:00:00+00:00'
   until: '2026-10-08T00:00:00+00:00'
@@ -2671,8 +2671,9 @@ sources:
     - specifications/generated/assertion-index.yml
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates focused on AI billing infrastructure, terminal interactivity, and UI status reporting. Key updates include
-    the implementation of LLM cache accounting, mouse-driven terminal controls, and a new scrollable landing page.
+  overview: OpenMates focused on significant infrastructure updates for AI billing, enhanced terminal interactivity, and UI
+    refinements for the web application. Key progress includes the introduction of mouse support for terminal controls and
+    a new scrollable landing page, alongside robust improvements to LLM cache accounting.
   released_changes: []
   bug_fixes:
   - text: The chat viewport now remains fixed when opening settings to prevent layout shifts.
@@ -2680,72 +2681,79 @@ llm_summary:
       commits:
       - 7c0ce5f53
     release_status: dev_only
-  - text: CLI reliability was improved by starting recovery discovery before non-interactive sync and preserving completed
-      replies during historical recovery.
+  - text: CLI stability was improved by preserving completed replies during historical recovery and restoring publication
+      checks.
     evidence:
       commits:
-      - 9846895f0
-      - 46b8b89e0
       - 707e5f10d
+      - 9846895f0
       - c6241249f
     release_status: dev_only
-  - text: Encrypted Apple notification previews are now rendered in a readable format.
+  - text: AI processing fixes include accurate reading of Anthropic usage counters and corrected publication of project file
+      references.
     evidence:
       commits:
-      - c9a739865
+      - be15805b8
+      - 01107756f
     release_status: dev_only
-  - text: Video call visuals now support autoplay and benefit from reduced clip delivery latency.
+  - text: Orphaned reminders are now retired automatically, and invalid workflow runs are reported more reliably.
+    evidence:
+      commits:
+      - 14332f608
+    release_status: dev_only
+  - text: Video call experiment visuals now support autoplay with reduced delivery latency.
     evidence:
       commits:
       - 356edc265
     release_status: dev_only
+  - text: Encrypted Apple notification previews were updated to ensure readability.
+    evidence:
+      commits:
+      - c9a739865
+    release_status: dev_only
   unreleased_progress:
+  - text: Open terminal controls now support mouse clicks for improved navigation within the TUI.
+    evidence:
+      commits:
+      - 5a283e0b2
+    release_status: dev_only
   - text: AI billing infrastructure was expanded with scoped cache tariffs, automatic-summary receipts, and verified cache
       accounting.
     evidence:
       commits:
       - 8adcdd12d
       - 09a946b2f
-      - be15805b8
     release_status: dev_only
-  - text: OpenMates added support for opening terminal controls using mouse clicks.
-    evidence:
-      commits:
-      - 5a283e0b2
-    release_status: dev_only
-  - text: A scrollable landing page based on Figma designs was implemented.
+  - text: A new scrollable landing page based on Figma designs was added to the web application.
     evidence:
       commits:
       - dbab85b37
     release_status: dev_only
-  - text: Connection and sync notifications were replaced with a persistent header status indicator.
+  - text: Connection and sync notifications were replaced with a streamlined status indicator in the header.
     evidence:
       commits:
       - bd56fe67b
     release_status: dev_only
-  - text: Work continued on the disabled Teams feature, including identity matching, billing context preservation, and typography
-      refinements.
+  - text: Teams management on the web now features improved identity matching and typography aligned with design specifications.
     evidence:
       commits:
-      - 1baaca20e
       - 7a6e4b1e7
       - 7a55b2b3e
       - 8f47cb7f0
     release_status: dev_only
-  - text: The disabled Projects feature received updates to project file references and focus-gated README requests.
+  - text: Project README requests are now gated behind focus consent for better privacy control.
     evidence:
       commits:
       - 4f3a2a8da
-      - 01107756f
     release_status: dev_only
   internal_progress:
-  - text: Deterministic daily Git code-change statistics were added to the project scripts.
+  - text: Deterministic daily Git code-change statistics were added for internal tracking.
     evidence:
       commits:
       - 32f3016ec
     release_status: dev_only
-  - text: CI environment stability was improved by pinning the isolated Vault mirror and provisioning uploads for Teams management
-      testing.
+  - text: CI environment reliability was enhanced by pinning the Vault to a verified mirror and provisioning uploads for Teams
+      management testing.
     evidence:
       commits:
       - 938ce0a6c
@@ -2755,38 +2763,39 @@ llm_summary:
   newsletter_recommendation:
     include: []
     exclude:
-    - text: AI Cache Billing Infrastructure
+    - text: Terminal mouse click support
+      evidence:
+        commits:
+        - 5a283e0b2
+      reason: Feature is currently dev_only and not merged to main.
+    - text: AI cache billing and reservations
       evidence:
         commits:
         - 8adcdd12d
         - 09a946b2f
-      reason: These billing infrastructure changes are currently dev_only and not ready for public communication.
-    - text: Terminal Mouse Controls
-      evidence:
-        commits:
-        - 5a283e0b2
-      reason: Terminal pointer support is currently dev_only.
-    - text: Scrollable Landing Page
+      reason: Feature is currently dev_only and not merged to main.
+    - text: New scrollable landing page
       evidence:
         commits:
         - dbab85b37
-      reason: The new landing page is dev_only and not yet live on main.
-    rationale: All user-facing features and improvements from this period are currently in dev_only status and have not reached
-      the main branch for public release.
+      reason: Feature is currently dev_only and not merged to main.
+    rationale: All features and fixes from this period are currently in the development branch and have not been released
+      to the main branch.
   social_video_recommendations:
-  - idea: Demonstrate the new mouse-driven terminal controls within the OpenMates CLI.
+  - idea: Demonstrate the new mouse-driven terminal controls, showing how users can interact with TUI elements using clicks
+      instead of just keyboard shortcuts.
     priority: medium
-    reason: This is a highly visual improvement to the developer experience.
+    reason: This is a high-impact visual change for CLI users that makes the terminal feel more modern and accessible.
     evidence:
       commits:
       - 5a283e0b2
-  - idea: A scroll-through of the new Figma-based landing page.
+  - idea: A scroll-through of the new Figma-aligned landing page highlighting the updated screenshots and layout.
     priority: low
-    reason: Provides a look at the updated marketing direction, though it is still unreleased.
+    reason: Good for showing product polish, though the page is currently in dev_only.
     evidence:
       commits:
       - dbab85b37
   quality_notes:
-  - Extensive test coverage was added for the new billing and CLI recovery logic.
-  - UI parity with Figma designs was a focus for the landing page and Teams settings.
+  - Extensive test coverage was added for billing reservation logic and CLI recovery discovery.
+  - UI parity with Figma designs was addressed for Teams management components and landing page layouts.
   validation_warnings: []

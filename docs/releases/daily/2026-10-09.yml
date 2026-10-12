@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-10-09'
-generated_at: '2026-10-10T00:20:30+00:00'
+generated_at: '2026-10-12T00:47:57+00:00'
 range:
   since: '2026-10-09T00:00:00+00:00'
   until: '2026-10-10T00:00:00+00:00'
@@ -4010,84 +4010,100 @@ sources:
     related_feature_ids:
     - platform:teams
 llm_summary:
-  overview: OpenMates focused on AI infrastructure refinements, including native history caching and project routing, alongside
-    security hardening for Team collaboration and CLI authentication.
+  overview: OpenMates focused on AI performance optimizations and collaboration infrastructure. Key updates included the activation
+    of native history caching for AI models and significant refinements to Team-based chat encryption, routing, and CLI parity.
   released_changes: []
   bug_fixes:
-  - text: AI stability was improved by fixing native cache history retention after skill formatting and repairing anonymous
-      chat recovery.
+  - text: Resolved an issue where trusted PDF uploads could have filename collisions during the reading process.
     evidence:
       commits:
-      - 1a7e212ea
-      - bfb525f05
-    release_status: unreleased_feature
-  - text: Privacy controls were strengthened to prevent sharing private anonymous chats and enforce authenticated access for
-      Team-based embed reads.
+      - 1ec680021
+    release_status: dev_only
+  - text: Strengthened privacy for anonymous chats by preventing unauthorized sharing and repairing tab recovery for unauthenticated
+      sessions.
     evidence:
       commits:
       - 5e32e6cba
-      - 8e13e9346
-      - 4442c89a0
-    release_status: unreleased_feature
-  - text: The CLI experience was stabilized with fixes for login flow completion, keyring-related recovery failures, and canonical
-      history ID preservation.
+      - bfb525f05
+    release_status: dev_only
+  - text: Improved CLI stability by fixing login flow transitions, restoring recovery when keyring entries are missing, and
+      preserving canonical history IDs for cache replays.
     evidence:
       commits:
       - 4fa2fa86c
       - 9153cc19b
       - 423c4e9cd
-    release_status: unreleased_feature
-  - text: General fixes addressed unique filename generation for PDF uploads and removed the time limit on the video call
-      experiment.
-    evidence:
-      commits:
-      - 1ec680021
-      - 936d566f2
-    release_status: unreleased_feature
-  unreleased_progress:
-  - text: AI infrastructure progress includes the activation of native history caching and more precise routing for Project-based
-      inference.
-    evidence:
-      commits:
-      - d566d2947
-      - ec2be7aa8
-      - 847f0c586
-      - 0fdd5763e
-      - 677a5ffc4
-    release_status: unreleased_feature
-  - text: Team collaboration features were advanced with improvements to member settings deep links, sealed AI reply relaying,
-      and encrypted draft preservation.
+    release_status: dev_only
+  - text: Addressed multiple collaboration issues, including Team member name resolution in deep links, avatar loading delays,
+      and the relaying of sealed AI replies to active members.
     evidence:
       commits:
       - b13a8bd2b
       - 2c7f3880e
-      - b6802b557
-      - 3cb4ed9ae
+      - 700cf35c1
       - ac509c07e
+      - b6802b557
       - fe39662b2
-    release_status: unreleased_feature
-  - text: Workflows and native platform stability were improved with scheduled completion notifications and refined offline
-      speech runtimes.
+      - 3cb4ed9ae
+    release_status: dev_only
+  - text: Refined Project Focus routing to handle optional specialists and ensure file consent occurs before detailed inference.
+    evidence:
+      commits:
+      - 5c6338946
+      - 677a5ffc4
+      - 0fdd5763e
+    release_status: dev_only
+  - text: Stabilized native authentication and offline speech runtimes for Apple platforms.
+    evidence:
+      commits:
+      - c6bed2ad4
+    release_status: dev_only
+  - text: Removed the time limit on the video call experiment.
+    evidence:
+      commits:
+      - 936d566f2
+    release_status: dev_only
+  unreleased_progress:
+  - text: OpenMates added native history caching for AI providers to improve response efficiency and activated personal chat
+      balance admission.
+    evidence:
+      commits:
+      - d566d2947
+    release_status: dev_only
+  - text: The project refined the standalone landing page and guest welcome experience with updated screenshots and example
+      chats.
+    evidence:
+      commits:
+      - 5445e18fc
+    release_status: dev_only
+  - text: Work began on notifying users of successful scheduled workflow completions via push notifications and email.
     evidence:
       commits:
       - 19b735913
-      - c6bed2ad4
-    release_status: unreleased_feature
-  - text: The terminal interface was updated to align Team chat functionality and batched offline workspaces.
+    release_status: dev_only
+  - text: Improvements were made to Project routing, including narrowing named project detection and combining file search
+      with read operations.
+    evidence:
+      commits:
+      - ec2be7aa8
+      - 847f0c586
+    release_status: dev_only
+  - text: The terminal UI was updated to align with Team chat features and batched offline workspaces.
     evidence:
       commits:
       - fde4a6e87
-    release_status: unreleased_feature
+    release_status: dev_only
   internal_progress:
-  - text: Internal translation tooling was updated to version immutable overlay artifacts and refresh release inputs.
+  - text: Updated translation overlay artifacts and refreshed native release translation inputs for German and English.
     evidence:
       commits:
       - ac42c4be6
       - f68f70424
       - ef72451c0
-    release_status: unreleased_feature
-  - text: Documentation was updated to reflect architectural changes in daily inspirations, anonymous chat repair verification,
-      and Team web outcomes.
+      - 97ea431ee
+    release_status: dev_only
+  - text: Updated internal documentation regarding daily inspirations, production deployment handoffs, and verified outcomes
+      for Teams and video calls.
     evidence:
       commits:
       - 64c9ff539
@@ -4096,35 +4112,53 @@ llm_summary:
       - 64b00dfd2
       - 0200d2e8b
       - 959b681ef
-    release_status: unreleased_feature
+    release_status: dev_only
+  - text: Added tests for privacy-processed Project README retrieval and CLI billing proofs for generic AI providers.
+    evidence:
+      commits:
+      - 8026377bb
+      - 0e381e48b
+    release_status: dev_only
   newsletter_recommendation:
     include: []
     exclude:
-    - text: Standalone landing and guest welcome refinements.
-      evidence:
-        commits:
-        - 5445e18fc
-      reason: Development-only refinement of landing pages.
-    - text: Native history caching and personal chat balance admission.
+    - text: Native AI History Caching
       evidence:
         commits:
         - d566d2947
-      reason: Feature is currently in development status.
-    - text: Workflow completion notifications.
+      reason: Feature is currently in dev_only status.
+    - text: Workflow Completion Notifications
       evidence:
         commits:
         - 19b735913
-      reason: Related to disabled platform:workflows feature.
-    rationale: All user-facing changes from this period are currently in development or tied to disabled features, making
-      them unsuitable for public communication at this time.
+      reason: Feature is currently in dev_only status and depends on the disabled platform:workflows flag.
+    - text: Terminal UI Teams Parity
+      evidence:
+        commits:
+        - fde4a6e87
+      reason: Feature is currently in dev_only status and depends on the disabled platform:tasks flag.
+    rationale: While significant progress was made on AI performance and collaboration infrastructure, all user-facing updates
+      are currently in dev-only status or gated by disabled feature flags.
   social_video_recommendations:
-  - idea: A walkthrough of the refined guest welcome experience and smart interest selection.
+  - idea: A technical deep dive into how native history caching reduces AI latency and costs.
     priority: medium
-    reason: The update includes new visual assets and a more polished onboarding flow for unauthenticated users.
+    reason: Concrete performance improvement story for power users.
+    evidence:
+      commits:
+      - d566d2947
+  - idea: A visual tour of the refined landing page and new example chats.
+    priority: low
+    reason: Shows off product polish and new use cases.
     evidence:
       commits:
       - 5445e18fc
+  - idea: Demonstrating the updated Terminal UI (TUI) for developers who prefer command-line workflows.
+    priority: medium
+    reason: Visual update to a specific platform interface.
+    evidence:
+      commits:
+      - fde4a6e87
   quality_notes:
-  - Extensive test coverage was added for project routing logic and CLI billing verification.
-  - Privacy-first architectural changes were implemented for Team AI replies and anonymous chat sharing.
+  - High volume of bug fixes (28) targeting collaboration stability and CLI authentication.
+  - Significant focus on maintaining end-to-end encryption for Team-based AI interactions.
   validation_warnings: []
