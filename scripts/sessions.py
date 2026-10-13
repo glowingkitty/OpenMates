@@ -1564,32 +1564,203 @@ def validate_worktree_binding_mode(session: dict) -> str:
     return mode
 
 
+def _prepared_workspace_manifests(root: Path) -> list[Path]:
+    """List the exact manifests covered by the checked-in pnpm workspace."""
+    import yaml
+
+    config = yaml.safe_load((root / "pnpm-workspace.yaml").read_text(encoding="utf-8"))
+    patterns = config.get("packages") if isinstance(config, dict) else None
+    if not isinstance(patterns, list) or not patterns or not all(
+        isinstance(pattern, str) and pattern and not pattern.startswith("!")
+        and not Path(pattern).is_absolute() and ".." not in Path(pattern).parts
+        for pattern in patterns
+    ):
+        raise RuntimeError("Prepared dependencies require simple checked-in workspace patterns")
+    manifests = {Path("package.json")}
+    for pattern in patterns:
+        manifests.update(
+            (directory / "package.json").relative_to(root)
+            for directory in root.glob(pattern)
+            if (directory / "package.json").is_file()
+        )
+    return sorted(manifests)
+
+
+def _validate_prepared_dependency_source(checkout: Path, prepared: Path) -> list[Path]:
+    """Refuse stale or incomplete installed dependencies before touching checkout."""
+    if checkout == prepared or (checkout / "node_modules").exists() or (checkout / "node_modules").is_symlink():
+        raise RuntimeError("Prepared dependencies require a fresh integration checkout")
+    checked_files = ["pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", ".pnpmfile.cjs"]
+    for relative in checked_files:
+        candidate = checkout / relative
+        installed = prepared / relative
+        if candidate.is_file() != installed.is_file() or (
+            candidate.is_file() and _file_sha256(candidate) != _file_sha256(installed)
+        ):
+            raise RuntimeError(f"Prepared dependencies are stale: {relative} differs")
+    candidate_manifests = _prepared_workspace_manifests(checkout)
+    installed_manifests = _prepared_workspace_manifests(prepared)
+    if candidate_manifests != installed_manifests:
+        raise RuntimeError("Prepared dependencies are stale: workspace package set differs")
+    for relative in candidate_manifests:
+        if _file_sha256(checkout / relative) != _file_sha256(prepared / relative):
+            raise RuntimeError(f"Prepared dependencies are stale: {relative} differs")
+    for relative in ("pnpm-lock.yaml", "pnpm-workspace.yaml"):
+        if not (checkout / relative).is_file():
+            raise RuntimeError(f"Prepared dependencies require {relative}")
+    candidate_patches = {path.relative_to(checkout) for path in (checkout / "patches").rglob("*") if path.is_file()}
+    installed_patches = {path.relative_to(prepared) for path in (prepared / "patches").rglob("*") if path.is_file()}
+    if candidate_patches != installed_patches or any(
+        _file_sha256(checkout / path) != _file_sha256(prepared / path) for path in candidate_patches
+    ):
+        raise RuntimeError("Prepared dependencies are stale: pnpm patches differ")
+    modules = prepared / "node_modules"
+    if not modules.is_dir() or not (modules / ".pnpm").is_dir() or not (modules / ".modules.yaml").is_file():
+        raise RuntimeError("Prepared dependencies are unavailable: installed pnpm layout is missing")
+    if _file_sha256(prepared / "pnpm-lock.yaml") != _file_sha256(modules / ".pnpm" / "lock.yaml"):
+        raise RuntimeError("Prepared dependencies are stale: installed pnpm lock differs")
+    import yaml
+
+    layout = yaml.safe_load((modules / ".modules.yaml").read_text(encoding="utf-8"))
+    root_manifest = json.loads((prepared / "package.json").read_text(encoding="utf-8"))
+    if not isinstance(layout, dict) or layout.get("nodeLinker") != "isolated" or (
+        layout.get("packageManager") != root_manifest.get("packageManager")
+    ) or layout.get("virtualStoreDir") != ".pnpm" or not all(
+        layout.get("included", {}).get(kind) is True
+        for kind in ("dependencies", "devDependencies", "optionalDependencies")
+    ):
+        raise RuntimeError("Prepared dependencies are incompatible with the installed pnpm layout")
+    for relative in candidate_manifests:
+        package_root = prepared / relative.parent
+        manifest = json.loads((prepared / relative).read_text(encoding="utf-8"))
+        for dependency_kind in ("dependencies", "devDependencies", "optionalDependencies", "peerDependencies"):
+            for name, version in manifest.get(dependency_kind, {}).items():
+                if isinstance(version, str) and version.startswith((
+                    "file:", "link:", "portal:", "git+file:", "./", "../", "/",
+                )):
+                    raise RuntimeError(
+                        f"Prepared dependencies do not support local dependency {relative}:{name}"
+                    )
+        for name in set(manifest.get("dependencies", {})) | set(manifest.get("devDependencies", {})):
+            if not (package_root / "node_modules" / name).exists():
+                raise RuntimeError(f"Prepared dependencies are incomplete: {relative.parent}/{name}")
+    return candidate_manifests
+
+
+_PREPARED_DEPENDENCY_CACHE_DIRS = frozenset({".cache", ".vite", ".vite-temp", ".remotion"})
+
+
+def _copy_prepared_dependency_entry(source: Path, target: Path, prepared: Path, checkout: Path) -> None:
+    """Copy pnpm's small link/shim layout, keeping package bytes in prepared storage."""
+    if source.is_symlink():
+        link = source.readlink()
+        if link.is_absolute():
+            if not link.is_relative_to(prepared):
+                raise RuntimeError(f"Prepared dependency link escapes its root: {source}")
+            if not link.is_relative_to(prepared / "node_modules"):
+                link = checkout / link.relative_to(prepared)
+        target.symlink_to(link, target_is_directory=True)
+    elif source.is_dir():
+        target.mkdir()
+        for entry in source.iterdir():
+            if entry.name not in _PREPARED_DEPENDENCY_CACHE_DIRS:
+                _copy_prepared_dependency_entry(entry, target / entry.name, prepared, checkout)
+    elif source.is_file():
+        if source.stat().st_size > 8 * 1024 * 1024:
+            raise RuntimeError(f"Prepared dependency layout contains an oversized file: {source}")
+        content = source.read_bytes()
+        if ".bin" in source.parts:
+            content = content.replace(os.fsencode(prepared), os.fsencode(checkout))
+        target.write_bytes(content)
+        shutil.copymode(source, target)
+    else:
+        raise RuntimeError(f"Prepared dependency layout contains an unsupported entry: {source}")
+
+
+def _reuse_prepared_dependencies(checkout: Path, prepared: Path) -> None:
+    """Mirror pnpm links into integration while resolving workspace packages locally."""
+    checkout = checkout.resolve()
+    prepared = prepared.resolve()
+    manifests = _validate_prepared_dependency_source(checkout, prepared)
+    source_modules = prepared / "node_modules"
+    target_modules = checkout / "node_modules"
+    target_modules.mkdir()
+    for entry in source_modules.iterdir():
+        if entry.name in _PREPARED_DEPENDENCY_CACHE_DIRS:
+            continue
+        if entry.name == ".pnpm":
+            target_store = target_modules / ".pnpm"
+            target_store.mkdir()
+            for stored in entry.iterdir():
+                if stored.name == "node_modules":
+                    _copy_prepared_dependency_entry(stored, target_store / stored.name, prepared, checkout)
+                elif stored.name == "lock.yaml":
+                    _copy_prepared_dependency_entry(stored, target_store / stored.name, prepared, checkout)
+                elif stored.is_symlink():
+                    raise RuntimeError(f"Prepared dependency package store contains a link: {stored}")
+                elif stored.is_dir():
+                    (target_store / stored.name).symlink_to(stored, target_is_directory=True)
+        elif entry.name == "node_modules" and entry.is_symlink():
+            (target_modules / "node_modules").symlink_to(target_modules, target_is_directory=True)
+        else:
+            _copy_prepared_dependency_entry(entry, target_modules / entry.name, prepared, checkout)
+    workspace_roots = {
+        json.loads((checkout / relative).read_text(encoding="utf-8"))["name"]: checkout / relative.parent
+        for relative in manifests if relative != Path("package.json")
+    }
+    for name, expected in workspace_roots.items():
+        hoisted = target_modules / ".pnpm/node_modules" / name
+        if hoisted.is_symlink() and hoisted.resolve(strict=False) != expected:
+            raise RuntimeError(f"Prepared hoisted workspace link points outside integration: {name}")
+    for relative in manifests:
+        package_root = checkout / relative.parent
+        source_package_modules = prepared / relative.parent / "node_modules"
+        if relative != Path("package.json") and source_package_modules.is_dir():
+            _copy_prepared_dependency_entry(
+                source_package_modules, package_root / "node_modules", prepared, checkout,
+            )
+        manifest = json.loads((checkout / relative).read_text(encoding="utf-8"))
+        for name in set(manifest.get("dependencies", {})) | set(manifest.get("devDependencies", {})):
+            dependency = package_root / "node_modules" / name
+            if not dependency.exists():
+                raise RuntimeError(f"Prepared dependency link is missing: {relative.parent}/{name}")
+            if str(manifest.get("dependencies", {}).get(name, manifest.get("devDependencies", {}).get(name))).startswith("workspace:"):
+                expected = workspace_roots.get(name)
+                if expected is None or dependency.resolve() != expected:
+                    raise RuntimeError(f"Prepared workspace link points outside integration: {name}")
+    module_roots = [target_modules, *(
+        checkout / relative.parent / "node_modules"
+        for relative in manifests if relative != Path("package.json")
+    )]
+    for link in (entry for root in module_roots if root.is_dir() for entry in root.rglob("*")):
+        if not link.is_symlink():
+            continue
+        # pnpm keeps links for platform-specific optional packages (for example
+        # fsevents on Linux) even when their package directory is absent.
+        resolved = link.resolve(strict=False)
+        if not resolved.is_relative_to(checkout) and not resolved.is_relative_to(source_modules):
+            raise RuntimeError(f"Prepared dependency link escapes integration and cached packages: {link}")
+
+
 def bootstrap_session_worktree(
-    worktree_path: str | Path, *, include_vscode_extension: bool = True,
+    worktree_path: str | Path, *, dependencies_prepared: bool = False,
 ) -> dict:
     """Install cached dependencies and generate prerequisites in one worktree."""
     worktree = Path(worktree_path).resolve()
     linked_resources = link_shared_worktree_resources(worktree)
-    install_command = ["pnpm"]
-    if not include_vscode_extension:
-        # A negative-only pnpm filter installs the root and every other workspace
-        # project, preserving their local links without requiring VS Code tooling.
-        install_command.append("--filter=!openmates-vscode-extension")
-    install_command.extend([
-        "install",
-        "--offline",
-        "--frozen-lockfile",
-        "--ignore-scripts",
-        "--config.engine-strict=false",
-    ])
-    commands = [
-        install_command,
+    commands = []
+    if not dependencies_prepared:
+        commands.append(("dependency_install_failed", [
+            "pnpm", "install", "--offline", "--frozen-lockfile",
+            "--ignore-scripts", "--config.engine-strict=false",
+        ]))
+    commands.extend(("prerequisite_generation_failed", command) for command in [
         ["node", "frontend/packages/ui/scripts/build-tokens.js"],
         ["node", "frontend/packages/ui/scripts/build-translations.js"],
         ["node", "frontend/packages/ui/scripts/validate-locales.js"],
-    ]
+    ])
     started = time.monotonic()
-    for index, command in enumerate(commands):
+    for reason, command in commands:
         try:
             rc, stdout, stderr = _run_cmd(
                 command,
@@ -1599,14 +1770,14 @@ def bootstrap_session_worktree(
         except (OSError, subprocess.TimeoutExpired) as exc:
             return {
                 "status": "failed",
-                "reason": "dependency_install_failed" if index == 0 else "prerequisite_generation_failed",
+                "reason": reason,
                 "message": str(exc),
                 "duration_ms": round((time.monotonic() - started) * 1000),
             }
         if rc != 0:
             return {
                 "status": "failed",
-                "reason": "dependency_install_failed" if index == 0 else "prerequisite_generation_failed",
+                "reason": reason,
                 "message": stderr or stdout or f"Command failed: {' '.join(command)}",
                 "duration_ms": round((time.monotonic() - started) * 1000),
             }
@@ -11360,10 +11531,11 @@ def _bootstrap_integration_for_files(checkout_root: Path, files: list[str]) -> N
     )
     if not (_has_frontend_files(files) or _should_validate_embed_registry(files) or dependency_inputs_changed):
         return
-    extension_changed = any(file.startswith("frontend/apps/vscode_extension/") for file in files)
+    if not dependency_inputs_changed:
+        _reuse_prepared_dependencies(checkout_root, CONTROL_PLANE_ROOT)
     result = bootstrap_session_worktree(
         checkout_root,
-        include_vscode_extension=dependency_inputs_changed or extension_changed,
+        dependencies_prepared=not dependency_inputs_changed,
     )
     if result.get("status") != "ready":
         raise RuntimeError(
