@@ -1,6 +1,6 @@
 # Chat processing architecture
 
-The architecture revision (`fa6b90c`), Google transport repair (`e71c72b8`), immediate admission changes (`2453d85d`), and first measured SDK/auth/simple-turn fixes (`7a250696`) are deployed to development. Actual TUI measurements still miss the latency targets; no successful timing acceptance is claimed yet. Timing targets are 1.5 seconds from Enter/Send to selected-Mate paint, and 2–3 seconds to authored text for an ordinary factual request. The interactive TUI is measured first, then web. Tool progress, final response, persistence and command exit are separate measurements.
+The architecture revision (`fa6b90c`), Google transport repair (`e71c72b8`), immediate admission changes (`2453d85d`), first measured SDK/auth/simple-turn fixes (`7a250696`), composer focus repair (`df30b916`), and idle authenticated TUI connection / bounded Project projection changes (`ab78d61b`) are deployed to development. Actual TUI measurements still miss the latency targets; no successful timing acceptance is claimed yet. Timing targets are 1.5 seconds from Enter/Send to selected-Mate paint, and 2–3 seconds to authored text for an ordinary factual request. The interactive TUI is measured first, then web. Tool progress, final response, persistence and command exit are separate measurements.
 
 ```mermaid
 flowchart TD
@@ -12,6 +12,8 @@ flowchart TD
   Durable --> Router[Reserved app_ai_routing worker]
   Admit --> Headers[Correlated routing metadata]
   Headers --> Router
+  Headers -. required discovery fails .-> Failure[Bound encrypted context-failure marker]
+  Failure --> End[Release exact active task; terminal failure event; no assistant text]
   Router --> Stage1[Jev stage 1: complexity, Mate, apps, Projects, public decisions]
   Stage1 --> Resolve[Resolve permitted model and publish selected Mate]
   Resolve --> Paint[Client paints Mate + Thinking]
@@ -76,7 +78,7 @@ flowchart LR
   Selection --> Load[Parallel selected-resource authorization and hydration]
 ```
 
-Minimal main context retains the instructions needed to answer correctly. It omits unrelated private Project/Task/Workflow bodies and unused selected app guidance; it preserves mandatory safety, privacy, formatting, questions, model policy and selected context. A confirmed objective English factual first turn with complete empty context omits the empty Task runtime and its create tool. Unknown intent, actions, explicit Task dependencies and incomplete context retain the full path. The measured main prompt remains 7,163 tokens; this is a bounded tool/context omission, not a completed broad prompt reduction.
+Minimal main context retains the instructions needed to answer correctly. It omits unrelated private Project/Task/Workflow bodies and unused selected app guidance; it preserves mandatory safety, privacy, formatting, questions, model policy and selected context. A confirmed objective English factual first turn with complete empty context omits the empty Task runtime and its create tool. Unknown intent, actions, explicit Task dependencies and incomplete context retain the full path. The last qualified main prompt contained 7,163 tokens. The next candidate also omits only code, document and plot formatting sections for a positively proved objective factual first turn with zero final tools and no selected private or artifact context. Discovery metadata alone does not force artifact instructions back into the prompt. Unknown intent, selected context, relevant history, attachments and actions retain those sections; mandatory answer and composer-suggestion guidance remains. Token and timing savings are not yet measured.
 
 ```mermaid
 flowchart LR
@@ -129,6 +131,10 @@ These are actual PTY Enter-to-paint measurements of “What’s the capital of S
 
 The last sample spends 2,992 ms before selected-Mate paint, then 772 ms before the main provider request and 1,976 ms from that request to authored paint. The main worker reused the original validated no-Project decision and skipped the second Jev phase. Fresh credit verification took about 53 ms in that worker and 67 ms in routing; the first post-restart sample took about 506 and 527 ms respectively. The delay preceding its first credit-check substep is not separately instrumented.
 
-The next measured changes remove two discarded Project-focus reads, parallelize fresh Project key-wrapper projections with a bound of eight, and prepare a separately owned one-shot authenticated TUI send connection while idle. They retain current access/credit checks. Their timing benefit remains unverified. Command completion and postprocessing are recorded separately from first answer paint.
+The deployed `ab78d61b` changes remove two discarded Project-focus reads, parallelize fresh Project key-wrapper projections with a bound of eight, and prepare a separately owned one-shot authenticated TUI send connection while idle. They retain current access/credit checks. Their timing benefit remains unverified: the first actual warmed run admitted the message but failed before any model request. Command completion and postprocessing are recorded separately from first answer paint.
+
+In that failed run, the user row painted at 30 ms and the admission frame left the client at approximately 935 ms. Required Project discovery returned HTTP 503 at approximately 1,345 ms. Admission completed at 1,484 ms; the SDK closed the socket about 24 ms afterward when the pending Project promise rejected. Routing then waited 20 seconds for client context and main repeated that wait, terminating approximately 42.6 seconds after Enter. These are failure timings, not inference latency.
+
+The source of the observed authentication churn was a shared profile cache validator treating an explicitly null email-encryption field on legacy/paired accounts as an incomplete profile. It evicted valid cached profiles; concurrent cache-miss requests refreshed credentials, and successful refresh results were visible before their successor security rows were durably published. The next candidate distinguishes a known null field from a missing field, waits for an existing refresh publication using the existing bounded coordination window, and preserves fresh source/successor and passkey checks. It also reports required-context failure through a sealed, exact-turn marker and a matching terminal event, preventing the two silent waits and clearing pending UI state without creating an empty assistant response. The profile and refresh repairs do not establish a positive authorization cache.
 
 The Personal Memory row and account-settings reads remain sequential in this revision. Both can rotate a shared refresh-cookie jar, and account settings supply a one-use auth receipt for the exact Memory snapshot. Parallelizing them requires coordinated response ownership; a plain concurrent call is not safe. The measured warmed preparation cost is about 588 ms (241 ms rows, 14 ms decryption, 333 ms settings/auth).

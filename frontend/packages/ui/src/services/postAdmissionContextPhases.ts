@@ -20,3 +20,14 @@ export function isSelectionDetailsV2Routing(frame: Record<string, unknown>): boo
   return !!context && typeof context === 'object' && !Array.isArray(context)
     && !Object.prototype.hasOwnProperty.call(context, 'related_task_candidates');
 }
+
+/** Report an admitted context failure without substituting an empty successful phase. */
+export async function publishContextPreparationFailure(input: {
+  identity: { chat_id: string; turn_id: string; message_id: string; request_id: string };
+  isCurrent: () => boolean;
+  supportsFailure: () => boolean;
+  send: (frame: Record<string, unknown>) => Promise<void>;
+}): Promise<void> {
+  if (!input.isCurrent() || !input.supportsFailure()) return;
+  await input.send({ ...input.identity, reason: 'context_preparation_failed' });
+}

@@ -1987,10 +1987,30 @@ export async function handleAITypingStartedImpl( // Changed to async
 
 export function handleAITypingEndedImpl(
   serviceInstance: ChatSynchronizationService,
-  payload: { chat_id: string; message_id: string },
+  payload: {
+    chat_id: string;
+    message_id: string;
+    task_id?: string;
+    terminal_failure_code?: string;
+  },
 ): void {
   console.debug("[ChatSyncService:AI] Received 'ai_typing_ended':", payload);
   aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
+  if (payload.terminal_failure_code === "client_context_unavailable" &&
+      payload.task_id === payload.message_id) {
+    const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
+    if (taskInfo?.taskId === payload.task_id) {
+      serviceInstance.activeAITasks.delete(payload.chat_id);
+      serviceInstance.dispatchEvent(new CustomEvent("aiTaskEnded", {
+        detail: {
+          chatId: payload.chat_id,
+          taskId: payload.task_id,
+          userMessageId: taskInfo.userMessageId,
+          status: "failed",
+        },
+      }));
+    }
+  }
   serviceInstance.dispatchEvent(
     new CustomEvent("aiTypingEnded", { detail: payload }),
   );

@@ -1351,6 +1351,20 @@ async def _pause_consumed_steers_after_failure(
     return ids
 
 
+def _is_client_context_unavailable(error: BaseException) -> bool:
+    """Recognize a sealed context failure through preprocessing wrappers."""
+    from backend.core.api.app.services.client_context_continuation import ClientContextUnavailable
+
+    seen = set()
+    current: Optional[BaseException] = error
+    while current is not None and id(current) not in seen:
+        if isinstance(current, ClientContextUnavailable):
+            return True
+        seen.add(id(current))
+        current = current.__cause__
+    return False
+
+
 async def _cleanup_on_task_failure(
     task_id: str,
     chat_id: str,
@@ -1365,6 +1379,7 @@ async def _cleanup_on_task_failure(
     use_cancelled_status: bool = False,
     request_data: Optional[AskSkillRequest] = None,
     skill_config_dict: Optional[dict] = None,
+    terminal_failure_code: Optional[str] = None,
 ) -> None:
     """
     Comprehensive cleanup when a task fails unexpectedly.
@@ -1397,6 +1412,7 @@ async def _cleanup_on_task_failure(
         cache_service = CacheService()
     
     # Preserve accepted followers before releasing this task's chat fence.
+    cleared = False
     try:
         handed_off = False
         terminalized = False
@@ -1446,6 +1462,7 @@ async def _cleanup_on_task_failure(
         try:
             await _publish_typing_ended(
                 cache_service, task_id, chat_id, user_id, user_id_hash, message_id,
+                terminal_failure_code=terminal_failure_code if cleared else None,
             )
         except Exception as exc:
             logger.warning("%s Could not clear typing after failure (%s)", log_prefix, type(exc).__name__)
@@ -1516,16 +1533,20 @@ def _early_typing_provider_metadata(model_ref: Optional[str]) -> tuple[str, Opti
 async def _publish_typing_ended(
     cache_service: CacheService, task_id: str, chat_id: str,
     user_id: str, user_id_hash: str, message_id: str,
+    *, terminal_failure_code: Optional[str] = None,
 ) -> None:
     """Clear a started typing state without creating a chat message."""
+    payload = {
+        "type": "ai_processing_started_event",
+        "event_for_client": "ai_typing_ended",
+        "task_id": task_id, "chat_id": chat_id,
+        "user_id_uuid": user_id, "user_id_hash": user_id_hash,
+        "user_message_id": message_id, "category": "general_knowledge",
+    }
+    if terminal_failure_code:
+        payload["terminal_failure_code"] = terminal_failure_code
     await cache_service.publish_event(
-        f"ai_typing_indicator_events::{user_id_hash}", {
-            "type": "ai_processing_started_event",
-            "event_for_client": "ai_typing_ended",
-            "task_id": task_id, "chat_id": chat_id,
-            "user_id_uuid": user_id, "user_id_hash": user_id_hash,
-            "user_message_id": message_id, "category": "general_knowledge",
-        },
+        f"ai_typing_indicator_events::{user_id_hash}", payload,
     )
 
 
@@ -3104,7 +3125,7 @@ async def _async_process_ai_skill_ask_task(
             # with the normal streaming flow, ensuring the frontend gets proper completion signals.
         except Exception as e:
             logger.error(f"[Task ID: {task_id}] Error during preprocessing: {e}", exc_info=True)
-            raise RuntimeError(f"Preprocessing failed: {e}")
+            raise RuntimeError(f"Preprocessing failed: {e}") from e
 
         if user_overrides:
             available_focus_modes = set()
@@ -4854,7 +4875,11 @@ def process_ai_skill_ask_task(
                 error_message=str(e),
                 request_data=request_data,
                 skill_config_dict=skill_config_dict,
-                use_cancelled_status=bool(was_revoked)
+                use_cancelled_status=bool(was_revoked),
+                terminal_failure_code=(
+                    "client_context_unavailable"
+                    if not was_revoked and _is_client_context_unavailable(e) else None
+                ),
             ))
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after RuntimeError: {cleanup_err}")

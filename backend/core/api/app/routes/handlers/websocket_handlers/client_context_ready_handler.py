@@ -3,7 +3,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.core.api.app.services.client_context_continuation import receive_client_context
+from backend.core.api.app.services.client_context_continuation import (
+    receive_client_context, receive_client_context_failure,
+)
 
 
 async def handle_client_context_ready(
@@ -30,5 +32,30 @@ async def handle_client_context_ready(
     await manager.send_personal_message(
         {"type": "chat_turn_context_ack", "payload": {
             key: payload.get(key) for key in ("chat_id", "turn_id", "message_id", "request_id", "phase")
+        } | {"status": status}}, user_id, device_fingerprint_hash,
+    )
+
+
+async def handle_client_context_failed(
+    *, manager: Any, cache_service: Any, directus_service: Any, encryption_service: Any,
+    user_id: str, device_fingerprint_hash: str, payload: dict,
+) -> None:
+    allowed = {"chat_id", "turn_id", "message_id", "request_id", "team_id", "reason"}
+    status = "rejected"
+    if isinstance(payload, dict) and not set(payload) - allowed:
+        try:
+            if payload.get("team_id"):
+                await directus_service.team.require_team_role(
+                    payload["team_id"], user_id, {"owner", "admin", "member", "viewer"})
+            status = await receive_client_context_failure(
+                cache_service=cache_service, encryption_service=encryption_service,
+                user_id=user_id, device_fingerprint_hash=device_fingerprint_hash, **payload,
+            )
+        except Exception:
+            status = "rejected"
+    payload = payload if isinstance(payload, dict) else {}
+    await manager.send_personal_message(
+        {"type": "chat_turn_context_failed_ack", "payload": {
+            key: payload.get(key) for key in ("chat_id", "turn_id", "message_id", "request_id")
         } | {"status": status}}, user_id, device_fingerprint_hash,
     )

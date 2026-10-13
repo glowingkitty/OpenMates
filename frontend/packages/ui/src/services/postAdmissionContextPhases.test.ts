@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { isSelectionDetailsV2Routing, publishSelectionDetailsPhases } from './postAdmissionContextPhases';
+import { isSelectionDetailsV2Routing, publishSelectionDetailsPhases, publishContextPreparationFailure } from './postAdmissionContextPhases';
 
 describe('post-admission selection details v2', () => {
   // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.selection-after-acceptance
@@ -48,5 +48,34 @@ describe('post-admission selection details v2', () => {
     expect(isSelectionDetailsV2Routing({ context: {
       project_focus_candidates: [], related_task_candidates: [], project_focus_catalog: [],
     } })).toBe(false);
+  });
+});
+
+describe('admitted context failure', () => {
+  const identity = { chat_id: 'chat', turn_id: 'turn', message_id: 'message', request_id: 'request' };
+
+  // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.selection-after-acceptance,message-input.send.ownership
+  it('sends only exact turn identity and a generic failure category', async () => {
+    const send = vi.fn(async () => undefined);
+    await publishContextPreparationFailure({ identity, isCurrent: () => true, supportsFailure: () => true, send });
+    expect(send).toHaveBeenCalledOnce();
+    expect(send).toHaveBeenCalledWith({ ...identity, reason: 'context_preparation_failed' });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=message-input.send.ownership
+  it.each(['owner', 'capability'])('does not send after %s becomes unavailable', async (missing) => {
+    const send = vi.fn();
+    await publishContextPreparationFailure({ identity, isCurrent: () => missing !== 'owner',
+      supportsFailure: () => missing !== 'capability', send });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.send.immediate-admission
+  it('does not replace a failure with an empty successful context phase', async () => {
+    const send = vi.fn(async () => { throw new Error('disconnected'); });
+    await expect(publishContextPreparationFailure({ identity, isCurrent: () => true,
+      supportsFailure: () => true, send })).rejects.toThrow('disconnected');
+    expect(send.mock.calls[0][0]).not.toHaveProperty('context');
+    expect(send.mock.calls[0][0]).not.toHaveProperty('phase');
   });
 });

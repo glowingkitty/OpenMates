@@ -17,7 +17,7 @@ import { recordMessageDispatchFailure } from "./sendersChatMessagesDispatchFailu
 import { FastAdmissionJournalGate, isRetainedFastAdmissionSnapshot } from "./fastAdmissionJournal";
 import { PendingAdmissionCompatibilityError } from "./serverCapabilityGate";
 import { retainOrReuseContextPhaseFrame, type AdmissionContextPhase, type AdmissionContextIdentity } from "./fastAdmissionPhaseJournal";
-import { isSelectionDetailsV2Routing, publishSelectionDetailsPhases } from "./postAdmissionContextPhases";
+import { isSelectionDetailsV2Routing, publishSelectionDetailsPhases, publishContextPreparationFailure } from "./postAdmissionContextPhases";
 import { notificationStore } from "../stores/notificationStore";
 import { normalizeToUnixSeconds } from "./timestampUtils";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
@@ -121,7 +121,7 @@ const DEFINITIVE_TEAM_PREFLIGHT_ERRORS = new Set([
 const teamPreflightConfirmListeners = new Map<string, (payload: unknown) => void>();
 const embedBundleConfirmListeners = new Map<string, (payload: unknown) => void>();
 const turnPreflightConfirmListeners = new Map<string, (payload: unknown) => void>();
-const fastAdmissionListeners = new Map<string, { confirmed: (payload: unknown) => void; context: (payload: unknown) => void }>();
+const fastAdmissionListeners = new Map<string, { gate: FastAdmissionJournalGate; confirmed: (payload: unknown) => void; context: (payload: unknown) => void }>();
 
 interface EncryptedEmbedForDirectus {
 	embed_id: string;
@@ -605,10 +605,13 @@ export function watchDurableTurnPreflightConfirmation(
 function watchFastAdmissionCompletion(input: {
 	chatId: string; messageId: string; turnId: string; requestId: string;
 	committedMessagesVersion: number;
-}): void {
+	onContextRejected?: () => void;
+}): () => boolean {
 	const key = `${input.chatId}:${input.messageId}`;
-	if (fastAdmissionListeners.has(key)) return;
+	const existing = fastAdmissionListeners.get(key);
+	if (existing) return existing.gate.beginAttempt(input.onContextRejected);
 	const gate = new FastAdmissionJournalGate(input);
+	const isCurrentAttempt = gate.beginAttempt(input.onContextRejected);
 	const complete = () => {
 		if (!gate.complete) return;
 		const listeners = fastAdmissionListeners.get(key);
@@ -623,10 +626,23 @@ function watchFastAdmissionCompletion(input: {
 		]).catch((error) => console.warn("[ChatSyncService:Senders] Could not clear completed admission journal", error));
 	};
 	const confirmed = (payload: unknown) => { gate.acceptConfirmation(payload); complete(); };
-	const context = (payload: unknown) => { gate.acceptContextAck(payload); complete(); };
-	fastAdmissionListeners.set(key, { confirmed, context });
+	const context = (payload: unknown) => {
+		if (gate.rejectContextAck(payload)) {
+			const listeners = fastAdmissionListeners.get(key);
+			if (listeners) {
+				webSocketService.off("chat_message_confirmed", listeners.confirmed);
+				webSocketService.off("chat_turn_context_ack", listeners.context);
+				fastAdmissionListeners.delete(key);
+			}
+			return;
+		}
+		gate.acceptContextAck(payload);
+		complete();
+	};
+	fastAdmissionListeners.set(key, { gate, confirmed, context });
 	webSocketService.on("chat_message_confirmed", confirmed);
 	webSocketService.on("chat_turn_context_ack", context);
+	return isCurrentAttempt;
 }
 
 if (typeof window !== "undefined") {
@@ -906,6 +922,7 @@ async function publishPostAdmissionContext(input: {
 	admission: Record<string, unknown>;
 	postAdmissionConnectedAccounts?: Promise<PreparedConnectedAccountSendContext | undefined>;
 	supportsSelectionDetailsV2Now: () => boolean;
+	contextRejected?: () => boolean;
 }): Promise<void> {
 	const { message, chat, admission, postAdmissionConnectedAccounts, supportsSelectionDetailsV2Now } = input;
 	const request = admission.inference_request as Record<string, unknown>;
@@ -914,6 +931,7 @@ async function publishPostAdmissionContext(input: {
 	const workspace = getWorkspaceCacheIdentity();
 	const team = getActiveTeamContextSnapshot();
 	const isCurrent = () => workspace !== null && getWorkspaceCacheIdentity() === workspace
+		&& !input.contextRejected?.()
 		&& get(authStore).isAuthenticated
 		&& getActiveTeamContextSnapshot().epoch === team.epoch
 		&& !team.teamId && !chat.team_id;
@@ -1091,11 +1109,12 @@ async function dispatchFastPersonalTurn(input: {
 	retainedFastAdmission?: boolean;
 	supportsAdmissionNow: () => boolean;
 	supportsSelectionDetailsV2Now: () => boolean;
+	supportsContextFailureNow: () => boolean;
 }): Promise<void> {
 	const { serviceInstance, message, chat, personalTurn, predecessorVersion,
 		includePreflightChatMetadata, onUserFrameDispatched,
 		postAdmissionConnectedAccounts, retainedFastAdmission, supportsAdmissionNow,
-		supportsSelectionDetailsV2Now } = input;
+		supportsSelectionDetailsV2Now, supportsContextFailureNow } = input;
 	const encryptedChatKey = await chatDB.getEncryptedChatKey(message.chat_id);
 	const chatKey = chatKeyManager.getKeySync(message.chat_id) || await chatKeyManager.getKey(message.chat_id);
 	if (!encryptedChatKey || !chatKey ||
@@ -1190,11 +1209,38 @@ async function dispatchFastPersonalTurn(input: {
 	}
 	bindPersonalChatTurn(personalTurn, admission.turn_id as string);
 	const retainedRequest = admission.inference_request as Record<string, unknown>;
-	watchFastAdmissionCompletion({
+	const contextWorkspace = getWorkspaceCacheIdentity();
+	const contextTeam = getActiveTeamContextSnapshot();
+	let contextRejected = false;
+	let contextFailureReported = false;
+	const reportContextFailure = async () => {
+		if (contextFailureReported) return;
+		contextFailureReported = true;
+		try {
+			await publishContextPreparationFailure({
+				identity: {
+					chat_id: message.chat_id, turn_id: admission.turn_id as string,
+					message_id: message.message_id,
+					request_id: retainedRequest.client_context_request_id as string,
+				},
+				isCurrent: () => contextWorkspace !== null
+					&& getWorkspaceCacheIdentity() === contextWorkspace
+					&& get(authStore).isAuthenticated
+					&& getActiveTeamContextSnapshot().epoch === contextTeam.epoch
+					&& !contextTeam.teamId && !chat.team_id,
+				supportsFailure: () => supportsContextFailureNow() && webSocketService.isConnected(),
+				send: (frame) => webSocketService.sendMessage("chat_turn_context_failed", frame),
+			});
+		} catch {
+			console.warn("[ChatSyncService:Senders] Context failure notification unavailable");
+		}
+	};
+	const isContextAttemptCurrent = watchFastAdmissionCompletion({
 		chatId: message.chat_id, messageId: message.message_id,
 		turnId: admission.turn_id as string,
 		requestId: retainedRequest.client_context_request_id as string,
 		committedMessagesVersion: Number(admission.expected_messages_v) + 1,
+		onContextRejected: () => { contextRejected = true; void reportContextFailure(); },
 	});
 	if (!supportsAdmissionNow()) {
 		await updateMessageStatusForSendRetry(serviceInstance, message, "waiting_for_internet");
@@ -1209,7 +1255,9 @@ async function dispatchFastPersonalTurn(input: {
 		onUserFrameDispatched?.();
 		void publishPostAdmissionContext({
 			message, chat, admission, postAdmissionConnectedAccounts, supportsSelectionDetailsV2Now,
-		}).catch((error) => {
+			contextRejected: () => contextRejected || !isContextAttemptCurrent(),
+		}).catch(async (error) => {
+			await reportContextFailure();
 			console.warn("[ChatSyncService:Senders] Post-admission context unavailable", error);
 		});
 	} catch (error) {
@@ -1231,6 +1279,7 @@ export async function sendNewMessageImpl(
 	postAdmissionConnectedAccounts?: Promise<PreparedConnectedAccountSendContext | undefined>,
 	supportsAdmissionNow: () => boolean = () => false,
 	supportsSelectionDetailsV2Now: () => boolean = () => false,
+	supportsContextFailureNow: () => boolean = () => false,
 ): Promise<void> {
 	const personalTurn = reservedTurn ?? reservePersonalChatTurn(message.chat_id, message.message_id);
 	const testMockMarker = ((message as unknown) as { testMockMarker?: unknown }).testMockMarker;
@@ -1405,7 +1454,7 @@ export async function sendNewMessageImpl(
 		await dispatchFastPersonalTurn({
 			serviceInstance, message, chat, personalTurn, predecessorVersion,
 			includePreflightChatMetadata, onUserFrameDispatched,
-			retainedFastAdmission, supportsAdmissionNow, supportsSelectionDetailsV2Now,
+			retainedFastAdmission, supportsAdmissionNow, supportsSelectionDetailsV2Now, supportsContextFailureNow,
 			postAdmissionConnectedAccounts: postAdmissionConnectedAccounts
 				?? (connectedAccountContext ? Promise.resolve(connectedAccountContext)
 					: loadPostAdmissionConnectedAccounts(message)),

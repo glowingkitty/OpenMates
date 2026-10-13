@@ -1,5 +1,6 @@
 """Admitted context phases preserve encrypted, scoped and fail-closed delivery."""
 # contract-test-file: infrastructure
+import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import uuid
@@ -33,16 +34,31 @@ class Redis:
                 return -1
             self.values[binding] = replacement
             return 1
-        binding, phase, value, expected = args
-        assert count == 2
-        if binding not in self.values:
+        if count == 3:
+            binding, phase, failure, value, expected = args
+            if binding not in self.values or self.expiry[binding] <= 0:
+                return 0
+            if self.values[binding] != expected:
+                return -1
+            if failure in self.values:
+                return -2
+            if phase in self.values:
+                return 2
+            self.values[phase] = value
+            self.expiry[phase] = self.expiry[binding]
+            return 1
+        assert count == 4
+        binding, routing, details, failure, value, expected = args
+        if binding not in self.values or self.expiry[binding] <= 0:
             return 0
         if self.values[binding] != expected:
             return -1
-        if phase in self.values:
+        if failure in self.values:
             return 2
-        self.values[phase] = value
-        self.expiry[phase] = self.expiry[binding]
+        if routing in self.values and details in self.values:
+            return 3
+        self.values[failure] = value
+        self.expiry[failure] = self.expiry[binding]
         return 1
 
 
@@ -382,3 +398,146 @@ async def test_rebind_rejects_wrong_stored_scope_and_inflight_old_device(setup, 
         {'scope': {**scope, 'turn_id': 'different'}, 'device': 'new'})
     with pytest.raises(context.ClientContextUnavailable, match='conflict'):
         await context.register_client_context(**kwargs, device_fingerprint_hash='third')
+
+
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
+@pytest.mark.asyncio
+async def test_failure_wakes_waiting_worker_before_context_timeout(setup):
+    cache, redis, vault, scope = setup
+    reference = await context.register_client_context(cache_service=cache, encryption_service=vault,
+        device_fingerprint_hash='device', **scope)
+    request = SimpleNamespace(**scope, recovery_turn_id=scope['turn_id'], client_context_pending=True,
+        client_context_request_id=scope['request_id'], client_context_binding_ref=reference)
+    waiter = asyncio.create_task(context.await_client_context_phase(
+        cache_service=cache, encryption_service=vault, request=request, phase='routing', timeout=20))
+    await asyncio.sleep(0)
+    assert await context.receive_client_context_failure(
+        cache_service=cache, encryption_service=vault, device_fingerprint_hash='device',
+        reason='project_discovery_failed', **scope) == 'accepted'
+    with pytest.raises(context.ClientContextUnavailable, match='delivery failed'):
+        await asyncio.wait_for(waiter, timeout=1)
+    assert not hasattr(request, 'project_focus_candidates')
+    assert redis.expiry[context._key(reference) + ':failed'] == redis.expiry[context._key(reference)]
+    assert all(value.startswith('vault:v1:') for value in redis.values.values())
+    with pytest.raises(context.ClientContextUnavailable, match='delivery failed'):
+        await context.receive_client_context(cache_service=cache, encryption_service=vault,
+            device_fingerprint_hash='device', phase='routing', context={}, **scope)
+
+
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
+@pytest.mark.asyncio
+@pytest.mark.parametrize('changed', ['user_id', 'chat_id', 'turn_id', 'message_id', 'request_id', 'team_id', 'device'])
+async def test_failure_requires_exact_admitted_owner_device_team_and_turn(setup, changed):
+    cache, redis, vault, scope = setup
+    await context.register_client_context(cache_service=cache, encryption_service=vault,
+        device_fingerprint_hash='device', **scope)
+    attempted = dict(scope)
+    device = 'other' if changed == 'device' else 'device'
+    if changed == 'request_id':
+        attempted[changed] = str(uuid.uuid4())
+    elif changed != 'device':
+        attempted[changed] = 'other'
+    with pytest.raises(context.ClientContextUnavailable):
+        await context.receive_client_context_failure(cache_service=cache, encryption_service=vault,
+            device_fingerprint_hash=device, reason='context_preparation_failed', **attempted)
+    assert len(redis.values) == 1
+
+
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
+@pytest.mark.asyncio
+async def test_failure_after_routing_aborts_details_and_main_fallback(setup):
+    cache, _redis, vault, scope = setup
+    reference = await context.register_client_context(cache_service=cache, encryption_service=vault,
+        device_fingerprint_hash='device', **scope)
+    request = SimpleNamespace(**scope, recovery_turn_id=scope['turn_id'], client_context_pending=True,
+        client_context_request_id=scope['request_id'], client_context_binding_ref=reference)
+    await context.receive_client_context(cache_service=cache, encryption_service=vault,
+        device_fingerprint_hash='device', phase='routing', context={'project_focus_candidates': []}, **scope)
+    await context.await_client_context_phase(cache_service=cache, encryption_service=vault,
+                                            request=request, phase='routing')
+    assert await context.receive_client_context_failure(cache_service=cache, encryption_service=vault,
+        device_fingerprint_hash='device', reason='context_preparation_failed', **scope) == 'accepted'
+    with pytest.raises(context.ClientContextUnavailable, match='delivery failed'):
+        await context.await_client_context_phase(cache_service=cache, encryption_service=vault,
+                                                request=request, phase='details', timeout=0)
+    with pytest.raises(context.ClientContextUnavailable, match='delivery failed'):
+        await context.await_client_context_phase(cache_service=cache, encryption_service=vault,
+                                                request=request, phase='routing', timeout=0)
+
+
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
+@pytest.mark.asyncio
+async def test_finished_context_cannot_be_failed_or_replaced(setup):
+    cache, redis, vault, scope = setup
+    reference = await context.register_client_context(cache_service=cache, encryption_service=vault,
+        device_fingerprint_hash='device', **scope)
+    common = dict(cache_service=cache, encryption_service=vault, device_fingerprint_hash='device', **scope)
+    await context.receive_client_context(**common, phase='routing', context={})
+    await context.receive_client_context(**common, phase='details', context={})
+    with pytest.raises(context.ClientContextUnavailable, match='already complete'):
+        await context.receive_client_context_failure(**common, reason='context_preparation_failed')
+    assert context._key(reference) + ':failed' not in redis.values
+
+    other = dict(scope, turn_id='other-turn')
+    with pytest.raises(context.ClientContextUnavailable):
+        await context.receive_client_context_failure(cache_service=cache, encryption_service=vault,
+            device_fingerprint_hash='device', reason='context_preparation_failed', **other)
+
+
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
+@pytest.mark.asyncio
+async def test_failure_is_idempotent_only_for_same_allowlisted_reason(setup):
+    cache, redis, vault, scope = setup
+    await context.register_client_context(cache_service=cache, encryption_service=vault,
+        device_fingerprint_hash='device', **scope)
+    common = dict(cache_service=cache, encryption_service=vault, device_fingerprint_hash='device', **scope)
+    with pytest.raises(ValueError, match='reason'):
+        await context.receive_client_context_failure(**common, reason='private error text')
+    assert await context.receive_client_context_failure(**common, reason='workspace_changed') == 'accepted'
+    assert await context.receive_client_context_failure(**common, reason='workspace_changed') == 'duplicate'
+    with pytest.raises(context.ClientContextUnavailable, match='Conflicting'):
+        await context.receive_client_context_failure(**common, reason='project_discovery_failed')
+    assert len(redis.values) == 2
+
+
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
+@pytest.mark.asyncio
+async def test_failure_cannot_commit_after_device_rebind_during_seal(setup, monkeypatch):
+    cache, redis, vault, scope = setup
+    common = dict(cache_service=cache, encryption_service=vault, **scope)
+    reference = await context.register_client_context(**common, device_fingerprint_hash='old')
+    original_seal = context._seal
+    async def race(encryption, key, record):
+        sealed = await original_seal(encryption, key, record)
+        if record.get('reason') == 'context_preparation_failed':
+            await context.register_client_context(**common, device_fingerprint_hash='new')
+        return sealed
+    monkeypatch.setattr(context, '_seal', race)
+    with pytest.raises(context.ClientContextUnavailable, match='changed during failure delivery'):
+        await context.receive_client_context_failure(
+            **common, device_fingerprint_hash='old', reason='context_preparation_failed')
+    assert context._key(reference) + ':failed' not in redis.values
+
+
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
+@pytest.mark.asyncio
+async def test_failure_handler_rechecks_team_and_sends_correlated_ack(setup):
+    from backend.core.api.app.routes.handlers.websocket_handlers.client_context_ready_handler import handle_client_context_failed
+    cache, redis, vault, scope = setup
+    manager = SimpleNamespace(send_personal_message=AsyncMock())
+    directus = SimpleNamespace(team=SimpleNamespace(require_team_role=AsyncMock(side_effect=PermissionError)))
+    await context.register_client_context(cache_service=cache, encryption_service=vault,
+        device_fingerprint_hash='device', **scope)
+    frame = {key: value for key, value in scope.items() if key != 'user_id'} | {
+        'reason': 'context_preparation_failed', 'team_id': 'other-team'}
+    await handle_client_context_failed(manager=manager, cache_service=cache, directus_service=directus,
+        encryption_service=vault, user_id='owner', device_fingerprint_hash='device', payload=frame)
+    ack = manager.send_personal_message.call_args.args[0]
+    assert ack['type'] == 'chat_turn_context_failed_ack'
+    assert ack['payload'] == {key: scope[key] for key in ('chat_id', 'turn_id', 'message_id', 'request_id')} | {
+        'status': 'rejected'}
+    assert len(redis.values) == 1
+    frame['team_id'] = None
+    await handle_client_context_failed(manager=manager, cache_service=cache, directus_service=directus,
+        encryption_service=vault, user_id='owner', device_fingerprint_hash='device', payload=frame)
+    assert manager.send_personal_message.call_args.args[0]['payload']['status'] == 'accepted'

@@ -8991,6 +8991,8 @@ export class OpenMatesClient {
       && !teamId && !params.projectId && shouldWaitForAi;
     let recoveryDiscovery: Promise<void> | null = null;
     let recoveryDiscoveryError: unknown = null;
+    let contextAckRejection: Promise<never> | null = null;
+    let removeContextAckWatcher: (() => void) | null = null;
     try {
     if (!params.incognito) {
       try { ws.send("chat_metadata_warmup", teamId ? { team_id: teamId } : {}); }
@@ -9569,6 +9571,11 @@ export class OpenMatesClient {
       params.responseTimeoutMs ?? DEFAULT_CHAT_MESSAGE_CONFIRMATION_TIMEOUT_MS,
     );
     let confirmedPayload: Record<string, unknown>;
+    let admissionContinuationPhase = "before_dispatch";
+    let admissionAckObserved = false;
+    let routingFrameSent = false;
+    let detailsFrameSent = false;
+    const admissionContinuationStartedAt = performance.now();
     try {
       if (admissionPayload) {
         // Only a newly minted Personal turn on the deferred-context protocol
@@ -9587,11 +9594,13 @@ export class OpenMatesClient {
           (payload as Record<string, unknown>).turn_id === savedTurnId);
         void admissionAck.catch(() => {});
         const frameDispatchAt = performance.now();
+        admissionContinuationPhase = "await_ack";
         await ws.sendAsync(useCombinedAdmission ? "chat_turn_admit" : "chat_turn_preflight", admissionPayload);
         if (process.env.OPENMATES_DEBUG === "1") {
           console.error(`[chat admission preparation] sdk_minted=${sdkMintedChatId} defer_recovery=${mayDeferRecovery} combined_admission=${useCombinedAdmission} caps_wait_ms=${capabilitiesWaitMs} key_wait_ms=${keyWaitMs} recovery_keypair_ms=${recoveryKeypairMs} encrypt_payload_ms=${encryptPayloadMs} socket_ready_to_frame_dispatch_ms=${Math.round(frameDispatchAt - socketReadyForSendAt)} frame_dispatch_from_send_start_ms=${Math.round(frameDispatchAt - preWsStartedAt)} wire_send_ms=${Math.round(performance.now() - frameDispatchAt)}`);
         }
         const ackPayload = (await admissionAck).payload as Record<string, unknown>;
+        admissionAckObserved = true;
         if (typeof ackPayload.preflight_id !== "string" || !ackPayload.preflight_id) {
           throw new Error("Encrypted chat admission acknowledgement omitted preflight_id.");
         }
@@ -9603,17 +9612,74 @@ export class OpenMatesClient {
           await ws.sendAsync("chat_message_added", messagePayload);
         }
         if (pendingContext && contextRequestId) {
-          const routing = useSelectionDetailsV2 ? await projectRoutingContext
-            : params.projectId ? await pendingContext : await Promise.race([routingContext, pendingContext]);
-          if (!contextOwnerIsCurrent()) throw new Error("Chat workspace changed while preparing context.");
+          admissionContinuationPhase = "await_routing";
           const identity = { chat_id: chatId, turn_id: savedTurnId, message_id: messageId,
             request_id: contextRequestId, ...(teamId ? { team_id: teamId } : {}) };
+          let failureNotice: Promise<void> | null = null;
+          const notifyContextFailure = (reason: "project_discovery_failed" | "context_preparation_failed"): Promise<void> => {
+            if (failureNotice) return failureNotice;
+            if (!ws.supportsServerCapability("chat_turn_context_failure_v1") || !ws.isOpen()
+              || !contextOwnerIsCurrent() || !savedTurnId) return Promise.resolve();
+            failureNotice = (async () => {
+              const failureAck = ws.waitForMessage("chat_turn_context_failed_ack", payload => {
+                const event = payload as Record<string, unknown>;
+                return event.chat_id === chatId && event.turn_id === savedTurnId
+                  && event.message_id === messageId && event.request_id === contextRequestId;
+              }, 5_000);
+              void failureAck.catch(() => {});
+              await ws.sendAsync("chat_turn_context_failed", { ...identity, reason });
+              const status = (await failureAck).payload as Record<string, unknown>;
+              if (status.status !== "accepted" && status.status !== "duplicate") {
+                throw new Error("Chat context failure receipt was rejected.");
+              }
+            })();
+            return failureNotice;
+          };
+          let routing: CliJevContext;
+          try {
+            routing = useSelectionDetailsV2 ? await projectRoutingContext
+              : params.projectId ? await pendingContext : await Promise.race([routingContext, pendingContext]);
+          } catch (error) {
+            try { await notifyContextFailure(useSelectionDetailsV2 ? "project_discovery_failed" : "context_preparation_failed"); }
+            catch { /* The original context failure remains the send error. */ }
+            throw error;
+          }
+          if (!contextOwnerIsCurrent()) throw new Error("Chat workspace changed while preparing context.");
+          let rejectContextAck!: (error: Error) => void;
+          contextAckRejection = new Promise<never>((_resolve, reject) => { rejectContextAck = reject; });
+          void contextAckRejection.catch(() => {});
+          let rejectedPhaseSeen = false;
+          const attemptedContextPhases = new Set<"routing" | "details">();
+          removeContextAckWatcher = ws.onMessageType<Record<string, unknown>>("chat_turn_context_ack", event => {
+            if (rejectedPhaseSeen || event.chat_id !== chatId || event.turn_id !== savedTurnId
+              || event.message_id !== messageId || event.request_id !== contextRequestId
+              || (event.phase !== "routing" && event.phase !== "details")
+              || !attemptedContextPhases.has(event.phase) || event.status !== "rejected") return;
+            rejectedPhaseSeen = true;
+            if (!contextOwnerIsCurrent()) {
+              rejectContextAck(new Error("Chat workspace changed while preparing context."));
+              return;
+            }
+            void notifyContextFailure("context_preparation_failed").catch(() => {}).then(() => {
+              rejectContextAck(new Error("Chat context delivery was rejected."));
+            });
+          });
           const { project_focus_candidates, related_task_candidates, project_focus_catalog, accepted_plan_context } = routing;
+          attemptedContextPhases.add("routing");
           await ws.sendAsync("chat_turn_context_ready", { ...identity, phase: "routing", context: useSelectionDetailsV2
             ? { project_focus_candidates }
             : { project_focus_candidates, related_task_candidates, project_focus_catalog, accepted_plan_context } });
-          const context = await pendingContext;
+          routingFrameSent = true;
+          admissionContinuationPhase = "await_details";
+          let context: CliJevContext;
+          try { context = await Promise.race([pendingContext, contextAckRejection]); }
+          catch (error) {
+            try { await notifyContextFailure("context_preparation_failed"); }
+            catch { /* The original context failure remains the send error. */ }
+            throw error;
+          }
           if (!contextOwnerIsCurrent()) throw new Error("Chat workspace changed while preparing context.");
+          attemptedContextPhases.add("details");
           await ws.sendAsync("chat_turn_context_ready", { ...identity, phase: "details", context: {
             custom_memory_documents: context.custom_memory_documents ?? [],
             project_focus_documents: context.project_focus_documents ?? [],
@@ -9625,12 +9691,18 @@ export class OpenMatesClient {
               ...(connectedAccountDirectory ? { connected_account_directory: connectedAccountDirectory } : {}),
             } : {}),
           } });
+          detailsFrameSent = true;
         }
+        admissionContinuationPhase = "await_confirmation";
       } else {
         await ws.sendAsync("chat_message_added", messagePayload);
       }
-      confirmedPayload = (await confirmed).payload as Record<string, unknown>;
+      confirmedPayload = (await (contextAckRejection
+        ? Promise.race([confirmed, contextAckRejection]) : confirmed)).payload as Record<string, unknown>;
     } catch (error) {
+      if (process.env.OPENMATES_DEBUG === "1" && admissionPayload) {
+        console.error(`[chat admission continuation] phase=${admissionContinuationPhase} ack_observed=${admissionAckObserved} routing_sent=${routingFrameSent} details_sent=${detailsFrameSent} socket_open=${ws.isOpen()} elapsed_ms=${Math.round(performance.now() - admissionContinuationStartedAt)}`);
+      }
       dispatchHandlersReady();
       void confirmed.catch(() => {});
       if (precollectedResponse) void precollectedResponse.catch(() => {});
@@ -9985,6 +10057,7 @@ export class OpenMatesClient {
         });
         const outcome = await Promise.race([
           responsePromise.then((response) => ({ kind: "response" as const, response })),
+          ...(contextAckRejection ? [contextAckRejection] : []),
           ...(queuedAdmission ? [queuedAdmission.then(
             (frame) => ({ kind: "queued" as const, frame }),
             () => new Promise<never>(() => {}),
@@ -10420,6 +10493,7 @@ export class OpenMatesClient {
       promptBudget,
     };
     } finally {
+      removeContextAckWatcher?.();
       // A failed recovery or key preparation must not leave a context read
       // running after this send has returned. The promise already handles its
       // own rejection, so settling it here cannot mask the original failure.

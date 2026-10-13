@@ -17,6 +17,9 @@ from typing import Any
 TTL_SECONDS = 120
 WAIT_SECONDS = 20
 MAX_PAYLOAD_BYTES = 256_000
+FAILURE_REASONS = frozenset({
+    "project_discovery_failed", "context_preparation_failed", "workspace_changed",
+})
 _SELECTION_DETAILS_ROWS = {
     "related_task_candidates": (60, {"task_id", "id", "title", "summary", "project_id", "status", "changed_at", "revision", "version", "explicit_dependency"}),
     "project_focus_catalog": (20, {"id", "title", "summary", "revision"}),
@@ -45,8 +48,19 @@ _PUT_PHASE = """
 local remaining = redis.call('ttl', KEYS[1])
 if remaining <= 0 then return 0 end
 if redis.call('get', KEYS[1]) ~= ARGV[2] then return -1 end
+if redis.call('exists', KEYS[3]) == 1 then return -2 end
 if redis.call('exists', KEYS[2]) == 1 then return 2 end
 redis.call('set', KEYS[2], ARGV[1], 'EX', remaining)
+return 1
+"""
+
+_PUT_FAILURE = """
+local remaining = redis.call('ttl', KEYS[1])
+if remaining <= 0 then return 0 end
+if redis.call('get', KEYS[1]) ~= ARGV[2] then return -1 end
+if redis.call('exists', KEYS[4]) == 1 then return 2 end
+if redis.call('exists', KEYS[2]) == 1 and redis.call('exists', KEYS[3]) == 1 then return 3 end
+redis.call('set', KEYS[4], ARGV[1], 'EX', remaining)
 return 1
 """
 
@@ -223,11 +237,14 @@ async def receive_client_context(*, cache_service: Any, encryption_service: Any,
     )
     record = {"scope": scope, "phase": phase, "context": context}
     sealed = await _seal(encryption_service, vault_key_id, record)
-    status = await client.eval(_PUT_PHASE, 2, key, key + ":" + phase, sealed, sealed_binding)
+    status = await client.eval(_PUT_PHASE, 3, key, key + ":" + phase,
+                               key + ":failed", sealed, sealed_binding)
     if status == -1:
         raise ClientContextUnavailable("Context binding changed during delivery")
     if status == 0:
         raise ClientContextUnavailable("Context binding expired")
+    if status == -2:
+        raise ClientContextUnavailable("Client context delivery failed")
     if status == 2:
         previous = await _open(encryption_service, vault_key_id, await client.get(key + ":" + phase))
         if previous != record:
@@ -240,6 +257,57 @@ async def receive_client_context(*, cache_service: Any, encryption_service: Any,
     return "accepted" if status == 1 else "duplicate"
 
 
+async def receive_client_context_failure(*, cache_service: Any, encryption_service: Any,
+                                         user_id: str, device_fingerprint_hash: str, chat_id: str,
+                                         turn_id: str, message_id: str, request_id: str, reason: str,
+                                         team_id: str | None = None) -> str:
+    """Seal a generic failure for the exact admitted turn, without extending its TTL."""
+    scope = _scope(user_id=user_id, chat_id=chat_id, turn_id=turn_id,
+                   message_id=message_id, request_id=request_id, team_id=team_id)
+    if not isinstance(reason, str) or reason not in FAILURE_REASONS:
+        raise ValueError("Invalid context failure reason")
+    if not isinstance(device_fingerprint_hash, str) or not device_fingerprint_hash:
+        raise ValueError("Missing authenticated device")
+    client = await cache_service.client
+    vault_key_id = await cache_service.get_user_vault_key_id(user_id)
+    if not client or not vault_key_id:
+        raise ClientContextUnavailable("Context handoff unavailable")
+    key = _key(_reference(scope))
+    sealed_binding = await client.get(key)
+    if not sealed_binding:
+        raise ClientContextUnavailable("No admitted context binding")
+    binding = await _open(encryption_service, vault_key_id, sealed_binding)
+    if binding != {"scope": scope, "device": device_fingerprint_hash}:
+        raise ClientContextUnavailable("Context binding mismatch")
+    record = {"scope": scope, "reason": reason}
+    sealed = await _seal(encryption_service, vault_key_id, record)
+    failed_key = key + ":failed"
+    status = await client.eval(_PUT_FAILURE, 4, key, key + ":routing",
+                               key + ":details", failed_key, sealed, sealed_binding)
+    if status == -1:
+        raise ClientContextUnavailable("Context binding changed during failure delivery")
+    if status == 0:
+        raise ClientContextUnavailable("Context binding expired")
+    if status == 3:
+        raise ClientContextUnavailable("Client context already complete")
+    if status == 2:
+        previous = await _open(encryption_service, vault_key_id, await client.get(failed_key))
+        if previous != record:
+            raise ClientContextUnavailable("Conflicting context failure duplicate")
+    return "accepted" if status == 1 else "duplicate"
+
+
+async def _raise_if_failed(*, client: Any, key: str, scope: dict,
+                           encryption: Any, vault_key_id: str) -> None:
+    sealed = await client.get(key + ":failed")
+    if not sealed:
+        return
+    record = await _open(encryption, vault_key_id, sealed)
+    if record.get("scope") != scope or record.get("reason") not in FAILURE_REASONS:
+        raise ClientContextUnavailable("Invalid context failure marker")
+    raise ClientContextUnavailable("Client context delivery failed")
+
+
 async def await_client_context_phase(*, cache_service: Any, request: Any, phase: str,
                                      encryption_service: Any = None, timeout: float = WAIT_SECONDS) -> None:
     """Hydrate only a committed phase; timeout leaves missing context unavailable."""
@@ -247,8 +315,6 @@ async def await_client_context_phase(*, cache_service: Any, request: Any, phase:
         return
     if phase not in {"routing", "details"}:
         raise ValueError("Invalid context phase")
-    if getattr(request, "_client_context_" + phase + "_loaded", False):
-        return
     scope = _scope(user_id=request.user_id, chat_id=request.chat_id,
                    turn_id=request.recovery_turn_id, message_id=request.message_id,
                    request_id=request.client_context_request_id, team_id=request.team_id)
@@ -263,10 +329,16 @@ async def await_client_context_phase(*, cache_service: Any, request: Any, phase:
     if not client or not vault_key_id:
         raise ClientContextUnavailable("Context handoff unavailable")
     key = _key(reference)
+    await _raise_if_failed(client=client, key=key, scope=scope,
+                           encryption=encryption_service, vault_key_id=vault_key_id)
+    if getattr(request, "_client_context_" + phase + "_loaded", False):
+        return
     deadline = time.monotonic() + min(max(timeout, 0), WAIT_SECONDS)
     while True:
         if not await client.get(key):
             raise ClientContextUnavailable("Context binding expired")
+        await _raise_if_failed(client=client, key=key, scope=scope,
+                               encryption=encryption_service, vault_key_id=vault_key_id)
         sealed = await client.get(key + ":" + phase)
         if sealed:
             record = await _open(encryption_service, vault_key_id, sealed)
@@ -277,6 +349,8 @@ async def await_client_context_phase(*, cache_service: Any, request: Any, phase:
                 client=client, key=key, phase=phase, scope=scope, context=context,
                 encryption=encryption_service, vault_key_id=vault_key_id,
             )
+            await _raise_if_failed(client=client, key=key, scope=scope,
+                                   encryption=encryption_service, vault_key_id=vault_key_id)
             for field, value in context.items():
                 setattr(request, "custom_rule_documents" if field == "custom_memory_documents" else field, value)
             setattr(request, "_client_context_" + phase + "_loaded", True)

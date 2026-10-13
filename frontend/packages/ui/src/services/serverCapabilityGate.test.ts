@@ -26,3 +26,14 @@ describe('ServerCapabilityGate', () => {
     expect(gate.supportsImmediateChatAdmission()).toBe(false);
   });
 });
+
+// contract-test: supporting surface=gui.web assertions=chats.send.immediate-admission
+it('binds failure signaling to the current admitted-capability connection', () => {
+  const gate = new ServerCapabilityGate();
+  gate.accept({ capabilities: ['chat_turn_context_failure_v1'] });
+  expect(gate.supportsContextFailure()).toBe(false);
+  gate.accept({ capabilities: ['chat_turn_admit_v1', 'chat_turn_context_v1', 'chat_turn_context_failure_v1'] });
+  expect(gate.supportsContextFailure()).toBe(true);
+  gate.reset();
+  expect(gate.supportsContextFailure()).toBe(false);
+});

@@ -451,3 +451,79 @@ test('warmed interactive TUI send borrows its authenticated socket for one encry
 		removeWorkflowCliHome(home);
 	}
 });
+
+// contract-test: direct surface=cli assertions=chats.send.immediate-admission,chats.persistence.client-encrypted
+test('SDK reports a Project directory failure after durable admission without routing empty context', async ({ page }: { page: any }) => {
+	test.setTimeout(300_000);
+	test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted'
+		|| process.env.CI_TEST_MODE !== 'e2e', 'Requires the isolated GitHub product stack');
+	skipWithoutCredentials(test, email, password, otpKey);
+	const apiUrl = workflowApiUrl();
+	const home = createWorkflowCliHome('post-admission-context-failure');
+	try {
+		await loginWorkflowCliViaPair(page, apiUrl, home, 'CLI_POST_ADMISSION_CONTEXT_FAILURE');
+		const observed = canonicalHistorySdk(apiUrl, home, `
+			const owner=await client.whoAmI();
+			if(!owner.id||client.getActiveTeamId())throw Error('Expected paired Personal account');
+			const memorySnapshot=await client.listMemories({personal:true});
+			const newChatId=client.preparedNewChatId();
+			const privateFailure='PRIVATE_PROJECT_DIRECTORY_RESPONSE_MUST_STAY_LOCAL';
+			let rejectProjects,projectReads=0,admission=null,preflightAck=null,failure=null,failureAck=null;
+			const projectGate=new Promise((_,reject)=>{rejectProjects=reject;});
+			client.listProjects=async()=>{projectReads++;return projectGate;};
+			const outbound=[];
+			const open=client.openWsClient.bind(client);
+			client.openWsClient=async(...args)=>{
+				const opened=await open(...args),send=opened.ws.sendAsync.bind(opened.ws);
+				opened.ws.onMessageType('chat_turn_preflight_ack',payload=>{preflightAck=payload;});
+				opened.ws.onMessageType('chat_turn_context_failed_ack',payload=>{failureAck=payload;});
+				opened.ws.sendAsync=async(type,payload)=>{
+					if(['chat_turn_admit','chat_turn_context_ready','chat_turn_context_failed'].includes(type))outbound.push(type);
+					if(type==='chat_turn_admit'){
+						admission=payload;
+						await send(type,payload);
+						rejectProjects(Error(privateFailure));
+						return;
+					}
+					if(type==='chat_turn_context_failed')failure=payload;
+					return send(type,payload);
+				};
+				return opened;
+			};
+			let sendError=null;
+			try{await client.sendMessage({message:'Ordinary post-admission context failure check.',
+				newChatId,personal:true,piiDetection:false,memorySnapshot});}
+			catch(error){sendError=error.message;}
+			const result={projectReads,outbound,sendErrorIsPrivate:sendError===privateFailure,
+				chatIdMatches:admission?.chat_id===newChatId,
+				contextPending:admission?.inference_request?.client_context_pending===true,
+				preflightAck:preflightAck?.turn_id===admission?.turn_id&&preflightAck?.preflight_id?.length>0,
+				failureKeys:failure?Object.keys(failure).sort():null,
+				failureReason:failure?.reason,
+				failureMatches:failure?.chat_id===admission?.chat_id&&failure?.turn_id===admission?.turn_id
+					&&failure?.message_id===admission?.message_id
+					&&failure?.request_id===admission?.inference_request?.client_context_request_id,
+				failureAckMatches:failureAck?.chat_id===failure?.chat_id&&failureAck?.turn_id===failure?.turn_id
+					&&failureAck?.message_id===failure?.message_id&&failureAck?.request_id===failure?.request_id,
+				failureAckStatus:failureAck?.status,
+				encryptedUser:typeof admission?.encrypted_user_message?.encrypted_content==='string'
+					&&admission.encrypted_user_message.encrypted_content.length>0};
+			if(preflightAck?.preflight_id)await client.deleteChat(newChatId,{personal:true});
+			process.stdout.write(JSON.stringify(result));
+		`);
+		expect(observed.projectReads).toBeGreaterThan(0);
+		expect(observed.outbound).toEqual(['chat_turn_admit', 'chat_turn_context_failed']);
+		expect(observed.sendErrorIsPrivate).toBe(true);
+		expect(observed.chatIdMatches).toBe(true);
+		expect(observed.contextPending).toBe(true);
+		expect(observed.preflightAck).toBe(true);
+		expect(observed.failureKeys).toEqual(['chat_id', 'message_id', 'reason', 'request_id', 'turn_id']);
+		expect(observed.failureReason).toBe('project_discovery_failed');
+		expect(observed.failureMatches).toBe(true);
+		expect(observed.failureAckMatches).toBe(true);
+		expect(observed.failureAckStatus).toBe('accepted');
+		expect(observed.encryptedUser).toBe(true);
+	} finally {
+		removeWorkflowCliHome(home);
+	}
+});

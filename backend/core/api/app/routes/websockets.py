@@ -1446,6 +1446,13 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         # can corrupt the chat's encryption key permanently. (OPE-109)
                         "encrypted_chat_key": redis_payload.get("encrypted_chat_key"),
                     }
+                    if client_event_name == "ai_typing_ended":
+                        # Only the task that released its active marker may end the
+                        # corresponding client turn. Never forward exception text.
+                        client_payload["task_id"] = ai_task_id
+                        if redis_payload.get("terminal_failure_code") == "client_context_unavailable":
+                            client_payload["terminal_failure_code"] = "client_context_unavailable"
+
 
                     # This event should go to all devices of the user, as it's a UI update.
                     await _deliver_metadata_event(manager, user_id_uuid, client_event_name,
@@ -2631,7 +2638,7 @@ async def websocket_endpoint(
     )
 
     await websocket.send_json({"type": "server_capabilities", "payload": {"capabilities": [
-        "chat_turn_admit_v1", "chat_turn_context_v1",
+        "chat_turn_admit_v1", "chat_turn_context_v1", "chat_turn_context_failure_v1",
         "chat_turn_context_selection_details_v2", "suggested_followup_message_v1",
     ]}})
 
@@ -2948,6 +2955,16 @@ async def websocket_endpoint(
                 from .handlers.websocket_handlers.client_context_ready_handler import handle_client_context_ready
 
                 await handle_client_context_ready(
+                    manager=manager, cache_service=cache_service,
+                    directus_service=directus_service, encryption_service=encryption_service,
+                    user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                )
+
+            elif message_type == "chat_turn_context_failed":
+                from .handlers.websocket_handlers.client_context_ready_handler import handle_client_context_failed
+
+                await handle_client_context_failed(
                     manager=manager, cache_service=cache_service,
                     directus_service=directus_service, encryption_service=encryption_service,
                     user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,

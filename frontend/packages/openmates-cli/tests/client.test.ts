@@ -2896,6 +2896,137 @@ describe("TUI one-shot send socket warmup", () => {
 });
 
 describe("CLI saved-chat recovery preflight", () => {
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity,chats.completion.lease-fenced
+  for (const scenario of ["unavailable-old-server", "unavailable-failure-signal", "unavailable-failure-rejected", "available", "routing-ack-rejected", "details-ack-rejected"] as const) it(`keeps v2 admission ahead of Project resolution: ${scenario}`, async () => {
+    const projectsAvailable = scenario === "available" || scenario.endsWith("ack-rejected");
+    const failureSignalAvailable = scenario === "unavailable-failure-signal" || scenario === "unavailable-failure-rejected" || scenario.endsWith("ack-rejected");
+    let admitted = false;
+    let candidatesWaitingAtAdmission = false;
+    let deferredProjects: ServerResponse | null = null;
+    let admittedTurnId: string | null = null;
+    let admittedFrame: Record<string, unknown> | null = null;
+    const contextFrames: Array<Record<string, unknown>> = [];
+    let failureFrame: Record<string, unknown> | null = null;
+    const debugLines: string[] = [];
+    const previousDebug = process.env.OPENMATES_DEBUG;
+    const previousConsoleError = console.error;
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      response.setHeader("content-type", "application/json");
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token",
+          user: { id: "11111111-1111-4111-8111-111111111111" } }));
+      } else if (request.method === "GET" && request.url === "/v1/sdk/memories") {
+        response.end(JSON.stringify({ memories: [] }));
+      } else if (request.method === "GET" && request.url === "/v1/projects") {
+        if (!admitted) { deferredProjects = response; return; }
+        response.writeHead(projectsAvailable ? 200 : 503);
+        response.end(JSON.stringify(projectsAvailable ? { projects: [] } : { message: "temporarily unavailable" }));
+      } else if (request.method === "GET" && request.url?.startsWith("/v1/user-tasks")) {
+        response.end(JSON.stringify({ tasks: [] }));
+      } else {
+        response.writeHead(404);
+        response.end(JSON.stringify({}));
+      }
+    });
+    server.on("upgrade", (request, connection, head) => {
+      wss.handleUpgrade(request, connection, head, ws => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: [
+          "chat_turn_admit_v1", "chat_turn_context_v1", "chat_turn_context_selection_details_v2",
+          ...(failureSignalAvailable ? ["chat_turn_context_failure_v1"] : []),
+        ] } }));
+        ws.on("message", raw => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload?: Record<string, unknown> };
+          if (frame.type === "chat_turn_admit") {
+            admitted = true;
+            admittedFrame = frame.payload ?? {};
+            admittedTurnId = String(frame.payload?.turn_id);
+            candidatesWaitingAtAdmission = deferredProjects !== null;
+            ws.send(JSON.stringify({ type: "chat_turn_preflight_ack", payload: {
+              turn_id: frame.payload?.turn_id, preflight_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            } }));
+            deferredProjects?.writeHead(projectsAvailable ? 200 : 503, { "content-type": "application/json" });
+            deferredProjects?.end(JSON.stringify(projectsAvailable ? { projects: [] } : { message: "temporarily unavailable" }));
+          } else if (frame.type === "chat_turn_context_failed") {
+            failureFrame = frame.payload ?? {};
+            ws.send(JSON.stringify({ type: "chat_turn_context_failed_ack", payload: {
+              chat_id: frame.payload?.chat_id, turn_id: frame.payload?.turn_id,
+              message_id: frame.payload?.message_id, request_id: frame.payload?.request_id,
+              status: scenario === "unavailable-failure-rejected" ? "rejected" : "accepted",
+            } }));
+          } else if (frame.type === "chat_turn_context_ready") {
+            contextFrames.push(frame.payload ?? {});
+            if (scenario === `${String(frame.payload?.phase)}-ack-rejected`) {
+              ws.send(JSON.stringify({ type: "chat_turn_context_ack", payload: {
+                chat_id: frame.payload?.chat_id, turn_id: frame.payload?.turn_id,
+                message_id: frame.payload?.message_id, request_id: frame.payload?.request_id,
+                phase: frame.payload?.phase, status: "rejected",
+              } }));
+            } else if (frame.payload?.phase === "details" && scenario === "available") {
+              ws.send(JSON.stringify({ type: "chat_turn_context_ack", payload: {
+                chat_id: frame.payload?.chat_id, turn_id: frame.payload?.turn_id,
+                message_id: frame.payload?.message_id, request_id: "other-request",
+                phase: "details", status: "rejected",
+              } }));
+              ws.send(JSON.stringify({ type: "chat_message_confirmed", payload: {
+                chat_id: frame.payload.chat_id, message_id: frame.payload.message_id,
+              } }));
+              setTimeout(() => ws.send(JSON.stringify({ type: "error", payload: {
+                code: "client_update_required", turn_id: admittedTurnId,
+              } })), 20);
+            }
+          }
+        });
+      });
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      process.env.OPENMATES_DEBUG = "1";
+      console.error = (...values: unknown[]) => {
+        if (typeof values[0] === "string" && values[0].startsWith("[chat admission continuation]")) debugLines.push(values[0]);
+        else previousConsoleError(...values);
+      };
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      await assert.rejects(client.sendMessage({ message: "private diagnostic marker", personal: true, piiDetection: false }),
+        scenario.endsWith("ack-rejected") ? /Chat context delivery was rejected/
+          : projectsAvailable ? /update required/i : /Project list failed with HTTP 503/);
+      assert.equal(admitted, true);
+      assert.equal(candidatesWaitingAtAdmission, true, "candidate resolution must not gate durable admission");
+      if (scenario === "routing-ack-rejected") {
+        assert.equal(contextFrames[0]?.phase, "routing");
+      } else {
+        assert.deepEqual(contextFrames.map(frame => frame.phase), projectsAvailable ? ["routing", "details"] : []);
+      }
+      assert.equal(Boolean(failureFrame), failureSignalAvailable);
+      if (failureFrame) {
+        assert.equal(failureFrame.reason, projectsAvailable ? "context_preparation_failed" : "project_discovery_failed");
+        assert.equal(failureFrame.turn_id, admittedTurnId);
+        assert.equal(failureFrame.chat_id, admittedFrame?.chat_id);
+        assert.equal(failureFrame.message_id, admittedFrame?.message_id);
+        assert.equal(failureFrame.request_id,
+          (admittedFrame?.inference_request as Record<string, unknown>)?.client_context_request_id);
+        assert.deepEqual(Object.keys(failureFrame).sort(), ["chat_id", "message_id", "reason", "request_id", "turn_id"]);
+      }
+      assert.equal(debugLines.length, scenario === "available" ? 0 : 1);
+      if (debugLines.length) {
+        assert.match(debugLines[0], /^\[chat admission continuation\] phase=(await_routing|await_details|await_confirmation) ack_observed=true routing_sent=(true|false) details_sent=(true|false) socket_open=(true|false) elapsed_ms=\d+$/);
+        for (const secret of ["private diagnostic marker", "test-refresh-token", "test-hashed-email", "test-session-id"])
+          assert.equal(debugLines[0].includes(secret), false);
+      }
+    } finally {
+      console.error = previousConsoleError;
+      if (previousDebug === undefined) delete process.env.OPENMATES_DEBUG;
+      else process.env.OPENMATES_DEBUG = previousDebug;
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+
   // contract-test: supporting surface=cli assertions=auth.session.lifecycle,auth.session.isolation,chats.completion.lease-fenced
   for (const variant of ["fresh", "memory-loaded", "arbitrary snapshot", "expired", "future", "missing owner", "rotated disk cookie", "changed account", "changed Team", "revoked socket"] as const) {
     it(`uses a one-shot Personal auth receipt or falls back safely: ${variant}`, async () => {

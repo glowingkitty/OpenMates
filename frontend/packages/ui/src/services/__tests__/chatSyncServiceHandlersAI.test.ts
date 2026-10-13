@@ -18,6 +18,7 @@ import {
   handleAIResponseStorageConfirmedImpl,
   handleAIResponseStorageFailedImpl,
   handleAITypingStartedImpl,
+  handleAITypingEndedImpl,
   handleMessageQueuedImpl,
   handleQueuedHandoffPausedImpl,
   handleQueuedMessageStartedImpl,
@@ -36,6 +37,51 @@ const HASHED_CHAT_ID = "a".repeat(64);
 const HASHED_MESSAGE_ID = "b".repeat(64);
 const HASHED_USER_ID = "c".repeat(64);
 const HASHED_EMBED_ID = "d".repeat(64);
+
+describe("context failure typing end", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  // contract-test: direct surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
+  it("ends the matching task once without creating an assistant response", () => {
+    const activeAITasks = new Map([["chat-1", { taskId: "task-1", userMessageId: "user-1" }]]);
+    const service = { activeAITasks, dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    const payload = {
+      chat_id: "chat-1", message_id: "task-1", task_id: "task-1",
+      terminal_failure_code: "client_context_unavailable",
+    };
+
+    handleAITypingEndedImpl(service, payload);
+    handleAITypingEndedImpl(service, payload);
+
+    expect(activeAITasks.has("chat-1")).toBe(false);
+    expect(mockAiTypingStore.clearTyping).toHaveBeenCalledWith("chat-1", "task-1");
+    const ended = vi.mocked(service.dispatchEvent).mock.calls
+      .map(([event]) => event as CustomEvent)
+      .filter((event) => event.type === "aiTaskEnded");
+    expect(ended).toHaveLength(1);
+    expect(ended[0].detail).toEqual({
+      chatId: "chat-1", taskId: "task-1", userMessageId: "user-1", status: "failed",
+    });
+    expect(mockChatDB.saveMessage).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
+  it("leaves a replacement task and legacy typing ends alone", () => {
+    const activeAITasks = new Map([["chat-1", { taskId: "task-2", userMessageId: "user-2" }]]);
+    const service = { activeAITasks, dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+
+    handleAITypingEndedImpl(service, {
+      chat_id: "chat-1", message_id: "task-1", task_id: "task-1",
+      terminal_failure_code: "client_context_unavailable",
+    });
+    handleAITypingEndedImpl(service, { chat_id: "chat-1", message_id: "task-2" });
+
+    expect(activeAITasks.get("chat-1")?.taskId).toBe("task-2");
+    expect(service.dispatchEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: "aiTaskEnded" }),
+    );
+  });
+});
 
 const mockChatDB = vi.hoisted(() => ({
   getChat: vi.fn(),
@@ -296,6 +342,10 @@ const mockAiTypingStore = vi.hoisted(() => ({
 
 const mockActiveChatStore = vi.hoisted(() => ({
   get: vi.fn(),
+  subscribe: vi.fn((run: (value: string | null) => void) => {
+    run(null);
+    return () => {};
+  }),
 }));
 
 const mockNotificationStore = vi.hoisted(() => ({
@@ -321,6 +371,7 @@ const mockChatKeyManager = vi.hoisted(() => ({
 const mockWebSocketService = vi.hoisted(() => ({
   on: vi.fn(),
   off: vi.fn(),
+  addEventListener: vi.fn(),
   send: vi.fn(),
   notifyDataActivity: vi.fn(),
   isConnected: vi.fn(() => true),
@@ -420,6 +471,19 @@ vi.mock("../websocketService", () => ({
   webSocketService: mockWebSocketService,
 }));
 
+vi.mock("../chatSyncService", () => ({
+  chatSyncService: {
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  },
+}));
+
+vi.mock("../directChatService", () => ({
+  startDirectChatIdentityEnrollment: vi.fn(),
+  unwrapTeamOrDirectChatKey: vi.fn(),
+}));
+
 vi.mock("../incognitoChatService", () => ({
   incognitoChatService: mockIncognitoChatService,
 }));
@@ -438,6 +502,12 @@ vi.mock("../embedStore", () => ({
 
 vi.mock("../../stores/aiTypingStore", () => ({
   aiTypingStore: mockAiTypingStore,
+  aiTypingByChatStore: {
+    subscribe: (run: (value: Record<string, unknown>) => void) => {
+      run({});
+      return () => {};
+    },
+  },
 }));
 
 vi.mock("../../stores/activeChatStore", () => ({

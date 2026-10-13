@@ -87,6 +87,29 @@ async def _published_successor(cache_service, directus_service, refresh_token: s
     return new_token
 
 
+async def _wait_for_publication(cache_service, directus_service, refresh_token: str, result: dict,
+                                *, allow_risk: bool) -> dict:
+    """Wait for the rotation owner to publish, without treating its draft as authority."""
+    result_key, _ = _keys(refresh_token)
+    deadline = time.monotonic() + ROTATION_WAIT_SECONDS
+    while result.get("success") and not result.get("published") and result["expires_at"] > time.time():
+        if time.monotonic() >= deadline:
+            # Distinguish a newly revoked source from an unavailable owner;
+            # neither case may fall back to the old credential.
+            await get_rotation_source_state(
+                directus_service, hashlib.sha256(refresh_token.encode()).hexdigest(), allow_risk=allow_risk,
+            )
+            raise SessionRefreshUnavailable()
+        await asyncio.sleep(0.05)
+        try:
+            encoded = await cache_service.get(result_key)
+            if encoded:
+                result = _decode(refresh_token, encoded)
+        except Exception as exc:
+            raise SessionRefreshUnavailable() from exc
+    return result
+
+
 async def resolve_session_credential(cache_service, directus_service, refresh_token: str, *, allow_risk: bool = True) -> str:
     """Authorize an active credential or its published 15-second successor.
 
@@ -104,6 +127,10 @@ async def resolve_session_credential(cache_service, directus_service, refresh_to
         except Exception as exc:
             raise SessionRefreshUnavailable() from exc
         if (source is None or source.get("retired") or result.get("success") or result.get("published")):
+            if result.get("success") and not result.get("published"):
+                result = await _wait_for_publication(
+                    cache_service, directus_service, refresh_token, result, allow_risk=allow_risk,
+                )
             return await _published_successor(
                 cache_service, directus_service, refresh_token, result, allow_risk=allow_risk,
             )

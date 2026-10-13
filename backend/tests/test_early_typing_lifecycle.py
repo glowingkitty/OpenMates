@@ -62,7 +62,7 @@ async def test_rejected_preprocessing_ends_early_typing_once():
 # contract-test: supporting surface=gui.web assertions=chat-processing-feedback.selected-mate-identity
 async def test_unexpected_task_failure_cleanup_publishes_terminal_event(monkeypatch):
     cache, _ = _lifecycle()
-    cache.clear_active_ai_task = AsyncMock(return_value=True)
+    cache.clear_active_ai_task_if_matches = AsyncMock(return_value=True)
     monkeypatch.setattr(ask_skill_task, "_cleanup_processing_embeds_on_task_failure",
                         AsyncMock(return_value=0))
     from backend.apps.ai.tasks import async_skill_continuation
@@ -74,3 +74,50 @@ async def test_unexpected_task_failure_cleanup_publishes_terminal_event(monkeypa
         error_message="preprocessing failed", cache_service=cache,
     )
     assert [event["event_for_client"] for _, event in cache.events] == ["ai_typing_ended"]
+    assert "terminal_failure_code" not in cache.events[0][1]
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
+async def test_context_failure_publishes_one_task_correlated_terminal_marker(monkeypatch):
+    cache, _ = _lifecycle()
+    cache.clear_active_ai_task_if_matches = AsyncMock(return_value=True)
+    monkeypatch.setattr(ask_skill_task, "_cleanup_processing_embeds_on_task_failure",
+                        AsyncMock(return_value=0))
+    from backend.apps.ai.tasks import async_skill_continuation
+    monkeypatch.setattr(async_skill_continuation, "dispatch_deferred_async_skill_continuations",
+                        AsyncMock())
+
+    await ask_skill_task._cleanup_on_task_failure(
+        task_id="task", chat_id="chat", message_id="message",
+        user_id="user", user_id_hash="hash", user_vault_key_id="vault",
+        error_message="private context detail", cache_service=cache,
+        terminal_failure_code="client_context_unavailable",
+    )
+
+    assert len(cache.events) == 1
+    assert cache.events[0][1]["task_id"] == "task"
+    assert cache.events[0][1]["user_message_id"] == "message"
+    assert cache.events[0][1]["terminal_failure_code"] == "client_context_unavailable"
+    assert "private context detail" not in repr(cache.events)
+    cache.clear_active_ai_task_if_matches.assert_awaited_once_with("chat", "task")
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
+async def test_stale_context_failure_cannot_terminalize_newer_task(monkeypatch):
+    cache, _ = _lifecycle()
+    cache.clear_active_ai_task_if_matches = AsyncMock(return_value=False)
+    monkeypatch.setattr(ask_skill_task, "_cleanup_processing_embeds_on_task_failure",
+                        AsyncMock(return_value=0))
+
+    await ask_skill_task._cleanup_on_task_failure(
+        task_id="old-task", chat_id="chat", message_id="old-message",
+        user_id="user", user_id_hash="hash", user_vault_key_id="vault",
+        error_message="context failed", cache_service=cache,
+        terminal_failure_code="client_context_unavailable",
+    )
+
+    assert len(cache.events) == 1
+    assert cache.events[0][1]["task_id"] == "old-task"
+    assert "terminal_failure_code" not in cache.events[0][1]

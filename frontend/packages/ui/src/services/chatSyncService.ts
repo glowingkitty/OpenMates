@@ -3058,6 +3058,7 @@ export class ChatSynchronizationService extends EventTarget {
       postAdmissionConnectedAccounts,
       supportsAdmissionNow,
       () => supportsAdmissionNow() && this.serverCapabilityGate.supportsSelectionDetailsV2(),
+      () => supportsAdmissionNow() && this.serverCapabilityGate.supportsContextFailure(),
     );
     recordSendPreparationPhase('sender_complete');
     if (!turn.turnId) failPersonalChatTurn(turn, new Error('The encrypted chat turn was not dispatched.'));

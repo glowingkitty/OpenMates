@@ -306,6 +306,8 @@ def test_published_grace_cannot_bypass_durable_authority(monkeypatch, invalid):
         with pytest.raises(HTTPException) as denied:
             await refresh._published_successor(cache, directus, "old-secret", result, allow_risk=False)
         assert denied.value.status_code == (503 if invalid == "unpublished" else 401)
+        if invalid == "unpublished":
+            monkeypatch.setattr(refresh, "ROTATION_WAIT_SECONDS", 0)
         with pytest.raises(HTTPException) as denied:
             await refresh.resolve_session_credential(cache, directus, "old-secret", allow_risk=False)
         assert denied.value.status_code == (503 if invalid == "unpublished" else 401)
@@ -420,6 +422,8 @@ def test_retired_cookie_resolves_through_authentication_entry_guards(monkeypatch
                 refresh_token="old-secret", response=response, request=request,
             )
         if status != "published":
+            if status == "unpublished":
+                monkeypatch.setattr(refresh, "ROTATION_WAIT_SECONDS", 0)
             with pytest.raises(HTTPException) as denied:
                 await invoke()
             assert denied.value.status_code == (401 if status == "revoked" else 503)
@@ -464,27 +468,83 @@ def test_provisional_result_fences_retirement_until_publication(monkeypatch):
         owner = asyncio.create_task(refresh.refresh_session_token(cache, directus, "old-secret"))
         await provisional.wait()
         assert directus.rows[state.token_hash("old-secret")]["retired"] is False
-        with pytest.raises(HTTPException) as unavailable:
-            await refresh.resolve_session_credential(cache, directus, "old-secret")
-        assert unavailable.value.status_code == 503
+        before_retirement = asyncio.create_task(refresh.resolve_session_credential(cache, directus, "old-secret"))
+        await asyncio.sleep(0)
+        assert not before_retirement.done()
         resume_retirement.set()
         await retired.wait()
         overlap = asyncio.create_task(refresh.refresh_session_token(cache, directus, "old-secret"))
-        with pytest.raises(HTTPException) as unavailable:
-            await refresh.resolve_session_credential(cache, directus, "old-secret")
-        assert unavailable.value.status_code == 503
+        after_retirement = asyncio.create_task(refresh.resolve_session_credential(cache, directus, "old-secret"))
+        await asyncio.sleep(0)
+        assert not after_retirement.done()
         assert directus.refresh_token.await_count == 1
         assert not overlap.done()
         resume_transfer.set()
         assert (await owner)[0] is True
         # The route has not published the session even though transfer completed.
-        with pytest.raises(HTTPException) as unavailable:
-            await refresh.resolve_session_credential(cache, directus, "old-secret")
-        assert unavailable.value.status_code == 503
+        after_transfer = asyncio.create_task(refresh.resolve_session_credential(cache, directus, "old-secret"))
+        await asyncio.sleep(0)
+        assert not after_transfer.done()
         await publish(cache, "old-secret", "new-secret")
         assert (await overlap)[1] == auth
+        assert await before_retirement == "new-secret"
+        assert await after_retirement == "new-secret"
+        assert await after_transfer == "new-secret"
         assert await refresh.resolve_session_credential(cache, directus, "old-secret") == "new-secret"
         assert directus.refresh_token.await_count == 1
+    asyncio.run(run())
+
+
+# contract-test: direct surface=rest_api assertions=auth.session.lifecycle,auth.session.authoritative-enforcement,auth.session.isolation
+@pytest.mark.parametrize("guard", ["valid", "source_revoked", "foreign_link", "foreign_successor"])
+def test_pending_result_waits_for_publication_then_rechecks_authority(guard):
+    async def run():
+        cache = FakeCache()
+        auth = {"cookies": {"directus_refresh_token": "new-secret"}}
+        directus = FakeDirectus(refresh_token=AsyncMock(return_value=(True, auth, "OK")))
+        await refresh.refresh_session_token(cache, directus, "old-secret")
+
+        pending = asyncio.create_task(refresh.resolve_session_credential(cache, directus, "old-secret"))
+        await asyncio.sleep(0)
+        assert not pending.done()
+        await publish(cache, "old-secret", "new-secret")
+        if guard == "source_revoked":
+            directus.rows[state.token_hash("old-secret")]["revoked"] = True
+        elif guard == "foreign_link":
+            cache.values[session_key("new-secret")]["user_id"] = "other-user"
+        elif guard == "foreign_successor":
+            directus.rows[state.token_hash("new-secret")]["user_id"] = "other-user"
+
+        if guard == "valid":
+            assert await pending == "new-secret"
+        else:
+            with pytest.raises(HTTPException) as denied:
+                await pending
+            assert denied.value.status_code == 401
+        assert directus.refresh_token.await_count == 1
+
+    asyncio.run(run())
+
+
+# contract-test: direct surface=rest_api assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
+@pytest.mark.parametrize("source_revoked,expected_status", [(False, 503), (True, 401)])
+def test_pending_result_times_out_without_authorizing_old_token(monkeypatch, source_revoked, expected_status):
+    async def run():
+        cache = FakeCache()
+        auth = {"cookies": {"directus_refresh_token": "new-secret"}}
+        directus = FakeDirectus(refresh_token=AsyncMock(return_value=(True, auth, "OK")))
+        await refresh.refresh_session_token(cache, directus, "old-secret")
+        monkeypatch.setattr(refresh, "ROTATION_WAIT_SECONDS", 0.01)
+        if source_revoked:
+            directus.rows[state.token_hash("old-secret")]["revoked"] = True
+
+        with pytest.raises(HTTPException) as denied:
+            await refresh.resolve_session_credential(cache, directus, "old-secret")
+
+        assert denied.value.status_code == expected_status
+        assert directus.rows[state.token_hash("old-secret")]["retired"] is True
+        assert session_key("old-secret") not in cache.values
+
     asyncio.run(run())
 
 

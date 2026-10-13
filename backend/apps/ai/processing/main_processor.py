@@ -254,6 +254,95 @@ def _skip_empty_task_runtime_for_simple_answer(request: AskSkillRequest,
     )
 
 
+_FACT_QUESTION_FORMAT_INTENT = re.compile(
+    r"\b(?:code|coding|script|program(?:ming)?|python|javascript|html|css|markdown|"
+    r"document|pdf|file|spreadsheet|sheet|chart|graph|plot|diagram|image|"
+    r"formula|equation|calculate|compute|math(?:ematics)?|function|artifact|"
+    r"render|draw|write|generate|create|build|make)\b|```|embed_ref:|!\[",
+    re.IGNORECASE,
+)
+_FACT_QUESTION_OBJECTIVE_SHAPE = re.compile(
+    r"^\s*(?:what(?:\s+(?:is|was|are|were)|'s)\s+(?:the\s+)?(?:capital|population|currency|"
+    r"official\s+language|birthplace|location|date|year)\s+of\s+.+|"
+    r"who\s+(?:is|was|were)\s+.+|where\s+(?:is|was|are|were)\s+.+|"
+    r"when\s+(?:did|was|were|is)\s+.+)\?\s*$",
+    re.IGNORECASE,
+)
+_FACT_QUESTION_SUBJECTIVE_INTENT = re.compile(
+    r"\b(?:best|better|good|favorite|favourite|recommend(?:ation)?|opinion|"
+    r"prefer|ideal|top|worth|suggest)\b",
+    re.IGNORECASE,
+)
+_FACT_QUESTION_OPTIONAL_FORMAT_KEYS = (
+    "base_code_block_instruction",
+    "base_document_generation_instruction",
+    "base_plot_code_block_instruction",
+)
+
+
+def _omit_fact_question_format_guidance(
+    request: AskSkillRequest,
+    preprocessing: PreprocessingResult,
+    user_overrides: UserOverrides | None,
+    forwarded_tools: list[dict[str, Any]],
+) -> bool:
+    """Only a proven first-turn factual answer can omit optional artifact syntax."""
+    if forwarded_tools or not _skip_empty_task_runtime_for_simple_answer(request, preprocessing):
+        return False
+    history = getattr(request, "message_history", None)
+    if not isinstance(history, list) or len(history) != 1:
+        return False
+    message = history[0]
+    role = message.get("role") if isinstance(message, dict) else getattr(message, "role", None)
+    content = message.get("content") if isinstance(message, dict) else getattr(message, "content", None)
+    text = request.current_user_content
+    # Normalize typography only for the objective-shape check. The raw turn
+    # remains unchanged for the existing context/Task and intent checks.
+    objective_text = text.replace("\u2019", "'")
+    if (role != "user" or content != text
+            or not _FACT_QUESTION_OBJECTIVE_SHAPE.fullmatch(objective_text)
+            or _FACT_QUESTION_SUBJECTIVE_INTENT.search(text)
+            or _FACT_QUESTION_FORMAT_INTENT.search(text)):
+        return False
+    if user_overrides is not None and getattr(user_overrides, "has_overrides", True):
+        return False
+    # An unselected Project candidate/catalog is discovery metadata. The
+    # context_fast_path proof excludes selected Project context; reject its
+    # documents, binding, and routing state explicitly below.
+    if any(getattr(request, key, None) for key in (
+        "historical_artifact_context", "embed_file_path_index", "has_image_upload_embed",
+        "custom_rule_documents", "project_focus_documents", "project_context_documents",
+        "project_routing_focus_id",
+        "mentioned_settings_memories_cleartext", "focus_phase_state", "learning_mode",
+        "connected_account_directory", "connected_account_token_refs",
+        "connected_account_permission_state", "related_task_candidates",
+    )):
+        return False
+    if any(getattr(preprocessing, key, None) for key in (
+        "relevant_rules", "relevant_workflows", "relevant_related_work",
+        "relevant_embedded_previews",
+    )):
+        return False
+    preferences = getattr(request, "user_preferences", None) or {}
+    return not any(preferences.get(key) for key in (
+        "workflow_ai", "workflow_presentation_sources",
+    ))
+
+
+def _without_optional_fact_format_sections(
+    prompt_parts: list[str], stable_prefix_parts: list[str], base_instructions: dict[str, Any],
+) -> tuple[list[str], list[str]]:
+    """Drop the three optional sections by identity, preserving other guidance."""
+    optional_ids = {
+        id(base_instructions[key]) for key in _FACT_QUESTION_OPTIONAL_FORMAT_KEYS
+        if base_instructions.get(key)
+    }
+    return (
+        [part for part in prompt_parts if id(part) not in optional_ids],
+        [part for part in stable_prefix_parts if id(part) not in optional_ids],
+    )
+
+
 def _trusted_focus_override(overrides: UserOverrides | None, focus_id: str) -> bool:
     return bool(overrides and any(f"{app_id}-{identifier}" == focus_id
                                  for app_id, identifier in overrides.focus_modes))
@@ -5134,6 +5223,21 @@ async def handle_main_processing(
             answer_recovery_system_prompt = "\n\n".join(
                 part for part in prompt_parts if part and part not in research_only_prompt_parts
             )
+
+    if _omit_fact_question_format_guidance(
+        request_data, preprocessing_results, user_overrides, available_tools_for_llm,
+    ):
+        # Remove only the optional syntax sections already appended above. Keep
+        # the answer and recovery prompts and provider cache prefix identical.
+        prompt_parts, stable_prefix_parts = _without_optional_fact_format_sections(
+            prompt_parts, stable_prefix_parts, base_instructions,
+        )
+        cacheable_system_prefix = "\n\n".join(filter(None, stable_prefix_parts))
+        full_system_prompt = "\n\n".join(filter(None, prompt_parts))
+        answer_recovery_system_prompt = "\n\n".join(
+            part for part in prompt_parts if part and part not in research_only_prompt_parts
+        )
+        logger.info("%s [FACT_PROMPT] Omitted optional artifact format instructions", log_prefix)
     
     # Log available tools for debugging
     tool_names = [tool["function"]["name"] for tool in available_tools_for_llm]
