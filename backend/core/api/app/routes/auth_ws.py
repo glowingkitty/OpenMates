@@ -161,7 +161,7 @@ async def get_current_user_ws(
         try:
             # - device_hash: Verify against known devices (security check)
             # - connection_hash: Identify this specific browser instance (WebSocket routing)
-            device_hash, connection_hash, _, _, _, _, _, _ = generate_device_fingerprint_hash(websocket, user_id, session_id)
+            device_hash, connection_hash, _, country_code, _, _, _, _ = generate_device_fingerprint_hash(websocket, user_id, session_id)
             logger.debug(f"Calculated WebSocket fingerprints for user {user_id}: Device={device_hash[:8]}..., Connection={connection_hash[:8]}...")
         except Exception as e:
             logger.error(f"Error calculating WebSocket fingerprint for user {user_id}: {e}", exc_info=True)
@@ -225,7 +225,9 @@ async def get_current_user_ws(
             details={}
         )
         return {"user_id": user_id, "device_fingerprint_hash": connection_hash,
-                "stable_device_fingerprint_hash": session_device_hash, "user_data": user_data,
+                "stable_device_fingerprint_hash": session_device_hash,
+                "upgrade_device_hash": device_hash, "upgrade_country_code": country_code,
+                "user_data": user_data,
                 "pair_expires_at": pair_expires_at, "session_hash": session_hash,
                 "session_expires_at": security_state.get("expires_at") if security_state else None}
 

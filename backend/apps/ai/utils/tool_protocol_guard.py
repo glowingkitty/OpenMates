@@ -91,9 +91,10 @@ def is_internal_tool_protocol(language: str, content: str) -> bool:
 class ToolProtocolGuard:
     """Filter protocol fences before publication; retain native calls and usage.
 
-    Paragraph aggregation assembles arbitrarily split provider fences. Long TOON
-    blocks may be split at its buffer limit, so hold those until the closing
-    fence (or end of stream). Ordinary code retains its existing streaming path.
+    Paragraph aggregation assembles arbitrarily split provider fences while
+    releasing ordinary prose as soon as it cannot form a protocol delimiter.
+    Long TOON blocks may be split at its buffer limit, so hold those until the
+    closing fence (or end of stream). Ordinary code retains its existing path.
     After a fake result, suppress the remaining prose: it may cite invented data.
     """
 
@@ -110,7 +111,7 @@ class ToolProtocolGuard:
 
         pending = ""
         language = ""
-        async for chunk in aggregate_paragraphs(text_stream()):
+        async for chunk in aggregate_paragraphs(text_stream(), early_prose=True):
             if not isinstance(chunk, str):
                 yield chunk
                 continue

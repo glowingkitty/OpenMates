@@ -477,6 +477,8 @@ function parseAvailableRecoveryOutputs(value: unknown): AvailableRecoveryOutputF
 export class OpenMatesWsClient {
   private readonly interactiveHuman: boolean;
   private readonly serverCapabilities = new Set<string>();
+  private serverCapabilitiesMalformed = false;
+  private personalMemorySnapshotRequested = false;
   private readonly serverCapabilitiesReady: Promise<void>;
   private resolveServerCapabilities!: () => void;
   private activeHumanChatId: string | null = null;
@@ -550,6 +552,7 @@ export class OpenMatesWsClient {
         if (frame.type === "server_capabilities") {
           this.serverCapabilities.clear();
           const capabilities = frame.payload?.capabilities;
+          this.serverCapabilitiesMalformed = !Array.isArray(capabilities);
           if (Array.isArray(capabilities)) for (const capability of capabilities) {
             if (typeof capability === "string") this.serverCapabilities.add(capability);
           }
@@ -575,6 +578,67 @@ export class OpenMatesWsClient {
   /** Resolve once the advertised capability set has arrived; older servers may omit it. */
   waitForServerCapabilities(): Promise<void> {
     return this.serverCapabilitiesReady;
+  }
+
+  /** A missing advertised capability is the only safe legacy fallback. */
+  async waitForServerCapability(capability: string, timeoutMs = 1_000): Promise<boolean> {
+    if (!this.isOpen()) throw new Error("WebSocket closed before server capabilities.");
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let stopClose: (() => void) | undefined;
+    try {
+      await Promise.race([
+        this.serverCapabilitiesReady,
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error("Timeout waiting for WebSocket server capabilities.")), timeoutMs);
+          stopClose = this.onClose(() => reject(new Error("WebSocket closed before server capabilities.")));
+        }),
+      ]);
+      if (!this.isOpen()) throw new Error("WebSocket closed before server capabilities.");
+      if (this.serverCapabilitiesMalformed) throw new Error("Invalid WebSocket server capabilities frame.");
+      return this.supportsServerCapability(capability);
+    } finally {
+      if (timer) clearTimeout(timer);
+      stopClose?.();
+    }
+  }
+
+  /** Request a fresh, first-party Personal Memory snapshot on this exact socket. */
+  async requestPersonalMemorySnapshot(requestId: string, timeoutMs = 5_000): Promise<{
+    encrypted_settings: string | null;
+    memories: Array<Record<string, unknown>>;
+  }> {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+      throw new Error("Invalid Personal Memory snapshot request ID.");
+    }
+    if (this.personalMemorySnapshotRequested) throw new Error("Personal Memory snapshot already requested on this socket.");
+    this.personalMemorySnapshotRequested = true;
+    const result = this.waitForMessage("personal_memory_snapshot_result", payload =>
+      !!payload && typeof payload === "object" && (payload as Record<string, unknown>).request_id === requestId,
+    timeoutMs);
+    void result.catch(() => {});
+    await this.sendAsync("personal_memory_snapshot", { request_id: requestId });
+    const payload = (await result).payload;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new Error("Invalid Personal Memory snapshot result.");
+    }
+    const frame = payload as Record<string, unknown>;
+    if (frame.success === false) {
+      const error = frame.error;
+      const code = error && typeof error === "object" && !Array.isArray(error)
+        ? (error as Record<string, unknown>).code : undefined;
+      throw new Error(`Personal Memory snapshot rejected: ${typeof code === "string" ? code : "invalid_result"}.`);
+    }
+    const snapshot = frame.personal_memories;
+    if (frame.success !== true || !snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
+      throw new Error("Invalid Personal Memory snapshot result.");
+    }
+    const data = snapshot as Record<string, unknown>;
+    if ((data.encrypted_settings !== null && typeof data.encrypted_settings !== "string")
+      || !Array.isArray(data.memories) || data.memories.some(row => !row || typeof row !== "object" || Array.isArray(row))) {
+      throw new Error("Invalid Personal Memory snapshot result.");
+    }
+    return { encrypted_settings: data.encrypted_settings as string | null,
+      memories: data.memories as Array<Record<string, unknown>> };
   }
 
   async open(timeoutMs = 10_000, signal?: AbortSignal): Promise<void> {

@@ -107,6 +107,87 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     }
   });
 
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,auth.session.lifecycle
+  it("accepts only a fresh same-socket Personal Memory result and exposes definitive absence", async () => {
+    const requestId = "11111111-1111-4111-8111-111111111111";
+    const clients: OpenMatesWsClient[] = [];
+    for (const variant of ["absent", "valid", "rejected", "malformed", "timeout"] as const) {
+      server.once("connection", socket => {
+        socket.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities:
+          variant === "absent" ? [] : ["personal_memory_snapshot_v1"] } }));
+        socket.on("message", raw => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload?: { request_id?: string } };
+          if (frame.type !== "personal_memory_snapshot") return;
+          assert.deepEqual(frame.payload, { request_id: requestId });
+          if (variant === "timeout") return;
+          const payload = variant === "valid"
+            ? { request_id: requestId, success: true, personal_memories: { encrypted_settings: null, memories: [] } }
+            : variant === "rejected"
+              ? { request_id: requestId, success: false, error: { code: "unauthorized" } }
+              : { request_id: requestId, success: true, personal_memories: { memories: [] } };
+          socket.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload }));
+        });
+      });
+      const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+      clients.push(client);
+      await client.open();
+      assert.equal(await client.waitForServerCapability("personal_memory_snapshot_v1", 100), variant !== "absent");
+      if (variant === "valid") {
+        assert.deepEqual(await client.requestPersonalMemorySnapshot(requestId, 100),
+          { encrypted_settings: null, memories: [] });
+        await assert.rejects(client.requestPersonalMemorySnapshot(requestId, 100), /already requested/);
+      }
+      if (variant === "rejected") await assert.rejects(client.requestPersonalMemorySnapshot(requestId, 100), /unauthorized/);
+      if (variant === "malformed") await assert.rejects(client.requestPersonalMemorySnapshot(requestId, 100), /Invalid Personal Memory snapshot result/);
+      if (variant === "timeout") await assert.rejects(client.requestPersonalMemorySnapshot(requestId, 30), /Timeout waiting/);
+      client.close();
+    }
+    assert.equal(clients.every(client => !client.isOpen()), true);
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation
+  it("does not consume another socket's Personal Memory result", async () => {
+    const requestId = "22222222-2222-4222-8222-222222222222";
+    let firstPeer: { send: (value: string) => void } | null = null;
+    server.once("connection", socket => {
+      firstPeer = socket;
+      socket.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["personal_memory_snapshot_v1"] } }));
+    });
+    const first = new OpenMatesWsClient({ apiUrl, sessionId: "first", wsToken: "fixture", refreshToken: null });
+    await first.open();
+    await first.waitForServerCapability("personal_memory_snapshot_v1");
+    server.once("connection", socket => {
+      socket.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["personal_memory_snapshot_v1"] } }));
+      socket.on("message", raw => {
+        if (JSON.parse(raw.toString()).type !== "personal_memory_snapshot") return;
+        firstPeer?.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload: {
+          request_id: requestId, success: true, personal_memories: { encrypted_settings: null, memories: [] },
+        } }));
+      });
+    });
+    const second = new OpenMatesWsClient({ apiUrl, sessionId: "second", wsToken: "fixture", refreshToken: null });
+    try {
+      await second.open();
+      await second.waitForServerCapability("personal_memory_snapshot_v1");
+      await assert.rejects(second.requestPersonalMemorySnapshot(requestId, 30), /Timeout waiting/);
+    } finally {
+      first.close(); second.close();
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation
+  it("rejects a malformed capability frame instead of treating it as legacy absence", async () => {
+    server.once("connection", socket => {
+      socket.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: null } }));
+    });
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    try {
+      await client.open();
+      await assert.rejects(client.waitForServerCapability("personal_memory_snapshot_v1", 100),
+        /Invalid WebSocket server capabilities/);
+    } finally { client.close(); }
+  });
+
   // contract-test: supporting surface=cli assertions=chats.streaming.progressive-presentation,chats.streaming.ordered-final
   it("forwards only the owned task's cumulative thinking and keeps authored text separate", async () => {
     const chatId = "thinking-chat";

@@ -185,3 +185,95 @@ def test_only_optional_format_sections_leave_prompt_prefix_and_recovery_consiste
     assert prefix == [part for part in stable if "formatting" not in part]
     assert "\n\n".join(prefix) in "\n\n".join(remaining)
     assert "\n\n".join(remaining) == "\n\n".join(part for part in remaining if part)
+
+
+@pytest.mark.parametrize("question", [
+    "What’s the capital of Spain?",
+    "Who was Ada Lovelace?",
+])
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.conditional-context
+def test_proven_plain_fact_omits_app_guidance(question):
+    request, preprocessing = _proven_turn()
+    request.current_user_content = question
+    request.message_history[0].content = question
+    assert main._omit_fact_question_format_guidance(request, preprocessing, None, [])
+    assert main._omit_fact_question_app_guidance(question)
+
+
+@pytest.mark.parametrize("question", [
+    "What is the capital of OpenMates?",
+    "Who is the assistant?",
+    "Who is the app owner?",
+    "Who is the capability owner?",
+    "Who is the settings owner?",
+    "Who is the Memory owner?",
+    "Who is the deep-link owner?",
+    "Who is the Project owner?",
+    "Who is the focus owner?",
+    "Who is the workflow owner?",
+    "Who is the account owner?",
+])
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.conditional-context
+def test_product_or_app_intent_keeps_app_guidance(question):
+    assert not main._omit_fact_question_app_guidance(question)
+
+
+@pytest.mark.parametrize("change", [
+    "unknown_question", "prior_history", "active_focus", "project_document",
+    "relevant_workflow", "loaded_memory", "selected_app", "forwarded_tool",
+    "user_override",
+])
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.conditional-context
+def test_app_guidance_omission_requires_full_fact_proof(change):
+    request, preprocessing = _proven_turn()
+    tools = []
+    overrides = None
+    if change == "unknown_question":
+        request.current_user_content = "What is an interesting idea?"
+        request.message_history[0].content = request.current_user_content
+    elif change == "prior_history":
+        request.message_history.insert(0, SimpleNamespace(role="user", content="Earlier"))
+    elif change == "active_focus":
+        request.active_focus_id = "math-tutor"
+    elif change == "project_document":
+        request.project_context_documents = [{"id": "document"}]
+    elif change == "relevant_workflow":
+        preprocessing.relevant_workflows = [{"id": "workflow"}]
+    elif change == "loaded_memory":
+        preprocessing.load_app_settings_and_memories = ["travel:trips"]
+    elif change == "selected_app":
+        preprocessing.selected_app_ids = ["web"]
+    elif change == "forwarded_tool":
+        tools = [{"type": "function", "function": {"name": "web-search"}}]
+    elif change == "user_override":
+        overrides = SimpleNamespace(has_overrides=True)
+    assert not (
+        main._omit_fact_question_format_guidance(request, preprocessing, overrides, tools)
+        and main._omit_fact_question_app_guidance(request.current_user_content)
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.conditional-context
+def test_app_guidance_removal_keeps_equal_safety_text_and_prompt_consistency():
+    # The capabilities text is filled dynamically; equal prose elsewhere must
+    # survive even when it has the same value as an appended optional section.
+    capabilities = "Capabilities: none (no apps available)"
+    equal_safety_text = (" " + capabilities)[1:]
+    assert equal_safety_text == capabilities and equal_safety_text is not capabilities
+    deep_link = "App deep-link rules"
+    settings_link = "Settings and Memory deep-link rules"
+    stable = ["Ethics and privacy", "Cite sources", "Wikipedia language"]
+    prompt = [*stable, equal_safety_text, "Current date", "Mate persona", "Model identity",
+              capabilities, "Composer suggestion", deep_link, settings_link,
+              "Interactive question protocol"]
+    remaining = main._without_appended_fact_app_guidance(
+        prompt, [capabilities, deep_link, settings_link],
+    )
+    assert remaining == [*stable, equal_safety_text, "Current date", "Mate persona",
+                         "Model identity", "Composer suggestion", "Interactive question protocol"]
+    assert remaining[3] is equal_safety_text
+    prefix = "\n\n".join(stable)
+    full = "\n\n".join(filter(None, remaining))
+    recovery = "\n\n".join(part for part in remaining if part)
+    assert full.startswith(prefix)
+    assert full == recovery

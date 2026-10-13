@@ -743,3 +743,32 @@ async def test_preflight_commitment_ignores_untrusted_project_fields_without_foc
     ).hexdigest()
     assert websocket.messages[-1]["type"] == "chat_turn_preflight_ack"
 
+
+
+# contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+@pytest.mark.asyncio
+async def test_first_personal_metadata_uses_atomic_prepare_without_admin_chat_get(monkeypatch) -> None:
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", FakeRecoveryService)
+    FakeRecoveryService.calls = []
+    payload = _payload()
+    payload["expected_messages_v"] = 0
+    payload["encrypted_chat_metadata"] = {
+        "encrypted_title": "ciphertext", "encrypted_chat_key": "wrapped-key",
+        "created_at": 100, "updated_at": 100,
+    }
+    payload["inference_request"]["message"] = {
+        "message_id": payload["message_id"], "role": "user", "content": "hello",
+    }
+    chat_get = AsyncMock(side_effect=AssertionError("admin chat GET is redundant"))
+    directus = SimpleNamespace(chat=SimpleNamespace(get_chat_metadata=chat_get))
+    websocket = FakeWebSocket()
+    result = await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        websocket=websocket, manager=FakeManager(), directus_service=directus,
+        user_id="user-1", user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        payload=payload,
+    )
+    chat_get.assert_not_awaited()
+    assert result["state"] == "PREPARED"
+    assert FakeRecoveryService.calls[1][0] == "prepare_preflight"
+    assert websocket.messages[-1]["type"] == "chat_turn_preflight_ack"

@@ -278,6 +278,12 @@ _FACT_QUESTION_OPTIONAL_FORMAT_KEYS = (
     "base_document_generation_instruction",
     "base_plot_code_block_instruction",
 )
+_FACT_QUESTION_APP_GUIDANCE_INTENT = re.compile(
+    r"\b(?:openmates|mates?|assistants?|capabilit(?:y|ies)|features?|apps?|"
+    r"settings?|memor(?:y|ies)|preferences?|accounts?|projects?|focus|"
+    r"workflows?|tools?|deep[- ]?links?|links?)\b",
+    re.IGNORECASE,
+)
 
 
 def _omit_fact_question_format_guidance(
@@ -337,6 +343,24 @@ def _omit_fact_question_format_guidance(
     return not any(preferences.get(key) for key in (
         "workflow_ai", "workflow_presentation_sources",
     ))
+
+
+def _omit_fact_question_app_guidance(text: str) -> bool:
+    """The proven fact turn must also lack product, capability, and link intent."""
+    return not _FACT_QUESTION_APP_GUIDANCE_INTENT.search(text)
+
+
+def _without_appended_fact_app_guidance(
+    prompt_parts: list[str], appended_guidance: list[str],
+) -> list[str]:
+    """Remove only the appended occurrences, leaving equal safety text intact."""
+    remaining = prompt_parts.copy()
+    for instruction in reversed(appended_guidance):
+        for index in range(len(remaining) - 1, -1, -1):
+            if remaining[index] is instruction:
+                del remaining[index]
+                break
+    return remaining
 
 
 def _without_optional_fact_format_sections(
@@ -4020,6 +4044,7 @@ async def handle_main_processing(
             f"{log_prefix} Failed to inject creator_and_used_model_instruction: {e}",
             exc_info=True,
         )
+    optional_fact_app_guidance_parts: list[str] = []
     # TODO: Update this key once app use is implemented - currently using base_capabilities_instruction
     # which explains what the chatbot can and cannot do yet
     # Inject available apps list into capabilities instruction
@@ -4035,6 +4060,7 @@ async def handle_main_processing(
             available_apps_str
         )
         prompt_parts.append(filled_capabilities_instruction)
+        optional_fact_app_guidance_parts.append(filled_capabilities_instruction)
         logger.info(
             f"{log_prefix} Injected available apps list into system prompt: {available_apps_str} "
             f"({len(available_app_ids)} app(s) available)"
@@ -4055,7 +4081,9 @@ async def handle_main_processing(
     selected_app_ids = getattr(preprocessing_results, "selected_app_ids", None)
     selected_app_ids = set(selected_app_ids) if selected_app_ids is not None else None
     if discovered_apps_metadata and (request_data.user_preferences or {}).get("apps_enabled") is not False:
-        prompt_parts.append(base_instructions.get("base_app_deep_linking_instruction", ""))
+        app_deep_link_instruction = base_instructions.get("base_app_deep_linking_instruction", "")
+        prompt_parts.append(app_deep_link_instruction)
+        optional_fact_app_guidance_parts.append(app_deep_link_instruction)
     
     # Add settings/memories deep link instruction so the AI can suggest creating/updating
     # entries inline in its response. Only include when apps are available (the AI needs
@@ -4065,6 +4093,7 @@ async def handle_main_processing(
         settings_deep_link_instruction = base_instructions.get("base_settings_memories_deep_link_instruction", "")
         if settings_deep_link_instruction:
             prompt_parts.append(settings_deep_link_instruction)
+            optional_fact_app_guidance_parts.append(settings_deep_link_instruction)
     
     # === BUILD PRESELECTED SKILLS SET ===
     # Build this BEFORE the instruction injection block so we can filter app instructions
@@ -5237,17 +5266,21 @@ async def handle_main_processing(
     if _omit_fact_question_format_guidance(
         request_data, preprocessing_results, user_overrides, available_tools_for_llm,
     ):
-        # Remove only the optional syntax sections already appended above. Keep
-        # the answer and recovery prompts and provider cache prefix identical.
+        # All three prompts derive from the same surviving parts. The app and
+        # deep-link sections apply only when this proven turn has no such intent.
         prompt_parts, stable_prefix_parts = _without_optional_fact_format_sections(
             prompt_parts, stable_prefix_parts, base_instructions,
         )
+        if _omit_fact_question_app_guidance(request_data.current_user_content):
+            prompt_parts = _without_appended_fact_app_guidance(
+                prompt_parts, optional_fact_app_guidance_parts,
+            )
         cacheable_system_prefix = "\n\n".join(filter(None, stable_prefix_parts))
         full_system_prompt = "\n\n".join(filter(None, prompt_parts))
         answer_recovery_system_prompt = "\n\n".join(
             part for part in prompt_parts if part and part not in research_only_prompt_parts
         )
-        logger.info("%s [FACT_PROMPT] Omitted optional artifact format instructions", log_prefix)
+        logger.info("%s [FACT_PROMPT] Omitted optional factual-turn guidance", log_prefix)
     
     # Log available tools for debugging
     tool_names = [tool["function"]["name"] for tool in available_tools_for_llm]

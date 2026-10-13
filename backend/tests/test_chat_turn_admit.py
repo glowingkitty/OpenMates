@@ -135,3 +135,83 @@ async def test_epoch_zero_uses_existing_legacy_dispatch(admission):
     await handler.handle_chat_turn_admit(**args)
     assert "protocol_version" not in dispatch.await_args.kwargs["payload"]
     assert "preflight_id" not in dispatch.await_args.kwargs["payload"]
+
+
+# contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
+@pytest.mark.asyncio
+async def test_only_committed_first_personal_turn_gets_server_internal_projection_hint(admission):
+    args, preflight, dispatch = admission
+    payload = args["payload"]
+    payload.update(expected_messages_v=0, encrypted_chat_metadata={"encrypted_title": "ciphertext"})
+    payload["encrypted_chat_key"] = "wrapped-key-1"
+    payload["inference_request"]["encrypted_chat_key"] = "wrapped-key-1"
+    payload["inference_request"]["message"]["role"] = "user"
+    preflight.return_value = {
+        "preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "state": "PREPARED", "committed_messages_v": 1,
+    }
+    await handler.handle_chat_turn_admit(**args)
+    assert dispatch.await_args.kwargs["first_personal_admission"] == {
+        "chat_id": payload["chat_id"], "turn_id": payload["turn_id"],
+        "message_id": payload["message_id"],
+        "preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "wrapped_chat_key": "wrapped-key-1",
+    }
+    assert "first_personal_admission" not in dispatch.await_args.kwargs["payload"]
+
+    dispatch.reset_mock()
+    payload["expected_messages_v"] = 1
+    await handler.handle_chat_turn_admit(**args)
+    assert dispatch.await_args.kwargs["first_personal_admission"] is None
+
+    dispatch.reset_mock()
+    payload["expected_messages_v"] = 0
+    payload["inference_request"]["first_personal_admission"] = {"preflight_id": "forged"}
+    await handler.handle_chat_turn_admit(**args)
+    dispatch.assert_not_awaited()
+    assert args["websocket"].send_json.await_args.args[0]["payload"]["code"] == "invalid_chat_turn_admission"
+
+
+# contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
+@pytest.mark.asyncio
+async def test_epoch_zero_first_personal_admission_keeps_legacy_dispatch(admission):
+    args, preflight, dispatch = admission
+    args["payload"].update(expected_messages_v=0,
+                           encrypted_chat_metadata={"encrypted_title": "ciphertext"})
+    args["payload"]["encrypted_chat_key"] = "wrapped-key-1"
+    args["payload"]["inference_request"]["encrypted_chat_key"] = "wrapped-key-1"
+    args["payload"]["inference_request"]["message"]["role"] = "user"
+    preflight.return_value = {
+        "preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "state": "LEGACY", "committed_messages_v": 1,
+    }
+    await handler.handle_chat_turn_admit(**args)
+    request = dispatch.await_args.kwargs["payload"]
+    assert "protocol_version" not in request
+    assert "preflight_id" not in request
+    assert dispatch.await_args.kwargs["first_personal_admission"] is None
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.asyncio
+async def test_first_personal_wrapper_mismatch_rejected_before_enqueue(admission):
+    args, preflight, dispatch = admission
+    preflight.return_value["committed_messages_v"] = 1
+    payload = args["payload"]
+    payload.update(expected_messages_v=0, encrypted_chat_metadata={"encrypted_title": "ciphertext"},
+                   encrypted_chat_key="wrapped-key-1")
+    payload["inference_request"]["encrypted_chat_key"] = "wrong-wrapper"
+    await handler.handle_chat_turn_admit(**args)
+    preflight.assert_awaited_once()
+    dispatch.assert_not_awaited()
+    assert args["websocket"].send_json.await_args.args[0]["payload"]["code"] == "invalid_chat_turn_admission"
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+@pytest.mark.asyncio
+async def test_client_cannot_forge_expected_wrapped_chat_key(admission):
+    args, preflight, dispatch = admission
+    args["payload"]["inference_request"]["expected_wrapped_chat_key"] = "forged"
+    await handler.handle_chat_turn_admit(**args)
+    preflight.assert_not_awaited()
+    dispatch.assert_not_awaited()

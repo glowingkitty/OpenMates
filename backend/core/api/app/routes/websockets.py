@@ -12,11 +12,15 @@ from backend.core.api.app.utils.websocket_lifecycle import (
 )
 # Import necessary services and utilities
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
+from backend.core.api.app.services.pair_session_deadline import get_pair_deadline_hash
+from backend.core.api.app.services.session_security_state import get_session_state_cached
 from backend.core.api.app.services.storage_archive_client_compatibility import (
     REQUIRED_CAPABILITY, archive_phase_active, declares_archive_capability, invalidate_runtime_proof,
 )
 
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.directus.user.device_management import _normalize_device_list
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
 from backend.core.api.app.services.notification_event_service import NotificationEventService
@@ -31,6 +35,8 @@ from .connection_manager import (
     should_rediscover_recovery_on_lifecycle,
 )
 from .auth_ws import get_current_user_ws
+from .auth_routes.auth_common import session_country_changed
+from .auth_routes.auth_session import _load_fresh_personal_memories
 from .handlers.websocket_handlers.title_update_handler import handle_update_title
 from .handlers.websocket_handlers.draft_update_handler import handle_update_draft
 from .handlers.websocket_handlers.message_received_handler import handle_message_received
@@ -179,6 +185,181 @@ router = APIRouter(
 )
 
 manager = ConnectionManager() # This is the correct manager instance for websockets
+
+_PERSONAL_SNAPSHOT_RATE_SCRIPT = """
+local session_count = redis.call('INCR', KEYS[1])
+if session_count == 1 then redis.call('EXPIRE', KEYS[1], 60) end
+local user_count = redis.call('INCR', KEYS[2])
+if user_count == 1 then redis.call('EXPIRE', KEYS[2], 60) end
+if session_count > 30 or user_count > 60 then return 0 end
+return 1
+"""
+
+
+async def _personal_snapshot_rate_admission(cache_service: CacheService, auth_data: dict) -> str:
+    """Atomically bound reconnects across workers before any Directus reads."""
+    user_id = auth_data.get("user_id")
+    session_hash = auth_data.get("session_hash")
+    if (not isinstance(user_id, str) or not user_id
+            or not isinstance(session_hash, str) or len(session_hash) != 64
+            or any(character not in "0123456789abcdef" for character in session_hash)):
+        return "unavailable"
+    try:
+        client = await cache_service.client
+        if client is None:
+            return "unavailable"
+        user_hash = hashlib.sha256(user_id.encode()).hexdigest()
+        admitted = await client.eval(
+            _PERSONAL_SNAPSHOT_RATE_SCRIPT, 2,
+            f"personal-memory:snapshot:session:{session_hash}",
+            f"personal-memory:snapshot:user:{user_hash}",
+        )
+        if admitted == 1:
+            return "accepted"
+        if admitted == 0:
+            return "rate_limited"
+    except Exception:
+        logger.warning("Personal memory snapshot rate admission unavailable", exc_info=True)
+    return "unavailable"
+
+
+def _personal_snapshot_request_id(payload: object) -> str | None:
+    """Accept only the narrow, correlation-only first-party request envelope."""
+    if not isinstance(payload, dict) or set(payload) != {"request_id"}:
+        return None
+    request_id = payload.get("request_id")
+    if not isinstance(request_id, str):
+        return None
+    try:
+        return request_id if str(uuid.UUID(request_id)) == request_id else None
+    except ValueError:
+        return None
+
+
+async def _fresh_personal_snapshot_authority(
+    *, cache_service: CacheService, directus_service: DirectusService,
+    auth_data: dict,
+) -> bool:
+    """Recheck the opening socket's exact session before releasing fresh ciphertext.
+
+    The ten-second socket watcher is only a close mechanism, not an
+    authorization cache for this owner-only read.
+    """
+    user_id = auth_data.get("user_id")
+    session_hash = auth_data.get("session_hash")
+    device_hash = auth_data.get("upgrade_device_hash")
+    if (not isinstance(user_id, str) or not user_id
+            or not isinstance(session_hash, str) or len(session_hash) != 64
+            or any(character not in "0123456789abcdef" for character in session_hash)
+            or not isinstance(device_hash, str) or not device_hash):
+        return False
+
+    now = time.time()
+    for deadline_name in ("session_expires_at", "pair_expires_at"):
+        deadline = auth_data.get(deadline_name)
+        if deadline is not None:
+            try:
+                if isinstance(deadline, bool):
+                    return False
+                if isinstance(deadline, int):
+                    deadline_value = deadline
+                elif isinstance(deadline, str) and deadline.isascii() and deadline.isdecimal():
+                    deadline_value = int(deadline)
+                else:
+                    return False
+                if deadline_value <= now:
+                    return False
+            except (OverflowError, ValueError):
+                return False
+
+    # The cache link selects the owner, while the durable ledger is the
+    # revocation/risk fence. Neither may be replaced by the opening result.
+    link = await cache_service.get(f"session:{session_hash}")
+    if canonical_session_user_id(link) != user_id:
+        return False
+    state, current_pair_deadline, device_profile, token_map = await asyncio.gather(
+        get_session_state_cached(
+            directus_service, cache_service, session_hash,
+            user_id=user_id, allow_risk=False,
+        ),
+        get_pair_deadline_hash(directus_service, cache_service, session_hash),
+        directus_service.get_user_fields_direct(
+            user_id, ["id", "connected_devices"], no_cache=True,
+        ),
+        cache_service.get(f"user_tokens:{user_id}"),
+        return_exceptions=True,
+    )
+    for result in (state, current_pair_deadline, device_profile, token_map):
+        if isinstance(result, BaseException):
+            raise result
+    if state is None or state.get("user_id") != user_id:
+        return False
+    if current_pair_deadline is not None and current_pair_deadline <= time.time():
+        return False
+    if (not isinstance(device_profile, dict) or device_profile.get("id") != user_id
+            or "connected_devices" not in device_profile):
+        return False
+    known_devices = _normalize_device_list(device_profile["connected_devices"])
+    if device_hash not in {row.get("hash") for row in known_devices}:
+        return False
+
+    session_metadata = token_map.get(session_hash) if isinstance(token_map, dict) else None
+    previous_country = (
+        session_metadata.get("security_country_code") or session_metadata.get("country_code")
+        if isinstance(session_metadata, dict) else None
+    )
+    if session_country_changed(previous_country, auth_data.get("upgrade_country_code")):
+        return False
+    return True
+
+
+async def handle_personal_memory_snapshot(
+    *, websocket: WebSocket, payload: object, auth_data: dict,
+    cache_service: CacheService, directus_service: DirectusService,
+    already_used: bool = False,
+) -> None:
+    """Reply on this socket only; no user/device broadcast can cross requests."""
+    request_id = _personal_snapshot_request_id(payload)
+    if already_used:
+        await websocket.send_json({"type": "personal_memory_snapshot_result", "payload": {
+            "request_id": request_id, "success": False, "error": {"code": "already_used"},
+        }})
+        return
+    if request_id is None:
+        await websocket.send_json({"type": "personal_memory_snapshot_result", "payload": {
+            "request_id": None, "success": False, "error": {"code": "invalid_request"},
+        }})
+        return
+
+    admission = await _personal_snapshot_rate_admission(cache_service, auth_data)
+    if admission != "accepted":
+        await websocket.send_json({"type": "personal_memory_snapshot_result", "payload": {
+            "request_id": request_id, "success": False, "error": {"code": admission},
+        }})
+        return
+
+    try:
+        authorized = await _fresh_personal_snapshot_authority(
+            cache_service=cache_service, directus_service=directus_service,
+            auth_data=auth_data,
+        )
+        if not authorized:
+            error_code = "unauthorized"
+        else:
+            snapshot = await _load_fresh_personal_memories(directus_service, auth_data["user_id"])
+            await websocket.send_json({"type": "personal_memory_snapshot_result", "payload": {
+                "request_id": request_id, "success": True,
+                "personal_memories": snapshot.model_dump(mode="json"),
+            }})
+            return
+    except HTTPException as exc:
+        error_code = "unauthorized" if exc.status_code in (401, 403) else "unavailable"
+    except Exception:
+        logger.warning("Personal memory snapshot unavailable", exc_info=True)
+        error_code = "unavailable"
+    await websocket.send_json({"type": "personal_memory_snapshot_result", "payload": {
+        "request_id": request_id, "success": False, "error": {"code": error_code},
+    }})
 
 
 def _reconcile_recovery_lifecycle_discovery(
@@ -2640,6 +2821,7 @@ async def websocket_endpoint(
     await websocket.send_json({"type": "server_capabilities", "payload": {"capabilities": [
         "chat_turn_admit_v1", "chat_turn_context_v1", "chat_turn_context_failure_v1",
         "chat_turn_context_selection_details_v2", "suggested_followup_message_v1",
+        "personal_memory_snapshot_v1",
     ]}})
 
     # A live socket must close at its absolute session deadline even if idle.
@@ -2809,6 +2991,7 @@ async def websocket_endpoint(
         ))
 
     disconnect_reason = "Server closed connection"
+    personal_snapshot_used = False
     try:
         while True:
             data = await receive_json_or_disconnect(websocket)
@@ -2858,7 +3041,15 @@ async def websocket_endpoint(
                     continue
 
             # Process different message types
-            if message_type in {"chat_metadata_warmup", "workflow_metadata_warmup"}:
+            if message_type == "personal_memory_snapshot":
+                already_used = personal_snapshot_used
+                personal_snapshot_used = True
+                await handle_personal_memory_snapshot(
+                    websocket=websocket, payload=payload, auth_data=auth_data,
+                    cache_service=cache_service, directus_service=directus_service,
+                    already_used=already_used,
+                )
+            elif message_type in {"chat_metadata_warmup", "workflow_metadata_warmup"}:
                 # First-party session-authenticated WS surface. No text, inference, credits,
                 # or response payload; Team membership is checked before cache access.
                 warmup_result_type = f"{message_type}_result"

@@ -48,6 +48,9 @@ async def handle_chat_turn_admit(
             or "admission_context" in request
             or "client_context_binding_ref" in request
             or "client_context_turn_id" in request
+            or "first_personal_admission" in request
+            or "include_first_personal_projection" in request
+            or "expected_wrapped_chat_key" in request
         ):
             raise ValueError("Admission scope mismatch")
         if request.get("client_context_pending") is True:
@@ -92,8 +95,35 @@ async def handle_chat_turn_admit(
     # Epoch zero deliberately uses the existing legacy dispatch path. Epoch one
     # rechecks the commitment and uses its stable task/billing/outbox identities.
     dispatch = dict(request)
+    first_personal_admission = None
     if acknowledgement.get("state") != "LEGACY":
         dispatch.update(protocol_version=1, preflight_id=acknowledgement["preflight_id"])
+        # The transaction supplies authority; this server-only hint selects
+        # the narrow first Personal path after atomic preflight has committed.
+        if (
+            payload.get("team_id") is None
+            and type(payload.get("expected_messages_v")) is int
+            and payload["expected_messages_v"] == 0
+            and isinstance(payload.get("encrypted_chat_metadata"), dict)
+            and acknowledgement.get("state") == "PREPARED"
+            and acknowledgement.get("committed_messages_v") == 1
+        ):
+            # The preflight has committed but inference has not been enqueued.
+            # Reject mismatched client wrappers before the locked enqueue call.
+            if (not isinstance(payload.get("encrypted_chat_key"), str)
+                or not payload["encrypted_chat_key"]
+                or request.get("encrypted_chat_key") != payload["encrypted_chat_key"]):
+                await websocket.send_json({"type": "error", "payload": {
+                    "code": "invalid_chat_turn_admission", "turn_id": payload["turn_id"],
+                    "message": "The encrypted chat turn did not match its request.",
+                }})
+                return
+            first_personal_admission = {
+                "chat_id": payload["chat_id"], "turn_id": payload["turn_id"],
+                "message_id": payload["message_id"],
+                "preflight_id": acknowledgement["preflight_id"],
+                "wrapped_chat_key": payload["encrypted_chat_key"],
+            }
     from backend.core.api.app.routes.handlers.websocket_handlers.message_received_handler import (
         handle_message_received,
     )
@@ -106,6 +136,7 @@ async def handle_chat_turn_admit(
         is_allowlisted_test_account=is_allowlisted_test_account,
         client_context_binding_ref=binding_ref,
         client_context_turn_id=payload["turn_id"] if binding_ref else None,
+        first_personal_admission=first_personal_admission,
     )
     # Metadata refresh is best-effort and never precedes dispatch. Keep a bounded
     # strong task reference while its fresh-scoped cache renewal completes.

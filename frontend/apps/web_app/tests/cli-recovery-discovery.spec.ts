@@ -452,8 +452,8 @@ test('warmed interactive TUI send borrows its authenticated socket for one encry
 	}
 });
 
-// contract-test: direct surface=cli assertions=chats.send.immediate-admission,chats.persistence.client-encrypted
-test('SDK reports a Project directory failure after durable admission without routing empty context', async ({ page }: { page: any }) => {
+// contract-test: direct surface=cli assertions=chats.send.immediate-admission,chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('SDK reports a Project directory failure after durable epoch-one first Personal admission', async ({ page }: { page: any }) => {
 	test.setTimeout(300_000);
 	test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted'
 		|| process.env.CI_TEST_MODE !== 'e2e', 'Requires the isolated GitHub product stack');
@@ -469,6 +469,12 @@ test('SDK reports a Project directory failure after durable admission without ro
 			const newChatId=client.preparedNewChatId();
 			const privateFailure='PRIVATE_PROJECT_DIRECTORY_RESPONSE_MUST_STAY_LOCAL';
 			let rejectProjects,projectReads=0,admission=null,preflightAck=null,failure=null,failureAck=null;
+			const rawOpen=client.openWsClient.bind(client);
+			const observer=(await rawOpen({taskUpdateJobs:false})).ws;
+			const terminal=observer.waitForMessage('ai_typing_ended',payload=>
+				payload.chat_id===newChatId&&payload.user_message_id===admission?.message_id
+				&&payload.terminal_failure_code==='client_context_unavailable',30000);
+			void terminal.catch(()=>{});
 			const projectGate=new Promise((_,reject)=>{rejectProjects=reject;});
 			client.listProjects=async()=>{projectReads++;return projectGate;};
 			const outbound=[];
@@ -494,8 +500,30 @@ test('SDK reports a Project directory failure after durable admission without ro
 			try{await client.sendMessage({message:'Ordinary post-admission context failure check.',
 				newChatId,personal:true,piiDetection:false,memorySnapshot});}
 			catch(error){sendError=error.message;}
+			const terminalEvent=(await terminal).payload;
+			const canonicalBefore=await client.getChatMessagesWindow(newChatId,{personal:true,limit:20,
+				respectCompressionBoundary:false});
+			const beforeIds=canonicalBefore.messages.map(message=>message.clientMessageId||message.id);
+			const wrongWrapper={...admission,encrypted_chat_key:randomBytes(48).toString('base64')};
+			const rejection=observer.waitForMessage('error',payload=>payload.turn_id===admission?.turn_id,10000);
+			void rejection.catch(()=>{});
+			await observer.sendAsync('chat_turn_admit',wrongWrapper);
+			const rejected=(await rejection).payload;
+			const canonicalAfter=await client.getChatMessagesWindow(newChatId,{personal:true,limit:20,
+				respectCompressionBoundary:false});
+			const afterIds=canonicalAfter.messages.map(message=>message.clientMessageId||message.id);
 			const result={projectReads,outbound,sendErrorIsPrivate:sendError===privateFailure,
 				chatIdMatches:admission?.chat_id===newChatId,
+				epochOne:preflightAck?.state==='PREPARED'&&preflightAck?.committed_messages_v===1,
+				firstEncryptedMetadata:admission?.expected_messages_v===0
+					&&admission?.encrypted_chat_metadata?.encrypted_chat_key===admission?.encrypted_chat_key,
+				clientMessageIdMatches:admission?.encrypted_user_message?.client_message_id===admission?.message_id,
+				canonicalSingleUser:beforeIds.length===1&&beforeIds[0]===admission?.message_id
+					&&canonicalBefore.messages[0]?.role==='user',
+				terminalMatches:terminalEvent?.task_id&&terminalEvent.task_id===terminalEvent.message_id,
+				wrapperRejected:rejected?.code==='preflight_mismatch',
+				wrapperReplayUnchanged:JSON.stringify(afterIds)===JSON.stringify(beforeIds)
+					&&canonicalAfter.serverMessageCount===canonicalBefore.serverMessageCount,
 				contextPending:admission?.inference_request?.client_context_pending===true,
 				preflightAck:preflightAck?.turn_id===admission?.turn_id&&preflightAck?.preflight_id?.length>0,
 				failureKeys:failure?Object.keys(failure).sort():null,
@@ -508,6 +536,7 @@ test('SDK reports a Project directory failure after durable admission without ro
 				failureAckStatus:failureAck?.status,
 				encryptedUser:typeof admission?.encrypted_user_message?.encrypted_content==='string'
 					&&admission.encrypted_user_message.encrypted_content.length>0};
+			observer.close();
 			if(preflightAck?.preflight_id)await client.deleteChat(newChatId,{personal:true});
 			process.stdout.write(JSON.stringify(result));
 		`);
@@ -515,6 +544,13 @@ test('SDK reports a Project directory failure after durable admission without ro
 		expect(observed.outbound).toEqual(['chat_turn_admit', 'chat_turn_context_failed']);
 		expect(observed.sendErrorIsPrivate).toBe(true);
 		expect(observed.chatIdMatches).toBe(true);
+		expect(observed.epochOne).toBe(true);
+		expect(observed.firstEncryptedMetadata).toBe(true);
+		expect(observed.clientMessageIdMatches).toBe(true);
+		expect(observed.canonicalSingleUser).toBe(true);
+		expect(observed.terminalMatches).toBe(true);
+		expect(observed.wrapperRejected).toBe(true);
+		expect(observed.wrapperReplayUnchanged).toBe(true);
 		expect(observed.contextPending).toBe(true);
 		expect(observed.preflightAck).toBe(true);
 		expect(observed.failureKeys).toEqual(['chat_id', 'message_id', 'reason', 'request_id', 'turn_id']);

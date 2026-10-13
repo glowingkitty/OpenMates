@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from backend.apps.ai.llm_providers.types import StreamChunkType, UnifiedStreamChunk
+from backend.apps.ai.processing.suggested_followup_stream import SuggestedFollowupStream
 from backend.apps.ai.utils.main_processing_failure import (
     main_processing_failure,
     main_processing_failure_reason,
@@ -51,6 +52,164 @@ def run_guard(chunks):
         return [chunk async for chunk in guard.filter(source())]
 
     return guard, asyncio.run(run())
+
+
+# contract-test: supporting surface=cli assertions=chats.streaming.progressive-presentation
+def test_first_plain_text_reaches_consumer_before_paragraph_or_source_end():
+    guard = ToolProtocolGuard()
+    seen = []
+
+    async def source():
+        yield 'Here is the answer'
+        assert seen == ['Here is the answer']
+        yield ' in one paragraph.'
+
+    async def run():
+        async for chunk in guard.filter(source()):
+            seen.append(chunk)
+
+    asyncio.run(run())
+    assert ''.join(seen) == 'Here is the answer in one paragraph.'
+    assert not guard.detected
+
+
+# contract-test: supporting surface=cli assertions=chats.streaming.progressive-presentation
+def test_tiny_provider_tokens_are_coalesced_before_first_visible_text():
+    seen = []
+
+    async def source():
+        yield 'Hi'
+        assert seen == []
+        yield ' there!'
+        assert seen == ['Hi there!']
+        yield ' More text.'
+
+    async def run():
+        async for chunk in ToolProtocolGuard().filter(source()):
+            seen.append(chunk)
+
+    asyncio.run(run())
+    assert seen == ['Hi there!', ' More text.']
+
+
+# contract-test: supporting surface=gui.web assertions=chats.streaming.progressive-presentation
+def test_only_first_plain_fragment_is_released_before_line_parsers():
+    guard, output = run_guard(['First text', ' continues', '\n| Name | Value |', '\n| A | B |'])
+    assert output == ['First text', ' continues\n| Name | Value |\n| A | B |']
+    assert not guard.detected
+
+    table = '| Name | Value |\n| --- | --- |\n| A | B |'
+    guard, output = run_guard([table[i:i + 2] for i in range(0, len(table), 2)])
+    assert output == [table]
+    assert not guard.detected
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.streaming.progressive-presentation
+@pytest.mark.parametrize('width', [1, 2, 5, 31, 9000])
+def test_early_prose_does_not_leak_later_split_protocol_or_xml(width):
+    prefix = 'Verified introduction before protocol. '
+    suffix = 'This claim came from an invented result.'
+    source = prefix + PROTOCOL + '\n' + suffix
+    guard, output = run_guard([source[i:i + width] for i in range(0, len(source), width)])
+    assert guard.detected
+    assert ''.join(output) == prefix
+
+    xml = prefix + '<ToOl_CaLl>{"tool":"search","input":"private"}</TOOL_CALL>' + ' Safe ending.'
+    guard, output = run_guard([xml[i:i + width] for i in range(0, len(xml), width)])
+    assert not guard.detected
+    assert ''.join(output) == prefix + ' Safe ending.'
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+def test_incomplete_xml_and_fence_are_suppressed_after_safe_prefix():
+    prefix = 'Safe text. '
+    guard, output = run_guard([prefix + '<tool_', 'call>{"tool":"search"}'])
+    assert not guard.detected
+    assert ''.join(output) == prefix
+
+    guard, output = run_guard([prefix + '```to', 'ol_code\n{"tool":"search"}'])
+    assert guard.detected
+    assert ''.join(output) == prefix
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+def test_real_json_code_citation_and_embed_reference_survive_split_stream():
+    answer = (
+        'The source says [example](embed:source-abc).\n'
+        '> [Quoted title](embed:source-abc)\n'
+        '```json\n{"type":"app_skill_use","embed_ref":"source-abc"}\n```'
+    )
+    guard, output = run_guard([answer[i:i + 3] for i in range(0, len(answer), 3)])
+    assert not guard.detected
+    assert ''.join(output) == answer
+
+
+# contract-test: supporting surface=gui.web assertions=chats.streaming.ordered-final
+def test_error_thought_and_metadata_tokens_keep_downstream_boundaries():
+    for marker in ('[ERROR: private detail]', '{thought}private reasoning'):
+        guard, output = run_guard([marker[:2], marker[2:7], marker[7:]])
+        assert not guard.detected
+        assert output == [marker]
+
+    text = (
+        'Public answer [PERSON_1] with [source](embed:source-abc).\n'
+        '<<suggested_followup_message>>Ask next<</suggested_followup_message>>'
+    )
+    guard, output = run_guard([text[i:i + 2] for i in range(0, len(text), 2)])
+    assert not guard.detected
+    assert ''.join(output) == text
+    downstream = SuggestedFollowupStream()
+    assert ''.join(downstream.feed(chunk) for chunk in output) == (
+        'Public answer [PERSON_1] with [source](embed:source-abc).\n'
+    )
+    assert downstream.finish() == ''
+    assert downstream.suggestion == 'Ask next'
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+def test_long_xml_tool_call_never_reaches_consumer():
+    xml = '<tool_call>' + ('private' * 10000) + '</tool_call>'
+    guard, output = run_guard([xml[i:i + 997] for i in range(0, len(xml), 997)])
+    assert not guard.detected
+    assert output == []
+
+
+# contract-test: supporting surface=cli assertions=chats.streaming.progressive-presentation
+def test_safe_prose_is_yielded_before_source_error_without_final_flush():
+    guard = ToolProtocolGuard()
+    seen = []
+
+    async def source():
+        yield 'Safe answer'
+        raise RuntimeError('provider failed')
+
+    async def run():
+        async for chunk in guard.filter(source()):
+            seen.append(chunk)
+
+    with pytest.raises(RuntimeError, match='provider failed'):
+        asyncio.run(run())
+    assert seen == ['Safe answer']
+
+
+# contract-test: supporting surface=cli assertions=chats.streaming.progressive-presentation
+def test_cancelling_after_first_safe_chunk_does_not_flush_pending_protocol():
+    guard = ToolProtocolGuard()
+    seen = []
+
+    async def source():
+        yield 'Safe answer'
+        yield '```to'
+        yield 'ol_code\n{"tool":"search"}'
+
+    async def run():
+        stream = guard.filter(source())
+        seen.append(await anext(stream))
+        await stream.aclose()
+
+    asyncio.run(run())
+    assert seen == ['Safe answer']
+    assert not guard.detected
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,web-search.surface-parity

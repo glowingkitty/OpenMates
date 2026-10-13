@@ -1849,6 +1849,32 @@ describe("memory type registry", () => {
   });
 
   // contract-test: supporting surface=cli assertions=app-memories.surface.semantic-parity,auth.session.isolation
+  it("decrypts socket snapshot rows and account documents without another HTTP read", async () => {
+    const key = new Uint8Array(32);
+    const document = "title: Socket document\nPrivate context.";
+    const encryptedItem = await encryptWithAesGcmCombined(JSON.stringify({ title: "Socket row" }), key);
+    const encryptedSettings = await encryptWithAesGcmCombined(JSON.stringify({
+      memory_documents: [{ id: "personal:socket", source: "personal", document }],
+    }), key);
+    const apiUrl = "http://127.0.0.1:1";
+    writeLegacySession(apiUrl);
+    const client = OpenMatesClient.load({ apiUrl });
+    const internal = client as unknown as { listMemoriesUnshared: (options: { personal: boolean },
+      snapshot: { encrypted_settings: string | null; memories: Array<Record<string, unknown>> }) => Promise<Array<{
+        id: string; data: { title: string; document?: string };
+      }>> };
+    const rows = await internal.listMemoriesUnshared({ personal: true }, {
+      encrypted_settings: encryptedSettings,
+      memories: [{ id: "socket-row", app_id: "code", item_type: "preferred_tech",
+        item_key: "key-hash", encrypted_item_json: encryptedItem }],
+    });
+    assert.deepEqual(rows.map(row => [row.id, row.data.title]), [
+      ["socket-row", "Socket row"], ["account-memory-socket", "Socket document"],
+    ]);
+    assert.equal(rows[1]?.data.document, document);
+  });
+
+  // contract-test: supporting surface=cli assertions=app-memories.surface.semantic-parity,auth.session.isolation
   it("keeps decrypted row Memories when batched account documents cannot decrypt", async () => {
     const encryptedItem = await encryptWithAesGcmCombined(JSON.stringify({ title: "Retained row" }), new Uint8Array(32));
     const server = createServer((_request, response) => {
@@ -3275,6 +3301,269 @@ describe("CLI saved-chat recovery preflight", () => {
     }
   });
 
+  // contract-test: supporting surface=cli assertions=app-memories.surface.semantic-parity,auth.session.isolation
+  for (const socketMode of ["warm", "cold"] as const) {
+    it("requests fresh Personal Memory before privacy on a " + socketMode + " socket", async () => {
+      const order: string[] = [];
+      let batchedAuth = 0;
+      const wss = new WebSocketServer({ noServer: true });
+      const server = createServer((request, response) => {
+        if (request.method !== "POST" || request.url !== "/v1/auth/session") {
+          response.writeHead(404); response.end(JSON.stringify({})); return;
+        }
+        let body = "";
+        request.on("data", chunk => { body += chunk.toString(); });
+        request.on("end", () => {
+          if (JSON.parse(body).include_personal_memories === true) batchedAuth++;
+          order.push("auth");
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(JSON.stringify({ success: true, ws_token: "fresh-token",
+            user: { id: "11111111-1111-4111-8111-111111111111" } }));
+        });
+      });
+      server.on("upgrade", (request, connection, head) => {
+        wss.handleUpgrade(request, connection, head, socket => {
+          socket.send(JSON.stringify({ type: "server_capabilities", payload: {
+            capabilities: ["personal_memory_snapshot_v1"],
+          } }));
+          socket.on("message", raw => {
+            const frame = JSON.parse(raw.toString()) as { type: string; payload?: { request_id?: string } };
+            if (frame.type !== "personal_memory_snapshot") return;
+            order.push("snapshot");
+            socket.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload: {
+              request_id: frame.payload?.request_id, success: true,
+              personal_memories: { encrypted_settings: null, memories: [] },
+            } }));
+          });
+        });
+      });
+      await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+      const address = server.address();
+      assert.ok(address && typeof address === "object");
+      const apiUrl = "http://127.0.0.1:" + address.port;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      const internal = client as unknown as {
+        openWsClient: () => Promise<{ ws: { close: () => void } }>;
+        takePreparedSendSocket: () => Promise<unknown>;
+        interactiveViewerAllowed: boolean;
+      };
+      const oldInputTty = process.stdin.isTTY;
+      const oldOutputTty = process.stdout.isTTY;
+      try {
+        if (socketMode === "warm") {
+          const opened = await internal.openWsClient();
+          internal.takePreparedSendSocket = async () => opened;
+          internal.interactiveViewerAllowed = true;
+          Object.defineProperty(process.stdin, "isTTY", { configurable: true, value: true });
+          Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: true });
+        }
+        await assert.rejects(client.sendMessage({ message: "ordinary question", personal: true,
+          interactiveHuman: socketMode === "warm", piiDetection: false,
+          onPrivacyPrepared: () => { order.push("privacy"); throw new Error("stop after snapshot"); },
+        }), /stop after snapshot/);
+        assert.deepEqual(order.slice(-2), ["snapshot", "privacy"]);
+        assert.equal(order.filter(value => value === "auth").length, 1);
+        assert.equal(batchedAuth, 0);
+      } finally {
+        Object.defineProperty(process.stdin, "isTTY", { configurable: true, value: oldInputTty });
+        Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: oldOutputTty });
+        wss.close();
+        server.closeAllConnections();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
+  }
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,auth.session.lifecycle
+  it("closes the snapshot socket when saved history fails before admission", async () => {
+    const events: string[] = [];
+    let resolveClosed!: () => void;
+    const closed = new Promise<void>(resolve => { resolveClosed = resolve; });
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request, response) => {
+      if (request.method !== "POST" || request.url !== "/v1/auth/session") {
+        response.writeHead(404); response.end(JSON.stringify({})); return;
+      }
+      let body = "";
+      request.on("data", chunk => { body += chunk.toString(); });
+      request.on("end", () => {
+        assert.equal(JSON.parse(body).include_personal_memories, undefined);
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-token",
+          user: { id: "11111111-1111-4111-8111-111111111111" } }));
+      });
+    });
+    server.on("upgrade", (request, connection, head) => {
+      wss.handleUpgrade(request, connection, head, socket => {
+        socket.send(JSON.stringify({ type: "server_capabilities", payload: {
+          capabilities: ["personal_memory_snapshot_v1"],
+        } }));
+        socket.on("close", () => { events.push("closed"); resolveClosed(); });
+        socket.on("message", raw => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload?: { request_id?: string } };
+          if (frame.type !== "personal_memory_snapshot") return;
+          events.push("snapshot");
+          socket.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload: {
+            request_id: frame.payload?.request_id, success: true,
+            personal_memories: { encrypted_settings: null, memories: [] },
+          } }));
+        });
+      });
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    const apiUrl = "http://127.0.0.1:" + address.port;
+    writeLegacySession(apiUrl);
+    const client = OpenMatesClient.load({ apiUrl });
+    const internal = client as unknown as { getChatMessages: () => Promise<never> };
+    internal.getChatMessages = async () => { events.push("history"); throw new Error("history unavailable"); };
+    try {
+      await assert.rejects(client.sendMessage({ message: "ordinary question", personal: true,
+        chatId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", piiDetection: false,
+      }), /history unavailable/);
+      let closeTimer: ReturnType<typeof setTimeout> | null = null;
+      try {
+        await Promise.race([closed, new Promise<never>((_, reject) => {
+          closeTimer = setTimeout(() => reject(new Error("Snapshot socket did not close after history failure.")), 1_000);
+        })]);
+      } finally {
+        if (closeTimer) clearTimeout(closeTimer);
+      }
+      assert.deepEqual(events, ["snapshot", "history", "closed"]);
+    } finally {
+      for (const socket of wss.clients) socket.terminate();
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,app-memories.surface.semantic-parity
+  for (const resultMode of ["unauthorized", "rate_limited", "unavailable", "malformed"] as const) {
+    it("does not downgrade an advertised snapshot " + resultMode + " with auto-approval off", async () => {
+      let authCalls = 0;
+      let batchCalls = 0;
+      const wss = new WebSocketServer({ noServer: true });
+      const server = createServer((request, response) => {
+        if (request.method !== "POST" || request.url !== "/v1/auth/session") {
+          response.writeHead(404); response.end(JSON.stringify({})); return;
+        }
+        let body = "";
+        request.on("data", chunk => { body += chunk.toString(); });
+        request.on("end", () => {
+          authCalls++;
+          if (JSON.parse(body).include_personal_memories === true) batchCalls++;
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(JSON.stringify({ success: true, ws_token: "fresh-token",
+            user: { id: "11111111-1111-4111-8111-111111111111" } }));
+        });
+      });
+      server.on("upgrade", (request, connection, head) => {
+        wss.handleUpgrade(request, connection, head, socket => {
+          socket.send(JSON.stringify({ type: "server_capabilities", payload: {
+            capabilities: ["personal_memory_snapshot_v1"],
+          } }));
+          socket.on("message", raw => {
+            const frame = JSON.parse(raw.toString()) as { type: string; payload?: { request_id?: string } };
+            if (frame.type !== "personal_memory_snapshot") return;
+            socket.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload: resultMode === "malformed"
+              ? { request_id: frame.payload?.request_id, success: true, personal_memories: { memories: [] } }
+              : { request_id: frame.payload?.request_id, success: false, error: { code: resultMode } },
+            }));
+          });
+        });
+      });
+      await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+      const address = server.address();
+      assert.ok(address && typeof address === "object");
+      const apiUrl = "http://127.0.0.1:" + address.port;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      try {
+        await assert.rejects(client.sendMessage({ message: "ordinary question", personal: true,
+          piiDetection: false, autoApproveMemories: false,
+        }), resultMode === "malformed" ? /Invalid Personal Memory snapshot result/ : new RegExp(resultMode));
+        assert.equal(authCalls, 1);
+        assert.equal(batchCalls, 0);
+      } finally {
+        wss.close();
+        server.closeAllConnections();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
+  }
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,auth.session.lifecycle
+  for (const changed of ["owner", "cookie", "options"] as const) {
+    it("discards a Personal Memory receipt after " + changed + " changes", async () => {
+      let admitted = false;
+      const wss = new WebSocketServer({ noServer: true });
+      const server = createServer((request, response) => {
+        response.setHeader("content-type", "application/json");
+        if (request.method === "POST" && request.url === "/v1/auth/session") {
+          response.end(JSON.stringify({ success: true, ws_token: "fresh-token",
+            user: { id: "11111111-1111-4111-8111-111111111111" } }));
+        } else if (request.method === "GET" && request.url === "/v1/projects") {
+          response.end(JSON.stringify({ projects: [] }));
+        } else if (request.method === "GET" && request.url?.startsWith("/v1/user-tasks")) {
+          response.end(JSON.stringify({ tasks: [], complete: true, next_cursor: null }));
+        } else {
+          response.writeHead(404); response.end(JSON.stringify({}));
+        }
+      });
+      server.on("upgrade", (request, connection, head) => {
+        wss.handleUpgrade(request, connection, head, socket => {
+          socket.send(JSON.stringify({ type: "server_capabilities", payload: {
+            capabilities: ["personal_memory_snapshot_v1", "chat_turn_admit_v1", "chat_turn_context_v1"],
+          } }));
+          socket.on("message", raw => {
+            const frame = JSON.parse(raw.toString()) as { type: string; payload?: { request_id?: string } };
+            if (frame.type === "personal_memory_snapshot") {
+              socket.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload: {
+                request_id: frame.payload?.request_id, success: true,
+                personal_memories: { encrypted_settings: null, memories: [] },
+              } }));
+            } else if (frame.type === "chat_metadata_warmup") {
+              socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+            } else if (frame.type === "chat_turn_admit") {
+              admitted = true;
+              socket.send(JSON.stringify({ type: "error", payload: { code: "client_update_required" } }));
+            }
+          });
+        });
+      });
+      await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+      const address = server.address();
+      assert.ok(address && typeof address === "object");
+      const apiUrl = "http://127.0.0.1:" + address.port;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      const sendParams: Parameters<typeof client.sendMessage>[0] = {
+        message: "ordinary question", personal: true, piiDetection: false,
+        learningMode: { enabled: false },
+        onPrivacyPrepared: () => {
+          if (changed === "owner") client.getSession()!.hashedEmail = "different-owner";
+          if (changed === "cookie") {
+            const stored = JSON.parse(readFileSync(sessionPath, "utf8")) as { cookies: Record<string, string> };
+            stored.cookies.auth_refresh_token = "rotated-cookie";
+            writeFileSync(sessionPath, JSON.stringify(stored), { mode: 0o600 });
+          }
+          if (changed === "options") sendParams.learningMode = { enabled: true };
+        },
+      };
+      try {
+        await assert.rejects(client.sendMessage(sendParams));
+        assert.equal(admitted, false);
+      } finally {
+        wss.close();
+        server.closeAllConnections();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
+  }
+
   // contract-test: supporting surface=cli assertions=auth.session.lifecycle,auth.session.isolation,chats.completion.lease-fenced
   for (const variant of ["fresh", "memory-loaded", "arbitrary snapshot", "expired", "future", "missing owner", "rotated disk cookie", "changed account", "changed Team", "revoked socket"] as const) {
     it(`uses a one-shot Personal auth receipt or falls back safely: ${variant}`, async () => {
@@ -3351,7 +3640,9 @@ describe("CLI saved-chat recovery preflight", () => {
           ...(snapshot ? { memorySnapshot: snapshot } : {}), piiDetection: false }), variant === "revoked socket" ? undefined
             : variant === "changed account" ? /Login account changed/i
               : variant === "changed Team" ? /Chat workspace changed while preparing context/i : /update required/i);
-        assert.equal(authCalls, variant === "fresh" || variant === "memory-loaded" || variant === "revoked socket" || variant === "changed account" ? 1 : 2);
+        // A cold send probes the socket first; definitive capability absence then
+        // uses the fresh HTTP batch and its one-use auth handoff.
+        assert.equal(authCalls, variant === "fresh" || variant === "revoked socket" || variant === "changed account" ? 1 : 2);
         assert.equal(preflightSent, variant !== "revoked socket" && variant !== "changed account" && variant !== "changed Team");
         assert.equal(upgraded, variant !== "revoked socket" && variant !== "changed account");
         if (variant === "fresh") {

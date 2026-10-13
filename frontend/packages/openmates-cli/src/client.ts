@@ -8858,13 +8858,69 @@ export class OpenMatesClient {
     }
     const shouldWaitForAi = shouldWaitForTeamAi(finalMessage, teamId);
 
+    const explicitTasksAppSkill = messageExplicitlyRequestsTasksAppSkill(finalMessage);
+    const taskUpdateJobsEnabled = params.taskUpdateJobs !== false && !explicitTasksAppSkill;
+    const sendSocketOptions: CliSendSocketOptions = {
+      taskUpdateJobs: taskUpdateJobsEnabled,
+      projectFileJobs: !params.incognito,
+      remoteCommandJobs: !params.incognito,
+      interactiveHuman: params.interactiveHuman === true && this.interactiveViewerAllowed
+        && process.stdin.isTTY === true && process.stdout.isTTY === true,
+    };
+    let memorySocket: Awaited<ReturnType<OpenMatesClient["openWsClient"]>> | null = null;
+    let socketSnapshotAttempted = false;
+    let socketSnapshotResultRows: Array<Record<string, unknown>> | null = null;
+    let socketMemoryReceipt: {
+      ws: OpenMatesWsClient;
+      snapshot: DecryptedMemoryEntry[];
+      resultRows: Array<Record<string, unknown>>;
+      ownerKey: string;
+      optionsKey: string;
+      used: boolean;
+    } | null = null;
+    const socketMemoryOptionsKey = () => JSON.stringify([
+      this.sendSocketOptionsKey(sendSocketOptions), params.projectId ?? null,
+      params.teamId ?? null, params.personal === true, params.incognito === true,
+      params.autoApproveMemories === true, params.piiDetection !== false,
+      params.learningMode?.enabled ?? null, params.learningMode?.ageGroup ?? null,
+    ]);
     const memoryStartedAt = performance.now();
     let availableMemories: DecryptedMemoryEntry[] = params.memorySnapshot ?? [];
     let memoryCountsLoaded = false;
     let memoryMetadataKeys: string[] = [];
     if (!params.incognito) {
       try {
-        availableMemories = params.memorySnapshot ?? await this.listMemories({ teamId });
+        if (!teamId && !params.memorySnapshot) {
+          try {
+            socketSnapshotAttempted = true;
+            memorySocket = (sendSocketOptions.interactiveHuman
+              ? await this.takePreparedSendSocket(sendSocketOptions, teamId) : null)
+              ?? await this.openWsClient(sendSocketOptions);
+            const ownerKey = JSON.stringify([this.sendSocketOwnerKey(this.requireSession(), teamId),
+              authCookieFingerprint(this.http.getCookieMap())]);
+            const supported = await memorySocket.ws.waitForServerCapability("personal_memory_snapshot_v1");
+            if (supported) {
+              const snapshot = await memorySocket.ws.requestPersonalMemorySnapshot(randomUUID());
+              socketSnapshotResultRows = snapshot.memories;
+              availableMemories = await this.listMemoriesUnshared({ personal: true }, snapshot);
+              if (!memorySocket.ws.isOpen() || JSON.stringify([this.sendSocketOwnerKey(this.requireSession(), teamId),
+                authCookieFingerprint(this.http.getCookieMap())]) !== ownerKey) {
+                throw new Error("Personal Memory snapshot owner or socket changed during preparation.");
+              }
+              socketMemoryReceipt = { ws: memorySocket.ws, snapshot: availableMemories,
+                resultRows: snapshot.memories, ownerKey, optionsKey: socketMemoryOptionsKey(), used: false };
+            } else {
+              memorySocket.ws.close();
+              memorySocket = null;
+              socketSnapshotAttempted = false;
+            }
+          } catch (error) {
+            memorySocket?.ws.close();
+            memorySocket = null;
+            throw error;
+          }
+        }
+        if (!socketMemoryReceipt) availableMemories = params.memorySnapshot ?? await this.listMemories({ teamId });
         memoryCountsLoaded = true;
         memoryMetadataKeys = [
           ...new Set(
@@ -8874,12 +8930,14 @@ export class OpenMatesClient {
           ),
         ];
       } catch (error) {
+        if (socketSnapshotAttempted) throw error;
         if (params.autoApproveMemories) {
           const message = error instanceof Error ? error.message : String(error);
           throw new Error(`Failed to load memories for auto-approval: ${message}`);
         }
       }
     }
+    try {
     const snapshotAuthHandoff = this.personalMemoryAuthHandoff?.snapshot.deref() === availableMemories
       ? this.personalMemoryAuthHandoff.auth : null;
     this.personalMemoryAuthHandoff = null;
@@ -8891,6 +8949,7 @@ export class OpenMatesClient {
     const savedPrivacyHistory = !params.incognito && params.chatId
       ? await this.getChatMessages(chatId, teamId ? { teamId } : { personal: true }) : null;
     let piiMappings = [...(savedPrivacyHistory?.messages.flatMap((message) => (message.piiMappings ?? []).map((mapping) => ({ ...mapping, type: mapping.type ?? "OTHER" }))) ?? []), ...(params.piiMappings ?? [])];
+    try {
     if (params.piiDetection !== false) {
       const prepared = await prepareCliMessagePrivacy(finalMessage, availableMemories, piiMappings, { kind: "message" }, params.onPrivacyProgress);
       finalMessage = prepared.message; piiMappings = prepared.mappings;
@@ -8909,10 +8968,12 @@ export class OpenMatesClient {
       }
     }
     params.onPrivacyPrepared?.(finalMessage);
+    } catch (error) {
+      memorySocket?.ws.close();
+      throw error;
+    }
     const privacyPrepMs = Math.round(performance.now() - privacyStartedAt);
 
-    const explicitTasksAppSkill = messageExplicitlyRequestsTasksAppSkill(finalMessage);
-    const taskUpdateJobsEnabled = params.taskUpdateJobs !== false && !explicitTasksAppSkill;
     const preWsMs = Math.round(performance.now() - preWsStartedAt);
     // A new chat without an explicit Project cannot have an existing active
     // Project focus. Start its read-only context discovery while the socket
@@ -8959,14 +9020,7 @@ export class OpenMatesClient {
     const authSocketStartedAt = Date.now();
     let opened: Awaited<ReturnType<OpenMatesClient["openWsClient"]>>;
     try {
-      const sendSocketOptions: CliSendSocketOptions = {
-        taskUpdateJobs: taskUpdateJobsEnabled,
-        projectFileJobs: !params.incognito,
-        remoteCommandJobs: !params.incognito,
-        interactiveHuman: params.interactiveHuman === true && this.interactiveViewerAllowed
-          && process.stdin.isTTY === true && process.stdout.isTTY === true,
-      };
-      opened = (sendSocketOptions.interactiveHuman
+      opened = memorySocket ?? (sendSocketOptions.interactiveHuman
         ? await this.takePreparedSendSocket(sendSocketOptions, teamId) : null)
         ?? await this.openWsClient({ ...sendSocketOptions, personalSendAuthHandoff });
     } catch (error) {
@@ -8975,6 +9029,21 @@ export class OpenMatesClient {
       throw error;
     }
     const { ws, ownerId } = opened;
+    const consumeSocketMemoryReceipt = async () => {
+      if (!socketMemoryReceipt) return;
+      const receipt = socketMemoryReceipt;
+      if (receipt.used || receipt.ws !== ws || receipt.snapshot !== availableMemories
+        || receipt.resultRows !== socketSnapshotResultRows || !ws.isOpen() || receipt.optionsKey !== socketMemoryOptionsKey()) {
+        throw new Error("Personal Memory snapshot socket receipt is invalid.");
+      }
+      await this.withFreshStoredSession(async () => {
+        if (!ws.isOpen() || JSON.stringify([this.sendSocketOwnerKey(this.requireSession(), teamId),
+          authCookieFingerprint(this.http.getCookieMap())]) !== receipt.ownerKey) {
+          throw new Error("Personal Memory snapshot owner changed before send.");
+        }
+      });
+      receipt.used = true;
+    };
     const socketReadyForSendAt = performance.now();
     let capabilitiesWaitMs = 0;
     let keyWaitMs = 0;
@@ -9595,6 +9664,7 @@ export class OpenMatesClient {
         void admissionAck.catch(() => {});
         const frameDispatchAt = performance.now();
         admissionContinuationPhase = "await_ack";
+        await consumeSocketMemoryReceipt();
         await ws.sendAsync(useCombinedAdmission ? "chat_turn_admit" : "chat_turn_preflight", admissionPayload);
         if (process.env.OPENMATES_DEBUG === "1") {
           console.error(`[chat admission preparation] sdk_minted=${sdkMintedChatId} defer_recovery=${mayDeferRecovery} combined_admission=${useCombinedAdmission} caps_wait_ms=${capabilitiesWaitMs} key_wait_ms=${keyWaitMs} recovery_keypair_ms=${recoveryKeypairMs} encrypt_payload_ms=${encryptPayloadMs} socket_ready_to_frame_dispatch_ms=${Math.round(frameDispatchAt - socketReadyForSendAt)} frame_dispatch_from_send_start_ms=${Math.round(frameDispatchAt - preWsStartedAt)} wire_send_ms=${Math.round(performance.now() - frameDispatchAt)}`);
@@ -9695,6 +9765,7 @@ export class OpenMatesClient {
         }
         admissionContinuationPhase = "await_confirmation";
       } else {
+        await consumeSocketMemoryReceipt();
         await ws.sendAsync("chat_message_added", messagePayload);
       }
       confirmedPayload = (await (contextAckRejection
@@ -10500,6 +10571,10 @@ export class OpenMatesClient {
       earlyContextAbort.abort();
       ws.close();
       if (earlyContext) await earlyContext;
+    }
+    } catch (error) {
+      memorySocket?.ws.close();
+      throw error;
     }
   }
 
@@ -14978,15 +15053,19 @@ export class OpenMatesClient {
     finally { if (this.personalMemoryReadInFlight === entry) this.personalMemoryReadInFlight = null; }
   }
 
-  private async listMemoriesUnshared(options: TeamContextOptions): Promise<DecryptedMemoryEntry[]> {
+  private async listMemoriesUnshared(options: TeamContextOptions, socketSnapshot?: {
+    encrypted_settings: string | null;
+    memories: Array<Record<string, unknown>>;
+  }): Promise<DecryptedMemoryEntry[]> {
     const startedAt = performance.now();
     const masterKey = this.getMasterKeyBytes();
     const keyMs = Math.round(performance.now() - startedAt);
     const teamId = this.resolveTeamContext(options);
     if (!teamId) this.personalMemoryAuthHandoff = null;
-    const personalBatch = teamId ? null : await this.fetchPersonalMemoryBatch();
+    const personalBatch = teamId || socketSnapshot ? null : await this.fetchPersonalMemoryBatch();
     const rawEntries = teamId ? await this.sdkGetTeamMemories(teamId)
-      : personalBatch ? personalBatch.rows : await this.sdkGetPersonalMemories();
+      : socketSnapshot ? socketSnapshot.memories
+        : personalBatch ? personalBatch.rows : await this.sdkGetPersonalMemories();
     const fetchMs = Math.round(performance.now() - startedAt) - keyMs;
     const results: DecryptedMemoryEntry[] = [];
 
@@ -15029,8 +15108,8 @@ export class OpenMatesClient {
       let accountDocuments: Awaited<ReturnType<OpenMatesClient['getCustomRuleDocuments']>> = [];
       let accountDocumentsLoaded = false;
       this.pendingWhoAmIAuthHandoff = null;
-      try { accountDocuments = personalBatch
-        ? await this.customRuleDocumentsFromEncryptedSettings(personalBatch.encryptedSettings)
+      try { accountDocuments = socketSnapshot || personalBatch
+        ? await this.customRuleDocumentsFromEncryptedSettings(socketSnapshot?.encrypted_settings ?? personalBatch?.encryptedSettings)
         : await this.getCustomRuleDocuments(); accountDocumentsLoaded = true; }
       catch { /* Unavailable account settings must not hide valid encrypted row Memories. */ }
       const handoff = personalBatch ? personalBatch.auth : this.pendingWhoAmIAuthHandoff;

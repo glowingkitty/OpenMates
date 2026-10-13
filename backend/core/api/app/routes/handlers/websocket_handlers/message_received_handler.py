@@ -279,6 +279,98 @@ def _can_prefetch_first_personal_turn(
     )
 
 
+def _first_personal_admission_matches(
+    hint: Any, payload: dict[str, Any], message: dict[str, Any],
+    *, chat_id: str, is_incognito: bool, is_team_chat: bool,
+) -> bool:
+    """Select only the server-bound ordinary first Personal admission."""
+    if not isinstance(hint, dict) or is_incognito or is_team_chat:
+        return False
+    if any(hint.get(key) != payload.get(key) for key in ("chat_id", "turn_id", "preflight_id")):
+        return False
+    if hint.get("message_id") != message.get("message_id") or hint.get("chat_id") != chat_id:
+        return False
+    if (not isinstance(hint.get("wrapped_chat_key"), str)
+        or not hint["wrapped_chat_key"]
+        or hint["wrapped_chat_key"] != payload.get("encrypted_chat_key")):
+        return False
+    if payload.get("protocol_version") != 1 or message.get("role") != "user":
+        return False
+    if payload.get("is_fork") or payload.get("embeds") or payload.get("encrypted_embeds"):
+        return False
+    if payload.get("message_history") or message.get("message_history"):
+        return False
+    excluded = (
+        "team_id", "current_project", "active_project_focus", "active_focus_id",
+        "project_focus_candidates", "project_focus_catalog", "project_focus_documents",
+        "queue_mode", "queue_revision", "queued_message_id", "accepted_plan_context",
+    )
+    return not any(payload.get(key) or message.get(key) for key in excluded)
+
+
+def _authorized_first_personal_projection(
+    result: Any, *, chat_id: str, user_id: str, preflight_id: str,
+) -> dict[str, Any] | None:
+    """Use only a complete projection returned by this enqueue transaction."""
+    if (
+        not isinstance(result, dict)
+        or result.get("preflight_id") != preflight_id
+        or result.get("state") != "ENQUEUED"
+        or type(result.get("committed_messages_v")) is not int
+        or result["committed_messages_v"] != 1
+        or type(result.get("admission_protocol_epoch")) is not int
+        or result["admission_protocol_epoch"] != 1
+        or result.get("admission_sends_paused") is not False
+    ):
+        return None
+    metadata = result.get("admission_chat_projection")
+    required = {
+        "id", "hashed_user_id", "hashed_team_id", "chat_visibility",
+        "participant_user_hashes", "participant_key_envelopes",
+        "messages_v", "title_v", "encrypted_title", "encrypted_chat_key",
+        "is_shared", "parent_id", "is_sub_chat", "budget_limit", "budget_spent",
+    }
+    if not isinstance(metadata, dict) or not required.issubset(metadata):
+        return None
+    budget_limit = metadata["budget_limit"]
+    if (
+        metadata["id"] != chat_id
+        or metadata["hashed_user_id"] != hash_id(user_id)
+        or metadata["hashed_team_id"] is not None
+        or metadata["chat_visibility"] not in (None, "private")
+        or metadata["participant_user_hashes"] is not None
+        or metadata["participant_key_envelopes"] is not None
+        or metadata["is_shared"] is not False
+        or metadata["parent_id"] is not None
+        or metadata["is_sub_chat"] is not False
+        or type(metadata["messages_v"]) is not int or metadata["messages_v"] != 1
+        or type(metadata["title_v"]) is not int or metadata["title_v"] < 0
+        or not isinstance(metadata["encrypted_title"], str)
+        or not isinstance(metadata["encrypted_chat_key"], str)
+        or not metadata["encrypted_chat_key"]
+        or len(metadata["encrypted_chat_key"]) > 16_384
+        or (budget_limit is not None
+            and (type(budget_limit) is not int or budget_limit < 0))
+        or type(metadata["budget_spent"]) is not int
+        or metadata["budget_spent"] < 0
+    ):
+        return None
+    return metadata
+
+
+def _recovery_inference_request(
+    payload: dict[str, Any], manager: Any, user_id: str, device_fingerprint_hash: str,
+) -> dict[str, Any]:
+    request = {key: value for key, value in payload.items()
+               if key not in {"protocol_version", "preflight_id"}}
+    request["client_capabilities"] = server_client_capabilities(
+        manager, user_id, device_fingerprint_hash,
+    )
+    request["current_project"] = None
+    request["active_project_focus"] = None
+    return request
+
+
 async def _read_ai_preference_fields(cache_service: Any, directus_service: Any, user_id: str):
     """Read only; apply any cache repair at the original request-building point."""
     cached = await cache_service.get_user_by_id(user_id)
@@ -510,6 +602,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
     is_allowlisted_test_account: bool = False,
     client_context_binding_ref: str | None = None,
     client_context_turn_id: str | None = None,
+    first_personal_admission: dict[str, Any] | None = None,
 ):
     """
     Handles a new message sent from the client (now via "chat_message_added" type).
@@ -635,7 +728,47 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         recovery_enqueue_result: dict[str, Any] | None = None
         protocol_epoch = 0
         chat_metadata_from_db: Optional[Dict[str, Any]] = None
-        if not is_incognito:
+        fast_projection = None
+        if _first_personal_admission_matches(
+            first_personal_admission, payload, message_payload_from_client,
+            chat_id=chat_id, is_incognito=is_incognito, is_team_chat=is_team_chat,
+        ):
+            try:
+                recovery_enqueue_result = await enqueue_chat_turn(
+                    directus_service=directus_service,
+                    user_id_hash=hash_id(user_id),
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    preflight_id=payload["preflight_id"],
+                    inference_request=_recovery_inference_request(
+                        payload, manager, user_id, device_fingerprint_hash,
+                    ),
+                    include_first_personal_projection=True,
+                    expected_wrapped_chat_key=first_personal_admission["wrapped_chat_key"],
+                )
+            except ChatRecoveryProtocolError as exc:
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {
+                        "code": exc.code,
+                        "message": "Durable encrypted preflight did not authorize this request.",
+                    }}, user_id, device_fingerprint_hash,
+                )
+                return
+            fast_projection = _authorized_first_personal_projection(
+                recovery_enqueue_result, chat_id=chat_id, user_id=user_id,
+                preflight_id=payload["preflight_id"],
+            )
+            if fast_projection is not None:
+                wrapped_key = fast_projection["encrypted_chat_key"]
+                # Use the row-locked wrapper for cross-device sync and any
+                # downstream key use, including when the request omitted it.
+                encrypted_chat_key_from_client = wrapped_key
+            else:
+                # The transaction left a PREPARED row untouched when its locked
+                # projection was unavailable. Resume the ordinary fresh-read path.
+                # Older servers may have enqueued already; their duplicate is idempotent.
+                recovery_enqueue_result = None
+        metadata_result = fast_projection
+        if not is_incognito and fast_projection is None:
             cutover_controller = ChatRecoveryCutoverController(cache_service, directus_service)
             # Both reads are authoritative and independent. Start them together,
             # but validate the cutover result before using chat metadata.
@@ -666,6 +799,19 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     device_fingerprint_hash,
                 )
                 return
+        elif fast_projection is not None:
+            # Epoch and pause were locked in the same transaction as enqueue.
+            protocol_epoch = recovery_enqueue_result["admission_protocol_epoch"]
+        if recovery_enqueue_result is not None and protocol_epoch == 0:
+            # A successful durable enqueue must never fall through to the
+            # legacy task path, even if a later fallback read is inconsistent.
+            await manager.send_personal_message(
+                {"type": "error", "payload": {
+                    "code": "inference_temporarily_unavailable",
+                    "message": "Saved-chat sending is temporarily unavailable. Please retry shortly.",
+                }}, user_id, device_fingerprint_hash,
+            )
+            return
         if protocol_epoch >= 1:
             if payload.get("protocol_version") != 1 or not payload.get("preflight_id"):
                 await manager.send_personal_message(
@@ -845,21 +991,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 )
                 return
 
-        if protocol_epoch >= 1 and team_should_trigger_ai:
-            inference_request = {
-                key: value
-                for key, value in payload.items()
-                if key not in {"protocol_version", "preflight_id"}
-            }
-            inference_request["client_capabilities"] = server_client_capabilities(
-                manager,
-                user_id,
-                device_fingerprint_hash,
+        if protocol_epoch >= 1 and team_should_trigger_ai and recovery_enqueue_result is None:
+            # The commitment canonicalizer replaces live Project focus with null.
+            inference_request = _recovery_inference_request(
+                payload, manager, user_id, device_fingerprint_hash,
             )
-            # The commitment canonicalizer replaces these values with null.
-            # Resolve fresh focus later when constructing the actual AI request.
-            inference_request["current_project"] = None
-            inference_request["active_project_focus"] = None
             try:
                 if is_team_chat:
                     inference_request = normalize_team_ai_inference_request(inference_request)

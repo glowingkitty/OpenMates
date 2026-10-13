@@ -194,6 +194,123 @@ test('opt-in cookie session returns fresh scoped Personal ciphertext without wid
 	}
 });
 
+// contract-test: direct surface=gui.web assertions=auth.session.authoritative-enforcement,auth.session.isolation
+test('Personal memory snapshot socket returns scoped ciphertext once and rejects a newly challenged session', async ({ page, playwright }: any) => {
+	test.setTimeout(120000);
+	test.skip(process.env.OPENMATES_CI_ISOLATED !== '1', 'Requires the disposable isolated CI backend.');
+	const credentials = getTestAccount();
+	skipWithoutCredentials(test, credentials.email, credentials.password, credentials.otpKey);
+	let applicationSocketUrl: string | null = null;
+	page.on('websocket', (socket: any) => {
+		if (new URL(socket.url()).pathname.endsWith('/v1/ws')) applicationSocketUrl = socket.url();
+	});
+	await loginToTestAccount(page, undefined, undefined, { waitForEditor: true, credentials });
+	await expect.poll(() => applicationSocketUrl).not.toBeNull();
+	const apiUrl = process.env.OPENMATES_E2E_API_URL;
+	if (!apiUrl || new URL(apiUrl).hostname !== 'localhost') {
+		throw new Error('Personal memory fixture requires the runner-local API.');
+	}
+	const sessionId = await page.evaluate(() => sessionStorage.getItem('session_id'));
+	if (!sessionId) throw new Error('Browser session ID is missing.');
+	const userAgent = await page.evaluate(() => navigator.userAgent);
+	const origin = new URL(page.url()).origin;
+	const cookie = await refreshCookie(page.context());
+	const authenticated = await playwright.request.newContext({
+		baseURL: apiUrl, userAgent, extraHTTPHeaders: { Origin: origin, Cookie: `auth_refresh_token=${cookie}` }
+	});
+	const ownerRowId = randomUUID();
+	const foreignRowId = randomUUID();
+	const marker = Buffer.from(`isolated-personal-memory:${ownerRowId}`).toString('base64');
+	let ownerId: string | null = null;
+	try {
+		const session = await authenticated.post('/v1/auth/session', { data: { session_id: sessionId } });
+		expect(session.status()).toBe(200);
+		const body = await session.json();
+		expect(body.success).toBe(true);
+		expect(body.ws_token).toEqual(expect.any(String));
+		ownerId = body.user?.id;
+		expect(ownerId).toEqual(expect.any(String));
+		updateIsolatedPersonalMemoryRows(ownerId!, ownerRowId, foreignRowId, marker, 'seed');
+		await page.exposeFunction('__challengePersonalMemorySnapshot', () => challengeIsolatedSession(cookie));
+		const results = await page.evaluate(async (observedUrl: string) => {
+			const sockets: WebSocket[] = [];
+			const openSocket = () => new Promise<{ socket: WebSocket; capabilities: string[] }>((resolve, reject) => {
+				const url = new URL(observedUrl);
+				// A distinct correlation ID preserves the app's own connection while
+				// retaining its signed token, device identity, cookie, and user agent.
+				url.searchParams.set('sessionId', `personal-memory-snapshot-${crypto.randomUUID()}`);
+				const socket = new WebSocket(url);
+				sockets.push(socket);
+				const timeout = setTimeout(() => reject(new Error('Personal snapshot socket did not advertise capabilities')), 20000);
+				socket.addEventListener('message', (event) => {
+					let frame: { type?: string; payload?: { capabilities?: string[] } };
+					try { frame = JSON.parse(String(event.data)); } catch { return; }
+					if (frame.type !== 'server_capabilities') return;
+					clearTimeout(timeout);
+					resolve({ socket, capabilities: frame.payload?.capabilities ?? [] });
+				});
+				socket.addEventListener('error', () => {
+					clearTimeout(timeout);
+					reject(new Error('Personal snapshot socket failed to open'));
+				}, { once: true });
+			});
+			const request = (socket: WebSocket, requestId: string) => new Promise<Record<string, any>>((resolve, reject) => {
+				const timeout = setTimeout(() => {
+					socket.removeEventListener('message', receive);
+					reject(new Error('Personal snapshot result timed out'));
+				}, 20000);
+				function receive(event: MessageEvent) {
+					let frame: { type?: string; payload?: Record<string, any> };
+					try { frame = JSON.parse(String(event.data)); } catch { return; }
+					if (frame.type !== 'personal_memory_snapshot_result' || frame.payload?.request_id !== requestId) return;
+					clearTimeout(timeout);
+					socket.removeEventListener('message', receive);
+					resolve(frame.payload);
+				}
+				socket.addEventListener('message', receive);
+				socket.send(JSON.stringify({ type: 'personal_memory_snapshot', payload: { request_id: requestId } }));
+			});
+			try {
+				const first = await openSocket();
+				const requestId = crypto.randomUUID();
+				const snapshot = await request(first.socket, requestId);
+				const duplicate = await request(first.socket, crypto.randomUUID());
+				// Open the second socket while the durable session is still valid;
+				// the next request must check authority before the 10s watcher runs.
+				const second = await openSocket();
+				await (window as typeof window & { __challengePersonalMemorySnapshot: () => Promise<void> }).__challengePersonalMemorySnapshot();
+				const challenged = await request(second.socket, crypto.randomUUID());
+				return { capabilities: first.capabilities, snapshot, duplicate, challenged };
+			} finally {
+				for (const socket of sockets) socket.close();
+			}
+		}, applicationSocketUrl as string);
+		expect(results.capabilities).toContain('personal_memory_snapshot_v1');
+		expect(results.snapshot.success).toBe(true);
+		const batch = results.snapshot.personal_memories;
+		expect(Object.keys(batch).sort()).toEqual(['encrypted_settings', 'memories']);
+		expect(batch.encrypted_settings === null || typeof batch.encrypted_settings === 'string').toBe(true);
+		expect(Array.isArray(batch.memories)).toBe(true);
+		const ownerRow = batch.memories.find((row: any) => row.id === ownerRowId);
+		expect(ownerRow).toBeTruthy();
+		expect(Object.keys(ownerRow).sort()).toEqual([
+			'app_id', 'created_at', 'encrypted_item_json', 'id', 'item_key', 'item_type', 'item_version', 'updated_at'
+		]);
+		expect(ownerRow).toMatchObject({ app_id: 'code', item_type: 'test',
+			item_key: ownerRowId.replaceAll('-', ''), encrypted_item_json: marker, item_version: 1 });
+		expect(batch.memories.some((row: any) => row.id === foreignRowId)).toBe(false);
+		expect(batch.memories.every((row: any) => !Object.hasOwn(row, 'hashed_user_id')
+			&& !Object.hasOwn(row, 'hashed_team_id'))).toBe(true);
+		expect(results.duplicate).toMatchObject({ success: false, error: { code: 'already_used' } });
+		expect(Object.hasOwn(results.duplicate, 'personal_memories')).toBe(false);
+		expect(results.challenged).toMatchObject({ success: false, error: { code: 'unauthorized' } });
+		expect(Object.hasOwn(results.challenged, 'personal_memories')).toBe(false);
+	} finally {
+		if (ownerId) updateIsolatedPersonalMemoryRows(ownerId, ownerRowId, foreignRowId, marker, 'delete');
+		await authenticated.dispose();
+	}
+});
+
 // contract-test: direct surface=rest_api assertions=auth.session.risk-reauth,auth.session.authoritative-enforcement,auth.session.isolation
 test('durable pending risk on a known device with unchanged country requires proof before issuing a WS token', async ({ page, playwright, browser }: any) => {
 	test.setTimeout(180000);

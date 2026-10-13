@@ -1,12 +1,13 @@
 # Chat processing architecture
 
-The architecture revision (`fa6b90c`), Google transport repair (`e71c72b8`), immediate admission changes (`2453d85d`), first measured SDK/auth/simple-turn fixes (`7a250696`), composer focus repair (`df30b916`), idle authenticated TUI connection / bounded Project projection changes (`ab78d61b`), and profile/refresh/context-failure repairs (`94d03b1a`) are deployed to development. The current candidate adds fresh Personal Memory batching, first-turn preference overlap, strict-frame tracing preservation and legacy-context identity repair. Actual TUI measurements still miss the latency targets; no successful timing acceptance is claimed yet. Timing targets are 1.5 seconds from Enter/Send to selected-Mate paint, and 2–3 seconds to authored text for an ordinary factual request. The interactive TUI is measured first, then web. Tool progress, final response, persistence and command exit are separate measurements.
+The architecture revision (`fa6b90c`), Google transport repair (`e71c72b8`), immediate admission changes (`2453d85d`), first measured SDK/auth/simple-turn fixes (`7a250696`), composer focus repair (`df30b916`), idle authenticated TUI connection / bounded Project projection changes (`ab78d61b`), and profile/refresh/context-failure repairs (`94d03b1a`) are deployed to development. Revision `3d64cfe1` adds fresh Personal Memory batching, first-turn preference overlap, strict-frame tracing preservation and legacy-context identity repair. Those changes are deployed; the combined candidate consolidates first Personal admission reads, overlaps independent main setup, fetches fresh Personal ciphertext over the prepared send socket, and releases the first safe prose fragment before paragraph completion. Actual TUI measurements still miss the latency targets; no successful timing acceptance is claimed yet. Timing targets are 1.5 seconds from Enter/Send to selected-Mate paint, and 2–3 seconds to authored text for an ordinary factual request. The interactive TUI is measured first, then web. Tool progress, final response, persistence and command exit are separate measurements.
 
 ```mermaid
 flowchart TD
   Focus[Web focus or microphone / TUI startup] --> Prepare[Prepare invisible chat UUID and key; warm authorized discovery]
   Send[Enter / Send] --> Optimistic[One user row; clear submitted composer snapshot]
-  Optimistic --> Admit[One encrypted chat_turn_admit frame]
+  Optimistic --> Fresh[Use ready send socket; fresh Personal Memory snapshot and device-local privacy preparation]
+  Fresh --> Admit[One encrypted chat_turn_admit frame]
   Admit --> Durable[Fresh authentication; atomic chat and first-message preparation; protocol admission]
   Prepare -. reused when ready .-> Admit
   Durable --> Router[Reserved app_ai_routing worker]
@@ -78,7 +79,7 @@ flowchart LR
   Selection --> Load[Parallel selected-resource authorization and hydration]
 ```
 
-Minimal main context retains the instructions needed to answer correctly. It omits unrelated private Project/Task/Workflow bodies and unused selected app guidance; it preserves mandatory safety, privacy, formatting, questions, model policy and selected context. A confirmed objective English factual first turn with complete empty context omits the empty Task runtime and its create tool. Unknown intent, actions, explicit Task dependencies and incomplete context retain the full path. The last qualified main prompt contained 7,163 tokens. The next candidate also omits only code, document and plot formatting sections for a positively proved objective factual first turn with zero final tools and no selected private or artifact context. Discovery metadata alone does not force artifact instructions back into the prompt. Unknown intent, selected context, relevant history, attachments and actions retain those sections; mandatory answer and composer-suggestion guidance remains. Token and timing savings are not yet measured.
+Minimal main context retains the instructions needed to answer correctly. It omits unrelated private Project/Task/Workflow bodies and unused selected app guidance; it preserves mandatory safety, privacy, formatting, questions, model policy and selected context. A confirmed objective English factual first turn with complete empty context omits the empty Task runtime and its create tool. Unknown intent, actions, explicit Task dependencies and incomplete context retain the full path. The last qualified main prompt contained 4,950 tokens, down from 7,163 after the optional artifact guard activated. The combined candidate additionally omits available-app capabilities and app/settings deep-link guidance only when the same proven factual turn has no product, capability or link intent. It omits code, document and plot formatting sections for a positively proved objective factual first turn with zero final tools and no selected private or artifact context. Discovery metadata alone does not force artifact instructions back into the prompt. Unknown intent, selected context, relevant history, attachments and actions retain those sections; mandatory answer and composer-suggestion guidance remains. Token and timing savings are not yet measured.
 
 ```mermaid
 flowchart LR
@@ -130,8 +131,10 @@ Actual PTY Enter-to-paint samples below use the successful Google Gemini 3.8 Fla
 | `7a250696`, subsequent warm run | 29 ms | 2,992 ms | 5,740 ms | 10,948 ms | Missed |
 | `94d03b1a`, warm after restart | 28 ms | 4,267 ms | 7,570 ms | 12,675 ms | Missed |
 | `94d03b1a`, subsequent warm run | 30 ms | 2,694 ms | 5,066 ms | 13,186 ms | Missed |
+| `3d64cfe1`, warm after restart | 30 ms | 2,827 ms | 5,744 ms | 10,589 ms | Missed |
+| `3d64cfe1`, subsequent warm run | 30 ms | 2,436 ms | 4,724 ms | 9,821 ms | Missed |
 
-The latest hot sample has this cumulative timeline; overlapping work must not be added twice:
+The earlier Core4 hot sample has this cumulative timeline; overlapping work must not be added twice:
 
 ```mermaid
 flowchart LR
@@ -147,7 +150,7 @@ flowchart LR
   Text --> Final[Final completion paint 13186 ms]
 ```
 
-Memory preparation costs 778 ms; API preflight/admission spans about 466 ms, handler setup before dispatch 486 ms, router startup 211 ms, routing credit check 62 ms, Project eligibility 61 ms, and the observed Jev plan-to-decision interval 359 ms. Those intervals do not cover every gap. Concurrent context preparation lasts 1,143 ms and overlaps admission; it is not an additional serial cost. Main task start to provider HTTP is 790 ms; HTTP to authored paint is 1,583 ms. The main prompt is still 7,163 tokens: the code/document/plot omission guard did not activate because the schema represents disabled Learning Mode as `{enabled: false}`. The candidate recognizes only that exact disabled state, keeps unknown/active policy on the full path, and has not yet measured its token or timing benefit.
+Memory preparation costs 778 ms; API preflight/admission spans about 466 ms, handler setup before dispatch 486 ms, router startup 211 ms, routing credit check 62 ms, Project eligibility 61 ms, and the observed Jev plan-to-decision interval 359 ms. Those intervals do not cover every gap. Concurrent context preparation lasts 1,143 ms and overlaps admission; it is not an additional serial cost. Main task start to provider HTTP is 790 ms; HTTP to authored paint is 1,583 ms. In that Core4 sample, the main prompt was still 7,163 tokens: the code/document/plot omission guard did not activate because the schema represents disabled Learning Mode as `{enabled: false}`. The candidate recognizes only that exact disabled state, keeps unknown/active policy on the full path, and has not yet measured its token or timing benefit.
 
 Final completion is a distinct 8,120-ms tail after authored paint in this sample. Authored paint to final marker is 1,272 ms, marker to postprocessor result 3,146 ms, postprocessor result to the API encrypted-metadata request 2,937 ms, API request to persistence 730 ms and persistence to final paint 35 ms. The 2,937-ms interval is not yet attributed to a particular client or transport operation. It is not first-answer latency and no fixed SDK timeout is inferred from it.
 
@@ -162,3 +165,44 @@ First durably proven ordinary Personal turns start a read-only preference lookup
 Context transport uses a dedicated server-supplied admitted-turn identity, independent of durable recovery identity, including epoch-zero legacy dispatch. Clients cannot supply this authority field. The four strict admission/preflight/context frames retain their sealed payloads byte-for-byte; tracing remains local for those frames and continues decorating ordinary messages. Bound failure acknowledgements remain exact-owner/device/Team/chat/turn/message/request scoped and release only the matching active task. These fixes close the previously failed web context-error path; isolated verification is required before claiming it passes.
 
 The 1.5-second Mate and 2–3-second authored-text targets remain open. Actual TUI verification precedes web timing. The candidate is not a successful latency result merely because focused correctness checks pass.
+
+
+## Core5 hot timing and next scoped repairs
+
+The second actual Core5 TUI run used Google AI Studio Gemini 3.8 Flash LOW, zero tools, and 4,950 input tokens. The factual prompt guard activated. Its Enter-to-paint timeline is 30 ms user row, 2,436 ms selected Mate, 4,724 ms authored text, and 9,821 ms final completion. Compared with the prior hot Core4 sample, Mate improved 258 ms and authored paint 342 ms; these individual samples are not a percentile estimate.
+
+```mermaid
+flowchart LR
+  Enter[Enter 0] --> Memory[Memory prep ends 608 ms]
+  Memory --> Preflight[Cutover 659-765 / atomic prepare 878-1081]
+  Preflight --> Handler[Handler 1126 / dispatch 1507]
+  Handler --> Route[Router 1510 / Jev 1929-2314]
+  Route --> Mate[Mate paint 2436]
+  Mate --> Main[Main HTTP 3158]
+  Main --> First[Provider authored 4497 / paint 4724]
+  First --> Post[Final marker 6047 / post result 8895]
+  Post --> Persist[Metadata persisted 9791 / final paint 9821]
+```
+
+Client preparation is 614 ms, including 608 ms for the fresh Personal batch. Main task start to provider HTTP is 723 ms; HTTP to authored paint is 1,566 ms. Context preparation overlaps admission and is not added again. Stage one still asks 43 app relevance questions, eight early routing/context questions, 11 public decisions and one Project question (63 total). Safety, language and model-policy decisions remain mandatory; the current complete-result validator also includes output preview/icon/model-topic flags.
+
+The measured `/auth/session` route takes 529.8 ms in this hot run. Fresh risk reads run in parallel for 86 ms. Two device/profile persistence operations remain sequential after that decision and occupy an aggregate interval of about 255 ms. Fresh encrypted Personal settings and row reads run concurrently, about 66–68 ms from their request timestamp to completion. These cache read/modify/write operations cannot be made concurrent as-is without risking lost device or last-online changes. No positive authorization cache, suppressed fresh risk check, or deferred required credential publication is introduced.
+
+The next admission change uses the transaction's current owner-scoped chat projection within the same first ordinary Personal request. Atomic preflight retains account, protocol, deletion, participant, version and ciphertext gates while replacing its preceding duplicate admin chat GET. Durable enqueue validates the exact client/preflight/chat wrapped key and protocol epoch under locks before creating an outbox; it returns a complete typed owner/version/key projection. Unknown or incomplete projections use fresh reads and ordinary enqueue, without partial fast-path outbox mutation. Legacy, Team, direct, existing-chat, attachment, explicit Project and queued paths retain their established gates. Outbox release and worker admission remain fresh.
+
+The next main setup change overlaps the exact active-summary request with independent configuration/artifact preparation after durable claim and user-key validation, then joins before preprocessing. Optional encrypted debug persistence runs concurrently with sealed initial metadata persistence; metadata references publish after persistence and all work joins or drains before provider dispatch. Additional phase spans distinguish stage-one load, private restore, claim, user cache, configurations, summary and artifact work. This is preparation overlap; main is still queued after Jev completes. Routing requires the durable state to remain `ENQUEUED`, so starting main's claim earlier would invalidate routing authority.
+
+The successful context-failure ACK alone did not settle the legacy web UI: empty-queue recovery atomically cleared the failed task's marker but returned the same result as a follower handoff. Cleanup then suppressed its terminal failure code. The next repair distinguishes owned clear from transfer/superseded ownership in both saved and volatile paths, publishes the bound code only after owned clear, and preserves a newer task's fence. The isolated CLI recovery test explicitly runs protocol epoch one to verify actual durable first-turn admission and wrapper mismatch rejection; web failure cleanup is rechecked separately.
+
+Neither Core5 sample meets the 1.5-second Mate or three-second authored-text target. The next candidate's timing benefit is unmeasured until the real TUI is tested. Web timing continues afterward.
+
+
+## Combined candidate: fresh socket context and early prose
+
+For first-party ordinary Personal CLI sends, the SDK borrows a matching ready one-use socket before required Memory preparation; without one it opens the authenticated send socket first. It waits for an actual capabilities frame. An advertised `personal_memory_snapshot_v1` allows a correlation-only request on that exact socket. The backend atomically limits attempts to 30 per session and 60 per owner per minute, then checks the current cache owner link, durable session/risk ledger, pair/session deadlines, current authoritative device list and session-country baseline before loading fresh encrypted account settings and owner-only null-Team Memory rows in parallel. The response returns on the request socket, with no broadcast, raw refresh token, plaintext or positive authorization cache. Device and last-online bookkeeping are outside this snapshot request.
+
+A one-use local receipt binds the resulting decrypted array, encrypted rows, exact live socket, current owner/session/cookie/master-key scope and send options. Snapshot errors, malformed responses, timeout, closed sockets and changed authority fail closed. Only a definitive absent capability permits the established opt-in HTTP batch path. Team and API-key routes retain their existing behavior. The interactive TUI still paints its submitted row before required asynchronous work. Warm-up sends no draft text and performs no AI inference; required fresh context and device-local privacy checks remain on Send.
+
+The protocol guard allows one first ordinary prose fragment once at least eight characters are safe, then retains the established paragraph grouping. Partial tool fences/XML, reasoning markers, errors, normal code, embed references and metadata retain their original boundaries. This reduces paragraph buffering rather than treating tool progress or hidden reasoning as authored text. Client chunk fades apply to authored streaming, with reduced-motion support.
+
+These are implementation details under the already-approved immediate admission, conditional context, session isolation and chat feedback contracts. Their actual timing benefit remains unmeasured; targets remain open until the exact deployed TUI is measured, followed by web.

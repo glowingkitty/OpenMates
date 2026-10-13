@@ -123,6 +123,8 @@ async def enqueue_chat_turn(
     device_fingerprint_hash: str,
     preflight_id: str,
     inference_request: dict[str, Any],
+    include_first_personal_projection: bool = False,
+    expected_wrapped_chat_key: str | None = None,
 ) -> dict[str, Any]:
     namespace = uuid.UUID(preflight_id)
     started_at = start_recovery_timing()
@@ -138,6 +140,9 @@ async def enqueue_chat_turn(
                 "inference_task_id": str(uuid.uuid5(namespace, "inference-task")),
                 "billing_identity": str(uuid.uuid5(namespace, "billing-identity")),
                 "outbox_id": str(uuid.uuid5(namespace, "inference-outbox")),
+                **({"include_first_personal_projection": True,
+                    "expected_wrapped_chat_key": expected_wrapped_chat_key}
+                   if include_first_personal_projection else {}),
             },
         )
     finally:
@@ -206,7 +211,24 @@ async def handle_chat_turn_preflight(
         inference_request_payload = payload.get("inference_request")
         team_id = payload.get("team_id")
         is_team_turn = isinstance(team_id, str) and bool(team_id)
-        existing_chat = await directus_service.chat.get_chat_metadata(str(payload["chat_id"]), admin_required=True)
+        # An ordinary first Personal frame carries version zero and encrypted
+        # metadata. Atomic prepare locks the chat, owner and deletion fence and
+        # rejects Direct metadata; the preceding admin GET duplicates that work.
+        first_personal_metadata_candidate = (
+            team_id is None
+            and type(payload.get("expected_messages_v")) is int
+            and payload["expected_messages_v"] == 0
+            and isinstance(payload.get("encrypted_chat_metadata"), dict)
+            and isinstance(inference_request_payload, dict)
+            and isinstance(inference_request_payload.get("message"), dict)
+            and inference_request_payload["message"].get("role") == "user"
+        )
+        existing_chat = (
+            None if first_personal_metadata_candidate
+            else await directus_service.chat.get_chat_metadata(
+                str(payload["chat_id"]), admin_required=True,
+            )
+        )
         direct_turn = is_direct_chat(existing_chat)
         if direct_turn:
             try:

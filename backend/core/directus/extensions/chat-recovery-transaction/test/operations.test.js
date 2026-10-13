@@ -1705,6 +1705,137 @@ test('enqueue_inference atomically transitions PREPARED and creates its outbox r
   assert.deepEqual(failing.rows.chat_inference_outbox, []);
 });
 
+const firstPersonalPreparedSeed = () => {
+  const seed = { ...preparedSeed(), ...protocolSeed({ epoch: 1 }) };
+  Object.assign(seed.chats[0], {
+    hashed_team_id: null, chat_visibility: null,
+    participant_user_hashes: null, participant_key_envelopes: null,
+    encrypted_title: 'title-ciphertext', title_v: 0, is_shared: false,
+    parent_id: null, is_sub_chat: false, budget_limit: null, budget_spent: 0,
+  });
+  return seed;
+};
+
+// contract-test: direct surface=rest_api assertions=chats.message.identity-idempotent
+// The fast admission projection is trusted only inside the same locked enqueue
+// transaction; duplicate retries retain one outbox and one projection.
+test('first Personal enqueue returns an authorized locked projection for exact duplicate', async () => {
+  const seed = firstPersonalPreparedSeed();
+  const database = fakeDatabase(seed);
+  const body = {
+    protocol_version: 1, preflight_id: PREFLIGHT_ID, hashed_user_id: OWNER,
+    device_hash: 'device-a', inference_commitment: COMMITMENT,
+    inference_task_id: TASK_ID, billing_identity: BILLING_ID, outbox_id: OUTBOX_ID,
+    include_first_personal_projection: true, expected_wrapped_chat_key: 'wrapped-key-1',
+  };
+  const first = await executeOperation(database, 'enqueue_inference', body, new Date('2029-01-01T00:01:00Z'));
+  const duplicate = await executeOperation(database, 'enqueue_inference', body, new Date('2029-01-01T00:01:01Z'));
+  assert.deepEqual(duplicate, first);
+  assert.equal(first.admission_protocol_epoch, 1);
+  assert.equal(first.admission_sends_paused, false);
+  assert.deepEqual(first.admission_chat_projection, {
+    id: CHAT_ID, hashed_user_id: OWNER, hashed_team_id: null,
+    chat_visibility: null, participant_user_hashes: null, participant_key_envelopes: null,
+    messages_v: 1, title_v: 0, encrypted_title: 'title-ciphertext',
+    encrypted_chat_key: 'wrapped-key-1', is_shared: false,
+    parent_id: null, is_sub_chat: false, budget_limit: null, budget_spent: 0,
+  });
+  assert.equal(database.rows.chat_inference_outbox.length, 1);
+  assert.equal((await executeOperation(database, 'enqueue_inference', {
+    ...body, include_first_personal_projection: false, expected_wrapped_chat_key: undefined,
+  })).admission_chat_projection, undefined);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('first Personal projection rejects owner, direct, deletion, epoch and pause races', async () => {
+  const body = {
+    protocol_version: 1, preflight_id: PREFLIGHT_ID, hashed_user_id: OWNER,
+    device_hash: 'device-a', inference_commitment: COMMITMENT,
+    inference_task_id: TASK_ID, billing_identity: BILLING_ID, outbox_id: OUTBOX_ID,
+    include_first_personal_projection: true, expected_wrapped_chat_key: 'wrapped-key-1',
+  };
+  const cases = [
+    { name: 'owner', change: (seed) => { seed.chats[0].hashed_user_id = 'd'.repeat(64); }, code: 'chat_not_found' },
+    { name: 'direct', change: (seed) => { seed.chats[0].chat_visibility = 'direct'; }, code: 'chat_not_found' },
+    { name: 'deleted', change: (seed) => { seed.chat_recovery_chat_deletion_fences = [{ id: CHAT_ID }]; }, code: 'chat_not_found' },
+    { name: 'epoch', change: (seed) => { seed.chat_recovery_protocol_state[0].protocol_epoch = 0; }, code: 'client_update_required' },
+    { name: 'paused', change: (seed) => { seed.chat_recovery_protocol_state[0].sends_paused = true; }, code: 'inference_temporarily_paused' },
+  ];
+  for (const { name, change, code } of cases) {
+    const seed = firstPersonalPreparedSeed();
+    change(seed);
+    const database = fakeDatabase(seed);
+    await assert.rejects(
+      executeOperation(database, 'enqueue_inference', body, new Date('2029-01-01T00:01:00Z')),
+      (error) => error instanceof ProtocolError && error.code === code,
+      name,
+    );
+    assert.deepEqual(database.rows.chat_inference_outbox, [], name);
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
+test('stale first Personal version omits projection for fresh-read fallback', async () => {
+  const seed = firstPersonalPreparedSeed();
+  seed.chats[0].messages_v = 2;
+  const database = fakeDatabase(seed);
+  const result = await executeOperation(database, 'enqueue_inference', {
+    protocol_version: 1, preflight_id: PREFLIGHT_ID, hashed_user_id: OWNER,
+    device_hash: 'device-a', inference_commitment: COMMITMENT,
+    inference_task_id: TASK_ID, billing_identity: BILLING_ID, outbox_id: OUTBOX_ID,
+    include_first_personal_projection: true, expected_wrapped_chat_key: 'wrapped-key-1',
+  }, new Date('2029-01-01T00:01:00Z'));
+  assert.equal(result.state, 'PREPARED');
+  assert.equal(result.admission_projection_unavailable, true);
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'PREPARED');
+  assert.deepEqual(database.rows.chat_inference_outbox, []);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
+test('first Personal projection omits malformed or mismatched locked metadata', async () => {
+  const changes = [
+    (seed) => { seed.chats[0].title_v = '0'; },
+    (seed) => { seed.chats[0].budget_spent = '0'; },
+  ];
+  for (const change of changes) {
+    const seed = firstPersonalPreparedSeed();
+    change(seed);
+    const database = fakeDatabase(seed);
+    const result = await executeOperation(database, 'enqueue_inference', {
+      protocol_version: 1, preflight_id: PREFLIGHT_ID, hashed_user_id: OWNER,
+      device_hash: 'device-a', inference_commitment: COMMITMENT,
+      inference_task_id: TASK_ID, billing_identity: BILLING_ID, outbox_id: OUTBOX_ID,
+      include_first_personal_projection: true, expected_wrapped_chat_key: 'wrapped-key-1',
+    }, new Date('2029-01-01T00:01:00Z'));
+    assert.equal(result.state, 'PREPARED');
+    assert.equal(result.admission_projection_unavailable, true);
+    assert.equal(database.rows.chat_turn_preflights[0].state, 'PREPARED');
+    assert.deepEqual(database.rows.chat_inference_outbox, []);
+  }
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+// A rejected wrapper must not allocate billable inference or change preflight state.
+test('first Personal wrong wrapped key leaves no outbox or enqueue transition', async () => {
+  for (const change of [
+    (seed) => { seed.chat_turn_preflights[0].wrapped_chat_key = 'other-wrapper'; },
+    (seed) => { seed.chats[0].encrypted_chat_key = 'other-wrapper'; },
+  ]) {
+    const seed = firstPersonalPreparedSeed();
+    change(seed);
+    const database = fakeDatabase(seed);
+    await assert.rejects(executeOperation(database, 'enqueue_inference', {
+      protocol_version: 1, preflight_id: PREFLIGHT_ID, hashed_user_id: OWNER,
+      device_hash: 'device-a', inference_commitment: COMMITMENT,
+      inference_task_id: TASK_ID, billing_identity: BILLING_ID, outbox_id: OUTBOX_ID,
+      include_first_personal_projection: true, expected_wrapped_chat_key: 'wrapped-key-1',
+    }, new Date('2029-01-01T00:01:00Z')),
+    (error) => error instanceof ProtocolError && error.code === 'immutable_chat_key_mismatch');
+    assert.equal(database.rows.chat_turn_preflights[0].state, 'PREPARED');
+    assert.deepEqual(database.rows.chat_inference_outbox, []);
+  }
+});
+
 test('lease_job supports expiry takeover with monotonic generations and rejects stale leases', async () => {
   const database = fakeDatabase(leasedSeed());
   const start = new Date('2029-01-01T00:00:00Z');

@@ -143,6 +143,7 @@ const OPERATION_FIELDS = Object.freeze({
   enqueue_inference: new Set([
     'protocol_version', 'preflight_id', 'hashed_user_id', 'device_hash',
     'inference_commitment', 'inference_task_id', 'billing_identity', 'outbox_id',
+    'include_first_personal_projection', 'expected_wrapped_chat_key',
   ]),
   release_inference_outbox: new Set([
     'protocol_version', 'preflight_id', 'inference_task_id', 'outbox_id', 'hashed_user_id',
@@ -2236,6 +2237,35 @@ async function verifyCommittedTeamMessage(database, raw) {
   });
 }
 
+const firstPersonalChatProjection = (chat, row, ownerHash) => {
+  if (!['PREPARED', 'ENQUEUED'].includes(row.state)
+    || row.expected_messages_v !== 0 || row.committed_messages_v !== 1
+    || chat.messages_v !== 1 || chat.hashed_user_id !== ownerHash
+    || chat.hashed_team_id !== null || ![null, 'private'].includes(chat.chat_visibility)
+    || chat.participant_user_hashes !== null || chat.participant_key_envelopes !== null
+    || chat.is_shared !== false || chat.parent_id !== null || chat.is_sub_chat !== false
+    || !Number.isSafeInteger(chat.title_v) || chat.title_v < 0
+    || typeof chat.encrypted_title !== 'string'
+    || typeof chat.encrypted_chat_key !== 'string' || !chat.encrypted_chat_key
+    || chat.encrypted_chat_key !== row.wrapped_chat_key
+    || !(chat.budget_limit === null
+      || (Number.isSafeInteger(chat.budget_limit) && chat.budget_limit >= 0))
+    || !Number.isSafeInteger(chat.budget_spent) || chat.budget_spent < 0) {
+    return null;
+  }
+  return {
+    id: chat.id, hashed_user_id: chat.hashed_user_id,
+    hashed_team_id: chat.hashed_team_id, chat_visibility: chat.chat_visibility,
+    participant_user_hashes: chat.participant_user_hashes,
+    participant_key_envelopes: chat.participant_key_envelopes,
+    messages_v: chat.messages_v, title_v: chat.title_v,
+    encrypted_title: chat.encrypted_title, encrypted_chat_key: chat.encrypted_chat_key,
+    is_shared: chat.is_shared, parent_id: chat.parent_id,
+    is_sub_chat: chat.is_sub_chat, budget_limit: chat.budget_limit,
+    budget_spent: chat.budget_spent,
+  };
+};
+
 async function enqueueInference(database, raw, now) {
   const body = operationBody(raw, 'enqueue_inference');
   const preflightId = uuid(body.preflight_id, 'invalid_preflight_id');
@@ -2245,24 +2275,67 @@ async function enqueueInference(database, raw, now) {
   const taskId = uuid(body.inference_task_id, 'invalid_task_id');
   const billingId = uuid(body.billing_identity, 'invalid_billing_identity');
   const outboxId = uuid(body.outbox_id, 'invalid_outbox_id');
+  const includeFirstPersonalProjection = body.include_first_personal_projection === true;
+  if (body.include_first_personal_projection !== undefined
+    && typeof body.include_first_personal_projection !== 'boolean') {
+    fail(400, 'invalid_projection_request');
+  }
+  const expectedWrappedChatKey = includeFirstPersonalProjection
+    ? string(body.expected_wrapped_chat_key, 'invalid_wrapped_chat_key', 16_384) : null;
+  if (!includeFirstPersonalProjection && body.expected_wrapped_chat_key !== undefined) {
+    fail(400, 'invalid_projection_request');
+  }
   return database.transaction(async (trx) => {
     await requireUnfencedRecoveryAccount(trx, ownerHash);
+    // Match prepare's account -> protocol -> deletion -> chat -> preflight
+    // lock order. The snapshot only locates locks; the locked row below binds
+    // owner, device, commitment and immutable chat identity.
+    let chat = null;
+    let snapshot = null;
+    if (includeFirstPersonalProjection) {
+      const protocol = await lockedProtocolState(trx);
+      if (Number(protocol.protocol_epoch) !== 1) fail(426, 'client_update_required');
+      if (protocol.sends_paused) fail(503, 'inference_temporarily_paused');
+      snapshot = await trx(PREFLIGHTS).where({ id: preflightId }).first();
+      if (!snapshot || snapshot.hashed_user_id !== ownerHash
+        || snapshot.device_hash !== deviceHash) fail(404, 'preflight_not_found');
+      await lockIdentity(trx, `chat-recovery-delete:${snapshot.chat_id}`);
+      if (await trx(CHAT_DELETION_FENCES).where({ id: snapshot.chat_id }).first()) {
+        fail(404, 'chat_not_found');
+      }
+      chat = await authorizedOutputChat(trx, snapshot.chat_id, ownerHash);
+    }
     const row = await trx(PREFLIGHTS).where({ id: preflightId }).forUpdate().first();
-    if (!row || row.hashed_user_id !== ownerHash || row.device_hash !== deviceHash) fail(404, 'preflight_not_found');
+    if (!row || row.hashed_user_id !== ownerHash || row.device_hash !== deviceHash
+      || (snapshot && row.chat_id !== snapshot.chat_id)) fail(404, 'preflight_not_found');
     if (row.deletion_invalidated_at) fail(409, 'preflight_invalidated');
-    const chat = await authorizedOutputChat(trx, row.chat_id, ownerHash);
+    if (!chat) chat = await authorizedOutputChat(trx, row.chat_id, ownerHash);
     if (directChatMarked(chat)) {
       // Human DM turns may be sent by viewers, but inference spends Team
       // credits and still requires a regular Team writer role.
       await authorizedTeamWriter(trx, chat.hashed_team_id, ownerHash);
     }
     if (row.inference_commitment !== commitment) fail(409, 'preflight_mismatch');
+    if (includeFirstPersonalProjection && (chat.hashed_team_id != null
+      || chat.chat_visibility === 'direct' || chat.participant_user_hashes != null
+      || chat.participant_key_envelopes != null)) fail(404, 'chat_not_found');
+    if (includeFirstPersonalProjection && (row.wrapped_chat_key !== expectedWrappedChatKey
+      || chat.encrypted_chat_key !== expectedWrappedChatKey)) fail(409, 'immutable_chat_key_mismatch');
+    const projection = includeFirstPersonalProjection
+      ? firstPersonalChatProjection(chat, row, ownerHash) : null;
+    const withProjection = (result) => projection ? {
+      ...result, admission_protocol_epoch: 1, admission_sends_paused: false,
+      admission_chat_projection: projection,
+    } : result;
     if (['ENQUEUED', 'RUNNING', 'FAILED', 'TERMINAL', 'CONSUMED'].includes(row.state)) {
       if (row.inference_task_id !== taskId || row.billing_identity !== billingId || row.outbox_id !== outboxId) fail(409, 'enqueue_identity_mismatch');
-      return responseForPreflight(row);
+      return withProjection(responseForPreflight(row));
     }
     if (row.state !== 'PREPARED') fail(409, 'invalid_preflight_state');
     if (new Date(row.expires_at) <= now) fail(410, 'preflight_expired');
+    if (includeFirstPersonalProjection && !projection) {
+      return { ...responseForPreflight(row), admission_projection_unavailable: true };
+    }
     await trx(OUTBOX).insert({
       id: outboxId, event_key: `chat-turn:${row.turn_id}`, preflight_id: row.id,
       hashed_user_id: ownerHash, chat_id: row.chat_id, turn_id: row.turn_id,
@@ -2272,7 +2345,7 @@ async function enqueueInference(database, raw, now) {
       state: 'ENQUEUED', inference_task_id: taskId, billing_identity: billingId,
       outbox_id: outboxId, enqueued_at: now,
     });
-    return responseForPreflight({ ...row, state: 'ENQUEUED', inference_task_id: taskId, billing_identity: billingId, outbox_id: outboxId });
+    return withProjection(responseForPreflight({ ...row, state: 'ENQUEUED', inference_task_id: taskId, billing_identity: billingId, outbox_id: outboxId }));
   });
 }
 

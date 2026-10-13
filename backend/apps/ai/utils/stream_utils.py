@@ -7,7 +7,9 @@ logger = logging.getLogger(__name__)
 # set logger to to DEBUG level for detailed output
 # logger.setLevel(logging.DEBUG)
 
-async def aggregate_paragraphs(raw_chunk_stream: AsyncIterator) -> AsyncIterator:
+async def aggregate_paragraphs(
+    raw_chunk_stream: AsyncIterator, *, early_prose: bool = False
+) -> AsyncIterator:
     """
     Asynchronously aggregates text chunks from a stream into paragraphs,
     while passing through any non-string objects (like billing/usage data).
@@ -15,7 +17,12 @@ async def aggregate_paragraphs(raw_chunk_stream: AsyncIterator) -> AsyncIterator
     Paragraphs are primarily delimited by double newlines ('\n\n').
     Additionally, markdown code blocks (``` ... ```) are treated as distinct paragraphs.
     It yields each complete paragraph/code block as it's formed.
-    Any remaining buffered text is yielded at the end of the stream.
+    Any remaining buffered text is yielded at the end of the stream. When
+    early_prose is enabled, the first ordinary text is released as soon as its
+    suffix cannot become a paragraph separator, code fence, or tool-call XML
+    marker. Later text retains paragraph boundaries for downstream line parsers.
+    Complete and incomplete tool-call XML is suppressed in this mode.
+    The default retains the paragraph contract for other callers.
 
     Args:
         raw_chunk_stream: An asynchronous iterator yielding text chunks (strings)
@@ -29,6 +36,24 @@ async def aggregate_paragraphs(raw_chunk_stream: AsyncIterator) -> AsyncIterator
     in_code_block = False
     code_block_delimiter = "```"
     paragraph_separator = "\n\n"
+    tool_call_open = "<tool_call>"
+    tool_call_close = "</tool_call>"
+    in_tool_call = False
+    early_release_done = False
+    early_prose_min_chars = 8
+
+    def held_marker_suffix(value: str) -> int:
+        """Keep only suffixes that may complete a special opening token."""
+        lowered = value.lower()
+        markers = (
+            paragraph_separator, code_block_delimiter, tool_call_open,
+            "[error", "{thought}",
+        )
+        return max(
+            (length for marker in markers for length in range(1, len(marker))
+             if lowered.endswith(marker[:length])),
+            default=0,
+        )
 
     try:
         # Constants for buffer management
@@ -49,7 +74,21 @@ async def aggregate_paragraphs(raw_chunk_stream: AsyncIterator) -> AsyncIterator
             while processed_in_outer_loop: # Keep processing buffer as long as changes are made
                 processed_in_outer_loop = False
 
-                if in_code_block:
+                if in_tool_call:
+                    # The consumer's per-chunk XML stripper cannot recognize a
+                    # split block. Suppress it here before any text is published.
+                    end_tool_call_idx = buffer.lower().find(tool_call_close)
+                    if end_tool_call_idx != -1:
+                        end = end_tool_call_idx + len(tool_call_close)
+                        buffer = buffer[end:]
+                        in_tool_call = False
+                        processed_in_outer_loop = True
+                    else:
+                        if len(buffer) > MAX_BUFFER_SIZE:
+                            # Keep only a possible prefix of the closing tag.
+                            buffer = buffer[-(len(tool_call_close) - 1):]
+                        break
+                elif in_code_block:
                     # Look for closing code block delimiter
                     # Scan the whole buffer for closing delimiter as code blocks can be long
                     # When the buffered block still starts with its opening fence, skip
@@ -88,12 +127,27 @@ async def aggregate_paragraphs(raw_chunk_stream: AsyncIterator) -> AsyncIterator
                         break # Break inner while, wait for next chunk
                 else: # Not in a code block
                     # Scan a prefix of the buffer for separators
-                    scan_area = buffer[:SCAN_PREFIX_LENGTH]
+                    # The fast path must inspect the entire provider chunk: a
+                    # fence later in a large chunk must never be released as prose.
+                    scan_area = buffer if early_prose else buffer[:SCAN_PREFIX_LENGTH]
                     para_sep_idx = scan_area.find(paragraph_separator)
                     code_block_start_idx = scan_area.find(code_block_delimiter)
+                    tool_call_start_idx = (
+                        scan_area.lower().find(tool_call_open) if early_prose else -1
+                    )
+
+                    if tool_call_start_idx != -1 and all(
+                        idx == -1 or tool_call_start_idx < idx
+                        for idx in (para_sep_idx, code_block_start_idx)
+                    ):
+                        if tool_call_start_idx > 0:
+                            yield buffer[:tool_call_start_idx]
+                        buffer = buffer[tool_call_start_idx:]
+                        in_tool_call = True
+                        processed_in_outer_loop = True
 
                     # Determine which separator comes first, if any, within the scan_area
-                    if para_sep_idx != -1 and (code_block_start_idx == -1 or para_sep_idx < code_block_start_idx):
+                    elif para_sep_idx != -1 and (code_block_start_idx == -1 or para_sep_idx < code_block_start_idx):
                         # Paragraph separator is next
                         paragraph = buffer[:para_sep_idx + len(paragraph_separator)]
                         yield paragraph
@@ -109,7 +163,28 @@ async def aggregate_paragraphs(raw_chunk_stream: AsyncIterator) -> AsyncIterator
                         processed_in_outer_loop = True
                     else:
                         # No separators found in the scan_area
-                        if len(buffer) > MAX_BUFFER_SIZE:
+                        if early_prose and any(
+                            buffer.lstrip().startswith(marker)
+                            or marker.startswith(buffer.lstrip())
+                            for marker in ("[ERROR", "{thought}")
+                        ):
+                            # The consumer recognizes these only at the start
+                            # of a chunk; do not fragment a private error or
+                            # leaked-reasoning marker before it sees it.
+                            break
+                        if early_prose and not early_release_done and (
+                            not buffer.lstrip() or buffer.lstrip()[0] in "|-0123456789"
+                        ):
+                            # Table and numeric/garbled content needs the
+                            # consumer's complete-line and chunk checks.
+                            break
+                        if early_prose and not early_release_done:
+                            safe_len = len(buffer) - held_marker_suffix(buffer)
+                            if safe_len >= early_prose_min_chars:
+                                yield buffer[:safe_len]
+                                buffer = buffer[safe_len:]
+                                early_release_done = True
+                        elif len(buffer) > MAX_BUFFER_SIZE:
                             # Buffer is too large without a separator, force yield part of it
                             # Try to break on a newline for cleaner output
                             forced_yield_len = SCAN_PREFIX_LENGTH # Yield up to where we scanned
@@ -127,7 +202,7 @@ async def aggregate_paragraphs(raw_chunk_stream: AsyncIterator) -> AsyncIterator
                             break # Break inner while, wait for next chunk
         
         # Yield any remaining text in the buffer after the stream ends
-        if buffer:
+        if buffer and not in_tool_call:
             if in_code_block:
                 logger.warning(f"Stream ended with an unterminated code block. Yielding remaining buffer. Size: {len(buffer)}")
             yield buffer

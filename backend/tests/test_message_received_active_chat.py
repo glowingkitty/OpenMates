@@ -1274,3 +1274,138 @@ def test_existing_personal_chat_rejects_user_user_ai_cache_history(monkeypatch):
     ]
     assert history_requests
     cache_service.set_active_ai_task.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+@pytest.mark.asyncio
+@pytest.mark.parametrize("projected,fallback_epoch", [(True, 1), (False, 1), (False, 0)])
+async def test_first_personal_enqueue_projection_skips_duplicate_reads_or_falls_back(
+    monkeypatch, projected, fallback_epoch,
+):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    user_id, chat_id, turn_id, preflight_id, message_id = (
+        "user-123", "chat-123", "turn-123", "preflight-123", "message-123",
+    )
+    projection = {
+        "id": chat_id, "hashed_user_id": hash_id(user_id), "hashed_team_id": None,
+        "chat_visibility": None, "participant_user_hashes": None,
+        "participant_key_envelopes": None, "messages_v": 1, "title_v": 0,
+        "encrypted_title": "title-ciphertext", "encrypted_chat_key": "wrapped-key-1",
+        "is_shared": False, "parent_id": None,
+        "is_sub_chat": False, "budget_limit": None, "budget_spent": 0,
+    }
+    enqueue_result = {"preflight_id": preflight_id, "state": "ENQUEUED", "committed_messages_v": 1}
+    if projected:
+        enqueue_result.update(admission_protocol_epoch=1, admission_sends_paused=False,
+                              admission_chat_projection=projection)
+    enqueue = AsyncMock(return_value=enqueue_result)
+    fresh_read = AsyncMock(side_effect=RuntimeError("fresh fallback reached"))
+    owner_check = AsyncMock(side_effect=RuntimeError("ownership stage reached"))
+    epoch = AsyncMock(return_value=fallback_epoch)
+    monkeypatch.setattr(handler, "enqueue_chat_turn", enqueue)
+    monkeypatch.setattr(handler, "ChatRecoveryCutoverController",
+                        lambda *_: SimpleNamespace(get_epoch=epoch))
+    directus = SimpleNamespace(chat=SimpleNamespace(
+        get_chat_metadata=fresh_read, check_chat_ownership=owner_check,
+    ))
+    message = {"message_id": message_id, "role": "user", "content": "hello", "created_at": 1}
+    payload = {"chat_id": chat_id, "turn_id": turn_id, "protocol_version": 1,
+               "preflight_id": preflight_id, "encrypted_chat_key": "wrapped-key-1", "message": message}
+    await handler.handle_message_received(
+        websocket=FakeWebSocket(), manager=FakeManager(), cache_service=SimpleNamespace(),
+        directus_service=directus, encryption_service=SimpleNamespace(),
+        user_id=user_id, device_fingerprint_hash="device-123", payload=payload,
+        first_personal_admission={"chat_id": chat_id, "turn_id": turn_id,
+                                  "message_id": message_id, "preflight_id": preflight_id,
+                                   "wrapped_chat_key": "wrapped-key-1"},
+    )
+    enqueue.assert_awaited_once()
+    assert enqueue.await_args.kwargs["include_first_personal_projection"] is True
+    assert enqueue.await_args.kwargs["expected_wrapped_chat_key"] == "wrapped-key-1"
+    assert fresh_read.await_count == (0 if projected else 1)
+    assert epoch.await_count == (0 if projected else 1)
+    assert owner_check.await_count == (1 if projected else 0)
+    if projected:
+        assert owner_check.await_args.kwargs["authoritative_metadata"] == projection
+
+
+# contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
+@pytest.mark.parametrize("mutation", [
+    "owner", "direct", "missing", "epoch", "paused", "version",
+    "missing_key", "bad_key_type", "bad_budget_type", "bad_title_type",
+    "missing_required_field", "bad_subchat_type",
+])
+def test_first_personal_projection_fails_closed_to_fresh_read(mutation):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    user_id, chat_id, preflight_id = "user-123", "chat-123", "preflight-123"
+    projection = {"id": chat_id, "hashed_user_id": hash_id(user_id),
+                  "hashed_team_id": None, "chat_visibility": None,
+                  "participant_user_hashes": None, "participant_key_envelopes": None,
+                  "messages_v": 1, "title_v": 0, "encrypted_title": "title-ciphertext",
+                  "encrypted_chat_key": "wrapped-key-1", "is_shared": False, "parent_id": None, "is_sub_chat": False,
+                  "budget_limit": None, "budget_spent": 0}
+    result = {"preflight_id": preflight_id, "state": "ENQUEUED", "committed_messages_v": 1,
+              "admission_protocol_epoch": 1,
+              "admission_sends_paused": False, "admission_chat_projection": projection}
+    if mutation == "owner":
+        projection["hashed_user_id"] = "wrong"
+    elif mutation == "direct":
+        projection["chat_visibility"] = "direct"
+    elif mutation == "missing":
+        del result["admission_chat_projection"]
+    elif mutation == "epoch":
+        result["admission_protocol_epoch"] = 0
+    elif mutation == "paused":
+        result["admission_sends_paused"] = True
+    elif mutation == "version":
+        projection["messages_v"] = 2
+    elif mutation == "missing_key":
+        del projection["encrypted_chat_key"]
+    elif mutation == "bad_key_type":
+        projection["encrypted_chat_key"] = 1
+    elif mutation == "bad_budget_type":
+        projection["budget_spent"] = "0"
+    elif mutation == "bad_title_type":
+        projection["title_v"] = "0"
+    elif mutation == "missing_required_field":
+        del projection["parent_id"]
+    elif mutation == "bad_subchat_type":
+        projection["is_sub_chat"] = 0
+    assert handler._authorized_first_personal_projection(
+        result, chat_id=chat_id, user_id=user_id, preflight_id=preflight_id,
+    ) is None
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.asyncio
+async def test_first_personal_enqueue_rejects_wrong_locked_wrapper_before_processing(monkeypatch):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    user_id, chat_id, turn_id, preflight_id, message_id = (
+        "user-123", "chat-123", "turn-123", "preflight-123", "message-123",
+    )
+    enqueue = AsyncMock(side_effect=handler.ChatRecoveryProtocolError(409, "immutable_chat_key_mismatch"))
+    fresh_read = AsyncMock()
+    owner_check = AsyncMock()
+    monkeypatch.setattr(handler, "enqueue_chat_turn", enqueue)
+    manager = FakeManager()
+    await handler.handle_message_received(
+        websocket=FakeWebSocket(), manager=manager, cache_service=SimpleNamespace(),
+        directus_service=SimpleNamespace(chat=SimpleNamespace(
+            get_chat_metadata=fresh_read, check_chat_ownership=owner_check,
+        )), encryption_service=SimpleNamespace(), user_id=user_id,
+        device_fingerprint_hash="device-123",
+        payload={"chat_id": chat_id, "turn_id": turn_id, "protocol_version": 1,
+                 "preflight_id": preflight_id, "encrypted_chat_key": "wrapped-key-1",
+                 "message": {"message_id": message_id, "role": "user", "content": "hello"}},
+        first_personal_admission={"chat_id": chat_id, "turn_id": turn_id,
+                                  "message_id": message_id, "preflight_id": preflight_id,
+                                   "wrapped_chat_key": "wrapped-key-1"},
+    )
+    enqueue.assert_awaited_once()
+    assert enqueue.await_args.kwargs["expected_wrapped_chat_key"] == "wrapped-key-1"
+    fresh_read.assert_not_awaited()
+    owner_check.assert_not_awaited()
+    assert manager.calls == [("send_personal_message", "error", user_id, "device-123")]
