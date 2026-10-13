@@ -33,6 +33,7 @@ embed_types:
     content_fields:
       - {name: query, type: string}
       - {name: country, type: string}
+      - {name: countries, type: object}
       - {name: provider, type: string}
       - {name: providers, type: object}
       - {name: result_count, type: number}
@@ -78,9 +79,14 @@ skills:
     preprocessor_hint: >
       Search current public job listings in Germany and Sweden. Use this skill for
       job discovery, including opportunities related to a user's stated impact
-      goal. Germany auto sources are Bundesagentur für Arbeit and Arbeitnow;
-      Sweden auto uses JobTech. Default country is DE only when the user gives
-      no country; do not imply Europe-wide coverage. Specify a named provider
+      goal. Set countries to the countries the user selected, or omit it for
+      the Germany-only [DE] default. Each request may override countries; the
+      legacy country field means one country. Germany auto sources are
+      Bundesagentur für Arbeit, Arbeitnow, 80,000 Hours, and Hard Problems;
+      Sweden auto uses JobTech, 80,000 Hours, and Hard Problems. Sources that
+      cannot verify a requested remote or employment filter are omitted from
+      auto search; an explicit unsupported source request returns an error.
+      Do not imply Europe-wide coverage. Specify a named provider
       only when the user requests it. Put a user-stated career purpose or impact
       preference in relevance_criteria so explicit listing facts can rank a
       bounded candidate pool. Omit it for a neutral query and never invent
@@ -96,9 +102,20 @@ skills:
       - {name: Bundesagentur für Arbeit, no_api_key: true}
       - {name: Arbeitnow, no_api_key: true}
       - {name: JobTech, no_api_key: true}
+      - {name: '80,000 Hours', no_api_key: true}
+      - {name: Hard Problems, no_api_key: true}
     tool_schema:
       type: object
       properties:
+        countries:
+          type: array
+          minItems: 1
+          maxItems: 2
+          uniqueItems: true
+          default: [DE]
+          items: {type: string, enum: [DE, SE]}
+          x-ui: {basic: true}
+          description: Search these countries by default; omit only when Germany alone is intended.
         requests:
           type: array
           minItems: 1
@@ -121,9 +138,16 @@ skills:
               country:
                 type: string
                 enum: [DE, SE]
-                default: DE
-                x-ui: {basic: true}
-                description: DE for Germany or SE for Sweden; default DE only if unspecified.
+                x-ui: {basic: false}
+                description: Legacy singleton country override; do not combine with countries.
+              countries:
+                type: array
+                minItems: 1
+                maxItems: 2
+                uniqueItems: true
+                items: {type: string, enum: [DE, SE]}
+                x-ui: {basic: false}
+                description: Override top-level countries for this request; do not combine with country.
               location:
                 type: string
                 x-ui: {basic: true, control: location}
@@ -162,12 +186,12 @@ skills:
                 description: Maximum final results for this request.
               provider:
                 type: string
-                enum: [auto, Arbeitnow, Arbeitsagentur, JobTech]
+                enum: [auto, Arbeitnow, Arbeitsagentur, JobTech, '80,000 Hours', Hard Problems]
                 x-ui: {basic: false}
                 description: One explicit source, overriding auto country routing.
               providers:
                 type: array
-                items: {type: string, enum: [Arbeitnow, Arbeitsagentur, JobTech]}
+                items: {type: string, enum: [Arbeitnow, Arbeitsagentur, JobTech, '80,000 Hours', Hard Problems]}
                 x-ui: {basic: false}
                 description: Explicit source list; do not mix with provider or auto.
               relevance_criteria:
@@ -188,8 +212,9 @@ skills:
       binding_requirements: [none]
       test_allowed: true
       test_example_input:
+        countries: [DE]
         requests:
-          - {query: software engineer, country: DE, limit: 3}
+          - {query: software engineer, limit: 3}
       output_schema:
         type: object
         properties:
@@ -208,6 +233,7 @@ skills:
               properties:
                 request_id: {type: string}
                 provider: {type: string}
+                country: {type: string}
                 code: {type: string}
                 message: {type: string}
           results:
@@ -253,6 +279,7 @@ skills:
             properties:
               request_id: {type: string}
               provider: {type: string}
+              country: {type: string}
               code: {type: string}
               message: {type: string}
         results:
@@ -263,7 +290,8 @@ skills:
             properties:
               id: {oneOf: [{type: string}, {type: integer}]}
               query: {type: string}
-              country: {type: string}
+              country: {type: [string, 'null']}
+              countries: {type: array, items: {type: string}}
               providers: {type: array, items: {type: string}}
               result_count: {type: integer}
               error: {type: string}
@@ -274,6 +302,7 @@ skills:
                   properties:
                     request_id: {type: string}
                     provider: {type: string}
+                    country: {type: string}
                     code: {type: string}
                     message: {type: string}
               results:

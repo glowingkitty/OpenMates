@@ -1811,6 +1811,22 @@
         }
       }
     },
+    "jobs": {
+      "search": {
+        "text": "Search jobs",
+        "description": {
+          "text": "Find current jobs from public employment sources in Germany and Sweden."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Find climate policy jobs in Berlin posted this month."
+          },
+          "2": {
+            "text": "Find software engineering jobs in Stockholm that work on clean energy."
+          }
+        }
+      }
+    },
     "mail": {
       "search": {
         "text": "メール検索",
@@ -7876,6 +7892,48 @@
           "text": "このプロジェクトのファイル"
         }
       }
+    },
+    "jobs": {
+      "search": {
+        "result_count": {
+          "text": "{count} 件の求人"
+        },
+        "partial_results": {
+          "text": "一部の提供元を利用できませんでした"
+        },
+        "result": {
+          "title": {
+            "text": "求人情報"
+          },
+          "remote": {
+            "text": "リモート"
+          },
+          "published": {
+            "text": "掲載日"
+          },
+          "source": {
+            "text": "{provider} で見る"
+          },
+          "listing": {
+            "text": "求人元"
+          },
+          "apply": {
+            "text": "応募ページを開く"
+          },
+          "company": {
+            "text": "会社"
+          },
+          "employment_type": {
+            "text": "雇用形態"
+          },
+          "salary": {
+            "text": "給与"
+          },
+          "description": {
+            "text": "説明"
+          }
+        }
+      }
     }
   },
   "enter_message": {
@@ -9402,6 +9460,50 @@
         "text": "Explain the cash-flow trend"
       }
     },
+    "find_brand_name_and_domain": {
+      "title": {
+        "text": "ブランド名とドメインを探す"
+      },
+      "summary": {
+        "text": "簡潔なネーミングの対話：7つの候補を出し、ドメイン、ウェブ、米国の予備的な商標状況をもとに2つの最終候補を比較します。"
+      },
+      "message_1": {
+        "text": "新製品の名前を考えるのを手伝ってください。"
+      },
+      "message_2": {
+        "text": "まず、その製品は何をするものですか？ターゲット層は誰ですか？また、名前はどのようなトーンや雰囲気（例：遊び心がある、プレミアム、テクニカルなど）を伝えるべきですか？"
+      },
+      "message_3": {
+        "text": "米国のフリーランサー向けの、穏やかな雰囲気の家計簿アプリです（英語）。短くて覚えやすい名前で、年間20ユーロ以下の.comドメインを希望します。まずは、バリエーション豊かな候補リストをいくつか出してください。"
+      },
+      "message_4": {
+        "text": "穏やかなフリーランスの予算管理体験に合わせた、発音しやすくバリエーション豊かな初期候補リストです：\n\n- [ ] **Serenito**: セレニティ（静けさ）と、変動する個人収入に合わせた穏やかなペースを連想させます。\n- [ ] **Solowell**: ソロプレナー（個人事業主）の経済的な健康と心の平穏を示唆します。\n- [ ] **Equafy**: 不規則な収入サイクルのバランスを整えることに焦点を当てています。\n- [ ] **StillLedger**: 伝統的な会計構造と、マインドフルでストレスの少ない静けさを組み合わせています。\n- [ ] **Cadenceo**: ギグワークの報酬から、安定した予測可能なリズムを築くことを暗示しています。\n- [ ] **HavenFin**: 資金管理を、安全で安心できる港（ハーバー）として位置づけています。\n- [ ] **Placidly**: お金の不安を和らげる、柔らかく安心感のあるトーンです。\n\n*(注：このリストは、ドメインの空き状況や法的クリアランスの確認は行っていません。)*\n\nどの2〜3個の名前について詳細なチェックを実行しますか？お気に入りを選ぶか、私に最終候補を選ばせて、.comの価格、ブランドの競合、米国の商標を確認させることもできます。\n\n- [Serenito、Solowell、Equafyをチェックする](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [最適な3つを選んでチェックする](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
+      },
+      "message_5": {
+        "text": "EquafyとCadenceoについて、.comの空き状況と提示価格、ウェブ上の既存ブランド、および米国の商標をチェックしてください。比較は簡潔にまとめ、おすすめと、まだ済んでいないチェック項目も教えてください。"
+      },
+      "message_6": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\n2026年10月12日に実施された調査に基づく比較結果は以下の通りです。\n\n### Equafy\n- **ドメイン**: `equafy.com` は現在 Gandi で利用できません。標準の登録価格が不明なため、年間20ユーロの予算内には収まりません。\n- **ウェブおよびブランドの状況**: この正確な名称を使用している著名な予算管理ソフトはありませんが、ウェブ検索では [Equifax のパーソナルファイナンスサービス](embed:equifax.com-TrW) との発音が酷似しており、検索結果の混同が見られます。\n- **米国商標 (USPTO)**: 予備調査では 1,640 件の類似レコードのうち 5 件が返されました（一部表示。正確な名称の不在は確定できません）。有効な一致項目には、第36類（申請中の金融およびバリューカードサービス）の `EQUIFY` や、第35類（登録済みのオークションサービス）が含まれます。\n\n### Cadenceo\n- **ドメイン**: `cadenceo.com` は現在 Gandi で利用できません。標準の登録価格が不明なため、年間20ユーロの予算要件を満たしません。\n- **ウェブおよびブランドの状況**: 米国およびカナダで iOS、Android、ウェブ向けに展開されている、実績のあるパーソナルファイナンス・予算管理アプリ [Cadence Money](embed:cadencemoney.com-IcE) と直接重複しています。\n- **米国商標 (USPTO)**: 予備調査では 227 件の類似レコードのうち 5 件が返されました（一部表示。正確な名称の不在は確定できません）。`CADENCE` の有効な一致項目には、第9類のダウンロード可能なソフトウェアのレコードが含まれます。\n\n---\n\n### 推奨事項とトレードオフ\n- **方針**: 両方とも見送る。**Equafy** は **Cadenceo**（*Cadence Money* と直接競合）よりも直接的なアプリの競合は少ないものの、どちらも年間20ユーロ以内で利用可能な `.com` ドメインがなく、Equafy は *Equify* や *Equifax* といった既存の金融関連商標と発音が混同される恐れがあります。\n- **未実施の調査**: 米国以外の国際商標登録、コモン・ローに基づく州の商標登録、およびドメインの二次市場での買収査定は調査に含まれていません。\n\n他の候補（**Solowell** や **StillLedger** など）のドメインの空き状況や権利関係を調査しますか？あるいは、予算内で利用可能な `.com` を見つけるために、少し変えた複合名の案を探りますか？\n\n- [Solowell と StillLedger を確認する](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [20ユーロ以下で .com が取得可能な複合名を考案する](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
+      },
+      "follow_up_1": {
+        "text": "SolowellとStillLedgerのドメイン空き状況と商標を確認する"
+      },
+      "follow_up_2": {
+        "text": "20ユーロ以下で取得可能な.comドメインを持つ複合名をブレインストーミングする"
+      },
+      "follow_up_3": {
+        "text": "次期家計簿アプリの名前の候補について商標記録を検索する"
+      },
+      "follow_up_4": {
+        "text": "個人起業家向けアプリのブランディングと命名戦略を比較する"
+      },
+      "follow_up_5": {
+        "text": "フリーランス向け金融アプリで利用可能なドメイン拡張子を検索する"
+      },
+      "follow_up_6": {
+        "text": "手頃な価格でスタートアップ用ドメインを取得できる代替ドメイン登録業者をリストアップする"
+      }
+    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "ベルリンからバンコクへのフライト"
@@ -9610,6 +9712,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
+      }
+    },
+    "jobs_in_sweden": {
+      "title": {
+        "text": "スウェーデンの開発者求人"
+      },
+      "summary": {
+        "text": "ストックホルムとマルメの最新の開発者求人を、元の募集要項や出典に基づいた職場の詳細情報とともに比較します。"
+      },
+      "message_1": {
+        "text": "スウェーデンの公共職業安定所から、ストックホルムのソフトウェア開発者の最新求人を2件、マルメの求人を2件探してください。それぞれについて、職種名、雇用主、勤務地、元の求人へのリンクを短い箇条書きで示してください。給与額や在宅勤務の取り決めについては、その求人に明記されている場合のみ含め、そうでない場合は「記載なし」としてください。回答は200語以内にまとめてください。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nスウェーデン公立雇用庁（Platsbanken）による現在のソフトウェア開発者の求人情報：\n\n### ストックホルム\n\n* **職種：** Senior Systemutvecklare  \n  **雇用主：** NXT Interim Stockholm AB  \n  **勤務地：** ストックホルム  \n  **元の求人リンク：** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **給与額：** 記載なし  \n  **在宅勤務の形態：** リモートワーク可能（*remote-arbetsplatser*）\n\n* **職種：** Javautvecklare  \n  **雇用主：** AFRY AB  \n  **勤務地：** ストックホルム  \n  **元の求人リンク：** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **給与額：** 記載なし  \n  **在宅勤務の形態：** ハイブリッドワークの可能性あり（*möjlighet till hybridarbete*）\n\n---\n\n### マルメ\n\n* **職種：** Senior AI Engineer  \n  **雇用主：** Iver Accelerate AB  \n  **勤務地：** マルメ  \n  **元の求人リンク：** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **給与額：** 記載なし  \n  **在宅勤務の形態：** ハイブリッドワークの可能性あり（*möjlighet till hybridarbete*）\n\n* **職種：** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **雇用主：** Jobbakuten Väst AB  \n  **勤務地：** マルメ  \n  **元の求人リンク：** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **給与額：** 記載なし（求人票には具体的な金額ではなく市場レートの給与と記載）  \n  **在宅勤務の形態：** ハイブリッドワーク（*Hybridarbete*）"
+      },
+      "follow_up_1": {
+        "text": "ヨーテボリのリモートソフトウェア開発者の求人を検索"
+      },
+      "follow_up_2": {
+        "text": "これらのシニア開発者の応募要件を比較"
+      },
+      "follow_up_3": {
+        "text": "ストックホルムのフロントエンド開発者の求人を検索"
+      },
+      "follow_up_4": {
+        "text": "これらの求人に記載されている主要な技術スタックを一覧表示"
+      },
+      "follow_up_5": {
+        "text": "スウェーデンのジュニア開発者の求人を検索"
+      },
+      "follow_up_6": {
+        "text": "スウェーデンのテック系求人におけるリモートワークの傾向を要約"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -12630,6 +12764,54 @@
           "uspto": {
             "description": {
               "text": "米国商標検索では候補名と状態、綴り、ニース分類の条件を USPTO に送信します。リクエストはサーバーから送信し、OpenMates のユーザー識別情報やチャット履歴は含めません。"
+            }
+          }
+        },
+        "jobs": {
+          "heading": {
+            "text": "求人検索サービス"
+          },
+          "description": {
+            "text": "求人検索時にのみ使用します。ドイツ連邦雇用庁と JobTech には、選択した検索語、場所、適用されるフィルターがサーバー経由で送られます。Arbeitnow の公開フィードは OpenMates がローカルで絞り込みます。OpenMates のユーザー ID、履歴書、アカウント認証情報は送信しません。 80,000 Hours はキーワードと国を Algolia に送信します。Hard Problems は国だけを受け取ります。場所や他の条件はローカルで確認します。"
+          },
+          "arbeitsagentur": {
+            "heading": {
+              "text": "German Federal Employment Agency"
+            },
+            "description": {
+              "text": "ドイツ連邦雇用庁は、公開求人検索のために選択した求人キーワード、場所、検索半径、適用されるフィルターを受け取ります。"
+            }
+          },
+          "jobtech": {
+            "heading": {
+              "text": "JobTech JobSearch"
+            },
+            "description": {
+              "text": "JobTech は、スウェーデンの求人検索のために選択したキーワード、場所名、リモート勤務の希望、掲載期間、結果件数を受け取ります。"
+            }
+          },
+          "arbeitnow": {
+            "heading": {
+              "text": "Arbeitnow"
+            },
+            "description": {
+              "text": "OpenMates は Arbeitnow の公開求人フィードを取得します。キーワード、場所、フィルターはローカルで適用され、Arbeitnow には送信されません。"
+            }
+          },
+          "eighty_thousand_hours": {
+            "heading": {
+              "text": "80,000 Hours Job Board"
+            },
+            "description": {
+              "text": "80,000 Hours の公開求人掲示板は Algolia 検索を使用します。キーワードと選択した国が送信され、場所やその他の条件は OpenMates がローカルで確認します。OpenMates のユーザー ID、履歴書、アカウント情報は送信しません。"
+            }
+          },
+          "hard_problems": {
+            "heading": {
+              "text": "Hard Problems"
+            },
+            "description": {
+              "text": "OpenMates は選択した国の Hard Problems 公開求人フィードを取得します。キーワード、場所、その他の条件はローカルで確認され、Hard Problems には送信されません。OpenMates のユーザー ID、履歴書、アカウント情報は送信しません。"
             }
           }
         }
@@ -16161,6 +16343,16 @@
       }
     },
     "app_store_examples": {
+      "jobs": {
+        "search": {
+          "1": {
+            "text": "ストックホルムのソフトウェア開発職"
+          },
+          "2": {
+            "text": "マルメのソフトウェア開発職"
+          }
+        }
+      },
       "hosting": {
         "search_domains": {
           "1": {

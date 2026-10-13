@@ -1811,6 +1811,22 @@
         }
       }
     },
+    "jobs": {
+      "search": {
+        "text": "Search jobs",
+        "description": {
+          "text": "Find current jobs from public employment sources in Germany and Sweden."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Find climate policy jobs in Berlin posted this month."
+          },
+          "2": {
+            "text": "Find software engineering jobs in Stockholm that work on clean energy."
+          }
+        }
+      }
+    },
     "mail": {
       "search": {
         "text": "搜索邮件",
@@ -7876,6 +7892,48 @@
           "text": "此项目中的文件"
         }
       }
+    },
+    "jobs": {
+      "search": {
+        "result_count": {
+          "text": "{count} 个职位"
+        },
+        "partial_results": {
+          "text": "部分来源不可用"
+        },
+        "result": {
+          "title": {
+            "text": "职位信息"
+          },
+          "remote": {
+            "text": "远程"
+          },
+          "published": {
+            "text": "发布时间"
+          },
+          "source": {
+            "text": "在 {provider} 查看"
+          },
+          "listing": {
+            "text": "职位来源"
+          },
+          "apply": {
+            "text": "打开申请页面"
+          },
+          "company": {
+            "text": "公司"
+          },
+          "employment_type": {
+            "text": "雇佣类型"
+          },
+          "salary": {
+            "text": "薪资"
+          },
+          "description": {
+            "text": "描述"
+          }
+        }
+      }
     }
   },
   "enter_message": {
@@ -9402,6 +9460,50 @@
         "text": "Explain the cash-flow trend"
       }
     },
+    "find_brand_name_and_domain": {
+      "title": {
+        "text": "寻找品牌名称和域名"
+      },
+      "summary": {
+        "text": "一次简洁的命名对话：头脑风暴七个候选方案，然后根据域名、网络信息和初步的美国商标证据对比两个最终入围方案。"
+      },
+      "message_1": {
+        "text": "帮我给我的新产品起个名字。"
+      },
+      "message_2": {
+        "text": "在开始之前，请问你的产品是做什么的？目标受众是谁？以及你希望这个名字传达什么样的基调或感觉（例如：俏皮、高端、专业）？"
+      },
+      "message_3": {
+        "text": "这是一款面向美国自由职业者的冷静理财应用，使用英文。我想要简短、好记的名字，并且 .com 域名的价格在每年 20 欧元以内。请先帮我头脑风暴出一份多样化的候选名单。"
+      },
+      "message_4": {
+        "text": "这是一份初步的候选名单，包含各种易读的名字，专为冷静的自由职业理财体验而设计：\n\n- [ ] **Serenito**：让人联想到宁静和温和的节奏，适合波动较大的个人收入。\n- [ ] **Solowell**：暗示财务健康，为个体创业者带来内心的平静。\n- [ ] **Equafy**：专注于平衡不规则的收入周期。\n- [ ] **StillLedger**：将经典的会计结构与正念、低压力的宁静相结合。\n- [ ] **Cadenceo**：暗示从零散的零工报酬中建立稳定、可预测的节奏。\n- [ ] **HavenFin**：将资金管理定义为一个安全、令人放心的港湾。\n- [ ] **Placidly**：柔和、令人安心的基调，缓解财务焦虑。\n\n*（注意：此名单尚未经过实时域名可用性或法律清障检查。）*\n\n你想对哪 2-3 个名字进行实时检查？你可以挑选你喜欢的，或者让我选出最终入围的名字，以核实 .com 价格、品牌冲突和美国商标。\n\n- [检查 Serenito、Solowell 和 Equafy](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [帮我选出最好的 3 个并进行检查](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
+      },
+      "message_5": {
+        "text": "请检查 Equafy 和 Cadenceo：它们的 .com 可用性和报价、网络上的现有品牌以及美国商标。请保持对比简洁，并给出你的建议以及任何尚待检查的事项。"
+      },
+      "message_6": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\n以下是基于 2026 年 10 月 12 日检查结果的对比分析：\n\n### Equafy\n- **域名**：`equafy.com` 目前在 Gandi 上不可用；没有标准注册价格，因此不符合每年 20 欧元的预算。\n- **网络与品牌概况**：没有知名的预算软件使用这个确切名称，但网络搜索显示其发音与 [Equifax 个人金融服务](embed:equifax.com-TrW) 高度相似，容易产生搜索混淆。\n- **美国商标 (USPTO)**：初步搜索返回了 1,640 条相似记录中的 5 条（已截断；无法确定是否存在完全相同的名称）。活跃的匹配项包括第 36 类中的 `EQUIFY`（待定的金融和储值服务）以及第 35 类（已注册的拍卖服务）。\n\n### Cadenceo\n- **域名**：`cadenceo.com` 目前在 Gandi 上不可用；没有标准注册价格，不符合每年 20 欧元的预算。\n- **网络与品牌概况**：与 [Cadence Money](embed:cadencemoney.com-IcE) 直接重合，后者是一款成熟的个人理财和预算追踪应用，在美国和加拿大的 iOS、Android 及 Web 端运营。\n- **美国商标 (USPTO)**：初步搜索返回了 227 条相似记录中的 5 条（已截断；无法确定是否存在完全相同的名称）。`CADENCE` 的活跃匹配项包括第 9 类可下载软件记录。\n\n---\n\n### 建议与权衡\n- **方向**：两者均不建议。虽然 **Equafy** 的直接应用冲突比 **Cadenceo**（与 *Cadence Money* 直接冲突）少，但两者都无法在 20 欧元预算内提供可用的 `.com` 域名，且 Equafy 与现有的金融商标（如 *Equify* 和 *Equifax*）存在发音混淆。\n- **缺失的检查**：未检查美国以外的国际商标注册情况、普通法州商标备案以及二级市场域名收购估值。\n\n你是否想测试其他候选方案（如 **Solowell** 或 **StillLedger**）的域名可用性和合规性，或者探索一些复合词变体，以寻找预算内可用的 `.com` 域名？\n\n- [检查 Solowell 和 StillLedger](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [集思广益 20 欧元以下可用 .com 的复合名称](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
+      },
+      "follow_up_1": {
+        "text": "检查 Solowell 和 StillLedger 的域名可用性和商标情况"
+      },
+      "follow_up_2": {
+        "text": "集思广益，寻找 20 欧元以下且有可用 .com 域名的复合名称"
+      },
+      "follow_up_3": {
+        "text": "查询即将推出的预算应用名称创意的商标记录"
+      },
+      "follow_up_4": {
+        "text": "比较个人创业者应用的品牌和命名策略"
+      },
+      "follow_up_5": {
+        "text": "搜索自由职业财务应用的可用域名后缀"
+      },
+      "follow_up_6": {
+        "text": "列出提供经济实惠初创公司域名的备选域名注册商"
+      }
+    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "柏林至曼谷的航班"
@@ -9610,6 +9712,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
+      }
+    },
+    "jobs_in_sweden": {
+      "title": {
+        "text": "瑞典开发人员职位"
+      },
+      "summary": {
+        "text": "比较斯德哥尔摩和马尔默当前的开发人员职位，提供原始招聘信息及有据可查的工作场所详情。"
+      },
+      "message_1": {
+        "text": "从瑞典公共就业服务机构中查找两个斯德哥尔摩和两个马尔默的当前软件开发人员职位。为每个职位显示简短的列点，包括职位名称、雇主、工作城市和原始招聘链接。仅在招聘信息中明确说明的情况下包含薪资数据或居家办公安排；否则请说明未注明。请将回答控制在 200 字以内。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n来自 Arbetsförmedlingen (Platsbanken) 的最新软件开发人员招聘信息：\n\n### 斯德哥尔摩\n\n* **职位名称：** Senior Systemutvecklare  \n  **雇主：** NXT Interim Stockholm AB  \n  **工作城市：** 斯德哥尔摩  \n  **原始招聘链接：** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **薪资：** 未注明  \n  **居家办公安排：** 提供远程工作岗位 (*remote-arbetsplatser*)\n\n* **职位名称：** Javautvecklare  \n  **雇主：** AFRY AB  \n  **工作城市：** 斯德哥尔摩  \n  **原始招聘链接：** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **薪资：** 未注明  \n  **居家办公安排：** 提供混合办公机会 (*möjlighet till hybridarbete*)\n\n---\n\n### 马尔默\n\n* **职位名称：** Senior AI Engineer  \n  **雇主：** Iver Accelerate AB  \n  **工作城市：** 马尔默  \n  **原始招聘链接：** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **薪资：** 未注明  \n  **居家办公安排：** 提供混合办公机会 (*möjlighet till hybridarbete*)\n\n* **职位名称：** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **雇主：** Jobbakuten Väst AB  \n  **工作城市：** 马尔默  \n  **原始招聘链接：** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **薪资：** 未注明（招聘信息中提到了市场化薪资，但未给出具体数字）  \n  **居家办公安排：** 混合办公 (*Hybridarbete*)"
+      },
+      "follow_up_1": {
+        "text": "搜索哥德堡的远程软件开发人员职位"
+      },
+      "follow_up_2": {
+        "text": "比较这些高级开发人员职位的要求"
+      },
+      "follow_up_3": {
+        "text": "搜索斯德哥尔摩的前端开发人员职位职缺"
+      },
+      "follow_up_4": {
+        "text": "列出这些招聘信息中提到的热门技术栈"
+      },
+      "follow_up_5": {
+        "text": "搜索瑞典的初级开发人员招聘信息"
+      },
+      "follow_up_6": {
+        "text": "总结瑞典科技行业的远程办公趋势"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -12630,6 +12764,54 @@
           "uspto": {
             "description": {
               "text": "美国商标搜索会向 USPTO 发送候选名称、状态、拼写匹配及尼斯分类筛选条件。请求由我们的服务器发送，不含 OpenMates 用户标识或聊天记录。"
+            }
+          }
+        },
+        "jobs": {
+          "heading": {
+            "text": "职位搜索服务"
+          },
+          "description": {
+            "text": "仅在搜索职位时使用。德国联邦就业局和 JobTech 会在服务器端请求中收到所选搜索词、地点和适用筛选条件。Arbeitnow 提供公开信息流，由 OpenMates 在本地筛选。不会发送 OpenMates 用户 ID、简历或账户凭据。 80,000 Hours 将关键词和国家发送给 Algolia；Hard Problems 只接收国家。地点和其他筛选条件留在本地。"
+          },
+          "arbeitsagentur": {
+            "heading": {
+              "text": "German Federal Employment Agency"
+            },
+            "description": {
+              "text": "德国联邦就业局会收到所选职位关键词、地点、搜索半径和适用筛选条件，用于搜索公开职位。"
+            }
+          },
+          "jobtech": {
+            "heading": {
+              "text": "JobTech JobSearch"
+            },
+            "description": {
+              "text": "JobTech 会收到所选职位关键词、地点名称、远程工作偏好、发布日期范围和结果数量，用于搜索瑞典职位。"
+            }
+          },
+          "arbeitnow": {
+            "heading": {
+              "text": "Arbeitnow"
+            },
+            "description": {
+              "text": "OpenMates 获取 Arbeitnow 的公开职位信息流。你的关键词、地点和筛选条件在本地应用，不会发送给 Arbeitnow。"
+            }
+          },
+          "eighty_thousand_hours": {
+            "heading": {
+              "text": "80,000 Hours Job Board"
+            },
+            "description": {
+              "text": "80,000 Hours 公共招聘板使用 Algolia 搜索。你的关键词和所选国家会被发送；OpenMates 在本地检查地点及其他筛选条件。不会发送 OpenMates 用户 ID、简历或账户凭据。"
+            }
+          },
+          "hard_problems": {
+            "heading": {
+              "text": "Hard Problems"
+            },
+            "description": {
+              "text": "OpenMates 按你选择的国家获取 Hard Problems 的公开职位信息流。关键词、地点及其他筛选条件在本地检查，不会发送给 Hard Problems。不会发送 OpenMates 用户 ID、简历或账户凭据。"
             }
           }
         }
@@ -16161,6 +16343,16 @@
       }
     },
     "app_store_examples": {
+      "jobs": {
+        "search": {
+          "1": {
+            "text": "斯德哥尔摩的软件开发职位"
+          },
+          "2": {
+            "text": "马尔默的软件开发职位"
+          }
+        }
+      },
       "hosting": {
         "search_domains": {
           "1": {

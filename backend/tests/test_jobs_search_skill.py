@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Any
 
@@ -39,17 +40,41 @@ def _job(id: str, *, url: str | None = None, **changes: Any) -> dict[str, Any]:
     }
 
 
+@pytest.fixture(autouse=True)
+def _block_live_impact_boards(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Unit tests never reach a public impact board accidentally."""
+    async def empty(**kwargs: Any) -> list[dict[str, Any]]:
+        return []
+
+    monkeypatch.setitem(jobs_search.PROVIDER_SEARCH, "eighty_thousand_hours", empty)
+    if "hard_problems" in jobs_search.PROVIDER_SEARCH:
+        monkeypatch.setitem(jobs_search.PROVIDER_SEARCH, "hard_problems", empty)
+
+
 # contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_pending_preview_metadata_is_lightweight_and_country_routed() -> None:
     assert SearchSkill.resolve_preview_metadata({"query": "engineer"}) == {
-        "query": "engineer", "country": "DE",
-        "providers": ["arbeitsagentur", "arbeitnow"],
-        "provider": "arbeitsagentur, arbeitnow",
+        "query": "engineer", "country": "DE", "countries": ["DE"],
+        "providers": ["arbeitsagentur", "arbeitnow", "eighty_thousand_hours", "hard_problems"],
+        "provider": "arbeitsagentur, arbeitnow, eighty_thousand_hours, hard_problems",
     }
     assert SearchSkill.resolve_preview_metadata({"requests": [
         {"query": "analyst", "country": "SE"},
         {"query": "engineer", "country": "DE", "provider": "Arbeitnow"},
-    ]}) == {"providers": ["jobtech", "arbeitnow"], "provider": "jobtech, arbeitnow"}
+    ]}) == {"providers": ["jobtech", "eighty_thousand_hours", "hard_problems", "arbeitnow"],
+           "provider": "jobtech, eighty_thousand_hours, hard_problems, arbeitnow", "countries": ["SE", "DE"]}
+    assert SearchSkill.resolve_preview_metadata({
+        "countries": ["SE"], "requests": [{"query": "analyst"}],
+    }) == {"query": "analyst", "country": "SE", "countries": ["SE"],
+           "providers": ["jobtech", "eighty_thousand_hours", "hard_problems"],
+           "provider": "jobtech, eighty_thousand_hours, hard_problems"}
+    assert SearchSkill.resolve_preview_metadata({
+        "countries": ["DE", "SE"], "requests": [{"query": "engineer"}],
+    }) == {
+        "query": "engineer", "country": None, "countries": ["DE", "SE"],
+        "providers": ["arbeitsagentur", "arbeitnow", "eighty_thousand_hours", "hard_problems", "jobtech"],
+        "provider": "arbeitsagentur, arbeitnow, eighty_thousand_hours, hard_problems, jobtech",
+    }
 
 
 # contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
@@ -61,6 +86,12 @@ def test_grouped_jobs_parent_uses_only_its_own_sources_and_redacts_query_logs() 
     metadata = jobs_result_parent_metadata(group)
     assert metadata == {
         "country": "SE", "providers": ["jobtech"], "provider": "jobtech", "warnings": [],
+    }
+    assert jobs_result_parent_metadata({
+        "country": None, "countries": ["DE", "SE"], "providers": ["arbeitsagentur", "jobtech"],
+    }) == {
+        "country": None, "countries": ["DE", "SE"],
+        "providers": ["arbeitsagentur", "jobtech"], "provider": "arbeitsagentur, jobtech",
     }
     assert "query" not in metadata and "results" not in metadata and "id" not in metadata
 
@@ -95,8 +126,10 @@ async def test_default_germany_auto_groups_and_deduplicates(monkeypatch: pytest.
     assert payload["partial"] is False
     assert payload["result_count"] == 1
     assert payload["error"] is None
-    assert payload["providers"] == ["arbeitsagentur", "arbeitnow"]
+    assert payload["providers"] == ["arbeitsagentur", "arbeitnow", "eighty_thousand_hours", "hard_problems"]
     assert payload["results"][0]["id"] == "r1"
+    assert payload["results"][0]["country"] == "DE"
+    assert payload["results"][0]["countries"] == ["DE"]
     assert payload["results"][0]["result_count"] == 1
     child = payload["results"][0]["results"][0]
     assert child["type"] == "job_result"
@@ -108,7 +141,7 @@ async def test_default_germany_auto_groups_and_deduplicates(monkeypatch: pytest.
 
 # contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 @pytest.mark.asyncio
-async def test_swedish_auto_only_uses_jobtech_and_empty_is_success(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_swedish_auto_uses_only_relevant_sources_and_empty_is_success(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[dict[str, Any]] = []
 
     async def jobtech(**kwargs: Any) -> list[dict[str, Any]]:
@@ -121,8 +154,252 @@ async def test_swedish_auto_only_uses_jobtech_and_empty_is_success(monkeypatch: 
     assert payload["success"] is True
     assert payload["result_count"] == 0
     assert payload["results"][0]["results"] == []
-    assert payload["providers"] == ["jobtech"]
+    assert payload["providers"] == ["jobtech", "eighty_thousand_hours", "hard_problems"]
+    assert payload["results"][0]["countries"] == ["SE"]
     assert len(calls) == 1 and calls[0]["country"] == "SE"
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
+@pytest.mark.asyncio
+async def test_selected_de_and_se_sources_start_in_parallel_and_keep_country_facts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    started: set[tuple[str, str]] = set()
+    release = asyncio.Event()
+    expected_pairs = {(name, country) for name, coverage in jobs_search.PROVIDER_COUNTRIES.items() for country in coverage}
+
+    def source(name: str):
+        async def search(**kwargs: Any) -> list[dict[str, Any]]:
+            country = kwargs["country"]
+            assert country in jobs_search.PROVIDER_COUNTRIES[name]
+            started.add((name, country))
+            if started == expected_pairs:
+                release.set()
+            await asyncio.wait_for(release.wait(), timeout=2)
+            return [_job(f"{name}-{country}", country=country)]
+        return search
+
+    for name in jobs_search.PROVIDER_COUNTRIES:
+        monkeypatch.setitem(jobs_search.PROVIDER_SEARCH, name, source(name))
+    payload = (await _skill().execute(
+        countries=["DE", "SE"], requests=[{"id": "both", "query": "engineer", "limit": 10}],
+    )).model_dump()
+
+    assert started == expected_pairs
+    assert payload["success"] is True and payload["partial"] is False
+    group = payload["results"][0]
+    assert group["countries"] == ["DE", "SE"] and group["country"] is None
+    assert group["providers"] == ["arbeitsagentur", "arbeitnow", "eighty_thousand_hours", "hard_problems", "jobtech"]
+    assert [(job["provider"], job["country"]) for job in group["results"]] == [
+        (name, country) for country in ["DE", "SE"] for name in group["providers"]
+        if country in jobs_search.PROVIDER_COUNTRIES[name]
+    ]
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
+@pytest.mark.asyncio
+async def test_one_cross_country_source_gets_parallel_country_calls_without_leaking_listings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    started: set[str] = set()
+    release = asyncio.Event()
+
+    async def cross_country(**kwargs: Any) -> list[dict[str, Any]]:
+        country = kwargs["country"]
+        started.add(country)
+        if len(started) == 2:
+            release.set()
+        await asyncio.wait_for(release.wait(), timeout=2)
+        other = "SE" if country == "DE" else "DE"
+        return [_job(country, country=country), _job(f"leak-{country}", country=other)]
+
+    monkeypatch.setitem(jobs_search.PROVIDER_COUNTRIES, "cross_country", frozenset({"DE", "SE"}))
+    monkeypatch.setitem(jobs_search.PROVIDER_ALIASES, "cross country", "cross_country")
+    monkeypatch.setitem(jobs_search.PROVIDER_SEARCH, "cross_country", cross_country)
+    payload = (await _skill().execute(
+        countries=["DE", "SE"], requests=[{
+            "query": "analyst", "provider": "Cross Country", "limit": 1,
+        }],
+    )).model_dump()
+
+    assert started == {"DE", "SE"}
+    assert payload["providers"] == payload["results"][0]["providers"] == ["cross_country"]
+    assert payload["result_count"] == 1
+    assert [(job["id"], job["country"]) for job in payload["results"][0]["results"]] == [("DE", "DE")]
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
+@pytest.mark.asyncio
+async def test_cross_country_listing_keeps_each_verified_country_fact(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+
+    async def board(**kwargs: Any) -> list[dict[str, Any]]:
+        country = kwargs["country"]
+        calls.append(country)
+        return [_job("same-board-id", url="https://example.org/jobs/both", country=country)]
+
+    monkeypatch.setitem(jobs_search.PROVIDER_SEARCH, "eighty_thousand_hours", board)
+    payload = (await _skill().execute(countries=["DE", "SE"], requests=[{
+        "query": "analyst", "provider": "80k",
+    }])).model_dump()
+
+    assert calls == ["DE", "SE"]
+    assert [(job["country"], job["url"]) for job in payload["results"][0]["results"]] == [
+        ("DE", "https://example.org/jobs/both"), ("SE", "https://example.org/jobs/both"),
+    ]
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
+@pytest.mark.asyncio
+async def test_impact_board_filter_compatibility_is_explicit_and_never_calls_irrelevant_sources(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, str]] = []
+
+    def source(name: str):
+        async def search(**kwargs: Any) -> list[dict[str, Any]]:
+            calls.append((name, kwargs["country"]))
+            return []
+        return search
+
+    for name in jobs_search.PROVIDER_SEARCH:
+        monkeypatch.setitem(jobs_search.PROVIDER_SEARCH, name, source(name))
+
+    explicit = (await _skill().execute(requests=[
+        {"id": "80k-remote", "query": "analyst", "provider": "80.000 Hours", "remote": True},
+        {"id": "hard-onsite", "query": "analyst", "provider": "Hard Problems", "remote": False},
+        {"id": "hard-contract", "query": "analyst", "provider": "HardProblems", "employment_type": "contract"},
+    ])).model_dump()
+    assert calls == []
+    assert all(group["error"] and group["results"] == [] for group in explicit["results"])
+
+    remote = (await _skill().execute(countries=["DE", "SE"], requests=[{
+        "query": "analyst", "remote": True,
+    }])).model_dump()
+    assert calls == [
+        ("arbeitsagentur", "DE"), ("arbeitnow", "DE"), ("hard_problems", "DE"),
+        ("hard_problems", "SE"), ("jobtech", "SE"),
+    ]
+    assert "eighty_thousand_hours" not in remote["providers"]
+    calls.clear()
+
+    internship = (await _skill().execute(countries=["SE"], requests=[{
+        "query": "analyst", "employment_type": "internship",
+    }])).model_dump()
+    assert calls == [("eighty_thousand_hours", "SE")]
+    assert internship["success"] is True
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
+@pytest.mark.asyncio
+async def test_country_inheritance_alias_and_explicit_country_coverage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, str]] = []
+
+    def source(name: str):
+        async def search(**kwargs: Any) -> list[dict[str, Any]]:
+            country = kwargs["country"]
+            calls.append((name, country))
+            return [_job(f"{name}-{country}", country=country)]
+        return search
+
+    for name in jobs_search.PROVIDER_COUNTRIES:
+        monkeypatch.setitem(jobs_search.PROVIDER_SEARCH, name, source(name))
+
+    inherited = (await _skill().execute(countries=["SE"], requests=[{"query": "analyst"}])).model_dump()
+    assert calls == [("jobtech", "SE"), ("eighty_thousand_hours", "SE"), ("hard_problems", "SE")]
+    assert inherited["results"][0]["country"] == "SE"
+    calls.clear()
+
+    aliased = (await _skill().execute(countries=["SE"], requests=[{
+        "query": "engineer", "country": "DE",
+    }])).model_dump()
+    assert calls == [("arbeitsagentur", "DE"), ("arbeitnow", "DE"),
+                     ("eighty_thousand_hours", "DE"), ("hard_problems", "DE")]
+    assert aliased["results"][0]["countries"] == ["DE"]
+    calls.clear()
+
+    overridden = (await _skill().execute(countries=["DE"], requests=[{
+        "query": "analyst", "countries": ["SE"],
+    }])).model_dump()
+    assert calls == [("jobtech", "SE"), ("eighty_thousand_hours", "SE"), ("hard_problems", "SE")]
+    assert overridden["results"][0]["country"] == "SE"
+    calls.clear()
+
+    invalid_mixed = (await _skill().execute(countries=["DE"], requests=[{
+        "query": "engineer", "providers": ["JobTech", "Arbeitnow"],
+    }])).model_dump()
+    assert calls == []
+    assert invalid_mixed["success"] is False
+    assert "jobtech" in invalid_mixed["results"][0]["error"]
+    assert invalid_mixed["results"][0]["results"] == []
+
+    valid_mixed = (await _skill().execute(countries=["DE", "SE"], requests=[{
+        "query": "engineer", "providers": ["JobTech", "Arbeitnow"],
+    }])).model_dump()
+    assert calls == [("arbeitnow", "DE"), ("jobtech", "SE")]
+    assert valid_mixed["results"][0]["providers"] == ["jobtech", "arbeitnow"]
+    assert [(job["country"], job["provider"]) for job in valid_mixed["results"][0]["results"]] == [
+        ("DE", "arbeitnow"), ("SE", "jobtech"),
+    ]
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
+@pytest.mark.asyncio
+async def test_typed_rest_request_null_optionals_inherit_top_level_countries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+
+    async def jobtech(**kwargs: Any) -> list[dict[str, Any]]:
+        calls.append(kwargs["country"])
+        return [_job("sweden", country="SE")]
+
+    monkeypatch.setitem(jobs_search.PROVIDER_SEARCH, "jobtech", jobtech)
+    payload = (await _skill().execute(countries=["SE"], requests=[{
+        "query": "developer", "provider": "JobTech", "country": None,
+        "countries": None, "remote": None, "employment_type": None,
+    }])).model_dump()
+
+    assert calls == ["SE"]
+    assert payload["success"] is True
+    assert payload["results"][0]["countries"] == ["SE"]
+    assert payload["results"][0]["results"][0]["country"] == "SE"
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
+@pytest.mark.asyncio
+async def test_invalid_country_selections_and_uncovered_sources_never_call_providers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+
+    async def unexpected(**kwargs: Any) -> list[dict[str, Any]]:
+        calls.append(kwargs["country"])
+        return []
+
+    for name in jobs_search.PROVIDER_SEARCH:
+        monkeypatch.setitem(jobs_search.PROVIDER_SEARCH, name, unexpected)
+    for top_level in ([], ["US"], ["DE", "US"]):
+        response = (await _skill().execute(countries=top_level, requests=[{"query": "engineer"}])).model_dump()
+        assert response["success"] is False and response["error"] and response["results"] == []
+
+    response = (await _skill().execute(requests=[
+        {"id": "empty", "query": "engineer", "countries": []},
+        {"id": "conflict", "query": "engineer", "country": "DE", "countries": ["SE"]},
+        {"id": "unsupported", "query": "engineer", "countries": ["US"]},
+        {"id": "uncovered", "query": "engineer", "countries": ["DE", "SE"], "provider": "JobTech"},
+        {"id": "radius", "query": "engineer", "countries": ["DE", "SE"],
+         "location": "Berlin", "radius_km": 20},
+    ])).model_dump()
+    assert [group["id"] for group in response["results"]] == [
+        "empty", "conflict", "unsupported", "uncovered", "radius",
+    ]
+    assert all(group["error"] and group["results"] == [] for group in response["results"])
+    assert "country or countries" in response["results"][1]["error"]
+    assert "covers DE" in response["results"][3]["error"]
+    assert calls == []
 
 
 # contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
@@ -173,7 +450,7 @@ async def test_batch_preserves_partial_provider_failure_and_request_independence
     assert payload["results"][1]["error"]
     assert payload["warnings"] == [{
         "request_id": "ok", "provider": "arbeitnow", "code": "rate_limited",
-        "message": "Arbeitnow is temporarily rate limited.",
+        "message": "Arbeitnow is temporarily rate limited.", "country": "DE",
     }]
 
 
@@ -185,7 +462,7 @@ async def test_provider_outage_never_exposes_exception_details(monkeypatch: pyte
 
     monkeypatch.setitem(jobs_search.PROVIDER_SEARCH, "jobtech", failed)
     payload = (await _skill().execute(requests=[{
-        "id": "outage", "query": "analyst", "country": "SE",
+        "id": "outage", "query": "analyst", "country": "SE", "provider": "JobTech",
     }])).model_dump()
 
     assert payload["success"] is False
@@ -202,7 +479,9 @@ async def test_nonempty_unusable_provider_response_is_an_error_not_no_results(mo
         return [{"title": "Missing safe URL", "country": "SE"}]
 
     monkeypatch.setitem(jobs_search.PROVIDER_SEARCH, "jobtech", malformed)
-    payload = (await _skill().execute(requests=[{"query": "analyst", "country": "SE"}])).model_dump()
+    payload = (await _skill().execute(requests=[{
+        "query": "analyst", "country": "SE", "provider": "JobTech",
+    }])).model_dump()
 
     assert payload["success"] is False
     assert payload["results"][0]["error"] == "All requested job sources failed."
@@ -309,11 +588,18 @@ def test_jobs_skill_metadata_declares_bounded_workflow_contract() -> None:
     assert skill["external_data"] is True
     assert skill["workflow"]["binding_requirements"] == ["none"]
     assert skill["workflow"]["effect"] == "read"
+    top_countries = skill["tool_schema"]["properties"]["countries"]
+    assert top_countries["default"] == ["DE"]
+    assert top_countries["minItems"] == 1 and top_countries["maxItems"] == 2
+    assert top_countries["items"]["enum"] == ["DE", "SE"]
+    assert top_countries["x-ui"]["basic"] is True
     workflow_result = skill["workflow"]["output_schema"]["properties"]["results"]["items"]["properties"]
     sdk_group = skill["sdk_output_schema"]["properties"]["results"]["items"]["properties"]
     assert workflow_result["title"]["type"] == "string"
     assert "results" not in workflow_result
     assert "title" not in sdk_group
+    assert sdk_group["country"]["type"] == ["string", "null"]
+    assert sdk_group["countries"]["items"]["type"] == "string"
     assert sdk_group["results"]["items"]["properties"]["title"]["type"] == "string"
     listing = sdk_group["results"]["items"]["properties"]
     for field, value_type in {
@@ -328,11 +614,23 @@ def test_jobs_skill_metadata_declares_bounded_workflow_contract() -> None:
     sample = _job("nullable", company=None, apply_url=None, location=None,
                   employment_type=None, description=None)
     Draft202012Validator(skill["sdk_output_schema"]).validate({
-        "success": True, "error": None, "results": [{"id": 1, "results": [sample]}],
+        "success": True, "error": None,
+        "results": [{"id": 1, "country": None, "countries": ["DE", "SE"], "results": [sample]}],
     })
     Draft202012Validator(skill["workflow"]["output_schema"]).validate({"results": [sample]})
     request_item = skill["tool_schema"]["properties"]["requests"]["items"]
+    assert request_item["properties"]["provider"]["enum"] == [
+        "auto", "Arbeitnow", "Arbeitsagentur", "JobTech", "80,000 Hours", "Hard Problems",
+    ]
+    assert request_item["properties"]["providers"]["items"]["enum"] == [
+        "Arbeitnow", "Arbeitsagentur", "JobTech", "80,000 Hours", "Hard Problems",
+    ]
+    assert [provider["name"] for provider in skill["providers"]] == [
+        "Bundesagentur für Arbeit", "Arbeitnow", "JobTech", "80,000 Hours", "Hard Problems",
+    ]
+    assert all(provider["no_api_key"] is True and set(provider) == {"name", "no_api_key"}
+               for provider in skill["providers"])
     assert request_item["properties"]["limit"]["maximum"] == 50
-    assert request_item["properties"]["country"]["default"] == "DE"
-
-
+    assert "default" not in request_item["properties"]["country"]
+    assert request_item["properties"]["country"]["x-ui"]["basic"] is False
+    assert request_item["properties"]["countries"]["x-ui"]["basic"] is False

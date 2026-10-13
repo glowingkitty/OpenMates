@@ -6993,6 +6993,12 @@ class EmbedService:
                     for key in ["country", "search_lang", "safesearch", "start_date", "end_date", "time_range", "location"]:
                         if key in safe_request_metadata:
                             parent_content[key] = safe_request_metadata[key]
+                    if app_id == "jobs" and skill_id == "search":
+                        countries = safe_request_metadata.get("countries")
+                        if isinstance(countries, list):
+                            parent_content["countries"] = list(dict.fromkeys(
+                                country for country in countries if isinstance(country, str) and country in {"DE", "SE"}
+                            ))
                     if app_id == "maps" and skill_id == "search":
                         for key in ("warnings", "filter_summary", "coverage", "search_context", "error", "search_status"):
                             if key in safe_request_metadata:
@@ -7133,6 +7139,12 @@ class EmbedService:
                     for key in ["query", "expression", "provider", "providers", "url", "languages", "country", "search_lang", "safesearch", "start_date", "end_date", "time_range", "location"]:
                         if key in safe_request_metadata:
                             content_with_metadata[key] = safe_request_metadata[key]
+                    if app_id == "jobs" and skill_id == "search":
+                        countries = safe_request_metadata.get("countries")
+                        if isinstance(countries, list):
+                            content_with_metadata["countries"] = list(dict.fromkeys(
+                                country for country in countries if isinstance(country, str) and country in {"DE", "SE"}
+                            ))
                     if app_id == "projects" and skill_id == "search":
                         if safe_request_metadata.get("search_target") in {"files", "content"}:
                             content_with_metadata["search_target"] = safe_request_metadata["search_target"]

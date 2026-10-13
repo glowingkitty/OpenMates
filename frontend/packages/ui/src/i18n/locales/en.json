@@ -1835,6 +1835,22 @@
         }
       }
     },
+    "jobs": {
+      "search": {
+        "text": "Search jobs",
+        "description": {
+          "text": "Find current jobs from public employment sources in Germany and Sweden."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Find climate policy jobs in Berlin posted this month."
+          },
+          "2": {
+            "text": "Find software engineering jobs in Stockholm that work on clean energy."
+          }
+        }
+      }
+    },
     "mail": {
       "search": {
         "text": "Search Mail",
@@ -9201,6 +9217,48 @@
           "text": "Project file changed; checking again…"
         }
       }
+    },
+    "jobs": {
+      "search": {
+        "result_count": {
+          "text": "{count} jobs"
+        },
+        "partial_results": {
+          "text": "Some sources were unavailable"
+        },
+        "result": {
+          "title": {
+            "text": "Job listing"
+          },
+          "remote": {
+            "text": "Remote"
+          },
+          "published": {
+            "text": "Published"
+          },
+          "source": {
+            "text": "View on {provider}"
+          },
+          "listing": {
+            "text": "listing source"
+          },
+          "apply": {
+            "text": "Open application page"
+          },
+          "company": {
+            "text": "Company"
+          },
+          "employment_type": {
+            "text": "Employment type"
+          },
+          "salary": {
+            "text": "Salary"
+          },
+          "description": {
+            "text": "Description"
+          }
+        }
+      }
     }
   },
   "enter_message": {
@@ -10730,6 +10788,50 @@
         "text": "Explain the cash-flow trend"
       }
     },
+    "find_brand_name_and_domain": {
+      "title": {
+        "text": "Find a brand name and domain"
+      },
+      "summary": {
+        "text": "A concise naming conversation: brainstorm seven candidates, then compare two finalists with domain, web and preliminary US trademark evidence."
+      },
+      "message_1": {
+        "text": "Help me find a name for my new product."
+      },
+      "message_2": {
+        "text": "To get started, what does your product do, who is your target audience, and what tone or feel should the name convey (e.g., playful, premium, technical)?"
+      },
+      "message_3": {
+        "text": "It is a calm budgeting app for US freelancers, in English. I want short, memorable names and a .com domain up to €20 per year. Please brainstorm a varied shortlist first."
+      },
+      "message_4": {
+        "text": "Here is an initial shortlist of varied, pronounceable names tailored to a calm freelance budgeting experience:\n\n- [ ] **Serenito**: Evokes serenity and gentle pacing for fluctuating solo income.\n- [ ] **Solowell**: Suggests financial wellness and peace of mind for solopreneurs.\n- [ ] **Equafy**: Focuses on balancing out irregular feast-and-famine cash flow cycles.\n- [ ] **StillLedger**: Pairs classic accounting structure with mindful, low-stress stillness.\n- [ ] **Cadenceo**: Implies building a steady, predictable rhythm out of gig payments.\n- [ ] **HavenFin**: Frames money management as a safe, reassuring harbor.\n- [ ] **Placidly**: Soft, reassuring tone that diffuses financial anxiety.\n\n*(Note: This shortlist is unchecked for live domain availability or legal clearance.)*\n\nWhich 2–3 names would you like to run live checks on? You can pick your favorites or ask me to choose finalists to verify for .com pricing, brand conflicts, and US trademarks.\n\n- [Check Serenito, Solowell, and Equafy](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [Pick the best 3 for me and check them](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
+      },
+      "message_5": {
+        "text": "Please check Equafy and Cadenceo: their .com availability and quoted prices, existing brands on the web, and US trademarks. Keep the comparison compact, with your recommendation and any checks still missing."
+      },
+      "message_6": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\nHere is the comparison based on checks run on October 12, 2026:\n\n### Equafy\n- **Domain**: `equafy.com` is currently unavailable on Gandi; no standard registration price is available, so it does not meet the €20/year budget.\n- **Web & brand landscape**: No prominent budgeting software uses this exact name, but web searches show high phonetic resemblance and search confusion with [Equifax personal finance services](embed:equifax.com-TrW).\n- **US trademarks (USPTO)**: Preliminary search returned 5 of 1,640 similar records (truncated; exact-name absence cannot be established). Active matches include `EQUIFY` in Class 36 (pending financial and stored-value services) and Class 35 (registered auction services).\n\n### Cadenceo\n- **Domain**: `cadenceo.com` is currently unavailable on Gandi; no standard registration price is available, failing the €20/year budget.\n- **Web & brand landscape**: Directly overlaps with [Cadence Money](embed:cadencemoney.com-IcE), an established personal finance and budget tracker app operating in the US and Canada across iOS, Android, and web.\n- **US trademarks (USPTO)**: Preliminary search returned 5 of 227 similar records (truncated; exact-name absence cannot be established). Active matches for `CADENCE` include Class 9 downloadable software records.\n\n---\n\n### Recommendation & Tradeoffs\n- **Direction**: Pass on both. While **Equafy** has fewer direct app conflicts than **Cadenceo** (which collides directly with *Cadence Money*), neither offers an available `.com` under your €20/year limit, and Equafy carries phonetic confusion with existing financial marks like *Equify* and *Equifax*.\n- **Checks missing**: International trademark registers outside the US, common-law state trademark filings, and aftermarket domain buyout valuations were not checked.\n\nWould you like to test domain availability and clearance on other shortlist options (such as **Solowell** or **StillLedger**), or explore slight compound variants to find an available `.com` within budget?\n\n- [Check Solowell and StillLedger](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [Brainstorm compound names with available .coms under €20](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
+      },
+      "follow_up_1": {
+        "text": "Check domain availability and trademarks for Solowell and StillLedger"
+      },
+      "follow_up_2": {
+        "text": "Brainstorm compound names with available dot com domains under twenty euros"
+      },
+      "follow_up_3": {
+        "text": "Search trademark records for upcoming budgeting app name ideas"
+      },
+      "follow_up_4": {
+        "text": "Compare branding and naming strategies for solo entrepreneur apps"
+      },
+      "follow_up_5": {
+        "text": "Search available domain extensions for freelance finance apps"
+      },
+      "follow_up_6": {
+        "text": "List alternative domain registrars for affordable startup domains"
+      }
+    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "Flights from Berlin to Bangkok"
@@ -10938,6 +11040,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
+      }
+    },
+    "jobs_in_sweden": {
+      "title": {
+        "text": "Developer jobs in Sweden"
+      },
+      "summary": {
+        "text": "Compare current developer jobs in Stockholm and Malmö with original listings and source-backed workplace details."
+      },
+      "message_1": {
+        "text": "Find two current software developer jobs in Stockholm and two in Malmö from Sweden’s public employment service. Show a short bullet for each with title, employer, workplace city and original listing link. Include a salary figure or working-from-home arrangement only if explicitly stated in that listing; otherwise say not stated. Keep the answer under 200 words."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nCurrent software developer listings from Arbetsförmedlingen (Platsbanken):\n\n### Stockholm\n\n* **Title:** Senior Systemutvecklare  \n  **Employer:** NXT Interim Stockholm AB  \n  **Workplace city:** Stockholm  \n  **Original listing link:** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **Salary figure:** Not stated  \n  **Working-from-home arrangement:** Offers remote workplaces (*remote-arbetsplatser*)\n\n* **Title:** Javautvecklare  \n  **Employer:** AFRY AB  \n  **Workplace city:** Stockholm  \n  **Original listing link:** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **Salary figure:** Not stated  \n  **Working-from-home arrangement:** Opportunity for hybrid work (*möjlighet till hybridarbete*)\n\n---\n\n### Malmö\n\n* **Title:** Senior AI Engineer  \n  **Employer:** Iver Accelerate AB  \n  **Workplace city:** Malmö  \n  **Original listing link:** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **Salary figure:** Not stated  \n  **Working-from-home arrangement:** Opportunity for hybrid work (*möjlighet till hybridarbete*)\n\n* **Title:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **Employer:** Jobbakuten Väst AB  \n  **Workplace city:** Malmö  \n  **Original listing link:** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **Salary figure:** Not stated (listing mentions market-rate salary without a specific figure)  \n  **Working-from-home arrangement:** Hybrid work (*Hybridarbete*)"
+      },
+      "follow_up_1": {
+        "text": "Search for remote software developer jobs in Gothenburg"
+      },
+      "follow_up_2": {
+        "text": "Compare the requirements for these senior developer roles"
+      },
+      "follow_up_3": {
+        "text": "Search for frontend developer positions in Stockholm"
+      },
+      "follow_up_4": {
+        "text": "List the top technology stacks mentioned in these listings"
+      },
+      "follow_up_5": {
+        "text": "Search for junior developer listings in Sweden"
+      },
+      "follow_up_6": {
+        "text": "Summarize the remote work trends across Swedish tech jobs"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -12205,7 +12339,7 @@
         "text": "- Understand the brief\n- shortlist names\n- check chosen finalists\n- compare the evidence"
       },
       "systemprompt": {
-        "text": "Help the user find a memorable brand or product name and a suitable domain. Stay concise.\nUse plain text and brief Markdown bullets, without tables, interactive forms, JSON or\nspreadsheet/document artifacts. Keep intake under 60 words and each candidate on one line.\n\n1. Reuse the brief. If essential context is missing, ask one compact question about\n   the product, audience, target markets, language and desired feel; domain or\n   budget constraints are optional. Wait for the reply. Honor requests to skip\n   questions and state assumptions.\n2. Offer 6–8 varied, pronounceable names with one brief reason each. Consider\n   memorability, fit and unintended meanings in the target languages. Mark this\n   shortlist unchecked; avoid generic keyword piles.\n3. Let the user pick 2–3 finalists, or choose if asked. Batch hosting.search_domains\n   for actual availability and quoted prices, web.search for existing brands and\n   search conflicts, and business.search_trademarks for explicit target regions.\n   Set max_results=5 for the initial trademark search. Search all classes unless\n   actual goods/services justify filters. Check finalists rather than the whole\n   shortlist; send only necessary names and filters, without confidential brief details.\n4. Compare in compact bullets, recommend a direction with its tradeoff, and refine\n   only what is needed next. Separate creative judgments from dated evidence;\n   identify failed, truncated or missing regional checks.\n\nNever infer domain availability from DNS, HTTP or WHOIS alone. Report only quoted\nprices and renewal terms. Trademark searches are preliminary: no matches do not\nprove legal availability, and spelling similarity is not complete clearance.\nApply annual domain budgets to renewal prices, not introductory offers. A known\nover-budget renewal is no fit. Limit trademark absence claims to returned records\nand filters; a truncated similar-name search cannot establish exact-name absence.\nDescribe brand/search conflicts without inferring legal infringement from website\nor name matches."
+        "text": "Help the user find a memorable brand or product name and a suitable domain. Stay concise.\nUse plain text and brief Markdown bullets, without tables, interactive forms, JSON or\nspreadsheet/document artifacts. Keep intake under 60 words and each candidate on one line.\n\n1. Reuse the brief. Ask one compact question for missing product, audience,\n   markets, language or desired feel. Domain/budget constraints are optional.\n   Wait for the reply. If asked to skip questions, state assumptions.\n2. Offer 6–8 varied, pronounceable names with one brief reason each. Consider fit,\n   sound and unintended meanings. Mark the shortlist unchecked.\n3. Let the user pick 2–3 finalists, or choose if asked. Batch hosting.search_domains\n   for actual availability and quoted prices, web.search for existing brands and\n   search conflicts, and business.search_trademarks for explicit target regions.\n   Set max_results=5 for the initial trademark search. Search all classes unless\n   actual goods/services justify filters. Check finalists rather than the whole\n   shortlist; send only necessary names and filters, without confidential brief details.\n4. Compare under 100 words: one bullet per finalist, one evidence-limits bullet,\n   and one recommendation/refinement bullet. Prioritize availability, quoted renewal,\n   web conflicts and returned trademark records. Recommend only a fit; otherwise\n   say none fits and suggest one refinement. Keep creative judgments separate from evidence.\n\nNever infer domain availability from DNS, HTTP or WHOIS alone. Quote prices only\nfrom hosting.search_domains or primary pricing pages fetched with web.read.\nIgnore earlier assistant price estimates. Suggest checking other registrars without\nprice amounts. Trademark searches are preliminary: no matches do not\nprove legal availability, and spelling similarity is not complete clearance.\nApply annual domain budgets to renewal prices, not introductory offers. A known\nover-budget renewal is no fit. The limits bullet must state preliminary trademark\ncoverage. For truncated searches say: \"Only returned records were reviewed;\nexact-name absence remains unconfirmed.\" Never claim a similar-name query found\nno exact matches. Limit all absence claims to returned records and filters.\nDescribe brand/search conflicts without inferring legal infringement from website\nor name matches."
       }
     },
     "code_analyze_logs": {
@@ -14166,6 +14300,54 @@
             },
             "description": {
               "text": "Bright Sky receives coordinates, date range, time zone, radar radius, and requested weather fields for Germany forecasts and rain radar using public DWD-derived data. Requests exclude OpenMates user identifiers. Bright Sky does not publish a standalone privacy notice, so the link points to its official service documentation."
+            }
+          }
+        },
+        "jobs": {
+          "heading": {
+            "text": "Job search services"
+          },
+          "description": {
+            "text": "Used only when you search for jobs. The German Federal Employment Agency and JobTech receive selected search terms, location and applicable filters in server-side requests. Arbeitnow supplies a public feed that OpenMates filters locally. No OpenMates user ID, CV or account credentials are sent. 80,000 Hours sends keywords and country to Algolia; Hard Problems receives only country. Location and other filters stay local."
+          },
+          "arbeitsagentur": {
+            "heading": {
+              "text": "German Federal Employment Agency"
+            },
+            "description": {
+              "text": "The German Federal Employment Agency receives selected job keywords, location, search radius and applicable filters for public vacancy search."
+            }
+          },
+          "jobtech": {
+            "heading": {
+              "text": "JobTech JobSearch"
+            },
+            "description": {
+              "text": "JobTech receives selected job keywords, named location, remote preference, publication window and result count for Swedish vacancy search."
+            }
+          },
+          "arbeitnow": {
+            "heading": {
+              "text": "Arbeitnow"
+            },
+            "description": {
+              "text": "OpenMates fetches Arbeitnow’s public job feed. Your keywords, location and filters are applied locally and are not sent to Arbeitnow."
+            }
+          },
+          "eighty_thousand_hours": {
+            "heading": {
+              "text": "80,000 Hours Job Board"
+            },
+            "description": {
+              "text": "The public 80,000 Hours job board uses Algolia search. Your keywords and selected country are sent; OpenMates checks location and other filters locally. No OpenMates user ID, CV or account credentials are sent."
+            }
+          },
+          "hard_problems": {
+            "heading": {
+              "text": "Hard Problems"
+            },
+            "description": {
+              "text": "OpenMates fetches Hard Problems’ public job feed for your selected country. Your keywords, named location and other filters are checked locally and are not sent to Hard Problems. No OpenMates user ID, CV or account credentials are sent."
             }
           }
         }
@@ -18763,6 +18945,16 @@
       }
     },
     "app_store_examples": {
+      "jobs": {
+        "search": {
+          "1": {
+            "text": "Software developer jobs in Stockholm"
+          },
+          "2": {
+            "text": "Software developer jobs in Malmö"
+          }
+        }
+      },
       "hosting": {
         "search_domains": {
           "1": {
@@ -26242,6 +26434,36 @@
       },
       "add_item": {
         "text": "Add item"
+      },
+      "add_job_search": {
+        "text": "Add search"
+      },
+      "remove_job_search": {
+        "text": "Remove search"
+      },
+      "jobs_remote_any": {
+        "text": "Any workplace"
+      },
+      "jobs_remote_full": {
+        "text": "Fully remote"
+      },
+      "jobs_remote_onsite": {
+        "text": "On-site"
+      },
+      "jobs_countries": {
+        "text": "Countries"
+      },
+      "jobs_country_de": {
+        "text": "Germany"
+      },
+      "jobs_country_se": {
+        "text": "Sweden"
+      },
+      "jobs_countries_apply": {
+        "text": "Changing this selection applies it to every search and replaces per-search country settings."
+      },
+      "jobs_countries_existing": {
+        "text": "Existing per-search countries"
       },
       "choose": {
         "text": "Choose"

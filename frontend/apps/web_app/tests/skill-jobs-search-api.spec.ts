@@ -11,7 +11,7 @@ const { installRecorderDeps } = require('./cli-tui-proof-helpers');
 
 const ROOT = path.resolve(__dirname, '../../../..');
 const SKILL_PATH = '/v1/apps/jobs/skills/search';
-const SEARCH = { requests: [{ id: 'sweden', query: 'utvecklare', country: 'SE', provider: 'JobTech', limit: 2 }] };
+const SEARCH = { countries: ['SE'], requests: [{ id: 'sweden', query: 'utvecklare', provider: 'JobTech', limit: 2 }] };
 
 type Job = {
 	id: string;
@@ -47,6 +47,7 @@ function assertSwedishGroup(payload: any): Job[] {
 	expect(group.id).toBe('sweden');
 	expect(group.query).toBe('utvecklare');
 	expect(group.country).toBe('SE');
+	expect(group.countries).toEqual(['SE']);
 	expect(group.providers).toEqual(['jobtech']);
 	expect(group.error).toBeFalsy();
 	expect(Array.isArray(group.results)).toBe(true);
@@ -167,7 +168,7 @@ test.describe('Jobs search programmatic contract', () => {
 	});
 
 	// contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
-	test('public catalog registers Jobs search and its three providers', async ({ request }: { request: any }) => {
+	test('public catalog registers Jobs search and its five providers', async ({ request }: { request: any }) => {
 		const response = await request.get(`${apiUrl}/v1/apps/metadata`);
 		expect(response.ok()).toBe(true);
 		const app = (await response.json()).apps?.jobs;
@@ -177,14 +178,16 @@ test.describe('Jobs search programmatic contract', () => {
 		expect(skill.providers).toEqual(expect.arrayContaining([
 			expect.objectContaining({ name: 'Bundesagentur für Arbeit', no_api_key: true }),
 			expect.objectContaining({ name: 'Arbeitnow', no_api_key: true }),
-			expect.objectContaining({ name: 'JobTech', no_api_key: true })
+			expect.objectContaining({ name: 'JobTech', no_api_key: true }),
+			expect.objectContaining({ name: '80,000 Hours', no_api_key: true }),
+			expect.objectContaining({ name: 'Hard Problems', no_api_key: true })
 		]));
 	});
 
 	// contract-test: direct surface=rest_api assertions=app-skills.execution.registered-validated,app-skills.surface.semantic-parity
 	test('REST returns real Swedish listings and preserves partial batch errors', async ({ request }: { request: any }) => {
 		test.skip(!key, 'Disposable fixture API key required');
-		const batch = { requests: [SEARCH.requests[0],
+		const batch = { countries: ['SE'], requests: [SEARCH.requests[0],
 			{ id: 'unsupported', query: 'developer', country: 'SE', provider: 'Arbeitnow', limit: 1 }] };
 		const response = await authenticatedRestPost(request, apiUrl, key!, batch);
 		expect(response.ok(), `REST status ${response.status()}`).toBe(true);
@@ -203,6 +206,9 @@ test.describe('Jobs search programmatic contract', () => {
 		test.skip(!key, 'Disposable fixture API key required');
 		for (const invalid of [
 			{ requests: [] },
+			{ countries: [], requests: [{ query: 'developer' }] },
+			{ countries: ['FR'], requests: [{ query: 'developer' }] },
+			{ countries: ['DE'], requests: [{ query: 'engineer', providers: ['JobTech', 'Arbeitnow'] }] },
 			{ requests: [{ id: 'bad-provider', query: 'developer', country: 'SE', provider: 'Unknown Board' }] }
 		]) {
 			const response = await authenticatedRestPost(request, apiUrl, key!, invalid);
@@ -213,6 +219,28 @@ test.describe('Jobs search programmatic contract', () => {
 			const data = dataOf(await response.json());
 			expect(data.success).toBe(false);
 			expect(data.results?.[0]?.error || data.error).toEqual(expect.any(String));
+		}
+	});
+
+	// contract-test: direct surface=rest_api assertions=app-skills.execution.registered-validated,app-skills.surface.semantic-parity
+	test('REST routes a selected Germany and Sweden country set to exactly their providers', async ({ request }: { request: any }) => {
+		test.skip(!key, 'Disposable fixture API key required');
+		const response = await authenticatedRestPost(request, apiUrl, key!, {
+			countries: ['DE', 'SE'], requests: [{ id: 'eu', query: 'engineer', limit: 5 }]
+		});
+		expect(response.ok()).toBe(true);
+		const data = dataOf(await response.json());
+		expect(data.success).toBe(true);
+		expect(data.results).toHaveLength(1);
+		const group = data.results[0];
+		expect(group.countries).toEqual(['DE', 'SE']);
+		expect(group.country).toBeNull();
+		expect([...group.providers].sort()).toEqual(['arbeitnow', 'arbeitsagentur', 'eighty_thousand_hours', 'hard_problems', 'jobtech']);
+		expect(group.result_count).toBeGreaterThan(0);
+		for (const job of group.results) {
+			expect(['DE', 'SE']).toContain(job.country);
+			if (job.provider === 'jobtech') expect(job.country).toBe('SE');
+			if (['arbeitnow', 'arbeitsagentur'].includes(job.provider)) expect(job.country).toBe('DE');
 		}
 	});
 
@@ -237,6 +265,36 @@ test.describe('Jobs search programmatic contract', () => {
 		assertGermanGroup(await response.json(), 'arbeitnow', query, 'arbeitnow',
 			/^https:\/\/www\.arbeitnow\.com\/view\//);
 	});
+
+	for (const source of [
+		{ provider: '80,000 Hours', id: 'eighty_thousand_hours', query: 'research', sourceUrl: /^https:\/\// },
+		{ provider: 'Hard Problems', id: 'hard_problems', query: 'design', sourceUrl: /^https:\/\/www\.hardproblems\.com\/jobs\/role\// }
+	]) {
+		// contract-test: direct surface=rest_api assertions=app-skills.execution.registered-validated,app-skills.surface.semantic-parity
+		test(`REST returns country-verified meaningful jobs from ${source.provider}`, async ({ request }: { request: any }) => {
+			test.skip(!key, 'Disposable fixture API key required');
+			const response = await authenticatedRestPost(request, apiUrl, key!, {
+				countries: ['DE'], requests: [{ id: source.id, query: source.query, provider: source.provider, limit: 2 }]
+			});
+			expect(response.ok(), `${source.provider} REST status ${response.status()}`).toBe(true);
+			const data = dataOf(await response.json());
+			expect(data.success).toBe(true);
+			const group = data.results[0];
+			expect(group.countries).toEqual(['DE']);
+			expect(group.providers).toEqual([source.id]);
+			expect(group.result_count).toBeGreaterThan(0);
+			expect(group.result_count).toBeLessThanOrEqual(2);
+			for (const job of group.results) {
+				expect(job.provider).toBe(source.id);
+				expect(job.country).toBe('DE');
+				expect(job.title).toEqual(expect.any(String));
+				expect(job.url).toMatch(source.sourceUrl);
+				if (job.apply_url) expect(job.apply_url).toMatch(/^https:\/\//);
+				expect(job.salary_min).toBeNull();
+				expect(job.salary_max).toBeNull();
+			}
+		});
+	}
 
 	// contract-test: direct surface=cli assertions=app-skills.surface.semantic-parity
 	test('CLI returns grouped Swedish listings with a real terminal recording', async ({ request }: { request: any }, testInfo: any) => {
@@ -292,7 +350,7 @@ except OpenMatesApiError as error:
     print(json.dumps({'status': 403}))`], env, 'pip device registration');
 		expect([200, 403]).toContain(registration.status);
 		if (registration.status === 403) approveFixtureDevice(apiUrl, 'pip', 'jobs-e2e-pip');
-		const code = prefix + `print(json.dumps(client.apps.jobs.search({'requests': [{'id': 'sweden', 'query': 'utvecklare', 'country': 'SE', 'provider': 'JobTech', 'limit': 2}]})))`;
+		const code = prefix + `print(json.dumps(client.apps.jobs.search({'countries': ['SE'], 'requests': [{'id': 'sweden', 'query': 'utvecklare', 'provider': 'JobTech', 'limit': 2}]})))`;
 		const output = childProcess('python3', ['-c', code], env, 'pip Jobs search');
 		assertSwedishGroup(output);
 	});

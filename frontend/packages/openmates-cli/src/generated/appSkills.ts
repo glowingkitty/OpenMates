@@ -4133,10 +4133,30 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "jobs",
     "skill_method_py": "search",
     "description_key": "app_skills.jobs.search.description",
-    "description": "Search current public job listings in Germany and Sweden. Use this skill for job discovery, including opportunities related to a user's stated impact goal. Germany auto sources are Bundesagentur f\u00fcr Arbeit and Arbeitnow; Sweden auto uses JobTech. Default country is DE only when the user gives no country; do not imply Europe-wide coverage. Specify a named provider only when the user requests it. Put a user-stated career purpose or impact preference in relevance_criteria so explicit listing facts",
+    "description": "Search current public job listings in Germany and Sweden. Use this skill for job discovery, including opportunities related to a user's stated impact goal. Set countries to the countries the user selected, or omit it for the Germany-only [DE] default. Each request may override countries; the legacy country field means one country. Germany auto sources are Bundesagentur f\u00fcr Arbeit, Arbeitnow, 80,000 Hours, and Hard Problems; Sweden auto uses JobTech, 80,000 Hours, and Hard Problems. Sources that",
     "schema": {
       "type": "object",
       "properties": {
+        "countries": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "default": [
+            "DE"
+          ],
+          "items": {
+            "type": "string",
+            "enum": [
+              "DE",
+              "SE"
+            ]
+          },
+          "x-ui": {
+            "basic": true
+          },
+          "description": "Search these countries by default; omit only when Germany alone is intended."
+        },
         "requests": {
           "type": "array",
           "minItems": 1,
@@ -4170,11 +4190,27 @@ export const APP_SKILL_METADATA = [
                   "DE",
                   "SE"
                 ],
-                "default": "DE",
                 "x-ui": {
-                  "basic": true
+                  "basic": false
                 },
-                "description": "DE for Germany or SE for Sweden; default DE only if unspecified."
+                "description": "Legacy singleton country override; do not combine with countries."
+              },
+              "countries": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 2,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "DE",
+                    "SE"
+                  ]
+                },
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Override top-level countries for this request; do not combine with country."
               },
               "location": {
                 "type": "string",
@@ -4239,7 +4275,9 @@ export const APP_SKILL_METADATA = [
                   "auto",
                   "Arbeitnow",
                   "Arbeitsagentur",
-                  "JobTech"
+                  "JobTech",
+                  "80,000 Hours",
+                  "Hard Problems"
                 ],
                 "x-ui": {
                   "basic": false
@@ -4253,7 +4291,9 @@ export const APP_SKILL_METADATA = [
                   "enum": [
                     "Arbeitnow",
                     "Arbeitsagentur",
-                    "JobTech"
+                    "JobTech",
+                    "80,000 Hours",
+                    "Hard Problems"
                   ]
                 },
                 "x-ui": {
@@ -4328,6 +4368,9 @@ export const APP_SKILL_METADATA = [
               "provider": {
                 "type": "string"
               },
+              "country": {
+                "type": "string"
+              },
               "code": {
                 "type": "string"
               },
@@ -4357,7 +4400,16 @@ export const APP_SKILL_METADATA = [
                 "type": "string"
               },
               "country": {
-                "type": "string"
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "countries": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
               },
               "providers": {
                 "type": "array",
@@ -4380,6 +4432,9 @@ export const APP_SKILL_METADATA = [
                       "type": "string"
                     },
                     "provider": {
+                      "type": "string"
+                    },
+                    "country": {
                       "type": "string"
                     },
                     "code": {
@@ -9138,7 +9193,7 @@ export class JobsAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search current public job listings in Germany and Sweden. Use this skill for job discovery, including opportunities related to a user's stated impact goal. Germany auto sources are Bundesagentur für Arbeit and Arbeitnow; Sweden auto uses JobTech. Default country is DE only when the user gives no country; do not imply Europe-wide coverage. Specify a named provider only when the user requests it. Put a user-stated career purpose or impact preference in relevance_criteria so explicit listing facts
+   * Search current public job listings in Germany and Sweden. Use this skill for job discovery, including opportunities related to a user's stated impact goal. Set countries to the countries the user selected, or omit it for the Germany-only [DE] default. Each request may override countries; the legacy country field means one country. Germany auto sources are Bundesagentur für Arbeit, Arbeitnow, 80,000 Hours, and Hard Problems; Sweden auto uses JobTech, 80,000 Hours, and Hard Problems. Sources that
    * Description key: app_skills.jobs.search.description
    * Skill: jobs/search
    */

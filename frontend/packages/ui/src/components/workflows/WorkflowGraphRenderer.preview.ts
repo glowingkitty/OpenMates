@@ -364,6 +364,49 @@ const eventsSearchCapability: Capability = {
   },
 };
 
+const jobsSearchCapability: Capability = {
+  id: 'jobs.search', type: 'app_skill', enabled: true, title: 'Search',
+  metadata: {
+    app_id: 'jobs', skill_id: 'search', workflow: { test_allowed: true },
+    input_schema: { type: 'object', required: ['requests'], properties: {
+      countries: { type: 'array', minItems: 1, maxItems: 2, default: ['DE'], items: { type: 'string', enum: ['DE', 'SE'] }, 'x-ui': { basic: true } },
+      requests: { type: 'array', minItems: 1, maxItems: 5, items: { type: 'object', required: ['query'], properties: {
+        query: { type: 'string', 'x-ui': { basic: true } },
+        country: { type: 'string', enum: ['DE', 'SE'], 'x-ui': { hidden: true } },
+        countries: { type: 'array', items: { type: 'string', enum: ['DE', 'SE'] }, 'x-ui': { hidden: true } },
+        location: { type: 'string', 'x-ui': { basic: true, control: 'location' } },
+        remote: { type: 'boolean', 'x-ui': { basic: true } },
+        limit: { type: 'integer', minimum: 1, maximum: 50, default: 10, 'x-ui': { basic: true } },
+        relevance_criteria: { type: 'string', 'x-ui': { basic: true } },
+      } } },
+    } },
+    output_schema: { type: 'object', properties: {
+      result_count: { type: 'integer', example: 1, 'x-ui': { basic: true } },
+      results: { type: 'array', 'x-ui': { basic: true }, items: { type: 'object', properties: {
+        title: { type: 'string', example: 'Software engineer', 'x-ui': { basic: true } },
+        company: { type: 'string', example: 'Example employer', 'x-ui': { basic: true } },
+        url: { type: 'string', example: 'https://example.invalid/jobs/123', 'x-ui': { basic: true } },
+        apply_url: { type: 'string', example: 'https://example.invalid/jobs/123/apply' },
+        location: { type: 'string', example: 'Stockholm', 'x-ui': { basic: true } },
+        country: { type: 'string', example: 'SE' },
+        remote: { type: 'boolean', example: true },
+        published_at: { type: 'string', example: '2026-10-13T08:00:00Z' },
+        description: { type: 'string', example: 'Build useful products.' },
+        provider: { type: 'string', example: 'JobTech' },
+      } } },
+      success: { type: 'boolean', example: true }, partial: { type: 'boolean', example: false },
+    } },
+  },
+};
+
+const jobsSearchGraph: WorkflowGraph = {
+  version: 2, trigger_node_id: 'trigger', nodes: [
+    { id: 'trigger', type: 'schedule_trigger', config: { schedule: { type: 'daily', time: '09:00', timezone: 'Europe/Stockholm' } } },
+    { id: 'jobs', type: 'app_skill_action', title: 'Search jobs', config: { app_id: 'jobs', skill_id: 'search', input: { countries: ['SE'], requests: [{ query: 'software engineer', limit: 2 }] } } },
+    { id: 'message', type: 'send_chat_message', config: { title: 'Job matches', message: 'Found {{steps.jobs.result_count}} jobs: {{steps.jobs.results}}' } },
+  ], edges: [{ from: 'trigger', to: 'jobs' }, { from: 'jobs', to: 'message' }],
+};
+
 function skillVariant(graph: WorkflowGraph, capability: Capability) {
   return { ...defaultProps, graph, capabilityFixtures: [capability, defaultCapability("ai.ask")] };
 }
@@ -605,6 +648,17 @@ export const variants = {
     defaultCapability("news.search"),
   ),
   eventsSearch: skillVariant(weeklyEventsGraph(), eventsSearchCapability),
+  jobsSearch: {
+    ...skillVariant(jobsSearchGraph, jobsSearchCapability),
+    onSave: async (graph: WorkflowGraph) => {
+      window.dispatchEvent(new CustomEvent('workflow-jobs-preview-save', { detail: graph }));
+    },
+  },
+  jobsSearchLegacyCountry: {
+    ...skillVariant({ ...jobsSearchGraph, nodes: jobsSearchGraph.nodes.map(node => node.id !== 'jobs' ? node : {
+      ...node, config: { ...node.config, input: { requests: [{ query: 'software engineer', country: 'SE', limit: 2 }] } },
+    }) }, jobsSearchCapability),
+  },
   typedControls: { ...defaultProps, graph: typedControlsGraph, capabilityFixtures: typedControlsCapabilities },
   readonly: { ...defaultProps, readOnly: true, onSave: null },
 };

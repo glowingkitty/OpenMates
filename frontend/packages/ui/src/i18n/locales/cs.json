@@ -1811,6 +1811,22 @@
         }
       }
     },
+    "jobs": {
+      "search": {
+        "text": "Search jobs",
+        "description": {
+          "text": "Find current jobs from public employment sources in Germany and Sweden."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Find climate policy jobs in Berlin posted this month."
+          },
+          "2": {
+            "text": "Find software engineering jobs in Stockholm that work on clean energy."
+          }
+        }
+      }
+    },
     "mail": {
       "search": {
         "text": "Hledat e-maily",
@@ -7876,6 +7892,48 @@
           "text": "Soubory v tomto projektu"
         }
       }
+    },
+    "jobs": {
+      "search": {
+        "result_count": {
+          "text": "{count} pracovních nabídek"
+        },
+        "partial_results": {
+          "text": "Některé zdroje nebyly dostupné"
+        },
+        "result": {
+          "title": {
+            "text": "Pracovní nabídka"
+          },
+          "remote": {
+            "text": "Na dálku"
+          },
+          "published": {
+            "text": "Zveřejněno"
+          },
+          "source": {
+            "text": "Zobrazit na {provider}"
+          },
+          "listing": {
+            "text": "zdroj nabídky"
+          },
+          "apply": {
+            "text": "Otevřít stránku přihlášky"
+          },
+          "company": {
+            "text": "Společnost"
+          },
+          "employment_type": {
+            "text": "Typ úvazku"
+          },
+          "salary": {
+            "text": "Plat"
+          },
+          "description": {
+            "text": "Popis"
+          }
+        }
+      }
     }
   },
   "enter_message": {
@@ -9402,6 +9460,50 @@
         "text": "Explain the cash-flow trend"
       }
     },
+    "find_brand_name_and_domain": {
+      "title": {
+        "text": "Najdi název značky a doménu"
+      },
+      "summary": {
+        "text": "Stručná konverzace o pojmenování: brainstorming sedmi kandidátů a následné porovnání dvou finalistů s údaji o doméně, webu a předběžných ochranných známkách v USA."
+      },
+      "message_1": {
+        "text": "Pomoz mi najít název pro můj nový produkt."
+      },
+      "message_2": {
+        "text": "Pro začátek: co tvůj produkt dělá, kdo je cílová skupina a jaký tón nebo dojem by měl název vyvolávat (např. hravý, prémiový, technický)?"
+      },
+      "message_3": {
+        "text": "Je to uklidňující aplikace pro správu rozpočtu pro americké freelancery, v angličtině. Chci krátké, zapamatovatelné názvy a doménu .com do 20 € ročně. Nejdřív prosím vymysli pestrý užší výběr."
+      },
+      "message_4": {
+        "text": "Zde je úvodní užší výběr rozmanitých, snadno vyslovitelných názvů šitých na míru klidnému prostředí pro správu rozpočtu na volné noze:\n\n- [ ] **Serenito**: Evokuje klid a mírné tempo pro kolísavé příjmy jednotlivců.\n- [ ] **Solowell**: Naznačuje finanční pohodu a klid v duši pro solopodnikatele.\n- [ ] **Equafy**: Zaměřuje se na vyrovnávání nepravidelných cyklů cash flow (období hojnosti a nedostatku).\n- [ ] **StillLedger**: Spojuje klasickou účetní strukturu s vědomým klidem bez stresu.\n- [ ] **Cadenceo**: Naznačuje budování stabilního, předvídatelného rytmu z plateb za zakázky.\n- [ ] **HavenFin**: Rámcuje správu peněz jako bezpečný, uklidňující přístav.\n- [ ] **Placidly**: Jemný, uklidňující tón, který rozptyluje finanční úzkost.\n\n*(Poznámka: U tohoto užšího výběru nebyla kontrolována dostupnost domén ani právní nezávadnost.)*\n\nU kterých 2–3 názvů chceš provést živou kontrolu? Můžeš si vybrat své favority, nebo mě požádat o výběr finalistů k ověření cen .com domén, konfliktů značek a ochranných známek v USA.\n\n- [Zkontrolovat Serenito, Solowell a Equafy](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [Vyber pro mě 3 nejlepší a zkontroluj je](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
+      },
+      "message_5": {
+        "text": "Prosím zkontroluj Equafy a Cadenceo: jejich dostupnost na .com a uvedené ceny, existující značky na webu a ochranné známky v USA. Srovnání ponech stručné, uveď své doporučení a případné chybějící kontroly."
+      },
+      "message_6": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\nZde je srovnání na základě kontrol provedených 12. října 2026:\n\n### Equafy\n- **Doména**: `equafy.com` je momentálně na Gandi nedostupná; není k dispozici žádná standardní registrační cena, takže nesplňuje rozpočet 20 €/rok.\n- **Webové a značkové prostředí**: Žádný významný rozpočtový software tento přesný název nepoužívá, ale vyhledávání na webu ukazuje vysokou fonetickou podobnost a záměnu při vyhledávání se [službami osobních financí Equifax](embed:equifax.com-TrW).\n- **Ochranné známky v USA (USPTO)**: Předběžné vyhledávání vrátilo 5 z 1 640 podobných záznamů (zkráceno; absenci přesného názvu nelze potvrdit). Aktivní shody zahrnují `EQUIFY` ve třídě 36 (probíhající finanční služby a služby uložených hodnot) a třídě 35 (registrované aukční služby).\n\n### Cadenceo\n- **Doména**: `cadenceo.com` je momentálně na Gandi nedostupná; není k dispozici žádná standardní registrační cena, čímž nesplňuje rozpočet 20 €/rok.\n- **Webové a značkové prostředí**: Přímo se překrývá s [Cadence Money](embed:cadencemoney.com-IcE), zavedenou aplikací pro osobní finance a sledování rozpočtu, která působí v USA a Kanadě na platformách iOS, Android a webu.\n- **Ochranné známky v USA (USPTO)**: Předběžné vyhledávání vrátilo 5 z 227 podobných záznamů (zkráceno; absenci přesného názvu nelze potvrdit). Aktivní shody pro `CADENCE` zahrnují záznamy softwaru ke stažení ve třídě 9.\n\n---\n\n### Doporučení a kompromisy\n- **Směr**: Oba názvy zamítnout. Zatímco **Equafy** má méně přímých konfliktů s aplikacemi než **Cadenceo** (které koliduje přímo s *Cadence Money*), ani jeden nenabízí dostupnou doménu `.com` pod tvým limitem 20 €/rok a Equafy s sebou nese fonetickou záměnu se stávajícími finančními značkami jako *Equify* a *Equifax*.\n- **Chybějící kontroly**: Nebyly kontrolovány mezinárodní registry ochranných známek mimo USA, státní podání ochranných známek podle zvykového práva (common-law) ani ocenění odkupu domén na sekundárním trhu.\n\nChceš otestovat dostupnost domény a právní čistotu u dalších možností z užšího výběru (například **Solowell** nebo **StillLedger**), nebo prozkoumat mírné složené varianty, abychom našli dostupnou doménu `.com` v rámci rozpočtu?\n\n- [Zkontrolovat Solowell a StillLedger](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [Vymyslet složené názvy s dostupnými .com pod 20 €](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
+      },
+      "follow_up_1": {
+        "text": "Zkontroluj dostupnost domén a ochranné známky pro Solowell a StillLedger"
+      },
+      "follow_up_2": {
+        "text": "Vymysli složená jména s dostupnými .com doménami do dvaceti eur"
+      },
+      "follow_up_3": {
+        "text": "Prohledej databáze ochranných známek pro nápady na názvy nové aplikace na rozpočet"
+      },
+      "follow_up_4": {
+        "text": "Porovnej branding a strategie pojmenování pro aplikace pro sólo podnikatele"
+      },
+      "follow_up_5": {
+        "text": "Vyhledej dostupné doménové koncovky pro finanční aplikace pro freelancery"
+      },
+      "follow_up_6": {
+        "text": "Vypiš alternativní registrátory pro cenově dostupné domény pro startupy"
+      }
+    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "Lety z Berlína do Bangkoku"
@@ -9610,6 +9712,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
+      }
+    },
+    "jobs_in_sweden": {
+      "title": {
+        "text": "Práce pro vývojáře ve Švédsku"
+      },
+      "summary": {
+        "text": "Porovnej aktuální nabídky práce pro vývojáře ve Stockholmu a Malmö s původními inzeráty a ověřenými informacemi o pracovišti."
+      },
+      "message_1": {
+        "text": "Najdi dvě aktuální pracovní pozice pro softwarové vývojáře ve Stockholmu a dvě v Malmö ze švédských veřejných služeb zaměstnanosti. U každé uveď krátký bod s názvem, zaměstnavatelem, městem pracoviště a odkazem na původní inzerát. Údaj o platu nebo možnosti práce z domova uveď pouze tehdy, pokud je v daném inzerátu výslovně uveden; jinak uveď, že není uveden. Odpověď udrž pod 200 slov."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nAktuální nabídky práce pro softwarové vývojáře z Arbetsförmedlingen (Platsbanken):\n\n### Stockholm\n\n* **Pozice:** Senior Systemutvecklare  \n  **Zaměstnavatel:** NXT Interim Stockholm AB  \n  **Město pracoviště:** Stockholm  \n  **Odkaz na původní inzerát:** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **Plat:** Neuvedeno  \n  **Práce z domova:** Nabízí vzdálená pracoviště (*remote-arbetsplatser*)\n\n* **Pozice:** Javautvecklare  \n  **Zaměstnavatel:** AFRY AB  \n  **Město pracoviště:** Stockholm  \n  **Odkaz na původní inzerát:** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **Plat:** Neuvedeno  \n  **Práce z domova:** Možnost hybridní práce (*möjlighet till hybridarbete*)\n\n---\n\n### Malmö\n\n* **Pozice:** Senior AI Engineer  \n  **Zaměstnavatel:** Iver Accelerate AB  \n  **Město pracoviště:** Malmö  \n  **Odkaz na původní inzerát:** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **Plat:** Neuvedeno  \n  **Práce z domova:** Možnost hybridní práce (*möjlighet till hybridarbete*)\n\n* **Pozice:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **Zaměstnavatel:** Jobbakuten Väst AB  \n  **Město pracoviště:** Malmö  \n  **Odkaz na původní inzerát:** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **Plat:** Neuvedeno (v inzerátu je uveden tržní plat bez konkrétní částky)  \n  **Práce z domova:** Hybridní práce (*Hybridarbete*)"
+      },
+      "follow_up_1": {
+        "text": "Hledej remote pozice pro softwarové vývojáře v Göteborgu"
+      },
+      "follow_up_2": {
+        "text": "Porovnej požadavky na tyto pozice pro seniorní vývojáře"
+      },
+      "follow_up_3": {
+        "text": "Hledej pozice pro frontend vývojáře ve Stockholmu"
+      },
+      "follow_up_4": {
+        "text": "Vypiš nejčastější technologické stacky zmíněné v těchto inzerátech"
+      },
+      "follow_up_5": {
+        "text": "Hledej inzeráty pro juniorní vývojáře ve Švédsku"
+      },
+      "follow_up_6": {
+        "text": "Shrň trendy v oblasti práce na dálku ve švédských technologických pozicích"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -12630,6 +12764,54 @@
           "uspto": {
             "description": {
               "text": "USPTO dostává navržené názvy a filtry stavu, pravopisu a tříd Niceského třídění pro hledání v USA. Požadavky odesílají naše servery bez identifikátorů OpenMates či historie chatu."
+            }
+          }
+        },
+        "jobs": {
+          "heading": {
+            "text": "Služby hledání práce"
+          },
+          "description": {
+            "text": "Používají se jen při hledání práce. Německá Spolková agentura práce a JobTech dostávají vybrané výrazy, místo a použitelné filtry v serverových požadavcích. Arbeitnow poskytuje veřejný kanál, který OpenMates filtruje lokálně. ID uživatele OpenMates, životopis ani přihlašovací údaje se neodesílají. 80,000 Hours posílá klíčová slova a zemi Algolii; Hard Problems dostává jen zemi. Místo a další filtry se kontrolují lokálně."
+          },
+          "arbeitsagentur": {
+            "heading": {
+              "text": "German Federal Employment Agency"
+            },
+            "description": {
+              "text": "Německá Spolková agentura práce dostává vybraná pracovní klíčová slova, místo, poloměr hledání a použitelné filtry pro vyhledání veřejných nabídek."
+            }
+          },
+          "jobtech": {
+            "heading": {
+              "text": "JobTech JobSearch"
+            },
+            "description": {
+              "text": "JobTech dostává vybraná pracovní klíčová slova, zadané místo, preferenci práce na dálku, období zveřejnění a počet výsledků pro hledání švédských nabídek."
+            }
+          },
+          "arbeitnow": {
+            "heading": {
+              "text": "Arbeitnow"
+            },
+            "description": {
+              "text": "OpenMates načítá veřejný kanál nabídek Arbeitnow. Klíčová slova, místo a filtry se použijí lokálně a Arbeitnow se neodesílají."
+            }
+          },
+          "eighty_thousand_hours": {
+            "heading": {
+              "text": "80,000 Hours Job Board"
+            },
+            "description": {
+              "text": "Veřejná nabídka práce 80,000 Hours používá vyhledávání Algolia. Odesílají se klíčová slova a zvolená země; místo a další filtry OpenMates kontroluje lokálně. ID uživatele, životopis ani údaje účtu se neodesílají."
+            }
+          },
+          "hard_problems": {
+            "heading": {
+              "text": "Hard Problems"
+            },
+            "description": {
+              "text": "OpenMates načítá veřejný kanál Hard Problems pro zvolenou zemi. Klíčová slova, místo a další filtry kontroluje lokálně a neposílá je Hard Problems. ID uživatele, životopis ani údaje účtu se neodesílají."
             }
           }
         }
@@ -16161,6 +16343,16 @@
       }
     },
     "app_store_examples": {
+      "jobs": {
+        "search": {
+          "1": {
+            "text": "Práce pro vývojáře softwaru ve Stockholmu"
+          },
+          "2": {
+            "text": "Práce pro vývojáře softwaru v Malmö"
+          }
+        }
+      },
       "hosting": {
         "search_domains": {
           "1": {

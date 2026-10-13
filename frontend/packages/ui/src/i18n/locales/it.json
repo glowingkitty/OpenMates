@@ -1811,6 +1811,22 @@
         }
       }
     },
+    "jobs": {
+      "search": {
+        "text": "Search jobs",
+        "description": {
+          "text": "Find current jobs from public employment sources in Germany and Sweden."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Find climate policy jobs in Berlin posted this month."
+          },
+          "2": {
+            "text": "Find software engineering jobs in Stockholm that work on clean energy."
+          }
+        }
+      }
+    },
     "mail": {
       "search": {
         "text": "Cerca e-mail",
@@ -7903,6 +7919,48 @@
           "text": "File in questo progetto"
         }
       }
+    },
+    "jobs": {
+      "search": {
+        "result_count": {
+          "text": "{count} offerte di lavoro"
+        },
+        "partial_results": {
+          "text": "Alcune fonti non erano disponibili"
+        },
+        "result": {
+          "title": {
+            "text": "Offerta di lavoro"
+          },
+          "remote": {
+            "text": "Da remoto"
+          },
+          "published": {
+            "text": "Pubblicato"
+          },
+          "source": {
+            "text": "Vedi su {provider}"
+          },
+          "listing": {
+            "text": "fonte dell’annuncio"
+          },
+          "apply": {
+            "text": "Apri la pagina di candidatura"
+          },
+          "company": {
+            "text": "Azienda"
+          },
+          "employment_type": {
+            "text": "Tipo di impiego"
+          },
+          "salary": {
+            "text": "Stipendio"
+          },
+          "description": {
+            "text": "Descrizione"
+          }
+        }
+      }
     }
   },
   "enter_message": {
@@ -9429,6 +9487,50 @@
         "text": "Explain the cash-flow trend"
       }
     },
+    "find_brand_name_and_domain": {
+      "title": {
+        "text": "Trova un nome per il brand e un dominio"
+      },
+      "summary": {
+        "text": "Una conversazione sintetica sul naming: fai brainstorming su sette candidati, poi confronta due finalisti con prove su dominio, web e marchi registrati preliminari negli Stati Uniti."
+      },
+      "message_1": {
+        "text": "Aiutami a trovare un nome per il mio nuovo prodotto."
+      },
+      "message_2": {
+        "text": "Per iniziare, cosa fa il tuo prodotto, qual è il tuo pubblico di riferimento e quale tono o sensazione dovrebbe trasmettere il nome (ad esempio, giocoso, premium, tecnico)?"
+      },
+      "message_3": {
+        "text": "È un'app di budgeting rilassante per freelance negli Stati Uniti, in inglese. Vorrei nomi brevi e facili da ricordare e un dominio .com fino a 20 € all'anno. Per favore, fai prima un brainstorming per una lista ristretta e variegata."
+      },
+      "message_4": {
+        "text": "Ecco una lista iniziale di nomi vari e pronunciabili, pensati per un'esperienza di budgeting rilassante per freelance:\n\n- [ ] **Serenito**: Evoca serenità e un ritmo pacato per le entrate variabili dei lavoratori autonomi.\n- [ ] **Solowell**: Suggerisce benessere finanziario e tranquillità per i solopreneur.\n- [ ] **Equafy**: Si concentra sul bilanciamento dei cicli irregolari di flussi di cassa.\n- [ ] **StillLedger**: Unisce la classica struttura contabile a una calma consapevole e senza stress.\n- [ ] **Cadenceo**: Implica la creazione di un ritmo costante e prevedibile dai pagamenti dei singoli lavori.\n- [ ] **HavenFin**: Inquadra la gestione del denaro come un porto sicuro e rassicurante.\n- [ ] **Placidly**: Tono morbido e rassicurante che attenua l'ansia finanziaria.\n\n*(Nota: questa lista non è stata verificata per la disponibilità del dominio in tempo reale o per l'autorizzazione legale.)*\n\nSu quali 2-3 nomi vorresti effettuare dei controlli in tempo reale? Puoi scegliere i tuoi preferiti o chiedermi di selezionare i finalisti per verificare i prezzi dei .com, i conflitti tra brand e i marchi registrati negli Stati Uniti.\n\n- [Controlla Serenito, Solowell ed Equafy](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [Scegli i 3 migliori per me e controllali](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
+      },
+      "message_5": {
+        "text": "Per favore, controlla Equafy e Cadenceo: la disponibilità dei .com e i prezzi indicati, i brand esistenti sul web e i marchi registrati negli Stati Uniti. Mantieni il confronto compatto, con la tua raccomandazione e gli eventuali controlli ancora mancanti."
+      },
+      "message_6": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\nEcco il confronto basato sui controlli effettuati il 12 ottobre 2026:\n\n### Equafy\n- **Dominio**: `equafy.com` non è attualmente disponibile su Gandi; non è disponibile un prezzo di registrazione standard, quindi non rientra nel budget di 20 €/anno.\n- **Panorama web e brand**: Nessun software di budgeting di rilievo utilizza esattamente questo nome, ma le ricerche sul web mostrano un'elevata somiglianza fonetica e confusione di ricerca con i [servizi di finanza personale Equifax](embed:equifax.com-TrW).\n- **Marchi USA (USPTO)**: La ricerca preliminare ha restituito 5 record simili su 1.640 (troncati; l'assenza del nome esatto non può essere stabilita). Le corrispondenze attive includono `EQUIFY` nella Classe 36 (servizi finanziari e di valore memorizzato in attesa) e nella Classe 35 (servizi di aste registrati).\n\n### Cadenceo\n- **Dominio**: `cadenceo.com` non è attualmente disponibile su Gandi; non è disponibile un prezzo di registrazione standard, non rispettando il budget di 20 €/anno.\n- **Panorama web e brand**: Si sovrappone direttamente a [Cadence Money](embed:cadencemoney.com-IcE), un'app consolidata per la finanza personale e il monitoraggio del budget che opera negli Stati Uniti e in Canada su iOS, Android e web.\n- **Marchi USA (USPTO)**: La ricerca preliminare ha restituito 5 record simili su 227 (troncati; l'assenza del nome esatto non può essere stabilita). Le corrispondenze attive per `CADENCE` includono record di software scaricabili della Classe 9.\n\n---\n\n### Raccomandazioni e compromessi\n- **Direzione**: Scartali entrambi. Sebbene **Equafy** presenti meno conflitti diretti con altre app rispetto a **Cadenceo** (che collide direttamente con *Cadence Money*), nessuno dei due offre un `.com` disponibile entro il tuo limite di 20 €/anno, ed Equafy comporta una confusione fonetica con marchi finanziari esistenti come *Equify* ed *Equifax*.\n- **Controlli mancanti**: Non sono stati controllati i registri internazionali dei marchi al di fuori degli Stati Uniti, i depositi di marchi statali di common-law e le valutazioni di acquisto di domini sul mercato secondario.\n\nDesideri testare la disponibilità del dominio e l'autorizzazione su altre opzioni della lista (come **Solowell** o **StillLedger**), o esplorare varianti composte per trovare un `.com` disponibile entro il budget?\n\n- [Controlla Solowell e StillLedger](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [Idee per nomi composti con .com disponibili sotto i 20 €](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
+      },
+      "follow_up_1": {
+        "text": "Verifica la disponibilità del dominio e i marchi per Solowell e StillLedger"
+      },
+      "follow_up_2": {
+        "text": "Fai brainstorming di nomi composti con domini .com disponibili a meno di venti euro"
+      },
+      "follow_up_3": {
+        "text": "Cerca nei registri dei marchi idee per nomi di app di budgeting in arrivo"
+      },
+      "follow_up_4": {
+        "text": "Confronta le strategie di branding e naming per app di imprenditori solisti"
+      },
+      "follow_up_5": {
+        "text": "Cerca estensioni di dominio disponibili per app di finanza per freelance"
+      },
+      "follow_up_6": {
+        "text": "Elenca registrar di domini alternativi per domini di startup convenienti"
+      }
+    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "Voli da Berlino a Bangkok"
@@ -9637,6 +9739,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
+      }
+    },
+    "jobs_in_sweden": {
+      "title": {
+        "text": "Lavori per sviluppatori in Svezia"
+      },
+      "summary": {
+        "text": "Confronta le attuali offerte di lavoro per sviluppatori a Stoccolma e Malmö con gli annunci originali e i dettagli sulla sede di lavoro basati sulle fonti."
+      },
+      "message_1": {
+        "text": "Trova due attuali offerte di lavoro per sviluppatori software a Stoccolma e due a Malmö dal servizio pubblico per l'impiego svedese. Mostra un breve elenco puntato per ognuna con titolo, datore di lavoro, città della sede e link all'annuncio originale. Includi una cifra salariale o la possibilità di lavorare da casa solo se esplicitamente indicato nell'annuncio; altrimenti scrivi non specificato. Mantieni la risposta sotto le 200 parole."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nAttuali annunci per sviluppatori software da Arbetsförmedlingen (Platsbanken):\n\n### Stoccolma\n\n* **Titolo:** Senior Systemutvecklare  \n  **Datore di lavoro:** NXT Interim Stockholm AB  \n  **Città della sede di lavoro:** Stoccolma  \n  **Link all'annuncio originale:** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **Stipendio:** Non indicato  \n  **Modalità di lavoro da casa:** Offre postazioni di lavoro da remoto (*remote-arbetsplatser*)\n\n* **Titolo:** Javautvecklare  \n  **Datore di lavoro:** AFRY AB  \n  **Città della sede di lavoro:** Stoccolma  \n  **Link all'annuncio originale:** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **Stipendio:** Non indicato  \n  **Modalità di lavoro da casa:** Possibilità di lavoro ibrido (*möjlighet till hybridarbete*)\n\n---\n\n### Malmö\n\n* **Titolo:** Senior AI Engineer  \n  **Datore di lavoro:** Iver Accelerate AB  \n  **Città della sede di lavoro:** Malmö  \n  **Link all'annuncio originale:** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **Stipendio:** Non indicato  \n  **Modalità di lavoro da casa:** Possibilità di lavoro ibrido (*möjlighet till hybridarbete*)\n\n* **Titolo:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **Datore di lavoro:** Jobbakuten Väst AB  \n  **Città della sede di lavoro:** Malmö  \n  **Link all'annuncio originale:** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **Stipendio:** Non indicato (l'annuncio menziona uno stipendio in linea con il mercato senza una cifra specifica)  \n  **Modalità di lavoro da casa:** Lavoro ibrido (*Hybridarbete*)"
+      },
+      "follow_up_1": {
+        "text": "Cerca lavori da remoto per sviluppatore software a Göteborg"
+      },
+      "follow_up_2": {
+        "text": "Confronta i requisiti per questi ruoli da sviluppatore senior"
+      },
+      "follow_up_3": {
+        "text": "Cerca posizioni per sviluppatore frontend a Stoccolma"
+      },
+      "follow_up_4": {
+        "text": "Elenca i principali stack tecnologici menzionati in questi annunci"
+      },
+      "follow_up_5": {
+        "text": "Cerca annunci per sviluppatore junior in Svezia"
+      },
+      "follow_up_6": {
+        "text": "Riassumi le tendenze del lavoro da remoto nei lavori tech svedesi"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -12657,6 +12791,54 @@
           "uspto": {
             "description": {
               "text": "USPTO riceve nomi candidati e filtri di stato, ortografia e classi di Nizza per le ricerche negli USA. Le richieste partono dai nostri server senza identificatori OpenMates o cronologia chat."
+            }
+          }
+        },
+        "jobs": {
+          "heading": {
+            "text": "Servizi di ricerca di lavoro"
+          },
+          "description": {
+            "text": "Usati solo quando cerchi lavoro. L’Agenzia federale tedesca per l’impiego e JobTech ricevono i termini scelti, la località e i filtri applicabili tramite richieste dal server. Arbeitnow fornisce un feed pubblico filtrato localmente da OpenMates. Non vengono inviati ID utente OpenMates, CV o credenziali dell’account. 80,000 Hours invia parole chiave e paese ad Algolia; Hard Problems riceve solo il paese. Località e altri filtri restano locali."
+          },
+          "arbeitsagentur": {
+            "heading": {
+              "text": "German Federal Employment Agency"
+            },
+            "description": {
+              "text": "L’Agenzia federale tedesca per l’impiego riceve parole chiave, località, raggio di ricerca e filtri applicabili per cercare annunci pubblici."
+            }
+          },
+          "jobtech": {
+            "heading": {
+              "text": "JobTech JobSearch"
+            },
+            "description": {
+              "text": "JobTech riceve parole chiave, località indicata, preferenza per il lavoro da remoto, periodo di pubblicazione e numero di risultati per cercare annunci svedesi."
+            }
+          },
+          "arbeitnow": {
+            "heading": {
+              "text": "Arbeitnow"
+            },
+            "description": {
+              "text": "OpenMates recupera il feed pubblico di annunci di Arbeitnow. Parole chiave, località e filtri vengono applicati localmente e non inviati ad Arbeitnow."
+            }
+          },
+          "eighty_thousand_hours": {
+            "heading": {
+              "text": "80,000 Hours Job Board"
+            },
+            "description": {
+              "text": "La bacheca pubblica di 80,000 Hours usa la ricerca Algolia. Vengono inviati le parole chiave e il paese scelto; OpenMates verifica localmente località e altri filtri. Non vengono inviati ID OpenMates, CV o credenziali."
+            }
+          },
+          "hard_problems": {
+            "heading": {
+              "text": "Hard Problems"
+            },
+            "description": {
+              "text": "OpenMates recupera il feed pubblico di Hard Problems per il paese scelto. Parole chiave, località e altri filtri sono verificati localmente e non inviati a Hard Problems. Non vengono inviati ID OpenMates, CV o credenziali."
             }
           }
         }
@@ -16188,6 +16370,16 @@
       }
     },
     "app_store_examples": {
+      "jobs": {
+        "search": {
+          "1": {
+            "text": "Offerte di lavoro per sviluppatori software a Stoccolma"
+          },
+          "2": {
+            "text": "Offerte di lavoro per sviluppatori software a Malmö"
+          }
+        }
+      },
       "hosting": {
         "search_domains": {
           "1": {

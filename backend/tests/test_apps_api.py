@@ -200,6 +200,11 @@ def test_dynamic_rest_schema_preserves_app_yml_field_constraints(monkeypatch) ->
             "tool_schema": {
                 "type": "object",
                 "properties": {
+                    "countries": {
+                        "type": "array", "items": {"type": "string"},
+                        "minItems": 1, "maxItems": 2, "default": ["DE"],
+                    },
+                    "provider": {"type": "string", "enum": ["auto", "JobTech"]},
                     "requests": {
                         "type": "array",
                         "items": {
@@ -247,6 +252,22 @@ def test_dynamic_rest_schema_preserves_app_yml_field_constraints(monkeypatch) ->
     assert item_schema["properties"]["model"]["enum"] == ["eleven_v4", "eleven_v4_turbo"]
     assert item_schema["properties"]["model"]["default"] == "eleven_v4_turbo"
     assert "relevance_criteria" not in item_schema["required"]
+
+    route = next(route for route in app.routes if getattr(route, "path", None) ==
+                 "/v1/apps/rest_schema_contract/skills/search" and "POST" in getattr(route, "methods", set()))
+    request_model = inspect.signature(route.endpoint).parameters["request_body"].annotation
+    assert set(request_model.model_fields) == {"requests", "countries", "provider"}
+    parsed = request_model.model_validate({
+        "countries": ["SE"], "provider": "JobTech", "requests": [{"query": "hi"}],
+        "unexpected": "ignored", "_user_id": "forged", "api_key_hash": "forged",
+    })
+    serialized = parsed.model_dump()
+    assert serialized["countries"] == ["SE"] and serialized["provider"] == "JobTech"
+    assert serialized["requests"][0]["query"] == "hi"
+    assert not {"unexpected", "_user_id", "api_key_hash"}.intersection(serialized)
+    assert request_model.model_validate({"requests": [{"query": "hi"}]}).countries == ["DE"]
+    with pytest.raises(ValueError):
+        request_model.model_validate({"countries": [], "requests": [{"query": "hi"}]})
 
 
 # contract-test: supporting surface=rest_api assertions=maps-search.discovery.bounded-provider-routing,maps-search.compatibility.regular-search

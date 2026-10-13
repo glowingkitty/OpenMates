@@ -1811,6 +1811,22 @@
         }
       }
     },
+    "jobs": {
+      "search": {
+        "text": "Search jobs",
+        "description": {
+          "text": "Find current jobs from public employment sources in Germany and Sweden."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Find climate policy jobs in Berlin posted this month."
+          },
+          "2": {
+            "text": "Find software engineering jobs in Stockholm that work on clean energy."
+          }
+        }
+      }
+    },
     "mail": {
       "search": {
         "text": "Cari email",
@@ -7876,6 +7892,48 @@
           "text": "File dalam proyek ini"
         }
       }
+    },
+    "jobs": {
+      "search": {
+        "result_count": {
+          "text": "{count} lowongan"
+        },
+        "partial_results": {
+          "text": "Beberapa sumber tidak tersedia"
+        },
+        "result": {
+          "title": {
+            "text": "Lowongan kerja"
+          },
+          "remote": {
+            "text": "Jarak jauh"
+          },
+          "published": {
+            "text": "Diterbitkan"
+          },
+          "source": {
+            "text": "Lihat di {provider}"
+          },
+          "listing": {
+            "text": "sumber lowongan"
+          },
+          "apply": {
+            "text": "Buka halaman lamaran"
+          },
+          "company": {
+            "text": "Perusahaan"
+          },
+          "employment_type": {
+            "text": "Jenis pekerjaan"
+          },
+          "salary": {
+            "text": "Gaji"
+          },
+          "description": {
+            "text": "Deskripsi"
+          }
+        }
+      }
     }
   },
   "enter_message": {
@@ -9402,6 +9460,50 @@
         "text": "Explain the cash-flow trend"
       }
     },
+    "find_brand_name_and_domain": {
+      "title": {
+        "text": "Cari nama merek dan domain"
+      },
+      "summary": {
+        "text": "Percakapan penamaan yang ringkas: curah pendapat tujuh kandidat, lalu bandingkan dua finalis dengan bukti domain, web, dan merek dagang AS awal."
+      },
+      "message_1": {
+        "text": "Bantu saya mencari nama untuk produk baru saya."
+      },
+      "message_2": {
+        "text": "Untuk memulai, apa fungsi produkmu, siapa target audiensmu, dan nada atau kesan apa yang ingin disampaikan oleh nama tersebut (misalnya, ceria, premium, teknis)?"
+      },
+      "message_3": {
+        "text": "Ini adalah aplikasi penganggaran yang menenangkan untuk pekerja lepas AS, dalam bahasa Inggris. Saya ingin nama yang pendek, mudah diingat, dan domain .com hingga €20 per tahun. Tolong buatkan daftar pendek yang bervariasi terlebih dahulu."
+      },
+      "message_4": {
+        "text": "Berikut adalah daftar pendek awal dari nama-nama yang bervariasi dan mudah diucapkan, yang disesuaikan untuk pengalaman penganggaran freelance yang tenang:\n\n- [ ] **Serenito**: Membangkitkan ketenangan dan ritme yang lembut untuk pendapatan solo yang fluktuatif.\n- [ ] **Solowell**: Menyarankan kesehatan finansial dan ketenangan pikiran bagi solopreneur.\n- [ ] **Equafy**: Berfokus pada penyeimbangan siklus arus kas yang tidak teratur antara masa berlimpah dan kekurangan.\n- [ ] **StillLedger**: Memadukan struktur akuntansi klasik dengan ketenangan yang penuh kesadaran dan rendah stres.\n- [ ] **Cadenceo**: Menyiratkan pembangunan ritme yang stabil dan terprediksi dari pembayaran proyek.\n- [ ] **HavenFin**: Membingkai pengelolaan uang sebagai pelabuhan yang aman dan menenangkan.\n- [ ] **Placidly**: Nada yang lembut dan menenangkan yang meredakan kecemasan finansial.\n\n*(Catatan: Daftar pendek ini belum diperiksa ketersediaan domain langsung atau izin hukumnya.)*\n\nMana 2–3 nama yang ingin kamu periksa secara langsung? Kamu bisa memilih favoritmu atau memintaku memilih finalis untuk memverifikasi harga .com, konflik merek, dan merek dagang AS.\n\n- [Periksa Serenito, Solowell, dan Equafy](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [Pilihkan 3 terbaik untukku dan periksa](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
+      },
+      "message_5": {
+        "text": "Silakan periksa Equafy dan Cadenceo: ketersediaan .com dan harga yang ditawarkan, merek yang sudah ada di web, serta merek dagang AS. Buat perbandingannya tetap ringkas, sertakan rekomendasi kamu dan pemeriksaan apa pun yang masih kurang."
+      },
+      "message_6": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\nBerikut adalah perbandingan berdasarkan pemeriksaan yang dilakukan pada 12 Oktober 2026:\n\n### Equafy\n- **Domain**: `equafy.com` saat ini tidak tersedia di Gandi; tidak ada harga pendaftaran standar yang tersedia, sehingga tidak memenuhi anggaran €20/tahun.\n- **Lanskap web & merek**: Tidak ada perangkat lunak penganggaran terkemuka yang menggunakan nama persis ini, tetapi pencarian web menunjukkan kemiripan fonetik yang tinggi dan kebingungan pencarian dengan [layanan keuangan pribadi Equifax](embed:equifax.com-TrW).\n- **Merek dagang AS (USPTO)**: Pencarian awal mengembalikan 5 dari 1.640 catatan serupa (dipotong; ketiadaan nama yang persis tidak dapat dipastikan). Kecocokan aktif mencakup `EQUIFY` di Kelas 36 (layanan keuangan dan nilai tersimpan yang tertunda) dan Kelas 35 (layanan lelang terdaftar).\n\n### Cadenceo\n- **Domain**: `cadenceo.com` saat ini tidak tersedia di Gandi; tidak ada harga pendaftaran standar yang tersedia, gagal memenuhi anggaran €20/tahun.\n- **Lanskap web & merek**: Tumpang tindih langsung dengan [Cadence Money](embed:cadencemoney.com-IcE), aplikasi pelacak anggaran dan keuangan pribadi mapan yang beroperasi di AS dan Kanada di iOS, Android, dan web.\n- **Merek dagang AS (USPTO)**: Pencarian awal mengembalikan 5 dari 227 catatan serupa (dipotong; ketiadaan nama yang persis tidak dapat dipastikan). Kecocokan aktif untuk `CADENCE` mencakup catatan perangkat lunak yang dapat diunduh Kelas 9.\n\n---\n\n### Rekomendasi & Pertimbangan\n- **Arah**: Lewati keduanya. Meskipun **Equafy** memiliki lebih sedikit konflik aplikasi langsung daripada **Cadenceo** (yang bertabrakan langsung dengan *Cadence Money*), tidak ada yang menawarkan `.com` yang tersedia di bawah batas €20/tahun Anda, dan Equafy membawa kebingungan fonetik dengan merek keuangan yang ada seperti *Equify* dan *Equifax*.\n- **Pemeriksaan yang terlewat**: Pendaftaran merek dagang internasional di luar AS, pengajuan merek dagang negara bagian hukum umum (common-law), dan valuasi pembelian domain pasar sekunder tidak diperiksa.\n\nApakah Anda ingin menguji ketersediaan domain dan pemeriksaan ketersediaan pada opsi daftar pendek lainnya (seperti **Solowell** atau **StillLedger**), atau menjelajahi sedikit variasi kata majemuk untuk menemukan `.com` yang tersedia sesuai anggaran?\n\n- [Periksa Solowell dan StillLedger](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [Cari ide nama majemuk dengan .com tersedia di bawah €20](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
+      },
+      "follow_up_1": {
+        "text": "Cek ketersediaan domain dan merek dagang untuk Solowell dan StillLedger"
+      },
+      "follow_up_2": {
+        "text": "Cari ide nama gabungan dengan domain dot com yang tersedia di bawah dua puluh euro"
+      },
+      "follow_up_3": {
+        "text": "Cari catatan merek dagang untuk ide nama aplikasi penganggaran mendatang"
+      },
+      "follow_up_4": {
+        "text": "Bandingkan strategi branding dan penamaan untuk aplikasi wirausahawan solo"
+      },
+      "follow_up_5": {
+        "text": "Cari ekstensi domain yang tersedia untuk aplikasi keuangan freelance"
+      },
+      "follow_up_6": {
+        "text": "Daftar registrar domain alternatif untuk domain startup yang terjangkau"
+      }
+    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "Penerbangan dari Berlin ke Bangkok"
@@ -9610,6 +9712,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
+      }
+    },
+    "jobs_in_sweden": {
+      "title": {
+        "text": "Lowongan kerja pengembang di Swedia"
+      },
+      "summary": {
+        "text": "Bandingkan lowongan kerja pengembang saat ini di Stockholm dan Malmö dengan iklan asli dan detail tempat kerja yang didukung sumber."
+      },
+      "message_1": {
+        "text": "Temukan dua lowongan kerja pengembang perangkat lunak saat ini di Stockholm dan dua di Malmö dari layanan ketenagakerjaan publik Swedia. Tampilkan poin singkat untuk masing-masing lowongan yang berisi judul, pemberi kerja, kota tempat kerja, dan tautan iklan asli. Sertakan angka gaji atau pengaturan bekerja dari rumah hanya jika dinyatakan secara eksplisit dalam iklan tersebut; jika tidak, katakan tidak disebutkan. Pastikan jawaban kurang dari 200 kata."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nDaftar lowongan pengembang perangkat lunak terbaru dari Arbetsförmedlingen (Platsbanken):\n\n### Stockholm\n\n* **Judul:** Senior Systemutvecklare  \n  **Pemberi Kerja:** NXT Interim Stockholm AB  \n  **Kota tempat kerja:** Stockholm  \n  **Tautan lowongan asli:** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **Besaran gaji:** Tidak disebutkan  \n  **Pengaturan bekerja dari rumah:** Menawarkan tempat kerja jarak jauh (*remote-arbetsplatser*)\n\n* **Judul:** Javautvecklare  \n  **Pemberi Kerja:** AFRY AB  \n  **Kota tempat kerja:** Stockholm  \n  **Tautan lowongan asli:** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **Besaran gaji:** Tidak disebutkan  \n  **Pengaturan bekerja dari rumah:** Kesempatan untuk kerja hibrida (*möjlighet till hybridarbete*)\n\n---\n\n### Malmö\n\n* **Judul:** Senior AI Engineer  \n  **Pemberi Kerja:** Iver Accelerate AB  \n  **Kota tempat kerja:** Malmö  \n  **Tautan lowongan asli:** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **Besaran gaji:** Tidak disebutkan  \n  **Pengaturan bekerja dari rumah:** Kesempatan untuk kerja hibrida (*möjlighet till hybridarbete*)\n\n* **Judul:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **Pemberi Kerja:** Jobbakuten Väst AB  \n  **Kota tempat kerja:** Malmö  \n  **Tautan lowongan asli:** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **Besaran gaji:** Tidak disebutkan (lowongan menyebutkan gaji sesuai standar pasar tanpa angka spesifik)  \n  **Pengaturan bekerja dari rumah:** Kerja hibrida (*Hybridarbete*)"
+      },
+      "follow_up_1": {
+        "text": "Cari lowongan pengembang perangkat lunak jarak jauh di Gothenburg"
+      },
+      "follow_up_2": {
+        "text": "Bandingkan persyaratan untuk peran pengembang senior ini"
+      },
+      "follow_up_3": {
+        "text": "Cari posisi pengembang frontend di Stockholm"
+      },
+      "follow_up_4": {
+        "text": "Daftar stack teknologi teratas yang disebutkan dalam lowongan ini"
+      },
+      "follow_up_5": {
+        "text": "Cari lowongan pengembang junior di Swedia"
+      },
+      "follow_up_6": {
+        "text": "Ringkas tren kerja jarak jauh di berbagai pekerjaan teknologi Swedia"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -12630,6 +12764,54 @@
           "uspto": {
             "description": {
               "text": "USPTO menerima calon nama dan filter status, ejaan, serta kelas Nice untuk pencarian merek AS. Permintaan dikirim dari server kami tanpa identitas pengguna OpenMates atau riwayat percakapan."
+            }
+          }
+        },
+        "jobs": {
+          "heading": {
+            "text": "Layanan pencarian kerja"
+          },
+          "description": {
+            "text": "Hanya digunakan saat Anda mencari pekerjaan. Badan Ketenagakerjaan Federal Jerman dan JobTech menerima istilah pencarian, lokasi, dan filter yang berlaku melalui permintaan server. Arbeitnow menyediakan feed publik yang difilter secara lokal oleh OpenMates. ID pengguna OpenMates, CV, dan kredensial akun tidak dikirim. 80,000 Hours mengirim kata kunci dan negara ke Algolia; Hard Problems hanya menerima negara. Lokasi dan filter lain diperiksa secara lokal."
+          },
+          "arbeitsagentur": {
+            "heading": {
+              "text": "German Federal Employment Agency"
+            },
+            "description": {
+              "text": "Badan Ketenagakerjaan Federal Jerman menerima kata kunci pekerjaan, lokasi, radius pencarian, dan filter yang berlaku untuk mencari lowongan publik."
+            }
+          },
+          "jobtech": {
+            "heading": {
+              "text": "JobTech JobSearch"
+            },
+            "description": {
+              "text": "JobTech menerima kata kunci pekerjaan, lokasi yang disebutkan, preferensi kerja jarak jauh, rentang tanggal publikasi, dan jumlah hasil untuk mencari lowongan Swedia."
+            }
+          },
+          "arbeitnow": {
+            "heading": {
+              "text": "Arbeitnow"
+            },
+            "description": {
+              "text": "OpenMates mengambil feed pekerjaan publik Arbeitnow. Kata kunci, lokasi, dan filter Anda diterapkan secara lokal dan tidak dikirim ke Arbeitnow."
+            }
+          },
+          "eighty_thousand_hours": {
+            "heading": {
+              "text": "80,000 Hours Job Board"
+            },
+            "description": {
+              "text": "Papan kerja publik 80,000 Hours menggunakan pencarian Algolia. Kata kunci dan negara pilihan Anda dikirim; OpenMates memeriksa lokasi dan filter lain secara lokal. ID pengguna OpenMates, CV, dan kredensial akun tidak dikirim."
+            }
+          },
+          "hard_problems": {
+            "heading": {
+              "text": "Hard Problems"
+            },
+            "description": {
+              "text": "OpenMates mengambil feed pekerjaan publik Hard Problems untuk negara pilihan Anda. Kata kunci, lokasi, dan filter lain diperiksa secara lokal dan tidak dikirim ke Hard Problems. ID pengguna OpenMates, CV, dan kredensial akun tidak dikirim."
             }
           }
         }
@@ -16161,6 +16343,16 @@
       }
     },
     "app_store_examples": {
+      "jobs": {
+        "search": {
+          "1": {
+            "text": "Lowongan pengembang perangkat lunak di Stockholm"
+          },
+          "2": {
+            "text": "Lowongan pengembang perangkat lunak di Malmö"
+          }
+        }
+      },
       "hosting": {
         "search_domains": {
           "1": {

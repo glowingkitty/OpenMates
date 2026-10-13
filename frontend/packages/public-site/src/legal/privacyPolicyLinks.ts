@@ -120,6 +120,8 @@ export const privacyPolicyLinks = {
   arbeitsagentur: "https://www.arbeitsagentur.de/datenschutz",
   jobtech: "https://arbetsformedlingen.se/om-webbplatsen/juridisk-information/sa-behandlar-vi-dina-personuppgifter",
   arbeitnow: "https://www.arbeitnow.com/privacy",
+  eightyThousandHours: "https://80000hours.org/privacy-policy/",
+  hardProblems: "https://www.hardproblems.com/privacy",
 
   // Group O — Community
   discord: "https://discord.com/privacy",

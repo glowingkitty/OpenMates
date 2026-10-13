@@ -63,6 +63,7 @@ import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte"
 import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.svelte";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
+import JobsSearchEmbedPreview from "../../../embeds/jobs/JobsSearchEmbedPreview.svelte";
 import HostingSearchEmbedPreview from "../../../embeds/hosting/HostingSearchEmbedPreview.svelte";
 import ElectronicsSearchEmbedPreview from "../../../embeds/electronics/ElectronicsSearchEmbedPreview.svelte";
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
@@ -520,6 +521,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           decodedContent,
           content,
         );
+      }
+
+      if (appId === "jobs" && skillId === "search") {
+        return this.renderJobsSearchComponent(attrs, embedData, decodedContent, content);
       }
 
       // For videos search, render using Svelte component
@@ -6104,6 +6109,39 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     }
 
     return "app-skill-use";
+  }
+
+  private renderJobsSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try { unmount(existingComponent); } catch (error) { console.warn('[AppSkillUseRenderer] Could not unmount Jobs preview:', error); }
+    }
+    disposeEmbedTree(content, false);
+    content.innerHTML = '';
+    const embedId = attrs.contentRef?.replace('embed:', '') || attrs.id || '';
+    try {
+      const component = mount(JobsSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          content: decodedContent ?? {},
+          status: (embedData?.status || attrs.status || 'processing') as 'processing' | 'finished' | 'error' | 'cancelled',
+          taskId: decodedContent?.task_id,
+          skillTaskId: decodedContent?.skill_task_id,
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error('[AppSkillUseRenderer] Error mounting Jobs search preview:', error);
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
   }
 
   toMarkdown(attrs: EmbedNodeAttributes): string {

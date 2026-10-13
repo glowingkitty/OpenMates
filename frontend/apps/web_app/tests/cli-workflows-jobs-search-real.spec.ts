@@ -26,7 +26,7 @@ test.describe('Jobs Search in Workflows', () => {
 	test.setTimeout(300_000);
 
 	// contract-test: direct surface=cli assertions=workflows.actions.skill-contract,workflows.control.typed-data,workflows.control.for-each
-	test('runs JobTech Search and exposes flat job fields to a later loop check', async ({ page }: { page: any }, testInfo: any) => {
+	test('runs JobTech and 80,000 Hours searches and exposes flat country fields to later loop checks', async ({ page }: { page: any }, testInfo: any) => {
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 		const apiUrl = workflowApiUrl();
@@ -51,10 +51,10 @@ steps:
   - id: jobs
     use_app_skill: jobs.search
     input:
+      countries: [SE]
       requests:
         - id: sweden
           query: utvecklare
-          country: SE
           provider: JobTech
           limit: 2
   - id: each_job
@@ -67,10 +67,29 @@ steps:
             left: $items.each_job.item.country
             op: eq
             right: SE
+  - id: impact_jobs
+    use_app_skill: jobs.search
+    input:
+      countries: [DE]
+      requests:
+        - id: impact
+          query: research
+          provider: "80,000 Hours"
+          limit: 2
+  - id: each_impact_job
+    for_each:
+      items: $nodes.impact_jobs.output.results
+      max_items: 2
+      do:
+        - id: impact_country_check
+          check:
+            left: $items.each_impact_job.item.country
+            op: eq
+            right: DE
   - id: report
     send_chat_message:
       title: Swedish developer jobs
-      message: "Found {{steps.jobs.result_count}} Swedish developer jobs."
+      message: "Found {{steps.jobs.result_count}} Swedish developer jobs and {{steps.impact_jobs.result_count}} meaningful jobs in Germany."
 `);
 
 			const created = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'create', '--file', yamlFile], 'create Jobs Search workflow');
@@ -105,6 +124,20 @@ steps:
 				expect(job.canonical_url).toMatch(/^https:\/\//);
 				expect(job.source_id).toEqual(expect.any(String));
 			}
+			const impact = completedRun.node_runs.find((node: any) => node.node_id === 'impact_jobs')?.output_summary;
+			expect(impact?.success).toBe(true);
+			expect(impact?.providers).toEqual(['eighty_thousand_hours']);
+			expect(impact?.results.length).toBeGreaterThan(0);
+			for (const job of impact.results) {
+				expect(job.country).toBe('DE');
+				expect(job.provider).toBe('eighty_thousand_hours');
+				expect(job.url).toMatch(/^https:\/\//);
+			}
+
+			const impactLoop = completedRun.node_runs.find((node: any) => node.node_id === 'each_impact_job')?.output_summary;
+			expect(impactLoop?.completed_count).toBe(impact.result_count);
+			expect(impactLoop?.results).toHaveLength(impact.result_count);
+			for (const item of impactLoop.results) expect(item.outputs.impact_country_check.matched).toBe(true);
 			const loop = completedRun.node_runs.find((node: any) => node.node_id === 'each_job')?.output_summary;
 			expect(loop?.item_count).toBe(search.result_count);
 			expect(loop?.completed_count).toBe(search.result_count);

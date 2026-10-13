@@ -1811,6 +1811,22 @@
         }
       }
     },
+    "jobs": {
+      "search": {
+        "text": "Search jobs",
+        "description": {
+          "text": "Find current jobs from public employment sources in Germany and Sweden."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Find climate policy jobs in Berlin posted this month."
+          },
+          "2": {
+            "text": "Find software engineering jobs in Stockholm that work on clean energy."
+          }
+        }
+      }
+    },
     "mail": {
       "search": {
         "text": "메일 검색",
@@ -7876,6 +7892,48 @@
           "text": "이 프로젝트의 파일"
         }
       }
+    },
+    "jobs": {
+      "search": {
+        "result_count": {
+          "text": "채용 공고 {count}건"
+        },
+        "partial_results": {
+          "text": "일부 출처를 사용할 수 없었습니다"
+        },
+        "result": {
+          "title": {
+            "text": "채용 공고"
+          },
+          "remote": {
+            "text": "원격 근무"
+          },
+          "published": {
+            "text": "게시일"
+          },
+          "source": {
+            "text": "{provider}에서 보기"
+          },
+          "listing": {
+            "text": "공고 출처"
+          },
+          "apply": {
+            "text": "지원 페이지 열기"
+          },
+          "company": {
+            "text": "회사"
+          },
+          "employment_type": {
+            "text": "고용 형태"
+          },
+          "salary": {
+            "text": "급여"
+          },
+          "description": {
+            "text": "설명"
+          }
+        }
+      }
     }
   },
   "enter_message": {
@@ -9402,6 +9460,50 @@
         "text": "Explain the cash-flow trend"
       }
     },
+    "find_brand_name_and_domain": {
+      "title": {
+        "text": "브랜드 이름 및 도메인 찾기"
+      },
+      "summary": {
+        "text": "간결한 네이밍 대화: 7개의 후보를 브레인스토밍한 후, 도메인, 웹 및 미국 상표권 예비 조사를 바탕으로 최종 후보 2개를 비교합니다."
+      },
+      "message_1": {
+        "text": "내 새 제품의 이름을 짓는 걸 도와주세요."
+      },
+      "message_2": {
+        "text": "시작하기 위해, 제품이 어떤 기능을 하는지, 타겟 고객은 누구인지, 그리고 이름이 어떤 톤이나 느낌(예: 장난스러운, 프리미엄, 기술적인)을 전달해야 하는지 알려주세요."
+      },
+      "message_3": {
+        "text": "미국 프리랜서를 위한 차분한 느낌의 영어 가계부 앱이에요. 짧고 기억하기 쉬운 이름과 연간 최대 20유로 이하의 .com 도메인을 원해요. 먼저 다양한 후보군을 브레인스토밍해 주세요."
+      },
+      "message_4": {
+        "text": "차분한 프리랜서 가계부 경험에 맞춘, 발음하기 쉽고 다양한 초기 후보 명단입니다:\n\n- [ ] **Serenito**: 불규칙한 1인 소득에 평온함과 부드러운 속도감을 연상시킵니다.\n- [ ] **Solowell**: 1인 기업가를 위한 재정적 웰빙과 마음의 평화를 제안합니다.\n- [ ] **Equafy**: 수입이 들쭉날쭉한 현금 흐름 주기의 균형을 맞추는 데 집중합니다.\n- [ ] **StillLedger**: 클래식한 회계 구조와 마음 챙김, 스트레스 없는 고요함을 결합합니다.\n- [ ] **Cadenceo**: 긱 경제 수입에서 꾸준하고 예측 가능한 리듬을 만드는 것을 의미합니다.\n- [ ] **HavenFin**: 자산 관리를 안전하고 안심할 수 있는 안식처로 표현합니다.\n- [ ] **Placidly**: 경제적 불안감을 해소하는 부드럽고 안심시키는 톤입니다.\n\n*(참고: 이 후보 명단은 실시간 도메인 가용성이나 법적 검토를 거치지 않았습니다.)*\n\n어떤 이름 2~3개에 대해 실시간 확인을 진행할까요? 직접 선택하거나, 제가 최종 후보를 골라 .com 가격, 브랜드 충돌 및 미국 상표권을 확인하도록 요청할 수 있습니다.\n\n- [Serenito, Solowell, Equafy 확인하기](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [가장 좋은 3개를 골라 확인하기](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
+      },
+      "message_5": {
+        "text": "Equafy와 Cadenceo를 확인해 주세요. .com 가용성 및 견적 가격, 웹상의 기존 브랜드, 미국 상표권을 확인해 줘요. 비교는 간결하게 하고, 추천 사항과 아직 누락된 확인 항목을 포함해 주세요."
+      },
+      "message_6": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\n2026년 10월 12일에 수행된 확인 결과에 따른 비교입니다:\n\n### Equafy\n- **도메인**: `equafy.com`은 현재 Gandi에서 사용할 수 없습니다. 표준 등록 가격을 확인할 수 없어 연간 €20 예산 조건을 충족하지 않습니다.\n- **웹 및 브랜드 현황**: 이 정확한 이름을 사용하는 유명 가계부 소프트웨어는 없지만, 웹 검색 결과 [Equifax 개인 금융 서비스](embed:equifax.com-TrW)와 발음이 매우 유사하여 검색 시 혼동될 가능성이 높습니다.\n- **미국 상표(USPTO)**: 예비 검색 결과 1,640개의 유사 기록 중 5개가 반환되었습니다(일부 생략됨. 정확한 이름의 부재 여부는 확정할 수 없음). 활성 매치에는 36류(심사 중인 금융 및 가치 저장 서비스) 및 35류(등록된 경매 서비스)의 `EQUIFY`가 포함됩니다.\n\n### Cadenceo\n- **도메인**: `cadenceo.com`은 현재 Gandi에서 사용할 수 없습니다. 표준 등록 가격을 확인할 수 없어 연간 €20 예산 조건을 충족하지 못합니다.\n- **웹 및 브랜드 현황**: iOS, 안드로이드, 웹을 통해 미국과 캐나다에서 운영 중인 기존 개인 금융 및 가계부 앱인 [Cadence Money](embed:cadencemoney.com-IcE)와 직접적으로 겹칩니다.\n- **미국 상표(USPTO)**: 예비 검색 결과 227개의 유사 기록 중 5개가 반환되었습니다(일부 생략됨. 정확한 이름의 부재 여부는 확정할 수 없음). `CADENCE`에 대한 활성 매치에는 9류 다운로드 가능한 소프트웨어 기록이 포함됩니다.\n\n---\n\n### 권장 사항 및 절충안\n- **방향**: 두 옵션 모두 제외할 것을 권장합니다. **Equafy**는 (*Cadence Money*와 직접 충돌하는) **Cadenceo**보다 직접적인 앱 충돌은 적지만, 두 이름 모두 연간 €20 한도 내에서 사용 가능한 `.com` 도메인이 없으며, Equafy는 *Equify* 및 *Equifax*와 같은 기존 금융 상표와 발음상 혼동될 우려가 있습니다.\n- **확인되지 않은 사항**: 미국 이외의 국제 상표 등록 현황, 관습법상 주 상표 등록, 도메인 2차 시장 매수 가치 평가는 확인되지 않았습니다.\n\n다른 후보 목록(**Solowell** 또는 **StillLedger**)에 대해 도메인 가용성 및 권리 관계를 테스트하시겠어요? 아니면 예산 내에서 사용 가능한 `.com`을 찾기 위해 약간의 합성어 변형을 탐색해 보시겠어요?\n\n- [Solowell 및 StillLedger 확인하기](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [€20 이하의 사용 가능한 .com 도메인이 있는 합성어 이름 브레인스토밍](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
+      },
+      "follow_up_1": {
+        "text": "Solowell 및 StillLedger의 도메인 가용성 및 상표권 확인하기"
+      },
+      "follow_up_2": {
+        "text": "20유로 미만의 사용 가능한 .com 도메인이 있는 합성어 이름 브레인스토밍하기"
+      },
+      "follow_up_3": {
+        "text": "출시 예정인 가계부 앱 이름 아이디어에 대한 상표권 기록 검색하기"
+      },
+      "follow_up_4": {
+        "text": "1인 기업가용 앱의 브랜딩 및 네이밍 전략 비교하기"
+      },
+      "follow_up_5": {
+        "text": "프리랜서 금융 앱에 사용 가능한 도메인 확장자 검색하기"
+      },
+      "follow_up_6": {
+        "text": "저렴한 스타트업 도메인을 위한 대체 도메인 등록 대행업체 목록 확인하기"
+      }
+    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "베를린에서 방콕으로 가는 항공편"
@@ -9610,6 +9712,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
+      }
+    },
+    "jobs_in_sweden": {
+      "title": {
+        "text": "스웨덴의 개발자 채용 정보"
+      },
+      "summary": {
+        "text": "스톡홀름과 말뫼의 최신 개발자 채용 공고를 원본 리스팅 및 출처 기반의 근무지 상세 정보와 함께 비교해 보세요."
+      },
+      "message_1": {
+        "text": "스웨덴 공공 고용 서비스에서 스톡홀름의 최신 소프트웨어 개발자 일자리 2개와 말뫼의 일자리 2개를 찾아줘. 각 공고에 대해 직함, 고용주, 근무 도시, 원본 공고 링크를 포함한 짧은 불렛 포인트를 보여줘. 급여 수치나 재택근무 여부는 해당 공고에 명시된 경우에만 포함하고, 그렇지 않으면 '명시되지 않음'이라고 표시해줘. 답변은 200단어 이내로 작성해줘."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nArbetsförmedlingen(Platsbanken)의 현재 소프트웨어 개발자 채용 공고입니다:\n\n### 스톡홀름\n\n* **직함:** Senior Systemutvecklare  \n  **고용주:** NXT Interim Stockholm AB  \n  **근무지:** 스톡홀름  \n  **원문 공고 링크:** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **급여:** 기재되지 않음  \n  **재택근무 형태:** 원격 근무지 제공 (*remote-arbetsplatser*)\n\n* **직함:** Javautvecklare  \n  **고용주:** AFRY AB  \n  **근무지:** 스톡홀름  \n  **원문 공고 링크:** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **급여:** 기재되지 않음  \n  **재택근무 형태:** 하이브리드 근무 가능 (*möjlighet till hybridarbete*)\n\n---\n\n### 말뫼\n\n* **직함:** Senior AI Engineer  \n  **고용주:** Iver Accelerate AB  \n  **근무지:** 말뫼  \n  **원문 공고 링크:** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **급여:** 기재되지 않음  \n  **재택근무 형태:** 하이브리드 근무 가능 (*möjlighet till hybridarbete*)\n\n* **직함:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **고용주:** Jobbakuten Väst AB  \n  **근무지:** 말뫼  \n  **원문 공고 링크:** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **급여:** 기재되지 않음 (공고에 구체적인 액수 없이 시장가 급여라고 언급됨)  \n  **재택근무 형태:** 하이브리드 근무 (*Hybridarbete*)"
+      },
+      "follow_up_1": {
+        "text": "예테보리의 원격 소프트웨어 개발자 채용 정보 검색"
+      },
+      "follow_up_2": {
+        "text": "이 시니어 개발자 직무의 자격 요건 비교"
+      },
+      "follow_up_3": {
+        "text": "스톡홀름의 프론트엔드 개발자 포지션 검색"
+      },
+      "follow_up_4": {
+        "text": "이 공고들에 언급된 주요 기술 스택 목록화"
+      },
+      "follow_up_5": {
+        "text": "스웨덴의 주니어 개발자 채용 공고 검색"
+      },
+      "follow_up_6": {
+        "text": "스웨덴 IT 직군의 원격 근무 트렌드 요약"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -12630,6 +12764,54 @@
           "uspto": {
             "description": {
               "text": "미국 상표 검색을 위해 후보 이름과 상태, 철자 및 니스 분류 필터를 USPTO에 전송합니다. 요청은 서버에서 전송되며 OpenMates 사용자 식별자나 채팅 기록을 포함하지 않습니다."
+            }
+          }
+        },
+        "jobs": {
+          "heading": {
+            "text": "채용 정보 검색 서비스"
+          },
+          "description": {
+            "text": "채용 정보를 검색할 때만 사용합니다. 독일 연방고용청과 JobTech에는 선택한 검색어, 위치, 해당 필터가 서버 요청으로 전달됩니다. Arbeitnow의 공개 피드는 OpenMates에서 로컬로 필터링합니다. OpenMates 사용자 ID, 이력서, 계정 인증 정보는 전송하지 않습니다. 80,000 Hours는 키워드와 국가를 Algolia에 보내고 Hard Problems는 국가만 받습니다. 위치와 기타 필터는 로컬에서 확인합니다."
+          },
+          "arbeitsagentur": {
+            "heading": {
+              "text": "German Federal Employment Agency"
+            },
+            "description": {
+              "text": "독일 연방고용청은 공개 채용 정보 검색을 위해 선택한 구직 키워드, 위치, 검색 반경과 해당 필터를 받습니다."
+            }
+          },
+          "jobtech": {
+            "heading": {
+              "text": "JobTech JobSearch"
+            },
+            "description": {
+              "text": "JobTech는 스웨덴 채용 정보 검색을 위해 선택한 키워드, 지정한 위치, 원격 근무 선호도, 게시 기간과 결과 수를 받습니다."
+            }
+          },
+          "arbeitnow": {
+            "heading": {
+              "text": "Arbeitnow"
+            },
+            "description": {
+              "text": "OpenMates는 Arbeitnow의 공개 채용 피드를 가져옵니다. 키워드, 위치 및 필터는 로컬에서 적용되며 Arbeitnow로 전송되지 않습니다."
+            }
+          },
+          "eighty_thousand_hours": {
+            "heading": {
+              "text": "80,000 Hours Job Board"
+            },
+            "description": {
+              "text": "80,000 Hours 공개 채용 게시판은 Algolia 검색을 사용합니다. 키워드와 선택한 국가가 전송되며 위치와 기타 필터는 OpenMates가 로컬에서 확인합니다. OpenMates 사용자 ID, 이력서 또는 계정 정보는 전송하지 않습니다."
+            }
+          },
+          "hard_problems": {
+            "heading": {
+              "text": "Hard Problems"
+            },
+            "description": {
+              "text": "OpenMates는 선택한 국가의 Hard Problems 공개 채용 피드를 가져옵니다. 키워드, 위치 및 기타 필터는 로컬에서 확인하며 Hard Problems에 전송하지 않습니다. OpenMates 사용자 ID, 이력서 또는 계정 정보는 전송하지 않습니다."
             }
           }
         }
@@ -16161,6 +16343,16 @@
       }
     },
     "app_store_examples": {
+      "jobs": {
+        "search": {
+          "1": {
+            "text": "스톡홀름의 소프트웨어 개발자 채용 정보"
+          },
+          "2": {
+            "text": "말뫼의 소프트웨어 개발자 채용 정보"
+          }
+        }
+      },
       "hosting": {
         "search_domains": {
           "1": {

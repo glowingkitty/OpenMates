@@ -1,0 +1,16 @@
+# 80,000 Hours job-board search
+
+OpenMates reads the [public job board](https://jobs.80000hours.org/) used by logged-out visitors. This is a browser-facing Algolia search integration, **not a documented third-party API**. The board currently publishes its search application ID, search key, and index name in its page config. The adapter reads that config at request time, then sends one bounded search request. It neither signs in nor bypasses an access control. Verified 2026-10-13.
+
+| Request | Purpose | Auth |
+| --- | --- | --- |
+| `GET https://jobs.80000hours.org/` | Read current public browser search config | None |
+| `POST https://{application}-dsn.algolia.net/1/indexes/{index}/query` | Search at most 50 current hits | Browser-published search key |
+
+The upstream query includes a keyword (400 characters maximum), an exact country facet (`tags_country:Germany` or `tags_country:Sweden`), page 0, and only the fields needed for a job card. Each returned hit is checked again for the exact country tag. City searches compare the requested city with structured `tags_city`; a country or broad “Europe” tag does not make a different city match. Results contain the title, employer, structured location, board posting time, original HTTPS listing/application link, and 80,000 Hours attribution. The adapter does not reuse the board's descriptions, snippets, salary text, logos, or visa claims. Up to 20 results are returned per request. A non-DE/SE country returns no results before contacting the board.
+
+Full-time, part-time, and internship are mapped only from exact `tags_role_type` values. Unsupported employment types, radius, impact-area and remote filters return an explicit `unsupported_filter` error. The board's `Remote` facet alone does not prove fully remote eligibility in the requested country, so normalized remote status is unknown. OpenMates can rank known job cards for impact relevance separately; the board's cause-area tags are not equated with user impact criteria.
+
+The public board showed seven Germany-tagged and one Sweden-tagged roles in a bounded facet check on 2026-10-13; France had twelve. Other European country tags also exist, but this adapter currently supports only Germany and Sweden. Board coverage is curated and sparse, particularly in Sweden, and some records may have old posting dates; `max_days_old` filters those records locally. No published API quota, price, or stability guarantee was found for the browser search. The client uses an 8-second timeout and at most two network calls per search; HTTP errors and changed config are surfaced as provider failures. A site redesign, index rename, or credential change can break it. Recheck the integration monthly.
+
+The board's [robots.txt](https://jobs.80000hours.org/robots.txt) allows crawling, but that is not a reuse licence. [80,000 Hours' terms](https://80000hours.org/terms-of-use/) state a personal, non-commercial website-use licence and restrict providing third parties access. The terms do not document a separate public job-search API licence or redistribution permission. This adapter links to original vacancies and displays minimal card metadata; any broader commercial reuse or content republication requires a separate rights review. [Privacy notice](https://80000hours.org/privacy-policy/) verified 2026-10-13.

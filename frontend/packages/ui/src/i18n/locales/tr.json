@@ -1811,6 +1811,22 @@
         }
       }
     },
+    "jobs": {
+      "search": {
+        "text": "Search jobs",
+        "description": {
+          "text": "Find current jobs from public employment sources in Germany and Sweden."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Find climate policy jobs in Berlin posted this month."
+          },
+          "2": {
+            "text": "Find software engineering jobs in Stockholm that work on clean energy."
+          }
+        }
+      }
+    },
     "mail": {
       "search": {
         "text": "E-posta ara",
@@ -7876,6 +7892,48 @@
           "text": "Bu projedeki dosyalar"
         }
       }
+    },
+    "jobs": {
+      "search": {
+        "result_count": {
+          "text": "{count} iş ilanı"
+        },
+        "partial_results": {
+          "text": "Bazı kaynaklara erişilemedi"
+        },
+        "result": {
+          "title": {
+            "text": "İş ilanı"
+          },
+          "remote": {
+            "text": "Uzaktan"
+          },
+          "published": {
+            "text": "Yayınlandı"
+          },
+          "source": {
+            "text": "{provider} üzerinde görüntüle"
+          },
+          "listing": {
+            "text": "ilan kaynağı"
+          },
+          "apply": {
+            "text": "Başvuru sayfasını aç"
+          },
+          "company": {
+            "text": "Şirket"
+          },
+          "employment_type": {
+            "text": "Çalışma türü"
+          },
+          "salary": {
+            "text": "Maaş"
+          },
+          "description": {
+            "text": "Açıklama"
+          }
+        }
+      }
     }
   },
   "enter_message": {
@@ -9402,6 +9460,50 @@
         "text": "Explain the cash-flow trend"
       }
     },
+    "find_brand_name_and_domain": {
+      "title": {
+        "text": "Bir marka adı ve alan adı bul"
+      },
+      "summary": {
+        "text": "Kısa bir isimlendirme sohbeti: yedi aday üzerinde beyin fırtınası yap, ardından alan adı, web ve ön ABD ticari marka kanıtlarıyla iki finalisti karşılaştır."
+      },
+      "message_1": {
+        "text": "Yeni ürünüm için bir isim bulmama yardım et."
+      },
+      "message_2": {
+        "text": "Başlamak için, ürünün ne işe yarıyor, hedef kitlen kim ve isim nasıl bir ton veya his uyandırmalı (örneğin; eğlenceli, premium, teknik)?"
+      },
+      "message_3": {
+        "text": "ABD'deki serbest çalışanlar için İngilizce dilinde, sakin bir bütçeleme uygulaması. Kısa, akılda kalıcı isimler ve yıllık 20 €'ya kadar bir .com alan adı istiyorum. Lütfen önce çeşitli seçeneklerden oluşan kısa bir liste hazırla."
+      },
+      "message_4": {
+        "text": "Sakin bir serbest çalışan bütçeleme deneyimine göre uyarlanmış, telaffuz edilebilir ve çeşitli isimlerden oluşan ilk kısa liste:\n\n- [ ] **Serenito**: Dalgalı solo gelir için dinginlik ve nazik bir tempo çağrıştırır.\n- [ ] **Solowell**: Solo girişimciler için finansal sağlık ve huzur telkin eder.\n- [ ] **Equafy**: Düzensiz bolluk ve kıtlık nakit akışı döngülerini dengelemeye odaklanır.\n- [ ] **StillLedger**: Klasik muhasebe yapısını bilinçli, düşük stresli bir dinginlikle eşleştirir.\n- [ ] **Cadenceo**: Geçici iş ödemelerinden istikrarlı, öngörülebilir bir ritim oluşturmayı ima eder.\n- [ ] **HavenFin**: Para yönetimini güvenli, rahatlatıcı bir liman olarak çerçeveler.\n- [ ] **Placidly**: Finansal kaygıyı dağıtan yumuşak, güven verici bir ton.\n\n*(Not: Bu kısa liste, canlı alan adı müsaitliği veya yasal izinler açısından kontrol edilmemiştir.)*\n\nHangi 2–3 isim için canlı kontrol yapmak istersin? Favorilerini seçebilir veya .com fiyatlandırması, marka çakışmaları ve ABD ticari markalarını doğrulamak için finalistleri seçmemi isteyebilirsin.\n\n- [Serenito, Solowell ve Equafy'yi kontrol et](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [Benim için en iyi 3 tanesini seç ve kontrol et](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
+      },
+      "message_5": {
+        "text": "Lütfen Equafy ve Cadenceo'yu kontrol et: .com müsaitlikleri ve belirtilen fiyatları, web'deki mevcut markalar ve ABD ticari markaları. Karşılaştırmayı, tavsiyen ve hala eksik olan kontrollerle birlikte kısa tut."
+      },
+      "message_6": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\n12 Ekim 2026 tarihinde yapılan kontrollere dayalı karşılaştırma aşağıdadır:\n\n### Equafy\n- **Alan Adı**: `equafy.com` şu anda Gandi üzerinde müsait değil; standart kayıt fiyatı mevcut değil, bu nedenle yıllık 20 € bütçesini karşılamıyor.\n- **Web ve marka görünümü**: Hiçbir önde gelen bütçeleme yazılımı tam olarak bu ismi kullanmıyor, ancak web aramaları [Equifax kişisel finans hizmetleri](embed:equifax.com-TrW) ile yüksek fonetik benzerlik ve arama karışıklığı gösteriyor.\n- **ABD ticari markaları (USPTO)**: Ön araştırma 1.640 benzer kayıttan 5'ini döndürdü (kısaltılmış; tam isim yokluğu kesinleştirilemez). Aktif eşleşmeler arasında Sınıf 36'da (bekleyen finansal ve ön ödemeli hizmetler) ve Sınıf 35'te (kayıtlı açık artırma hizmetleri) `EQUIFY` bulunmaktadır.\n\n### Cadenceo\n- **Alan Adı**: `cadenceo.com` şu anda Gandi üzerinde müsait değil; standart kayıt fiyatı mevcut değil, bu nedenle yıllık 20 € bütçesini karşılamıyor.\n- **Web ve marka görünümü**: iOS, Android ve web üzerinde ABD ve Kanada'da faaliyet gösteren köklü bir kişisel finans ve bütçe takip uygulaması olan [Cadence Money](embed:cadencemoney.com-IcE) ile doğrudan çakışıyor.\n- **ABD ticari markaları (USPTO)**: Ön araştırma 227 benzer kayıttan 5'ini döndürdü (kısaltılmış; tam isim yokluğu kesinleştirilemez). `CADENCE` için aktif eşleşmeler Sınıf 9 indirilebilir yazılım kayıtlarını içermektedir.\n\n---\n\n### Öneri ve Değerlendirmeler\n- **Yönlendirme**: Her ikisinden de vazgeçin. **Equafy**, **Cadenceo**'ya (*Cadence Money* ile doğrudan çakışan) göre daha az doğrudan uygulama çakışmasına sahip olsa da, hiçbiri yıllık 20 € limitinizin altında müsait bir `.com` sunmuyor ve Equafy, *Equify* ve *Equifax* gibi mevcut finansal markalarla fonetik karışıklık taşıyor.\n- **Eksik kontroller**: ABD dışındaki uluslararası ticari marka sicilleri, teamül hukuku eyalet ticari marka başvuruları ve ikincil piyasa alan adı satın alma değerlemeleri kontrol edilmemiştir.\n\nDiğer kısa liste seçeneklerinde (**Solowell** veya **StillLedger** gibi) alan adı müsaitliğini ve uygunluğunu test etmek mi istersiniz, yoksa bütçe dahilinde müsait bir `.com` bulmak için hafif birleşik varyasyonları mı keşfetmek istersiniz?\n\n- [Solowell ve StillLedger'ı kontrol et](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [20 € altındaki müsait .com'lar ile birleşik isimler türet](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
+      },
+      "follow_up_1": {
+        "text": "Solowell ve StillLedger için alan adı müsaitliğini ve ticari markaları kontrol et"
+      },
+      "follow_up_2": {
+        "text": "Yirmi euronun altında, müsait .com alan adlarına sahip birleşik isimler için beyin fırtınası yap"
+      },
+      "follow_up_3": {
+        "text": "Gelecek bütçeleme uygulaması isim fikirleri için ticari marka kayıtlarını ara"
+      },
+      "follow_up_4": {
+        "text": "Bireysel girişimci uygulamaları için markalaşma ve isimlendirme stratejilerini karşılaştır"
+      },
+      "follow_up_5": {
+        "text": "Serbest çalışan finans uygulamaları için müsait alan adı uzantılarını ara"
+      },
+      "follow_up_6": {
+        "text": "Uygun fiyatlı girişim alan adları için alternatif alan adı kayıt kuruluşlarını listele"
+      }
+    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "Berlin'den Bangkok'a Uçuşlar"
@@ -9610,6 +9712,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
+      }
+    },
+    "jobs_in_sweden": {
+      "title": {
+        "text": "İsveç'teki yazılımcı işleri"
+      },
+      "summary": {
+        "text": "Stokholm ve Malmö'deki güncel yazılımcı işlerini orijinal ilanlar ve kaynak destekli iş yeri ayrıntılarıyla karşılaştır."
+      },
+      "message_1": {
+        "text": "İsveç kamu istihdam kurumundan Stokholm'de iki ve Malmö'de iki adet güncel yazılım geliştirici işi bul. Her biri için unvan, işveren, iş yeri şehri ve orijinal ilan bağlantısını içeren kısa bir madde göster. Maaş rakamını veya evden çalışma düzenini yalnızca o ilanda açıkça belirtilmişse dahil et; aksi takdirde belirtilmediğini söyle. Yanıtı 200 kelimenin altında tut."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nArbetsförmedlingen (Platsbanken) üzerinden güncel yazılım geliştirici ilanları:\n\n### Stockholm\n\n* **Pozisyon:** Senior Systemutvecklare  \n  **İşveren:** NXT Interim Stockholm AB  \n  **İş yeri şehri:** Stockholm  \n  **Orijinal ilan bağlantısı:** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **Maaş bilgisi:** Belirtilmemiş  \n  **Uzaktan çalışma düzeni:** Uzaktan çalışma imkanı sunuyor (*remote-arbetsplatser*)\n\n* **Pozisyon:** Javautvecklare  \n  **İşveren:** AFRY AB  \n  **İş yeri şehri:** Stockholm  \n  **Orijinal ilan bağlantısı:** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **Maaş bilgisi:** Belirtilmemiş  \n  **Uzaktan çalışma düzeni:** Hibrit çalışma imkanı (*möjlighet till hybridarbete*)\n\n---\n\n### Malmö\n\n* **Pozisyon:** Senior AI Engineer  \n  **İşveren:** Iver Accelerate AB  \n  **İş yeri şehri:** Malmö  \n  **Orijinal ilan bağlantısı:** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **Maaş bilgisi:** Belirtilmemiş  \n  **Uzaktan çalışma düzeni:** Hibrit çalışma imkanı (*möjlighet till hybridarbete*)\n\n* **Pozisyon:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **İşveren:** Jobbakuten Väst AB  \n  **İş yeri şehri:** Malmö  \n  **Orijinal ilan bağlantısı:** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **Maaş bilgisi:** Belirtilmemiş (ilan, belirli bir rakam belirtmeden piyasa rayicinde maaştan bahsediyor)  \n  **Uzaktan çalışma düzeni:** Hibrit çalışma (*Hybridarbete*)"
+      },
+      "follow_up_1": {
+        "text": "Göteborg'daki uzaktan yazılım geliştirici işlerini ara"
+      },
+      "follow_up_2": {
+        "text": "Bu kıdemli geliştirici rollerinin gereksinimlerini karşılaştır"
+      },
+      "follow_up_3": {
+        "text": "Stokholm'deki ön uç geliştirici pozisyonlarını ara"
+      },
+      "follow_up_4": {
+        "text": "Bu ilanlarda belirtilen en popüler teknoloji yığınlarını listele"
+      },
+      "follow_up_5": {
+        "text": "İsveç'teki başlangıç seviyesi geliştirici ilanlarını ara"
+      },
+      "follow_up_6": {
+        "text": "İsveç teknoloji işlerindeki uzaktan çalışma trendlerini özetle"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -12630,6 +12764,54 @@
           "uspto": {
             "description": {
               "text": "ABD marka aramalarında USPTO aday adları, durum, yazım ve Nice sınıfı filtrelerini alır. İstekler sunucularımızdan OpenMates kullanıcı kimlikleri veya sohbet geçmişi olmadan gönderilir."
+            }
+          }
+        },
+        "jobs": {
+          "heading": {
+            "text": "İş arama hizmetleri"
+          },
+          "description": {
+            "text": "Yalnızca iş aradığınızda kullanılır. Almanya Federal İş Ajansı ve JobTech, seçilen arama terimlerini, konumu ve ilgili filtreleri sunucu istekleriyle alır. Arbeitnow, OpenMates’in yerel olarak filtrelediği herkese açık bir akış sağlar. OpenMates kullanıcı kimliği, CV veya hesap bilgileri gönderilmez. 80,000 Hours anahtar kelimeleri ve ülkeyi Algolia’ya gönderir; Hard Problems yalnızca ülkeyi alır. Konum ve diğer filtreler yerel olarak kontrol edilir."
+          },
+          "arbeitsagentur": {
+            "heading": {
+              "text": "German Federal Employment Agency"
+            },
+            "description": {
+              "text": "Almanya Federal İş Ajansı, herkese açık iş ilanlarını aramak için seçilen anahtar sözcükleri, konumu, arama yarıçapını ve ilgili filtreleri alır."
+            }
+          },
+          "jobtech": {
+            "heading": {
+              "text": "JobTech JobSearch"
+            },
+            "description": {
+              "text": "JobTech, İsveç iş ilanlarını aramak için seçilen anahtar sözcükleri, belirtilen konumu, uzaktan çalışma tercihini, yayın aralığını ve sonuç sayısını alır."
+            }
+          },
+          "arbeitnow": {
+            "heading": {
+              "text": "Arbeitnow"
+            },
+            "description": {
+              "text": "OpenMates, Arbeitnow’un herkese açık iş akışını alır. Anahtar sözcükleriniz, konumunuz ve filtreleriniz yerel olarak uygulanır ve Arbeitnow’a gönderilmez."
+            }
+          },
+          "eighty_thousand_hours": {
+            "heading": {
+              "text": "80,000 Hours Job Board"
+            },
+            "description": {
+              "text": "80,000 Hours’un herkese açık iş panosu Algolia aramasını kullanır. Anahtar kelimeleriniz ve seçilen ülke gönderilir; konum ve diğer filtreler OpenMates tarafından yerel olarak kontrol edilir. OpenMates kullanıcı kimliği, CV veya hesap bilgileri gönderilmez."
+            }
+          },
+          "hard_problems": {
+            "heading": {
+              "text": "Hard Problems"
+            },
+            "description": {
+              "text": "OpenMates, seçtiğiniz ülke için Hard Problems’in herkese açık iş akışını alır. Anahtar kelimeleriniz, konumunuz ve diğer filtreler yerel olarak kontrol edilir ve Hard Problems’e gönderilmez. OpenMates kullanıcı kimliği, CV veya hesap bilgileri gönderilmez."
             }
           }
         }
@@ -16161,6 +16343,16 @@
       }
     },
     "app_store_examples": {
+      "jobs": {
+        "search": {
+          "1": {
+            "text": "Stockholm'deki yazılım geliştirici işleri"
+          },
+          "2": {
+            "text": "Malmö'deki yazılım geliştirici işleri"
+          }
+        }
+      },
       "hosting": {
         "search_domains": {
           "1": {

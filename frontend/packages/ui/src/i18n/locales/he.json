@@ -1811,6 +1811,22 @@
         }
       }
     },
+    "jobs": {
+      "search": {
+        "text": "Search jobs",
+        "description": {
+          "text": "Find current jobs from public employment sources in Germany and Sweden."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Find climate policy jobs in Berlin posted this month."
+          },
+          "2": {
+            "text": "Find software engineering jobs in Stockholm that work on clean energy."
+          }
+        }
+      }
+    },
     "mail": {
       "search": {
         "text": "חיפוש מייל",
@@ -7876,6 +7892,48 @@
           "text": "קבצים בפרויקט הזה"
         }
       }
+    },
+    "jobs": {
+      "search": {
+        "result_count": {
+          "text": "{count} משרות"
+        },
+        "partial_results": {
+          "text": "חלק מהמקורות לא היו זמינים"
+        },
+        "result": {
+          "title": {
+            "text": "מודעת דרושים"
+          },
+          "remote": {
+            "text": "מרחוק"
+          },
+          "published": {
+            "text": "פורסם"
+          },
+          "source": {
+            "text": "הצגה ב-{provider}"
+          },
+          "listing": {
+            "text": "מקור המשרה"
+          },
+          "apply": {
+            "text": "פתיחת דף הגשת המועמדות"
+          },
+          "company": {
+            "text": "חברה"
+          },
+          "employment_type": {
+            "text": "סוג העסקה"
+          },
+          "salary": {
+            "text": "שכר"
+          },
+          "description": {
+            "text": "תיאור"
+          }
+        }
+      }
     }
   },
   "enter_message": {
@@ -9402,6 +9460,50 @@
         "text": "Explain the cash-flow trend"
       }
     },
+    "find_brand_name_and_domain": {
+      "title": {
+        "text": "מציאת שם מותג ודומיין"
+      },
+      "summary": {
+        "text": "שיחת מיתוג תמציתית: סיעור מוחות לשבעה מועמדים, ולאחר מכן השוואה בין שני פיינליסטים עם נתונים על דומיין, נוכחות ברשת ומידע ראשוני על סימני מסחר בארה\"ב."
+      },
+      "message_1": {
+        "text": "עזור לי למצוא שם למוצר החדש שלי."
+      },
+      "message_2": {
+        "text": "כדי להתחיל, מה המוצר עושה, מי קהל היעד שלו, ואיזה טון או תחושה השם צריך לשדר (למשל: משעשע, יוקרתי, טכני)?"
+      },
+      "message_3": {
+        "text": "זו אפליקציית ניהול תקציב רגועה לפרילנסרים בארה\"ב, באנגלית. אני רוצה שמות קצרים וזכירים ודומיין .com בעלות של עד 20 אירו לשנה. אשמח לסיעור מוחות לרשימה ראשונית מגוונת."
+      },
+      "message_4": {
+        "text": "הנה רשימה ראשונית של שמות מגוונים וקליטים, המותאמים לחוויית ניהול תקציב רגועה לפרילנסרים:\n\n- [ ] **Serenito**: מעורר תחושת שלווה וקצב נינוח עבור הכנסה משתנה של עצמאיים.\n- [ ] **Solowell**: מרמז על רווחה כלכלית ושקט נפשי ליזמי סולו.\n- [ ] **Equafy**: מתמקד באיזון מחזורי תזרים מזומנים לא סדירים.\n- [ ] **StillLedger**: משלב מבנה חשבונאי קלאסי עם שלווה מודעת ונטולת מתח.\n- [ ] **Cadenceo**: מרמז על יצירת קצב יציב וצפוי מתשלומים מזדמנים.\n- [ ] **HavenFin**: מציג ניהול כספים כנמל מבטחים מרגיע.\n- [ ] **Placidly**: טון רך ומרגיע שמפיג חרדה כלכלית.\n\n*(הערה: רשימה זו לא נבדקה לזמינות דומיינים בזמן אמת או לאישור משפטי.)*\n\nעל אילו 2–3 שמות תרצה להריץ בדיקות חיות? תוכל לבחור את המועדפים עליך או לבקש ממני לבחור פיינליסטים כדי לבדוק מחירי .com, התנגשויות מותג וסימני מסחר בארה\"ב.\n\n- [בדוק את Serenito, Solowell ו-Equafy](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [בחר עבורי את 3 השמות הטובים ביותר ובדוק אותם](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
+      },
+      "message_5": {
+        "text": "אנא בדוק את Equafy ו-Cadenceo: זמינות .com ומחירים, מותגים קיימים ברשת וסימני מסחר בארה\"ב. שמור על השוואה תמציתית, כולל ההמלצה שלך ובדיקות שעדיין חסרות."
+      },
+      "message_6": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\nלהלן ההשוואה המבוססת על בדיקות שנערכו ב-12 באוקטובר 2026:\n\n### Equafy\n- **דומיין**: `equafy.com` אינו זמין כרגע ב-Gandi; אין מחיר רישום סטנדרטי זמין, ולכן הוא אינו עומד בתקציב של €20 לשנה.\n- **נוף המותגים והאינטרנט**: אין תוכנת תקציב בולטת המשתמשת בשם המדויק הזה, אך חיפושים באינטרנט מראים דמיון פונטי גבוה ובלבול בחיפוש עם [שירותי הפיננסים האישיים של Equifax](embed:equifax.com-TrW).\n- **סימנים מסחריים בארה\"ב (USPTO)**: חיפוש ראשוני החזיר 5 מתוך 1,640 רשומות דומות (חלקי; לא ניתן לקבוע היעדר שם מדויק). התאמות פעילות כוללות את `EQUIFY` בסיווג 36 (שירותים פיננסיים ושירותי ערך צבור בהמתנה) ובסיווג 35 (שירותי מכירות פומביות רשומים).\n\n### Cadenceo\n- **דומיין**: `cadenceo.com` אינו זמין כרגע ב-Gandi; אין מחיר רישום סטנדרטי זמין, מה שמהווה חריגה מהתקציב של €20 לשנה.\n- **נוף המותגים והאינטרנט**: חפיפה ישירה עם [Cadence Money](embed:cadencemoney.com-IcE), אפליקציה מבוססת לניהול פיננסים אישיים ומעקב אחר תקציב הפועלת בארה\"ב ובקנדה ב-iOS, אנדרואיד ובאינטרנט.\n- **סימנים מסחריים בארה\"ב (USPTO)**: חיפוש ראשוני החזיר 5 מתוך 227 רשומות דומות (חלקי; לא ניתן לקבוע היעדר שם מדויק). התאמות פעילות עבור `CADENCE` כוללות רשומות של תוכנות להורדה בסיווג 9.\n\n---\n\n### המלצה ופשרות\n- **כיוון**: לוותר על שניהם. בעוד של-**Equafy** יש פחות קונפליקטים ישירים עם אפליקציות מאשר ל-**Cadenceo** (שמתנגש ישירות עם *Cadence Money*), אף אחד מהם לא מציע דומיין `.com` פנוי במסגרת מגבלת ה-€20 לשנה שלך, ו-Equafy נושא בלבול פונטי עם סימנים פיננסיים קיימים כמו *Equify* ו-*Equifax*.\n- **בדיקות חסרות**: לא נבדקו מרשמי סימנים מסחריים בינלאומיים מחוץ לארה\"ב, רישומי סימנים מסחריים של מדינות לפי המשפט המקובל (common-law), והערכות שווי לרכישת דומיינים בשוק המשני.\n\nהאם תרצה לבדוק זמינות דומיינים ואישור על אפשרויות אחרות מהרשימה (כגון **Solowell** או **StillLedger**), או לחקור וריאציות מורכבות קלות כדי למצוא דומיין `.com` פנוי במסגרת התקציב?\n\n- [בדוק את Solowell ו-StillLedger](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [סיעור מוחות לשמות מורכבים עם דומיינים .com פנויים מתחת ל-€20](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
+      },
+      "follow_up_1": {
+        "text": "בדיקת זמינות דומיין וסימנים מסחריים עבור Solowell ו-StillLedger"
+      },
+      "follow_up_2": {
+        "text": "סיעור מוחות לשמות מורכבים עם דומיינים פנויים בסיומת com. בפחות מעשרים אירו"
+      },
+      "follow_up_3": {
+        "text": "חיפוש ברישומי סימנים מסחריים עבור רעיונות לשמות לאפליקציית תקציב חדשה"
+      },
+      "follow_up_4": {
+        "text": "השוואת אסטרטגיות מיתוג ומתן שמות לאפליקציות של יזמים בודדים (Solo Entrepreneurs)"
+      },
+      "follow_up_5": {
+        "text": "חיפוש סיומות דומיין זמינות עבור אפליקציות פיננסים לפרילנסרים"
+      },
+      "follow_up_6": {
+        "text": "רשימת רשמי דומיינים חלופיים עבור דומיינים משתלמים לסטארט-אפים"
+      }
+    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "טיסות מברלין לבנגקוק"
@@ -9610,6 +9712,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
+      }
+    },
+    "jobs_in_sweden": {
+      "title": {
+        "text": "משרות פיתוח בשוודיה"
+      },
+      "summary": {
+        "text": "השוואת משרות פיתוח עדכניות בסטוקהולם ובמאלמה עם הקישורים המקוריים ופרטים על מקום העבודה המבוססים על מקורות."
+      },
+      "message_1": {
+        "text": "מצא שתי משרות פיתוח תוכנה עדכניות בסטוקהולם ושתיים במאלמה משירות התעסוקה הציבורי של שוודיה. הצג בולט קצר עבור כל אחת עם כותרת, מעסיק, עיר העבודה וקישור למודעה המקורית. כלול נתון שכר או הסדר עבודה מהבית רק אם הם צוינו במפורש באותה מודעה; אחרת ציין שלא צוין. שמור על תשובה קצרה מ-200 מילים."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nרשימות משרות עדכניות למפתחי תוכנה מ-Arbetsförmedlingen (Platsbanken):\n\n### שטוקהולם\n\n* **תפקיד:** Senior Systemutvecklare  \n  **מעסיק:** NXT Interim Stockholm AB  \n  **עיר:** שטוקהולם  \n  **קישור למודעה המקורית:** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **שכר:** לא צוין  \n  **הסדר עבודה מהבית:** מציע מקומות עבודה מרחוק (*remote-arbetsplatser*)\n\n* **תפקיד:** Javautvecklare  \n  **מעסיק:** AFRY AB  \n  **עיר:** שטוקהולם  \n  **קישור למודעה המקורית:** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **שכר:** לא צוין  \n  **הסדר עבודה מהבית:** אפשרות לעבודה היברידית (*möjlighet till hybridarbete*)\n\n---\n\n### מאלמה\n\n* **תפקיד:** Senior AI Engineer  \n  **מעסיק:** Iver Accelerate AB  \n  **עיר:** מאלמה  \n  **קישור למודעה המקורית:** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **שכר:** לא צוין  \n  **הסדר עבודה מהבית:** אפשרות לעבודה היברידית (*möjlighet till hybridarbete*)\n\n* **תפקיד:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **מעסיק:** Jobbakuten Väst AB  \n  **עיר:** מאלמה  \n  **קישור למודעה המקורית:** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **שכר:** לא צוין (המודעה מציינת שכר לפי תנאי השוק ללא סכום ספציפי)  \n  **הסדר עבודה מהבית:** עבודה היברידית (*Hybridarbete*)"
+      },
+      "follow_up_1": {
+        "text": "חיפוש משרות פיתוח תוכנה מרחוק בגטבורג"
+      },
+      "follow_up_2": {
+        "text": "השוואת הדרישות לתפקידי מפתח בכיר אלו"
+      },
+      "follow_up_3": {
+        "text": "חיפוש משרות פיתוח פרונטנד בסטוקהולם"
+      },
+      "follow_up_4": {
+        "text": "פירוט הטכנולוגיות המובילות המוזכרות במודעות אלו"
+      },
+      "follow_up_5": {
+        "text": "חיפוש משרות למפתחים מתחילים (Junior) בשוודיה"
+      },
+      "follow_up_6": {
+        "text": "סיכום מגמות העבודה מרחוק במשרות הייטק בשוודיה"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -12630,6 +12764,54 @@
           "uspto": {
             "description": {
               "text": "USPTO מקבל שמות מוצעים ומסנני סטטוס, איות וסיווג ניס לחיפוש בארה״ב. הבקשות נשלחות מהשרתים שלנו ללא מזהי OpenMates או היסטוריית שיחה."
+            }
+          }
+        },
+        "jobs": {
+          "heading": {
+            "text": "שירותי חיפוש עבודה"
+          },
+          "description": {
+            "text": "בשימוש רק בעת חיפוש עבודה. סוכנות התעסוקה הפדרלית בגרמניה ו-JobTech מקבלות מונחי חיפוש נבחרים, מיקום ומסננים רלוונטיים בבקשות מהשרת. Arbeitnow מספקת פיד ציבורי ש-OpenMates מסננת מקומית. לא נשלחים מזהה משתמש של OpenMates, קורות חיים או פרטי התחברות. 80,000 Hours שולחת מילות מפתח ומדינה אל Algolia; Hard Problems מקבלת רק את המדינה. מיקום ומסננים אחרים נבדקים מקומית."
+          },
+          "arbeitsagentur": {
+            "heading": {
+              "text": "German Federal Employment Agency"
+            },
+            "description": {
+              "text": "סוכנות התעסוקה הפדרלית בגרמניה מקבלת מילות מפתח נבחרות, מיקום, רדיוס חיפוש ומסננים רלוונטיים לחיפוש משרות ציבוריות."
+            }
+          },
+          "jobtech": {
+            "heading": {
+              "text": "JobTech JobSearch"
+            },
+            "description": {
+              "text": "JobTech מקבלת מילות מפתח נבחרות, מיקום שצוין, העדפה לעבודה מרחוק, טווח פרסום ומספר תוצאות לחיפוש משרות בשוודיה."
+            }
+          },
+          "arbeitnow": {
+            "heading": {
+              "text": "Arbeitnow"
+            },
+            "description": {
+              "text": "OpenMates מאחזרת את פיד המשרות הציבורי של Arbeitnow. מילות המפתח, המיקום והמסננים שלך מיושמים מקומית ואינם נשלחים ל-Arbeitnow."
+            }
+          },
+          "eighty_thousand_hours": {
+            "heading": {
+              "text": "80,000 Hours Job Board"
+            },
+            "description": {
+              "text": "לוח המשרות הציבורי של 80,000 Hours משתמש בחיפוש Algolia. מילות המפתח והמדינה שנבחרה נשלחות; OpenMates בודקת מיקום ומסננים אחרים מקומית. מזהה משתמש, קורות חיים ופרטי חשבון אינם נשלחים."
+            }
+          },
+          "hard_problems": {
+            "heading": {
+              "text": "Hard Problems"
+            },
+            "description": {
+              "text": "OpenMates מאחזרת את פיד המשרות הציבורי של Hard Problems עבור המדינה שנבחרה. מילות מפתח, מיקום ומסננים אחרים נבדקים מקומית ואינם נשלחים אל Hard Problems. מזהה משתמש, קורות חיים ופרטי חשבון אינם נשלחים."
             }
           }
         }
@@ -16161,6 +16343,16 @@
       }
     },
     "app_store_examples": {
+      "jobs": {
+        "search": {
+          "1": {
+            "text": "משרות פיתוח תוכנה בסטוקהולם"
+          },
+          "2": {
+            "text": "משרות פיתוח תוכנה במאלמה"
+          }
+        }
+      },
       "hosting": {
         "search_domains": {
           "1": {

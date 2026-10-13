@@ -460,6 +460,8 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.jobs.arbeitsagentur", privacyPolicyLinks.arbeitsagentur);
   renderProvider("legal.privacy.providers.jobs.jobtech", privacyPolicyLinks.jobtech);
   renderProvider("legal.privacy.providers.jobs.arbeitnow", privacyPolicyLinks.arbeitnow);
+  renderProvider("legal.privacy.providers.jobs.eighty_thousand_hours", privacyPolicyLinks.eightyThousandHours);
+  renderProvider("legal.privacy.providers.jobs.hard_problems", privacyPolicyLinks.hardProblems);
 
   // Group O — Community
   lines.push(`### ${t("legal.privacy.providers.community.heading")}`);

@@ -10,6 +10,8 @@ const { expect, test } = require('../helpers/cookie-audit');
 
 const EVENTS_PREVIEW =
 	'/dev/preview/workflows/WorkflowGraphRenderer?variant=eventsSearch&theme=light&background=%23dbeafe&width=900&chrome=0';
+const JOBS_PREVIEW =
+	'/dev/preview/workflows/WorkflowGraphRenderer?variant=jobsSearch&theme=light&background=%23dbeafe&width=900&chrome=0';
 
 const VARIABLE_INPUT_GRAPH = {
 	version: 2,
@@ -92,6 +94,116 @@ const VARIABLE_SOURCE_CAPABILITY = {
 };
 
 test.describe('WorkflowGraphRenderer real skill variants', () => {
+	// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring,workflows.control.typed-data
+	test('saves shared Germany and Sweden selection and shows the effective legacy country', async ({ page }: { page: Page }) => {
+		await page.goto(JOBS_PREVIEW, { waitUntil: 'domcontentloaded' });
+		await waitForComponentPreview(page);
+		const node = page.locator('[data-node-id="jobs"]');
+		await node.getByTestId('workflow-node-summary').click();
+		const editor = node.getByTestId('workflow-node-expanded');
+		const de = editor.getByTestId('workflow-jobs-country-DE');
+		const se = editor.getByTestId('workflow-jobs-country-SE');
+		await expect(de).not.toBeChecked();
+		await expect(se).toBeChecked();
+		await expect(se).toBeDisabled();
+		await de.check();
+		await expect(de).toBeChecked();
+		await expect(se).toBeChecked();
+		const saved = page.evaluate(() => new Promise<{ nodes: Array<{ id: string; config: { input: { countries: string[]; requests: Array<Record<string, unknown>> } } }> }>(resolve => {
+			window.addEventListener('workflow-jobs-preview-save', event => resolve((event as CustomEvent).detail), { once: true });
+		}));
+		await editor.getByTestId('workflow-node-save').click();
+		const input = (await saved).nodes.find(candidate => candidate.id === 'jobs')?.config.input;
+		expect(input?.countries).toEqual(['DE', 'SE']);
+		expect(input?.requests[0]).not.toHaveProperty('country');
+
+		await page.goto(JOBS_PREVIEW.replace('jobsSearch', 'jobsSearchLegacyCountry'), { waitUntil: 'domcontentloaded' });
+		await waitForComponentPreview(page);
+		const legacy = page.locator('[data-node-id="jobs"]');
+		await legacy.getByTestId('workflow-node-summary').click();
+		const legacyEditor = legacy.getByTestId('workflow-node-expanded');
+		await expect(legacyEditor.getByTestId('workflow-jobs-country-DE')).not.toBeChecked();
+		await expect(legacyEditor.getByTestId('workflow-jobs-country-SE')).toBeChecked();
+		await expect(legacyEditor.getByTestId('workflow-jobs-country-overrides')).toContainText('Sweden');
+	});
+
+	// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring,workflows.control.typed-data
+	test('edits bounded Jobs Search batches and preserves the three remote filter meanings', async ({ page }: { page: Page }) => {
+		await page.goto(JOBS_PREVIEW, { waitUntil: 'domcontentloaded' });
+		await waitForComponentPreview(page);
+		const node = page.locator('[data-node-id="jobs"]');
+		await node.getByTestId('workflow-node-summary').click();
+		const editor = node.getByTestId('workflow-node-expanded');
+		const remote = editor.getByTestId('workflow-jobs-remote-filter').first();
+		const add = editor.getByTestId('workflow-jobs-add-search');
+		await expect(remote).toHaveValue('');
+		await expect(editor.locator('.batch-request')).toHaveCount(1);
+		await remote.selectOption('true');
+		await expect(remote).toHaveValue('true');
+		await remote.selectOption('false');
+		await expect(remote).toHaveValue('false');
+		const onsiteSaved = page.evaluate(() => new Promise<{ nodes: Array<{ id: string; config: { input: { requests: Array<Record<string, unknown>> } } }> }>(resolve => {
+			window.addEventListener('workflow-jobs-preview-save', event => resolve((event as CustomEvent).detail), { once: true });
+		}));
+		await editor.getByTestId('workflow-node-save').click();
+		const onsiteGraph = await onsiteSaved;
+		expect(onsiteGraph.nodes.find(candidate => candidate.id === 'jobs')?.config.input.requests[0].remote).toBe(false);
+		await node.getByTestId('workflow-node-summary').click();
+		await expect(remote).toHaveValue('');
+		await remote.selectOption('true');
+		await expect(remote).toHaveValue('true');
+		await remote.selectOption('');
+		await expect(remote).toHaveValue('');
+		for (let count = 2; count <= 5; count += 1) {
+			await add.click();
+			await expect(editor.locator('.batch-request')).toHaveCount(count);
+		}
+		await expect(add).toBeDisabled();
+		await expect(editor.getByRole('button', { name: 'Remove search 5' })).toBeVisible();
+		for (let count = 5; count > 1; count -= 1) {
+			await editor.getByRole('button', { name: `Remove search ${count}` }).click();
+			await expect(editor.locator('.batch-request')).toHaveCount(count - 1);
+		}
+		await expect(editor.getByRole('button', { name: /Remove search/ })).toHaveCount(0);
+		await add.click();
+		await expect(editor.locator('.batch-request')).toHaveCount(2);
+		await editor.locator('.batch-request').nth(1).getByLabel('Query', { exact: true }).fill('climate analyst');
+		await editor.locator('.batch-request').nth(1).getByTestId('workflow-jobs-remote-filter').selectOption('true');
+		const saved = page.evaluate(() => new Promise<{ nodes: Array<{ id: string; config: { input: { requests: Array<Record<string, unknown>> } } }> }>(resolve => {
+			window.addEventListener('workflow-jobs-preview-save', event => resolve((event as CustomEvent).detail), { once: true });
+		}));
+		await editor.getByTestId('workflow-node-save').click();
+		const graph = await saved;
+		const requests = graph.nodes.find(candidate => candidate.id === 'jobs')?.config.input.requests;
+		expect(requests).toHaveLength(2);
+		expect(requests?.[0]).not.toHaveProperty('remote');
+		expect(requests?.[1]).toMatchObject({ query: 'climate analyst', remote: true });
+	});
+
+	// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring,workflows.control.typed-data
+	test('presents flat Jobs results and exposes typed fields to a later message', async ({ page }: { page: Page }) => {
+		await page.goto(JOBS_PREVIEW, { waitUntil: 'domcontentloaded' });
+		await waitForComponentPreview(page);
+		const node = page.locator('[data-node-id="jobs"]');
+		await node.getByTestId('workflow-node-summary').click();
+		const editor = node.getByTestId('workflow-node-expanded');
+		await editor.getByTestId('workflow-show-output-fields').click();
+		await expect(editor.getByTestId('workflow-output-fields')).toContainText(/Result Count/i);
+		await editor.getByTestId('workflow-output-list-disclosure').click();
+		const fields = editor.getByTestId('workflow-output-list-details');
+		await expect(fields).toContainText('Software engineer');
+		await expect(fields).toContainText('Example employer');
+		await expect(fields).toContainText('Stockholm');
+		await editor.locator('.close-button').click();
+		const message = page.locator('[data-node-id="message"]');
+		await message.getByTestId('workflow-node-summary').click();
+		const messageEditor = message.getByTestId('workflow-node-expanded');
+		const jobsSource = messageEditor.getByTestId('workflow-variable-sources').locator('[data-source-node-id="jobs"]');
+		await expect(jobsSource).toBeVisible();
+		await jobsSource.click();
+		await expect(messageEditor.getByTestId('workflow-ai-suggestions')).toContainText(/Result Count/i);
+	});
+
 	// contract-test: direct surface=gui.web assertions=workflows-ui.template.centered-in-place-editor,workflows-ui.responsive-accessible-reachable
 	test('joins an expanded Events Search summary to its details at desktop and phone widths', async ({ page }: { page: Page }) => {
 		for (const width of [1280, 390]) {

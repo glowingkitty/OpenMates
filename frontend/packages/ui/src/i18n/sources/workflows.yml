@@ -1019,6 +1019,56 @@ builder.add_item:
   en: "Add item"
   verified_by_human: []
 
+builder.add_job_search:
+  context: Add another independent job search request to a workflow step
+  en: "Add search"
+  verified_by_human: []
+
+builder.remove_job_search:
+  context: Remove a job search request from a workflow step
+  en: "Remove search"
+  verified_by_human: []
+
+builder.jobs_remote_any:
+  context: Jobs workflow remote filter with no restriction
+  en: "Any workplace"
+  verified_by_human: []
+
+builder.jobs_remote_full:
+  context: Jobs workflow filter for fully remote positions
+  en: "Fully remote"
+  verified_by_human: []
+
+builder.jobs_remote_onsite:
+  context: Jobs workflow filter for on-site positions
+  en: "On-site"
+  verified_by_human: []
+
+builder.jobs_countries:
+  context: Country selection for Jobs workflow searches
+  en: "Countries"
+  verified_by_human: []
+
+builder.jobs_country_de:
+  context: Germany in Jobs workflow country selection
+  en: "Germany"
+  verified_by_human: []
+
+builder.jobs_country_se:
+  context: Sweden in Jobs workflow country selection
+  en: "Sweden"
+  verified_by_human: []
+
+builder.jobs_countries_apply:
+  context: Explain how changing shared Jobs workflow countries affects existing per-search settings
+  en: "Changing this selection applies it to every search and replaces per-search country settings."
+  verified_by_human: []
+
+builder.jobs_countries_existing:
+  context: Label for country choices in older Jobs workflow requests
+  en: "Existing per-search countries"
+  verified_by_human: []
+
 builder.choose:
   context: Workflow progressive builder control
   en: "Choose"

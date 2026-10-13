@@ -1819,6 +1819,22 @@
         }
       }
     },
+    "jobs": {
+      "search": {
+        "text": "Jobs suchen",
+        "description": {
+          "text": "Finde aktuelle Stellen aus öffentlichen Jobquellen in Deutschland und Schweden."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Finde Stellen im Bereich Klimapolitik in Berlin, die diesen Monat ausgeschrieben wurden."
+          },
+          "2": {
+            "text": "Finde Softwareentwicklungsstellen in Stockholm mit Schwerpunkt saubere Energie."
+          }
+        }
+      }
+    },
     "mail": {
       "search": {
         "text": "E-Mails suchen",
@@ -9156,6 +9172,48 @@
           "text": "Projektdatei geändert; wird erneut geprüft…"
         }
       }
+    },
+    "jobs": {
+      "search": {
+        "result_count": {
+          "text": "{count} Stellen"
+        },
+        "partial_results": {
+          "text": "Einige Quellen waren nicht verfügbar"
+        },
+        "result": {
+          "title": {
+            "text": "Stellenangebot"
+          },
+          "remote": {
+            "text": "Remote"
+          },
+          "published": {
+            "text": "Veröffentlicht"
+          },
+          "source": {
+            "text": "Auf {provider} ansehen"
+          },
+          "listing": {
+            "text": "Quelle der Stellenanzeige"
+          },
+          "apply": {
+            "text": "Bewerbungsseite öffnen"
+          },
+          "company": {
+            "text": "Unternehmen"
+          },
+          "employment_type": {
+            "text": "Beschäftigungsart"
+          },
+          "salary": {
+            "text": "Gehalt"
+          },
+          "description": {
+            "text": "Beschreibung"
+          }
+        }
+      }
     }
   },
   "enter_message": {
@@ -10685,6 +10743,50 @@
         "text": "Den Cashflow-Trend erklären"
       }
     },
+    "find_brand_name_and_domain": {
+      "title": {
+        "text": "Markennamen und Domain finden"
+      },
+      "summary": {
+        "text": "Ein prägnanter Namensfindungsprozess: Brainstorming von sieben Kandidaten, gefolgt von einem Vergleich zweier Finalisten inklusive Domain-, Web- und vorläufiger US-Markenprüfung."
+      },
+      "message_1": {
+        "text": "Hilf mir, einen Namen für mein neues Produkt zu finden."
+      },
+      "message_2": {
+        "text": "Um loszulegen: Was macht dein Produkt, wer ist deine Zielgruppe und welchen Ton oder welches Gefühl soll der Name vermitteln (z. B. verspielt, hochwertig, technisch)?"
+      },
+      "message_3": {
+        "text": "Es ist eine ruhige Budgeting-App für US-Freelancer, auf Englisch. Ich wünsche mir kurze, einprägsame Namen und eine .com-Domain für bis zu 20 € pro Jahr. Bitte erstelle zuerst eine abwechslungsreiche Shortlist."
+      },
+      "message_4": {
+        "text": "Hier ist eine erste Shortlist mit abwechslungsreichen, gut auszusprechenden Namen, die auf eine ruhige Budgetplanung für Freelancer zugeschnitten sind:\n\n- [ ] **Serenito**: Erinnert an Gelassenheit und ein sanftes Tempo bei schwankendem Solo-Einkommen.\n- [ ] **Solowell**: Suggeriert finanzielles Wohlbefinden und Seelenfrieden für Solopreneure.\n- [ ] **Equafy**: Konzentriert sich auf den Ausgleich unregelmäßiger Cashflow-Zyklen.\n- [ ] **StillLedger**: Verbindet klassische Buchhaltungsstrukturen mit achtsamer, stressfreier Ruhe.\n- [ ] **Cadenceo**: Impliziert den Aufbau eines stetigen, vorhersehbaren Rhythmus aus Gig-Zahlungen.\n- [ ] **HavenFin**: Stellt Finanzmanagement als sicheren, beruhigenden Hafen dar.\n- [ ] **Placidly**: Sanfter, beruhigender Ton, der finanzielle Ängste abbaut.\n\n*(Hinweis: Diese Shortlist wurde noch nicht auf Live-Domain-Verfügbarkeit oder rechtliche Freigabe geprüft.)*\n\nWelche 2–3 Namen möchtest du live prüfen lassen? Du kannst deine Favoriten wählen oder mich bitten, Finalisten auszuwählen, um .com-Preise, Markenkonflikte und US-Marken zu verifizieren.\n\n- [Serenito, Solowell und Equafy prüfen](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [Wähle die besten 3 für mich aus und prüfe sie](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
+      },
+      "message_5": {
+        "text": "Bitte prüfe Equafy und Cadenceo: deren .com-Verfügbarkeit und Preise, bestehende Marken im Web sowie US-Marken. Halte den Vergleich kompakt, inklusive deiner Empfehlung und eventuell noch fehlender Prüfungen."
+      },
+      "message_6": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\nHier ist der Vergleich anhand der Prüfungen vom 12. Oktober 2026:\n\n### Equafy\n- **Domain**: `equafy.com` ist bei Gandi derzeit nicht für eine Standardregistrierung verfügbar. Es gibt keinen Standardregistrierungspreis; damit erfüllt diese Option das Budget von €20/Jahr nicht.\n- **Web und Markenlandschaft**: Keine bekannte Budgetsoftware verwendet genau diesen Namen. Die Websuche zeigt jedoch eine hohe klangliche Ähnlichkeit und mögliche Verwechslungen in Suchergebnissen mit [Equifax-Diensten für persönliche Finanzen](embed:equifax.com-TrW).\n- **US-Marken (USPTO)**: Die vorläufige Suche lieferte 5 von 1,640 ähnlichen Einträgen (gekürzt; das Fehlen eines exakt übereinstimmenden Namens lässt sich nicht feststellen). Zu den aktiven Treffern gehören `EQUIFY` in Klasse 36 (anhängige Anmeldung für Finanz- und Guthabendienste) und Klasse 35 (registrierte Auktionsdienste).\n\n### Cadenceo\n- **Domain**: `cadenceo.com` ist bei Gandi derzeit nicht für eine Standardregistrierung verfügbar. Es gibt keinen Standardregistrierungspreis; damit erfüllt diese Option das Budget von €20/Jahr nicht.\n- **Web und Markenlandschaft**: Direkte Überschneidung mit [Cadence Money](embed:cadencemoney.com-IcE), einer etablierten App für persönliche Finanzen und Budgetplanung, die in den USA und Kanada auf iOS, Android und im Web verfügbar ist.\n- **US-Marken (USPTO)**: Die vorläufige Suche lieferte 5 von 227 ähnlichen Einträgen (gekürzt; das Fehlen eines exakt übereinstimmenden Namens lässt sich nicht feststellen). Aktive Treffer für `CADENCE` umfassen Einträge für herunterladbare Software in Klasse 9.\n\n---\n\n### Empfehlung und Abwägung\n- **Richtung**: Beide verwerfen. **Equafy** weist zwar weniger direkte App-Konflikte auf als **Cadenceo** (das sich direkt mit *Cadence Money* überschneidet), doch für keinen Namen gibt es eine verfügbare `.com` innerhalb deines Limits von €20/Jahr. Außerdem besteht bei Equafy klangliche Verwechslungsgefahr mit bestehenden Finanzmarken wie *Equify* und *Equifax*.\n- **Fehlende Prüfungen**: Internationale Markenregister außerhalb der USA, Markenrechte nach Common Law und Markenanmeldungen in den US-Bundesstaaten sowie Kaufpreise auf dem Domain-Zweitmarkt wurden nicht geprüft.\n\nMöchtest du die Domainverfügbarkeit und markenrechtliche Prüfung für andere Namen der Auswahl (etwa **Solowell** oder **StillLedger**) untersuchen oder leichte Namenskombinationen ausprobieren, um eine verfügbare `.com` innerhalb des Budgets zu finden?\n\n- [Solowell und StillLedger prüfen](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [Namenskombinationen mit verfügbaren .com-Domains unter €20 entwickeln](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
+      },
+      "follow_up_1": {
+        "text": "Prüfe Domain-Verfügbarkeit und Markenrechte für Solowell und StillLedger"
+      },
+      "follow_up_2": {
+        "text": "Brainstorme zusammengesetzte Namen mit verfügbaren .com-Domains unter zwanzig Euro"
+      },
+      "follow_up_3": {
+        "text": "Durchsuche Markenregister nach Namensideen für eine kommende Budgeting-App"
+      },
+      "follow_up_4": {
+        "text": "Vergleiche Branding- und Namensstrategien für Solo-Entrepreneur-Apps"
+      },
+      "follow_up_5": {
+        "text": "Suche nach verfügbaren Domain-Endungen für Freelance-Finanz-Apps"
+      },
+      "follow_up_6": {
+        "text": "Liste alternative Domain-Registrare für erschwingliche Startup-Domains auf"
+      }
+    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "Flüge von Berlin nach Bangkok"
@@ -10893,6 +10995,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nIch werde dieses Bild jetzt für dich in SVG konvertieren. Deine SVG-Vektorisierung wird verarbeitet! Die Konvertierung ist im Gange und ich werde dich informieren, sobald sie abgeschlossen ist. Dies dauert normalerweise einen Moment, da das System das Rasterbild nachzeichnet und in skalierbare Vektorpfade umwandelt."
+      }
+    },
+    "jobs_in_sweden": {
+      "title": {
+        "text": "Entwickler-Jobs in Schweden"
+      },
+      "summary": {
+        "text": "Vergleiche aktuelle Entwickler-Jobs in Stockholm und Malmö mit Original-Ausschreibungen und quellenbasierten Details zum Arbeitsplatz."
+      },
+      "message_1": {
+        "text": "Finde zwei aktuelle Software-Entwickler-Jobs in Stockholm und zwei in Malmö beim schwedischen Arbeitsamt. Zeige für jeden Job einen kurzen Stichpunkt mit Titel, Arbeitgeber, Arbeitsort und Link zur Original-Ausschreibung. Gib Gehaltsangaben oder Homeoffice-Regelungen nur an, wenn sie explizit in der Ausschreibung stehen; andernfalls schreibe „nicht angegeben“. Halte die Antwort unter 200 Wörtern."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nAktuelle Stellenangebote für Softwareentwickler von Arbetsförmedlingen (Platsbanken):\n\n### Stockholm\n\n* **Titel:** Senior Systemutvecklare  \n  **Arbeitgeber:** NXT Interim Stockholm AB  \n  **Arbeitsort:** Stockholm  \n  **Link zur Originalanzeige:** [Platsbanken-Anzeige 31589252](embed:senior-systemutvecklare-2ps)  \n  **Gehaltsangabe:** Nicht angegeben  \n  **Homeoffice-Regelung:** Bietet Remote-Arbeitsplätze an (*remote-arbetsplatser*)\n\n* **Titel:** Javautvecklare  \n  **Arbeitgeber:** AFRY AB  \n  **Arbeitsort:** Stockholm  \n  **Link zur Originalanzeige:** [Platsbanken-Anzeige 31588186](embed:javautvecklare-y47)  \n  **Gehaltsangabe:** Nicht angegeben  \n  **Homeoffice-Regelung:** Möglichkeit für hybrides Arbeiten (*möjlighet till hybridarbete*)\n\n---\n\n### Malmö\n\n* **Titel:** Senior AI Engineer  \n  **Arbeitgeber:** Iver Accelerate AB  \n  **Arbeitsort:** Malmö  \n  **Link zur Originalanzeige:** [Platsbanken-Anzeige 31588387](embed:senior-ai-engineer-Duw)  \n  **Gehaltsangabe:** Nicht angegeben  \n  **Homeoffice-Regelung:** Möglichkeit für hybrides Arbeiten (*möjlighet till hybridarbete*)\n\n* **Titel:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **Arbeitgeber:** Jobbakuten Väst AB  \n  **Arbeitsort:** Malmö  \n  **Link zur Originalanzeige:** [Platsbanken-Anzeige 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **Gehaltsangabe:** Nicht angegeben (Anzeige erwähnt marktübliches Gehalt ohne konkrete Zahl)  \n  **Homeoffice-Regelung:** Hybrides Arbeiten (*Hybridarbete*)"
+      },
+      "follow_up_1": {
+        "text": "Suche nach Remote-Softwareentwickler-Jobs in Göteborg"
+      },
+      "follow_up_2": {
+        "text": "Vergleiche die Anforderungen für diese Senior-Entwickler-Rollen"
+      },
+      "follow_up_3": {
+        "text": "Suche nach Frontend-Entwickler-Stellen in Stockholm"
+      },
+      "follow_up_4": {
+        "text": "Liste die wichtigsten Tech-Stacks in diesen Anzeigen auf"
+      },
+      "follow_up_5": {
+        "text": "Suche nach Junior-Entwickler-Stellenanzeigen in Schweden"
+      },
+      "follow_up_6": {
+        "text": "Fasse die Remote-Work-Trends in schwedischen Tech-Jobs zusammen"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -13913,6 +14047,54 @@
           "uspto": {
             "description": {
               "text": "Das USPTO erhält Kandidatennamen sowie Status-, Schreibweisen- und Nizza-Klassenfilter für US-Markensuchen. Anfragen kommen von unseren Servern ohne OpenMates-Nutzerkennungen oder Chatverlauf."
+            }
+          }
+        },
+        "jobs": {
+          "heading": {
+            "text": "Dienste für die Jobsuche"
+          },
+          "description": {
+            "text": "Nur bei der Jobsuche genutzt. Die Bundesagentur für Arbeit und JobTech erhalten ausgewählte Suchbegriffe, Standort und passende Filter über serverseitige Anfragen. Arbeitnow stellt einen öffentlichen Feed bereit, den OpenMates lokal filtert. OpenMates-Nutzerkennung, Lebenslauf und Kontozugangsdaten werden nicht gesendet. 80,000 Hours sendet Suchbegriffe und Land an Algolia; Hard Problems erhält nur das Land. Standort und weitere Filter bleiben lokal."
+          },
+          "arbeitsagentur": {
+            "heading": {
+              "text": "German Federal Employment Agency"
+            },
+            "description": {
+              "text": "Die Bundesagentur für Arbeit erhält ausgewählte Job-Suchbegriffe, Standort, Suchradius und passende Filter für die öffentliche Stellensuche."
+            }
+          },
+          "jobtech": {
+            "heading": {
+              "text": "JobTech JobSearch"
+            },
+            "description": {
+              "text": "JobTech erhält ausgewählte Job-Suchbegriffe, einen benannten Standort, die Homeoffice-Präferenz, den Veröffentlichungszeitraum und die Ergebnisanzahl für die schwedische Stellensuche."
+            }
+          },
+          "arbeitnow": {
+            "heading": {
+              "text": "Arbeitnow"
+            },
+            "description": {
+              "text": "OpenMates ruft den öffentlichen Job-Feed von Arbeitnow ab. Deine Suchbegriffe, dein Standort und deine Filter werden lokal angewendet und nicht an Arbeitnow gesendet."
+            }
+          },
+          "eighty_thousand_hours": {
+            "heading": {
+              "text": "80,000 Hours Job Board"
+            },
+            "description": {
+              "text": "Die öffentliche Jobbörse von 80,000 Hours nutzt die Algolia-Suche. Deine Suchbegriffe und das gewählte Land werden gesendet; Standort und weitere Filter prüft OpenMates lokal. OpenMates-Nutzerkennung, Lebenslauf und Zugangsdaten werden nicht gesendet."
+            }
+          },
+          "hard_problems": {
+            "heading": {
+              "text": "Hard Problems"
+            },
+            "description": {
+              "text": "OpenMates ruft den öffentlichen Job-Feed von Hard Problems für dein gewähltes Land ab. Suchbegriffe, Standort und weitere Filter werden lokal geprüft und nicht an Hard Problems gesendet. OpenMates-Nutzerkennung, Lebenslauf und Zugangsdaten werden nicht gesendet."
             }
           }
         }
@@ -17918,6 +18100,16 @@
       }
     },
     "app_store_examples": {
+      "jobs": {
+        "search": {
+          "1": {
+            "text": "Softwareentwickler-Jobs in Stockholm"
+          },
+          "2": {
+            "text": "Softwareentwickler-Jobs in Malmö"
+          }
+        }
+      },
       "hosting": {
         "search_domains": {
           "1": {

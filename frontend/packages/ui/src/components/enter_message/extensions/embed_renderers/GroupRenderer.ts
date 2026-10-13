@@ -110,6 +110,9 @@ import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.sve
 import MathCalculateEmbedPreview from "../../../embeds/math/MathCalculateEmbedPreview.svelte";
 import MailEmbedPreview from "../../../embeds/mail/MailEmbedPreview.svelte";
 import EventEmbedPreview from "../../../embeds/events/EventEmbedPreview.svelte";
+import JobsSearchEmbedPreview from "../../../embeds/jobs/JobsSearchEmbedPreview.svelte";
+import JobsResultEmbedPreview from "../../../embeds/jobs/JobsResultEmbedPreview.svelte";
+import { normalizeJob } from "../../../embeds/jobs/jobsEmbedData";
 import MapLocationEmbedPreview from "../../../embeds/maps/MapLocationEmbedPreview.svelte";
 import HomeListingEmbedPreview from "../../../embeds/home/HomeListingEmbedPreview.svelte";
 import HomeSearchEmbedPreview from "../../../embeds/home/HomeSearchEmbedPreview.svelte";
@@ -492,7 +495,7 @@ export class GroupRenderer implements EmbedRenderer {
           ),
       ],
       ["jobs-job-result", (item, embedData, decodedContent, content) =>
-        this.renderJobResultFallback(item, embedData, decodedContent, content)],
+        this.renderJobResultComponent(item, embedData, decodedContent, content)],
       [
         "hosting-domain",
         (item, embedData, decodedContent, content) =>
@@ -1787,6 +1790,22 @@ export class GroupRenderer implements EmbedRenderer {
             results,
             resultCount: newsResultCount,
             childEmbedIds,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "jobs" && skillId === "search") {
+        const component = mount(JobsSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            content: decodedContent ?? {},
+            status,
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
@@ -7055,16 +7074,34 @@ export class GroupRenderer implements EmbedRenderer {
     `;
   }
 
-  private async renderJobResultFallback(
+  private async renderJobResultComponent(
     item: EmbedNodeAttributes,
     embedData: EmbedData | null,
     decodedContent: DecodedEmbedContent | null,
     content: HTMLElement,
   ): Promise<void> {
+    const existing = mountedComponents.get(content);
+    if (existing) {
+      try { unmount(existing); } catch (error) { console.warn('[GroupRenderer] Could not unmount Jobs result:', error); }
+    }
     disposeEmbedTree(content, false);
-    content.innerHTML = await this.renderIndividualItem(
-      item, "jobs-job-result", embedData, decodedContent,
-    );
+    content.innerHTML = '';
+    if (!content.isConnected) return;
+    const embedId = item.contentRef?.replace('embed:', '') || item.id || '';
+    try {
+      const component = mount(JobsResultEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          job: normalizeJob(embedId, decodedContent ?? {}),
+          onFullscreen: () => this.openFullscreen(item, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error('[GroupRenderer] Could not mount Jobs result:', error);
+      content.innerHTML = await this.renderIndividualItem(item, 'jobs-job-result', embedData, decodedContent);
+    }
   }
 
   /** Minimal HTML fallback for job results until the Jobs card is available. */

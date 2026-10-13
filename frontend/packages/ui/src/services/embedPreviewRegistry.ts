@@ -186,6 +186,22 @@ export function parentPreviewProps(
  */
 const resolvers = new Map<string, PreviewResolver>();
 
+resolvers.set('app:jobs:search', async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import('../components/embeds/jobs/JobsSearchEmbedPreview.svelte');
+  return { component, props: {
+    id: embedId,
+    content: decodedContent,
+    status: normalizeStatus(embedData.status ?? decodedContent.status),
+    isMobile: false,
+    onFullscreen,
+  } };
+});
+
+resolvers.set('jobs-job-result', async ({ embedId, decodedContent, onFullscreen }) => {
+  const { default: component } = await import('../components/embeds/jobs/JobsResultEmbedPreview.svelte');
+  return { component, props: { id: embedId, content: decodedContent, isMobile: false, onFullscreen } };
+});
+
 for (const skillId of ["search", "read"] as const) {
   resolvers.set(`app:projects:${skillId}`, async ({ embedId, decodedContent, embedData, onFullscreen }) => {
     const { default: component } = await import("../components/embeds/projects/ProjectReferenceEmbedPreview.svelte");

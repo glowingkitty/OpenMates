@@ -89,6 +89,11 @@ TEAM_ASYNC_SKILL_BILLING = {
 }
 APP_SKILL_BILLING_IDEMPOTENCY_PREFIX = "app-skill"
 MAX_BILLING_IDEMPOTENCY_KEY_LENGTH = 255
+RESERVED_APP_SKILL_INPUT_FIELDS = {
+    "security", "user_id", "api_key_name", "api_key_hash", "device_hash",
+    "external_request", "secrets_manager", "cache_service", "directus_service",
+    "encryption_service", "app_id", "skill_id",
+}
 
 
 def _json_schema_field_kwargs(schema: Dict[str, Any]) -> Dict[str, Any]:
@@ -133,6 +138,23 @@ def _json_schema_field_kwargs(schema: Dict[str, Any]) -> Dict[str, Any]:
             field_kwargs[pydantic_name] = schema[json_schema_name]
 
     return field_kwargs
+
+
+def _json_schema_request_python_type(schema: Dict[str, Any]) -> Any:
+    """Type a declared top-level app-skill input without admitting extra fields."""
+    schema_type = schema.get("type")
+    if isinstance(schema_type, list):
+        schema_type = next((item for item in schema_type if item != "null"), None)
+    scalar_types = {"string": str, "integer": int, "number": float, "boolean": bool}
+    if schema_type in scalar_types:
+        return scalar_types[schema_type]
+    if schema_type == "array":
+        item_schema = schema.get("items") or {}
+        item_type = _json_schema_request_python_type(item_schema) if isinstance(item_schema, dict) else Any
+        return List[item_type]
+    if schema_type == "object":
+        return Dict[str, Any]
+    return Any
 
 
 def _build_app_skill_billing_idempotency_key(
@@ -3124,10 +3146,45 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     
                     # Create enhanced request model with proper typing
                     if RequestItemModel:
-                        # Create a new request model with properly typed requests array
+                        # Keep typed request items and every declared top-level input.
+                        # Previously only requests was modeled, so Pydantic silently
+                        # discarded fields such as jobs.search countries and events.search
+                        # provider before the skill saw them. Unknown and internal context
+                        # keys remain excluded from the public model.
+                        top_level_fields = {
+                            "requests": (
+                                List[RequestItemModel],
+                                Field(
+                                    ...,
+                                    description=tool_schema.get("properties", {}).get("requests", {}).get(
+                                        "description", "Array of search request objects"
+                                    ),
+                                ),
+                            ),
+                        }
+                        top_required = set(tool_schema.get("required") or [])
+                        for prop_name, prop_schema in (tool_schema.get("properties") or {}).items():
+                            if (prop_name == "requests" or not isinstance(prop_schema, dict)
+                                    or not prop_name.isidentifier() or prop_name.startswith("_")
+                                    or prop_name in RESERVED_APP_SKILL_INPUT_FIELDS):
+                                continue
+                            prop_type = _json_schema_request_python_type(prop_schema)
+                            required = prop_name in top_required
+                            nullable = "null" in (prop_schema.get("type") or []) if isinstance(prop_schema.get("type"), list) else False
+                            if nullable or not required:
+                                prop_type = Optional[prop_type]
+                            field_kwargs = _json_schema_field_kwargs(prop_schema)
+                            if "default" in prop_schema:
+                                top_level_fields[prop_name] = (
+                                    prop_type, Field(default=copy.deepcopy(prop_schema["default"]), **field_kwargs)
+                                )
+                            elif required:
+                                top_level_fields[prop_name] = (prop_type, Field(..., **field_kwargs))
+                            else:
+                                top_level_fields[prop_name] = (prop_type, Field(default=None, **field_kwargs))
                         EnhancedRequestModel = create_model(
                             f"EnhancedRequest_{captured_app_id}_{captured_skill.id}",
-                            requests=(List[RequestItemModel], Field(..., description=tool_schema.get("properties", {}).get("requests", {}).get("description", "Array of search request objects")))
+                            **top_level_fields,
                         )
                         
                         # Override the model's JSON schema to use the tool_schema directly

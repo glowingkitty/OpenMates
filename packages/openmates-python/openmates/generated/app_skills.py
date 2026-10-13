@@ -3828,12 +3828,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'app_namespace_py': 'jobs',
   'app_namespace_ts': 'jobs',
   'description': 'Search current public job listings in Germany and Sweden. Use this skill for job '
-                 "discovery, including opportunities related to a user's stated impact goal. "
-                 'Germany auto sources are Bundesagentur für Arbeit and Arbeitnow; Sweden auto '
-                 'uses JobTech. Default country is DE only when the user gives no country; do not '
-                 'imply Europe-wide coverage. Specify a named provider only when the user requests '
-                 'it. Put a user-stated career purpose or impact preference in relevance_criteria '
-                 'so explicit listing facts',
+                 "discovery, including opportunities related to a user's stated impact goal. Set "
+                 'countries to the countries the user selected, or omit it for the Germany-only '
+                 '[DE] default. Each request may override countries; the legacy country field '
+                 'means one country. Germany auto sources are Bundesagentur für Arbeit, Arbeitnow, '
+                 '80,000 Hours, and Hard Problems; Sweden auto uses JobTech, 80,000 Hours, and '
+                 'Hard Problems. Sources that',
   'description_key': 'app_skills.jobs.search.description',
   'output_schema': {'description': 'Jobs search response with one result group per input request.',
                     'properties': {'app_id': {'type': 'string'},
@@ -3844,7 +3844,10 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                    'result_count': {'type': 'integer'},
                                    'results': {'description': 'Request groups; each group contains '
                                                               'its own listings and errors.',
-                                               'items': {'properties': {'country': {'type': 'string'},
+                                               'items': {'properties': {'countries': {'items': {'type': 'string'},
+                                                                                      'type': 'array'},
+                                                                        'country': {'type': ['string',
+                                                                                             'null']},
                                                                         'error': {'type': 'string'},
                                                                         'id': {'oneOf': [{'type': 'string'},
                                                                                          {'type': 'integer'}]},
@@ -3900,6 +3903,7 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                               'type': 'object'},
                                                                                     'type': 'array'},
                                                                         'warnings': {'items': {'properties': {'code': {'type': 'string'},
+                                                                                                              'country': {'type': 'string'},
                                                                                                               'message': {'type': 'string'},
                                                                                                               'provider': {'type': 'string'},
                                                                                                               'request_id': {'type': 'string'}},
@@ -3911,30 +3915,55 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                    'status': {'type': 'string'},
                                    'success': {'type': 'boolean'},
                                    'warnings': {'items': {'properties': {'code': {'type': 'string'},
+                                                                         'country': {'type': 'string'},
                                                                          'message': {'type': 'string'},
                                                                          'provider': {'type': 'string'},
                                                                          'request_id': {'type': 'string'}},
                                                           'type': 'object'},
                                                 'type': 'array'}},
                     'type': 'object'},
-  'schema': {'properties': {'requests': {'description': 'Independent job searches; each retains '
+  'schema': {'properties': {'countries': {'default': ['DE'],
+                                          'description': 'Search these countries by default; omit '
+                                                         'only when Germany alone is intended.',
+                                          'items': {'enum': ['DE', 'SE'], 'type': 'string'},
+                                          'maxItems': 2,
+                                          'minItems': 1,
+                                          'type': 'array',
+                                          'uniqueItems': True,
+                                          'x-ui': {'basic': True}},
+                            'requests': {'description': 'Independent job searches; each retains '
                                                         'its own filters and result group.',
-                                         'items': {'properties': {'country': {'default': 'DE',
-                                                                              'description': 'DE '
-                                                                                             'for '
-                                                                                             'Germany '
-                                                                                             'or '
-                                                                                             'SE '
-                                                                                             'for '
-                                                                                             'Sweden; '
-                                                                                             'default '
-                                                                                             'DE '
-                                                                                             'only '
-                                                                                             'if '
-                                                                                             'unspecified.',
+                                         'items': {'properties': {'countries': {'description': 'Override '
+                                                                                               'top-level '
+                                                                                               'countries '
+                                                                                               'for '
+                                                                                               'this '
+                                                                                               'request; '
+                                                                                               'do '
+                                                                                               'not '
+                                                                                               'combine '
+                                                                                               'with '
+                                                                                               'country.',
+                                                                                'items': {'enum': ['DE',
+                                                                                                   'SE'],
+                                                                                          'type': 'string'},
+                                                                                'maxItems': 2,
+                                                                                'minItems': 1,
+                                                                                'type': 'array',
+                                                                                'uniqueItems': True,
+                                                                                'x-ui': {'basic': False}},
+                                                                  'country': {'description': 'Legacy '
+                                                                                             'singleton '
+                                                                                             'country '
+                                                                                             'override; '
+                                                                                             'do '
+                                                                                             'not '
+                                                                                             'combine '
+                                                                                             'with '
+                                                                                             'countries.',
                                                                               'enum': ['DE', 'SE'],
                                                                               'type': 'string',
-                                                                              'x-ui': {'basic': True}},
+                                                                              'x-ui': {'basic': False}},
                                                                   'employment_type': {'description': 'Optional '
                                                                                                      'employment '
                                                                                                      'type '
@@ -4002,7 +4031,11 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                'enum': ['auto',
                                                                                         'Arbeitnow',
                                                                                         'Arbeitsagentur',
-                                                                                        'JobTech'],
+                                                                                        'JobTech',
+                                                                                        '80,000 '
+                                                                                        'Hours',
+                                                                                        'Hard '
+                                                                                        'Problems'],
                                                                                'type': 'string',
                                                                                'x-ui': {'basic': False}},
                                                                   'providers': {'description': 'Explicit '
@@ -4017,7 +4050,11 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'auto.',
                                                                                 'items': {'enum': ['Arbeitnow',
                                                                                                    'Arbeitsagentur',
-                                                                                                   'JobTech'],
+                                                                                                   'JobTech',
+                                                                                                   '80,000 '
+                                                                                                   'Hours',
+                                                                                                   'Hard '
+                                                                                                   'Problems'],
                                                                                           'type': 'string'},
                                                                                 'type': 'array',
                                                                                 'x-ui': {'basic': False}},
@@ -9449,7 +9486,7 @@ class JobsAppSkills:
         self._run_skill = run_skill
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search current public job listings in Germany and Sweden. Use this skill for job discovery, including opportunities related to a user's stated impact goal. Germany auto sources are Bundesagentur für Arbeit and Arbeitnow; Sweden auto uses JobTech. Default country is DE only when the user gives no country; do not imply Europe-wide coverage. Specify a named provider only when the user requests it. Put a user-stated career purpose or impact preference in relevance_criteria so explicit listing facts
+        """Search current public job listings in Germany and Sweden. Use this skill for job discovery, including opportunities related to a user's stated impact goal. Set countries to the countries the user selected, or omit it for the Germany-only [DE] default. Each request may override countries; the legacy country field means one country. Germany auto sources are Bundesagentur für Arbeit, Arbeitnow, 80,000 Hours, and Hard Problems; Sweden auto uses JobTech, 80,000 Hours, and Hard Problems. Sources that
 
         Description key: app_skills.jobs.search.description
         Skill: jobs/search

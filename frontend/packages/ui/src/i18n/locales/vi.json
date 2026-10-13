@@ -1811,6 +1811,22 @@
         }
       }
     },
+    "jobs": {
+      "search": {
+        "text": "Search jobs",
+        "description": {
+          "text": "Find current jobs from public employment sources in Germany and Sweden."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Find climate policy jobs in Berlin posted this month."
+          },
+          "2": {
+            "text": "Find software engineering jobs in Stockholm that work on clean energy."
+          }
+        }
+      }
+    },
     "mail": {
       "search": {
         "text": "Tim kiem email",
@@ -7876,6 +7892,48 @@
           "text": "Tệp trong dự án này"
         }
       }
+    },
+    "jobs": {
+      "search": {
+        "result_count": {
+          "text": "{count} việc làm"
+        },
+        "partial_results": {
+          "text": "Một số nguồn không khả dụng"
+        },
+        "result": {
+          "title": {
+            "text": "Tin tuyển dụng"
+          },
+          "remote": {
+            "text": "Từ xa"
+          },
+          "published": {
+            "text": "Đã đăng"
+          },
+          "source": {
+            "text": "Xem trên {provider}"
+          },
+          "listing": {
+            "text": "nguồn tin tuyển dụng"
+          },
+          "apply": {
+            "text": "Mở trang ứng tuyển"
+          },
+          "company": {
+            "text": "Công ty"
+          },
+          "employment_type": {
+            "text": "Loại hình việc làm"
+          },
+          "salary": {
+            "text": "Mức lương"
+          },
+          "description": {
+            "text": "Mô tả"
+          }
+        }
+      }
     }
   },
   "enter_message": {
@@ -9402,6 +9460,50 @@
         "text": "Explain the cash-flow trend"
       }
     },
+    "find_brand_name_and_domain": {
+      "title": {
+        "text": "Tìm tên thương hiệu và tên miền"
+      },
+      "summary": {
+        "text": "Một cuộc hội thoại đặt tên súc tích: lên ý tưởng cho bảy ứng viên, sau đó so sánh hai cái tên cuối cùng với các bằng chứng về tên miền, web và nhãn hiệu sơ bộ tại Mỹ."
+      },
+      "message_1": {
+        "text": "Giúp tôi tìm tên cho sản phẩm mới của mình."
+      },
+      "message_2": {
+        "text": "Để bắt đầu, sản phẩm của bạn làm gì, đối tượng mục tiêu là ai và tên gọi nên truyền tải tông điệu hay cảm giác như thế nào (ví dụ: vui tươi, cao cấp, kỹ thuật)?"
+      },
+      "message_3": {
+        "text": "Đó là một ứng dụng lập ngân sách nhẹ nhàng dành cho những người làm tự do (freelancer) tại Mỹ, bằng tiếng Anh. Tôi muốn những cái tên ngắn gọn, dễ nhớ và tên miền .com với giá tối đa 20 €/năm. Trước tiên, hãy gợi ý cho tôi một danh sách rút gọn đa dạng."
+      },
+      "message_4": {
+        "text": "Dưới đây là danh sách rút gọn ban đầu gồm các tên gọi đa dạng, dễ phát âm, được thiết kế riêng cho trải nghiệm lập ngân sách tự do nhẹ nhàng:\n\n- [ ] **Serenito**: Gợi lên sự thanh thản và nhịp độ nhẹ nhàng cho thu nhập tự do biến động.\n- [ ] **Solowell**: Gợi ý sự lành mạnh về tài chính và sự an tâm cho những người kinh doanh độc lập.\n- [ ] **Equafy**: Tập trung vào việc cân bằng các chu kỳ dòng tiền không đều đặn.\n- [ ] **StillLedger**: Kết hợp cấu trúc kế toán cổ điển với sự tĩnh lặng, ít căng thẳng.\n- [ ] **Cadenceo**: Ngụ ý việc xây dựng một nhịp điệu ổn định, có thể dự đoán được từ các khoản thanh toán công việc tự do.\n- [ ] **HavenFin**: Coi việc quản lý tiền bạc như một bến đỗ an toàn, trấn an.\n- [ ] **Placidly**: Tông điệu mềm mại, trấn an giúp xua tan lo âu tài chính.\n\n*(Lưu ý: Danh sách rút gọn này chưa được kiểm tra về tính khả dụng của tên miền thực tế hoặc tính pháp lý.)*\n\nBạn muốn kiểm tra trực tiếp 2–3 tên nào? Bạn có thể chọn những tên mình thích hoặc yêu cầu tôi chọn ra các ứng viên cuối cùng để xác minh giá .com, xung đột thương hiệu và nhãn hiệu tại Mỹ.\n\n- [Kiểm tra Serenito, Solowell và Equafy](/#message=Check%20Serenito%2C%20Solowell%2C%20and%20Equafy%20for%20domain%20availability%20and%20trademarks.)\n- [Chọn giúp tôi 3 tên tốt nhất và kiểm tra chúng](/#message=Pick%20the%20top%203%20finalists%20for%20me%20and%20run%20the%20checks.)"
+      },
+      "message_5": {
+        "text": "Vui lòng kiểm tra Equafy và Cadenceo: tính khả dụng của tên miền .com và giá niêm yết, các thương hiệu hiện có trên web và nhãn hiệu tại Mỹ. Hãy so sánh một cách gọn gàng, kèm theo đề xuất của bạn và bất kỳ bước kiểm tra nào còn thiếu."
+      },
+      "message_6": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\nDưới đây là bảng so sánh dựa trên các kiểm tra được thực hiện vào ngày 12 tháng 10, 2026:\n\n### Equafy\n- **Tên miền**: `equafy.com` hiện không khả dụng trên Gandi; không có giá đăng ký tiêu chuẩn, vì vậy nó không đáp ứng ngân sách €20/năm.\n- **Bối cảnh web & thương hiệu**: Không có phần mềm lập ngân sách nổi bật nào sử dụng chính xác tên này, nhưng các tìm kiếm trên web cho thấy sự tương đồng cao về ngữ âm và gây nhầm lẫn khi tìm kiếm với [dịch vụ tài chính cá nhân Equifax](embed:equifax.com-TrW).\n- **Nhãn hiệu Hoa Kỳ (USPTO)**: Tìm kiếm sơ bộ trả về 5 trong số 1.640 hồ sơ tương tự (đã bị cắt bớt; không thể xác định việc vắng mặt tên chính xác). Các kết quả khớp đang hoạt động bao gồm `EQUIFY` trong Nhóm 36 (dịch vụ tài chính và giá trị lưu trữ đang chờ xử lý) và Nhóm 35 (dịch vụ đấu giá đã đăng ký).\n\n### Cadenceo\n- **Tên miền**: `cadenceo.com` hiện không khả dụng trên Gandi; không có giá đăng ký tiêu chuẩn, không đạt ngân sách €20/năm.\n- **Bối cảnh web & thương hiệu**: Trùng lặp trực tiếp với [Cadence Money](embed:cadencemoney.com-IcE), một ứng dụng theo dõi ngân sách và tài chính cá nhân đã có uy tín hoạt động tại Hoa Kỳ và Canada trên iOS, Android và web.\n- **Nhãn hiệu Hoa Kỳ (USPTO)**: Tìm kiếm sơ bộ trả về 5 trong số 227 hồ sơ tương tự (đã bị cắt bớt; không thể xác định việc vắng mặt tên chính xác). Các kết quả khớp đang hoạt động cho `CADENCE` bao gồm các hồ sơ phần mềm có thể tải xuống thuộc Nhóm 9.\n\n---\n\n### Khuyến nghị & Đánh đổi\n- **Hướng đi**: Bỏ qua cả hai. Mặc dù **Equafy** có ít xung đột ứng dụng trực tiếp hơn **Cadenceo** (vốn va chạm trực tiếp với *Cadence Money*), nhưng cả hai đều không có tên miền `.com` khả dụng dưới hạn mức €20/năm của bạn, và Equafy gây nhầm lẫn về ngữ âm với các nhãn hiệu tài chính hiện có như *Equify* và *Equifax*.\n- **Các kiểm tra còn thiếu**: Chưa kiểm tra các đăng ký nhãn hiệu quốc tế ngoài Hoa Kỳ, hồ sơ nhãn hiệu tiểu bang theo thông luật và định giá mua lại tên miền trên thị trường thứ cấp.\n\nBạn có muốn kiểm tra tính khả dụng và sự rõ ràng của tên miền cho các lựa chọn khác trong danh sách rút gọn (chẳng hạn như **Solowell** hoặc **StillLedger**), hay khám phá các biến thể ghép từ nhẹ để tìm một tên miền `.com` khả dụng trong ngân sách?\n\n- [Kiểm tra Solowell và StillLedger](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [Động não các tên ghép có tên miền .com khả dụng dưới €20](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
+      },
+      "follow_up_1": {
+        "text": "Kiểm tra tính khả dụng của tên miền và nhãn hiệu cho Solowell và StillLedger"
+      },
+      "follow_up_2": {
+        "text": "Tìm ý tưởng tên ghép có tên miền .com khả dụng dưới hai mươi euro"
+      },
+      "follow_up_3": {
+        "text": "Tìm kiếm hồ sơ nhãn hiệu cho các ý tưởng tên ứng dụng lập ngân sách sắp tới"
+      },
+      "follow_up_4": {
+        "text": "So sánh chiến lược xây dựng thương hiệu và đặt tên cho các ứng dụng của doanh nhân độc lập"
+      },
+      "follow_up_5": {
+        "text": "Tìm kiếm các phần mở rộng tên miền khả dụng cho các ứng dụng tài chính tự do"
+      },
+      "follow_up_6": {
+        "text": "Liệt kê các nhà đăng ký tên miền thay thế cho các tên miền khởi nghiệp giá rẻ"
+      }
+    },
     "flights_berlin_bangkok": {
       "title": {
         "text": "Chuyến bay từ Berlin đến Bangkok"
@@ -9610,6 +9712,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
+      }
+    },
+    "jobs_in_sweden": {
+      "title": {
+        "text": "Việc làm lập trình viên tại Thụy Điển"
+      },
+      "summary": {
+        "text": "So sánh các công việc lập trình viên hiện tại ở Stockholm và Malmö với tin tuyển dụng gốc và thông tin chi tiết về nơi làm việc có nguồn xác thực."
+      },
+      "message_1": {
+        "text": "Tìm hai công việc lập trình viên phần mềm hiện tại ở Stockholm và hai ở Malmö từ dịch vụ việc làm công của Thụy Điển. Hiển thị một gạch đầu dòng ngắn cho mỗi công việc với chức danh, nhà tuyển dụng, thành phố nơi làm việc và liên kết tin tuyển dụng gốc. Chỉ bao gồm con số tiền lương hoặc thỏa thuận làm việc tại nhà nếu được nêu rõ ràng trong tin tuyển dụng đó; nếu không, hãy ghi là không được nêu. Giữ câu trả lời dưới 200 từ."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nDanh sách tuyển dụng lập trình viên phần mềm hiện tại từ Arbetsförmedlingen (Platsbanken):\n\n### Stockholm\n\n* **Chức danh:** Senior Systemutvecklare  \n  **Nhà tuyển dụng:** NXT Interim Stockholm AB  \n  **Thành phố làm việc:** Stockholm  \n  **Liên kết tin tuyển dụng gốc:** [Tin đăng Platsbanken 31589252](embed:senior-systemutvecklare-2ps)  \n  **Mức lương:** Không được nêu rõ  \n  **Chế độ làm việc tại nhà:** Cung cấp nơi làm việc từ xa (*remote-arbetsplatser*)\n\n* **Chức danh:** Javautvecklare  \n  **Nhà tuyển dụng:** AFRY AB  \n  **Thành phố làm việc:** Stockholm  \n  **Liên kết tin tuyển dụng gốc:** [Tin đăng Platsbanken 31588186](embed:javautvecklare-y47)  \n  **Mức lương:** Không được nêu rõ  \n  **Chế độ làm việc tại nhà:** Cơ hội làm việc kết hợp (*möjlighet till hybridarbete*)\n\n---\n\n### Malmö\n\n* **Chức danh:** Senior AI Engineer  \n  **Nhà tuyển dụng:** Iver Accelerate AB  \n  **Thành phố làm việc:** Malmö  \n  **Liên kết tin tuyển dụng gốc:** [Tin đăng Platsbanken 31588387](embed:senior-ai-engineer-Duw)  \n  **Mức lương:** Không được nêu rõ  \n  **Chế độ làm việc tại nhà:** Cơ hội làm việc kết hợp (*möjlighet till hybridarbete*)\n\n* **Chức danh:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **Nhà tuyển dụng:** Jobbakuten Väst AB  \n  **Thành phố làm việc:** Malmö  \n  **Liên kết tin tuyển dụng gốc:** [Tin đăng Platsbanken 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **Mức lương:** Không được nêu rõ (tin tuyển dụng đề cập đến mức lương theo thị trường mà không có con số cụ thể)  \n  **Chế độ làm việc tại nhà:** Làm việc kết hợp (*Hybridarbete*)"
+      },
+      "follow_up_1": {
+        "text": "Tìm kiếm việc làm lập trình viên phần mềm làm việc từ xa tại Gothenburg"
+      },
+      "follow_up_2": {
+        "text": "So sánh các yêu cầu cho những vị trí lập trình viên cao cấp này"
+      },
+      "follow_up_3": {
+        "text": "Tìm kiếm vị trí lập trình viên frontend tại Stockholm"
+      },
+      "follow_up_4": {
+        "text": "Liệt kê các công nghệ (tech stack) hàng đầu được đề cập trong các tin tuyển dụng này"
+      },
+      "follow_up_5": {
+        "text": "Tìm kiếm tin tuyển dụng lập trình viên sơ cấp (junior) tại Thụy Điển"
+      },
+      "follow_up_6": {
+        "text": "Tóm tắt xu hướng làm việc từ xa trong các công việc công nghệ tại Thụy Điển"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -12630,6 +12764,54 @@
           "uspto": {
             "description": {
               "text": "USPTO nhận tên đề xuất và bộ lọc trạng thái, chính tả và nhóm Nice để tìm nhãn hiệu tại Mỹ. Yêu cầu gửi từ máy chủ của chúng tôi, không kèm mã người dùng OpenMates hoặc lịch sử trò chuyện."
+            }
+          }
+        },
+        "jobs": {
+          "heading": {
+            "text": "Dịch vụ tìm việc"
+          },
+          "description": {
+            "text": "Chỉ dùng khi bạn tìm việc. Cơ quan Việc làm Liên bang Đức và JobTech nhận từ khóa, địa điểm và bộ lọc phù hợp đã chọn qua yêu cầu từ máy chủ. Arbeitnow cung cấp nguồn tin công khai để OpenMates lọc cục bộ. Không gửi ID người dùng OpenMates, CV hay thông tin đăng nhập tài khoản. 80,000 Hours gửi từ khóa và quốc gia đến Algolia; Hard Problems chỉ nhận quốc gia. Địa điểm và bộ lọc khác được kiểm tra tại chỗ."
+          },
+          "arbeitsagentur": {
+            "heading": {
+              "text": "German Federal Employment Agency"
+            },
+            "description": {
+              "text": "Cơ quan Việc làm Liên bang Đức nhận từ khóa việc làm, địa điểm, bán kính tìm kiếm và bộ lọc phù hợp để tìm tin tuyển dụng công khai."
+            }
+          },
+          "jobtech": {
+            "heading": {
+              "text": "JobTech JobSearch"
+            },
+            "description": {
+              "text": "JobTech nhận từ khóa việc làm, địa điểm được nêu, tùy chọn làm việc từ xa, khoảng thời gian đăng tin và số lượng kết quả để tìm việc tại Thụy Điển."
+            }
+          },
+          "arbeitnow": {
+            "heading": {
+              "text": "Arbeitnow"
+            },
+            "description": {
+              "text": "OpenMates tải nguồn tin tuyển dụng công khai của Arbeitnow. Từ khóa, địa điểm và bộ lọc của bạn được áp dụng cục bộ, không gửi đến Arbeitnow."
+            }
+          },
+          "eighty_thousand_hours": {
+            "heading": {
+              "text": "80,000 Hours Job Board"
+            },
+            "description": {
+              "text": "Bảng việc làm công khai của 80,000 Hours dùng tìm kiếm Algolia. Từ khóa và quốc gia đã chọn được gửi đi; OpenMates kiểm tra địa điểm và các bộ lọc khác tại chỗ. Không gửi ID OpenMates, CV hay thông tin tài khoản."
+            }
+          },
+          "hard_problems": {
+            "heading": {
+              "text": "Hard Problems"
+            },
+            "description": {
+              "text": "OpenMates tải nguồn việc làm công khai của Hard Problems cho quốc gia đã chọn. Từ khóa, địa điểm và các bộ lọc khác được kiểm tra tại chỗ, không gửi đến Hard Problems. Không gửi ID OpenMates, CV hay thông tin tài khoản."
             }
           }
         }
@@ -16161,6 +16343,16 @@
       }
     },
     "app_store_examples": {
+      "jobs": {
+        "search": {
+          "1": {
+            "text": "Việc làm phát triển phần mềm tại Stockholm"
+          },
+          "2": {
+            "text": "Việc làm phát triển phần mềm tại Malmö"
+          }
+        }
+      },
       "hosting": {
         "search_domains": {
           "1": {

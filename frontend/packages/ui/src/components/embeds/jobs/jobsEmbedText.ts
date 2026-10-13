@@ -1,9 +1,9 @@
 /** Plain-text renderers for Jobs search and its individual listings. */
 import { resolveResultCount, str, trunc } from '../../../data/embedTextRenderers';
+import { jobProviderLabel, safeExternalUrl } from './jobsEmbedData';
 
 function source(value: unknown): string {
-  const provider = str(value);
-  return provider === 'Arbeitnow' ? 'Arbeitnow' : provider ?? '';
+  return jobProviderLabel(value) ?? '';
 }
 
 /** jobs-job-result — copy a listing with its source and application URL. */
@@ -12,8 +12,8 @@ export function renderJobResult(content: Record<string, unknown>): string {
   const company = str(content.company);
   const location = str(content.location);
   const provider = source(content.provider);
-  const url = str(content.url);
-  const applyUrl = str(content.apply_url);
+  const url = safeExternalUrl(content.url);
+  const applyUrl = safeExternalUrl(content.apply_url);
   const lines = [`**${title}**`];
   if (company) lines.push(company);
   if (location) lines.push(location);

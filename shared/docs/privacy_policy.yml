@@ -1144,7 +1144,11 @@ provider_groups:
       selected source, OpenMates sends your job query, location, and applicable
       filters to the German Federal Employment Agency or Sweden's JobTech API.
       Arbeitnow supplies a public feed; OpenMates applies your search filters
-      to that feed locally. These requests do not transmit OpenMates user
+      to that feed locally. For 80,000 Hours, a search keyword and the selected
+      country are sent to its public job-board search infrastructure (Algolia);
+      location and other job filters are checked locally. Hard Problems receives
+      only the selected country for its public RSS feed; OpenMates applies the
+      other search filters locally. These requests do not transmit OpenMates user
       identifiers, CVs, or account credentials.
     providers:
       arbeitsagentur:
@@ -1170,6 +1174,22 @@ provider_groups:
           - Public job advertisement feed for German job search
         data_shared:
           - The public feed is fetched server-side; user keywords, location, and filters are applied locally and are not sent to Arbeitnow
+          - Note: Requests exclude OpenMates user identifiers, CVs, and account credentials
+      eighty_thousand_hours:
+        privacy_policy: https://80000hours.org/privacy-policy/  # verified 2026-10-13
+        location: UK / search infrastructure operated by Algolia
+        used_for:
+          - Curated public job-board search for Germany- and Sweden-tagged roles
+        data_shared:
+          - Search keyword and selected country are sent to the public 80,000 Hours board search infrastructure (Algolia); named location, date, role-type and other filters are checked locally
+          - Note: Requests exclude OpenMates user identifiers, CVs, and account credentials
+      hard_problems:
+        privacy_policy: https://www.hardproblems.com/privacy  # verified 2026-10-13
+        location: Global
+        used_for:
+          - Public RSS job feed for Germany- and Sweden-tagged impact roles
+        data_shared:
+          - Selected country is sent in a server-side RSS feed request; user keywords, named location, impact area, remote preference, and recency are checked locally
           - Note: Requests exclude OpenMates user identifiers, CVs, and account credentials
 
   # =====================================================================
