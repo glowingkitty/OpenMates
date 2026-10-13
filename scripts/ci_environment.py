@@ -997,9 +997,9 @@ def compose_profile(
         ai_worker = deepcopy(worker)
         ai_worker["environment"].update(
             CI="true", OPENMATES_CI_ISOLATED="1", OPENMATES_CI_AI_FIXTURES="1",
-            CELERY_QUEUES="app_ai",
+            CELERY_QUEUES="app_ai,app_ai_routing",
         )
-        ai_worker["command"] = [part.replace(f"--queues={QUEUES}", "--queues=app_ai") for part in worker["command"]]
+        ai_worker["command"] = [part.replace(f"--queues={QUEUES}", "--queues=app_ai,app_ai_routing") for part in worker["command"]]
         ai_worker["mem_limit"] = 1536 * MIB
         services["ai-worker"] = ai_worker
         if storage_capacity:

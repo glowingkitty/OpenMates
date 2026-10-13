@@ -749,3 +749,58 @@ def test_account_discovery_obeys_serialized_rate_reserve(tmp_path):
     remote.account_occupancy = lambda tokens: (_ for _ in ()).throw(AssertionError("must not discover below reserve"))
     queue.tick(remote, 100)
     assert remote.sent == []
+
+
+def test_submit_classifies_only_exact_source_manifest(tmp_path, monkeypatch):
+    import json
+    import subprocess
+
+    from scripts.ci_coordinator import partition_source_specs
+    from scripts.ci_coverage import partition
+
+    source = "c" * 40
+    candidate_manifest = {
+        "groups": {"candidate": {"execution": "e2e", "specs": ["candidate-only.spec.ts"]}},
+        "holds": {"local-only.spec.ts": {"next_action": "Candidate says held"}},
+    }
+
+    def git_show(command, **kwargs):
+        assert command == ["git", "show", f"{source}:scripts/ci_coverage_manifest.json"]
+        assert kwargs == {"cwd": tmp_path, "text": True,
+                          "stderr": subprocess.DEVNULL, "timeout": 10}
+        return json.dumps(candidate_manifest)
+
+    monkeypatch.setattr("scripts.ci_coordinator.subprocess.check_output", git_show)
+    assert partition(["cli-recovery-discovery.spec.ts"])[0] == ["cli-recovery-discovery.spec.ts"]
+    supported, held = partition_source_specs(
+        ["candidate-only.spec.ts", "cli-recovery-discovery.spec.ts",
+         "tasks-flow.spec.ts", "security-reporting-email-proof.spec.ts", "local-only.spec.ts"],
+        source, tmp_path,
+    )
+    assert supported == ["candidate-only.spec.ts", "tasks-flow.spec.ts",
+                         "security-reporting-email-proof.spec.ts"]
+    assert held["cli-recovery-discovery.spec.ts"] == "New spec requires dependency classification before dispatch"
+    assert held["local-only.spec.ts"] == "Candidate says held"
+
+
+def test_source_coverage_manifest_rejects_missing_or_malformed_source(tmp_path, monkeypatch):
+    import json
+    import subprocess
+    import pytest
+
+    from scripts.ci_coordinator import partition_source_specs
+
+    for response in (
+        subprocess.CalledProcessError(128, ["git", "show"]),
+        "{broken json",
+        json.dumps({"groups": []}),
+        json.dumps({"groups": {"bad": {"execution": "e2e", "specs": "candidate-only.spec.ts"}}}),
+    ):
+        def git_show(*_args, **_kwargs):
+            if isinstance(response, Exception):
+                raise response
+            return response
+
+        monkeypatch.setattr("scripts.ci_coordinator.subprocess.check_output", git_show)
+        with pytest.raises(RuntimeError, match="Source coverage manifest unavailable or malformed"):
+            partition_source_specs(["candidate-only.spec.ts"], "c" * 40, tmp_path)

@@ -452,7 +452,20 @@ def test_accountability_schema_matrix_is_explicit() -> None:
                 declared[name] = config["meta"]["accountability"]
     assert declared == REDUCED_ACCOUNTABILITY
     assert declared["embed_diffs"] is None
+    assert declared["chat_routing_proofs"] is None
     assert "directus_users" not in declared
+
+
+def test_routing_proof_accountability_is_reviewed_without_relaxing_policy() -> None:
+    from backend.core.directus.setup.accountability_policy import configured_accountability
+
+    schemas = Path(__file__).parents[1] / "core/directus/schemas"
+    routing_proof = yaml.safe_load((schemas / "chat_routing_proofs.yml").read_text(encoding="utf-8"))
+    assert configured_accountability("chat_routing_proofs", routing_proof["chat_routing_proofs"]) == (True, None)
+    with pytest.raises(ValueError, match="Unreviewed Directus accountability override"):
+        configured_accountability("invoices", {"meta": {"accountability": None}})
+    with pytest.raises(ValueError, match="Unreviewed Directus accountability override"):
+        configured_accountability("chat_routing_proofs", {"meta": {"accountability": "all"}})
 
 
 def test_storage_query_indexes_are_applied_and_verified(monkeypatch, tmp_path: Path) -> None:
@@ -1010,6 +1023,7 @@ def test_accountability_schema_matrix_is_exact_and_preserves_embed_history() -> 
         "chat_recovery_authorized_direct_skills",
         "chat_recovery_legacy_output_producers",
         "chat_recovery_legacy_batch_claims",
+        "chat_routing_proofs",
         "chat_compression_checkpoints",
         "storage_billing_periods", "storage_billing_owner_state", "storage_billing_warning_units",
         "team_storage_billing_periods", "team_storage_billing_owner_state", "team_storage_billing_warning_units",

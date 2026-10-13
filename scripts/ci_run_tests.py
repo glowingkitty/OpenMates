@@ -484,7 +484,7 @@ def activate_isolated_marker_chat_epoch(spec_name: str) -> dict:
     }
     if (any(api_env.get(key) != value for key, value in expected.items())
             or profile.get("networks", {}).get("default", {}).get("internal") is not True
-            or worker_env.get("CELERY_QUEUES") != "app_ai"
+            or worker_env.get("CELERY_QUEUES") != "app_ai,app_ai_routing"
             or "object-storage" in services
             or api_env.get("OPENMATES_STORAGE_CAPACITY_FIXTURES") is not None
             or api_env.get("S3_ENDPOINT_URL") is not None

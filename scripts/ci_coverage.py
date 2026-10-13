@@ -92,8 +92,9 @@ HOLD_REASONS = {
 }
 
 
-def partition(specs: list[str]) -> tuple[list[str], dict[str, str]]:
-    manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
+def partition(specs: list[str], manifest: dict | None = None) -> tuple[list[str], dict[str, str]]:
+    if manifest is None:
+        manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
     mapped = {spec: group for group in manifest["groups"].values() for spec in group["specs"]}
     supported = []
     held = {}

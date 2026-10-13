@@ -189,6 +189,37 @@ def extract(archive: Path, destination: Path):
         bundle.extractall(destination)
 
 
+def valid_backend_probe_receipt(report: dict, environment: dict, job: dict,
+                                *, expected_harness_commit: str) -> bool:
+    """Admit only isolated diagnostic health; this is never recovery E2E proof."""
+    if not isinstance(report, dict) or not isinstance(environment, dict):
+        return False
+    results = report.get("results")
+    services = environment.get("services")
+    required = {"api", "ai-worker", "core-worker", "runner-gateway", "cms",
+                "cms-database", "cache", "vault"}
+    return (report.get("runtime_profile") == "backend-probe"
+            and report.get("diagnostic_only") is True
+            and report.get("recovery_e2e_verified") is False
+            and report.get("latency_acceptance_verified") is False
+            and isinstance(results, list) and len(results) == 1
+            and isinstance(results[0], dict)
+            and results[0].get("spec") == "backend-worker-broker-probe"
+            and results[0].get("exit_code") == 0
+            and results[0].get("status") == "passed"
+            and environment.get("source_commit") == job["source"]
+            and str(environment.get("run_id")) == str(job["run_id"])
+            and environment.get("harness_commit") == expected_harness_commit
+            and environment.get("runner_environment") == "github-hosted"
+            and environment.get("shared_dev_dns") == "rejected"
+            and environment.get("shared_dev_https") == "rejected"
+            and environment.get("provider_egress") == "rejected-internal-network"
+            and environment.get("frontend") is None
+            and isinstance(services, dict) and required.issubset(services)
+            and all(isinstance(services[name], dict)
+                    and services[name].get("running") is True for name in required))
+
+
 def attach_cleanup(result: dict, job: dict, directory: Path) -> dict:
     """Expose run-bound teardown evidence, including cached historical receipts.
 
@@ -196,7 +227,7 @@ def attach_cleanup(result: dict, job: dict, directory: Path) -> dict:
     were removed. Failed jobs retain absent/failed teardown as visible evidence
     instead of hiding their original assertion report.
     """
-    if job.get("mode") not in ("e2e", "selfhost", "visual-smoke"):
+    if job.get("mode") not in ("e2e", "selfhost", "visual-smoke", "backend-probe"):
         return result
     if job.get("mode") == "visual-smoke" and job["state"] == "success":
         try:
@@ -217,7 +248,8 @@ def attach_cleanup(result: dict, job: dict, directory: Path) -> dict:
                  and not cleanup.get("errors"))
     result.update(cleanup=cleanup, cleanup_verified=valid)
     if job["state"] == "success" and not valid:
-        raise RuntimeError("Green E2E lacks verified run-bound account/container/volume cleanup")
+        label = "Backend diagnostic" if job.get("mode") == "backend-probe" else "E2E"
+        raise RuntimeError(f"Green {label} lacks verified run-bound account/container/volume cleanup")
     return result
 
 
@@ -357,6 +389,11 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
                 raise RuntimeError(
                     "Component proof lacks the GitHub-hosted Vite runtime evidence"
                 )
+        if job["state"] == "success" and job.get("mode") == "backend-probe":
+            if not valid_backend_probe_receipt(
+                    report, environment_data, job,
+                    expected_harness_commit=expected_harness_commit):
+                raise RuntimeError("Backend diagnostic lacks exact isolated health evidence")
         if job["state"] == "success" and job.get("mode") == "artifact":
             if (report.get("runtime_profile") != "artifact"
                     or report.get("artifact_shared_dev_rejected") is not True
@@ -368,6 +405,7 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
             "source_commit": job["source"],
             "run_id": job["run_id"],
             "state": job["state"],
+            "mode": job["mode"],
             "selected_specs": json.loads(job["specs"]),
             "harness_commit": expected_harness_commit,
             "runner_jobs": [

@@ -406,6 +406,7 @@ def test_verify_image_uses_two_fresh_consumers_and_cleans_each(tmp_path, monkeyp
     )
     monkeypatch.setattr(bundle, "write_profile", profiles.append)
     monkeypatch.setattr(bundle, "wait_for_restored_schema", lambda: None)
+    monkeypatch.setattr(bundle, "require_routing_proof_table", lambda: None)
     monkeypatch.setattr(bundle, "database_dump", lambda: dump)
     monkeypatch.setattr(
         bundle,
@@ -452,6 +453,7 @@ def test_verify_image_writes_private_diagnostic_before_rejecting_restore(
     )
     monkeypatch.setattr(bundle, "write_profile", lambda profile: None)
     monkeypatch.setattr(bundle, "wait_for_restored_schema", lambda: None)
+    monkeypatch.setattr(bundle, "require_routing_proof_table", lambda: None)
     monkeypatch.setattr(bundle, "database_dump", lambda: actual)
     monkeypatch.setattr(bundle, "compose", lambda *args, **kwargs: None)
     monkeypatch.setattr(
@@ -538,6 +540,7 @@ def test_generation_requires_roundtrip_before_writing_carrier(monkeypatch, tmp_p
     monkeypatch.setattr(bundle, "run", lambda *args: subprocess.CompletedProcess(args, 0, b"a" * 40, b""))
     monkeypatch.setattr(bundle, "write_profile", lambda profile: None)
     monkeypatch.setattr(bundle, "database_dump", lambda: b"source schema")
+    monkeypatch.setattr(bundle, "require_routing_proof_table", lambda: None)
     monkeypatch.setattr(bundle, "MANIFEST", tmp_path / "manifest.json")
     commands = []
     def fake_compose(*args, input_bytes=None):
@@ -566,3 +569,18 @@ def test_carrier_metadata_rejects_old_format_before_restore(monkeypatch):
     monkeypatch.setattr(bundle, "run", lambda *args, **kwargs: Result())
     with pytest.raises(RuntimeError, match="label .* mismatch"):
         bundle.verify_carrier_metadata("schema:test")
+
+
+def test_prepared_schema_requires_private_routing_proof_table(monkeypatch):
+    calls = []
+    def query(*args):
+        calls.append(args)
+        return subprocess.CompletedProcess(args, 0, b"f\n", b"")
+    monkeypatch.setattr(bundle, "compose", query)
+    with pytest.raises(RuntimeError, match="missing private chat_routing_proofs table"):
+        bundle.require_routing_proof_table()
+    assert len(calls) == 1
+    assert calls[0][:4] == ("exec", "-T", "cms-database", "psql")
+    assert "to_regclass('public.chat_routing_proofs')" in calls[0][-1]
+    monkeypatch.setattr(bundle, "compose", lambda *args: subprocess.CompletedProcess(args, 0, b"t\n", b""))
+    bundle.require_routing_proof_table()

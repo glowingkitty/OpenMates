@@ -135,7 +135,7 @@ def test_candidate_ai_fixture_enables_private_replay_without_removing_harness_sp
 
     profile = compose_profile("a" * 40, ai_fixtures="chat-queued-followups-protocol.spec.ts" in required)
     assert profile["networks"]["default"]["internal"] is True
-    assert profile["services"]["ai-worker"]["environment"]["CELERY_QUEUES"] == "app_ai"
+    assert profile["services"]["ai-worker"]["environment"]["CELERY_QUEUES"] == "app_ai,app_ai_routing"
     for service in ("api", "ai-worker"):
         environment = profile["services"][service]["environment"]
         assert environment["OPENMATES_CI_AI_FIXTURES"] == "1"
@@ -465,8 +465,8 @@ def test_committed_ai_fixtures_have_worker_and_no_external_network():
     profile = compose_profile("a" * 40, ai_fixtures=True)
     assert profile["networks"]["default"]["internal"] is True
     worker = profile["services"]["ai-worker"]
-    assert worker["environment"]["CELERY_QUEUES"] == "app_ai"
-    assert "--queues=app_ai" in worker["command"]
+    assert worker["environment"]["CELERY_QUEUES"] == "app_ai,app_ai_routing"
+    assert "--queues=app_ai,app_ai_routing" in worker["command"]
     assert worker["image"] == profile["services"]["api"]["image"]
     assert "ai-worker" not in compose_profile("a" * 40)["services"]
 

@@ -33,7 +33,7 @@ on:
         default: '[]'
       mode:
         type: choice
-        options: [prepare, component, e2e, artifact, codex, pytest, vitest, selfhost, visual-smoke]
+        options: [prepare, backend-probe, component, e2e, artifact, codex, pytest, vitest, selfhost, visual-smoke]
         default: e2e
       preparation_key:
         description: Exact immutable preparation identity supplied by the coordinator
@@ -77,7 +77,7 @@ jobs:
   test:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && fromJSON('["self-hosted","Linux","X64","openmates-capacity"]') || fromJSON('["ubuntu-latest"]') }}
-    timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 90 || 60 }}
+    timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 90 || inputs.mode == 'backend-probe' && 12 || 60 }}
     defaults:
       run:
         working-directory: subject
@@ -182,11 +182,11 @@ jobs:
           echo '127.0.0.2 api.dev.openmates.org app.dev.openmates.org' | sudo tee -a /etc/hosts
           echo '127.0.0.1 storage.ci.test' | sudo tee -a /etc/hosts
       - uses: pnpm/action-setup@v4
-        if: inputs.mode != 'pytest'
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe'
         with:
           package_json_file: subject/package.json
       - uses: actions/setup-node@v4
-        if: inputs.mode != 'pytest'
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe'
         with:
           node-version: '24'
           cache: pnpm
@@ -200,7 +200,7 @@ jobs:
             subject/backend/core/api/requirements.txt
             subject/packages/openmates-python/pyproject.toml
       - name: Install workspace dependencies
-        if: inputs.mode != 'pytest'
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe'
         run: pnpm install --frozen-lockfile
       - name: Stage exact capacity calibration and rate settings
         if: inputs.capacity_configuration != '' || contains(inputs.specs_json, 'storage-capacity-target.spec.ts')
@@ -209,7 +209,7 @@ jobs:
         run: python3 ../tooling/scripts/ci_capacity_config.py
       - name: Prepare isolated stack
         id: profile
-        if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe'
         run: |
           python3 ../tooling/scripts/ci_environment.py prepare
       - name: Verify declared upload capability
@@ -218,7 +218,7 @@ jobs:
           inputs.preparation_key != ''
         run: test "${{ steps.profile.outputs.uploads }}" = "${{ inputs.prepare_upload }}"
       - name: Log in to GHCR for compatible runtime images
-        if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -247,7 +247,8 @@ jobs:
             --input-dir test-results/ci-preparation-download
       - name: Reuse compatible published runtime images
         id: images
-        if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe'
+        timeout-minutes: ${{ inputs.mode == 'backend-probe' && 3 || 30 }}
         run: |
           upload_args=()
           needs_upload="${{ inputs.prepare_upload }}"
@@ -268,6 +269,10 @@ jobs:
           else
             python3 ../tooling/scripts/ci_runtime_images.py restore "${upload_args[@]}"
           fi
+      - name: Require published backend images and prepared schema
+        if: inputs.mode == 'backend-probe'
+        timeout-minutes: 1
+        run: python3 ../tooling/scripts/isolated_worker_broker_probe.py preflight
       - name: Calculate runtime compatibility keys
         id: runtime_keys
         if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
@@ -417,6 +422,16 @@ jobs:
         run: |
           python3 ../tooling/scripts/ci_environment.py start
           python3 ../tooling/scripts/ci_environment.py verify
+      - name: Start and verify backend diagnostic stack
+        if: inputs.mode == 'backend-probe'
+        timeout-minutes: 4
+        run: |
+          python3 ../tooling/scripts/ci_environment.py start
+          python3 ../tooling/scripts/ci_environment.py verify
+      - name: Probe worker registration, broker, Redis and CMS
+        if: inputs.mode == 'backend-probe'
+        timeout-minutes: 1
+        run: python3 ../tooling/scripts/isolated_worker_broker_probe.py probe
       - name: Install browser
         if: inputs.mode == 'component' || (inputs.mode == 'e2e' && !contains(inputs.specs_json, 'storage-accountability-integration.spec.ts')) || inputs.mode == 'artifact' || inputs.mode == 'visual-smoke'
         working-directory: subject/frontend/apps/web_app
@@ -433,7 +448,7 @@ jobs:
         if: inputs.mode == 'selfhost'
         run: python3 -m pip install pyyaml==6.0.2
       - name: Run selected checks
-        if: inputs.mode != 'prepare'
+        if: inputs.mode != 'prepare' && inputs.mode != 'backend-probe'
         env:
           CI_TEST_MODE: ${{ inputs.mode }}
           CI_SPECS_JSON: ${{ inputs.specs_json }}
@@ -442,10 +457,10 @@ jobs:
         if: always() && (inputs.mode == 'codex' || (inputs.mode == 'e2e' && contains(inputs.specs_json, 'tasks-flow.spec.ts')))
         run: node ../tooling/scripts/ci_codex_fixture.mjs stop
       - name: Collect bounded stack diagnostics
-        if: always() && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke')
+        if: always() && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe')
         run: python3 ../tooling/scripts/ci_environment.py logs
       - name: Remove disposable containers and databases
-        if: always() && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke')
+        if: always() && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe')
         run: python3 ../tooling/scripts/ci_environment.py stop
       - uses: actions/upload-artifact@v4
         if: always()
@@ -472,6 +487,14 @@ jobs:
             subject/test-results/ci-web.log
             subject/frontend/apps/web_app/test-results/
           if-no-files-found: error
+      - name: Retain backend diagnostic raw process output privately
+        if: always() && inputs.mode == 'backend-probe'
+        uses: actions/upload-artifact@v4
+        with:
+          name: isolated-backend-probe-private-diagnostics
+          retention-days: 7
+          path: subject/test-results/ci-backend-probe-private/
+          if-no-files-found: ignore
       - name: Retain exact private storage diagnostics after credential cleanup
         if: always() && (contains(inputs.specs_json, 'storage-capacity-') || contains(inputs.specs_json, 'storage-accountability-integration.spec.ts'))
         uses: actions/upload-artifact@v4

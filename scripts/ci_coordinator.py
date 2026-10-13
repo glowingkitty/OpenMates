@@ -63,6 +63,40 @@ def harness_commit(root: Path) -> str:
     raise ValueError("Could not resolve an immutable CI harness commit")
 
 
+def source_coverage_manifest(source: str, source_root: Path) -> dict:
+    """Load and validate the submitted source's coverage policy, not local HEAD."""
+    try:
+        payload = subprocess.check_output(
+            ["git", "show", f"{source}:scripts/ci_coverage_manifest.json"],
+            cwd=source_root, text=True, stderr=subprocess.DEVNULL, timeout=10,
+        )
+        manifest = json.loads(payload)
+        if not isinstance(manifest, dict) or not isinstance(manifest.get("groups"), dict):
+            raise ValueError("Invalid coverage groups")
+        for group in manifest["groups"].values():
+            if (not isinstance(group, dict)
+                    or not isinstance(group.get("specs"), list)
+                    or not all(isinstance(spec, str) for spec in group["specs"])
+                    or (group.get("execution") is not None
+                        and not isinstance(group["execution"], str))):
+                raise ValueError("Invalid coverage group")
+        holds = manifest.get("holds", {})
+        if not isinstance(holds, dict) or not all(isinstance(hold, dict) for hold in holds.values()):
+            raise ValueError("Invalid coverage holds")
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired,
+            TypeError, ValueError):
+        raise RuntimeError("Source coverage manifest unavailable or malformed") from None
+    return manifest
+
+
+def partition_source_specs(specs: list[str], source: str, source_root: Path):
+    try:
+        from scripts.ci_coverage import partition
+    except ModuleNotFoundError:
+        from ci_coverage import partition
+    return partition(specs, manifest=source_coverage_manifest(source, source_root))
+
+
 class GitHubError(RuntimeError):
     def __init__(self, message: str, retry_at: float):
         super().__init__(message)
@@ -314,7 +348,7 @@ class Queue:
     ) -> dict:
         if not owner or not re.fullmatch(r"[0-9a-f]{40}", source):
             raise ValueError("Owner and full immutable source commit are required")
-        if mode not in ("prepare", "component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke"):
+        if mode not in ("prepare", "backend-probe", "component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke"):
             raise ValueError("Unknown CI mode")
         if proof_profile not in ("", "web-phone", "web-laptop") or (
             proof_profile and mode not in ("component", "e2e", "artifact")
@@ -384,6 +418,8 @@ class Queue:
                 raise ValueError("Invalid spec path")
         if mode in ("component", "e2e", "artifact") and not specs:
             raise ValueError("Browser requests require explicit specs")
+        if mode == "backend-probe" and specs != ["cli-recovery-discovery.spec.ts"]:
+            raise ValueError("Backend probe requires the exact recovery fixture selector")
         if mode == "selfhost" and specs != ["selfhost-smoke.spec.ts"]:
             raise ValueError("Installer runtime requires exactly its original smoke spec")
         if mode == "e2e":
@@ -829,9 +865,7 @@ def enqueue_submission(
             from scripts.ci_artifacts import preparation_key
         except ModuleNotFoundError:
             from ci_artifacts import preparation_key
-        manifest = json.loads(subprocess.check_output(
-            ["git", "show", f"{source}:scripts/ci_coverage_manifest.json"], cwd=source_root, text=True,
-        ))
+        manifest = source_coverage_manifest(source, source_root)
         upload_specs = set(manifest["groups"].get("uploads", {}).get("specs", []))
         include_cli = mode == "e2e"  # Real account provisioning uses the CLI, too.
         include_upload = bool(upload_specs.intersection(selections))
@@ -921,7 +955,7 @@ def main():
     submit.add_argument("--spec", "--test-target", action="append", default=[])
     submit.add_argument("--keep-queued-generations", action="store_true", help="Retain older matching queued checks instead of superseding them")
     submit.add_argument("--preview-url", action="append", default=[])
-    submit.add_argument("--mode", choices=["component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke"], default="e2e")
+    submit.add_argument("--mode", choices=["backend-probe", "component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke"], default="e2e")
     submit.add_argument("--attempt", default="")
     submit.add_argument("--capacity-calibration-job", default="")
     submit.add_argument("--capacity-profile", choices=["accelerated", "burst", "sustained"])
@@ -967,12 +1001,16 @@ def main():
             args.spec = args.preview_url
         elif args.preview_url:
             parser.error("--preview-url requires visual-smoke")
+        if args.mode == "backend-probe":
+            _, held = partition_source_specs(args.spec, args.source, root)
+            if held:
+                raise RuntimeError("Unsupported isolated coverage: " + json.dumps(held))
         if args.mode in ("component", "e2e", "artifact", "selfhost"):
             try:
-                from scripts.ci_coverage import partition, execution_mode
+                from scripts.ci_coverage import execution_mode
             except ModuleNotFoundError:
-                from ci_coverage import partition, execution_mode
-            _, held = partition(args.spec)
+                from ci_coverage import execution_mode
+            _, held = partition_source_specs(args.spec, args.source, root)
             modes = [
                 execution_mode(
                     spec,
@@ -1017,7 +1055,7 @@ def main():
             candidate,
             source_root=root,
             supersede=not args.keep_queued_generations,
-            prepared_builds=args.prepared_builds,
+            prepared_builds=args.prepared_builds and args.mode != "backend-probe",
             capacity_configuration=capacity_configuration,
         )
         print_receipt(receipts[0] if len(receipts) == 1 else receipts, as_json=args.json)

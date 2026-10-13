@@ -536,6 +536,17 @@ def wait_for_restored_schema() -> None:
     raise RuntimeError("Prepared schema did not become queryable")
 
 
+def require_routing_proof_table() -> None:
+    """A prepared image must carry the private table used by routed turns."""
+    result = compose(
+        "exec", "-T", "cms-database", "psql", "-X", "-A", "-t",
+        "-v", "ON_ERROR_STOP=1", "-U", "openmates", "-d", "openmates",
+        "-c", "SELECT to_regclass('public.chat_routing_proofs') IS NOT NULL",
+    )
+    if result.stdout.decode().strip() != "t":
+        raise RuntimeError("Prepared schema is missing private chat_routing_proofs table")
+
+
 def generate(output: Path = OUTPUT) -> Path:
     require_runner()
     source = run("git", "rev-parse", "HEAD").stdout.decode().strip()
@@ -550,6 +561,7 @@ def generate(output: Path = OUTPUT) -> Path:
             "600",
             "cms-setup",
         )
+        require_routing_proof_table()
         compose(
             "exec",
             "-T",
@@ -793,6 +805,7 @@ def verify_image(image: str) -> dict:
                 "cms-database",
             )
             wait_for_restored_schema()
+            require_routing_proof_table()
             actual_dump = database_dump()
             actual = normalized_dump_sha256(actual_dump)
             if actual != manifest["normalized_dump_sha256"]:
