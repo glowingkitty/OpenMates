@@ -299,8 +299,8 @@ test('saved Personal follow-up sends canonical client message IDs in inference h
 	}
 });
 
-// contract-test: supporting surface=rest_api assertions=chats.direction.context-assessment,plans.active-context.vault-boundary
-test('SDK-minted new chat skips only impossible Focus and Plan discovery', async ({ page }: { page: any }) => {
+// contract-test: supporting surface=rest_api assertions=chats.direction.context-assessment,plans.active-context.vault-boundary,chats.send.immediate-admission,app-memories.surface.semantic-parity
+test('SDK-minted first Personal chat admits after fresh Memory privacy and before Project resolution', async ({ page }: { page: any }) => {
 	test.setTimeout(300_000);
 	test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted'
 		|| process.env.CI_TEST_MODE !== 'e2e', 'Requires the isolated GitHub product stack');
@@ -313,12 +313,31 @@ test('SDK-minted new chat skips only impossible Focus and Plan discovery', async
 			await client.whoAmI();
 			if(client.getActiveTeamId())throw Error('Expected paired Personal account');
 			let phase='minted';
-			const result={minted:{focus:0,plans:0,projects:0,tasks:0,combinedRequests:0,combinedProjectRows:false,admission:null,routing:null,details:null},
-				supplied:{focus:0,plans:0,projects:0,tasks:0,combinedRequests:0,combinedProjectRows:false,admission:null,routing:null,details:null}};
+			const result={minted:{focus:0,plans:0,projects:0,tasks:0,combinedRequests:0,memoryRequests:0,
+				combinedProjectRows:false,memoryReady:false,privacyAfterMemoryReceipt:false,
+				projectResolvedBeforeAdmission:null,admission:null,routing:null,details:null},
+				supplied:{focus:0,plans:0,projects:0,tasks:0,combinedRequests:0,memoryRequests:0,
+				combinedProjectRows:false,memoryReady:false,privacyAfterMemoryReceipt:false,
+				projectResolvedBeforeAdmission:null,admission:null,routing:null,details:null}};
+			let releaseMintedProjects,projectGateTimer;
+			const mintedProjectGate=new Promise((resolve,reject)=>{
+				projectGateTimer=setTimeout(()=>reject(Error('Project discovery blocked first admission')),15000);
+				projectGateTimer.unref?.();
+				releaseMintedProjects=()=>{clearTimeout(projectGateTimer);resolve();};
+			});
 			for(const [method,field] of [['getActiveProjectFocus','focus'],['listUserPlans','plans'],
 				['listProjects','projects'],['listUserTasks','tasks']]){
 				const original=client[method].bind(client);
-				client[method]=async(...args)=>{result[phase][field]++;return original(...args);};
+				client[method]=async(...args)=>{
+					const currentPhase=phase;
+					result[currentPhase][field]++;
+					const value=await original(...args);
+					if(method==='listProjects'&&currentPhase==='minted'){
+						await mintedProjectGate;
+						result.minted.projectResolvedBeforeAdmission=result.minted.admission===null;
+					}
+					return value;
+				};
 			}
 			const open=client.openWsClient.bind(client);
 			client.openWsClient=async(...args)=>{
@@ -327,6 +346,13 @@ test('SDK-minted new chat skips only impossible Focus and Plan discovery', async
 				const waitForDiscovery=opened.ws.waitForRecoveryOutputDiscovery.bind(opened.ws);
 				const currentPhase=phase;
 				const requestCombined=opened.ws.requestPersonalSendContextSnapshot.bind(opened.ws);
+				const requestMemory=opened.ws.requestPersonalMemorySnapshot.bind(opened.ws);
+				opened.ws.requestPersonalMemorySnapshot=async(...args)=>{
+					const snapshot=await requestMemory(...args);
+					result[currentPhase].memoryRequests++;
+					result[currentPhase].memoryReady=Array.isArray(snapshot.memories);
+					return snapshot;
+				};
 				opened.ws.requestPersonalSendContextSnapshot=async(...args)=>{
 					const snapshot=await requestCombined(...args);
 					result[currentPhase].combinedRequests++;
@@ -360,9 +386,10 @@ test('SDK-minted new chat skips only impossible Focus and Plan discovery', async
 							&&opened.ws.supportsServerCapability('chat_turn_context_selection_details_v2')===true;
 						capturedAdmission=payload;
 						result[phase].admission={...describeContext(payload.inference_request??{}),
-							contextPending:payload.inference_request?.client_context_pending===true,
+						contextPending:payload.inference_request?.client_context_pending===true,
+						privacyAfterMemoryReceipt:result[phase].privacyAfterMemoryReceipt,
 							discoveryCompleted};
-						if(currentPhase==='minted')releaseMintedDiscovery();
+					if(currentPhase==='minted'){releaseMintedProjects();releaseMintedDiscovery();}
 						if(!resolveCapturedAck)throw Error('Missing admission ACK observer');
 						resolveCapturedAck({type:'chat_turn_preflight_ack',payload:{
 							turn_id:payload.turn_id,preflight_id:'capture-only-no-dispatch'}});
@@ -390,6 +417,8 @@ test('SDK-minted new chat skips only impossible Focus and Plan discovery', async
 				phase=current;
 				try{
 					await client.sendMessage({message:'Ordinary context discovery check.',personal:true,piiDetection:false,
+					onPrivacyPrepared:()=>{result[current].privacyAfterMemoryReceipt=result[current].memoryReady
+						||result[current].combinedRequests===1;},
 						jevContext:suppliedContext,...(current==='supplied'?{newChatId:randomUUID()}:{})});
 					throw Error('Inference preflight was not captured');
 				}catch(error){if(error.message!=='EXPECTED_PRE_DISPATCH_STOP')throw error;}
@@ -399,14 +428,20 @@ test('SDK-minted new chat skips only impossible Focus and Plan discovery', async
 		`);
 		expect(observed.minted.focus).toBe(0);
 		expect(observed.minted.plans).toBe(0);
-		expect(observed.minted.combinedRequests).toBe(1);
-		expect(observed.minted.combinedProjectRows).toBe(true);
-		expect(observed.minted.projects).toBe(0);
+		expect(observed.minted.combinedRequests).toBe(0);
+		expect(observed.minted.memoryRequests).toBe(1);
+		expect(observed.minted.memoryReady).toBe(true);
+		expect(observed.minted.combinedProjectRows).toBe(false);
+		expect(observed.minted.projects).toBeGreaterThan(0);
+		expect(observed.minted.projectResolvedBeforeAdmission).toBe(false);
+		expect(observed.minted.admission.privacyAfterMemoryReceipt).toBe(true);
 		expect(observed.minted.tasks).toBeGreaterThan(0);
 		expect(observed.supplied.focus).toBe(2);
 		expect(observed.supplied.plans).toBe(1);
 		expect(observed.supplied.combinedRequests).toBe(1);
+		expect(observed.supplied.memoryRequests).toBe(0);
 		expect(observed.supplied.combinedProjectRows).toBe(true);
+		expect(observed.supplied.admission.privacyAfterMemoryReceipt).toBe(true);
 		expect(observed.supplied.projects).toBe(0);
 		expect(observed.supplied.tasks).toBeGreaterThan(0);
 		expect(observed.minted.selectionDetailsV2).toBe(true);

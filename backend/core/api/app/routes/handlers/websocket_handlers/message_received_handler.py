@@ -2030,14 +2030,40 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         device_fingerprint_hash
                     )
                     return  # Stop processing until client provides history
-                
+
+                # The locked atomic admission proves this Personal chat has exactly
+                # one durable message: the row we just saved to AI cache. Reuse its
+                # sanitized plaintext only for an ordinary text turn. Code fences
+                # and all other admissions keep the cache/decrypt/embed path.
+                reuse_atomic_first_message = (
+                    fast_projection is not None
+                    and isinstance(first_personal_admission, dict)
+                    and recovery_enqueue_result is not None
+                    and first_personal_admission.get("enqueue_result") is recovery_enqueue_result
+                    and not is_existing_chat and not is_team_chat
+                    and isinstance(content_plain, str)
+                    and "```" not in content_plain
+                    and not extracted_code_embeds
+                )
+
                 # 1. Fetch message history for the chat FROM AI CACHE ONLY (vault-encrypted)
                 # AI cache contains encrypted_content (encrypted with encryption_key_user_server from Vault)
                 # Server decrypts for AI processing, maintaining security
                 cache_fetch_start = time.time()
-                cached_messages_str_list = await cache_service.get_ai_messages_history(user_id, chat_id) # Fetches all vault-encrypted messages
+                cached_messages_str_list = (
+                    [message_for_cache.model_dump_json()]
+                    if reuse_atomic_first_message
+                    else await cache_service.get_ai_messages_history(user_id, chat_id)
+                )
                 cache_fetch_time = time.time() - cache_fetch_start
-                logger.info(f"[PERF] Cache fetch for AI history took {cache_fetch_time:.3f}s, found {len(cached_messages_str_list) if cached_messages_str_list else 0} messages for user_id={user_id}, chat_id={chat_id}")
+                if reuse_atomic_first_message:
+                    logger.info(
+                        "[PERF] Reused atomic first Personal message for AI history in %.3fs "
+                        "for user_id=%s, chat_id=%s",
+                        cache_fetch_time, user_id, chat_id,
+                    )
+                else:
+                    logger.info(f"[PERF] Cache fetch for AI history took {cache_fetch_time:.3f}s, found {len(cached_messages_str_list) if cached_messages_str_list else 0} messages for user_id={user_id}, chat_id={chat_id}")
                 
                 if cached_messages_str_list:
                     logger.info(f"Found {len(cached_messages_str_list)} encrypted messages in AI cache for chat {chat_id}. Loading in chronological order (oldest first).")
@@ -2055,10 +2081,13 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                                 continue
                             
                             try:
-                                # Decrypt with user-specific server key
-                                decrypted_content = await encryption_service.decrypt_with_user_key(
-                                    encrypted_content,
-                                    user_vault_key_id
+                                # The atomic one-message row was just encrypted from
+                                # this sanitized plaintext in this request.
+                                decrypted_content = (
+                                    content_to_encrypt_str if reuse_atomic_first_message
+                                    else await encryption_service.decrypt_with_user_key(
+                                        encrypted_content, user_vault_key_id,
+                                    )
                                 )
                                 
                                 if not decrypted_content:
@@ -2161,9 +2190,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                             logger.warning(f"Error processing cached message for AI history: {e_hist_parse}")
                     
                     logger.info(
-                        f"Successfully decrypted {len(message_history_for_ai)} messages from AI cache for chat {chat_id} "
-                        f"(failures: {decryption_failures}/{len(cached_messages_str_list)}). "
-                        f"Message roles: {[msg.role for msg in message_history_for_ai]}"
+                        "%s %s messages for AI history in chat %s (failures: %s/%s). "
+                        "Message roles: %s",
+                        "Reused" if reuse_atomic_first_message else "Successfully decrypted",
+                        len(message_history_for_ai), chat_id, decryption_failures,
+                        len(cached_messages_str_list),
+                        [msg.role for msg in message_history_for_ai],
                     )
                     
                     # messages_v is a sync revision, not a row count: queued edits and

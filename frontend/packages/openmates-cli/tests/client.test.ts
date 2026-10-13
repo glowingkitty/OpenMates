@@ -3171,9 +3171,20 @@ describe("TUI one-shot send socket warmup", () => {
 
 describe("CLI saved-chat recovery preflight", () => {
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity,chats.completion.lease-fenced
-  for (const scenario of ["unavailable-old-server", "unavailable-failure-signal", "unavailable-failure-rejected", "available", "routing-ack-rejected", "details-ack-rejected"] as const) it(`keeps v2 admission ahead of Project resolution: ${scenario}`, async () => {
-    const projectsAvailable = scenario === "available" || scenario.endsWith("ack-rejected");
+  for (const scenario of ["unavailable-old-server", "unavailable-failure-signal", "unavailable-failure-rejected", "available", "supplied-memory", "routing-ack-rejected", "details-ack-rejected"] as const) it(`keeps v2 admission ahead of Project resolution: ${scenario}`, async () => {
+    const projectsAvailable = scenario === "available" || scenario === "supplied-memory" || scenario.endsWith("ack-rejected");
     const failureSignalAvailable = scenario === "unavailable-failure-signal" || scenario === "unavailable-failure-rejected" || scenario.endsWith("ack-rejected");
+    const disabledProjectId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const disabledProjectKey = new Uint8Array(32).fill(7);
+    const disabledProject = {
+      project_id: disabledProjectId, archived: false,
+      encrypted_project_key: await encryptBytesWithAesGcm(disabledProjectKey, new Uint8Array(32)),
+      encrypted_name: await encryptWithAesGcmCombined("Disabled Project", disabledProjectKey),
+      encrypted_description: await encryptWithAesGcmCombined("Excluded from automatic routing", disabledProjectKey),
+    };
+    const projectList = { projects: scenario === "available" ? [disabledProject] : [] };
+    const suppliedCandidates = [{ project_id: disabledProjectId, name: "Caller disabled Project",
+      summary: "Preserve legacy caller routing", auto_selection: false, focus_activation_policy: "delayed" as const }];
     let admitted = false;
     let candidatesWaitingAtAdmission = false;
     let deferredProjects: ServerResponse | null = null;
@@ -3195,7 +3206,9 @@ describe("CLI saved-chat recovery preflight", () => {
       } else if (request.method === "GET" && request.url === "/v1/projects") {
         if (!admitted) { deferredProjects = response; return; }
         response.writeHead(projectsAvailable ? 200 : 503);
-        response.end(JSON.stringify(projectsAvailable ? { projects: [] } : { message: "temporarily unavailable" }));
+        response.end(JSON.stringify(projectsAvailable ? projectList : { message: "temporarily unavailable" }));
+      } else if (request.method === "GET" && request.url === `/v1/projects/${disabledProjectId}/settings`) {
+        response.end(JSON.stringify({ settings: { auto_selection: false, focus_activation_policy: "delayed" } }));
       } else if (request.method === "GET" && request.url?.startsWith("/v1/user-tasks")) {
         response.end(JSON.stringify({ tasks: [] }));
       } else {
@@ -3206,12 +3219,18 @@ describe("CLI saved-chat recovery preflight", () => {
     server.on("upgrade", (request, connection, head) => {
       wss.handleUpgrade(request, connection, head, ws => {
         ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: [
+          "personal_send_context_snapshot_v1", "personal_memory_snapshot_v1",
           "chat_turn_admit_v1", "chat_turn_context_v1", "chat_turn_context_selection_details_v2",
           ...(failureSignalAvailable ? ["chat_turn_context_failure_v1"] : []),
         ] } }));
         ws.on("message", raw => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload?: Record<string, unknown> };
-          if (frame.type === "chat_turn_admit") {
+          if (frame.type === "personal_memory_snapshot") {
+            ws.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload: {
+              request_id: frame.payload?.request_id, success: true,
+              personal_memories: { encrypted_settings: null, memories: [] },
+            } }));
+          } else if (frame.type === "chat_turn_admit") {
             admitted = true;
             admittedFrame = frame.payload ?? {};
             admittedTurnId = String(frame.payload?.turn_id);
@@ -3220,7 +3239,7 @@ describe("CLI saved-chat recovery preflight", () => {
               turn_id: frame.payload?.turn_id, preflight_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
             } }));
             deferredProjects?.writeHead(projectsAvailable ? 200 : 503, { "content-type": "application/json" });
-            deferredProjects?.end(JSON.stringify(projectsAvailable ? { projects: [] } : { message: "temporarily unavailable" }));
+            deferredProjects?.end(JSON.stringify(projectsAvailable ? projectList : { message: "temporarily unavailable" }));
           } else if (frame.type === "chat_turn_context_failed") {
             failureFrame = frame.payload ?? {};
             ws.send(JSON.stringify({ type: "chat_turn_context_failed_ack", payload: {
@@ -3236,7 +3255,7 @@ describe("CLI saved-chat recovery preflight", () => {
                 message_id: frame.payload?.message_id, request_id: frame.payload?.request_id,
                 phase: frame.payload?.phase, status: "rejected",
               } }));
-            } else if (frame.payload?.phase === "details" && scenario === "available") {
+            } else if (frame.payload?.phase === "details" && (scenario === "available" || scenario === "supplied-memory")) {
               ws.send(JSON.stringify({ type: "chat_turn_context_ack", payload: {
                 chat_id: frame.payload?.chat_id, turn_id: frame.payload?.turn_id,
                 message_id: frame.payload?.message_id, request_id: "other-request",
@@ -3265,15 +3284,24 @@ describe("CLI saved-chat recovery preflight", () => {
       const apiUrl = `http://127.0.0.1:${address.port}`;
       writeLegacySession(apiUrl);
       const client = OpenMatesClient.load({ apiUrl });
-      await assert.rejects(client.sendMessage({ message: "private diagnostic marker", personal: true, piiDetection: false }),
+      await assert.rejects(client.sendMessage({ message: "private diagnostic marker", personal: true, piiDetection: false,
+        ...(scenario === "supplied-memory" ? { memorySnapshot: [], jevContext: { project_focus_candidates: suppliedCandidates } } : {}),
+      }),
         scenario.endsWith("ack-rejected") ? /Chat context delivery was rejected/
           : projectsAvailable ? /update required/i : /Project list failed with HTTP 503/);
       assert.equal(admitted, true);
+      assert.equal(admittedFrame?.inference_request &&
+        (admittedFrame.inference_request as Record<string, unknown>).project_focus_candidates, undefined);
       assert.equal(candidatesWaitingAtAdmission, true, "candidate resolution must not gate durable admission");
       if (scenario === "routing-ack-rejected") {
         assert.equal(contextFrames[0]?.phase, "routing");
       } else {
         assert.deepEqual(contextFrames.map(frame => frame.phase), projectsAvailable ? ["routing", "details"] : []);
+      }
+      if (scenario === "available" || scenario === "supplied-memory") {
+        assert.deepEqual((contextFrames[0]?.context as Record<string, unknown>)?.project_focus_candidates,
+          scenario === "available" ? [] : suppliedCandidates,
+          "fresh deferred discovery excludes disabled Projects; nondeferred v2 preserves caller candidates");
       }
       assert.equal(Boolean(failureFrame), failureSignalAvailable);
       if (failureFrame) {
@@ -3285,7 +3313,7 @@ describe("CLI saved-chat recovery preflight", () => {
           (admittedFrame?.inference_request as Record<string, unknown>)?.client_context_request_id);
         assert.deepEqual(Object.keys(failureFrame).sort(), ["chat_id", "message_id", "reason", "request_id", "turn_id"]);
       }
-      assert.equal(debugLines.length, scenario === "available" ? 0 : 1);
+      assert.equal(debugLines.length, scenario === "available" || scenario === "supplied-memory" ? 0 : 1);
       if (debugLines.length) {
         assert.match(debugLines[0], /^\[chat admission continuation\] phase=(await_routing|await_details|await_confirmation) ack_observed=true routing_sent=(true|false) details_sent=(true|false) socket_open=(true|false) elapsed_ms=\d+$/);
         for (const secret of ["private diagnostic marker", "test-refresh-token", "test-hashed-email", "test-session-id"])
@@ -3370,6 +3398,94 @@ describe("CLI saved-chat recovery preflight", () => {
         Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: oldOutputTty });
         wss.close();
         server.closeAllConnections();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
+  }
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,app-memories.surface.semantic-parity,workflows.chat.metadata-warmup
+  for (const mode of ["deferred-personal", "saved-chat", "legacy-context", "wrong-nonce"] as const) {
+    it(`keeps a fresh one-use privacy snapshot for ${mode}`, async () => {
+      const frames: string[] = [];
+      let privacyPrepared = false;
+      const wss = new WebSocketServer({ noServer: true });
+      const server = createServer((request, response) => {
+        if (request.method === "POST" && request.url === "/v1/auth/session") {
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(JSON.stringify({ success: true, ws_token: "fresh-token",
+            user: { id: "11111111-1111-4111-8111-111111111111" } }));
+          return;
+        }
+        response.writeHead(404); response.end();
+      });
+      server.on("upgrade", (request, connection, head) => {
+        wss.handleUpgrade(request, connection, head, socket => {
+          socket.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: [
+            "personal_send_context_snapshot_v1", "personal_memory_snapshot_v1", "chat_turn_admit_v1",
+            ...(mode === "legacy-context" ? [] : ["chat_turn_context_v1"]),
+          ] } }));
+          socket.on("message", raw => {
+            const frame = JSON.parse(raw.toString()) as { type: string; payload?: { request_id?: string } };
+            frames.push(frame.type);
+            if (frame.type !== "personal_memory_snapshot" && frame.type !== "personal_send_context_snapshot") return;
+            const wrongNonce = mode === "wrong-nonce";
+            socket.send(JSON.stringify({
+              type: frame.type === "personal_memory_snapshot"
+                ? "personal_memory_snapshot_result" : "personal_send_context_snapshot_result",
+              payload: { request_id: wrongNonce ? "00000000-0000-4000-8000-000000000000" : frame.payload?.request_id,
+                success: true, personal_memories: { encrypted_settings: null, memories: [] },
+                ...(frame.type === "personal_send_context_snapshot" ? { project_candidates: [] } : {}),
+              },
+            }));
+            if (wrongNonce) setTimeout(() => socket.close(), 10);
+          });
+        });
+      });
+      await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+      const address = server.address();
+      assert.ok(address && typeof address === "object");
+      const previousTiming = process.env.OPENMATES_TRACE_SEND_TIMING;
+      const previousDebug = process.env.OPENMATES_DEBUG;
+      const previousConsoleError = console.error;
+      const timingLines: string[] = [];
+      try {
+        if (mode === "deferred-personal") {
+          process.env.OPENMATES_TRACE_SEND_TIMING = "1";
+          delete process.env.OPENMATES_DEBUG;
+          console.error = (...values: unknown[]) => {
+            if (typeof values[0] === "string" && values[0].startsWith("[chat send timing]"))
+              timingLines.push(values[0]);
+            else previousConsoleError(...values);
+          };
+        }
+        const apiUrl = `http://127.0.0.1:${address.port}`;
+        writeLegacySession(apiUrl);
+        const client = OpenMatesClient.load({ apiUrl });
+        if (mode === "saved-chat") {
+          (client as unknown as { getChatMessages: () => Promise<{ messages: [] }> }).getChatMessages =
+            async () => ({ messages: [] });
+        }
+        await assert.rejects(client.sendMessage({
+          message: "Private test text", personal: true, piiDetection: false,
+          ...(mode === "saved-chat" ? { chatId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" } : {}),
+          onPrivacyPrepared: () => { privacyPrepared = true; throw new Error("stop after fresh privacy"); },
+        }), mode === "wrong-nonce" ? /WebSocket closed|snapshot|socket/i : /stop after fresh privacy/);
+        const snapshots = frames.filter(type => type === "personal_memory_snapshot" || type === "personal_send_context_snapshot");
+        assert.deepEqual(snapshots, [mode === "saved-chat" || mode === "legacy-context"
+          ? "personal_send_context_snapshot" : "personal_memory_snapshot"]);
+        assert.equal(privacyPrepared, mode !== "wrong-nonce");
+        assert.equal(frames.includes("chat_turn_admit"), false);
+        if (mode === "deferred-personal") {
+          assert.deepEqual(timingLines.map(line => line.match(/^\[chat send timing\] phase=([a-z_]+) elapsed_ms=\d+$/)?.[1]),
+            ["send_begin", "snapshot_request", "snapshot_ready", "memory_decrypt_ready", "privacy_begin"]);
+        }
+      } finally {
+        console.error = previousConsoleError;
+        if (previousTiming === undefined) delete process.env.OPENMATES_TRACE_SEND_TIMING;
+        else process.env.OPENMATES_TRACE_SEND_TIMING = previousTiming;
+        if (previousDebug === undefined) delete process.env.OPENMATES_DEBUG;
+        else process.env.OPENMATES_DEBUG = previousDebug;
+        wss.close(); server.closeAllConnections();
         await new Promise<void>(resolve => server.close(() => resolve()));
       }
     });
@@ -4136,6 +4252,8 @@ describe("CLI saved-chat recovery preflight", () => {
     } = { frameTypes: [], preflightAcknowledged: false, terminalSent: false };
     let sealedPayloadForTest: string | null = null;
     let deferredProjects: ServerResponse | null = null;
+    let projectListRequested = false;
+    let projectListCompletedAfterAdmission = false;
     let discoverySent = false;
     let admissionBeforeDiscovery = false;
     const contextFrames: Array<Record<string, unknown>> = [];
@@ -4159,8 +4277,10 @@ describe("CLI saved-chat recovery preflight", () => {
         return;
       }
       if (request.url === "/v1/projects") {
+        projectListRequested = true;
         // Deliberately stall discovery until the durable message reaches the server.
         if (supported && !captured.preflightPayload) { deferredProjects = response; return; }
+        if (supported) projectListCompletedAfterAdmission = Boolean(captured.preflightPayload);
         response.writeHead(200, { "content-type": "application/json" });
         response.end(JSON.stringify({ projects: [] })); return;
       }
@@ -4169,7 +4289,10 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
-        if (supported) setTimeout(() => ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } })), 50);
+        if (supported) setTimeout(() => ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: [
+          "personal_send_context_snapshot_v1", "personal_memory_snapshot_v1",
+          "chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1",
+        ] } })), 50);
         else {
           // This server advertises capabilities but lacks single admission;
           // the CLI must use durable preflight rather than infer no-frame support.
@@ -4180,8 +4303,21 @@ describe("CLI saved-chat recovery preflight", () => {
         ws.on("message", async (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           captured.frameTypes.push(frame.type);
+          if (frame.type === "personal_memory_snapshot") {
+            ws.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload: {
+              request_id: frame.payload.request_id, success: true,
+              personal_memories: { encrypted_settings: null, memories: [] },
+            } }));
+          }
           if (frame.type === "chat_metadata_warmup") captured.warmupPayload = frame.payload;
-          if (frame.type === "chat_turn_context_ready") contextFrames.push(frame.payload);
+          if (frame.type === "chat_turn_context_ready") {
+            contextFrames.push(frame.payload);
+            ws.send(JSON.stringify({ type: "chat_turn_context_ack", payload: {
+              chat_id: frame.payload.chat_id, turn_id: frame.payload.turn_id,
+              message_id: frame.payload.message_id, request_id: frame.payload.request_id,
+              phase: frame.payload.phase, status: "accepted",
+            } }));
+          }
           if (frame.type === "chat_turn_admit" || frame.type === "chat_turn_preflight") {
             captured.preflightPayload = frame.payload;
             if (supported) {
@@ -4191,6 +4327,7 @@ describe("CLI saved-chat recovery preflight", () => {
             }
             deferredProjects?.writeHead(200, { "content-type": "application/json" });
             deferredProjects?.end(JSON.stringify({ projects: [] }));
+            if (deferredProjects) projectListCompletedAfterAdmission = true;
             const sealedPayload = await sealChatCompletionRecoveryPayload(
               new TextEncoder().encode(JSON.stringify({
                 assistant_message_id: assistantMessageId,
@@ -4316,13 +4453,18 @@ describe("CLI saved-chat recovery preflight", () => {
     assert.ok(address && typeof address === "object");
 
     const previousDebug = process.env.OPENMATES_DEBUG;
+    const previousTiming = process.env.OPENMATES_TRACE_SEND_TIMING;
     const previousConsoleError = console.error;
     const admissionDebugLines: string[] = [];
+    const timingLines: string[] = [];
     if (supported) {
       process.env.OPENMATES_DEBUG = "1";
+      process.env.OPENMATES_TRACE_SEND_TIMING = "1";
       console.error = (...values: unknown[]) => {
         if (typeof values[0] === "string" && values[0].startsWith("[chat admission preparation]")) {
           admissionDebugLines.push(values[0]);
+        } else if (typeof values[0] === "string" && values[0].startsWith("[chat send timing]")) {
+          timingLines.push(values[0]);
         } else previousConsoleError(...values);
       };
     }
@@ -4336,12 +4478,31 @@ describe("CLI saved-chat recovery preflight", () => {
       const result = await client.sendMessage({
         newChatId: preparedChatId,
         message: "Email [EMAIL_1_com] or call [PHONE_1_567].",
+        ...(supported ? { jevContext: { project_focus_candidates: [{
+          project_id: "stale-caller-project", name: "Stale", summary: "Must not route",
+          auto_selection: true, focus_activation_policy: "delayed" as const,
+        }] } } : {}),
         piiMappings: [
           { placeholder: "[EMAIL_1_com]", original: "sarah@example.com", type: "EMAIL" },
           { placeholder: "[PHONE_1_567]", original: "+1 (555) 123-4567", type: "PHONE" },
         ],
       });
       if (supported) {
+        assert.deepEqual(captured.frameTypes.filter(type => type === "personal_memory_snapshot"
+          || type === "personal_send_context_snapshot"), ["personal_memory_snapshot"]);
+        assert.equal(projectListRequested, true);
+        assert.equal(projectListCompletedAfterAdmission, true);
+        const timingPhases = timingLines.map(line => {
+          assert.match(line, /^\[chat send timing\] phase=[a-z_]+ elapsed_ms=\d+$/);
+          for (const secret of ["Email [EMAIL_1_com]", "test-refresh-token", preparedChatId, ownerId])
+            assert.equal(line.includes(secret), false);
+          return line.match(/phase=([a-z_]+)/)?.[1];
+        });
+        for (const phase of ["send_begin", "snapshot_request", "snapshot_ready", "memory_decrypt_ready",
+          "privacy_begin", "privacy_ready", "key_begin", "key_ready", "preflight_begin",
+          "preflight_ready", "admission_frame", "admission_ack", "routing_prepared",
+          "routing_frame", "routing_ack", "details_prepared", "details_frame", "details_ack"])
+          assert.ok(timingPhases.includes(phase), `missing payload-free ${phase} trace`);
         assert.equal(admissionDebugLines.length, 1);
         const line = admissionDebugLines[0];
         assert.match(line, /^\[chat admission preparation\] sdk_minted=true defer_recovery=true combined_admission=true caps_wait_ms=\d+ key_wait_ms=\d+ recovery_keypair_ms=\d+ encrypt_payload_ms=\d+ socket_ready_to_frame_dispatch_ms=\d+ frame_dispatch_from_send_start_ms=\d+ wire_send_ms=\d+$/);
@@ -4365,6 +4526,10 @@ describe("CLI saved-chat recovery preflight", () => {
       if (supported) assert.equal(admitted.project_focus_candidates, undefined);
       else assert.deepEqual(admitted.project_focus_candidates, []);
       assert.deepEqual(contextFrames.map(frame => frame.phase), supported ? ["routing", "details"] : []);
+      if (supported) assert.deepEqual(
+        (contextFrames[0]?.context as Record<string, unknown>)?.project_focus_candidates, [],
+        "deferred routing must use the fresh owner-scoped Project listing, not supplied candidates",
+      );
       for (const frame of contextFrames) {
         assert.equal(frame.request_id, admitted.client_context_request_id);
         assert.equal(frame.chat_id, captured.preflightPayload.chat_id);
@@ -4478,6 +4643,8 @@ describe("CLI saved-chat recovery preflight", () => {
       console.error = previousConsoleError;
       if (previousDebug === undefined) delete process.env.OPENMATES_DEBUG;
       else process.env.OPENMATES_DEBUG = previousDebug;
+      if (previousTiming === undefined) delete process.env.OPENMATES_TRACE_SEND_TIMING;
+      else process.env.OPENMATES_TRACE_SEND_TIMING = previousTiming;
       wss.close();
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));

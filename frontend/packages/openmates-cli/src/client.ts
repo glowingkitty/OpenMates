@@ -8810,6 +8810,18 @@ export class OpenMatesClient {
     promptBudget: AiResponsePromptBudget | null;
   }> {
     const preWsStartedAt = performance.now();
+    // Fixed labels and elapsed numbers only: safe to enable for local send timing.
+    type SendTimingPhase = "send_begin" | "snapshot_request" | "snapshot_ready" | "memory_decrypt_ready"
+      | "privacy_begin" | "privacy_ready" | "key_begin" | "key_ready"
+      | "preflight_begin" | "preflight_ready" | "admission_frame" | "admission_ack"
+      | "routing_prepared" | "routing_frame" | "routing_ack"
+      | "details_prepared" | "details_frame" | "details_ack";
+    const traceSendTiming = (phase: SendTimingPhase): void => {
+      if (process.env.OPENMATES_TRACE_SEND_TIMING === "1") {
+        console.error(`[chat send timing] phase=${phase} elapsed_ms=${Math.round(performance.now() - preWsStartedAt)}`);
+      }
+    };
+    traceSendTiming("send_begin");
     // Optional TUI warming must release its auth refresh lock before this
     // foreground turn starts fresh privacy and account-settings reads.
     if (this.preparedSendSocket && !this.preparedSendSocket.opened) this.closePreparedSendSocket();
@@ -8875,6 +8887,7 @@ export class OpenMatesClient {
     let socketSnapshotResultRows: Array<Record<string, unknown>> | null = null;
     let socketProjectCandidateRows: Array<Record<string, unknown>> | null = null;
     let verifiedProjectCandidates: NonNullable<CliJevContext["project_focus_candidates"]> | null = null;
+    let deferredProjectDirectory = false;
     let projectCandidatesReadyFromSendStartMs: number | null = null;
     let socketMemoryReceipt: {
       ws: OpenMatesWsClient;
@@ -8909,10 +8922,21 @@ export class OpenMatesClient {
             const combinedSupported = await memorySocket.ws.waitForServerCapability("personal_send_context_snapshot_v1");
             const supported = combinedSupported || await memorySocket.ws.waitForServerCapability("personal_memory_snapshot_v1");
             if (supported) {
-              const combined = combinedSupported
+              // Only a newly minted Personal AI turn with a durable deferred
+              // context protocol may move Project discovery behind admission.
+              // Its fresh Memory snapshot still gates privacy on this socket.
+              const deferProjectDirectory = sdkMintedChatId && !teamId && !params.incognito
+                && !params.projectId && shouldWaitForAi
+                && memorySocket.ws.supportsServerCapability("personal_memory_snapshot_v1")
+                && memorySocket.ws.supportsServerCapability("chat_turn_admit_v1")
+                && memorySocket.ws.supportsServerCapability("chat_turn_context_v1");
+              deferredProjectDirectory = deferProjectDirectory;
+              traceSendTiming("snapshot_request");
+              const combined = combinedSupported && !deferProjectDirectory
                 ? await memorySocket.ws.requestPersonalSendContextSnapshot(randomUUID()) : null;
               const snapshot = combined?.personal_memories
                 ?? await memorySocket.ws.requestPersonalMemorySnapshot(randomUUID());
+              traceSendTiming("snapshot_ready");
               if (combined) {
                 socketProjectCandidateRows = combined.project_candidates;
                 verifiedProjectCandidates = await decodePersonalProjectCandidates(this, combined.project_candidates);
@@ -8920,6 +8944,7 @@ export class OpenMatesClient {
               }
               socketSnapshotResultRows = snapshot.memories;
               availableMemories = await this.listMemoriesUnshared({ personal: true }, snapshot);
+              traceSendTiming("memory_decrypt_ready");
               if (!memorySocket.ws.isOpen() || JSON.stringify([this.sendSocketOwnerKey(this.requireSession(), teamId),
                 authCookieFingerprint(this.http.getCookieMap())]) !== ownerKey) {
                 throw new Error("Personal Memory snapshot owner or socket changed during preparation.");
@@ -8964,6 +8989,7 @@ export class OpenMatesClient {
     const memoryPrepMs = Math.round(performance.now() - memoryStartedAt);
 
     const privacyStartedAt = performance.now();
+    traceSendTiming("privacy_begin");
     const savedPrivacyHistory = !params.incognito && params.chatId
       ? await this.getChatMessages(chatId, teamId ? { teamId } : { personal: true }) : null;
     let piiMappings = [...(savedPrivacyHistory?.messages.flatMap((message) => (message.piiMappings ?? []).map((mapping) => ({ ...mapping, type: mapping.type ?? "OTHER" }))) ?? []), ...(params.piiMappings ?? [])];
@@ -8991,6 +9017,7 @@ export class OpenMatesClient {
       throw error;
     }
     const privacyPrepMs = Math.round(performance.now() - privacyStartedAt);
+    traceSendTiming("privacy_ready");
 
     const preWsMs = Math.round(performance.now() - preWsStartedAt);
     // A new chat without an explicit Project cannot have an existing active
@@ -9006,6 +9033,11 @@ export class OpenMatesClient {
       activeTeamId: contextActiveTeamId,
     } = contextSession;
     const contextScope = { teamId, personal: !teamId };
+    // A caller-supplied directory cannot substitute for the fresh scoped
+    // Project listing that follows the memory-only snapshot.
+    const suppliedContext = deferredProjectDirectory
+      ? { ...params.jevContext, project_focus_candidates: undefined }
+      : params.jevContext;
     const contextStartedAt = Date.now();
     let publishRouting!: (context: CliJevContext) => void;
     const routingContext = new Promise<CliJevContext>(resolve => { publishRouting = resolve; });
@@ -9017,7 +9049,10 @@ export class OpenMatesClient {
     void projectRoutingContext.catch(() => {});
     const publishProjectRoutingTimed = (context: CliJevContext) => {
       projectCandidatesReadyFromSendStartMs ??= Math.round(performance.now() - preWsStartedAt);
-      publishProjectRouting(context);
+      // The combined snapshot excludes disabled Projects before ciphertext
+      // leaves the server. Preserve that boundary for deferred REST discovery.
+      publishProjectRouting(deferredProjectDirectory ? { ...context, project_focus_candidates:
+        context.project_focus_candidates?.filter(candidate => candidate.auto_selection === true) } : context);
     };
     let recoveryMs = 0;
     const contextOwnerIsCurrent = () => {
@@ -9032,7 +9067,7 @@ export class OpenMatesClient {
     const earlyContextAbort = new AbortController();
     const earlyContext = !params.incognito && !params.chatId && !params.projectId
       ? withHttpAbortSignal(earlyContextAbort.signal, () =>
-          prepareCliJevContext(this, chatId, contextScope, params.jevContext, finalMessage, {
+          prepareCliJevContext(this, chatId, contextScope, suppliedContext, finalMessage, {
             sdkMintedChatId, onRouting: publishRouting, verifiedProjectCandidates: verifiedProjectCandidates ?? undefined,
             onProjectRouting: publishProjectRoutingTimed, onProjectRoutingError: rejectProjectRouting,
           }))
@@ -9147,6 +9182,7 @@ export class OpenMatesClient {
     let savedTurnId: string | null = null;
 
     if (!params.incognito) {
+      traceSendTiming("key_begin");
       const masterKey = this.getMasterKeyBytes();
       const preparedKey = isNewChat && ownsPreparedId && this.preparedChatKey?.chatId === chatId
         && this.preparedChatOwnerCurrent(this.preparedChatKey.owner, teamId) ? this.preparedChatKey : null;
@@ -9218,6 +9254,7 @@ export class OpenMatesClient {
           throw new Error(`Encrypted chat key not found for chat '${chatId}'. Sync and try again.`);
         }
       }
+      traceSendTiming("key_ready");
     }
 
     // Persist authoritative live focus activation with the chat key, as the web
@@ -9343,7 +9380,7 @@ export class OpenMatesClient {
       pendingContext = (async () => {
         const prepared = earlyContext
           ? await earlyContext
-          : { ok: true as const, value: await withHttpAbortSignal(earlyContextAbort.signal, () => prepareCliJevContext(this, chatId, contextScope, params.jevContext, finalMessage, {
+          : { ok: true as const, value: await withHttpAbortSignal(earlyContextAbort.signal, () => prepareCliJevContext(this, chatId, contextScope, suppliedContext, finalMessage, {
               sdkMintedChatId, onRouting: publishRouting, verifiedProjectCandidates: verifiedProjectCandidates ?? undefined,
               onProjectRouting: publishProjectRoutingTimed, onProjectRoutingError: rejectProjectRouting,
             })), elapsedMs: Date.now() - contextStartedAt };
@@ -9352,7 +9389,9 @@ export class OpenMatesClient {
         if (process.env.OPENMATES_DEBUG === "1") {
           console.error(`[chat preparation] pre_ws_ms=${preWsMs} memory_ms=${memoryPrepMs} privacy_ms=${privacyPrepMs} auth_ws_ms=${authSocketMs} recovery_ms=${recoveryMs} context_ms=${prepared.elapsedMs} project_candidates_ready_from_send_start_ms=${projectCandidatesReadyFromSendStartMs ?? "pending"}`);
         }
-        return prepared.value;
+        return deferredProjectDirectory ? { ...prepared.value, project_focus_candidates:
+          prepared.value.project_focus_candidates?.filter(candidate => candidate.auto_selection === true) }
+          : prepared.value;
       })();
       void pendingContext.catch(() => {});
     }
@@ -9487,6 +9526,7 @@ export class OpenMatesClient {
       : null;
 
     if (!params.incognito && chatKeyBytes && encryptedChatKey) {
+      traceSendTiming("preflight_begin");
       const protocolVersion = 1;
       const chatKeyVersion = 1;
       const turnId = randomUUID();
@@ -9621,6 +9661,7 @@ export class OpenMatesClient {
         }
         // Install all turn observers before the admission frame can trigger inference.
         admissionPayload = preflightPayload;
+        traceSendTiming("preflight_ready");
       } catch (error) {
         ws.close();
         throw error;
@@ -9689,10 +9730,12 @@ export class OpenMatesClient {
         admissionContinuationPhase = "await_ack";
         await consumeSocketMemoryReceipt();
         await ws.sendAsync(useCombinedAdmission ? "chat_turn_admit" : "chat_turn_preflight", admissionPayload);
+        traceSendTiming("admission_frame");
         if (process.env.OPENMATES_DEBUG === "1") {
           console.error(`[chat admission preparation] sdk_minted=${sdkMintedChatId} defer_recovery=${mayDeferRecovery} combined_admission=${useCombinedAdmission} caps_wait_ms=${capabilitiesWaitMs} key_wait_ms=${keyWaitMs} recovery_keypair_ms=${recoveryKeypairMs} encrypt_payload_ms=${encryptPayloadMs} socket_ready_to_frame_dispatch_ms=${Math.round(frameDispatchAt - socketReadyForSendAt)} frame_dispatch_from_send_start_ms=${Math.round(frameDispatchAt - preWsStartedAt)} wire_send_ms=${Math.round(performance.now() - frameDispatchAt)}`);
         }
         const ackPayload = (await admissionAck).payload as Record<string, unknown>;
+        traceSendTiming("admission_ack");
         admissionAckObserved = true;
         if (typeof ackPayload.preflight_id !== "string" || !ackPayload.preflight_id) {
           throw new Error("Encrypted chat admission acknowledgement omitted preflight_id.");
@@ -9731,6 +9774,7 @@ export class OpenMatesClient {
           let routing: CliJevContext;
           try {
             routing = useSelectionDetailsV2 ? await projectRoutingContext
+              : deferredProjectDirectory ? (await Promise.all([pendingContext, projectRoutingContext]))[0]
               : params.projectId ? await pendingContext : await Promise.race([routingContext, pendingContext]);
           } catch (error) {
             try { await notifyContextFailure(useSelectionDetailsV2 ? "project_discovery_failed" : "context_preparation_failed"); }
@@ -9747,7 +9791,12 @@ export class OpenMatesClient {
             if (rejectedPhaseSeen || event.chat_id !== chatId || event.turn_id !== savedTurnId
               || event.message_id !== messageId || event.request_id !== contextRequestId
               || (event.phase !== "routing" && event.phase !== "details")
-              || !attemptedContextPhases.has(event.phase) || event.status !== "rejected") return;
+              || !attemptedContextPhases.has(event.phase)) return;
+            if (event.status === "accepted" || event.status === "duplicate") {
+              traceSendTiming(event.phase === "routing" ? "routing_ack" : "details_ack");
+              return;
+            }
+            if (event.status !== "rejected") return;
             rejectedPhaseSeen = true;
             if (!contextOwnerIsCurrent()) {
               rejectContextAck(new Error("Chat workspace changed while preparing context."));
@@ -9758,11 +9807,13 @@ export class OpenMatesClient {
             });
           });
           const { project_focus_candidates, related_task_candidates, project_focus_catalog, accepted_plan_context } = routing;
+          traceSendTiming("routing_prepared");
           attemptedContextPhases.add("routing");
           await ws.sendAsync("chat_turn_context_ready", { ...identity, phase: "routing", context: useSelectionDetailsV2
             ? { project_focus_candidates }
             : { project_focus_candidates, related_task_candidates, project_focus_catalog, accepted_plan_context } });
           routingFrameSent = true;
+          traceSendTiming("routing_frame");
           admissionContinuationPhase = "await_details";
           let context: CliJevContext;
           try { context = await Promise.race([pendingContext, contextAckRejection]); }
@@ -9772,6 +9823,7 @@ export class OpenMatesClient {
             throw error;
           }
           if (!contextOwnerIsCurrent()) throw new Error("Chat workspace changed while preparing context.");
+          traceSendTiming("details_prepared");
           attemptedContextPhases.add("details");
           await ws.sendAsync("chat_turn_context_ready", { ...identity, phase: "details", context: {
             custom_memory_documents: context.custom_memory_documents ?? [],
@@ -9785,6 +9837,7 @@ export class OpenMatesClient {
             } : {}),
           } });
           detailsFrameSent = true;
+          traceSendTiming("details_frame");
         }
         admissionContinuationPhase = "await_confirmation";
       } else {

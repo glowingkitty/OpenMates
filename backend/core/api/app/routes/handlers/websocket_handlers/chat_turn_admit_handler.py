@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, Awaitable, Callable
 from uuid import UUID
 
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import (
@@ -21,12 +22,69 @@ logger = logging.getLogger(__name__)
 _warm_tasks: set[asyncio.Task] = set()
 
 
+@dataclass
+class ContextAdmissionLane:
+    """One same-socket continuation; only its exact context frames may pass it."""
+
+    chat_id: str
+    turn_id: str
+    message_id: str
+    request_id: str
+    team_id: str | None
+    task: asyncio.Task[None]
+
+    def __post_init__(self) -> None:
+        self.task.add_done_callback(self._capture_completion)
+
+    @staticmethod
+    def _capture_completion(task: asyncio.Task[None]) -> None:
+        if task.cancelled():
+            return
+        failure = task.exception()
+        if failure is not None:
+            logger.error("Admitted chat continuation failed: %s", type(failure).__name__)
+
+    def accepts(self, data: Any) -> bool:
+        if not isinstance(data, dict) or data.get("type") not in {
+            "chat_turn_context_ready", "chat_turn_context_failed",
+        }:
+            return False
+        payload = data.get("payload")
+        return isinstance(payload, dict) and all(
+            payload.get(key) == value for key, value in (
+                ("chat_id", self.chat_id), ("turn_id", self.turn_id),
+                ("message_id", self.message_id), ("request_id", self.request_id),
+                ("team_id", self.team_id),
+            )
+        )
+
+    async def receive_next(self, receive: Callable[[], Awaitable[Any]]) -> tuple[Any, bool]:
+        """Buffer one unrelated frame locally until admission finishes."""
+        data = await receive()
+        if self.task.done() or not self.accepts(data):
+            await self.task
+            return data, False
+        return data, True
+
+    async def close(self) -> None:
+        if not self.task.done():
+            self.task.cancel()
+        try:
+            await self.task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            # The completion callback already captured and logged the failure.
+            pass
+
+
 async def handle_chat_turn_admit(
     *, websocket: Any, manager: Any, cache_service: Any,
     directus_service: Any, encryption_service: Any,
     user_id: str, user_id_hash: str, device_fingerprint_hash: str,
     payload: dict[str, Any], stable_device_fingerprint_hash: str | None = None,
     user_otel_attrs: dict | None = None, is_allowlisted_test_account: bool = False,
+    schedule_context_dispatch: Callable[[ContextAdmissionLane], None] | None = None,
 ) -> None:
     request = payload.get("inference_request")
     message = request.get("message") if isinstance(request, dict) else None
@@ -165,26 +223,43 @@ async def handle_chat_turn_admit(
         handle_message_received,
     )
 
-    await handle_message_received(
-        websocket=websocket, manager=manager, cache_service=cache_service,
-        directus_service=directus_service, encryption_service=encryption_service,
-        user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,
-        payload=dispatch, user_otel_attrs=user_otel_attrs,
-        is_allowlisted_test_account=is_allowlisted_test_account,
-        client_context_binding_ref=binding_ref,
-        client_context_turn_id=payload["turn_id"] if binding_ref else None,
-        first_personal_admission=first_personal_admission,
-    )
-    # Metadata refresh is best-effort and never precedes dispatch. Keep a bounded
-    # strong task reference while its fresh-scoped cache renewal completes.
-    if len(_warm_tasks) < 32:
-        from backend.core.api.app.routes.handlers.websocket_handlers.workflow_metadata_warmup_handler import (
-            warm_encrypted_discovery_indices,
+    async def continue_dispatch() -> None:
+        await handle_message_received(
+            websocket=websocket, manager=manager, cache_service=cache_service,
+            directus_service=directus_service, encryption_service=encryption_service,
+            user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,
+            payload=dispatch, user_otel_attrs=user_otel_attrs,
+            is_allowlisted_test_account=is_allowlisted_test_account,
+            client_context_binding_ref=binding_ref,
+            client_context_turn_id=payload["turn_id"] if binding_ref else None,
+            first_personal_admission=first_personal_admission,
         )
+        # Metadata refresh is best-effort and never precedes dispatch. Keep a
+        # bounded strong reference while fresh-scoped renewal completes.
+        if len(_warm_tasks) < 32:
+            from backend.core.api.app.routes.handlers.websocket_handlers.workflow_metadata_warmup_handler import (
+                warm_encrypted_discovery_indices,
+            )
 
-        task = asyncio.create_task(warm_encrypted_discovery_indices(
-            cache_service=cache_service, directus_service=directus_service,
-            user_id=user_id, team_id=payload.get("team_id"),
-        ))
-        _warm_tasks.add(task)
-        task.add_done_callback(_warm_tasks.discard)
+            task = asyncio.create_task(warm_encrypted_discovery_indices(
+                cache_service=cache_service, directus_service=directus_service,
+                user_id=user_id, team_id=payload.get("team_id"),
+            ))
+            _warm_tasks.add(task)
+            task.add_done_callback(_warm_tasks.discard)
+
+    if binding_ref and schedule_context_dispatch is not None:
+        task = asyncio.create_task(continue_dispatch())
+        lane = ContextAdmissionLane(
+            chat_id=payload["chat_id"], turn_id=payload["turn_id"],
+            message_id=payload["message_id"],
+            request_id=request["client_context_request_id"],
+            team_id=payload.get("team_id"), task=task,
+        )
+        try:
+            schedule_context_dispatch(lane)
+        except BaseException:
+            await lane.close()
+            raise
+        return
+    await continue_dispatch()

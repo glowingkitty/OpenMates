@@ -84,7 +84,7 @@ from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai
 from .handlers.websocket_handlers.call_message_completed_handler import handle_call_message_completed
 from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
 from .handlers.websocket_handlers.chat_turn_preflight_handler import handle_chat_turn_preflight
-from .handlers.websocket_handlers.chat_turn_admit_handler import handle_chat_turn_admit
+from .handlers.websocket_handlers.chat_turn_admit_handler import ContextAdmissionLane, handle_chat_turn_admit
 from .handlers.websocket_handlers.assistant_speech_handler import handle_assistant_speech_event
 from .handlers.websocket_handlers.chat_metadata_recovery_handlers import (
     handle_metadata_recovery, send_available_metadata_jobs, filter_generated_metadata_storage,
@@ -3041,9 +3041,17 @@ async def websocket_endpoint(
 
     disconnect_reason = "Server closed connection"
     personal_snapshot_used = False
+    active_context_lane: ContextAdmissionLane | None = None
     try:
         while True:
-            data = await receive_json_or_disconnect(websocket)
+            if active_context_lane is None:
+                data = await receive_json_or_disconnect(websocket)
+            else:
+                data, still_admitting = await active_context_lane.receive_next(
+                    lambda: receive_json_or_disconnect(websocket),
+                )
+                if not still_admitting:
+                    active_context_lane = None
             try:
                 volatile_session_live = await refresh_volatile_ai_live_session(
                     cache_service, volatile_session_nonce, user_id,
@@ -3189,6 +3197,12 @@ async def websocket_endpoint(
             
 
             elif message_type == "chat_turn_admit":
+                def schedule_context_dispatch(lane: ContextAdmissionLane) -> None:
+                    nonlocal active_context_lane
+                    if active_context_lane is not None:
+                        raise RuntimeError("A chat admission continuation is already active")
+                    active_context_lane = lane
+
                 await handle_chat_turn_admit(
                     websocket=websocket, manager=manager, cache_service=cache_service,
                     directus_service=directus_service, encryption_service=encryption_service,
@@ -3197,6 +3211,7 @@ async def websocket_endpoint(
                     stable_device_fingerprint_hash=stable_device_fingerprint_hash,
                     payload=payload, user_otel_attrs=user_otel_attrs,
                     is_allowlisted_test_account=is_allowlisted_test_account,
+                    schedule_context_dispatch=schedule_context_dispatch,
                 )
 
             elif message_type == "chat_turn_context_ready":
@@ -4819,6 +4834,8 @@ async def websocket_endpoint(
             logger.warning(f"Error attempting to send close frame to User {user_id}, Device {device_fingerprint_hash} after unexpected error: {close_exc}")
     finally:
         # Include deliberate protocol closes/breaks and task cancellation.
+        if active_context_lane is not None:
+            await active_context_lane.close()
         manager.disconnect(websocket, reason=disconnect_reason)
         # Volatile authority ends immediately even though ordinary connection
         # metadata intentionally remains in the manager's 30 second grace.

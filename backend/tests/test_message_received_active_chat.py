@@ -1334,6 +1334,125 @@ async def test_first_personal_enqueue_projection_skips_duplicate_reads_or_falls_
         assert owner_check.await_args.kwargs["authoritative_metadata"] == projection
 
 
+# contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent,chats.persistence.client-encrypted
+@pytest.mark.asyncio
+@pytest.mark.parametrize("atomic,content,expected_content,history_reads", [
+    (True, "hello first turn", "hello first turn", 0),
+    (True, "hello\u200b first turn", "hello first turn", 0),
+    (True, '```json\n{"type":"image","embed_id":"embed-123"}\n```',
+     '```json\n{"type":"image","embed_id":"embed-123"}\n```', 1),
+    (False, "hello first turn", "hello first turn", 1),
+])
+async def test_atomic_first_personal_plain_history_reuses_saved_row(
+    monkeypatch, atomic, content, expected_content, history_reads,
+):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    user_id, chat_id, turn_id, preflight_id, message_id = (
+        "user-123", "chat-123", "turn-123", "preflight-123", "message-123",
+    )
+    projection = {
+        "id": chat_id, "hashed_user_id": hash_id(user_id), "hashed_team_id": None,
+        "chat_visibility": None, "participant_user_hashes": None,
+        "participant_key_envelopes": None, "messages_v": 1, "title_v": 0,
+        "encrypted_title": "title-ciphertext", "encrypted_chat_key": "wrapped-key-1",
+        "is_shared": False, "parent_id": None, "is_sub_chat": False,
+        "budget_limit": None, "budget_spent": 0,
+    }
+    enqueue_result = {
+        "preflight_id": preflight_id, "state": "ENQUEUED", "committed_messages_v": 1,
+        "admission_protocol_epoch": 1, "admission_sends_paused": False,
+        "admission_chat_projection": projection,
+        "inference_task_id": "task-123", "outbox_id": "outbox-123",
+    }
+    cached_row = json.dumps({
+        "id": message_id, "chat_id": chat_id, "role": "user",
+        "sender_name": "user", "encrypted_content": "encrypted-current",
+        "created_at": 1_700_000_000,
+    })
+    cache = SimpleNamespace(
+        set=AsyncMock(return_value=True),
+        get_user_vault_key_id=AsyncMock(return_value="vault-key-123"),
+        save_chat_message_and_update_versions=AsyncMock(return_value={
+            "messages_v": 1, "last_edited_overall_timestamp": 1_700_000_000,
+        }),
+        increment_and_tombstone_user_draft=AsyncMock(return_value=1),
+        get_ai_messages_history=AsyncMock(return_value=[cached_row]),
+        get_user_by_id=AsyncMock(return_value={"language": "en"}),
+        get_active_ai_task=AsyncMock(return_value=None),
+        has_queued_messages=AsyncMock(return_value=False),
+        try_claim_active_ai_task=AsyncMock(return_value=True),
+        update_user=AsyncMock(),
+    )
+    directus = SimpleNamespace(
+        chat=SimpleNamespace(
+            get_chat_metadata=AsyncMock(),
+            check_chat_ownership=AsyncMock(return_value=True),
+            release_inference_outbox=AsyncMock(return_value={"status": "released"}),
+        ),
+        get_user_fields_direct=AsyncMock(return_value={}),
+    )
+    encryption = SimpleNamespace(
+        encrypt_with_user_key=AsyncMock(return_value=("encrypted-current", 1)),
+        decrypt_with_user_key=AsyncMock(return_value=expected_content),
+    )
+    manager = FakeManager()
+    enqueue = AsyncMock(return_value=enqueue_result)
+    recovery = AsyncMock(return_value={"dispatched": True})
+
+    class FakeRecoveryService:
+        def __init__(self, _directus):
+            pass
+
+        execute = recovery
+
+    monkeypatch.setattr(handler, "enqueue_chat_turn", enqueue)
+    monkeypatch.setattr(handler, "ChatRecoveryService", FakeRecoveryService)
+    monkeypatch.setattr(handler, "_active_project_context", AsyncMock(return_value=(None, None)))
+    monkeypatch.setitem(
+        sys.modules, "backend.core.api.app.services.embed_service",
+        SimpleNamespace(EmbedService=FakeEmbedService),
+    )
+    monkeypatch.setitem(
+        sys.modules, "backend.core.api.app.services.skill_registry",
+        SimpleNamespace(get_global_registry=lambda: FakeSkillRegistry(manager)),
+    )
+    payload = {
+        "chat_id": chat_id, "turn_id": turn_id, "protocol_version": 1,
+        "preflight_id": preflight_id, "encrypted_chat_key": "wrapped-key-1",
+        "message": {"message_id": message_id, "role": "user",
+                    "content": content, "created_at": 1_700_000_000},
+    }
+    await handler.handle_message_received(
+        websocket=FakeWebSocket(), manager=manager, cache_service=cache,
+        directus_service=directus, encryption_service=encryption,
+        user_id=user_id, device_fingerprint_hash="device-123", payload=payload,
+        first_personal_admission={
+            "chat_id": chat_id, "turn_id": turn_id, "message_id": message_id,
+            "preflight_id": preflight_id, "wrapped_chat_key": "wrapped-key-1",
+            **({"enqueue_result": enqueue_result} if atomic else {}),
+        },
+    )
+
+    assert ("dispatch_skill", "ai", "ask", chat_id) in manager.calls
+    assert cache.get_ai_messages_history.await_count == history_reads
+    assert encryption.decrypt_with_user_key.await_count == history_reads
+    assert encryption.encrypt_with_user_key.await_args.args[0] == expected_content
+    assert cache.save_chat_message_and_update_versions.await_count == 1
+    assert cache.save_chat_message_and_update_versions.await_args.kwargs["explicit_messages_v"] == 1
+    assert [entry["content"] for entry in manager.request_payload["message_history"]] == [expected_content]
+    assert manager.request_payload["message_history"][0][
+        "native_cache_canonical_content_sha256"
+    ] == handler.canonical_content_sha256(expected_content)
+    if atomic:
+        enqueue.assert_not_awaited()
+    else:
+        enqueue.assert_awaited_once()
+    directus.chat.get_chat_metadata.assert_not_awaited()
+    directus.chat.release_inference_outbox.assert_awaited_once()
+    recovery.assert_awaited_once()
+
+
 # contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
 @pytest.mark.parametrize("mutation", [
     "owner", "direct", "missing", "epoch", "paused", "version",

@@ -365,6 +365,21 @@ immediate_admission:
   given: Alice submits a personal web or TUI message while account discovery or private Project context is still loading.
   when: The network accepts her admission and later context arrives, or the device reconnects and retries the same turn.
   then: The user row appeared once and the composer cleared immediately; processing uses correlated authorized context without duplicate inference or billing and missing context cannot be mistaken for empty context.
+- id: personal-memory-precedes-admission-projects-overlap
+  assertion_ids: [chats.send.immediate-admission, chats.persistence.client-encrypted]
+  given: Alice sends a newly prepared first Personal AI turn on a server supporting phased context while Project discovery is slow.
+  when: The client obtains its fresh same-socket one-use Memory privacy snapshot and submits the encrypted turn.
+  then: Admission does not wait for Project discovery; only fresh authorized Project candidates reach routing, disabled or caller-supplied stale candidates do not substitute, and failed discovery remains a failure rather than an empty catalogue.
+- id: bound-context-arrives-during-admission-continuation
+  assertion_ids: [chats.send.immediate-admission, chats.message.identity-idempotent]
+  given: Durable admission has acknowledged and sealed the exact owner, device, chat, turn, message and request binding while broker dispatch is still finishing.
+  when: Matching context-ready or context-failed frames arrive on that same authenticated socket.
+  then: Existing session and scope checks accept the bound phase before dispatch finishes; unrelated frames cannot overtake the admission, buffering is bounded, and disconnect or failure preserves the durable recovery identity.
+- id: atomic-first-text-reuses-sanitized-history
+  assertion_ids: [chats.persistence.client-encrypted, chats.message.identity-idempotent]
+  given: Locked atomic admission proves a new Personal chat contains exactly the ordinary text message that was just sanitized and saved to encrypted AI cache.
+  when: The server constructs the first model history.
+  then: It may reuse that sanitized text without rereading and decrypting the same row; the encrypted cache write, canonical digest, turn identity and normal attachment, embed, supplied-history and uncertain-admission paths remain intact.
 main_composer_suggestion:
 - id: private-next-question-after-success
   assertion_ids: [chats.followups.main-generated-composer]
