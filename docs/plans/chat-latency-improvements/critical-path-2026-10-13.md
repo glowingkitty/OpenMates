@@ -126,3 +126,46 @@ The first encrypted message remains cached but its sanitized one-message AI hist
 The next bounded change is a single freshly authenticated Personal Project routing-directory request using the existing owner-scoped batch service. The test account has two discoverable Projects even for Spain. Current CLI discovery lists Projects and then requests settings for each before publishing routing; those settings reads finish near routing readiness. Reusing a client WebSocket auth receipt cannot remove server authentication on these independent REST endpoints. The new request must retain fresh ownership, enabled-selection filtering, ciphertext-only transport, and legacy/Team fallback. A tested speculative raw-wallet overlap is held after review found that a concurrent debit could invalidate the earlier result; the existing post-context credit order remains. No access or balance permission is cached.
 
 CI checks controlled correctness and recovery; these latency observations use real inference on development. The last prepared batch reused all four schema/runtime image inputs. Its remaining 163-second web build is separate from chat request processing. Full prepared E2E turnaround still exceeds the 2–3-minute diagnostic goal; focused local probes remain the first debugging step.
+
+
+## Core14 published observations (`0d7822d`)
+
+The authenticated one-request Personal Project routing directory and its guarded CLI use were published at `0d7822dd0bbeb6a6cf50e98324b8f5a5e9c77aa0`. Seven exact-source recovery cases passed without retries. The proposed speculative wallet read was held: an earlier positive balance could become insufficient while required context loads. Fresh wallet authority retains its established ordering. These real-AI TUI observations are individual warm samples, not medians or a matched causal performance comparison. Both used Google AI Studio Gemini 3.8 Flash with LOW thinking.
+
+| Ordinary TUI request | Optimistic user row | Selected Mate paint | First authored paint | Completion |
+|---|---:|---:|---:|---|
+| Spain capital | 30 ms | 2,271 ms | 4,571 ms | Server final 7,737 ms; TUI idle 21,823 ms |
+| Berlin AI events | 29 ms | 1,751 ms | 18,456 ms | Server final 27,865 ms; no TUI idle within the 90-second capture budget |
+
+Both Mate measurements miss 1,500 ms; Spain also misses 3,000 ms. Berlin called Events search and returned ten results. Its first tool progress was 5,864 ms. The longer client completion tail is separate from answer arrival and remains unattributed. A subsequent independent deployment advanced canonical source during the Berlin run; container provenance alone does not prove all source-mounted inputs remained isolated. Do not attribute a before/after improvement to Project batching from these samples.
+
+The Spain trace supplies the following contiguous critical-path spans. Intermediate values include transport and scheduling unless a narrower server measurement is stated. Overlapping work is not added twice.
+
+| Cumulative time from Enter | Work on the critical path | Elapsed |
+|---|---|---:|
+| 0–410 ms | Fresh Personal Memory/privacy preparation and admission-frame dispatch | 410 ms |
+| 410–777 ms | Atomic admission and durable ACK delivery; server preflight itself took 334 ms | 367 ms |
+| 777–1,367 ms | Project directory, routing-context delivery and fresh routing authority overlap; bound routing frame at 1,187 ms | 590 ms |
+| 1,367–1,696 ms | Required fresh credit and Project eligibility join | 329 ms |
+| 1,696–1,757 ms | Jev request preparation | 61 ms |
+| 1,757–2,233 ms | Jev stage one, permitted model resolution and Mate publication | 476 ms |
+| 2,233–2,405 ms | Sealed handoff and main-worker receipt | 172 ms |
+| 2,405–3,178 ms | Main setup, execution authority, required context and preprocessing | 773 ms |
+| 3,178–3,248 ms | Main prompt and provider setup | 70 ms |
+| 3,248–4,535 ms | Provider call through first authored text; HTTP request headers at 3,271 ms | 1,287 ms |
+| 4,535–4,571 ms | Stream delivery and TUI paint | 36 ms |
+
+Mate publication-to-paint was 38 ms. Main's 773 ms includes about 36 ms service setup, 124 ms sealed handoff loading, 143 ms durable turn claiming, 53 ms context hydration, a 163 ms concurrent billing/embed interval, and about 127 ms preprocessing. The active-summary write runs concurrently for 381 ms but contributes only the final 92 ms join; it must not be counted as another full 381 ms sequential delay. An approximately 85 ms preprocessing subspan is not yet attributed. Stage two was authoritatively skipped for Spain; it cannot explain this factual request's delay.
+
+For Berlin, Events search completed at 8,651 ms, while parent embed sealing did not complete until 15,300 ms. The next model request began at 15,859 ms and first authored server text arrived at 18,173 ms. The 6,649 ms search-result-to-parent-embed interval is a separate tool-result critical path. A later independent same-turn skill change must be evaluated on its own exact source.
+
+Instrumented web diagnostics failed before any admission frame and yield no backend AI timing. A bounded follow-up retained fixed compiled source locations and failed-send preparation phases; it identified an observer defect: calling the app's ZoneAwarePromise prototype on a native WebCrypto promise throws before the original promise can be returned. Those failures are invalid for product assessment. The corrected private probe captures the intrinsic native Promise method before app scripts and contains observer failures; an actual Zone.js/WebCrypto identity smoke passes. It is a diagnostic tool correction, not a web product fix.
+
+Bounded infrastructure probes found warm PostgreSQL statements around 0.9 ms and reused API-to-CMS ping requests at a median 8.1 ms. A paired pre-transaction internal-token/bearer probe did not support a large bearer-authentication penalty. These probes do not locate real operation lock, ORM or transaction time; detailed numeric operation spans are the next evidence.
+
+All four runtime/schema carriers were reused for the Core14 correctness batch. Selected recovery tests took 221.5 seconds, but request-to-CI completion still took about 1,038 seconds because prepared builds and dispatch remained outside that test interval. The full warm E2E loop does not yet meet the 2–3-minute development target. CI is outside the product request path and runs controlled correctness/security/recovery fixtures; the real AI latency observations above run directly on development.
+
+
+### Corrected bounded web dispatch diagnostic
+
+With the observer correction and its Zone.js smoke in place, one ordinary Spain web dispatch diagnostic completed in 30.71 seconds, reusing the installed browser and existing isolated account. Admission was sent at 613 ms after the actual Send click. Local message readiness was at 349 ms; connected-account context was ready in the next millisecond. Optional `set_active_chat` completed at 540 ms while the independent message send proceeded. The remaining admission preparation took 264 ms. This diagnostic intentionally stops at admission and does not measure Mate paint, authored text, final completion or LOW usage; it is not a latency-acceptance run. No product UI change was required to repair the observer.

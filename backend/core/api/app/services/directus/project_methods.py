@@ -57,6 +57,14 @@ def _is_sha256_hex(value: str | None) -> bool:
     return bool(value and SHA256_HEX_RE.fullmatch(value))
 
 
+def _is_valid_uuid(value: str) -> bool:
+    try:
+        uuid.UUID(value)
+        return True
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
 def _validate_project_key_wrapper(wrapper: dict[str, Any]) -> bool:
     key_type = wrapper.get("key_type")
     if key_type not in PROJECT_KEY_WRAPPER_TYPES:
@@ -152,6 +160,36 @@ class ProjectMethods:
 
         response = await self.directus_service.get_items("projects", params=params, no_cache=True)
         return response if isinstance(response, list) else []
+
+    async def get_routing_candidate_project_ids(
+        self, project_ids: list[str], user_id: str, team_id: str | None = None,
+    ) -> set[str]:
+        """Fresh, owner-scoped identity read for the bounded routing candidates."""
+        if len(project_ids) > 40:
+            raise ValueError("Project routing candidates must be at most 40")
+        if any(not isinstance(project_id, str) or not _is_valid_uuid(project_id)
+               for project_id in project_ids):
+            raise ValueError("Invalid Project routing candidate ID")
+        if len(set(project_ids)) != len(project_ids):
+            raise ValueError("Project routing candidates must be unique")
+        if not project_ids:
+            return set()
+        params = {
+            "filter[project_id][_in]": ",".join(project_ids),
+            "filter[archived][_neq]": True,
+            "fields": "project_id",
+            "limit": len(project_ids),
+        }
+        params.update(_owner_params(user_id, team_id))
+        rows = await self.directus_service.get_items(
+            "projects", params=params, no_cache=True, raise_on_error=True,
+        )
+        if not isinstance(rows, list):
+            raise RuntimeError("Failed to read Project routing candidates")
+        requested = set(project_ids)
+        return {project_id for row in rows if isinstance(row, dict)
+                for project_id in [row.get("project_id")]
+                if isinstance(project_id, str) and project_id in requested}
 
     async def get_project(self, project_id: str, user_id: str, team_id: str | None = None) -> Optional[Dict[str, Any]]:
         params = {

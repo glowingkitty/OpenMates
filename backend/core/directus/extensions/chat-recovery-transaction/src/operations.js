@@ -2604,7 +2604,7 @@ async function releaseInferenceOutbox(database, raw) {
   });
 }
 
-async function verifyRoutingAdmission(database, raw, now) {
+async function verifyRoutingAdmission(database, raw, now, timing) {
   const body = operationBody(raw, 'verify_routing_admission');
   const owner = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
   const team = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
@@ -2613,48 +2613,61 @@ async function verifyRoutingAdmission(database, raw, now) {
   const preflightId = uuid(body.preflight_id, 'invalid_preflight_id');
   const turnId = uuid(body.turn_id, 'invalid_turn_id');
   const messageId = string(body.message_id, 'invalid_message_id', 255);
+  timing?.enter('transaction_setup');
   return database.transaction(async (trx) => {
-    await requireUnfencedRecoveryAccount(trx, owner);
-    await lockRecoveryChats(trx, chatId);
-    if (await trx(CHAT_DELETION_FENCES).where({ id: chatId }).first()) {
-      return { authorized: false };
+    // Lock-inclusive group: account advisory lock and fence read, then chat advisory lock.
+    timing?.enter('account_chat_locks');
+    try {
+      await requireUnfencedRecoveryAccount(trx, owner);
+      await lockRecoveryChats(trx, chatId);
+      timing?.enter('fences_reads');
+      if (await trx(CHAT_DELETION_FENCES).where({ id: chatId }).first()) {
+        return { authorized: false };
+      }
+      // Read-only: do not initialize protocol state or acquire main's inference claim.
+      const protocol = await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).forShare().first();
+      if (!protocol || Number(protocol.protocol_epoch) !== 1 || protocol.sends_paused) {
+        return { authorized: false };
+      }
+      const chat = await authorizedOutputChat(trx, chatId, owner);
+      if ((chat.hashed_team_id || null) !== team
+        || (chat.chat_visibility != null && chat.chat_visibility !== 'team')
+        || chat.participant_user_hashes != null || chat.participant_key_envelopes != null) {
+        return { authorized: false };
+      }
+      const row = await trx(PREFLIGHTS).where({ id: preflightId }).forShare().first();
+      if (!row || row.hashed_user_id !== owner || row.chat_id !== chatId
+        || row.turn_id !== turnId || row.user_message_id !== messageId
+        || row.inference_task_id !== taskId || row.state !== 'ENQUEUED'
+        || row.deletion_invalidated_at || new Date(row.expires_at) <= now) {
+        return { authorized: false };
+      }
+      const message = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).forShare().first();
+      if (!message || message.role !== 'user' || message.hashed_user_id !== owner
+        || message.queue_pending_revision != null
+        || (message.queue_dispatch_status != null && message.queue_dispatch_status !== 'queued')
+        || (row.routing_message_digest && routingMessageDigest(message) !== row.routing_message_digest)) {
+        return { authorized: false };
+      }
+      if (Number(row.committed_messages_v) !== Number(chat.messages_v)) {
+        timing?.enter('proof');
+        const proof = await currentRoutingProof(trx, chatId, owner);
+        if (!row.routing_message_digest || !proof || proof.preflight_id !== preflightId
+          || proof.inference_task_id !== taskId || proof.message_digest !== row.routing_message_digest
+          || Number(proof.messages_v) !== Number(chat.messages_v)) return { authorized: false };
+        timing?.enter('fences_reads');
+      }
+      const outbox = await trx(OUTBOX).where({ id: row.outbox_id }).forShare().first();
+      return { authorized: Boolean(outbox && outbox.preflight_id === preflightId
+        && outbox.inference_task_id === taskId && outbox.hashed_user_id === owner
+        && outbox.chat_id === chatId && outbox.turn_id === turnId
+        && ['PENDING', 'DISPATCHED'].includes(outbox.state)) };
+    } catch (error) {
+      timing?.failHere();
+      throw error;
+    } finally {
+      timing?.enter('commit_result');
     }
-    // Read-only: do not initialize protocol state or acquire main's inference claim.
-    const protocol = await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).forShare().first();
-    if (!protocol || Number(protocol.protocol_epoch) !== 1 || protocol.sends_paused) {
-      return { authorized: false };
-    }
-    const chat = await authorizedOutputChat(trx, chatId, owner);
-    if ((chat.hashed_team_id || null) !== team
-      || (chat.chat_visibility != null && chat.chat_visibility !== 'team')
-      || chat.participant_user_hashes != null || chat.participant_key_envelopes != null) {
-      return { authorized: false };
-    }
-    const row = await trx(PREFLIGHTS).where({ id: preflightId }).forShare().first();
-    if (!row || row.hashed_user_id !== owner || row.chat_id !== chatId
-      || row.turn_id !== turnId || row.user_message_id !== messageId
-      || row.inference_task_id !== taskId || row.state !== 'ENQUEUED'
-      || row.deletion_invalidated_at || new Date(row.expires_at) <= now) {
-      return { authorized: false };
-    }
-    const message = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).forShare().first();
-    if (!message || message.role !== 'user' || message.hashed_user_id !== owner
-      || message.queue_pending_revision != null
-      || (message.queue_dispatch_status != null && message.queue_dispatch_status !== 'queued')
-      || (row.routing_message_digest && routingMessageDigest(message) !== row.routing_message_digest)) {
-      return { authorized: false };
-    }
-    if (Number(row.committed_messages_v) !== Number(chat.messages_v)) {
-      const proof = await currentRoutingProof(trx, chatId, owner);
-      if (!row.routing_message_digest || !proof || proof.preflight_id !== preflightId
-        || proof.inference_task_id !== taskId || proof.message_digest !== row.routing_message_digest
-        || Number(proof.messages_v) !== Number(chat.messages_v)) return { authorized: false };
-    }
-    const outbox = await trx(OUTBOX).where({ id: row.outbox_id }).forShare().first();
-    return { authorized: Boolean(outbox && outbox.preflight_id === preflightId
-      && outbox.inference_task_id === taskId && outbox.hashed_user_id === owner
-      && outbox.chat_id === chatId && outbox.turn_id === turnId
-      && ['PENDING', 'DISPATCHED'].includes(outbox.state)) };
   });
 }
 
@@ -5135,10 +5148,10 @@ export const operations = Object.freeze({
   release_legacy_inference: releaseLegacyInference,
   activate_protocol_epoch: activateProtocolEpoch,
 });
-export async function executeOperation(database, operation, body, now = new Date()) {
+export async function executeOperation(database, operation, body, now = new Date(), timing = null) {
   const handler = operations[operation];
   if (!handler) fail(400, 'unsupported_operation');
-  return handler(database, body, now);
+  return handler(database, body, now, timing);
 }
 export const testing = Object.freeze({
   digest, routingMessageDigest, validateEnvelope, validateMessage, validateNewChatMetadata, inferenceClaimDecision,

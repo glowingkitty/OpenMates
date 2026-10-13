@@ -41,7 +41,7 @@ def isolated_continuation_import(monkeypatch, request):
 # contract-test: direct surface=rest_api assertions=projects.focus.inferred-consent
 @pytest.mark.asyncio
 async def test_candidates_filter_foreign_projects_and_strip_content():
-    directus = SimpleNamespace(project=SimpleNamespace(list_projects=AsyncMock(return_value=[{"project_id": PROJECT}]),
+    directus = SimpleNamespace(project=SimpleNamespace(get_routing_candidate_project_ids=AsyncMock(return_value={PROJECT}),
                                                       get_project_settings=AsyncMock(return_value=None)))
     result = await validated_project_candidates([
         {"project_id": PROJECT, "name": "Garden notes", "instruction": "secret", "content": "secret"},
@@ -97,7 +97,7 @@ async def test_project_focus_settings_batch_is_bounded_owner_scoped_and_private(
 async def test_forty_project_candidates_use_one_settings_query_and_preserve_disabled():
     ids = [str(UUID(int=index + 1, version=4)) for index in range(40)]
     project_methods = SimpleNamespace(
-        list_projects=AsyncMock(return_value=[{"project_id": project_id} for project_id in ids]),
+        get_routing_candidate_project_ids=AsyncMock(return_value=set(ids)),
         get_project_settings_for_projects=AsyncMock(return_value={ids[0]: {
             "auto_selection": False, "focus_activation_policy": "approval"}}),
         get_project_settings=AsyncMock(side_effect=AssertionError("Per-Project query used")),
@@ -110,6 +110,7 @@ async def test_forty_project_candidates_use_one_settings_query_and_preserve_disa
     assert result[0]["auto_selection"] is False
     assert result[0]["focus_activation_policy"] == "approval"
     assert all(candidate["auto_selection"] is True for candidate in result[1:])
+    project_methods.get_routing_candidate_project_ids.assert_awaited_once_with(ids, "owner", team_id=None)
     project_methods.get_project_settings_for_projects.assert_awaited_once_with(ids, "owner", team_id=None)
     project_methods.get_project_settings.assert_not_awaited()
 
@@ -180,7 +181,7 @@ async def test_countdown_deadline_is_authoritative_and_separate_from_expiry(monk
 # contract-test: direct surface=rest_api assertions=projects.focus.auto-selection-setting
 @pytest.mark.asyncio
 async def test_auto_selection_uses_owner_settings_and_bounded_metadata():
-    directus = SimpleNamespace(project=SimpleNamespace(list_projects=AsyncMock(return_value=[{"project_id": PROJECT}]),
+    directus = SimpleNamespace(project=SimpleNamespace(get_routing_candidate_project_ids=AsyncMock(return_value={PROJECT}),
                                                       get_project_settings=AsyncMock(return_value={"auto_selection": False})))
     result = await validated_project_candidates([{"project_id": PROJECT, "name": "Garden", "summary": "x" * 1000,
                                                 "auto_selection": True}], directus_service=directus, user_id="user", team_id=None)
@@ -197,7 +198,7 @@ async def test_auto_selection_uses_owner_settings_and_bounded_metadata():
 @pytest.mark.asyncio
 async def test_policy_is_owner_authoritative_and_legacy_false_stays_disabled():
     settings = {"auto_selection": False, "focus_activation_policy": "immediate"}
-    directus = SimpleNamespace(project=SimpleNamespace(list_projects=AsyncMock(return_value=[{"project_id": PROJECT}]),
+    directus = SimpleNamespace(project=SimpleNamespace(get_routing_candidate_project_ids=AsyncMock(return_value={PROJECT}),
                                                       get_project_settings=AsyncMock(return_value=settings)))
     candidate = {"project_id": PROJECT, "name": "Garden", "auto_selection": True,
                  "focuses": [{"item_id": REQUEST, "revision": "a" * 64, "title": "Review", "description": "Help", "when_to_use": "When reviewing", "document": "private"}]}
@@ -275,3 +276,90 @@ def test_legacy_unscoped_project_search_is_hidden_from_model_tools():
     assert [tool["function"]["name"] for tool in without_unscoped_project_search(tools)] == [
         "project_search_files",
     ]
+
+
+# contract-test: direct surface=rest_api assertions=projects.focus.inferred-consent
+@pytest.mark.asyncio
+async def test_routing_candidate_lookup_is_fresh_bounded_and_owner_scoped():
+    ids = [str(UUID(int=index + 1, version=4)) for index in range(40)]
+    foreign = str(UUID(int=41, version=4))
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[
+        {"project_id": ids[-1]}, {"project_id": foreign}, {"project_id": ids[0]},
+        {"project_id": [ids[0]]}, {"project_id": {"id": ids[0]}},
+    ]))
+    methods = ProjectMethods(directus)
+    assert await methods.get_routing_candidate_project_ids(ids, "owner") == {ids[0], ids[-1]}
+    directus.get_items.assert_awaited_once()
+    assert directus.get_items.await_args.args == ("projects",)
+    assert directus.get_items.await_args.kwargs == {
+        "params": {
+            "filter[project_id][_in]": ",".join(ids),
+            "filter[archived][_neq]": True,
+            "fields": "project_id",
+            "limit": 40,
+            "filter[hashed_user_id][_eq]": hash_id("owner"),
+            "filter[hashed_team_id][_null]": True,
+        },
+        "no_cache": True, "raise_on_error": True,
+    }
+    directus.get_items.reset_mock()
+    assert await methods.get_routing_candidate_project_ids(ids[:1], "member", team_id="team") == {ids[0]}
+    team_params = directus.get_items.await_args.kwargs["params"]
+    assert team_params["filter[hashed_team_id][_eq]"] == hash_id("team")
+    assert "filter[hashed_user_id][_eq]" not in team_params
+    assert "filter[hashed_team_id][_null]" not in team_params
+
+
+# contract-test: direct surface=rest_api assertions=projects.focus.inferred-consent
+@pytest.mark.asyncio
+async def test_routing_candidate_lookup_rejects_invalid_input_and_db_failure():
+    ids = [str(UUID(int=index + 1, version=4)) for index in range(41)]
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=None))
+    methods = ProjectMethods(directus)
+    with pytest.raises(ValueError, match="at most 40"):
+        await methods.get_routing_candidate_project_ids(ids, "owner")
+    with pytest.raises(ValueError, match="unique"):
+        await methods.get_routing_candidate_project_ids(ids[:1] * 2, "owner")
+    with pytest.raises(ValueError, match="Invalid"):
+        await methods.get_routing_candidate_project_ids(["not-a-uuid"], "owner")
+    directus.get_items.assert_not_awaited()
+    assert await methods.get_routing_candidate_project_ids([], "owner") == set()
+    with pytest.raises(RuntimeError, match="Failed to read"):
+        await methods.get_routing_candidate_project_ids(ids[:1], "owner")
+    directus.get_items.side_effect = RuntimeError("Directus unavailable")
+    with pytest.raises(RuntimeError, match="Directus unavailable"):
+        await methods.get_routing_candidate_project_ids(ids[:1], "owner")
+
+
+# contract-test: direct surface=rest_api assertions=projects.focus.inferred-consent
+@pytest.mark.asyncio
+async def test_candidate_validation_preserves_order_limit_and_team_role_gate():
+    ids = [str(UUID(int=index + 1, version=4)) for index in range(41)]
+    projects = SimpleNamespace(
+        get_routing_candidate_project_ids=AsyncMock(return_value={ids[0], ids[1]}),
+        get_project_settings_for_projects=AsyncMock(return_value={}),
+    )
+    team = SimpleNamespace(require_team_role=AsyncMock())
+    directus = SimpleNamespace(project=projects, team=team)
+    candidates = [
+        {"project_id": ids[0], "name": " First "},
+        {"project_id": ids[0], "name": "Duplicate"},
+        {"project_id": ids[1], "name": " Second "},
+        {"project_id": "not-a-uuid", "name": "Invalid"},
+    ] + [{"project_id": project_id, "name": "Other"} for project_id in ids[2:]]
+    result = await validated_project_candidates(candidates, directus_service=directus,
+                                                user_id="member", team_id="team")
+    assert [row["name"] for row in result] == ["First", "Second"]
+    projects.get_routing_candidate_project_ids.assert_awaited_once_with(
+        ids[:38], "member", team_id="team",
+    )
+    projects.get_project_settings_for_projects.assert_awaited_once_with(
+        ids[:2], "member", team_id="team",
+    )
+    team.require_team_role.assert_awaited_once_with("team", "member", {"owner", "admin", "member"})
+    projects.get_routing_candidate_project_ids.reset_mock()
+    team.require_team_role.side_effect = PermissionError("role revoked")
+    with pytest.raises(PermissionError, match="role revoked"):
+        await validated_project_candidates(candidates, directus_service=directus,
+                                           user_id="member", team_id="team")
+    projects.get_routing_candidate_project_ids.assert_not_awaited()

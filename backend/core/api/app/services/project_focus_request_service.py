@@ -47,15 +47,30 @@ async def validated_project_candidates(
         return []
     if team_id:
         await directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
-    rows = await directus_service.project.list_projects(user_id, team_id=team_id)
-    allowed = {row.get("project_id") for row in rows if not row.get("archived")}
+    candidate_ids = []
+    seen_ids = set()
+    for candidate in value[:PROJECT_CANDIDATE_LIMIT]:
+        if not isinstance(candidate, dict):
+            continue
+        project_id = candidate.get("project_id")
+        if not isinstance(project_id, str) or project_id in seen_ids:
+            continue
+        try:
+            UUID(project_id)
+        except (ValueError, TypeError, AttributeError):
+            continue
+        candidate_ids.append(project_id)
+        seen_ids.add(project_id)
+    allowed = await directus_service.project.get_routing_candidate_project_ids(
+        candidate_ids, user_id, team_id=team_id,
+    )
     result = []
     seen = set()
     for candidate in value[:PROJECT_CANDIDATE_LIMIT]:
         if not isinstance(candidate, dict):
             continue
         project_id, name = candidate.get("project_id"), candidate.get("name")
-        if project_id not in allowed or project_id in seen or not isinstance(name, str):
+        if not isinstance(project_id, str) or project_id not in allowed or project_id in seen or not isinstance(name, str):
             continue
         try:
             UUID(project_id)

@@ -86,6 +86,8 @@ scope:
     - Typing-time inference or draft prediction; this proposal was explicitly rejected.
     - Production deployment, Apple UI redesign, unrelated rendering optimization or full provider benchmarks.
 decisions:
+  - "Core14 batches fresh Personal Project routing discovery, but its real TUI samples still miss Mate and factual streaming targets. Core15 narrows subsequent Project authorization to the supplied candidate IDs and adds content-free CMS transaction phase timings; neither implies latency acceptance before a deployed retest."
+  - "Web diagnostic observers must preserve native Promise semantics under the app Zone.js patch. The failed instrumented no-admission runs are invalid for product assessment; the corrected tool has an actual Zone.js/WebCrypto smoke check and a bounded dispatch diagnostic."
   - "Deployed b57dadf warm observations still miss acceptance: TUI Spain Mate 2203 ms / authored 5638 ms, Berlin Mate 2073 ms / authored 16561 ms; web Spain Mate 2092 ms / authored 4806 ms, Berlin Mate 1903 ms / authored 15624 ms. Ordinary acceptance remains open before Focus and remote Project scenarios."
   - "Batch Personal Project discovery in one freshly authenticated routing-directory request using the existing owner-scoped service; preserve ciphertext, freshness, enabled selection, privacy and legacy/Team fallbacks."
   - "The deployed eb0af3a warm retest still misses targets: TUI Spain Mate 2559 ms / authored 4793 ms, Berlin Mate 1559 ms / authored 12505 ms; web Spain Mate 2665 ms / authored 5565 ms, Berlin Mate 3420 ms / authored 15820 ms. Focus and remote Project follow-ons remain pending ordinary acceptance."
