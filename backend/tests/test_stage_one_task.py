@@ -1,11 +1,82 @@
 """Stage-one broker handoff keeps the signed main invocation and task identity."""
 # contract-test-file: infrastructure
+from builtins import ExceptionGroup
 from unittest.mock import AsyncMock, Mock
 import asyncio
 import pytest
 
 from backend.apps.ai.tasks import stage_one_task
 from backend.apps.ai.tasks import ask_skill_task
+
+
+def test_grouped_routing_failure_logs_only_bounded_signature_and_dispatches_main(monkeypatch):
+    private = "PRIVATE routing text and owner identifier"
+    failures = [RuntimeError(private), ValueError(private)]
+    grouped = ExceptionGroup(private, failures)
+    monkeypatch.setattr(stage_one_task, "route_stage_one", AsyncMock(side_effect=grouped))
+    dispatch = Mock()
+    warning = Mock()
+    monkeypatch.setattr(ask_skill_task.process_ai_skill_ask_task, "apply_async", dispatch)
+    monkeypatch.setattr(stage_one_task.logger, "warning", warning)
+    task = stage_one_task.process_ai_stage_one_task
+    task.push_request(id="main:routing", retries=0, headers={})
+    try:
+        result = task.run({"user_id": "owner", "recovery_task_id": "main",
+                           "recovery_preflight_id": "preflight"}, {}, "main")
+    finally:
+        task.pop_request()
+    assert result == {"status": "main_dispatched", "stage_one_reusable": False}
+    assert dispatch.call_args.kwargs["headers"] == {}
+    warning.assert_called_once()
+    message = warning.call_args.args[0] % warning.call_args.args[1:]
+    assert "RuntimeError" in message and "ValueError" in message
+    assert private not in message and "ExceptionGroup" not in message
+
+
+def test_routing_failure_signature_bounds_nested_and_non_group_exceptions():
+    private = "PRIVATE exception text"
+    try:
+        raise RuntimeError(private)
+    except RuntimeError as error:
+        types, frames = stage_one_task._routing_failure_signature(error)
+    assert types == ("RuntimeError",)
+    assert 1 <= len(frames) <= 6
+    assert all(frame.startswith("backend/") and ":" in frame for frame in frames)
+    assert all(private not in frame for frame in frames)
+
+    class PrivateException(Exception):
+        pass
+
+    nested: Exception = PrivateException(private)
+    for _ in range(12):
+        nested = ExceptionGroup(private, [nested])
+    group = ExceptionGroup(private, [nested, *(RuntimeError(private) for _ in range(100))])
+    types, frames = stage_one_task._routing_failure_signature(group)
+    assert len(types) <= 8 and len(frames) <= 6
+    assert set(types) <= {"RuntimeError", "OtherException"}
+    assert private not in repr((types, frames))
+
+
+def test_routing_diagnostic_failure_does_not_change_main_fallback(monkeypatch):
+    monkeypatch.setattr(stage_one_task, "route_stage_one", AsyncMock(side_effect=RuntimeError("PRIVATE")))
+    monkeypatch.setattr(stage_one_task, "_routing_failure_signature", Mock(side_effect=RuntimeError("PRIVATE")))
+    dispatch = Mock()
+    warning = Mock()
+    monkeypatch.setattr(ask_skill_task.process_ai_skill_ask_task, "apply_async", dispatch)
+    monkeypatch.setattr(stage_one_task.logger, "warning", warning)
+    task = stage_one_task.process_ai_stage_one_task
+    task.push_request(id="main:routing", retries=0, headers={})
+    try:
+        result = task.run({"user_id": "owner", "recovery_task_id": "main",
+                           "recovery_preflight_id": "preflight"}, {}, "main")
+    finally:
+        task.pop_request()
+    assert result["status"] == "main_dispatched"
+    dispatch.assert_called_once()
+    warning.assert_called_once()
+    message = warning.call_args.args[0] % warning.call_args.args[1:]
+    assert "PRIVATE" not in message
+    assert "diagnostic_failed" in message
 
 
 @pytest.mark.parametrize("routing_failure", [False, True])
@@ -190,7 +261,9 @@ async def test_stage_one_prefetches_chat_key_and_rechecks_authority_before_mate(
     monkeypatch.setattr(secrets_module, "SecretsManager", lambda: SimpleNamespace(initialize=AsyncMock()))
     monkeypatch.setattr(encryption_module, "EncryptionService", lambda **_kwargs: object())
     monkeypatch.setattr(directus_module, "DirectusService", lambda **_kwargs: directus)
-    monkeypatch.setattr(recent_work_summary_client, "restore_private_context_payload", AsyncMock(return_value={}))
+    private_descriptor = {"same_turn_request": {"private": "internal checkpoint"}}
+    monkeypatch.setattr(recent_work_summary_client, "restore_private_context_payload",
+                        AsyncMock(return_value=private_descriptor))
     monkeypatch.setattr(recent_work_summary_client, "bind_restored_context_turn", lambda *_args: None)
     monkeypatch.setattr(client_context_continuation, "await_client_context_phase", AsyncMock())
     current = AsyncMock(side_effect=[True, outcome != "stale", outcome != "stale_before_handoff"])
@@ -234,6 +307,7 @@ async def test_stage_one_prefetches_chat_key_and_rechecks_authority_before_mate(
                                    else 2 if outcome == "stale" else 3)
     assert key_cancelled.is_set() is (outcome == "failed_before_publish")
     directus.get_items.assert_not_awaited()
+    assert not hasattr(request, "same_turn_request")
 
 
 @pytest.mark.asyncio

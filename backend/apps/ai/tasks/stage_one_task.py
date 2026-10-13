@@ -9,6 +9,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from builtins import BaseExceptionGroup
+from pathlib import Path
 from typing import Any
 
 from celery import Task
@@ -20,6 +22,45 @@ from backend.apps.ai.processing.stage_one_handoff import (
 )
 
 logger = logging.getLogger(__name__)
+_SOURCE_ROOT = Path(__file__).resolve().parents[4]
+_SAFE_EXCEPTION_TYPES = frozenset({
+    "AttributeError", "ConnectionError", "HTTPStatusError", "KeyError",
+    "RuntimeError", "TimeoutError", "TypeError", "ValueError",
+})
+
+
+def _routing_failure_signature(error: Exception) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Keep fallback diagnostics bounded and free of exception messages or payloads."""
+    types: list[str] = []
+    frames: list[str] = []
+    pending: list[tuple[BaseException, int]] = [(error, 0)]
+    inspected = 0
+    while pending and inspected < 32 and len(types) < 8:
+        current, depth = pending.pop()
+        inspected += 1
+        if isinstance(current, BaseExceptionGroup):
+            if depth < 8:
+                remaining = max(0, 32 - inspected - len(pending))
+                pending.extend((child, depth + 1) for child in reversed(current.exceptions[:remaining]))
+            continue
+        name = type(current).__name__
+        types.append(name if name in _SAFE_EXCEPTION_TYPES else "OtherException")
+        traceback = current.__traceback__
+        while traceback and len(frames) < 6:
+            filename = traceback.tb_frame.f_code.co_filename
+            try:
+                source_path = Path(filename).resolve()
+                source = source_path.relative_to(_SOURCE_ROOT)
+            except (OSError, ValueError):
+                traceback = traceback.tb_next
+                continue
+            if (source.parts[:1] == ("backend",) and source.suffix == ".py"
+                    and source_path.is_file()):
+                frame = f"{source.as_posix()}:{traceback.tb_lineno}"
+                if frame not in frames:
+                    frames.append(frame)
+            traceback = traceback.tb_next
+    return tuple(types or ["OtherException"]), tuple(frames)
 
 
 async def _routing_authority_is_current(cache: Any, directus: Any,
@@ -103,7 +144,9 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
         transient = await restore_private_context_payload(request.model_dump())
         bind_restored_context_turn(request, transient)
         for field in PRIVATE_CONTEXT_FIELDS:
-            if field not in {"async_tool_completion", "async_tool_history"}:
+            # Main alone unpacks this trusted descriptor for same-turn resume;
+            # it is not a public AskSkillRequest field or routing context.
+            if field not in {"async_tool_completion", "async_tool_history", "same_turn_request"}:
                 setattr(request, field, transient.get(field, None if field == "accepted_plan_context" else []))
         await await_client_context_phase(cache_service=cache, request=request,
             phase="routing", encryption_service=encryption)
@@ -233,7 +276,13 @@ def process_ai_stage_one_task(self, request_data_dict: dict, skill_config_dict: 
                 request_data_dict, skill_config_dict, inference_task_id))
     except Exception as exc:
         # No private text in logs; main performs the complete safe fallback.
-        logger.warning("Compact routing unavailable (%s); using main routing", type(exc).__name__)
+        try:
+            leaf_types, source_frames = _routing_failure_signature(exc)
+            logger.warning("Compact routing unavailable (leaf_types=%s source_frames=%s); using main routing",
+                           leaf_types, source_frames)
+        except Exception:
+            # Diagnostics must never prevent dispatching the original main task.
+            logger.warning("Compact routing unavailable (diagnostic_failed); using main routing")
     finally:
         try:
             from backend.apps.ai.llm_providers.google_client import close_google_clients_for_current_loop

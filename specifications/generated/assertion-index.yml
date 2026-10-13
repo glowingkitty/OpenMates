@@ -57520,7 +57520,7 @@ assertions:
       surface: cli
     - &id7177
       path: backend/tests/test_stage_one_task.py
-      line: 152
+      line: 223
       name: test_stage_one_prefetches_chat_key_and_rechecks_authority_before_mate
       surface: cli
     tests:
