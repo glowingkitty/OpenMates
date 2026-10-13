@@ -2196,6 +2196,8 @@ async def handle_preprocessing(
     on_early_routing: Optional[Callable[[Dict[str, Any]], Awaitable[None]]] = None,
     stage_one_only: bool = False,
     precomputed_stage_one: Optional[Dict[str, Any]] = None,
+    routing_scope_validated: bool = False,
+    before_related_summary_read: Optional[Callable[[], Awaitable[None]]] = None,
 ) -> PreprocessingResult:
     """
     Handles the preprocessing of an AI skill request.
@@ -2228,9 +2230,48 @@ async def handle_preprocessing(
         else "en"
     )
 
-    credit_rejection = await check_preprocessing_credits(
-        request_data, cache_service, directus_service, encryption_service,
-    )
+    # The routing lane has already verified its durable turn/admission and
+    # delivered its bound routing context. Fresh credit and owner-scoped Project
+    # eligibility are independent reads, but both must finish before Jev or
+    # any billing/model side effect. Other callers keep their original order.
+    project_validation = None
+    if (stage_one_only and routing_scope_validated
+            and request_data.project_focus_candidates
+            and "project_file_jobs" in (request_data.client_capabilities or [])
+            and not request_data.active_project_focus
+            and not request_data.project_access_declined
+            and not request_data.is_incognito and not request_data.is_external
+            and (request_data.user_preferences or {}).get("apps_enabled") is not False
+            and not (user_overrides and (user_overrides.focus_modes or user_overrides.skills))
+            and (selected_app_ids is None or getattr(request_data, "project_routing_focus_id", None))):
+        from backend.apps.ai.processing.project_file_tools import declines_project_file_work
+        if not declines_project_file_work(request_data.current_user_content or ""):
+            from backend.core.api.app.services.project_focus_request_service import validated_project_candidates
+            started = time.monotonic()
+            credit_rejection, project_validation = await asyncio.gather(
+                check_preprocessing_credits(
+                    request_data, cache_service, directus_service, encryption_service,
+                ),
+                validated_project_candidates(
+                    request_data.project_focus_candidates, directus_service=directus_service,
+                    user_id=request_data.user_id, team_id=request_data.team_id,
+                ),
+                return_exceptions=True,
+            )
+            logger.info("%s Fresh credit and Project eligibility joined elapsed_ms=%.1f",
+                        log_prefix, (time.monotonic() - started) * 1000)
+            if isinstance(credit_rejection, BaseException):
+                raise credit_rejection
+            if credit_rejection is not None:
+                return credit_rejection
+        else:
+            credit_rejection = await check_preprocessing_credits(
+                request_data, cache_service, directus_service, encryption_service,
+            )
+    else:
+        credit_rejection = await check_preprocessing_credits(
+            request_data, cache_service, directus_service, encryption_service,
+        )
     if credit_rejection is not None:
         return credit_rejection
 
@@ -2414,9 +2455,14 @@ async def handle_preprocessing(
         from backend.core.api.app.services.project_focus_routing import validated_focus_candidates_for_project
         from backend.apps.ai.processing.jev_preprocessing import decide_app_and_project_routing_with_jev
         try:
-            request_data.project_focus_candidates = await validated_project_candidates(
-                request_data.project_focus_candidates, directus_service=directus_service,
-                user_id=request_data.user_id, team_id=request_data.team_id,
+            if isinstance(project_validation, BaseException):
+                raise project_validation
+            request_data.project_focus_candidates = (
+                project_validation if project_validation is not None
+                else await validated_project_candidates(
+                    request_data.project_focus_candidates, directus_service=directus_service,
+                    user_id=request_data.user_id, team_id=request_data.team_id,
+                )
             )
             project_candidates_validated = True
             logger.info("%s Compact Project routing validated eligible_count=%d",
@@ -3075,6 +3121,12 @@ async def handle_preprocessing(
         and _simple_context_fast_path(request_data, early_routing, user_overrides)
         and sum(row.get("role") == "user" for row in sanitized_message_history) == 1
     )
+    related_summary_hook_completed = False
+    if not simple_context_fast_path and before_related_summary_read is not None:
+        # Fresh details may invalidate Stage one's complete-empty proof. Join the
+        # active summary mutation before any detailed Jev or fallback provider call.
+        await before_related_summary_read()
+        related_summary_hook_completed = True
     from backend.apps.ai.processing.agentic_context import private_focus_candidates
     if not simple_context_fast_path:
         try:
@@ -3107,6 +3159,12 @@ async def handle_preprocessing(
                 RelatedWorkCandidate, bounded_candidates, fetch_related_chat_summaries,
                 fetch_related_task_candidates,
             )
+            # Main may still be sealing the active summary after Stage one. Its
+            # internal hook must join that mutation before fallback reads this
+            # chat's related summaries; no callback is needed on the routing lane.
+            if before_related_summary_read is not None and not related_summary_hook_completed:
+                await before_related_summary_read()
+                related_summary_hook_completed = True
             chats, tasks = await asyncio.gather(
                 fetch_related_chat_summaries(request_data, request_data.recovery_task_id,
                                              cache_service, directus_service),

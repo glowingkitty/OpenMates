@@ -2204,6 +2204,16 @@ async def _compress_for_selected_model(
     return True
 
 
+async def _drain_preparation_tasks(*tasks):
+    """Cancel and await every pending preparation job on all exit paths."""
+    pending = [task for task in tasks if task is not None]
+    for task in pending:
+        if not task.done():
+            task.cancel()
+    if pending:
+        await asyncio.gather(*pending, return_exceptions=True)
+
+
 @asynccontextmanager
 async def _overlap_preparation(operation):
     """Join a preparation write and drain it when preparation exits early."""
@@ -2224,6 +2234,33 @@ async def _time_setup_stage(stage: str, task_id: str, operation):
     finally:
         logger.info("[Task ID: %s] [PRE_MAIN] stage=%s elapsed_ms=%.1f",
                     task_id, stage, (time.monotonic() - started) * 1000)
+
+
+def _can_overlap_first_turn_reads(request_data, stage_one_snapshot, user_overrides=None):
+    """Require a complete empty admission snapshot for bounded first-turn overlap."""
+    if not stage_one_snapshot or request_data.chat_has_title or len(request_data.message_history or []) != 1:
+        return False
+    message = request_data.message_history[0]
+    if message.role != "user" or message.message_id != request_data.message_id:
+        return False
+    if any(getattr(request_data, flag, False) for flag in (
+        "is_external", "is_incognito", "is_anonymous", "is_sub_chat", "is_async_skill_continuation",
+        "is_focus_mode_continuation", "is_app_settings_memories_continuation",
+        "is_connected_account_permission_continuation", "is_sub_chat_continuation",
+    )):
+        return False
+    # Parsing happens after config/artifact preparation. Unknown mentions keep the
+    # original ordering even if they later prove harmless.
+    if "@" in (message.content or "") or "@" in (request_data.current_user_content or ""):
+        return False
+    if user_overrides and user_overrides.has_overrides:
+        return False
+    if any(getattr(request_data, key, None) for key in (
+        "legacy_cutover_task_id", "preprocessing_resume_ref", "user_task_id", "team_id",
+    )):
+        return False
+    from backend.apps.ai.processing.preprocessor import _simple_context_fast_path
+    return _simple_context_fast_path(request_data, stage_one_snapshot.get("routing"), user_overrides)
 
 
 async def _async_process_ai_skill_ask_task(
@@ -2560,10 +2597,11 @@ async def _async_process_ai_skill_ask_task(
     logger.info("[Task ID: %s] [PRE_MAIN] stage=user_cache elapsed_ms=%.1f",
                 task_id, (time.monotonic() - user_cache_started) * 1000)
 
+    delayed_first_turn_summary = _can_overlap_first_turn_reads(request_data, stage_one_snapshot)
     summary_operation = None
     if user_vault_key_id and not any(getattr(request_data, flag, False) for flag in (
         "is_external", "is_incognito", "is_anonymous"
-    )):
+    )) and not delayed_first_turn_summary:
         from backend.shared.python_utils.recent_work_summary_client import mark_response_summary_active
         summary_operation = _time_setup_stage(
             "active_summary", task_id, mark_response_summary_active(request_data, task_id)
@@ -3020,6 +3058,8 @@ async def _async_process_ai_skill_ask_task(
                     icon_names=payload.get("icon_names"),
                 )
         debug_cache_task = None
+        initial_metadata_task = None
+        preprocessing_ready_for_main = False
         try:
             if not cache_service_instance:
                 logger.error(f"[Task ID: {task_id}] CacheService instance is not available. Cannot proceed with preprocessing credit check.")
@@ -3087,26 +3127,68 @@ async def _async_process_ai_skill_ask_task(
                 )
                 logger.info("[Task ID: %s] Reused current-turn preprocessing decisions", task_id)
 
+            if preprocessing_result is not None and delayed_first_turn_summary:
+                await _time_setup_stage(
+                    "active_summary", task_id, mark_response_summary_active(request_data, task_id),
+                )
+
+            prefetched_diffable_embeds = None
             if preprocessing_result is None:
+                first_turn_overlap = (
+                    delayed_first_turn_summary
+                    and _can_overlap_first_turn_reads(request_data, stage_one_snapshot, user_overrides)
+                    and not resume
+                )
+                # If refreshed routing changed, restore the original summary barrier.
+                if delayed_first_turn_summary and not first_turn_overlap:
+                    await _time_setup_stage(
+                        "active_summary", task_id, mark_response_summary_active(request_data, task_id),
+                    )
+                summary_task = None
+                embed_task = None
+                if first_turn_overlap:
+                    from backend.apps.ai.processing.main_processor import _has_diffable_embeds_for_prompt
+                    summary_task = asyncio.create_task(_time_setup_stage(
+                        "active_summary", task_id, mark_response_summary_active(request_data, task_id),
+                    ))
+                    embed_task = asyncio.create_task(_time_setup_stage(
+                        "embed_index", task_id, _has_diffable_embeds_for_prompt(
+                            request_data, cache_service_instance, directus_service_instance,
+                            f"[Task ID: {task_id}] ",
+                        ),
+                    ))
+
+                async def before_related_summary_read():
+                    if summary_task:
+                        await summary_task
+
                 with ai_phase_span("preprocess"):
                     _log_team_ai_pipeline_stage(request_data, task_id, "preprocess", "started")
-                    preprocessing_result = await handle_preprocessing(
-                        request_data=request_data,
-                        skill_config=skill_config,
-                        base_instructions=base_instructions,
-                        cache_service=cache_service_instance,
-                        secrets_manager=secrets_manager,
-                        directus_service=directus_service_instance,
-                        encryption_service=encryption_service_instance,
-                        user_app_settings_and_memories_metadata=user_app_memories_metadata,
-                        discovered_apps_metadata=discovered_apps_metadata,
-                        user_overrides=user_overrides,
-                        preprocessing_stream_channel=preprocessing_stream_channel,
-                        is_new_chat=is_new_chat_for_preprocessing,
-                        selected_app_ids=selected_app_ids,
-                        on_early_routing=publish_early_typing,
-                        precomputed_stage_one=(stage_one_snapshot or {}).get("routing"),
-                    )
+                    try:
+                        preprocessing_result = await handle_preprocessing(
+                            request_data=request_data,
+                            skill_config=skill_config,
+                            base_instructions=base_instructions,
+                            cache_service=cache_service_instance,
+                            secrets_manager=secrets_manager,
+                            directus_service=directus_service_instance,
+                            encryption_service=encryption_service_instance,
+                            user_app_settings_and_memories_metadata=user_app_memories_metadata,
+                            discovered_apps_metadata=discovered_apps_metadata,
+                            user_overrides=user_overrides,
+                            preprocessing_stream_channel=preprocessing_stream_channel,
+                            is_new_chat=is_new_chat_for_preprocessing,
+                            selected_app_ids=selected_app_ids,
+                            on_early_routing=publish_early_typing,
+                            precomputed_stage_one=(stage_one_snapshot or {}).get("routing"),
+                            before_related_summary_read=before_related_summary_read if summary_task else None,
+                        )
+                        if summary_task:
+                            await summary_task
+                        if embed_task:
+                            prefetched_diffable_embeds = await embed_task
+                    finally:
+                        await _drain_preparation_tasks(summary_task, embed_task)
                     _log_team_ai_pipeline_stage(request_data, task_id, "preprocess", "completed")
                 new_ref = await time_pre_main("resume_store", store_preprocessing_resume(
                     cache_service_instance, request_data, preprocessing_result,
@@ -3567,12 +3649,19 @@ async def _async_process_ai_skill_ask_task(
                     # CRITICAL: Skip WebSocket events for external requests (REST API)
                     # This prevents typing indicators from popping up in the web app when a user makes an API call.
                     if not request_data.is_external:
-                        initial_metadata_job = await time_pre_main("metadata_job", persist_generated_metadata(
+                        initial_metadata_operation = time_pre_main("metadata_job", persist_generated_metadata(
                             request=request_data, task_id=task_id, stage="initial",
                             metadata={"title": preprocessing_result.title,
                                       "category": typing_category if not request_data.chat_has_title else None,
                                       "icon": (preprocessing_result.icon_names or [None])[0] if not request_data.chat_has_title else None},
                         ))
+                        # StageOne already published the selected Mate. Its later
+                        # sealed metadata notice can join at first visible output.
+                        if typing_lifecycle.started and preprocessing_result.can_proceed:
+                            initial_metadata_task = asyncio.create_task(initial_metadata_operation)
+                            initial_metadata_job = None
+                        else:
+                            initial_metadata_job = await initial_metadata_operation
                         if initial_metadata_job and not typing_lifecycle.started:
                             typing_payload_data["metadata_recovery_job"] = initial_metadata_job
                         typing_indicator_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}" # Channel uses hashed ID
@@ -3612,11 +3701,14 @@ async def _async_process_ai_skill_ask_task(
 
             if debug_cache_task:
                 await debug_cache_task
+            preprocessing_ready_for_main = True
         finally:
             if debug_cache_task:
                 if not debug_cache_task.done():
                     debug_cache_task.cancel()
                 await asyncio.gather(debug_cache_task, return_exceptions=True)
+            if not preprocessing_ready_for_main:
+                await _drain_preparation_tasks(initial_metadata_task)
 
         # --- Step 2: Main Processing (with streaming) ---
         # Sync wrapper handles Celery state update for progress
@@ -3630,31 +3722,53 @@ async def _async_process_ai_skill_ask_task(
         soft_limited_in_consumer = False
         thinking_content: list = []  # Accumulated thinking chunks from the stream (for debug cache only)
 
+        async def publish_initial_metadata_after_seal():
+            if not initial_metadata_task:
+                return
+            # Persistence is nonfatal and queues only sealed bytes on outage.
+            initial_metadata_job = await time_pre_main("metadata_barrier_wait", initial_metadata_task)
+            if initial_metadata_job:
+                try:
+                    # The write is durable; only the current chat owner may
+                    # announce its recovery reference to live clients.
+                    if await cache_service_instance.get_active_ai_task(request_data.chat_id) != task_id:
+                        return
+                    await typing_lifecycle.finish_preprocessing(
+                        can_proceed=preprocessing_result.can_proceed,
+                        metadata_recovery_job=initial_metadata_job,
+                    )
+                except Exception as exc:
+                    logger.warning("[Task ID: %s] Sealed metadata notice unavailable (%s)",
+                                   task_id, type(exc).__name__)
+
         try:
             skill_config_dict = skill_config.model_dump(mode="json") if hasattr(skill_config, "model_dump") else {}
+            from backend.apps.ai.processing.main_processor import _scoped_diffable_embed_prefetch
             with ai_phase_span("main"):
                 _log_team_ai_pipeline_stage(request_data, task_id, "main", "started")
-                aggregated_final_response, revoked_in_consumer, soft_limited_in_consumer, thinking_content, main_processor_debug_metadata = await _consume_main_processing_stream(  # type: ignore[assignment]
-                    task_id=task_id,
-                    request_data=request_data,
-                    preprocessing_result=preprocessing_result,
-                    base_instructions=base_instructions,
-                    directus_service=directus_service_instance,
-                    encryption_service=encryption_service_instance,
-                    user_vault_key_id=user_vault_key_id,
-                    all_mates_configs=all_mates_configs,
-                    discovered_apps_metadata=discovered_apps_metadata,
-                    cache_service=cache_service_instance,
-                    secrets_manager=secrets_manager,
-                    # Pass always-include skills from skill config - these skills are ALWAYS available
-                    # to the main LLM regardless of preprocessing preselection.
-                    # This is a safety net for critical skills like web-search that should be available
-                    # for follow-up queries even when preprocessing fails to detect the user's intent.
-                    always_include_skills=skill_config.always_include_skills if skill_config else None,
-                    user_overrides=user_overrides,  # Pass user overrides for skip-permission logic on mentioned keys
-                    skill_config_dict=skill_config_dict,
-                    completion_timing=completion_timing,
-                )
+                with _scoped_diffable_embed_prefetch(task_id, request_data.chat_id, prefetched_diffable_embeds):
+                    aggregated_final_response, revoked_in_consumer, soft_limited_in_consumer, thinking_content, main_processor_debug_metadata = await _consume_main_processing_stream(  # type: ignore[assignment]
+                        task_id=task_id,
+                        request_data=request_data,
+                        preprocessing_result=preprocessing_result,
+                        base_instructions=base_instructions,
+                        directus_service=directus_service_instance,
+                        encryption_service=encryption_service_instance,
+                        user_vault_key_id=user_vault_key_id,
+                        all_mates_configs=all_mates_configs,
+                        discovered_apps_metadata=discovered_apps_metadata,
+                        cache_service=cache_service_instance,
+                        secrets_manager=secrets_manager,
+                        # Pass always-include skills from skill config - these skills are ALWAYS available
+                        # to the main LLM regardless of preprocessing preselection.
+                        # This is a safety net for critical skills like web-search that should be available
+                        # for follow-up queries even when preprocessing fails to detect the user's intent.
+                        always_include_skills=skill_config.always_include_skills if skill_config else None,
+                        user_overrides=user_overrides,  # Pass user overrides for skip-permission logic on mentioned keys
+                        skill_config_dict=skill_config_dict,
+                        completion_timing=completion_timing,
+                        before_first_chunk_publish=publish_initial_metadata_after_seal if initial_metadata_task else None,
+                    )
                 _log_team_ai_pipeline_stage(request_data, task_id, "main", "completed")
             logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
 
@@ -3771,6 +3885,8 @@ async def _async_process_ai_skill_ask_task(
             else:
                 logger.error(f"[Task ID: {task_id}] Error during main processing stream execution: {e}", exc_info=True)
             raise RuntimeError(f"Main processing stream execution failed: {e}") # Re-raise for sync wrapper
+        finally:
+            await _drain_preparation_tasks(initial_metadata_task)
 
     if legacy_batch_proof is not None:
         if cache_service_instance is None:

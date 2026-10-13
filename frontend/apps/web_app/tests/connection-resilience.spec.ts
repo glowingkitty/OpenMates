@@ -243,7 +243,7 @@ async function sendMessageUntilChatIdAssigned(
 ): Promise<string> {
 	const eventStartIndex = protocolEvents.length;
 	await sendMessage(page, message, logCheckpoint);
-	logCheckpoint('Recovery message sent; waiting for chat_message_added dispatch before closing origin.');
+	logCheckpoint('Recovery message sent; waiting for durable admission dispatch before closing origin.');
 
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 30000 });
 	await expect
@@ -251,7 +251,8 @@ async function sendMessageUntilChatIdAssigned(
 			() =>
 				protocolEvents
 					.slice(eventStartIndex)
-					.some((event) => event.direction === 'sent' && event.type === 'chat_message_added'),
+					.some((event) => event.direction === 'sent'
+						&& (event.type === 'chat_message_added' || event.type === 'chat_turn_admit')),
 			{ timeout: 30000 }
 		)
 		.toBe(true);
@@ -726,6 +727,11 @@ test('secondary client recovers exactly one saved assistant message after origin
 		direction: 'sent' | 'received';
 		type: string;
 		state?: string;
+		turnId?: string;
+		expectedMessagesV?: number;
+		hasEncryptedMetadata?: boolean;
+		committedVersion?: number;
+		hasOutboxIdentity?: boolean;
 		code?: string;
 		message?: string;
 		jobId?: string;
@@ -750,6 +756,17 @@ test('secondary client recovers exactly one saved assistant message after origin
 						direction,
 						type: message.type,
 						state: typeof message.payload?.state === 'string' ? message.payload.state : undefined,
+						turnId: typeof message.payload?.turn_id === 'string' ? message.payload.turn_id : undefined,
+						expectedMessagesV: Number.isSafeInteger(message.payload?.expected_messages_v)
+							? message.payload.expected_messages_v : undefined,
+						hasEncryptedMetadata: message.type === 'chat_turn_admit'
+							? !!message.payload?.encrypted_chat_metadata : undefined,
+						committedVersion: Number.isSafeInteger(message.payload?.committed_messages_v)
+							? message.payload.committed_messages_v : undefined,
+						hasOutboxIdentity: message.type === 'chat_turn_preflight_ack'
+							? ['inference_task_id', 'billing_identity', 'outbox_id'].every(
+								(key) => typeof message.payload?.[key] === 'string' && message.payload[key].length > 0)
+							: undefined,
 						code: message.type === 'error' && typeof message.payload?.code === 'string' ? message.payload.code : undefined,
 						message: message.type === 'error' && typeof message.payload?.message === 'string'
 							? message.payload.message.slice(0, 180) : undefined,
@@ -791,6 +808,9 @@ test('secondary client recovers exactly one saved assistant message after origin
 		logCheckpoint('Origin protocol events observed before disconnect.', {
 			eventTypes: originEventTypes.slice(-20)
 		});
+		const firstAdmissionIndex = protocolEvents.findIndex(
+			(event) => event.direction === 'sent' && event.type === 'chat_turn_admit' && event.chatId === chatId
+		);
 		const preflightSentIndex = protocolEvents.findIndex(
 			(event) => event.direction === 'sent' && event.type === 'chat_turn_preflight'
 		);
@@ -800,7 +820,21 @@ test('secondary client recovers exactly one saved assistant message after origin
 		const inferenceSentIndex = protocolEvents.findIndex(
 			(event) => event.direction === 'sent' && event.type === 'chat_message_added'
 		);
-		if (preflightSentIndex >= 0 && preflightAckIndex >= 0 && inferenceSentIndex >= 0) {
+		if (firstAdmissionIndex >= 0) {
+			const admission = protocolEvents[firstAdmissionIndex];
+			const matchingAckIndex = () => protocolEvents.findIndex((event) =>
+				event.direction === 'received' && event.type === 'chat_turn_preflight_ack'
+				&& event.turnId === admission.turnId
+			);
+			await expect.poll(matchingAckIndex, { timeout: 30000 }).toBeGreaterThan(firstAdmissionIndex);
+			expect(admission.expectedMessagesV).toBe(0);
+			expect(admission.hasEncryptedMetadata).toBe(true);
+			expect(preflightSentIndex).toBe(-1);
+			expect(inferenceSentIndex).toBe(-1);
+			expect(protocolEvents[matchingAckIndex()]?.state).toBe('ENQUEUED');
+			expect(protocolEvents[matchingAckIndex()]?.committedVersion).toBe(1);
+			expect(protocolEvents[matchingAckIndex()]?.hasOutboxIdentity).toBe(true);
+		} else if (preflightSentIndex >= 0 && preflightAckIndex >= 0 && inferenceSentIndex >= 0) {
 			expect(preflightSentIndex).toBeLessThan(preflightAckIndex);
 			expect(preflightAckIndex).toBeLessThan(inferenceSentIndex);
 			expect(protocolEvents[preflightAckIndex]?.state).toMatch(/^(LEGACY|PREPARED)$/);

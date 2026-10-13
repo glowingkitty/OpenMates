@@ -58,6 +58,29 @@ export async function discoverCliProjectCandidates(client: OpenMatesClient, opti
   return entries.filter((entry): entry is NonNullable<typeof entry> => entry !== null);
 }
 
+
+export interface EncryptedPersonalProjectCandidate {
+  project_id: string; encrypted_project_key: string; encrypted_name: string; encrypted_description: string | null;
+  auto_selection: true; focus_activation_policy: "delayed" | "immediate" | "approval";
+}
+
+/** Decrypt only the server-filtered, send-time Personal routing directory. */
+export async function decodePersonalProjectCandidates(client: OpenMatesClient,
+  rows: EncryptedPersonalProjectCandidate[]): Promise<NonNullable<CliJevContext["project_focus_candidates"]>> {
+  if (rows.length > 40) throw new Error("Personal Project directory is too large.");
+  return Promise.all(rows.map(async row => {
+    if (row.auto_selection !== true) throw new Error("Disabled Project in Personal routing directory.");
+    const key = await client.decryptProjectKey({ ...row }, { personal: true });
+    const [name, summary] = await Promise.all([
+      decryptWithAesGcmCombined(row.encrypted_name, key),
+      row.encrypted_description ? decryptWithAesGcmCombined(row.encrypted_description, key) : Promise.resolve(""),
+    ]);
+    if (!name || summary === null) throw new Error("Personal Project directory is incomplete.");
+    return { project_id: row.project_id, name: name.slice(0, 160), summary: summary.slice(0, 640),
+      auto_selection: true, focus_activation_policy: row.focus_activation_policy };
+  }));
+}
+
 /** Metadata selection precedes private file reads; fresh accepted specialists are retained. */
 export async function loadActiveCliProjectContext(client: OpenMatesClient, chatId: string, text?: string, onCatalog?: (catalog: ProjectFocusCatalogEntry[]) => void): Promise<CliJevContext & { projectId?: string; focusCatalogComplete?: boolean }> {
   const active = await client.getActiveProjectFocus(chatId);
@@ -232,7 +255,8 @@ export async function collectRelatedCliTaskContext(client: OpenMatesClient, chat
 
 export async function prepareCliJevContext(client: OpenMatesClient, chatId: string, options: TeamContextOptions, supplied: CliJevContext = {}, text?: string,
   discovery: { sdkMintedChatId?: boolean; onRouting?: (context: CliJevContext) => void;
-    onProjectRouting?: (context: CliJevContext) => void; onProjectRoutingError?: (error: unknown) => void } = {}): Promise<CliJevContext> {
+    onProjectRouting?: (context: CliJevContext) => void; onProjectRoutingError?: (error: unknown) => void;
+    verifiedProjectCandidates?: NonNullable<CliJevContext["project_focus_candidates"]> } = {}): Promise<CliJevContext> {
   let candidates: CliJevContext["project_focus_candidates"] = [];
   let active: Awaited<ReturnType<typeof loadActiveCliProjectContext>> = {};
   let tasks: RelatedTaskCandidate[] = [];
@@ -243,9 +267,11 @@ export async function prepareCliJevContext(client: OpenMatesClient, chatId: stri
     : loadActiveCliProjectContext(client, chatId, text, resolveCatalog)
       .then(value => { active = value; }).catch(() => {}).finally(() => resolveCatalog([]));
   await Promise.all([
-    discoverCliProjectCandidates(client, options, Boolean(discovery.onProjectRouting)).then(value => {
+    (discovery.verifiedProjectCandidates
+      ? Promise.resolve(discovery.verifiedProjectCandidates)
+      : discoverCliProjectCandidates(client, options, Boolean(discovery.onProjectRouting))).then(value => {
       candidates = value;
-      discovery.onProjectRouting?.({ project_focus_candidates: (supplied.project_focus_candidates ?? value).slice(0, 40) });
+      discovery.onProjectRouting?.({ project_focus_candidates: (discovery.verifiedProjectCandidates ?? supplied.project_focus_candidates ?? value).slice(0, 40) });
     }).catch(error => { discovery.onProjectRoutingError?.(error); }),
     (async () => {
       const records = await client.listUserTasks({ ...options, limit: 500 });
@@ -257,7 +283,7 @@ export async function prepareCliJevContext(client: OpenMatesClient, chatId: stri
     : await collectAcceptedCliPlanContext(client, chatId, options, ownedTaskRecords).catch(() => null);
   const catalog = await catalogReady;
   discovery.onRouting?.({ accepted_plan_context: acceptedPlan,
-    project_focus_candidates: (supplied.project_focus_candidates ?? candidates).slice(0, 40),
+    project_focus_candidates: (discovery.verifiedProjectCandidates ?? supplied.project_focus_candidates ?? candidates).slice(0, 40),
     related_task_candidates: (supplied.related_task_candidates ?? tasks).slice(0, 24),
     project_focus_catalog: catalog.slice(0, 20) });
   await activeReady;
@@ -277,7 +303,7 @@ export async function prepareCliJevContext(client: OpenMatesClient, chatId: stri
   }
   return {
     accepted_plan_context: acceptedPlan,
-    project_focus_candidates: (supplied.project_focus_candidates ?? candidates).slice(0, 40),
+    project_focus_candidates: (discovery.verifiedProjectCandidates ?? supplied.project_focus_candidates ?? candidates).slice(0, 40),
     related_task_candidates: (supplied.related_task_candidates ?? tasks).slice(0, 24),
     custom_memory_documents: customDocuments,
     project_focus_catalog: current ? (supplied.project_focus_catalog ?? loaded.project_focus_catalog ?? []).slice(0, 20) : [],

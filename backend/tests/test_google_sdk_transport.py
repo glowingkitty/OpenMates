@@ -2,6 +2,9 @@
 # contract-test-file: infrastructure
 import asyncio
 import json
+import logging
+import time
+from types import SimpleNamespace
 
 import pytest
 from aiohttp import web
@@ -39,7 +42,7 @@ async def test_custom_transport_streams_reuses_connections_and_closes(monkeypatc
 
     monkeypatch.setattr(google_client.genai, "Client", local_client)
     phases = []
-    monkeypatch.setattr(google_client, "_google_stream_phase", lambda _timing, phase: phases.append(phase))
+    monkeypatch.setattr(google_client, "_google_stream_phase", lambda _timing, phase, *_duration: phases.append(phase))
     token = google_client._active_google_stream.set(
         google_client._GoogleStreamTiming("unit-stream", "google_ai_studio", "test-model", 0))
     google_client.register_google_client_loop(asyncio.get_running_loop())
@@ -55,9 +58,48 @@ async def test_custom_transport_streams_reuses_connections_and_closes(monkeypatc
         assert len(connections) == 2 and connections[0] is connections[1]
         assert phases.count("http_request_start") == 2
         assert phases.count("http_response_headers") == 2
+        assert phases.count("http_connect_start") == 1
+        assert phases.count("http_connect_end") == 1
+        assert phases.count("http_connection_reused") == 1
+        assert phases.count("http_request_headers_sent") == 2
         await google_client.close_google_clients_for_current_loop()
         assert session.closed
     finally:
         google_client._active_google_stream.reset(token)
         await google_client.close_google_clients_for_current_loop()
         await runner.cleanup()
+
+
+@pytest.mark.asyncio
+async def test_transport_trace_is_request_scoped_private_and_nonfatal(monkeypatch, caplog):
+    timing = google_client._GoogleStreamTiming("safe-task", "google_ai_studio", "test-model", time.monotonic())
+    private = SimpleNamespace(url="https://private.invalid?key=private-key", headers={"secret": "private-header"},
+                              body="private-body", exception=RuntimeError("private-exception"))
+    context = SimpleNamespace()
+    monkeypatch.setattr(google_client.logger, "handlers", [caplog.handler])
+    monkeypatch.setattr(google_client.logger, "propagate", False)
+    token = google_client._active_google_stream.set(timing)
+    try:
+        with caplog.at_level(logging.INFO, logger=google_client.__name__):
+            await google_client._on_google_http_request_start(None, context, private)
+            for interval in ["dns", "connect", "pool_wait"]:
+                await google_client._google_transport_trace("http_" + interval + "_start", interval)(None, context, private)
+                await google_client._google_transport_trace("http_" + interval + "_end", interval, end=True)(None, context, private)
+            await google_client._on_google_http_request_end(None, context, private)
+        assert context.google_phase_starts == {}
+        durations = [float(record.getMessage().rsplit("duration_ms=", 1)[1])
+                     for record in caplog.records if "duration_ms=" in record.getMessage()]
+        assert len(durations) == 3 and all(duration >= 0 for duration in durations)
+        assert "safe-task" in caplog.text
+        for value in ["private.invalid", "private-key", "private-header", "private-body", "private-exception"]:
+            assert value not in caplog.text
+        def broken_logger(*_args, **_kwargs):
+            raise RuntimeError("diagnostic failure")
+        monkeypatch.setattr(google_client.logger, "info", broken_logger)
+        await google_client._on_google_http_request_start(None, context, private)
+        await google_client._google_transport_trace("http_dns_start", "dns")(None, context, private)
+        await google_client._on_google_http_request_exception(None, context, private)
+        assert context.google_phase_starts == {} and context.google_timing is None
+        await google_client._on_google_http_response_chunk(None, context, private)
+    finally:
+        google_client._active_google_stream.reset(token)

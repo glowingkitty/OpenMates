@@ -18,6 +18,8 @@ import hmac
 import time
 import uuid
 from functools import lru_cache
+from contextvars import ContextVar
+from contextlib import contextmanager
 from pathlib import Path
 from toon_format import encode
 import yaml
@@ -212,6 +214,40 @@ from backend.shared.python_utils.billing_utils import (
     MINIMUM_CREDITS_CHARGED,
 )
 from backend.shared.python_utils.skill_provider_attribution import resolve_skill_usage_provider_id
+
+
+# Bound to one stream-consumer context. The request model cannot supply this value.
+_prefetched_diffable_embeds: ContextVar[tuple[str, str, bool] | None] = ContextVar(
+    "prefetched_diffable_embeds", default=None,
+)
+
+
+@contextmanager
+def _scoped_diffable_embed_prefetch(task_id: str, chat_id: str, result: bool | None):
+    token = _prefetched_diffable_embeds.set(
+        (task_id, chat_id, result) if result is not None else None,
+    )
+    try:
+        yield
+    finally:
+        _prefetched_diffable_embeds.reset(token)
+
+
+async def _diffable_embeds_for_main_prompt(
+    task_id: str, request_data: AskSkillRequest, cache_service: Optional[CacheService],
+    directus_service: Optional[DirectusService], log_prefix: str,
+) -> bool:
+    prefetched = _prefetched_diffable_embeds.get()
+    if prefetched and prefetched[:2] == (task_id, request_data.chat_id) and cache_service is not None:
+        try:
+            if await cache_service.get_active_ai_task(request_data.chat_id) == task_id:
+                return prefetched[2]
+        except Exception:
+            logger.warning("%s [DIFF_PROMPT] Could not confirm prefetched embed ownership", log_prefix)
+    return await _has_diffable_embeds_for_prompt(
+        request_data, cache_service=cache_service, directus_service=directus_service,
+        log_prefix=log_prefix,
+    )
 
 
 def _skip_empty_task_runtime_for_simple_answer(request: AskSkillRequest,
@@ -4686,8 +4722,8 @@ async def handle_main_processing(
             diagram_receipt_memories = selected_diagram_memories(selected_diagram_types)
     # Inject diff editing instruction when diffable embeds (code/document/sheet) exist in history.
     # This teaches the LLM to output unified diffs instead of regenerating full content.
-    _has_diffable_embeds = await _has_diffable_embeds_for_prompt(
-        request_data,
+    _has_diffable_embeds = await _diffable_embeds_for_main_prompt(
+        task_id, request_data,
         cache_service=cache_service,
         directus_service=directus_service,
         log_prefix=log_prefix,

@@ -1278,9 +1278,9 @@ def test_existing_personal_chat_rejects_user_user_ai_cache_history(monkeypatch):
 
 # contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
 @pytest.mark.asyncio
-@pytest.mark.parametrize("projected,fallback_epoch", [(True, 1), (False, 1), (False, 0)])
+@pytest.mark.parametrize("projected,fallback_epoch,atomic", [(True, 1, False), (True, 1, True), (False, 1, False), (False, 0, False)])
 async def test_first_personal_enqueue_projection_skips_duplicate_reads_or_falls_back(
-    monkeypatch, projected, fallback_epoch,
+    monkeypatch, projected, fallback_epoch, atomic,
 ):
     from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
 
@@ -1318,11 +1318,15 @@ async def test_first_personal_enqueue_projection_skips_duplicate_reads_or_falls_
         user_id=user_id, device_fingerprint_hash="device-123", payload=payload,
         first_personal_admission={"chat_id": chat_id, "turn_id": turn_id,
                                   "message_id": message_id, "preflight_id": preflight_id,
-                                   "wrapped_chat_key": "wrapped-key-1"},
+                                  "wrapped_chat_key": "wrapped-key-1",
+                                  **({"enqueue_result": enqueue_result} if atomic else {})},
     )
-    enqueue.assert_awaited_once()
-    assert enqueue.await_args.kwargs["include_first_personal_projection"] is True
-    assert enqueue.await_args.kwargs["expected_wrapped_chat_key"] == "wrapped-key-1"
+    if atomic:
+        enqueue.assert_not_awaited()
+    else:
+        enqueue.assert_awaited_once()
+        assert enqueue.await_args.kwargs["include_first_personal_projection"] is True
+        assert enqueue.await_args.kwargs["expected_wrapped_chat_key"] == "wrapped-key-1"
     assert fresh_read.await_count == (0 if projected else 1)
     assert epoch.await_count == (0 if projected else 1)
     assert owner_check.await_count == (1 if projected else 0)

@@ -124,6 +124,67 @@ function updateIsolatedPersonalMemoryRows(userId: string, ownerRowId: string, fo
 	});
 }
 
+function updateIsolatedSendContextProjects(userId: string, projectIds: Record<string, string>,
+	marker: string, mode: 'seed' | 'delete'): void {
+	const sourceRoot = process.env.OPENMATES_CI_SOURCE_ROOT;
+	if (process.env.OPENMATES_CI_ISOLATED !== '1' || !sourceRoot) {
+		throw new Error('Send-context Project fixture requires the disposable isolated CI backend.');
+	}
+	const composeFile = path.join(sourceRoot, 'test-results/ci-private/compose.json');
+	if (!fs.existsSync(composeFile)) throw new Error('Isolated compose fixture is missing.');
+	const fixture = [
+		'import asyncio, hashlib, json, sys, time, uuid',
+		'from backend.core.api.app.services.directus import DirectusService',
+		'data = json.load(sys.stdin)',
+		'assert data["mode"] in ("seed", "delete")',
+		'assert all(uuid.UUID(value) for value in data["project_ids"].values())',
+		'async def main():',
+		'    directus = DirectusService()',
+		'    try:',
+		'        ids = data["project_ids"]',
+		'        if data["mode"] == "delete":',
+		'            for project_id in ids.values():',
+		'                hashed = hashlib.sha256(project_id.encode()).hexdigest()',
+		'                settings = await directus.get_items("project_settings", params={"filter": {"hashed_project_id": {"_eq": hashed}}, "limit": -1}, no_cache=True)',
+		'                for row in settings or []: assert await directus.delete_item("project_settings", row["id"])',
+		'                projects = await directus.get_items("projects", params={"filter": {"project_id": {"_eq": project_id}}, "limit": 1}, no_cache=True)',
+		'                for row in projects or []: assert await directus.delete_item("projects", row["id"])',
+		'            return',
+		'        owner = hashlib.sha256(data["user_id"].encode()).hexdigest()',
+		'        foreign = hashlib.sha256(uuid.uuid4().bytes).hexdigest()',
+		'        team = hashlib.sha256(uuid.uuid4().bytes).hexdigest()',
+		'        now = int(time.time())',
+		'        for kind, project_id in ids.items():',
+		'            scope_user = foreign if kind == "foreign" else owner',
+		'            scope_team = team if kind == "team" else None',
+		'            created, _ = await directus.create_item("projects", {',
+		'                "project_id": project_id, "hashed_user_id": scope_user, "hashed_team_id": scope_team,',
+		'                "created_by_user_hash": owner, "encrypted_project_key": data["marker"] + ":key",',
+		'                "encrypted_name": data["marker"] + ":name", "encrypted_description": data["marker"] + ":description",',
+		'                "pinned": True, "archived": kind == "archived", "is_private": True, "is_shared": False,',
+		'                "version": 1, "created_at": now, "updated_at": now, "last_opened_at": now, "item_count": 0,',
+		'            })',
+		'            assert created',
+		'            if kind in ("enabled", "disabled"):',
+		'                settings, _ = await directus.create_item("project_settings", {',
+		'                    "hashed_project_id": hashlib.sha256(project_id.encode()).hexdigest(),',
+		'                    "hashed_user_id": owner, "hashed_team_id": None, "updated_by_user_hash": owner,',
+		'                    "write_mode": "always_ask", "auto_selection": kind == "enabled",',
+		'                    "focus_activation_policy": "approval",',
+		'                    "default_focus_id_hash": hashlib.sha256(uuid.uuid4().bytes).hexdigest(),',
+		'                    "encrypted_settings": data["marker"] + ":settings", "updated_at": now,',
+		'                })',
+		'                assert settings',
+		'    finally:',
+		'        await directus.close()',
+		'asyncio.run(main())'
+	].join('\n');
+	execFileSync('docker', ['compose', '-f', composeFile, 'exec', '-T', 'api', 'python', '-c', fixture], {
+		input: JSON.stringify({ user_id: userId, project_ids: projectIds, marker, mode }),
+		stdio: ['pipe', 'pipe', 'pipe'], timeout: 30000
+	});
+}
+
 // contract-test: direct surface=rest_api assertions=auth.session.lifecycle,auth.session.isolation,auth.secrets.lifecycle
 test('opt-in cookie session returns fresh scoped Personal ciphertext without widening default or anonymous responses', async ({ page, playwright }: any) => {
 	test.setTimeout(120000);
@@ -307,6 +368,138 @@ test('Personal memory snapshot socket returns scoped ciphertext once and rejects
 		expect(Object.hasOwn(results.challenged, 'personal_memories')).toBe(false);
 	} finally {
 		if (ownerId) updateIsolatedPersonalMemoryRows(ownerId, ownerRowId, foreignRowId, marker, 'delete');
+		await authenticated.dispose();
+	}
+});
+
+// contract-test: direct surface=gui.web assertions=auth.session.authoritative-enforcement,auth.session.isolation
+test('Personal send-context socket returns fresh scoped ciphertext and eligible Project metadata once', async ({ page, playwright }: any) => {
+	test.setTimeout(150000);
+	test.skip(process.env.OPENMATES_CI_ISOLATED !== '1', 'Requires the disposable isolated CI backend.');
+	const credentials = getTestAccount();
+	skipWithoutCredentials(test, credentials.email, credentials.password, credentials.otpKey);
+	let applicationSocketUrl: string | null = null;
+	page.on('websocket', (socket: any) => {
+		if (new URL(socket.url()).pathname.endsWith('/v1/ws')) applicationSocketUrl = socket.url();
+	});
+	await loginToTestAccount(page, undefined, undefined, { waitForEditor: true, credentials });
+	await expect.poll(() => applicationSocketUrl).not.toBeNull();
+	const apiUrl = process.env.OPENMATES_E2E_API_URL;
+	if (!apiUrl || new URL(apiUrl).hostname !== 'localhost') {
+		throw new Error('Personal send-context fixture requires the runner-local API.');
+	}
+	const sessionId = await page.evaluate(() => sessionStorage.getItem('session_id'));
+	if (!sessionId) throw new Error('Browser session ID is missing.');
+	const userAgent = await page.evaluate(() => navigator.userAgent);
+	const origin = new URL(page.url()).origin;
+	const cookie = await refreshCookie(page.context());
+	const authenticated = await playwright.request.newContext({
+		baseURL: apiUrl, userAgent, extraHTTPHeaders: { Origin: origin, Cookie: `auth_refresh_token=${cookie}` }
+	});
+	const memoryIds = { owner: randomUUID(), foreign: randomUUID() };
+	const projectIds = { enabled: randomUUID(), disabled: randomUUID(), archived: randomUUID(), foreign: randomUUID(), team: randomUUID() };
+	const marker = Buffer.from(`isolated-send-context:${randomUUID()}`).toString('base64');
+	let ownerId: string | null = null;
+	let memoriesSeeded = false;
+	let projectsSeeded = false;
+	try {
+		const session = await authenticated.post('/v1/auth/session', { data: { session_id: sessionId } });
+		expect(session.status()).toBe(200);
+		const body = await session.json();
+		expect(body.success).toBe(true);
+		expect(body.ws_token).toEqual(expect.any(String));
+		ownerId = body.user?.id;
+		expect(ownerId).toEqual(expect.any(String));
+		memoriesSeeded = true;
+		updateIsolatedPersonalMemoryRows(ownerId!, memoryIds.owner, memoryIds.foreign, marker, 'seed');
+		projectsSeeded = true;
+		updateIsolatedSendContextProjects(ownerId!, projectIds, marker, 'seed');
+		await page.exposeFunction('__challengePersonalSendContext', () => challengeIsolatedSession(cookie));
+		const results = await page.evaluate(async (observedUrl: string) => {
+			const sockets: WebSocket[] = [];
+			const openSocket = () => new Promise<{ socket: WebSocket; capabilities: string[] }>((resolve, reject) => {
+				const url = new URL(observedUrl);
+				url.searchParams.set('sessionId', `personal-send-context-${crypto.randomUUID()}`);
+				const socket = new WebSocket(url);
+				sockets.push(socket);
+				const timeout = setTimeout(() => reject(new Error('Send-context socket did not advertise capabilities')), 20000);
+				socket.addEventListener('message', (event) => {
+					let frame: { type?: string; payload?: { capabilities?: string[] } };
+					try { frame = JSON.parse(String(event.data)); } catch { return; }
+					if (frame.type !== 'server_capabilities') return;
+					clearTimeout(timeout);
+					resolve({ socket, capabilities: frame.payload?.capabilities ?? [] });
+				});
+				socket.addEventListener('error', () => {
+					clearTimeout(timeout);
+					reject(new Error('Send-context socket failed to open'));
+				}, { once: true });
+			});
+			const request = (socket: WebSocket, type: 'personal_send_context_snapshot' | 'personal_memory_snapshot') =>
+				new Promise<Record<string, any>>((resolve, reject) => {
+					const requestId = crypto.randomUUID();
+					const expected = type === 'personal_send_context_snapshot'
+						? 'personal_send_context_snapshot_result' : 'personal_memory_snapshot_result';
+					const timeout = setTimeout(() => {
+						socket.removeEventListener('message', receive);
+						reject(new Error('Send-context result timed out'));
+					}, 20000);
+					function receive(event: MessageEvent) {
+						let frame: { type?: string; payload?: Record<string, any> };
+						try { frame = JSON.parse(String(event.data)); } catch { return; }
+						if (frame.type !== expected || frame.payload?.request_id !== requestId) return;
+						clearTimeout(timeout);
+						socket.removeEventListener('message', receive);
+						resolve(frame.payload);
+					}
+					socket.addEventListener('message', receive);
+					socket.send(JSON.stringify({ type, payload: { request_id: requestId } }));
+				});
+			try {
+				const first = await openSocket();
+				const combined = await request(first.socket, 'personal_send_context_snapshot');
+				const oldAfterCombined = await request(first.socket, 'personal_memory_snapshot');
+				const second = await openSocket();
+				const oldFirst = await request(second.socket, 'personal_memory_snapshot');
+				const combinedAfterOld = await request(second.socket, 'personal_send_context_snapshot');
+				const third = await openSocket();
+				await (window as typeof window & { __challengePersonalSendContext: () => Promise<void> }).__challengePersonalSendContext();
+				const challenged = await request(third.socket, 'personal_send_context_snapshot');
+				return { capabilities: first.capabilities, combined, oldAfterCombined, oldFirst, combinedAfterOld, challenged };
+		} finally {
+			for (const socket of sockets) socket.close();
+		}
+		}, applicationSocketUrl as string);
+		expect(results.capabilities).toContain('personal_send_context_snapshot_v1');
+		expect(results.combined.success).toBe(true);
+		expect(Object.keys(results.combined).sort()).toEqual(['personal_memories', 'project_candidates', 'request_id', 'success']);
+		const batch = results.combined.personal_memories;
+		expect(Object.keys(batch).sort()).toEqual(['encrypted_settings', 'memories']);
+		expect(batch.encrypted_settings === null || typeof batch.encrypted_settings === 'string').toBe(true);
+		expect(batch.memories.some((row: any) => row.id === memoryIds.owner && row.encrypted_item_json === marker)).toBe(true);
+		expect(batch.memories.some((row: any) => row.id === memoryIds.foreign)).toBe(false);
+		expect(batch.memories.every((row: any) => !Object.hasOwn(row, 'hashed_user_id') && !Object.hasOwn(row, 'hashed_team_id'))).toBe(true);
+		const candidates = results.combined.project_candidates;
+		expect(Array.isArray(candidates)).toBe(true);
+		const enabled = candidates.find((row: any) => row.project_id === projectIds.enabled);
+		expect(enabled).toEqual({ project_id: projectIds.enabled,
+			encrypted_project_key: `${marker}:key`, encrypted_name: `${marker}:name`,
+			encrypted_description: `${marker}:description`, auto_selection: true, focus_activation_policy: 'approval' });
+		expect(candidates.some((row: any) => [projectIds.disabled, projectIds.archived, projectIds.foreign, projectIds.team].includes(row.project_id))).toBe(false);
+		expect(candidates.every((row: any) => Object.keys(row).sort().join(',') ===
+			'auto_selection,encrypted_description,encrypted_name,encrypted_project_key,focus_activation_policy,project_id')).toBe(true);
+		expect(results.oldAfterCombined).toMatchObject({ success: false, error: { code: 'already_used' } });
+		expect(Object.hasOwn(results.oldAfterCombined, 'personal_memories')).toBe(false);
+		expect(results.oldFirst.success).toBe(true);
+		expect(Object.hasOwn(results.oldFirst, 'project_candidates')).toBe(false);
+		expect(results.combinedAfterOld).toMatchObject({ success: false, error: { code: 'already_used' } });
+		expect(Object.hasOwn(results.combinedAfterOld, 'project_candidates')).toBe(false);
+		expect(results.challenged).toMatchObject({ success: false, error: { code: 'unauthorized' } });
+		expect(Object.hasOwn(results.challenged, 'personal_memories')).toBe(false);
+		expect(Object.hasOwn(results.challenged, 'project_candidates')).toBe(false);
+	} finally {
+		if (ownerId && projectsSeeded) updateIsolatedSendContextProjects(ownerId, projectIds, marker, 'delete');
+		if (ownerId && memoriesSeeded) updateIsolatedPersonalMemoryRows(ownerId, memoryIds.owner, memoryIds.foreign, marker, 'delete');
 		await authenticated.dispose();
 	}
 });

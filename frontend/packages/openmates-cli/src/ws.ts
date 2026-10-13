@@ -641,6 +641,62 @@ export class OpenMatesWsClient {
       memories: data.memories as Array<Record<string, unknown>> };
   }
 
+  /** One-use combined Personal Memory and encrypted Project routing snapshot. */
+  async requestPersonalSendContextSnapshot(requestId: string, timeoutMs = 5_000): Promise<{
+    personal_memories: { encrypted_settings: string | null; memories: Array<Record<string, unknown>> };
+    project_candidates: Array<{ project_id: string; encrypted_project_key: string; encrypted_name: string;
+      encrypted_description: string | null; auto_selection: true; focus_activation_policy: "delayed" | "immediate" | "approval" }>;
+  }> {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+      throw new Error("Invalid Personal send context request ID.");
+    }
+    if (this.personalMemorySnapshotRequested) throw new Error("Personal snapshot already requested on this socket.");
+    this.personalMemorySnapshotRequested = true;
+    const result = this.waitForMessage("personal_send_context_snapshot_result", payload =>
+      !!payload && typeof payload === "object" && (payload as Record<string, unknown>).request_id === requestId,
+    timeoutMs);
+    void result.catch(() => {});
+    await this.sendAsync("personal_send_context_snapshot", { request_id: requestId });
+    const payload = (await result).payload;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new Error("Invalid Personal send context result.");
+    }
+    const frame = payload as Record<string, unknown>;
+    if (frame.success === false) {
+      const error = frame.error;
+      const code = error && typeof error === "object" && !Array.isArray(error)
+        ? (error as Record<string, unknown>).code : undefined;
+      throw new Error(`Personal send context rejected: ${typeof code === "string" ? code : "invalid_result"}.`);
+    }
+    const memory = frame.personal_memories;
+    const candidates = frame.project_candidates;
+    if (frame.success !== true || !memory || typeof memory !== "object" || Array.isArray(memory)
+      || !Array.isArray(candidates) || candidates.length > 40) throw new Error("Invalid Personal send context result.");
+    const data = memory as Record<string, unknown>;
+    if ((data.encrypted_settings !== null && typeof data.encrypted_settings !== "string")
+      || !Array.isArray(data.memories) || data.memories.some(row => !row || typeof row !== "object" || Array.isArray(row))) {
+      throw new Error("Invalid Personal send context result.");
+    }
+    const ids = new Set<string>();
+    for (const row of candidates) {
+      if (!row || typeof row !== "object" || Array.isArray(row)) throw new Error("Invalid Personal Project candidate.");
+      const record = row as Record<string, unknown>;
+      if (typeof record.project_id !== "string" || !/^[0-9a-f-]{36}$/i.test(record.project_id)
+        || ids.has(record.project_id) || typeof record.encrypted_project_key !== "string" || !record.encrypted_project_key
+        || typeof record.encrypted_name !== "string" || !record.encrypted_name
+        || (record.encrypted_description !== null && typeof record.encrypted_description !== "string")
+        || record.auto_selection !== true
+        || !["delayed", "immediate", "approval"].includes(String(record.focus_activation_policy))) {
+        throw new Error("Invalid Personal Project candidate.");
+      }
+      ids.add(record.project_id);
+    }
+    return { personal_memories: { encrypted_settings: data.encrypted_settings as string | null,
+      memories: data.memories as Array<Record<string, unknown>> },
+      project_candidates: candidates as Array<{ project_id: string; encrypted_project_key: string; encrypted_name: string;
+        encrypted_description: string | null; auto_selection: true; focus_activation_policy: "delayed" | "immediate" | "approval" }> };
+  }
+
   async open(timeoutMs = 10_000, signal?: AbortSignal): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       let settled = false;

@@ -161,7 +161,7 @@ def test_preparation_overlap_runs_concurrently_and_drains_early_exit():
 
 
 # contract: summary activation cannot outrun the authority/cache fences, and
-# metadata publication consumes the persisted sealed job before main inference.
+# metadata publication consumes the persisted sealed job before visible output.
 def test_preparation_and_metadata_join_boundaries():
     source = (Path(__file__).resolve().parents[1] / "tasks" / "ask_skill_task.py").read_text()
     body = source.split("async def _async_process_ai_skill_ask_task(", 1)[1]
@@ -169,11 +169,13 @@ def test_preparation_and_metadata_join_boundaries():
     assert body.index("user_vault_key_id = cached_user_data.get") < body.index("async with _overlap_preparation(summary_operation)")
     assert body.index("await active_summary_task") < body.index("# --- Step 0: Parse User Overrides")
     assert body.index("debug_cache_task = asyncio.create_task(cache_debug_nonfatal())") < body.index(
-        'initial_metadata_job = await time_pre_main("metadata_job"')
-    assert body.index('initial_metadata_job = await time_pre_main("metadata_job"') < body.index(
+        'initial_metadata_operation = time_pre_main("metadata_job"')
+    assert body.index('initial_metadata_task = asyncio.create_task(initial_metadata_operation)') < body.index(
         "await debug_cache_task") < body.index("# --- Step 2: Main Processing")
-    assert body.index('initial_metadata_job = await time_pre_main("metadata_job"') < body.index(
-        "metadata_recovery_job=initial_metadata_job")
+    assert body.index('initial_metadata_job = await time_pre_main("metadata_barrier_wait", initial_metadata_task)') < body.index(
+        "metadata_recovery_job=initial_metadata_job", body.index("async def publish_initial_metadata_after_seal"))
+    assert body.index("before_first_chunk_publish=publish_initial_metadata_after_seal") > body.index(
+        "await debug_cache_task")
     assert "if not request_data.is_external:" in body
     assert "if not typing_lifecycle.started:" in body
 
@@ -325,3 +327,201 @@ def test_failure_cleanup_preserves_atomic_owner_and_handoff_fences():
         assert dispatched == 0
 
     asyncio.run(check())
+
+
+# contract-test: direct surface=cli assertions=chat-processing-feedback.turn-lifecycle
+# Complete empty Stage1 may overlap the active-summary mutation and read-only
+# artifact lookup with preprocessing, but related reads and provider use must join.
+def test_first_turn_overlap_fences_and_drains_delayed_jobs():
+    import asyncio
+
+    source = (Path(__file__).resolve().parents[1] / "tasks" / "ask_skill_task.py").read_text()
+    tree = ast.parse(source)
+    selected = [node for node in tree.body if isinstance(node, ast.AsyncFunctionDef)
+                and node.name == "_drain_preparation_tasks"]
+    assert len(selected) == 1
+    module = ast.Module(body=selected, type_ignores=[])
+    ast.fix_missing_locations(module)
+    namespace = {"asyncio": asyncio}
+    exec(compile(module, "<first-turn-drain>", "exec"), namespace)
+    drain = namespace["_drain_preparation_tasks"]
+
+    async def check():
+        summary_started = asyncio.Event()
+        embed_started = asyncio.Event()
+        summary_release = asyncio.Event()
+        embed_release = asyncio.Event()
+        drained = []
+
+        async def delayed(name, started, release):
+            started.set()
+            try:
+                await release.wait()
+                return name
+            finally:
+                drained.append(name)
+
+        summary = asyncio.create_task(delayed("summary", summary_started, summary_release))
+        embed = asyncio.create_task(delayed("embed", embed_started, embed_release))
+        await asyncio.wait_for(asyncio.gather(summary_started.wait(), embed_started.wait()), 1)
+        assert not summary.done() and not embed.done()
+        async def await_related_boundary():
+            await summary
+            return "related read allowed"
+        related_read = asyncio.create_task(await_related_boundary())
+        await asyncio.sleep(0)
+        assert not related_read.done()
+        summary_release.set()
+        assert await related_read == "related read allowed"
+        assert not embed.done()
+        embed_release.set()
+        assert await embed == "embed"
+        await drain(summary, embed)
+        assert sorted(drained) == ["embed", "summary"]
+
+        drained.clear()
+        summary_started.clear()
+        embed_started.clear()
+        summary_release.clear()
+        embed_release.clear()
+        summary = asyncio.create_task(delayed("summary", summary_started, summary_release))
+        embed = asyncio.create_task(delayed("embed", embed_started, embed_release))
+        await asyncio.wait_for(asyncio.gather(summary_started.wait(), embed_started.wait()), 1)
+        await drain(summary, embed)  # preprocessing rejection / early exit
+        assert summary.cancelled() and embed.cancelled()
+        assert sorted(drained) == ["embed", "summary"]
+
+    asyncio.run(check())
+    body = source.split("async def _async_process_ai_skill_ask_task(", 1)[1]
+    assert body.index('stage=durable_claim') < body.index("delayed_first_turn_summary =")
+    assert body.index("before_related_summary_read=before_related_summary_read") < body.index(
+        "await _drain_preparation_tasks(summary_task, embed_task)")
+    assert body.index("prefetched_diffable_embeds = await embed_task") < body.index(
+        "# --- Step 2: Main Processing")
+    assert body.index('initial_metadata_operation = time_pre_main("metadata_job"') < body.index(
+        "_scoped_diffable_embed_prefetch(task_id, request_data.chat_id, prefetched_diffable_embeds)")
+
+
+def test_first_turn_overlap_requires_complete_empty_admission_and_no_mentions():
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    source = (Path(__file__).resolve().parents[1] / "tasks" / "ask_skill_task.py").read_text()
+    tree = ast.parse(source)
+    helper = next(node for node in tree.body if isinstance(node, ast.FunctionDef)
+                  and node.name == "_can_overlap_first_turn_reads")
+    # Replace its production import with a narrow fake that proves the outer
+    # first-turn/mention fences independently of the routing implementation.
+    helper.body = [node for node in helper.body if not isinstance(node, ast.ImportFrom)]
+    module = ast.Module(body=[helper], type_ignores=[])
+    ast.fix_missing_locations(module)
+    namespace = {"_simple_context_fast_path": Mock(return_value=True)}
+    exec(compile(module, "<first-turn-proof>", "exec"), namespace)
+    eligible = namespace["_can_overlap_first_turn_reads"]
+    message = SimpleNamespace(role="user", message_id="m1", content="Hello")
+    request = SimpleNamespace(chat_has_title=False, message_history=[message], message_id="m1",
+                              current_user_content="Hello")
+    snapshot = {"routing": {"early_decisions": {"needs_related_work": False}}}
+    assert eligible(request, snapshot)
+    request.current_user_content = "@mate:coder Hello"
+    assert not eligible(request, snapshot)
+    request.current_user_content = "Hello"
+    request.message_history.append(SimpleNamespace(role="assistant", message_id="m0", content="Hi"))
+    assert not eligible(request, snapshot)
+    request.message_history.pop()
+    request.is_focus_mode_continuation = True
+    assert not eligible(request, snapshot)
+    request.is_focus_mode_continuation = False
+    namespace["_simple_context_fast_path"].return_value = False
+    assert not eligible(request, snapshot)
+
+
+def test_prefetched_embed_lookup_requires_scoped_matching_active_owner():
+    import asyncio
+    from contextlib import contextmanager
+    from contextvars import ContextVar
+    from types import SimpleNamespace
+    from typing import Optional
+    from unittest.mock import AsyncMock, Mock
+
+    source = (Path(__file__).resolve().parents[1] / "processing" / "main_processor.py").read_text()
+    tree = ast.parse(source)
+    selected = [node for node in tree.body if (
+        isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)
+        and node.target.id == "_prefetched_diffable_embeds"
+    ) or (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name in {
+        "_scoped_diffable_embed_prefetch", "_diffable_embeds_for_main_prompt",
+    })]
+    module = ast.Module(body=selected, type_ignores=[])
+    ast.fix_missing_locations(module)
+    fallback = AsyncMock(return_value=False)
+    namespace = {"ContextVar": ContextVar, "contextmanager": contextmanager,
+                 "AskSkillRequest": object, "CacheService": object, "DirectusService": object,
+                 "Optional": Optional, "logger": Mock(),
+                 "_has_diffable_embeds_for_prompt": fallback}
+    exec(compile(module, "<scoped-embed-lookup>", "exec"), namespace)
+    scoped = namespace["_scoped_diffable_embed_prefetch"]
+    lookup = namespace["_diffable_embeds_for_main_prompt"]
+
+    async def check():
+        request = SimpleNamespace(chat_id="chat")
+        cache = SimpleNamespace(get_active_ai_task=AsyncMock(return_value="task"))
+        with scoped("task", "chat", True):
+            assert await lookup("task", request, cache, None, "") is True
+            fallback.assert_not_awaited()
+            cache.get_active_ai_task.return_value = "newer-task"
+            assert await lookup("task", request, cache, None, "") is False
+            assert fallback.await_count == 1
+        cache.get_active_ai_task.return_value = "task"
+        assert await lookup("task", request, cache, None, "") is False
+        assert fallback.await_count == 2
+
+    asyncio.run(check())
+
+
+# contract-test: direct surface=cli assertions=chat-processing-feedback.turn-lifecycle
+# A sealed metadata job may run beside provider startup, but a delayed job must
+# settle once before visible output or a zero-chunk terminal path proceeds.
+def test_first_visible_barrier_waits_once_and_stream_covers_terminal_paths():
+    import asyncio
+    from typing import Awaitable, Callable, Optional
+
+    source = (Path(__file__).resolve().parents[1] / "tasks" / "stream_consumer.py").read_text()
+    tree = ast.parse(source)
+    selected = [node for node in tree.body if isinstance(node, ast.ClassDef)
+                and node.name == "_FirstChunkPublishBarrier"]
+    assert len(selected) == 1
+    module = ast.Module(body=selected, type_ignores=[])
+    ast.fix_missing_locations(module)
+    namespace = {"Optional": Optional, "Callable": Callable, "Awaitable": Awaitable}
+    exec(compile(module, "<first-visible-barrier>", "exec"), namespace)
+    barrier_type = namespace["_FirstChunkPublishBarrier"]
+
+    async def check():
+        started = asyncio.Event()
+        release = asyncio.Event()
+        calls = 0
+
+        async def sealed_notice():
+            nonlocal calls
+            calls += 1
+            started.set()
+            await release.wait()
+
+        barrier = barrier_type(sealed_notice)
+        first_chunk = asyncio.create_task(barrier.wait())
+        await started.wait()
+        assert not first_chunk.done()
+        release.set()
+        await first_chunk
+        await barrier.wait()  # no-chunk terminal / repeated internal frames
+        assert calls == 1
+
+    asyncio.run(check())
+    consumer = source.split("async def _consume_main_processing_stream(", 1)[1]
+    assert "before_first_chunk_publish: Optional[Callable[[], Awaitable[None]]]" in consumer
+    assert consumer.count("await first_chunk_barrier.wait()") >= 5
+    assert consumer.index("await first_chunk_barrier.wait()", consumer.index("async for chunk in main_processing_stream")) < consumer.index(
+        "await content_publisher.flush()", consumer.index("async for chunk in main_processing_stream"))
+    assert consumer.index("# A zero-chunk or failed stream still joins before terminal output.") < consumer.index(
+        'with ai_phase_span("main.response_finalize")')

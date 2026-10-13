@@ -81,12 +81,19 @@ def register_google_client_loop(loop: asyncio.AbstractEventLoop) -> None:
     _managed_google_loops.add(loop)
 
 
-def _google_stream_phase(timing: _GoogleStreamTiming, phase: str) -> None:
-    logger.info(
-        "[%s] Google transport phase=%s host=%s model=%s elapsed_ms=%.1f",
-        timing.task_id, phase, timing.host, timing.model_id,
-        (time.monotonic() - timing.started) * 1000,
-    )
+def _google_stream_phase(timing: _GoogleStreamTiming, phase: str, duration_ms: Optional[float] = None) -> None:
+    if duration_ms is None:
+        logger.info(
+            "[%s] Google transport phase=%s host=%s model=%s elapsed_ms=%.1f",
+            timing.task_id, phase, timing.host, timing.model_id,
+            (time.monotonic() - timing.started) * 1000,
+        )
+    else:
+        logger.info(
+            "[%s] Google transport phase=%s host=%s model=%s elapsed_ms=%.1f duration_ms=%.1f",
+            timing.task_id, phase, timing.host, timing.model_id,
+            (time.monotonic() - timing.started) * 1000, max(0.0, duration_ms),
+        )
 
 
 def _log_google_stream_request_policy(timing: _GoogleStreamTiming, config: types.GenerateContentConfig) -> None:
@@ -103,25 +110,80 @@ def _log_google_stream_request_policy(timing: _GoogleStreamTiming, config: types
     )
 
 
-async def _on_google_http_request_start(_session, _trace_context, _params) -> None:
-    timing = _active_google_stream.get()
-    if timing is not None:
-        _google_stream_phase(timing, "http_request_start")
+async def _on_google_http_request_start(_session, trace_context, _params) -> None:
+    try:
+        trace_context.google_timing = _active_google_stream.get()
+        trace_context.google_phase_starts = {}
+        timing = trace_context.google_timing
+        if timing is not None:
+            _google_stream_phase(timing, "http_request_start")
+    except Exception:
+        # Diagnostics must not interrupt or retry an inference request.
+        pass
 
 
-async def _on_google_http_request_end(_session, _trace_context, _params) -> None:
-    timing = _active_google_stream.get()
-    if timing is not None:
-        # aiohttp invokes this when the response headers are available. The
-        # streamed response body may still take much longer to produce a chunk.
-        _google_stream_phase(timing, "http_response_headers")
+async def _on_google_http_request_end(_session, trace_context, _params) -> None:
+    try:
+        timing = getattr(trace_context, "google_timing", None)
+        if timing is not None:
+            # Headers arrive before the streamed response body.
+            _google_stream_phase(timing, "http_response_headers")
+    except Exception:
+        pass
+    finally:
+        trace_context.google_phase_starts = {}
 
 
 async def _on_google_http_response_chunk(_session, _trace_context, _params) -> None:
-    timing = _active_google_stream.get()
-    if timing is not None and not timing.first_http_body_seen:
-        timing.first_http_body_seen = True
-        _google_stream_phase(timing, "http_first_body_chunk")
+    try:
+        timing = _active_google_stream.get()
+        if timing is not None and not timing.first_http_body_seen:
+            timing.first_http_body_seen = True
+            _google_stream_phase(timing, "http_first_body_chunk")
+    except Exception:
+        pass
+
+
+def _google_transport_trace(phase: str, interval: Optional[str] = None, *, end: bool = False):
+    """Duration-only tracing; never inspect request URL, headers, key or body.
+
+    Connection creation includes DNS, TCP and TLS. Its interval overlaps DNS;
+    these are not additive stages or a separate measurement of TLS alone.
+    """
+    async def trace(_session, trace_context, _params) -> None:
+        try:
+            timing = getattr(trace_context, "google_timing", None)
+            if timing is None:
+                return
+            starts = trace_context.google_phase_starts
+            duration_ms = None
+            if interval is not None:
+                if end:
+                    started = starts.pop(interval, None)
+                    if started is not None:
+                        duration_ms = (time.monotonic() - started) * 1000
+                else:
+                    starts[interval] = time.monotonic()
+            if duration_ms is None:
+                _google_stream_phase(timing, phase)
+            else:
+                _google_stream_phase(timing, phase, duration_ms)
+        except Exception:
+            pass
+    return trace
+
+
+async def _on_google_http_request_exception(_session, trace_context, _params) -> None:
+    try:
+        timing = getattr(trace_context, "google_timing", None)
+        if timing is not None:
+            # Exception messages may include private URLs; log only the phase.
+            _google_stream_phase(timing, "http_request_failed")
+    except Exception:
+        pass
+    finally:
+        trace_context.google_phase_starts = {}
+        trace_context.google_timing = None
 
 
 def _new_google_http_session() -> aiohttp.ClientSession:
@@ -129,6 +191,15 @@ def _new_google_http_session() -> aiohttp.ClientSession:
     trace.on_request_start.append(_on_google_http_request_start)
     trace.on_request_end.append(_on_google_http_request_end)
     trace.on_response_chunk_received.append(_on_google_http_response_chunk)
+    trace.on_connection_queued_start.append(_google_transport_trace("http_pool_wait_start", "pool_wait"))
+    trace.on_connection_queued_end.append(_google_transport_trace("http_pool_wait_end", "pool_wait", end=True))
+    trace.on_dns_resolvehost_start.append(_google_transport_trace("http_dns_start", "dns"))
+    trace.on_dns_resolvehost_end.append(_google_transport_trace("http_dns_end", "dns", end=True))
+    trace.on_connection_create_start.append(_google_transport_trace("http_connect_start", "connect"))
+    trace.on_connection_create_end.append(_google_transport_trace("http_connect_end", "connect", end=True))
+    trace.on_connection_reuseconn.append(_google_transport_trace("http_connection_reused"))
+    trace.on_request_headers_sent.append(_google_transport_trace("http_request_headers_sent"))
+    trace.on_request_exception.append(_on_google_http_request_exception)
     return aiohttp.ClientSession(trace_configs=[trace], trust_env=True)
 
 

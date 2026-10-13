@@ -318,34 +318,9 @@ describe("OpenMates SDK workflows", () => {
   });
 
   // contract-test: supporting surface=sdks.npm assertions=workflows.surface.semantic-parity,sdk.surface.semantic-parity
-  it("exposes workflow app-skill child embeds and server-side search results", async () => {
+  it("exposes workflow search child embeds without an agent-only creation wrapper", async () => {
     await withServer(
       (request, body) => {
-        if (request.url === "/v1/apps/workflows/skills/create-or-modify") {
-          assert.deepEqual(body, {
-            title: "Morning weather",
-          });
-          return {
-            success: true,
-            data: {
-              success: true,
-              app_id: "workflows",
-              skill_id: "create-or-modify",
-              parent_embed_id: "app-skill-use-1",
-              result_count: 1,
-              results: [
-                {
-                  type: "workflow",
-                  parent_app_skill_type: "app_skill_use",
-                  child_embed_id: "workflow-embed-1",
-                  workflow_id: "workflow-1",
-                  title: "Morning weather",
-                  status: "draft",
-                },
-              ],
-            },
-          };
-        }
         if (request.url === "/v1/apps/workflows/skills/search") {
           assert.deepEqual(body, {
             query: "weather",
@@ -385,28 +360,32 @@ describe("OpenMates SDK workflows", () => {
       },
       async (apiUrl, seen) => {
         const client = new OpenMates({ apiKey: "x", apiUrl });
-        const created = await client.apps.workflows.createOrModify<Record<string, any>>({
-          title: "Morning weather",
-        });
+        assert.equal("createOrModify" in client.apps.workflows, false);
         const search = await client.apps.workflows.search<Record<string, any>>({
           query: "weather",
           include_temporary: true,
         });
 
-        assert.equal(created.data.app_id, "workflows");
-        assert.equal(created.data.parent_embed_id, "app-skill-use-1");
-        assert.equal(created.data.results[0].child_embed_id, "workflow-embed-1");
-        assert.equal(created.data.results[0].workflow_id, "workflow-1");
         assert.equal(search.data.status, "finished");
         assert.equal(search.data.requires_connected_client, false);
+        assert.equal(search.data.app_id, "workflows");
+        assert.equal(search.data.skill_id, "search");
         assert.equal(search.data.result_count, 2);
+        assert.deepEqual(search.data.results.map((result: Record<string, unknown>) => [
+          result.type,
+          result.parent_app_skill_type,
+          result.workflow_id,
+          result.status,
+        ]), [
+          ["workflow", "app_skill_use", "workflow-1", "enabled"],
+          ["workflow", "app_skill_use", "workflow-2", "draft"],
+        ]);
         assert.deepEqual(search.data.results.map((result: Record<string, unknown>) => result.child_embed_id), [
           "workflow-embed-1",
           "workflow-embed-2",
         ]);
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
-          ["POST", "/v1/apps/workflows/skills/create-or-modify"],
           ["POST", "/v1/apps/workflows/skills/search"],
         ]);
       },

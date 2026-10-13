@@ -379,3 +379,250 @@ async def test_main_reuses_sealed_no_project_route_without_second_candidate_read
     detailed_decision.assert_awaited_once()
     assert hydration_calls == ["details"]
     assert request.project_focus_candidates == []
+
+
+# contract-test: supporting surface=cli assertions=projects.focus.inferred-consent,chat-processing-feedback.selected-mate-identity
+@pytest.mark.asyncio
+@pytest.mark.parametrize("rejected", [False, True])
+async def test_scoped_stage_one_joins_fresh_credit_and_project_eligibility_before_routing(monkeypatch, rejected):
+    import asyncio
+    from backend.apps.ai.processing import routing_ledger
+
+    request = AskSkillRequest(
+        chat_id="chat", message_id="turn", user_id="owner", user_id_hash="owner-hash",
+        current_user_content="What is the capital of Spain?",
+        message_history=[{"role": "user", "content": "What is the capital of Spain?", "created_at": 1}],
+        project_focus_candidates=[{"project_id": "project", "name": "OpenMates"}],
+        client_capabilities=["project_file_jobs"],
+    )
+    entered = set()
+    both_entered = asyncio.Event()
+
+    async def enter(name):
+        entered.add(name)
+        if len(entered) == 2:
+            both_entered.set()
+        await asyncio.wait_for(both_entered.wait(), timeout=1)
+
+    async def credit(*_args):
+        await enter("credit")
+        return preprocessor.PreprocessingResult(
+            can_proceed=False, rejection_reason="insufficient_credits",
+        ) if rejected else None
+
+    async def eligible(*_args, **_kwargs):
+        await enter("project")
+        return []
+
+    ledger = AsyncMock(return_value=routing_ledger.RoutingLedgerSnapshot(available=False, prompt_rows=()))
+    monkeypatch.setattr(preprocessor, "check_preprocessing_credits", credit)
+    monkeypatch.setattr(project_focus_request_service, "validated_project_candidates", eligible)
+    monkeypatch.setattr(preprocessor, "load_skill_ledger", ledger)
+    result = await preprocessor.handle_preprocessing(
+        request_data=request, base_instructions={}, skill_config=SimpleNamespace(),
+        cache_service=object(), secrets_manager=None, directus_service=object(),
+        encryption_service=None, stage_one_only=True, routing_scope_validated=True,
+    )
+    assert entered == {"credit", "project"}
+    assert result.rejection_reason == (
+        "insufficient_credits" if rejected else "internal_error_missing_instructions"
+    )
+    assert ledger.await_count == (0 if rejected else 1)
+
+
+# contract-test: supporting surface=cli assertions=projects.focus.inferred-consent
+@pytest.mark.asyncio
+async def test_scoped_stage_one_cancellation_cleans_both_prechecks(monkeypatch):
+    import asyncio
+
+    request = AskSkillRequest(
+        chat_id="chat", message_id="turn", user_id="owner", user_id_hash="owner-hash",
+        current_user_content="What is the capital of Spain?",
+        message_history=[{"role": "user", "content": "What is the capital of Spain?", "created_at": 1}],
+        project_focus_candidates=[{"project_id": "project", "name": "OpenMates"}],
+        client_capabilities=["project_file_jobs"],
+    )
+    started = asyncio.Event()
+    cancelled = set()
+
+    async def wait(name):
+        if name == "project":
+            started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancelled.add(name)
+            raise
+
+    async def credit(*_args):
+        return await wait("credit")
+
+    async def eligible(*_args, **_kwargs):
+        return await wait("project")
+
+    monkeypatch.setattr(preprocessor, "check_preprocessing_credits", credit)
+    monkeypatch.setattr(project_focus_request_service, "validated_project_candidates", eligible)
+    task = asyncio.create_task(preprocessor.handle_preprocessing(
+        request_data=request, base_instructions={}, skill_config=SimpleNamespace(),
+        cache_service=object(), secrets_manager=None, directus_service=object(),
+        encryption_service=None, stage_one_only=True, routing_scope_validated=True,
+    ))
+    await asyncio.wait_for(started.wait(), timeout=1)
+    await asyncio.sleep(0)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert cancelled == {"credit", "project"}
+
+
+# contract-test: supporting surface=cli assertions=chat-processing-feedback.selected-mate-identity
+@pytest.mark.asyncio
+@pytest.mark.parametrize("hook_fails", [False, True])
+async def test_related_summary_fallback_waits_for_active_summary_hook(monkeypatch, hook_fails):
+    import asyncio
+    from backend.apps.ai.processing import related_work
+
+    class ReachedDetail(BaseException):
+        pass
+
+    request = AskSkillRequest(
+        chat_id="chat", message_id="turn", user_id="owner", user_id_hash="owner-hash",
+        recovery_task_id="task", current_user_content="What happened earlier?",
+        message_history=[{"role": "user", "content": "What happened earlier?", "created_at": 1}],
+    )
+    config = SimpleNamespace(default_llms=SimpleNamespace(
+        preprocessing_model="test/preprocessing", decision_model="test/decision",
+    ))
+    cache = SimpleNamespace(get_mates_configs=AsyncMock(return_value=[SimpleNamespace(
+        id="mate-general", category="general_knowledge", description="General", name="General Mate",
+    )]), publish_event=AsyncMock())
+    early = {"project_target_outcome": "none", "selected_app_ids": [],
+             "early_decisions": {"task_area": "general", "topic_area": "general_knowledge",
+                                 "complexity": "simple", "needs_related_work": True}}
+    order = []
+
+    async def hook():
+        order.append("hook_started")
+        await asyncio.sleep(0)
+        if hook_fails:
+            raise RuntimeError("active summary failed")
+        order.append("hook_done")
+
+    async def summaries(*_args):
+        assert order == ["hook_started", "hook_done"]
+        order.append("summary_read")
+        return []
+
+    read = AsyncMock(side_effect=summaries)
+    monkeypatch.setattr(preprocessor, "check_preprocessing_credits", AsyncMock(return_value=None))
+    monkeypatch.setattr(preprocessor, "load_skill_ledger", AsyncMock(return_value=preprocessor.RoutingLedgerSnapshot(
+        available=False, prompt_rows=(),
+    )))
+    monkeypatch.setattr(jev_preprocessing, "decide_app_and_project_routing_with_jev", AsyncMock(return_value=early))
+    monkeypatch.setattr(preprocessor, "_select_main_model", AsyncMock(return_value={
+        "selected_llm_for_main_id": "test/answer", "selected_llm_for_main_name": "Answer",
+        "complexity_val": "simple", "model_override_applied": False,
+    }))
+    monkeypatch.setattr(agentic_context, "private_focus_candidates", AsyncMock(return_value=[]))
+    monkeypatch.setattr(context_preselection, "discover_workflow_metadata", AsyncMock(return_value=[]))
+    monkeypatch.setattr(related_work, "fetch_related_chat_summaries", read)
+    monkeypatch.setattr(related_work, "fetch_related_task_candidates", AsyncMock(return_value=[]))
+    monkeypatch.setattr(preprocessor, "decide_preprocessing_with_jev", AsyncMock(side_effect=ReachedDetail))
+    monkeypatch.setattr(preprocessor, "utility_model_fallbacks", lambda *_args: [])
+    monkeypatch.setattr(server_mode, "is_payment_enabled", lambda: False)
+    monkeypatch.setattr(client_context_continuation, "await_client_context_phase", AsyncMock())
+
+    run = preprocessor.handle_preprocessing(
+        request_data=request, base_instructions={"preprocess_request_tool": {}}, skill_config=config,
+        cache_service=cache, secrets_manager=None, directus_service=None, encryption_service=None,
+        discovered_apps_metadata={}, before_related_summary_read=hook,
+    )
+    if hook_fails:
+        with pytest.raises(RuntimeError, match="active summary failed"):
+            await run
+        read.assert_not_awaited()
+        assert order == ["hook_started"]
+    else:
+        with pytest.raises(ReachedDetail):
+            await run
+        read.assert_awaited_once()
+        assert order == ["hook_started", "hook_done", "summary_read"]
+
+
+# contract-test: supporting surface=cli assertions=chat-processing-feedback.selected-mate-identity
+@pytest.mark.asyncio
+@pytest.mark.parametrize("hook_fails", [False, True])
+async def test_invalidated_empty_details_join_summary_before_detailed_jev(monkeypatch, hook_fails):
+    import asyncio
+
+    class ReachedDetail(BaseException):
+        pass
+
+    request = AskSkillRequest(
+        chat_id="chat", message_id="turn", user_id="owner", user_id_hash="owner-hash",
+        recovery_task_id="task", current_user_content="Hello",
+        message_history=[{"role": "user", "content": "Hello", "created_at": 1}],
+        admission_context={"scope_complete": True, "active_project_id": None,
+            "active_project_activation_id": None, "active_focus_id": None,
+            "accepted_plan_ref": None, "explicit_related_task_ids": [],
+            "context_revision": "server-admission-v1"},
+    )
+    early = {"project_target_outcome": "none", "selected_app_ids": [],
+             "early_decisions": {"task_area": "general", "topic_area": "general_knowledge",
+                                 "complexity": "simple", "public_decisions": {},
+                                 "needs_detailed_context": False, "needs_related_work": False}}
+    assert preprocessor._simple_context_fast_path(request, early, None)
+    config = SimpleNamespace(default_llms=SimpleNamespace(
+        preprocessing_model="test/preprocessing", decision_model="test/decision",
+    ))
+    cache = SimpleNamespace(get_mates_configs=AsyncMock(return_value=[SimpleNamespace(
+        id="mate-general", category="general_knowledge", description="General", name="General Mate",
+    )]), publish_event=AsyncMock())
+    order = []
+
+    async def details(**_kwargs):
+        order.append("details")
+        request.active_focus_id = "focus-after-details"
+
+    async def hook():
+        order.append("hook_start")
+        await asyncio.sleep(0)
+        if hook_fails:
+            raise RuntimeError("active summary failed")
+        order.append("hook_done")
+
+    async def detailed(**_kwargs):
+        assert order == ["details", "hook_start", "hook_done"]
+        raise ReachedDetail
+
+    detailed_call = AsyncMock(side_effect=detailed)
+    monkeypatch.setattr(preprocessor, "check_preprocessing_credits", AsyncMock(return_value=None))
+    monkeypatch.setattr(preprocessor, "load_skill_ledger", AsyncMock(return_value=preprocessor.RoutingLedgerSnapshot(
+        available=False, prompt_rows=(),
+    )))
+    monkeypatch.setattr(jev_preprocessing, "decide_app_and_project_routing_with_jev", AsyncMock(return_value=early))
+    monkeypatch.setattr(preprocessor, "_select_main_model", AsyncMock(return_value={
+        "selected_llm_for_main_id": "test/answer", "selected_llm_for_main_name": "Answer",
+        "complexity_val": "simple", "model_override_applied": False,
+    }))
+    monkeypatch.setattr(agentic_context, "private_focus_candidates", AsyncMock(return_value=[]))
+    monkeypatch.setattr(context_preselection, "discover_workflow_metadata", AsyncMock(return_value=[]))
+    monkeypatch.setattr(preprocessor, "decide_preprocessing_with_jev", detailed_call)
+    monkeypatch.setattr(preprocessor, "utility_model_fallbacks", lambda *_args: [])
+    monkeypatch.setattr(client_context_continuation, "await_client_context_phase", details)
+
+    run = preprocessor.handle_preprocessing(
+        request_data=request, base_instructions={"preprocess_request_tool": {}}, skill_config=config,
+        cache_service=cache, secrets_manager=None, directus_service=None, encryption_service=None,
+        discovered_apps_metadata={}, before_related_summary_read=hook,
+    )
+    if hook_fails:
+        with pytest.raises(RuntimeError, match="active summary failed"):
+            await run
+        detailed_call.assert_not_awaited()
+        assert order == ["details", "hook_start"]
+    else:
+        with pytest.raises(ReachedDetail):
+            await run
+        detailed_call.assert_awaited_once()
+        assert order == ["details", "hook_start", "hook_done"]

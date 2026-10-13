@@ -474,6 +474,13 @@ test('saved embeds open from encrypted cache and targeted reads without a full r
     assert.equal((await client.getEmbed(id,{preferCache:true})).content?.description,'Full details');
     Object.assign(client,{resolveEmbedKey:async()=>{changeAccount();return key;}});
     await assert.rejects(client.getEmbed(id,{preferCache:true}),/workspace changed/);
+    const {client: accountClient}=fixture();
+    Object.assign(accountClient,{resolveEmbedKey:async()=>{
+      const session=(accountClient as unknown as {session: Record<string,unknown>}).session;
+      Object.assign(accountClient,{session:{...session,hashedEmail:'another-account'}});
+      return key;
+    }});
+    await assert.rejects(accountClient.getEmbed(id,{preferCache:true}),/workspace changed/);
   } finally {if(previous===undefined)delete process.env.OPENMATES_STATE_DIR;else process.env.OPENMATES_STATE_DIR=previous;rmSync(stateDir,{recursive:true,force:true});}
 });
 

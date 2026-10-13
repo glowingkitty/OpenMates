@@ -23,6 +23,7 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.directus.user.device_management import _normalize_device_list
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
+from backend.core.api.app.services.personal_send_context_snapshot import fresh_personal_project_candidates
 from backend.core.api.app.services.notification_event_service import NotificationEventService
 from backend.core.api.app.utils.encryption import EncryptionService
 # Import ConnectionManager from the new module
@@ -358,6 +359,53 @@ async def handle_personal_memory_snapshot(
         logger.warning("Personal memory snapshot unavailable", exc_info=True)
         error_code = "unavailable"
     await websocket.send_json({"type": "personal_memory_snapshot_result", "payload": {
+        "request_id": request_id, "success": False, "error": {"code": error_code},
+    }})
+
+
+async def handle_personal_send_context_snapshot(
+    *, websocket: WebSocket, payload: object, auth_data: dict,
+    cache_service: CacheService, directus_service: DirectusService,
+    already_used: bool = False,
+) -> None:
+    """Return one fresh Personal Memory and Project directory result on this socket."""
+    request_id = _personal_snapshot_request_id(payload)
+    result_type = "personal_send_context_snapshot_result"
+    if already_used or request_id is None:
+        await websocket.send_json({"type": result_type, "payload": {
+            "request_id": request_id, "success": False,
+            "error": {"code": "already_used" if already_used else "invalid_request"},
+        }})
+        return
+    admission = await _personal_snapshot_rate_admission(cache_service, auth_data)
+    if admission != "accepted":
+        await websocket.send_json({"type": result_type, "payload": {
+            "request_id": request_id, "success": False, "error": {"code": admission},
+        }})
+        return
+    try:
+        authorized = await _fresh_personal_snapshot_authority(
+            cache_service=cache_service, directus_service=directus_service, auth_data=auth_data,
+        )
+        if not authorized:
+            error_code = "unauthorized"
+        else:
+            memories, candidates = await asyncio.gather(
+                _load_fresh_personal_memories(directus_service, auth_data["user_id"]),
+                fresh_personal_project_candidates(directus_service, auth_data["user_id"]),
+            )
+            await websocket.send_json({"type": result_type, "payload": {
+                "request_id": request_id, "success": True,
+                "personal_memories": memories.model_dump(mode="json"),
+                "project_candidates": candidates,
+            }})
+            return
+    except HTTPException as exc:
+        error_code = "unauthorized" if exc.status_code in (401, 403) else "unavailable"
+    except Exception:
+        logger.warning("Personal send context snapshot unavailable", exc_info=True)
+        error_code = "unavailable"
+    await websocket.send_json({"type": result_type, "payload": {
         "request_id": request_id, "success": False, "error": {"code": error_code},
     }})
 
@@ -2821,7 +2869,7 @@ async def websocket_endpoint(
     await websocket.send_json({"type": "server_capabilities", "payload": {"capabilities": [
         "chat_turn_admit_v1", "chat_turn_context_v1", "chat_turn_context_failure_v1",
         "chat_turn_context_selection_details_v2", "suggested_followup_message_v1",
-        "personal_memory_snapshot_v1",
+        "personal_memory_snapshot_v1", "personal_send_context_snapshot_v1",
     ]}})
 
     # A live socket must close at its absolute session deadline even if idle.
@@ -3045,6 +3093,14 @@ async def websocket_endpoint(
                 already_used = personal_snapshot_used
                 personal_snapshot_used = True
                 await handle_personal_memory_snapshot(
+                    websocket=websocket, payload=payload, auth_data=auth_data,
+                    cache_service=cache_service, directus_service=directus_service,
+                    already_used=already_used,
+                )
+            elif message_type == "personal_send_context_snapshot":
+                already_used = personal_snapshot_used
+                personal_snapshot_used = True
+                await handle_personal_send_context_snapshot(
                     websocket=websocket, payload=payload, auth_data=auth_data,
                     cache_service=cache_service, directus_service=directus_service,
                     already_used=already_used,

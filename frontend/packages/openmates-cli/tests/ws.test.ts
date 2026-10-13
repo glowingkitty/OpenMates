@@ -145,6 +145,40 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     assert.equal(clients.every(client => !client.isOpen()), true);
   });
 
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,auth.session.lifecycle
+  it("binds combined Personal send context to one socket and rejects malformed or failed results", async () => {
+    const requestId = "33333333-3333-4333-8333-333333333333";
+    for (const variant of ["valid", "rejected", "malformed"] as const) {
+      server.once("connection", socket => {
+        socket.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["personal_send_context_snapshot_v1"] } }));
+        socket.on("message", raw => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload?: unknown };
+          if (frame.type !== "personal_send_context_snapshot") return;
+          assert.deepEqual(frame.payload, { request_id: requestId });
+          const payload = variant === "rejected"
+            ? { request_id: requestId, success: false, error: { code: "rate_limited" } }
+            : { request_id: requestId, success: true, personal_memories: { encrypted_settings: null, memories: [] },
+                project_candidates: variant === "malformed" ? [{ project_id: "bad", auto_selection: false }] : [] };
+          socket.send(JSON.stringify({ type: "personal_send_context_snapshot_result", payload }));
+        });
+      });
+      const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+      try {
+        await client.open();
+        assert.equal(await client.waitForServerCapability("personal_send_context_snapshot_v1", 100), true);
+        if (variant === "valid") {
+          assert.deepEqual(await client.requestPersonalSendContextSnapshot(requestId, 100), {
+            personal_memories: { encrypted_settings: null, memories: [] }, project_candidates: [],
+          });
+          await assert.rejects(client.requestPersonalMemorySnapshot(requestId, 100), /already requested/);
+        } else {
+          await assert.rejects(client.requestPersonalSendContextSnapshot(requestId, 100),
+            variant === "rejected" ? /rate_limited/ : /Invalid Personal Project candidate/);
+        }
+      } finally { client.close(); }
+    }
+  });
+
   // contract-test: supporting surface=cli assertions=auth.session.isolation
   it("does not consume another socket's Personal Memory result", async () => {
     const requestId = "22222222-2222-4222-8222-222222222222";

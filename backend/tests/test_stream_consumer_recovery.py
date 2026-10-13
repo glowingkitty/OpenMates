@@ -1138,3 +1138,69 @@ def test_normal_text_with_usage_remains_successful_and_billable(monkeypatch):
     assert result[0] == "Complete answer."
     billing.assert_awaited_once()
     assert aggregate_log.call_args.kwargs["error_message"] is None
+
+
+# contract-test: direct surface=cli assertions=chat-processing-feedback.turn-lifecycle
+@pytest.mark.parametrize("visible_text", [True, False])
+def test_sealed_metadata_barrier_waits_after_internal_frames_before_visible_or_terminal(monkeypatch, visible_text):
+    """Exercise the actual consumer with a delayed metadata seal and fake provider."""
+    events = []
+    internal_consumed = asyncio.Event()
+    provider_release = asyncio.Event()
+    seal_started = asyncio.Event()
+    seal_release = asyncio.Event()
+
+    async def processing_stream(**_kwargs):
+        yield {"__debug_metadata__": True, "system_prompt_char_count": 0}
+        internal_consumed.set()
+        await provider_release.wait()
+        if visible_text:
+            yield "Visible answer."
+            yield stream_consumer.MistralUsage(
+                prompt_tokens=20, completion_tokens=2, total_tokens=22,
+            )
+
+    async def sealed_metadata_notice():
+        events.append("seal_started")
+        seal_started.set()
+        await seal_release.wait()
+        events.append("sealed")
+
+    async def publish(_cache, _channel, payload, *_args):
+        events.append(("publish", payload))
+
+    monkeypatch.setattr(stream_consumer, "handle_main_processing", processing_stream)
+    monkeypatch.setattr(stream_consumer, "_publish_to_redis", publish)
+    monkeypatch.setattr(stream_consumer, "_handle_normal_billing", AsyncMock(return_value={"total_credits": 22}))
+    monkeypatch.setattr(stream_consumer, "log_main_llm_stream_aggregated_output", Mock())
+    monkeypatch.setattr(stream_consumer.celery_config.app, "AsyncResult", lambda _: SimpleNamespace(state="STARTED"))
+    request = AskSkillRequest(
+        chat_id="chat-1", message_id="message-1", user_id="user-1", user_id_hash="hash-1",
+        message_history=[], is_incognito=True,
+    )
+
+    async def check():
+        consumer = asyncio.create_task(stream_consumer._consume_main_processing_stream(
+            task_id="task-1", request_data=request,
+            preprocessing_result=PreprocessingResult(can_proceed=True),
+            base_instructions={}, directus_service=None, encryption_service=None,
+            user_vault_key_id=None, all_mates_configs=[], discovered_apps_metadata={},
+            cache_service=SimpleNamespace(), before_first_chunk_publish=sealed_metadata_notice,
+        ))
+        await asyncio.wait_for(internal_consumed.wait(), 1)
+        assert not seal_started.is_set(), "internal setup frames must leave metadata/provider overlap open"
+        provider_release.set()
+        await asyncio.wait_for(seal_started.wait(), 1)
+        assert not consumer.done()
+        assert not any(isinstance(event, tuple) and event[0] == "publish" for event in events)
+        seal_release.set()
+        result = await asyncio.wait_for(consumer, 2)
+        assert events.count("sealed") == 1
+        first_publish = next(i for i, event in enumerate(events) if isinstance(event, tuple) and event[0] == "publish")
+        assert events.index("sealed") < first_publish
+        if visible_text:
+            assert result[0] == "Visible answer."
+        else:
+            assert result[0], "zero-chunk path must publish its terminal fallback after the seal"
+
+    asyncio.run(check())

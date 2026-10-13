@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Any
 
 from celery import Task
@@ -58,6 +59,7 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
     request = AskSkillRequest.model_validate(request_data_dict)
     config = AskSkillDefaultConfig.model_validate(skill_config_dict)
     fingerprint = request_fingerprint(request.model_dump(mode="json"), config.model_dump(mode="json"))
+    started_at = time.monotonic()
     cache = await celery_config.get_worker_cache_service()
     if not await routing_turn_is_current(cache, request, inference_task_id):
         return None
@@ -67,13 +69,31 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
     directus = DirectusService(cache_service=cache, encryption_service=encryption)
     if not await routing_admission_is_current(directus, request, inference_task_id):
         return None
-    transient = await restore_private_context_payload(request.model_dump())
-    bind_restored_context_turn(request, transient)
-    for field in PRIVATE_CONTEXT_FIELDS:
-        if field not in {"async_tool_completion", "async_tool_history"}:
-            setattr(request, field, transient.get(field, None if field == "accepted_plan_context" else []))
-    await await_client_context_phase(cache_service=cache, request=request,
-        phase="routing", encryption_service=encryption)
+    logger.info("Stage-one admission current task=%s elapsed_ms=%.1f",
+                inference_task_id, (time.monotonic() - started_at) * 1000)
+
+    async def load_routing_configuration() -> tuple[dict, dict]:
+        base = await cache.get_base_instructions() or load_base_instructions()
+        apps = await cache.get_discovered_apps_metadata()
+        if not apps:
+            # A cache miss must use the same authoritative catalogue fallback as main.
+            apps = await _fetch_and_cache_apps_metadata(cache, inference_task_id)
+        return base, apps
+
+    # The context and public configuration reads begin only after the durable
+    # admission fence. Neither read authorizes a Project or an AI request.
+    async with asyncio.TaskGroup() as reads:
+        config_task = reads.create_task(load_routing_configuration())
+        transient = await restore_private_context_payload(request.model_dump())
+        bind_restored_context_turn(request, transient)
+        for field in PRIVATE_CONTEXT_FIELDS:
+            if field not in {"async_tool_completion", "async_tool_history"}:
+                setattr(request, field, transient.get(field, None if field == "accepted_plan_context" else []))
+        await await_client_context_phase(cache_service=cache, request=request,
+            phase="routing", encryption_service=encryption)
+    base, apps = config_task.result()
+    logger.info("Stage-one context and catalogue ready task=%s elapsed_ms=%.1f",
+                inference_task_id, (time.monotonic() - started_at) * 1000)
     request.message_history = filter_focus_phase_history(request.message_history, chat_id=request.chat_id)
     overrides = None
     if request.message_history:
@@ -88,11 +108,6 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
         overrides = parse_overrides(request.current_user_content)
         if overrides.has_overrides:
             request.current_user_content = overrides.cleaned_message
-    base = await cache.get_base_instructions() or load_base_instructions()
-    apps = await cache.get_discovered_apps_metadata()
-    if not apps:
-        # A cache miss must use the same authoritative catalogue fallback as main.
-        apps = await _fetch_and_cache_apps_metadata(cache, inference_task_id)
     if not apps:
         return None
     memories: dict[str, list[str]] = {}
@@ -103,7 +118,30 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
                 memories.setdefault(app, []).append(item)
     lifecycle = EarlyTypingLifecycle(cache, request, inference_task_id)
 
+    async def load_encrypted_chat_key() -> str | None:
+        try:
+            item = await cache.get_chat_list_item_data(request.user_id, request.chat_id)
+            encrypted_key = getattr(item, "encrypted_chat_key", None)
+        except Exception:
+            encrypted_key = None
+        if encrypted_key:
+            return encrypted_key
+        try:
+            rows = await directus.get_items("chats", {
+                "filter[id][_eq]": request.chat_id,
+                "fields": "encrypted_chat_key", "limit": 1,
+            })
+            return rows[0].get("encrypted_chat_key") if rows else None
+        except Exception:
+            return None
+
+    # The key read is independent of fresh credits, Project eligibility and Jev.
+    # It starts only after admission and the scoped routing context are verified.
+    chat_key_task = asyncio.create_task(load_encrypted_chat_key())
+
     async def publish(routing: dict) -> None:
+        encrypted_key = await chat_key_task
+        # Recheck at publication: the turn can be replaced while Jev or key I/O runs.
         if not await routing_turn_is_current(cache, request, inference_task_id):
             raise RuntimeError("Routing turn no longer current")
         if not await routing_admission_is_current(directus, request, inference_task_id):
@@ -117,38 +155,34 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
             "model_name": routing.get("model_name"), "provider_name": provider,
             "server_region": region, "is_continuation": False,
         }
-        encrypted_key = None
-        try:
-            item = await cache.get_chat_list_item_data(request.user_id, request.chat_id)
-            encrypted_key = getattr(item, "encrypted_chat_key", None)
-        except Exception:
-            pass
-        if not encrypted_key:
-            try:
-                rows = await directus.get_items("chats", {
-                    "filter[id][_eq]": request.chat_id,
-                    "fields": "encrypted_chat_key", "limit": 1,
-                })
-                encrypted_key = rows[0].get("encrypted_chat_key") if rows else None
-            except Exception:
-                pass
         if encrypted_key:
             payload["encrypted_chat_key"] = encrypted_key
         if not request.chat_has_title and routing["category"] in EARLY_CATEGORY_ICONS:
             payload["icon_names"] = [EARLY_CATEGORY_ICONS[routing["category"]]]
         await lifecycle.publish_stage_one(payload)
+        logger.info("Stage-one Mate published task=%s elapsed_ms=%.1f",
+                    inference_task_id, (time.monotonic() - started_at) * 1000)
 
-    await handle_preprocessing(request_data=request, base_instructions=base, skill_config=config,
-        cache_service=cache, secrets_manager=secrets_manager, directus_service=directus,
-        encryption_service=encryption, user_app_settings_and_memories_metadata=memories,
-        discovered_apps_metadata=apps, user_overrides=overrides,
-        is_new_chat=not request.chat_has_title, on_early_routing=publish, stage_one_only=True)
-    routing = getattr(request, "_stage_one_routing", None)
-    if not isinstance(routing, dict) or not routing.get("early_decisions"):
-        return None
-    return await store_stage_one(cache=cache, encryption=encryption, request=request,
-        task_id=inference_task_id, fingerprint=fingerprint, routing=routing,
-        typing_started=lifecycle.started)
+    try:
+        await handle_preprocessing(request_data=request, base_instructions=base, skill_config=config,
+            cache_service=cache, secrets_manager=secrets_manager, directus_service=directus,
+            encryption_service=encryption, user_app_settings_and_memories_metadata=memories,
+            discovered_apps_metadata=apps, user_overrides=overrides,
+            is_new_chat=not request.chat_has_title, on_early_routing=publish,
+            stage_one_only=True, routing_scope_validated=True)
+        routing = getattr(request, "_stage_one_routing", None)
+        if not isinstance(routing, dict) or not routing.get("early_decisions"):
+            return None
+        reference = await store_stage_one(cache=cache, encryption=encryption, request=request,
+            task_id=inference_task_id, fingerprint=fingerprint, routing=routing,
+            typing_started=lifecycle.started)
+        logger.info("Stage-one sealed handoff ready task=%s elapsed_ms=%.1f",
+                    inference_task_id, (time.monotonic() - started_at) * 1000)
+        return reference
+    finally:
+        if not chat_key_task.done():
+            chat_key_task.cancel()
+        await asyncio.gather(chat_key_task, return_exceptions=True)
 
 
 class StageOneRoutingTask(DedupedTask):

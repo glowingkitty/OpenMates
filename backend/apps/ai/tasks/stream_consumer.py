@@ -10,7 +10,7 @@ import json
 import httpx
 import asyncio
 from contextlib import contextmanager
-from typing import Dict, Any, List, Optional, AsyncIterator, Union
+from typing import Dict, Any, List, Optional, AsyncIterator, Union, Callable, Awaitable
 
 from celery.exceptions import SoftTimeLimitExceeded
 from celery.states import REVOKED as TASK_STATE_REVOKED
@@ -5460,6 +5460,21 @@ def _stream_model_name_after_usage(
     return display_name or model_id
 
 
+class _FirstChunkPublishBarrier:
+    """Join an independent sealed write once before visible or terminal output."""
+
+    def __init__(self, operation: Optional[Callable[[], Awaitable[None]]]):
+        self.operation = operation
+        self.completed = False
+
+    async def wait(self) -> None:
+        if self.completed:
+            return
+        self.completed = True
+        if self.operation is not None:
+            await self.operation()
+
+
 async def _consume_main_processing_stream(
     task_id: str,
     request_data: AskSkillRequest,
@@ -5476,6 +5491,7 @@ async def _consume_main_processing_stream(
     user_overrides: Optional[UserOverrides] = None,  # User overrides from @mention syntax
     skill_config_dict: Optional[Dict[str, Any]] = None,
     completion_timing: Optional[AICompletionTiming] = None,
+    before_first_chunk_publish: Optional[Callable[[], Awaitable[None]]] = None,
 ) -> tuple[str, bool, bool, list, Optional[Dict[str, Any]]]:
     """
     Consumes the async stream from handle_main_processing, aggregates the response,
@@ -5488,6 +5504,7 @@ async def _consume_main_processing_stream(
     logger.info(f"{log_prefix} Starting to consume stream from main_processor.")
 
     standardized_error_message = STANDARDIZED_USER_ERROR_MESSAGE
+    first_chunk_barrier = _FirstChunkPublishBarrier(before_first_chunk_publish)
 
     # Local flags for interruption status
     was_revoked_during_stream = False
@@ -5538,6 +5555,7 @@ async def _consume_main_processing_stream(
             predefined_response = "I can't help with that request."
         
         # Generate fake stream chunks to simulate normal streaming behavior
+        await first_chunk_barrier.wait()
         return await _generate_fake_stream_for_harmful_content(
             task_id=task_id,
             request_data=request_data,
@@ -5555,6 +5573,7 @@ async def _consume_main_processing_stream(
     if not preprocessing_result.can_proceed and preprocessing_result.rejection_reason == "insufficient_credits":
         logger.info(f"{log_prefix} Detected insufficient credits case. Generating simple fake stream.")
         message_text = preprocessing_result.error_message or "You don't have enough credits to run this request. Please add credits and try again."
+        await first_chunk_barrier.wait()
         return await _generate_fake_stream_for_simple_message(
             task_id=task_id,
             request_data=request_data,
@@ -5575,6 +5594,7 @@ async def _consume_main_processing_stream(
         # The technical error is logged but not shown to the user
         logger.warning(f"{log_prefix} Technical preprocessing error (not shown to user): {preprocessing_result.error_message}")
         message_text = STANDARDIZED_USER_ERROR_MESSAGE
+        await first_chunk_barrier.wait()
         return await _generate_fake_stream_for_simple_message(
             task_id=task_id,
             request_data=request_data,
@@ -5890,6 +5910,17 @@ async def _consume_main_processing_stream(
     pre_main_open = True
     try:
         async for chunk in main_processing_stream:
+            # Internal setup frames do not publish answer content. Let the
+            # provider run while sealed metadata persists, then join before
+            # any visible content or recovery terminal can be published.
+            if not (isinstance(chunk, dict) and any(key in chunk for key in (
+                "__native_cache_context__", "__project_file_reference_output__",
+                "__focus_phases_updated__", "__chat_context_applied__",
+                "__debug_metadata__", "__suggested_followup_message__",
+                "__tool_calls_info__", "__failed_embed_ids__",
+                "__cumulative_llm_usage__",
+            ))):
+                await first_chunk_barrier.wait()
             if pre_main_open:
                 pre_main_scope.__exit__(None, None, None)
                 pre_main_open = False
@@ -9053,6 +9084,8 @@ async def _consume_main_processing_stream(
     finally:
         if pre_main_open:
             pre_main_scope.__exit__(None, None, None)
+        # A zero-chunk or failed stream still joins before terminal output.
+        await first_chunk_barrier.wait()
 
     with ai_phase_span("main.response_finalize"):
         await content_publisher.flush()

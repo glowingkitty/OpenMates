@@ -734,17 +734,20 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             chat_id=chat_id, is_incognito=is_incognito, is_team_chat=is_team_chat,
         ):
             try:
-                recovery_enqueue_result = await enqueue_chat_turn(
-                    directus_service=directus_service,
-                    user_id_hash=hash_id(user_id),
-                    device_fingerprint_hash=device_fingerprint_hash,
-                    preflight_id=payload["preflight_id"],
-                    inference_request=_recovery_inference_request(
-                        payload, manager, user_id, device_fingerprint_hash,
-                    ),
-                    include_first_personal_projection=True,
-                    expected_wrapped_chat_key=first_personal_admission["wrapped_chat_key"],
-                )
+                if first_personal_admission.get("enqueue_result") is not None:
+                    recovery_enqueue_result = first_personal_admission["enqueue_result"]
+                else:
+                    recovery_enqueue_result = await enqueue_chat_turn(
+                        directus_service=directus_service,
+                        user_id_hash=hash_id(user_id),
+                        device_fingerprint_hash=device_fingerprint_hash,
+                        preflight_id=payload["preflight_id"],
+                        inference_request=_recovery_inference_request(
+                            payload, manager, user_id, device_fingerprint_hash,
+                        ),
+                        include_first_personal_projection=True,
+                        expected_wrapped_chat_key=first_personal_admission["wrapped_chat_key"],
+                    )
             except ChatRecoveryProtocolError as exc:
                 await manager.send_personal_message(
                     {"type": "error", "payload": {

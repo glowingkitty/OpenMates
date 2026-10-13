@@ -6,6 +6,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { metadataOperations } from './metadata_operations.js';
 
 const PREFLIGHTS = 'chat_turn_preflights';
+const ROUTING_PROOFS = 'chat_routing_proofs';
 const JOBS = 'chat_completion_recovery_jobs';
 const OUTPUTS = 'chat_recovery_outputs';
 const ACCOUNT_FENCES = 'chat_recovery_account_fences';
@@ -134,11 +135,17 @@ const OPERATION_FIELDS = Object.freeze({
     'protocol_version', 'hashed_user_id', 'chat_id', 'turn_id', 'user_message_id',
     'device_hash', 'chat_key_version', 'wrapped_chat_key', 'recovery_public_key',
     'inference_commitment', 'commitment_version', 'expected_messages_v', 'encrypted_user_message',
-    'encrypted_chat_metadata', 'hashed_team_id',
+    'encrypted_chat_metadata', 'hashed_team_id', 'queued_after_task_id',
   ]),
   verify_committed_team_message: new Set([
     'protocol_version', 'preflight_id', 'hashed_user_id', 'hashed_team_id',
     'chat_id', 'user_message_id', 'encrypted_content_digest',
+  ]),
+  admit_first_personal: new Set([
+    'protocol_version', 'hashed_user_id', 'chat_id', 'turn_id', 'user_message_id',
+    'device_hash', 'chat_key_version', 'wrapped_chat_key', 'recovery_public_key',
+    'inference_commitment', 'commitment_version', 'expected_messages_v',
+    'encrypted_user_message', 'encrypted_chat_metadata',
   ]),
   enqueue_inference: new Set([
     'protocol_version', 'preflight_id', 'hashed_user_id', 'device_hash',
@@ -368,6 +375,22 @@ const stableJson = (value) => {
   return JSON.stringify(value);
 };
 const digest = (value) => createHash('sha256').update(typeof value === 'string' ? value : stableJson(value)).digest('hex');
+// Normalize optional SQL NULLs before comparing a stored message with its
+// preflight input. This digest is independent of DB-only queue columns.
+const routingMessageDigest = (message) => digest(Object.fromEntries(
+  [...MESSAGE_FIELDS].map((field) => [field, field === 'has_thinking'
+    ? (message[field] ?? false) : (message[field] ?? null)]),
+));
+const ROUTING_SCHEMA_CACHE = Symbol('routing-proof-schema');
+async function routingProofSchemaAvailable(trx) {
+  if (trx[ROUTING_SCHEMA_CACHE] === undefined) {
+    trx[ROUTING_SCHEMA_CACHE] = Boolean(trx.schema?.hasTable && trx.schema?.hasColumn
+      && await trx.schema.hasTable(ROUTING_PROOFS)
+      && await trx.schema.hasColumn(PREFLIGHTS, 'routing_message_digest'));
+  }
+  return trx[ROUTING_SCHEMA_CACHE];
+}
+
 const tokenDigest = (value) => createHash('sha256').update(value, 'utf8').digest('hex');
 const protocol = (body) => { if (body.protocol_version !== PROTOCOL_VERSION) fail(426, 'client_update_required'); };
 const operationBody = (raw, operation) => {
@@ -1487,6 +1510,8 @@ async function finishQueuedMessageRevision(database, raw, now, commit) {
     await trx(CHATS).where({ id: chatId }).update({ messages_v: nextMessagesVersion,
       updated_at: Math.floor(now.getTime() / 1000),
       last_edited_overall_timestamp: Math.floor(now.getTime() / 1000) });
+    if (recoveryBinding && !teamHash) await advanceRoutingProof(
+      trx, chatId, ownerHash, nextMessagesVersion - 1, nextMessagesVersion);
     return { status: 'updated', queue_revision: expected + 1, messages_v: nextMessagesVersion };
   });
 }
@@ -1561,6 +1586,8 @@ async function markQueuedMessagePending(database, raw, now) {
     const nextMessagesVersion = Number(chat.messages_v || 0) + 1;
     await trx(CHATS).where({ id: chatId }).update({ messages_v: nextMessagesVersion,
       updated_at: Math.floor(now.getTime() / 1000) });
+    if (recoveryBinding && !teamHash) await advanceFollowerPendingProof(
+      trx, chatId, ownerHash, nextMessagesVersion - 1, nextMessagesVersion, recoveryBinding);
     return { status: 'queued', queue_revision: current, messages_v: nextMessagesVersion };
   });
 }
@@ -2084,8 +2111,8 @@ const isEmptyDraftShell = (chat) => Number(chat.messages_v ?? 0) === 0
   && chat.last_message_timestamp == null;
 const hashIdentifier = (value) => createHash('sha256').update(value).digest('hex');
 
-async function preparePreflight(database, raw, now) {
-  const body = operationBody(raw, 'prepare_preflight');
+function parsePreflightData(raw, operation = 'prepare_preflight') {
+  const body = operationBody(raw, operation);
   const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
   const teamHash = body.hashed_team_id === undefined ? null : hexDigest(body.hashed_team_id, 'invalid_team');
   const chatId = uuid(body.chat_id, 'invalid_chat_id');
@@ -2103,6 +2130,8 @@ async function preparePreflight(database, raw, now) {
     ? null
     : validateNewChatMetadata(body.encrypted_chat_metadata, { chatId, ownerHash, wrappedKey });
   const message = validateMessage(body.encrypted_user_message, 'user', { chatId, ownerHash });
+  const queuedAfterTaskId = body.queued_after_task_id === undefined ? null
+    : uuid(body.queued_after_task_id, 'invalid_queued_after_task_id');
   if (message.client_message_id !== userMessageId) fail(409, 'message_identity_mismatch');
   const values = {
     user_message_id: userMessageId, device_hash: deviceHash, chat_key_version: keyVersion,
@@ -2110,8 +2139,23 @@ async function preparePreflight(database, raw, now) {
     encrypted_user_digest: digest(message), inference_commitment: commitment,
     commitment_version: commitmentVersion,
   };
-  return database.transaction(async (trx) => {
-    await requireUnfencedRecoveryAccount(trx, ownerHash);
+  return {
+    ownerHash, teamHash, chatId, turnId, userMessageId, deviceHash, keyVersion,
+    wrappedKey, recoveryKey, commitment, commitmentVersion, expectedVersion,
+    chatMetadata, message, values, queuedAfterTaskId,
+  };
+}
+
+async function preparePreflight(database, raw, now) {
+  const data = parsePreflightData(raw);
+  return database.transaction((trx) => preparePreflightInTransaction(trx, data, now));
+}
+
+async function preparePreflightInTransaction(trx, data, now, { accountAlreadyLocked = false } = {}) {
+  const { ownerHash, teamHash, chatId, turnId, userMessageId, deviceHash, keyVersion,
+    wrappedKey, recoveryKey, commitment, commitmentVersion, expectedVersion,
+    chatMetadata, message, values, queuedAfterTaskId } = data;
+    if (!accountAlreadyLocked) await requireUnfencedRecoveryAccount(trx, ownerHash);
     if (teamHash) {
       const cutover = await lockedProtocolState(trx);
       if (cutover.sends_paused) fail(503, 'inference_temporarily_paused');
@@ -2168,6 +2212,13 @@ async function preparePreflight(database, raw, now) {
         pinned: false,
         is_private: true,
         is_shared: false,
+        chat_visibility: null,
+        participant_user_hashes: null,
+        participant_key_envelopes: null,
+        parent_id: null,
+        is_sub_chat: false,
+        budget_limit: null,
+        budget_spent: 0,
         share_with_community: false,
         share_pii: false,
         share_highlights: true,
@@ -2201,14 +2252,18 @@ async function preparePreflight(database, raw, now) {
       : { id: chatId, hashed_user_id: ownerHash, messages_v: expectedVersion };
     if (await trx(CHATS).where(chatUpdateWhere)
       .update({ messages_v: committedVersion, updated_at: timestamp, last_edited_overall_timestamp: timestamp }) !== 1) fail(409, 'version_conflict');
+    // A server-observed active task is only a hint. SQL validates its exact
+    // owner, task, preflight, outbox and unchanged message before advancing.
+    if (queuedAfterTaskId && !teamHash) await advanceRoutingProof(
+      trx, chatId, ownerHash, expectedVersion, committedVersion, queuedAfterTaskId);
     const row = {
       id: randomUUID(), hashed_user_id: ownerHash, chat_id: chatId, turn_id: turnId, ...values,
       expected_messages_v: expectedVersion, committed_messages_v: committedVersion, state: 'PREPARED',
       prepared_at: now, expires_at: new Date(now.getTime() + PREFLIGHT_TTL_MS),
+      ...(await routingProofSchemaAvailable(trx) ? { routing_message_digest: routingMessageDigest(message) } : {}),
     };
     await trx(PREFLIGHTS).insert(row);
     return responseForPreflight(row);
-  });
 }
 
 async function verifyCommittedTeamMessage(database, raw) {
@@ -2265,6 +2320,161 @@ const firstPersonalChatProjection = (chat, row, ownerHash) => {
     budget_spent: chat.budget_spent,
   };
 };
+
+async function currentRoutingProof(trx, chatId, ownerHash, preserveHeld = false) {
+  if (!await routingProofSchemaAvailable(trx)) return null;
+  if (await trx(ACCOUNT_FENCES).where({ id: ownerHash }).first()
+    || await trx(CHAT_DELETION_FENCES).where({ id: chatId }).first()) return null;
+  const protocol = await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).first();
+  if (!protocol || Number(protocol.protocol_epoch) !== 1 || protocol.sends_paused) return null;
+  const proof = await trx(ROUTING_PROOFS).where({ chat_id: chatId }).forUpdate().first();
+  if (!proof || proof.hashed_user_id !== ownerHash) return null;
+  // Reads follow the chat-row lock, so no active-preflight row lock can invert
+  // enqueue's preflight -> chat order. The final routing check revalidates all.
+  const row = await trx(PREFLIGHTS).where({ id: proof.preflight_id }).first();
+  const outbox = row?.outbox_id ? await trx(OUTBOX).where({ id: row.outbox_id }).first() : null;
+  const message = row ? await trx(MESSAGES).where({ chat_id: chatId,
+    client_message_id: row.user_message_id }).first() : null;
+  if (!row || !outbox || !message || row.state !== 'ENQUEUED'
+    || row.hashed_user_id !== ownerHash || row.chat_id !== chatId
+    || row.deletion_invalidated_at || new Date(row.expires_at) <= new Date()
+    || row.inference_task_id !== proof.inference_task_id
+    || row.routing_message_digest !== proof.message_digest
+    || outbox.preflight_id !== row.id || outbox.inference_task_id !== proof.inference_task_id
+    || outbox.hashed_user_id !== ownerHash || outbox.chat_id !== chatId
+    || outbox.turn_id !== row.turn_id
+    || !(preserveHeld ? ['HELD', 'PENDING', 'DISPATCHED'] : ['PENDING', 'DISPATCHED']).includes(outbox.state)
+    || message.hashed_user_id !== ownerHash || message.role !== 'user'
+    || routingMessageDigest(message) !== proof.message_digest) return null;
+  return proof;
+}
+
+async function advanceRoutingProof(trx, chatId, ownerHash, previousVersion, nextVersion,
+  expectedTaskId = null) {
+  const proof = await currentRoutingProof(trx, chatId, ownerHash);
+  if (!proof || Number(proof.messages_v) !== previousVersion
+    || (expectedTaskId && proof.inference_task_id !== expectedTaskId)) return false;
+  return await trx(ROUTING_PROOFS).where({ chat_id: chatId,
+    preflight_id: proof.preflight_id, messages_v: previousVersion })
+    .update({ messages_v: nextVersion }) === 1;
+}
+
+async function advanceFollowerPendingProof(trx, chatId, ownerHash, chatVersion,
+  nextVersion, binding) {
+  const follower = binding.preflight;
+  if (follower.hashed_user_id !== ownerHash || follower.chat_id !== chatId
+    || follower.state !== 'ENQUEUED' || binding.outbox.preflight_id !== follower.id
+    || !['HELD', 'PENDING'].includes(binding.outbox.state)
+    || Number(follower.committed_messages_v) !== chatVersion
+    || Number(follower.expected_messages_v) + 1 !== chatVersion) return false;
+  const proof = await currentRoutingProof(trx, chatId, ownerHash);
+  if (!proof || proof.preflight_id === follower.id) return false;
+  if (Number(proof.messages_v) !== chatVersion
+    && Number(proof.messages_v) !== Number(follower.expected_messages_v)) return false;
+  return await trx(ROUTING_PROOFS).where({ chat_id: chatId, preflight_id: proof.preflight_id,
+    messages_v: proof.messages_v }).update({ messages_v: nextVersion }) === 1;
+}
+
+async function initializeRoutingProof(trx, row, chat, ownerHash) {
+  if (!row.routing_message_digest || !await routingProofSchemaAvailable(trx)
+    || Number(chat.messages_v) !== Number(row.committed_messages_v)) return;
+  const protocol = await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).first();
+  if (!protocol || Number(protocol.protocol_epoch) !== 1 || protocol.sends_paused) return;
+  const message = await trx(MESSAGES).where({ chat_id: row.chat_id,
+    client_message_id: row.user_message_id }).first();
+  if (!message || routingMessageDigest(message) !== row.routing_message_digest) return;
+  const existing = await trx(ROUTING_PROOFS).where({ chat_id: row.chat_id }).forUpdate().first();
+  // A queued follower must not replace the still-active task's proof.
+  if (existing && existing.hashed_user_id === ownerHash
+    && await currentRoutingProof(trx, row.chat_id, ownerHash, true)) return;
+  const values = { chat_id: row.chat_id, hashed_user_id: ownerHash,
+    preflight_id: row.id, inference_task_id: row.inference_task_id,
+    messages_v: row.committed_messages_v, message_digest: row.routing_message_digest };
+  if (existing) await trx(ROUTING_PROOFS).where({ chat_id: row.chat_id }).update(values);
+  else await trx(ROUTING_PROOFS).insert(values);
+}
+
+const stablePreflightUuid = (preflightId, name) => {
+  const namespace = Buffer.from(preflightId.replaceAll('-', ''), 'hex');
+  const bytes = createHash('sha1').update(namespace).update(name).digest().subarray(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+};
+
+async function holdInferenceOutbox(trx, row, ownerHash, taskId, billingId, outboxId, now) {
+  await trx(OUTBOX).insert({
+    id: outboxId, event_key: `chat-turn:${row.turn_id}`, preflight_id: row.id,
+    hashed_user_id: ownerHash, chat_id: row.chat_id, turn_id: row.turn_id,
+    inference_task_id: taskId, billing_identity: billingId, state: 'HELD', attempts: 0, created_at: now,
+  });
+  if (await trx(PREFLIGHTS).where({ id: row.id, state: 'PREPARED' }).update({
+    state: 'ENQUEUED', inference_task_id: taskId, billing_identity: billingId,
+    outbox_id: outboxId, enqueued_at: now,
+  }) !== 1) fail(409, 'invalid_preflight_state');
+  return responseForPreflight({ ...row, state: 'ENQUEUED',
+    inference_task_id: taskId, billing_identity: billingId, outbox_id: outboxId });
+}
+
+class AtomicProjectionUnavailable extends Error {}
+
+async function admitFirstPersonal(database, raw, now) {
+  const data = parsePreflightData(raw, 'admit_first_personal');
+  if (data.teamHash || data.expectedVersion !== 0 || !data.chatMetadata) {
+    fail(400, 'invalid_first_personal_admission');
+  }
+  const { ownerHash, chatId, wrappedKey: expectedKey } = data;
+  try {
+    return await database.transaction(async (trx) => {
+      await requireUnfencedRecoveryAccount(trx, ownerHash);
+      await lockIdentity(trx, PROTOCOL_STATE_ID);
+      // A missing state is epoch zero. Do not initialize it as a side effect
+      // of a fast-path probe; the established preflight owns legacy behavior.
+      if (!await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).first()) {
+        return { atomic_fallback: true };
+      }
+      const protocol = await lockedProtocolState(trx);
+      if (Number(protocol.protocol_epoch) !== 1) return { atomic_fallback: true };
+      if (protocol.sends_paused) fail(503, 'inference_temporarily_paused');
+      const prepared = await preparePreflightInTransaction(trx, data, now, { accountAlreadyLocked: true });
+      const row = await trx(PREFLIGHTS).where({ id: prepared.preflight_id }).forUpdate().first();
+      const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
+      if (!row || !chat || row.hashed_user_id !== ownerHash || row.device_hash !== data.deviceHash
+        || row.inference_commitment !== data.commitment
+        || row.wrapped_chat_key !== expectedKey || chat.encrypted_chat_key !== expectedKey) {
+        fail(409, 'preflight_mismatch');
+      }
+      if (chat.hashed_team_id != null || chat.chat_visibility === 'direct'
+        || chat.participant_user_hashes != null || chat.participant_key_envelopes != null) {
+        fail(404, 'chat_not_found');
+      }
+      const projection = firstPersonalChatProjection(chat, row, ownerHash);
+      if (!projection) throw new AtomicProjectionUnavailable();
+      const taskId = stablePreflightUuid(row.id, 'inference-task');
+      const billingId = stablePreflightUuid(row.id, 'billing-identity');
+      const outboxId = stablePreflightUuid(row.id, 'inference-outbox');
+      let response;
+      const newOutbox = row.state === 'PREPARED';
+      if (newOutbox) {
+        if (new Date(row.expires_at) <= now) fail(410, 'preflight_expired');
+        response = await holdInferenceOutbox(trx, row, ownerHash, taskId, billingId, outboxId, now);
+      } else if (['ENQUEUED', 'RUNNING', 'FAILED', 'TERMINAL', 'CONSUMED'].includes(row.state)) {
+        if (row.inference_task_id !== taskId || row.billing_identity !== billingId
+          || row.outbox_id !== outboxId) fail(409, 'enqueue_identity_mismatch');
+        response = responseForPreflight(row);
+      } else fail(409, 'invalid_preflight_state');
+      if (newOutbox) await initializeRoutingProof(trx,
+        { ...row, state: 'ENQUEUED', inference_task_id: taskId, outbox_id: outboxId },
+        chat, ownerHash);
+      return { ...response, admission_protocol_epoch: 1, admission_sends_paused: false,
+        admission_chat_projection: projection };
+    });
+  } catch (error) {
+    if (error instanceof AtomicProjectionUnavailable) return { atomic_fallback: true };
+    throw error;
+  }
+}
 
 async function enqueueInference(database, raw, now) {
   const body = operationBody(raw, 'enqueue_inference');
@@ -2336,16 +2546,9 @@ async function enqueueInference(database, raw, now) {
     if (includeFirstPersonalProjection && !projection) {
       return { ...responseForPreflight(row), admission_projection_unavailable: true };
     }
-    await trx(OUTBOX).insert({
-      id: outboxId, event_key: `chat-turn:${row.turn_id}`, preflight_id: row.id,
-      hashed_user_id: ownerHash, chat_id: row.chat_id, turn_id: row.turn_id,
-      inference_task_id: taskId, billing_identity: billingId, state: 'HELD', attempts: 0, created_at: now,
-    });
-    await trx(PREFLIGHTS).where({ id: row.id, state: 'PREPARED' }).update({
-      state: 'ENQUEUED', inference_task_id: taskId, billing_identity: billingId,
-      outbox_id: outboxId, enqueued_at: now,
-    });
-    return withProjection(responseForPreflight({ ...row, state: 'ENQUEUED', inference_task_id: taskId, billing_identity: billingId, outbox_id: outboxId }));
+    const enqueued = await holdInferenceOutbox(trx, row, ownerHash, taskId, billingId, outboxId, now);
+    await initializeRoutingProof(trx, { ...row, state: 'ENQUEUED', inference_task_id: taskId, outbox_id: outboxId }, chat, ownerHash);
+    return withProjection(enqueued);
   });
 }
 
@@ -2413,15 +2616,21 @@ async function verifyRoutingAdmission(database, raw, now) {
     if (!row || row.hashed_user_id !== owner || row.chat_id !== chatId
       || row.turn_id !== turnId || row.user_message_id !== messageId
       || row.inference_task_id !== taskId || row.state !== 'ENQUEUED'
-      || row.deletion_invalidated_at || new Date(row.expires_at) <= now
-      || Number(row.committed_messages_v) !== Number(chat.messages_v)) {
+      || row.deletion_invalidated_at || new Date(row.expires_at) <= now) {
       return { authorized: false };
     }
     const message = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).forShare().first();
     if (!message || message.role !== 'user' || message.hashed_user_id !== owner
       || message.queue_pending_revision != null
-      || (message.queue_dispatch_status != null && message.queue_dispatch_status !== 'queued')) {
+      || (message.queue_dispatch_status != null && message.queue_dispatch_status !== 'queued')
+      || (row.routing_message_digest && routingMessageDigest(message) !== row.routing_message_digest)) {
       return { authorized: false };
+    }
+    if (Number(row.committed_messages_v) !== Number(chat.messages_v)) {
+      const proof = await currentRoutingProof(trx, chatId, owner);
+      if (!row.routing_message_digest || !proof || proof.preflight_id !== preflightId
+        || proof.inference_task_id !== taskId || proof.message_digest !== row.routing_message_digest
+        || Number(proof.messages_v) !== Number(chat.messages_v)) return { authorized: false };
     }
     const outbox = await trx(OUTBOX).where({ id: row.outbox_id }).forShare().first();
     return { authorized: Boolean(outbox && outbox.preflight_id === preflightId
@@ -4789,7 +4998,7 @@ export const operations = Object.freeze({
   ...metadataOperations({ fail, exactKeys, string, uuid, integer, validateEnvelope, digest, ownedChat,
     JOB_TTL_MS, TOMBSTONE_TTL_MS }),
   prepare_preflight: preparePreflight, verify_committed_team_message: verifyCommittedTeamMessage,
-  enqueue_inference: enqueueInference,
+  enqueue_inference: enqueueInference, admit_first_personal: admitFirstPersonal,
   verify_routing_admission: verifyRoutingAdmission,
   claim_inference: claimInference, mark_outbox_dispatched: markOutboxDispatched,
   release_inference_outbox: releaseInferenceOutbox,
@@ -4846,7 +5055,7 @@ export async function executeOperation(database, operation, body, now = new Date
   return handler(database, body, now);
 }
 export const testing = Object.freeze({
-  digest, validateEnvelope, validateMessage, validateNewChatMetadata, inferenceClaimDecision,
+  digest, routingMessageDigest, validateEnvelope, validateMessage, validateNewChatMetadata, inferenceClaimDecision,
   unsealedPreflightIds, availableJobMetadata,
   PROTOCOL_VERSION, LEASE_MS, MAX_TENURE_MS, LEGACY_RUNNING_TTL_MS, LEGACY_TOMBSTONE_TTL_MS,
 });

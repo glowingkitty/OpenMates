@@ -15,6 +15,7 @@ from uuid import UUID
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import (
     handle_chat_turn_preflight,
 )
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 
 logger = logging.getLogger(__name__)
 _warm_tasks: set[asyncio.Task] = set()
@@ -62,18 +63,52 @@ async def handle_chat_turn_admit(
         }})
         return
 
+    async def bind_atomic_context_before_ack(_admission: dict[str, Any]) -> str:
+        from backend.core.api.app.services.client_context_continuation import register_client_context
+
+        try:
+            return await register_client_context(
+                cache_service=cache_service, encryption_service=encryption_service,
+                user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,
+                chat_id=payload["chat_id"], turn_id=payload["turn_id"],
+                message_id=payload["message_id"],
+                request_id=request["client_context_request_id"],
+                team_id=payload.get("team_id"),
+            )
+        except Exception:
+            logger.warning("Admitted context binding unavailable", exc_info=True)
+            raise ChatRecoveryProtocolError(503, "durable_preflight_failed") from None
+
+    queued_after_task_id = None
+    if (payload.get("team_id") is None and type(payload.get("expected_messages_v")) is int
+            and payload["expected_messages_v"] > 0):
+        try:
+            queued_after_task_id = await cache_service.get_active_ai_task(payload["chat_id"])
+            if queued_after_task_id:
+                try:
+                    queued_after_task_id = str(UUID(str(queued_after_task_id)))
+                except (TypeError, ValueError, AttributeError):
+                    queued_after_task_id = None
+        except Exception:
+            # A cache hint never grants durable routing authority.
+            logger.warning("Active-task hint unavailable for durable queue proof", exc_info=True)
+
     acknowledgement = await handle_chat_turn_preflight(
         websocket=websocket, manager=manager, directus_service=directus_service,
         user_id=user_id, user_id_hash=user_id_hash,
         device_fingerprint_hash=device_fingerprint_hash,
         stable_device_fingerprint_hash=stable_device_fingerprint_hash,
         payload=payload, user_otel_attrs=user_otel_attrs,
+        atomic_before_ack=(bind_atomic_context_before_ack
+                           if request.get("client_context_pending") is True else None),
+        allow_atomic_first_personal=True,
+        server_queued_after_task_id=queued_after_task_id,
     )
     if not acknowledgement or not acknowledgement.get("preflight_id"):
         return
 
-    binding_ref = None
-    if request.get("client_context_pending") is True:
+    binding_ref = acknowledgement.get("client_context_binding_ref")
+    if request.get("client_context_pending") is True and binding_ref is None:
         from backend.core.api.app.services.client_context_continuation import register_client_context
 
         try:
@@ -105,7 +140,7 @@ async def handle_chat_turn_admit(
             and type(payload.get("expected_messages_v")) is int
             and payload["expected_messages_v"] == 0
             and isinstance(payload.get("encrypted_chat_metadata"), dict)
-            and acknowledgement.get("state") == "PREPARED"
+            and acknowledgement.get("state") in ("PREPARED", "ENQUEUED")
             and acknowledgement.get("committed_messages_v") == 1
         ):
             # The preflight has committed but inference has not been enqueued.
@@ -123,6 +158,8 @@ async def handle_chat_turn_admit(
                 "message_id": payload["message_id"],
                 "preflight_id": acknowledgement["preflight_id"],
                 "wrapped_chat_key": payload["encrypted_chat_key"],
+                **({"enqueue_result": acknowledgement}
+                   if acknowledgement.get("state") == "ENQUEUED" else {}),
             }
     from backend.core.api.app.routes.handlers.websocket_handlers.message_received_handler import (
         handle_message_received,

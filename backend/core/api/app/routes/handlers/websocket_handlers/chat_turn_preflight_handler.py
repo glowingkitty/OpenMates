@@ -160,6 +160,9 @@ async def handle_chat_turn_preflight(
     payload: dict[str, Any],
     stable_device_fingerprint_hash: str | None = None,
     user_otel_attrs: dict | None = None,
+    atomic_before_ack: Any | None = None,
+    allow_atomic_first_personal: bool = False,
+    server_queued_after_task_id: str | None = None,
 ) -> dict[str, Any] | None:
     async def send_response(message: dict[str, Any]) -> None:
         if websocket is not None:
@@ -196,6 +199,83 @@ async def handle_chat_turn_preflight(
             )
 
         await send_debug_phase("received")
+        # The one-frame first Personal path lets the transaction read and lock
+        # epoch, owner, chat and preflight together. Every other shape retains
+        # the established cutover/prepare sequence.
+        message = inference_request_payload.get("message") if isinstance(inference_request_payload, dict) else None
+        atomic_first_personal = (
+            allow_atomic_first_personal
+            and payload.get("team_id") is None
+            and type(payload.get("expected_messages_v")) is int
+            and payload["expected_messages_v"] == 0
+            and isinstance(payload.get("encrypted_chat_metadata"), dict)
+            and isinstance(payload.get("encrypted_chat_key"), str)
+            and isinstance(inference_request_payload, dict)
+            and inference_request_payload.get("encrypted_chat_key") == payload["encrypted_chat_key"]
+            and isinstance(message, dict) and message.get("role") == "user"
+            and message.get("chat_id") in (None, payload.get("chat_id"))
+            and (inference_request_payload.get("client_context_pending") is None
+                 or type(inference_request_payload["client_context_pending"]) is bool)
+            and not inference_request_payload.get("is_incognito")
+            and not any(payload.get(key) or inference_request_payload.get(key)
+                        for key in ("embeds", "encrypted_embeds", "attachments", "is_fork",
+                                    "message_history", "current_project", "active_project_focus",
+                                    "active_focus_id", "project_focus_candidates", "project_focus_catalog",
+                                    "project_focus_documents", "queue_mode", "queue_revision",
+                                    "queued_message_id", "accepted_plan_context"))
+            and not any(message.get(key) for key in ("embeds", "encrypted_embeds", "attachments",
+                                                       "message_history", "queue_mode", "queue_revision"))
+        )
+        if atomic_first_personal:
+            atomic_request = dict(inference_request_payload)
+            atomic_request["client_capabilities"] = server_client_capabilities(
+                manager, user_id, device_fingerprint_hash,
+            )
+            atomic_request["current_project"] = None
+            atomic_request["active_project_focus"] = None
+            encrypted_message = dict(payload["encrypted_user_message"])
+            encrypted_message["hashed_user_id"] = user_id_hash
+            atomic_data = {
+                "protocol_version": payload["protocol_version"],
+                "hashed_user_id": user_id_hash,
+                "chat_id": payload["chat_id"], "turn_id": payload["turn_id"],
+                "user_message_id": payload["message_id"],
+                "device_hash": device_fingerprint_hash,
+                "chat_key_version": payload["chat_key_version"],
+                "wrapped_chat_key": payload["encrypted_chat_key"],
+                "recovery_public_key": payload["recovery_public_key"],
+                "inference_commitment": build_inference_commitment(atomic_request),
+                "commitment_version": COMMITMENT_VERSION,
+                "expected_messages_v": payload["expected_messages_v"],
+                "encrypted_user_message": encrypted_message,
+                "encrypted_chat_metadata": payload["encrypted_chat_metadata"],
+            }
+            started_at = start_recovery_timing()
+            try:
+                try:
+                    result = await ChatRecoveryService(directus_service).execute(
+                        "admit_first_personal", atomic_data,
+                    )
+                except ChatRecoveryProtocolError as exc:
+                    if exc.code != "unsupported_operation":
+                        raise
+                    # Rolling API/CMS updates retain the established path.
+                    result = {"atomic_fallback": True}
+            finally:
+                record_recovery_duration("durable_preflight", started_at)
+            if not result.get("atomic_fallback"):
+                # The outbox is HELD until dispatch. Bind deferred context only
+                # after durable admission but before ACK permits context frames.
+                if atomic_before_ack is not None:
+                    result["client_context_binding_ref"] = await atomic_before_ack(result)
+                result["turn_id"] = payload["turn_id"]
+                public_result = {key: value for key, value in result.items()
+                                 if key not in ("admission_chat_projection", "admission_protocol_epoch",
+                                                "admission_sends_paused", "client_context_binding_ref")}
+                await send_debug_phase("prepare_completed")
+                await send_response({"type": "chat_turn_preflight_ack", "payload": public_result})
+                logger.info("Chat preflight phase=ack_sent turn=%s", turn_id[:8])
+                return result
         logger.info("Chat preflight phase=cutover_started turn=%s", turn_id[:8])
         recovery_service = ChatRecoveryService(directus_service)
         cutover_state = await recovery_service.execute(
@@ -348,6 +428,8 @@ async def handle_chat_turn_preflight(
         }
         if hashed_team_id:
             transaction_data["hashed_team_id"] = hashed_team_id
+        elif server_queued_after_task_id:
+            transaction_data["queued_after_task_id"] = server_queued_after_task_id
         if payload.get("encrypted_chat_metadata") is not None:
             transaction_data["encrypted_chat_metadata"] = payload["encrypted_chat_metadata"]
         started_at = start_recovery_timing()

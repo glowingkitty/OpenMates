@@ -23,7 +23,7 @@ const SEALED_OUTPUT = JSON.stringify({ v: 2, epk: b64(32, 1), nonce: b64(12, 2),
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 const clientCiphertext = (fill) => Buffer.alloc(32, fill).toString('base64');
 
-function fakeDatabase(seed, injectedFailure = null) {
+function fakeDatabase(seed, injectedFailure = null, routingSchema = false) {
   const rows = structuredClone(seed);
   const storedValue = (table, field, value) => {
     if (table === 'messages' && field === 'queue_aborted_stage_tokens' && value != null) {
@@ -145,6 +145,10 @@ function fakeDatabase(seed, injectedFailure = null) {
         },
       };
       return query;
+    };
+    if (routingSchema) client.schema = {
+      hasTable: async (table) => table === 'chat_routing_proofs',
+      hasColumn: async (table, column) => table === 'chat_turn_preflights' && column === 'routing_message_digest',
     };
     client.raw = (value) => typeof value === 'string' && /\w+ \+ 1/.test(value) ? { rawExpression: value } : value;
     return client;
@@ -1705,6 +1709,129 @@ test('enqueue_inference atomically transitions PREPARED and creates its outbox r
   assert.deepEqual(failing.rows.chat_inference_outbox, []);
 });
 
+const atomicFirstPersonalSeed = () => ({
+  chats: [], messages: [], chat_turn_preflights: [], chat_inference_outbox: [],
+  ...protocolSeed({ epoch: 1 }),
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('atomic first Personal admission commits one message, preflight and held outbox and replays exactly', async () => {
+  const database = fakeDatabase(atomicFirstPersonalSeed());
+  const now = new Date('2029-01-01T00:00:00Z');
+  const first = await executeOperation(database, 'admit_first_personal', prepareBody(), now);
+  assert.equal(database.transactions, 1);
+  assert.equal(first.state, 'ENQUEUED');
+  assert.equal(first.committed_messages_v, 1);
+  assert.equal(first.admission_protocol_epoch, 1);
+  assert.equal(first.admission_chat_projection.encrypted_chat_key, 'wrapped-key-1');
+  assert.equal(database.rows.chats[0].messages_v, 1);
+  assert.equal(database.rows.messages.length, 1);
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'ENQUEUED');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'HELD');
+  assert.equal(database.rows.chat_inference_outbox[0].inference_task_id, first.inference_task_id);
+  const replay = await executeOperation(database, 'admit_first_personal', prepareBody(), new Date(now.getTime() + 1_000));
+  assert.deepEqual(replay, first);
+  assert.equal(database.rows.messages.length, 1);
+  assert.equal(database.rows.chat_turn_preflights.length, 1);
+  assert.equal(database.rows.chat_inference_outbox.length, 1);
+  // A context-binding failure never reaches release. The worker cannot claim
+  // the HELD outbox; an exact retry can later release and claim it once.
+  const claim = { protocol_version: 1, inference_task_id: first.inference_task_id };
+  assert.deepEqual(await executeOperation(database, 'claim_inference', claim), {
+    inference_task_id: first.inference_task_id, claimed: false, state: 'HELD',
+  });
+  const release = { protocol_version: 1, preflight_id: first.preflight_id,
+    inference_task_id: first.inference_task_id, outbox_id: first.outbox_id,
+    hashed_user_id: OWNER };
+  assert.equal((await executeOperation(database, 'release_inference_outbox', release)).status, 'released');
+  assert.equal((await executeOperation(database, 'release_inference_outbox', release)).status, 'already_released');
+  assert.equal((await executeOperation(database, 'claim_inference', claim)).claimed, true);
+  assert.equal((await executeOperation(database, 'claim_inference', claim)).claimed, false);
+  assert.equal(database.rows.chat_inference_outbox.length, 1);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
+test('unreleased atomic HELD outbox expires to FAILED instead of remaining enqueued forever', async () => {
+  const database = fakeDatabase(atomicFirstPersonalSeed());
+  const first = await executeOperation(database, 'admit_first_personal', prepareBody(),
+    new Date('2029-01-01T00:00:00Z'));
+  assert.equal(first.state, 'ENQUEUED');
+  await executeOperation(database, 'cleanup_expired', { protocol_version: 1 },
+    new Date('2031-01-01T00:00:00Z'));
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'FAILED');
+  assert.deepEqual(database.rows.chat_inference_outbox, []);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('atomic first Personal outbox failure rolls back chat, message and preflight', async () => {
+  const database = fakeDatabase(atomicFirstPersonalSeed(), { operation: 'insert', table: 'chat_inference_outbox' });
+  await assert.rejects(executeOperation(database, 'admit_first_personal', prepareBody()),
+    /injected insert:chat_inference_outbox failure/);
+  assert.deepEqual(database.rows.chats, []);
+  assert.deepEqual(database.rows.messages, []);
+  assert.deepEqual(database.rows.chat_turn_preflights, []);
+  assert.deepEqual(database.rows.chat_inference_outbox, []);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('atomic first Personal admission fails closed for key, version, pause, owner, device, deletion and account', async () => {
+  const cases = [
+    { name: 'key', body: prepareBody({ wrapped_chat_key: 'wrong-key' }), code: 'immutable_chat_key_mismatch' },
+    { name: 'version', body: prepareBody({ expected_messages_v: 1 }), code: 'invalid_first_personal_admission' },
+    { name: 'pause', change: (seed) => { seed.chat_recovery_protocol_state[0].sends_paused = true; }, code: 'inference_temporarily_paused' },
+    { name: 'owner', change: (seed) => { seed.chats = [{ id: CHAT_ID, hashed_user_id: 'd'.repeat(64) }]; }, code: 'chat_not_found' },
+    { name: 'deletion', change: (seed) => { seed.chat_recovery_chat_deletion_fences = [{ id: CHAT_ID }]; }, code: 'chat_not_found' },
+    { name: 'account', change: (seed) => { seed.chat_recovery_account_fences = [{ id: OWNER }]; }, code: 'account_recovery_fenced' },
+  ];
+  for (const { name, body = prepareBody(), change, code } of cases) {
+    const seed = atomicFirstPersonalSeed();
+    change?.(seed);
+    const database = fakeDatabase(seed);
+    await assert.rejects(executeOperation(database, 'admit_first_personal', body),
+      (error) => error instanceof ProtocolError && error.code === code, name);
+    assert.deepEqual(database.rows.messages, [], name);
+    assert.deepEqual(database.rows.chat_inference_outbox, [], name);
+  }
+  const database = fakeDatabase(atomicFirstPersonalSeed());
+  await executeOperation(database, 'admit_first_personal', prepareBody());
+  await assert.rejects(executeOperation(database, 'admit_first_personal', prepareBody({ device_hash: 'device-b' })),
+    (error) => error instanceof ProtocolError && error.code === 'preflight_mismatch');
+  assert.equal(database.rows.chat_inference_outbox.length, 1);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('atomic first Personal incomplete locked projection rolls back before fallback', async () => {
+  const metadata = prepareBody().encrypted_chat_metadata;
+  const database = fakeDatabase({
+    ...atomicFirstPersonalSeed(),
+    chats: [{ id: CHAT_ID, hashed_user_id: OWNER, hashed_team_id: null,
+      ...metadata, messages_v: 0, title_v: 0, metadata_v: 0,
+      last_message_timestamp: null, chat_visibility: null,
+      participant_user_hashes: null, participant_key_envelopes: null,
+      is_shared: false, parent_id: null, is_sub_chat: false,
+      budget_limit: null, budget_spent: 'bad-budget' }],
+  });
+  assert.deepEqual(await executeOperation(database, 'admit_first_personal', prepareBody()),
+    { atomic_fallback: true });
+  assert.equal(database.rows.chats[0].messages_v, 0);
+  assert.deepEqual(database.rows.messages, []);
+  assert.deepEqual(database.rows.chat_turn_preflights, []);
+  assert.deepEqual(database.rows.chat_inference_outbox, []);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
+test('atomic first Personal epoch zero and unsupported Team mode leave no message or outbox', async () => {
+  const seed = atomicFirstPersonalSeed();
+  seed.chat_recovery_protocol_state[0].protocol_epoch = 0;
+  const database = fakeDatabase(seed);
+  assert.deepEqual(await executeOperation(database, 'admit_first_personal', prepareBody()), { atomic_fallback: true });
+  assert.deepEqual(database.rows.messages, []);
+  assert.deepEqual(database.rows.chat_inference_outbox, []);
+  await assert.rejects(executeOperation(database, 'admit_first_personal',
+    prepareBody({ hashed_team_id: TEAM_HASH })),
+  (error) => error instanceof ProtocolError && error.code === 'invalid_request');
+});
+
 const firstPersonalPreparedSeed = () => {
   const seed = { ...preparedSeed(), ...protocolSeed({ epoch: 1 }) };
   Object.assign(seed.chats[0], {
@@ -1715,6 +1842,29 @@ const firstPersonalPreparedSeed = () => {
   });
   return seed;
 };
+
+// contract-test: direct surface=rest_api assertions=chats.message.identity-idempotent
+test('atomic retry of a prepared row uses Python UUIDv5-compatible task, billing and outbox identities', async () => {
+  const seed = { ...firstPersonalPreparedSeed(), ...protocolSeed({ epoch: 1 }) };
+  seed.chats[0].encrypted_title = prepareBody().encrypted_chat_metadata.encrypted_title;
+  seed.chats[0].created_at = prepareBody().encrypted_chat_metadata.created_at;
+  const database = fakeDatabase(seed);
+  const result = await executeOperation(database, 'admit_first_personal', prepareBody(),
+    new Date('2029-01-01T00:01:00Z'));
+  assert.equal(result.preflight_id, PREFLIGHT_ID);
+  assert.equal(result.inference_task_id, '09669db4-6c90-5406-bf39-713c90889b0d');
+  assert.equal(result.billing_identity, 'c38fd7c8-d996-5baf-b25d-d6ed229a7e3e');
+  assert.equal(result.outbox_id, '69020e13-040c-51d4-b0d3-e35effa828a4');
+  assert.equal(database.rows.chat_inference_outbox.length, 1);
+  const duplicate = await executeOperation(database, 'enqueue_inference', {
+    protocol_version: 1, preflight_id: PREFLIGHT_ID, hashed_user_id: OWNER,
+    device_hash: 'device-a', inference_commitment: COMMITMENT,
+    inference_task_id: result.inference_task_id,
+    billing_identity: result.billing_identity, outbox_id: result.outbox_id,
+  });
+  assert.equal(duplicate.outbox_id, result.outbox_id);
+  assert.equal(database.rows.chat_inference_outbox.length, 1);
+});
 
 // contract-test: direct surface=rest_api assertions=chats.message.identity-idempotent
 // The fast admission projection is trusted only inside the same locked enqueue
@@ -3889,3 +4039,144 @@ test('routing admission rechecks current Team membership', async () => {
   database.rows.team_memberships[0].status = 'revoked';
   await assert.rejects(executeOperation(database, 'verify_routing_admission', body), /chat_not_found/);
 });
+
+
+const routingProofSeed = () => {
+  const seed = routingSeed();
+  const messageDigest = testing.routingMessageDigest(seed.messages[0]);
+  seed.chat_turn_preflights[0].routing_message_digest = messageDigest;
+  seed.chat_routing_proofs = [{ chat_id: CHAT_ID, hashed_user_id: OWNER,
+    preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    messages_v: 1, message_digest: messageDigest }];
+  return seed;
+};
+const followerTurnId = '018f9999-9999-7999-8999-999999999999';
+const followerTaskId = '018faaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa';
+const followerOutboxId = '018fbbbb-bbbb-7bbb-8bbb-bbbbbbbbbbbb';
+const followerBillingId = '018fcccc-cccc-7ccc-8ccc-cccccccccccc';
+const followerBody = (queuedAfterTaskId = undefined) => prepareBody({
+  turn_id: followerTurnId, user_message_id: 'user-message-2',
+  expected_messages_v: 1, encrypted_chat_metadata: undefined,
+  encrypted_user_message: { ...userMessage('user-message-2'), encrypted_content: 'follower-ciphertext' },
+  ...(queuedAfterTaskId ? { queued_after_task_id: queuedAfterTaskId } : {}),
+});
+const enqueueFollower = async (database, preflightId) => executeOperation(database, 'enqueue_inference', {
+  protocol_version: 1, preflight_id: preflightId, hashed_user_id: OWNER,
+  device_hash: 'device-a', inference_commitment: COMMITMENT,
+  inference_task_id: followerTaskId, billing_identity: followerBillingId,
+  outbox_id: followerOutboxId,
+}, new Date('2029-01-01T00:00:01Z'));
+const markFollowerPending = async (database, preflightId) => executeOperation(database,
+  'mark_queued_message_pending', { protocol_version: 1, chat_id: CHAT_ID,
+    message_id: 'user-message-2', hashed_user_id: OWNER, hashed_team_id: null,
+    queue_revision: 1, queue_mode: 'follow_up', recovery_preflight_id: preflightId,
+    recovery_task_id: followerTaskId }, new Date('2029-01-01T00:00:02Z'));
+
+// contract-test: supporting surface=rest_api assertions=chat-queued-followups.admission.synced
+ test('routing proof advances across server-bound follower prepare and durable queue marker', async () => {
+  const database = fakeDatabase(routingProofSeed(), null, true);
+  const prepared = await executeOperation(database, 'prepare_preflight', followerBody(TASK_ID),
+    new Date('2029-01-01T00:00:00Z'));
+  assert.equal(database.rows.chat_routing_proofs[0].messages_v, 2);
+  assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: true });
+  await enqueueFollower(database, prepared.preflight_id);
+  assert.equal(database.rows.chat_routing_proofs[0].preflight_id, PREFLIGHT_ID);
+  assert.equal((await markFollowerPending(database, prepared.preflight_id)).status, 'queued');
+  assert.equal(database.rows.chat_routing_proofs[0].messages_v, 3);
+  assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: true });
+  database.rows.messages[0].encrypted_content = 'tampered-active-ciphertext';
+  assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: false });
+ });
+
+// contract-test: supporting surface=rest_api assertions=chat-queued-followups.admission.synced
+ test('routing proof catches up after unhinted follower marker but never credits unrelated version change', async () => {
+  const database = fakeDatabase(routingProofSeed(), null, true);
+  const prepared = await executeOperation(database, 'prepare_preflight', followerBody(),
+    new Date('2029-01-01T00:00:00Z'));
+  assert.equal(database.rows.chat_routing_proofs[0].messages_v, 1);
+  assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: false });
+  await enqueueFollower(database, prepared.preflight_id);
+  assert.equal((await markFollowerPending(database, prepared.preflight_id)).status, 'queued');
+  assert.equal(database.rows.chat_routing_proofs[0].messages_v, 3);
+  assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: true });
+  database.rows.chats[0].messages_v += 1;
+  assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: false });
+  database.rows.chat_recovery_protocol_state[0].sends_paused = true;
+  assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: false });
+ });
+
+ test('routing proof is optional on old schema and old rows keep exact-version guard', async () => {
+  const seed = routingProofSeed();
+  seed.chats[0].messages_v = 2;
+  assert.deepEqual(await executeOperation(fakeDatabase(seed), 'verify_routing_admission', routingBody()),
+    { authorized: false });
+  seed.chats[0].messages_v = 1;
+  assert.deepEqual(await executeOperation(fakeDatabase(seed), 'verify_routing_admission', routingBody()),
+    { authorized: true });
+ });
+
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+ test('atomic admission initializes proof from canonical ciphertext only on new schema', async () => {
+  const seed = { ...atomicFirstPersonalSeed(), chat_routing_proofs: [] };
+  const database = fakeDatabase(seed, null, true);
+  const admitted = await executeOperation(database, 'admit_first_personal', prepareBody(),
+    new Date('2029-01-01T00:00:00Z'));
+  assert.equal(admitted.state, 'ENQUEUED');
+  assert.equal(database.rows.chat_routing_proofs.length, 1);
+  assert.equal(database.rows.chat_routing_proofs[0].preflight_id, admitted.preflight_id);
+  assert.equal(database.rows.chat_routing_proofs[0].messages_v, 1);
+  assert.equal(database.rows.chat_routing_proofs[0].message_digest,
+    testing.routingMessageDigest(database.rows.messages[0]));
+  const replay = await executeOperation(database, 'admit_first_personal', prepareBody(),
+    new Date('2029-01-01T00:00:01Z'));
+  assert.equal(replay.preflight_id, admitted.preflight_id);
+  assert.equal(database.rows.chat_routing_proofs.length, 1);
+ });
+
+ test('routing proof refuses deletion, account fence and ownership change', async () => {
+  for (const change of [
+    seed => { seed.chat_recovery_chat_deletion_fences = [{ id: CHAT_ID }]; },
+    seed => { seed.chat_recovery_account_fences = [{ id: OWNER }]; },
+    seed => { seed.chats[0].hashed_user_id = 'f'.repeat(64); },
+    seed => { seed.messages[0].encrypted_content = 'tampered'; },
+  ]) {
+    const seed = routingProofSeed();
+    seed.chats[0].messages_v = 2;
+    seed.chat_routing_proofs[0].messages_v = 2;
+    change(seed);
+    const database = fakeDatabase(seed, null, true);
+    try {
+      const result = await executeOperation(database, 'verify_routing_admission', routingBody());
+      assert.deepEqual(result, { authorized: false });
+    } catch (error) {
+      assert.ok(['account_recovery_fenced', 'chat_not_found'].includes(error.code));
+    }
+  }
+ });
+
+
+// contract-test: supporting surface=rest_api assertions=chat-queued-followups.editing.stable-revision
+ test('queued revision advances only an unchanged active routing proof', async () => {
+  const database = fakeDatabase(routingProofSeed(), null, true);
+  const prepared = await executeOperation(database, 'prepare_preflight', followerBody(TASK_ID),
+    new Date('2029-01-01T00:00:00Z'));
+  await enqueueFollower(database, prepared.preflight_id);
+  await markFollowerPending(database, prepared.preflight_id);
+  const stage = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'user-message-2',
+    hashed_user_id: OWNER, hashed_team_id: null, encrypted_content: clientCiphertext(2),
+    encrypted_pii_mappings: null, expected_revision: 1, queue_mode: 'follow_up',
+    stage_token: '3'.repeat(32), recovery_preflight_id: prepared.preflight_id,
+    recovery_task_id: followerTaskId, expected_inference_commitment: COMMITMENT,
+    next_inference_commitment: 'd'.repeat(64) };
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', stage)).status, 'staged');
+  assert.equal((await executeOperation(database, 'commit_queued_message_revision', {
+    protocol_version: 1, chat_id: CHAT_ID, message_id: 'user-message-2',
+    hashed_user_id: OWNER, hashed_team_id: null, expected_revision: 1,
+    stage_token: stage.stage_token,
+  })).status, 'updated');
+  assert.equal(database.rows.chat_routing_proofs[0].messages_v, 4);
+  assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: true });
+  database.rows.messages[0].updated_at += 1;
+  assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: false });
+ });

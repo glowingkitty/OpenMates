@@ -143,3 +143,88 @@ def test_main_snapshot_load_precedes_recovery_claim():
     claim = next(node for node in ast.walk(function) if isinstance(node, ast.Call)
                  and any(isinstance(arg, ast.Constant) and arg.value == "claim_inference" for arg in node.args))
     assert load.lineno < claim.lineno
+
+
+# contract-test: supporting surface=cli assertions=chat-processing-feedback.selected-mate-identity
+@pytest.mark.asyncio
+@pytest.mark.parametrize("outcome", ["published", "stale", "failed_before_publish"])
+async def test_stage_one_prefetches_chat_key_and_rechecks_authority_before_mate(monkeypatch, outcome):
+    import asyncio
+    from types import SimpleNamespace
+    from backend.apps.ai.skills import ask_skill
+    from backend.core.api.app.services import client_context_continuation, directus as directus_module
+    from backend.core.api.app.utils import encryption as encryption_module, secrets_manager as secrets_module
+    from backend.shared.python_utils import recent_work_summary_client
+    from backend.apps.ai.processing import preprocessor
+
+    request = ask_skill.AskSkillRequest(
+        chat_id="chat", message_id="turn", user_id="owner", user_id_hash="owner-hash",
+        recovery_task_id="task", recovery_preflight_id="preflight",
+        current_user_content="Hello", message_history=[],
+    )
+    config = SimpleNamespace(model_dump=lambda **_kwargs: {})
+    monkeypatch.setattr(ask_skill.AskSkillRequest, "model_validate", lambda _value: request)
+    monkeypatch.setattr(ask_skill.AskSkillDefaultConfig, "model_validate", lambda _value: config)
+    cache = SimpleNamespace(
+        get_base_instructions=AsyncMock(return_value={"preprocess_request_tool": {}}),
+        get_discovered_apps_metadata=AsyncMock(return_value={"ai": object()}),
+        get_chat_list_item_data=AsyncMock(), publish_event=AsyncMock(),
+    )
+    key_started = asyncio.Event()
+    release_key = asyncio.Event()
+    key_cancelled = asyncio.Event()
+
+    async def chat_key(*_args):
+        key_started.set()
+        try:
+            await release_key.wait()
+        except asyncio.CancelledError:
+            key_cancelled.set()
+            raise
+        return SimpleNamespace(encrypted_chat_key="sealed-chat-key")
+
+    cache.get_chat_list_item_data.side_effect = chat_key
+    directus = SimpleNamespace(get_items=AsyncMock(), close=AsyncMock())
+    monkeypatch.setattr(stage_one_task.celery_config, "get_worker_cache_service", AsyncMock(return_value=cache))
+    monkeypatch.setattr(secrets_module, "SecretsManager", lambda: SimpleNamespace(initialize=AsyncMock()))
+    monkeypatch.setattr(encryption_module, "EncryptionService", lambda **_kwargs: object())
+    monkeypatch.setattr(directus_module, "DirectusService", lambda **_kwargs: directus)
+    monkeypatch.setattr(recent_work_summary_client, "restore_private_context_payload", AsyncMock(return_value={}))
+    monkeypatch.setattr(recent_work_summary_client, "bind_restored_context_turn", lambda *_args: None)
+    monkeypatch.setattr(client_context_continuation, "await_client_context_phase", AsyncMock())
+    current = AsyncMock(side_effect=[True, outcome != "stale"])
+    admitted = AsyncMock(return_value=True)
+    monkeypatch.setattr(stage_one_task, "routing_turn_is_current", current)
+    monkeypatch.setattr(stage_one_task, "routing_admission_is_current", admitted)
+    handoff = AsyncMock(return_value="sealed-routing-ref")
+    monkeypatch.setattr(stage_one_task, "store_stage_one", handoff)
+
+    async def decision(**kwargs):
+        await asyncio.wait_for(key_started.wait(), timeout=1)
+        if outcome == "failed_before_publish":
+            raise RuntimeError("Jev unavailable")
+        release_key.set()
+        await kwargs["on_early_routing"]({
+            "category": "general_knowledge", "mate_id": "mate-general",
+            "model_id": "google/answer", "model_name": "Answer",
+        })
+        request._stage_one_routing = {"early_decisions": {"task_area": "general"}}
+
+    monkeypatch.setattr(preprocessor, "handle_preprocessing", decision)
+    envelope = request.model_dump(mode="json")
+    if outcome != "published":
+        with pytest.raises(RuntimeError, match=(
+            "no longer current" if outcome == "stale" else "Jev unavailable"
+        )):
+            await stage_one_task.route_stage_one(envelope, {}, "task")
+        cache.publish_event.assert_not_awaited()
+        handoff.assert_not_awaited()
+    else:
+        assert await stage_one_task.route_stage_one(envelope, {}, "task") == "sealed-routing-ref"
+        cache.publish_event.assert_awaited_once()
+        assert cache.publish_event.await_args.args[1]["encrypted_chat_key"] == "sealed-chat-key"
+        handoff.assert_awaited_once()
+        assert handoff.await_args.kwargs["typing_started"] is True
+    assert current.await_count == (1 if outcome == "failed_before_publish" else 2)
+    assert key_cancelled.is_set() is (outcome == "failed_before_publish")
+    directus.get_items.assert_not_awaited()

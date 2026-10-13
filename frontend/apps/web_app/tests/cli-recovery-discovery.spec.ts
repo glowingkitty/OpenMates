@@ -500,7 +500,36 @@ test('SDK reports a Project directory failure after durable epoch-one first Pers
 			try{await client.sendMessage({message:'Ordinary post-admission context failure check.',
 				newChatId,personal:true,piiDetection:false,memorySnapshot});}
 			catch(error){sendError=error.message;}
-			const terminalEvent=(await terminal).payload;
+			const beforeTerminal={
+				admissionSent:outbound[0]==='chat_turn_admit',
+				firstMetadataMatches:admission?.expected_messages_v===0
+					&&admission?.encrypted_chat_metadata?.encrypted_chat_key===admission?.encrypted_chat_key,
+				preflightState:preflightAck?.state??null,
+				preflightVersion:preflightAck?.committed_messages_v??null,
+				failureSent:outbound.includes('chat_turn_context_failed'),
+				failureAckStatus:failureAck?.status??null,
+				sendErrorIsPrivate:sendError===privateFailure,
+				observerOpen:observer.isOpen(),
+			};
+			if(!beforeTerminal.admissionSent||!beforeTerminal.firstMetadataMatches
+				||beforeTerminal.preflightState!=='ENQUEUED'||beforeTerminal.preflightVersion!==1
+				||!beforeTerminal.failureSent||beforeTerminal.failureAckStatus!=='accepted'
+				||!beforeTerminal.sendErrorIsPrivate){
+				console.error('FIRST_PERSONAL_ADMISSION_DIAGNOSTIC',JSON.stringify(beforeTerminal));
+				throw Error('First Personal admission or failure receipt did not satisfy epoch-one contract');
+			}
+			let terminalEvent;
+			try{terminalEvent=(await terminal).payload;}
+			catch(error){
+				let activeTaskPresent=null,activityReadFailed=false;
+				try{activeTaskPresent=(await client.getChatActivity({personal:true})).ids.includes(newChatId);}
+				catch{activityReadFailed=true;}
+				console.error('FIRST_PERSONAL_TERMINAL_DIAGNOSTIC',JSON.stringify({
+					...beforeTerminal,observerOpenAfterWait:observer.isOpen(),
+					activeTaskPresent,activityReadFailed,
+				}));
+				throw error;
+			}
 			const canonicalBefore=await client.getChatMessagesWindow(newChatId,{personal:true,limit:20,
 				respectCompressionBoundary:false});
 			const beforeIds=canonicalBefore.messages.map(message=>message.clientMessageId||message.id);
@@ -514,7 +543,9 @@ test('SDK reports a Project directory failure after durable epoch-one first Pers
 			const afterIds=canonicalAfter.messages.map(message=>message.clientMessageId||message.id);
 			const result={projectReads,outbound,sendErrorIsPrivate:sendError===privateFailure,
 				chatIdMatches:admission?.chat_id===newChatId,
-				epochOne:preflightAck?.state==='PREPARED'&&preflightAck?.committed_messages_v===1,
+				epochOne:preflightAck?.state==='ENQUEUED'&&preflightAck?.committed_messages_v===1,
+				outboxIdentity:['inference_task_id','billing_identity','outbox_id'].every(
+					key=>typeof preflightAck?.[key]==='string'&&preflightAck[key].length>0),
 				firstEncryptedMetadata:admission?.expected_messages_v===0
 					&&admission?.encrypted_chat_metadata?.encrypted_chat_key===admission?.encrypted_chat_key,
 				clientMessageIdMatches:admission?.encrypted_user_message?.client_message_id===admission?.message_id,
@@ -545,6 +576,7 @@ test('SDK reports a Project directory failure after durable epoch-one first Pers
 		expect(observed.sendErrorIsPrivate).toBe(true);
 		expect(observed.chatIdMatches).toBe(true);
 		expect(observed.epochOne).toBe(true);
+		expect(observed.outboxIdentity).toBe(true);
 		expect(observed.firstEncryptedMetadata).toBe(true);
 		expect(observed.clientMessageIdMatches).toBe(true);
 		expect(observed.canonicalSingleUser).toBe(true);
@@ -559,6 +591,159 @@ test('SDK reports a Project directory failure after durable epoch-one first Pers
 		expect(observed.failureAckMatches).toBe(true);
 		expect(observed.failureAckStatus).toBe('accepted');
 		expect(observed.encryptedUser).toBe(true);
+	} finally {
+		removeWorkflowCliHome(home);
+	}
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced,chat-queued-followups.editing.stable-revision,chats.persistence.client-encrypted
+// Real isolated Postgres proof: no outbox is published to inference; the fixture marks only the active receipt DISPATCHED.
+test('durable routing proof authorizes the exact active Personal turn across concurrent follower admission', async ({ page }: { page: any }) => {
+	test.setTimeout(300_000);
+	test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted'
+		|| process.env.CI_TEST_MODE !== 'e2e', 'Requires the isolated GitHub product stack');
+	skipWithoutCredentials(test, email, password, otpKey);
+	expect(fs.existsSync(isolatedCompose), 'Requires the disposable isolated CI compose').toBe(true);
+	const apiUrl = workflowApiUrl();
+	const home = createWorkflowCliHome('routing-proof-postgres');
+	try {
+		await loginWorkflowCliViaPair(page, apiUrl, home, 'CLI_ROUTING_PROOF_POSTGRES');
+		const owner = canonicalHistorySdk(apiUrl, home, `
+			const owner=await client.whoAmI();
+			if(!owner.id||client.getActiveTeamId())throw Error('Expected paired Personal account');
+			process.stdout.write(JSON.stringify({ownerId:owner.id}));
+		`);
+		const program = `
+import asyncio,base64,hashlib,json,logging,os,sys,time,uuid
+from datetime import datetime,timezone
+logging.disable(logging.CRITICAL)
+assert os.environ.get('OPENMATES_CI_ISOLATED')=='1'
+from backend.core.api.app.services.directus.directus import DirectusService
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService,ChatRecoveryProtocolError
+async def main():
+    owner_id=json.load(sys.stdin)['ownerId']
+    owner=hashlib.sha256(owner_id.encode()).hexdigest()
+    chat_id=str(uuid.uuid4()); turn_id=str(uuid.uuid4()); active_message=str(uuid.uuid4())
+    active_task=str(uuid.uuid4()); active_outbox=str(uuid.uuid4()); billing=str(uuid.uuid4())
+    follower_turn=str(uuid.uuid4()); follower_message=str(uuid.uuid4())
+    follower_task=str(uuid.uuid4()); follower_outbox=str(uuid.uuid4())
+    device='isolated-routing-proof-device'; wrapped='opaque-wrapped-key'; now=int(time.time())
+    recovery_key=base64.urlsafe_b64encode(bytes([7])*32).rstrip(b'=').decode()
+    cipher=lambda value: base64.b64encode(value.encode()).decode()
+    message=lambda message_id,content: {'client_message_id':message_id,'chat_id':chat_id,
+        'hashed_user_id':owner,'encrypted_content':cipher(content),'role':'user','created_at':now,'updated_at':now}
+    active_commitment=hashlib.sha256(b'isolated-active-commitment').hexdigest()
+    follower_commitment=hashlib.sha256(b'isolated-follower-commitment').hexdigest()
+    directus=DirectusService(); recovery=ChatRecoveryService(directus)
+    async def execute(operation,data): return await recovery.execute(operation,{'protocol_version':1,**data})
+    async def rows(collection):
+        result=await directus.get_items(collection,params={'filter':{'chat_id':{'_eq':chat_id}},'limit':-1},no_cache=True)
+        assert isinstance(result,list), collection+' read unavailable'
+        return result
+    async def verify():
+        try: return (await execute('verify_routing_admission',routing))['authorized']
+        except ChatRecoveryProtocolError as error:
+            if error.code in ('chat_not_found','account_recovery_fenced'): return False
+            raise
+    try:
+        prepared=await execute('prepare_preflight',{'hashed_user_id':owner,'chat_id':chat_id,'turn_id':turn_id,
+            'user_message_id':active_message,'device_hash':device,'chat_key_version':1,
+            'wrapped_chat_key':wrapped,'recovery_public_key':recovery_key,
+            'inference_commitment':active_commitment,'commitment_version':1,'expected_messages_v':0,
+            'encrypted_user_message':message(active_message,'active-ciphertext'),
+            'encrypted_chat_metadata':{'encrypted_title':cipher('title'),'encrypted_chat_key':wrapped,
+                'created_at':now,'updated_at':now}})
+        active_preflight=prepared['preflight_id']
+        queued=await execute('enqueue_inference',{'preflight_id':active_preflight,'hashed_user_id':owner,
+            'device_hash':device,'inference_commitment':active_commitment,'inference_task_id':active_task,
+            'billing_identity':billing,'outbox_id':active_outbox})
+        assert queued['state']=='ENQUEUED'
+        proof=await rows('chat_routing_proofs')
+        assert len(proof)==1 and proof[0]['preflight_id']==active_preflight and proof[0]['messages_v']==1
+        # No PENDING outbox or inference queue publication: Directus admin sets this
+        # disposable receipt to an already-dispatched state for routing verification.
+        assert await directus.update_item('chat_inference_outbox',active_outbox,
+            {'state':'DISPATCHED'},admin_required=True)
+        routing={'preflight_id':active_preflight,'inference_task_id':active_task,'hashed_user_id':owner,
+            'hashed_team_id':None,'chat_id':chat_id,'message_id':active_message,'turn_id':turn_id}
+        assert await verify() is True
+        verification_started=asyncio.Event()
+        async def first_verify():
+            verification_started.set()
+            return await verify()
+        async def verify_during_follower():
+            first=asyncio.create_task(first_verify())
+            samples=[await first]
+            for _ in range(3): samples.append(await verify())
+            return samples
+        async def durable_follower():
+            await verification_started.wait()
+            follower=await execute('prepare_preflight',{'hashed_user_id':owner,'chat_id':chat_id,
+                'turn_id':follower_turn,'user_message_id':follower_message,'device_hash':device,
+                'chat_key_version':1,'wrapped_chat_key':wrapped,'recovery_public_key':recovery_key,
+                'inference_commitment':follower_commitment,'commitment_version':1,
+                'expected_messages_v':1,'encrypted_user_message':message(follower_message,'follower-ciphertext'),
+                'queued_after_task_id':active_task})
+            follower_preflight=follower['preflight_id']
+            await execute('enqueue_inference',{'preflight_id':follower_preflight,'hashed_user_id':owner,
+                'device_hash':device,'inference_commitment':follower_commitment,'inference_task_id':follower_task,
+                'billing_identity':str(uuid.uuid4()),'outbox_id':follower_outbox})
+            marker=await execute('mark_queued_message_pending',{'chat_id':chat_id,'message_id':follower_message,
+                'hashed_user_id':owner,'hashed_team_id':None,'queue_revision':1,'queue_mode':'follow_up',
+                'recovery_preflight_id':follower_preflight,'recovery_task_id':follower_task})
+            assert marker['status']=='queued'
+            return follower_preflight
+        samples,follower_preflight=await asyncio.wait_for(asyncio.gather(
+            verify_during_follower(),durable_follower()),timeout=35)
+        assert len(samples)==4 and all(type(value) is bool for value in samples)
+        proof=await rows('chat_routing_proofs')
+        assert len(proof)==1 and proof[0]['preflight_id']==active_preflight
+        assert proof[0]['inference_task_id']==active_task and proof[0]['messages_v']==3
+        assert follower_preflight!=active_preflight and await verify() is True
+        message_rows=[row for row in await rows('messages') if row.get('client_message_id')==active_message]
+        assert len(message_rows)==1
+        original=message_rows[0]; message_row_id=original['id']
+        assert await directus.update_item('messages',message_row_id,
+            {'encrypted_content':cipher('tampered-active')},admin_required=True)
+        assert await verify() is False
+        assert await directus.update_item('messages',message_row_id,
+            {'encrypted_content':original['encrypted_content']},admin_required=True)
+        assert await verify() is True
+        assert await directus.update_item('messages',message_row_id,
+            {'updated_at':original['updated_at']+1},admin_required=True)
+        assert await verify() is False
+        assert await directus.update_item('messages',message_row_id,
+            {'updated_at':original['updated_at']},admin_required=True)
+        assert await verify() is True
+        assert await directus.update_item('chats',chat_id,
+            {'hashed_user_id':hashlib.sha256(uuid.uuid4().bytes).hexdigest()},admin_required=True)
+        assert await verify() is False
+        assert await directus.update_item('chats',chat_id,{'hashed_user_id':owner},admin_required=True)
+        assert await verify() is True
+        fence={'id':chat_id,'chat_id':chat_id,'hashed_user_id':owner,'hashed_team_id':None,
+            'fenced_at':datetime.now(timezone.utc).isoformat()}
+        created,_=await directus.create_item('chat_recovery_chat_deletion_fences',fence,admin_required=True)
+        assert created and await verify() is False
+        print(json.dumps({'concurrent_verifications':len(samples),'proof_version':proof[0]['messages_v'],
+            'exact_active_authorized':True,'cipher_revision_owner_deletion_rejected':True}))
+    finally:
+        for collection in ('chat_recovery_chat_deletion_fences','chat_routing_proofs',
+            'chat_inference_outbox','chat_turn_preflights','messages'):
+            for row in await rows(collection):
+                assert await directus.delete_item(collection,row.get('id') or row['chat_id'],admin_required=True)
+        chats=await directus.get_items('chats',params={'filter':{'id':{'_eq':chat_id}},'limit':1},no_cache=True)
+        for row in chats or []: assert await directus.delete_item('chats',row['id'],admin_required=True)
+        await directus.close()
+asyncio.run(main())
+`;
+		const result = JSON.parse(execFileSync('docker', ['compose', '-f', isolatedCompose, 'exec', '-T', '-e',
+			'OPENMATES_CI_ISOLATED=1', 'api', 'python', '-c', program], {
+			cwd: repositoryRoot, input: JSON.stringify(owner), encoding: 'utf8', timeout: 90_000
+		}).trim());
+		expect(result.concurrent_verifications).toBe(4);
+		expect(result.proof_version).toBe(3);
+		expect(result.exact_active_authorized).toBe(true);
+		expect(result.cipher_revision_owner_deletion_rejected).toBe(true);
 	} finally {
 		removeWorkflowCliHome(home);
 	}

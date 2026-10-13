@@ -113,7 +113,7 @@ import {
 } from "./ws.js";
 import type { FocusPhaseState } from "../../ui/src/types/focusPhases.js";
 import { registerChatContextEvents, parseChatContextContent, type ChatContextEvent } from "./chatContextEvents.js";
-import { prepareCliJevContext, type CliJevContext, type FocusAuthoringDocument } from "./cliJevContext.js";
+import { prepareCliJevContext, decodePersonalProjectCandidates, type CliJevContext, type FocusAuthoringDocument } from "./cliJevContext.js";
 import { registerProjectFocusCountdown, type ProjectFocusCountdown } from "./projectFocusCountdown.js";
 import { assessCliProjectAuthoring, boundedAuthoringHistory } from "./cliProjectAuthoring.js";
 import type { MentionContext, AppInfo, MemoryEntryInfo } from "./mentions.js";
@@ -7640,9 +7640,10 @@ export class OpenMatesClient {
    * hashed_embed_id in the key table = SHA-256(embed.embed_id).
    */
   async getEmbed(embedIdOrShort: string, options: TeamContextOptions & {preferCache?: boolean; chatId?: string} = {}): Promise<DecryptedEmbed> {
+    const accountCurrent = this.captureTeamAccountOwner().isCurrent;
     const teamId = this.resolveTeamContext(options), masterKey = Buffer.from(this.getMasterKeyBytes());
     const current = () => {
-      if (!this.hasSession() || teamId !== this.resolveTeamContext(options) || !masterKey.equals(Buffer.from(this.getMasterKeyBytes()))) throw new Error('Embed workspace changed');
+      if (!this.hasSession() || !accountCurrent() || teamId !== this.resolveTeamContext(options) || !masterKey.equals(Buffer.from(this.getMasterKeyBytes()))) throw new Error('Embed workspace changed');
     };
     let cache = options.preferCache ? loadSyncCache(teamId) : await this.ensureSynced(false,[],options);
     cache ??= {syncedAt:0,totalChatCount:0,loadedChatCount:0,chats:[],embeds:[],embedKeys:[]};
@@ -7660,6 +7661,7 @@ export class OpenMatesClient {
     const wrapperId=(key:Record<string,unknown>)=>`${key.hashed_embed_id}:${key.key_type}:${key.hashed_chat_id ?? ""}`;
     const targetId=embed ? String(embed.embed_id ?? embed.id) : embedIdOrShort;
     const cachedKey=embed ? await this.resolveEmbedKey(cache,wrappingKey,embed,targetId,computeSHA256(targetId),new Set(),teamId) : null;
+    current();
     if ((!embed || !cachedKey) && /^[0-9a-f-]{36}$/i.test(targetId)) {
       // Account sync windows may omit this chat and its embeds. A targeted
       // metadata refresh supplies the chat key; request_embed supplies the
@@ -7757,6 +7759,7 @@ export class OpenMatesClient {
         ? embed.skill_id
         : (strVal(content?.skill_id) ?? null);
 
+    current();
     return {
       id: embedId,
       embedId,
@@ -8870,10 +8873,15 @@ export class OpenMatesClient {
     let memorySocket: Awaited<ReturnType<OpenMatesClient["openWsClient"]>> | null = null;
     let socketSnapshotAttempted = false;
     let socketSnapshotResultRows: Array<Record<string, unknown>> | null = null;
+    let socketProjectCandidateRows: Array<Record<string, unknown>> | null = null;
+    let verifiedProjectCandidates: NonNullable<CliJevContext["project_focus_candidates"]> | null = null;
+    let projectCandidatesReadyFromSendStartMs: number | null = null;
     let socketMemoryReceipt: {
       ws: OpenMatesWsClient;
       snapshot: DecryptedMemoryEntry[];
       resultRows: Array<Record<string, unknown>>;
+      projectRows: Array<Record<string, unknown>> | null;
+      candidates: NonNullable<CliJevContext["project_focus_candidates"]> | null;
       ownerKey: string;
       optionsKey: string;
       used: boolean;
@@ -8898,9 +8906,18 @@ export class OpenMatesClient {
               ?? await this.openWsClient(sendSocketOptions);
             const ownerKey = JSON.stringify([this.sendSocketOwnerKey(this.requireSession(), teamId),
               authCookieFingerprint(this.http.getCookieMap())]);
-            const supported = await memorySocket.ws.waitForServerCapability("personal_memory_snapshot_v1");
+            const combinedSupported = await memorySocket.ws.waitForServerCapability("personal_send_context_snapshot_v1");
+            const supported = combinedSupported || await memorySocket.ws.waitForServerCapability("personal_memory_snapshot_v1");
             if (supported) {
-              const snapshot = await memorySocket.ws.requestPersonalMemorySnapshot(randomUUID());
+              const combined = combinedSupported
+                ? await memorySocket.ws.requestPersonalSendContextSnapshot(randomUUID()) : null;
+              const snapshot = combined?.personal_memories
+                ?? await memorySocket.ws.requestPersonalMemorySnapshot(randomUUID());
+              if (combined) {
+                socketProjectCandidateRows = combined.project_candidates;
+                verifiedProjectCandidates = await decodePersonalProjectCandidates(this, combined.project_candidates);
+                projectCandidatesReadyFromSendStartMs = Math.round(performance.now() - preWsStartedAt);
+              }
               socketSnapshotResultRows = snapshot.memories;
               availableMemories = await this.listMemoriesUnshared({ personal: true }, snapshot);
               if (!memorySocket.ws.isOpen() || JSON.stringify([this.sendSocketOwnerKey(this.requireSession(), teamId),
@@ -8908,7 +8925,8 @@ export class OpenMatesClient {
                 throw new Error("Personal Memory snapshot owner or socket changed during preparation.");
               }
               socketMemoryReceipt = { ws: memorySocket.ws, snapshot: availableMemories,
-                resultRows: snapshot.memories, ownerKey, optionsKey: socketMemoryOptionsKey(), used: false };
+                resultRows: snapshot.memories, projectRows: socketProjectCandidateRows,
+                candidates: verifiedProjectCandidates, ownerKey, optionsKey: socketMemoryOptionsKey(), used: false };
             } else {
               memorySocket.ws.close();
               memorySocket = null;
@@ -8997,6 +9015,10 @@ export class OpenMatesClient {
       publishProjectRouting = resolve; rejectProjectRouting = reject;
     });
     void projectRoutingContext.catch(() => {});
+    const publishProjectRoutingTimed = (context: CliJevContext) => {
+      projectCandidatesReadyFromSendStartMs ??= Math.round(performance.now() - preWsStartedAt);
+      publishProjectRouting(context);
+    };
     let recoveryMs = 0;
     const contextOwnerIsCurrent = () => {
       const current = this.session;
@@ -9011,8 +9033,8 @@ export class OpenMatesClient {
     const earlyContext = !params.incognito && !params.chatId && !params.projectId
       ? withHttpAbortSignal(earlyContextAbort.signal, () =>
           prepareCliJevContext(this, chatId, contextScope, params.jevContext, finalMessage, {
-            sdkMintedChatId, onRouting: publishRouting,
-            onProjectRouting: publishProjectRouting, onProjectRoutingError: rejectProjectRouting,
+            sdkMintedChatId, onRouting: publishRouting, verifiedProjectCandidates: verifiedProjectCandidates ?? undefined,
+            onProjectRouting: publishProjectRoutingTimed, onProjectRoutingError: rejectProjectRouting,
           }))
         .then(value => ({ ok: true as const, value, elapsedMs: Date.now() - contextStartedAt }),
           error => ({ ok: false as const, error: error as unknown, elapsedMs: Date.now() - contextStartedAt }))
@@ -9033,7 +9055,8 @@ export class OpenMatesClient {
       if (!socketMemoryReceipt) return;
       const receipt = socketMemoryReceipt;
       if (receipt.used || receipt.ws !== ws || receipt.snapshot !== availableMemories
-        || receipt.resultRows !== socketSnapshotResultRows || !ws.isOpen() || receipt.optionsKey !== socketMemoryOptionsKey()) {
+        || receipt.resultRows !== socketSnapshotResultRows || receipt.projectRows !== socketProjectCandidateRows
+        || receipt.candidates !== verifiedProjectCandidates || !ws.isOpen() || receipt.optionsKey !== socketMemoryOptionsKey()) {
         throw new Error("Personal Memory snapshot socket receipt is invalid.");
       }
       await this.withFreshStoredSession(async () => {
@@ -9321,13 +9344,13 @@ export class OpenMatesClient {
         const prepared = earlyContext
           ? await earlyContext
           : { ok: true as const, value: await withHttpAbortSignal(earlyContextAbort.signal, () => prepareCliJevContext(this, chatId, contextScope, params.jevContext, finalMessage, {
-              sdkMintedChatId, onRouting: publishRouting,
-              onProjectRouting: publishProjectRouting, onProjectRoutingError: rejectProjectRouting,
+              sdkMintedChatId, onRouting: publishRouting, verifiedProjectCandidates: verifiedProjectCandidates ?? undefined,
+              onProjectRouting: publishProjectRoutingTimed, onProjectRoutingError: rejectProjectRouting,
             })), elapsedMs: Date.now() - contextStartedAt };
         if (!prepared.ok) throw prepared.error;
         if (!contextOwnerIsCurrent()) throw new Error("Chat workspace changed while preparing context.");
         if (process.env.OPENMATES_DEBUG === "1") {
-          console.error(`[chat preparation] pre_ws_ms=${preWsMs} memory_ms=${memoryPrepMs} privacy_ms=${privacyPrepMs} auth_ws_ms=${authSocketMs} recovery_ms=${recoveryMs} context_ms=${prepared.elapsedMs}`);
+          console.error(`[chat preparation] pre_ws_ms=${preWsMs} memory_ms=${memoryPrepMs} privacy_ms=${privacyPrepMs} auth_ws_ms=${authSocketMs} recovery_ms=${recoveryMs} context_ms=${prepared.elapsedMs} project_candidates_ready_from_send_start_ms=${projectCandidatesReadyFromSendStartMs ?? "pending"}`);
         }
         return prepared.value;
       })();

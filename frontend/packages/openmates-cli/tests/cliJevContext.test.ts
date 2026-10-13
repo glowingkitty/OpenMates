@@ -283,3 +283,22 @@ it('does not publish an empty Project selection when directory discovery is inco
     assert.match(String(failure), failurePoint === 'directory' ? /Project directory unavailable/ : /Project key unavailable/);
   }
 });
+
+// contract-test: supporting surface=cli assertions=chats.direction.context-assessment,auth.session.isolation
+it('uses the verified send-socket Project candidates without REST directory fanout', async () => {
+  const verified = [{ project_id: 'owned', name: 'Owned', summary: 'Current',
+    auto_selection: true, focus_activation_policy: 'delayed' as const }];
+  let published: unknown;
+  const client = {
+    async listProjects() { throw new Error('REST Project directory must not run'); },
+    async getProjectSettings() { throw new Error('per-Project settings must not run'); },
+    async listUserTasks() { return []; },
+  };
+  const result = await prepareCliJevContext(client as never, 'new-chat', { personal: true },
+    { project_focus_candidates: [{ project_id: 'forged', name: 'Forged', summary: '',
+      auto_selection: true, focus_activation_policy: 'delayed' }] }, 'Question', {
+      sdkMintedChatId: true, verifiedProjectCandidates: verified, onProjectRouting: value => { published = value; },
+    });
+  assert.deepEqual(published, { project_focus_candidates: verified });
+  assert.deepEqual(result.project_focus_candidates, verified);
+});
