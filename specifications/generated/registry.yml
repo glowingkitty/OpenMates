@@ -712,7 +712,7 @@ specifications:
     version: 11
     status: draft
     path: features/workflows
-    fingerprint: d9486ee77fe9fdaeabb0b31bf23d5c3d64d7279a65f3b5ad4d6e97be49a45ffb
+    fingerprint: 53715e7fe2ed0e8f5e9de75fd407339c81c8ed24eb60944d73d82a6825f29e13
     required_applies_to:
     - rest_api
     - cli
@@ -723,7 +723,7 @@ specifications:
     version: 9
     status: draft
     path: features/workflows-ui
-    fingerprint: 03fe17bed39a6db55f53b5c171939ee3c805c1fc512a1c0018d2aafaafc6696d
+    fingerprint: b872a4b25b7828738fcb3e6d6aedc39b268e67f72dc478f4b6f47379ea911071
     required_applies_to:
     - gui.web
   feature.workspace-shell:
@@ -9118,7 +9118,7 @@ assertions:
     specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
-    fingerprint: 6254be9da83ed1113959ff3c1fa55bd727b03b92aaabba38ad3bafaa2374874b
+    fingerprint: f3d481c30989c856a503c4ed32dfc777eace4b9f1cabc7d3129b8521c686cb7f
     required_applies_to:
     - rest_api
     - cli
@@ -9129,7 +9129,7 @@ assertions:
     specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
-    fingerprint: 01abb5ce0b348449bcffb73f5f68978e586fab83f3c990e0f08b8596a4e18185
+    fingerprint: 3a6192dc1a4bc0f0a45c863fd44a965908abacc147c65613df1d29a327a4a6ca
     required_applies_to:
     - rest_api
     - cli
@@ -9140,7 +9140,7 @@ assertions:
     specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
-    fingerprint: 51860c34672d2667cf49be837a51cae02a0f61a230addf55f5926373964e599c
+    fingerprint: 45e415149da093c1cd9a174c5215fe69334d449803a8fb5f98fcbc064c6f21c3
     required_applies_to:
     - rest_api
     - cli
@@ -9151,7 +9151,7 @@ assertions:
     specification: feature.workflows@11
     specification_id: feature.workflows
     type: behavior
-    fingerprint: 8d6d2c07c80331e692bf01474b44c5f6756dad5d3882a49edc9cb6675bdb815c
+    fingerprint: da5d921d13939db4428ee8f04ab90315bdd577abe05a9df5cf90cf8202c29698
     required_applies_to:
     - rest_api
     - cli
@@ -9306,6 +9306,17 @@ assertions:
     specification_id: feature.workflows
     type: behavior
     fingerprint: c6cc6f241059f00a10a913b6cf943d4d8e6f9f16b8b2eba2b2e77cf609f01690
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  workflows.schedule.recurring-start:
+    specification: feature.workflows@11
+    specification_id: feature.workflows
+    type: behavior
+    fingerprint: cda8b95195e6715e4765ad9271879ae3cf229a391bdf9c766dcae47de3b6662e
     required_applies_to:
     - rest_api
     - cli
@@ -9712,7 +9723,7 @@ assertions:
     specification: feature.workflows-ui@9
     specification_id: feature.workflows-ui
     type: behavior
-    fingerprint: 83f04af5c7c57e1416620a5b92a00258897c7a23a79d4fa8e803996783ae8b04
+    fingerprint: 84fc39f8b85ac7a4d0f0fa11eac72549959ac00126f910f8735c7b5413257355
     required_applies_to:
     - gui.web
   workflows-ui.visual-language.coherent:
@@ -9887,7 +9898,7 @@ assertions:
     specification: feature.workflows-ui@9
     specification_id: feature.workflows-ui
     type: behavior
-    fingerprint: c328cce96ee2c9f2503c97c2cc351c56000831f1fb559fe706b25554e4c1db5d
+    fingerprint: 6d08c1e10da8a09a979004119d4d533ef11abac8d0cde74d58fb59d17f6f9c04
     required_applies_to:
     - gui.web
   workflows-ui.message-and-budget:

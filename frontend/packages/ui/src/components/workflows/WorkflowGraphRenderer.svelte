@@ -35,6 +35,7 @@
   import { record, label, schemaDefault, normalizeSchema, isAskAi, isCheck, isOptionsCheck, checkOptions, bodyLoopForNode, arrayOutputsBefore, isTrigger, isMessage, messageDestinationConfig, capabilityFor, outputsBefore, insertNode, removeNode, WorkflowNodeDependencyError, type Capability, type Insertion, type Output, type Schema, type CheckOption } from './workflowBuilder';
   import { canMoveWorkflowNode, moveWorkflowNode, moveWorkflowNodeAfter } from './workflowReordering';
   import { workflowNodePresentationStatus } from './workflowRunTimeline';
+  import { scheduleDateTimeInput, scheduleDateTimeInstant, scheduleDateTimeWithOffset } from './workflowScheduleDateTime';
 
   let { graph, readOnly = false, nodeRuns = [], executionStatus = null, testId = 'workflow-graph-renderer', workflowId = null, capabilityFixtures = null, chatFixtures = null, aiAddedNodeIds = [], aiEditedNodeIds = [], onChange, onSave = null, onDraftStateChange }: {
     graph: WorkflowGraph; readOnly?: boolean; nodeRuns?: WorkflowNodeRun[]; executionStatus?: string | null; testId?: string; workflowId?: string | null; capabilityFixtures?: Capability[] | null; chatFixtures?: Chat[] | null;
@@ -287,13 +288,52 @@
   }
   function patch(config: Record<string, unknown>): void { if (draft) { draft = { ...draft, config: { ...draft.config, ...config } }; preview = null; } }
   function schedulePatch(config: Record<string, unknown>): void { patch({ schedule: { ...record(draft?.config?.schedule), ...config } }); }
+  function scheduleDatePatch(field: 'at' | 'starts_at', input: HTMLInputElement, schedule: Record<string, unknown>): void {
+    const next = { ...schedule };
+    if (!input.value) delete next[field];
+    else {
+      const instant = scheduleDateTimeInstant(input.value, String(schedule.timezone || 'UTC'));
+      if (!instant) {
+        input.value = scheduleDateTimeInput(schedule[field], String(schedule.timezone || 'UTC'));
+        nodeError = tr('invalid_date_time');
+        return;
+      }
+      next[field] = instant;
+    }
+    nodeError = '';
+    patch({ schedule: next });
+  }
+  function scheduleTimezonePatch(timezone: string, schedule: Record<string, unknown>): void {
+    const next = { ...schedule, timezone };
+    const field = schedule.type === 'once' ? 'at' : 'starts_at';
+    const value = schedule[field];
+    if (typeof value === 'string' && value && !/(?:Z|[+-]\d\d:\d\d)$/i.test(value)) {
+      const instant = scheduleDateTimeWithOffset(value, String(schedule.timezone || 'UTC'));
+      if (!instant) { nodeError = tr('invalid_date_time'); return; }
+      next[field] = instant;
+    }
+    patch({ schedule: next });
+  }
+  function scheduleTypePatch(type: string, schedule: Record<string, unknown>): void {
+    const next: Record<string, unknown> = { type, timezone: schedule.timezone };
+    if (type === 'once') next.at = schedule.at ?? '';
+    else {
+      if (schedule.starts_at) next.starts_at = schedule.starts_at;
+      if (type === 'hourly') next.minute = schedule.minute ?? 0;
+      else {
+        next.time = schedule.time ?? '09:00';
+        if (type === 'weekly') next.weekdays = schedule.weekdays ?? ['sunday'];
+      }
+    }
+    patch({ schedule: next });
+  }
   function predicatePatch(config: Record<string, unknown>): void { nodeError = ''; patch({ mode: 'exact', predicate: { ...record(draft?.config?.predicate), ...config } }); }
   function sourceSchema(reference: unknown) { return outputs.find(output => output.reference === reference)?.schema; }
   function operators(reference: unknown): string[] { const type = sourceSchema(reference)?.type; return ['number', 'integer'].includes(type ?? '') ? ['gt', 'gte', 'lt', 'lte', 'eq', 'neq'] : type === 'boolean' ? ['eq', 'neq'] : ['eq', 'neq', 'contains']; }
   function operatorSymbol(op: unknown): string { return ({ gt: '>', gte: '≥', lt: '<', lte: '≤', eq: '=', ne: '≠', neq: '≠', contains: '∋' } as Record<string, string>)[String(op)] ?? ''; }
   function kind(node: WorkflowNode): string { return tr(isTrigger(node) ? 'time_trigger' : isCheck(node) ? 'check' : node.type === 'for_each' ? 'for_each' : isAskAi(node) ? 'ask_ai' : isMessage(node) ? 'send_message' : node.type === 'app_skill_action' ? 'use_app_skill' : 'action'); }
   function summary(node: WorkflowNode): string {
-    if (isTrigger(node)) { const schedule = record(node.config?.schedule); if (schedule.type === 'hourly') return `${tr('hourly')} · :${String(schedule.minute ?? 0).padStart(2, '0')}`; if (schedule.type === 'once') return String(schedule.at ?? tr('once')); return `${tr(String(schedule.type ?? 'daily'))}${schedule.type === 'weekly' ? ` · ${(Array.isArray(schedule.weekdays) ? schedule.weekdays : ['sunday']).map(day => tr(String(day))).join(', ')}` : ''}, ${schedule.time ?? '09:00'}`; }
+    if (isTrigger(node)) { const schedule = record(node.config?.schedule); const start = schedule.starts_at ? ` · ${tr('starts_on')} ${scheduleDateTimeInput(schedule.starts_at, String(schedule.timezone || 'UTC')).replace('T', ' ')} ${String(schedule.timezone || 'UTC')}` : ''; if (schedule.type === 'hourly') return `${tr('hourly')} · :${String(schedule.minute ?? 0).padStart(2, '0')}${start}`; if (schedule.type === 'once') return String(schedule.at ?? tr('once')); return `${tr(String(schedule.type ?? 'daily'))}${schedule.type === 'weekly' ? ` · ${(Array.isArray(schedule.weekdays) ? schedule.weekdays : ['sunday']).map(day => tr(String(day))).join(', ')}` : ''}, ${schedule.time ?? '09:00'}${start}`; }
     if (isCheck(node)) { if (node.config?.mode === 'ai') return String(node.config?.question ?? tr('ai_judgment')); const predicate = record(node.config?.predicate); const output = outputsBefore(graph, node.id, capabilities).find(item => item.reference === predicate.left); return `${output?.label ?? label(String(predicate.left ?? '').split('.').at(-1) ?? '')} ${operatorSymbol(predicate.op)} ${String(predicate.right ?? '')}`; }
     if (node.type === 'for_each') return `${tr('for_each')} · ${outputsBefore(graph, node.id, capabilities).find(output => output.reference === node.config?.items)?.label ?? String(node.config?.items ?? '')}`;
     if (isAskAi(node)) return tr('ask_ai');
@@ -731,11 +771,12 @@
       />
       {#if isTrigger(draft)}
         <h3>{@render editorFieldLabel('date_time', tr('date_time'), { type:'string', format:'date-time' })}</h3><div class="field-grid">
-          <label>{@render editorFieldLabel('repeat', tr('repeat'), { type:'string' })}<SettingsDropdown dataTestid="workflow-time-trigger-schedule" value={String(schedule.type ?? 'daily')} options={[{value:'once',label:tr('once')},{value:'hourly',label:tr('hourly')},{value:'daily',label:tr('daily')},{value:'weekly',label:tr('weekly')}]} ariaLabel={tr('repeat')} onChange={type => patch({ schedule: { type, timezone: schedule.timezone, ...(type === 'hourly' ? { minute: 0 } : type === 'once' ? { at: '' } : { time: schedule.time ?? '09:00', ...(type === 'weekly' ? { weekdays: ['sunday'] } : {}) }) } })}/></label>
-          {#if schedule.type === 'once'}<label>{@render editorFieldLabel('date_time', tr('date_time'), { type:'string', format:'date-time' })}<input type="datetime-local" value={String(schedule.at ?? '').slice(0, 16)} onchange={event => schedulePatch({ at: event.currentTarget.value })}/></label>
+          <label>{@render editorFieldLabel('repeat', tr('repeat'), { type:'string' })}<SettingsDropdown dataTestid="workflow-time-trigger-schedule" value={String(schedule.type ?? 'daily')} options={[{value:'once',label:tr('once')},{value:'hourly',label:tr('hourly')},{value:'daily',label:tr('daily')},{value:'weekly',label:tr('weekly')}]} ariaLabel={tr('repeat')} onChange={type => scheduleTypePatch(type, schedule)}/></label>
+          {#if schedule.type === 'once'}<label>{@render editorFieldLabel('date_time', tr('date_time'), { type:'string', format:'date-time' })}<input type="datetime-local" data-testid="workflow-time-trigger-at" value={scheduleDateTimeInput(schedule.at, String(schedule.timezone || 'UTC'))} onchange={event => scheduleDatePatch('at', event.currentTarget, schedule)}/></label>
           {:else if schedule.type === 'hourly'}<label>{@render editorFieldLabel('minute', tr('minute'), { type:'integer' })}<input type="number" min="0" max="59" value={Number(schedule.minute ?? 0)} oninput={event => schedulePatch({ minute: Number(event.currentTarget.value) })}/></label>
           {:else}<label>{@render editorFieldLabel('time', tr('time'), { type:'string', format:'time' })}<input type="time" value={String(schedule.time ?? '09:00')} oninput={event => schedulePatch({ time: event.currentTarget.value })}/></label>{/if}
-          <label>{@render editorFieldLabel('timezone', tr('timezone'), { type:'string' })}<input value={String(schedule.timezone ?? '')} oninput={event => schedulePatch({ timezone: event.currentTarget.value })}/></label>
+          <label>{@render editorFieldLabel('timezone', tr('timezone'), { type:'string' })}<input value={String(schedule.timezone ?? '')} oninput={event => scheduleTimezonePatch(event.currentTarget.value, schedule)}/></label>
+          {#if schedule.type !== 'once'}<label>{@render editorFieldLabel('start_on_optional', tr('start_on_optional'), { type:'string', format:'date-time' })}<input type="datetime-local" data-testid="workflow-time-trigger-start" value={scheduleDateTimeInput(schedule.starts_at, String(schedule.timezone || 'UTC'))} onchange={event => scheduleDatePatch('starts_at', event.currentTarget, schedule)}/></label>{/if}
         </div>
         {#if schedule.type === 'weekly'}<div class="weekdays">{#each ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as day}<label><input type="checkbox" checked={Array.isArray(schedule.weekdays) && schedule.weekdays.includes(day)} onchange={event => schedulePatch({ weekdays: event.currentTarget.checked ? [...(Array.isArray(schedule.weekdays) ? schedule.weekdays : []), day] : (Array.isArray(schedule.weekdays) ? schedule.weekdays : []).filter(item => item !== day) })}/>{tr(day)}</label>{/each}</div>{/if}
       {:else if isAskAi(draft)}

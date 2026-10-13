@@ -198,6 +198,7 @@
         "components/workflow-ask-ai-editor.spec.ts",
         "components/workflow-ask-ai-test-preview.spec.ts",
         "components/workflow-check-editor.spec.ts",
+        "components/workflow-schedule-start.spec.ts",
         "components/settings-dropdown-rich.spec.ts",
         "components/workflow-ai-pending-preview.spec.ts",
         "components/chat-composer-focus.spec.ts",

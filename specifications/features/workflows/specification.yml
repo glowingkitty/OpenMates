@@ -308,6 +308,19 @@ assertions:
     must: Calendar schedules preserve local wall time, skip nonexistent DST times, and run once for repeated local times. Automatic occurrences do not accumulate a replay backlog and overlapping execution is rejected or skipped visibly. Manual runs work while the schedule is disabled; pending delivery remains separately visible.
     depends_on:
     - examples.schedule_edges
+  - id: workflows.schedule.recurring-start
+    type: behavior
+    must: >
+      Hourly, daily and weekly schedules optionally accept a starting date and time in their explicit IANA
+      timezone. Automatic runs never occur before that starting instant; the first run is the first regular
+      occurrence at or after it, and later runs retain the chosen recurrence and local clock time. Without a
+      start, scheduling keeps its existing next-occurrence behavior. Enabling after the start has passed
+      selects the next future regular occurrence without replaying missed days. Natural-language requests
+      such as from October 18 onward preserve the date as this lower bound; a date without a time means
+      midnight in the schedule timezone, with the daily clock time supplied or disclosed as an assumption.
+      Validation, schedule previews, saved Workflow files, REST, CLI, SDKs and web preserve the same bound;
+      malformed starting dates are rejected and one-time schedules continue to use their single date and time.
+    depends_on: [examples.schedule_recurring_start]
   - id: workflows.actions.skill-contract
     type: behavior
     must: >

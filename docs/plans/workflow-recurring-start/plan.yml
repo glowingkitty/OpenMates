@@ -1,0 +1,30 @@
+schema_version: 2
+profile: concise
+id: workflow-recurring-start
+title: Workflows with a future recurring start
+status: implementing
+goal: >
+  Enable use cases like create a workflow that starts checking from October 18
+  onward for new train connections from Berlin to Hamburg, once a day, and test
+  one-time and recurring triggers close to now to confirm real execution.
+specifications:
+  - feature.workflows@11
+  - feature.workflows-ui@9
+scope:
+  in:
+    - Optional starts_at lower bound for hourly, daily and weekly schedules.
+    - Shared scheduler calculation, validation, natural-language authoring and portable files.
+    - Visible starting date/time in the web editor and schedule summary.
+    - Near-future one-time and delayed daily train-search verification with isolated state.
+  out:
+    - New recurrence types or Apple-native editor controls.
+verification:
+  required:
+    - Focused scheduler, authoring, file and editor unit checks.
+    - Bare component preview in isolated CI before broader product checks.
+    - Isolated CLI schedule E2E with no early runs and persisted next occurrences.
+    - Real dev natural-language train workflows and actual scheduled search results.
+decisions:
+  - The user approved both exact Specification review artifacts on October 13, 2026.
+  - Date-only starts use midnight in the selected timezone; the first eligible regular occurrence wins.
+  - Late enablement skips missed occurrences and preserves existing recurrence behavior.

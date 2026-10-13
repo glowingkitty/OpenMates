@@ -601,7 +601,7 @@ assertions:
     depends_on: [models.WorkflowCheckAuthoring]
   - id: workflows-ui.schedule.preview
     type: behavior
-    must: Date/time controls offer once, hourly, daily and weekly with time, timezone and readable schedule summary. Automatic activation requires a valid schedule; a complete graph offers Run now while disabled or unscheduled. Advanced recurrence and new budget UI are deferred.
+    must: Date/time controls offer once, hourly, daily and weekly with time, timezone and readable schedule summary. Recurring schedules offer an optional starting date and time in the chosen timezone; reopening or editing preserves the intended instant, and the summary and next-run preview show when checks will first begin. Automatic activation requires a valid schedule; a complete graph offers Run now while disabled or unscheduled. Advanced recurrence and new budget UI are deferred.
     depends_on:
     - examples.schedule_preview
   - id: workflows-ui.message-and-budget

@@ -42,6 +42,44 @@ def test_calendar_schedule_and_relative_week_use_local_timezone() -> None:
     assert result == {"start_date": "2026-03-23T00:00:00+01:00", "end_date": "2026-03-29T23:59:59+02:00"}
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.schedule.recurring-start
+@pytest.mark.parametrize("schedule,now,expected", [
+    ({"type": "daily", "time": "08:00", "timezone": "Europe/Berlin",
+      "starts_at": "2026-10-18T08:00:00"}, "2026-10-13T12:00:00+02:00", "2026-10-18T08:00:00+02:00"),
+    ({"type": "daily", "time": "08:00", "timezone": "Europe/Berlin",
+      "starts_at": "2026-10-18T08:00:01"}, "2026-10-13T12:00:00+02:00", "2026-10-19T08:00:00+02:00"),
+    ({"type": "weekly", "time": "09:00", "weekdays": ["monday"], "timezone": "Europe/Berlin",
+      "starts_at": "2026-10-18T00:00:00+02:00"}, "2026-10-13T12:00:00+02:00", "2026-10-19T09:00:00+02:00"),
+    ({"type": "hourly", "minute": 0, "timezone": "Europe/Berlin",
+      "starts_at": "2026-10-18T07:00:00Z"}, "2026-10-13T12:00:00+02:00", "2026-10-18T09:00:00+02:00"),
+    ({"type": "daily", "time": "08:00", "timezone": "Europe/Berlin",
+      "starts_at": "2026-10-18T00:00:00+02:00"}, "2026-10-20T12:00:00+02:00", "2026-10-21T08:00:00+02:00"),
+    ({"type": "daily", "time": "02:30", "timezone": "Europe/Berlin",
+      "starts_at": "2026-03-29T00:00:00+01:00"}, "2026-03-28T12:00:00+01:00", "2026-03-29T03:30:00+02:00"),
+    ({"type": "daily", "time": "02:30", "timezone": "Europe/Berlin",
+      "starts_at": "2026-10-25T02:30:00+01:00"}, "2026-10-24T12:00:00+02:00", "2026-10-26T02:30:00+01:00"),
+])
+# contract-test: supporting surface=rest_api assertions=workflows.schedule.recurring-start
+def test_recurring_start_bounds_first_future_occurrence(schedule, now: str, expected: str) -> None:
+    assert WorkflowSchedulerService.initial_next_run_at_from_schedule(schedule, now=stamp(now)) == stamp(expected)
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.schedule.recurring-start
+@pytest.mark.parametrize("start", ["2026-10-18", "", "not-a-date", "2026-02-30T08:00", 123])
+def test_recurring_start_rejects_invalid_datetime(start) -> None:
+    with pytest.raises(ValueError, match="starts_at"):
+        WorkflowSchedulerService.initial_next_run_at_from_schedule(
+            {"type": "daily", "time": "08:00", "timezone": "UTC", "starts_at": start}, now=0)
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.schedule.recurring-start
+def test_nonrecurring_schedule_rejects_start_bound() -> None:
+    for schedule in ({"type": "once", "at": "2026-10-18T08:00:00Z"}, {"type": "manual"}):
+        with pytest.raises(ValueError, match="starts_at"):
+            WorkflowSchedulerService.initial_next_run_at_from_schedule(
+                {**schedule, "starts_at": "2026-10-18T00:00:00Z"}, now=0)
+
+
 # contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
 def test_today_date_value_resolves_again_for_each_run_and_test() -> None:
     value = {"start_date": {"$date": "today", "format": "date"}}

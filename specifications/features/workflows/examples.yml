@@ -123,6 +123,15 @@ schedule_edges:
   given: An apartment workflow schedule is disabled.
   when: Alice runs the complete graph manually.
   then: A full run proceeds without enabling the schedule.
+schedule_recurring_start:
+- id: daily-trains-from-october-18
+  given: On October 13, Alice requests a workflow that checks for new Berlin to Hamburg train connections once a day at 09:00 Europe/Berlin, from October 18 onward.
+  when: She saves and enables it on October 13.
+  then: The preview shows October 18 at 09:00 Berlin time as the first run. No search runs before then; subsequent searches run daily at 09:00 and reuse the existing new-result filtering.
+- id: future-start-alignment-and-late-enable
+  given: Bob saves a daily 09:00 Europe/Berlin workflow starting October 18 at 10:00.
+  when: He enables it before the start, or first enables it on October 20 at 12:00.
+  then: The first case runs on October 19 at 09:00, and the late-enable case runs on October 21 at 09:00. Both keep the daily recurrence and never replay missed occurrences; an invalid start date cannot be saved as an executable schedule.
 skill_contract:
 - id: skill_contract-1
   given: Alice configures Home search and one provider is unavailable.

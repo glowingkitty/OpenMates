@@ -1484,6 +1484,21 @@ builder.date_time:
   en: "Date & Time"
   verified_by_human: []
 
+builder.start_on_optional:
+  context: Optional first date and time for recurring Workflow schedules
+  en: "Start on (optional)"
+  verified_by_human: []
+
+builder.starts_on:
+  context: Workflow recurring schedule summary prefix
+  en: "Starts"
+  verified_by_human: []
+
+builder.invalid_date_time:
+  context: Workflow schedule editor error for a nonexistent or invalid local date and time
+  en: "Choose a valid date and time in this timezone."
+  verified_by_human: []
+
 builder.loading_apps:
   context: Workflow progressive builder control
   en: "Loading available apps…"

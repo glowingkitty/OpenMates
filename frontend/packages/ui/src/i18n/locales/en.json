@@ -26714,6 +26714,15 @@
       "date_time": {
         "text": "Date & Time"
       },
+      "start_on_optional": {
+        "text": "Start on (optional)"
+      },
+      "starts_on": {
+        "text": "Starts"
+      },
+      "invalid_date_time": {
+        "text": "Choose a valid date and time in this timezone."
+      },
       "loading_apps": {
         "text": "Loading available apps…"
       },

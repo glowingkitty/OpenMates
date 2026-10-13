@@ -29,6 +29,7 @@ from backend.core.api.app.services.workflow_models import (
     _validate_builder_execution_inputs, validate_workflow_composition_refs,
     validate_workflow_readiness,
 )
+from backend.core.api.app.services.workflow_scheduler_service import parse_recurring_starts_at
 
 
 _ID = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,63}$")
@@ -176,7 +177,8 @@ def build_authoring_schema(selection: WorkflowPreselection) -> dict[str, Any]:
     schedule = _object({"type": {"type": "string", "enum": ["daily", "weekly", "hourly", "once", "manual"]},
                         "time": {"type": "string"}, "timezone": {"type": "string"},
                         "weekdays": {"type": "array", "items": {"type": "string", "enum": list(_DAYS)}},
-                        "minute": {"type": "integer"}, "at": {"type": "string"}}, ["type"])
+                        "minute": {"type": "integer"}, "at": {"type": "string"},
+                        "starts_at": {"type": ["string", "null"]}}, ["type"])
     result = _object({"operation": {"type": "string", "enum": ["create", "update", "draft", "clarify"]},
                     "workflow_id": {"type": ["string", "null"]},
                     "title": {"type": ["string", "null"]},
@@ -459,9 +461,9 @@ def _compile_authoring(
         if schedule_type not in {"daily", "weekly", "hourly", "once", "manual"}:
             raise ValueError("Schedule type is unsupported")
         schedule_fields = {
-            "daily": {"type", "time", "timezone"},
-            "weekly": {"type", "time", "timezone", "weekdays"},
-            "hourly": {"type", "minute", "timezone"},
+            "daily": {"type", "time", "timezone", "starts_at"},
+            "weekly": {"type", "time", "timezone", "weekdays", "starts_at"},
+            "hourly": {"type", "minute", "timezone", "starts_at"},
             "once": {"type", "at", "timezone"},
             "manual": {"type"},
         }
@@ -499,6 +501,24 @@ def _compile_authoring(
             except (ZoneInfoNotFoundError, ValueError, TypeError) as exc:
                 raise ValueError("Schedule timezone is invalid") from exc
             config_schedule: dict[str, Any] = {"type": schedule_type, "timezone": zone}
+            if schedule_type in {"daily", "weekly", "hourly"}:
+                start = schedule.get("starts_at")
+                if "starts_at" not in schedule and operation == "update" and prior_trigger is not None:
+                    prior_schedule = prior_trigger.config.get("schedule") or {}
+                    if isinstance(prior_schedule, dict):
+                        start = prior_schedule.get("starts_at")
+                        if start is not None and prior_schedule.get("timezone") != zone:
+                            # A preserved local start keeps its original instant when the zone changes.
+                            try:
+                                start = parse_recurring_starts_at(start, prior_schedule).isoformat()
+                            except ValueError as exc:
+                                raise ValueError("Schedule starts_at must be a valid ISO datetime") from exc
+                if start is not None:
+                    try:
+                        parse_recurring_starts_at(start, config_schedule)
+                    except ValueError as exc:
+                        raise ValueError("Schedule starts_at must be a valid ISO datetime") from exc
+                    config_schedule["starts_at"] = start
             if schedule_type in {"daily", "weekly"}:
                 time = schedule.get("time")
                 if time is None:
@@ -812,7 +832,7 @@ _FLAT_NODE_FIELDS = {"kind", "id", "parent_check_id", "parent_loop_id", "branch"
 
 _HEADER_SCHEMA_PATHS = frozenset({
     "$.schedule", "$.schedule.type", "$.schedule.time", "$.schedule.timezone",
-    "$.schedule.weekdays", "$.schedule.minute", "$.schedule.at",
+    "$.schedule.weekdays", "$.schedule.minute", "$.schedule.at", "$.schedule.starts_at",
     "$.title", "$.description", "$.icon", "$.workflow_id",
 })
 
@@ -837,6 +857,8 @@ def authoring_validation_path(error: ValueError, phase: str) -> str | None:
         return "$.schedule.minute"
     if lower.startswith("one-time schedule requires"):
         return "$.schedule.at"
+    if lower.startswith("schedule starts_at"):
+        return "$.schedule.starts_at"
     if lower.startswith(("schedule must", "schedule type")) or re.match(
             r"^(daily|weekly|hourly|once|manual) schedule supports ", lower):
         return "$.schedule"
@@ -852,6 +874,8 @@ def authoring_validation_code(error: ValueError, phase: str) -> str:
             return "header_schedule_field_set" if "schedule supports " in message else "header_schedule_schema"
         if path in {"$.schedule.time", "$.schedule.minute", "$.schedule.at"}:
             return "header_schedule_time"
+        if path == "$.schedule.starts_at":
+            return "header_schedule_start"
         if path == "$.schedule.timezone":
             return "header_schedule_timezone"
         if path == "$.schedule.weekdays":

@@ -40,7 +40,7 @@ ALLOWED_TOP_LEVEL_FIELDS = {
     "run_content_retention",
 }
 ALLOWED_START_WHEN_FIELDS = {"schedule", "manual"}
-ALLOWED_SCHEDULE_FIELDS = {"type", "time", "timezone", "at", "cron", "minute", "weekdays"}
+ALLOWED_SCHEDULE_FIELDS = {"type", "time", "timezone", "at", "cron", "minute", "weekdays", "starts_at"}
 ALLOWED_MANUAL_FIELDS = {"input_schema"}
 ALLOWED_APP_SKILL_STEP_FIELDS = {"id", "use_app_skill", "input"}
 ALLOWED_NOTIFICATION_STEP_FIELDS = {"id", "send_notification"}

@@ -517,6 +517,50 @@ function deliveryPreview(status?: string) {
 }
 
 export const variants = {
+  scheduleStartOffset: {
+    ...defaultProps,
+    workflowId: 'preview-workflow',
+    onSave: saveTestGraph,
+    graph: {
+      version: 2, trigger_node_id: 'trigger',
+      nodes: [{ id: 'trigger', type: 'schedule_trigger', config: { schedule: {
+        type: 'daily', time: '09:00', timezone: 'Europe/Berlin', starts_at: '2026-11-02T08:30:00-05:00',
+      } } }], edges: [],
+    } as WorkflowGraph,
+  },
+  scheduleStartNaive: {
+    ...defaultProps,
+    workflowId: 'preview-workflow',
+    onSave: saveTestGraph,
+    graph: {
+      version: 2, trigger_node_id: 'trigger',
+      nodes: [{ id: 'trigger', type: 'schedule_trigger', config: { schedule: {
+        type: 'daily', time: '09:00', timezone: 'Europe/Berlin', starts_at: '2026-10-18T00:00:00',
+      } } }], edges: [],
+    } as WorkflowGraph,
+  },
+  scheduleStartEmpty: {
+    ...defaultProps,
+    workflowId: 'preview-workflow',
+    onSave: saveTestGraph,
+    graph: {
+      version: 2, trigger_node_id: 'trigger',
+      nodes: [{ id: 'trigger', type: 'schedule_trigger', config: { schedule: {
+        type: 'hourly', minute: 15, timezone: 'Europe/Berlin',
+      } } }], edges: [],
+    } as WorkflowGraph,
+  },
+  scheduleOnceOffset: {
+    ...defaultProps,
+    workflowId: 'preview-workflow',
+    onSave: saveTestGraph,
+    graph: {
+      version: 2, trigger_node_id: 'trigger',
+      nodes: [{ id: 'trigger', type: 'schedule_trigger', config: { schedule: {
+        type: 'once', timezone: 'Europe/Berlin', at: '2026-11-02T08:30:00-05:00',
+      } } }], edges: [],
+    } as WorkflowGraph,
+  },
   forEachStartInput: {
     ...defaultProps,
     workflowId: 'preview-workflow',

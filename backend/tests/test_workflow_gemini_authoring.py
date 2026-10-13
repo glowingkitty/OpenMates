@@ -162,6 +162,15 @@ def test_provider_node_grammar_keeps_kind_branch_and_encoded_fields_typed():
     assert "yes" not in node["properties"]
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.schedule.recurring-start
+def test_provider_schedule_schema_limits_recurring_start_to_recurring_kinds():
+    schema = provider_response_schema(selection("weather.forecast"))
+    kinds = schema["properties"]["workflows"]["items"]["anyOf"][0]["properties"]["header"]["properties"]["schedule"]["anyOf"]
+    for kind in kinds:
+        name = kind["properties"]["type"]["enum"][0]
+        assert ("starts_at" in kind["properties"]) is (name in {"daily", "weekly", "hourly"})
+
+
 def test_flat_components_emit_header_then_only_complete_nodes():
     source = '{"workflows":[{"header":{"operation":"create","title":"A"},"nodes":['
     assert complete_flat_components(source) == [{"type": "header", "workflow_index": 0,

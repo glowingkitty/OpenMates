@@ -491,6 +491,10 @@ schedule_preview:
   given: Alice chooses hourly apartment search at minute zero in Europe/Berlin.
   when: She saves the time/date node.
   then: A readable hourly schedule is saved; daily 09:00 and weekly Sunday are also available without code.
+- id: recurring-start-date-visible-and-preserved
+  given: Alice selects daily 09:00 Europe/Berlin and sets the starting date to October 18 at midnight.
+  when: She saves the time/date node, reopens it, and checks its next-run preview.
+  then: The editor retains October 18 in Berlin time, the readable summary includes the starting date, and the first upcoming run is October 18 at 09:00. Clearing the optional start returns to the next regular occurrence.
 message_budget:
 - id: message_budget-example
   given: An apartment workflow has selected result output and known skill pricing.

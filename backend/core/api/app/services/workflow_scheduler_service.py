@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta, timezone
+import re
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -115,6 +116,14 @@ class WorkflowSchedulerService:
         if not isinstance(schedule, dict):
             raise ValueError("Decrypted workflow schedule must be an object")
         schedule_type = schedule.get("type")
+        if "starts_at" in schedule and schedule_type not in {"hourly", "daily", "weekly"}:
+            raise ValueError("Workflow schedule starts_at is only supported for recurring schedules")
+        current = datetime.fromtimestamp(now if now is not None else datetime.now(timezone.utc).timestamp(), timezone.utc)
+        if "starts_at" in schedule:
+            start = parse_recurring_starts_at(schedule["starts_at"], schedule)
+            # Recurrences are strictly after now, but the start bound itself is inclusive.
+            if start > current:
+                current = start - timedelta(microseconds=1)
         if schedule_type == "once":
             at_value = schedule.get("at")
             if not isinstance(at_value, str) or not at_value:
@@ -132,7 +141,6 @@ class WorkflowSchedulerService:
                 hourly_timezone = ZoneInfo(str(schedule.get("timezone") or "UTC"))
             except ZoneInfoNotFoundError as exc:
                 raise ValueError("Decrypted workflow schedule timezone is invalid") from exc
-            current = datetime.fromtimestamp(now if now is not None else datetime.now(timezone.utc).timestamp(), timezone.utc)
             # Walk actual UTC minutes: both repeated local hours run at fall-back,
             # nonexistent local hours are skipped, and non-hour offsets work too.
             candidate = current.replace(second=0, microsecond=0) + timedelta(minutes=1)
@@ -155,7 +163,6 @@ class WorkflowSchedulerService:
         except ZoneInfoNotFoundError as exc:
             raise ValueError("Decrypted workflow schedule timezone is invalid") from exc
 
-        current = datetime.fromtimestamp(now if now is not None else datetime.now(timezone.utc).timestamp(), timezone.utc)
         local_current = current.astimezone(schedule_timezone)
         if schedule_type == "daily":
             candidate = _local_occurrence(local_current, hour, minute)
@@ -180,6 +187,8 @@ class WorkflowSchedulerService:
         """Calculate the indexed first due time before a schedule has been claimed."""
         schedule = schedule_config.get("schedule", schedule_config) if isinstance(schedule_config, dict) else None
         if isinstance(schedule, dict) and schedule.get("type") == "once":
+            if "starts_at" in schedule:
+                raise ValueError("Workflow schedule starts_at is only supported for recurring schedules")
             at_value = schedule.get("at")
             if not isinstance(at_value, str) or not at_value:
                 raise ValueError("One-time workflow schedule requires at")
@@ -237,3 +246,21 @@ def _parse_once_timestamp(value: str, schedule: dict[str, Any]) -> datetime:
         except ZoneInfoNotFoundError as exc:
             raise ValueError("One-time workflow schedule timezone is invalid") from exc
     return result
+
+
+_ISO_DATETIME = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?(?:Z|[+-]\d{2}:\d{2})?$"
+)
+
+
+def parse_recurring_starts_at(value: Any, schedule: dict[str, Any]) -> datetime:
+    """Parse a recurring start as an instant, using the schedule zone for local input."""
+    if not isinstance(value, str) or not _ISO_DATETIME.fullmatch(value):
+        raise ValueError("Workflow schedule starts_at must be an ISO datetime")
+    try:
+        result = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if result.tzinfo is None:
+            result = result.replace(tzinfo=ZoneInfo(str(schedule.get("timezone") or "UTC")))
+        return result.astimezone(timezone.utc)
+    except (ValueError, OverflowError, ZoneInfoNotFoundError) as exc:
+        raise ValueError("Workflow schedule starts_at must be a valid ISO datetime") from exc

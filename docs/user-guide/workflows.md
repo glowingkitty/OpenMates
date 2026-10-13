@@ -30,6 +30,27 @@ Changes remain local until you save them. If you try to open Runs, another Workf
 - **Discard** removes the local changes and continues.
 - **Stay** returns to the current Template without losing the edits.
 
+## Choose When It Runs
+
+Add a **Date and time** trigger and select its timezone. **Once** runs at one
+specific date and time. **Every hour**, **Every day**, and **Every week** repeat at
+the selected minute, clock time, or weekdays.
+
+Recurring schedules also offer **Start on (optional)**. For example, ask:
+
+> Create a workflow that starts checking from October 18 onward for new train
+> connections from Berlin to Hamburg, once a day at 09:00 Europe/Berlin.
+
+The first check is October 18 at 09:00 Berlin time. No automatic checks run before
+the start. If the starting time is later than that day's regular check, the first
+check is the next eligible occurrence. Enabling after the starting date has passed
+uses the next future occurrence without replaying missed checks. Clear the optional
+start to begin at the next regular occurrence.
+
+For daily train searches, choose a journey date relative to each run, such as
+tomorrow, so later checks continue searching a future journey date. New-result
+filtering follows the workflow's existing delivery history.
+
 ## Inspect Versions
 
 The version selector and horizontal timeline list the immutable definitions of a Workflow. The current definition is marked **Active**.
