@@ -64,6 +64,10 @@ WORKFLOW_RESULT_LIST_SKILLS = frozenset(
     }
 )
 WORKFLOW_PASSTHROUGH_FIELDS = {
+    ("business", "search_trademarks"): (
+        "result_count", "matches", "coverage", "regions", "nice_classes",
+        "status_filter", "match", "partial", "limitation",
+    ),
     ("finance", "check_accounts"): ("account_count", "transaction_count", "overview"),
     ("math", "calculate"): ("result",),
     ("openmates", "share-usecase"): ("success", "message"),

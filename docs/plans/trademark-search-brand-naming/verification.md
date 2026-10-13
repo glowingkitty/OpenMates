@@ -142,3 +142,32 @@ this feature's scope. The final delivery inventory contains 54 distinct CI video
 23 real conversation clips and eight deployed inspection recordings, including
 inspection-only failed assertions and retries. Evidence upload commands were
 also executed for pytest runs, which have no expected video capture.
+
+## Follow-up: Workflow compatibility
+
+On 2026-10-13, the Workflow adapter was found to retain trademark fields only
+inside `raw`, despite advertising typed top-level outputs. A scoped passthrough
+entry now preserves `matches`, `coverage`, `result_count`, regions, class/status
+and matching filters, `partial` and the legal limitation. It keeps the original
+response and whole-response embed behavior intact.
+
+All three focused schema/normalization cases pass locally: partial coverage,
+completed zero matches and unsupported-only errors. Changed-file Python and
+TypeScript ESLint checks pass. Local test TypeScript checking was unavailable
+because the tests' `tsc` executable is absent; the isolated candidate's web and
+CLI builds pass.
+
+The real keyless Workflow E2E passed in 38.7 seconds with no skips or retries
+([run](https://github.com/glowingkitty/OpenMates/actions/runs/38368073066),
+source `27d1757478938769c185b9f507664e7ff773576a`). A fresh isolated owner created
+a disabled manual Workflow, step-tested a real ADIDAS class-25 search, ran it,
+read typed downstream counts and partial flags, distinguished a unique empty
+US search from unsupported EU coverage, and queued a report delivery. The test
+does not claim owner-side receipt of the report. It retains an actual terminal
+MP4 of the completed run and deletes the disposable Workflow.
+
+Read-only review found no adapter defect. The approved Specification is unchanged.
+EUIPO's free Trademark search API signup and Production approval steps are
+documented for the deferred credentialed integration. DPMAconnectPlus has a
+EUR 200 connection fee, and WIPO public database terms prohibit automated queries;
+neither is recommended as a free automation signup.

@@ -59,3 +59,36 @@ the submitted class and status filters, and exact/similar matching. This retains
 the whole response through the shared saved-embed pipeline, including completed
 zero-match searches. Saved TOON embeds contain that response inside their outer
 `results` list; client normalization accepts both direct and saved shapes.
+
+## Free credential upgrade: EUIPO
+
+Rechecked on 2026-10-13. The next useful signup is EUIPO's official
+[Trademark search 1.1.0](https://dev.euipo.europa.eu/product/trademark-search_110).
+Both Sandbox and Production API access are
+[free of charge](https://dev.euipo.europa.eu/faq), subject to subscription approval
+and plan rate limits. This searches EUIPO's database; it does not establish
+coverage of every national register or worldwide trademark availability.
+
+1. [Create an EUIPO account](https://euipo.europa.eu/ohimportal/en/web/guest/login?loginmode=register).
+2. Sign into the [Sandbox API portal](https://dev-sandbox.euipo.europa.eu/),
+   register an application under Apps, and retain its Client ID and Client Secret.
+3. Subscribe to Trademark search's available plan. It provides name searches,
+   individual trademark details and associated media endpoints.
+4. After successful sandbox integration tests, request a Production subscription.
+   Production approval also requires identity/address documentation; a company
+   applicant must supply the acting person's ID and company-register authority.
+   Follow EUIPO's [getting-started guide](https://dev.euipo.europa.eu/getting-started)
+   and [production requirements](https://dev.euipo.europa.eu/faq).
+
+Sandbox data is for integration testing, not live coverage. Credentialed EUIPO
+integration remains deferred; merely creating an account does not change the
+current skill's coverage. Goods And Services 1.2.0 in the
+[catalog](https://dev.euipo.europa.eu/product) is an optional later addition for
+TMclass classification lookup/validation, not another trademark register.
+
+Germany's [DPMAconnectPlus](https://www.dpma.de/english/search/data_supply_services/dpmaconnect/index.html)
+charges a EUR 200 one-time connection fee, even though register retrieval is
+free afterwards. It does not meet the free-only scope. WIPO's
+[Global Brand Database terms](https://www.wipo.int/en/web/global-brand-database/terms_and_conditions)
+prohibit automated queries and scraping; a normal website account is not an
+automation credential. Keep official manual-search links for these gaps.

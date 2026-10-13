@@ -37,6 +37,35 @@ input and preserve `matches`, `coverage`, `result_count`, `nice_classes`,
 OpenMates authentication is required; no USPTO account or provider key is needed.
 The external source is free. OpenMates applies its normal skill-credit pricing.
 
+### Workflows
+
+Use `business.search_trademarks` in a `use_app_skill` step with the same input.
+The skill supports synchronous, unattended searches and Workflow step-testing.
+Later steps can read `matches`, `coverage`, `result_count`, `regions`,
+`nice_classes`, `status_filter`, `match`, `partial` and `limitation` directly:
+
+```yaml
+steps:
+  - id: trademarks
+    use_app_skill: business.search_trademarks
+    input:
+      queries: [ADIDAS]
+      regions: [US, EU]
+      match: exact
+      max_results: 3
+  - id: incomplete
+    check:
+      left: $nodes.trademarks.output.partial
+      op: eq
+      right: true
+```
+
+Check coverage before interpreting a match count. A completed US search with no
+matches returns zero; a region that could not be searched is not a zero-match
+search. `result_count` counts returned records, while individual coverage rows
+retain the provider's total and truncation details. The whole original response
+also remains available under `raw`.
+
 ## Find a brand name
 
 Start with “Help me find a name for my new product.” The mode asks for a compact
