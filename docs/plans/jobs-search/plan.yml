@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: jobs-search
 title: Jobs Search with public providers, workflows, embeds, and a real example
-status: implementing
+status: verified
 goal: >
   Add support for API-key-free job platforms first, implement and test Jobs Search
   in workflows and the workflow editor, implement embed preview and fullscreen
