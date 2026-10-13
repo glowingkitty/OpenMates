@@ -9,6 +9,7 @@ import { get } from "svelte/store";
 import {
   activeTeamContext,
   orderTeamsByRecent,
+  rememberTeamSelection,
   reconcileTeamContextAvailability,
   setActiveTeamContext,
   TEAM_CONTEXT_CHANGED_EVENT,
@@ -134,6 +135,28 @@ describe("teamStore", () => {
 
     userProfile.update(profile => ({ ...profile, user_id: 'account-a' }));
     expect(get(activeTeamContext)).toMatchObject({ teamId: 'team-b', team: null });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local
+  it("remembers an account-scoped picker choice without entering its workspace", () => {
+    userProfile.update(profile => ({ ...profile, user_id: 'account-a' }));
+    const personalContext = get(activeTeamContext);
+    const listener = vi.fn();
+    window.addEventListener(TEAM_CONTEXT_CHANGED_EVENT, listener);
+    try {
+      rememberTeamSelection('team-b');
+      expect(orderTeamsByRecent([team('team-a'), team('team-b')])[0].team_id).toBe('team-b');
+      expect(get(activeTeamContext)).toBe(personalContext);
+      expect(listener).not.toHaveBeenCalled();
+
+      userProfile.update(profile => ({ ...profile, user_id: 'account-b' }));
+      expect(orderTeamsByRecent([team('team-a'), team('team-b')])[0].team_id).toBe('team-a');
+      userProfile.update(profile => ({ ...profile, user_id: 'account-a' }));
+      expect(orderTeamsByRecent([team('team-a'), team('team-b')])[0].team_id).toBe('team-b');
+      expect(get(activeTeamContext).teamId).toBeNull();
+    } finally {
+      window.removeEventListener(TEAM_CONTEXT_CHANGED_EVENT, listener);
+    }
   });
 
   // contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local

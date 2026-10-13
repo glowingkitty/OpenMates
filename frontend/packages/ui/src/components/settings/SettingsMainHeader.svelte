@@ -29,8 +29,6 @@
 -->
 <script lang="ts">
     import { text } from '@repo/ui';
-    import type { TeamViewModel } from '../../services/teamService';
-    import TeamContextPicker from './TeamContextPicker.svelte';
 
     // ─── Props ────────────────────────────────────────────────────────────────
 
@@ -46,12 +44,6 @@
         onAvatarClick?: () => void;
         /** Callback fired when the user clicks their username → deep links to username settings */
         onUsernameClick?: () => void;
-        teams?: TeamViewModel[];
-        activeTeamId?: string | null;
-        teamContextLoading?: boolean;
-        teamContextError?: string;
-        onTeamContextChange: (contextId: string) => void;
-        onCreateTeam: () => void;
         animationsActive?: boolean;
     }
 
@@ -65,12 +57,6 @@
         onBillingClick,
         onAvatarClick,
         onUsernameClick,
-        teams = [],
-        activeTeamId = null,
-        teamContextLoading = false,
-        teamContextError = '',
-        onTeamContextChange,
-        onCreateTeam,
         animationsActive = false,
     }: Props = $props();
 
@@ -116,7 +102,6 @@
         credits.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
     );
 
-    let showTeamContextSwitcher = $derived(isAuthenticated && teams.length > 0);
 </script>
 
 <div
@@ -222,18 +207,6 @@
                 </div>
             {/if}
 
-            {#if showTeamContextSwitcher}
-                <div
-                    class="team-context-switcher"
-                    class:team-context-switcher-collapsed={isCollapsed}
-                    data-testid="profile-team-context-switcher"
-                >
-                    <TeamContextPicker {teams} {activeTeamId} disabled={teamContextLoading} {onTeamContextChange} {onCreateTeam} />
-                    {#if teamContextError}
-                        <small class="team-context-error" data-testid="team-context-load-error">{teamContextError}</small>
-                    {/if}
-                </div>
-            {/if}
         </div>
     </div>
 </div>
@@ -573,28 +546,6 @@
 
     .credits-amount-collapsed {
         font-size: var(--font-size-xs);
-    }
-
-    /* ─── Team Context Switcher ─────────────────────────────────────────────── */
-
-    .team-context-switcher {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: var(--spacing-3);
-        margin-top: var(--spacing-2);
-        pointer-events: auto;
-    }
-
-    .team-context-switcher-collapsed {
-        justify-content: flex-start;
-        margin-top: 0;
-    }
-
-    .team-context-error {
-        color: var(--color-font-button);
-        font-size: var(--font-size-xxs);
-        opacity: 0.85;
     }
 
     /* ─── Mobile adjustments ─────────────────────────────────────────────────── */

@@ -9,6 +9,7 @@
 export {};
 
 import type { Page, Request, Response } from '@playwright/test';
+import { selectTeamInQuickPicker, setTeamMode } from './helpers/team-quick-context';
 
 const { expect, test } = require('./helpers/cookie-audit');
 const {
@@ -428,10 +429,10 @@ test.describe('Teams V1 context isolation', () => {
 			}
 
 			await page.getByTestId('banner-back-button').click();
-			await expect(page.getByTestId('team-context-dropdown')).toBeVisible({ timeout: 30000 });
+			await expect(page.getByTestId('team-quick-context-dropdown')).toBeVisible({ timeout: 30000 });
 			const teamSwitchFrameIndex = frames.length;
-			await page.getByTestId('team-context-dropdown').click();
-			await page.getByTestId(`team-context-option-${teamId}`).click();
+			await selectTeamInQuickPicker(page, teamId, teamName);
+			await setTeamMode(page, true);
 			await waitForPhasedSyncCompletion(frames, teamSwitchFrameIndex, teamId);
 			await page.getByTestId('icon-button-close').click();
 			await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });
@@ -441,7 +442,7 @@ test.describe('Teams V1 context isolation', () => {
 			await waitForChatReady(page);
 			await expectProfileTeamBadge(page, teamName);
 			await openProfileMenu(page);
-			await page.getByTestId('team-context-dropdown').click();
+			await page.getByTestId('team-quick-context-dropdown').click();
 			await expect(
 				page.getByTestId('team-context-menu').getByRole('menuitemradio', { name: teamName })
 			).toHaveAttribute('aria-checked', 'true');
@@ -1003,8 +1004,7 @@ test.describe('Teams V1 context isolation', () => {
 
 			await openProfileMenu(page);
 			const personalSwitchFrameIndex = frames.length;
-			await page.getByTestId('team-context-dropdown').click();
-			await page.getByTestId('team-context-personal').click();
+			await setTeamMode(page, false);
 			await waitForPhasedSyncCompletion(frames, personalSwitchFrameIndex, null);
 			await page.getByTestId('icon-button-close').click();
 			await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });

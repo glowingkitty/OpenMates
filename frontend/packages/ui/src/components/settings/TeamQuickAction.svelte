@@ -5,6 +5,7 @@
   import { Plus } from '@lucide/svelte';
   import SettingsButton from './elements/SettingsButton.svelte';
   import TeamContextPicker from './TeamContextPicker.svelte';
+  import { orderTeamsByRecent, rememberTeamSelection } from '../../stores/teamStore';
 
   let {
     teams, activeTeamId, loading, onTeamContextChange, onCreateTeam, onTeamToggle, onOpenTeams,
@@ -14,25 +15,37 @@
     loading: boolean;
     onTeamContextChange: (contextId: string) => void;
     onCreateTeam: () => void;
-    onTeamToggle: () => void;
+    onTeamToggle: (teamId: string | null) => void;
     onOpenTeams: () => void;
   } = $props();
+
+  // Choosing a Team while the toggle is off must not enter its workspace.
+  let selectedTeamId = $state<string | null>(null);
+  let selectedTeam = $derived(teams.find(team => team.team_id === (activeTeamId ?? selectedTeamId)) ?? orderTeamsByRecent(teams)[0] ?? null);
+  $effect(() => { if (activeTeamId) selectedTeamId = activeTeamId; });
+
+  function selectTeam(teamId: string) {
+    selectedTeamId = teamId;
+    rememberTeamSelection(teamId);
+    if (activeTeamId !== null) onTeamContextChange(teamId);
+  }
 
   let toggleInProgress = false;
   function handleToggle() {
     // The checkbox label can synthesize a second click on some browsers.
-    if (toggleInProgress) return;
+    if (loading || toggleInProgress || !selectedTeam) return;
     toggleInProgress = true;
     queueMicrotask(() => { toggleInProgress = false; });
-    onTeamToggle();
+    selectedTeamId = selectedTeam.team_id;
+    onTeamToggle(activeTeamId !== null ? null : selectedTeam.team_id);
   }
 </script>
 
 {#snippet teamPicker()}
   <span role="presentation" onclick={(event) => event.stopPropagation()} onkeydown={(event) => event.stopPropagation()}>
-    <TeamContextPicker {teams} {activeTeamId} disabled={loading} compact
+    <TeamContextPicker {teams} activeTeamId={selectedTeam?.team_id ?? null} disabled={loading} compact
       testId="team-quick-context-dropdown" avatarTestId="team-quick-active-team-avatar"
-      {onTeamContextChange} {onCreateTeam} />
+      onTeamContextChange={selectTeam} {onCreateTeam} />
   </span>
 {/snippet}
 
@@ -51,6 +64,7 @@
   title={$text('settings.teams')}
   hasToggle={teams.length > 0}
   checked={activeTeamId !== null}
+  disabled={loading}
   onClick={onOpenTeams}
   onToggleClick={handleToggle}
   rightContent={teams.length > 0 ? teamPicker : createButton}

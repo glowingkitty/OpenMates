@@ -3,7 +3,7 @@
   import TeamQuickAction from './TeamQuickAction.svelte';
   import type { TeamViewModel } from '../../services/teamService';
 
-  let { variant = 'joined' }: { variant?: 'joined' | 'noTeams' | 'loadingNoTeams' | 'personal' } = $props();
+  let { variant = 'joined' }: { variant?: 'joined' | 'noTeams' | 'loadingNoTeams' | 'personal' | 'singleTeam' | 'loadingJoined' } = $props();
 
   const teams: TeamViewModel[] = [
     {
@@ -17,18 +17,19 @@
       zeroBalance: 0, createdAt: 0, updatedAt: 0, encrypted: { team_id: 'preview-team-2' },
     },
   ];
-  let previewTeams = $derived(variant === 'noTeams' || variant === 'loadingNoTeams' ? [] : teams);
+  let previewTeams = $derived(variant === 'noTeams' || variant === 'loadingNoTeams' ? []
+    : variant === 'singleTeam' ? [{ ...teams[0], name: 'SocialHub' }] : teams);
   let activeTeamId: string | null = $state(untrack(() => variant === 'joined' ? teams[0].team_id : null));
   let action = $state('');
 </script>
 
 <div class="preview-surface">
-  <TeamQuickAction teams={previewTeams} {activeTeamId} loading={variant === 'loadingNoTeams'}
-    onTeamContextChange={(contextId) => { activeTeamId = contextId === 'personal' ? null : contextId; action = 'context'; }}
-    onTeamToggle={() => { activeTeamId = activeTeamId ? null : teams[0].team_id; action = 'toggle'; }}
+  <TeamQuickAction teams={previewTeams} {activeTeamId} loading={variant === 'loadingNoTeams' || variant === 'loadingJoined'}
+    onTeamContextChange={(contextId) => { activeTeamId = contextId; action = 'context'; }}
+    onTeamToggle={(teamId) => { activeTeamId = teamId; action = 'toggle'; }}
     onCreateTeam={() => { action = 'create'; }}
     onOpenTeams={() => { action = 'open'; }} />
-  <output class="preview-result" data-testid="team-quick-action-result" aria-live="polite">{action}</output>
+  <output class="preview-result" data-testid="team-quick-action-result" data-active-team-id={activeTeamId ?? ''} aria-live="polite">{action}</output>
 </div>
 
 <style>

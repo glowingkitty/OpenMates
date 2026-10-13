@@ -4,6 +4,7 @@ export {};
 import path from 'node:path';
 import type { Page, Response, TestInfo } from '@playwright/test';
 import { waitForSettingsView } from './helpers/settings-readiness';
+import { selectTeamInQuickPicker, setTeamMode } from './helpers/team-quick-context';
 
 const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -229,9 +230,8 @@ test.describe('Teams management', () => {
 			await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'teams');
 			await page.getByTestId('banner-back-button').click();
 			await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'main');
-			await page.getByTestId('team-context-dropdown').click();
-			await page.getByTestId(`team-context-option-${teamId}`).click();
-			await expect(page.getByTestId('team-context-dropdown')).toContainText(renamedTeam);
+			await selectTeamInQuickPicker(page, teamId, renamedTeam);
+			await setTeamMode(page, true);
 			await page.getByTestId('icon-button-close').click();
 			await expect(page.getByTestId('settings-menu')).not.toBeVisible();
 			const profileTeamImage = page.getByTestId('profile-active-team-avatar').locator('img');

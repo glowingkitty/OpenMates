@@ -7,6 +7,7 @@ import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { APIResponse, Browser, Page, Response, TestInfo } from '@playwright/test';
+import { selectTeamInQuickPicker, setTeamMode } from './helpers/team-quick-context';
 
 const { expect, test } = require('./helpers/cookie-audit');
 const { fillMessageEditor, loginToTestAccount, startNewChat, waitForChatReady } = require('./helpers/chat-test-helpers');
@@ -245,9 +246,8 @@ test('two Team members exchange encrypted messages and invoke OpenMates with the
     await page.getByTestId('banner-back-button').click();
     await expect.poll(() => new URL(page.url()).hash).toBe('#settings/teams');
     await page.getByTestId('banner-back-button').click();
-    await expect(page.getByTestId('team-context-dropdown')).toBeVisible();
-    await page.getByTestId('team-context-dropdown').click();
-    await page.getByTestId(`team-context-option-${teamId}`).click();
+    await selectTeamInQuickPicker(page, teamId);
+    await setTeamMode(page, true);
     await page.getByTestId('icon-button-close').click();
     await waitForChatReady(page);
     await startNewChat(page);

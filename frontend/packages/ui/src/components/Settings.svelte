@@ -58,7 +58,7 @@ changes to the documentation (to keep the documentation up to date).
     import { isMobileView } from '../stores/uiStateStore'; // Import global isMobileView store
     import { panelState } from '../stores/panelStateStore'; // Import panelState to sync with isSettingsOpen
     import { pendingMentionStore } from '../stores/pendingMentionStore';
-    import { activeTeam, activeTeamId, orderTeamsByRecent, reconcileTeamContextAvailability, setActiveTeamContext, TEAMS_UPDATED_EVENT } from '../stores/teamStore';
+    import { activeTeam, activeTeamId, reconcileTeamContextAvailability, setActiveTeamContext, TEAMS_UPDATED_EVENT } from '../stores/teamStore';
     import { listTeams, loadTeamBilling, subscribeTeamListRefresh, TeamRequestCancelledError, type TeamViewModel } from '../services/teamService';
     import { resolveBillingSettingsPath } from '../services/billingContext';
     // Admin status is now read directly from userProfile.is_admin (synced during login)
@@ -2358,12 +2358,6 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     function handleProfileTeamContextChange(contextId: string): void {
-        if (contextId === 'personal') {
-            setActiveTeamContext(null);
-            notificationStore.success('Personal context selected');
-            return;
-        }
-
         const team = profileTeams.find((candidate) => candidate.team_id === contextId);
         if (!team) {
             notificationStore.error('Team context could not be selected');
@@ -2378,14 +2372,13 @@ changes to the documentation (to keep the documentation up to date).
         handleOpenSettings({ detail: { settingsPath: 'teams/new', direction: 'forward', icon: 'team', title: $text('settings.teams') } } as CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string }>);
     }
 
-    function handleTeamToggle(): void {
-        if (get(activeTeamId)) {
-            handleProfileTeamContextChange('personal');
+    function handleTeamToggle(teamId: string | null): void {
+        if (teamId === null) {
+            setActiveTeamContext(null);
+            notificationStore.success('Personal context selected');
             return;
         }
-        const mostRecentTeam = orderTeamsByRecent(profileTeams)[0];
-        if (mostRecentTeam) handleProfileTeamContextChange(mostRecentTeam.team_id);
-        else handleCreateTeam();
+        handleProfileTeamContextChange(teamId);
     }
 
     // No more docking/undocking - we use two separate containers instead
@@ -3379,13 +3372,7 @@ changes to the documentation (to keep the documentation up to date).
                 credits={displayCredits}
                 paymentEnabled={$demoMode || (paymentEnabled && canManageActiveTeamBilling)}
                 scrollTop={contentScrollTop}
-                teams={sortedProfileTeams}
-                activeTeamId={$activeTeamId}
-                teamContextLoading={profileTeamsLoading}
                 animationsActive={isMenuVisible}
-                teamContextError={profileTeamsLoadError}
-                onTeamContextChange={handleProfileTeamContextChange}
-                onCreateTeam={handleCreateTeam}
                 onBillingClick={() => handleOpenSettings({ detail: { settingsPath: $activeTeamId ? `teams/${$activeTeamId}/billing` : 'billing', direction: 'forward', icon: 'billing', title: $text('settings.billing') } } as CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>)}
                 onAvatarClick={() => handleOpenSettings({ detail: { settingsPath: 'account/profile-picture', direction: 'forward', icon: 'profile-picture', title: $text('settings.account.profile_picture') } } as CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>)}
                 onUsernameClick={() => handleOpenSettings({ detail: { settingsPath: 'account/username', direction: 'forward', icon: 'username', title: $text('settings.account.username') } } as CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>)}
@@ -3490,6 +3477,7 @@ changes to the documentation (to keep the documentation up to date).
             teams={sortedProfileTeams}
             activeTeamId={$activeTeamId}
             teamContextLoading={profileTeamsLoading}
+            teamContextError={profileTeamsLoadError}
             onTeamContextChange={handleProfileTeamContextChange}
             onCreateTeam={handleCreateTeam}
             onTeamToggle={handleTeamToggle}

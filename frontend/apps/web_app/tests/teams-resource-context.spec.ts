@@ -3,6 +3,7 @@
 export {};
 
 import type { Page, Request, Response } from '@playwright/test';
+import { selectTeamInQuickPicker, setTeamMode } from './helpers/team-quick-context';
 
 const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount, dismissSecurityReminderIfPresent } = require('./helpers/chat-test-helpers');
@@ -22,23 +23,17 @@ function scopedUrl(apiUrl: string, path: string, teamId: string | null): string 
 	return url.toString();
 }
 
-async function openContextPicker(page: Page): Promise<void> {
+async function openProfileMenu(page: Page): Promise<void> {
 	if (!(await page.getByTestId('settings-menu').isVisible().catch(() => false))) {
 		await page.getByTestId('profile-container').click();
 	}
-	await expect(page.getByTestId('team-context-dropdown')).toBeVisible({ timeout: 30000 });
-	await page.getByTestId('team-context-dropdown').click();
+	await expect(page.getByTestId('settings-teams-item')).toBeVisible({ timeout: 30000 });
 }
 
 async function switchContext(page: Page, teamId: string | null, name: string): Promise<void> {
-	await openContextPicker(page);
-	if (teamId && !(await page.getByTestId(`team-context-option-${teamId}`).isVisible().catch(() => false))) {
-		await page.getByTestId('team-context-show-more').click();
-	}
-	const option = page.getByTestId(teamId ? `team-context-option-${teamId}` : 'team-context-personal');
-	if ((await option.getAttribute('aria-checked')) !== 'true') await option.click();
-	else await page.keyboard.press('Escape');
-	await expect(page.getByTestId('team-context-dropdown')).toContainText(name, { timeout: 30000 });
+	await openProfileMenu(page);
+	if (teamId) await selectTeamInQuickPicker(page, teamId, name);
+	await setTeamMode(page, teamId !== null);
 	await page.getByTestId('icon-button-close').click();
 	await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 15000 });
 }

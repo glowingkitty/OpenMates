@@ -10,6 +10,7 @@
     import { notificationStore } from '../../stores/notificationStore';
     import SettingsItem from '../SettingsItem.svelte';
     import TeamQuickAction from './TeamQuickAction.svelte';
+    import SettingsInfoBox from './elements/SettingsInfoBox.svelte';
     import type { TeamViewModel } from '../../services/teamService';
     import { createEventDispatcher, onMount } from 'svelte';
     import type { SvelteComponent } from 'svelte';
@@ -42,6 +43,7 @@
         teams,
         activeTeamId,
         teamContextLoading,
+        teamContextError,
         onTeamContextChange,
         onCreateTeam,
         onTeamToggle,
@@ -64,9 +66,10 @@
         teams: TeamViewModel[];
         activeTeamId: string | null;
         teamContextLoading: boolean;
+        teamContextError: string;
         onTeamContextChange: (contextId: string) => void;
         onCreateTeam: () => void;
-        onTeamToggle: () => void;
+        onTeamToggle: (teamId: string | null) => void;
     } = $props();
     
     // State for docked profile visibility
@@ -291,6 +294,9 @@
                 <TeamQuickAction {teams} {activeTeamId} loading={teamContextLoading}
                     {onTeamContextChange} {onCreateTeam} {onTeamToggle}
                     onOpenTeams={() => showSettingsView('teams', null)} />
+                {#if teamContextError}
+                    <SettingsInfoBox type="error" data-testid="team-context-load-error">{teamContextError}</SettingsInfoBox>
+                {/if}
             {/if}
             {#if isAuthenticated}
                 <div data-testid="incognito-toggle-wrapper">

@@ -32,7 +32,7 @@
   let menuWidth = $state(185);
   let orderedTeams = $derived.by(() => { void recentVersion; return orderTeamsByRecent(teams); });
   let visibleTeams = $derived(expanded ? orderedTeams : orderedTeams.slice(0, 5));
-  let activeTeam = $derived(teams.find(team => team.team_id === activeTeamId) ?? null);
+  let selectedTeam = $derived(orderedTeams.find(team => team.team_id === activeTeamId) ?? orderedTeams[0] ?? null);
 
   function portal(node: HTMLElement) {
     document.body.appendChild(node);
@@ -74,7 +74,7 @@
   $effect(() => () => { if (closeTimer) clearTimeout(closeTimer); });
 
   function select(contextId: string) {
-    if (contextId !== (activeTeamId ?? 'personal')) onTeamContextChange(contextId);
+    if (contextId !== selectedTeam?.team_id) onTeamContextChange(contextId);
     recentVersion++;
     closeMenu(true);
   }
@@ -100,12 +100,13 @@
   $effect(() => {
     if (!open) return;
     document.addEventListener('pointerdown', onDocumentPointer);
-    document.addEventListener('keydown', onDocumentKey);
+    // Settings rows stop bubbling keys; capture keeps dismissal/navigation accessible.
+    document.addEventListener('keydown', onDocumentKey, true);
     window.addEventListener('resize', placeMenu);
     window.addEventListener('scroll', placeMenu, true);
     return () => {
       document.removeEventListener('pointerdown', onDocumentPointer);
-      document.removeEventListener('keydown', onDocumentKey);
+      document.removeEventListener('keydown', onDocumentKey, true);
       window.removeEventListener('resize', placeMenu);
       window.removeEventListener('scroll', placeMenu, true);
     };
@@ -120,16 +121,15 @@
   class="team-context-trigger"
   class:compact
   data-testid={testId}
-  aria-label={$text('settings.switch_team_context')}
+  aria-label={`${$text('settings.switch_team_context')}: ${selectedTeam?.name || $text('settings.teams_ui.untitled_team')}`}
   aria-haspopup="menu"
   aria-expanded={open}
-  disabled={disabled}
+  disabled={disabled || !selectedTeam}
   onclick={event => open ? closeMenu(true) : void openMenu(event.detail === 0)}
   onkeydown={event => { if (event.key === 'ArrowDown' && !open) { event.preventDefault(); void openMenu(true); } }}
 >
-  {#if activeTeam}<TeamAvatar team={activeTeam} size={24} testId={avatarTestId} />
-  {:else if compact}<span class="personal-avatar" aria-hidden="true"></span>{/if}
-  <span class="team-context-name">{activeTeam?.name || $text('settings.personal_context')}</span>
+  {#if selectedTeam}<TeamAvatar team={selectedTeam} size={24} testId={avatarTestId} />{/if}
+  <span class="team-context-name">{selectedTeam?.name || $text('settings.teams_ui.untitled_team')}</span>
   <span class="chevron" aria-hidden="true"></span>
 </button>
 
@@ -147,13 +147,10 @@
     style:width={`${menuWidth}px`}
   >
     {#each visibleTeams as team (team.team_id)}
-      <button type="button" role="menuitemradio" aria-checked={activeTeamId === team.team_id} data-testid={`team-context-option-${team.team_id}`} onclick={() => select(team.team_id)}>
+      <button type="button" role="menuitemradio" aria-checked={selectedTeam?.team_id === team.team_id} data-testid={`team-context-option-${team.team_id}`} onclick={() => select(team.team_id)}>
         <TeamAvatar {team} size={39} /><span>{team.name || $text('settings.teams_ui.untitled_team')}</span>
       </button>
     {/each}
-    <button type="button" role="menuitemradio" aria-checked={activeTeamId === null} data-testid="team-context-personal" onclick={() => select('personal')}>
-      <span class="personal-avatar" aria-hidden="true"></span><span>{$text('settings.personal_context')}</span>
-    </button>
     {#if orderedTeams.length > 5 && !expanded}
       <button type="button" role="menuitem" data-testid="team-context-show-more" onclick={() => { expanded = true; void tick().then(placeMenu); }}>{$text('settings.show_more_teams')}</button>
     {/if}
@@ -199,9 +196,6 @@
   .team-context-menu > button.new-team-option { margin-top: 3px; min-height: 22px; padding-left: 8px; gap: 16px; color: color-mix(in srgb, var(--color-font-button) 70%, transparent); }
   .new-team-icon { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; flex: none; }
   .new-team-icon::before { content: ''; width: 22px; height: 22px; background: currentColor; mask: url('@openmates/ui/static/icons/create.svg') center / contain no-repeat; }
-  .personal-avatar { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex: none; border-radius: 50%; background: color-mix(in srgb, var(--color-font-button) 15%, transparent); }
-  .personal-avatar::before { content: ''; width: 70%; height: 70%; background: var(--color-font-button); mask: url('@openmates/ui/static/icons/user.svg') center / contain no-repeat; }
-  .team-context-menu .personal-avatar { width: 39px; height: 39px; }
   @keyframes picker-open { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: none; } }
   @keyframes picker-close { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-4px) scale(0.98); } }
   @media (prefers-reduced-motion: reduce) { .team-context-menu, .team-context-menu.closing { animation: none; } }

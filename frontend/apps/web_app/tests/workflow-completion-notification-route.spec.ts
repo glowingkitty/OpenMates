@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Shared Playwright helpers expose CommonJS exports. */
 import type { Browser, Page } from '@playwright/test';
+import { selectTeamInQuickPicker, setTeamMode } from './helpers/team-quick-context';
 export {};
 
 const { expect, test } = require('./helpers/cookie-audit');
@@ -57,12 +58,8 @@ async function createAndSelectTeam(page: Page, name: string): Promise<string> {
 	await page.getByTestId('banner-back-button').click();
 	await expect(page.getByTestId('teams-settings-page')).toBeVisible({ timeout: 30_000 });
 	await page.getByTestId('banner-back-button').click();
-	await expect(page.getByTestId('team-context-dropdown')).toBeVisible({ timeout: 30_000 });
-	await page.getByTestId('team-context-dropdown').click();
-	const option = page.getByTestId(`team-context-option-${teamId}`);
-	if (!(await option.isVisible().catch(() => false))) await page.getByTestId('team-context-show-more').click();
-	await option.click();
-	await expect(page.getByTestId('team-context-dropdown')).toContainText(name);
+	await selectTeamInQuickPicker(page, teamId, name);
+	await setTeamMode(page, true);
 	await page.getByTestId('icon-button-close').click();
 	return teamId;
 }

@@ -48,10 +48,11 @@ test.describe('Team context picker preview', () => {
 		await expect(menu).toHaveCSS('border-radius', '22px');
 		await expect(menu).toHaveCSS('font-size', '16px');
 		await expect(menu).toHaveCSS('font-weight', '700');
-		await expect(menu.getByRole('menuitemradio')).toHaveCount(6); // Personal + five Teams
+		await expect(menu.getByRole('menuitemradio')).toHaveCount(5);
+		await expect(menu.getByRole('menuitemradio', { name: 'Personal', exact: true })).toHaveCount(0);
 		await expect(page.getByTestId('team-context-new-team')).toBeVisible();
 		await page.getByTestId('team-context-show-more').click();
-		await expect(menu.getByRole('menuitemradio')).toHaveCount(8);
+		await expect(menu.getByRole('menuitemradio')).toHaveCount(7);
 		await page.keyboard.press('Escape');
 		await expect(menu).toHaveCount(0);
 		await expect(trigger).toBeFocused();
@@ -97,15 +98,80 @@ test.describe('Teams settings quick action preview', () => {
 	});
 
 	// contract-test: supporting surface=gui.web assertions=teams.web.figma-context
-	test('keeps the picker and toggle for a member using Personal', async ({ page }) => {
+	test('chooses a real team while off and activates that choice only with the toggle', async ({ page }) => {
 		await page.goto('/dev/preview/settings/TeamQuickActionPreviewHarness?chrome=0&variant=personal');
 		await waitForComponentPreview(page);
 		const row = page.getByTestId('settings-teams-item');
 		await expect(page.getByTestId('team-quick-create')).toHaveCount(0);
-		await expect(page.getByTestId('team-quick-context-dropdown')).toContainText('Personal');
+		const picker = page.getByTestId('team-quick-context-dropdown');
+		const result = page.getByTestId('team-quick-action-result');
+		await expect(picker).toContainText('xHain');
+		await expect(picker.getByTestId('team-quick-active-team-avatar')).toBeVisible();
+		await expect(result).toHaveAttribute('data-active-team-id', '');
 		await expect(row.getByTestId('toggle-container')).toBeVisible();
+		await picker.focus();
+		await page.keyboard.press('ArrowDown');
+		const menu = page.getByTestId('team-context-menu');
+		await expect(menu.getByRole('menuitemradio')).toHaveCount(2);
+		await expect(menu.getByRole('menuitemradio', { name: 'Personal', exact: true })).toHaveCount(0);
+		await page.getByTestId('team-context-option-preview-team-2').click();
+		await expect(picker).toContainText('OpenMates');
+		await expect(result).toHaveAttribute('data-active-team-id', '');
+		await expect(picker).toBeFocused();
 		await row.getByTestId('toggle-container').click();
-		await expect(page.getByTestId('team-quick-action-result')).toHaveText('toggle');
+		await expect(result).toHaveText('toggle');
+		await expect(result).toHaveAttribute('data-active-team-id', 'preview-team-2');
+		await row.getByTestId('toggle-container').focus();
+		await page.keyboard.press('Space');
+		await expect(result).toHaveAttribute('data-active-team-id', '');
+		await expect(picker).toContainText('OpenMates');
+		await page.keyboard.press('Enter');
+		await expect(result).toHaveAttribute('data-active-team-id', 'preview-team-2');
+		await picker.click();
+		await page.getByTestId('team-context-option-preview-team').click();
+		await expect(result).toHaveAttribute('data-active-team-id', 'preview-team');
+		await expect(result).toHaveText('context');
+	});
+
+	// contract-test: supporting surface=gui.web assertions=teams.web.figma-context,teams.context.full-switch-local
+	test('shows SocialHub as the only team and enters it when toggled on', async ({ page }, testInfo) => {
+		for (const width of [390, 1440]) {
+			await page.setViewportSize({ width, height: 900 });
+			await page.goto('/dev/preview/settings/TeamQuickActionPreviewHarness?chrome=0&variant=singleTeam&width=336');
+			await waitForComponentPreview(page);
+			const picker = page.getByTestId('team-quick-context-dropdown');
+			await expect(picker).toContainText('SocialHub');
+			await picker.hover();
+			await picker.click();
+			const menu = page.getByTestId('team-context-menu');
+			await expect(menu.getByRole('menuitemradio')).toHaveCount(1);
+			await expect(menu.getByRole('menuitemradio', { name: 'SocialHub' })).toBeVisible();
+			await expect(menu.getByText('Personal', { exact: true })).toHaveCount(0);
+			await expect(menu).toBeInViewport();
+			await waitForComponentMotion(menu);
+			await attachPreviewScreenshot(page, testInfo, `socialhub-picker-${width}.png`);
+			await page.keyboard.press('Escape');
+			await expect(menu).toHaveCount(0);
+			await expect(picker).toBeFocused();
+			await page.getByTestId('settings-teams-item').getByTestId('toggle-container').click();
+			await expect(page.getByTestId('team-quick-action-result')).toHaveAttribute('data-active-team-id', 'preview-team');
+			await expect(picker).toContainText('SocialHub');
+		}
+	});
+
+	// contract-test: supporting surface=gui.web assertions=teams.web.figma-context
+	test('does not activate teams while membership is loading, including keyboard input', async ({ page }) => {
+		await page.goto('/dev/preview/settings/TeamQuickActionPreviewHarness?chrome=0&variant=loadingJoined');
+		await waitForComponentPreview(page);
+		await expect(page.getByTestId('team-quick-context-dropdown')).toBeDisabled();
+		await expect(page.getByTestId('settings-teams-item')).toHaveAttribute('aria-disabled', 'true');
+		const toggle = page.getByTestId('settings-teams-item').getByTestId('toggle-container');
+		// Exercise the handler guard even though a real click is correctly blocked by disabled state.
+		await toggle.dispatchEvent('click');
+		await toggle.focus();
+		await page.keyboard.press('Enter');
+		await expect(page.getByTestId('team-quick-action-result')).toHaveAttribute('data-active-team-id', '');
+		await expect(page.getByTestId('team-quick-action-result')).toHaveText('');
 	});
 
 	// contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local,settings-ui.composition.canonical-and-accessible
@@ -169,7 +235,7 @@ test.describe('Teams settings quick action preview', () => {
 		await expect(menu).toHaveCSS('width', '185px');
 		await expect(menu.getByRole('menuitemradio', { name: 'xHain' })).toBeVisible();
 		await expect(menu.getByRole('menuitemradio', { name: 'OpenMates' })).toBeVisible();
-		await expect(menu.getByRole('menuitemradio', { name: 'Personal' })).toBeVisible();
+		await expect(menu.getByRole('menuitemradio', { name: 'Personal' })).toHaveCount(0);
 		await expect(menu.locator('.team-avatar').first()).toHaveCSS('width', '39px');
 		await expect(page.getByTestId('team-context-new-team')).toHaveCSS(
 			'color',
@@ -178,7 +244,8 @@ test.describe('Teams settings quick action preview', () => {
 		await page.keyboard.press('Escape');
 		await row.getByTestId('toggle-container').click();
 		await expect(page.getByTestId('team-quick-action-result')).toHaveText('toggle');
-		await expect(picker).toContainText('Personal');
+		await expect(picker).toContainText('xHain');
+		await expect(page.getByTestId('team-quick-action-result')).toHaveAttribute('data-active-team-id', '');
 		await row.getByTestId('toggle-container').click();
 		await expect(picker).toContainText('xHain');
 		await picker.click();
@@ -186,6 +253,25 @@ test.describe('Teams settings quick action preview', () => {
 		await expect(page.getByTestId('team-quick-action-result')).toHaveText('create');
 		await row.getByText('Teams', { exact: true }).click();
 		await expect(page.getByTestId('team-quick-action-result')).toHaveText('open');
+	});
+});
+
+test.describe('Settings main header preview', () => {
+	// contract-test: supporting surface=gui.web assertions=teams.web.figma-context
+	test('keeps profile and credits visible without a team selector', async ({ page }, testInfo) => {
+		for (const width of [390, 1440]) {
+			await page.setViewportSize({ width, height: 900 });
+			for (const variant of ['', '&variant=collapsed']) {
+				await page.goto(`/dev/preview/settings/SettingsMainHeader?chrome=0&width=336${variant}`);
+				await waitForComponentPreview(page);
+				await expect(page.getByText('Preview user', { exact: true })).toBeInViewport();
+				await expect(page.getByTestId('credits-row')).toBeInViewport();
+				await expect(page.getByTestId('credits-amount')).toContainText('15.763');
+				await expect(page.getByTestId('profile-team-context-switcher')).toHaveCount(0);
+				await expect(page.locator('button[aria-haspopup="menu"]')).toHaveCount(0);
+				await attachPreviewScreenshot(page, testInfo, `settings-header-${width}-${variant ? 'collapsed' : 'expanded'}.png`);
+			}
+		}
 	});
 });
 

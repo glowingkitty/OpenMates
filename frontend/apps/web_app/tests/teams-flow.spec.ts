@@ -2,6 +2,7 @@
 export {};
 
 import type { Page, Response } from '@playwright/test';
+import { selectTeamInQuickPicker, setTeamMode } from './helpers/team-quick-context';
 /**
  * Teams V1 web flow coverage.
  *
@@ -98,7 +99,9 @@ test.describe('Teams V1 web flow', () => {
 		await page.getByTestId('team-name-input').fill(teamName);
 		await page.getByTestId('team-create-continue').click();
 		await page.getByTestId('team-create-submit').click();
-		await createResponse;
+		const createdTeam = await (await createResponse).json();
+		const teamId = String(createdTeam.team?.team_id ?? '');
+		expect(teamId).toBeTruthy();
 
 		expect(createRequestPayload).not.toContain(teamName);
 		const createPayload = JSON.parse(createRequestPayload);
@@ -163,24 +166,51 @@ test.describe('Teams V1 web flow', () => {
 			.first();
 		await expect(createdTeamRow).toBeVisible({ timeout: 15000 });
 		await expect(createdTeamRow).toContainText(/owner/i);
+		// A second, newer Team makes retaining the first choice observable after remount.
+		const secondTeamResponse = page.waitForResponse((response) =>
+			isApiPath(response, 'POST', (pathname) => pathname === '/v1/teams') && response.ok()
+		);
+		await page.getByTestId('team-create-open').click();
+		await page.getByTestId('team-name-input').fill(`${teamName} alternate`);
+		await page.getByTestId('team-create-continue').click();
+		await page.getByTestId('team-create-submit').click();
+		const secondTeam = await (await secondTeamResponse).json();
+		expect(secondTeam.team?.team_id).toBeTruthy();
+		expect(secondTeam.team.team_id).not.toBe(teamId);
+		await expect(page.getByTestId('teams-settings-detail')).toBeVisible({ timeout: 30000 });
+		await page.getByTestId('banner-back-button').click();
+		await expect(page.getByTestId('teams-settings-page')).toBeVisible({ timeout: 30000 });
 		await page.getByTestId('banner-back-button').click();
 		await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'main');
 
-		await expect(page.getByTestId('team-context-dropdown')).toBeVisible({ timeout: 30000 });
-		await expect(page.getByTestId('team-context-dropdown')).toContainText(/personal/i);
-		await expect(page.getByTestId('profile-open-active-team-avatar')).toHaveCount(0);
+		await expect(page.getByTestId('profile-team-context-switcher')).toHaveCount(0);
+		await expect(page.getByTestId('team-context-dropdown')).toHaveCount(0);
+		const picker = page.getByTestId('team-quick-context-dropdown');
+		const toggle = page.getByTestId('settings-teams-item').getByTestId('toggle-container').locator('input[type="checkbox"]');
+		await expect(picker).toBeVisible({ timeout: 30000 });
+		await expect(picker).not.toContainText(/personal/i);
+		await expect(picker).not.toHaveText(teamName);
+		await expect(picker.getByTestId('team-quick-active-team-avatar')).toBeVisible();
+		await expect(toggle).not.toBeChecked();
 		await holdProofState(page);
-		await page.getByTestId('team-context-dropdown').click();
-		await page
-			.getByTestId('team-context-menu')
-			.getByRole('menuitemradio', { name: teamName })
-			.click();
-		await expect(page.getByTestId('team-context-dropdown')).toContainText(teamName, {
-			timeout: 15000
-		});
-		await expect(page.getByTestId('profile-open-active-team-avatar')).toBeVisible({
-			timeout: 15000
-		});
+		await picker.click();
+		await expect(page.getByTestId('team-context-menu').getByRole('menuitemradio', { name: 'Personal', exact: true })).toHaveCount(0);
+		await page.keyboard.press('Escape');
+		await expect(page.getByTestId('team-context-menu')).toHaveCount(0);
+		await expect(picker).toBeFocused();
+		await selectTeamInQuickPicker(page, teamId, teamName);
+		await expect(toggle).not.toBeChecked();
+		await page.getByTestId('icon-button-close').click();
+		await expect(page.getByTestId('settings-menu')).not.toBeVisible();
+		await expect(page.getByTestId('profile-active-team-avatar')).toHaveCount(0);
+		await page.getByTestId('profile-container').click();
+		await expect(picker).toContainText(teamName);
+		await expect(toggle).not.toBeChecked();
+		await setTeamMode(page, true);
+		await expect(picker).toContainText(teamName);
+		await setTeamMode(page, false);
+		await expect(picker).toContainText(teamName);
+		await setTeamMode(page, true);
 		await holdProofState(page);
 
 		await page.getByTestId('icon-button-close').click();

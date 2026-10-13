@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import type { Page, Response, TestInfo } from '@playwright/test';
 import { waitForSettingsView } from './helpers/settings-readiness';
+import { selectTeamInQuickPicker, setTeamMode } from './helpers/team-quick-context';
 import {
 	cleanupTeamUsage,
 	extractUsagePdfText,
@@ -301,14 +302,12 @@ test.describe('Team billing address boundary', () => {
 			await page.getByTestId('banner-back-button').click();
 			await page.getByTestId('banner-back-button').click();
 			await page.getByTestId('banner-back-button').click();
-			await waitForSettingsView(page, testInfo, 'main', 'team-context-dropdown');
-			await page.getByTestId('team-context-dropdown').click();
-			await page.getByTestId(`team-context-option-${first.id}`).click();
-			await expect(page.getByTestId('team-context-dropdown')).toContainText(first.name);
-			await page.getByTestId('team-context-dropdown').click();
-			await page.getByTestId('team-context-personal').click();
-			await expect(page.getByTestId('team-context-dropdown')).toContainText(/personal/i);
-			await expect(page.getByTestId('profile-open-active-team-avatar')).toHaveCount(0);
+			await waitForSettingsView(page, testInfo, 'main', 'team-quick-context-dropdown');
+			await selectTeamInQuickPicker(page, first.id, first.name);
+			await setTeamMode(page, true);
+			await setTeamMode(page, false);
+			await expect(page.getByTestId('team-quick-context-dropdown')).toContainText(first.name);
+			await expect(page.getByTestId('profile-active-team-avatar')).toHaveCount(0);
 			const teamBillingRequestsWhilePersonal: string[] = [];
 			const onPersonalRequest = (request: { url(): string }) => {
 				const pathname = new URL(request.url()).pathname;
@@ -327,9 +326,8 @@ test.describe('Team billing address boundary', () => {
 			}
 			expect(teamBillingRequestsWhilePersonal).toEqual([]);
 			page.off('request', onPersonalRequest);
-			await page.getByTestId('team-context-dropdown').click();
-			await page.getByTestId(`team-context-option-${second.id}`).click();
-			await expect(page.getByTestId('team-context-dropdown')).toContainText(second.name);
+			await selectTeamInQuickPicker(page, second.id, second.name);
+			await setTeamMode(page, true);
 			expect(personalBalanceDigest(first.ownerId)).toBe(originalPersonalBalance);
 			await page.getByTestId('settings-teams-item').click();
 			await waitForSettingsView(page, testInfo, 'teams', 'team-create-open');

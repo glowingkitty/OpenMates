@@ -2,6 +2,7 @@
 export {};
 import { resolve } from 'node:path';
 import type { Browser, Page, Response, Route, TestInfo } from '@playwright/test';
+import { selectTeamInQuickPicker, setTeamMode } from './helpers/team-quick-context';
 
 const { expect, test } = require('./helpers/cookie-audit');
 const { fillMessageEditor, loginToTestAccount, startNewChat, waitForChatReady } = require('./helpers/chat-test-helpers');
@@ -123,8 +124,8 @@ test('keeps a pending Team image local, then shares the encrypted image with a m
     await page.getByTestId('banner-back-button').click();
     await expect.poll(() => new URL(page.url()).hash).toBe('#settings/teams');
     await page.getByTestId('banner-back-button').click();
-    await page.getByTestId('team-context-dropdown').click();
-    await page.getByTestId(`team-context-option-${teamId}`).click();
+    await selectTeamInQuickPicker(page, teamId);
+    await setTeamMode(page, true);
     await page.getByTestId('icon-button-close').click();
     await waitForChatReady(page);
     await startNewChat(page);

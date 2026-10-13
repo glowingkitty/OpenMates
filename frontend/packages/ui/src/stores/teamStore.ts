@@ -89,7 +89,8 @@ export function orderTeamsByRecent(teams: TeamViewModel[]): TeamViewModel[] {
   return [...teams].sort((a, b) => (order.get(a.team_id) ?? Infinity) - (order.get(b.team_id) ?? Infinity));
 }
 
-function rememberTeam(teamId: string): void {
+/** Remember the picker choice without changing the active workspace or its caches. */
+export function rememberTeamSelection(teamId: string): void {
   const key = scopedStorageKey(TEAM_RECENT_STORAGE_KEY);
   if (!key || typeof window === 'undefined') return;
   try {
@@ -110,7 +111,7 @@ export function setActiveTeamContext(team: TeamViewModel | null): void {
     epoch: contextChanged ? current.epoch + 1 : current.epoch,
   };
   activeTeamContext.set(next);
-  if (teamId && contextChanged) rememberTeam(teamId);
+  if (teamId && contextChanged) rememberTeamSelection(teamId);
   if (contextChanged) invalidateWorkspaceCaches();
   if (contextChanged && typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent<TeamContextSnapshot>(TEAM_CONTEXT_CHANGED_EVENT, {
