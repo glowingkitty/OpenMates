@@ -26,3 +26,14 @@ def maps_result_parent_metadata(group: dict[str, Any]) -> dict[str, Any]:
     if "status" in group:
         metadata["search_status"] = group["status"]
     return metadata
+
+
+def jobs_result_parent_metadata(group: dict[str, Any]) -> dict[str, Any]:
+    """Keep each Jobs parent tied to its own sources and bounded diagnostics."""
+    metadata = {key: group[key] for key in ("country", "warnings") if key in group}
+    providers = group.get("providers")
+    if isinstance(providers, list):
+        names = [name for name in providers if isinstance(name, str) and name]
+        metadata["providers"] = names
+        metadata["provider"] = ", ".join(names)
+    return metadata

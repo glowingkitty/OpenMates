@@ -1,0 +1,11 @@
+# JobTech JobSearch
+
+OpenMates searches current Swedish Public Employment Service advertisements through the public [JobSearch API](https://jobsearch.api.jobtechdev.se/). The [official data catalogue](https://data.jobtechdev.se/dataservice/jobsearch/) describes the service as public, CC0 licensed, and usable without registration or an API key. No numeric rate limit is published there. The adapter uses bounded searches intended for live user queries; it does not harvest the full catalogue.
+
+The provider makes one logical `GET /search` request per search, capped at 100 upstream hits and 25 normalized results. The shared transport applies short timeouts and bounded retries for transient failures. `GET /ad/{id}` is available but unnecessary for normal search because search hits include the description and application link. The production base is `https://jobsearch.api.jobtechdev.se`.
+
+`country=SE` is required. The adapter sends Sweden's JobTech taxonomy concept ID and verifies the country code in every returned advertisement. A request for another country returns no Swedish results before any network call. Keywords and a named location are combined in the API's free-text query. `max_days_old` uses `published-after`; `remote` uses JobSearch's phrase-based filter. Because that filter only finds advertisements *likely* to allow remote work, the normalized `remote` field remains unknown unless an explicit workplace model supports a value. `employment_type` uses the advertisement's work-time field for `full_time` and `part_time`; other types are returned only when the source has evidence. Unsupported type filters yield no unverified matches.
+
+JobSearch supports coordinate radius search, but this adapter receives a location name without geocoding. It rejects `radius_km` explicitly. `impact_area` is not a JobSearch filter and is also rejected if passed to this provider. These constraints must remain visible to the calling skill. Salary ranges remain unknown because a free-text salary description is insufficient to establish an amount, currency, and period. Results retain the official Platsbanken URL and a safe application URL when supplied.
+
+Source: [JobSearch Swagger and parameter definitions](https://jobsearch.api.jobtechdev.se/), [public dataset and licence](https://data.jobtechdev.se/dataservice/jobsearch/).

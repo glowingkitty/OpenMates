@@ -4126,6 +4126,417 @@ export const APP_SKILL_METADATA = [
     }
   },
   {
+    "app_id": "jobs",
+    "skill_id": "search",
+    "app_namespace_ts": "jobs",
+    "skill_method_ts": "search",
+    "app_namespace_py": "jobs",
+    "skill_method_py": "search",
+    "description_key": "app_skills.jobs.search.description",
+    "description": "Search current public job listings in Germany and Sweden. Use this skill for job discovery, including opportunities related to a user's stated impact goal. Germany auto sources are Bundesagentur f\u00fcr Arbeit and Arbeitnow; Sweden auto uses JobTech. Default country is DE only when the user gives no country; do not imply Europe-wide coverage. Specify a named provider only when the user requests it. Put a user-stated career purpose or impact preference in relevance_criteria so explicit listing facts",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "x-ui": {
+            "basic": true
+          },
+          "description": "Independent job searches; each retains its own filters and result group.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Optional request ID for matching batch results."
+              },
+              "query": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 400,
+                "x-ui": {
+                  "basic": true
+                },
+                "description": "Job role or topic, such as \"climate policy analyst\"."
+              },
+              "country": {
+                "type": "string",
+                "enum": [
+                  "DE",
+                  "SE"
+                ],
+                "default": "DE",
+                "x-ui": {
+                  "basic": true
+                },
+                "description": "DE for Germany or SE for Sweden; default DE only if unspecified."
+              },
+              "location": {
+                "type": "string",
+                "x-ui": {
+                  "basic": true,
+                  "control": "location"
+                },
+                "description": "Optional city or place named by the user."
+              },
+              "radius_km": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200,
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Radius in km around location. Requires location and is currently supported only by Bundesagentur f\u00fcr Arbeit in Germany.\n"
+              },
+              "remote": {
+                "type": "boolean",
+                "x-ui": {
+                  "basic": true
+                },
+                "description": "Omit unless the user asks for remote or on-site work. A true result requires explicit full-remote evidence, not just possible home office.\n"
+              },
+              "employment_type": {
+                "type": "string",
+                "enum": [
+                  "full_time",
+                  "part_time",
+                  "internship",
+                  "contract",
+                  "apprenticeship"
+                ],
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Optional employment type explicitly requested by the user."
+              },
+              "max_days_old": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 3650,
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Maximum age in days; undated listings are excluded."
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 10,
+                "x-ui": {
+                  "basic": true
+                },
+                "description": "Maximum final results for this request."
+              },
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "Arbeitnow",
+                  "Arbeitsagentur",
+                  "JobTech"
+                ],
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "One explicit source, overriding auto country routing."
+              },
+              "providers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "Arbeitnow",
+                    "Arbeitsagentur",
+                    "JobTech"
+                  ]
+                },
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Explicit source list; do not mix with provider or auto."
+              },
+              "relevance_criteria": {
+                "type": "string",
+                "maxLength": 1000,
+                "x-ui": {
+                  "basic": true
+                },
+                "description": "Optional user-stated career or impact goal that should change ranking. Use only explicit listing evidence; omit for a neutral search.\n"
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        }
+      },
+      "required": [
+        "requests"
+      ]
+    },
+    "output_schema": {
+      "type": "object",
+      "description": "Jobs search response with one result group per input request.",
+      "properties": {
+        "app_id": {
+          "type": "string"
+        },
+        "skill_id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "partial": {
+          "type": "boolean"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "providers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "result_count": {
+          "type": "integer"
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "request_id": {
+                "type": "string"
+              },
+              "provider": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "results": {
+          "type": "array",
+          "description": "Request groups; each group contains its own listings and errors.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ]
+              },
+              "query": {
+                "type": "string"
+              },
+              "country": {
+                "type": "string"
+              },
+              "providers": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "result_count": {
+                "type": "integer"
+              },
+              "error": {
+                "type": "string"
+              },
+              "warnings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "provider": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "results": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "title": {
+                      "type": "string",
+                      "x-ui": {
+                        "basic": true
+                      }
+                    },
+                    "company": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": true
+                      }
+                    },
+                    "url": {
+                      "type": "string",
+                      "format": "uri",
+                      "x-ui": {
+                        "basic": true
+                      }
+                    },
+                    "apply_url": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uri",
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "location": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": true
+                      }
+                    },
+                    "country": {
+                      "type": "string",
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "remote": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": true
+                      }
+                    },
+                    "employment_type": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "published_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "salary_min": {
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "salary_max": {
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "salary_currency": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "salary_period": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "provider": {
+                      "type": "string",
+                      "x-ui": {
+                        "basic": false
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
     "app_id": "mail",
     "skill_id": "search",
     "app_namespace_ts": "mail",
@@ -8721,6 +9132,21 @@ export class ImagesAppSkills {
   }
 }
 
+export class JobsAppSkills {
+  private readonly runSkill: AppSkillRunner;
+  constructor(runSkill: AppSkillRunner) {
+    this.runSkill = runSkill;
+  }
+  /**
+   * Search current public job listings in Germany and Sweden. Use this skill for job discovery, including opportunities related to a user's stated impact goal. Germany auto sources are Bundesagentur für Arbeit and Arbeitnow; Sweden auto uses JobTech. Default country is DE only when the user gives no country; do not imply Europe-wide coverage. Specify a named provider only when the user requests it. Put a user-stated career purpose or impact preference in relevance_criteria so explicit listing facts
+   * Description key: app_skills.jobs.search.description
+   * Skill: jobs/search
+   */
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("jobs", "search", input, options);
+  }
+}
+
 export class MailAppSkills {
   private readonly runSkill: AppSkillRunner;
   constructor(runSkill: AppSkillRunner) {
@@ -9156,6 +9582,7 @@ export class GeneratedAppSkills {
     this.home = new HomeAppSkills(runSkill);
     this.hosting = new HostingAppSkills(runSkill);
     this.images = new ImagesAppSkills(runSkill);
+    this.jobs = new JobsAppSkills(runSkill);
     this.mail = new MailAppSkills(runSkill);
     this.maps = new MapsAppSkills(runSkill);
     this.math = new MathAppSkills(runSkill);
@@ -9190,6 +9617,7 @@ export class GeneratedAppSkills {
   readonly home: HomeAppSkills;
   readonly hosting: HostingAppSkills;
   readonly images: ImagesAppSkills;
+  readonly jobs: JobsAppSkills;
   readonly mail: MailAppSkills;
   readonly maps: MapsAppSkills;
   readonly math: MathAppSkills;

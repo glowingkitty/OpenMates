@@ -10,11 +10,275 @@ landing:
 
 name_translation_key: jobs
 description_translation_key: jobs.description
-icon_image: |
-  jobs.svg
+icon_image: jobs.svg
 category: work
-last_updated: "2026-02-12"
-skills: []
+last_updated: "2026-10-13"
+embed_types:
+  - id: search
+    category: app-skill-use
+    skill_id: search
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: job_result
+    child_frontend_type: jobs-job-result
+    groupable: true
+    preview_component: jobs/JobsSearchEmbedPreview.svelte
+    fullscreen_component: jobs/JobsSearchEmbedFullscreen.svelte
+    child_preview_component: jobs/JobsResultEmbedPreview.svelte
+    child_fullscreen_component: jobs/JobsResultEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-jobs"
+    i18n_namespace: embeds.jobs.search
+    content_fields:
+      - {name: query, type: string}
+      - {name: country, type: string}
+      - {name: provider, type: string}
+      - {name: providers, type: object}
+      - {name: result_count, type: number}
+      - {name: embed_ids, type: object}
+      - {name: preview_results, type: object}
+  - id: job_result
+    category: direct
+    frontend_type: jobs-job-result
+    backend_type: job_result
+    has_children: false
+    preview_component: jobs/JobsResultEmbedPreview.svelte
+    fullscreen_component: jobs/JobsResultEmbedFullscreen.svelte
+    icon: jobs
+    gradient_var: "--color-app-jobs"
+    i18n_namespace: embeds.jobs.search.result
+    content_fields:
+      - {name: id, type: string, required: true}
+      - {name: title, type: string, required: true}
+      - {name: company, type: string}
+      - {name: url, type: string, required: true}
+      - {name: apply_url, type: string}
+      - {name: location, type: string}
+      - {name: country, type: string}
+      - {name: remote, type: boolean}
+      - {name: employment_type, type: string}
+      - {name: published_at, type: string}
+      - {name: description, type: string}
+      - {name: salary_min, type: number}
+      - {name: salary_max, type: number}
+      - {name: salary_currency, type: string}
+      - {name: salary_period, type: string}
+      - {name: provider, type: string, required: true}
+skills:
+  - id: search
+    anonymous_access: inline
+    name_translation_key: app_skills.jobs.search
+    description_translation_key: app_skills.jobs.search.description
+    icon_image: search.svg
+    api_config:
+      expose_get: false
+      expose_post: true
+    external_data: true
+    preprocessor_hint: >
+      Search current public job listings in Germany and Sweden. Use this skill for
+      job discovery, including opportunities related to a user's stated impact
+      goal. Germany auto sources are Bundesagentur für Arbeit and Arbeitnow;
+      Sweden auto uses JobTech. Default country is DE only when the user gives
+      no country; do not imply Europe-wide coverage. Specify a named provider
+      only when the user requests it. Put a user-stated career purpose or impact
+      preference in relevance_criteria so explicit listing facts can rank a
+      bounded candidate pool. Omit it for a neutral query and never invent
+      remote eligibility, salary, employer quality, or meaningful impact.
+      Preserve strict filters and report unavailable or unsupported sources;
+      do not retry with broader filters after an empty result.
+    class_path: backend.apps.jobs.skills.search_skill.SearchSkill
+    pricing:
+      per_unit:
+        credits: 1
+        unit_name: search
+    providers:
+      - {name: Bundesagentur für Arbeit, no_api_key: true}
+      - {name: Arbeitnow, no_api_key: true}
+      - {name: JobTech, no_api_key: true}
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          minItems: 1
+          maxItems: 5
+          x-ui: {basic: true}
+          description: Independent job searches; each retains its own filters and result group.
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                x-ui: {basic: false}
+                description: Optional request ID for matching batch results.
+              query:
+                type: string
+                minLength: 1
+                maxLength: 400
+                x-ui: {basic: true}
+                description: Job role or topic, such as "climate policy analyst".
+              country:
+                type: string
+                enum: [DE, SE]
+                default: DE
+                x-ui: {basic: true}
+                description: DE for Germany or SE for Sweden; default DE only if unspecified.
+              location:
+                type: string
+                x-ui: {basic: true, control: location}
+                description: Optional city or place named by the user.
+              radius_km:
+                type: integer
+                minimum: 1
+                maximum: 200
+                x-ui: {basic: false}
+                description: >
+                  Radius in km around location. Requires location and is currently
+                  supported only by Bundesagentur für Arbeit in Germany.
+              remote:
+                type: boolean
+                x-ui: {basic: true}
+                description: >
+                  Omit unless the user asks for remote or on-site work. A true
+                  result requires explicit full-remote evidence, not just possible home office.
+              employment_type:
+                type: string
+                enum: [full_time, part_time, internship, contract, apprenticeship]
+                x-ui: {basic: false}
+                description: Optional employment type explicitly requested by the user.
+              max_days_old:
+                type: integer
+                minimum: 1
+                maximum: 3650
+                x-ui: {basic: false}
+                description: Maximum age in days; undated listings are excluded.
+              limit:
+                type: integer
+                minimum: 1
+                maximum: 50
+                default: 10
+                x-ui: {basic: true}
+                description: Maximum final results for this request.
+              provider:
+                type: string
+                enum: [auto, Arbeitnow, Arbeitsagentur, JobTech]
+                x-ui: {basic: false}
+                description: One explicit source, overriding auto country routing.
+              providers:
+                type: array
+                items: {type: string, enum: [Arbeitnow, Arbeitsagentur, JobTech]}
+                x-ui: {basic: false}
+                description: Explicit source list; do not mix with provider or auto.
+              relevance_criteria:
+                type: string
+                maxLength: 1000
+                x-ui: {basic: true}
+                description: >
+                  Optional user-stated career or impact goal that should change ranking.
+                  Use only explicit listing evidence; omit for a neutral search.
+            required: [query]
+      required: [requests]
+    workflow:
+      available: true
+      execution_mode: sync
+      effect: read
+      unattended: true
+      approval: never
+      binding_requirements: [none]
+      test_allowed: true
+      test_example_input:
+        requests:
+          - {query: software engineer, country: DE, limit: 3}
+      output_schema:
+        type: object
+        properties:
+          summary: {type: string, x-ui: {basic: false}}
+          success: {type: boolean, x-ui: {basic: false}}
+          partial: {type: boolean, x-ui: {basic: false}}
+          result_count: {type: integer, x-ui: {basic: true}}
+          provider: {type: string, x-ui: {basic: false}}
+          providers: {type: array, items: {type: string}, x-ui: {basic: false}}
+          error: {type: string, x-ui: {basic: false}}
+          warnings:
+            type: array
+            x-ui: {basic: false}
+            items:
+              type: object
+              properties:
+                request_id: {type: string}
+                provider: {type: string}
+                code: {type: string}
+                message: {type: string}
+          results:
+            type: array
+            x-ui: {basic: true}
+            description: Flat, deduplicated job listings for downstream workflow nodes.
+            items: &jobs_listing_schema
+              type: object
+              properties:
+                id: {type: string, x-ui: {basic: false}}
+                title: {type: string, x-ui: {basic: true}}
+                company: {type: [string, 'null'], x-ui: {basic: true}}
+                url: {type: string, format: uri, x-ui: {basic: true}}
+                apply_url: {type: [string, 'null'], format: uri, x-ui: {basic: false}}
+                location: {type: [string, 'null'], x-ui: {basic: true}}
+                country: {type: string, x-ui: {basic: false}}
+                remote: {type: [boolean, 'null'], x-ui: {basic: true}}
+                employment_type: {type: [string, 'null'], x-ui: {basic: false}}
+                published_at: {type: [string, 'null'], x-ui: {basic: false}}
+                description: {type: [string, 'null'], x-ui: {basic: false}}
+                salary_min: {type: [number, 'null'], x-ui: {basic: false}}
+                salary_max: {type: [number, 'null'], x-ui: {basic: false}}
+                salary_currency: {type: [string, 'null'], x-ui: {basic: false}}
+                salary_period: {type: [string, 'null'], x-ui: {basic: false}}
+                provider: {type: string, x-ui: {basic: false}}
+    sdk_output_schema:
+      type: object
+      description: Jobs search response with one result group per input request.
+      properties:
+        app_id: {type: string}
+        skill_id: {type: string}
+        status: {type: string}
+        success: {type: boolean}
+        partial: {type: boolean}
+        provider: {type: string}
+        providers: {type: array, items: {type: string}}
+        result_count: {type: integer}
+        error: {type: [string, 'null']}
+        warnings:
+          type: array
+          items:
+            type: object
+            properties:
+              request_id: {type: string}
+              provider: {type: string}
+              code: {type: string}
+              message: {type: string}
+        results:
+          type: array
+          description: Request groups; each group contains its own listings and errors.
+          items:
+            type: object
+            properties:
+              id: {oneOf: [{type: string}, {type: integer}]}
+              query: {type: string}
+              country: {type: string}
+              providers: {type: array, items: {type: string}}
+              result_count: {type: integer}
+              error: {type: string}
+              warnings:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    request_id: {type: string}
+                    provider: {type: string}
+                    code: {type: string}
+                    message: {type: string}
+              results:
+                type: array
+                items: *jobs_listing_schema
 focuses:
   - id: career_insights
     name_translation_key: jobs.career_insights

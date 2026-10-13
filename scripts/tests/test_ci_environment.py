@@ -8,6 +8,7 @@ See docs/plans/isolated-github-tests/plan.yml.
 """
 
 import json
+from pathlib import Path
 
 import pytest
 from scripts.ci_environment import (
@@ -203,6 +204,22 @@ def test_candidate_workflow_dependencies_enable_runtime_without_removing_harness
     }
     candidate_manifest.write_text(json.dumps({"groups": {}}))
     assert workflow_specs(harness, tmp_path) == {"cli-workflows-rain-real.spec.ts"}
+
+
+def test_jobs_search_workflow_uses_credential_free_external_workflow_profile():
+    source_root = Path(__file__).resolve().parents[2]
+    manifest = json.loads((source_root / "scripts/ci_coverage_manifest.json").read_text())
+    jobs_spec = "cli-workflows-jobs-search-real.spec.ts"
+    assert jobs_spec in workflow_specs(manifest, source_root)
+    assert jobs_spec not in workflow_core_specs(manifest, source_root)
+
+    profile = compose_profile("a" * 40, workflows=True)
+    assert "networks" not in profile or not profile["networks"].get("default", {}).get("internal")
+    assert profile["services"]["core-worker"]["environment"]["CELERY_QUEUES"].endswith(",workflow")
+    assert "ai-worker" not in profile["services"]
+    for name in ("api", "core-worker"):
+        assert "HTTPS_PROXY" not in profile["services"][name]["environment"]
+        assert "OPENAI_API_KEY" not in profile["services"][name]["environment"]
 
 
 @pytest.mark.parametrize("bad_specs", ["bad", ["valid.spec.ts", 42], {"spec.ts": True}])

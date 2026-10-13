@@ -136,6 +136,23 @@ SEARCH_RELEVANCE_PROFILES: Dict[str, SearchRelevanceProfile] = {
             "Exceptional explicit match to the stated housing preference",
         ),
     ),
+    "jobs": SearchRelevanceProfile(
+        instructions=(
+            "Score how well this job matches the stated career or impact goal after authoritative "
+            "country, location, remote, employment-type, and freshness filters. Use only explicit "
+            "title, employer, description, location, work arrangement, employment type, date, "
+            "and salary evidence. Do not infer remote eligibility, compensation, visa support, "
+            "employer quality, or social or environmental impact from vague language or missing facts. "
+            "A direct contribution to the stated impact area requires concrete work in the description."
+        ),
+        criteria=(
+            "Explicit evidence conflicts with or does not support the job goal",
+            "Weak job fit with little explicit support",
+            "Plausible job fit supported by some stated duties or requirements",
+            "Strong job fit supported by several explicit goal-specific facts",
+            "Exceptional direct job match with unusually clear evidence",
+        ),
+    ),
     "maps": SearchRelevanceProfile(
         instructions=(
             "Score how well this place supports the stated real-world goal using only explicit "
@@ -271,6 +288,7 @@ SEARCH_RELEVANCE_PROFILES: Dict[str, SearchRelevanceProfile] = {
 
 
 RELEVANCE_CANDIDATE_COUNTS: Dict[str, int] = {
+    "jobs": DEFAULT_RELEVANCE_CANDIDATE_COUNT,
     "maps": ECONOMICAL_RELEVANCE_CANDIDATE_COUNT,
     "shopping": ECONOMICAL_RELEVANCE_CANDIDATE_COUNT,
     "travel_stays": ECONOMICAL_RELEVANCE_CANDIDATE_COUNT,

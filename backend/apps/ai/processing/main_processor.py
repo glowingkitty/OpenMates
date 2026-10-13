@@ -42,7 +42,7 @@ from backend.apps.ai.processing.search_skill_reliability import (
 )
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.utils.main_processing_failure import main_processing_failure
-from backend.apps.ai.utils.app_skill_result_groups import is_request_group_failure, maps_result_parent_metadata
+from backend.apps.ai.utils.app_skill_result_groups import is_request_group_failure, maps_result_parent_metadata, jobs_result_parent_metadata
 from backend.apps.ai.utils.answer_recovery import (
     ANSWER_RECOVERY_INSTRUCTION,
     AnswerRecoveryState,
@@ -10140,7 +10140,7 @@ async def handle_main_processing(
                         
                         if is_multiple_requests:
                             # Multiple requests: Update existing placeholders or create new embeds
-                            redact_group_ids = app_id == "hosting"
+                            redact_group_ids = app_id in {"hosting", "jobs"}
                             logger.info(
                                 f"{log_prefix} Processing {len(grouped_results)} separate embeds for multiple requests. "
                                 f"Grouped results structure: "
@@ -10231,7 +10231,7 @@ async def handle_main_processing(
                                     f"request_id={request_id_log} (type={type(request_id).__name__}), "
                                     f"request_id_key={request_id_key_log}, "
                                     f"lookup result has query: {'query' in request_metadata}, "
-                                    f"query value: {'<redacted>' if app_id == 'hosting' else request_metadata.get('query', 'NOT_FOUND')}"
+                                    f"query value: {'<redacted>' if redact_group_ids else request_metadata.get('query', 'NOT_FOUND')}"
                                 )
                                 
                                 # Include provider info from first_response if available
@@ -10245,6 +10245,8 @@ async def handle_main_processing(
                                     # Each request can use a different provider. Preserve maps
                                     # warnings and coverage on its parent, including zero hits.
                                     request_metadata_with_provider.update(maps_result_parent_metadata(grouped_result))
+                                if app_id == "jobs" and skill_id == "search":
+                                    request_metadata_with_provider.update(jobs_result_parent_metadata(grouped_result))
                                 
                                 # CRITICAL: Ensure query is present for UI rendering, even if request metadata is missing
                                 # Some LLMs omit "query" in requests array; fall back to grouped_result fields if needed.
@@ -10263,7 +10265,7 @@ async def handle_main_processing(
                                                 request_metadata_with_provider["query"] = fallback_value
                                                 logger.info(
                                                     f"{log_prefix} [QUERY_DEBUG] Found query via fallback key '{fallback_key}': "
-                                                    f"{'<redacted>' if app_id == 'hosting' else fallback_value}"
+                                                    f"{'<redacted>' if redact_group_ids else fallback_value}"
                                                 )
                                                 break
                                         else:
@@ -10271,7 +10273,7 @@ async def handle_main_processing(
                                     else:
                                         logger.info(
                                             f"{log_prefix} [QUERY_DEBUG] query found in request_metadata_with_provider: "
-                                            f"{'<redacted>' if app_id == 'hosting' else request_metadata_with_provider.get('query')}"
+                                            f"{'<redacted>' if redact_group_ids else request_metadata_with_provider.get('query')}"
                                         )
                                 
                                 # Distinguish a real failure from a successful zero-hit query.

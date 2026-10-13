@@ -1,0 +1,8 @@
+provider_id: "arbeitsagentur"
+name: "Bundesagentur für Arbeit"
+description: "Public German Jobsuche listings. Privacy URL verified 2026-10-13."
+logo_svg: "icons/jobs.svg"
+region: "EU"
+privacy_policy: "https://www.arbeitsagentur.de/datenschutz"
+api_base_url: "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service"
+no_api_key: true

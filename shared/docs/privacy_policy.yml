@@ -1136,6 +1136,43 @@ provider_groups:
           - Note: Shared without user identifiers
 
   # =====================================================================
+  # Group N2 — Jobs. Only used when you invoke the jobs search skill.
+  # =====================================================================
+  jobs:
+    description: >
+      These providers are only used when you search for jobs. Depending on the
+      selected source, OpenMates sends your job query, location, and applicable
+      filters to the German Federal Employment Agency or Sweden's JobTech API.
+      Arbeitnow supplies a public feed; OpenMates applies your search filters
+      to that feed locally. These requests do not transmit OpenMates user
+      identifiers, CVs, or account credentials.
+    providers:
+      arbeitsagentur:
+        privacy_policy: https://www.arbeitsagentur.de/datenschutz  # verified 2026-10-13
+        location: EU (Germany)
+        used_for:
+          - German Federal Employment Agency public vacancy search and job details
+        data_shared:
+          - Selected job keywords, location and radius, publication window, and supported offer and work-time filters; remote preference is applied locally
+          - Note: Requests are server-side and exclude OpenMates user identifiers, CVs, and account credentials
+      jobtech:
+        privacy_policy: https://arbetsformedlingen.se/om-webbplatsen/juridisk-information/sa-behandlar-vi-dina-personuppgifter  # verified 2026-10-13
+        location: EU (Sweden)
+        used_for:
+          - Swedish Public Employment Service vacancy search
+        data_shared:
+          - Selected job keywords, named location, remote preference, publication window, and requested result count
+          - Note: Requests are server-side and exclude OpenMates user identifiers, CVs, and account credentials
+      arbeitnow:
+        privacy_policy: https://www.arbeitnow.com/privacy  # verified 2026-10-13
+        location: EU (Germany)
+        used_for:
+          - Public job advertisement feed for German job search
+        data_shared:
+          - The public feed is fetched server-side; user keywords, location, and filters are applied locally and are not sent to Arbeitnow
+          - Note: Requests exclude OpenMates user identifiers, CVs, and account credentials
+
+  # =====================================================================
   # Group O — Community and developer channels. Only used if you choose
   # to use them.
   # =====================================================================

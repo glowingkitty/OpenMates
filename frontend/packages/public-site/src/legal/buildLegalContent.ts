@@ -452,6 +452,15 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.home.kleinanzeigen", privacyPolicyLinks.kleinanzeigen);
   renderProvider("legal.privacy.providers.home.wg_gesucht", privacyPolicyLinks.wgGesucht);
 
+  // Group N2 — Jobs
+  lines.push(`### ${t("legal.privacy.providers.jobs.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.jobs.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.jobs.arbeitsagentur", privacyPolicyLinks.arbeitsagentur);
+  renderProvider("legal.privacy.providers.jobs.jobtech", privacyPolicyLinks.jobtech);
+  renderProvider("legal.privacy.providers.jobs.arbeitnow", privacyPolicyLinks.arbeitnow);
+
   // Group O — Community
   lines.push(`### ${t("legal.privacy.providers.community.heading")}`);
   lines.push("");

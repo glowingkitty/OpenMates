@@ -491,6 +491,8 @@ export class GroupRenderer implements EmbedRenderer {
             content,
           ),
       ],
+      ["jobs-job-result", (item, embedData, decodedContent, content) =>
+        this.renderJobResultFallback(item, embedData, decodedContent, content)],
       [
         "hosting-domain",
         (item, embedData, decodedContent, content) =>
@@ -909,6 +911,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderHomeListingItem(item, embedData, decodedContent);
       case "shopping-product":
         return this.renderShoppingProductItem(item, embedData, decodedContent);
+      case "jobs-job-result":
+        return this.renderJobResultItem(decodedContent);
       case "electronics-pcb-schematic":
         return this.renderPcbSchematicItem(item, embedData, decodedContent);
       case "diagrams-mermaid":
@@ -6315,6 +6319,7 @@ export class GroupRenderer implements EmbedRenderer {
       "business-company-financial-result": "company financial result",
       "home-listing": "listing",
       "shopping-product": "product",
+      "jobs-job-result": "job",
       "electronics-component": "component",
       "weather-day": "weather day",
     };
@@ -7046,6 +7051,35 @@ export class GroupRenderer implements EmbedRenderer {
         <div class="embed-text-line">${title}</div>
         ${address ? `<div class="embed-text-subline">${address}</div>` : ""}
         ${provider ? `<div class="embed-text-subline">${provider}</div>` : ""}
+      </div>
+    `;
+  }
+
+  private async renderJobResultFallback(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null,
+    content: HTMLElement,
+  ): Promise<void> {
+    disposeEmbedTree(content, false);
+    content.innerHTML = await this.renderIndividualItem(
+      item, "jobs-job-result", embedData, decodedContent,
+    );
+  }
+
+  /** Minimal HTML fallback for job results until the Jobs card is available. */
+  private renderJobResultItem(decodedContent: DecodedEmbedContent | null): string {
+    const title = typeof decodedContent?.title === "string" ? decodedContent.title : "Job listing";
+    const company = typeof decodedContent?.company === "string" ? decodedContent.company : "";
+    const location = typeof decodedContent?.location === "string" ? decodedContent.location : "";
+    const provider = typeof decodedContent?.provider === "string" ? decodedContent.provider : "";
+    return `
+      <div class="embed-app-icon jobs"><span class="icon icon_jobs"></span></div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${escapeHtml(title)}</div>
+        ${company ? `<div class="embed-text-subline">${escapeHtml(company)}</div>` : ""}
+        ${location ? `<div class="embed-text-subline">${escapeHtml(location)}</div>` : ""}
+        ${provider ? `<div class="embed-text-subline">${escapeHtml(provider)}</div>` : ""}
       </div>
     `;
   }

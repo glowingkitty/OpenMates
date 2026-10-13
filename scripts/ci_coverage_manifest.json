@@ -373,6 +373,13 @@
         "skill-hosting-search-api.spec.ts"
       ]
     },
+    "credential_free_jobs": {
+      "execution": "e2e",
+      "enabling_work": "Fresh runner-local core accounts and normal REST/CLI/npm/pip device approval; bounded real HTTPS queries only to public Arbeitnow, Arbeitsagentur and JobTech vacancy APIs. No AI worker, inference, private provider credentials or shared dev endpoint. Invalid inputs and unsupported source/country combinations make no provider call.",
+      "specs": [
+        "skill-jobs-search-api.spec.ts"
+      ]
+    },
     "credential_free_trademarks": {
       "execution": "e2e",
       "enabling_work": "Fresh runner-local core accounts with normal REST, CLI and npm/pip device approval. Bounded real HTTPS queries to the anonymous USPTO trademark search website API; no provider account, key, paid proxy, challenge bypass, AI worker or inference. Unsupported regions and invalid input make no provider call.",
@@ -448,9 +455,10 @@
     },
     "workflow_weather": {
       "execution": "e2e",
-      "enabling_work": "Run real Workflow CLI/UI/scheduling assertions with dedicated workflow queue and only canonical workflow-trigger scanner. Bright Sky/DWD, Open-Meteo and bounded anonymous Gandi shop/USPTO trademark HTTPS calls need no credentials; no paid AI/provider keys, no generic periodic jobs. Keep this capability in its own batch.",
+      "enabling_work": "Run real Workflow CLI/UI/scheduling assertions with dedicated workflow queue and only canonical workflow-trigger scanner. Bright Sky/DWD, Open-Meteo, bounded anonymous Gandi shop/USPTO trademark, and official JobTech HTTPS calls need no credentials; no paid AI/provider keys, no generic periodic jobs. Keep this capability in its own batch.",
       "specs": [
         "cli-workflows-rain-real.spec.ts",
+        "cli-workflows-jobs-search-real.spec.ts",
         "cli-workflows-schedule-real.spec.ts",
         "workflows-ready-run-tasks.spec.ts",
         "workflows-ui-contract.spec.ts",

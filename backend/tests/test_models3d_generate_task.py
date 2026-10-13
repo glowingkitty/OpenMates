@@ -4,12 +4,21 @@
 # image references out of Celery payloads and makes text/image billing explicit
 # before any provider work begins.
 
+import hashlib
+from types import SimpleNamespace
+
 import pytest
 
 from backend.apps.models3d.skills import generate_skill
 from backend.apps.models3d import billing
 from backend.apps.models3d.skills.generate_skill import GenerateSkill, build_generation_plan
+from backend.apps.ai.processing import celery_helpers
 from backend.apps.ai.processing.celery_helpers import execute_skill_via_celery
+from backend.shared.python_utils import embed_producer_dispatch
+from backend.shared.python_utils.chat_recovery_context import (
+    AuthenticatedDirectSkill,
+    active_authenticated_direct_skill,
+)
 from backend.shared.python_utils.image_generation_defaults import (
     ImageGenerationDefault,
     resolve_images_generate_default,
@@ -27,27 +36,57 @@ REFERENCE_DEFAULT = ImageGenerationDefault(
 )
 
 
+# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
 @pytest.mark.asyncio
-async def test_models3d_dispatches_to_shared_media_worker_queue() -> None:
+async def test_models3d_dispatches_to_shared_media_worker_queue(monkeypatch) -> None:
     sent: dict[str, object] = {}
+    registrations: list[tuple[str, dict]] = []
+    recorded_owners: list[tuple] = []
+    events: list[str] = []
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-producer-binding-key")
+
+    async def register(operation, data):
+        events.append("register")
+        registrations.append((operation, data))
+        return {"producer_intent_id": data["task_uuid"], "status": "DIRECT_AUTHORIZED"}
+
+    monkeypatch.setattr(embed_producer_dispatch, "_transaction", register)
+    monkeypatch.setattr(celery_helpers, "record_task_owner", lambda *args: recorded_owners.append(args))
 
     class FakeProducer:
+        conf = SimpleNamespace(broker_url="redis://localhost/0")
+
         def send_task(self, **kwargs):
+            events.append("send")
             sent.update(kwargs)
-            return type("Task", (), {"id": "task-model-1"})()
+            return SimpleNamespace(id=kwargs["task_id"])
 
-    task_id = await execute_skill_via_celery(
-        app_id="models3d",
-        skill_id="generate",
-        arguments={"embed_id": "embed-model"},
-        celery_producer=FakeProducer(),
+    principal = AuthenticatedDirectSkill(
+        owner_id="user-1", owner_hash=hashlib.sha256(b"user-1").hexdigest(),
+        app_id="models3d", skill_id="generate",
     )
+    token = active_authenticated_direct_skill.set(principal)
+    try:
+        task_id = await execute_skill_via_celery(
+            app_id="models3d",
+            skill_id="generate",
+            arguments={"user_id": "user-1", "embed_id": "embed-model"},
+            celery_producer=FakeProducer(),
+        )
+    finally:
+        active_authenticated_direct_skill.reset(token)
 
-    assert task_id == "task-model-1"
+    assert task_id == sent["task_id"]
     assert sent["name"] == "apps.models3d.tasks.skill_generate"
     assert sent["queue"] == "app_images"
+    assert recorded_owners == [(task_id, "user-1", "redis://localhost/0")]
+    assert events == ["register", "send"]
+    assert [operation for operation, _ in registrations] == ["register_authorized_direct_skill"]
+    assert registrations[0][1]["primary_embed_id"] == "embed-model"
+    assert sent["headers"][embed_producer_dispatch.PRODUCER_HEADER]["intent_id"] == task_id
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_images_generate_default_is_resolved_from_canonical_metadata() -> None:
     default = resolve_images_generate_default()
 
@@ -55,6 +94,7 @@ def test_images_generate_default_is_resolved_from_canonical_metadata() -> None:
     assert default.credits == 200
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_text_generation_requires_reference_stage_and_combined_estimate() -> None:
     plan = build_generation_plan(
         prompt="a small orange retro desk lamp",
@@ -72,6 +112,7 @@ def test_text_generation_requires_reference_stage_and_combined_estimate() -> Non
     assert plan.estimated_credits == 98
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 @pytest.mark.asyncio
 async def test_text_generation_is_rejected_before_celery_dispatch(monkeypatch) -> None:
     async def unexpected_dispatch(**_kwargs):
@@ -94,6 +135,7 @@ async def test_text_generation_is_rejected_before_celery_dispatch(monkeypatch) -
     }
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_single_image_skips_reference_stage_and_resolves_embed_id() -> None:
     plan = build_generation_plan(
         prompt=None,
@@ -110,6 +152,7 @@ def test_single_image_skips_reference_stage_and_resolves_embed_id() -> None:
     assert plan.estimated_credits == 25
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_multi_view_resolves_and_orders_canonical_views() -> None:
     plan = build_generation_plan(
         prompt=None,
@@ -141,6 +184,7 @@ def test_multi_view_resolves_and_orders_canonical_views() -> None:
         ),
     ],
 )
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_invalid_or_ambiguous_inputs_fail_before_dispatch(image_embed_refs, image_views, message) -> None:
     with pytest.raises(ValueError, match=message):
         build_generation_plan(
@@ -153,6 +197,7 @@ def test_invalid_or_ambiguous_inputs_fail_before_dispatch(image_embed_refs, imag
         )
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_malformed_or_oversized_view_inputs_fail_before_copying() -> None:
     with pytest.raises(ValueError, match="two to four"):
         build_generation_plan(
@@ -163,6 +208,7 @@ def test_malformed_or_oversized_view_inputs_fail_before_copying() -> None:
         )
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_master_variant_uses_chunked_encryption_metadata() -> None:
     metadata = build_master_variant_metadata("users/user-1/models/model.glb.enc", 12_345)
 
@@ -175,6 +221,7 @@ def test_master_variant_uses_chunked_encryption_metadata() -> None:
     }
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_poster_variant_preserves_provider_image_mime_type() -> None:
     metadata = build_poster_variant_metadata("users/user-1/models/poster.webp.enc", 123, "image/webp")
 
@@ -188,6 +235,7 @@ def test_poster_variant_preserves_provider_image_mime_type() -> None:
         build_poster_variant_metadata("users/user-1/models/poster.gif.enc", 123, "image/gif")
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_preview_variant_records_its_own_encryption_nonce() -> None:
     metadata = build_preview_variant_metadata("users/user-1/models/preview.glb.enc", 456, "nonce-b64")
 
@@ -198,6 +246,7 @@ def test_preview_variant_records_its_own_encryption_nonce() -> None:
         build_preview_variant_metadata("users/user-1/models/preview.glb.enc", 456, "")
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_preview_variant_records_unoptimized_fallback_truthfully() -> None:
     metadata = build_preview_variant_metadata(
         "users/user-1/models/preview.glb.enc",
@@ -211,6 +260,7 @@ def test_preview_variant_records_unoptimized_fallback_truthfully() -> None:
     assert "compression" not in metadata
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_malformed_view_object_fails_before_dispatch() -> None:
     with pytest.raises(ValueError, match="object"):
         build_generation_plan(
@@ -221,6 +271,7 @@ def test_malformed_view_object_fails_before_dispatch() -> None:
         )
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 @pytest.mark.asyncio
 async def test_skill_dispatch_marks_external_requests_and_keeps_payload_compact(monkeypatch) -> None:
     captured: dict[str, object] = {}
@@ -283,6 +334,7 @@ async def test_skill_dispatch_marks_external_requests_and_keeps_payload_compact(
     assert "plaintext" not in str(task_arguments)
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 @pytest.mark.asyncio
 async def test_model_generation_charge_payload_uses_hi3d_metadata(monkeypatch) -> None:
     requests: list[dict[str, object]] = []
@@ -347,6 +399,7 @@ async def test_model_generation_charge_payload_uses_hi3d_metadata(monkeypatch) -
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 @pytest.mark.asyncio
 async def test_model_generation_charge_failure_is_not_silenced(monkeypatch) -> None:
     class FailingResponse:

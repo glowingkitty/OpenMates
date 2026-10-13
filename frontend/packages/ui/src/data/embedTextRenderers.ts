@@ -67,6 +67,7 @@ import { renderMusicGenerate } from '../components/embeds/music/musicEmbedText';
 import { renderMathCalculate, renderMathPlot } from '../components/embeds/math/mathEmbedText';
 import { renderReminder } from '../components/embeds/reminder/reminderEmbedText';
 import { renderShoppingSearch, renderShoppingProduct } from '../components/embeds/shopping/shoppingEmbedText';
+import { renderJobsSearch, renderJobResult } from '../components/embeds/jobs/jobsEmbedText';
 import { renderHostingSearch, renderHostingDomain } from '../components/embeds/hosting/hostingEmbedText';
 import { renderElectronicsSearch, renderElectronicsComponent, renderPcbSchematic } from '../components/embeds/electronics/electronicsEmbedText';
 import { renderDesignIconResult, renderDesignIconSearch } from '../components/embeds/design/designEmbedText';
@@ -202,6 +203,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:web:read': renderWebRead,
 	'app:news:search': renderNewsSearch,
 	'app:shopping:search_products': renderShoppingSearch,
+	'app:jobs:search': renderJobsSearch,
 	'app:hosting:search_domains': renderHostingSearch,
 	'app:electronics:search_components': renderElectronicsSearch,
 	'app:design:search_icons': renderDesignIconSearch,
@@ -299,6 +301,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'health-appointment': renderAppointment,
 	'home-listing': renderListing,
 	'shopping-product': renderShoppingProduct,
+	'jobs-job-result': renderJobResult,
 	'hosting-domain': renderHostingDomain,
 	'electronics-pcb-schematic': renderPcbSchematic,
 	'electronics-component': renderElectronicsComponent,

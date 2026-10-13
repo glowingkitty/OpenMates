@@ -1428,7 +1428,7 @@ def main():
         required = ["api", "core-worker", "cms", "cms-database", "cache", "vault"]
         if "workflow-scheduler" in profile["services"]:
             required.append("workflow-scheduler")
-            evidence["workflow_scheduler"] = {"task": "workflows.scan_due_triggers", "other_periodic_tasks": "excluded", "providers": ["Bright Sky / DWD", "Open-Meteo"], "paid_provider_credentials": "absent"}
+            evidence["workflow_scheduler"] = {"task": "workflows.scan_due_triggers", "other_periodic_tasks": "excluded", "providers": ["Bright Sky / DWD", "Open-Meteo", "Gandi", "JobTech"], "paid_provider_credentials": "absent"}
         if "uploads" in profile["services"]:
             required.extend(["uploads", "clamav"])
         if "object-storage" in profile["services"]:

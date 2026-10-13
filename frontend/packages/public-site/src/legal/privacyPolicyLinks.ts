@@ -116,6 +116,11 @@ export const privacyPolicyLinks = {
   kleinanzeigen: "https://themen.kleinanzeigen.de/datenschutzerklaerung/",
   wgGesucht: "https://www.wg-gesucht.de/datenschutz.html",
 
+  // Group N2 — Jobs; provider notices verified 2026-10-13
+  arbeitsagentur: "https://www.arbeitsagentur.de/datenschutz",
+  jobtech: "https://arbetsformedlingen.se/om-webbplatsen/juridisk-information/sa-behandlar-vi-dina-personuppgifter",
+  arbeitnow: "https://www.arbeitnow.com/privacy",
+
   // Group O — Community
   discord: "https://discord.com/privacy",
 

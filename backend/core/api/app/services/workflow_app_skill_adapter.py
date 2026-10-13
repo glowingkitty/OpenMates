@@ -46,6 +46,7 @@ WORKFLOW_RESULT_LIST_SKILLS = frozenset(
         ("health", "search_appointments"),
         ("hosting", "search_domains"),
         ("images", "search"),
+        ("jobs", "search"),
         ("maps", "search"),
         ("models3d", "search"),
         ("nutrition", "search_recipes"),
@@ -69,6 +70,7 @@ WORKFLOW_PASSTHROUGH_FIELDS = {
         "status_filter", "match", "partial", "limitation",
     ),
     ("finance", "check_accounts"): ("account_count", "transaction_count", "overview"),
+    ("jobs", "search"): ("success", "partial", "warnings", "providers"),
     ("math", "calculate"): ("result",),
     ("openmates", "share-usecase"): ("success", "message"),
 }

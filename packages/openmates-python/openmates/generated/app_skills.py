@@ -3824,6 +3824,296 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'skill_id': 'generate_draft',
   'skill_method_py': 'generate_draft',
   'skill_method_ts': 'generateDraft'},
+ {'app_id': 'jobs',
+  'app_namespace_py': 'jobs',
+  'app_namespace_ts': 'jobs',
+  'description': 'Search current public job listings in Germany and Sweden. Use this skill for job '
+                 "discovery, including opportunities related to a user's stated impact goal. "
+                 'Germany auto sources are Bundesagentur für Arbeit and Arbeitnow; Sweden auto '
+                 'uses JobTech. Default country is DE only when the user gives no country; do not '
+                 'imply Europe-wide coverage. Specify a named provider only when the user requests '
+                 'it. Put a user-stated career purpose or impact preference in relevance_criteria '
+                 'so explicit listing facts',
+  'description_key': 'app_skills.jobs.search.description',
+  'output_schema': {'description': 'Jobs search response with one result group per input request.',
+                    'properties': {'app_id': {'type': 'string'},
+                                   'error': {'type': ['string', 'null']},
+                                   'partial': {'type': 'boolean'},
+                                   'provider': {'type': 'string'},
+                                   'providers': {'items': {'type': 'string'}, 'type': 'array'},
+                                   'result_count': {'type': 'integer'},
+                                   'results': {'description': 'Request groups; each group contains '
+                                                              'its own listings and errors.',
+                                               'items': {'properties': {'country': {'type': 'string'},
+                                                                        'error': {'type': 'string'},
+                                                                        'id': {'oneOf': [{'type': 'string'},
+                                                                                         {'type': 'integer'}]},
+                                                                        'providers': {'items': {'type': 'string'},
+                                                                                      'type': 'array'},
+                                                                        'query': {'type': 'string'},
+                                                                        'result_count': {'type': 'integer'},
+                                                                        'results': {'items': {'properties': {'apply_url': {'format': 'uri',
+                                                                                                                           'type': ['string',
+                                                                                                                                    'null'],
+                                                                                                                           'x-ui': {'basic': False}},
+                                                                                                             'company': {'type': ['string',
+                                                                                                                                  'null'],
+                                                                                                                         'x-ui': {'basic': True}},
+                                                                                                             'country': {'type': 'string',
+                                                                                                                         'x-ui': {'basic': False}},
+                                                                                                             'description': {'type': ['string',
+                                                                                                                                      'null'],
+                                                                                                                             'x-ui': {'basic': False}},
+                                                                                                             'employment_type': {'type': ['string',
+                                                                                                                                          'null'],
+                                                                                                                                 'x-ui': {'basic': False}},
+                                                                                                             'id': {'type': 'string',
+                                                                                                                    'x-ui': {'basic': False}},
+                                                                                                             'location': {'type': ['string',
+                                                                                                                                   'null'],
+                                                                                                                          'x-ui': {'basic': True}},
+                                                                                                             'provider': {'type': 'string',
+                                                                                                                          'x-ui': {'basic': False}},
+                                                                                                             'published_at': {'type': ['string',
+                                                                                                                                       'null'],
+                                                                                                                              'x-ui': {'basic': False}},
+                                                                                                             'remote': {'type': ['boolean',
+                                                                                                                                 'null'],
+                                                                                                                        'x-ui': {'basic': True}},
+                                                                                                             'salary_currency': {'type': ['string',
+                                                                                                                                          'null'],
+                                                                                                                                 'x-ui': {'basic': False}},
+                                                                                                             'salary_max': {'type': ['number',
+                                                                                                                                     'null'],
+                                                                                                                            'x-ui': {'basic': False}},
+                                                                                                             'salary_min': {'type': ['number',
+                                                                                                                                     'null'],
+                                                                                                                            'x-ui': {'basic': False}},
+                                                                                                             'salary_period': {'type': ['string',
+                                                                                                                                        'null'],
+                                                                                                                               'x-ui': {'basic': False}},
+                                                                                                             'title': {'type': 'string',
+                                                                                                                       'x-ui': {'basic': True}},
+                                                                                                             'url': {'format': 'uri',
+                                                                                                                     'type': 'string',
+                                                                                                                     'x-ui': {'basic': True}}},
+                                                                                              'type': 'object'},
+                                                                                    'type': 'array'},
+                                                                        'warnings': {'items': {'properties': {'code': {'type': 'string'},
+                                                                                                              'message': {'type': 'string'},
+                                                                                                              'provider': {'type': 'string'},
+                                                                                                              'request_id': {'type': 'string'}},
+                                                                                               'type': 'object'},
+                                                                                     'type': 'array'}},
+                                                         'type': 'object'},
+                                               'type': 'array'},
+                                   'skill_id': {'type': 'string'},
+                                   'status': {'type': 'string'},
+                                   'success': {'type': 'boolean'},
+                                   'warnings': {'items': {'properties': {'code': {'type': 'string'},
+                                                                         'message': {'type': 'string'},
+                                                                         'provider': {'type': 'string'},
+                                                                         'request_id': {'type': 'string'}},
+                                                          'type': 'object'},
+                                                'type': 'array'}},
+                    'type': 'object'},
+  'schema': {'properties': {'requests': {'description': 'Independent job searches; each retains '
+                                                        'its own filters and result group.',
+                                         'items': {'properties': {'country': {'default': 'DE',
+                                                                              'description': 'DE '
+                                                                                             'for '
+                                                                                             'Germany '
+                                                                                             'or '
+                                                                                             'SE '
+                                                                                             'for '
+                                                                                             'Sweden; '
+                                                                                             'default '
+                                                                                             'DE '
+                                                                                             'only '
+                                                                                             'if '
+                                                                                             'unspecified.',
+                                                                              'enum': ['DE', 'SE'],
+                                                                              'type': 'string',
+                                                                              'x-ui': {'basic': True}},
+                                                                  'employment_type': {'description': 'Optional '
+                                                                                                     'employment '
+                                                                                                     'type '
+                                                                                                     'explicitly '
+                                                                                                     'requested '
+                                                                                                     'by '
+                                                                                                     'the '
+                                                                                                     'user.',
+                                                                                      'enum': ['full_time',
+                                                                                               'part_time',
+                                                                                               'internship',
+                                                                                               'contract',
+                                                                                               'apprenticeship'],
+                                                                                      'type': 'string',
+                                                                                      'x-ui': {'basic': False}},
+                                                                  'id': {'description': 'Optional '
+                                                                                        'request '
+                                                                                        'ID for '
+                                                                                        'matching '
+                                                                                        'batch '
+                                                                                        'results.',
+                                                                         'type': 'string',
+                                                                         'x-ui': {'basic': False}},
+                                                                  'limit': {'default': 10,
+                                                                            'description': 'Maximum '
+                                                                                           'final '
+                                                                                           'results '
+                                                                                           'for '
+                                                                                           'this '
+                                                                                           'request.',
+                                                                            'maximum': 50,
+                                                                            'minimum': 1,
+                                                                            'type': 'integer',
+                                                                            'x-ui': {'basic': True}},
+                                                                  'location': {'description': 'Optional '
+                                                                                              'city '
+                                                                                              'or '
+                                                                                              'place '
+                                                                                              'named '
+                                                                                              'by '
+                                                                                              'the '
+                                                                                              'user.',
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': True,
+                                                                                        'control': 'location'}},
+                                                                  'max_days_old': {'description': 'Maximum '
+                                                                                                  'age '
+                                                                                                  'in '
+                                                                                                  'days; '
+                                                                                                  'undated '
+                                                                                                  'listings '
+                                                                                                  'are '
+                                                                                                  'excluded.',
+                                                                                   'maximum': 3650,
+                                                                                   'minimum': 1,
+                                                                                   'type': 'integer',
+                                                                                   'x-ui': {'basic': False}},
+                                                                  'provider': {'description': 'One '
+                                                                                              'explicit '
+                                                                                              'source, '
+                                                                                              'overriding '
+                                                                                              'auto '
+                                                                                              'country '
+                                                                                              'routing.',
+                                                                               'enum': ['auto',
+                                                                                        'Arbeitnow',
+                                                                                        'Arbeitsagentur',
+                                                                                        'JobTech'],
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': False}},
+                                                                  'providers': {'description': 'Explicit '
+                                                                                               'source '
+                                                                                               'list; '
+                                                                                               'do '
+                                                                                               'not '
+                                                                                               'mix '
+                                                                                               'with '
+                                                                                               'provider '
+                                                                                               'or '
+                                                                                               'auto.',
+                                                                                'items': {'enum': ['Arbeitnow',
+                                                                                                   'Arbeitsagentur',
+                                                                                                   'JobTech'],
+                                                                                          'type': 'string'},
+                                                                                'type': 'array',
+                                                                                'x-ui': {'basic': False}},
+                                                                  'query': {'description': 'Job '
+                                                                                           'role '
+                                                                                           'or '
+                                                                                           'topic, '
+                                                                                           'such '
+                                                                                           'as '
+                                                                                           '"climate '
+                                                                                           'policy '
+                                                                                           'analyst".',
+                                                                            'maxLength': 400,
+                                                                            'minLength': 1,
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
+                                                                  'radius_km': {'description': 'Radius '
+                                                                                               'in '
+                                                                                               'km '
+                                                                                               'around '
+                                                                                               'location. '
+                                                                                               'Requires '
+                                                                                               'location '
+                                                                                               'and '
+                                                                                               'is '
+                                                                                               'currently '
+                                                                                               'supported '
+                                                                                               'only '
+                                                                                               'by '
+                                                                                               'Bundesagentur '
+                                                                                               'für '
+                                                                                               'Arbeit '
+                                                                                               'in '
+                                                                                               'Germany.\n',
+                                                                                'maximum': 200,
+                                                                                'minimum': 1,
+                                                                                'type': 'integer',
+                                                                                'x-ui': {'basic': False}},
+                                                                  'relevance_criteria': {'description': 'Optional '
+                                                                                                        'user-stated '
+                                                                                                        'career '
+                                                                                                        'or '
+                                                                                                        'impact '
+                                                                                                        'goal '
+                                                                                                        'that '
+                                                                                                        'should '
+                                                                                                        'change '
+                                                                                                        'ranking. '
+                                                                                                        'Use '
+                                                                                                        'only '
+                                                                                                        'explicit '
+                                                                                                        'listing '
+                                                                                                        'evidence; '
+                                                                                                        'omit '
+                                                                                                        'for '
+                                                                                                        'a '
+                                                                                                        'neutral '
+                                                                                                        'search.\n',
+                                                                                         'maxLength': 1000,
+                                                                                         'type': 'string',
+                                                                                         'x-ui': {'basic': True}},
+                                                                  'remote': {'description': 'Omit '
+                                                                                            'unless '
+                                                                                            'the '
+                                                                                            'user '
+                                                                                            'asks '
+                                                                                            'for '
+                                                                                            'remote '
+                                                                                            'or '
+                                                                                            'on-site '
+                                                                                            'work. '
+                                                                                            'A '
+                                                                                            'true '
+                                                                                            'result '
+                                                                                            'requires '
+                                                                                            'explicit '
+                                                                                            'full-remote '
+                                                                                            'evidence, '
+                                                                                            'not '
+                                                                                            'just '
+                                                                                            'possible '
+                                                                                            'home '
+                                                                                            'office.\n',
+                                                                             'type': 'boolean',
+                                                                             'x-ui': {'basic': True}}},
+                                                   'required': ['query'],
+                                                   'type': 'object'},
+                                         'maxItems': 5,
+                                         'minItems': 1,
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
+             'required': ['requests'],
+             'type': 'object'},
+  'skill_id': 'search',
+  'skill_method_py': 'search',
+  'skill_method_ts': 'search'},
  {'app_id': 'mail',
   'app_namespace_py': 'mail',
   'app_namespace_ts': 'mail',
@@ -9154,6 +9444,18 @@ class ImagesAppSkills:
         """
         return self._run_skill("images", "generate_draft", input_data, prompt_injection_protection=prompt_injection_protection)
 
+class JobsAppSkills:
+    def __init__(self, run_skill: SkillRunner):
+        self._run_skill = run_skill
+
+    def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Search current public job listings in Germany and Sweden. Use this skill for job discovery, including opportunities related to a user's stated impact goal. Germany auto sources are Bundesagentur für Arbeit and Arbeitnow; Sweden auto uses JobTech. Default country is DE only when the user gives no country; do not imply Europe-wide coverage. Specify a named provider only when the user requests it. Put a user-stated career purpose or impact preference in relevance_criteria so explicit listing facts
+
+        Description key: app_skills.jobs.search.description
+        Skill: jobs/search
+        """
+        return self._run_skill("jobs", "search", input_data, prompt_injection_protection=prompt_injection_protection)
+
 class MailAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
@@ -9529,6 +9831,7 @@ class GeneratedAppSkills:
         self.home = HomeAppSkills(run_skill)
         self.hosting = HostingAppSkills(run_skill)
         self.images = ImagesAppSkills(run_skill)
+        self.jobs = JobsAppSkills(run_skill)
         self.mail = MailAppSkills(run_skill)
         self.maps = MapsAppSkills(run_skill)
         self.math = MathAppSkills(run_skill)
