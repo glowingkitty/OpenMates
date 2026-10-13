@@ -3,6 +3,16 @@ import { getUpcomingOpenMatesEventCards } from '../../../packages/public-site/sr
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
+
+const openWebAppProof = defineVideoProof({
+  id: 'landing-open-web-app', title: 'Open the app after drafting from the landing page', surface: 'web',
+  devices: ['web-phone', 'web-laptop'], domain: 'landing.dev.openmates.org',
+  transcript: [{ id: 'app', text: 'The landing page preserves a guest draft and Open Web App opens the chat workspace.', checkpoint: 'app', devices: ['web-phone', 'web-laptop'] }],
+  assertions: [{ id: 'landing.open-web-app-workspace', checkpoint: 'app', visual: 'The app chat workspace is visible with no automatic signup screen.', devices: ['web-phone', 'web-laptop'] }],
+  tutorial: { readingWordsPerSecond: 3, minimumHoldMs: 900, maximumHoldMs: 2500 },
+});
 
 // contract-test: direct surface=gui.web assertions=marketing-landing.independent-scroll,marketing-landing.feature-layout,marketing-landing.six-feature-viewport,marketing-landing.destinations,marketing-landing.real-screenshots,marketing-landing.public-content,workflows-ui.workspace.guest-template-preview
 test('public landing server-renders and opens real app workspaces', async ({ page }) => {
@@ -32,15 +42,16 @@ test('public landing server-renders and opens real app workspaces', async ({ pag
   expect(privateBootstrap).toEqual([]);
   expect(sockets).toEqual([]);
 
-  const icons = await page.getByTestId('landing-hero').locator('.rail-icon').evaluateAll(nodes => nodes.map(node => {
-    const style = getComputedStyle(node, '::before');
+  const icons = await page.getByTestId('landing-hero').locator('.rail-icon .rail-glyph').evaluateAll(nodes => nodes.map(node => {
+    const style = getComputedStyle(node);
     return { mask: style.maskImage || style.webkitMaskImage, width: node.getBoundingClientRect().width };
   }));
   expect(icons.length).toBeGreaterThanOrEqual(8);
   expect(icons.every(icon => icon.mask !== 'none' && icon.mask.includes('url(') && icon.width > 0)).toBe(true);
 
-  const heroImage = page.getByTestId('landing-hero-media').locator('.laptop img.device-screen');
-  await expect.poll(() => heroImage.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
+  const heroIcon = page.getByTestId('landing-hero-ai-icon');
+  await expect(heroIcon).toBeVisible();
+  await expect(heroIcon.locator('.hero-ai-glyph')).toHaveCSS('mask-image', /ai\.svg/);
   const origin = new URL(page.url()).origin;
   for (const [testId, fragment, workspace] of [
     ['landing-explore-apps', '#apps', 'apps-daily-inspiration-area'],
@@ -89,8 +100,9 @@ for (const { name, width, height } of [
   { name: 'laptop', width: 1440, height: 900 },
 ]) {
   // contract-test: direct surface=gui.web assertions=marketing-landing.composer-focus,marketing-landing.destinations,marketing-landing.independent-scroll
-  test(`landing composer preserves a guest draft and signup opens basics (${name})`, async ({ page }) => {
+  test(`landing composer preserves a guest draft and Open Web App opens chats (${name})`, async ({ page }, testInfo) => {
     test.setTimeout(90_000);
+    const proof = createVideoProofRuntime(openWebAppProof, { device: name === 'phone' ? 'web-phone' : 'web-laptop', attach: testInfo.attach.bind(testInfo), captureFrame: () => page.screenshot() });
     await page.setViewportSize({ width, height });
     await page.goto(getE2EDebugUrl('/landing'), { waitUntil: 'domcontentloaded' });
     const scroller = page.getByTestId('landing-scroll-container');
@@ -122,11 +134,18 @@ for (const { name, width, height } of [
     await expect(page.getByTestId('message-editor')).toContainText(draft);
 
     await page.goto(getE2EDebugUrl('/landing'), { waitUntil: 'domcontentloaded' });
-    const signup = page.getByTestId('landing-signup');
-    await expect(signup).toHaveAttribute('href', `${new URL(page.url()).origin}/#signup/basics`);
-    await signup.click();
-    // The app consumes the signup fragment and opens its real account screen.
-    await expect(page.locator('input[type="email"][autocomplete="email"]')).toBeVisible({ timeout: 30_000 });
+    const openWebApp = page.getByTestId('landing-open-web-app');
+    await expect(openWebApp).toHaveAttribute('href', `${new URL(page.url()).origin}/`);
+    await openWebApp.click();
+    await expect(page).toHaveURL(`${new URL(page.url()).origin}/`);
+    await proof.assert('landing.open-web-app-workspace', async () => {
+      await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByTestId('message-editor')).toBeVisible();
+      await expect(page.getByTestId('signup-modal')).toHaveCount(0);
+      await expect(page.getByTestId('login-wrapper')).toHaveCount(0);
+    });
+    await proof.checkpoint('app');
+    await proof.attach();
   });
 }
 

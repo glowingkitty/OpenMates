@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.marketing-landing
-version: 5
+version: 6
 status: draft
 title: Lightweight Public Website and Scrollable Landing Page
 summary: A lightweight standalone website owns the scrollable landing page, news, blog and legal content,
@@ -43,11 +43,12 @@ assertions:
   - examples.layout
 - id: marketing-landing.destinations
   type: behavior
-  must: Header Chats, Apps and Workflows links use the existing web-app icon-only dimensions and hover
-    treatment, have no active workspace state on the website, and open the matching app workspaces. Explore
-    Apps and Explore Workflows open their app workspaces in new tabs. Login/Signup opens the app account
-    interface for signed-out visitors, opens Chats for an already authenticated user with completed signup,
-    and preserves incomplete signup recovery. Example links open real shared chats. Learn-more links lead
+  must: The shared public header always shows the complete OpenMates wordmark linked to the website home,
+    including on narrow phones, and omits Chats, Apps and Workflows tabs. The rightmost orange pill CTA reads
+    Open Web App in English and links to the configured web-app root. The icon-only language control sits
+    immediately before it, with the current language available to assistive technology and no visible language
+    code. GitHub remains visible when space permits. Explore Apps and Explore Workflows open their app
+    workspaces in new tabs. Example links open real shared chats. Learn-more links lead
     to the website blog index until dedicated posts exist. TestFlight testing links lead to the website
     newsletter section. Social footer links open the existing official destinations in new tabs. App and
     website origins are independently configurable and require HTTP(S); landing.dev.openmates.org targets
@@ -94,7 +95,10 @@ assertions:
     included for their direct content capabilities. Each highlighted app has a capability-matched prompt.
     Its highlight begins and ends at equal distances on the right and left of the centered In seconds
     label; selecting an app centers its icon beneath that label. Icons adapt to the available hero space
-    with a desktop size cap; translucent edge gradients fade entry and exit. Automatic movement, highlighting
+    with a desktop size cap; the heading, prompt, AI icon and rail scale with available width and height
+    across phones, tablets, tall portrait screens and large desktops. The composition avoids excessive empty
+    space, clipping and overlapping rows, including short landscape screens and longer German prompts.
+    Translucent edge gradients fade entry and exit. Automatic movement, highlighting
     and manual selection share one position, so completing a loop, resuming interaction or resizing does
     not cause a visible reset. Prompt bubbles have the real user-message tail and transition by opacity
     and scale from the bottom-right without changing position. The aligned scroll cue smoothly cycles
@@ -187,6 +191,7 @@ examples:
   - metadata_defaults
   - preferences
 approval_source:
-  instruction: User explicitly instructed the centered app highlight, AI hero animation, neutral phone
-    bezel, section entrances, Calendar removal and successful-capability-only examples on 2026-10-12,
-    and explicitly directed deployment without repeating approvals for instructed work.
+  instruction: User explicitly instructed responsive hero sizing across mobile to large desktop and a shared
+    header with the full wordmark, no workspace tabs, an Open Web App CTA and preceding icon-only language
+    selection on 2026-10-13. Existing explicit instructions authorize implementation and dev deployment
+    without repeated approval requests for clearly instructed changes.

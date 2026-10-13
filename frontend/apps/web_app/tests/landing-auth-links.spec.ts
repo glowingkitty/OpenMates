@@ -6,6 +6,16 @@ import { expect, test } from './helpers/cookie-audit';
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { getE2EDebugUrl, getIsolatedTestAccount } = require('./signup-flow-helpers');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
+
+const appLinkProof = defineVideoProof({
+  id: 'landing-authenticated-app-link', title: 'Open Web App with a completed account', surface: 'web',
+  devices: ['web-laptop'], domain: 'landing.dev.openmates.org',
+  transcript: [{ id: 'chats', text: 'A completed account opens its chat workspace from the landing page without an account screen.', checkpoint: 'chats', devices: ['web-laptop'] }],
+  assertions: [{ id: 'landing.completed-account-workspace', checkpoint: 'chats', visual: 'The authenticated chat editor is visible and no signup or login screen appears.', devices: ['web-laptop'] }],
+  tutorial: { readingWordsPerSecond: 3, minimumHoldMs: 900, maximumHoldMs: 2500 },
+});
 
 const account = getIsolatedTestAccount('landing-auth-links.spec.ts');
 const stagedPath = '/signup/secure-account';
@@ -134,12 +144,13 @@ async function replaceCachedLastOpened(page: import('@playwright/test').Page, ne
   }, next);
 }
 
-test.describe('landing account links with real authentication', () => {
+test.describe('landing Open Web App link with real authentication', () => {
   test.describe.configure({ mode: 'serial' });
 
   // contract-test: direct surface=gui.web assertions=marketing-landing.destinations
-  test('completed account opens Chats from warm and cold signup links without an account flash', async ({ page }) => {
+  test('completed account opens Chats from warm and cold app links without an account flash', async ({ page }, testInfo) => {
     test.setTimeout(180_000);
+    const proof = createVideoProofRuntime(appLinkProof, { device: 'web-laptop', attach: testInfo.attach.bind(testInfo), captureFrame: () => page.screenshot() });
     test.skip(!account.email || !account.password || !account.otpKey, 'Isolated test account credentials required.');
     await loginToTestAccount(page, undefined, undefined, { waitForEditor: true, credentials: account });
     await expect(page.locator('[data-testid="active-chat-container"][data-authenticated="true"]')).toBeVisible();
@@ -147,18 +158,22 @@ test.describe('landing account links with real authentication', () => {
     await page.goto(getE2EDebugUrl('/landing'), { waitUntil: 'domcontentloaded' });
     await page.evaluate(observeAccountFlash);
     await page.evaluate(() => { (window as Window & { __authLinkWarm?: boolean }).__authLinkWarm = true; });
-    await page.getByTestId('landing-signup').click();
+    await expect(page.getByTestId('landing-open-web-app')).toHaveAttribute('href', `${new URL(page.url()).origin}/`);
+    await page.getByTestId('landing-open-web-app').click();
     expect(await page.evaluate(() => (window as Window & { __authLinkWarm?: boolean }).__authLinkWarm)).toBe(true);
     await expectChatsWithoutAccountFlash(page);
 
     await page.addInitScript(observeAccountFlash);
     await page.goto(getE2EDebugUrl('/landing'), { waitUntil: 'domcontentloaded' });
-    const signupHref = await page.getByTestId('landing-signup').getAttribute('href');
-    expect(signupHref).toMatch(/#signup\/basics$/);
+    const appHref = await page.getByTestId('landing-open-web-app').getAttribute('href');
+    expect(appHref).toBe(`${new URL(page.url()).origin}/`);
     await page.evaluate(() => { (window as Window & { __authLinkLanding?: boolean }).__authLinkLanding = true; });
-    await page.goto(signupHref!, { waitUntil: 'domcontentloaded' });
+    await page.goto(appHref!, { waitUntil: 'domcontentloaded' });
     expect(await page.evaluate(() => (window as Window & { __authLinkLanding?: boolean }).__authLinkLanding)).toBeUndefined();
     await expectChatsWithoutAccountFlash(page);
+    await proof.assert('landing.completed-account-workspace', async () => expectChatsWithoutAccountFlash(page));
+    await proof.checkpoint('chats');
+    await proof.attach();
   });
 
   // contract-test: direct surface=gui.web assertions=marketing-landing.destinations
@@ -170,13 +185,13 @@ test.describe('landing account links with real authentication', () => {
     const previous = await replaceCachedLastOpened(page, stagedPath);
     try {
       await page.addInitScript(observeAccountFlash);
-      const signupHref = await page.getByTestId('landing-signup').getAttribute('href');
-      expect(signupHref).toMatch(/#signup\/basics$/);
+      const appHref = await page.getByTestId('landing-open-web-app').getAttribute('href');
+      expect(appHref).toBe(`${new URL(page.url()).origin}/`);
       await page.evaluate(() => { (window as Window & { __authLinkLanding?: boolean }).__authLinkLanding = true; });
       const sessionCheck = page.waitForResponse(response =>
         response.request().method() === 'POST' && new URL(response.url()).pathname.endsWith('/v1/auth/session')
       );
-      await page.goto(signupHref!, { waitUntil: 'domcontentloaded' });
+      await page.goto(appHref!, { waitUntil: 'domcontentloaded' });
       expect(await page.evaluate(() => (window as Window & { __authLinkLanding?: boolean }).__authLinkLanding)).toBeUndefined();
       const response = await sessionCheck;
       expect(response.ok()).toBe(true);
@@ -195,13 +210,13 @@ test.describe('landing account links with real authentication', () => {
     const previous = changeIsolatedLastOpened(account.email!, null, stagedPath);
     try {
       await page.goto(getE2EDebugUrl('/landing'), { waitUntil: 'domcontentloaded' });
-      const signupHref = await page.getByTestId('landing-signup').getAttribute('href');
-      expect(signupHref).toMatch(/#signup\/basics$/);
+      const appHref = await page.getByTestId('landing-open-web-app').getAttribute('href');
+      expect(appHref).toBe(`${new URL(page.url()).origin}/`);
       await page.evaluate(() => { (window as Window & { __authLinkLanding?: boolean }).__authLinkLanding = true; });
       const sessionCheck = page.waitForResponse(response =>
         response.request().method() === 'POST' && new URL(response.url()).pathname.endsWith('/v1/auth/session')
       );
-      await page.goto(signupHref!, { waitUntil: 'domcontentloaded' });
+      await page.goto(appHref!, { waitUntil: 'domcontentloaded' });
       expect(await page.evaluate(() => (window as Window & { __authLinkLanding?: boolean }).__authLinkLanding)).toBeUndefined();
       const response = await sessionCheck;
       expect(response.ok()).toBe(true);

@@ -7,6 +7,15 @@ import newsReleases from '../../../packages/public-site/src/generated/newsReleas
 import publicApps from '../../../packages/public-site/src/generated/publicApps.generated.json';
 
 // playwright-account: not_required reason=isolated_runner_local_public_website
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
+const headerProof = defineVideoProof({
+  id: 'standalone-public-header', title: 'The public website header', surface: 'web',
+  devices: ['web-phone', 'web-laptop'], domain: 'landing.dev.openmates.org',
+  transcript: [{ id: 'header', text: 'The website shows the complete OpenMates logo, icon-only language selection and a rightmost Open Web App link.', checkpoint: 'header', devices: ['web-phone', 'web-laptop'] }],
+  assertions: [{ id: 'landing.public-header', checkpoint: 'header', visual: 'The shared standalone header has a complete wordmark, a language icon and an app-root button, without workspace tabs.', devices: ['web-phone', 'web-laptop'] }],
+  tutorial: { readingWordsPerSecond: 3, minimumHoldMs: 900, maximumHoldMs: 2500 },
+});
 
 const root = path.resolve(__dirname, '../../../..');
 const website = 'http://127.0.0.1:5180';
@@ -194,9 +203,8 @@ test('standalone landing and publication indexes are server-rendered without app
     await expect(page.locator('main')).toBeVisible();
     if (route === '/') {
       await expect(page.getByTestId('landing-page')).toBeVisible();
-      for (const [id, fragment] of [['chats', ''], ['apps', '#apps'], ['workflows', '#workflows']] as const) {
-        await expect(page.getByTestId(`landing-nav-${id}`)).toHaveAttribute('href', `${app}/${fragment}`);
-      }
+      await expect(page.getByTestId('landing-open-web-app')).toHaveAttribute('href', `${app}/`);
+      await expect(page.locator('.workspace-nav, [data-testid^="landing-nav-"]')).toHaveCount(0);
       await expect(page.getByTestId('landing-newsletter')).toBeVisible();
       expect(await page.locator('body').evaluate((body) => getComputedStyle(body).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
       await expect(page.locator('link[rel="stylesheet"]')).not.toHaveCount(0);
@@ -260,8 +268,10 @@ test('privacy, terms, and imprint are full styled public documents', async ({ pa
       const header = page.getByTestId('public-site-header');
       await expect(header).toBeVisible();
       await expect(header.getByRole('link', { name: 'OpenMates home' })).toHaveAttribute('href', site('/'));
-      await expect(header.getByTestId('landing-signup')).toHaveAttribute('href', `${app}/#signup/basics`);
-      await expect(header.getByTestId('landing-nav-apps')).toHaveAttribute('href', `${app}/#apps`);
+      await expect(header.getByTestId('landing-open-web-app')).toHaveAttribute('href', `${app}/`);
+      await expect(header.locator('.workspace-nav, [data-testid^="landing-nav-"]')).toHaveCount(0);
+      await expect(header.locator('.wordmark')).toBeVisible();
+      await expect(header.getByTestId('landing-language-button')).toHaveText('');
       await header.getByTestId('landing-language-button').click();
       const languageOptions = header.getByTestId('landing-language-panel').locator('.language-options button');
       await expect(languageOptions).toHaveCount(2);
@@ -294,6 +304,7 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
   // contract-test: direct surface=gui.web assertions=marketing-landing.feature-layout,marketing-landing.destinations,marketing-landing.real-screenshots,marketing-landing.six-feature-viewport
   test(`standalone global styles preserve the landing viewport and media at ${width}px`, async ({ page }, testInfo) => {
     test.setTimeout(45_000);
+    const proof = createVideoProofRuntime(headerProof, { device: width < 760 ? 'web-phone' : 'web-laptop', attach: testInfo.attach.bind(testInfo), captureFrame: () => page.screenshot() });
     await page.setViewportSize({ width, height });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto(site('/'), { waitUntil: 'domcontentloaded' });
@@ -312,17 +323,17 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     expect(bubble.background).toMatch(/^rgb\(\d+, \d+, \d+\)$/);
     expect(bubble.tail).toContain('speechbubble.svg');
 
-    for (const id of ['chats', 'apps', 'workflows']) {
-      const tab = page.getByTestId(`landing-nav-${id}`);
-      const icon = tab.locator('.header-mask');
-      const tabBox = await tab.boundingBox();
-      const iconBox = await icon.boundingBox();
-      expect(tabBox?.width).toBeCloseTo(72, 0);
-      expect(tabBox?.height).toBeCloseTo(44.8, 0);
-      expect(iconBox?.width).toBe(20);
-      expect(iconBox?.height).toBe(20);
-      expect(await icon.evaluate((element) => getComputedStyle(element).maskImage)).toContain('url(');
-    }
+    await proof.assert('landing.public-header', async () => {
+    const header = page.getByTestId('public-site-header');
+    await expect(header.locator('.wordmark')).toBeVisible();
+    await expect(header.getByTestId('landing-open-web-app')).toHaveText('Open Web App');
+    await expect(header.getByTestId('landing-open-web-app')).toHaveAttribute('href', `${app}/`);
+    await expect(header.getByTestId('landing-language-button')).toHaveText('');
+    await expect(header.locator('.workspace-nav, [data-testid^="landing-nav-"]')).toHaveCount(0);
+
+    });
+    await proof.checkpoint('header');
+    await proof.attach();
 
     await expect(page.getByTestId('landing-feature-model-choice')).toHaveCount(1);
     const heroMedia = page.getByTestId('landing-hero-media');

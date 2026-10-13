@@ -4,6 +4,7 @@ copy:
     language: Language
     languageHint: This page is available in English and German.
     close: Close
+    openWebApp: Open Web App
     login: Login / Signup
     signup: Sign up
     heroLine1: Your privacy first
@@ -80,6 +81,7 @@ copy:
     language: Sprache
     languageHint: Diese Seite ist auf Englisch und Deutsch verfügbar.
     close: Schließen
+    openWebApp: Web-App öffnen
     login: Anmelden / Registrieren
     signup: Registrieren
     heroLine1: Deine KI-Teamkollegen

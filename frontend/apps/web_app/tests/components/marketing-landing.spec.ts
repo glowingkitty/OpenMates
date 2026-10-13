@@ -3,11 +3,20 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 import { landingAppOrder, landingAppExamples } from '../../../../packages/public-site/src/components/landing/landingPageContent';
 
 // playwright-account: not_required reason=isolated_component_preview
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { createVideoProofRuntime, defineVideoProof } = require('../helpers/video-proof');
+const responsiveProof = defineVideoProof({
+  id: 'landing-responsive-header', title: 'A responsive public landing page', surface: 'web',
+  devices: ['web-phone', 'web-laptop'], domain: 'landing.dev.openmates.org',
+  transcript: [{ id: 'fit', text: 'The full logo, language icon and Open Web App button stay visible. The hero fits English and German on phones, tablets and large screens.', checkpoint: 'responsive', devices: ['web-phone', 'web-laptop'] }],
+  assertions: [{ id: 'landing.responsive-fit', checkpoint: 'responsive', visual: 'The hero uses the available space with no overlaps or clipping, and the complete public header fits within the screen.', devices: ['web-phone', 'web-laptop'] }],
+  tutorial: { readingWordsPerSecond: 3, minimumHoldMs: 900, maximumHoldMs: 2500 },
+});
 
 const APP = 'https://app.dev.openmates.org';
 const sections = ['actionable', 'privacy', 'model-choice', 'workflows', 'devices', 'open-source'] as const;
 const preview = (width: number, theme = 'light', props?: object) =>
-  `/dev/preview/landing/LandingPage?${new URLSearchParams({ theme, background: theme === 'dark' ? '#161616' : '#dbeafe', width: String(width), chrome: '0', ...(props ? { props: JSON.stringify(props) } : {}) })}`;
+  `/dev/preview/landing/LandingPage?${new URLSearchParams({ theme, background: theme === 'dark' ? '#161616' : '#dbeafe', ...(width <= 2560 ? { width: String(width) } : {}), chrome: '0', ...(props ? { props: JSON.stringify(props) } : {}) })}`;
 
 for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
   // contract-test: direct surface=gui.web assertions=marketing-landing.independent-scroll,marketing-landing.feature-layout,marketing-landing.destinations,marketing-landing.real-screenshots,marketing-landing.hero-app-rail,marketing-landing.six-feature-viewport,marketing-landing.capability-rail-and-prompts
@@ -64,30 +73,18 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     expect(Math.max(...cueCenters) - Math.min(...cueCenters)).toBeLessThan(1);
     expect(geometry.compose.bottom).toBeLessThanOrEqual(height);
     expect(geometry.compose.bottom).toBeGreaterThan(geometry.viewport.bottom - 100);
-    for (const [id, fragment] of [['chats', ''], ['apps', '#apps'], ['workflows', '#workflows']] as const) {
-      const link = page.getByTestId(`landing-nav-${id}`);
-      await expect(link).toHaveAttribute('href', `${APP}/${fragment}`);
-      await expect(link).not.toHaveAttribute('aria-current');
-      await expect(link.locator('.header-mask')).toBeVisible();
-      expect((await link.innerText()).trim()).toBe('');
-      const tab = await link.boundingBox();
-      const icon = await link.locator('.header-mask').boundingBox();
-      expect(tab?.width).toBeCloseTo(72, 0);
-      expect(tab?.height).toBeCloseTo(44.8, 0);
-      expect(icon?.width).toBe(20);
-      expect(icon?.height).toBe(20);
-    }
+    await expect(root.locator('.workspace-nav, [data-testid^="landing-nav-"]')).toHaveCount(0);
     await expect(root.locator('.menu-link, .settings-link')).toHaveCount(0);
-    await expect(page.getByTestId('landing-signup')).toHaveAttribute('href', `${APP}/#signup/basics`);
-    expect((await page.getByTestId('landing-signup').boundingBox())?.height).toBe(41);
+    await expect(page.getByTestId('landing-open-web-app')).toHaveAttribute('href', `${APP}/`);
+    expect((await page.getByTestId('landing-open-web-app').boundingBox())?.height).toBe(41);
     await expect(compose).toHaveAttribute('href', `${APP}/#compose`);
     for (const id of ['landing-explore-apps', 'landing-explore-workflows']) {
       await expect(page.getByTestId(id)).toHaveAttribute('target', '_blank');
       await expect(page.getByTestId(id)).toHaveAttribute('rel', /noopener/);
     }
-    await page.getByTestId('landing-signup').focus();
-    await expect(page.getByTestId('landing-signup')).toBeFocused();
-    await expect(page.getByTestId('landing-signup')).toHaveCSS('outline-style', 'solid');
+    await page.getByTestId('landing-open-web-app').focus();
+    await expect(page.getByTestId('landing-open-web-app')).toBeFocused();
+    await expect(page.getByTestId('landing-open-web-app')).toHaveCSS('outline-style', 'solid');
     const shadow = await compose.evaluate(element => getComputedStyle(element).boxShadow);
     await compose.hover();
     expect(await compose.evaluate(element => getComputedStyle(element).boxShadow)).not.toBe(shadow);
@@ -110,7 +107,7 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
       return { id: node.getAttribute('data-app-id'), centerY: rect.y + rect.height / 2, width: rect.width, height: rect.height, baseWidth: parseFloat(getComputedStyle(node).width), radius: getComputedStyle(node).borderTopLeftRadius, glyphWidth: glyphRect.width, glyphHeight: glyphRect.height, glyphOffsetX: glyphRect.x + glyphRect.width / 2 - (rect.x + rect.width / 2), glyphOffsetY: glyphRect.y + glyphRect.height / 2 - (rect.y + rect.height / 2), glyphColor: style.backgroundColor, mask: style.maskImage || style.webkitMaskImage };
     }));
     expect(Math.max(...railGeometry.map(icon => icon.centerY)) - Math.min(...railGeometry.map(icon => icon.centerY))).toBeLessThan(2);
-    expect(railGeometry.every(icon => icon.width >= 60 && icon.width <= 122 && icon.mask.includes('url('))).toBe(true);
+    expect(railGeometry.every(icon => icon.width >= 60 && icon.width <= 192 && icon.mask.includes('url('))).toBe(true);
     const nonSquareIcons = railGeometry.filter(icon => Math.abs(icon.width - icon.height) >= 1);
     expect(nonSquareIcons, `App icons must be square: ${JSON.stringify(nonSquareIcons)}`).toEqual([]);
     const glyphDefects = railGeometry.filter(icon => icon.glyphWidth < (width < 760 ? 20 : 30) || icon.glyphHeight < (width < 760 ? 20 : 30) || Math.abs(icon.glyphWidth / icon.width - 0.53) > 0.02 || Math.abs(icon.glyphHeight / icon.height - 0.53) > 0.02 || Math.abs(icon.glyphOffsetX) > 1 || Math.abs(icon.glyphOffsetY) > 1 || icon.glyphColor === 'rgba(0, 0, 0, 0)' || !icon.mask.includes('url('));
@@ -253,10 +250,8 @@ test('320px reduced-motion landing offers language-only settings and all event/s
     await expect(content).toHaveCSS('opacity', '1');
     await expect(content).toHaveCSS('transform', 'none');
   }
-  const compactTab = await page.getByTestId('landing-nav-chats').boundingBox();
-  expect(compactTab?.width).toBeLessThan(72);
-  expect(compactTab?.width).toBeGreaterThanOrEqual(48);
-  expect(compactTab?.height).toBeCloseTo(44.8, 0);
+  await expect(page.getByTestId('public-site-header').locator('.wordmark')).toBeVisible();
+  await expect(page.getByTestId('landing-open-web-app')).toHaveText('Open Web App');
   await expect(page.getByTestId('landing-prompt')).toHaveCSS('opacity', '1');
   await expect(page.getByTestId('landing-prompt')).toHaveAttribute('data-active-app', 'events');
   await expect(page.getByTestId('landing-prompt')).toHaveAttribute('href', `${APP}/#chat-id=${landingAppExamples.events}`);
@@ -265,14 +260,16 @@ test('320px reduced-motion landing offers language-only settings and all event/s
   await expect(rail).toHaveCSS('animation-name', 'none');
   await expect(page.getByTestId('landing-scroll-cue')).toHaveCSS('animation-name', 'none');
   const language = page.getByTestId('landing-language-button');
-  await expect(language).toContainText('EN');
+  await expect(language).toHaveText('');
+  await expect(language).toHaveAttribute('aria-label', /English/);
   await language.click();
   const panel = page.getByTestId('landing-language-panel');
   await expect(panel).toBeVisible();
   await expect(panel.getByRole('button', { name: /Deutsch/ })).toBeVisible();
   await expect(panel.getByText(/account|payment|chat settings/i)).toHaveCount(0);
   await panel.getByRole('button', { name: /Deutsch/ }).click();
-  await expect(language).toContainText('DE');
+  await expect(language).toHaveText('');
+  await expect(language).toHaveAttribute('aria-label', /Deutsch/);
   await expect(language).toBeFocused();
   await expect(root.getByRole('heading', { level: 1 })).toContainText('Privatsphäre');
   const mobileSpacing = await root.evaluate((element) => ({
@@ -284,7 +281,8 @@ test('320px reduced-motion landing offers language-only settings and all event/s
   await language.click(); await page.keyboard.press('Escape');
   await expect(panel).toHaveCount(0); await expect(language).toBeFocused();
   await page.reload(); await waitForComponentPreview(page, 30_000);
-  await expect(language).toContainText('DE');
+  await expect(language).toHaveText('');
+  await expect(language).toHaveAttribute('aria-label', /Deutsch/);
   const cards = page.getByTestId('landing-event-card');
   await expect(cards).toHaveCount(4);
   for (const card of await cards.all()) {
@@ -330,6 +328,27 @@ for (const width of [390, 1440]) {
     const startX = box.x + box.width * .65;
     const y = box.y + box.height / 2;
     for (const direction of [-1, 1]) {
+      await rail.evaluate(element => {
+        const sampled = element as HTMLElement & { releaseSamples?: Promise<{ distance: number; elapsed: number }[]> };
+        sampled.releaseSamples = new Promise(resolve => element.addEventListener('pointerup', async () => {
+        const group = element.querySelector<HTMLElement>('.rail-group')!;
+        const track = element.querySelector<HTMLElement>('.rail-track')!;
+        const period = group.getBoundingClientRect().width;
+        let previous = new DOMMatrix(getComputedStyle(track).transform).m41;
+        let previousTime = performance.now();
+        const result: { distance: number; elapsed: number }[] = [];
+        for (let frame = 0; frame < 20; frame++) {
+          await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+          const now = performance.now();
+          const current = new DOMMatrix(getComputedStyle(track).transform).m41;
+          // Compare velocity rather than distance per frame: CI frames have unequal durations.
+          result.push({ distance: (current - previous + period * 1.5) % period - period / 2, elapsed: now - previousTime });
+          previous = current;
+          previousTime = now;
+        }
+        resolve(result);
+        }, { once: true }));
+      });
       if (width < 760) {
         await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: startX, y, id: 1 }] });
         await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: startX + 70 * direction, y, id: 1 }] });
@@ -342,26 +361,13 @@ for (const width of [390, 1440]) {
         await page.mouse.move(startX + 140 * direction, y);
         await page.mouse.up();
       }
-      const samples = await rail.evaluate(async element => {
-        const group = element.querySelector<HTMLElement>('.rail-group')!;
-        const track = element.querySelector<HTMLElement>('.rail-track')!;
-        const period = group.getBoundingClientRect().width;
-        let previous = new DOMMatrix(getComputedStyle(track).transform).m41;
-        const result: number[] = [];
-        for (let frame = 0; frame < 20; frame++) {
-          await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-          const current = new DOMMatrix(getComputedStyle(track).transform).m41;
-          // Map identical rendered cycles into the same continuous coordinate system.
-          result.push((current - previous + period * 1.5) % period - period / 2);
-          previous = current;
-        }
-        return result;
-      });
-      expect(samples.slice(0, 4).some(delta => Math.abs(delta) > .5), 'release must continue immediately').toBe(true);
-      const early = samples.slice(0, 5).reduce((sum, delta) => sum + delta, 0);
-      const late = samples.slice(-5).reduce((sum, delta) => sum + delta, 0);
-      expect(early * direction, 'momentum must preserve swipe direction').toBeGreaterThan(2);
-      expect(Math.abs(late), 'momentum must slow naturally').toBeLessThan(Math.abs(early));
+      const samples = await rail.evaluate(element => (element as HTMLElement & { releaseSamples: Promise<{ distance: number; elapsed: number }[]> }).releaseSamples);
+      expect(samples.slice(0, 4).some(sample => Math.abs(sample.distance) > .5), 'release must continue immediately').toBe(true);
+      const speed = (window: typeof samples) => window.reduce((sum, sample) => sum + sample.distance, 0) / window.reduce((sum, sample) => sum + sample.elapsed, 0);
+      const early = speed(samples.slice(0, 5));
+      const late = speed(samples.slice(-5));
+      expect(samples.slice(0, 5).reduce((sum, sample) => sum + sample.distance, 0) * direction, 'momentum must preserve swipe direction').toBeGreaterThan(2);
+      expect(Math.abs(late), `momentum must slow naturally: ${JSON.stringify(samples)}`).toBeLessThan(Math.abs(early));
       await expect(rail).toHaveAttribute('data-active-app', (await page.getByTestId('landing-prompt').getAttribute('data-active-app'))!);
     }
     await cdp.detach();
@@ -541,3 +547,111 @@ test('landing app rail crosses its automatic loop without a visible seam', async
   expect(seam.lastMovement).toBeLessThan(3);
   expect(seam.firstMovement).toBeLessThan(3);
 });
+
+const responsiveGroups = {
+  phones: [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 542, height: 900 }, { width: 844, height: 390 }],
+  tablets: [{ width: 768, height: 1024 }, { width: 1024, height: 1700 }],
+  desktops: [{ width: 1280, height: 720 }, { width: 1440, height: 900 }, { width: 1920, height: 1080 }, { width: 2560, height: 1440 }, { width: 3440, height: 1440 }]
+};
+
+for (const [device, viewports] of Object.entries(responsiveGroups)) {
+  // contract-test: direct surface=gui.web assertions=marketing-landing.hero-app-rail,marketing-landing.destinations,marketing-landing.language-theme,marketing-landing.independent-scroll
+  test(`responsive landing composition fits ${device} in English and German`, async ({ page }, testInfo) => {
+    test.setTimeout(150_000);
+    const proof = createVideoProofRuntime(responsiveProof, { device: device === 'phones' ? 'web-phone' : 'web-laptop', attach: testInfo.attach.bind(testInfo), captureFrame: () => page.screenshot() });
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    for (const { width, height } of viewports) {
+      await page.setViewportSize({ width, height });
+      await page.goto(preview(width, device === 'tablets' ? 'dark' : 'light'), { waitUntil: 'domcontentloaded' });
+      await waitForComponentPreview(page, 30_000);
+      await page.evaluate(() => document.fonts.ready.then(() => true));
+      for (const language of ['en', 'de']) {
+        const header = page.getByTestId('public-site-header');
+        const languageButton = header.getByTestId('landing-language-button');
+        await languageButton.click();
+        const panel = header.getByTestId('landing-language-panel');
+        const panelBox = (await panel.boundingBox())!;
+        expect(panelBox.x, 'Language popup stays inside the left viewport edge').toBeGreaterThanOrEqual(0);
+        expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(width);
+        await panel.getByRole('button', { name: language === 'en' ? 'English' : 'Deutsch', exact: true }).click();
+        await expect(languageButton).toBeFocused();
+        await expect(languageButton).toHaveText('');
+        await expect(languageButton).toHaveAttribute('aria-label', language === 'en' ? /English/ : /Deutsch/);
+        await expect(header.locator('.wordmark')).toBeVisible();
+        await expect(header.locator('.wordmark')).toHaveText('OpenMates');
+        await expect(header.locator('.wordmark')).toHaveCSS('font-size', '20px');
+        await expect(header.locator('.wordmark')).toHaveAttribute('href', `${APP}/`);
+        const appLink = header.getByTestId('landing-open-web-app');
+        await expect(appLink).toHaveText(language === 'en' ? 'Open Web App' : 'Web-App öffnen');
+        await expect(appLink).toHaveAttribute('href', `${APP}/`);
+        await expect(header.locator('.workspace-nav, [data-testid^="landing-nav-"]')).toHaveCount(0);
+        if (width >= 542) await expect(header.locator('.github-link')).toBeVisible();
+
+        // The long German social prompt catches wrapping defects that a short Events prompt misses.
+        const rail = page.getByTestId('landing-app-rail');
+        await rail.getByTestId('landing-rail-group').nth(1).locator('[data-app-id="social_media"]').evaluate((button: HTMLButtonElement) => button.click());
+        await expect(rail).toHaveAttribute('data-active-app', 'social_media');
+        await proof.assert('landing.responsive-fit', async () => {
+        const layout = await page.getByTestId('landing-page').evaluate(element => {
+          const rect = (selector: string) => element.querySelector(selector)!.getBoundingClientRect().toJSON();
+          const id = (name: string) => rect(`[data-testid="${name}"]`);
+          const title = element.querySelector<HTMLElement>('#hero-title')!;
+          const icon = element.querySelector<HTMLElement>('.rail-icon')!;
+          const header = element.querySelector('[data-testid="public-site-header"]')!;
+          const actionRects = [...header.querySelectorAll<HTMLElement>('.header-actions > *')]
+            .filter(node => getComputedStyle(node).display !== 'none').map(node => node.getBoundingClientRect().toJSON());
+          return {
+            hero: id('landing-hero'), ai: id('landing-hero-ai-icon'), title: rect('#hero-title'),
+            prompt: id('landing-prompt'), speed: id('landing-hero-speed'), rail: id('landing-app-rail'),
+            cue: id('landing-scroll-cue'), compose: id('landing-compose'), logo: rect('header .wordmark'),
+            actions: actionRects, titleFont: parseFloat(getComputedStyle(title).fontSize), iconSize: parseFloat(getComputedStyle(icon).width),
+            overflow: document.documentElement.scrollWidth > window.innerWidth,
+          };
+        });
+        expect(layout.overflow).toBe(false);
+        expect(layout.logo.x).toBeGreaterThanOrEqual(0);
+        expect(layout.logo.right).toBeLessThanOrEqual(layout.actions[0].left - 3);
+        for (let i = 0; i < layout.actions.length; i++) {
+          expect(layout.actions[i].right).toBeLessThanOrEqual(width);
+          if (i) expect(layout.actions[i - 1].right).toBeLessThanOrEqual(layout.actions[i].left);
+        }
+        const items = [layout.title, layout.prompt, layout.speed, layout.rail, layout.cue];
+        for (let i = 0; i < items.length; i++) {
+          expect(items[i].left).toBeGreaterThanOrEqual(layout.hero.left - 1);
+          expect(items[i].right).toBeLessThanOrEqual(layout.hero.right + 1);
+          if (i) expect(items[i - 1].bottom, `${width}x${height}: hero rows do not overlap`).toBeLessThanOrEqual(items[i].top + 1);
+        }
+        const shortLandscape = height <= 500 && width >= 500;
+        expect(layout.ai.top).toBeGreaterThanOrEqual(layout.hero.top - 1);
+        if (!shortLandscape) {
+          expect(layout.ai.bottom).toBeLessThanOrEqual(layout.title.top + 1);
+          expect(layout.title.top - layout.ai.bottom).toBeLessThanOrEqual(32);
+          const start = Math.min(layout.ai.top, layout.title.top);
+          const available = layout.compose.top - layout.hero.top;
+          expect((layout.cue.bottom - start) / available, 'The composition fills useful space on tall screens').toBeGreaterThan(0.5);
+          expect((start - layout.hero.top) / available, 'No giant empty area above the hero content').toBeLessThan(0.3);
+        }
+        expect(layout.cue.bottom).toBeLessThan(layout.compose.top - 3);
+        expect(layout.compose.bottom).toBeLessThanOrEqual(height);
+        expect(layout.titleFont).toBeLessThanOrEqual(112);
+        expect(layout.iconSize).toBeLessThanOrEqual(176);
+        if (width === 1024 && height === 1700) {
+          expect(layout.titleFont, 'Tall portrait desktop has a proportionate heading').toBeGreaterThanOrEqual(72);
+          expect(layout.iconSize).toBeGreaterThanOrEqual(140);
+        }
+        if (width >= 2560) {
+          expect(layout.titleFont).toBeGreaterThanOrEqual(90);
+          expect(layout.iconSize).toBeGreaterThanOrEqual(150);
+        }
+        });
+        await page.mouse.move(1, 1);
+        await proof.checkpoint('responsive');
+        await page.screenshot({ path: testInfo.outputPath(`responsive-${width}x${height}-${language}.png`) });
+      }
+    }
+    expect(errors).toEqual([]);
+    await proof.attach();
+  });
+}
