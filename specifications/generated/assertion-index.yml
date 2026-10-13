@@ -22106,7 +22106,7 @@ assertions:
       surface: gui.web
     - &id2816
       path: frontend/apps/web_app/tests/components/chat-history-loaded-memories.spec.ts
-      line: 41
+      line: 42
       name: binds a late receipt to its identified later turn
       surface: gui.web
     - &id2817

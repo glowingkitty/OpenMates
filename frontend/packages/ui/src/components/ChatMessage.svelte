@@ -3385,7 +3385,7 @@
         {/if}
       {/if}
 
-      <div class="chat-message-text">
+      <div class="chat-message-text" class:has-loaded-memories={loadedMemories.length > 0}>
         {#if activeHighlight && activeHighlightRect}
           <HighlightCommentPopover
             highlight={activeHighlight}
@@ -3919,7 +3919,7 @@
   @media (prefers-reduced-motion: reduce) { .assistant-response-active::after { animation: none; } }
   .transient-assistant-lane { width: 100%; }
   .assistant-response-transient { padding-block: var(--spacing-2) var(--spacing-3); }
-  .assistant-response-transient .chat-message-text { display: none; }
+  .assistant-response-transient .chat-message-text:not(.has-loaded-memories) { display: none; }
   .assistant-identity-row.transient { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); width: 100%; }
   .assistant-transient-thinking { display: inline-flex; align-items: center; gap: var(--spacing-2); grid-column: 2; color: var(--color-primary-start); white-space: nowrap; font-size: var(--font-size-small); }
   .assistant-response-status { display: flex; justify-content: center; align-items: center; gap: var(--spacing-2); color: var(--color-primary-start); font-size: var(--font-size-small); padding-top: var(--spacing-2); text-align: center; }

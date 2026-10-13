@@ -35,6 +35,7 @@ test('shows the loaded memory on a pending assistant row', async ({ page }) => {
   await expect(pending).toHaveCount(1);
   await expect(pending.getByTestId('assistant-activity-toggle')).toHaveAttribute('aria-expanded', 'true');
   await expect(pending.getByTestId('loaded-memory-pill')).toHaveText('Flowchart');
+  await expect(pending.getByTestId('loaded-memory-pill')).toBeVisible();
 });
 
 // contract-test: direct surface=gui.web assertions=app-memories.transparency.loaded-set
