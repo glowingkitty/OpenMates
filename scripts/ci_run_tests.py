@@ -60,6 +60,7 @@ CAPACITY_WORKLOAD_SPECS = frozenset({
     "storage-capacity-target.spec.ts", "storage-capacity-target-smoke.spec.ts",
 })
 TARGET_SMOKE_SPEC = "storage-capacity-target-smoke.spec.ts"
+RECOVERY_FAILURE_CASE_TITLE = "SDK reports a Project directory failure after durable epoch-one first Personal admission"
 ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
 TEAM_PORTABILITY_SPEC = "storage-team-portability.spec.ts"
 ARCHIVE_LIFECYCLE_SPEC = "storage-archive-lifecycle.spec.ts"
@@ -1189,6 +1190,45 @@ def _private_evidence_dir(name: str) -> Path:
     return destination
 
 
+def playwright_case_args(case_title: str) -> list[str]:
+    """Pass the approved exact title as a Playwright argument, never shell text."""
+    if not case_title:
+        return []
+    if case_title != RECOVERY_FAILURE_CASE_TITLE:
+        raise ValueError("Unknown recovery case title")
+    return ["--grep", re.escape(case_title) + "$"]
+
+
+def reported_playwright_case_title(report: dict) -> str | None:
+    """Read the one executed leaf title from Playwright JSON, not the request."""
+    titles: list[str] = []
+
+    def collect(suites: list) -> None:
+        for suite in suites:
+            if not isinstance(suite, dict):
+                continue
+            for spec in suite.get("specs", []):
+                if not isinstance(spec, dict) or not isinstance(spec.get("title"), str):
+                    continue
+                for test in spec.get("tests", []):
+                    if (isinstance(test, dict)
+                            and test.get("status") in {"expected", "unexpected", "flaky"}
+                            and isinstance(test.get("results"), list) and test["results"]):
+                        titles.append(spec["title"])
+            collect(suite.get("suites", []))
+
+    if not isinstance(report, dict) or not isinstance(report.get("suites"), list):
+        return None
+    collect(report["suites"])
+    return titles[0] if len(titles) == 1 else None
+
+
+def case_coverage_complete(executed: int, skipped: int, case_title: str,
+                           reported_case_title: str | None = None) -> bool:
+    return (bool(executed) and not skipped
+            and (not case_title or (executed == 1 and reported_case_title == case_title)))
+
+
 def run_e2e(
     specs: list[str],
     *,
@@ -1196,9 +1236,13 @@ def run_e2e(
     component=False,
     visual_smoke=False,
     results=None,
+    case_title="",
 ):
     if not specs:
         raise ValueError("An explicit nonempty spec batch is required")
+    if case_title and (specs != ["cli-recovery-discovery.spec.ts"] or artifact or component
+                       or visual_smoke or case_title != RECOVERY_FAILURE_CASE_TITLE):
+        raise ValueError("Case filter requires the exact recovery spec and approved test title")
     accountability_only = specs == [ACCOUNTABILITY_SPEC] and not (artifact or component or visual_smoke)
     node_probe_only = accountability_only or specs in ([TEAM_PORTABILITY_SPEC], [ARCHIVE_LIFECYCLE_SPEC], [TARGET_SMOKE_SPEC])
     if TEAM_PORTABILITY_SPEC in specs and specs != [TEAM_PORTABILITY_SPEC]:
@@ -1379,6 +1423,7 @@ def run_e2e(
                             "--reporter=json",
                             "--output",
                             f"test-results/ci-{index}",
+                            *playwright_case_args(case_title),
                         ],
                         cwd=WEB,
                         env=env,
@@ -1404,14 +1449,23 @@ def run_e2e(
                     + int(stats.get("unexpected", 0))
                     + int(stats.get("flaky", 0))
                 )
+                reported_case_title = reported_playwright_case_title(report) if case_title else None
+                selected_case_complete = case_coverage_complete(
+                    executed, stats.get("skipped", 0), case_title, reported_case_title,
+                )
                 results.append(
                     {
                         "spec": name,
                         "accounts": account_evidence,
-                        "exit_code": result.returncode if executed and not stats.get("skipped", 0) else 1,
-                        "coverage_complete": bool(executed) and not stats.get("skipped", 0),
+                        "exit_code": result.returncode if selected_case_complete else 1,
+                        "coverage_complete": selected_case_complete,
+                        "case_title": case_title,
+                        "reported_case_title": reported_case_title,
+                        "coverage_scope": "single-case" if case_title else "full-spec",
                         "stats": stats,
                         "error": ("Selected cases were skipped; coverage is incomplete" if stats.get("skipped", 0)
+                                  else "Case filter did not select exactly one test" if case_title and executed != 1
+                                  else "Playwright reported a different case title" if case_title and reported_case_title != case_title
                                   else None if executed else "No tests executed; skipped coverage is not a pass"),
                     }
                 )
@@ -2122,10 +2176,13 @@ def main():
     require_runner()
     RESULTS.mkdir(exist_ok=True)
     mode = os.environ["CI_TEST_MODE"]
+    case_title = os.environ.get("CI_CASE_TITLE", "")
     results = []
     error = None
     proof_dimensions = None
     try:
+        if case_title and mode != "e2e":
+            raise ValueError("Case filter requires E2E mode")
         proof_dimensions = configure_proof_dimensions()
         if mode in ("component", "e2e", "artifact", "visual-smoke"):
             reject_inherited_accounts()
@@ -2138,6 +2195,7 @@ def main():
                     artifact=mode == "artifact",
                     component=mode == "component",
                     results=results,
+                    **({"case_title": case_title} if case_title else {}),
                 )
         elif mode == "selfhost":
             reject_inherited_accounts()
@@ -2308,6 +2366,8 @@ def main():
         "environment": "github-isolated",
         "harness_commit": os.environ.get("CI_HARNESS_COMMIT"),
         "runtime_profile": mode,
+        "case_title": case_title,
+        "coverage_scope": "single-case" if case_title else "full-spec",
         "artifact_shared_dev_rejected": mode == "artifact" and not error,
         "proof_dimensions": proof_dimensions,
         "proof_profile": os.environ.get("PLAYWRIGHT_PROOF_VIDEO_PROFILE", ""),

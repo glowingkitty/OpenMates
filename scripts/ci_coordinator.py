@@ -34,6 +34,7 @@ ERROR_BACKOFF = 60
 UNCERTAIN_SECONDS = 600
 WORKFLOW = "isolated-tests.yml"
 ACTIVE = ("dispatching", "submitted", "running", "attention")
+RECOVERY_FAILURE_CASE_TITLE = "SDK reports a Project directory failure after durable epoch-one first Personal admission"
 TERMINAL = ("success", "failure", "cancelled")
 
 
@@ -242,6 +243,7 @@ class GitHub:
                     "candidate_patch_sha256": job.get("candidate_patch_sha256", ""),
                     "candidate_patch_url": job.get("candidate_patch_url", ""),
                     "specs_json": job["specs"],
+                    "case_title": job.get("case_title", ""),
                     "mode": job["mode"],
                     "dispatch_token": job["token"],
                     "proof_video_profile": job.get("proof_profile", ""),
@@ -318,6 +320,7 @@ class Queue:
                 "phase_updated": "REAL NOT NULL DEFAULT 0",
                 "ready_at": "REAL",
                 "capacity_configuration": "TEXT NOT NULL DEFAULT ''",
+                "case_title": "TEXT NOT NULL DEFAULT ''",
             }
             for name, definition in candidate_columns.items():
                 if name not in columns:
@@ -345,6 +348,7 @@ class Queue:
         candidate: dict | None = None,
         preparation: dict | None = None,
         capacity_configuration: dict | None = None,
+        case_title: str = "",
     ) -> dict:
         if not owner or not re.fullmatch(r"[0-9a-f]{40}", source):
             raise ValueError("Owner and full immutable source commit are required")
@@ -391,6 +395,9 @@ class Queue:
                 "candidate_patch_url": url,
                 "candidate_expires": expires,
             }
+        if case_title and (mode != "e2e" or specs != ["cli-recovery-discovery.spec.ts"]
+                           or case_title != RECOVERY_FAILURE_CASE_TITLE):
+            raise ValueError("Case filter requires the exact recovery spec and approved test title")
         if mode == "pytest":
             try:
                 from scripts.ci_pytest_targets import validate_pytest_targets
@@ -456,6 +463,8 @@ class Queue:
             identity.append(preparation)
         if proof_profile:
             identity.append(proof_profile)
+        if case_title:
+            identity.append({"case_title": case_title})
         key = hashlib.sha256(json.dumps(identity).encode()).hexdigest()
         now = time.time()
         with self.connect() as db:
@@ -494,7 +503,7 @@ class Queue:
                 if db.execute("SELECT 1 FROM jobs WHERE id=?", (key,)).fetchone():
                     key = hashlib.sha256(f"{key}:{uuid.uuid4().hex}".encode()).hexdigest()
             db.execute(
-                "INSERT OR IGNORE INTO jobs(id,owner,source,specs,mode,token,state,created,updated,proof_profile,candidate_base,candidate_tree,candidate_owner,candidate_patch_sha256,candidate_patch_url,candidate_expires) VALUES(?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?,?)",
+                "INSERT OR IGNORE INTO jobs(id,owner,source,specs,mode,token,state,created,updated,proof_profile,candidate_base,candidate_tree,candidate_owner,candidate_patch_sha256,candidate_patch_url,candidate_expires,case_title) VALUES(?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?,?,?)",
                 (
                     key,
                     owner,
@@ -512,6 +521,7 @@ class Queue:
                     candidate_values["candidate_patch_sha256"],
                     candidate_values["candidate_patch_url"],
                     candidate_values["candidate_expires"],
+                    case_title,
                 ),
             )
             if preparation:
@@ -538,8 +548,8 @@ class Queue:
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             replaced = db.execute(
-                "UPDATE jobs SET state='cancelled',phase='superseded before dispatch',updated=?,error='Replaced by a newer candidate for the same owner and check' WHERE owner=? AND source<>? AND specs=? AND mode=? AND proof_profile=? AND state='queued' AND sent IS NULL",
-                (time.time(), job["owner"], job["source"], job["specs"], job["mode"], job["proof_profile"]),
+                "UPDATE jobs SET state='cancelled',phase='superseded before dispatch',updated=?,error='Replaced by a newer candidate for the same owner and check' WHERE owner=? AND source<>? AND specs=? AND mode=? AND proof_profile=? AND case_title=? AND state='queued' AND sent IS NULL",
+                (time.time(), job["owner"], job["source"], job["specs"], job["mode"], job["proof_profile"], job["case_title"]),
             ).rowcount
             # A producer may be between creation and child attachment in another
             # submission. Do not infer that it is unused and cancel shared work.
@@ -843,8 +853,12 @@ def enqueue_submission(
     supersede: bool = True,
     prepared_builds: bool = False,
     capacity_configuration: dict | None = None,
+    case_title: str = "",
 ) -> list[dict]:
     """Split E2Es and optionally attach exact private shared preparation."""
+    if case_title and (mode != "e2e" or specs != ["cli-recovery-discovery.spec.ts"]
+                       or case_title != RECOVERY_FAILURE_CASE_TITLE):
+        raise ValueError("Case filter requires the exact recovery spec and approved test title")
     if prepared_builds and (source_root is None or mode not in ("e2e", "visual-smoke")):
         raise ValueError("Prepared builds require an E2E/visual source root")
     selections = list(specs) if mode == "pytest" else sorted(set(specs))
@@ -888,6 +902,7 @@ def enqueue_submission(
             candidate,
             preparation,
             capacity_configuration,
+            case_title,
         )
         for batch in batches
     ]
@@ -957,6 +972,7 @@ def main():
     submit.add_argument("--preview-url", action="append", default=[])
     submit.add_argument("--mode", choices=["backend-probe", "component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke"], default="e2e")
     submit.add_argument("--attempt", default="")
+    submit.add_argument("--case-title", default="", help="Exact approved recovery case title")
     submit.add_argument("--capacity-calibration-job", default="")
     submit.add_argument("--capacity-profile", choices=["accelerated", "burst", "sustained"])
     submit.add_argument("--capacity-duration-seconds", type=int, default=900)
@@ -1057,6 +1073,7 @@ def main():
             supersede=not args.keep_queued_generations,
             prepared_builds=args.prepared_builds and args.mode != "backend-probe",
             capacity_configuration=capacity_configuration,
+            case_title=args.case_title,
         )
         print_receipt(receipts[0] if len(receipts) == 1 else receipts, as_json=args.json)
     elif args.action == "prioritize":

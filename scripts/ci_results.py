@@ -220,6 +220,32 @@ def valid_backend_probe_receipt(report: dict, environment: dict, job: dict,
                     and services[name].get("running") is True for name in required))
 
 
+def valid_e2e_case_coverage(report: dict, job: dict) -> bool:
+    """A filtered green run covers one case and cannot credit a whole spec."""
+    selected_case = job.get("case_title") or ""
+    expected_scope = "single-case" if selected_case else "full-spec"
+    results = report.get("results")
+    if (report.get("case_title", "") != selected_case
+            or report.get("coverage_scope", "full-spec") != expected_scope):
+        return False
+    if not selected_case:
+        return True
+    if not (isinstance(results, list) and len(results) == 1
+            and isinstance(results[0], dict)):
+        return False
+    item = results[0]
+    stats = item.get("stats")
+    return (item.get("case_title") == selected_case
+            and item.get("reported_case_title") == selected_case
+            and item.get("coverage_scope") == "single-case"
+            and item.get("coverage_complete") is True
+            and isinstance(stats, dict)
+            and all(type(stats.get(name, 0)) is int and stats.get(name, 0) >= 0
+                    for name in ("expected", "unexpected", "flaky", "skipped"))
+            and sum(stats.get(name, 0) for name in ("expected", "unexpected", "flaky")) == 1
+            and stats.get("skipped", 0) == 0)
+
+
 def attach_cleanup(result: dict, job: dict, directory: Path) -> dict:
     """Expose run-bound teardown evidence, including cached historical receipts.
 
@@ -381,6 +407,8 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
                 raise RuntimeError(
                     "Result does not cover the exact requested spec inventory"
                 )
+            if not valid_e2e_case_coverage(report, job):
+                raise RuntimeError("Result case coverage differs from the requested filter")
             if job.get("mode") == "component" and (
                 report.get("runtime_profile") != "component"
                 or environment_data.get("frontend", {}).get("renderer")
@@ -407,6 +435,8 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
             "state": job["state"],
             "mode": job["mode"],
             "selected_specs": json.loads(job["specs"]),
+            "selected_case_title": job.get("case_title") or "",
+            "coverage_scope": "single-case" if job.get("case_title") else "full-spec",
             "harness_commit": expected_harness_commit,
             "runner_jobs": [
                 {
