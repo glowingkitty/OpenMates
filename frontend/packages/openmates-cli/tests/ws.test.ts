@@ -261,6 +261,95 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     } finally { client.close(); }
   });
 
+  // contract-test: supporting surface=cli assertions=app-skills.assistant.same-turn-completion,app-skills.assistant.bounded-private-failure
+  it("waits past ordinary inactivity for a bounded same-turn skill and accepts its later final", async () => {
+    const chatId = "same-turn-chat";
+    const userMessageId = "same-turn-user";
+    const events: StreamEvent[] = [];
+    server.once("connection", (socket) => {
+      const send = (type: string, payload: Record<string, unknown>) => socket.send(JSON.stringify({ type, payload }));
+      const base = { chat_id: chatId, user_message_id: userMessageId, message_id: "logical-assistant" };
+      setTimeout(() => {
+        send("ai_message_update", { ...base, task_id: "initial-delivery", full_content_so_far: "Working on it.", is_final_chunk: false });
+        send("ai_message_update", { ...base, task_id: "initial-delivery", full_content_so_far: "Working on it.", is_final_chunk: false,
+          awaiting_async_skill_continuation: true, waiting_for_skill_completion: true, skill_deadline_at: Math.floor(Date.now() / 1000) + 3 });
+      }, 10);
+      setTimeout(() => send("ai_typing_started", { chat_id: chatId, user_message_id: userMessageId,
+        message_id: "resume-delivery", is_async_skill_continuation: true }), 170);
+      setTimeout(() => {
+        send("ai_message_update", { ...base, task_id: "resume-delivery", is_async_skill_continuation: true,
+          original_user_message_id: userMessageId, full_content_so_far: "The result is ready.", is_final_chunk: true });
+        send("post_processing_completed", { chat_id: chatId });
+      }, 195);
+    });
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    try {
+      await client.open();
+      const result = await client.collectAiResponse(userMessageId, chatId, { timeoutMs: 70, onStream: event => events.push(event) });
+      assert.equal(result.status, "completed");
+      assert.equal(result.messageId, "logical-assistant");
+      assert.equal(result.taskId, "resume-delivery");
+      assert.equal(result.content, "The result is ready.");
+      assert.deepEqual(events.map(event => [event.kind, event.content]), [
+        ["chunk", "Working on it."], ["typing", "Working on it."], ["done", "The result is ready."],
+      ]);
+    } finally { client.close(); }
+  });
+
+  // contract-test: supporting surface=cli assertions=app-skills.assistant.same-turn-completion,app-skills.assistant.bounded-private-failure
+  it("does not extend the current turn for foreign or malformed skill waits", async () => {
+    for (const invalid of [
+      { chat_id: "other-chat" }, { user_message_id: "other-user" },
+      { message_id: "other-assistant" }, { task_id: "other-delivery" },
+      { skill_deadline_at: "later" }, { skill_deadline_at: Number.POSITIVE_INFINITY },
+      { skill_deadline_at: Number.MAX_VALUE },
+      { skill_deadline_at: Math.floor(Date.now() / 1000) - 10 },
+    ]) {
+      const chatId = "invalid-wait-chat";
+      const userMessageId = "invalid-wait-user";
+      server.once("connection", socket => {
+        const send = (payload: Record<string, unknown>) => socket.send(JSON.stringify({ type: "ai_message_update", payload }));
+        setTimeout(() => {
+          send({ chat_id: chatId, user_message_id: userMessageId, message_id: "logical-assistant",
+            task_id: "initial-delivery", full_content_so_far: "Still working.", is_final_chunk: false });
+          send({ chat_id: chatId, user_message_id: userMessageId, message_id: "logical-assistant",
+            task_id: "initial-delivery", full_content_so_far: "Still working.", is_final_chunk: false,
+            waiting_for_skill_completion: true, skill_deadline_at: Math.floor(Date.now() / 1000) + 3, ...invalid });
+        }, 5);
+      });
+      const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+      try {
+        await client.open();
+        await assert.rejects(client.collectAiResponse(userMessageId, chatId, { timeoutMs: 65 }), /Timed out waiting for AI response/);
+      } finally { client.close(); }
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=app-skills.assistant.same-turn-completion,app-skills.assistant.bounded-private-failure
+  it("restores ordinary inactivity after a resumed same-turn frame", async () => {
+    const chatId = "resumed-inactivity-chat";
+    const userMessageId = "resumed-inactivity-user";
+    server.once("connection", socket => {
+      const send = (payload: Record<string, unknown>) => socket.send(JSON.stringify({ type: "ai_message_update", payload }));
+      const base = { chat_id: chatId, user_message_id: userMessageId, message_id: "logical-assistant" };
+      setTimeout(() => {
+        send({ ...base, task_id: "initial-delivery", full_content_so_far: "Started.", is_final_chunk: false });
+        send({ ...base, task_id: "initial-delivery", full_content_so_far: "Started.", is_final_chunk: false,
+          waiting_for_skill_completion: true, skill_deadline_at: Math.floor(Date.now() / 1000) + 3 });
+      }, 5);
+      setTimeout(() => send({ ...base, task_id: "resume-delivery", is_async_skill_continuation: true,
+        full_content_so_far: "Resumed.", is_final_chunk: false }), 125);
+    });
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    try {
+      await client.open();
+      const started = Date.now();
+      await assert.rejects(client.collectAiResponse(userMessageId, chatId, { timeoutMs: 65 }), /Timed out waiting for AI response/);
+      assert.ok(Date.now() - started >= 125, "pause must keep the collector alive until resume");
+      assert.ok(Date.now() - started < 1_000, "resumed inactivity must expire before the skill deadline");
+    } finally { client.close(); }
+  });
+
   // contract-test: supporting surface=cli assertions=chats.streaming.progressive-presentation,chats.streaming.ordered-final
   it("keeps legacy typing task IDs and accepts matching camel case user IDs", async () => {
     const chatId = "typing-legacy-chat";

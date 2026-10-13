@@ -91,3 +91,22 @@ async def test_handoff_keeps_original_project_activation_fence():
     assert store.project_binding(reference) == ('project', 'activation-original')
     store.revoke(owner_id='owner', chat_id='chat')
     assert store.project_binding(reference) is None
+
+
+@pytest.mark.asyncio
+async def test_long_pending_same_turn_handoff_is_not_silently_evicted_and_can_release():
+    now = [100.0]
+    store, encryption = TransientContextHandoffStore(clock=lambda: now[0]), Encryption()
+    args = dict(owner_id='owner', chat_id='chat', turn_id='turn',
+                encryption=encryption, vault_key_id='key')
+    fields = {'same_turn_checkpoint': {'handoff_ttl_seconds': 5400}}
+    references = [await store.seal(**args, request_id=str(index), fields=fields)
+                  for index in range(256)]
+    assert all(references)
+    assert await store.seal(**args, request_id='overflow', fields=fields) is None
+    assert await store.open(references[0], **args, request_id='0') == fields
+    assert store.release(references[0], owner_id='owner', chat_id='chat',
+                         turn_id='turn', request_id='0')
+    assert await store.seal(**args, request_id='replacement', fields=fields)
+    now[0] = 5501
+    assert await store.open(references[1], **args, request_id='1') is None

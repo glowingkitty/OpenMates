@@ -1,0 +1,44 @@
+schema_version: 2
+profile: concise
+id: landing-example-reliability
+title: Landing example quality and reliable skill completion
+goal: Landing page improvement
+status: implementing
+scope:
+  - All example chats selected by the landing-page header and the related bugs in the user's pasted mindmap.
+  - Same-turn text skill completion, generated-media parent/child graphs and guaranteed visible output previews.
+  - Social media images and original formatting; Doctolib preview provider; Code mate, screenshots and follow-ups.
+  - Real Web child research, natural air-fryer shopping trial, vegetarian recipe search with recipe embeds.
+  - Images, audio and music visible results; original user video embed; Books, Design and Electronics icons.
+  - Plural 3D-model landing request; Politics first substantive response; reject and remove broken public examples.
+  - Origin-aware Apps links, active focus details, subchat close navigation and iPad multi-tab stability.
+decisions:
+  - User approved all three exact Specification reviews and instructed that scoped Specification updates in this chat must not require another approval request.
+  - User approved the proposed architecture and implementation on 2026-10-13; voice implementation is deferred until the rest is implemented.
+  - Background provider jobs remain; text inference suspends and resumes the exact tool loop after its complete required result batch terminates.
+  - A single registered media batch producer owns one invocation parent, stable output child IDs and one final producer manifest.
+  - Successful media outputs remain visible inline; terminal errors are honest and paid work is never regenerated automatically.
+  - Private inference checkpoints use existing encrypted transient context boundaries and finite deadlines.
+  - New public examples come from real CLI conversations after underlying fixes; no synthetic transcript repair.
+verification:
+  required:
+    - Focused backend, converter, CLI and frontend unit/lint checks for touched logic.
+    - Exact-source isolated component checks before related browser E2E checks.
+    - Text completion, multi-output media, navigation, actual screenshot loading and concurrent-tab reload coverage.
+    - Actual WebKit iPad multi-tab CI evidence; personal dev test account smoke after scoped deployment.
+    - Real dev CLI content review and deployed public phone/laptop preview/fullscreen review for replacement examples.
+  notes:
+    - Chromium touch emulation alone is not iPad Safari crash proof.
+    - Existing successful recordings are uploaded and only latest relevant recordings delivered.
+task_tracking: OpenMates Tasks linked to codex:01a13630-3aed-7ae2-943e-ac86f4c45cb9 own status and dependencies.
+remaining:
+  - Run exact-source isolated component checks, backend integration checks and related browser flows, including actual WebKit landing-tab reload coverage.
+  - Deploy the tested underlying fixes to dev and coordinate the required API, worker and Directus schema refresh with an explicit runtime target and lease.
+  - Create and inspect real CLI replacement conversations in the isolated validation Project; publish only reviewed public media from the owned source embeds.
+  - Admit the new examples through source and browser checks, remove superseded broken examples, and verify deployed public pages plus personal-account iPad behavior.
+local_verification:
+  - Ordered completion, generated refs, social callbacks and media graph checks passed in focused Python tests.
+  - All 133 Directus recovery operation tests passed; screenshot capture and reviewed asset publisher checks passed.
+  - CLI WebSocket wait checks, example conversion, ref registration, origin navigation and user spacing checks passed.
+  - Generated media fullscreen resolver checks, focused Svelte compilation and ESLint passed; all 21 locale files validated.
+  - Whole-app type checks and dependency-heavy backend checks remain for isolated CI; current public examples are not newly admitted or replaced.

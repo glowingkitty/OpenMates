@@ -60,6 +60,22 @@ CORS_ENABLED_BUCKETS = [
 
 # S3 bucket configurations
 BUCKETS = {
+    # Explicitly reviewed demo assets only; private source assets stay encrypted.
+    # The internal publisher uses immutable content-addressed keys in this
+    # existing public bucket, without creating a public upload endpoint.
+    'public_example_media': {
+        'name': 'openmates-public-examples',
+        'dev_name': 'dev-openmates-public-examples',
+        'allowed_types': [
+            'image/png', 'image/jpeg', 'image/webp', 'image/svg+xml',
+            'audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/ogg', 'audio/mp4',
+            'video/mp4', 'video/webm', 'model/gltf-binary', 'model/gltf+json',
+        ],
+        'max_size': 100 * 1024 * 1024,
+        'access': 'public-read',
+        'lifecycle_policy': None,
+        'cache_control': 'public, max-age=31536000, immutable',
+    },
     'public_example_speech': {
         'name': 'openmates-public-examples',
         'dev_name': 'dev-openmates-public-examples',

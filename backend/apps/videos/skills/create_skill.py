@@ -55,6 +55,7 @@ class CreateSkill(BaseSkill):
         user_vault_key_id: Optional[str] = None,
         external_request: bool = False,
         team_id: Optional[str] = None,
+        same_turn_batch_id: Optional[str] = None,
         **_: Any,
     ) -> Dict[str, Any]:
         if not self.celery_producer:
@@ -85,6 +86,7 @@ class CreateSkill(BaseSkill):
             "auto_started": True,
             "render_id": render_id,
             "external_request": external_request,
+            **({"same_turn_batch_id": same_turn_batch_id} if same_turn_batch_id else {}),
             **({"team_id": team_id} if team_id else {}),
         }
 

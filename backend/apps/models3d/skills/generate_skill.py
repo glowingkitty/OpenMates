@@ -161,7 +161,9 @@ class GenerateSkill(BaseSkill):
             "app_id": self.app_id,
             "skill_id": self.skill_id,
             "embed_id": embed_id,
+            **({"same_turn_batch_id": kwargs["same_turn_batch_id"]} if kwargs.get("same_turn_batch_id") else {}),
         }
+        task_args["requests"] = [{key: value for key, value in task_args.items() if key != "requests"}]
         try:
             task_id = await execute_skill_via_celery(
                 app_id=self.app_id,

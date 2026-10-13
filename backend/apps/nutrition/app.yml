@@ -52,6 +52,13 @@ embed_types:
     icon: nutrition
     gradient_var: "--color-app-nutrition"
     i18n_namespace: embeds.nutrition.search_recipes
+instructions:
+  - instruction: |
+      When recommending selected recipes from nutrition.search_recipes,
+      include each recommended recipe using its returned inline embed_ref so
+      the user can see the recipe card, image, ingredients and instructions.
+      Keep selected recipes together where useful. Do not force every fetched
+      candidate into the answer or expose raw embed IDs.
 skills:
   # -----------------------------------------------------------------------
   # Search Recipes — search Edamam recipes by query and nutrition filters

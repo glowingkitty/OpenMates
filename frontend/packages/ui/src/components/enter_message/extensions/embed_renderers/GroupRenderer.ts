@@ -56,6 +56,8 @@ import TravelConnectionEmbedPreview from "../../../embeds/travel/TravelConnectio
 import TravelStayEmbedPreview from "../../../embeds/travel/TravelStayEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
 import Model3DGenerateEmbedPreview from "../../../embeds/models3d/Model3DGenerateEmbedPreview.svelte";
+import GeneratedMediaGroupEmbedPreview from "../../../embeds/GeneratedMediaGroupEmbedPreview.svelte";
+import { isGeneratedMediaParent } from "../../../embeds/generatedMediaGroup";
 import Model3DSearchEmbedPreview from "../../../embeds/models3d/Model3DSearchEmbedPreview.svelte";
 import Model3DResultEmbedPreview from "../../../embeds/models3d/Model3DResultEmbedPreview.svelte";
 import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
@@ -103,6 +105,7 @@ import BusinessTrademarkSearchEmbedPreview from "../../../embeds/business/Busine
 import BusinessCompanyFinancialResultEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte";
 import FinanceCheckAccountsEmbedPreview from "../../../embeds/finance/FinanceCheckAccountsEmbedPreview.svelte";
 import GenericAppSkillEmbedPreview from "../../../embeds/app_skill/GenericAppSkillEmbedPreview.svelte";
+import { embedPreviewRegistry } from "../../../../services/embedPreviewRegistry";
 import { normalizeFinanceOverview } from "../../../embeds/finance/financeCheckAccountsContent";
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
@@ -334,6 +337,16 @@ export class GroupRenderer implements EmbedRenderer {
 
   constructor() {
     this.individualMounters = new Map<string, IndividualMounter>([
+      ["images-generated-image", (item, embedData, decodedContent, content) =>
+        this.renderGeneratedMediaComponent(item, embedData, decodedContent, content)],
+      ["audio-generated-audio", (item, embedData, decodedContent, content) =>
+        this.renderGeneratedMediaComponent(item, embedData, decodedContent, content)],
+      ["music-generated-music", (item, embedData, decodedContent, content) =>
+        this.renderGeneratedMediaComponent(item, embedData, decodedContent, content)],
+      ["videos-generated-video", (item, embedData, decodedContent, content) =>
+        this.renderGeneratedMediaComponent(item, embedData, decodedContent, content)],
+      ["models3d-generated-model", (item, embedData, decodedContent, content) =>
+        this.renderGeneratedMediaComponent(item, embedData, decodedContent, content)],
       [
         "web-website",
         (item, embedData, decodedContent, content) =>
@@ -610,6 +623,30 @@ export class GroupRenderer implements EmbedRenderer {
           // Registry not available (e.g. in test environment) — skip check
         });
     }
+  }
+
+  private async renderGeneratedMediaComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const resolved = await embedPreviewRegistry.resolve({
+      embedId,
+      embedData: (embedData ?? { type: item.type, status: item.status }) as Record<string, unknown>,
+      decodedContent: (decodedContent ?? {}) as Record<string, unknown>,
+      onFullscreen: () => this.openFullscreen(item, embedData, decodedContent),
+    });
+    if (!resolved || !content.isConnected) return;
+    const existing = mountedComponents.get(content);
+    if (existing) unmount(existing);
+    disposeEmbedTree(content, false);
+    content.innerHTML = "";
+    const component = mount(resolved.component as Parameters<typeof mount>[0], {
+      target: content, props: resolved.props,
+    });
+    mountedComponents.set(content, component);
   }
 
   private appendLearningModeShortenedNotice(
@@ -1735,6 +1772,24 @@ export class GroupRenderer implements EmbedRenderer {
     );
 
     try {
+      if (isGeneratedMediaParent(appId, skillId, decodedContent)) {
+        const parentStatus = decodedContent?.status === "error" ? "error" : status;
+        const component = mount(GeneratedMediaGroupEmbedPreview, {
+          target,
+          props: {
+            id: embedId, appId, skillId, status: parentStatus,
+            resultCount, childEmbedIds,
+            error: decodedContent?.error || "", taskId,
+            isMobile: false,
+            onFullscreen: () => this.openFullscreen(item, embedData, {
+              ...fullscreenContent, status: parentStatus,
+            }),
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
       if (appId === "web" && skillId === "search") {
         const webResultCount = typeof decodedContent?.result_count === "number"
           ? decodedContent.result_count
@@ -6406,6 +6461,7 @@ export class GroupRenderer implements EmbedRenderer {
           address: (decodedContent?.address as string) || undefined,
           insurance: (decodedContent?.insurance as string) || undefined,
           telehealth: (decodedContent?.telehealth as boolean) || false,
+          providerPlatform: (decodedContent?.provider_platform as string) || undefined,
           status,
           isMobile: false,
           onFullscreen: () =>

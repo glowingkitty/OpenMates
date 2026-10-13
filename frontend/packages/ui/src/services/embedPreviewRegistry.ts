@@ -1,6 +1,7 @@
 import { EMBED_CHILD_TYPE_MAP, normalizeEmbedType } from '../data/embedRegistry.generated';
 import { searchResultImageUrl } from '../utils/searchPreviewImages';
 import { appsResultPresentationContent } from '../utils/appsResultRequestFields';
+import { generatedMediaChildIds, isGeneratedMediaParent } from '../components/embeds/generatedMediaGroup';
 
 /**
  * embedPreviewRegistry.ts
@@ -621,6 +622,7 @@ const imageGenerateResolver: PreviewResolver = async ({
       files: decodedContent.files || embedData.files || undefined,
       aesKey: decodedContent.aes_key || embedData.aes_key || "",
       aesNonce: decodedContent.aes_nonce || embedData.aes_nonce || "",
+      previewImageUrl: decodedContent.previewImageUrl || decodedContent.preview_image_url || embedData.previewImageUrl || "",
       status: normalizeStatus(embedData.status),
       error: decodedContent.error || embedData.error || "",
       isMobile: false,
@@ -630,6 +632,81 @@ const imageGenerateResolver: PreviewResolver = async ({
 };
 resolvers.set("app:images:generate", imageGenerateResolver);
 resolvers.set("app:images:generate_draft", imageGenerateResolver);
+resolvers.set("images-generated-image", imageGenerateResolver);
+
+resolvers.set("audio-generated-audio", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import('../components/embeds/audio/AudioGenerateEmbedPreview.svelte');
+  return { component, props: {
+    id: embedId, content: decodedContent,
+    skillId: decodedContent.skill_id === 'speak' ? 'speak' : 'generate',
+    previewAudioUrl: decodedContent.previewAudioUrl ?? decodedContent.preview_audio_url,
+    status: normalizeStatus(embedData.status ?? decodedContent.status), onFullscreen,
+  } };
+});
+
+resolvers.set("music-generated-music", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import('../components/embeds/music/MusicGenerateEmbedPreview.svelte');
+  return { component, props: {
+    id: embedId, prompt: decodedContent.prompt, mode: decodedContent.mode,
+    model: decodedContent.model, durationSeconds: decodedContent.duration_seconds,
+    s3BaseUrl: decodedContent.s3_base_url, files: decodedContent.files,
+    aesKey: decodedContent.aes_key, aesNonce: decodedContent.aes_nonce,
+    previewAudioUrl: decodedContent.previewAudioUrl ?? decodedContent.preview_audio_url,
+    status: normalizeStatus(embedData.status ?? decodedContent.status), onFullscreen,
+  } };
+});
+
+resolvers.set("videos-generated-video", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import('../components/embeds/videos/VideoGenerateEmbedPreview.svelte');
+  return { component, props: {
+    id: embedId, prompt: decodedContent.prompt, model: decodedContent.model,
+    durationSeconds: decodedContent.duration_seconds, resolution: decodedContent.resolution,
+    s3BaseUrl: decodedContent.s3_base_url, files: decodedContent.files,
+    aesKey: decodedContent.aes_key, aesNonce: decodedContent.aes_nonce,
+    previewVideoUrl: decodedContent.previewVideoUrl ?? decodedContent.preview_video_url,
+    previewImageUrl: decodedContent.previewImageUrl ?? decodedContent.preview_image_url,
+    status: normalizeStatus(embedData.status ?? decodedContent.status), onFullscreen,
+  } };
+});
+
+resolvers.set("models3d-generated-model", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import('../components/embeds/models3d/Model3DGenerateEmbedPreview.svelte');
+  return { component, props: {
+    id: embedId, prompt: decodedContent.prompt, providerModel: decodedContent.provider_model,
+    posterUrl: decodedContent.posterUrl ?? decodedContent.poster_url, s3BaseUrl: decodedContent.s3_base_url,
+    files: decodedContent.files, aesKey: decodedContent.aes_key,
+    status: normalizeStatus(embedData.status ?? decodedContent.status), onFullscreen,
+  } };
+});
+
+// An app-skill-use generation parent has no media file of its own. Resolve it
+// as a group card; concrete generated_* children keep their leaf previews.
+for (const [appId, skillIds, leafKey] of [
+  ['images', ['generate', 'generate_draft', 'vectorize'], 'images-generated-image'],
+  ['audio', ['generate', 'speak'], 'audio-generated-audio'],
+  ['music', ['generate'], 'music-generated-music'],
+  ['videos', ['generate'], 'videos-generated-video'],
+  ['models3d', ['generate'], 'models3d-generated-model'],
+] as const) {
+  const leafResolver = resolvers.get(leafKey);
+  for (const skillId of skillIds) {
+    resolvers.set(`app:${appId}:${skillId}`, async (ctx) => {
+      if (!isGeneratedMediaParent(appId, skillId, ctx.decodedContent)) {
+        return leafResolver ? leafResolver(ctx) : null;
+      }
+      const { default: component } = await import('../components/embeds/GeneratedMediaGroupEmbedPreview.svelte');
+      return { component, props: {
+        id: ctx.embedId, appId, skillId,
+        status: ctx.decodedContent.status === 'error' ? 'error'
+          : normalizeStatus(ctx.embedData.status ?? ctx.decodedContent.status),
+        resultCount: typeof ctx.decodedContent.result_count === 'number' ? ctx.decodedContent.result_count : undefined,
+        childEmbedIds: generatedMediaChildIds(ctx.decodedContent),
+        error: typeof ctx.decodedContent.error === 'string' ? ctx.decodedContent.error : undefined,
+        onFullscreen: ctx.onFullscreen,
+      } };
+    });
+  }
+}
 
 // ── Direct / child: design icon result ───────────────────────────────────────
 

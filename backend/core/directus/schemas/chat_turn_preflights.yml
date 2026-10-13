@@ -68,6 +68,18 @@ chat_turn_preflights:
     inference_task_id:
       type: uuid
       nullable: true
+    async_pause_step_id:
+      type: string
+      length: 128
+      nullable: true
+      note: "Content-free identity of the currently suspended provider-loop step"
+    async_pause_deadline_at:
+      type: datetime
+      nullable: true
+    async_current_delivery_task_id:
+      type: uuid
+      nullable: true
+      note: "Celery delivery currently authorized for this stable inference identity"
     billing_identity:
       type: uuid
       nullable: true

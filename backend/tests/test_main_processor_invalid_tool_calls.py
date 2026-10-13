@@ -404,6 +404,10 @@ async def _run_mocked_protocol_guard_main_processor(
         is_sub_chat_continuation=False,
         is_async_skill_continuation=False,
         awaiting_async_skill_continuation=False,
+        auto_speak_response=False,
+        same_turn_batch_id=None,
+        same_turn_slots=[],
+        same_turn_checkpoint=None,
         is_external=False,
         mate_id="mate-1",
         chat_has_title=True,
@@ -472,6 +476,44 @@ async def _run_mocked_protocol_guard_main_processor(
         )
     ]
     return output, calls
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_argument_normalization_failure_returns_tool_error_without_dispatch(monkeypatch) -> None:
+    """An early validation error must reach the model without starting a skill."""
+    from toon_format import decode
+
+    dispatched = AsyncMock()
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", dispatched)
+    monkeypatch.setattr(
+        main_processor, "_normalize_skill_arguments",
+        lambda **_kwargs: (_ for _ in ()).throw(ValueError("Malformed skill arguments")),
+    )
+    tool = {"type": "function", "function": {"name": "web-search", "description": "Search web."}}
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [
+            [{"fake_google_tool_call": "web-search", "arguments": {"query": "test"}, "tool_call_id": "call-1"}],
+            ["I could not search because the arguments were invalid."],
+        ],
+        generated_tools=[tool],
+        discovered_apps_metadata={
+            "web": SimpleNamespace(skills=[SimpleNamespace(
+                id="search", parallel_safe=False, exclude_fields_for_llm=None, pricing=None,
+                tool_schema={"type": "object", "properties": {"query": {"type": "string"}}},
+            )], instructions=[], focuses=[]),
+        },
+        preprocessing_overrides={"selected_app_ids": ["web"], "relevant_app_skills": ["web-search"]},
+    )
+
+    dispatched.assert_not_awaited()
+    assert len(calls) == 2
+    tool_results = [message for message in calls[1]["message_history"]
+                    if message.get("role") == "tool" and message.get("tool_call_id") == "call-1"]
+    assert len(tool_results) == 1
+    assert decode(tool_results[0]["content"])["status"] == "error"
+    assert "Malformed skill arguments" in tool_results[0]["content"]
+    assert "I could not search" in "".join(chunk for chunk in output if isinstance(chunk, str))
 
 
 # contract-test: supporting surface=rest_api assertions=chat-queued-followups.steering.safe-boundary

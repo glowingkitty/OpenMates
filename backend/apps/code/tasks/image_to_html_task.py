@@ -109,6 +109,7 @@ async def _async_image_to_html(
     message_id = arguments.get("message_id")
     embed_id = str(arguments.get("embed_id") or uuid.uuid4())
     max_correction_passes = int(arguments.get("max_correction_passes") or 0)
+    completion_attempted = False
 
     if not user_id:
         raise ValueError("code.image_to_html requires a user_id")
@@ -194,7 +195,7 @@ async def _async_image_to_html(
             log_prefix=log_prefix,
         )
 
-        await _finalize_code_embed(
+        code_embed_ref = await _finalize_code_embed(
             task,
             embed_id=embed_id,
             html=generated.html,
@@ -209,10 +210,28 @@ async def _async_image_to_html(
             latest_screenshot=screenshot_metadata,
             log_prefix=log_prefix,
         )
+        if chat_id and message_id and not arguments.get("external_request") and not code_embed_ref:
+            raise RuntimeError("Image-to-HTML output has no finalized code embed")
+
+        if chat_id and message_id and not arguments.get("external_request"):
+            completion_attempted = True
+            await _dispatch_image_to_html_completion(
+                task,
+                arguments=arguments,
+                completed_results=[{
+                    "status": "finished", "request_index": 0,
+                    "embed_id": embed_id, "embed_ref": code_embed_ref,
+                    "output_embed_refs": [code_embed_ref],
+                    "model": usage.get("model"),
+                    "screenshot_available": screenshot_metadata is not None,
+                }],
+                result_status="finished",
+            )
 
         return {
             "status": "finished",
             "embed_id": embed_id,
+            "embed_ref": code_embed_ref,
             "user_id_hash": user_id_hash,
             **({"team_id": arguments["team_id"]} if arguments.get("team_id") else {}),
             "html": generated.html,
@@ -225,11 +244,23 @@ async def _async_image_to_html(
             task,
             embed_id=embed_id,
             chat_id=str(chat_id or ""),
+            message_id=str(message_id or ""),
             user_id=user_id,
             user_id_hash=_hash_value(user_id),
             user_vault_key_id=user_vault_key_id,
             log_prefix=log_prefix,
         )
+        if chat_id and message_id and not arguments.get("external_request") and not completion_attempted:
+            await _dispatch_image_to_html_completion(
+                task,
+                arguments=arguments,
+                completed_results=[{
+                    "status": "error", "request_index": 0,
+                    "embed_id": embed_id,
+                    "error": "Image-to-HTML generation could not finish",
+                }],
+                result_status="failed",
+            )
         raise
     finally:
         cleanup = getattr(task, "cleanup_services", None)
@@ -397,6 +428,31 @@ async def _store_latest_screenshot(
     return {**files_metadata[SCREENSHOT_VARIANT], "download_url": download_url}
 
 
+async def _dispatch_image_to_html_completion(
+    task: BaseServiceTask,
+    *,
+    arguments: dict[str, Any],
+    completed_results: list[dict[str, Any]],
+    result_status: str,
+) -> None:
+    from backend.apps.ai.tasks.async_skill_continuation import dispatch_async_skill_continuation
+
+    await dispatch_async_skill_continuation(
+        cache_service=task._cache_service,
+        async_task_id=task.request.id,
+        completed_results=completed_results,
+        result_status=result_status,
+        request_metadata={
+            "app_id": "code", "skill_id": "image_to_html",
+            "user_id": str(arguments["user_id"]),
+            "chat_id": str(arguments["chat_id"]),
+            "message_id": str(arguments["message_id"]),
+            **({"same_turn_batch_id": str(arguments["same_turn_batch_id"])}
+               if arguments.get("same_turn_batch_id") else {}),
+        },
+    )
+
+
 async def _finalize_code_embed(
     task: BaseServiceTask,
     *,
@@ -412,9 +468,9 @@ async def _finalize_code_embed(
     correction_passes_used: int,
     latest_screenshot: dict[str, Any] | None,
     log_prefix: str,
-) -> None:
+) -> str | None:
     if not chat_id or not message_id or not user_vault_key_id:
-        return
+        return None
     from backend.core.api.app.services.embed_service import EmbedService
 
     embed_service = EmbedService(task._cache_service, task._directus_service, task._encryption_service)
@@ -441,9 +497,18 @@ async def _finalize_code_embed(
             },
         },
         log_prefix=log_prefix,
+        final_producer_output=True,
     )
     if not updated:
-        logger.warning("%s Code embed %s was not found for image-to-HTML finalization", log_prefix, embed_id)
+        raise RuntimeError("Image-to-HTML code embed could not be finalized")
+    from toon_format import decode as toon_decode
+
+    final_toon = await embed_service._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+    final_content = toon_decode(final_toon) if final_toon else None
+    embed_ref = final_content.get("embed_ref") if isinstance(final_content, dict) else None
+    if not isinstance(embed_ref, str) or not embed_ref:
+        raise RuntimeError("Finalized image-to-HTML code embed has no reference")
+    return embed_ref
 
 
 async def _mark_code_embed_failed(
@@ -451,17 +516,56 @@ async def _mark_code_embed_failed(
     *,
     embed_id: str,
     chat_id: str,
+    message_id: str,
     user_id: str,
     user_id_hash: str,
     user_vault_key_id: str,
     log_prefix: str,
 ) -> None:
+    from backend.shared.python_utils.chat_recovery_context import (
+        RequiredRecoveryOutputError, active_verified_output_producer,
+    )
+
+    producer = active_verified_output_producer.get()
+    registered = producer is not None and producer.classification == "registered_ai"
     if not chat_id or not user_vault_key_id:
+        if registered:
+            raise RequiredRecoveryOutputError("Failed code output cannot seal without chat vault context")
         return
     try:
         from backend.core.api.app.services.embed_service import EmbedService
 
         embed_service = EmbedService(task._cache_service, task._directus_service, task._encryption_service)
+        if registered:
+            from toon_format import encode as toon_encode
+
+            cached = await embed_service._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached:
+                raise RequiredRecoveryOutputError("Failed code output has no recoverable parent embed")
+            now_ts = int(time.time())
+            content_toon = toon_encode({
+                "type": "code", "app_id": "code", "skill_id": "image_to_html",
+                "status": "error", "error": "Image-to-HTML generation could not finish",
+            })
+            encrypted_toon, _ = await task._encryption_service.encrypt_with_user_key(
+                content_toon, user_vault_key_id,
+            )
+            finished_cache_data = {
+                **cached, "embed_id": embed_id, "type": "code",
+                "chat_id": chat_id, "message_id": message_id,
+                "status": "finished", "encrypted_content": encrypted_toon,
+                "updated_at": now_ts,
+            }
+            await embed_service.send_embed_data_to_client(
+                embed_id=embed_id, embed_type="code", content_toon=content_toon,
+                chat_id=chat_id, message_id=message_id, user_id=user_id,
+                user_id_hash=user_id_hash, status="finished",
+                encryption_mode="client", created_at=cached.get("created_at") or now_ts,
+                updated_at=now_ts, log_prefix=log_prefix, check_cache_status=False,
+                producer_final_children=[], finished_cache_data=finished_cache_data,
+                finished_cache_vault_key_id=user_vault_key_id,
+            )
+            return
         await embed_service.update_code_embed_content(
             embed_id=embed_id,
             code_content="",
@@ -473,8 +577,12 @@ async def _mark_code_embed_failed(
             learning_mode_metadata={"app_id": "code", "skill_id": "image_to_html"},
             log_prefix=log_prefix,
         )
-    except Exception:
+    except RequiredRecoveryOutputError:
+        raise
+    except Exception as exc:
         logger.exception("%s Failed to mark image-to-HTML embed as error", log_prefix)
+        if registered:
+            raise RequiredRecoveryOutputError("Failed code output could not close its producer") from exc
 
 
 async def _resolve_user_vault_key_id(task: BaseServiceTask, user_id: str) -> str:

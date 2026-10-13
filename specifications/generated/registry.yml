@@ -11,7 +11,7 @@ specifications:
     version: 1
     status: draft
     path: architecture/app-skill-execution
-    fingerprint: 4bba99ed78415e056954e4f5f266d5d578f2621506b56f2ea3ee669e08df97b5
+    fingerprint: a906910ab64eb3f900e14737f14b0d785787b0f13c8b400503b788c745d5531d
     required_applies_to:
     - rest_api
     - cli
@@ -377,7 +377,7 @@ specifications:
     version: 3
     status: draft
     path: features/apps-workspace
-    fingerprint: ede2fd3882c134539c536b6b7823db2b65cf952ac8cd59301ec980bc85d056ab
+    fingerprint: a479c1c12941b2d8138a0010b102f3154022b8c239e0dce1e12e08164fd09f55
     required_applies_to:
     - rest_api
     - cli
@@ -604,7 +604,7 @@ specifications:
     version: 4
     status: draft
     path: features/public-example-chats
-    fingerprint: e53c1ac327993825e19716c865be2aff5f1e37dd8f79f1f01035d1113463ec4e
+    fingerprint: ccaf4713470a86d7595816786c35368af02bba7dc754ca03a4366b708d1d4252
     required_applies_to:
     - gui.web
   feature.public-publications:
@@ -825,6 +825,90 @@ assertions:
     fingerprint: a33d7d281463428c45a24dc6eeee2c83a66120e8954628eeb10129ba70c6d437
     required_applies_to:
     - cli
+  app-skills.assistant.same-turn-completion:
+    specification: architecture.app-skill-execution@1
+    specification_id: architecture.app-skill-execution
+    type: behavior
+    fingerprint: 6f5b09de7a64e5ee6b1e84884adfe8ae08ad532bb56dabd0d292275c2a12594e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-skills.assistant.complete-result-barrier:
+    specification: architecture.app-skill-execution@1
+    specification_id: architecture.app-skill-execution
+    type: invariant
+    fingerprint: b8acbcb797ce60701fcc70580cba8a22f773f339d51c33bc1c7b977aabaec4d3
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-skills.assistant.idempotent-resume:
+    specification: architecture.app-skill-execution@1
+    specification_id: architecture.app-skill-execution
+    type: invariant
+    fingerprint: 9016f3923f5f1438c9cafe79fe1bf893830cc686f7ccfb2cd8beddfe118179d4
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-skills.assistant.bounded-private-failure:
+    specification: architecture.app-skill-execution@1
+    specification_id: architecture.app-skill-execution
+    type: privacy
+    fingerprint: 6c915f9991a0498104c2cca40e22ab309a2e6cf1fafc808ecb36a4801a134c54
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-skills.media.parent-children-and-attribution:
+    specification: architecture.app-skill-execution@1
+    specification_id: architecture.app-skill-execution
+    type: behavior
+    fingerprint: d4416a358c3d1b58c8f35b6c20ba6f38abba18657449376515721cbcb787a059
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-skills.media.visible-assistant-results:
+    specification: architecture.app-skill-execution@1
+    specification_id: architecture.app-skill-execution
+    type: behavior
+    fingerprint: 4a18937573a0ab0d34851d7dd9d8b7e1bb7acad72284f2eba2f95da325d6197b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-skills.media.application-screenshot:
+    specification: architecture.app-skill-execution@1
+    specification_id: architecture.app-skill-execution
+    type: behavior
+    fingerprint: 0042d99ca2bc2c1f367d41862253d19766ab06fa554cf832b8d7c6d101b614ef
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   app-skills.execution.registered-validated:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
@@ -4598,7 +4682,7 @@ assertions:
     specification: feature.apps-workspace@3
     specification_id: feature.apps-workspace
     type: behavior
-    fingerprint: 3e29ac60ae1fff58017bccd840382234a4b9bc45d19e11960cdb3121b8a9ee39
+    fingerprint: 11d6ad1665780e817605b64e64f58497e2bb57956005f491bdf4e21ced6973c3
     required_applies_to:
     - rest_api
     - cli
@@ -7869,11 +7953,18 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  public-example-chats.admission.reviewed-complete:
+    specification: feature.public-example-chats@4
+    specification_id: feature.public-example-chats
+    type: behavior
+    fingerprint: 03b80086ca27ed6b93b62426492897df3a0c011db618980d65f6b7ec4d4b0b7e
+    required_applies_to:
+    - gui.web
   public-example-chats.catalog.discoverable:
     specification: feature.public-example-chats@4
     specification_id: feature.public-example-chats
     type: behavior
-    fingerprint: 440d09cf641e2bcbfae26bfa91421050e30a4a52aeee404578470b62731d4dc7
+    fingerprint: cccd85f1b8d2d0b3a50341338a098df10c7ddba283a15048a9aaf814f40dcaec
     required_applies_to:
     - gui.web
   public-example-chats.navigation.static-public-link:
@@ -7922,7 +8013,7 @@ assertions:
     specification: feature.public-example-chats@4
     specification_id: feature.public-example-chats
     type: parity
-    fingerprint: ae35cf0b663890b935fa48d96ed86900b24309d13e5d586b0120aff5cb4bce79
+    fingerprint: af69f1b676758e4d0dac0c3c51b4a3e2e9f2783ec8670b1d6c229d8b946cddb9
     required_applies_to:
     - gui.web
   public-publications.routes.localized-archives:

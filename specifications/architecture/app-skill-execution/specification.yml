@@ -17,11 +17,14 @@ scope:
     - Optional Jev relevance ranking for explicitly supported read-only search skills
     - Truthful CLI app-skill status messages without session-save decryption notices
     - Owner-authorized asynchronous result polling without changing existing authentication, rate limits, budgets, or encryption boundaries.
+    - Same-turn completion of assistant-requested skills, including long-running social collection and media generation.
+    - Generated-media parent and child embeds, visible assistant results, and selected visual search results.
   excludes:
     - Provider-specific request and result fields outside the declared shared relevance-ranking profiles
     - Client-specific visual layout
     - Internal provider wrapper implementation
     - Automatic parallelization of undeclared, dependent, or mutating calls
+    - Live voice-call skill integration, which remains a separate delivery scope.
     - Jev relevance ranking for health appointment search or clinical suitability decisions
 
 models:
@@ -187,6 +190,34 @@ models:
       constraints: {successful_ranking: score_then_existing_tie_break, ranking_failure: existing_order, final_results: at_most_requested_limit, output_safety_after_selection: required}
 
 assertions:
+  - id: app-skills.assistant.same-turn-completion
+    type: behavior
+    must: In text chats, an assistant turn remains in progress while skills needed for its answer are running. Completion resumes the same turn with its selected model, mate, authorized context, original tool calls and completed results, without a synthetic user follow-up, a new conversation turn, or repeated routing. Live progress remains visible and the assistant does not present dispatch as completed work. Waiting releases scarce inference execution capacity rather than occupying it for the provider's full duration.
+    depends_on: [examples.assistant_completion]
+  - id: app-skills.assistant.complete-result-barrier
+    type: invariant
+    must: Every required job in a skill invocation or tool batch reaches success, failure, cancellation, or its bounded deadline before the final answer is synthesized. Results remain bound to their original tool-call identities and order. Independent operations run concurrently only under the existing explicit parallel-safety contract. The first completed child cannot prematurely finalize a multi-result request.
+    depends_on: [models.ParallelSafeSkillBatch, examples.completion_barrier]
+  - id: app-skills.assistant.idempotent-resume
+    type: invariant
+    must: Completion delivery, reconnects and eligible worker recovery resume an authorized turn at most once for each saved step. They do not regenerate successful media, repeat provider side effects or billing, duplicate response content, or finalize postprocessing and follow-up suggestions more than once. An explicit cancellation or newer user turn prevents an older job from resuming stale inference; already completed authorized outputs remain available under existing retention rules.
+    depends_on: [examples.completion_recovery]
+  - id: app-skills.assistant.bounded-private-failure
+    type: privacy
+    must: Skill waits have finite skill-appropriate deadlines. A failed, cancelled or timed-out job produces an honest answer using any available successful results, without claiming nonexistent output or automatically repeating paid generation. Resume state preserves owner, account, chat and turn authorization and existing encryption boundaries; decrypted chats, memories and private Project tool content do not become durable plaintext checkpoints. If authorized inference context has expired or cannot be restored, execution stops visibly without inventing the missing context.
+    depends_on: [examples.completion_failure]
+  - id: app-skills.media.parent-children-and-attribution
+    type: behavior
+    must: Each media-producing skill invocation has one skill-use parent and one distinct child embed for each successfully generated image, video, audio clip, music track, vector design or 3D asset. The parent exposes its processing and terminal state and its children; each child exposes the generation prompt and actual model used, with the complete prompt available in its fullscreen view. Existing output assets are reused, failed outputs are identified honestly, and neither reconnect nor resume duplicates the parent or children.
+    depends_on: [examples.generated_media_graph]
+  - id: app-skills.media.visible-assistant-results
+    type: behavior
+    must: A successful media-generation answer includes every generated output through the existing inline embed-preview and grouping system, so results remain visible when the skill-use section is collapsed. Skill instructions require this inclusion and final response handling enforces missing generated-output references without duplicating existing previews. When an assistant recommends selected visual search results such as icons, it includes previews for those selected results. Media previews, playback or display, fullscreen and download use the same authorized assets.
+    depends_on: [examples.visible_media]
+  - id: app-skills.media.application-screenshot
+    type: behavior
+    must: A runnable generated application's preview and fullscreen show an actually captured screenshot of that application rather than an empty frame. Capture runs in the existing isolated application sandbox, and its successful result is retained through the existing owner-authorized encrypted asset and embed update path. Missing or invalid captures produce a visible failure instead of a successful screenshot claim. A reviewed public example carries a separately published public screenshot, so logged-out viewing does not need private keys or start a paid preview session.
+    depends_on: [examples.application_screenshots]
   - id: app-skills.execution.registered-validated
     type: security
     must: App-skill calls dispatch only registered enabled app and skill identifiers, validate request input before provider execution, and return safe visible errors rather than silently changing the requested skill or provider.
@@ -264,4 +295,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [dispatch, output_safety, batch_outcomes, surface_parity, parallel_execution, search_relevance, async_polling]
+  required_groups: [dispatch, output_safety, batch_outcomes, surface_parity, parallel_execution, search_relevance, async_polling, assistant_completion, completion_barrier, completion_recovery, completion_failure, generated_media_graph, visible_media, application_screenshots]

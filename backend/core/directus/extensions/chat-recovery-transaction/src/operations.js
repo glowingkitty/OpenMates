@@ -156,8 +156,10 @@ const OPERATION_FIELDS = Object.freeze({
     'protocol_version', 'preflight_id', 'inference_task_id', 'outbox_id', 'hashed_user_id',
   ]),
   claim_inference: new Set(['protocol_version', 'inference_task_id']),
+  pause_inference_for_skill: new Set(['protocol_version', 'inference_task_id', 'delivery_task_id', 'step_id', 'deadline_seconds']),
+  resume_inference_for_skill: new Set(['protocol_version', 'inference_task_id', 'delivery_task_id', 'step_id']),
   mark_outbox_dispatched: new Set(['protocol_version', 'outbox_id', 'inference_task_id']),
-  mark_inference_failed: new Set(['protocol_version', 'inference_task_id', 'failure_category']),
+  mark_inference_failed: new Set(['protocol_version', 'inference_task_id', 'failure_category', 'delivery_task_id', 'step_id', 'turn_id']),
   create_sealed_job: new Set([
     'protocol_version', 'job_id', 'hashed_user_id', 'chat_id', 'turn_id',
     'preflight_id', 'inference_task_id', 'assistant_message_id', 'chat_key_version', 'sealed_payload',
@@ -2693,7 +2695,9 @@ async function claimInference(database, raw, now) {
         failure_category: 'claim_expired',
       };
     }
-    const updated = await trx(PREFLIGHTS).where({ id: row.id, state: 'ENQUEUED' }).update({ state: 'RUNNING', running_at: now });
+    const updated = await trx(PREFLIGHTS).where({ id: row.id, state: 'ENQUEUED' }).update({
+      state: 'RUNNING', running_at: now, async_current_delivery_task_id: taskId,
+    });
     if (updated !== 1) fail(409, 'inference_claim_conflict');
     return {
       inference_task_id: taskId,
@@ -2706,6 +2710,48 @@ async function claimInference(database, raw, now) {
       billing_identity: row.billing_identity,
       outbox_id: row.outbox_id,
     };
+  });
+}
+
+async function pauseInferenceForSkill(database, raw, now) {
+  const body = operationBody(raw, 'pause_inference_for_skill');
+  const inferenceId = uuid(body.inference_task_id, 'invalid_task_id');
+  const deliveryId = uuid(body.delivery_task_id, 'invalid_delivery_task_id');
+  const stepId = string(body.step_id, 'invalid_step_id', 128);
+  const seconds = integer(body.deadline_seconds, 'invalid_deadline_seconds');
+  if (seconds < 1 || seconds > 5400) fail(400, 'invalid_deadline_seconds');
+  return database.transaction(async (trx) => {
+    const row = await trx(PREFLIGHTS).where({ inference_task_id: inferenceId }).forUpdate().first();
+    if (!row || row.deletion_invalidated_at || row.state !== 'RUNNING') fail(409, 'inference_not_running');
+    if ((row.async_current_delivery_task_id || inferenceId) !== deliveryId) fail(409, 'inference_delivery_mismatch');
+    if (row.async_pause_step_id) {
+      return { paused: row.async_pause_step_id === stepId, state: 'PAUSED', step_id: row.async_pause_step_id };
+    }
+    await trx(PREFLIGHTS).where({ id: row.id, state: 'RUNNING' }).update({
+      async_pause_step_id: stepId,
+      async_pause_deadline_at: new Date(now.getTime() + seconds * 1000),
+    });
+    return { paused: true, state: 'PAUSED', step_id: stepId };
+  });
+}
+
+async function resumeInferenceForSkill(database, raw, now) {
+  const body = operationBody(raw, 'resume_inference_for_skill');
+  const inferenceId = uuid(body.inference_task_id, 'invalid_task_id');
+  const deliveryId = uuid(body.delivery_task_id, 'invalid_delivery_task_id');
+  const stepId = string(body.step_id, 'invalid_step_id', 128);
+  return database.transaction(async (trx) => {
+    const row = await trx(PREFLIGHTS).where({ inference_task_id: inferenceId }).forUpdate().first();
+    if (!row || row.deletion_invalidated_at || row.state !== 'RUNNING') return { claimed: false, state: row?.state || 'MISSING' };
+    if (row.async_pause_step_id !== stepId) return { claimed: false, state: 'STEP_MISMATCH' };
+    if (!row.async_pause_deadline_at || new Date(row.async_pause_deadline_at) <= now) {
+      return { claimed: false, state: 'EXPIRED' };
+    }
+    await trx(PREFLIGHTS).where({ id: row.id, state: 'RUNNING' }).update({
+      async_pause_step_id: null, async_pause_deadline_at: null,
+      async_current_delivery_task_id: deliveryId,
+    });
+    return { claimed: true, state: 'RUNNING', inference_task_id: inferenceId };
   });
 }
 
@@ -2732,16 +2778,38 @@ async function markInferenceFailed(database, raw, now) {
   const body = operationBody(raw, 'mark_inference_failed');
   const taskId = uuid(body.inference_task_id, 'invalid_task_id');
   const category = string(body.failure_category, 'invalid_failure_category', 64);
+  const deliveryId = body.delivery_task_id ? uuid(body.delivery_task_id, 'invalid_delivery_task_id') : null;
+  const stepId = body.step_id ? string(body.step_id, 'invalid_step_id', 128) : null;
+  const turnId = body.turn_id ? uuid(body.turn_id, 'invalid_turn_id') : null;
+  if ([deliveryId, stepId, turnId].filter(Boolean).length > 1) fail(400, 'conflicting_failure_authority');
   if (!/^[a-z0-9][a-z0-9_:-]*$/.test(category)) fail(400, 'invalid_failure_category');
   return database.transaction(async (trx) => {
     const row = await trx(PREFLIGHTS).where({ inference_task_id: taskId }).forUpdate().first();
     if (!row || row.deletion_invalidated_at) fail(404, 'inference_task_not_found');
+    if (turnId && row.turn_id !== turnId) {
+      return { inference_task_id: taskId, failed: false, state: 'TURN_MISMATCH' };
+    }
+    if (stepId && row.async_pause_step_id !== stepId) {
+      return { inference_task_id: taskId, failed: false, state: 'STEP_MISMATCH' };
+    }
+    if (deliveryId && ((row.async_current_delivery_task_id || taskId) !== deliveryId || row.async_pause_step_id)) {
+      return { inference_task_id: taskId, failed: false, state: 'DELIVERY_MISMATCH' };
+    }
     const sealedJob = await trx(JOBS).where({ inference_task_id: taskId }).first();
     if (sealedJob) {
+      const priorState = row.state;
+      // The sealed output remains recoverable, but the failed worker must not
+      // leave its preflight looking live to a later delivery.
+      if (row.state === 'RUNNING' && !row.async_pause_step_id) {
+        await trx(PREFLIGHTS).where({ id: row.id, state: 'RUNNING' }).update({
+          state: 'FAILED', failed_at: now, failure_category: category,
+          failure_alert_pending_at: EXPECTED_FAILURE_CATEGORIES.has(category) ? null : now,
+        });
+      }
       return {
         inference_task_id: taskId,
         failed: false,
-        state: row.state,
+        state: priorState,
         sealed_job_id: sealedJob.id,
       };
     }
@@ -5017,6 +5085,8 @@ export const operations = Object.freeze({
   enqueue_inference: enqueueInference, admit_first_personal: admitFirstPersonal,
   verify_routing_admission: verifyRoutingAdmission,
   claim_inference: claimInference, mark_outbox_dispatched: markOutboxDispatched,
+  pause_inference_for_skill: pauseInferenceForSkill,
+  resume_inference_for_skill: resumeInferenceForSkill,
   release_inference_outbox: releaseInferenceOutbox,
   mark_inference_failed: markInferenceFailed,
   create_sealed_job: createSealedJob, list_available_jobs: listAvailableJobs,

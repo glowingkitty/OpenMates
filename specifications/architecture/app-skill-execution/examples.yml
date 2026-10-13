@@ -138,6 +138,90 @@ search_relevance:
     when: The CLI sends each request to POST /v1/apps/maps/skills/search.
     then: Both requests preserve the same optional field and receive the same REST validation and ranking semantics exposed by the npm and pip SDK metadata.
 
+assistant_completion:
+  - id: social-posts-finish-in-original-answer
+    given: A person asks for the themes in recent public social posts, and collection takes twenty seconds.
+    when: The posts finish loading while the person remains in the chat.
+    then: The same assistant turn shows progress, then presents the collected posts and its analysis with the original mate and model; the person sends no follow-up and no placeholder answer is finalized.
+    assertion_ids: [app-skills.assistant.same-turn-completion]
+  - id: minute-long-image-job
+    given: A person asks for an image, and the provider needs roughly one minute.
+    when: The image is ready.
+    then: The open turn resumes with that image and finishes its answer; other chats can use inference capacity while the provider is working.
+    assertion_ids: [app-skills.assistant.same-turn-completion]
+
+completion_barrier:
+  - id: three-images-complete-at-different-times
+    given: One generation request will produce three images; two finish quickly and the third finishes later.
+    when: The first image arrives and then the remaining two arrive.
+    then: Progress and available children update as they arrive, but the final assistant answer includes all three results only after the complete request reaches a terminal state.
+    assertion_ids: [app-skills.assistant.complete-result-barrier]
+  - id: multiple-social-collections
+    given: An assistant needs posts from two public profiles to compare their themes.
+    when: One profile finishes before the other.
+    then: Both original tool calls retain their own results and identities; the comparison waits for both, and concurrent execution follows declared safety eligibility.
+    assertion_ids: [app-skills.assistant.complete-result-barrier]
+
+completion_recovery:
+  - id: reconnect-and-duplicate-completion
+    given: An image finishes while the browser reconnects, and its completion event is delivered twice.
+    when: The original authorized turn resumes.
+    then: One existing image is included in one answer, with one charge and one final set of follow-up suggestions; generation is not repeated.
+    assertion_ids: [app-skills.assistant.idempotent-resume]
+  - id: newer-turn-supersedes-wait
+    given: A person changes their request while an earlier media job is still running.
+    when: The earlier job finishes.
+    then: Its authorized result remains available, but it does not resume the old answer over the newer conversation or repeat the work.
+    assertion_ids: [app-skills.assistant.idempotent-resume]
+
+completion_failure:
+  - id: partial-media-failure
+    given: A three-image request produces two images and the last job exceeds its deadline.
+    when: The turn finishes.
+    then: The answer displays the two successful images and explains that the third could not complete, without claiming success or submitting a replacement generation automatically.
+    assertion_ids: [app-skills.assistant.bounded-private-failure]
+  - id: private-context-expires-during-wait
+    given: An authorized turn uses private Project context and its transient inference context expires before a slow job completes.
+    when: Completion attempts to resume the turn.
+    then: The chat reports that the answer could not continue; private text is not restored from a durable plaintext checkpoint and no missing context is invented.
+    assertion_ids: [app-skills.assistant.bounded-private-failure]
+
+generated_media_graph:
+  - id: three-images-one-generation-parent
+    given: A person asks for three illustrations with the same prompt.
+    when: Image generation succeeds.
+    then: One generation skill-use parent contains three image children; each child shows its prompt and actual generation model, and each fullscreen view exposes the full prompt.
+    assertion_ids: [app-skills.media.parent-children-and-attribution]
+  - id: sound-music-video-vector-and-model
+    given: Separate conversations request a sound, a music track, a video, a vector design or a 3D asset.
+    when: Each supported generation skill finishes successfully.
+    then: Each invocation keeps one skill-use parent and its generated output children with prompt and actual model attribution, without replacing or duplicating the saved assets on reload.
+    assertion_ids: [app-skills.media.parent-children-and-attribution]
+
+visible_media:
+  - id: generated-results-stay-visible
+    given: An assistant has successfully generated images or playable audio and the person collapses the used-skills section.
+    when: The final answer is displayed.
+    then: Every successful generated result remains visible as an inline embed preview in the answer, can open fullscreen, and uses the same asset for display, playback and download; an already included preview is not repeated.
+    assertion_ids: [app-skills.media.visible-assistant-results]
+  - id: icon-search-recommendations
+    given: A person asks for suitable sidebar icons and an icon search returns several candidates.
+    when: The assistant recommends three of those icons.
+    then: The three selected icons appear as visual embed previews in the answer and render in fullscreen without requiring the person to ask for previews.
+    assertion_ids: [app-skills.media.visible-assistant-results]
+
+application_screenshots:
+  - id: generated-app-thumbnail-and-fullscreen
+    given: A person generates a small runnable habit-tracker application and its sandbox starts successfully.
+    when: The browser opens the application embed preview and fullscreen, then reloads the chat.
+    then: Both views load the captured application screenshot with real image dimensions, and the saved screenshot remains available through the authorized asset path.
+    assertion_ids: [app-skills.media.application-screenshot]
+  - id: public-app-example-has-public-thumbnail
+    given: A reviewed application chat has been converted to a public example with its captured screenshot explicitly published.
+    when: A logged-out visitor opens its preview and fullscreen.
+    then: The real public screenshot loads without private storage metadata, decryption keys, authentication or a new paid sandbox session.
+    assertion_ids: [app-skills.media.application-screenshot]
+
 async_polling:
 - id: owned-file-generation-across-skills
   variants: [images.generate, videos.generate, music.generate, audio.generate, audio.speak, docs.generate, models3d.generate, code.run]

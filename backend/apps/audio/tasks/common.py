@@ -187,6 +187,8 @@ async def store_generated_audio_asset(
     extra_content: dict[str, Any],
     original_filename_prefix: str,
     log_prefix: str,
+    parent_embed_id: Optional[str] = None,
+    media_child_index: int = 0,
 ) -> dict[str, Any]:
     """Store encrypted generated audio and return result/embed metadata."""
     if not user_id:
@@ -304,30 +306,24 @@ async def store_generated_audio_asset(
         content["text_preview"] = text_preview
 
     if chat_id and message_id and not external_request:
-        from toon_format import encode as toon_encode
         from backend.core.api.app.services.embed_service import EmbedService
+        from backend.shared.python_utils.generated_media_graph import send_generated_media_child
 
         embed_service = EmbedService(
             cache_service=task._cache_service,
             directus_service=task._directus_service,
             encryption_service=task._encryption_service,
         )
-        await embed_service.send_embed_data_to_client(
-            embed_id=embed_id,
-            embed_type="app_skill_use",
-            content_toon=toon_encode(content),
-            chat_id=chat_id,
-            message_id=message_id,
-            user_id=user_id,
-            user_id_hash=hash_value(user_id),
-            status="finished",
-            encryption_mode="client",
-            created_at=now_ts,
-            updated_at=now_ts,
-            log_prefix=log_prefix,
-            check_cache_status=False,
-            producer_final_children=[],
+        child_embed_id = embed_id
+        await send_generated_media_child(
+            embed_service, parent_embed_id=parent_embed_id or embed_id,
+            child_embed_id=child_embed_id, child_index=media_child_index,
+            content=content,
+            chat_id=chat_id, message_id=message_id, user_id=user_id,
+            user_id_hash=hash_value(user_id), created_at=now_ts, log_prefix=log_prefix,
         )
+    else:
+        child_embed_id = None
 
     rest_files_metadata = {
         name: {
@@ -343,6 +339,10 @@ async def store_generated_audio_asset(
         for name, metadata in files_metadata.items()
     }
     result_payload = dict(content)
+    result_payload["child_embed_id"] = child_embed_id
+    result_payload["child_embed_ids"] = [child_embed_id] if child_embed_id else []
+    if child_embed_id:
+        result_payload["embed_ref"] = f"generated-audio-{child_embed_id.replace('-', '')[:12]}"
     result_payload["embed_id"] = embed_id
     result_payload["user_id_hash"] = hash_value(user_id)
     result_payload["files"] = rest_files_metadata if external_request else files_metadata
@@ -362,6 +362,8 @@ async def send_audio_error_embed(
     error_message: str,
     log_prefix: str,
 ) -> None:
+    if arguments.get("media_batch"):
+        return
     embed_id = arguments.get("embed_id")
     user_id = arguments.get("user_id")
     chat_id = arguments.get("chat_id")

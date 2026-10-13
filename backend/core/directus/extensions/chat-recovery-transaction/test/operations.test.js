@@ -1137,6 +1137,68 @@ test('claim_inference atomically claims once and suppresses duplicate delivery',
   assert.equal(duplicate.state, 'RUNNING');
 });
 
+test('same-turn skill pause authorizes one bounded successor delivery', async () => {
+  const secondDelivery = '018f8888-8888-7888-8888-888888888888';
+  const database = fakeDatabase({ chat_turn_preflights: [{
+    id: PREFLIGHT_ID, inference_task_id: TASK_ID, state: 'RUNNING',
+    turn_id: TURN_ID,
+    async_current_delivery_task_id: TASK_ID,
+    expires_at: '2030-01-01T00:00:00.000Z',
+  }] });
+  const now = new Date('2029-01-01T00:00:00.000Z');
+  const pause = { protocol_version: 1, inference_task_id: TASK_ID,
+    delivery_task_id: TASK_ID, step_id: `${TASK_ID}:0`, deadline_seconds: 180 };
+  assert.equal((await executeOperation(database, 'pause_inference_for_skill', pause, now)).paused, true);
+  assert.equal((await executeOperation(database, 'mark_inference_failed', {
+    protocol_version: 1, inference_task_id: TASK_ID, delivery_task_id: TASK_ID,
+    failure_category: 'runtime_error',
+  }, now)).state, 'DELIVERY_MISMATCH');
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'RUNNING');
+  assert.equal((await executeOperation(database, 'pause_inference_for_skill', pause, now)).paused, true);
+  await assert.rejects(() => executeOperation(database, 'pause_inference_for_skill',
+    { ...pause, delivery_task_id: secondDelivery }, now));
+  const resume = { protocol_version: 1, inference_task_id: TASK_ID,
+    delivery_task_id: secondDelivery, step_id: `${TASK_ID}:0` };
+  assert.equal((await executeOperation(database, 'resume_inference_for_skill', resume, now)).claimed, true);
+  assert.equal((await executeOperation(database, 'mark_inference_failed', {
+    protocol_version: 1, inference_task_id: TASK_ID, delivery_task_id: TASK_ID,
+    failure_category: 'runtime_error',
+  }, now)).state, 'DELIVERY_MISMATCH');
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'RUNNING');
+  assert.equal((await executeOperation(database, 'mark_inference_failed', {
+    protocol_version: 1, inference_task_id: TASK_ID, turn_id: TURN_ID,
+    failure_category: 'user_cancelled',
+  }, now)).failed, true);
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'FAILED');
+  assert.equal((await executeOperation(database, 'resume_inference_for_skill', resume, now)).claimed, false);
+  assert.equal(database.rows.chat_turn_preflights[0].async_current_delivery_task_id, secondDelivery);
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'FAILED');
+});
+
+test('same-turn skill resume expires and cannot claim a cancelled inference', async () => {
+  const database = fakeDatabase({ chat_turn_preflights: [{
+    id: PREFLIGHT_ID, inference_task_id: TASK_ID, state: 'RUNNING',
+    async_current_delivery_task_id: TASK_ID,
+  }] });
+  const now = new Date('2029-01-01T00:00:00.000Z');
+  const stepId = `${TASK_ID}:0`;
+  await executeOperation(database, 'pause_inference_for_skill', {
+    protocol_version: 1, inference_task_id: TASK_ID, delivery_task_id: TASK_ID,
+    step_id: stepId, deadline_seconds: 30,
+  }, now);
+  const resume = { protocol_version: 1, inference_task_id: TASK_ID,
+    delivery_task_id: '018f8888-8888-7888-8888-888888888888', step_id: stepId };
+  assert.equal((await executeOperation(database, 'resume_inference_for_skill', resume,
+    new Date(now.getTime() + 31_000))).state, 'EXPIRED');
+  const cancelled = await executeOperation(database, 'mark_inference_failed', {
+    protocol_version: 1, inference_task_id: TASK_ID, step_id: stepId,
+    failure_category: 'user_cancelled',
+  }, now);
+  assert.equal(cancelled.failed, true);
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'FAILED');
+  assert.equal((await executeOperation(database, 'resume_inference_for_skill', resume, now)).claimed, false);
+});
+
 test('claim_inference returns the durable failure category for cancellation-safe classification', async () => {
   const cancelled = fakeDatabase({
     chat_turn_preflights: [{
@@ -1310,7 +1372,7 @@ test('worker failure after sealed job is treated as stale and idempotent', async
     state: 'RUNNING',
     sealed_job_id: JOB_ID,
   });
-  assert.equal(database.rows.chat_turn_preflights[0].state, 'RUNNING');
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'FAILED');
   assert.equal(database.rows.chat_inference_outbox[0].state, 'DISPATCHED');
 });
 

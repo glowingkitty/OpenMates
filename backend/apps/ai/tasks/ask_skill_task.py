@@ -1853,6 +1853,7 @@ async def _mark_recovery_inference_failed(
             {
                 "protocol_version": 1,
                 "inference_task_id": inference_task_id,
+                "delivery_task_id": task_id,
                 "failure_category": failure_category,
             },
         )
@@ -2419,12 +2420,91 @@ async def _async_process_ai_skill_ask_task(
         from backend.shared.python_utils.recent_work_summary_cache import PRIVATE_CONTEXT_FIELDS
         transient = await _time_setup_stage("private_restore", task_id,
                                                    restore_private_context_payload(request_data.model_dump()))
+        if request_data.same_turn_batch_id:
+            from backend.apps.ai.tasks.same_turn_skill_barrier import unpack_private_checkpoint
+            try:
+                original_payload, restored_checkpoint = unpack_private_checkpoint(
+                    transient.get("same_turn_request"),
+                )
+            except RuntimeError:
+                original_payload, restored_checkpoint = None, None
+            if not isinstance(original_payload, dict) or any(
+                original_payload.get(key) != getattr(request_data, key)
+                for key in ("user_id", "chat_id", "message_id")
+            ):
+                await _publish_recovery_output_pause(request_data, task_id)
+                return {
+                    "status": "same_turn_context_expired",
+                    "preprocessing_summary": {}, "main_processing_output": None,
+                    "postprocessing_summary": {},
+                    "interrupted_by_soft_time_limit": False,
+                    "interrupted_by_revocation": False,
+                    "_celery_task_state": "SUCCESS",
+                }
+            resume_envelope = request_data
+            request_data = AskSkillRequest.model_validate(original_payload)
+            request_data.same_turn_batch_id = resume_envelope.same_turn_batch_id
+            request_data.same_turn_slots = resume_envelope.same_turn_slots
+            request_data.is_async_skill_continuation = True
+            request_data.recovery_inference_task_id = (
+                request_data.recovery_task_id or request_data.recovery_inference_task_id
+            )
+            request_data.recovery_task_id = None
+            request_data.continuation_message_id = resume_envelope.continuation_message_id
+            request_data.agentic_context_ref = resume_envelope.agentic_context_ref
+            request_data.agentic_context_request_id = resume_envelope.agentic_context_request_id
+            request_data.agentic_context_turn_id = resume_envelope.agentic_context_turn_id
+            request_data.same_turn_checkpoint = restored_checkpoint
         bind_restored_context_turn(request_data, transient)
         restore_async_tool_completion_message(request_data, transient)
-        for field in PRIVATE_CONTEXT_FIELDS:
-            if field in {"async_tool_completion", "async_tool_history"}:
-                continue
-            setattr(request_data, field, transient.get(field, None if field == "accepted_plan_context" else []))
+        if not request_data.same_turn_batch_id:
+            for field in PRIVATE_CONTEXT_FIELDS:
+                if field in {"async_tool_completion", "async_tool_history", "same_turn_request"}:
+                    continue
+                setattr(request_data, field, transient.get(field, None if field == "accepted_plan_context" else []))
+
+        if request_data.same_turn_batch_id:
+            from backend.apps.ai.tasks.same_turn_skill_barrier import verify_resume_delivery, _set_once, _key
+            valid_resume = await verify_resume_delivery(
+                cache_service_instance, request_data, task_id,
+            )
+            if not valid_resume:
+                latest = await cache_service_instance.get(
+                    f"async_skill_latest_user_turn:{request_data.user_id}:{request_data.chat_id}"
+                )
+                if latest == request_data.message_id:
+                    await _publish_recovery_output_pause(request_data, task_id)
+                return {
+                    "status": "same_turn_resume_unavailable",
+                    "preprocessing_summary": {}, "main_processing_output": None,
+                    "postprocessing_summary": {},
+                    "interrupted_by_soft_time_limit": False,
+                    "interrupted_by_revocation": False,
+                    "_celery_task_state": "SUCCESS",
+                }
+            inference_id = request_data.recovery_inference_task_id
+            if inference_id and request_data.recovery_preflight_id:
+                resumed = await ChatRecoveryService(directus_service_instance).execute(
+                    "resume_inference_for_skill", {
+                        "protocol_version": 1, "inference_task_id": inference_id,
+                        "delivery_task_id": task_id,
+                        "step_id": request_data.same_turn_batch_id,
+                    },
+                )
+                if not resumed.get("claimed"):
+                    return _recovery_unclaimed_result(resumed)
+            elif not await _set_once(
+                cache_service_instance,
+                _key(request_data.same_turn_batch_id, "worker_claim"), task_id,
+            ):
+                return {
+                    "status": "duplicate_same_turn_delivery_ignored",
+                    "preprocessing_summary": {}, "main_processing_output": None,
+                    "postprocessing_summary": {},
+                    "interrupted_by_soft_time_limit": False,
+                    "interrupted_by_revocation": False,
+                    "_celery_task_state": "SUCCESS",
+                }
 
         durable_claim_started = time.monotonic()
         if request_data.is_sub_chat_continuation and request_data.recovery_consumed_child_ids:
@@ -3196,6 +3276,10 @@ async def _async_process_ai_skill_ask_task(
                 load_preprocessing_resume, store_preprocessing_resume,
             )
             resume = await load_preprocessing_resume(cache_service_instance, request_data)
+            if request_data.same_turn_batch_id and (not resume or resume[2]):
+                raise RequiredRecoveryOutputError(
+                    "Same-turn routing snapshot expired; refusing to reroute the original tool turn"
+                )
             selected_app_ids = resume[1] if resume and resume[2] else None
             if resume and not resume[2]:
                 from backend.apps.ai.processing.preprocessor import check_preprocessing_credits
@@ -3865,6 +3949,33 @@ async def _async_process_ai_skill_ask_task(
                     )
                 _log_team_ai_pipeline_stage(request_data, task_id, "main", "completed")
             logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
+            if main_processor_debug_metadata.get("same_turn_skill_paused"):
+                if debug_cache_task:
+                    await _settle_optional_debug_cache(
+                        debug_cache_task, debug_cache_started_at, wait_for_budget=False,
+                        write_cancelled=debug_cache_write_cancelled,
+                    )
+                    debug_cache_task = None
+                cleared = await cache_service_instance.clear_active_ai_task_if_matches(
+                    request_data.chat_id, task_id,
+                )
+                if cleared:
+                    from backend.apps.ai.tasks.async_skill_continuation import dispatch_same_turn_barrier
+                    await dispatch_same_turn_barrier(
+                        cache_service=cache_service_instance,
+                        batch_id=main_processor_debug_metadata["same_turn_batch_id"],
+                    )
+                if request_data.same_turn_batch_id:
+                    from backend.apps.ai.tasks.async_skill_continuation import release_same_turn_handoffs
+                    await release_same_turn_handoffs(request_data)
+                return {
+                    "task_id": task_id, "status": "waiting_for_skill_completion",
+                    "preprocessing_summary": {}, "main_processing_output": None,
+                    "postprocessing_summary": {},
+                    "interrupted_by_soft_time_limit": False,
+                    "interrupted_by_revocation": False,
+                    "_celery_task_state": "SUCCESS",
+                }
             if debug_cache_task:
                 await _settle_optional_debug_cache(
                     debug_cache_task, debug_cache_started_at, wait_for_budget=True,
@@ -4769,6 +4880,9 @@ async def _async_process_ai_skill_ask_task(
         else:
             await _finalize_user_task_execution(request_data, directus_service_instance)
 
+    if request_data.same_turn_batch_id:
+        from backend.apps.ai.tasks.async_skill_continuation import release_same_turn_handoffs
+        await release_same_turn_handoffs(request_data)
     return {
         "task_id": task_id,
         "status": final_status_message,
@@ -4779,6 +4893,47 @@ async def _async_process_ai_skill_ask_task(
         "interrupted_by_revocation": task_was_revoked, # Return determined flag
         "_celery_task_state": "SUCCESS"
     }
+
+
+@celery_config.app.task(
+    name="apps.ai.tasks.same_turn_skill_deadline",
+    soft_time_limit=45,
+    time_limit=60,
+)
+def same_turn_skill_deadline_task(batch_id: str) -> Optional[str]:
+    """Settle missing jobs at the finite deadline without occupying a worker."""
+    async def settle() -> Optional[str]:
+        cache = CacheService()
+        try:
+            from backend.apps.ai.tasks.same_turn_skill_barrier import arm_barrier
+            metadata = await cache.get(f"same_turn_skill:{batch_id}:batch")
+            if isinstance(metadata, dict) and await cache.get(f"same_turn_skill:{batch_id}:armed") != "1":
+                inference_id = metadata.get("recovery_inference_task_id")
+                if inference_id:
+                    directus = DirectusService(cache_service=cache)
+                    try:
+                        paused = await ChatRecoveryService(directus).execute(
+                            "pause_inference_for_skill", {
+                                "protocol_version": 1,
+                                "inference_task_id": inference_id,
+                                "delivery_task_id": metadata["source_delivery_task_id"],
+                                "step_id": batch_id,
+                                "deadline_seconds": 8 * 60,
+                            },
+                        )
+                        if not paused.get("paused"):
+                            raise RequiredRecoveryOutputError("Same-turn pause could not be recovered")
+                    finally:
+                        await directus.close()
+                await arm_barrier(cache, batch_id)
+            from backend.apps.ai.tasks.async_skill_continuation import dispatch_same_turn_barrier
+            return await dispatch_same_turn_barrier(
+                cache_service=cache, batch_id=batch_id, expire_missing=True,
+            )
+        finally:
+            await cache.close()
+
+    return asyncio.run(settle())
 
 
 @celery_config.app.task(

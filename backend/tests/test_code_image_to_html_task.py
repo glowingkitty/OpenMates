@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 import importlib
 import types
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -57,6 +58,7 @@ class FakeGenerator:
         )
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
 @pytest.mark.asyncio
 async def test_image_to_html_worker_generates_charges_and_returns_result(monkeypatch: pytest.MonkeyPatch) -> None:
     prechecks: list[dict[str, object]] = []
@@ -104,6 +106,7 @@ async def test_image_to_html_worker_generates_charges_and_returns_result(monkeyp
     assert result["usage"]["credits_refunded"] >= 0
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
 @pytest.mark.asyncio
 async def test_image_to_html_worker_resolves_uploaded_source_image(monkeypatch: pytest.MonkeyPatch) -> None:
     async def fake_ensure_credit_headroom(**kwargs):
@@ -142,3 +145,62 @@ async def test_image_to_html_worker_resolves_uploaded_source_image(monkeypatch: 
 
     assert result["status"] == "finished"
     assert result["html"].startswith("<!doctype html>")
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.assistant.same-turn-completion
+@pytest.mark.asyncio
+async def test_image_to_html_chat_completion_carries_the_final_code_reference(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(task_module, "ensure_credit_headroom", AsyncMock())
+    monkeypatch.setattr(task_module, "_finalize_code_embed", AsyncMock(return_value="index-html-abc123"))
+    dispatch = AsyncMock()
+    monkeypatch.setattr(task_module, "_dispatch_image_to_html_completion", dispatch)
+
+    result = await task_module._async_image_to_html(
+        FakeTask(), "code", "image_to_html",
+        {
+            "image_base64": PNG_1X1, "mime_type": "image/png",
+            "max_correction_passes": 2, "reserved_credits": 1500,
+            "user_id": "user-1", "user_vault_key_id": "vault-1",
+            "chat_id": "chat-1", "message_id": "message-1", "embed_id": "embed-1",
+        },
+        generator_factory=lambda _task: FakeGenerator(),
+        charge_func=AsyncMock(return_value=10),
+    )
+
+    assert result["embed_ref"] == "index-html-abc123"
+    dispatch.assert_awaited_once()
+    row = dispatch.await_args.kwargs["completed_results"][0]
+    assert row["output_embed_refs"] == ["index-html-abc123"]
+    assert row["model"] == "fake-gemini"
+    assert dispatch.await_args.kwargs["result_status"] == "finished"
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.assistant.same-turn-completion
+@pytest.mark.asyncio
+async def test_image_to_html_chat_failure_notifies_the_waiting_turn_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(task_module, "ensure_credit_headroom", AsyncMock())
+    mark_failed = AsyncMock()
+    dispatch = AsyncMock()
+    monkeypatch.setattr(task_module, "_mark_code_embed_failed", mark_failed)
+    monkeypatch.setattr(task_module, "_dispatch_image_to_html_completion", dispatch)
+
+    class FailedGenerator:
+        async def generate(self, **_kwargs):
+            raise RuntimeError("private provider detail")
+
+    with pytest.raises(RuntimeError, match="private provider detail"):
+        await task_module._async_image_to_html(
+            FakeTask(), "code", "image_to_html",
+            {
+                "image_base64": PNG_1X1, "mime_type": "image/png",
+                "max_correction_passes": 2, "reserved_credits": 1500,
+                "user_id": "user-1", "user_vault_key_id": "vault-1",
+                "chat_id": "chat-1", "message_id": "message-1", "embed_id": "embed-1",
+            },
+            generator_factory=lambda _task: FailedGenerator(),
+        )
+
+    mark_failed.assert_awaited_once()
+    dispatch.assert_awaited_once()
+    assert dispatch.await_args.kwargs["result_status"] == "failed"
+    assert dispatch.await_args.kwargs["completed_results"][0]["error"] == "Image-to-HTML generation could not finish"

@@ -49,13 +49,24 @@ embed_types:
     skill_id: generate
     frontend_type: app-skill-use
     backend_type: app_skill_use
-    has_children: false
-    preview_component: audio/AudioGenerateEmbedPreview.svelte
-    fullscreen_component: audio/AudioGenerateEmbedFullscreen.svelte
+    has_children: true
+    child_type: generated_audio
+    child_frontend_type: audio-generated-audio
+    child_preview_component: audio/AudioGenerateEmbedPreview.svelte
+    child_fullscreen_component: audio/AudioGenerateEmbedFullscreen.svelte
+    preview_component: GeneratedMediaGroupEmbedPreview.svelte
+    fullscreen_component: GeneratedMediaGroupEmbedFullscreen.svelte
     icon: audio
     gradient_var: "--color-app-audio"
     i18n_namespace: embeds.audio.generate
     content_fields:
+      - {name: status, type: string, required: true}
+      - {name: embed_ref, type: string}
+      - {name: result_count, type: number, required: true}
+      - {name: embed_ids, type: array, required: true}
+      - {name: output_embed_refs, type: array}
+      - {name: failed_results, type: array}
+    child_content_fields:
       - name: prompt
         type: string
         required: true
@@ -85,13 +96,24 @@ embed_types:
     skill_id: speak
     frontend_type: app-skill-use
     backend_type: app_skill_use
-    has_children: false
-    preview_component: audio/AudioGenerateEmbedPreview.svelte
-    fullscreen_component: audio/AudioGenerateEmbedFullscreen.svelte
+    has_children: true
+    child_type: generated_audio
+    child_frontend_type: audio-generated-audio
+    child_preview_component: audio/AudioGenerateEmbedPreview.svelte
+    child_fullscreen_component: audio/AudioGenerateEmbedFullscreen.svelte
+    preview_component: GeneratedMediaGroupEmbedPreview.svelte
+    fullscreen_component: GeneratedMediaGroupEmbedFullscreen.svelte
     icon: audio
     gradient_var: "--color-app-audio"
     i18n_namespace: embeds.audio.speak
     content_fields:
+      - {name: status, type: string, required: true}
+      - {name: embed_ref, type: string}
+      - {name: result_count, type: number, required: true}
+      - {name: embed_ids, type: array, required: true}
+      - {name: output_embed_refs, type: array}
+      - {name: failed_results, type: array}
+    child_content_fields:
       - name: text_preview
         type: string
         required: true
@@ -119,6 +141,21 @@ embed_types:
         type: string
       - name: vault_wrapped_aes_key
         type: string
+  - id: generated_audio
+    category: direct
+    frontend_type: audio-generated-audio
+    backend_type: generated_audio
+    has_children: false
+    preview_component: audio/AudioGenerateEmbedPreview.svelte
+    fullscreen_component: audio/AudioGenerateEmbedFullscreen.svelte
+    icon: audio
+    gradient_var: "--color-app-audio"
+    i18n_namespace: embeds.audio.generate
+instructions:
+  - instruction: |
+      After audio.generate or audio.speak finishes, include every successful
+      generated clip with its inline child embed_ref in the final answer.
+      Preserve grouping for multiple clips and identify failed requests.
 skills:
   - id: transcribe
     anonymous_access: authenticated

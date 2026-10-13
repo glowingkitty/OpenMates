@@ -414,6 +414,7 @@ class BaseApp:
             # Placeholder embed IDs from main_processor - allows async skills (e.g., images.generate)
             # to update existing placeholder embeds instead of creating new ones
             placeholder_embed_ids = request_body.get("_placeholder_embed_ids")
+            same_turn_batch_id = request_body.get("_same_turn_batch_id")
             # User's Vault Transit key ID — injected by main_processor for skills that need
             # server-side Vault access (e.g. images-view looks up embed crypto details)
             user_vault_key_id = request_body.get("_user_vault_key_id")
@@ -481,6 +482,7 @@ class BaseApp:
                 "chat_id": chat_id,
                 "message_id": message_id,
                 "placeholder_embed_ids": placeholder_embed_ids,
+                "same_turn_batch_id": same_turn_batch_id,
                 "user_vault_key_id": user_vault_key_id,
                 # file_path_index maps embed_ref filenames → embed UUID for skills like images-view
                 # that resolve the human-readable filename passed by the LLM to the internal embed ID

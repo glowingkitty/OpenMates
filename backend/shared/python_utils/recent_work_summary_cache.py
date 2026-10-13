@@ -264,6 +264,8 @@ PRIVATE_CONTEXT_FIELDS = frozenset({
     "project_context_documents", "related_task_candidates",
     "async_tool_completion",
     "async_tool_history",
+    "same_turn_checkpoint",
+    "same_turn_request",
 })
 
 
@@ -277,6 +279,7 @@ class _ContextHandoff:
     ciphertext: str = field(repr=False)
     vault_key_id: str = field(repr=False)
     project_binding: tuple[str, str] | None = None
+    protected_same_turn: bool = False
 
 
 class TransientContextHandoffStore:
@@ -306,17 +309,39 @@ class TransientContextHandoffStore:
         ciphertext, _ = await encryption.encrypt_with_user_key(text, vault_key_id)
         if not ciphertext.startswith("vault:v") or generation != self._revocation_generation:
             return None
+        marker = fields.get("same_turn_checkpoint")
+        requested_ttl = marker.get("handoff_ttl_seconds") if isinstance(marker, dict) else None
+        handoff_ttl = (
+            max(1200, min(90 * 60, requested_ttl))
+            if isinstance(requested_ttl, int) and not isinstance(requested_ttl, bool)
+            else 1200
+        )
         if len(self._entries) >= 256:
-            self._remove(next(iter(self._entries)))
+            disposable = next((ref for ref, entry in self._entries.items()
+                               if not entry.protected_same_turn), None)
+            if disposable is None:
+                return None
+            self._remove(disposable)
         reference = secrets.token_urlsafe(32)
         self._entries[reference] = _ContextHandoff(owner_id, chat_id, turn_id, request_id,
-            self._clock() + 1200, ciphertext, vault_key_id, project_binding)
-        self._timers[reference] = asyncio.get_running_loop().call_later(1200, self._remove, reference)
+            self._clock() + handoff_ttl, ciphertext, vault_key_id, project_binding,
+            protected_same_turn=handoff_ttl > 1200)
+        self._timers[reference] = asyncio.get_running_loop().call_later(handoff_ttl, self._remove, reference)
         return reference
 
     def project_binding(self, reference: str) -> tuple[str, str] | None:
         entry = self._entries.get(reference)
         return entry.project_binding if entry else None
+
+    def release(self, reference: str, *, owner_id: str, chat_id: str,
+                turn_id: str, request_id: str) -> bool:
+        entry = self._entries.get(reference)
+        if entry is None or (entry.owner_id, entry.chat_id, entry.turn_id, entry.request_id) != (
+            owner_id, chat_id, turn_id, request_id,
+        ):
+            return False
+        self._remove(reference)
+        return True
 
     async def open(self, reference: str, *, owner_id: str, chat_id: str, turn_id: str,
                    request_id: str, encryption: SummaryEncryption, vault_key_id: str) -> dict | None:

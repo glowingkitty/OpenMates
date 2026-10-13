@@ -297,10 +297,12 @@ class ImageToHtmlSkill(BaseSkill):
                 error="Image-to-HTML service temporarily unavailable",
             )
 
-        results: list[dict[str, Any]] = []
         user_id = kwargs.get("user_id")
         file_path_index = kwargs.get("file_path_index") or {}
         placeholder_embed_ids = kwargs.get("placeholder_embed_ids") or []
+        # Prepare every slot before enqueueing the first task. A malformed
+        # later request must not leave an earlier worker running on its own.
+        prepared_arguments: list[dict[str, Any]] = []
         for index, request in enumerate(requests):
             parsed = parse_image_to_html_dispatch_input(request, file_path_index=file_path_index)
             embed_id = (
@@ -323,26 +325,53 @@ class ImageToHtmlSkill(BaseSkill):
                 "app_id": self.app_id,
                 "skill_id": self.skill_id,
                 "embed_id": embed_id,
+                **({"same_turn_batch_id": kwargs["same_turn_batch_id"]} if kwargs.get("same_turn_batch_id") else {}),
             }
             if parsed.source_image_embed_id:
                 arguments["source_image_embed_id"] = parsed.source_image_embed_id
             else:
                 arguments["image_base64"] = parsed.image_base64
                 arguments["mime_type"] = parsed.mime_type
-            task_id = await execute_skill_via_celery(
-                app_id=self.app_id,
-                skill_id=self.skill_id,
-                arguments=arguments,
-                celery_producer=self.celery_producer,
-            )
+            prepared_arguments.append(arguments)
+
+        if len({item["embed_id"] for item in prepared_arguments}) != len(prepared_arguments):
+            raise ValueError("image_to_html requests must have distinct placeholder embed IDs")
+        if not prepared_arguments:
+            return ImageToHtmlResponse(results=[], status="error", error="No valid image-to-HTML requests provided")
+
+        results: list[dict[str, Any]] = []
+        for arguments in prepared_arguments:
+            try:
+                task_id = await execute_skill_via_celery(
+                    app_id=self.app_id,
+                    skill_id=self.skill_id,
+                    arguments=arguments,
+                    celery_producer=self.celery_producer,
+                )
+                if not task_id:
+                    raise RuntimeError("image_to_html worker was not queued")
+            except Exception:
+                if not results:
+                    raise
+                # The sent tasks cannot be unsent. Return their IDs as a
+                # processing result so the same-turn barrier observes them,
+                # and do not invite a retry that would duplicate the work.
+                logger.exception("Image-to-HTML dispatch stopped after %s queued request(s)", len(results))
+                return ImageToHtmlResponse(
+                    results=results,
+                    task_id=results[0]["task_id"] if len(results) == 1 else None,
+                    embed_id=results[0]["embed_id"] if len(results) == 1 else None,
+                    task_ids=[item["task_id"] for item in results],
+                    embed_ids=[item["embed_id"] for item in results],
+                    status="processing",
+                    error="One or more image-to-HTML requests could not be queued",
+                )
             results.append({
                 "task_id": task_id,
-                "embed_id": embed_id,
+                "embed_id": arguments["embed_id"],
                 "status": "processing",
-                "reserved_credits": reserved_credits_for_correction_passes(parsed.max_correction_passes),
+                "reserved_credits": arguments["reserved_credits"],
             })
-        if not results:
-            return ImageToHtmlResponse(results=[], status="error", error="No valid image-to-HTML requests provided")
         if len(results) == 1:
             return ImageToHtmlResponse(
                 results=results,

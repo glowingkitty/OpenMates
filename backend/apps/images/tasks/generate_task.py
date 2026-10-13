@@ -438,6 +438,12 @@ async def _emit_safety_rejection_embed(
     """
     if not (embed_id and user_id and chat_id and message_id):
         return
+    from backend.shared.python_utils.chat_recovery_context import active_verified_output_producer
+    producer = active_verified_output_producer.get()
+    if producer is not None and embed_id != producer.primary_embed_id:
+        # A batch child has no successful asset to publish; its parent records
+        # the failed slot when all requests finish.
+        return
     try:
         from toon_format import encode as toon_encode
         from backend.core.api.app.services.embed_service import EmbedService
@@ -689,14 +695,18 @@ async def _decrypt_reference_images(
     name="apps.images.tasks.skill_generate",
     base=BaseServiceTask,
     queue="app_images",
-    soft_time_limit=180,
-    time_limit=210
+    soft_time_limit=3300,
+    time_limit=3360
 )
 def generate_image_task(self, app_id: str, skill_id: str, arguments: Dict[str, Any]):
     """
     Celery task for high-end image generation.
     """
-    return asyncio.run(_async_generate_image(self, app_id, skill_id, arguments))
+    from backend.shared.python_utils.generated_media_graph import run_generated_media_batch
+    return asyncio.run(run_generated_media_batch(
+        self, app_id=app_id, skill_id=skill_id, arguments=arguments,
+        generate_one=_async_generate_image,
+    )) if arguments.get("requests") else asyncio.run(_async_generate_image(self, app_id, skill_id, arguments))
 
 
 @app.task(
@@ -704,14 +714,18 @@ def generate_image_task(self, app_id: str, skill_id: str, arguments: Dict[str, A
     name="apps.images.tasks.skill_generate_draft",
     base=BaseServiceTask,
     queue="app_images",
-    soft_time_limit=180,
-    time_limit=210
+    soft_time_limit=3300,
+    time_limit=3360
 )
 def generate_image_draft_task(self, app_id: str, skill_id: str, arguments: Dict[str, Any]):
     """
     Celery task for draft image generation.
     """
-    return asyncio.run(_async_generate_image(self, app_id, skill_id, arguments))
+    from backend.shared.python_utils.generated_media_graph import run_generated_media_batch
+    return asyncio.run(run_generated_media_batch(
+        self, app_id=app_id, skill_id=skill_id, arguments=arguments,
+        generate_one=_async_generate_image,
+    )) if arguments.get("requests") else asyncio.run(_async_generate_image(self, app_id, skill_id, arguments))
 
 
 async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: str, arguments: Dict[str, Any]):
@@ -749,7 +763,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         logger.info(f"{log_prefix} Using embed_id: {embed_id}")
         from backend.core.api.app.services.embed_service import EmbedService
         await EmbedService.assert_registered_output_can_generate(
-            task._directus_service, embed_id=embed_id, chat_id=chat_id,
+            task._directus_service, embed_id=arguments.get("producer_embed_id") or embed_id, chat_id=chat_id,
             message_id=message_id, owner_hash=_hash_value(user_id),
         )
 
@@ -1403,21 +1417,16 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             encryption_service=task._encryption_service
         )
         
-        await embed_service.send_embed_data_to_client(
-            embed_id=embed_id,
-            embed_type="app_skill_use",  # Standard embed type for skill results
-            content_toon=content_toon,
-            chat_id=chat_id,
-            message_id=message_id,
-            user_id=user_id,
-            user_id_hash=hashed_user_id,
-            status="finished",
-            encryption_mode="client",  # Client-side encryption (standard flow)
-            created_at=now_ts,
-            updated_at=now_ts,
-            log_prefix=log_prefix,
-            check_cache_status=False,  # Skip dedup check - we know this is the first "finished" event
-            producer_final_children=[],
+        from backend.shared.python_utils.generated_media_graph import send_generated_media_child
+        child_embed_id = embed_id
+        await send_generated_media_child(
+            embed_service,
+            parent_embed_id=arguments.get("producer_embed_id") or embed_id,
+            child_embed_id=child_embed_id,
+            child_index=int(arguments.get("media_child_index") or 0),
+            content=embed_content,
+            chat_id=chat_id, message_id=message_id, user_id=user_id,
+            user_id_hash=hashed_user_id, created_at=now_ts, log_prefix=log_prefix,
         )
         
         # 12. NOTE: embed_update event is NO LONGER published here.
@@ -1448,6 +1457,9 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         }
         result_data = {
             "embed_id": embed_id,
+            "child_embed_id": child_embed_id,
+            "child_embed_ids": [child_embed_id],
+            "embed_ref": f"generated-images-{child_embed_id.replace('-', '')[:12]}",
             "type": "image",
             "status": "finished",
             "files": rest_files_metadata if external_request else {
@@ -1474,6 +1486,8 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         raise
     except Exception as e:
         logger.error(f"{log_prefix} Image generation task failed: {e}", exc_info=True)
+        if arguments.get("media_batch"):
+            raise
         
         # Update the embed status to "error" so the frontend gets notified
         # and the user sees a failure message instead of a perpetual loading state.

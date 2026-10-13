@@ -268,6 +268,29 @@ async def open_context(request: Request) -> JSONResponse:
     return JSONResponse({"fields": fields}, headers={"Cache-Control": "no-store"})
 
 
+@router.post("/context/release")
+async def release_context(request: Request) -> JSONResponse:
+    """Release a completed same-turn handoff by its exact owner/turn/request binding."""
+    payload = await _parse(request, _ContextOpen)
+    state = request.app.state
+    try:
+        owned = await _live_owned_chat_ids(
+            state.directus_service, payload.owner_id, [payload.current_chat_id],
+        )
+        if payload.current_chat_id not in owned:
+            raise HTTPException(status_code=403, detail="Transient context authority denied")
+        released = transient_context_handoff_store.release(
+            payload.reference, owner_id=payload.owner_id,
+            chat_id=payload.current_chat_id, turn_id=payload.turn_id,
+            request_id=payload.request_id,
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=503, detail="Transient context release unavailable") from None
+    return JSONResponse({"released": released}, headers={"Cache-Control": "no-store"})
+
+
 @router.post("/active")
 async def mark_active_summary(request: Request) -> JSONResponse:
     from backend.apps.ai.tasks.async_skill_continuation import async_skill_latest_user_turn_key

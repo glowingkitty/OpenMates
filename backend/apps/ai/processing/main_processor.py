@@ -5844,7 +5844,61 @@ async def handle_main_processing(
 
     steer_boundary_ready = False
     steer_excluded_ids: set[str] = set()
-    for iteration in range(max_iterations_with_recovery):
+    resume_checkpoint = request_data.same_turn_checkpoint if request_data.same_turn_batch_id else None
+    generated_embed_refs: list[str] = []
+    generated_embed_aliases: dict[str, list[str]] = {}
+    logical_billing_task_id = (
+        request_data.continuation_message_id or task_id
+        if request_data.same_turn_batch_id else task_id
+    )
+    start_iteration = 0
+    if resume_checkpoint:
+        if resume_checkpoint.get("version") != 1 or resume_checkpoint.get("turn_id") != request_data.message_id:
+            raise RequiredRecoveryOutputError("Same-turn provider checkpoint is invalid")
+        from backend.apps.ai.tasks.same_turn_skill_barrier import restore_ordered_tool_results
+        current_message_history = await restore_ordered_tool_results(
+            request_data, resume_checkpoint,
+        )
+        generated_embed_refs = list(resume_checkpoint.get("generated_embed_refs") or [])
+        generated_embed_aliases = dict(resume_checkpoint.get("generated_embed_aliases") or {})
+        start_iteration = int(resume_checkpoint["next_iteration"])
+        from backend.apps.ai.tasks.same_turn_skill_barrier import selected_resume_route
+        try:
+            current_model_index, current_model_id = selected_resume_route(
+                resume_checkpoint, models_to_try, preprocessing_results.selected_mate_id,
+            )
+        except RuntimeError as route_error:
+            raise RequiredRecoveryOutputError(
+                "Same-turn selected model or mate changed before resume"
+            ) from route_error
+        total_skill_calls = int(resume_checkpoint["total_skill_calls"])
+        streaming_skill_count = total_skill_calls
+        tool_inference_iterations = int(resume_checkpoint["tool_inference_iterations"])
+        budget_warning_injected = bool(resume_checkpoint["budget_warning_injected"])
+        images_search_executed = bool(resume_checkpoint["images_search_executed"])
+        omitted_news_search_requests = int(resume_checkpoint.get("omitted_news_search_requests", 0))
+        force_no_tools = bool(resume_checkpoint["force_no_tools"])
+        completed_skill_calls = dict(resume_checkpoint["completed_skill_calls"])
+        native_state = resume_checkpoint.get("native_state")
+        native_main_cursor = resume_checkpoint.get("native_main_cursor")
+        native_main_snapshot = resume_checkpoint.get("native_main_snapshot")
+        native_prior_state = None
+        ordinary_reservation_state = dict(resume_checkpoint["ordinary_reservation_state"])
+        tool_calls_info = list(resume_checkpoint["tool_calls_info"])
+        failed_embed_ids = set(resume_checkpoint["failed_embed_ids"])
+        published_answer_text = list(resume_checkpoint["published_answer_text"])
+        usage_state = resume_checkpoint["model_usage_tracker"]
+        model_usage_tracker.total_input_tokens = int(usage_state["total_input_tokens"])
+        model_usage_tracker.total_output_tokens = int(usage_state["total_output_tokens"])
+        model_usage_tracker.last_successful_model_id = usage_state["last_successful_model_id"]
+        model_usage_tracker._usage_by_model = dict(usage_state["usage_by_model"])
+        model_usage_tracker._usage_by_attempt = dict(usage_state["usage_by_attempt"])
+        answer_recovery._source_history = list(resume_checkpoint["answer_recovery"]["source_history"])
+        answer_recovery._evidence_by_call_id = dict(resume_checkpoint["answer_recovery"]["evidence_by_call_id"])
+        answer_recovery._attempted_models = list(resume_checkpoint["answer_recovery"]["attempted_models"])
+        steer_boundary_ready = True
+
+    for iteration in range(start_iteration, max_iterations_with_recovery):
         # A queued steer may join this response only after the entire previous
         # tool batch has completed and before the next provider call is made.
         if steer_boundary_ready:
@@ -6045,7 +6099,7 @@ async def handle_main_processing(
                     )
 
                 current_ai_operation_id = await _reserve_ai_iteration(
-                    task_id=task_id,
+                    task_id=logical_billing_task_id,
                     iteration=iteration,
                     model_id=current_model_id,
                     system_prompt=iteration_system_prompt,
@@ -6226,7 +6280,7 @@ async def handle_main_processing(
                 )
                 if needs_authenticated_hold:
                     current_output_token_limit = await _reserve_authenticated_ai_turn(
-                        task_id=task_id, request_data=request_data,
+                        task_id=logical_billing_task_id, request_data=request_data,
                         model_id=current_model_id,
                         system_prompt=reservation_system_prompt,
                         message_history=reservation_history,
@@ -6237,7 +6291,7 @@ async def handle_main_processing(
                     )
                     async def admit_actual_provider(_server_model_id: str, dispatch_limit: Optional[int]) -> int:
                         return await _reserve_authenticated_ai_turn(
-                            task_id=task_id, request_data=request_data,
+                            task_id=logical_billing_task_id, request_data=request_data,
                             model_id=current_model_id,
                             system_prompt=reservation_system_prompt,
                             message_history=reservation_history,
@@ -6719,7 +6773,11 @@ async def handle_main_processing(
                         requests_list = parsed_args.get("requests", []) if isinstance(parsed_args, dict) else []
                         is_multiple_requests = isinstance(requests_list, list) and len(requests_list) > 1
                         
-                        if is_multiple_requests:
+                        # Generated media is one skill invocation with one parent
+                        # producer. Its registered batch task creates ordered child
+                        # assets and closes the parent after every request settles.
+                        media_single_parent = app_id in {"images", "videos", "audio", "music", "vectors", "three_d"}
+                        if is_multiple_requests and not media_single_parent:
                             # MULTIPLE REQUESTS: Create one placeholder per request
                             logger.info(
                                 f"{log_prefix} INLINE: Detected {len(requests_list)} requests, creating placeholders for each"
@@ -6895,6 +6953,8 @@ async def handle_main_processing(
                                 log_prefix=log_prefix,
                             )
                             metadata.update(preview_metadata)
+                            if media_single_parent and is_multiple_requests:
+                                metadata["request_count"] = len(requests_list)
                             
                             # Log final metadata for debugging
                             metadata_summary = ", ".join([f"{k}={v}" for k, v in metadata.items()])
@@ -7325,6 +7385,7 @@ async def handle_main_processing(
             rejected_tool_calls=hallucinated_tool_calls_this_turn,
             assistant_content=final_buffered_text_for_turn,
         )
+        async_batch_jobs: list[dict[str, str]] = []
 
         async def cancel_suppressed_placeholder(tool_call: Any, guard_name: str) -> None:
             placeholder = inline_placeholder_embeds.get(tool_call.tool_call_id)
@@ -8622,7 +8683,7 @@ async def handle_main_processing(
                             await create_orchestration_root(directus_service, request_data)
                             if current_ai_operation_id is None:
                                 current_ai_operation_id = await _reserve_ai_iteration(
-                                    task_id=task_id,
+                                    task_id=logical_billing_task_id,
                                     iteration=iteration,
                                     model_id=current_model_id,
                                     system_prompt=iteration_system_prompt,
@@ -8693,7 +8754,7 @@ async def handle_main_processing(
                             )
                             if current_ai_operation_id is None:
                                 current_ai_operation_id = await _reserve_ai_iteration(
-                                    task_id=task_id,
+                                    task_id=logical_billing_task_id,
                                     iteration=iteration,
                                     model_id=current_model_id,
                                     system_prompt=iteration_system_prompt,
@@ -8786,7 +8847,7 @@ async def handle_main_processing(
                         )
                         if current_ai_operation_id is None:
                             current_ai_operation_id = await _reserve_ai_iteration(
-                                task_id=task_id,
+                                task_id=logical_billing_task_id,
                                 iteration=iteration,
                                 model_id=current_model_id,
                                 system_prompt=iteration_system_prompt,
@@ -9081,6 +9142,8 @@ async def handle_main_processing(
                 skill_was_cancelled = False
                 reserved_skill_operation_ids: list[str] = []
                 provider_dispatch_attempted = bool(parallel_execution)
+                same_turn_intent_batch_id = None
+                connected_account_journal_entries: list[dict[str, Any]] = []
                 
                 try:
                     # ARGUMENT NORMALIZATION:
@@ -9103,6 +9166,18 @@ async def handle_main_processing(
                         current_message_history,
                         log_prefix,
                     )
+                    same_turn_intent_batch_id = (
+                        f"{task_id}:{iteration}"
+                        if not request_data.is_external and not request_data.is_anonymous
+                        and not request_data.auto_speak_response
+                        and not (app_id == "code" and skill_id == "run"
+                                 and isinstance(skill_arguments, dict)
+                                 and skill_arguments.get("target") == "remote_source")
+                        else None
+                    )
+                    if same_turn_intent_batch_id and not parallel_execution:
+                        skill_arguments = skill_arguments.copy()
+                        skill_arguments["_same_turn_batch_id"] = same_turn_intent_batch_id
                     natural_workflow_authoring = is_natural_language_authoring_call(
                         app_id, skill_id, skill_arguments,
                     )
@@ -9161,7 +9236,6 @@ async def handle_main_processing(
                         )
 
                     connected_account_token_artifacts: list[dict[str, str]] = []
-                    connected_account_journal_entries: list[dict[str, Any]] = []
                     from backend.apps.ai.processing.connected_account_execution import is_connected_account_skill
 
                     if is_connected_account_skill(app_id, skill_id) and (
@@ -9266,6 +9340,29 @@ async def handle_main_processing(
                         )
                         continue
 
+                    if same_turn_intent_batch_id and (app_id, skill_id) in ASYNC_SKILLS:
+                        # Check the existing private transcript before a paid producer
+                        # is queued. Leave room for terminal sync tool messages and
+                        # route/accounting state added to the final pause checkpoint.
+                        from backend.apps.ai.tasks.same_turn_skill_barrier import preflight_private_checkpoint_capacity
+                        from backend.shared.python_utils.recent_work_summary_cache import PRIVATE_CONTEXT_FIELDS
+                        preview_request = request_data.model_dump(mode="json")
+                        for private_field in PRIVATE_CONTEXT_FIELDS:
+                            if private_field in {"same_turn_request", "same_turn_checkpoint"}:
+                                continue
+                            private_value = getattr(request_data, private_field, None)
+                            if private_value:
+                                preview_request[private_field] = private_value
+                        try:
+                            preflight_private_checkpoint_capacity(
+                                preview_request, current_message_history,
+                                native_state, native_main_cursor, native_main_snapshot,
+                            )
+                        except (TypeError, ValueError, RuntimeError) as capacity_error:
+                            raise RequiredRecoveryOutputError(
+                                "The current conversation is too large to suspend for this skill"
+                            ) from capacity_error
+
                     if parallel_execution:
                         reserved_skill_operation_ids = parallel_execution["reservation_ids"]
                     elif (app_id, skill_id) not in ASYNC_SKILLS or getattr(request_data, "is_anonymous", False):
@@ -9309,7 +9406,7 @@ async def handle_main_processing(
                                     cache_service=cache_service,
                                     encryption_service=encryption_service,
                                     secrets_manager=secrets_manager,
-                                    max_retries=0 if natural_workflow_authoring or getattr(request_data, "is_anonymous", False) else 1,
+                                    max_retries=0 if natural_workflow_authoring or getattr(request_data, "is_anonymous", False) or (same_turn_intent_batch_id and (app_id, skill_id) in ASYNC_SKILLS) else 1,
                                     is_anonymous=bool(getattr(request_data, "is_anonymous", False)),
                                 )
                         results, ascii_sanitization_stats = sanitize_text_payload_for_ascii_smuggling(
@@ -9410,6 +9507,13 @@ async def handle_main_processing(
                 except RequiredRecoveryOutputError:
                     raise
                 except Exception as skill_error:
+                    if same_turn_intent_batch_id and (app_id, skill_id) in ASYNC_SKILLS:
+                        # A producer may already have accepted an earlier item. Retrying or
+                        # synthesizing an ordinary tool error could dispatch it twice or
+                        # let the provider continue without tracking the live job.
+                        raise RequiredRecoveryOutputError(
+                            "The async skill could not be safely registered for this turn"
+                        ) from skill_error
                     # CRITICAL: Handle skill execution failures gracefully
                     # When a skill fails (HTTP error, timeout, rate limit, etc.), we:
                     # 1. Create an error result that tells the LLM the skill failed
@@ -9530,6 +9634,17 @@ async def handle_main_processing(
                         and isinstance(parsed_args, dict)
                         and parsed_args.get("target") == "remote_source"
                     )
+                    same_turn_batch_id = same_turn_intent_batch_id
+                    if same_turn_batch_id:
+                        if async_result.get("error"):
+                            # A multi-request producer may have accepted only a prefix.
+                            # Completing with those callbacks alone would misrepresent
+                            # the unsent requests as a full tool result.
+                            raise RequiredRecoveryOutputError(
+                                "Only part of the async skill batch could be dispatched"
+                            )
+                        should_wait_inline = False
+                        inline_wait_deadline = None
                     try:
                         from backend.apps.ai.tasks.async_skill_continuation import (
                             cache_async_skill_continuation_context,
@@ -9552,7 +9667,14 @@ async def handle_main_processing(
                                 defer_until_initial_response_complete=(
                                     is_remote_command and not waits_for_remote_command
                                 ),
+                                same_turn_batch_id=same_turn_batch_id,
                             )
+                            if same_turn_batch_id:
+                                request_count = len(parsed_args.get("requests") or []) if isinstance(parsed_args, dict) else 1
+                                async_batch_jobs.append({"task_id": str(async_task_id),
+                                                         "tool_call_id": str(tool_call_id),
+                                                         "app_id": app_id, "skill_id": skill_id,
+                                                         "request_count": max(1, request_count)})
                         if (
                             is_remote_command
                         ):
@@ -9604,6 +9726,12 @@ async def handle_main_processing(
                             f"{log_prefix} Failed to cache async skill continuation context: {continuation_cache_error}",
                             exc_info=True,
                         )
+                        if same_turn_batch_id:
+                            # The producer may already be running. Never continue the
+                            # provider loop with an untracked or partial barrier.
+                            raise RequiredRecoveryOutputError(
+                                "The async skill could not be safely registered for this turn"
+                            ) from continuation_cache_error
                         tool_result_content_str = json.dumps(
                             _build_async_skill_pending_tool_result(
                                 async_result=async_result,
@@ -11018,6 +11146,8 @@ async def handle_main_processing(
                     )
                 except Exception:
                     pass  # Don't fail if status publish fails
+            except RequiredRecoveryOutputError:
+                raise
             except Exception as e:
                 if _is_task_tool_like(tool_name):
                     logger.warning("%s Task tool rejected before execution for %s: %s", log_prefix, tool_name, e.__class__.__name__)
@@ -11118,6 +11248,50 @@ async def handle_main_processing(
                 "ignore_fields_for_inference": ignore_fields_for_inference  # Store for follow-up requests
             }
             current_message_history.append(tool_response_message)
+
+        if async_batch_jobs:
+            checkpoint = {
+                "version": 1, "turn_id": request_data.message_id,
+                "next_iteration": iteration + 1,
+                "current_message_history": current_message_history,
+                "jobs": async_batch_jobs,
+                "current_model_index": current_model_index,
+                "current_model_id": current_model_id,
+                "models_to_try": models_to_try,
+                "selected_mate_id": preprocessing_results.selected_mate_id,
+                "total_skill_calls": total_skill_calls,
+                "tool_inference_iterations": tool_inference_iterations,
+                "budget_warning_injected": budget_warning_injected,
+                "images_search_executed": images_search_executed,
+                "omitted_news_search_requests": omitted_news_search_requests,
+                "force_no_tools": force_no_tools,
+                "completed_skill_calls": completed_skill_calls,
+                "native_state": native_state,
+                "native_main_cursor": native_main_cursor,
+                "native_main_snapshot": native_main_snapshot,
+                "ordinary_reservation_state": ordinary_reservation_state,
+                "tool_calls_info": tool_calls_info,
+                "failed_embed_ids": sorted(failed_embed_ids),
+                "published_answer_text": published_answer_text,
+                "generated_embed_refs": generated_embed_refs,
+                "generated_embed_aliases": generated_embed_aliases,
+                "model_usage_tracker": {
+                    "total_input_tokens": model_usage_tracker.total_input_tokens,
+                    "total_output_tokens": model_usage_tracker.total_output_tokens,
+                    "last_successful_model_id": model_usage_tracker.last_successful_model_id,
+                    "usage_by_model": model_usage_tracker._usage_by_model,
+                    "usage_by_attempt": model_usage_tracker._usage_by_attempt,
+                },
+                "answer_recovery": {
+                    "source_history": answer_recovery._source_history,
+                    "evidence_by_call_id": answer_recovery._evidence_by_call_id,
+                    "attempted_models": answer_recovery._attempted_models,
+                },
+            }
+            yield {"__same_turn_skill_pause__": True, "checkpoint": checkpoint,
+                   "batch_id": f"{task_id}:{iteration}",
+                   "task_ids": [job["task_id"] for job in async_batch_jobs]}
+            return
 
         if pending_project_operation_id:
             # The client job will resume this turn through its cached continuation.

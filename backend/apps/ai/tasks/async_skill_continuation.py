@@ -118,6 +118,7 @@ async def cache_async_skill_continuation_context(
     inline_wait_deadline: Optional[float] = None,
     requires_current_turn: bool = False,
     defer_until_initial_response_complete: bool = False,
+    same_turn_batch_id: Optional[str] = None,
     ttl_seconds: int = ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
 ) -> None:
     """Store the original ask context for a later async skill completion."""
@@ -130,24 +131,71 @@ async def cache_async_skill_continuation_context(
             cache_service, request_data, preprocessing_result,
         )
 
+    request_snapshot = request_data.model_dump(mode="json")
+    if same_turn_batch_id:
+        # The full request and provider transcript enter the API-only sealed
+        # handoff at pause. Redis callback context needs identities only.
+        request_snapshot = {
+            key: request_snapshot.get(key) for key in (
+                "user_id", "user_id_hash", "chat_id", "message_id",
+                "recovery_task_id", "recovery_inference_task_id",
+                "recovery_preflight_id", "preprocessing_resume_ref",
+            )
+        }
+        request_snapshot["message_history"] = []
     context = {
-        "request_data": request_data.model_dump(mode="json"),
+        "request_data": request_snapshot,
         "skill_config_dict": skill_config_dict or {},
         "app_id": app_id,
         "skill_id": skill_id,
         "tool_name": tool_name,
-        "tool_arguments": tool_arguments,
+        "tool_arguments": {} if same_turn_batch_id else tool_arguments,
         "cached_at": int(time.time()),
         "requires_current_turn": requires_current_turn,
         "defer_until_initial_response_complete": defer_until_initial_response_complete,
+        "same_turn_batch_id": same_turn_batch_id,
     }
     if inline_wait_deadline is not None:
         context["inline_wait_deadline"] = inline_wait_deadline
-    await cache_service.set(
+    stored = await cache_service.set(
         async_skill_continuation_key(async_task_id),
         context,
         ttl=max(1, min(int(ttl_seconds), ASYNC_SKILL_CONTINUATION_TTL_SECONDS)),
     )
+    if same_turn_batch_id and not stored:
+        raise RuntimeError("Same-turn completion callback context could not be stored")
+    if same_turn_batch_id:
+        early_key = f"same_turn_skill:early:{async_task_id}"
+        early = await cache_service.get(early_key)
+        if isinstance(early, dict) and all((
+            early.get("user_id") == request_data.user_id,
+            early.get("chat_id") == request_data.chat_id,
+            early.get("message_id") == request_data.message_id,
+            early.get("batch_id") == same_turn_batch_id,
+        )):
+            from backend.shared.python_utils.recent_work_summary_client import restore_private_context_payload
+            restored = await restore_private_context_payload({
+                "user_id": request_data.user_id, "chat_id": request_data.chat_id,
+                "message_id": request_data.message_id,
+                "agentic_context_turn_id": request_data.message_id,
+                "agentic_context_request_id": async_task_id,
+                "agentic_context_ref": early["payload_ref"],
+            })
+            completion = restored.get("async_tool_completion")
+            if isinstance(completion, dict):
+                await dispatch_async_skill_continuation(
+                    cache_service=cache_service, async_task_id=async_task_id,
+                    completed_results=completion.get("completed_results") or [],
+                    result_status=completion.get("result_status") or "failed",
+                    request_metadata=completion.get("request_metadata") or {},
+                )
+            await cache_service.delete(early_key)
+            from backend.shared.python_utils.recent_work_summary_client import RecentWorkSummaryClient
+            await RecentWorkSummaryClient().release_context(
+                owner_id=request_data.user_id, chat_id=request_data.chat_id,
+                turn_id=request_data.message_id, request_id=async_task_id,
+                reference=early["payload_ref"],
+            )
 
 
 async def dispatch_async_skill_continuation(
@@ -170,8 +218,90 @@ async def dispatch_async_skill_continuation(
     cache_key = async_skill_continuation_key(async_task_id)
     context = await cache_service.get(cache_key)
     if not isinstance(context, dict):
+        identity = request_metadata or {}
+        if all(isinstance(identity.get(key), str) and identity[key]
+               for key in ("user_id", "chat_id", "message_id")):
+            from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload
+            private_metadata = {key: value for key, value in identity.items()
+                                if key not in {"user_id", "chat_id", "message_id"}}
+            early_batch_id = identity.get("same_turn_batch_id")
+            early_ttl = (90 * 60 if isinstance(early_batch_id, str)
+                         and 0 < len(early_batch_id) <= 128 else 20 * 60)
+            sealed = await seal_private_context_payload({
+                "user_id": identity["user_id"], "chat_id": identity["chat_id"],
+                "message_id": identity["message_id"],
+                "async_tool_completion": {
+                    "completed_results": completed_results, "result_status": result_status,
+                    "request_metadata": private_metadata,
+                },
+                "same_turn_checkpoint": {"handoff_ttl_seconds": early_ttl},
+            }, request_id=async_task_id)
+            early_key = f"same_turn_skill:early:{async_task_id}"
+            await cache_service.set(early_key, {
+                "user_id": identity["user_id"], "chat_id": identity["chat_id"],
+                "message_id": identity["message_id"],
+                "batch_id": early_batch_id,
+                "payload_ref": sealed["agentic_context_ref"],
+            }, ttl=early_ttl)
+            # Close the read/write race with context registration. Both routes
+            # can run; terminal slot SET NX and dispatch lease make it one turn.
+            if isinstance(await cache_service.get(cache_key), dict):
+                dispatched = await dispatch_async_skill_continuation(
+                    cache_service=cache_service, async_task_id=async_task_id,
+                    completed_results=completed_results, result_status=result_status,
+                    request_metadata=private_metadata,
+                )
+                await cache_service.delete(early_key)
+                from backend.shared.python_utils.recent_work_summary_client import RecentWorkSummaryClient
+                await RecentWorkSummaryClient().release_context(
+                    owner_id=identity["user_id"], chat_id=identity["chat_id"],
+                    turn_id=identity["message_id"], request_id=async_task_id,
+                    reference=sealed["agentic_context_ref"],
+                )
+                return dispatched
         logger.warning("Async skill continuation context missing for task %s", async_task_id)
         return None
+
+    request_metadata = {
+        key: value for key, value in (request_metadata or {}).items()
+        if key not in {"user_id", "chat_id", "message_id", "same_turn_batch_id"}
+    }
+
+    if context.get("same_turn_batch_id"):
+        from backend.apps.ai.tasks.same_turn_skill_barrier import record_terminal
+        from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload
+
+        original = context.get("request_data") or {}
+        if await cache_service.get(async_skill_latest_user_turn_key(
+            original.get("user_id", ""), original.get("chat_id", ""),
+        )) != original.get("message_id"):
+            return None
+        batch_id = str(context["same_turn_batch_id"])
+        batch_metadata = await cache_service.get(f"same_turn_skill:{batch_id}:batch")
+        handoff_ttl_seconds = (
+            batch_metadata.get("handoff_ttl_seconds", 90 * 60)
+            if isinstance(batch_metadata, dict) else 90 * 60
+        )
+        payload_ref = ""
+        terminal_status = result_status if result_status in {"finished", "failed", "cancelled"} else "failed"
+        try:
+            sealed = await seal_private_context_payload({
+                "user_id": original["user_id"], "chat_id": original["chat_id"],
+                "message_id": original["message_id"],
+                "same_turn_checkpoint": {"batch_id": batch_id,
+                                         "handoff_ttl_seconds": handoff_ttl_seconds},
+                "async_tool_completion": _build_completed_tool_result_payload(
+                    context=context, completed_results=completed_results,
+                    result_status=terminal_status, request_metadata=request_metadata or {},
+                ),
+            }, request_id=async_task_id)
+            payload_ref = sealed["agentic_context_ref"]
+        except (KeyError, RuntimeError):
+            terminal_status = "failed"
+            logger.warning("Async completion content unavailable for task %s", async_task_id)
+        await record_terminal(cache_service, batch_id=batch_id, task_id=async_task_id,
+                              payload_ref=payload_ref, status=terminal_status)
+        return await dispatch_same_turn_barrier(cache_service=cache_service, batch_id=batch_id)
 
     inline_wait_deadline = context.get("inline_wait_deadline")
     if isinstance(inline_wait_deadline, (int, float)) and time.time() <= inline_wait_deadline:
@@ -410,6 +540,209 @@ async def dispatch_async_skill_continuation(
     await cache_service.delete(cache_key)
     logger.info("Dispatched async skill continuation task %s for completed task %s", task_result.id, async_task_id)
     return task_result.id
+
+
+async def dispatch_same_turn_barrier(
+    *, cache_service: Any, batch_id: str, expire_missing: bool = False,
+) -> Optional[str]:
+    """Resume the original provider loop after every required job is terminal."""
+    from backend.apps.ai.tasks.same_turn_skill_barrier import claim_ready
+
+    pending = await cache_service.get(f"same_turn_skill:{batch_id}:batch")
+    if isinstance(pending, dict):
+        latest = await cache_service.get(async_skill_latest_user_turn_key(
+            pending["user_id"], pending["chat_id"],
+        ))
+        if latest != pending["turn_id"]:
+            await _settle_same_turn_stop(cache_service, pending, batch_id, "user_cancelled")
+            return None
+        # The original delivery must relinquish chat ownership before its
+        # successor publishes on the same logical assistant message. A short
+        # delayed retry is an event-driven wakeup, not a resident worker wait.
+        active = await cache_service.get_active_ai_task(pending["chat_id"])
+        if active:
+            if await cache_service.client:
+                retry_key = f"same_turn_skill:{batch_id}:owner_retry"
+                if await (await cache_service.client).set(retry_key, "1", nx=True, ex=5):
+                    _get_celery_app().send_task(
+                        "apps.ai.tasks.same_turn_skill_deadline",
+                        kwargs={"batch_id": batch_id}, countdown=5, queue="app_ai",
+                    )
+            return None
+
+    ready = await claim_ready(cache_service, batch_id=batch_id,
+                              expire_missing=expire_missing)
+    if ready is None:
+        return None
+    first_context = await cache_service.get(async_skill_continuation_key(ready["task_ids"][0]))
+    if not isinstance(first_context, dict) or first_context.get("same_turn_batch_id") != batch_id:
+        logger.error("Same-turn checkpoint context expired for batch %s", batch_id)
+        await _settle_same_turn_stop(cache_service, ready, batch_id, "async_skill_expired")
+        return None
+    original = first_context.get("request_data")
+    if not isinstance(original, dict) or any(original.get(key) != ready[value] for key, value in (
+        ("user_id", "user_id"), ("chat_id", "chat_id"), ("message_id", "turn_id"),
+    )):
+        logger.error("Same-turn checkpoint binding mismatch for batch %s", batch_id)
+        await _settle_same_turn_stop(cache_service, ready, batch_id, "async_skill_expired")
+        return None
+    if await cache_service.get(f"same_turn_skill:{batch_id}:sent"):
+        return None
+    client = await cache_service.client
+    if client is None:
+        raise RuntimeError("Same-turn dispatch authority unavailable")
+    if not await client.set(f"same_turn_skill:{batch_id}:dispatch_lease", "1", nx=True, ex=10):
+        return None
+    # The retry is the outbox repair path for a worker dying after its lease is
+    # acquired. The resume delivery ID is deterministic; durable claim is once.
+    _get_celery_app().send_task(
+        "apps.ai.tasks.same_turn_skill_deadline",
+        kwargs={"batch_id": batch_id}, countdown=11, queue="app_ai",
+    )
+    reserved = await client.eval(
+        "if redis.call('GET', KEYS[1]) ~= ARGV[1] or redis.call('EXISTS', KEYS[2]) == 1 "
+        "then return 0 end; "
+        "redis.call('SET', KEYS[2], ARGV[2], 'EX', 600); "
+        "redis.call('SET', KEYS[3], ARGV[3], 'EX', 600); return 1",
+        3,
+        async_skill_latest_user_turn_key(ready["user_id"], ready["chat_id"]),
+        cache_service._get_active_task_key(ready["chat_id"]),
+        cache_service._get_task_chat_mapping_key(ready["resume_task_id"]),
+        ready["turn_id"], ready["resume_task_id"], ready["chat_id"],
+    )
+    if not reserved:
+        return None
+    request_payload = dict(original)
+    request_payload.update({
+        "is_async_skill_continuation": True,
+        "same_turn_batch_id": batch_id,
+        "same_turn_slots": ready["slots"],
+        "awaiting_async_skill_continuation": False,
+        "continuation_message_id": ready["logical_task_id"],
+        "original_user_message_id": ready["turn_id"],
+        "recovery_task_id": None,
+        "recovery_inference_task_id": (
+            original.get("recovery_task_id") or original.get("recovery_inference_task_id")
+        ),
+        "agentic_context_ref": ready["checkpoint_ref"],
+        "agentic_context_request_id": batch_id,
+        "agentic_context_turn_id": ready["turn_id"],
+    })
+    config = first_context.get("skill_config_dict") or _load_ask_skill_config_from_app_yml()
+    try:
+        result = _get_celery_app().send_task(
+            name="apps.ai.tasks.skill_ask",
+            kwargs={"request_data_dict": request_payload, "skill_config_dict": config},
+            task_id=ready["resume_task_id"], queue="app_ai",
+        )
+    except Exception:
+        await cache_service.clear_active_ai_task_if_matches(
+            ready["chat_id"], ready["resume_task_id"],
+        )
+        raise
+    await cache_service.set(f"same_turn_skill:{batch_id}:sent", result.id, ttl=90 * 60)
+    await cache_service.set(
+        f"same_turn_skill:logical_delivery:{ready['logical_task_id']}",
+        result.id, ttl=90 * 60,
+    )
+    logger.info("Sent same-turn resume %s for batch %s", result.id, batch_id)
+    return result.id
+
+
+async def _settle_same_turn_stop(
+    cache_service: Any, metadata: dict[str, Any], batch_id: str, category: str,
+) -> None:
+    """End an abandoned paused turn and tell its client why it cannot resume."""
+    inference_id = metadata.get("recovery_inference_task_id")
+    if inference_id:
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+        from backend.core.api.app.services.directus import DirectusService
+        directus = DirectusService(cache_service=cache_service)
+        try:
+            stopped = await ChatRecoveryService(directus).execute("mark_inference_failed", {
+                "protocol_version": 1, "inference_task_id": inference_id,
+                "failure_category": category,
+                **({"turn_id": metadata["turn_id"]} if category == "user_cancelled"
+                   else {"step_id": batch_id}),
+            })
+        finally:
+            await directus.close()
+        if stopped.get("state") not in {"FAILED"}:
+            return
+    stopped_key = f"same_turn_skill:{batch_id}:stopped"
+    if await cache_service.get(stopped_key):
+        return
+    await cache_service.publish_event(f"chat_stream::{metadata['chat_id']}", {
+        "type": "recovery_output_paused", "chat_id": metadata["chat_id"],
+        "user_id_uuid": metadata["user_id"], "message_id": metadata["turn_id"],
+        "task_id": metadata.get("logical_task_id"),
+        "reason_code": "user_cancelled" if category == "user_cancelled" else "durable_output_unavailable",
+    })
+    await cache_service.set(stopped_key, "1", ttl=90 * 60)
+    from backend.shared.python_utils.recent_work_summary_client import RecentWorkSummaryClient
+    handoff_client = RecentWorkSummaryClient()
+    references = [(batch_id, metadata.get("checkpoint_ref"))]
+    for task_id in metadata.get("task_ids") or []:
+        slot = await cache_service.get(f"same_turn_skill:{batch_id}:slot:{task_id}")
+        if isinstance(slot, dict):
+            references.append((task_id, slot.get("payload_ref")))
+    for request_id, reference in references:
+        if isinstance(request_id, str) and isinstance(reference, str) and reference:
+            await handoff_client.release_context(
+                owner_id=metadata["user_id"], chat_id=metadata["chat_id"],
+                turn_id=metadata["turn_id"], request_id=request_id,
+                reference=reference,
+            )
+
+
+async def cancel_same_turn_source(
+    cache_service: Any, *, user_id: str, chat_id: str, source_task_id: str,
+) -> bool:
+    """Cancel only the paused source's logical turn; preserve newer chat work."""
+    batch_id = await cache_service.get(f"same_turn_skill:source:{source_task_id}")
+    metadata = await cache_service.get(f"same_turn_skill:{batch_id}:batch") if batch_id else None
+    if not isinstance(metadata, dict) or any((
+        metadata.get("user_id") != user_id,
+        metadata.get("chat_id") != chat_id,
+        metadata.get("source_delivery_task_id") != source_task_id,
+    )):
+        return False
+    client = await cache_service.client
+    if client is None:
+        raise RuntimeError("Paused-turn cancellation authority unavailable")
+    latest_key = async_skill_latest_user_turn_key(user_id, chat_id)
+    fenced = await client.eval(
+        "if redis.call('GET', KEYS[1]) == ARGV[1] then "
+        "redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3]); return 1 end; return 0",
+        1, latest_key, metadata["turn_id"], f"cancelled:{source_task_id}", 90 * 60,
+    )
+    if not fenced:
+        return False
+    await _settle_same_turn_stop(cache_service, metadata, batch_id, "user_cancelled")
+    current_delivery = await cache_service.get(
+        f"same_turn_skill:logical_delivery:{metadata['logical_task_id']}",
+    )
+    if current_delivery and current_delivery != source_task_id:
+        _get_celery_app().control.revoke(current_delivery, terminate=True, signal="SIGUSR1")
+    return True
+
+
+async def release_same_turn_handoffs(request_data: AskSkillRequest) -> None:
+    """Unpin encrypted API-memory handoffs once the resumed turn has settled."""
+    if not request_data.same_turn_batch_id:
+        return
+    from backend.shared.python_utils.recent_work_summary_client import RecentWorkSummaryClient
+    client = RecentWorkSummaryClient()
+    references = [(request_data.same_turn_batch_id, request_data.agentic_context_ref)]
+    references.extend((slot.get("task_id"), slot.get("payload_ref"))
+                      for slot in request_data.same_turn_slots)
+    for request_id, reference in references:
+        if isinstance(request_id, str) and isinstance(reference, str) and reference:
+            await client.release_context(
+                owner_id=request_data.user_id, chat_id=request_data.chat_id,
+                turn_id=request_data.message_id, request_id=request_id,
+                reference=reference,
+            )
 
 
 async def dispatch_deferred_async_skill_continuations(

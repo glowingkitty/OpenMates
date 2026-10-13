@@ -45,6 +45,8 @@ RECOVERY_OPERATIONS = {
     "enqueue_inference",
     "release_inference_outbox",
     "claim_inference",
+    "pause_inference_for_skill",
+    "resume_inference_for_skill",
     "mark_outbox_dispatched",
     "mark_inference_failed",
     "create_sealed_job",

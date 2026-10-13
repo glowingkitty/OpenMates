@@ -16,6 +16,7 @@ import {
 } from '../data/embedRegistry.generated';
 import BusinessCompanyFinancialsEmbedFullscreen from '../components/embeds/business/BusinessCompanyFinancialsEmbedFullscreen.svelte';
 import Model3DResultEmbedFullscreen from '../components/embeds/models3d/Model3DResultEmbedFullscreen.svelte';
+import { isGeneratedMediaParent, isGeneratedMediaSkill } from '../components/embeds/generatedMediaGroup';
 import {
 	isChunkLoadError,
 	logChunkLoadError
@@ -49,10 +50,18 @@ export function resolveRegistryKey(
 
 	if (normalized === 'app-skill-use') {
 		if (typeof appId === 'string' && typeof skillId === 'string') {
+			if (isGeneratedMediaParent(appId, skillId, decodedContent)) return `app:${appId}:${skillId}`;
+			if (isGeneratedMediaSkill(appId, skillId)) {
+				const childKey = EMBED_CHILD_TYPE_MAP[`${appId}:${skillId}`];
+				if (childKey && childKey in EMBED_FULLSCREEN_COMPONENTS) return childKey;
+			}
 			return `app:${appId}:${skillId}`;
 		}
 		return null;
 	}
+
+	// A recording is user-owned media, even if it carries audio generation metadata.
+	if (normalized === 'recording' && hasFullscreenComponent(normalized)) return normalized;
 
 	if (typeof appId === 'string' && typeof skillId === 'string') {
 		const childKey = EMBED_CHILD_TYPE_MAP[`${appId}:${skillId}`];

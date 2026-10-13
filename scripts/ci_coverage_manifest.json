@@ -150,6 +150,9 @@
     },
     "browser_component_contract": {
       "specs": [
+        "components/embed-preview-visual-fixes.spec.ts",
+        "components/generated-media-child.spec.ts",
+        "example-chat-ipad-multitab.spec.ts",
         "components/video-call-panel.spec.ts",
         "components/video-call-panel-responsive.spec.ts",
         "components/voice-call-bar.spec.ts",

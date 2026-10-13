@@ -1551,7 +1551,8 @@ class EmbedService:
         content_hash: Optional[str] = None,
         version_history_rows: Optional[List[Dict[str, Any]]] = None,
         learning_mode_metadata: Optional[Dict[str, Any]] = None,
-        log_prefix: str = ""
+        log_prefix: str = "",
+        final_producer_output: bool = False,
     ) -> bool:
         """
         Update code embed content as code streams paragraph by paragraph.
@@ -1767,6 +1768,7 @@ class EmbedService:
                     updated_at=updated_embed_data["updated_at"],
                     log_prefix=log_prefix,
                     check_cache_status=False,  # Cache state was checked before this update
+                    producer_final_children=[] if final_producer_output and status == "finished" else None,
                     finished_cache_data=updated_embed_data if status == "finished" else None,
                     finished_cache_vault_key_id=user_vault_key_id,
                 )
@@ -2126,6 +2128,9 @@ class EmbedService:
         thumbnail: Optional[Dict[str, Any]] = None,
         log_prefix: str = "",
         final_producer_output: bool = False,
+        generated_child_embed_id: Optional[str] = None,
+        generated_child_embed_ref: Optional[str] = None,
+        terminal_error_output: bool = False,
     ) -> bool:
         """Update a videos.create embed with source, render status, and artifacts."""
         try:
@@ -2190,20 +2195,26 @@ class EmbedService:
                 updated_content["files"] = files
             if thumbnail:
                 updated_content["thumbnail"] = thumbnail
+            if generated_child_embed_id:
+                updated_content["embed_ids"] = [generated_child_embed_id]
+                updated_content["output_embed_refs"] = [generated_child_embed_ref] if generated_child_embed_ref else []
 
             content_toon = encode(updated_content)
             encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(content_toon, user_vault_key_id)
             updated_at = int(datetime.now().timestamp())
+            delivery_status = "finished" if terminal_error_output and status == "error" else status
             updated_embed_data = {
                 **cached_embed,
                 "type": "app_skill_use",
                 "encrypted_content": encrypted_content,
-                "status": status,
+                "status": delivery_status,
                 "updated_at": updated_at,
             }
+            if generated_child_embed_id:
+                updated_embed_data["embed_ids"] = [generated_child_embed_id]
             if next_embed_version is not None:
                 updated_embed_data["version_number"] = next_embed_version
-            if status != "finished":
+            if delivery_status != "finished":
                 await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
             await self.send_embed_data_to_client(
                 embed_id=embed_id,
@@ -2213,7 +2224,7 @@ class EmbedService:
                 message_id=message_id or cached_embed.get("message_id", ""),
                 user_id=user_id,
                 user_id_hash=user_id_hash,
-                status=status,
+                status=delivery_status,
                 task_id=cached_embed.get("hashed_task_id"),
                 is_private=cached_embed.get("is_private", False),
                 is_shared=cached_embed.get("is_shared", False),
@@ -2224,8 +2235,12 @@ class EmbedService:
                 app_id="videos",
                 skill_id="create",
                 version_number=next_embed_version,
-                producer_final_children=[] if final_producer_output and status == "finished" else None,
-                finished_cache_data=updated_embed_data if status == "finished" else None,
+                embed_ids=[generated_child_embed_id] if generated_child_embed_id else None,
+                producer_final_children=(
+                    [{"subject_id": generated_child_embed_id, "output_kind": "embed", "output_version": 1}]
+                    if generated_child_embed_id else []
+                ) if final_producer_output and delivery_status == "finished" else None,
+                finished_cache_data=updated_embed_data if delivery_status == "finished" else None,
                 finished_cache_vault_key_id=user_vault_key_id,
             )
             if status in {"finished", "error", "cancelled", "needs_rerender"}:

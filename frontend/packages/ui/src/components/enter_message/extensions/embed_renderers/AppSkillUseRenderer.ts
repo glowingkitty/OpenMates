@@ -51,6 +51,8 @@ import TravelPriceCalendarEmbedPreview from "../../../embeds/travel/TravelPriceC
 import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
 import Model3DGenerateEmbedPreview from "../../../embeds/models3d/Model3DGenerateEmbedPreview.svelte";
+import GeneratedMediaGroupEmbedPreview from "../../../embeds/GeneratedMediaGroupEmbedPreview.svelte";
+import { generatedMediaChildIds, isGeneratedMediaParent } from "../../../embeds/generatedMediaGroup";
 import Model3DSearchEmbedPreview from "../../../embeds/models3d/Model3DSearchEmbedPreview.svelte";
 import Model3DResultEmbedPreview from "../../../embeds/models3d/Model3DResultEmbedPreview.svelte";
 import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
@@ -923,6 +925,28 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           decodedContent,
           content,
         );
+      }
+
+      // A generation invocation is a parent manifest. Its asset IDs belong to
+      // child embeds, so opening the parent must show the child grid.
+      if (isGeneratedMediaParent(appId, skillId, decodedContent)) {
+        const parentId = attrs.contentRef?.replace("embed:", "") || attrs.id || "";
+        this.prepareMount(content);
+        const component = mount(GeneratedMediaGroupEmbedPreview, {
+          target: content,
+          props: {
+            id: parentId, appId, skillId,
+            status: (decodedContent?.status === "error" ? "error"
+              : embedData?.status || decodedContent?.status || attrs.status || "processing") as "processing" | "finished" | "error" | "cancelled",
+            resultCount: typeof decodedContent?.result_count === "number" ? decodedContent.result_count : undefined,
+            childEmbedIds: generatedMediaChildIds(decodedContent),
+            error: typeof decodedContent?.error === "string" ? decodedContent.error : undefined,
+            taskId: decodedContent?.skill_task_id || decodedContent?.task_id || "",
+            onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+          },
+        });
+        mountedComponents.set(content, component);
+        return;
       }
 
       // For image generation, render image preview using Svelte component

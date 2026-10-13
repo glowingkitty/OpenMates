@@ -3,7 +3,7 @@
  * CLI URL embed preprocessing.
  *
  * Purpose: mirror browser message sending for plain URLs typed in user messages.
- * Architecture: converts standalone URLs into prepared web-website embeds and
+ * Architecture: converts standalone URLs into prepared website/video embeds and
  * markdown embed references before the message is sent over WebSocket.
  * Privacy: metadata is not fetched from third-party URLs in the CLI path; the
  * original URL is stored as encrypted embed content and reference fallback only.
@@ -71,6 +71,36 @@ function createWebsiteEmbed(url: string): PreparedEmbed {
   };
 }
 
+function youtubeVideoId(url: string): string | null {
+  const parsed = new URL(url);
+  const host = parsed.hostname.toLowerCase();
+  let videoId: string | null = null;
+  if (host === 'youtu.be') videoId = parsed.pathname.split('/')[1] ?? null;
+  if (['youtube.com', 'www.youtube.com', 'm.youtube.com', 'www.youtube-nocookie.com', 'youtube-nocookie.com'].includes(host)) {
+    videoId = parsed.pathname === '/watch'
+      ? parsed.searchParams.get('v')
+      : /^\/(?:embed|shorts|v)\/([^/]+)/.exec(parsed.pathname)?.[1] ?? null;
+  }
+  return videoId && /^[A-Za-z0-9_-]{11}$/.test(videoId) ? videoId : null;
+}
+
+function createVideoEmbed(url: string, videoId: string): PreparedEmbed {
+  const embedId = generateEmbedId();
+  const embedRef = createEmbedRef('video', `${url}:${embedId}`);
+  return {
+    embedId,
+    embedRef,
+    type: 'videos-video',
+    content: toonEncodeContent({
+      url, video_id: videoId, embed_ref: embedRef,
+      title: null, description: null, thumbnail: null,
+      channel_name: null, duration_seconds: null,
+    }),
+    textPreview: url,
+    status: 'finished',
+  };
+}
+
 function replaceUrlsInText(text: string, embeds: PreparedEmbed[]): string {
   return text.replace(URL_PATTERN, (rawUrl) => {
     const { url, suffix } = trimTrailingUrlPunctuation(rawUrl);
@@ -83,7 +113,8 @@ function replaceUrlsInText(text: string, embeds: PreparedEmbed[]): string {
       return rawUrl;
     }
 
-    const embed = createWebsiteEmbed(url);
+    const videoId = youtubeVideoId(url);
+    const embed = videoId ? createVideoEmbed(url, videoId) : createWebsiteEmbed(url);
     embeds.push(embed);
     return `${createEmbedReferenceBlock(embed.embedRef ?? embed.embedId)}${suffix}`;
   });

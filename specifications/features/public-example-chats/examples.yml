@@ -1,6 +1,18 @@
 schema_version: 1
 specification: feature.public-example-chats@4
 
+quality_admission:
+  - id: real-recipe-example-admitted
+    given: A real CLI conversation asks for vegetarian recipes using spinach, carrots and chickpeas and successfully returns recipe-search results.
+    when: Its source transcript, follow-up suggestions and logged-out recipe previews and fullscreens are reviewed.
+    then: The example keeps the person's original message formatting and the assistant's mate identity and includes the real recipe result embeds without a follow-up asking to show them.
+    assertion_ids: [public-example-chats.admission.reviewed-complete]
+  - id: failed-child-research-rejected
+    given: A candidate claims to have researched a topic, but its child chats have no completed web-search or read results, or a generated output cannot render.
+    when: The candidate is reviewed for publication.
+    then: It is rejected and any known broken public version is removed; a new candidate is admitted only after its intended real work and visible results pass review.
+    assertion_ids: [public-example-chats.admission.reviewed-complete]
+
 catalog_discovery:
   - id: guest-intro-example-cards
     input: {surface: guest_onboarding, route: /, user_state: logged_out}
@@ -9,8 +21,10 @@ catalog_discovery:
     input: {surface: guest_all_examples, selected_query: screenshot}
     expected: {full_catalog_visible: true, result_id_visible: example-screenshot-to-html-pricing, legacy_custom_cards_absent: true}
   - id: authenticated-sidebar-show-more
-    input: {surface: authenticated_sidebar, action: show_more_examples}
-    expected: {initial_batch_non_empty: true, appends_older_rows: true, no_duplicate_chat_ids: true, removed_habit_garden_absent: true}
+    given: A signed-in person has reached the end of the first group of public examples in the sidebar.
+    when: They choose to show more examples.
+    then: Additional older examples appear without duplicate chat IDs or examples that were removed from the public catalog.
+    assertion_ids: [public-example-chats.catalog.discoverable]
 
 static_navigation:
   - id: static-example-share-link

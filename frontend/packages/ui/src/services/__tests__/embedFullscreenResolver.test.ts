@@ -16,17 +16,56 @@ import { loadFullscreenComponent, resolveRegistryKey } from '../embedFullscreenR
 
 // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
 describe('fullscreen registry routing', () => {
-  it.each(['generate', 'speak'])('routes generated audio payloads through audio.%s', (skillId) => {
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+  it('opens a generated invocation as a group and its historical asset on the leaf viewer', () => {
+    expect(resolveRegistryKey('app_skill_use', {
+      app_id: 'images', skill_id: 'generate', embed_ids: ['child-1', 'child-2'],
+    })).toBe('app:images:generate');
+    expect(resolveRegistryKey('app_skill_use', {
+      app_id: 'images', skill_id: 'generate', files: { original: 'asset' },
+    })).toBe('images-generated-image');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-skills.media.parent-children-and-attribution
+  it.each([
+    ['images', 'generate_draft', 'images-generated-image'],
+    ['images', 'vectorize', 'images-generated-image'],
+    ['audio', 'generate', 'audio-generated-audio'],
+    ['audio', 'speak', 'audio-generated-audio'],
+    ['music', 'generate', 'music-generated-music'],
+    ['videos', 'generate', 'videos-generated-video'],
+    ['models3d', 'generate', 'models3d-generated-model'],
+  ])('routes %s.%s parent and historical asset separately', (appId, skillId, childKey) => {
+    expect(resolveRegistryKey('app_skill_use', {
+      app_id: appId, skill_id: skillId, embed_ids: ['child-1'],
+    })).toBe(`app:${appId}:${skillId}`);
+    expect(resolveRegistryKey('app_skill_use', {
+      app_id: appId, skill_id: skillId, files: { original: 'asset' },
+    })).toBe(childKey);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-skills.media.parent-children-and-attribution
+  it('recognizes a historical snake-case preview URL and preserves Remotion editing', () => {
+    expect(resolveRegistryKey('app_skill_use', {
+      app_id: 'images', skill_id: 'generate', preview_image_url: '/asset.png',
+    })).toBe('images-generated-image');
+    expect(resolveRegistryKey('app_skill_use', {
+      app_id: 'videos', skill_id: 'create', files: { original: 'rendered.mp4' },
+    })).toBe('app:videos:create');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+  it.each(['generate', 'speak'])('routes generated audio payloads to the asset viewer for audio.%s', (skillId) => {
     expect(resolveRegistryKey('audio', {
       type: 'audio', app_id: 'audio', skill_id: skillId,
-    })).toBe(`app:audio:${skillId}`);
+    })).toBe('audio-generated-audio');
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
   it('uses app/skill metadata in stored TOON content for generic audio', () => {
     expect(resolveRegistryKey('audio', {
       content: 'app_id: audio\nskill_id: generate\ntype: audio',
-    })).toBe('app:audio:generate');
+    })).toBe('audio-generated-audio');
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction

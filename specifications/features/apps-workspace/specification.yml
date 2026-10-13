@@ -95,10 +95,14 @@ assertions:
   type: behavior
   must: Apps navigation uses shareable hash URLs such as /#apps/health/search-appointments. Equivalent
     /apps paths and existing Settings app-detail links forward to the corresponding Apps view, including
-    skills, focus modes, and memories. Reload, direct entry, Back, Forward, and fullscreen close preserve
-    the intended workspace and parent view; URL slugs resolve to the correct backend skill identifier.
+    skills, focus modes, and memories. Reload, direct entry, Back and Forward preserve the intended view;
+    URL slugs resolve to the correct backend skill identifier. When an app, skill, focus-mode or memory
+    detail is opened from another page or chat, its top-right close control returns to that originating
+    view. Browsing inside the opened Apps view retains that return destination. With no recorded origin,
+    direct entry closes to the containing app or Apps home. Selecting a chat's active focus label opens
+    its Apps focus-mode detail directly, and closing it restores that chat.
   depends_on:
-  - examples.navigation
+  - examples.origin_navigation
 - id: apps.forms.metadata-driven
   type: behavior
   must: Supported skill forms are derived from the authoritative request schema and declarative presentation

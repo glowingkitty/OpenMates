@@ -952,6 +952,68 @@ def test_permission_pause_before_debug_metadata_does_not_fail_turn(monkeypatch, 
     assert result[4]["user_task_blocked_reason_code"] == reason
 
 
+# contract-test: supporting surface=cli assertions=app-skills.assistant.same-turn-completion,app-skills.assistant.complete-result-barrier
+def test_same_turn_pause_publishes_nonfinal_wait_frame_and_checkpoints_sequence(monkeypatch):
+    from backend.apps.ai.tasks import same_turn_skill_barrier
+    from backend.shared.python_utils import recent_work_summary_client
+
+    checkpoint = {"jobs": [{"task_id": "producer-1", "tool_call_id": "call-1",
+                            "app_id": "images", "skill_id": "generate", "request_count": 1}]}
+
+    async def paused_stream(**_kwargs):
+        yield "The image is processing."
+        yield {"__same_turn_skill_pause__": True, "checkpoint": checkpoint,
+               "batch_id": "batch-1", "task_ids": ["producer-1"]}
+
+    published = []
+    sealed = {}
+
+    async def publish(_cache, _channel, payload, *_args):
+        published.append(payload)
+
+    async def seal(fields, **_kwargs):
+        sealed.update(fields)
+        return {"agentic_context_ref": "sealed-private-ref"}
+
+    async def register(_cache, **_kwargs):
+        return None
+
+    async def arm(_cache, _batch_id):
+        return None
+
+    monkeypatch.setattr(stream_consumer, "handle_main_processing", paused_stream)
+    monkeypatch.setattr(stream_consumer, "_publish_to_redis", publish)
+    monkeypatch.setattr(recent_work_summary_client, "seal_private_context_payload", seal)
+    monkeypatch.setattr(same_turn_skill_barrier, "register_barrier", register)
+    monkeypatch.setattr(same_turn_skill_barrier, "arm_barrier", arm)
+    monkeypatch.setattr(stream_consumer.celery_config.app, "send_task", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(stream_consumer.celery_config.app, "AsyncResult", lambda _: SimpleNamespace(state="STARTED"))
+    request = AskSkillRequest(
+        chat_id="chat-1", message_id="message-1", user_id="user-1",
+        user_id_hash="hash-1", message_history=[], is_incognito=True,
+    )
+    result = asyncio.run(stream_consumer._consume_main_processing_stream(
+        task_id="task-1", request_data=request,
+        preprocessing_result=PreprocessingResult(can_proceed=True),
+        base_instructions={}, directus_service=None, encryption_service=None,
+        user_vault_key_id=None, all_mates_configs=[], discovered_apps_metadata={},
+        cache_service=SimpleNamespace(),
+    ))
+    assert result[4]["same_turn_skill_paused"] is True
+    assert not any(row["is_final_chunk"] for row in published)
+    waiting = [row for row in published if row.get("waiting_for_skill_completion")]
+    assert len(waiting) == 1
+    assert waiting[0]["full_content_so_far"] == result[0]
+    assert waiting[0]["user_message_id"] == "message-1"
+    assert waiting[0]["awaiting_async_skill_continuation"] is True
+    assert waiting[0]["skill_deadline_at"] > 0
+    assert waiting[0]["sequence"] == 2
+    from backend.apps.ai.tasks.same_turn_skill_barrier import unpack_private_checkpoint
+    _, saved_checkpoint = unpack_private_checkpoint(sealed["same_turn_request"])
+    assert saved_checkpoint["published_stream_chunk_count"] == 2
+    assert saved_checkpoint["published_stream_content"] == result[0]
+
+
 # contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
 def test_memory_continuation_seals_under_original_inference_identity():
     request = AskSkillRequest(chat_id="chat-1", message_id="message-1", user_id="user-1", user_id_hash="hash-1", message_history=[], is_app_settings_memories_continuation=True, recovery_inference_task_id="original-task-1")

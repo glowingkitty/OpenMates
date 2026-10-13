@@ -20,6 +20,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+from backend.shared.providers.e2b_html_renderer import PLAYWRIGHT_INSTALL_COMMAND
+
 
 DEPENDENCY_FILENAMES = {"package.json", "package-lock.json", "requirements.txt"}
 VITE_ALLOWED_HOSTS_ENV = "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS"
@@ -28,6 +30,12 @@ PREVIEW_READINESS_TIMEOUT_SECONDS = 90.0
 PREVIEW_READINESS_INTERVAL_SECONDS = 1.5
 PREVIEW_READINESS_REQUEST_TIMEOUT_SECONDS = 5.0
 PREVIEW_READINESS_REQUIRED_SUCCESSES = 2
+APPLICATION_CAPTURE_DIRECTORY = "/tmp/openmates-application-capture"
+APPLICATION_CAPTURE_INSTALL_TIMEOUT_SECONDS = 600
+APPLICATION_CAPTURE_TIMEOUT_SECONDS = 100
+APPLICATION_CAPTURE_BROWSER_TIMEOUT_SECONDS = 90
+APPLICATION_SANDBOX_TIMEOUT_SECONDS = 30 * 60
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 VITE_CONFIG_FILENAMES = {
     "vite.config.js",
     "vite.config.mjs",
@@ -191,6 +199,7 @@ def start_application_preview_in_e2b(
     plan = plan_application_preview_startup(files=files, entrypoints=entrypoints)
     sandbox = Sandbox.create(
         api_key=api_key,
+        timeout=APPLICATION_SANDBOX_TIMEOUT_SECONDS,
         secure=True,
         allow_internet_access=enable_internet,
         network={"allow_public_traffic": True},
@@ -212,13 +221,24 @@ def start_application_preview_in_e2b(
 
     primary_name = "frontend" if "frontend" in upstream_base_urls else next(iter(upstream_base_urls))
     _wait_for_preview_ready(upstream_base_urls[primary_name])
+    try:
+        screenshot_bytes = _sandbox_screenshot_bytes(sandbox, ports[primary_name])
+    except Exception:
+        # A capture failure is a failed preview, not a successfully rendered
+        # thumbnail. Release the sandbox so a failed browser install cannot
+        # leave an unbilled preview running.
+        try:
+            Sandbox.kill(sandbox_id=str(getattr(sandbox, "sandbox_id", "")), api_key=api_key)
+        except Exception:
+            logger.warning("Could not stop application preview sandbox after screenshot failure", exc_info=True)
+        raise
     return ApplicationPreviewRuntime(
         sandbox_id=str(getattr(sandbox, "sandbox_id", "")),
         upstream_base_url=upstream_base_urls[primary_name],
         upstream_base_urls=upstream_base_urls,
         ports=ports,
         latest_screenshot_url=_sandbox_screenshot_url(sandbox),
-        latest_screenshot_bytes=_sandbox_screenshot_bytes(sandbox),
+        latest_screenshot_bytes=screenshot_bytes,
         latest_screenshot_mime_type="image/png",
     )
 
@@ -395,7 +415,79 @@ def _sandbox_screenshot_url(sandbox: Any) -> str | None:
     return str(value) if value else None
 
 
-def _sandbox_screenshot_bytes(sandbox: Any) -> bytes | None:
+def _sandbox_screenshot_bytes(sandbox: Any, port: int) -> bytes:
+    hook_bytes = _sandbox_hook_screenshot_bytes(sandbox)
+    if hook_bytes is not None:
+        if _is_png(hook_bytes):
+            return hook_bytes
+        logger.warning("E2B screenshot hook returned invalid PNG; using browser capture")
+
+    install_command = (
+        f"mkdir -p {shlex.quote(APPLICATION_CAPTURE_DIRECTORY)} && "
+        f"cd {shlex.quote(APPLICATION_CAPTURE_DIRECTORY)} && {PLAYWRIGHT_INSTALL_COMMAND}"
+    )
+    install = sandbox.commands.run(
+        f"bash -lc {shlex.quote(install_command)}",
+        timeout=APPLICATION_CAPTURE_INSTALL_TIMEOUT_SECONDS,
+    )
+    if getattr(install, "exit_code", 0) not in (0, None):
+        detail = str(getattr(install, "stderr", "") or "browser installation failed").strip()[-500:]
+        raise RuntimeError(f"Application screenshot browser install failed: {detail}")
+
+    capture_command = (
+        f"cd {shlex.quote(APPLICATION_CAPTURE_DIRECTORY)} && "
+        f"{_application_screenshot_command(port)}"
+    )
+    result = sandbox.commands.run(
+        f"bash -lc {shlex.quote(capture_command)}",
+        timeout=APPLICATION_CAPTURE_TIMEOUT_SECONDS,
+    )
+    stdout = str(getattr(result, "stdout", "") or "").strip()
+    if getattr(result, "exit_code", 0) not in (0, None) or not stdout:
+        detail = str(getattr(result, "stderr", "") or "empty screenshot output").strip()[-500:]
+        raise RuntimeError(f"Application screenshot capture failed: {detail}")
+    try:
+        screenshot_bytes = base64.b64decode(stdout, validate=True)
+    except ValueError as exc:
+        raise RuntimeError("Application screenshot capture returned invalid base64") from exc
+    if not _is_png(screenshot_bytes):
+        raise RuntimeError("Application screenshot capture returned invalid PNG")
+    return screenshot_bytes
+
+
+def _application_screenshot_command(port: int) -> str:
+    if not isinstance(port, int) or port < 1024 or port > 65_535:
+        raise ApplicationPreviewPlanningError("Application screenshot port is invalid")
+    return f"""timeout {APPLICATION_CAPTURE_BROWSER_TIMEOUT_SECONDS}s node - <<'NODE'
+const {{ chromium }} = require('playwright');
+(async () => {{
+  const browser = await chromium.launch({{
+    headless: true,
+    args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--no-zygote'],
+  }});
+  try {{
+    const page = await browser.newPage({{ viewport: {{ width: 1440, height: 900 }}, deviceScaleFactor: 1 }});
+    await page.goto('http://127.0.0.1:{port}/', {{ waitUntil: 'load', timeout: 60000 }});
+    try {{ await page.waitForLoadState('networkidle', {{ timeout: 5000 }}); }} catch (_) {{}}
+    try {{ await page.evaluate(() => document.fonts && document.fonts.ready); }} catch (_) {{}}
+    await page.waitForTimeout(500);
+    const png = await page.screenshot({{ type: 'png', fullPage: true }});
+    process.stdout.write(png.toString('base64'));
+  }} finally {{
+    await browser.close();
+  }}
+}})().catch((error) => {{
+  console.error(error && error.stack ? error.stack : String(error));
+  process.exit(1);
+}});
+NODE"""
+
+
+def _is_png(value: bytes) -> bool:
+    return len(value) > len(PNG_SIGNATURE) and value.startswith(PNG_SIGNATURE)
+
+
+def _sandbox_hook_screenshot_bytes(sandbox: Any) -> bytes | None:
     screenshot = getattr(sandbox, "take_screenshot", None)
     if not callable(screenshot):
         return None

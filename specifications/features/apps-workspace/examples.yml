@@ -21,6 +21,17 @@ navigation:
   when: They use Back, Forward, and the fullscreen close control.
   then: Back restores Audio, Forward restores Generate sound, and closing the skill restores its app view;
     equivalent focus-mode and memory links remain reachable.
+origin_navigation:
+- id: chat-link-close-restores-origin
+  given: A person is reading an example chat and follows its skill, focus-mode, memory or app link into Apps.
+  when: They inspect details, reload, and use the top-right close control.
+  then: The original example chat is restored; selecting its active focus label also opens that focus's Apps page directly and closes back to the same chat.
+  assertion_ids: [apps.navigation.hash-and-forwarding]
+- id: direct-detail-has-no-chat-origin
+  given: A person opens a shared Apps skill URL in a new tab with no originating OpenMates view.
+  when: They reload and use the top-right close control.
+  then: The containing app opens, or Apps home opens for an app detail, without inventing a previous chat; ordinary Back and Forward navigation still work.
+  assertion_ids: [apps.navigation.hash-and-forwarding]
 forms:
 - id: events-two-primary-controls
   given: A person opens Events search and the skill declares default dates for the coming days.

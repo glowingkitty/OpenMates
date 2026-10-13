@@ -56,11 +56,15 @@ async def _bytes_source(content: bytes) -> AsyncIterator[bytes]:
     name="apps.models3d.tasks.skill_generate",
     base=BaseServiceTask,
     queue="app_images",
-    soft_time_limit=900,
-    time_limit=960,
+    soft_time_limit=1200,
+    time_limit=1260,
 )
 def generate_model_task(self, app_id: str, skill_id: str, arguments: dict[str, Any]) -> dict[str, Any]:
-    return asyncio.run(_async_generate_model(self, app_id, skill_id, arguments))
+    from backend.shared.python_utils.generated_media_graph import run_generated_media_batch
+    return asyncio.run(run_generated_media_batch(
+        self, app_id=app_id, skill_id=skill_id, arguments=arguments,
+        generate_one=_async_generate_model,
+    )) if arguments.get("requests") else asyncio.run(_async_generate_model(self, app_id, skill_id, arguments))
 
 
 async def _async_generate_model(
@@ -95,7 +99,7 @@ async def _async_generate_model(
     await task.initialize_core_services()
     from backend.core.api.app.services.embed_service import EmbedService
     await EmbedService.assert_registered_output_can_generate(
-        task._directus_service, embed_id=embed_id, chat_id=chat_id,
+        task._directus_service, embed_id=arguments.get("producer_embed_id") or embed_id, chat_id=chat_id,
         message_id=message_id,
         owner_hash=hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
     )
@@ -258,6 +262,8 @@ async def _async_generate_model(
         "status": "finished",
         "provider": "hi3d",
         "provider_model": "hitem3dv2.1",
+        "model": "hitem3dv2.1",
+        "prompt": arguments.get("prompt") or "Generate 3D model from reference images",
         "files": files_metadata,
         "s3_base_url": s3_base_url,
         "aes_key": aes_key_b64,
@@ -266,29 +272,24 @@ async def _async_generate_model(
         "input_embed_ids": [str(item.get("embed_id") or "") for item in ordered_inputs],
         "billing_status": billing_status,
     }
-    from toon_format import encode as toon_encode
-
     from backend.core.api.app.services.embed_service import EmbedService
+    from backend.shared.python_utils.generated_media_graph import send_generated_media_child
 
     embed_service = EmbedService(task._cache_service, task._directus_service, task._encryption_service)
-    await embed_service.send_embed_data_to_client(
-        embed_id=embed_id,
-        embed_type="app_skill_use",
-        content_toon=toon_encode(content),
-        chat_id=chat_id,
-        message_id=message_id,
-        user_id=user_id,
-        user_id_hash=user_id_hash,
-        status="finished",
-        encryption_mode="client",
-        created_at=now_ts,
-        updated_at=now_ts,
-        log_prefix=log_prefix,
-        check_cache_status=False,
-        producer_final_children=[],
+    child_embed_id = embed_id
+    await send_generated_media_child(
+        embed_service, parent_embed_id=arguments.get("producer_embed_id") or embed_id,
+        child_embed_id=child_embed_id,
+        child_index=int(arguments.get("media_child_index") or 0),
+        content=content,
+        chat_id=chat_id, message_id=message_id, user_id=user_id,
+        user_id_hash=user_id_hash, created_at=now_ts, log_prefix=log_prefix,
     )
     return {
         "embed_id": embed_id,
+        "child_embed_id": child_embed_id,
+        "child_embed_ids": [child_embed_id],
+        "embed_ref": f"generated-models3d-{child_embed_id.replace('-', '')[:12]}",
         "status": "finished",
         "billing_status": billing_status,
         "files": {

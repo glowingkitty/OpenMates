@@ -9,7 +9,8 @@ import sys
 import importlib.util
 import time
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -115,6 +116,250 @@ def _skill_config_dict():
         },
         "always_include_skills": ["web-search"],
     }
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.idempotent-resume,app-skills.assistant.bounded-private-failure
+async def test_early_same_turn_result_is_sealed_then_joined_after_context_registration(
+    async_skill_continuation, monkeypatch,
+):
+    from backend.shared.python_utils import recent_work_summary_client
+    barrier_path = _MODULE_PATH.with_name("same_turn_skill_barrier.py")
+    barrier_spec = importlib.util.spec_from_file_location(
+        "backend.apps.ai.tasks.same_turn_skill_barrier", barrier_path,
+    )
+    same_turn_skill_barrier = importlib.util.module_from_spec(barrier_spec)
+    barrier_spec.loader.exec_module(same_turn_skill_barrier)
+    monkeypatch.setitem(sys.modules, "backend.apps.ai.tasks.same_turn_skill_barrier",
+                        same_turn_skill_barrier)
+
+    module = async_skill_continuation
+    cache = _FakeCache()
+    request = _request()
+    await cache.set(module.async_skill_latest_user_turn_key(request.user_id, request.chat_id),
+                    request.message_id)
+    sealed_fields = {}
+
+    async def seal(payload, *, request_id, **_kwargs):
+        reference = f"sealed-{len(sealed_fields)}"
+        sealed_fields[reference] = payload
+        return {"agentic_context_ref": reference}
+
+    async def restore(payload):
+        return sealed_fields[payload["agentic_context_ref"]]
+
+    monkeypatch.setattr(recent_work_summary_client, "seal_private_context_payload", seal)
+    monkeypatch.setattr(recent_work_summary_client, "restore_private_context_payload", restore)
+    monkeypatch.setattr(recent_work_summary_client, "RecentWorkSummaryClient",
+                        lambda: SimpleNamespace(release_context=AsyncMock(return_value=True)))
+    recorded = []
+
+    async def record(_cache, **kwargs):
+        recorded.append(kwargs)
+        return True
+
+    monkeypatch.setattr(same_turn_skill_barrier, "record_terminal", record)
+    dispatch = AsyncMock(return_value="resume-delivery")
+    monkeypatch.setattr(module, "dispatch_same_turn_barrier", dispatch)
+
+    result = [{"embed_ref": "generated-images-child", "request_index": 0}]
+    await module.dispatch_async_skill_continuation(
+        cache_service=cache, async_task_id="producer-1", completed_results=result,
+        request_metadata={"user_id": request.user_id, "chat_id": request.chat_id,
+                          "message_id": request.message_id,
+                          "same_turn_batch_id": "batch-1", "provider": "image"},
+    )
+    early = await cache.get("same_turn_skill:early:producer-1")
+    assert early and "generated-images-child" not in repr(cache.values)
+    await module.cache_async_skill_continuation_context(
+        cache_service=cache, async_task_id="producer-1", request_data=request,
+        app_id="images", skill_id="generate", tool_name="images-generate",
+        tool_arguments={"prompt": "private prompt"}, same_turn_batch_id="batch-1",
+    )
+    assert [row["task_id"] for row in recorded] == ["producer-1"]
+    payload = sealed_fields[recorded[0]["payload_ref"]]["async_tool_completion"]
+    assert payload["results"] == result
+    assert payload["request_metadata"] == {"provider": "image"}
+    assert await cache.get("same_turn_skill:early:producer-1") is None
+    assert dispatch.await_count == 1
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier,app-skills.assistant.idempotent-resume
+async def test_ordered_same_turn_barrier_dispatches_one_private_resume_envelope(
+    async_skill_continuation, monkeypatch,
+):
+    import json
+    import uuid
+
+    barrier_spec = importlib.util.spec_from_file_location(
+        "backend.apps.ai.tasks.same_turn_skill_barrier",
+        _MODULE_PATH.with_name("same_turn_skill_barrier.py"),
+    )
+    barrier = importlib.util.module_from_spec(barrier_spec)
+    barrier_spec.loader.exec_module(barrier)
+    monkeypatch.setitem(sys.modules, "backend.apps.ai.tasks.same_turn_skill_barrier", barrier)
+
+    class Redis:
+        def __init__(self, cache):
+            self.cache = cache
+
+        async def set(self, key, value, *, nx=False, ex=None):
+            if nx and key in self.cache.values:
+                return False
+            self.cache.values[key] = json.loads(value) if isinstance(value, str) and value.startswith("{") else value
+            return True
+
+        async def eval(self, _script, count, *args):
+            if count == 1:
+                latest, expected, replacement, _ttl = args
+                if self.cache.values.get(latest) != expected:
+                    return 0
+                self.cache.values[latest] = replacement
+                return 1
+            _latest, active, mapping, turn, delivery, chat = args
+            if self.cache.values.get(_latest) != turn or active in self.cache.values:
+                return 0
+            self.cache.values[active] = delivery
+            self.cache.values[mapping] = chat
+            return 1
+
+    class Cache:
+        def __init__(self):
+            self.values = {}
+            self.redis = Redis(self)
+
+        @property
+        async def client(self):
+            return self.redis
+
+        async def get(self, key):
+            return self.values.get(key)
+
+        async def set(self, key, value, ttl=None):
+            self.values[key] = value
+            return True
+
+        async def get_active_ai_task(self, chat):
+            return self.values.get(self._get_active_task_key(chat))
+
+        def _get_active_task_key(self, chat):
+            return f"active:{chat}"
+
+        def _get_task_chat_mapping_key(self, task):
+            return f"mapping:{task}"
+
+        async def clear_active_ai_task_if_matches(self, chat, task):
+            key = self._get_active_task_key(chat)
+            if self.values.get(key) != task:
+                return False
+            del self.values[key]
+            return True
+
+    class Celery:
+        def __init__(self):
+            self.sent = []
+            self.fail_skill_once = False
+
+        def send_task(self, name, kwargs, *, queue, task_id=None, countdown=None):
+            if name == "apps.ai.tasks.skill_ask" and self.fail_skill_once:
+                self.fail_skill_once = False
+                raise RuntimeError("broker rejected resume")
+            self.sent.append((name, kwargs, task_id, countdown))
+            return SimpleNamespace(id=task_id or "deadline")
+
+    module = async_skill_continuation
+    celery = Celery()
+    monkeypatch.setattr(module, "_get_celery_app", lambda: celery)
+    cache = Cache()
+    logical = str(uuid.uuid4())
+    batch = f"{logical}:0"
+    cache.values[module.async_skill_latest_user_turn_key("owner", "chat")] = "turn"
+    await barrier.register_barrier(cache, batch_id=batch, user_id="owner", chat_id="chat",
+                                   turn_id="turn", task_ids=["first", "second"],
+                                   checkpoint_ref="opaque", deadline=time.time() + 600,
+                                   logical_task_id=logical, source_delivery_task_id=logical)
+    await barrier.arm_barrier(cache, batch)
+    for task_id in ("first", "second"):
+        await cache.set(module.async_skill_continuation_key(task_id), {
+            "same_turn_batch_id": batch,
+            "request_data": {"user_id": "owner", "chat_id": "chat", "message_id": "turn",
+                             "recovery_task_id": logical, "message_history": []},
+            "skill_config_dict": {"ready": True},
+        })
+    await barrier.record_terminal(cache, batch_id=batch, task_id="second",
+                                  payload_ref="ref-second", status="finished")
+    assert await module.dispatch_same_turn_barrier(cache_service=cache, batch_id=batch) is None
+    await barrier.record_terminal(cache, batch_id=batch, task_id="first",
+                                  payload_ref="ref-first", status="finished")
+    delivery = await module.dispatch_same_turn_barrier(cache_service=cache, batch_id=batch)
+    assert delivery == str(uuid.uuid5(uuid.UUID(logical), f"resume:{batch}"))
+    skill_sends = [row for row in celery.sent if row[0] == "apps.ai.tasks.skill_ask"]
+    assert len(skill_sends) == 1
+    envelope = skill_sends[0][1]["request_data_dict"]
+    assert envelope["continuation_message_id"] == logical
+    assert envelope["recovery_inference_task_id"] == logical
+    assert envelope["same_turn_slots"][0]["task_id"] == "first"
+    assert envelope["message_history"] == []
+    assert await module.dispatch_same_turn_barrier(cache_service=cache, batch_id=batch) is None
+
+    # A broker error after the deterministic claim must release chat ownership.
+    # The repair delivery uses the same ID and cannot create another inference.
+    second_logical = str(uuid.uuid4())
+    second_batch = f"{second_logical}:1"
+    await barrier.register_barrier(cache, batch_id=second_batch, user_id="owner", chat_id="chat",
+                                   turn_id="turn", task_ids=["third"], checkpoint_ref="opaque-2",
+                                   deadline=time.time() + 600, logical_task_id=second_logical,
+                                   source_delivery_task_id=second_logical)
+    await barrier.arm_barrier(cache, second_batch)
+    await cache.set(module.async_skill_continuation_key("third"), {
+        "same_turn_batch_id": second_batch,
+        "request_data": {"user_id": "owner", "chat_id": "chat", "message_id": "turn"},
+        "skill_config_dict": {"ready": True},
+    })
+    await barrier.record_terminal(cache, batch_id=second_batch, task_id="third",
+                                  payload_ref="ref-third", status="finished")
+    await cache.clear_active_ai_task_if_matches("chat", delivery)
+    celery.fail_skill_once = True
+    with pytest.raises(RuntimeError, match="broker rejected resume"):
+        await module.dispatch_same_turn_barrier(cache_service=cache, batch_id=second_batch)
+    assert await cache.get_active_ai_task("chat") is None
+    cache.values.pop(f"same_turn_skill:{second_batch}:dispatch_lease")
+    repaired = await module.dispatch_same_turn_barrier(cache_service=cache, batch_id=second_batch)
+    assert repaired == str(uuid.uuid5(uuid.UUID(second_logical), f"resume:{second_batch}"))
+    assert len([row for row in celery.sent if row[0] == "apps.ai.tasks.skill_ask"]) == 2
+
+    # A newer user turn fences the old source's cancel request without clearing
+    # the new delivery's active marker or sending another resume.
+    cache.values[module.async_skill_latest_user_turn_key("owner", "chat")] = "new-turn"
+    cache.values[cache._get_active_task_key("chat")] = "new-delivery"
+    monkeypatch.setattr(module, "_settle_same_turn_stop", AsyncMock())
+    assert await module.cancel_same_turn_source(
+        cache, user_id="owner", chat_id="chat", source_task_id=second_logical,
+    ) is False
+    assert await cache.get_active_ai_task("chat") == "new-delivery"
+    assert await module.dispatch_same_turn_barrier(cache_service=cache, batch_id=second_batch) is None
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.bounded-private-failure
+async def test_same_turn_registration_failure_cannot_return_a_pending_context(async_skill_continuation):
+    module = async_skill_continuation
+
+    class RejectingCache(_FakeCache):
+        async def set(self, key, value, ttl=None):
+            if key == module.async_skill_continuation_key("queued-producer"):
+                return False
+            return await super().set(key, value, ttl=ttl)
+
+    cache = RejectingCache()
+    with pytest.raises(RuntimeError, match="could not be stored"):
+        await module.cache_async_skill_continuation_context(
+            cache_service=cache, async_task_id="queued-producer", request_data=_request(),
+            app_id="images", skill_id="generate", tool_name="images-generate",
+            tool_arguments={"prompt": "secret"}, same_turn_batch_id="batch-1",
+        )
+    assert await cache.get(module.async_skill_continuation_key("queued-producer")) is None
 
 
 @pytest.mark.asyncio

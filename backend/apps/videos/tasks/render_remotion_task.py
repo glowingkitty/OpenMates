@@ -169,6 +169,10 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
     task_id = task.request.id
     log_prefix = f"[Task ID: {task_id}]"
     started_at = time.monotonic()
+    generated_child_embed_id = None
+    generated_child_embed_ref = None
+    parent_closed = False
+    completion_attempted = False
     try:
         await task.initialize_core_services()
         s3_service = await initialize_task_storage(task)
@@ -208,11 +212,19 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
             source_version=source_version,
             log_prefix=log_prefix,
         )
+        parent_embed_id = embed_id
 
         await EmbedService.assert_registered_output_can_generate(
             task._directus_service, embed_id=embed_id, chat_id=chat_id,
             message_id=message_id, owner_hash=user_id_hash,
         )
+        # An initial render is a media output of the editable skill-use card.
+        # Keep rerenders on their existing versioned parent path.
+        generated_child_embed_id = (
+            EmbedService._registered_child_embed_id(parent_embed_id, 0)
+            if chat_id and message_id and auto_started and source_version == 1 else None
+        )
+        asset_embed_id = generated_child_embed_id or embed_id
 
         rendered = render_remotion_in_e2b(
             source=source,
@@ -276,7 +288,7 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
         stored = await index_generated_asset(
             task,
             user_id=user_id,
-            embed_id=embed_id,
+            embed_id=asset_embed_id,
             media_type="video",
             files_metadata=files_metadata,
             s3_base_url=s3_base_url,
@@ -285,14 +297,33 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
             vault_wrapped_aes_key=vault_wrapped_aes_key,
             created_at=now_ts,
             content_hash_source=rendered.video_bytes,
-            original_filename=f"openmates_remotion_{embed_id[:8]}.mp4",
+            original_filename=f"openmates_remotion_{asset_embed_id[:8]}.mp4",
             content_type="video/mp4",
             log_prefix=log_prefix,
             provenance_metadata={"provider": "E2B", "renderer": "Remotion", "source_version": source_version},
         )
         if not stored:
             raise RuntimeError("Failed to index Remotion video in account storage")
-        await cache_s3_file_keys(task, embed_id=embed_id, files_metadata=files_metadata, log_prefix=log_prefix)
+        await cache_s3_file_keys(task, embed_id=asset_embed_id, files_metadata=files_metadata, log_prefix=log_prefix)
+
+        generated_child_embed_ref = None
+        if generated_child_embed_id:
+            from backend.shared.python_utils.generated_media_graph import send_generated_media_child
+
+            generated_child_embed_ref = await send_generated_media_child(
+                embed_service, parent_embed_id=parent_embed_id,
+                child_embed_id=generated_child_embed_id, child_index=0,
+                content={
+                    "app_id": "videos", "skill_id": "create", "status": "finished",
+                    "prompt": source, "model": "Remotion/E2B", "filename": filename,
+                    "files": files_metadata, "s3_base_url": s3_base_url,
+                    "aes_key": aes_key_b64, "aes_nonce": nonce_b64,
+                    "vault_wrapped_aes_key": vault_wrapped_aes_key,
+                    "source_version": source_version,
+                },
+                chat_id=str(chat_id), message_id=str(message_id), user_id=user_id,
+                user_id_hash=user_id_hash, created_at=now_ts, log_prefix=log_prefix,
+            )
 
         completed = await embed_service.update_remotion_video_embed_content(
             embed_id=embed_id,
@@ -317,11 +348,37 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
             thumbnail=files_metadata["thumbnail"],
             log_prefix=log_prefix,
             final_producer_output=True,
+            generated_child_embed_id=generated_child_embed_id,
+            generated_child_embed_ref=generated_child_embed_ref,
         )
         if not completed:
             raise RequiredRecoveryOutputError("Finished Remotion embed was not durably delivered")
+        parent_closed = True
+        if chat_id and message_id:
+            from backend.apps.ai.tasks.async_skill_continuation import dispatch_async_skill_continuation
+
+            completion_attempted = True
+            await dispatch_async_skill_continuation(
+                cache_service=task._cache_service,
+                async_task_id=task.request.id,
+                completed_results=[{
+                    "status": "finished", "request_index": 0,
+                    "embed_id": embed_id, "child_embed_id": generated_child_embed_id,
+                    "embed_ref": generated_child_embed_ref,
+                    "prompt": source, "model": "Remotion/E2B", "filename": filename,
+                }],
+                result_status="finished",
+                request_metadata={
+                    "app_id": "videos", "skill_id": "create",
+                    "user_id": user_id, "chat_id": str(chat_id), "message_id": str(message_id),
+                    **({"same_turn_batch_id": str(arguments["same_turn_batch_id"])}
+                       if arguments.get("same_turn_batch_id") else {}),
+                },
+            )
         return {
             "status": "finished", "embed_id": embed_id, "runtime_seconds": runtime_seconds,
+            "child_embed_id": generated_child_embed_id,
+            "embed_ref": generated_child_embed_ref,
             "charged_credits": credits,
             **({"team_id": arguments["team_id"]} if arguments.get("team_id") else {}),
         }
@@ -329,11 +386,17 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
         raise
     except Exception as exc:
         logger.error("%s Remotion render failed: %s", log_prefix, exc, exc_info=True)
+        if parent_closed or completion_attempted:
+            raise
         try:
             from backend.core.api.app.services.embed_service import EmbedService
+            from backend.shared.python_utils.chat_recovery_context import active_verified_output_producer
 
             embed_service = EmbedService(task._cache_service, task._directus_service, task._encryption_service)
-            await embed_service.update_remotion_video_embed_content(
+            producer = active_verified_output_producer.get()
+            registered = producer is not None and producer.classification == "registered_ai"
+            terminal_failure = registered and bool(arguments.get("chat_id") and arguments.get("message_id"))
+            marked = await embed_service.update_remotion_video_embed_content(
                 embed_id=str(arguments.get("embed_id") or ""),
                 remotion_source=str(arguments.get("remotion_source") or ""),
                 chat_id=str(arguments.get("chat_id") or ""),
@@ -346,7 +409,38 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
                 source_version=int(arguments.get("source_version") or 1),
                 render_metadata={"safe_error": "Remotion render failed. Inspect the source and try again."},
                 log_prefix=log_prefix,
+                final_producer_output=terminal_failure,
+                terminal_error_output=terminal_failure,
+                generated_child_embed_id=generated_child_embed_id if terminal_failure else None,
+                generated_child_embed_ref=generated_child_embed_ref if terminal_failure else None,
             )
+            if terminal_failure and not marked:
+                raise RequiredRecoveryOutputError("Failed Remotion parent could not close its producer")
+            if terminal_failure:
+                from backend.apps.ai.tasks.async_skill_continuation import dispatch_async_skill_continuation
+
+                await dispatch_async_skill_continuation(
+                    cache_service=task._cache_service,
+                    async_task_id=task.request.id,
+                    completed_results=[{
+                        "status": "error", "request_index": 0,
+                        "embed_id": str(arguments.get("embed_id") or ""),
+                        "child_embed_id": generated_child_embed_id,
+                        "embed_ref": generated_child_embed_ref,
+                        "error": "Remotion render failed. Inspect the source and try again.",
+                    }],
+                    result_status="failed",
+                    request_metadata={
+                        "app_id": "videos", "skill_id": "create",
+                        "user_id": str(arguments.get("user_id") or ""),
+                        "chat_id": str(arguments.get("chat_id") or ""),
+                        "message_id": str(arguments.get("message_id") or ""),
+                        **({"same_turn_batch_id": str(arguments["same_turn_batch_id"])}
+                           if arguments.get("same_turn_batch_id") else {}),
+                    },
+                )
+        except RequiredRecoveryOutputError:
+            raise
         except Exception:
             logger.exception("%s Failed to mark Remotion embed as error", log_prefix)
         raise

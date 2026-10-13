@@ -69,6 +69,7 @@ instructions:
       - For images, use an image block with the exact existing embed_ref; do not expose S3 keys or AES data
       - Paragraphs may use runs with text, bold, italic, underline, and #RRGGBB color
       - The document will be generated as a real .docx artifact with browser preview pages
+      - Include each successfully generated document embed inline in the final answer, using its returned reference; describe unavailable preview pages or failed generation honestly
 
 # Skills (planned for future implementation)
 skills: []

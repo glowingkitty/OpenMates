@@ -189,7 +189,11 @@ class GenerateSkill(BaseSkill):
 
         # According to the multiple requests pattern, each request should be processed
         # in parallel by spawning separate Celery tasks.
-        results: List[Dict[str, Any]] = []
+        prepared_requests: List[Dict[str, Any]] = []
+        parent_embed_id = (
+            placeholder_embed_ids[0] if placeholder_embed_ids and placeholder_embed_ids[0]
+            else str(uuid.uuid4())
+        )
 
         for idx, req in enumerate(requests):
             prompt = req.get("prompt")
@@ -214,16 +218,7 @@ class GenerateSkill(BaseSkill):
 
             # Use placeholder embed_id if available (from main_processor),
             # otherwise generate a new one (backward compatibility / standalone usage).
-            if idx < len(placeholder_embed_ids) and placeholder_embed_ids[idx]:
-                embed_id = placeholder_embed_ids[idx]
-                logger.info(
-                    f"Using placeholder embed_id from main_processor: {embed_id}"
-                )
-            else:
-                embed_id = str(uuid.uuid4())
-                logger.info(
-                    f"No placeholder embed_id for request {idx}, generating new: {embed_id}"
-                )
+            embed_id = parent_embed_id
 
             # Normalise output_filetype: accept "png", "jpg", "svg" (case-insensitive).
             # Default to "png" for backward compatibility.
@@ -288,45 +283,19 @@ class GenerateSkill(BaseSkill):
                 "user_vault_key_id": user_vault_key_id,
             }
 
-            try:
-                # Dispatch task to the app's dedicated queue (app_images).
-                # execute_skill_via_celery follows the naming convention:
-                # Task Name: apps.{app_id}.tasks.skill_{skill_id}
-                # Queue Name: app_{app_id}
-                task_id = await execute_skill_via_celery(
-                    app_id=self.app_id,
-                    skill_id=self.skill_id,
-                    arguments=task_args,
-                    celery_producer=self.celery_producer,
-                )
-                results.append({"task_id": task_id, "embed_id": embed_id})
-                logger.info(
-                    f"Dispatched image generation task {task_id} "
-                    f"(embed: {embed_id}, filetype: {output_filetype}, quality: {quality}) "
-                    f"for prompt: '{prompt[:50]}...'"
-                )
+            prepared_requests.append(task_args)
 
-            except Exception as e:
-                logger.error(
-                    f"Failed to dispatch image generation task: {e}", exc_info=True
-                )
-                # If we have some successful tasks, continue. Otherwise, return error.
-                if not results:
-                    return {"error": f"Failed to start image generation: {str(e)}"}
-
-        if not results:
+        if not prepared_requests:
             return {"error": "No valid prompts provided"}
-
-        # Unified response format for long-running skills
-        if len(results) == 1:
-            return {
-                "task_id": results[0]["task_id"],
-                "embed_id": results[0]["embed_id"],
-                "status": "processing",
-            }
-        else:
-            return {
-                "task_ids": [r["task_id"] for r in results],
-                "embed_ids": [r["embed_id"] for r in results],
-                "status": "processing",
-            }
+        try:
+            task_id = await execute_skill_via_celery(
+                app_id=self.app_id, skill_id=self.skill_id,
+                arguments={**prepared_requests[0], "embed_id": parent_embed_id,
+                           **({"same_turn_batch_id": kwargs["same_turn_batch_id"]} if kwargs.get("same_turn_batch_id") else {}),
+                           "requests": prepared_requests},
+                celery_producer=self.celery_producer,
+            )
+        except Exception as exc:
+            logger.error("Failed to dispatch image generation batch: %s", exc, exc_info=True)
+            return {"error": f"Failed to start image generation: {exc}"}
+        return {"task_id": task_id, "embed_id": parent_embed_id, "status": "processing"}

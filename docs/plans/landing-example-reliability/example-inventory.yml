@@ -1,0 +1,100 @@
+source: current landing-header app metadata
+examples:
+- app: social_media
+  chat_id: example-mastodon-public-post-themes
+  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/mastodon-public-post-themes.ts
+  source_chat_id: 6ea1aeee-9c78-480d-9579-ef524b13cc6f
+  original_request: Could you summarize the main themes in recent public posts by
+    the official Mastodon account on mastodon.social, with links to a few examples?
+- app: health
+  chat_id: example-berlin-english-speaking-gp
+  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/berlin-english-speaking-gp-appointments.ts
+  source_chat_id: 54d70368-9a7c-43a8-89bb-69741efcf6ea
+  original_request: I need an English-speaking GP appointment in Berlin next week.
+    Please compare the earliest options, show their appointment cards, and only state
+    insurance coverage when the booking listing confirms it. If coverage is unclear,
+    say so.
+- app: code
+  chat_id: example-habit-garden-web-application
+  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/habit-garden-web-application.ts
+  source_chat_id: c9a2db86-527b-4139-a407-be6865681bc0
+  original_request: Create a polished interactive Svelte habit garden web application.
+    It should show three habit cards, a filter input, clickable habit selection, and
+    a button that updates a visible streak counter.
+- app: web
+  chat_id: example-us-egg-prices-deep
+  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/us-egg-prices-deep-research.ts
+  source_chat_id: ba728ecf-d42c-44c9-9928-d3655437f652
+  original_request: Why did US egg prices stay high after avian flu eased? Compare
+    supply recovery, market concentration, retailer margins, regulation, and counterarguments.
+    State confirmed vs inferred evidence.
+- app: shopping
+  chat_id: example-organic-groceries-berlin
+  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/organic-groceries-berlin.ts
+  source_chat_id: 998c323a-c64f-44df-84a7-bf188fceadb9
+  original_request: Can you find organic grocery delivery options in Berlin for oat
+    milk and bananas, compare a few reliable local options, and recommend which one
+    to use?
+- app: nutrition
+  chat_id: example-chickpea-spinach-protein-dinners
+  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
+  source_chat_id: 91e57096-c6fc-45cc-9a1a-bea822ee968a
+  original_request: Find 3 vegetarian chickpea and spinach dinner recipes under 35
+    minutes with step-by-step instructions and protein details
+- app: images
+  chat_id: example-community-garden-sunflower-illustration
+  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-sunflower-illustration.ts
+  source_chat_id: d4917cd6-f9ba-4786-badc-825c8566c987
+  original_request: Please create a warm botanical illustration of a sunflower for
+    a community garden handout, on a clean light background with no text.
+- app: audio
+  chat_id: example-community-garden-volunteer-chime
+  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-volunteer-chime.ts
+  source_chat_id: b304d77b-b27a-4168-9590-029de097b1c4
+  original_request: Create a short, warm notification sound for a community garden
+    app when a volunteer signs up. A gentle two-note chime, no speech, and under three
+    seconds.
+- app: videos
+  chat_id: example-ted-talk-transcript-summary
+  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/ted-talk-transcript-summary.ts
+  source_chat_id: 0828c4f9-ee63-4115-992f-6e42c85ce37d
+  original_request: 'Get the transcript for this TED talk and summarize the core argument
+    in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o'
+- app: books
+  chat_id: example-books-after-left-hand
+  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/books-after-left-hand-of-darkness.ts
+  source_chat_id: 447ca147-85cd-4813-a845-06465ddc594e
+  original_request: I enjoyed The Left Hand of Darkness for its worldbuilding and
+    social questions. What should I read next, and why?
+- app: design
+  chat_id: example-dashboard-sidebar-svg-icons
+  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/dashboard-sidebar-svg-icons.ts
+  source_chat_id: bb3915af-d535-472a-a322-5d799f41ae6a
+  original_request: Find open-source SVG home and settings icons from clean UI icon
+    sets for a dashboard sidebar. Include the icon names, collections, and licenses.
+- app: electronics
+  chat_id: example-buck-converters-24v-5v
+  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/buck-converters-24v-5v.ts
+  source_chat_id: d5f4b1a7-8f43-4ffd-913f-fba84171816c
+  original_request: Find matching Texas Instruments buck converters for 24 volts input
+    to 5 volts output at 3 amps.
+- app: models3d
+  chat_id: example-printable-benchy-phone-stand
+  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/printable-benchy-phone-stand-models.ts
+  source_chat_id: b8fabd35-2a4e-4ca5-a7a7-90927f4bc0c5
+  original_request: Find 3D-printable Benchy and phone stand models on Printables.
+    Show the best options with preview cards and source links.
+- app: music
+  chat_id: example-community-garden-welcome-melody
+  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-welcome-melody.ts
+  source_chat_id: 76aafa50-f75c-4f03-819c-ee0c75919dea
+  original_request: Could you create a short, gentle instrumental melody for a community
+    garden welcome video, without vocals?
+- app: politics
+  chat_id: example-housing-policy-dinner-discussion
+  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/housing-policy-dinner-discussion.ts
+  source_chat_id: 55960ee5-89f9-4dc6-98b2-bb8ccda793f2
+  original_request: I'm having dinner with my dad and he wants to argue about housing
+    policy and rent controls. Help me prepare so I can ask good questions, check key
+    facts, understand the strongest arguments on both sides, and keep the conversation
+    calm.

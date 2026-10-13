@@ -31,6 +31,9 @@ logger = logging.getLogger(__name__)
 
 
 async def dispatch_async_skill_continuation(**kwargs: Any) -> Any:
+    from backend.shared.python_utils.generated_media_graph import active_media_batch_child
+    if active_media_batch_child.get():
+        return None
     """Lazy import keeps audio task modules usable in lightweight unit tests."""
     from backend.apps.ai.tasks.async_skill_continuation import dispatch_async_skill_continuation as _dispatch
 
@@ -42,12 +45,16 @@ async def dispatch_async_skill_continuation(**kwargs: Any) -> Any:
     name="apps.audio.tasks.skill_speak",
     base=BaseServiceTask,
     queue="app_music",
-    soft_time_limit=180,
-    time_limit=210,
+    soft_time_limit=2100,
+    time_limit=2160,
 )
 def speak_audio_task(self, app_id: str, skill_id: str, arguments: dict[str, Any]) -> dict[str, Any]:
     """Generate one text-to-speech audio asset asynchronously."""
-    return asyncio.run(_async_speak_audio(self, app_id, skill_id, arguments))
+    from backend.shared.python_utils.generated_media_graph import run_generated_media_batch
+    return asyncio.run(run_generated_media_batch(
+        self, app_id=app_id, skill_id=skill_id, arguments=arguments,
+        generate_one=_async_speak_audio,
+    )) if arguments.get("requests") else asyncio.run(_async_speak_audio(self, app_id, skill_id, arguments))
 
 
 async def _async_speak_audio(
@@ -76,7 +83,7 @@ async def _async_speak_audio(
         await task.initialize_core_services()
         from backend.core.api.app.services.embed_service import EmbedService
         await EmbedService.assert_registered_output_can_generate(
-            task._directus_service, embed_id=embed_id, chat_id=chat_id,
+            task._directus_service, embed_id=arguments.get("producer_embed_id") or embed_id, chat_id=chat_id,
             message_id=message_id, owner_hash=hash_value(user_id),
         )
         if not text or not user_id or not embed_id:
@@ -190,19 +197,22 @@ async def _async_speak_audio(
             message_id=message_id,
             external_request=external_request,
             embed_id=str(embed_id),
+            parent_embed_id=arguments.get("producer_embed_id"),
+            media_child_index=int(arguments.get("media_child_index") or 0),
             audio_bytes=generated.audio_bytes,
             mime_type=generated.mime_type or "audio/mpeg",
             duration_seconds=float(actual_duration_seconds),
             model=generated.model or model,
             generation_type="speech",
-            prompt=None,
+            prompt=text,
             text_preview=text_preview,
             extra_content={"voice": voice, "accent": accent, "style": style},
             original_filename_prefix="openmates_generated_speech",
             log_prefix=log_prefix,
         )
         result_payload.update({"id": request_id, "credits_charged": credits})
-        await charge_audio_generation_credits(
+        try:
+            await charge_audio_generation_credits(
             user_id=user_id,
             app_id=app_id,
             skill_id=skill_id,
@@ -218,8 +228,13 @@ async def _async_speak_audio(
             device_hash=arguments.get("device_hash"),
             api_key_name=arguments.get("api_key_name"),
             log_prefix=log_prefix,
-            team_id=arguments.get("team_id"),
-        )
+                team_id=arguments.get("team_id"),
+            )
+        except RequiredRecoveryOutputError:
+            raise
+        except Exception as billing_exc:
+            logger.error("%s Speech asset stored but billing failed: %s", log_prefix, billing_exc)
+            result_payload["billing_status"] = "failed"
         if arguments.get("team_id"):
             result_payload["team_id"] = arguments["team_id"]
         await dispatch_async_skill_continuation(

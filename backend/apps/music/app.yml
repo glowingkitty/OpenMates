@@ -19,13 +19,24 @@ embed_types:
     skill_id: generate
     frontend_type: app-skill-use
     backend_type: app_skill_use
-    has_children: false
-    preview_component: music/MusicGenerateEmbedPreview.svelte
-    fullscreen_component: music/MusicGenerateEmbedFullscreen.svelte
+    has_children: true
+    child_type: generated_music
+    child_frontend_type: music-generated-music
+    child_preview_component: music/MusicGenerateEmbedPreview.svelte
+    child_fullscreen_component: music/MusicGenerateEmbedFullscreen.svelte
+    preview_component: GeneratedMediaGroupEmbedPreview.svelte
+    fullscreen_component: GeneratedMediaGroupEmbedFullscreen.svelte
     icon: ai
     gradient_var: "--color-app-music"
     i18n_namespace: embeds.music.generate
     content_fields:
+      - {name: status, type: string, required: true}
+      - {name: embed_ref, type: string}
+      - {name: result_count, type: number, required: true}
+      - {name: embed_ids, type: array, required: true}
+      - {name: output_embed_refs, type: array}
+      - {name: failed_results, type: array}
+    child_content_fields:
       - name: prompt
         type: string
         required: true
@@ -48,9 +59,22 @@ embed_types:
       - name: aes_nonce
         type: string
         required: true
+  - id: generated_music
+    category: direct
+    frontend_type: music-generated-music
+    backend_type: generated_music
+    has_children: false
+    preview_component: music/MusicGenerateEmbedPreview.svelte
+    fullscreen_component: music/MusicGenerateEmbedFullscreen.svelte
+    icon: ai
+    gradient_var: "--color-app-music"
+    i18n_namespace: embeds.music.generate
 instructions:
   - instruction: |
-      When you use the music-generate tool, the result will confirm the track is being generated. Briefly acknowledge the request naturally (for example, "I'm creating that track now"). Do NOT output JSON, task IDs, embed IDs, or status codes.
+      Once music generation finishes, describe the actual successful tracks
+      and include the returned parent and every successful child embed_ref
+      inline. Report failed outputs honestly. Do not expose raw task IDs,
+      embed IDs, or status codes.
 skills:
   - id: generate
     anonymous_access: authenticated

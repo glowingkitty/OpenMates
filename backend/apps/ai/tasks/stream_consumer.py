@@ -5500,7 +5500,8 @@ async def _consume_main_processing_stream(
     Returns aggregated response, boolean flags for revocation and soft limit, thinking content list,
     and optional debug metadata (system prompt, tools, message history) for debug caching.
     """
-    final_response_chunks = []
+    resumed_prefix = (request_data.same_turn_checkpoint or {}).get("published_stream_content")
+    final_response_chunks = [resumed_prefix] if isinstance(resumed_prefix, str) and resumed_prefix else []
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _consume_main_processing_stream:"
     logger.info(f"{log_prefix} Starting to consume stream from main_processor.")
 
@@ -5625,7 +5626,7 @@ async def _consume_main_processing_stream(
         skill_config_dict=skill_config_dict,
     )
 
-    stream_chunk_count = 0
+    stream_chunk_count = int((request_data.same_turn_checkpoint or {}).get("published_stream_chunk_count") or 0)
     usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata]] = None
 
     # Cumulative token totals from all LLM iterations in this turn (set via sentinel dict
@@ -5993,6 +5994,90 @@ async def _consume_main_processing_stream(
                 failed_embed_ids = chunk["__failed_embed_ids__"]
                 logger.info(f"{log_prefix} Received {len(failed_embed_ids)} failed embed ID(s) for content cleanup")
                 continue
+
+            if isinstance(chunk, dict) and chunk.get("__same_turn_skill_pause__") is True:
+                from backend.apps.ai.tasks.same_turn_skill_barrier import (
+                    register_barrier, arm_barrier, pack_private_checkpoint,
+                    deadline_seconds_for_jobs,
+                )
+                from backend.shared.python_utils.recent_work_summary_cache import PRIVATE_CONTEXT_FIELDS
+                from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload
+
+                if cache_service is None:
+                    raise RuntimeError("Same-turn completion cache unavailable")
+                batch_id = chunk["batch_id"]
+                checkpoint = dict(chunk["checkpoint"])
+                checkpoint["published_stream_content"] = "".join(final_response_chunks)
+                jobs = checkpoint["jobs"]
+                deadline_seconds = deadline_seconds_for_jobs(jobs)
+                handoff_ttl_seconds = min(90 * 60, max(20 * 60, deadline_seconds + 6 * 60))
+                deadline = time.time() + deadline_seconds
+                # A nonfinal waiting frame keeps WebSocket/CLI clients attached
+                # without presenting the dispatch as completed work. Its sequence
+                # is part of the checkpoint so resumed chunks always advance.
+                stream_chunk_count += 1
+                checkpoint["published_stream_chunk_count"] = stream_chunk_count
+                request_payload = request_data.model_dump(mode="json")
+                for field in PRIVATE_CONTEXT_FIELDS:
+                    if field in {"same_turn_request", "same_turn_checkpoint"}:
+                        continue
+                    value = getattr(request_data, field, None)
+                    if value:
+                        request_payload[field] = value
+                sealed = await seal_private_context_payload(
+                    {"user_id": request_data.user_id, "chat_id": request_data.chat_id,
+                     "message_id": request_data.message_id,
+                     "same_turn_request": pack_private_checkpoint(request_payload, checkpoint),
+                     "same_turn_checkpoint": {"handoff_ttl_seconds": handoff_ttl_seconds}},
+                    request_id=batch_id, ensure_turn_binding=True,
+                )
+                task_ids = chunk["task_ids"]
+                from backend.core.api.app.tasks.celery_config import app as celery_app
+                celery_app.send_task("apps.ai.tasks.same_turn_skill_deadline",
+                                     kwargs={"batch_id": batch_id}, countdown=deadline_seconds + 2,
+                                     queue="app_ai")
+                inference_id = request_data.recovery_task_id or request_data.recovery_inference_task_id
+                await register_barrier(
+                    cache_service, batch_id=batch_id,
+                    user_id=request_data.user_id, chat_id=request_data.chat_id,
+                    turn_id=request_data.message_id, task_ids=task_ids,
+                    checkpoint_ref=sealed["agentic_context_ref"],
+                    deadline=deadline, logical_task_id=assistant_message_id,
+                    source_delivery_task_id=task_id,
+                    recovery_inference_task_id=inference_id if request_data.recovery_preflight_id else None,
+                    handoff_ttl_seconds=handoff_ttl_seconds,
+                )
+                if inference_id and request_data.recovery_preflight_id:
+                    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+                    if directus_service is None:
+                        raise RuntimeError("Same-turn recovery authority unavailable")
+                    pause = await ChatRecoveryService(directus_service).execute(
+                        "pause_inference_for_skill", {
+                            "protocol_version": 1, "inference_task_id": inference_id,
+                            "delivery_task_id": task_id, "step_id": batch_id,
+                            "deadline_seconds": min(90 * 60, deadline_seconds + 4 * 60),
+                        },
+                    )
+                    if pause.get("paused") is not True:
+                        raise RuntimeError("Same-turn recovery pause was rejected")
+                await arm_barrier(cache_service, batch_id)
+                request_data.awaiting_async_skill_continuation = True
+                debug_metadata["same_turn_skill_paused"] = True
+                debug_metadata["same_turn_batch_id"] = batch_id
+                await content_publisher.flush()
+                waiting_payload = _create_redis_payload(
+                    task_id, request_data, "".join(final_response_chunks),
+                    stream_chunk_count, model_name=stream_model_name,
+                    category=preprocessing_result.category or "general_knowledge",
+                )
+                waiting_payload["waiting_for_skill_completion"] = True
+                waiting_payload["skill_deadline_at"] = int(deadline)
+                await _publish_to_redis(
+                    cache_service, redis_channel_name, waiting_payload, log_prefix,
+                    "Published same-turn skill wait",
+                )
+                logger.info("%s Suspended provider loop for %s terminal jobs", log_prefix, len(task_ids))
+                return "".join(final_response_chunks), False, False, thinking_buffer, debug_metadata
             
             # Check for app settings/memories permission marker
             # This is yielded by main_processor when user needs to confirm data sharing
@@ -9213,6 +9298,22 @@ async def _consume_main_processing_stream(
             logger.error(f"{log_prefix} Error finalizing table embed at end-of-stream: {e}", exc_info=True)
 
     aggregated_response = "".join(final_response_chunks)
+    if (request_data.same_turn_batch_id and not was_revoked_during_stream
+            and not was_soft_limited_during_stream):
+        from backend.apps.ai.tasks.same_turn_skill_barrier import ensure_generated_refs
+        aggregated_response = ensure_generated_refs(
+            aggregated_response,
+            (request_data.same_turn_checkpoint or {}).get("generated_embed_refs") or [],
+            (request_data.same_turn_checkpoint or {}).get("generated_embed_aliases") or {},
+        )
+        final_response_chunks = [aggregated_response]
+    if request_data.same_turn_batch_id and cache_service:
+        latest_turn = await cache_service.get(
+            f"async_skill_latest_user_turn:{request_data.user_id}:{request_data.chat_id}"
+        )
+        active_delivery = await cache_service.get_active_ai_task(request_data.chat_id)
+        if latest_turn != request_data.message_id or active_delivery != task_id:
+            raise RequiredRecoveryOutputError("Same-turn resume lost chat ownership before finalization")
     terminal_failure_applies = (
         terminal_failure_reason is not None
         and not was_revoked_during_stream
@@ -10500,6 +10601,12 @@ async def _consume_main_processing_stream(
     # CLI follow-up commands start the next process as soon as they see this final
     # frame; publishing it first lets the next turn build history before the prior
     # assistant message's embed reference is available for diff editing.
+    if request_data.same_turn_batch_id and cache_service:
+        if (await cache_service.get(
+                f"async_skill_latest_user_turn:{request_data.user_id}:{request_data.chat_id}"
+            ) != request_data.message_id or
+                await cache_service.get_active_ai_task(request_data.chat_id) != task_id):
+            raise RequiredRecoveryOutputError("Same-turn resume lost chat ownership before final marker")
     final_payload = _create_redis_payload(
         task_id, request_data, aggregated_response, stream_chunk_count + 1,
         is_final=True, interrupted_soft=was_soft_limited_during_stream,

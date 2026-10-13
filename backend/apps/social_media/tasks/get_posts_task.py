@@ -149,7 +149,9 @@ async def _async_get_posts(task: BaseServiceTask, app_id: str, skill_id: str, ar
             cache_service=task._cache_service,
             async_task_id=task_id,
             completed_results=post_results,
-            request_metadata=request_metadata,
+            request_metadata={**request_metadata, "user_id": user_id,
+                              "chat_id": chat_id, "message_id": message_id,
+                              "same_turn_batch_id": arguments.get("same_turn_batch_id")},
         )
         logger.info("%s Completed with %s result groups and %s provider requests", log_prefix, len(results), total_requests)
         result_payload["continuation_task_id"] = continuation_task_id

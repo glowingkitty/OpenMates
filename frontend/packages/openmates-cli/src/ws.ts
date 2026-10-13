@@ -17,6 +17,8 @@ const WebSocket = require("ws");
 type RawData = Buffer | ArrayBuffer | Buffer[];
 
 const DEFAULT_ASYNC_EMBED_WAIT_MS = 300_000;
+const MAX_SAME_TURN_SKILL_WAIT_MS = 90 * 60_000;
+const SAME_TURN_SKILL_TRANSPORT_GRACE_MS = 5_000;
 
 export interface WsEnvelope<T = unknown> {
   type: string;
@@ -1199,10 +1201,13 @@ export class OpenMatesWsClient {
     const asyncEmbedWaitMs = options?.asyncEmbedWaitMs ?? DEFAULT_ASYNC_EMBED_WAIT_MS;
 
     return new Promise((resolve, reject) => {
+      const collectorStartedAt = Date.now();
       let latestContent = "";
       let thinkingContent = "";
       let messageId: string | null = null;
       let taskId: string | null = null;
+      let streamMessageId: string | null = null;
+      let waitingSkillMessageId: string | null = null;
       let category: string | null = null;
       let modelName: string | null = null;
       let tokenUsage: AiResponseTokenUsage | null = null;
@@ -1269,6 +1274,25 @@ export class OpenMatesWsClient {
       const resetTimeout = (ms: number) => {
         clearTimeout(timeout);
         timeout = startTimeout(ms);
+      };
+
+      const beginSameTurnSkillWait = (p: Record<string, unknown>): boolean => {
+        if (p.waiting_for_skill_completion !== true || p.is_final_chunk === true
+          || p.chat_id !== chatId || p.user_message_id !== userMessageId
+          || typeof p.message_id !== "string" || !p.message_id
+          || typeof p.task_id !== "string" || !p.task_id
+          || (streamMessageId && p.message_id !== streamMessageId)
+          || (taskId && p.task_id !== taskId)
+          || typeof p.skill_deadline_at !== "number" || !Number.isSafeInteger(p.skill_deadline_at)) return false;
+        const deadlineMs = p.skill_deadline_at * 1000;
+        const waitUntilMs = Math.min(
+          deadlineMs + SAME_TURN_SKILL_TRANSPORT_GRACE_MS,
+          collectorStartedAt + MAX_SAME_TURN_SKILL_WAIT_MS,
+        );
+        if (deadlineMs <= Date.now() || waitUntilMs <= Date.now()) return false;
+        waitingSkillMessageId = p.message_id;
+        resetTimeout(waitUntilMs - Date.now());
+        return true;
       };
 
       const capture = (p: Record<string, unknown>) => {
@@ -1796,11 +1820,23 @@ export class OpenMatesWsClient {
           // Active-chat streaming: incremental chunks
           if (type === "ai_message_update") {
             if (!belongsToResponseTurn(p)) return;
+            if (p.waiting_for_skill_completion === true) {
+              beginSameTurnSkillWait(p);
+              return;
+            }
+            if (waitingSkillMessageId) {
+              if (p.user_message_id !== userMessageId
+                || p.message_id !== waitingSkillMessageId
+                || typeof p.task_id !== "string" || !p.task_id) return;
+              waitingSkillMessageId = null;
+              resetTimeout(timeoutMs);
+            }
             beginProjectContinuation(p);
             if (activeProjectContinuation && (p.is_async_skill_continuation !== true || p.async_skill_task_id !== activeProjectContinuation)) return;
             if (p.is_focus_mode_continuation === true) beginFocusModeContinuation();
             beginSubChatContinuation(p);
             capture(p);
+            if (typeof p.message_id === "string" && p.message_id) streamMessageId = p.message_id;
             if (typeof p.full_content_so_far === "string") {
               latestContent = p.full_content_so_far;
             }
@@ -1908,7 +1944,7 @@ export class OpenMatesWsClient {
             }
             onStream?.({
               kind: "typing",
-              content: "",
+              content: waitingSkillMessageId ? latestContent : "",
               category,
               modelName,
               taskId: taskId ?? undefined,

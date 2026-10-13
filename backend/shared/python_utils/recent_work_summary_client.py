@@ -166,6 +166,14 @@ class RecentWorkSummaryClient:
         fields = result.get("fields") if result else None
         return fields if isinstance(fields, dict) and not set(fields) - PRIVATE_CONTEXT_FIELDS else None
 
+    async def release_context(self, *, owner_id: str, chat_id: str, turn_id: str,
+                              request_id: str, reference: str) -> bool:
+        result = await self._post("context/release", {
+            "owner_id": owner_id, "current_chat_id": chat_id, "task_id": request_id,
+            "turn_id": turn_id, "request_id": request_id, "reference": reference,
+        })
+        return bool(result and result.get("released"))
+
     async def mark_active(self, *, owner_id: str, chat_id: str, task_id: str, turn_id: str,
                           summary: str | None = None, summary_version: int | None = None, active_goal: str | None = None) -> bool:
         result = await self._post("active", {"owner_id": owner_id, "current_chat_id": chat_id,
