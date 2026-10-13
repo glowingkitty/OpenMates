@@ -155,7 +155,7 @@ function updateIsolatedSendContextProjects(userId: string, projectIds: Record<st
 		'        team = hashlib.sha256(uuid.uuid4().bytes).hexdigest()',
 		'        now = int(time.time())',
 		'        for kind, project_id in ids.items():',
-		'            scope_user = foreign if kind == "foreign" else owner',
+		'            scope_user = None if kind == "team" else (foreign if kind == "foreign" else owner)',
 		'            scope_team = team if kind == "team" else None',
 		'            created, _ = await directus.create_item("projects", {',
 		'                "project_id": project_id, "hashed_user_id": scope_user, "hashed_team_id": scope_team,',

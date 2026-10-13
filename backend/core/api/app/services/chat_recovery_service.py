@@ -40,6 +40,7 @@ RECOVERY_OPERATIONS = {
     "claim_metadata_job",
     "persist_metadata_job",
     "prepare_preflight",
+    "admit_first_personal",
     "verify_committed_team_message",
     "enqueue_inference",
     "release_inference_outbox",

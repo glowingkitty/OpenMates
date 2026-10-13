@@ -384,6 +384,7 @@
       "specs": [
         "ai-response-language.spec.ts",
         "audio-recording-deferred-send.spec.ts",
+        "cli-recovery-discovery.spec.ts",
         "chat-key-wrapper-migration.spec.ts",
         "chat-management-flow.spec.ts",
         "chat-scroll-streaming.spec.ts",
@@ -577,7 +578,6 @@
         "cli-session-cookie-rotation.spec.ts",
         "wikipedia-learning-api.spec.ts",
         "cli-pair-login.spec.ts",
-        "cli-recovery-discovery.spec.ts",
         "cli-tui-chat-sidebar-proof.spec.ts",
         "cli-tui-startup.spec.ts",
         "cli-tui-centered-carousels-proof.spec.ts",

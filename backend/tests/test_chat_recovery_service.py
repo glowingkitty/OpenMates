@@ -63,6 +63,23 @@ async def test_execute_posts_internal_operation_and_returns_committed_data(monke
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+@pytest.mark.anyio
+async def test_atomic_first_personal_uses_real_service_transport_allowlist(monkeypatch) -> None:
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-internal-token")
+    directus = FakeDirectus(FakeResponse(200, {"data": {"state": "ENQUEUED", "preflight_id": "canonical"}}))
+    body = {"protocol_version": 1, "encrypted_user_message": {"encrypted_content": "private-ciphertext"}}
+
+    result = await ChatRecoveryService(directus).execute("admit_first_personal", body)
+
+    assert result == {"state": "ENQUEUED", "preflight_id": "canonical"}
+    assert directus.calls == [{
+        "method": "POST", "url": "http://cms:8055/chat-recovery-transaction",
+        "headers": {"X-Internal-Service-Token": "test-internal-token"},
+        "json": {"operation": "admit_first_personal", "data": body},
+    }]
+
+
 @pytest.mark.anyio
 @pytest.mark.parametrize(
     "operation",
