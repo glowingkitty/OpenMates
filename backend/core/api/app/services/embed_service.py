@@ -464,7 +464,7 @@ class EmbedService:
         preview_results: List[Dict[str, Any]] = []
         preview_fields = EmbedService._parent_preview_fields_for(app_id, skill_id)
         flat_results = EmbedService._flatten_grouped_preview_results(results)
-        preserve_zero_values = app_id == "weather" and skill_id == "forecast"
+        preserve_zero_values = (app_id, skill_id) in {("weather", "forecast"), ("jobs", "search")}
 
         limit = WEB_SEARCH_PREVIEW_RESULT_LIMIT if app_id == "web" and skill_id == "search" else GENERIC_RESULT_LIST_PREVIEW_RESULT_LIMIT
         for result in flat_results:
@@ -641,6 +641,10 @@ class EmbedService:
         )
         if app_id == "web" and skill_id == "search":
             return (*common_fields, "snippet", "description")
+        if app_id == "jobs" and skill_id == "search":
+            # The parent preview must render without fetching/decrypting children.
+            # Full descriptions and application data remain in child embeds only.
+            return ("title", "company", "url", "location", "country", "remote", "published_at", "provider")
         if app_id == "mail" and skill_id == "search":
             return (*common_fields, "subject", "from", "to", "receiver", "snippet")
         if app_id == "weather" and skill_id == "forecast":
@@ -5021,6 +5025,7 @@ class EmbedService:
         ("news", "search"): "website",
         ("web", "search"): "website",
         ("models3d", "search"): "model_result",
+        ("jobs", "search"): "job_result",
         ("mail", "search"): "email",
         ("fitness", "search_locations"): "location",
         ("fitness", "search_classes"): "class",

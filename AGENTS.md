@@ -63,6 +63,12 @@ Include required views; omit duplicates and all-attempt appendices. Honor waiver
 Run the receipt's `codex_evidence_command`; select links from its inventory and
 report selected capture/upload failures. Edited proof follows scope. Retry
 uploads without rerunning tests. Details: `.claude/rules/testing.md`.
+Successful CI evidence upload saves the S3 object identity in the receipt, then
+removes the local video recording; images, posters and captions stay local.
+Failed uploads retain their recordings for retry. A signed link can be renewed
+from S3 while its object exists, without rerunning the test; report expiry if
+the object has passed the bucket's retention period. Use
+`codex_evidence.py --retain-local-videos` when an explicit edit needs the source.
 
 ## Tasks, communication and tools
 

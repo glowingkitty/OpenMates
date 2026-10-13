@@ -206,6 +206,44 @@ async def main():
 asyncio.run(main())
 '''
 
+INNER_RENEW_CODE = r'''
+import asyncio
+import json
+import os
+import boto3
+from botocore.config import Config
+from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+REQUEST = json.loads(os.environ["AGENT_RESPONSE_MEDIA_REQUEST"])
+
+async def main():
+    manager = SecretsManager()
+    await manager.initialize()
+    access_key = await manager.get_secret(secret_path="kv/data/providers/hetzner", secret_key="s3_access_key")
+    secret_key = await manager.get_secret(secret_path="kv/data/providers/hetzner", secret_key="s3_secret_key")
+    region = await manager.get_secret(secret_path="kv/data/providers/hetzner", secret_key="s3_region_name") or "nbg1"
+    if not access_key or not secret_key:
+        raise RuntimeError("Hetzner S3 credentials are unavailable in Vault")
+    client = boto3.client(
+        "s3", region_name=region, endpoint_url=f"https://{region}.your-objectstorage.com",
+        aws_access_key_id=access_key, aws_secret_access_key=secret_key,
+        config=Config(signature_version="s3v4", s3={"addressing_style": "path"},
+                      connect_timeout=10, read_timeout=30, retries={"max_attempts": 3}),
+    )
+    head = client.head_object(Bucket=REQUEST["bucket"], Key=REQUEST["key"])
+    if head.get("Metadata", {}).get("source-sha256") != REQUEST["sha256"]:
+        raise ValueError("Remote evidence object hash does not match receipt")
+    url = client.generate_presigned_url(
+        "get_object", Params={"Bucket": REQUEST["bucket"], "Key": REQUEST["key"]},
+        ExpiresIn=int(REQUEST["expires_in"]),
+    )
+    print(json.dumps({"bucket": REQUEST["bucket"], "key": REQUEST["key"],
+                      "sha256": "sha256:" + REQUEST["sha256"], "url": url,
+                      "expires_in": REQUEST["expires_in"]}))
+
+asyncio.run(main())
+'''
+
 
 def guess_content_type(path: Path) -> str:
     value = CONTENT_TYPES.get(path.suffix.lower())
@@ -730,6 +768,38 @@ def upload_file(
         recursive=False,
     )
     return build_result(args, dry_run=dry_run)
+
+
+def renew_uploaded_object(
+    *, bucket: str, key: str, sha256: str,
+    container: str = DEFAULT_CONTAINER,
+    expires_in: int = DEFAULT_EXPIRES_SECONDS,
+) -> dict[str, object]:
+    """Sign an existing S3 object only after its stored source hash is checked."""
+    if bucket not in {BUCKET_NAME, DEV_BUCKET_NAME}:
+        raise ValueError("Unknown response media bucket")
+    if not key.startswith("review-responses/") or ".." in Path(key).parts or key.startswith("/"):
+        raise ValueError("Unsafe response media object key")
+    if not re.fullmatch(r"[0-9a-f]{64}", sha256):
+        raise ValueError("Invalid response media SHA-256")
+    request = {"bucket": bucket, "key": key, "sha256": sha256,
+               "expires_in": ensure_expires(expires_in)}
+    env = os.environ.copy()
+    env["AGENT_RESPONSE_MEDIA_REQUEST"] = json.dumps(request, sort_keys=True)
+    result = run_command(
+        ["docker", "exec", "-e", "AGENT_RESPONSE_MEDIA_REQUEST", container,
+         "python", "-c", INNER_RENEW_CODE], env=env,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip())
+    lines = [line for line in result.stdout.splitlines() if line.strip().startswith("{")]
+    if not lines:
+        raise RuntimeError("Remote signing completed without JSON output")
+    response = json.loads(lines[-1])
+    if (response.get("bucket") != bucket or response.get("key") != key
+            or response.get("sha256") != f"sha256:{sha256}"):
+        raise ValueError("Remote signing returned a different object")
+    return response
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

@@ -36,6 +36,7 @@ PARENT_PREVIEW_METADATA_COVERAGE: set[str] = {
     "home:search",
     "hosting:search_domains",
     "images:search",
+    "jobs:search",
     "maps:search",
     "models3d:search",
     "news:search",

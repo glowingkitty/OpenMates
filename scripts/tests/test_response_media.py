@@ -287,6 +287,44 @@ def test_invalid_captions_fail_before_any_upload(tmp_path: Path, monkeypatch, ca
     assert "WebVTT" in capsys.readouterr().err
 
 
+def test_renew_uploaded_object_uses_saved_identity_without_local_media(monkeypatch) -> None:
+    import subprocess
+
+    digest = "a" * 64
+    captured = []
+    def run(command, *, env=None):
+        captured.append((command, env))
+        return subprocess.CompletedProcess(command, 0, stdout=json.dumps({
+            "bucket": media.DEV_BUCKET_NAME,
+            "key": "review-responses/runs/fixture/video.mp4",
+            "sha256": "sha256:" + digest,
+            "url": "https://bucket.example.test/video?signature=new",
+            "expires_in": 172800,
+        }), stderr="")
+    monkeypatch.setattr(media, "run_command", run)
+    result = media.renew_uploaded_object(
+        bucket=media.DEV_BUCKET_NAME,
+        key="review-responses/runs/fixture/video.mp4",
+        sha256=digest,
+    )
+    assert result["url"].endswith("signature=new")
+    assert len(captured) == 1
+    assert 'head_object' in captured[0][0][-1]
+
+
+def test_renew_rejects_unsafe_identity_before_container_call(monkeypatch) -> None:
+    import pytest
+
+    monkeypatch.setattr(media, "run_command", lambda *a, **kw: pytest.fail("must not call container"))
+    for bucket, key, sha in (
+        ("other-bucket", "review-responses/video.mp4", "a" * 64),
+        (media.DEV_BUCKET_NAME, "../video.mp4", "a" * 64),
+        (media.DEV_BUCKET_NAME, "review-responses/video.mp4", "not-a-hash"),
+    ):
+        with pytest.raises(ValueError):
+            media.renew_uploaded_object(bucket=bucket, key=key, sha256=sha)
+
+
 def test_rejects_unsupported_media_type(tmp_path: Path, capsys) -> None:
     text = tmp_path / "not-media.txt"
     text.write_text("not media", encoding="utf-8")

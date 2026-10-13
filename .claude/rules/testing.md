@@ -94,7 +94,16 @@ check or a different source revision into a pass.
    checks do not need invented recordings.
 3. If capture never started, a recording is missing, an artifact expired, or an
    upload fails for selected evidence, report the affected test and concrete
-   reason beside its test result. Retain local artifacts for upload retry.
+   reason beside its test result. Failed uploads retain local artifacts for retry.
+   After a confirmed S3 upload and durable receipt save, the evidence uploader
+   removes only the local CI video; images, posters, captions and receipt metadata
+   remain. Repeated inventory runs must reuse the uploaded record, not report the
+   intentionally cleaned video as missing. Use `--retain-local-videos` when an
+   explicitly requested proof-video edit still needs the source recording.
+   Expiring signed links can be renewed from the saved bucket/key and verified
+   remote object while S3 retains it. The bucket's existing retention period is
+   unchanged; if that object has expired, report evidence expiry and the local
+   cleanup rather than claiming a new link or rerunning the test.
    Report verification and delivery separately; never claim video was delivered
    from a download/upload alone. Use `--ack` only with an actual delivered chat
    message ID; leave delivery pending when the client does not expose one.
@@ -112,7 +121,8 @@ visual-smoke production follow the accepted task/Plan or explicit request throug
 `create-demo-video`. Delivery of the selected existing E2E recordings remains
 required.
 Do not rerun a test solely to repair an upload or refresh an expired media link;
-retry/re-upload the retained artifact. Never publish private production evidence
+retry an unuploaded recording or renew an existing S3 object when possible.
+Never publish private production evidence
 or unredacted personal data; report withheld evidence with its reason.
 
 The explicitly authorized real signup-email smoke remains a dev-host check with

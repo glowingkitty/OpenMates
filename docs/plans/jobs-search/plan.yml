@@ -1,0 +1,39 @@
+schema_version: 2
+profile: concise
+id: jobs-search
+title: Jobs Search with public providers, workflows, embeds, and a real example
+status: implementing
+goal: >
+  Add support for API-key-free job platforms first, implement and test Jobs Search
+  in workflows and the workflow editor, implement embed preview and fullscreen
+  components, and publish a confirmed working example from a real OpenMates CLI
+  chat asking for jobs. Review 80,000 Hours and meaningful-job competitors and
+  summarize free APIs needing credentials and potential paid services.
+approval: User explicitly authorized implementation and workflow support in this chat; no further design approval is required within that scope.
+task: 90d0ba71-95b0-4851-836f-fc738ba97cc2
+scope:
+  - Public Arbeitnow and Arbeitsagentur search for Germany and official JobTech search for Sweden, with bounded provider calls and truthful normalized listings.
+  - One jobs.search batch skill, explicit/automatic country-aware source routing, validated filters, safe partial failures, deduplication, and optional evidence-based relevance ranking.
+  - Generated npm/pip SDK facades and direct callable parity; existing app-skill dispatch and output-safety contracts remain authoritative.
+  - Workflow metadata, flat typed job outputs, unattended read-only execution, Jobs editor inputs and downstream variables.
+  - Search and job-result preview/fullscreen embeds, source attribution, copy-text rendering, responsive states, and real app-store examples.
+  - A public example extracted from a real CLI chat; use CC0 JobTech listings for public demonstration while German commercial reuse conditions remain unresolved.
+  - Provider privacy disclosures and a documented meaningful-jobs/API-access comparison.
+out_of_scope:
+  - Job applications, employer posting, protected contact details, CAPTCHA bypass, private recruiting data, and production deployment.
+  - Paid or credentialed provider integration, native Apple UI, and scraping boards that prohibit automated copying or republication.
+behavior_contract:
+  - Country and structured filters are never silently widened; unknown salary, remote status, or employment eligibility remains unknown.
+  - Parent previews use bounded allowlisted metadata; child content loads only after explicit fullscreen/open actions.
+  - Workflow results flatten request groups into typed listings and retain errors, providers, warnings, and partial-success status.
+  - A failed source does not discard valid results from independent sources or requests; raw diagnostics and credentials stay out of results.
+verification:
+  - Focused provider, skill, preview-metadata, workflow adapter, SDK, privacy/metadata, lint, and translation checks run locally.
+  - Product CLI/SDK/API and browser/component coverage run in isolated GitHub CI; real-inference CLI demo runs on dev with disposable test state.
+  - Backend CLI and required SDK evidence precede web component implementation.
+  - Verify Jobs workflow editor inputs/outputs and search/result embed states at laptop and phone widths.
+  - Create, inspect, share, extract, deploy, and self-verify the actual CLI example, including relevant fullscreen views and reload.
+  - Deliver the latest successful required recordings via the existing S3 evidence transport; record actual failures without inventing passes.
+decisions:
+  - Existing architecture.app-skill-execution and feature.public-example-chats contracts govern the new integration; this Plan records the user's approved specialization.
+  - OpenMates Tasks owns progress and blockers; this file does not duplicate a task ledger.
