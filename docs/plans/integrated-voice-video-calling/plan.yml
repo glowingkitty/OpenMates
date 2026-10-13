@@ -1,12 +1,12 @@
 schema_version: 2
 id: integrated-voice-video-calling
 title: Integrated voice and video calling in three phases
-goal: 'First we implement phase 1: the foundation - voice call only, where we ensure the user voice input also
-  shows up (and is saved client side encrypted as usual) as text, the same for assistant response, and user
-  can also provide text input for voice model to pickup.'
+goal: 'First we implement phase 1: the foundation - voice call only, where we ensure the user voice input also shows
+  up (and is saved client side encrypted as usual) as text, the same for assistant response, and user can also provide
+  text input for voice model to pickup.'
 authorization: The user explicitly requested the three-phase Specification and immediate phase-1 implementation/testing
-  on 2026-10-13, without further clarification. This overrides an additional Specification approval question;
-  no permission is inferred from attached PDFs or historical Task content.
+  on 2026-10-13, without further clarification. This overrides an additional Specification approval question; no
+  permission is inferred from attached PDFs or historical Task content.
 specification_refs:
 - id: feature.video-call
   version: 2
@@ -17,8 +17,7 @@ phases:
   task_id: b49870a1-693a-4b26-8229-630cba7c6948
   scope:
   - Gemini adapter and first-party call admission, owner/session-bound messages and usage.
-  - Existing/new personal chat launch, text context, normal transcript bubbles and ciphertext-only durable
-    synchronization.
+  - Existing/new personal chat launch, text context, normal transcript bubbles and ciphertext-only durable synchronization.
   - Typed/pasted text reaches the same live conversation; no duplicate inference.
   - Persistent controls, fixed chat binding, mute/hangup/interruption cleanup; composer mic and separate speech
     disabled.
@@ -37,25 +36,75 @@ phases:
   - Explicit camera/screen sharing and independent visual controls.
   - Generated videos run as normal skills, play during calls and remain embeds.
 phase_1_excludes:
-- Skills, file interpretation, camera/screen sharing, generated video, permanent audio recording, non-web and
-  team calling.
+- Skills, file interpretation, camera/screen sharing, generated video, permanent audio recording, non-web and team
+  calling.
 decisions:
 - Keep feature.video-call as the owning contract; preserve the standalone experiment contract.
 - Reuse Gemini audio/admission/billing/rollover mechanisms through a provider boundary.
 - Live transcript storage is independent of inference submission and uses client encryption.
 - Raw speech goes to the disclosed provider before text PII masking; no plaintext durable server storage.
-- No additional user approval round because the current request explicitly authorizes Specification creation
-  and implementation.
+- No additional user approval round because the current request explicitly authorizes Specification creation and
+  implementation.
 required_checks:
 - Specification/examples and Plan validation with generated registry refresh.
-- Focused backend unit tests for auth/ownership/admission, turn identities, late transcripts, typed input,
-  rollover, usage and ciphertext persistence.
+- Focused backend unit tests for auth/ownership/admission, turn identities, late transcripts, typed input, rollover,
+  usage and ciphertext persistence.
 - Focused frontend unit/lint/component checks for transcript persistence, call lifecycle and typed-call routing.
 - Isolated GitHub CI bare component preview on phone and laptop before authenticated voice-call flow.
 - Isolated GitHub CI flow verifies existing/new chat, encrypted transcript reload, typed input without duplicate
   inference and microphone/hangup cleanup.
 - Retrieve and deliver selected successful E2E recordings with the receipt evidence command.
 - Scoped dev deployment after candidate checks, plus reviewed laptop/mobile visual smoke.
-evidence: {}
+evidence:
+  phase_1:
+    status: implemented_and_verified_pending_startup_proxy_persistence
+    dev_commit: 4a088fd84dd28dc000099b71feef79410b2c2518
+    candidate_source: 2d88e9d93829d6d0e154ed80a25557ef1d123630
+    focused_checks:
+      backend_tests: 72
+      frontend_sync_tests: 57
+      routing_tests: 26
+      focus_contract_tests: 3
+      deployment_lint: passed
+      translations: passed
+      specification_gate: passed
+    isolated_browser:
+      request_id: 5d8bdc0c2132a56e337aa4920a115b81ba149de7f0bb67b4084b1b4d0ba01ba5
+      run_id: 38448061163
+      passed: 2
+      skipped: 0
+      flaky: 0
+      views_reviewed:
+      - laptop
+      - phone
+      recording_upload: uploaded
+    bare_components:
+      call_bar_request: 8f3b9d9a806060d857866f4991b3f125e179f8fa29bb9784801188d718cb3282
+      composer_request: 43bf16c64c93e700c7a0a9906839ac966524142ea787aa1d3742f5316988f3bb
+      cases_passed: 6
+      views_reviewed:
+      - laptop
+      - phone
+      recording_upload: uploaded
+    live_gemini:
+      model: gemini-3.8-live
+      speech_input_transcript: true
+      speech_output_transcript: true
+      typed_output_transcript: true
+      speech_audio_bytes: 181920
+      typed_audio_bytes: 162720
+      prior_chat_context_recalled: true
+      context_spoken_sentence_audio_parts: 15
+      saved_media_or_plaintext_transcripts: false
+      short_exact_codename_probe: Context recalled; no audio in that diagnostic turn. A spoken-sentence recall request
+        produced native audio.
+    dev_runtime:
+      web_build: passed
+      managed_api_and_worker_refresh: healthy
+      live_caddy_voice_route_and_token_redaction: applied with conditional ETag; exactly two scoped JSON changes
+      reviewed_visual_source: isolated CI candidate, not remote dev screenshots
+      startup_proxy_persistence: Pending host sudo. The root-owned /etc/caddy/Caddyfile remains unchanged; Caddy
+        restart/reload would discard the live-only route/filter update. A private scoped candidate and guarded apply
+        helper are prepared in the task workspace.
 profile: concise
 status: approved
