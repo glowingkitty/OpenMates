@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.focus-modes@3
+specification: feature.focus-modes@4
 project_write_gate:
 - id: model-cannot-mint-write-access
   given: The preprocessor recommends Work on OpenMates but its activation has not been accepted in this chat.
@@ -227,3 +227,13 @@ updated_followup:
   when: Alice sends the next follow-up using that Focus.
   then: The new request uses revision 4 and refreshed context; the already-running response finishes with revision
     3.
+
+natural_request:
+- id: natural-multi-angle-research
+  given: A user asks why US egg prices stayed high and requests comparison of supply, concentration, margins, regulation and counterarguments without naming a focus mode. Deep research is the unique supported match.
+  action: Process the original request.
+  expect: Show the normal cancellable Deep research activation before the substantive answer. After acceptance, research children perform their work and the parent uses their evidence; relevance alone never starts the children.
+- id: ordinary-or-declined-request
+  given: A user asks one simple web lookup, explicitly selects a search skill, or rejects a pending research activation.
+  action: Answer the lookup or resume the rejected request.
+  expect: Keep the ordinary answer path, honor the exact skill selection and do not propose the same focus again on the rejection continuation.

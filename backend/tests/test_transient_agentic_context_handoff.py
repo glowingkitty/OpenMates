@@ -8,6 +8,8 @@ import pytest
 from backend.shared.python_utils.recent_work_summary_cache import TransientContextHandoffStore
 from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload, restore_private_context_payload
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
+from backend.core.api.app.routes.recent_work_internal import _validate_context_projects
+from fastapi import HTTPException
 
 
 class Encryption:
@@ -21,6 +23,39 @@ class Encryption:
 
     async def decrypt_with_user_key(self, ciphertext, key):
         return self.values[ciphertext]
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.same-turn-completion,app-skills.assistant.bounded-private-failure
+async def test_non_project_same_turn_completion_seals_without_project_focus():
+    owner = SimpleNamespace(owner_id="owner", current_chat_id="chat")
+    completion = {"tool_name": "social_media-get_posts", "status": "finished",
+                  "request_metadata": {"same_turn_batch_id": "delivery:0"},
+                  "results": [{"embed_ref": "opaque-result"}]}
+    fields = {"async_tool_completion": completion,
+              "same_turn_checkpoint": {"batch_id": "delivery:0", "handoff_ttl_seconds": 1200}}
+    assert await _validate_context_projects(owner, fields, object(), object()) is None
+    # A very fast producer may seal before the full checkpoint is registered.
+    fields["same_turn_checkpoint"] = {"handoff_ttl_seconds": 1200}
+    assert await _validate_context_projects(owner, fields, object(), object()) is None
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.bounded-private-failure
+async def test_non_project_completion_requires_matching_same_turn_authority():
+    owner = SimpleNamespace(owner_id="owner", current_chat_id="chat")
+    completion = {"tool_name": "social_media-get_posts",
+                  "request_metadata": {"same_turn_batch_id": "delivery:0"}}
+    for fields in (
+        {"async_tool_completion": completion},
+        {"async_tool_completion": completion,
+         "same_turn_checkpoint": {"batch_id": "other"}},
+        {"async_tool_completion": {**completion, "tool_name": "project_search_files"},
+         "same_turn_checkpoint": {"batch_id": "delivery:0"}},
+    ):
+        with pytest.raises(HTTPException) as denied:
+            await _validate_context_projects(owner, fields, object(), object())
+        assert denied.value.status_code == 403
 
 
 @pytest.mark.asyncio

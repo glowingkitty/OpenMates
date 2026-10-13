@@ -310,6 +310,15 @@ def test_preview_capture_rejects_untrusted_port_before_shell_interpolation() -> 
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot
+def test_preview_capture_limits_chromium_processes_in_e2b() -> None:
+    command = _application_screenshot_command(5173)
+    assert "'--single-process'" in command
+    assert "'--js-flags=--jitless'" in command
+    assert "'--disable-dev-shm-usage'" in command
+    assert "http://127.0.0.1:5173/" in command
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot
 def test_preview_start_reports_capture_failure_and_stops_sandbox(monkeypatch: pytest.MonkeyPatch) -> None:
     from backend.shared.providers import e2b_application_preview
 

@@ -184,14 +184,29 @@ async def _validate_context_projects(payload, fields, directus, cache):
            if key != "async_tool_history" and isinstance(values, list)
            for row in values if isinstance(row, dict) and row.get("project_id")}
     private_completion = fields.get("async_tool_completion")
-    if private_completion is not None and (
-        not isinstance(private_completion, dict)
-        or not isinstance(private_completion.get("project_id"), str)
-        or not private_completion["project_id"]
-    ):
-        raise HTTPException(status_code=403, detail="Private tool result Project binding required")
-    if private_completion:
-        ids.add(private_completion["project_id"])
+    if private_completion is not None:
+        if not isinstance(private_completion, dict):
+            raise HTTPException(status_code=403, detail="Private tool result Project binding required")
+        project_id = private_completion.get("project_id")
+        if project_id is not None and (not isinstance(project_id, str) or not project_id):
+            raise HTTPException(status_code=403, detail="Private tool result Project binding required")
+        if project_id:
+            ids.add(project_id)
+        else:
+            # Same-turn producer results for ordinary skills share the private
+            # handoff, but have no Project binding. Legacy Project file results
+            # still require their explicit active-Project authority.
+            marker = fields.get("same_turn_checkpoint")
+            metadata = private_completion.get("request_metadata") or {}
+            marker_batch = marker.get("batch_id") if isinstance(marker, dict) else None
+            early_batch = metadata.get("same_turn_batch_id") if isinstance(metadata, dict) else None
+            batch_id = marker_batch or early_batch
+            if (not isinstance(marker, dict) or not isinstance(batch_id, str)
+                    or not 0 < len(batch_id) <= 128
+                    or (marker_batch and early_batch and marker_batch != early_batch)
+                    or (isinstance(private_completion.get("tool_name"), str)
+                        and private_completion["tool_name"].startswith("project_"))):
+                raise HTTPException(status_code=403, detail="Private tool result Project binding required")
     private_history = fields.get("async_tool_history")
     if private_history is not None:
         if (not isinstance(private_history, list)

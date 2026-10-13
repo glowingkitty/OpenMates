@@ -259,7 +259,13 @@ async def arm_barrier(cache: Any, batch_id: str) -> None:
     """Publish readiness only after the durable recovery pause is established."""
     if not isinstance(await cache.get(_key(batch_id, "batch")), dict):
         raise RuntimeError("Same-turn barrier is unavailable")
-    await _set_once(cache, _key(batch_id, "armed"), "1")
+    await _set_once(cache, _key(batch_id, "armed"), "armed")
+
+
+async def barrier_is_armed(cache: Any, batch_id: str) -> bool:
+    """Accept older numeric markers after CacheService JSON decoding."""
+    marker = await cache.get(_key(batch_id, "armed"))
+    return marker in ("armed", "1") or (type(marker) is int and marker == 1)
 
 
 async def record_terminal(
@@ -279,7 +285,7 @@ async def claim_ready(cache: Any, *, batch_id: str, expire_missing: bool = False
     metadata = await cache.get(_key(batch_id, "batch"))
     if not isinstance(metadata, dict) or metadata.get("version") != 1:
         return None
-    if await cache.get(_key(batch_id, "armed")) != "1":
+    if not await barrier_is_armed(cache, batch_id):
         return None
     if await cache.get(_latest_turn_key(metadata["user_id"], metadata["chat_id"])) != metadata["turn_id"]:
         await _set_once(cache, _key(batch_id, "stale"), "1")
@@ -317,6 +323,7 @@ async def restore_ordered_tool_results(request: Any, checkpoint: dict[str, Any])
     by_call: dict[str, list[dict[str, Any]]] = {}
     generated_refs = list(checkpoint.get("generated_embed_refs") or [])
     generated_aliases = dict(checkpoint.get("generated_embed_aliases") or {})
+    authored_inline_outputs = list(checkpoint.get("authored_inline_outputs") or [])
     for job, slot in zip(jobs, slots):
         if not isinstance(job, dict) or not isinstance(slot, dict) or job.get("task_id") != slot.get("task_id"):
             raise RuntimeError("Same-turn completion order changed")
@@ -352,9 +359,15 @@ async def restore_ordered_tool_results(request: Any, checkpoint: dict[str, Any])
                 for alias in aliases.get(ref, []):
                     if alias not in known:
                         known.append(alias)
+                if aliases.get(ref):
+                    authored_inline_outputs.append({
+                        "app_id": job["app_id"], "skill_id": job["skill_id"],
+                        "embed_ref": ref, "embed_id": aliases[ref][0], "status": "finished",
+                    })
         by_call.setdefault(str(job["tool_call_id"]), []).append(payload)
     checkpoint["generated_embed_refs"] = generated_refs
     checkpoint["generated_embed_aliases"] = generated_aliases
+    checkpoint["authored_inline_outputs"] = authored_inline_outputs
     history = checkpoint.get("current_message_history")
     if not isinstance(history, list):
         raise RuntimeError("Same-turn provider transcript is unavailable")

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+import re
+import uuid
+from typing import Any, Mapping, Sequence
 from contextvars import ContextVar
 
 try:
@@ -45,6 +47,234 @@ COMPLETION_RESULT_FIELDS = frozenset({
     "provider", "mode", "generation_type", "duration_seconds", "aspect_ratio",
     "resolution", "output_filetype", "billing_status", "generated_at",
 })
+
+_INLINE_CARD_SKILLS = frozenset({("nutrition", "search_recipes"), ("design", "search_icons")})
+_GENERATED_OUTPUT_SKILLS = frozenset({
+    ("images", "generate"), ("images", "generate_draft"), ("images", "vectorize"),
+    ("audio", "generate"), ("audio", "speak"), ("music", "generate"),
+    ("videos", "generate"), ("videos", "create"), ("models3d", "generate"),
+    ("code", "image_to_html"),
+})
+_OUTPUT_REF_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._~:-]{0,127}\Z")
+_MARKDOWN_EMBED_LINK = re.compile(
+    r"\[(?P<label>[^\]\n]*)\]\(\s*<?embed:(?P<ref>[^\s<>)]+)>?"
+    r"(?:\s+[\"'][^\"']*[\"'])?\s*\)"
+)
+_INLINE_CODE = re.compile(r"(?<!`)`[^`\n]+`(?!`)")
+_FENCE_LINE = re.compile(r"^\s*(```|~~~)")
+_BARE_EMBED_TARGET = re.compile(r"(?<![A-Za-z0-9_/:])embed:([A-Za-z0-9][A-Za-z0-9._~:-]{0,127})(?![A-Za-z0-9._~:-])")
+_REF_RANDOM_SUFFIX = re.compile(r"^(.+)-[A-Za-z0-9]{3,4}$")
+
+
+def _canonical_output_id(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return str(uuid.UUID(value))
+    except (ValueError, AttributeError):
+        return None
+
+
+def collect_authored_skill_output_bindings(
+    *, app_id: str, skill_id: str, results: Sequence[Mapping[str, Any]],
+    authored_embeds: Sequence[Mapping[str, Any]],
+) -> list[dict[str, str]]:
+    """Bind result refs only when the successful writer returned matching child IDs.
+
+    The skill's fetched results alone are not authority to render an inline card.
+    A failed or incomplete writer cannot authorize speculative refs.
+    """
+    if (app_id, skill_id) not in _INLINE_CARD_SKILLS:
+        return []
+    child_ids: list[str] = []
+    for embed in authored_embeds:
+        if not isinstance(embed, Mapping) or embed.get("status") in {"error", "failed", "cancelled"}:
+            continue
+        ids = embed.get("child_embed_ids")
+        if not isinstance(ids, list):
+            continue
+        for child_id in ids:
+            canonical = _canonical_output_id(child_id)
+            if canonical is None:
+                return []
+            child_ids.append(canonical)
+    if not child_ids or len(child_ids) != len(results) or len(set(child_ids)) != len(child_ids):
+        return []
+    bindings: list[dict[str, str]] = []
+    for result, child_id in zip(results, child_ids):
+        if not isinstance(result, Mapping):
+            return []
+        ref = result.get("embed_ref")
+        if not isinstance(ref, str) or not _OUTPUT_REF_PATTERN.fullmatch(ref):
+            return []
+        title = next((str(result[key]).strip() for key in ("title", "name", "label")
+                      if isinstance(result.get(key), str) and result[key].strip()), "")
+        bindings.append({"app_id": app_id, "skill_id": skill_id, "embed_ref": ref,
+                         "embed_id": child_id, "status": "finished", "title": title})
+    return bindings
+
+
+def finalize_trusted_inline_refs(
+    answer: str, authored_outputs: Sequence[Mapping[str, Any]], *,
+    required_refs: Sequence[str] = (),
+    include_named_search_results: bool = True,
+) -> str:
+    """Render only authenticated output refs as cards, correcting unique slug typos.
+
+    Only successful, server-authored child UUID/ref pairs may be rewritten.
+    An unknown random suffix can be corrected only when its stable slug or name
+    identifies exactly one authored child. Search title matches are capped at
+    three, so the fetched candidate list is never forced inline wholesale.
+    """
+    if not authored_outputs:
+        return answer
+    refs: dict[str, Mapping[str, Any]] = {}
+    aliases: dict[str, str] = {}
+    canonical_by_identity: dict[str, str] = {}
+    stable_bases: dict[str, set[str]] = {}
+    for row in authored_outputs:
+        if not isinstance(row, Mapping) or row.get("status") != "finished":
+            continue
+        ref, identity = row.get("embed_ref"), _canonical_output_id(row.get("embed_id"))
+        if not isinstance(ref, str) or not _OUTPUT_REF_PATTERN.fullmatch(ref) or identity is None:
+            continue
+        if (row.get("app_id"), row.get("skill_id")) not in (_INLINE_CARD_SKILLS | _GENERATED_OUTPUT_SKILLS):
+            continue
+        existing = refs.get(ref)
+        if existing and _canonical_output_id(existing.get("embed_id")) != identity:
+            continue
+        if identity in canonical_by_identity:
+            aliases[ref] = canonical_by_identity[identity]
+            continue
+        refs[ref] = row
+        canonical_by_identity[identity] = ref
+        aliases[ref] = ref
+        aliases[identity] = ref
+        suffix = _REF_RANDOM_SUFFIX.fullmatch(ref)
+        if suffix and (row.get("app_id"), row.get("skill_id")) in _INLINE_CARD_SKILLS:
+            stable_bases.setdefault(suffix.group(1).casefold(), set()).add(ref)
+    if not refs:
+        return answer
+
+    def resolve(target: str) -> tuple[str | None, bool]:
+        """Return the authenticated ref and whether a plausible name is ambiguous."""
+        canonical = _canonical_output_id(target) or target
+        if canonical in aliases:
+            return aliases[canonical], False
+        suffix = _REF_RANDOM_SUFFIX.fullmatch(target)
+        if not suffix:
+            return None, False
+        candidates = stable_bases.get(suffix.group(1).casefold(), set())
+        if len(candidates) == 1:
+            return next(iter(candidates)), False
+        return None, len(candidates) > 1
+
+    present: set[str] = set()
+    saw_ambiguous_ref = False
+    normalized_lines: list[str] = []
+    fence: str | None = None
+    for line in answer.splitlines(keepends=True):
+        fence_match = _FENCE_LINE.match(line)
+        if fence_match:
+            marker = fence_match.group(1)
+            fence = None if fence == marker else marker if fence is None else fence
+            normalized_lines.append(line)
+            continue
+        if fence:
+            normalized_lines.append(line)
+            continue
+        code_spans = [match.span() for match in _INLINE_CODE.finditer(line)]
+
+        def normalize_link(match: re.Match[str]) -> str:
+            nonlocal saw_ambiguous_ref
+            if any(start <= match.start() < end for start, end in code_spans):
+                return match.group(0)
+            ref, ambiguous = resolve(match.group("ref"))
+            if ref is None:
+                saw_ambiguous_ref |= ambiguous
+                return match.group("label") if ambiguous else match.group(0)
+            if ref in present:
+                return match.group("label") if match.group("label") != "!" else ""
+            present.add(ref)
+            return f"[{match.group('label')}](embed:{ref})"
+
+        normalized_lines.append(_MARKDOWN_EMBED_LINK.sub(normalize_link, line))
+
+    lines: list[str] = []
+    fence = None
+    for line in normalized_lines:
+        fence_match = _FENCE_LINE.match(line)
+        if fence_match:
+            marker = fence_match.group(1)
+            fence = None if fence == marker else marker if fence is None else fence
+            lines.append(line)
+            continue
+        if fence:
+            lines.append(line)
+            continue
+        protected = [match.span() for pattern in (_MARKDOWN_EMBED_LINK, _INLINE_CODE)
+                     for match in pattern.finditer(line)]
+
+        def normalize_bare(match: re.Match[str]) -> str:
+            nonlocal saw_ambiguous_ref
+            if any(start <= match.start() < end for start, end in protected):
+                return match.group(0)
+            ref, ambiguous = resolve(match.group(1))
+            if ref is None:
+                saw_ambiguous_ref |= ambiguous
+                return "result unavailable" if ambiguous else match.group(0)
+            if ref in present:
+                title = refs[ref].get("title")
+                return title if isinstance(title, str) and title else "this result"
+            present.add(ref)
+            return f"[!](embed:{ref})"
+
+        updated = _BARE_EMBED_TARGET.sub(normalize_bare, line)
+        lines.append(updated)
+    answer = "".join(lines)
+
+    if include_named_search_results and not saw_ambiguous_ref:
+        chosen: list[str] = []
+        prose: list[str] = []
+        fence = None
+        for line in answer.splitlines():
+            fence_match = _FENCE_LINE.match(line)
+            if fence_match:
+                marker = fence_match.group(1)
+                fence = None if fence == marker else marker if fence is None else fence
+                continue
+            if fence:
+                continue
+            line = _INLINE_CODE.sub("", line)
+            line = _MARKDOWN_EMBED_LINK.sub(lambda match: match.group("label"), line)
+            line = _BARE_EMBED_TARGET.sub("", line)
+            prose.append(line)
+        folded = re.sub(r"\s+", " ", " ".join(prose).casefold())
+        for ref, row in refs.items():
+            title = row.get("title")
+            if ((row.get("app_id"), row.get("skill_id")) in _INLINE_CARD_SKILLS
+                    and ref not in present and isinstance(title, str) and len(title.strip()) >= 4
+                    and re.search(r"(?<!\w)" + re.escape(re.sub(r"\s+", " ", title.strip().casefold()))
+                                  + r"(?!\w)", folded)):
+                chosen.append(ref)
+                present.add(ref)
+            if len(chosen) == 3:
+                break
+        if chosen:
+            cards = "\n".join(f"[!](embed:{ref})" for ref in chosen)
+            answer = f"{answer.rstrip()}\n\n{cards}"
+
+    required: list[str] = []
+    for target in required_refs:
+        if isinstance(target, str):
+            ref, _ = resolve(target)
+            if ref is not None and ref not in present:
+                required.append(ref)
+                present.add(ref)
+    if required:
+        cards = "\n".join(f"[!](embed:{ref})" for ref in required)
+        answer = f"{answer.rstrip()}\n\n{cards}" if answer.strip() else cards
+    return answer
 
 
 def media_completion_result(result: dict[str, Any]) -> dict[str, Any]:

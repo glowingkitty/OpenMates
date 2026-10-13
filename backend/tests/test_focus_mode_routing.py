@@ -15,7 +15,36 @@ from backend.apps.ai.processing.focus_mode_routing import (
     should_force_deep_research_delegation,
     should_enable_subchats_for_active_focus,
     workflow_clarification_skill_scope,
+    resolve_automatic_focus_proposal,
 )
+
+
+# contract-test: supporting surface=cli assertions=focus-modes.natural-request
+def test_unique_opted_in_public_match_proposes_activation_before_answer() -> None:
+    assert resolve_automatic_focus_proposal(
+        relevant_focus_modes=["web-research"], eligible_focus_ids={"web-research"},
+        has_active_focus=False, chat_depth=0, is_continuation=False,
+        exact_skill_request=False, explicit_focus_request=False, apps_enabled=True,
+    ) == "web-research"
+    # The proposal still does not enable research until its transition is accepted.
+    assert should_enable_subchats_for_active_focus(None) is False
+
+
+# contract-test: supporting surface=cli assertions=focus-modes.natural-request
+def test_automatic_public_focus_does_not_override_selection_or_rejection() -> None:
+    baseline = dict(
+        relevant_focus_modes=["web-research"], eligible_focus_ids={"web-research"},
+        has_active_focus=False, chat_depth=0, is_continuation=False,
+        exact_skill_request=False, explicit_focus_request=False, apps_enabled=True,
+    )
+    for change in (
+        {"relevant_focus_modes": []}, {"eligible_focus_ids": set()},
+        {"relevant_focus_modes": ["web-research", "politics-prepare_discussion"]},
+        {"has_active_focus": True}, {"chat_depth": 1}, {"is_continuation": True},
+        {"exact_skill_request": True}, {"explicit_focus_request": True},
+        {"apps_enabled": False},
+    ):
+        assert resolve_automatic_focus_proposal(**(baseline | change)) is None
 
 
 def test_explicit_workflow_clarification_uses_only_workflow_skills() -> None:

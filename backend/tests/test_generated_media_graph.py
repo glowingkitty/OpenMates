@@ -9,6 +9,8 @@ import uuid
 import pytest
 
 from backend.shared.python_utils.generated_media_graph import (
+    collect_authored_skill_output_bindings,
+    finalize_trusted_inline_refs,
     run_generated_media_batch,
     send_generated_media_child,
 )
@@ -122,3 +124,133 @@ async def test_standalone_media_child_never_self_parents():
     )
     assert sent[0]["parent_embed_id"] is None
     assert sent[0]["embed_id"] == embed_id
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results
+def test_search_refs_require_matching_authored_child_ids():
+    first, second = str(uuid.uuid4()), str(uuid.uuid4())
+    results = [
+        {"embed_ref": "spicy-chickpea-freekeh-n9J", "title": "Spicy Chickpea Freekeh"},
+        {"embed_ref": "lemon-soup-r2D", "title": "Lemon Soup"},
+    ]
+    bindings = collect_authored_skill_output_bindings(
+        app_id="nutrition", skill_id="search_recipes", results=results,
+        authored_embeds=[{"status": "finished", "child_embed_ids": [first, second]}],
+    )
+    assert [row["embed_id"] for row in bindings] == [first, second]
+    assert [row["embed_ref"] for row in bindings] == [row["embed_ref"] for row in results]
+    assert collect_authored_skill_output_bindings(
+        app_id="nutrition", skill_id="search_recipes", results=results,
+        authored_embeds=[{"status": "error", "child_embed_ids": [first, second]}],
+    ) == []
+    assert collect_authored_skill_output_bindings(
+        app_id="nutrition", skill_id="search_recipes", results=results,
+        authored_embeds=[{"child_embed_ids": [first]}],
+    ) == []
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results
+def test_selected_bare_recipe_refs_become_large_cards_without_inventing_candidates():
+    first, second, unselected = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
+    rows = [
+        {"app_id": "nutrition", "skill_id": "search_recipes", "status": "finished",
+         "embed_ref": ref, "embed_id": identity, "title": title}
+        for ref, identity, title in [
+            ("spicy-chickpea-freekeh-n9J", first, "Spicy Chickpea Freekeh"),
+            ("lemon-soup-r2D", second, "Lemon Soup"),
+            ("third-recipe-v3K", unselected, "Third Recipe"),
+        ]
+    ]
+    answer = "Try these:\nembed:spicy-chickpea-freekeh-n9J\nembed:lemon-soup-r2D"
+    finalized = finalize_trusted_inline_refs(answer, rows)
+    assert "[!](embed:spicy-chickpea-freekeh-n9J)" in finalized
+    assert "[!](embed:lemon-soup-r2D)" in finalized
+    assert "third-recipe-v3K" not in finalized
+    assert finalize_trusted_inline_refs(finalized, rows) == finalized
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results
+def test_ref_finalizer_dedups_uuid_slug_and_existing_markdown():
+    identity = str(uuid.uuid4())
+    row = {"app_id": "design", "skill_id": "search_icons", "status": "finished",
+           "embed_ref": "home-icon-n9J", "embed_id": identity, "title": "Home Icon"}
+    answer = f"[Home](embed:{identity})\nembed:home-icon-n9J\nembed:{identity}"
+    finalized = finalize_trusted_inline_refs(answer, [row])
+    assert finalized.count("[!](embed:home-icon-n9J)") == 0
+    assert finalized.count("(embed:") == 1
+    assert "[Home](embed:home-icon-n9J)" in finalized
+    assert "embed:" not in finalized.splitlines()[1]
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results
+def test_unique_authored_slug_repairs_a_wrong_random_suffix_without_guessing():
+    row = {"app_id": "design", "skill_id": "search_icons", "status": "finished",
+           "embed_ref": "home-outline-rounded-OcB", "embed_id": str(uuid.uuid4()),
+           "title": "Home Outline Rounded"}
+    answer = "[Home icon](embed:home-outline-rounded-Cy4)"
+    assert finalize_trusted_inline_refs(answer, [row]) == "[Home icon](embed:home-outline-rounded-OcB)"
+    assert finalize_trusted_inline_refs("embed:home-outline-rounded-Cy4", [row]) == (
+        "[!](embed:home-outline-rounded-OcB)"
+    )
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results
+def test_ambiguous_slug_cannot_fabricate_a_result_link():
+    rows = [
+        {"app_id": "design", "skill_id": "search_icons", "status": "finished",
+         "embed_ref": f"home-outline-rounded-{suffix}", "embed_id": str(uuid.uuid4()),
+         "title": "Home Outline Rounded"}
+        for suffix in ("OcB", "Kz4")
+    ]
+    assert finalize_trusted_inline_refs(
+        "[Home icon](embed:home-outline-rounded-Cy4)", rows,
+        include_named_search_results=False,
+    ) == "Home icon"
+    assert finalize_trusted_inline_refs(
+        "embed:home-outline-rounded-Cy4", rows,
+        include_named_search_results=False,
+    ) == "result unavailable"
+    assert finalize_trusted_inline_refs(
+        "[Home Outline Rounded](embed:home-outline-rounded-Cy4)", rows,
+    ) == "Home Outline Rounded"
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results
+def test_ref_finalizer_ignores_unknown_failed_and_code_tokens():
+    identity = str(uuid.uuid4())
+    row = {"app_id": "design", "skill_id": "search_icons", "status": "finished",
+           "embed_ref": "home-icon-n9J", "embed_id": identity, "title": "Home Icon"}
+    failed = {**row, "status": "failed", "embed_ref": "failed-icon-r2D", "embed_id": str(uuid.uuid4())}
+    answer = "`embed:home-icon-n9J`\n```text\nembed:home-icon-n9J\n```\nembed:made-up-x9Z\nembed:failed-icon-r2D"
+    assert finalize_trusted_inline_refs(answer, [row, failed]) == answer
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results
+def test_named_search_results_use_bounded_whole_title_matches():
+    rows = [
+        {"app_id": "design", "skill_id": "search_icons", "status": "finished",
+         "embed_ref": f"icon-{name.lower()}-{index}", "embed_id": str(uuid.uuid4()), "title": name}
+        for index, name in enumerate(["Home", "Search", "Bell", "Heart", "Moon"], start=1)
+    ]
+    answer = "Use Search, Bell, Heart, and Moon icons in this homework screen."
+    finalized = finalize_trusted_inline_refs(answer, rows)
+    assert "icon-home-1" not in finalized
+    assert finalized.count("[!](embed:") == 3
+    assert "icon-search-2" in finalized
+    assert "icon-bell-3" in finalized
+    assert "icon-heart-4" in finalized
+    assert "icon-moon-5" not in finalized
+    assert finalize_trusted_inline_refs("embed:homework-x9Y", rows) == "embed:homework-x9Y"
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results
+def test_required_generated_output_is_appended_once_using_authored_identity():
+    child_id = str(uuid.uuid4())
+    row = {"app_id": "images", "skill_id": "generate", "status": "finished",
+           "embed_ref": "generated-images-f471ad31c584", "embed_id": child_id}
+    answer = finalize_trusted_inline_refs("Here is the image.", [row], required_refs=[child_id])
+    assert answer.endswith("[!](embed:generated-images-f471ad31c584)")
+    assert finalize_trusted_inline_refs(answer, [row], required_refs=[row["embed_ref"]]) == answer
+    assert finalize_trusted_inline_refs("Here is the image.", [row], required_refs=["made-up-ref"]) == (
+        "Here is the image."
+    )

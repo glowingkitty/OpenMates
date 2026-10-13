@@ -9,6 +9,7 @@ transaction commits with the current lease fencing generation.
 import asyncio
 import json
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 import pytest
 
 from backend.core.api.app.routes.connection_manager import (
@@ -428,6 +429,7 @@ async def test_terminal_recovery_never_relays_without_committed_team_authority(m
 @pytest.mark.anyio
 @pytest.mark.parametrize("handler_name", [
     "handle_recovery_output_get",
+    "handle_recovery_output_status",
     "handle_recovery_output_persist_message",
     "handle_recovery_output_persist_summary",
     "handle_recovery_output_ack_checkpoint",
@@ -698,6 +700,7 @@ async def test_foreground_scan_gates_v1_jobs_for_both_clients_and_typed_outputs_
 @pytest.mark.anyio
 @pytest.mark.parametrize("handler_name", [
     "handle_recovery_output_get",
+    "handle_recovery_output_status",
     "handle_recovery_output_persist_message",
     "handle_recovery_output_persist_summary",
     "handle_recovery_output_ack_checkpoint",
@@ -726,6 +729,43 @@ async def test_background_capable_client_cannot_read_mutate_or_ack_typed_outputs
         "message": "Encrypted recovery requires a foreground client.",
         "job_id": "record-1", "request_id": "request-1",
     }
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,storage.background.complete-sealed-recovery
+async def test_output_status_requires_receipts_and_uses_authenticated_owner(monkeypatch) -> None:
+    execute = AsyncMock(return_value={
+        "record_id": "record-1", "state": "ACKNOWLEDGED", "subject_id": "embed-1",
+        "output_kind": "embed", "output_version": 2,
+        "canonical_digest": "a" * 64, "canonical_verified": True,
+    })
+    monkeypatch.setattr(chat_recovery_job_handlers, "ChatRecoveryService",
+                        lambda _directus: SimpleNamespace(execute=execute))
+    payload = {"protocol_version": 1, "record_id": "record-1", "request_id": "request-1",
+               "hashed_user_id": "spoofed-owner", "device_hash": "spoofed-device"}
+    denied = FakeManager(typed=True, receipts=False)
+    await chat_recovery_job_handlers.handle_recovery_output_status(
+        manager=denied, directus_service=object(), user_id="user-1",
+        user_id_hash="owner-hash", device_fingerprint_hash="device-hash", payload=payload,
+    )
+    assert denied.messages[0]["payload"]["code"] == "client_capability_required"
+    execute.assert_not_awaited()
+
+    manager = FakeManager(typed=True, receipts=True)
+    await chat_recovery_job_handlers.handle_recovery_output_status(
+        manager=manager, directus_service=object(), user_id="user-1",
+        user_id_hash="owner-hash", device_fingerprint_hash="device-hash", payload=payload,
+    )
+    execute.assert_awaited_once_with("get_output_status", {
+        "protocol_version": 1, "record_id": "record-1",
+        "hashed_user_id": "owner-hash", "device_hash": "device-hash",
+    })
+    assert manager.messages == [{"type": "recovery_output_status_ready", "payload": {
+        "record_id": "record-1", "state": "ACKNOWLEDGED", "subject_id": "embed-1",
+        "output_kind": "embed", "output_version": 2,
+        "canonical_digest": "a" * 64, "canonical_verified": True,
+        "request_id": "request-1",
+    }}]
 
 
 @pytest.mark.anyio

@@ -256,6 +256,7 @@ const OPERATION_FIELDS = Object.freeze({
   list_pending_outputs: new Set(['protocol_version', 'hashed_user_id', 'device_hash',
     'after_created_at', 'after_record_id']),
   get_pending_output: new Set(['protocol_version', 'hashed_user_id', 'device_hash', 'record_id']),
+  get_output_status: new Set(['protocol_version', 'hashed_user_id', 'device_hash', 'record_id']),
   persist_output_message: new Set([
     'protocol_version', 'hashed_user_id', 'device_hash', 'record_id',
     'expected_messages_v', 'encrypted_assistant_message',
@@ -2094,9 +2095,9 @@ async function authorizedOutputChat(trx, chatId, actorHash, lock = true) {
 const outputChatScope = (chat, actorHash) => chat.hashed_team_id
   ? { id: chat.id, hashed_team_id: chat.hashed_team_id }
   : { id: chat.id, hashed_user_id: actorHash };
-async function authorizedOutputRecordChats(trx, row, actorHash) {
-  const root = await authorizedOutputChat(trx, row.root_chat_id, actorHash);
-  const target = await authorizedOutputChat(trx, row.target_chat_id, actorHash);
+async function authorizedOutputRecordChats(trx, row, actorHash, lock = true) {
+  const root = await authorizedOutputChat(trx, row.root_chat_id, actorHash, lock);
+  const target = await authorizedOutputChat(trx, row.target_chat_id, actorHash, lock);
   if ((root.hashed_team_id || null) !== (row.root_hashed_team_id || null)
     || (target.hashed_team_id || null) !== (root.hashed_team_id || null)) {
     fail(404, 'recovery_output_not_found');
@@ -4294,6 +4295,72 @@ async function getPendingOutput(database, raw) {
   };
 }
 
+async function getOutputStatus(database, raw) {
+  const body = operationBody(raw, 'get_output_status');
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
+  string(body.device_hash, 'invalid_device', 128);
+  const recordId = uuid(body.record_id, 'invalid_record_id');
+  const row = await database(OUTPUTS).where({ id: recordId, hashed_user_id: ownerHash }).first();
+  if (!row || row.deleted_at || !['PENDING', 'ACKNOWLEDGED'].includes(row.state)) {
+    fail(404, 'recovery_output_not_found');
+  }
+  try {
+    await authorizedOutputRecordChats(database, row, ownerHash, false);
+  } catch (error) {
+    if (error instanceof ProtocolError && error.status === 404) fail(404, 'recovery_output_not_found');
+    throw error;
+  }
+  let canonicalVerified = false;
+  let canonicalSource = null;
+  if (row.state === 'ACKNOWLEDGED' && ['embed', 'diff'].includes(row.output_kind)
+    && typeof row.canonical_digest === 'string') {
+    const embed = await database(EMBEDS).where({
+      embed_id: row.subject_id, hashed_user_id: ownerHash,
+    }).first();
+    if (embed && embed.hashed_chat_id === hashIdentifier(row.target_chat_id)
+      && embed.encrypted_content && Number(embed.version_number || 1) >= row.output_version) {
+      const keySubject = embed.parent_embed_id || row.subject_id;
+      const wrappers = await database(EMBED_KEYS).where({
+        hashed_embed_id: hashIdentifier(keySubject), hashed_user_id: ownerHash,
+      }).select(['key_type', 'hashed_chat_id', 'encrypted_embed_key']);
+      const hasMaster = wrappers.some((key) => key.key_type === 'master' && key.encrypted_embed_key);
+      const hasChat = wrappers.some((key) => key.key_type === 'chat'
+        && key.hashed_chat_id === hashIdentifier(row.target_chat_id) && key.encrypted_embed_key);
+      if (hasMaster && hasChat) {
+        const headMatches = row.output_kind === 'embed'
+          && Number(embed.version_number || 1) === row.output_version
+          && digest(embed.encrypted_content) === row.canonical_digest;
+        let versionMatches = false;
+        if (!headMatches) {
+          const version = await database(EMBED_DIFFS).where({
+            embed_id: row.subject_id, version_number: row.output_version,
+            hashed_user_id: ownerHash,
+          }).first();
+          versionMatches = Boolean(version && (version.encrypted_snapshot || version.encrypted_patch)
+            && digest([version.encrypted_snapshot || null, version.encrypted_patch || null])
+              === row.canonical_digest);
+        }
+        canonicalVerified = headMatches || versionMatches;
+        canonicalSource = headMatches ? 'head' : versionMatches ? 'version_row' : null;
+      }
+    }
+  }
+  // First-party ciphertext recovery status only: no sealed payload, S3 locator,
+  // decrypted data, or key wrapper. The canonical digest proves an ACK against
+  // the durable encrypted row; clients still verify its content separately.
+  return {
+    record_id: row.id, state: row.state,
+    root_chat_id: row.root_chat_id, root_hashed_team_id: row.root_hashed_team_id || null,
+    target_chat_id: row.target_chat_id, turn_id: row.turn_id,
+    subject_id: row.subject_id, output_kind: row.output_kind,
+    output_version: row.output_version, chat_key_version: row.chat_key_version,
+    message_role: row.message_role || null,
+    canonical_digest: row.state === 'ACKNOWLEDGED' ? row.canonical_digest : null,
+    canonical_verified: canonicalVerified,
+    canonical_source: canonicalSource,
+  };
+}
+
 async function persistOutputMessage(database, raw, now) {
   const body = operationBody(raw, 'persist_output_message');
   const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
@@ -5124,6 +5191,7 @@ export const operations = Object.freeze({
   create_sealed_output: createSealedOutput, list_pending_outputs: listPendingOutputs,
   prepare_sealed_output: (database, raw, now) => createSealedOutput(database, raw, now, true),
   get_pending_output: getPendingOutput,
+  get_output_status: getOutputStatus,
   persist_output_message: persistOutputMessage,
   persist_output_summary: persistOutputSummary,
   has_pending_chat_outputs: hasPendingChatOutputs,

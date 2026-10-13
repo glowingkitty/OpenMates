@@ -562,6 +562,45 @@ async def handle_recovery_output_get(
         }, user_id, device_fingerprint_hash)
 
 
+async def handle_recovery_output_status(
+    *, manager: Any, directus_service: Any,
+    user_id: str, user_id_hash: str, device_fingerprint_hash: str,
+    payload: dict[str, Any],
+) -> None:
+    """First-party authenticated status for a known encrypted output record."""
+    request_id = _request_id(payload)
+    if not await _require_typed_output_capability(
+        manager, user_id, device_fingerprint_hash, request_id, payload.get("record_id"),
+        require_canonical_embed_receipts=True,
+    ):
+        return
+    try:
+        result = await ChatRecoveryService(directus_service).execute("get_output_status", {
+            "protocol_version": payload.get("protocol_version"),
+            "record_id": payload.get("record_id"),
+            "hashed_user_id": user_id_hash,
+            "device_hash": device_fingerprint_hash,
+        })
+        await manager.send_personal_message(
+            {"type": "recovery_output_status_ready", "payload": {**result, "request_id": request_id}},
+            user_id, device_fingerprint_hash,
+        )
+    except ChatRecoveryProtocolError as exc:
+        await _send_protocol_error(
+            manager, user_id, device_fingerprint_hash, exc,
+            payload.get("record_id"), request_id,
+        )
+    except Exception:
+        logger.exception("Recovery output status read failed for record=%s", payload.get("record_id"))
+        await manager.send_personal_message({
+            "type": "error", "payload": {
+                "code": "recovery_output_unavailable",
+                "message": "Encrypted recovery output is temporarily unavailable.",
+                "job_id": payload.get("record_id"), "request_id": request_id,
+            },
+        }, user_id, device_fingerprint_hash)
+
+
 async def handle_recovery_output_persist_message(
     *, manager: Any, directus_service: Any, user_id: str,
     user_id_hash: str, device_fingerprint_hash: str,

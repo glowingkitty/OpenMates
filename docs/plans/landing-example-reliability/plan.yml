@@ -13,7 +13,7 @@ scope:
   - Plural 3D-model landing request; Politics first substantive response; reject and remove broken public examples.
   - Origin-aware Apps links, active focus details, subchat close navigation and iPad multi-tab stability.
 decisions:
-  - User approved all three exact Specification reviews and instructed that scoped Specification updates in this chat must not require another approval request.
+  - User approved all three exact Specification reviews and instructed that scoped Specification updates in this chat must not require another approval request. feature.focus-modes@4 records natural public-mode proposals under that standing authorization.
   - User approved the proposed architecture and implementation on 2026-10-13; voice implementation is deferred until the rest is implemented.
   - Background provider jobs remain; text inference suspends and resumes the exact tool loop after its complete required result batch terminates.
   - A single registered media batch producer owns one invocation parent, stable output child IDs and one final producer manifest.
@@ -32,9 +32,9 @@ verification:
     - Existing successful recordings are uploaded and only latest relevant recordings delivered.
 task_tracking: OpenMates Tasks linked to codex:01a13630-3aed-7ae2-943e-ac86f4c45cb9 own status and dependencies.
 remaining:
-  - Run exact-source isolated component checks, backend integration checks and related browser flows, including actual WebKit landing-tab reload coverage.
-  - Deploy the tested underlying fixes to dev and coordinate the required API, worker and Directus schema refresh with an explicit runtime target and lease.
-  - Create and inspect real CLI replacement conversations in the isolated validation Project; publish only reviewed public media from the owned source embeds.
+  - Complete Apps, subchat and actual WebKit browser checks; updated core passes 189 exact-source backend tests and all five visual component checks. New recovery RPC and screenshot capture fixes need current-source client/backend proof.
+  - Deploy the follow-up fixes and coordinate the API, worker and Directus refresh. The initial same-turn/media architecture and conversion tools are deployed; live source validation exposed result-handoff, scalar-marker, reference and screenshot-capture defects now fixed in source.
+  - Regenerate Web, Nutrition, Design, Politics and media sources after follow-up deployment. Shopping passed content review and Code has Sophia plus follow-ups; its real screenshot retry is pending. Link natural focus-sensitive chats to the isolated Project after generation, without injecting a Project focus into the original request.
   - Admit the new examples through source and browser checks, remove superseded broken examples, and verify deployed public pages plus personal-account iPad behavior.
 local_verification:
   - Ordered completion, generated refs, social callbacks and media graph checks passed in focused Python tests.

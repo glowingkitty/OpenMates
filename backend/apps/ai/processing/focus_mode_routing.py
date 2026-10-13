@@ -4,7 +4,7 @@
 # policy changes apply only after focus state has been explicitly activated.
 # Tests live in backend/tests/test_focus_mode_routing.py.
 
-from typing import Any
+from typing import Any, Iterable
 
 
 DEEP_RESEARCH_FOCUS_ID = "web-research"
@@ -14,6 +14,27 @@ WORKFLOW_CLARIFY_SKILLS = frozenset({"workflows-search", "workflows-create-or-mo
 BRAND_NAMING_RESEARCH_SKILLS = frozenset({
     "hosting-search_domains", "web-search", "business-search_trademarks",
 })
+
+
+def resolve_automatic_focus_proposal(
+    *, relevant_focus_modes: Iterable[str], eligible_focus_ids: set[str],
+    has_active_focus: bool, chat_depth: int, is_continuation: bool,
+    exact_skill_request: bool, explicit_focus_request: bool, apps_enabled: bool,
+) -> str | None:
+    """Propose one opted-in public match without bypassing focus consent.
+
+    Relevance never grants access or starts research children. Ambiguity, an
+    existing focus, exact user selections and continuation/rejection turns keep
+    the ordinary tool path. A mode's preprocessing hint must exclude requests
+    that do not need its specialized process, such as simple web lookups.
+    """
+    if (has_active_focus or chat_depth != 0 or is_continuation
+            or exact_skill_request or explicit_focus_request or not apps_enabled):
+        return None
+    matched = list(dict.fromkeys(relevant_focus_modes))
+    if len(matched) == 1 and matched[0] in eligible_focus_ids:
+        return matched[0]
+    return None
 
 
 def brand_naming_research_skill_scope(

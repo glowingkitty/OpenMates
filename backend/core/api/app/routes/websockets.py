@@ -95,6 +95,7 @@ from .handlers.websocket_handlers.chat_recovery_job_handlers import (
     handle_recovery_job_persist,
     handle_recovery_job_renew,
     handle_recovery_output_get,
+    handle_recovery_output_status,
     handle_recovery_output_persist_message,
     handle_recovery_output_persist_summary,
     handle_recovery_output_ack_checkpoint,
@@ -3300,6 +3301,13 @@ async def websocket_endpoint(
                 await handle_recovery_output_get(
                     manager=manager, directus_service=directus_service,
                     s3_service=getattr(websocket.app.state, "s3_service", None),
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                )
+
+            elif message_type == "recovery_output_status":
+                await handle_recovery_output_status(
+                    manager=manager, directus_service=directus_service,
                     user_id=user_id, user_id_hash=user_id_hash,
                     device_fingerprint_hash=device_fingerprint_hash, payload=payload,
                 )

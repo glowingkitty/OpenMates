@@ -2498,6 +2498,9 @@ test('Team recovery requires current membership before discovery, read, and cano
   await assert.rejects(executeOperation(database, 'get_pending_output', {
     ...index, record_id: recordId,
   }), /chat_not_found/);
+  await assert.rejects(executeOperation(database, 'get_output_status', {
+    ...index, record_id: recordId,
+  }), /recovery_output_not_found/);
   await assert.rejects(executeOperation(database, 'persist_output_message', {
     ...index, record_id: recordId, expected_messages_v: 1,
     encrypted_assistant_message: assistantMessage(),
@@ -2867,7 +2870,72 @@ test('embed and diff recovery acknowledge only after canonical encrypted rows ex
     hashed_user_id: OWNER, encrypted_patch: 'client-encrypted-patch' });
   const diffAck = await executeOperation(database, 'acknowledge_output_embed', request(diffId, diffDigest));
   assert.equal(diffAck.state, 'ACKNOWLEDGED');
+  const diffStatus = await executeOperation(database, 'get_output_status', {
+    protocol_version: 1, hashed_user_id: OWNER, device_hash: 'device-a', record_id: diffId,
+  });
+  assert.equal(diffStatus.canonical_verified, true);
+  assert.equal(diffStatus.canonical_source, 'version_row');
   assert.equal(database.rows.chat_recovery_outputs.every((row) => row.sealed_payload === null), true);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,storage.background.complete-sealed-recovery
+test('owner output status proves an acknowledged embed still has canonical encrypted bytes', async () => {
+  const seed = preparedSeed();
+  seed.chat_turn_preflights[0].state = 'RUNNING';
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_recovery_outputs = [];
+  seed.embeds = [];
+  seed.embed_keys = [];
+  const database = fakeDatabase(seed);
+  const recordId = '018f8888-8888-7888-8888-888888888888';
+  const subjectId = '018f9999-9999-7999-8999-999999999999';
+  await executeOperation(database, 'create_sealed_output', {
+    protocol_version: 1, record_id: recordId, hashed_user_id: OWNER,
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, turn_id: TURN_ID,
+    preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    subject_id: subjectId, output_kind: 'embed', output_version: 2,
+    chat_key_version: 1, sealed_payload: SEALED_OUTPUT,
+  });
+  const request = { protocol_version: 1, record_id: recordId,
+    hashed_user_id: OWNER, device_hash: 'device-a' };
+  const pending = await executeOperation(database, 'get_output_status', request);
+  assert.equal(pending.state, 'PENDING');
+  assert.equal(pending.canonical_verified, false);
+  assert.equal(pending.canonical_digest, null);
+  assert.equal(pending.subject_id, subjectId);
+  assert.equal(pending.turn_id, TURN_ID);
+
+  const ciphertext = 'client-encrypted-embed';
+  const canonicalDigest = sha256(ciphertext);
+  database.rows.embeds.push({ embed_id: subjectId, hashed_user_id: OWNER,
+    hashed_chat_id: sha256(CHAT_ID), version_number: 2, encrypted_content: ciphertext });
+  database.rows.embed_keys.push(
+    { hashed_embed_id: sha256(subjectId), hashed_user_id: OWNER,
+      key_type: 'master', encrypted_embed_key: 'master-wrapper' },
+    { hashed_embed_id: sha256(subjectId), hashed_user_id: OWNER,
+      key_type: 'chat', hashed_chat_id: sha256(CHAT_ID), encrypted_embed_key: 'chat-wrapper' },
+  );
+  await executeOperation(database, 'acknowledge_output_embed', {
+    ...request, canonical_digest: canonicalDigest,
+  });
+  const acknowledged = await executeOperation(database, 'get_output_status', request);
+  assert.equal(acknowledged.state, 'ACKNOWLEDGED');
+  assert.equal(acknowledged.canonical_digest, canonicalDigest);
+  assert.equal(acknowledged.canonical_verified, true);
+  assert.equal(acknowledged.canonical_source, 'head');
+  assert.equal(acknowledged.output_kind, 'embed');
+  assert.equal(acknowledged.output_version, 2);
+  assert.equal(Object.hasOwn(acknowledged, 'sealed_payload'), false);
+  assert.equal(Object.hasOwn(acknowledged, 'payload_s3_key'), false);
+
+  database.rows.embeds[0].encrypted_content = 'changed-ciphertext';
+  assert.equal((await executeOperation(database, 'get_output_status', request)).canonical_verified, false);
+  database.rows.embeds[0].encrypted_content = ciphertext;
+  await assert.rejects(executeOperation(database, 'get_output_status', {
+    ...request, hashed_user_id: 'another-owner',
+  }), /recovery_output_not_found/);
+  database.rows.chat_recovery_outputs[0].deleted_at = '2040-01-01T00:00:00Z';
+  await assert.rejects(executeOperation(database, 'get_output_status', request), /recovery_output_not_found/);
 });
 
 test('a progressed embed head acknowledges only against its immutable historical version row', async () => {

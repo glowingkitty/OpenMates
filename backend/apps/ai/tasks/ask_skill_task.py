@@ -4905,9 +4905,9 @@ def same_turn_skill_deadline_task(batch_id: str) -> Optional[str]:
     async def settle() -> Optional[str]:
         cache = CacheService()
         try:
-            from backend.apps.ai.tasks.same_turn_skill_barrier import arm_barrier
+            from backend.apps.ai.tasks.same_turn_skill_barrier import arm_barrier, barrier_is_armed
             metadata = await cache.get(f"same_turn_skill:{batch_id}:batch")
-            if isinstance(metadata, dict) and await cache.get(f"same_turn_skill:{batch_id}:armed") != "1":
+            if isinstance(metadata, dict) and not await barrier_is_armed(cache, batch_id):
                 inference_id = metadata.get("recovery_inference_task_id")
                 if inference_id:
                     directus = DirectusService(cache_service=cache)

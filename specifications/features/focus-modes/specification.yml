@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.focus-modes
-version: 3
+version: 4
 status: draft
 title: Focus Modes — Shared Operation and Display
 summary: Shared lifecycle, full system instruction application, system history, controls, restoration and historical
@@ -12,6 +12,7 @@ scope:
   - Web focus activation display, details/off interactions and Career insights banner placement.
   - Retirement of the Welcome focus mode and its dedicated Suki mate from new selection and routing.
   - Composition with individual focus-mode specifications.
+  - Natural-request proposals for opted-in public focus modes, retaining the shared cancellable activation transition.
   - Project base/specialist display, Focus/phase context refresh and Project-only recommendation/background authoring lifecycle.
   - Project-owned focus activation as a necessary deterministic condition for chat file writes, and preservation
     of read access to files already shown in the chat after deactivation.
@@ -47,6 +48,11 @@ assertions:
     genuinely pending request resumes without applying its instructions.
   depends_on:
   - examples.activation
+- id: focus-modes.natural-request
+  type: behavior
+  must: When a natural request uniquely matches an opted-in public focus mode, propose its normal cancellable activation before beginning the substantive answer. Simple lookups, ambiguous matches, an existing focus, exact user skill selections and continuation or rejection turns retain their normal path. The proposal alone never applies focus instructions, grants private access or starts research child chats; those require accepted active state.
+  depends_on:
+  - examples.natural_request
 - id: focus-modes.full-instruction
   type: invariant
   must: Every request while a focus is active includes its full global instruction. For an unphased focus this is

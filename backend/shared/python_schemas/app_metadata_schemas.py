@@ -236,6 +236,10 @@ class AppFocusDefinition(BaseModel):
     # Included alongside the focus mode identifier in the preprocessing prompt so the LLM can
     # make informed focus mode selection decisions (same pattern as skill preprocessor_hint).
     preprocessor_hint: Optional[str] = Field(default=None, description="Brief hint for the preprocessing LLM describing when to select this focus mode (1-3 sentences).")
+    auto_activate_when_relevant: bool = Field(
+        default=False,
+        description="When uniquely matched by preprocessing, propose this public focus through the normal cancellable activation flow before answering. Does not grant access or execute skills.",
+    )
 
     # --- Fields also accepted in legacy app.yml files (documented explicitly
     # here so they stop being silently ignored by Pydantic). ---

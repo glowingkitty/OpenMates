@@ -283,6 +283,7 @@ async def _run_mocked_protocol_guard_main_processor(
     reservation_hook=None,
     admit_on_stream=False,
     on_provider_call=None,
+    user_vault_key_id=None,
 ):
     """Run the real main processor loop with only external integrations mocked."""
     for name in (
@@ -468,7 +469,7 @@ async def _run_mocked_protocol_guard_main_processor(
             base_instructions or {},
             directus_service,
             None,
-            None,
+            user_vault_key_id,
             [],
             discovered_apps_metadata=discovered_apps_metadata or {},
             cache_service=cache_service,
@@ -2081,3 +2082,46 @@ async def test_memory_receipt_describes_only_guides_in_actual_dispatched_prompt(
     debug = [chunk for chunk in output if isinstance(chunk, dict) and chunk.get("__debug_metadata__")]
     assert all(guide.body not in str(chunk) for chunk in debug)
     assert loader.await_count == 1
+
+
+# contract-test: supporting surface=cli assertions=focus-modes.natural-request,focus-modes.activation
+@pytest.mark.parametrize("rejected_continuation", [False, True])
+async def test_natural_public_focus_reuses_countdown_without_extra_answer_inference(
+    monkeypatch, private_focus_activation_context, rejected_continuation,
+) -> None:
+    context = private_focus_activation_context
+    focus = SimpleNamespace(
+        id="research", name_translation_key="research.name",
+        description_translation_key="research.description",
+        auto_activate_when_relevant=True,
+    )
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["The ordinary answer continues after rejection."]],
+        cache_service=context.cache, directus_service=Mock(),
+        user_vault_key_id="test-vault-key",
+        discovered_apps_metadata={"web": SimpleNamespace(
+            skills=[], instructions=[], focuses=[focus],
+        )},
+        request_overrides={"is_focus_mode_continuation": rejected_continuation},
+        preprocessing_overrides={"relevant_focus_modes": ["web-research"]},
+    )
+    if rejected_continuation:
+        assert len(calls) == 1
+        context.cache.store_pending_focus_activation.assert_not_awaited()
+        context.countdown.assert_not_called()
+        assert not any(isinstance(chunk, dict) and chunk.get("__awaiting_focus_mode_confirmation__")
+                       for chunk in output)
+    else:
+        assert calls == []
+        context.embed.assert_awaited_once()
+        context.cache.store_pending_focus_activation.assert_awaited_once()
+        pending = context.cache.store_pending_focus_activation.await_args.kwargs["context"]
+        assert pending["focus_id"] == "web-research"
+        assert pending["embed_id"] == "unexpected-activation"
+        assert pending["task_id"] == "task-1"
+        context.countdown.assert_called_once()
+        assert context.countdown.call_args.args[0] == "apps.ai.tasks.focus_mode_auto_confirm"
+        assert context.countdown.call_args.kwargs["countdown"] > 0
+        assert any(isinstance(chunk, dict) and chunk.get("__awaiting_focus_mode_confirmation__")
+                   and chunk["focus_id"] == "web-research" for chunk in output)
+        assert "unexpected-embed" in "".join(chunk for chunk in output if isinstance(chunk, str))

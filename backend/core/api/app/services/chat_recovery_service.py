@@ -72,6 +72,7 @@ RECOVERY_OPERATIONS = {
     "reconcile_authorized_direct_completions",
     "list_pending_outputs",
     "get_pending_output",
+    "get_output_status",
     "persist_output_message",
     "persist_output_summary",
     "has_pending_chat_outputs",

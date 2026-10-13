@@ -53,6 +53,87 @@ class FakeCache:
         return True
 
 
+class JsonDecodingCache(FakeCache):
+    """Mirror CacheService.get(), which JSON-decodes Redis scalar strings."""
+
+    async def get(self, key):
+        value = await super().get(key)
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except ValueError:
+                return value
+        return value
+
+
+class RawRedis:
+    def __init__(self):
+        self.values = {}
+
+    async def get(self, key):
+        return self.values.get(key)
+
+    async def set(self, key, value, *, nx, ex):
+        if nx and key in self.values:
+            return False
+        self.values[key] = value.encode() if isinstance(value, str) else value
+        return True
+
+    async def setex(self, key, ttl, value):
+        self.values[key] = value.encode() if isinstance(value, str) else value
+        return True
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier
+async def test_barrier_uses_real_cache_service_json_scalar_decoding():
+    from backend.core.api.app.services.cache_base import CacheServiceBase
+
+    class CacheWithMemoryRedis(CacheServiceBase):
+        def __init__(self):
+            self.memory_redis = RawRedis()
+            self.DEFAULT_TTL = 3600
+
+        @property
+        async def client(self):
+            return self.memory_redis
+
+    cache = CacheWithMemoryRedis()
+    await cache.set("async_skill_latest_user_turn:user:chat", "turn", ttl=60)
+    await register_barrier(cache, batch_id="batch", user_id="user", chat_id="chat",
+                           turn_id="turn", task_ids=["job"], checkpoint_ref="sealed",
+                           deadline=time.time() + 60, logical_task_id=LOGICAL,
+                           source_delivery_task_id=LOGICAL)
+    await arm_barrier(cache, "batch")
+    await record_terminal(cache, batch_id="batch", task_id="job",
+                          payload_ref="sealed-result", status="finished")
+    assert await cache.get(barrier._key("batch", "armed")) == "armed"
+    assert (await claim_ready(cache, batch_id="batch"))["slots"][0]["status"] == "finished"
+    cache.memory_redis.values[barrier._key("batch", "armed")] = b"1"
+    assert await cache.get(barrier._key("batch", "armed")) == 1
+    assert await barrier.barrier_is_armed(cache, "batch")
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier,app-skills.assistant.idempotent-resume
+async def test_json_decoded_armed_marker_resumes_and_accepts_existing_numeric_marker():
+    cache = JsonDecodingCache()
+    cache.values["async_skill_latest_user_turn:user:chat"] = "turn"
+    await register_barrier(cache, batch_id="batch", user_id="user", chat_id="chat",
+                           turn_id="turn", task_ids=["job"], checkpoint_ref="sealed",
+                           deadline=time.time() + 60, logical_task_id=LOGICAL,
+                           source_delivery_task_id=LOGICAL)
+    await record_terminal(cache, batch_id="batch", task_id="job",
+                          payload_ref="sealed-result", status="finished")
+    assert await claim_ready(cache, batch_id="batch") is None
+    await arm_barrier(cache, "batch")
+    assert (await claim_ready(cache, batch_id="batch"))["slots"][0]["payload_ref"] == "sealed-result"
+
+    # An already-paused turn deployed with the former numeric marker also resumes.
+    cache.values[barrier._key("batch", "armed")] = "1"
+    assert await barrier.barrier_is_armed(cache, "batch")
+
+
 @pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier,app-skills.assistant.idempotent-resume
 async def test_three_jobs_wait_for_all_terminals_in_original_order():
@@ -117,6 +198,46 @@ async def test_resume_restores_provider_tool_ids_without_a_user_message(monkeypa
     assert [row["role"] for row in history] == ["assistant", "tool"]
     assert history[1]["tool_call_id"] == "call-7"
     assert json.loads(history[1]["content"])["results"][0]["embed_ref"] == "generated_asset"
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results,app-skills.assistant.same-turn-completion
+async def test_restored_generated_child_is_trusted_at_final_answer_boundary(monkeypatch):
+    child_id = "018f2222-2222-7222-8222-333333333333"
+    parent_id = "018f2222-2222-7222-8222-444444444444"
+    child_ref = "generated-image-018f22222222"
+    parent_ref = "generated-media-images-018f22222222"
+
+    async def restore(payload):
+        return {"async_tool_completion": {
+            "status": "finished", "request_metadata": {
+                "parent_embed_id": parent_id, "parent_embed_ref": parent_ref,
+            },
+            "results": [{"status": "finished", "child_embed_id": child_id,
+                         "embed_ref": child_ref, "parent_embed_id": parent_id,
+                         "parent_embed_ref": parent_ref}],
+        }}
+
+    monkeypatch.setitem(sys.modules, "backend.shared.python_utils.recent_work_summary_client",
+                        SimpleNamespace(restore_private_context_payload=restore))
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.utils.text_sanitization",
+                        SimpleNamespace(sanitize_text_payload_for_ascii_smuggling=lambda value: (value, {})))
+    request = SimpleNamespace(user_id="user", chat_id="chat", message_id="turn",
+                              same_turn_slots=[{"task_id": "job", "status": "finished", "payload_ref": "sealed"}])
+    checkpoint = {"jobs": [{"task_id": "job", "tool_call_id": "call-7",
+                            "app_id": "images", "skill_id": "generate"}],
+                  "current_message_history": [{"role": "tool", "tool_call_id": "call-7",
+                                               "name": "images-generate", "content": "processing"}]}
+    await restore_ordered_tool_results(request, checkpoint)
+    from backend.shared.python_utils.generated_media_graph import finalize_trusted_inline_refs
+    answer = finalize_trusted_inline_refs(
+        "Done. embed:generated-image-018f22222222",
+        checkpoint["authored_inline_outputs"],
+        required_refs=checkpoint["generated_embed_refs"],
+    )
+    assert answer.count(f"(embed:{child_ref})") == 1
+    assert f"(embed:{parent_ref})" in answer
+    assert {row["embed_id"] for row in checkpoint["authored_inline_outputs"]} == {child_id, parent_id}
 
 
 # contract-test: supporting surface=rest_api assertions=app-skills.assistant.bounded-private-failure

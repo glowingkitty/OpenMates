@@ -463,7 +463,15 @@ const {{ chromium }} = require('playwright');
 (async () => {{
   const browser = await chromium.launch({{
     headless: true,
-    args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--no-zygote'],
+    args: [
+      '--no-sandbox',
+      '--disable-gpu',
+      '--disable-dev-shm-usage',
+      '--disable-background-networking',
+      '--no-zygote',
+      '--single-process',
+      '--js-flags=--jitless',
+    ],
   }});
   try {{
     const page = await browser.newPage({{ viewport: {{ width: 1440, height: 900 }}, deviceScaleFactor: 1 }});

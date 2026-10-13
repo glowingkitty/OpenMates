@@ -5529,6 +5529,7 @@ async def _consume_main_processing_stream(
     # Track embed IDs that failed during skill execution (received from main_processor)
     # Their embed references will be stripped from the final message content before persistence
     failed_embed_ids: set[str] = set()
+    authored_inline_outputs: list[dict[str, str]] = []
     # A completed Project file operation has already published a reference-only
     # card. Model prose and fenced file text after that card are never new files.
     project_file_reference_output = False
@@ -5920,6 +5921,7 @@ async def _consume_main_processing_stream(
                 "__focus_phases_updated__", "__chat_context_applied__",
                 "__debug_metadata__", "__suggested_followup_message__",
                 "__tool_calls_info__", "__failed_embed_ids__",
+                "__authored_inline_outputs__",
                 "__cumulative_llm_usage__",
             ))):
                 await first_chunk_barrier.wait()
@@ -5984,6 +5986,10 @@ async def _consume_main_processing_stream(
             if isinstance(chunk, dict) and "__tool_calls_info__" in chunk:
                 tool_calls_info = chunk["__tool_calls_info__"]
                 logger.debug(f"{log_prefix} Received tool calls info: {len(tool_calls_info) if tool_calls_info else 0} tool call(s)")
+                continue
+
+            if isinstance(chunk, dict) and "__authored_inline_outputs__" in chunk:
+                authored_inline_outputs = chunk["__authored_inline_outputs__"]
                 continue
 
             # Check for failed embed IDs marker (special dict at end of stream)
@@ -9298,6 +9304,13 @@ async def _consume_main_processing_stream(
             logger.error(f"{log_prefix} Error finalizing table embed at end-of-stream: {e}", exc_info=True)
 
     aggregated_response = "".join(final_response_chunks)
+    if authored_inline_outputs and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        from backend.shared.python_utils.generated_media_graph import finalize_trusted_inline_refs
+        aggregated_response = finalize_trusted_inline_refs(
+            aggregated_response, authored_inline_outputs,
+            required_refs=(request_data.same_turn_checkpoint or {}).get("generated_embed_refs") or [],
+        )
+        final_response_chunks = [aggregated_response]
     if (request_data.same_turn_batch_id and not was_revoked_during_stream
             and not was_soft_limited_during_stream):
         from backend.apps.ai.tasks.same_turn_skill_barrier import ensure_generated_refs
