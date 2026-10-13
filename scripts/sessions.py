@@ -1564,19 +1564,26 @@ def validate_worktree_binding_mode(session: dict) -> str:
     return mode
 
 
-def bootstrap_session_worktree(worktree_path: str | Path) -> dict:
+def bootstrap_session_worktree(
+    worktree_path: str | Path, *, include_vscode_extension: bool = True,
+) -> dict:
     """Install cached dependencies and generate prerequisites in one worktree."""
     worktree = Path(worktree_path).resolve()
     linked_resources = link_shared_worktree_resources(worktree)
+    install_command = ["pnpm"]
+    if not include_vscode_extension:
+        # A negative-only pnpm filter installs the root and every other workspace
+        # project, preserving their local links without requiring VS Code tooling.
+        install_command.append("--filter=!openmates-vscode-extension")
+    install_command.extend([
+        "install",
+        "--offline",
+        "--frozen-lockfile",
+        "--ignore-scripts",
+        "--config.engine-strict=false",
+    ])
     commands = [
-        [
-            "pnpm",
-            "install",
-            "--offline",
-            "--frozen-lockfile",
-            "--ignore-scripts",
-            "--config.engine-strict=false",
-        ],
+        install_command,
         ["node", "frontend/packages/ui/scripts/build-tokens.js"],
         ["node", "frontend/packages/ui/scripts/build-translations.js"],
         ["node", "frontend/packages/ui/scripts/validate-locales.js"],
@@ -11344,10 +11351,20 @@ def _preflight_deploy_commit_message(args: argparse.Namespace, session: dict, fi
 
 
 def _bootstrap_integration_for_files(checkout_root: Path, files: list[str]) -> None:
-    """Provide ignored frontend prerequisites only when selected files need them."""
-    if not (_has_frontend_files(files) or _should_validate_embed_registry(files)):
+    """Provide cached dependencies and generated prerequisites when selected files need them."""
+    dependency_inputs_changed = any(
+        file in {"package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", ".pnpmfile.cjs"}
+        or file.endswith("/package.json")
+        or file.startswith("patches/")
+        for file in files
+    )
+    if not (_has_frontend_files(files) or _should_validate_embed_registry(files) or dependency_inputs_changed):
         return
-    result = bootstrap_session_worktree(checkout_root)
+    extension_changed = any(file.startswith("frontend/apps/vscode_extension/") for file in files)
+    result = bootstrap_session_worktree(
+        checkout_root,
+        include_vscode_extension=dependency_inputs_changed or extension_changed,
+    )
     if result.get("status") != "ready":
         raise RuntimeError(
             f"Integration bootstrap failed ({result.get('reason', 'unknown')}): "

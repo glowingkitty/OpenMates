@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# contract-test-file: tooling
 """Red contracts for deterministic session-worktree bootstrap.
 
 The tests isolate sessions.py state and command execution so bootstrap behavior
@@ -53,6 +54,7 @@ def test_bootstrap_is_worktree_local_and_idempotent(monkeypatch: pytest.MonkeyPa
     assert all(cwd == worktree for _, cwd in calls)
     assert all(str(root / "node_modules") not in " ".join(command) for command, _ in calls)
     assert "--config.engine-strict=false" in calls[0][0]
+    assert "--filter=!openmates-vscode-extension" not in calls[0][0]
 
 
 def test_bootstrap_failure_never_reports_ready(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -73,16 +75,112 @@ def test_bootstrap_failure_never_reports_ready(monkeypatch: pytest.MonkeyPatch, 
 
 def test_integration_bootstraps_for_backend_app_metadata(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     sessions = load_sessions_module()
-    calls: list[Path] = []
+    calls: list[tuple[Path, bool]] = []
     monkeypatch.setattr(
         sessions,
         "bootstrap_session_worktree",
-        lambda root: calls.append(root) or {"status": "ready"},
+        lambda root, *, include_vscode_extension: calls.append((root, include_vscode_extension)) or {"status": "ready"},
     )
 
     sessions._bootstrap_integration_for_files(tmp_path, ["backend/apps/health/app.yml"])
 
-    assert calls == [tmp_path]
+    assert calls == [(tmp_path, False)]
+
+
+def test_scoped_integration_uses_offline_filtered_install(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    sessions = load_sessions_module()
+    root = tmp_path / "root"
+    worktree = tmp_path / "worktree"
+    root.mkdir()
+    worktree.mkdir()
+    calls: list[tuple[str, ...]] = []
+
+    def fake_run(command, cwd=None, timeout=None):
+        assert Path(cwd) == worktree
+        calls.append(tuple(command))
+        return 0, "", ""
+
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
+    monkeypatch.setattr(sessions, "_run_cmd", fake_run)
+    sessions._bootstrap_integration_for_files(worktree, ["frontend/apps/web_app/src/routes/+page.svelte"])
+
+    assert calls[0] == (
+        "pnpm", "--filter=!openmates-vscode-extension", "install", "--offline",
+        "--frozen-lockfile", "--ignore-scripts", "--config.engine-strict=false",
+    )
+    assert calls[1:] == [
+        ("node", "frontend/packages/ui/scripts/build-tokens.js"),
+        ("node", "frontend/packages/ui/scripts/build-translations.js"),
+        ("node", "frontend/packages/ui/scripts/validate-locales.js"),
+    ]
+
+
+@pytest.mark.parametrize("changed_file", [
+    "frontend/apps/vscode_extension/src/extension.ts",
+    "frontend/apps/vscode_extension/package.json",
+    "frontend/apps/web_app/package.json",
+    "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", ".pnpmfile.cjs",
+    "patches/example.patch",
+])
+def test_dependency_or_extension_edits_keep_full_integration_install(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, changed_file: str,
+) -> None:
+    sessions = load_sessions_module()
+    calls: list[tuple[Path, bool]] = []
+    monkeypatch.setattr(
+        sessions,
+        "bootstrap_session_worktree",
+        lambda root, *, include_vscode_extension: calls.append((root, include_vscode_extension)) or {"status": "ready"},
+    )
+
+    sessions._bootstrap_integration_for_files(
+        tmp_path, ["backend/apps/health/app.yml", changed_file],
+    )
+
+    assert calls == [(tmp_path, True)]
+
+
+@pytest.mark.parametrize("changed_file", ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"])
+def test_root_dependency_edits_alone_trigger_full_bootstrap(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, changed_file: str,
+) -> None:
+    sessions = load_sessions_module()
+    calls: list[tuple[Path, bool]] = []
+    monkeypatch.setattr(
+        sessions,
+        "bootstrap_session_worktree",
+        lambda root, *, include_vscode_extension: calls.append((root, include_vscode_extension)) or {"status": "ready"},
+    )
+
+    sessions._bootstrap_integration_for_files(tmp_path, [changed_file])
+
+    assert calls == [(tmp_path, True)]
+
+
+def test_scoped_integration_cache_miss_still_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    sessions = load_sessions_module()
+    root = tmp_path / "root"
+    worktree = tmp_path / "worktree"
+    root.mkdir()
+    worktree.mkdir()
+    calls: list[tuple[str, ...]] = []
+
+    def fake_run(command, cwd=None, timeout=None):
+        calls.append(tuple(command))
+        return 1, "", "offline cache miss"
+
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
+    monkeypatch.setattr(sessions, "_run_cmd", fake_run)
+
+    with pytest.raises(RuntimeError, match="dependency_install_failed.*offline cache miss"):
+        sessions._bootstrap_integration_for_files(worktree, ["backend/apps/health/app.yml"])
+
+    assert calls == [(
+        "pnpm", "--filter=!openmates-vscode-extension", "install", "--offline",
+        "--frozen-lockfile", "--ignore-scripts", "--config.engine-strict=false",
+    )]
 
 
 def test_shared_runtime_resources_are_linked_into_worktree(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
