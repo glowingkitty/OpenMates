@@ -25,6 +25,13 @@ const browserChannel = process.env.PLAYWRIGHT_BROWSER_CHANNEL;
 if (browserChannel && browserChannel !== 'chrome') {
 	throw new Error('PLAYWRIGHT_BROWSER_CHANNEL only supports "chrome" in this config.');
 }
+const browserName = process.env.PLAYWRIGHT_BROWSER_NAME || 'chromium';
+if (browserName !== 'chromium' && browserName !== 'webkit') {
+	throw new Error('PLAYWRIGHT_BROWSER_NAME only supports "chromium" or "webkit".');
+}
+if (browserName === 'webkit' && browserChannel) {
+	throw new Error('PLAYWRIGHT_BROWSER_CHANNEL cannot be set for WebKit.');
+}
 
 const videoMode = process.env.PLAYWRIGHT_VIDEO_MODE;
 if (videoMode && videoMode !== 'on' && videoMode !== 'off') {
@@ -51,6 +58,7 @@ const isLiveFixtureRecording = process.env.E2E_RECORD_LIVE_FIXTURES === '1';
 
 const config: PlaywrightTestConfig = {
 	use: {
+		browserName,
 		// Allow tests to call page.goto('/') and similar relative paths.
 		baseURL,
 		...(videoSize ? { viewport: videoSize } : {}),
@@ -66,7 +74,7 @@ const config: PlaywrightTestConfig = {
 		video: videoSize ? { mode: resolvedVideoMode, size: videoSize } : resolvedVideoMode,
 		trace: 'off',
 		launchOptions: {
-			args: [
+			args: browserName === 'webkit' ? [] : [
 				// Suppress Chrome's in-page credential/password-manager overlays.
 				// These appear after account creation and block clicks on the underlying UI.
 				'--disable-save-password-bubble',
@@ -75,6 +83,9 @@ const config: PlaywrightTestConfig = {
 			]
 		}
 	},
+	// Preserve the existing projectless Chrome reports. WebKit's project name
+	// makes the browser engine explicit in Playwright JSON, video and screenshot paths.
+	...(browserName === 'webkit' ? { projects: [{ name: 'webkit-ipad', use: { browserName: 'webkit' as const } }] } : {}),
 	testDir: 'tests',
 	testMatch: /(.+\.)?(test|spec)\.[jt]s/,
 	// Recording can spend provider budget, so it must never retry a browser send.
