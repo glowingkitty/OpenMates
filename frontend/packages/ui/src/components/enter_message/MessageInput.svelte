@@ -97,6 +97,7 @@
     import type { AudioRealtimeTranscriptionHandle } from '../../services/audioRealtimeTranscription';
     import { transactionInsertedTriggerCharacter } from './services/composerParsingSchedule';
     import { assistantSpeechController } from '../../services/assistantSpeechController';
+    import { voiceCallController } from '../../services/voiceCall';
 
     // Handlers
     import { handleSend, prepareQueuedMessageRevision } from './handlers/sendHandlers';
@@ -279,6 +280,19 @@
         ghostSuggestion = null,
         ghostSuggestionKey = null,
     }: Props = $props();
+
+    const callOwnsAudio = $derived($voiceCallController.status === 'connecting' || $voiceCallController.status === 'live');
+    const callOwnsComposer = $derived(callOwnsAudio &&
+        (($voiceCallController.chatId !== null && $voiceCallController.chatId === currentChatId) ||
+            ($voiceCallController.status === 'connecting' && !currentChatId && !$voiceCallController.chatId)));
+
+    function plainCallTextOnly(): boolean {
+        if (!editor || editor.isDestroyed) return false;
+        const allowed = new Set(['doc', 'paragraph', 'text', 'hardBreak']);
+        const visit = (node: JSONContent): boolean =>
+            allowed.has(node.type ?? '') && (node.content ?? []).every(child => visit(child));
+        return visit(editor.getJSON());
+    }
 
     // --- Refs ---
     let fileInput: HTMLInputElement;
@@ -5470,6 +5484,37 @@
 
     async function handleSendMessage(event?: Event) {
         if (recordingCorrectionPending) return;
+        if (callOwnsComposer) {
+            if (!plainCallTextOnly() || queuedEdit) {
+                notificationStore.error($text('voicecall.unsupported_content'));
+                return;
+            }
+            if ($voiceCallController.status !== 'live') {
+                notificationStore.error($text('voicecall.connecting'));
+                return;
+            }
+            const chatId = currentChatId;
+            const submittedEditor = editor;
+            const submittedText = submittedEditor?.getText().trim() ?? '';
+            if (!chatId || !submittedText || sendClickInProgress) return;
+            if (submittedText.length > 8_000) {
+                notificationStore.error($text('voicecall.text_too_long'));
+                return;
+            }
+            sendClickInProgress = true;
+            try {
+                const accepted = await voiceCallController.submitText(chatId, submittedText);
+                if (!accepted) throw new Error('Call transport unavailable');
+                if (editor === submittedEditor && currentChatId === chatId && submittedEditor.getText().trim() === submittedText) {
+                    await clearMessageField(false, false);
+                }
+            } catch {
+                notificationStore.error($text('voicecall.connection_lost'));
+            } finally {
+                sendClickInProgress = false;
+            }
+            return;
+        }
         if (queuedEdit) {
             await sendQueuedEdit();
             return;
@@ -5880,6 +5925,7 @@
     }
 
     async function handleRecordingShortcut(event: RecordingShortcutEvent) {
+        if (callOwnsAudio) return;
         if (startNewChatOnClick || !editor || editor.isDestroyed) return;
 
         const action = event.detail.action;
@@ -5979,6 +6025,11 @@
         isFocused = false;
     }
 
+    export function stopRecordingForVoiceCall(): void {
+        recordAudioComponent?.cancel();
+        handleStopRecordingCleanup();
+    }
+
     async function handleRecordingOverlayRemoved(event: CustomEvent<{ recordingGeneration: number }>) {
         const context = recordingContext;
         if (!context || context.generation !== event.detail.recordingGeneration) return;
@@ -6018,6 +6069,7 @@
     }
 
     async function onRecordMouseDown(event: CustomEvent<{ originalEvent: MouseEvent }>) {
+        if (callOwnsAudio) return;
         if (!$authStore.isAuthenticated) {
             await handleSignUpClick();
             return;
@@ -6051,6 +6103,7 @@
         handleRecordMouseLeaveLogic(recordAudioComponent);
     }
     async function onRecordTouchStart(event: CustomEvent<{ originalEvent: TouchEvent }>) {
+        if (callOwnsAudio) return;
         if (!$authStore.isAuthenticated) {
             await handleSignUpClick();
             return;
@@ -6941,7 +6994,7 @@
             ></button>
         {/if}
 
-		{#if showEmptyInputAffordances}
+        {#if showEmptyInputAffordances && !callOwnsAudio}
 			<span class="empty-input-ai-icon" aria-hidden="true"></span>
 			<button
 				class="clickable-icon icon_recordaudio empty-input-mic-button"
@@ -7150,6 +7203,9 @@
                     {unauthenticatedCtaLabel}
                     forceUnauthenticatedCta={anonymousFileAttachmentPending}
                     reserveTrailingControlSpace={showStopProcessingButton && !hasSendableDraft}
+                    disableRecording={callOwnsAudio}
+                    disableSpeech={callOwnsAudio}
+                    disableAttachments={callOwnsComposer}
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
                     blockedMicAttempt={$recordingState.blockedMicAttempt}
                     {highlightPressHold}
@@ -7159,7 +7215,7 @@
                     {modelSelectionReady}
                     queuedEditActive={!!queuedEdit}
                     {modelSelectionPersistenceRevision}
-                    {autoSpeakResponse}
+                    autoSpeakResponse={autoSpeakResponse && !callOwnsAudio}
                     on:fileSelect={handleFileSelect}
                     on:locationClick={handleLocationClick}
                     on:cameraClick={handleCameraClick}
@@ -7249,6 +7305,10 @@
         {/if}
     </div>
 
+    {#if callOwnsComposer}
+        <p class="voice-call-composer-hint" data-testid="voice-call-composer-hint">{$text('voicecall.text_only_hint')}</p>
+    {/if}
+
     <!-- @ Mention Dropdown for AI model, mate, skill, focus mode, and settings/memories selection -->
     <!-- IMPORTANT: This must be OUTSIDE .message-field but INSIDE .message-input-wrapper -->
     <MentionDropdown
@@ -7267,6 +7327,8 @@
 <style>
     @import './MessageInput.styles.css';
     @import './EmbeddPreview.styles.css';
+
+    .voice-call-composer-hint { margin:var(--spacing-2) var(--spacing-6) 0; color:var(--color-font-tertiary); font-size:var(--font-size-xs); line-height:1.4; }
 
     .ideabucket-pill {
         background: linear-gradient(135deg, #7c3aed 0%, #db2777 55%, #f59e0b 100%) !important;

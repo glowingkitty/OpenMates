@@ -62,9 +62,16 @@ export class CallAudio {
   private nextStart = 0;
   private generation = 0;
   private stopped = false;
+  private micEnabled = true;
   private speakingTimeout: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private onMicAudio: (data: string) => void, private onSpeaking: (user: boolean, model: boolean) => void) {}
+
+  /** Keep capture alive for echo cancellation while a call connects or is muted. */
+  setMicEnabled(enabled: boolean): void {
+    this.micEnabled = enabled;
+    if (!enabled) this.onSpeaking(false, this.playback.size > 0);
+  }
 
   // Called synchronously by the Start button, while its activation is still available.
   unlock(): void {
@@ -102,8 +109,8 @@ export class CallAudio {
       if (this.stopped) return;
       const input = event.inputBuffer.getChannelData(0);
       const rms = Math.sqrt(input.reduce((sum, value) => sum + value * value, 0) / input.length);
-      this.onSpeaking(rms > 0.045, this.playback.size > 0);
-      this.onMicAudio(pcm16Base64(downsample(input, event.inputBuffer.sampleRate)));
+      this.onSpeaking(this.micEnabled && rms > 0.045, this.playback.size > 0);
+      if (this.micEnabled) this.onMicAudio(pcm16Base64(downsample(input, event.inputBuffer.sampleRate)));
     };
   }
 

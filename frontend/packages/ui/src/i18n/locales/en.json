@@ -4204,6 +4204,66 @@
       },
       "sub_chats_working": {
         "text": "Working in sub chats"
+      },
+      "join": {
+        "text": "{first} & {last}"
+      },
+      "used_more": {
+        "text": "Used the {apps} + {count, plural, one {# more app} other {# more apps}}"
+      },
+      "using_more": {
+        "text": "Using the {apps} + {count, plural, one {# more app} other {# more apps}}"
+      },
+      "thought_used_more": {
+        "text": "Thought & used the {apps} + {count, plural, one {# more app} other {# more apps}}"
+      },
+      "used_count": {
+        "text": "Used {count, plural, one {# app} other {# apps}}"
+      },
+      "using_count": {
+        "text": "Using {count, plural, one {# app} other {# apps}}"
+      },
+      "thought_used_count": {
+        "text": "Thought & used {count, plural, one {# app} other {# apps}}"
+      },
+      "memory_loaded": {
+        "text": "Loaded ‘{memory}’ memory"
+      },
+      "memories_loaded": {
+        "text": "Loaded {count, plural, one {# memory} other {# memories}}"
+      },
+      "memory_used_apps": {
+        "text": "Loaded ‘{memory}’ memory & used {count, plural, one {# app} other {# apps}}"
+      },
+      "memory_using_apps": {
+        "text": "Loaded ‘{memory}’ memory & using {count, plural, one {# app} other {# apps}}"
+      },
+      "focus_activating_count": {
+        "text": "Activating {count, plural, one {# focus} other {# focuses}}"
+      },
+      "focus_activated_count": {
+        "text": "Activated {count, plural, one {# focus} other {# focuses}}"
+      },
+      "app_count": {
+        "text": "{count, plural, one {# app} other {# apps}}"
+      },
+      "memory_count": {
+        "text": "{count, plural, one {# memory} other {# memories}}"
+      },
+      "focus_count": {
+        "text": "{count, plural, one {# focus} other {# focuses}}"
+      },
+      "sub_chat_count": {
+        "text": "Sub chats"
+      },
+      "activity_active": {
+        "text": "Working…"
+      },
+      "activity_done": {
+        "text": "View activity"
+      },
+      "sentence": {
+        "text": "{activity}."
       }
     },
     "new_chat_suggestions": {
@@ -13733,7 +13793,7 @@
               "text": "Google Gemini"
             },
             "description": {
-              "text": "Google's Gemini API processes eligible chat messages when you select a Gemini model. Gemini is also used to correct raw Mistral voice transcripts and create titles, and may process prompts, reference images, screenshots, or generated code for image generation or editing, Veo video generation, and screenshot-to-HTML conversion. These non-chat inputs do not receive typed-message placeholder substitution. Google's paid Gemini API terms say prompts and outputs are not used to improve its products, while its current abuse-monitoring documentation states that logged prompts, context, and outputs may be retained for 55 days."
+              "text": "Google's Gemini API processes eligible chat messages when you select a Gemini model. Gemini Live receives raw microphone audio, submitted text, and permitted chat context during voice calls. Gemini is also used to correct raw Mistral voice transcripts and create titles, and may process prompts, reference images, screenshots, or generated code for image generation or editing, Veo video generation, and screenshot-to-HTML conversion. Call audio and raw transcripts do not receive typed-message placeholder substitution. Google's paid Gemini API terms say prompts and outputs are not used to improve its products, while its current abuse-monitoring documentation states that logged prompts, context, and outputs may be retained for 55 days."
             }
           }
         },
@@ -14940,6 +15000,14 @@
           },
           "answer": {
             "text": "Audio travels over TLS through the OpenMates backend hosted by Hetzner and is sent to Mistral for transcription. Realtime audio is streamed; uploaded recordings are encrypted by our upload service before durable storage and decrypted only in server memory for transcription. The raw transcript is then sent to Google Gemini to correct obvious transcription errors and create a title. Audio and raw transcripts do not receive the placeholder substitution used for eligible typed chat messages. OpenMates stores recordings and transcripts as encrypted account content, but Mistral and Google may retain API request data under their own policies."
+          }
+        },
+        "voice_calls": {
+          "question": {
+            "text": "What happens during a voice call?"
+          },
+          "answer": {
+            "text": "During a Gemini voice call, microphone audio, submitted text, and permitted chat context travel over TLS through OpenMates to Google Gemini Live. Raw call audio and transcripts do not receive the placeholder substitution used for eligible typed chat inference. User and assistant transcripts are encrypted in your browser before durable synchronization. OpenMates does not durably retain plaintext call audio or transcripts, and phase-one calls do not save an audio recording. Google may retain API request data under its own policies."
           }
         },
         "storage_protection_v2": {
@@ -26288,6 +26356,101 @@
     },
     "call_unavailable": {
       "text": "The call is unavailable right now. Please try again."
+    }
+  },
+  "voicecall": {
+    "title": {
+      "text": "Voice call"
+    },
+    "provider": {
+      "text": "Via Google Gemini"
+    },
+    "start": {
+      "text": "Start voice call"
+    },
+    "connecting": {
+      "text": "Connecting… Wait to speak."
+    },
+    "live": {
+      "text": "Listening · You can speak now"
+    },
+    "muted": {
+      "text": "Microphone muted"
+    },
+    "assistant_speaking": {
+      "text": "Gemini is speaking"
+    },
+    "interrupted": {
+      "text": "(interrupted)"
+    },
+    "credits": {
+      "text": "credits"
+    },
+    "credits_per_minute": {
+      "text": "credits/min"
+    },
+    "return_to_chat": {
+      "text": "Return to chat"
+    },
+    "mute": {
+      "text": "Mute"
+    },
+    "unmute": {
+      "text": "Unmute"
+    },
+    "minimize": {
+      "text": "Minimize"
+    },
+    "expand": {
+      "text": "Expand"
+    },
+    "hangup": {
+      "text": "Hang up"
+    },
+    "close": {
+      "text": "Close"
+    },
+    "microphone_denied": {
+      "text": "Microphone access was denied."
+    },
+    "microphone_missing": {
+      "text": "No microphone was found."
+    },
+    "microphone_failed": {
+      "text": "Could not start the microphone."
+    },
+    "session_expired": {
+      "text": "Your session expired. Sign in again to call."
+    },
+    "connection_failed": {
+      "text": "Could not connect the call."
+    },
+    "connection_lost": {
+      "text": "Call connection lost."
+    },
+    "call_unavailable": {
+      "text": "Voice calling is unavailable right now."
+    },
+    "transcript_limit": {
+      "text": "The call reached its transcript limit and ended."
+    },
+    "invalid_response": {
+      "text": "The call received an invalid response."
+    },
+    "transcript_save_failed": {
+      "text": "The transcript could not be saved. The call was stopped."
+    },
+    "unsupported_content": {
+      "text": "Attachments and app skills are not available in voice calls yet. Your draft is saved."
+    },
+    "text_only_hint": {
+      "text": "Voice call: text only. Attachments and app skills are unavailable for now."
+    },
+    "text_too_long": {
+      "text": "Voice call messages can contain up to 8,000 characters. Your draft is preserved."
+    },
+    "recording_disabled": {
+      "text": "Recording is unavailable during a voice call."
     }
   },
   "waiting_list": {

@@ -84,6 +84,15 @@ quick_answers:
     substitution used for eligible typed chat messages. OpenMates stores the
     recording and transcript as encrypted account content, but Mistral and
     Google may retain API request data under their own policies.
+  voice_calls: >
+    During a Gemini voice call, microphone audio, submitted text, and the
+    permitted chat context travel over TLS through OpenMates to Google Gemini
+    Live. Raw call audio and its transcripts do not receive the placeholder
+    substitution used for eligible typed chat inference. User and assistant
+    transcripts are encrypted in the browser before durable synchronization.
+    OpenMates does not durably retain plaintext call audio or transcripts and
+    phase-one calls do not save an audio recording. Google may retain API
+    request data under its own policies.
   model_training: >
     OpenMates does not use private chats to train OpenMates-owned AI models. For
     third-party providers, training use depends on the provider. Most audited
@@ -456,12 +465,14 @@ provider_groups:
         used_for:
           - Gemini-family model inference (when you select a Gemini model)
           - automatic correction and title generation for Mistral voice transcripts
+          - live voice calling with spoken replies and user/assistant transcription
           - Gemini image generation and editing
           - Google Veo video generation
           - screenshot-to-HTML conversion
         data_shared:
           - Chat messages with PII placeholders substituted client-side
           - Raw voice transcript and language hint for transcript correction; the audio itself is not sent to Google for this step
+          - Raw microphone audio, submitted call text, and permitted chat context for Gemini Live voice calls
           - Image or video prompts, generation settings, and reference images when those features are used
           - Uploaded screenshot and generated code inputs needed for screenshot-to-HTML conversion
           - Note: Raw transcripts, reference images, and screenshots are not protected by typed-message placeholder substitution and may contain personal data

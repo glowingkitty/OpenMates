@@ -1,26 +1,37 @@
 schema_version: 1
 id: feature.video-call
-version: 1
-status: draft
-title: Voice Calls With Generated Video
-summary: Draft future chat and whole-call recording integration for native voice and generated visuals;
-  the initial live-call behavior has a separate experimental contract.
+version: 2
+status: approved
+title: Chat-bound Voice And Video Calls
+summary: 'Implement native AI calling in three phases: encrypted ordinary-chat voice and text foundation; app
+  skills, attachments and embeds; then visual input and generated video. Gemini is the first voice provider,
+  with replaceable provider adapters.'
 scope:
   includes:
-  - A future chat-bound call mode with Google Gemini voice and fal H3 Max Turbo visuals.
-  - Automatic short-clip visual generation, ten-second visual-instruction inactivity shutdown, and
-    user stop controls.
-  - Clearly audible Gemini narration with generated-video ambience and effects.
-  - Responsive simultaneous chat and video, fixed chat binding, and new-tab sidebar navigation.
-  - Future encrypted whole-call audio or video recordings, playback and download.
-  - Future Gemini chat messages and existing app skills with results available in chat and call visuals.
-  - Future full mode retains the voice/visual control, audio-mixing and billing outcomes of feature.video-call-experiment@1.
+  - 'Phase 1: authenticated web voice-only calls in existing or newly created personal chats, with the existing
+    chat text as context.'
+  - 'Phase 1: progressive user and assistant transcripts shown as ordinary chat messages and saved using existing
+    client-side encryption and synchronization.'
+  - 'Phase 1: submitted typed or pasted text reaches the active voice model without starting a second text
+    inference.'
+  - 'Phase 1: fixed chat binding, persistent call controls, microphone mute, elapsed time, visible usage, interruption
+    handling and deterministic hangup.'
+  - 'Phase 1: composer recording and separate assistant speech are unavailable while live call audio owns capture/playback.'
+  - 'Phase 2: shared Jev-backed capability discovery, authorized app skill execution, submitted-file processing
+    and normal chat embeds alongside natural speech.'
+  - 'Phase 3: user camera/screen visual input and generated-video skill output that plays during the call and
+    remains in chat.'
+  - Provider adapters separate supported media, events, transcripts, tool execution, lifecycle and usage; Gemini
+    first, other providers later.
+  - Future encrypted whole-call recordings and replay retain their existing draft requirements, but recording
+    delivery is deferred beyond phase 1 and requires its own implementation scope.
   excludes:
-  - Implementing the full chat-bound mode, recordings or ordinary app skills in the first experiment.
-  - Public/developer-key access to live provider connections or decrypted chat material.
-  - Guaranteed instantaneous prompt changes, uninterrupted clip continuity or physically accurate
-    generated scenes.
-  - Apple, CLI and SDK call clients in the first experimental increment.
+  - App skills, file interpretation, tool embeds, camera/screen sharing, generated video and call media recording
+    in phase 1.
+  - Human-to-human, multiparty or team calls, Apple, CLI and SDK calling in these web increments.
+  - Public/developer-key access to live sessions, provider keys or decrypted chat material.
+  - Silently submitting composer drafts, silently switching providers or promising native speech has passed
+    client-side text PII masking.
 models:
   CallSession:
     identity:
@@ -28,7 +39,7 @@ models:
       required: true
     chat_id:
       type: owning_chat_id
-      nullable: true
+      nullable: false
       constraints:
         immutable_in_full_mode: true
     mode:
@@ -72,46 +83,64 @@ models:
       nullable: true
       constraints:
         absent_in_first_experiment: true
+  CallMessage:
+    identity:
+      type: stable_message_id
+      required: true
+    role:
+      type: enum
+      values:
+      - user
+      - assistant
+      required: true
+    call_id:
+      type: owning_call_id
+      required: true
+    content:
+      type: client_encrypted_chat_message
+      required: true
+    lifecycle:
+      type: enum
+      values:
+      - streaming
+      - complete
+      - interrupted
+      required: true
 assertions:
 - id: video-call.chat.launch-and-provider
   type: behavior
-  must: 'The future chat workspace offers a voice-call action at the top right using the existing
-    report-action style. A call uses the open chat, or creates a chat if none is open, and visibly
-    identifies voice via Google Gemini and generated visuals via MiniMax on fal before paid use.
-    Prices are shown as rounded whole credits per minute, while billing uses precise proportional
-    per-second usage with a one-credit minimum for positive billable usage.
-
-    '
+  must: The web chat action row offers a voice-call button immediately before Close in an existing chat, or
+    at the right edge when no chat is open. Starting creates or reuses one personal chat, visibly identifies
+    Gemini as the phase-1 provider and its estimated rate before billable use, loads permitted existing text
+    context, and shows Connecting until audio input can be accepted.
   depends_on:
   - examples.launch
 - id: video-call.chat.fixed-binding
   type: invariant
-  must: 'A full-mode call stays bound to its starting chat. While it is active, sidebar selections
-    open other chats in a new tab and never change the original tab''s context or the destination
-    of messages, skills or recordings.
-
-    '
+  must: A call remains bound to its starting chat. Closing or browsing away minimizes the controls without
+    changing the destination of call messages, context, skills or future media. The user can return to that
+    chat or hang up from the persistent controls; a different chat retains its ordinary messaging behavior.
   depends_on:
   - models.CallSession.chat_id
   - examples.binding
 - id: video-call.chat.skill-integration
   type: behavior
-  must: 'In future full mode Gemini can post ordinary messages and invoke existing app skills in
-    the bound chat using their existing access, privacy, billing and confirmation rules. Their results
-    appear in chat and can also be presented in the call; voice playback does not block chat delivery.
-
-    '
+  must: Phase 2 exposes stable capability-discovery and execution gateways using shared Jev/preprocessor selection
+    and existing skill access, privacy, billing, confirmation, cancellation and content-safety rules. Submitted
+    files are resolved through authorized existing tools. Skill results and validated embed references appear
+    in the bound chat through a structured channel; spoken responses remain natural language and do not require
+    reading protocol JSON/YAML.
   depends_on:
   - examples.skills
 - id: video-call.recording.encrypted-whole-call
   type: invariant
-  must: 'At call end future full mode saves exactly one recording of the complete call, including
-    user microphone, audible Gemini narration, video ambience and displayed skill results. Audio-only
-    calls save an encrypted audio file. If any interval contains video, the recording is a video
-    file covering the whole call; audio-only intervals show a typical call background with the mate
-    portrait in a circle and a visible AI icon gently animated in scale. Media is encrypted before
-    S3 upload using existing owner/chat-key boundaries. No plaintext recording is persisted server-side.
-    The rendering process is deferred until experiment evaluation and is not prescribed as Remotion.
+  must: 'At call end future full mode saves exactly one recording of the complete call, including user microphone,
+    audible Gemini narration, video ambience and displayed skill results. Audio-only calls save an encrypted
+    audio file. If any interval contains video, the recording is a video file covering the whole call; audio-only
+    intervals show a typical call background with the mate portrait in a circle and a visible AI icon gently
+    animated in scale. Media is encrypted before S3 upload using existing owner/chat-key boundaries. No plaintext
+    recording is persisted server-side. The rendering process is deferred until experiment evaluation and is
+    not prescribed as Remotion.
 
     '
   depends_on:
@@ -119,34 +148,78 @@ assertions:
   - examples.recording
 - id: video-call.recording.open-and-download
   type: behavior
-  must: 'Future full mode adds one call-ended system-message link in the bound chat when the whole
-    call ends: Video call ended if it included video, otherwise Audio call ended. It shows processing
-    until upload is ready, opens authorized decrypted playback alongside chat on wide screens or
-    fullscreen on narrow screens, and offers a playable download. Returning from video to audio during
-    the call does not finalize a separate recording. Replay does not generate new media or incur
-    inference charges.
+  must: 'Future full mode adds one call-ended system-message link in the bound chat when the whole call ends:
+    Video call ended if it included video, otherwise Audio call ended. It shows processing until upload is
+    ready, opens authorized decrypted playback alongside chat on wide screens or fullscreen on narrow screens,
+    and offers a playable download. Returning from video to audio during the call does not finalize a separate
+    recording. Replay does not generate new media or incur inference charges.
 
     '
   depends_on:
   - examples.replay
 - id: video-call.privacy
   type: invariant
-  must: 'Paid live connections are first-party, authenticated, owner-scoped and origin-bound with
-    bounded message sizes, session limits, admission credit checks and spend controls. Provider keys
-    remain server-side; no client provider prompts or arbitrary remote URLs grant a paid operation.
-    Media and transcript plaintext are not logged or durably retained. Unavailable authorization
-    or admission control does not open a paid provider session.
-
-    '
+  must: Calls and transcript writes are authenticated, first-party, owner- and session-scoped with permitted
+    origins, bounded messages/context, concurrency admission and credit/spend controls. The server opens no
+    paid connection when authorization/admission fails. Provider keys stay server-side. Raw microphone audio
+    reaches the disclosed voice provider before text PII masking; transcript/media plaintext is never logged
+    or durably retained server-side. Saved chat messages use client encryption, not provider transcript storage.
   depends_on:
   - examples.privacy
+- id: video-call.chat.transcripts
+  type: behavior
+  must: Phase 1 displays progressive user and assistant speech as ordinary messages in the bound chat. Finalized
+    or interrupted text is encrypted client-side and durably synchronized using stable IDs; late input transcription,
+    duplicate events, reconnects and reloads do not duplicate or misorder messages. Interrupted assistant content
+    is visibly incomplete, and the chat can continue by text after hangup.
+  depends_on:
+  - examples.transcripts
+- id: video-call.chat.typed-input
+  type: behavior
+  must: Phase 1 accepts submitted plain text, including pasted text, in the bound chat while the call continues.
+    The same user message is saved client-encrypted and sent once to the live voice model. Transcript saving
+    never triggers a second text-model inference. Unsubmitted drafts remain drafts; unsupported attachment/skill
+    submissions are visibly refused without clearing them in phase 1.
+  depends_on:
+  - examples.typed
+- id: video-call.audio.single-owner
+  type: invariant
+  must: While a call is connecting or active, composer audio recording cannot start and existing capture is
+    stopped before call admission. Separate assistant-speech playback/generation cannot overlap live-call output.
+    Mute controls the call microphone only; Hangup stops microphone tracks, queued playback, timers and paid
+    provider work and restores normal composer controls.
+  depends_on:
+  - examples.audio
+- id: video-call.lifecycle.recovery-and-billing
+  type: invariant
+  must: One call has one elapsed timer and usage ledger across planned provider rollover. Token/modality usage
+    including submitted context is authoritatively settled once; unpaid or revoked sessions stop safely. On
+    terminal connection loss the call visibly ends, preserves completed and partial transcript text for encrypted
+    recovery, and never silently starts another paid call.
+  depends_on:
+  - examples.lifecycle
+- id: video-call.video.input-and-output
+  type: behavior
+  must: Phase 3 distinguishes user-authorized camera/screen input from generated-video output. Visual sharing
+    is explicit and stoppable without hanging up. A generated video runs through the normal authorized skill/embedding
+    path, plays in call controls, remains available in chat, and does not replace either side of the transcript.
+  depends_on:
+  - examples.video
+- id: video-call.provider.boundary
+  type: invariant
+  must: Calling uses replaceable provider adapters with explicit supported capabilities. Gemini is the first
+    phase-1 adapter. Unsupported features remain unavailable; adding another provider does not change chat
+    identities, encryption, skill authority or persistence semantics.
+  depends_on:
+  - examples.providers
 applies_to:
   rest_api:
     required: false
-    role: Private first-party WebSocket; no public developer API.
+    role: Authenticated first-party call WebSocket and encrypted transcript synchronization only; no public
+      developer API.
   cli:
     required: false
-    role: Experimental voice capture is web-only.
+    role: Calling is web-only in the three initial increments.
   sdks:
     required: false
     implementations:
@@ -166,7 +239,13 @@ examples:
   required_groups:
   - launch
   - binding
+  - transcripts
+  - typed
+  - audio
+  - lifecycle
   - skills
+  - video
+  - providers
   - recording
   - replay
   - privacy

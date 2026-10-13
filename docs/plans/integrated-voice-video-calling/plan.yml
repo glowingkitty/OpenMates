@@ -1,0 +1,61 @@
+schema_version: 2
+id: integrated-voice-video-calling
+title: Integrated voice and video calling in three phases
+goal: 'First we implement phase 1: the foundation - voice call only, where we ensure the user voice input also
+  shows up (and is saved client side encrypted as usual) as text, the same for assistant response, and user
+  can also provide text input for voice model to pickup.'
+authorization: The user explicitly requested the three-phase Specification and immediate phase-1 implementation/testing
+  on 2026-10-13, without further clarification. This overrides an additional Specification approval question;
+  no permission is inferred from attached PDFs or historical Task content.
+specification_refs:
+- id: feature.video-call
+  version: 2
+  role: primary
+phases:
+- phase: 1
+  outcome: Voice-only chat foundation with encrypted transcripts and submitted text
+  task_id: b49870a1-693a-4b26-8229-630cba7c6948
+  scope:
+  - Gemini adapter and first-party call admission, owner/session-bound messages and usage.
+  - Existing/new personal chat launch, text context, normal transcript bubbles and ciphertext-only durable
+    synchronization.
+  - Typed/pasted text reaches the same live conversation; no duplicate inference.
+  - Persistent controls, fixed chat binding, mute/hangup/interruption cleanup; composer mic and separate speech
+    disabled.
+- phase: 2
+  outcome: App skills, submitted files and embeds
+  task_id: e3257206-797c-4dfb-96c7-d3e83693efed
+  depends_on_phase: 1
+  scope:
+  - Stable discovery/execution gateways; shared Jev/preprocessor capability selection and skill gates.
+  - Submitted file processing and structured embed delivery independent of spoken transcript.
+- phase: 3
+  outcome: Visual input and generated-video calls
+  task_id: 18b14a5f-8096-435a-bc12-aefaff29e083
+  depends_on_phase: 2
+  scope:
+  - Explicit camera/screen sharing and independent visual controls.
+  - Generated videos run as normal skills, play during calls and remain embeds.
+phase_1_excludes:
+- Skills, file interpretation, camera/screen sharing, generated video, permanent audio recording, non-web and
+  team calling.
+decisions:
+- Keep feature.video-call as the owning contract; preserve the standalone experiment contract.
+- Reuse Gemini audio/admission/billing/rollover mechanisms through a provider boundary.
+- Live transcript storage is independent of inference submission and uses client encryption.
+- Raw speech goes to the disclosed provider before text PII masking; no plaintext durable server storage.
+- No additional user approval round because the current request explicitly authorizes Specification creation
+  and implementation.
+required_checks:
+- Specification/examples and Plan validation with generated registry refresh.
+- Focused backend unit tests for auth/ownership/admission, turn identities, late transcripts, typed input,
+  rollover, usage and ciphertext persistence.
+- Focused frontend unit/lint/component checks for transcript persistence, call lifecycle and typed-call routing.
+- Isolated GitHub CI bare component preview on phone and laptop before authenticated voice-call flow.
+- Isolated GitHub CI flow verifies existing/new chat, encrypted transcript reload, typed input without duplicate
+  inference and microphone/hangup cleanup.
+- Retrieve and deliver selected successful E2E recordings with the receipt evidence command.
+- Scoped dev deployment after candidate checks, plus reviewed laptop/mobile visual smoke.
+evidence: {}
+profile: concise
+status: approved

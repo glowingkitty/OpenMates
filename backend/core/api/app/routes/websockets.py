@@ -81,6 +81,7 @@ from .handlers.websocket_handlers.workflow_metadata_warmup_handler import (
 from .handlers.websocket_handlers.sub_chat_confirmation_handler import handle_sub_chat_confirmation # Handler for large sub-chat batch approval
 from .handlers.websocket_handlers.sub_chat_stop_handler import handle_sub_chat_stop # Handler for stopping sequential sub-chat queues
 from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
+from .handlers.websocket_handlers.call_message_completed_handler import handle_call_message_completed
 from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
 from .handlers.websocket_handlers.chat_turn_preflight_handler import handle_chat_turn_preflight
 from .handlers.websocket_handlers.chat_turn_admit_handler import handle_chat_turn_admit
@@ -4101,6 +4102,14 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "call_message_completed":
+                await handle_call_message_completed(
+                    manager=manager, cache_service=cache_service,
+                    directus_service=directus_service, user_id=user_id,
+                    user_id_hash=user_id_hash, session_hash=session_hash,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
                 )
 
             elif message_type == "encrypted_chat_metadata":

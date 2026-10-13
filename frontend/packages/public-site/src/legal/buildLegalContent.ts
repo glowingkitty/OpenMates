@@ -119,6 +119,7 @@ export function buildPrivacyPolicyContent(
     "storage_protection",
     "third_party_providers_v2",
     "voice_recordings",
+    "voice_calls",
     "model_training",
     "placeholder_protection",
     "logs_diagnostics",

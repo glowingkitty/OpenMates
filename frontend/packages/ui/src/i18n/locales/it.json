@@ -21961,6 +21961,7 @@
     }
   },
   "videocall": {},
+  "voicecall": {},
   "waiting_list": {
     "discord_members": {
       "text": "I membri del nostro Discord riceveranno"

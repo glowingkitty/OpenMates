@@ -21934,6 +21934,7 @@
     }
   },
   "videocall": {},
+  "voicecall": {},
   "waiting_list": {
     "discord_members": {
       "text": "Các thành viên trong Discord của chúng tôi sẽ"

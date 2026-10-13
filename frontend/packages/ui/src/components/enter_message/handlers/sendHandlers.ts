@@ -1,6 +1,7 @@
 import type { Editor, JSONContent } from "@tiptap/core";
 import { get } from "svelte/store"; // Import get
 import { getTracer } from '../../../services/tracing/setup';
+import { voiceCallController } from '../../../services/voiceCall';
 import { isDesktop } from "../../../utils/platform";
 import { hasActualContent, vibrateMessageField } from "../utils";
 import { Extension } from "@tiptap/core";
@@ -580,6 +581,11 @@ export async function handleSend(
   projectFocusDocumentAtSendRequest?: unknown,
   options: { preserveDraft?: boolean; resolveModelSelection?: () => Promise<string>; firstTurnContextAtClick?: boolean } = {},
 ) {
+  // Direct callers must not start a second text inference for the chat owned by
+  // a live call. MessageInput routes supported plain text through the call.
+  const voiceCall = get(voiceCallController);
+  if ((voiceCall.status === 'connecting' || voiceCall.status === 'live') &&
+      voiceCall.chatId === currentChatId) return false;
   // Bind this click to its workspace before URL, PII, and draft work can yield.
   const sendContext = getActiveTeamContextSnapshot();
   const contextIsCurrent = () => isActiveTeamContext(sendContext.teamId, sendContext.epoch);

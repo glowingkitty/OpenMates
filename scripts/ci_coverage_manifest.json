@@ -152,6 +152,8 @@
       "specs": [
         "components/video-call-panel.spec.ts",
         "components/video-call-panel-responsive.spec.ts",
+        "components/voice-call-bar.spec.ts",
+        "components/voice-call-composer.spec.ts",
         "api-key-scopes-settings.spec.ts",
         "apps-workspace.spec.ts",
         "header-mobile-layout.spec.ts",
@@ -429,7 +431,8 @@
         "unified-detail-metadata-sync.spec.ts",
         "maps-discovery-chat.spec.ts",
         "chat-queued-followups-protocol.spec.ts",
-        "workflow-metadata-warmup.spec.ts"
+        "workflow-metadata-warmup.spec.ts",
+        "voice-call.spec.ts"
       ]
     },
     "external_integration": {

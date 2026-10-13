@@ -72,6 +72,27 @@ function message(id: string, status: Message["status"]): Message {
 }
 
 describe("pending encrypted message retry journals", () => {
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts,video-call.privacy
+  it("preserves an unsynced call correction and ciphertext outbox through single and batch sync saves", async () => {
+    const { db, rows } = makeTransactions();
+    const pending: Record<string, unknown> = {
+      ...message("call-correction", "sending"), content: undefined,
+      encrypted_content: "cipher:corrected", queue_revision: 2,
+      call_persistence_v1: { call_id: "call-id", entries: [
+        { revision: 2, ciphertext: "cipher:corrected" },
+      ] },
+    };
+    delete pending.content;
+    rows.set("call-correction", pending);
+    const stale = { ...message("call-correction", "delivered"), content: undefined,
+      encrypted_content: "cipher:old", queue_revision: 1 };
+    await batchSaveMessages(db, [stale]);
+    expect(rows.get("call-correction")).toEqual(pending);
+    await saveMessage(db, stale);
+    expect(rows.get("call-correction")).toEqual(pending);
+    expect(rows.get("call-correction")).not.toHaveProperty("content");
+  });
+
   // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,message-input.embeds.gated-send
   it("discovers synced sealed turns by numeric index in bounded pages without decrypting in the transaction", async () => {
     const indexed = [

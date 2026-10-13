@@ -148,6 +148,34 @@ describe("webSocketService recovery protocol errors", () => {
 });
 
 describe("webSocketService message dispatch", () => {
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts,video-call.privacy
+  it("sends only ciphertext and bounded trace metadata for call completion", async () => {
+    const service = webSocketService as unknown as {
+      ws: { readyState: number; send: ReturnType<typeof vi.fn> } | null;
+    };
+    const socket = { readyState: WebSocket.OPEN, send: vi.fn() };
+    service.ws = socket;
+    const span = vi.spyOn(wsTracing, "withActiveWsSpan").mockImplementation(async (_name, callback) => callback());
+    const inject = vi.spyOn(wsTracing, "injectTraceparent").mockImplementation((payload) => {
+      payload._traceparent = "00-0123456789abcdef0123456789abcdef-0123456789abcdef-01";
+    });
+    const payload = {
+      request_id: "request-id", call_id: "call-id", chat_id: "chat-id",
+      message_id: "message-id", role: "assistant", encrypted_content: "ciphertext",
+      created_at: 1_700_000_000, revision: 1,
+    };
+    await webSocketService.sendMessage("call_message_completed", payload);
+    expect(span).toHaveBeenCalledOnce();
+    expect(inject).toHaveBeenCalledOnce();
+    expect(JSON.parse(socket.send.mock.calls[0][0])).toEqual({
+      type: "call_message_completed", payload,
+    });
+    expect(payload).toHaveProperty("_traceparent", "00-0123456789abcdef0123456789abcdef-0123456789abcdef-01");
+    expect(payload).not.toHaveProperty("content");
+    expect(payload).not.toHaveProperty("text");
+    service.ws = null;
+  });
+
   // contract-test: supporting surface=gui.web assertions=chats.send.immediate-admission,chats.message.identity-idempotent
   it.each(["chat_turn_preflight", "chat_turn_admit", "chat_turn_context_ready", "chat_turn_context_failed"])(
     "keeps the sealed %s payload unchanged while tracing its send", async (type) => {

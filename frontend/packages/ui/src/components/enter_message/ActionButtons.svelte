@@ -35,6 +35,9 @@
         queuedEditActive?: boolean;
         modelSelectionPersistenceRevision?: number;
         autoSpeakResponse?: boolean;
+        disableRecording?: boolean;
+        disableSpeech?: boolean;
+        disableAttachments?: boolean;
     }
 
     let {
@@ -54,7 +57,10 @@
         modelSelectionReady = true,
         queuedEditActive = false,
         modelSelectionPersistenceRevision = 0,
-        autoSpeakResponse = false
+        autoSpeakResponse = false,
+        disableRecording = false,
+        disableSpeech = false,
+        disableAttachments = false
     }: Props = $props();
 
     const dispatch = createEventDispatcher();
@@ -170,6 +176,7 @@
                 aria-label={$text('enter_message.attachments.attach_files')}
                 aria-haspopup="menu"
                 aria-expanded={showAttachmentMenu}
+                disabled={disableAttachments}
                 onkeydown={handleAttachmentKeydown}
                 use:tooltip
             ></button>
@@ -206,6 +213,7 @@
                 data-speech-state={speechEnabled ? 'on' : 'off'}
                 aria-label={speechEnabled ? $text('enter_message.speech_disable') : $text('enter_message.speech_enable')}
                 aria-pressed={speechEnabled}
+                disabled={disableSpeech}
                 onclick={handleAssistantSpeechToggle}
                 use:tooltip
             >
@@ -253,12 +261,13 @@
             class="clickable-icon icon_recordaudio {isRecordButtonPressed ? 'recording' : ''}"
             data-testid="record-audio-button"
             bind:this={recordButton}
+            disabled={disableRecording}
             onmousedown={handleRecordMouseDown}
             onmouseup={handleRecordMouseUp}
             onmouseleave={handleRecordMouseLeave}
             ontouchstart={handleRecordTouchStart}
             ontouchend={handleRecordTouchEnd}
-            aria-label={$text('enter_message.attachments.record_audio')}
+            aria-label={disableRecording ? $text('voicecall.recording_disabled') : $text('enter_message.attachments.record_audio')}
             use:tooltip
         ></button>
 

@@ -4183,6 +4183,66 @@
       },
       "sub_chats_working": {
         "text": "Arbeitet in Unterchats"
+      },
+      "join": {
+        "text": "{first} und {last}"
+      },
+      "used_more": {
+        "text": "Die Apps {apps} + {count, plural, one {# weitere App} other {# weitere Apps}} verwendet"
+      },
+      "using_more": {
+        "text": "Verwendet {apps} + {count, plural, one {# weitere App} other {# weitere Apps}}"
+      },
+      "thought_used_more": {
+        "text": "Nachgedacht und {apps} + {count, plural, one {# weitere App} other {# weitere Apps}} verwendet"
+      },
+      "used_count": {
+        "text": "{count, plural, one {# App} other {# Apps}} verwendet"
+      },
+      "using_count": {
+        "text": "Verwendet {count, plural, one {# App} other {# Apps}}"
+      },
+      "thought_used_count": {
+        "text": "Nachgedacht und {count, plural, one {# App} other {# Apps}} verwendet"
+      },
+      "memory_loaded": {
+        "text": "Erinnerung „{memory}“ geladen"
+      },
+      "memories_loaded": {
+        "text": "{count, plural, one {# Erinnerung} other {# Erinnerungen}} geladen"
+      },
+      "memory_used_apps": {
+        "text": "Erinnerung „{memory}“ geladen und {count, plural, one {# App} other {# Apps}} verwendet"
+      },
+      "memory_using_apps": {
+        "text": "Erinnerung „{memory}“ geladen und verwendet {count, plural, one {# App} other {# Apps}}"
+      },
+      "focus_activating_count": {
+        "text": "Aktiviert {count, plural, one {# Fokus} other {# Fokusse}}"
+      },
+      "focus_activated_count": {
+        "text": "{count, plural, one {# Fokus} other {# Fokusse}} aktiviert"
+      },
+      "app_count": {
+        "text": "{count, plural, one {# App} other {# Apps}}"
+      },
+      "memory_count": {
+        "text": "{count, plural, one {# Erinnerung} other {# Erinnerungen}}"
+      },
+      "focus_count": {
+        "text": "{count, plural, one {# Fokus} other {# Fokusse}}"
+      },
+      "sub_chat_count": {
+        "text": "Unterchats"
+      },
+      "activity_active": {
+        "text": "Arbeitet…"
+      },
+      "activity_done": {
+        "text": "Aktivität ansehen"
+      },
+      "sentence": {
+        "text": "{activity}."
       }
     },
     "new_chat_suggestions": {
@@ -14665,6 +14725,14 @@
           },
           "answer": {
             "text": "Wenn du sehr hohe Datenschutzanforderungen hast, kannst du erwägen, OpenMates selbst zu hosten und lokale oder offline laufende KI-Modelle statt Drittanbieter-KI-Anbietern zu verwenden. Das gibt dir mehr Kontrolle über Infrastruktur, Modellauswahl, Logs, Backups und Anbieter-Exposition. Es erfordert technische Erfahrung, laufende Wartung, sichere Serveradministration und ausreichend Hardware für brauchbare lokale KI-Inferenz. Self-Hosting macht nicht automatisch alles privat: Du musst Server, Backups, Geheimnisse, Netzwerkzugriff, Logs und alle aktivierten externen Anbieter trotzdem absichern."
+          }
+        },
+        "voice_calls": {
+          "question": {
+            "text": "Was passiert während eines Sprachanrufs?"
+          },
+          "answer": {
+            "text": "Während eines Gemini-Sprachanrufs werden Mikrofon-Audio, gesendeter Text und freigegebener Chat-Kontext über TLS durch OpenMates an Google Gemini Live übertragen. Audio und Transkripte des Anrufs werden nicht mit den Platzhaltern versehen, die für geeignete Texteingaben verwendet werden. Deine und die Transkripte des Assistenten werden vor der dauerhaften Synchronisierung im Browser verschlüsselt. OpenMates speichert Audio und Transkripte nicht dauerhaft im Klartext; Anrufe der ersten Phase speichern keine Audioaufnahme. Google kann API-Anfragedaten gemäß seinen eigenen Richtlinien aufbewahren."
           }
         },
         "storage_protection_v2": {
@@ -25401,6 +25469,101 @@
     },
     "call_unavailable": {
       "text": "Der Anruf ist gerade nicht verfügbar. Bitte versuche es erneut."
+    }
+  },
+  "voicecall": {
+    "title": {
+      "text": "Sprachanruf"
+    },
+    "provider": {
+      "text": "Über Google Gemini"
+    },
+    "start": {
+      "text": "Sprachanruf starten"
+    },
+    "connecting": {
+      "text": "Verbindung wird hergestellt… Bitte noch nicht sprechen."
+    },
+    "live": {
+      "text": "Hört zu · Du kannst jetzt sprechen"
+    },
+    "muted": {
+      "text": "Mikrofon stummgeschaltet"
+    },
+    "assistant_speaking": {
+      "text": "Gemini spricht"
+    },
+    "interrupted": {
+      "text": "(unterbrochen)"
+    },
+    "credits": {
+      "text": "Credits"
+    },
+    "credits_per_minute": {
+      "text": "Credits/Min."
+    },
+    "return_to_chat": {
+      "text": "Zum Chat zurück"
+    },
+    "mute": {
+      "text": "Stumm"
+    },
+    "unmute": {
+      "text": "Ton an"
+    },
+    "minimize": {
+      "text": "Minimieren"
+    },
+    "expand": {
+      "text": "Erweitern"
+    },
+    "hangup": {
+      "text": "Auflegen"
+    },
+    "close": {
+      "text": "Schließen"
+    },
+    "microphone_denied": {
+      "text": "Der Zugriff auf das Mikrofon wurde verweigert."
+    },
+    "microphone_missing": {
+      "text": "Kein Mikrofon gefunden."
+    },
+    "microphone_failed": {
+      "text": "Das Mikrofon konnte nicht gestartet werden."
+    },
+    "session_expired": {
+      "text": "Deine Sitzung ist abgelaufen. Melde dich erneut an."
+    },
+    "connection_failed": {
+      "text": "Der Anruf konnte nicht verbunden werden."
+    },
+    "connection_lost": {
+      "text": "Verbindung zum Anruf verloren."
+    },
+    "call_unavailable": {
+      "text": "Sprachanrufe sind derzeit nicht verfügbar."
+    },
+    "transcript_limit": {
+      "text": "Der Anruf hat das Transkriptlimit erreicht und wurde beendet."
+    },
+    "invalid_response": {
+      "text": "Der Anruf erhielt eine ungültige Antwort."
+    },
+    "transcript_save_failed": {
+      "text": "Das Transkript konnte nicht gespeichert werden. Der Anruf wurde beendet."
+    },
+    "unsupported_content": {
+      "text": "Anhänge und App Skills sind in Sprachanrufen noch nicht verfügbar. Dein Entwurf bleibt erhalten."
+    },
+    "text_only_hint": {
+      "text": "Sprachanruf: nur Text. Anhänge und App Skills sind derzeit nicht verfügbar."
+    },
+    "text_too_long": {
+      "text": "Sprachnachrichten dürfen bis zu 8.000 Zeichen enthalten. Dein Entwurf bleibt erhalten."
+    },
+    "recording_disabled": {
+      "text": "Während eines Sprachanrufs ist die Aufnahme nicht verfügbar."
     }
   },
   "waiting_list": {

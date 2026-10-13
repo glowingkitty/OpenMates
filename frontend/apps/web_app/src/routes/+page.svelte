@@ -87,6 +87,8 @@
 	} from '@repo/ui';
 	import { pushNotificationService } from '@repo/ui';
 	import { settingsMenuVisible } from '@repo/ui/components/Settings.svelte';
+	import VoiceCallBar from '@repo/ui/components/voicecall/VoiceCallBar.svelte';
+	import { voiceCallController } from '@repo/ui/services/voiceCall';
 	import { rehydratePairSession, registerPairLogoutCallback, pendingPairToken } from '@repo/ui';
 	import { onMount, onDestroy, tick, untrack } from 'svelte';
 	import { locale, waitLocale, _ as translationStore } from 'svelte-i18n';
@@ -113,6 +115,9 @@
 	// Height (px) reserved for the dev console at the bottom of the viewport
 	const DEV_CONSOLE_HEIGHT = 280;
 	let activeChat = $state<ActiveChat | null>(null); // Fixed: Use $state for Svelte 5
+	let visibleChatReadyId = $state<string | null>(null);
+	let voiceCallReturnLookupPending = $state(false);
+	let voiceCallReturnLookupGeneration = 0;
 	let workflowHandoffReady = false;
 	let workflowHandoffInFlight = false;
 
@@ -142,6 +147,52 @@
 	// selected workspace in sync before any asynchronous deep-link work starts.
 	let workspaceHash = $state(browser ? window.location.hash : page.url.hash);
 	let workspaceHashRoute = $derived(readWorkspaceHashRoute(workspaceHash));
+	let showGlobalVoiceCall = $derived(
+		($voiceCallController.status === 'connecting' || $voiceCallController.status === 'live' || $voiceCallController.status === 'error') &&
+		(workspaceHashRoute.workspace !== 'chats' || settingsOverlayOpen || voiceCallReturnLookupPending ||
+			($voiceCallController.chatId !== null &&
+				($activeChatStore !== $voiceCallController.chatId || visibleChatReadyId !== $voiceCallController.chatId)))
+	);
+
+	async function returnToVoiceCallChat(chatId: string): Promise<void> {
+		settingsMenuVisible.set(false);
+		panelState.closeSettings();
+		notFoundPathStore.set(null);
+		visibleChatReadyId = null;
+		// A workspace marker such as #tasks survives activeChatStore.setActiveChat(),
+		// leaving the Tasks route mounted even though a chat-id was added to the hash.
+		const chatHash = `#chat-id=${encodeURIComponent(chatId)}`;
+		replaceState(`${window.location.pathname}${window.location.search}${chatHash}`, {});
+		activeChatStore.setWithoutHashUpdate(chatId);
+		workspaceHash = chatHash;
+		// A previously mounted chat can render while the canonical lookup is still
+		// pending. Keep the global controls accessible until that lookup settles.
+		voiceCallReturnLookupPending = true;
+		const lookupGeneration = ++voiceCallReturnLookupGeneration;
+		const stillReturningToBoundChat = () =>
+			readWorkspaceHashRoute(window.location.hash).workspace === 'chats' &&
+			getHashParam(window.location.hash, 'chat-id') === chatId &&
+			activeChatStore.get() === chatId;
+		try {
+			await tick();
+			const chat = await chatDB.getChat(chatId);
+			if (chat && stillReturningToBoundChat()) {
+				await handleChatSelected(new CustomEvent('chatSelected', { detail: { chat } }), stillReturningToBoundChat);
+			}
+		} catch (error) {
+			console.error('[+page.svelte] Could not load the voice call chat:', error);
+		} finally {
+			if (lookupGeneration === voiceCallReturnLookupGeneration) voiceCallReturnLookupPending = false;
+		}
+	}
+	$effect(() => {
+		if (voiceCallReturnLookupPending &&
+			($voiceCallController.status === 'idle' || $voiceCallController.status === 'ended' ||
+				workspaceHashRoute.workspace !== 'chats' ||
+				getHashParam(workspaceHash, 'chat-id') !== $voiceCallController.chatId)) {
+			voiceCallReturnLookupPending = false;
+		}
+	});
 	$effect(() => {
 		const kitHash = page.url.hash;
 		untrack(() => { workspaceHash = browser ? window.location.hash : kitHash; });
@@ -3098,6 +3149,7 @@
 
 	// Cleanup function for onDestroy
 	onDestroy(() => {
+		voiceCallController.hangup();
 		pendingAuthenticatedDeepLinkCleanup?.();
 		pendingAuthenticatedDeepLinkCleanup = null;
 		window.removeEventListener('hashchange', handleHashChange);
@@ -3461,7 +3513,8 @@
 
 	// Add handler for chatSelected event
 	// FIXED: Improved retry mechanism with multiple attempts to ensure chat loads for SEO
-	async function handleChatSelected(event: CustomEvent) {
+	async function handleChatSelected(event: CustomEvent, shouldContinue: () => boolean = () => true) {
+		if (!shouldContinue()) return;
 		const selectedChat: Chat = event.detail.chat;
 		const preserveActiveComposer = event.detail.preserveActiveComposer === true;
 		console.debug('[+page.svelte] Received chatSelected event:', selectedChat.chat_id); // Use chat_id
@@ -3469,6 +3522,7 @@
 
 		// Retry mechanism with multiple attempts to ensure chat loads (critical for SEO)
 		const loadChatWithRetry = async (retries = 20): Promise<void> => {
+			if (!shouldContinue()) return;
 			if (activeChat) {
 				console.debug('[+page.svelte] activeChat ready, loading chat:', selectedChat.chat_id);
 				activeChat.loadChat(selectedChat, { preserveActiveComposer });
@@ -3491,6 +3545,7 @@
 		};
 
 		await loadChatWithRetry();
+		if (!shouldContinue()) return;
 
 		// Explicit chat navigation moves focus into the selected chat. Persisting
 		// the draft that is already open is only an identity/header transition;
@@ -3719,7 +3774,11 @@
 		<div class="chat-wrapper" id="main-chat" tabindex="-1">
 			<!-- ActiveChat component - loads welcome chat via JS for PWA -->
 			<div class="chat-interaction-surface" inert={settingsOverlayOpen}>
-				<ActiveChat bind:this={activeChat} />
+				<ActiveChat
+					bind:this={activeChat}
+					globalVoiceCallControlsVisible={showGlobalVoiceCall}
+					onVisibleChatReady={(chatId) => { visibleChatReadyId = chatId; }}
+				/>
 			</div>
 			{#if settingsOverlayOpen}
 				<button
@@ -3747,7 +3806,14 @@
      TODO: Implement proper login overlay if needed -->
 {/if}
 
+{#if showGlobalVoiceCall}
+	<VoiceCallBar boundChatVisible={false} onReturn={(chatId) => { void returnToVoiceCallChat(chatId); }} />
+{/if}
+
 <style>
+	:global(.chat-interaction-surface[inert] [data-testid="voice-call-bar"]) {
+		visibility: hidden;
+	}
 	:root {
 		--sidebar-width: 325px;
 		--sidebar-margin: 10px;

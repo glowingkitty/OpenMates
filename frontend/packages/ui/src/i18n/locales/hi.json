@@ -21934,6 +21934,7 @@
     }
   },
   "videocall": {},
+  "voicecall": {},
   "waiting_list": {
     "discord_members": {
       "text": "हमारे Discord के सदस्य"

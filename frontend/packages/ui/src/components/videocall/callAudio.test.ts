@@ -143,4 +143,24 @@ describe('call audio lifecycle', () => {
     expect(downsample(new Float32Array([1, 1, -1, -1, 0, 0]), 48_000)).toHaveLength(2);
     expect(() => decodePcm16(btoa('a'))).toThrow('Invalid PCM');
   });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing
+  it('holds microphone frames until call readiness and blocks them again when muted', async () => {
+    const onMic = vi.fn();
+    const onSpeaking = vi.fn();
+    const audio = new CallAudio(onMic, onSpeaking);
+    audio.setMicEnabled(false);
+    await audio.start();
+    const frame = { inputBuffer: { getChannelData: () => new Float32Array([0.5, -0.5]), sampleRate: 16_000 } };
+    context.processor.onaudioprocess?.(frame);
+    expect(onMic).not.toHaveBeenCalled();
+    audio.setMicEnabled(true);
+    context.processor.onaudioprocess?.(frame);
+    expect(onMic).toHaveBeenCalledOnce();
+    audio.setMicEnabled(false);
+    context.processor.onaudioprocess?.(frame);
+    expect(onMic).toHaveBeenCalledOnce();
+    expect(onSpeaking).toHaveBeenLastCalledWith(false, false);
+    audio.stop();
+  });
 });

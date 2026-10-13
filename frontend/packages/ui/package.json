@@ -33,6 +33,10 @@
       "default": "./src/legal/index.ts"
     },
     "./components/*": "./src/components/*",
+    "./services/voiceCall": {
+      "types": "./src/services/voiceCall.ts",
+      "default": "./src/services/voiceCall.ts"
+    },
     "./utils/*": "./src/utils/*",
     "./stores/*": "./src/stores/*",
     "./stores/uiStateStore": {

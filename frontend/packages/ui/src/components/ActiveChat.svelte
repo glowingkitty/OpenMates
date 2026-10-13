@@ -13,6 +13,8 @@ import { storageArchiveFetch } from "../config/api";
     import SharedAuxiliaryLoadButton from './SharedAuxiliaryLoadButton.svelte';
     import ChatProcessingIndicator from './ChatProcessingIndicator.svelte';
     import AssistantSpeechPlayer from './AssistantSpeechPlayer.svelte';
+    import VoiceCallBar from './voicecall/VoiceCallBar.svelte';
+    import { voiceCallController } from '../services/voiceCall';
     import NewChatSuggestions from './NewChatSuggestions.svelte';
     import ChatSearchSuggestions from './ChatSearchSuggestions.svelte';
     // FollowUpSuggestions has been moved to ChatHistory.svelte (rendered below last assistant message)
@@ -220,6 +222,11 @@ import { storageArchiveFetch } from "../config/api";
     } from '../services/applicationPreviewService';
     import { externalLinks } from '../config/links';
 
+    let { globalVoiceCallControlsVisible = false, onVisibleChatReady }: {
+        globalVoiceCallControlsVisible?: boolean;
+        onVisibleChatReady?: (chatId: string | null) => void;
+    } = $props();
+
     const GUEST_EXAMPLE_SURFACES = new Set<DailyInspirationSurface>(['chats', 'projects', 'workflows']);
     const GUEST_INPUT_LINK_ROTATION_MS = 6500;
     const GuestAllExamplesBackIcon = getLucideIcon('grid-2x2');
@@ -327,6 +334,7 @@ import { storageArchiveFetch } from "../config/api";
         getTextContent: () => string;
         hasLiveUserEditForChat: (chatId: string) => boolean;
         clearMessageField: (shouldSaveDraft: boolean, preserveContext?: boolean) => Promise<void>;
+        stopRecordingForVoiceCall: () => void;
     };
 
     type EmbedResolverData = {
@@ -5499,6 +5507,13 @@ import { storageArchiveFetch } from "../config/api";
      let chatLoadState = $state<'idle' | 'loading' | 'repairing' | 'ready' | 'error'>(
         initialPublicChat || initialAnonymousChat || initialRecentChatSelection ? 'ready' : 'idle',
      );
+     $effect(() => {
+         // The bound chat can render its header, composer, and incoming call
+         // transcripts before its history window finishes loading. It can host
+         // the inline controls as soon as that surface is visible.
+         onVisibleChatReady?.(!showWelcome && chatLoadState !== 'error' ? currentChat?.chat_id ?? null : null);
+     });
+     onDestroy(() => onVisibleChatReady?.(null));
      // A warm history/header can render before the editor's encrypted draft and
      // ownership context are known. Keep the editor mounted for restoration but
      // unavailable to the user until both canonical checks have settled.
@@ -5669,6 +5684,7 @@ import { storageArchiveFetch } from "../config/api";
       }
 
       async function speakAssistantMessage(messageId: string, content: string): Promise<void> {
+        if (voiceCallOwnsAudio) return;
         const chatId = currentChat?.chat_id;
         if (!chatId || currentChat?.is_incognito) return;
         const assistantMessage = currentMessages.find((message) => message.message_id === messageId);
@@ -6903,7 +6919,7 @@ import { storageArchiveFetch } from "../config/api";
 
         // Save to IndexedDB or incognito service
         if (messageToSave) {
-            if (autoSpeakResponse && messageToSave.role === 'assistant' && typeof messageToSave.content === 'string') {
+            if (autoSpeakResponse && !voiceCallOwnsAudio && messageToSave.role === 'assistant' && typeof messageToSave.content === 'string') {
                 assistantSpeechController.registerSource(chunk.chat_id, chunk.message_id, messageToSave.content);
             }
             try {
@@ -7982,6 +7998,28 @@ import { storageArchiveFetch } from "../config/api";
     const showChatSettingsAction = $derived(!!(hasActiveChatDetailsSurface && currentChat?.chat_id && (isExampleChat(currentChat.chat_id) || $authStore.isAuthenticated || currentChat.is_shared_by_others)));
     const showChatRemindersAction = $derived(!!(hasActivePrivateChatSurface && $authStore.isAuthenticated && currentChat?.chat_id && !currentChat.is_shared_by_others));
     const showChatPIIAction = $derived(!!(chatHasPII && !showWelcome));
+    const voiceCallOwnsAudio = $derived($voiceCallController.status === 'connecting' || $voiceCallController.status === 'live');
+    let voiceCallInlineHeight = $state(0);
+    const showVoiceCallBarHere = $derived(
+        !globalVoiceCallControlsVisible &&
+        (($voiceCallController.status === 'connecting' && !$voiceCallController.chatId) ||
+            (!showWelcome && !!currentChat?.chat_id && currentChat.chat_id === $voiceCallController.chatId))
+    );
+    const voiceCallExpandedHere = $derived(showVoiceCallBarHere && !$voiceCallController.minimized);
+    const voiceCallLaunchEligible = $derived(
+        $authStore.isAuthenticated && !voiceCallOwnsAudio &&
+        (showWelcome ? !$incognitoMode : !!currentChat?.chat_id && !currentChat.is_incognito &&
+            !currentChat.is_shared_by_others && !currentChat.team_id && currentChat.chat_visibility !== 'direct' &&
+            !isPublicChat(currentChat.chat_id))
+    );
+
+    function handleStartVoiceCall(): void {
+        if (!voiceCallLaunchEligible) return;
+        messageInputFieldRef?.stopRecordingForVoiceCall();
+        void assistantSpeechController.stop();
+        const chatId = showWelcome ? undefined : currentChat?.chat_id;
+        void voiceCallController.start(chatId, (boundChatId) => { void handleChatNavigate(boundChatId); });
+    }
 
     async function handleCloseChat() {
         // In split view, close only the pane; preserve the active chat and embed.
@@ -14031,8 +14069,10 @@ import { storageArchiveFetch } from "../config/api";
                     bind:this={chatSideEl}
                     bind:clientWidth={chatSideWidth}
                     bind:clientHeight={chatSideHeight}
+                    class:voice-call-inline-active={voiceCallExpandedHere}
                     style:--welcome-banner-height={`${welcomeBannerHeight}px`}
                     style:--assistant-speech-overlay-reserve={`${assistantSpeechOverlayHeight}px`}
+                    style:--voice-call-inline-reserve={`${voiceCallInlineHeight}px`}
                 >
                     <!-- Welcome hero/inspiration banners – shown above greeting on new chat screen. -->
                     <!-- Guests and authenticated users see ordinary Daily Inspiration. -->
@@ -14213,6 +14253,17 @@ import { storageArchiveFetch } from "../config/api";
                     {/if}
                   {/snippet}
                   {#snippet close()}
+                    {#if voiceCallLaunchEligible}
+                      <div class="new-chat-button-wrapper">
+                        <button
+                          class="header-action"
+                          data-testid="voice-call-start"
+                          aria-label={$text('voicecall.start')}
+                          onclick={handleStartVoiceCall}
+                          use:tooltip
+                        ><span class="clickable-icon icon_phone top-button" aria-hidden="true"></span><span class="action-label">{$text('voicecall.start')}</span></button>
+                      </div>
+                    {/if}
                     {#if !showWelcome}
                       <div class="new-chat-button-wrapper">
                         <button
@@ -15055,6 +15106,15 @@ import { storageArchiveFetch } from "../config/api";
                         </button>
                     {/if}
                 </div>
+
+                {#if showVoiceCallBarHere}
+                    <div class="voice-call-inline-region" bind:clientHeight={voiceCallInlineHeight}>
+                        <VoiceCallBar
+                            underFloatingHeader={!showWelcome}
+                            onReturn={(chatId) => { void handleChatNavigate(chatId); }}
+                        />
+                    </div>
+                {/if}
 
                 <!-- Right side container for message input -->
                 <div
@@ -17275,6 +17335,31 @@ import { storageArchiveFetch } from "../config/api";
         overflow: hidden;
         container-type: inline-size;
         container-name: chat-side;
+    }
+
+    .voice-call-inline-region {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        inset-block-start: 0;
+        inset-inline-start: 0;
+        width: 100%;
+        box-sizing: border-box;
+        z-index: var(--z-index-dropdown-2);
+        pointer-events: none;
+    }
+
+    .voice-call-inline-region :global(.voice-call-bar) {
+        pointer-events: auto;
+    }
+
+    .active-chat-container.extra-wide .chat-wrapper.fullscreen .voice-call-inline-region {
+        width: 65%;
+        padding-inline-end: var(--spacing-10);
+    }
+
+    .chat-side.voice-call-inline-active :global(.chat-history-wrapper) {
+        top: var(--voice-call-inline-reserve, 0px);
     }
 
     .chat-side.welcome-chat-side {

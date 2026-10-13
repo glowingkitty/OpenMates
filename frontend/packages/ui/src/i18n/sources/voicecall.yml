@@ -1,0 +1,156 @@
+# Integrated audio-only calls in private chats. Other locales fall back to English.
+title:
+  context: Persistent call control title
+  en: Voice call
+  de: Sprachanruf
+  verified_by_human: []
+provider:
+  context: Live provider disclosure
+  en: Via Google Gemini
+  de: Über Google Gemini
+  verified_by_human: []
+start:
+  context: Chat header button that starts a voice call
+  en: Start voice call
+  de: Sprachanruf starten
+  verified_by_human: []
+connecting:
+  context: Voice call is connecting and microphone audio is not yet sent
+  en: Connecting… Wait to speak.
+  de: Verbindung wird hergestellt… Bitte noch nicht sprechen.
+  verified_by_human: []
+live:
+  context: Ready for voice conversation
+  en: Listening · You can speak now
+  de: Hört zu · Du kannst jetzt sprechen
+  verified_by_human: []
+muted:
+  context: Local microphone is muted
+  en: Microphone muted
+  de: Mikrofon stummgeschaltet
+  verified_by_human: []
+assistant_speaking:
+  context: Model speech is playing
+  en: Gemini is speaking
+  de: Gemini spricht
+  verified_by_human: []
+interrupted:
+  context: Suffix for an assistant reply cut short by the caller
+  en: (interrupted)
+  de: (unterbrochen)
+  verified_by_human: []
+credits:
+  context: Charged usage count label
+  en: credits
+  de: Credits
+  verified_by_human: []
+credits_per_minute:
+  context: Estimated voice call rate after numeric value
+  en: credits/min
+  de: Credits/Min.
+  verified_by_human: []
+return_to_chat:
+  context: Navigate to the chat that owns the call
+  en: Return to chat
+  de: Zum Chat zurück
+  verified_by_human: []
+mute:
+  context: Disable call microphone transmission
+  en: Mute
+  de: Stumm
+  verified_by_human: []
+unmute:
+  context: Enable call microphone transmission
+  en: Unmute
+  de: Ton an
+  verified_by_human: []
+minimize:
+  context: Collapse persistent call controls
+  en: Minimize
+  de: Minimieren
+  verified_by_human: []
+expand:
+  context: Expand persistent call controls
+  en: Expand
+  de: Erweitern
+  verified_by_human: []
+hangup:
+  context: Stop live call and release audio
+  en: Hang up
+  de: Auflegen
+  verified_by_human: []
+close:
+  context: Dismiss terminal call error
+  en: Close
+  de: Schließen
+  verified_by_human: []
+microphone_denied:
+  context: Browser denied microphone permission
+  en: Microphone access was denied.
+  de: Der Zugriff auf das Mikrofon wurde verweigert.
+  verified_by_human: []
+microphone_missing:
+  context: No browser microphone device available
+  en: No microphone was found.
+  de: Kein Mikrofon gefunden.
+  verified_by_human: []
+microphone_failed:
+  context: Microphone capture failed
+  en: Could not start the microphone.
+  de: Das Mikrofon konnte nicht gestartet werden.
+  verified_by_human: []
+session_expired:
+  context: Authentication expired before call admission
+  en: Your session expired. Sign in again to call.
+  de: Deine Sitzung ist abgelaufen. Melde dich erneut an.
+  verified_by_human: []
+connection_failed:
+  context: Call connection closed before ready
+  en: Could not connect the call.
+  de: Der Anruf konnte nicht verbunden werden.
+  verified_by_human: []
+connection_lost:
+  context: Call connection ended unexpectedly
+  en: Call connection lost.
+  de: Verbindung zum Anruf verloren.
+  verified_by_human: []
+call_unavailable:
+  context: Provider or admission unavailable
+  en: Voice calling is unavailable right now.
+  de: Sprachanrufe sind derzeit nicht verfügbar.
+  verified_by_human: []
+transcript_limit:
+  context: Voice call transcript exceeded the provider call limit
+  en: The call reached its transcript limit and ended.
+  de: Der Anruf hat das Transkriptlimit erreicht und wurde beendet.
+  verified_by_human: []
+invalid_response:
+  context: Unexpected call server response
+  en: The call received an invalid response.
+  de: Der Anruf erhielt eine ungültige Antwort.
+  verified_by_human: []
+transcript_save_failed:
+  context: Unable to encrypt or synchronize a live transcript
+  en: The transcript could not be saved. The call was stopped.
+  de: Das Transkript konnte nicht gespeichert werden. Der Anruf wurde beendet.
+  verified_by_human: []
+unsupported_content:
+  context: Bound call composer has an attachment or app skill
+  en: Attachments and app skills are not available in voice calls yet. Your draft is saved.
+  de: Anhänge und App Skills sind in Sprachanrufen noch nicht verfügbar. Dein Entwurf bleibt erhalten.
+  verified_by_human: []
+text_only_hint:
+  context: Composer hint when it belongs to the active voice call
+  en: 'Voice call: text only. Attachments and app skills are unavailable for now.'
+  de: 'Sprachanruf: nur Text. Anhänge und App Skills sind derzeit nicht verfügbar.'
+  verified_by_human: []
+text_too_long:
+  context: Bound call composer text exceeds live provider message limit
+  en: Voice call messages can contain up to 8,000 characters. Your draft is preserved.
+  de: Sprachnachrichten dürfen bis zu 8.000 Zeichen enthalten. Dein Entwurf bleibt erhalten.
+  verified_by_human: []
+recording_disabled:
+  context: Composer microphone button during a voice call
+  en: Recording is unavailable during a voice call.
+  de: Während eines Sprachanrufs ist die Aufnahme nicht verfügbar.
+  verified_by_human: []

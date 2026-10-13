@@ -797,6 +797,10 @@ export class ChatSynchronizationService extends EventTarget {
             console.error("[ChatSyncService] Error retrying pending messages:", error);
           });
         }
+        void import("./voiceCallMessages").then(({ retryPendingCallMessages }) =>
+          retryPendingCallMessages()).catch((error) => {
+          console.error("[ChatSyncService] Error retrying encrypted call messages:", error);
+        });
 
         // Flush any encrypted embeds that couldn't be sent while offline
         flushPendingEmbedOperations().catch((error) => {
@@ -1723,6 +1727,10 @@ export class ChatSynchronizationService extends EventTarget {
         },
       ),
     );
+    webSocketService.on("call_message_changed", async (payload) => {
+      const { applyCallMessageChanged } = await import("./voiceCallMessages");
+      await applyCallMessageChanged(payload as Record<string, unknown>);
+    });
     // Note: chat_metadata_for_encryption handler removed - using ai_typing_started for dual-phase architecture
     webSocketService.on("offline_sync_complete", (payload) =>
       coreSyncHandlers.handleOfflineSyncCompleteImpl(
@@ -3710,6 +3718,9 @@ export class ChatSynchronizationService extends EventTarget {
           }
           for (const raw of page.rows) {
             if (raw.role !== "user" || seen.has(raw.message_id)) continue;
+            // Voice-call rows have a dedicated ciphertext-only outbox. Sending
+            // one through sendNewMessage would start an unrelated AI turn.
+            if ((raw as Message & { call_persistence_v1?: unknown }).call_persistence_v1) continue;
             seen.add(raw.message_id);
             if (kind === "pending_turn" &&
                 typeof (raw as Message & { pending_encrypted_turn_preflight_v1?: unknown })

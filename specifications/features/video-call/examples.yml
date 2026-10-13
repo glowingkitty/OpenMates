@@ -1,29 +1,38 @@
 schema_version: 1
-specification: feature.video-call@1
+specification: feature.video-call@2
 launch:
 - id: start-in-existing-chat
-  given: Maya has her black-hole chat open in the future full call mode.
-  when: She activates the voice-call button.
-  then: The call uses that chat and visibly identifies Google Gemini and rounded credits per minute
-    before paid use; the displayed rounding does not change per-second usage billing.
+  given: Maya has an existing ramen chat open and is signed in with enough credits.
+  when: She presses the voice-call button beside Close.
+  then: Gemini and the estimated rate are visible; the call connects to the ramen chat with its text history,
+    then accepts speech.
+- id: start-in-new-chat
+  given: Maya is on the new-chat workspace without an open chat.
+  when: She presses the voice-call button at the right of the action row.
+  then: One encrypted personal chat is created before call admission; speech and replies belong to that chat.
 binding:
 - id: browse-another-chat
-  given: Maya is speaking in a call attached to her black-hole chat.
-  when: She selects her travel chat in the sidebar.
-  then: Travel opens in a new tab; the call tab stays on black holes and receives its own messages
-    and eventual whole-call recording.
+  given: Maya is speaking in a call attached to her ramen chat.
+  when: She closes that chat and opens her travel chat.
+  then: The call remains active in compact controls; its messages still enter ramen, while typed travel messages
+    use the ordinary travel conversation.
 skills:
 - id: search-during-full-call
-  given: A future full-mode call is discussing a destination in the travel chat.
+  given: Phase 2 is available in a call discussing hotels.
   when: Maya asks Gemini to find a hotel.
-  then: The existing hotel skill uses its normal rules, publishes results in that chat and may present
-    selected results in the call.
+  then: Jev-backed discovery selects relevant capabilities, authorized execution uses normal skill rules, and
+    ordinary result embeds appear in the same chat alongside natural spoken explanation.
+- id: file-during-call
+  given: Maya submits an agreement PDF during a phase-2 call.
+  when: She asks Gemini to explain its cancellation terms.
+  then: The call waits for processing if necessary, uses the authorized PDF tools and presents an explanation
+    with the usual chat results.
 recording:
 - id: save-mixed-call
   given: Maya's future full-mode call switches from audio to generated video and back to audio.
   when: She ends the call.
-  then: One encrypted video recording covers the entire conversation; audio-only intervals show the
-    mate portrait and gently animated AI icon, with both voices preserved.
+  then: One encrypted video recording covers the entire conversation; audio-only intervals show the mate portrait
+    and gently animated AI icon, with both voices preserved.
 - id: save-audio-only-call
   given: Maya's future full-mode call never contains video.
   when: She ends the call.
@@ -32,8 +41,8 @@ replay:
 - id: open-ended-call
   given: Maya's completed mixed audio/video call has finished its encrypted upload.
   when: She activates Video call ended in its originating chat.
-  then: Authorized playback opens beside chat on a wide screen or fullscreen on a phone, with a playable
-    download and no new inference charge.
+  then: Authorized playback opens beside chat on a wide screen or fullscreen on a phone, with a playable download
+    and no new inference charge.
 privacy:
 - id: unauthorized-call
   given: A caller lacks a valid first-party session or permitted origin.
@@ -42,5 +51,51 @@ privacy:
 - id: admission-unavailable
   given: Authoritative credit admission or the concurrent-call lock is unavailable.
   when: Maya tries to start a paid experimental call.
-  then: The call is refused visibly without spending provider credit or exposing keys or private
-    media.
+  then: The call is refused visibly without spending provider credit or exposing keys or private media.
+transcripts:
+- id: speech-survives-reload
+  given: Maya asks a question by voice and Gemini responds, with user transcription arriving after the first
+    assistant fragment.
+  when: Both turns finish and encrypted storage is acknowledged, then Maya reloads.
+  then: The question precedes its answer, each appears once as an ordinary message, and no plaintext transcript
+    was sent to durable storage.
+- id: interrupt-and-continue
+  given: Gemini is explaining ramen and Maya sees the response growing in chat.
+  when: Maya interrupts, then ends the call and sends a typed follow-up.
+  then: Queued speech stops, the interrupted response text remains visibly incomplete and encrypted, and ordinary
+    text conversation can refer to it.
+typed:
+- id: paste-during-call
+  given: Maya is in a live call in her ramen chat and pastes a recipe into its composer.
+  when: She presses Send and asks Gemini to explain it.
+  then: The pasted text appears once as an encrypted user message, reaches the live model, and produces one
+    voice response without a separate text inference.
+- id: preserve-draft-attachment
+  given: Phase 1 is active and Maya has an unsupported file attachment in the bound composer.
+  when: She attempts to submit the attachment.
+  then: The UI explains that file processing is unavailable in this phase and preserves her draft instead of
+    silently omitting it.
+audio:
+- id: one-microphone-owner
+  given: Maya has started a voice call.
+  when: She checks the composer, mutes the call, then presses Hangup.
+  then: Composer recording is unavailable during the call, mute stops microphone transmission, and Hangup releases
+    audio resources and restores recording controls.
+lifecycle:
+- id: rollover-and-disconnect
+  given: A call has saved several turns and has accrued usage.
+  when: Gemini rolls over its connection, then the browser connection fails.
+  then: Planned rollover retains the timer, ledger and message identities; terminal loss visibly ends capture
+    and preserves transcript recovery without automatically opening another paid call.
+video:
+- id: share-and-generate
+  given: Maya is in a phase-3 call.
+  when: She explicitly shares her screen, then requests a generated illustration video and stops sharing.
+  then: The assistant can interpret the shared view; generated video plays and remains a normal chat embed;
+    stopping visual input leaves voice and transcripts active.
+providers:
+- id: first-provider
+  given: Only the Gemini voice adapter is enabled for phase 1.
+  when: Maya starts a call.
+  then: The UI identifies Gemini, unsupported capabilities stay unavailable, and all messages use the same
+    chat encryption and identities as future adapters.

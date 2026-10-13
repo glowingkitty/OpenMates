@@ -683,10 +683,10 @@ specifications:
     required_applies_to:
     - cli
   feature.video-call:
-    version: 1
-    status: draft
+    version: 2
+    status: approved
     path: features/video-call
-    fingerprint: 99ba003de4959d0dba9c4aed32e21358d23941817b5a644276acd34d8a04fb58
+    fingerprint: 56d97387abdb7c6708c4ef06f6860b55547055059e646be3dada3f682d388efe
     required_applies_to:
     - gui.web
   feature.video-call-experiment:
@@ -8849,45 +8849,87 @@ assertions:
     required_applies_to:
     - cli
   video-call.chat.launch-and-provider:
-    specification: feature.video-call@1
+    specification: feature.video-call@2
     specification_id: feature.video-call
     type: behavior
-    fingerprint: ec8e56c37dfe49c1019d9a6264248c70d0835d735190648559128cde3bf83269
+    fingerprint: f5571cd1f29257fdb93fe190d7c5f607d7f4b49fe4cb9efc024448b7d701ab37
     required_applies_to:
     - gui.web
   video-call.chat.fixed-binding:
-    specification: feature.video-call@1
+    specification: feature.video-call@2
     specification_id: feature.video-call
     type: invariant
-    fingerprint: fe254fba804c8e504ba6762b1c2139e69eae4741a845c60851c6bee50efc0429
+    fingerprint: 60ac096a571543da820be9e74d1eaaea989af54625c7c93ccfb4e818cd05f250
     required_applies_to:
     - gui.web
   video-call.chat.skill-integration:
-    specification: feature.video-call@1
+    specification: feature.video-call@2
     specification_id: feature.video-call
     type: behavior
-    fingerprint: ae9506aef5b416c865bdef1e10bcfcd4dcb837fdb17d49cc296e94636dc07a8d
+    fingerprint: 29f0a35a70d9df2cfc1ab56d216a6edb899181e16a70737d3896a86084d9bf47
     required_applies_to:
     - gui.web
   video-call.recording.encrypted-whole-call:
-    specification: feature.video-call@1
+    specification: feature.video-call@2
     specification_id: feature.video-call
     type: invariant
     fingerprint: 9771396c15f4f9160f4d0f535f49d97a164fa80e4fcba01a822108b70c2043fe
     required_applies_to:
     - gui.web
   video-call.recording.open-and-download:
-    specification: feature.video-call@1
+    specification: feature.video-call@2
     specification_id: feature.video-call
     type: behavior
     fingerprint: e7954782b4dd8ee486f604ca93359bcdd054a7f79d659e328f4b1d325f9907e3
     required_applies_to:
     - gui.web
   video-call.privacy:
-    specification: feature.video-call@1
+    specification: feature.video-call@2
     specification_id: feature.video-call
     type: invariant
-    fingerprint: aa56bc3e2e4772715bbf8882d03dbd793ae3bf2b051bd65b51150189c9e62fda
+    fingerprint: a11a6a144ceb4af34d46468299928e190af5c062ee8e2bb9849b5f65ed426438
+    required_applies_to:
+    - gui.web
+  video-call.chat.transcripts:
+    specification: feature.video-call@2
+    specification_id: feature.video-call
+    type: behavior
+    fingerprint: 14a706ac69c4e1942facb06edfb7d4b58d6c477f94cf04d30768ec2d5b1869a7
+    required_applies_to:
+    - gui.web
+  video-call.chat.typed-input:
+    specification: feature.video-call@2
+    specification_id: feature.video-call
+    type: behavior
+    fingerprint: caf82e6a4847d998d14fe59fab288c201fe358e776d48065e8895ea4b6c64318
+    required_applies_to:
+    - gui.web
+  video-call.audio.single-owner:
+    specification: feature.video-call@2
+    specification_id: feature.video-call
+    type: invariant
+    fingerprint: b14528cd52ff436fd9c484b66d2216c0397882811f4c88a4a6e6f35b829e56e0
+    required_applies_to:
+    - gui.web
+  video-call.lifecycle.recovery-and-billing:
+    specification: feature.video-call@2
+    specification_id: feature.video-call
+    type: invariant
+    fingerprint: 80c57016ec87bcd12528cff0e48c065eeed607138b2eadff21aff4d9f4d04b5b
+    required_applies_to:
+    - gui.web
+  video-call.video.input-and-output:
+    specification: feature.video-call@2
+    specification_id: feature.video-call
+    type: behavior
+    fingerprint: 904c8ecdb99867631e1c445a5588a55f08679599fb99550ff4c41b49cb8076de
+    required_applies_to:
+    - gui.web
+  video-call.provider.boundary:
+    specification: feature.video-call@2
+    specification_id: feature.video-call
+    type: invariant
+    fingerprint: e831f25eac8af253be2685178765f9c3723a9ccd511a951d0a8a63fe7dc7117b
     required_applies_to:
     - gui.web
   video-call.experiment.live-voice:

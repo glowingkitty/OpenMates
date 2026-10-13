@@ -1306,6 +1306,16 @@ export async function saveMessage(
       getRequest.onsuccess = () => {
         const previous = getRequest.result as (Message & Record<string, unknown>) | undefined;
         const next = encryptedMessage as Message & Record<string, unknown>;
+        const callJournal = previous?.call_persistence_v1 as { entries?: unknown[] } | undefined;
+        if (previous?.chat_id === message.chat_id && previous.role === message.role &&
+            Array.isArray(callJournal?.entries) && callJournal.entries.length > 0) {
+          // A phased-sync snapshot may still contain the previous call revision.
+          // Only the call receipt may clear its exact randomized ciphertext outbox.
+          const preserved = store.put(previous);
+          preserved.onsuccess = () => { if (!resolveOnComplete) resolve(); };
+          preserved.onerror = () => reject(preserved.error);
+          return;
+        }
         // The caller may hold a stale decrypted copy from before ACK cleanup.
         // Only the current raw row may authorize retaining this field.
         for (const field of ["pending_encrypted_embed_bundle_v1", "pending_encrypted_turn_preflight_v1"]) {
@@ -1749,6 +1759,15 @@ export async function batchSaveMessages(
       getRequest.onsuccess = () => {
         const previous = getRequest.result as (Message & Record<string, unknown>) | undefined;
         const next = encrypted as Message & Record<string, unknown>;
+        const callJournal = previous?.call_persistence_v1 as { entries?: unknown[] } | undefined;
+        if (previous?.chat_id === message.chat_id && previous.role === message.role &&
+            Array.isArray(callJournal?.entries) && callJournal.entries.length > 0) {
+          const preserved = store.put(previous);
+          preserved.onerror = () => {
+            console.error(`[ChatDatabase] batchSaveMessages: Pending call row preservation failed for ${message.message_id}:`, preserved.error);
+          };
+          return;
+        }
         for (const field of ["pending_encrypted_embed_bundle_v1", "pending_encrypted_turn_preflight_v1"]) {
           delete next[field];
           if (previous?.chat_id === message.chat_id &&
