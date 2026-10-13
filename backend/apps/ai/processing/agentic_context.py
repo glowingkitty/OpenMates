@@ -251,7 +251,15 @@ def receipt_event(request: Any, receipt: dict) -> dict:
     context_revision = receipt.get("context_revision", "")
     return {**receipt, "event_id": str(uuid.uuid5(uuid.NAMESPACE_URL,
             f"{request.chat_id}:{request.message_id}:{receipt['type']}:{identity}:{context_revision}")),
-            "chat_id": request.chat_id, "created_at": int(time.time())}
+            "chat_id": request.chat_id, "created_at": int(time.time()),
+            **({"user_message_id": request.message_id} if receipt.get("type") == "memories_loaded" else {})}
+
+
+def attach_memory_receipt_assistant_id(receipt: dict, assistant_message_id: str) -> dict:
+    """Bind a loaded-Memory notice to the same assistant ID used by stream output."""
+    if receipt.get("type") != "memories_loaded":
+        return receipt
+    return {**receipt, "assistant_message_id": assistant_message_id}
 
 
 def goal_revision(history: list) -> str:

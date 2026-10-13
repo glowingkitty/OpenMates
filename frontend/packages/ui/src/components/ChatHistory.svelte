@@ -11,6 +11,7 @@ import { storageArchiveFetch } from "../config/api";
   import ChatMessage from "./ChatMessage.svelte";
   import AgentContextMessage from './AgentContextMessage.svelte';
   import { parseAgentContextEvent, type ProjectAuthoringRecommendation } from '../utils/agentContextEvents';
+  import { associateLoadedMemories } from '../utils/associateLoadedMemories';
   import { projectAuthoringJobs, saveProjectAuthoring } from '../services/projectAuthoringClientService';
   import FollowUpSuggestions from './FollowUpSuggestions.svelte';
   import QuickTipsCard from './QuickTipsCard.svelte';
@@ -878,7 +879,7 @@ import { storageArchiveFetch } from "../config/api";
     return messages.slice(0, compressionSummaryIndex);
   });
 
-  let displayMessages = $derived.by(() => {
+  let candidateDisplayMessages = $derived.by(() => {
     if (latestCompressionCheckpoint) {
       const summaryMessage = makeCompressionSummaryMessage(latestCompressionCheckpoint);
       const recentMessages = messages.filter(
@@ -893,8 +894,17 @@ import { storageArchiveFetch } from "../config/api";
       ? messages.slice(compressionSummaryIndex)
       : messages;
 
-    return base.filter(msg => {
+    return base;
+  });
+
+  let loadedMemoryAssociation = $derived.by(() => associateLoadedMemories(candidateDisplayMessages, pendingAssistantResponse
+    ? { taskId: pendingAssistantResponse.taskId, userMessageId: pendingAssistantResponse.userMessageId, chatId: currentChatId }
+    : null));
+
+  let displayMessages = $derived.by(() => {
+    return candidateDisplayMessages.filter(msg => {
       if (msg.role === 'system') {
+        if (loadedMemoryAssociation.attachedReceiptIds.has(msg.id)) return false;
         const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
         // Filter out app_settings_memories_response system messages
         if (response?.type === 'app_settings_memories_response') {
@@ -3115,6 +3125,7 @@ import { storageArchiveFetch } from "../config/api";
                         _embedUpdateTimestamp={msg._embedUpdateTimestamp}
                         hasEmbedErrors={msg._embedErrors ? msg._embedErrors.size > 0 : false}
                         appSettingsMemoriesResponse={msg.role === 'user' ? appSettingsMemoriesResponseMap.get(msg.id) : undefined}
+                        loadedMemories={msg.role === 'assistant' ? loadedMemoryAssociation.byAssistantId.get(msg.id) ?? [] : []}
                         thinkingContent={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.content ?? msg.original_message?.thinking_content) : undefined}
                         isThinkingStreaming={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.isStreaming || false) : false}
                         piiMappings={cumulativePIIMappingsArray}
@@ -3156,6 +3167,7 @@ import { storageArchiveFetch } from "../config/api";
                   server_region={pendingAssistantResponse.serverRegion}
                   messageId={pendingAssistantResponse.taskId}
                   userMessageId={pendingAssistantResponse.userMessageId}
+                  loadedMemories={loadedMemoryAssociation.byAssistantId.get(pendingAssistantResponse.taskId) ?? []}
                   containerWidth={containerWidth} isTransientResponse={true} />
               </div>
             {/if}

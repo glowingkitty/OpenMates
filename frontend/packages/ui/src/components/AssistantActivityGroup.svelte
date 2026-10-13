@@ -7,10 +7,11 @@
   No elapsed time is shown without a measured duration supplied by the response.
 -->
 <script lang="ts">
-  import { onMount, onDestroy, type Snippet } from 'svelte';
+  import { onMount, onDestroy, untrack, type Snippet } from 'svelte';
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
   import Icon from './Icon.svelte';
   import ThinkingSection from './ThinkingSection.svelte';
+  import LoadedMemoryPills from './LoadedMemoryPills.svelte';
   import { appSkillsStore } from '../stores/appSkillsStore';
   import { pendingFocusActivationStore } from '../stores/pendingFocusActivationStore';
   import { activeChatFocusStore } from '../stores/activeChatFocusStore';
@@ -22,17 +23,20 @@
   import { text } from '@repo/ui';
   import { assistantActivityItems, type AssistantDocument } from '../message_parsing/assistantActivityRuns';
   import type { PIIMapping } from '../types/chat';
+  import type { AppliedMemory } from '../utils/loadedMemoryReceipt';
+  import { loadedMemoryName } from '../utils/loadedMemoryDisplay';
+  import { activitySummaryCandidates } from '../utils/assistantActivitySummary';
 
   let {
     document, appIds = [], thinkingContent = '', thinkingStreaming = false, active = false,
     chatId = undefined, embedUpdateTimestamp = 0, piiMappings = undefined,
     piiRevealed = false, onEmbedClick = undefined,
-    workedInSubChats = false, subChatsActive = false, children,
+    workedInSubChats = false, subChatsActive = false, loadedMemories = [], children,
   }: {
     document?: AssistantDocument; appIds?: string[]; thinkingContent?: string; thinkingStreaming?: boolean; active?: boolean;
     chatId?: string; embedUpdateTimestamp?: number; piiMappings?: PIIMapping[];
     piiRevealed?: boolean; onEmbedClick?: (event: CustomEvent) => void;
-    workedInSubChats?: boolean; subChatsActive?: boolean; children?: Snippet;
+    workedInSubChats?: boolean; subChatsActive?: boolean; loadedMemories?: AppliedMemory[]; children?: Snippet;
   } = $props();
 
   let expanded = $state(false);
@@ -202,14 +206,11 @@
     const translated = $text(key);
     return translated && !translated.startsWith('[T:') && translated !== key ? translated : fallback;
   }
-  const appNames = $derived(appIds.map((id) => {
+  const distinctAppIds = $derived([...new Set(appIds)]);
+  const appNames = $derived(distinctAppIds.map((id) => {
     const app = appSkillsStore.getApp(id);
     return displayName(app?.name_translation_key || '', app?.name || id.replace(/_/g, ' ').replace(/^./, (letter) => letter.toUpperCase()));
   }));
-  const appList = $derived(appNames.length > 1
-    ? $text('chat.response_activity.list_last', { values: { items: appNames.slice(0, -1).join(', '), last: appNames.at(-1)! } })
-    : appNames[0] ?? '');
-  const appIcons = $derived(appIds.map((id) => ({ id, name: appSkillsStore.getApp(id)?.icon_image?.replace(/\.svg$/i, '') || id })));
   const cancelledFocusIds = $derived(focuses.filter((item) => {
     const pending = pendingForFocus(item);
     return rejectedFocusIds.includes(String(item.id)) || (pending?.activationPolicy === 'approval' && pending.expired && !pending.confirmed);
@@ -220,51 +221,83 @@
     return displayName(key, key.includes('.') ? fallback : key);
   }));
   const hasSubChats = $derived(workedInSubChats || batches.length > 0);
-  const summary = $derived.by(() => {
-    const clauses: string[] = [];
-    if (groupActive) {
-      if (appNames.length) clauses.push($text(active && !skillsComplete ? (thinkingStreaming ? 'chat.response_activity.thinking_using' : 'chat.response_activity.using')
-        : `chat.response_activity.used_${appNames.length === 1 ? 'single' : 'multiple'}`, { values: { apps: appList } }));
-      if (focusNames.length) clauses.push($text(focuses.some((item) => focusOpen(item) && $activeChatFocusStore[chatId ?? ''] !== item.focus_id)
-        ? 'chat.response_activity.focus_activating' : 'chat.response_activity.focus_activated', { values: { focus: focusNames.join("', '") } }));
-      if (hasSubChats) clauses.push($text(subChatsActive || batches.some(batchOpen) ? 'chat.response_activity.sub_chats_working' : 'chat.response_activity.sub_chats'));
-      if (clauses.length) return clauses.join('. ');
+  const stackIcons = $derived.by(() => {
+    const icons: Array<{ id: string; name: string; kind: string }> = [];
+    const add = (id: string, kind: string, name?: string) => {
+      if (!id || icons.some((icon) => icon.id === id) || icons.length === 3) return;
+      icons.push({ id, kind, name: name || appSkillsStore.getApp(id)?.icon_image?.replace(/\.svg$/i, '') || id });
+    };
+    // First in DOM and highest z-index: thinking remains at the front of the stack.
+    if (thinkingContent) add('ai', 'thinking', 'ai');
+    loadedMemories.forEach((memory) => { if (memory.app_id) add(memory.app_id, 'memory'); });
+    distinctAppIds.forEach((id) => add(id, 'skill'));
+    focuses.forEach((item) => add(String(item.app_id ?? ''), 'focus'));
+    if (hasSubChats) add('ai', 'sub-chats', 'chat');
+    return icons;
+  });
+  const summaryCandidates = $derived(activitySummaryCandidates({
+    apps: appNames, memories: loadedMemories.map((memory) => { void $text; return loadedMemoryName(memory); }),
+    focuses: focusNames, thinking: !!thinkingContent,
+    usingApps: active && !skillsComplete && hasSkills,
+    thinkingStreaming, activatingFocus: focuses.some((item) => focusOpen(item) && $activeChatFocusStore[chatId ?? ''] !== item.focus_id),
+    subChats: hasSubChats, workingSubChats: subChatsActive || batches.some(batchOpen),
+    active: groupActive, cancelledFocus: cancelledFocusIds.length > 0,
+  }, (key, values) => $text(key, values ? { values } : undefined)));
+  let summaryLabel = $state<HTMLSpanElement>();
+  let summaryMeasure = $state<HTMLSpanElement>();
+  let selectedSummary = $state('');
+  const summary = $derived(summaryCandidates.includes(selectedSummary) ? selectedSummary : summaryCandidates[0]);
+
+  function fitSummary() {
+    if (!summaryLabel || !summaryMeasure || !summaryLabel.clientWidth) return;
+    const style = getComputedStyle(summaryLabel);
+    const lines = Number(style.getPropertyValue('--activity-summary-lines')) || 1;
+    const lineHeight = Number.parseFloat(style.lineHeight) || Number.parseFloat(style.fontSize) * 1.35;
+    summaryMeasure.style.font = style.font;
+    summaryMeasure.style.lineHeight = style.lineHeight;
+    summaryMeasure.style.letterSpacing = style.letterSpacing;
+    summaryMeasure.style.width = `${summaryLabel.clientWidth}px`;
+    for (const candidate of summaryCandidates) {
+      summaryMeasure.textContent = candidate;
+      if (summaryMeasure.getBoundingClientRect().height <= lineHeight * lines + 0.5) {
+        selectedSummary = candidate;
+        return;
+      }
     }
-    if (appNames.length) clauses.push($text(`chat.response_activity.${thinkingContent ? 'thought_used' : 'used'}_${appNames.length === 1 ? 'single' : 'multiple'}`, { values: { apps: appList } }));
-    if (focusNames.length) clauses.push($text(hasSubChats ? 'chat.response_activity.focus_sub_chats' : 'chat.response_activity.focus_activated', { values: { focus: focusNames.join("', '") } }));
-    else if (hasSubChats) clauses.push($text('chat.response_activity.sub_chats'));
-    if (clauses.length) return clauses.join('. ');
-    if (cancelledFocusIds.length) return $text('chat.response_activity.focus_cancelled');
-    return $text(groupActive ? 'chat.thinking.header_streaming' : 'chat.thinking.header_done');
+    selectedSummary = summaryCandidates[summaryCandidates.length - 1];
+  }
+  $effect(() => { void summaryCandidates; void summaryLabel; void summaryMeasure; untrack(fitSummary); });
+  onMount(() => {
+    const observer = new ResizeObserver(fitSummary);
+    if (summaryLabel) observer.observe(summaryLabel);
+    window.addEventListener('resize', fitSummary);
+    let mounted = true;
+    void window.document.fonts?.ready.then(() => { if (mounted) fitSummary(); });
+    return () => { mounted = false; observer.disconnect(); window.removeEventListener('resize', fitSummary); };
   });
 </script>
 
 <div class="assistant-activity-group" data-testid="assistant-activity-group" class:active={groupActive}>
   <button type="button" class="activity-summary" data-testid="assistant-activity-toggle"
-    aria-expanded={expanded} onclick={() => { expanded = !expanded; userToggled = true; }}>
+    aria-expanded={expanded} aria-label={summaryCandidates[0]} title={summaryCandidates[0]}
+    onclick={() => { expanded = !expanded; userToggled = true; }}>
     <span class="activity-icons" aria-hidden="true" data-testid="assistant-activity-icons">
-      {#if thinkingContent}
-        <span class="activity-app-icon activity-ai-icon" data-testid="assistant-thinking-app-icon"><Icon name="ai" type="app" appId="ai" size="18px" noAnimation noMargin ariaHidden /></span>
-      {/if}
-      {#if appIcons.length}
-        {#each appIcons.slice(0, 4) as app (app.id)}
-          <span class="activity-app-icon" data-testid="assistant-skill-app-icon"><Icon name={app.name} type="app" appId={app.id} size="18px" noAnimation noMargin ariaHidden /></span>
-        {/each}
-      {:else if !thinkingContent && !focuses.length && !hasSubChats}
+      {#each stackIcons as app, index (app.id)}
+        <span class="activity-app-icon" data-testid={`assistant-${app.kind === 'thinking' ? 'thinking' : app.kind === 'skill' ? 'skill' : app.kind}-app-icon`}
+          data-app-id={app.id} style:z-index={3 - index}>
+          <Icon name={app.name} type="app" appId={app.id} size="18px" noAnimation noMargin ariaHidden />
+        </span>
+      {:else}
         <Icon name="reasoning" size="16px" noAnimation noMargin ariaHidden />
-      {/if}
-      {#each focuses as focus (String(focus.id))}
-        <span class="activity-app-icon" data-testid="assistant-focus-app-icon"><Icon name={appSkillsStore.getApp(String(focus.app_id))?.icon_image?.replace(/\.svg$/i, '') || String(focus.app_id)} type="app" appId={String(focus.app_id)} size="18px" noAnimation noMargin ariaHidden /></span>
       {/each}
-      {#if hasSubChats}
-        <span class="activity-app-icon" data-testid="assistant-sub-chats-icon"><Icon name="chat" type="app" appId="ai" size="18px" noAnimation noMargin ariaHidden /></span>
-      {/if}
     </span>
-    <span class="summary-text">{summary}</span>
+    <span class="summary-text" data-testid="assistant-activity-summary-text" bind:this={summaryLabel}>{summary}</span>
     <span class="activity-arrow" class:expanded aria-hidden="true"></span>
   </button>
+  <span class="summary-measure" aria-hidden="true" bind:this={summaryMeasure}></span>
   {#if expanded}
     <div class="activity-body" data-testid="assistant-activity-body">
+      {#if loadedMemories.length}<LoadedMemoryPills memories={loadedMemories} />{/if}
       {#if thinkingContent || thinkingStreaming}
         <div class="response-thinking" data-testid="assistant-response-thinking">
           <div class="response-thinking-label">{$text('chat.response_activity.response_thinking')}</div>
@@ -282,19 +315,22 @@
 </div>
 
 <style>
-  .assistant-activity-group { margin-block: var(--spacing-2); border-radius: var(--radius-4); overflow: hidden; }
+  .assistant-activity-group { width: 100%; min-width: 0; margin-block: var(--spacing-2); border-radius: var(--radius-4); overflow: hidden; }
   .activity-summary { display: flex; align-items: center; gap: var(--spacing-2); width: 100%; min-height: 30px; padding: var(--spacing-1) var(--spacing-3); border: 0; border-radius: var(--radius-4); background: var(--color-grey-10); color: var(--color-font-primary); font: inherit; font-size: var(--font-size-small); text-align: start; cursor: pointer; }
   .activity-summary:hover { background: var(--color-grey-20); }
   .activity-summary:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: -2px; }
-  .activity-icons { display: inline-flex; align-items: center; flex: 0 0 auto; min-width: 16px; }
+  .activity-icons { display: inline-flex; align-items: center; flex: 0 0 auto; min-width: 16px; isolation: isolate; }
   .activity-app-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 22px; box-sizing: border-box; width: 22px; height: 22px; aspect-ratio: 1; border: 2px solid var(--color-grey-0); border-radius: 50%; overflow: hidden; }
   .activity-app-icon :global(.icon) { box-sizing: border-box; border-radius: 50% !important; }
-  .activity-app-icon + .activity-app-icon { margin-inline-start: -6px; }
-  .summary-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .activity-app-icon { position: relative; }
+  .activity-app-icon + .activity-app-icon { margin-inline-start: -8px; }
+  .summary-text { --activity-summary-lines: 2; flex: 1; min-width: 0; overflow-wrap: anywhere; line-height: 1.35; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--activity-summary-lines); overflow: hidden; }
+  .summary-measure { position: fixed; top: 0; left: 0; display: block; padding: 0; margin: 0; border: 0; visibility: hidden; pointer-events: none; overflow-wrap: anywhere; white-space: normal; }
   .activity-arrow { width: 8px; height: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); margin-inline-start: auto; flex: 0 0 auto; transition: transform var(--duration-fast) var(--easing-default); }
   .activity-arrow.expanded { transform: rotate(225deg); }
   .activity-body { padding: var(--spacing-2) var(--spacing-4) var(--spacing-4); background: var(--color-grey-10); }
   .response-thinking { margin-block-end: var(--spacing-3); color: var(--color-grey-70); }
   .response-thinking-label { font-size: var(--font-size-small); font-weight: 600; margin-block-end: var(--spacing-2); }
+  @media (min-width: 768px) { .summary-text { --activity-summary-lines: 1; } }
   @media (prefers-reduced-motion: reduce) { .activity-arrow { transition: none; } }
 </style>

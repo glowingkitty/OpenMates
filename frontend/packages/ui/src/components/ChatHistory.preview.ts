@@ -31,6 +31,12 @@ const savedAssistant = { message_id: "preview-saved-assistant", chat_id: chatId,
 const queuedUser = { message_id: "preview-queued-user", chat_id: chatId,
   role: "user", content: "Please shorten that reply.", created_at: timestamp + 2,
   status: "queued", queue_mode: "steer", queue_revision: 3 };
+const memoryReceipt = (messageId: string, ids: Record<string, string> = {}) => ({
+  message_id: messageId, chat_id: chatId, role: 'system', created_at: timestamp + 1, status: 'synced',
+  content: JSON.stringify({ type: 'memories_loaded', count: 1, set_key: 'a'.repeat(64), ...ids,
+    memories: [{ id: 'app:diagrams:type-flowchart', title: 'Diagram Design: Flowchart', source: 'app', app_id: 'diagrams',
+      revision: 'b'.repeat(64), body: '- Make the direction of the flow clear.' }] }),
+});
 const activeAssistant = { ...savedAssistant, status: "streaming", user_message_id: userId };
 const sendingFollowUp = { ...queuedUser, status: "sending" };
 const props = { currentChatId: chatId, chatTitle: "Writing preferences", chatCategory: "general_knowledge", canAnnotate: false, isExampleChat: true, sourceMessages: [user, unknown, known] };
@@ -50,4 +56,16 @@ export const variants = {
   savedAssistant: { ...props, pendingAssistantResponse: null, sourceMessages: [user, savedAssistant, queuedUser] },
   activeResponseSendingFollowUp: { ...activeResponseProps, sourceMessages: [user, activeAssistant, sendingFollowUp] },
   activeResponseQueuedFollowUp: { ...activeResponseProps, sourceMessages: [user, activeAssistant, queuedUser] },
+  loadedMemoryAttached: { ...props, pendingAssistantResponse: null, sourceMessages: [user,
+    memoryReceipt('preview-memory-receipt', { assistant_message_id: savedAssistant.message_id, user_message_id: userId }),
+    { ...savedAssistant, user_message_id: userId }, queuedUser] },
+  loadedMemoryOrphan: { ...props, pendingAssistantResponse: null, sourceMessages: [user,
+    memoryReceipt('preview-memory-orphan', { assistant_message_id: 'missing-assistant', user_message_id: userId }),
+    savedAssistant, queuedUser] },
+  loadedMemoryPending: { ...props, pendingAssistantResponse: { taskId: 'preview-pending-task', userMessageId: userId },
+    sourceMessages: [user, memoryReceipt('preview-memory-pending', { assistant_message_id: 'preview-pending-task', user_message_id: userId })] },
+  loadedMemoryOtherTurn: { ...props, pendingAssistantResponse: null, sourceMessages: [user,
+    memoryReceipt('preview-memory-other-turn', { assistant_message_id: 'preview-next-assistant', user_message_id: 'preview-queued-user' }),
+    { ...savedAssistant, user_message_id: userId }, queuedUser,
+    { ...savedAssistant, message_id: 'preview-next-assistant', user_message_id: 'preview-queued-user', created_at: timestamp + 3 }] },
 };

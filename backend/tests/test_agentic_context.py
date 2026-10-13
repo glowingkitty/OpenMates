@@ -56,6 +56,22 @@ def test_rule_receipts_deduplicate_retries_but_preserve_returning_phase_sets():
     assert first["event_id"] != returning["event_id"]
 
 
+# contract-test: supporting surface=rest_api assertions=app-memories.transparency.loaded-set
+def test_memory_receipt_correlates_with_the_emitted_assistant_message_id():
+    request = SimpleNamespace(chat_id="chat", message_id="user-turn")
+    receipt = agentic_context.receipt_event(request, {"type": "memories_loaded", "set_key": "A"})
+    current = agentic_context.attach_memory_receipt_assistant_id(receipt, "assistant-turn")
+    continuation = agentic_context.attach_memory_receipt_assistant_id(receipt, "continued-assistant-turn")
+    assert current["user_message_id"] == continuation["user_message_id"] == "user-turn"
+    assert current["assistant_message_id"] == "assistant-turn"
+    assert continuation["assistant_message_id"] == "continued-assistant-turn"
+    assert current["event_id"] == continuation["event_id"] == receipt["event_id"]
+    assert "assistant_message_id" not in receipt
+    assert agentic_context.attach_memory_receipt_assistant_id(
+        agentic_context.receipt_event(request, {"type": "rules_loaded", "set_key": "A"}), "assistant-turn"
+    ).get("assistant_message_id") is None
+
+
 # contract-test: supporting surface=rest_api assertions=workflows.chat.relevance-discovery
 def test_saved_graph_context_is_whole_and_bounded():
     small = {"workflow_id": "small", "graph": {"nodes": []}}

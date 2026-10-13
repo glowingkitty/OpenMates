@@ -9,6 +9,12 @@ import { mount, unmount } from 'svelte';
 import FocusModeActivationEmbed from './embeds/focus_mode/FocusModeActivationEmbed.svelte';
 import { embedRenderers } from './enter_message/extensions/embed_renderers';
 import type { EmbedRenderer } from './enter_message/extensions/embed_renderers/types';
+import { locale, waitLocale } from 'svelte-i18n';
+
+// The generic preview route has no language control; keep this local to its
+// explicit German fixture so translated summary width can be measured.
+export const ready = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('language') === 'de'
+  ? (locale.set('de'), document.documentElement.setAttribute('lang', 'de'), waitLocale()) : undefined;
 
 const embed = (attrs: Record<string, unknown>) => ({ type: 'paragraph', content: [{ type: 'embed', attrs }] });
 const doc = (...attrs: Record<string, unknown>[]): AssistantDocument => ({ type: 'doc', content: attrs.map(embed) });
@@ -113,6 +119,11 @@ if (typeof window !== 'undefined') {
 const liveBatch = { type: 'sub-chat-batch', id: 'preview-live-batch', parentChatId: liveChatId,
   batchId: 'preview-live-batch', contentRef: 'sub-chat-batch:preview-live-batch',
   parentMessageId: 'preview-live-task', taskId: 'preview-live-task', status: 'processing', subChatIds: liveIds };
+const manyApps = ['web', 'news', 'images', 'code', 'events', 'ai'];
+const fourApps = manyApps.slice(0, 4);
+const flowchartMemory = { id: 'app:diagrams:type-flowchart', title: 'Diagram Design: Flowchart',
+  source: 'app' as const, app_id: 'diagrams', revision: 'a'.repeat(64),
+  body: 'Fictional preview guidance for a simple flowchart.' };
 
 export default { document: doc(skill('code')), appIds: ['code'] };
 export const variants = {
@@ -120,6 +131,14 @@ export const variants = {
   streamingThinking: { document: doc({ type: 'app-skill-use-group', id: 'preview-thinking-skills', groupedItems: [skill('web'), skill('news'), skill('images')] }), appIds: ['web', 'news', 'images'], thinkingContent: Array.from({ length: 18 }, (_, i) => `Reasoning line ${i + 1}.`).join('\n\n'), thinkingStreaming: true, active: true },
   multiple: { document: doc(skill('web'), skill('news'), skill('images')), appIds: ['web', 'news', 'images'] },
   gradients: { document: doc(skill('code'), skill('events'), skill('ai')), appIds: ['code', 'events', 'ai'] },
+  fourApps: { document: doc(...fourApps.map(skill)), appIds: fourApps },
+  manyApps: { document: doc(...manyApps.map(skill)), appIds: manyApps },
+  manyAppsThinking: { document: doc(...manyApps.map(skill)), appIds: manyApps,
+    thinkingContent: 'Fictional reasoning preview.' },
+  loadedMemorySkills: { document: doc(skill('diagrams')), appIds: ['diagrams'], loadedMemories: [flowchartMemory] },
+  longMixed: { document: doc(...manyApps.map(skill), focus, batch), appIds: manyApps,
+    chatId: 'example-us-egg-prices-deep', loadedMemories: [{ ...flowchartMemory,
+      title: 'Diagram Design: Flowchart for a large cross-team research program' }] },
   focusSubChats: { document: doc(focus, batch), appIds: [], chatId: 'example-us-egg-prices-deep' },
   liveFocus: { document: doc(liveFocus), appIds: [], chatId: liveChatId, active: true },
   liveProjectFocus: { document: doc(projectFocus), appIds: [], chatId: liveChatId, active: true },

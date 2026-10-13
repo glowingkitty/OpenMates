@@ -51,6 +51,7 @@ from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.processing.main_processor import handle_main_processing, INTERNAL_API_BASE_URL, INTERNAL_API_SHARED_TOKEN
+from backend.apps.ai.processing.agentic_context import attach_memory_receipt_assistant_id
 from backend.apps.ai.processing.suggested_followup_stream import may_publish_suggested_followup
 from backend.apps.ai.sub_chat_orchestration import (
     build_sequential_child_prompt,
@@ -5945,6 +5946,7 @@ async def _consume_main_processing_stream(
             if isinstance(chunk, dict) and "__chat_context_applied__" in chunk:
                 receipt = chunk.get("receipt")
                 if cache_service and isinstance(receipt, dict) and receipt.get("chat_id") == request_data.chat_id:
+                    receipt = attach_memory_receipt_assistant_id(receipt, assistant_message_id)
                     await cache_service.publish_event(f"user_cache_events:{request_data.user_id}", {
                         "event_type": "chat_context_applied", "payload": {
                             "chat_id": request_data.chat_id, "event": receipt,

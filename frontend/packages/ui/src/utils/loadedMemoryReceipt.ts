@@ -5,15 +5,19 @@ export interface AppliedMemory {
 }
 export interface MemoriesLoadedEvent {
   type: 'memories_loaded'; count: number; set_key: string; memories: AppliedMemory[];
+  user_message_id?: string; assistant_message_id?: string;
 }
 const digest = /^[a-f0-9]{64}$/;
 const text = (value: unknown, max: number): value is string => typeof value === 'string' && !!value.trim() && value.length <= max;
+const messageId = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9_:-]{0,239}$/.test(value);
 export function parseMemoriesLoadedEvent(value: unknown): MemoriesLoadedEvent | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const event = value as Record<string, unknown>;
   if (event.type !== 'memories_loaded' || typeof event.set_key !== 'string' || !digest.test(event.set_key)
     || !Array.isArray(event.memories) || !event.memories.length || event.memories.length > 24
-    || event.count !== event.memories.length) return null;
+    || event.count !== event.memories.length
+    || (event.user_message_id !== undefined && !messageId(event.user_message_id))
+    || (event.assistant_message_id !== undefined && !messageId(event.assistant_message_id))) return null;
   const ids = new Set<string>(); let size = 0;
   for (const entry of event.memories) {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;

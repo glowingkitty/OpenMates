@@ -1,7 +1,16 @@
 // playwright-account: not_required reason=isolated_component_preview
 import { test, expect } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
-const preview = (variant = '', theme = 'light', width = 820) => `/dev/preview/AssistantActivityGroup?${new URLSearchParams({ variant, theme, width: String(width), background: '#dbeafe', chrome: '0' })}`;
+const preview = (variant = '', theme = 'light', width = 820, language = 'en') => `/dev/preview/AssistantActivityGroup?${new URLSearchParams({ variant, theme, width: String(width), language, background: '#dbeafe', chrome: '0' })}`;
+
+async function summaryLineCount(page: import('@playwright/test').Page): Promise<number> {
+  await page.evaluate(async () => { await document.fonts.ready; });
+  return page.getByTestId('assistant-activity-summary-text').evaluate((element) => {
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    return range.getClientRects().length;
+  });
+}
 
 test.describe('Completed assistant activity disclosure', () => {
   // contract-test: direct surface=gui.web assertions=chat-processing-feedback.completed-processing-summary,chat-processing-feedback.accessible-responsive
@@ -43,6 +52,90 @@ test.describe('Completed assistant activity disclosure', () => {
         expect(surface.actual).toBe(surface.expected);
         expect(surface.glyph).not.toBe('none');
       }
+    }
+  });
+
+  // contract-test: direct surface=gui.web assertions=chat-processing-feedback.completed-processing-summary,chat-processing-feedback.accessible-responsive
+  test('names the first three of six apps and caps overlapping circles at three', async ({ page }) => {
+    await page.goto(preview('manyApps'));
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('assistant-activity-summary-text')).toHaveText('Used the Web, News, Images + 3 more apps.');
+    const circles = page.getByTestId('assistant-activity-icons').locator(':scope > [data-app-id]');
+    await expect(circles).toHaveCount(3);
+    const layout = await circles.evaluateAll((elements) => elements.map((element) => {
+      const box = element.getBoundingClientRect();
+      return { x: box.x, y: box.y, width: box.width, z: Number(getComputedStyle(element).zIndex) };
+    }));
+    for (let index = 1; index < layout.length; index += 1) {
+      const previous = layout[index - 1];
+      const current = layout[index];
+      expect(current.x).toBeGreaterThan(previous.x);
+      expect(previous.x + previous.width - current.x).toBeGreaterThanOrEqual(6);
+      expect(previous.x + previous.width - current.x).toBeLessThanOrEqual(10);
+      expect(Math.abs(current.y - previous.y)).toBeLessThan(2);
+      expect(previous.z).toBeGreaterThan(current.z);
+    }
+    expect(await summaryLineCount(page)).toBe(1);
+  });
+
+  // contract-test: direct surface=gui.web assertions=chat-processing-feedback.completed-processing-summary
+  test('uses singular grammar when one app remains after the first three', async ({ page }) => {
+    await page.goto(preview('fourApps'));
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('assistant-activity-summary-text')).toHaveText('Used the Web, News, Images + 1 more app.');
+    await expect(page.getByTestId('assistant-activity-icons').locator(':scope > [data-app-id]')).toHaveCount(3);
+  });
+
+  // contract-test: direct surface=gui.web assertions=chat-processing-feedback.completed-processing-summary,chat-processing-feedback.accessible-responsive
+  test('uses one front AI circle within the three-circle limit when thinking', async ({ page }) => {
+    await page.goto(preview('manyAppsThinking'));
+    await waitForComponentPreview(page);
+    const icons = page.getByTestId('assistant-activity-icons');
+    await expect(icons.locator(':scope > [data-app-id]')).toHaveCount(3);
+    await expect(icons.getByTestId('assistant-thinking-app-icon')).toHaveCount(1);
+    await expect(icons.getByTestId('assistant-skill-app-icon')).toHaveCount(2);
+    await expect(icons.locator(':scope > [data-app-id]').first()).toHaveAttribute('data-app-id', 'ai');
+    const frontZ = await icons.getByTestId('assistant-thinking-app-icon').evaluate((element) => Number(getComputedStyle(element).zIndex));
+    const nextZ = await icons.getByTestId('assistant-skill-app-icon').first().evaluate((element) => Number(getComputedStyle(element).zIndex));
+    expect(frontZ).toBeGreaterThan(nextZ);
+  });
+
+  // contract-test: direct surface=gui.web assertions=app-memories.transparency.loaded-set,chat-processing-feedback.completed-processing-summary
+  test('counts app use with a loaded Memory and puts its pill above activity content', async ({ page }) => {
+    await page.goto(preview('loadedMemorySkills'));
+    await waitForComponentPreview(page);
+    const summary = page.getByTestId('assistant-activity-summary-text');
+    await expect(summary).toContainText(/Loaded.*Flowchart.*memory.*used 1 app/i);
+    await expect(summary).not.toContainText('Diagrams');
+    await page.getByTestId('assistant-activity-toggle').click();
+    const body = page.getByTestId('assistant-activity-body');
+    const pill = body.getByTestId('loaded-memory-pill');
+    await expect(pill).toBeVisible();
+    await expect(pill).toContainText('Flowchart');
+    await expect(body.getByTestId('embed-preview')).toBeVisible();
+    const pillBox = await pill.boundingBox();
+    const activityBox = await body.getByTestId('embed-preview').boundingBox();
+    expect(pillBox!.y + pillBox!.height).toBeLessThanOrEqual(activityBox!.y);
+  });
+
+  // contract-test: direct surface=gui.web assertions=chat-processing-feedback.accessible-responsive,app-memories.transparency.loaded-set
+  test('keeps long mixed summaries within one desktop line and two mobile lines in English and German', async ({ page }) => {
+    for (const language of ['en', 'de']) {
+      await page.goto(preview('longMixed', 'light', 820, language));
+      await waitForComponentPreview(page);
+      const summary = page.getByTestId('assistant-activity-summary-text');
+      await expect(summary).toContainText('6');
+      if (language === 'de') {
+        await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+        await expect(summary).not.toContainText(/Loaded|Used/);
+      }
+      expect(await summaryLineCount(page)).toBeLessThanOrEqual(1);
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(preview('longMixed', 'light', 390, language));
+      await waitForComponentPreview(page);
+      await expect(page.getByTestId('assistant-activity-summary-text')).toContainText('6');
+      expect(await summaryLineCount(page)).toBeLessThanOrEqual(2);
+      await page.setViewportSize({ width: 820, height: 844 });
     }
   });
 

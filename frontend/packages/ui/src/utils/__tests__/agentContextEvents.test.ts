@@ -39,4 +39,10 @@ it('accepts applied app/Project Memories without consent semantics and rejects f
   expect(parseAgentContextEvent({...event, memories: [{...memory, project_id: 'private'}]})).toBeNull();
   expect(parseAgentContextEvent({...event, memories: [{...memory, app_id: 'code'}]})).toBeNull();
   expect(parseAgentContextEvent({...event, memories: [{...memory, body: 'x'.repeat(20_001)}]})).toBeNull();
+  const correlated = {...event, user_message_id: 'user-turn', assistant_message_id: 'assistant-turn'};
+  expect(parseAgentContextEvent(JSON.stringify(correlated))).toEqual(correlated);
+  for (const invalid of ['', ' wrong', 'wrong id', 'wrong\nline', 'x'.repeat(241), 42, null]) {
+    expect(parseAgentContextEvent({...event, user_message_id: invalid})).toBeNull();
+    expect(parseAgentContextEvent({...event, assistant_message_id: invalid})).toBeNull();
+  }
 });

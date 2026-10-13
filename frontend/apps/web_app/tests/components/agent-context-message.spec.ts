@@ -3,6 +3,7 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 
 // playwright-account: not_required reason=isolated_component_preview
 const PREVIEW = '/dev/preview/AgentContextMessage?chrome=0&theme=light&background=%23dbeafe';
+test.use({ trace: 'retain-on-failure' });
 
 // contract-test: supporting surface=gui.web assertions=app-memories.transparency.loaded-set,app-memories.definition.context-documents
 test('counts whole guides and expands exact bodies with keyboard on mobile', async ({ page }, testInfo) => {
@@ -10,10 +11,15 @@ test('counts whole guides and expands exact bodies with keyboard on mobile', asy
   await page.goto(`${PREVIEW}&width=350`);
   await waitForComponentPreview(page);
   const card = page.getByTestId('agent-context-message');
-  const details = page.getByTestId('loaded-memories-details');
-  await expect(details.locator('summary')).toHaveText('Loaded 2 memories.');
+  const details = page.getByTestId('assistant-activity-group');
+  await expect(details.getByTestId('assistant-activity-toggle')).toContainText('2');
   await expect(page.getByTestId('applied-memory-body').first()).toBeHidden();
-  await details.locator('summary').focus();
+  await details.getByTestId('assistant-activity-toggle').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('loaded-memory-pill')).toHaveCount(2);
+  await expect(page.getByTestId('loaded-memory-pill').first()).toContainText('Python best practices');
+  await expect(page.getByTestId('applied-memory-body').first()).toBeHidden();
+  await page.getByTestId('loaded-memory-pill').first().focus();
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('applied-memory')).toHaveCount(2);
   await expect(page.getByTestId('applied-memory-body').first()).toHaveText('- Preserve task cancellation.\n- Release resources with context managers.');
@@ -23,7 +29,7 @@ test('counts whole guides and expands exact bodies with keyboard on mobile', asy
   await expect(card).not.toContainText('[T:');
   expect(await card.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await testInfo.attach('loaded-rule-guides-mobile', { body: await card.screenshot(), contentType: 'image/png' });
-  await details.locator('summary').click();
+  await details.getByTestId('assistant-activity-toggle').click();
   await expect(page.getByTestId('applied-memory-body').first()).toBeHidden();
 });
 

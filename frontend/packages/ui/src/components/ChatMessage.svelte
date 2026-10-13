@@ -6,6 +6,7 @@
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
   import DemoMessageContent from './DemoMessageContent.svelte';
   import AssistantActivityGroup from './AssistantActivityGroup.svelte';
+  import type { AppliedMemory } from '../utils/loadedMemoryReceipt';
   import { assistantActivityItems, splitAssistantActivityRuns } from '../message_parsing/assistantActivityRuns';
   import { classifyAssistantSkillPhase } from '../message_parsing/assistantActivityStatus';
   import EmbedContextMenu from './embeds/EmbedContextMenu.svelte';
@@ -140,6 +141,7 @@
     _embedUpdateTimestamp = 0,
     hasEmbedErrors = false,
     appSettingsMemoriesResponse = undefined,
+    loadedMemories = [],
     // Thinking/Reasoning props for thinking models (Gemini, Anthropic Claude, etc.)
     thinkingContent = undefined,
     isThinkingStreaming = false,
@@ -181,6 +183,7 @@
     _embedUpdateTimestamp?: number; // Used to force re-render when embed data becomes available
     hasEmbedErrors?: boolean; // Whether any embeds in this message failed (shows error banner)
     appSettingsMemoriesResponse?: AppSettingsMemoriesResponseContent; // Response to user's app settings/memories request (passed from ChatHistory)
+    loadedMemories?: AppliedMemory[];
     // Thinking/Reasoning props for thinking models (Gemini, Anthropic Claude, etc.)
     thinkingContent?: string; // Decrypted thinking content
     isThinkingStreaming?: boolean; // Whether thinking is currently streaming
@@ -3530,9 +3533,10 @@
           </div>
         {/if}
         <div class="chat-message-body" class:has-workflow-run={!!workflowRun} bind:this={messageBodyElement}>
-          {#if role === 'assistant' && !hasSkillActivity && (thinkingContent || isThinkingStreaming)}
+          {#if role === 'assistant' && !hasSkillActivity && (thinkingContent || isThinkingStreaming || (loadedMemories.length > 0 && subChatsOfThisMessage.length === 0))}
             <AssistantActivityGroup thinkingContent={thinkingContent || ''} thinkingStreaming={isThinkingStreaming}
-              active={responseActive && isThinkingStreaming} chatId={currentChatId}
+              active={responseActive && (isThinkingStreaming || loadedMemories.length > 0)} chatId={currentChatId}
+              {loadedMemories}
               {piiMappings} {piiRevealed} />
           {/if}
           <!-- Highlight overlay: yellow boxes drawn over rendered text. Nested
@@ -3582,6 +3586,7 @@
                   document={run.document} appIds={run.appIds}
                   thinkingContent={run.id === firstSkillActivityId ? (thinkingContent || '') : ''}
                   thinkingStreaming={run.id === firstSkillActivityId && isThinkingStreaming}
+                  loadedMemories={run.id === firstSkillActivityId ? loadedMemories : []}
                   active={responseActive && activityRuns[activityRuns.length - 1]?.id === run.id}
                   chatId={currentChatId}
                   embedUpdateTimestamp={_embedUpdateTimestamp} {piiMappings} {piiRevealed}
@@ -3625,7 +3630,8 @@
         </div>
 
         {#if !hasInlineSubChatBatch && subChatsOfThisMessage.length > 0 && role === 'assistant' && !hasSkillActivity}
-          <AssistantActivityGroup workedInSubChats chatId={currentChatId} subChatsActive={legacySubChatsActive}>
+          <AssistantActivityGroup workedInSubChats chatId={currentChatId} subChatsActive={legacySubChatsActive}
+            loadedMemories={thinkingContent || isThinkingStreaming ? [] : loadedMemories}>
             {@render legacySubChatCards()}
           </AssistantActivityGroup>
         {/if}

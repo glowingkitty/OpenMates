@@ -3649,3 +3649,104 @@ response_activity.sub_chats_working:
   en: "Working in sub chats"
   de: "Arbeitet in Unterchats"
   verified_by_human: []
+
+response_activity.join:
+  context: Join translated activity clauses in their existing order.
+  en: "{first} & {last}"
+  de: "{first} und {last}"
+  verified_by_human: []
+response_activity.used_more:
+  context: Completed apps, with three names and the remaining app count.
+  en: "Used the {apps} + {count, plural, one {# more app} other {# more apps}}"
+  de: "Die Apps {apps} + {count, plural, one {# weitere App} other {# weitere Apps}} verwendet"
+  verified_by_human: []
+response_activity.using_more:
+  context: Active app use with three names and the remaining count.
+  en: "Using the {apps} + {count, plural, one {# more app} other {# more apps}}"
+  de: "Verwendet {apps} + {count, plural, one {# weitere App} other {# weitere Apps}}"
+  verified_by_human: []
+response_activity.thought_used_more:
+  context: Completed thinking and app use, with three names and remaining count.
+  en: "Thought & used the {apps} + {count, plural, one {# more app} other {# more apps}}"
+  de: "Nachgedacht und {apps} + {count, plural, one {# weitere App} other {# weitere Apps}} verwendet"
+  verified_by_human: []
+response_activity.used_count:
+  context: Compact completed app use; omit app names when Memories are present.
+  en: "Used {count, plural, one {# app} other {# apps}}"
+  de: "{count, plural, one {# App} other {# Apps}} verwendet"
+  verified_by_human: []
+response_activity.using_count:
+  context: Compact active app use.
+  en: "Using {count, plural, one {# app} other {# apps}}"
+  de: "Verwendet {count, plural, one {# App} other {# Apps}}"
+  verified_by_human: []
+response_activity.thought_used_count:
+  context: Compact completed thinking and app use.
+  en: "Thought & used {count, plural, one {# app} other {# apps}}"
+  de: "Nachgedacht und {count, plural, one {# App} other {# Apps}} verwendet"
+  verified_by_human: []
+response_activity.memory_loaded:
+  context: One loaded memory, named using its display label.
+  en: "Loaded ‘{memory}’ memory"
+  de: "Erinnerung „{memory}“ geladen"
+  verified_by_human: []
+response_activity.memories_loaded:
+  context: Compact count of loaded whole memory guides.
+  en: "Loaded {count, plural, one {# memory} other {# memories}}"
+  de: "{count, plural, one {# Erinnerung} other {# Erinnerungen}} geladen"
+  verified_by_human: []
+response_activity.memory_used_apps:
+  context: One named memory plus completed app count; omit app names.
+  en: "Loaded ‘{memory}’ memory & used {count, plural, one {# app} other {# apps}}"
+  de: "Erinnerung „{memory}“ geladen und {count, plural, one {# App} other {# Apps}} verwendet"
+  verified_by_human: []
+response_activity.memory_using_apps:
+  context: One named memory plus active app count; omit app names.
+  en: "Loaded ‘{memory}’ memory & using {count, plural, one {# app} other {# apps}}"
+  de: "Erinnerung „{memory}“ geladen und verwendet {count, plural, one {# App} other {# Apps}}"
+  verified_by_human: []
+response_activity.focus_activating_count:
+  context: Compact count of live focus activations.
+  en: "Activating {count, plural, one {# focus} other {# focuses}}"
+  de: "Aktiviert {count, plural, one {# Fokus} other {# Fokusse}}"
+  verified_by_human: []
+response_activity.focus_activated_count:
+  context: Compact count of confirmed focus activations.
+  en: "Activated {count, plural, one {# focus} other {# focuses}}"
+  de: "{count, plural, one {# Fokus} other {# Fokusse}} aktiviert"
+  verified_by_human: []
+response_activity.app_count:
+  context: Shortest app ledger when detailed activity does not fit.
+  en: "{count, plural, one {# app} other {# apps}}"
+  de: "{count, plural, one {# App} other {# Apps}}"
+  verified_by_human: []
+response_activity.memory_count:
+  context: Shortest memory ledger when names do not fit.
+  en: "{count, plural, one {# memory} other {# memories}}"
+  de: "{count, plural, one {# Erinnerung} other {# Erinnerungen}}"
+  verified_by_human: []
+response_activity.focus_count:
+  context: Shortest focus ledger when names do not fit.
+  en: "{count, plural, one {# focus} other {# focuses}}"
+  de: "{count, plural, one {# Fokus} other {# Fokusse}}"
+  verified_by_human: []
+response_activity.sub_chat_count:
+  context: Shortest sub-chat activity label.
+  en: "Sub chats"
+  de: "Unterchats"
+  verified_by_human: []
+response_activity.activity_active:
+  context: Narrow-screen fallback; the accessible label retains full activity details.
+  en: "Working…"
+  de: "Arbeitet…"
+  verified_by_human: []
+response_activity.activity_done:
+  context: Narrow-screen fallback; expansion shows every activity detail.
+  en: "View activity"
+  de: "Aktivität ansehen"
+  verified_by_human: []
+response_activity.sentence:
+  context: Add translated final punctuation to a complete activity sentence, never a joined clause.
+  en: "{activity}."
+  de: "{activity}."
+  verified_by_human: []
