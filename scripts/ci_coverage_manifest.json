@@ -220,6 +220,7 @@
         "components/map-load-recovery.spec.ts",
         "components/newsroom-surface.spec.ts",
         "components/marketing-landing.spec.ts",
+        "components/public-newsroom-header.spec.ts",
         "components/public-newsletter.spec.ts",
         "marketing-landing-route.spec.ts",
         "landing-guest-workflows.spec.ts",

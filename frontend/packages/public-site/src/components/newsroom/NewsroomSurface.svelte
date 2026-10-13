@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from "svelte";
+  import { tick, type Snippet } from "svelte";
   import NewsroomMedia from "./NewsroomMedia.svelte";
   import PublicationHeader from "./PublicationHeader.svelte";
   import PublicationCard from "./PublicationCard.svelte";
@@ -21,9 +21,10 @@
     navigationKey: string;
     data: NewsroomSurfaceData;
     onAction: (action: NewsroomAction) => void;
+    publicHeader?: Snippet;
   }
 
-  let { view, locale, indexHref, navigationKey, data, onAction }: Props = $props();
+  let { view, locale, indexHref, navigationKey, data, onAction, publicHeader }: Props = $props();
 
   let searchOpen = $state(false);
   let searchTerm = $state("");
@@ -248,8 +249,13 @@
   </article>
 {/snippet}
 
+{#if publicHeader}
+  {@render publicHeader()}
+{/if}
+
 <div
   class:sidebar-open={sidebarOpen}
+  class:has-public-header={!!publicHeader}
   class="newsroom-shell"
   data-testid="newsroom-surface"
   data-view={view}
@@ -273,6 +279,7 @@
       onPrimaryCta={() => act(view === "release" ? "try-feature" : "open-app")}
       onToggleSidebar={() => (sidebarOpen = !sidebarOpen)}
       {sidebarOpen}
+      navigationOnly={!!publicHeader}
     />
 
     <div class="publication-scroll" bind:this={publicationScroll}>
@@ -571,6 +578,11 @@
     grid-template-columns: 0 minmax(0, 1fr);
     gap: 0;
   }
+  .newsroom-shell.has-public-header {
+    position: relative;
+    z-index: 0;
+    height: calc(100dvh - 70px);
+  }
 
   /* Full-page fixtures fill the capture canvas; no negative margins or second
      outer scrolling viewport, which displaced the header on mobile Safari. */
@@ -585,7 +597,7 @@
 
   .sidebar-layer {
     min-width: 0;
-    height: 100dvh;
+    height: 100%;
     position: sticky;
     top: 0;
     visibility: hidden;
@@ -1055,6 +1067,9 @@
       display: block;
       min-height: 100dvh;
     }
+    .newsroom-shell.has-public-header {
+      min-height: calc(100dvh - 70px);
+    }
     .sidebar-layer {
       position: fixed;
       inset: 4rem 0 0;
@@ -1068,6 +1083,10 @@
     .sidebar-layer.open {
       visibility: visible;
       transform: translateX(0);
+    }
+    .has-public-header .sidebar-layer {
+      top: calc(70px + 4rem);
+      height: calc(100dvh - 70px - 4rem);
     }
     :global([dir="rtl"]) .sidebar-layer {
       transform: translateX(100%);

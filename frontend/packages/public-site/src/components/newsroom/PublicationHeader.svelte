@@ -6,6 +6,7 @@
     sidebarOpen: boolean;
     onToggleSidebar: () => void;
     onPrimaryCta: () => void;
+    navigationOnly?: boolean;
   }
 
   let {
@@ -15,11 +16,12 @@
     sidebarOpen,
     onToggleSidebar,
     onPrimaryCta,
+    navigationOnly = false,
   }: Props = $props();
 </script>
 
 <!-- Uses the web-app header's visual primitives without loading its chat/workspace client graph. -->
-<header class="publication-header">
+<header class="publication-header" class:navigation-only={navigationOnly}>
   <nav aria-label={label}>
     <div class="left-section">
       <button
@@ -34,20 +36,24 @@
       ></button>
 
       <a class="logo-link" href={homeHref} aria-label={`${label} home`}>
-        <strong><mark>Open</mark><span>Mates</span></strong>
-        <span class="mobile-logo-icon" aria-hidden="true"></span>
+        {#if !navigationOnly}
+          <strong><mark>Open</mark><span>Mates</span></strong>
+          <span class="mobile-logo-icon" aria-hidden="true"></span>
+        {/if}
         <small>{label}</small>
       </a>
     </div>
 
-    <button
-      class="primary-cta"
-      data-testid="header-login-signup-btn"
-      type="button"
-      onclick={onPrimaryCta}
-    >
-      {primaryCtaLabel}
-    </button>
+    {#if !navigationOnly}
+      <button
+        class="primary-cta"
+        data-testid="header-login-signup-btn"
+        type="button"
+        onclick={onPrimaryCta}
+      >
+        {primaryCtaLabel}
+      </button>
+    {/if}
   </nav>
 </header>
 
@@ -61,6 +67,16 @@
     min-height: 4rem;
     padding: var(--spacing-6) var(--spacing-10);
     background: var(--color-grey-0);
+  }
+  .publication-header.navigation-only {
+    height: 4rem;
+    min-height: 4rem;
+    border-bottom: 1px solid var(--color-grey-20);
+  }
+  .navigation-only .logo-link small {
+    position: static;
+    font-size: var(--font-size-small);
+    font-weight: 700;
   }
 
   nav {
@@ -179,6 +195,9 @@
     .logo-link strong,
     .logo-link small {
       display: none;
+    }
+    .navigation-only .logo-link small {
+      display: block;
     }
 
     .mobile-logo-icon {

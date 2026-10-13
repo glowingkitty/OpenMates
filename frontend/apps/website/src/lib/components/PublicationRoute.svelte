@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import NewsroomSurface from '@repo/public-site/components/newsroom/NewsroomSurface.svelte';
+	import PublicSiteHeader from '@repo/public-site/components/landing/PublicSiteHeader.svelte';
 	import type { NewsroomAction } from '@repo/public-site/components/newsroom/types';
 	import type { PublicPublicationPageData } from '@repo/public-site/publications/types';
 
@@ -9,6 +10,13 @@
 	}
 
 	let { data }: Props = $props();
+	const websiteBaseUrl = $derived(new URL(data.canonicalUrl).origin);
+
+	function selectLanguage(code: string): void {
+		if (code === data.locale) return;
+		try { localStorage.setItem('preferredLanguage', code); } catch { /* Storage can be disabled. */ }
+		window.location.href = data.alternateUrl;
+	}
 
 	function openLink(href: string) {
 		if (/^https?:\/\//.test(href)) {
@@ -71,6 +79,16 @@
 	{@html `<script type="application/ld+json">${data.jsonLd}<` + `/script>`}
 </svelte:head>
 
+{#snippet publicHeader()}
+	<PublicSiteHeader
+		appBaseUrl={data.appBaseUrl}
+		{websiteBaseUrl}
+		language={data.locale}
+		availableLanguages={['en', 'de']}
+		onLanguageChange={selectLanguage}
+	/>
+{/snippet}
+
 <NewsroomSurface
 	view={data.view}
 	locale={data.locale}
@@ -78,4 +96,5 @@
 	navigationKey={data.canonicalUrl}
 	data={data.surface}
 	onAction={handleAction}
+	{publicHeader}
 />

@@ -110,6 +110,16 @@ function watchPrivateStartup(page: import('@playwright/test').Page) {
 }
 
 const site = (pathname: string) => `${website}${pathname}`;
+async function assertPublicHeader(page: import('@playwright/test').Page) {
+  const header = page.getByTestId('public-site-header');
+  await expect(header).toBeVisible();
+  await expect(header.getByRole('link', { name: 'OpenMates home' })).toHaveAttribute('href', site('/'));
+  await expect(header.locator('.wordmark')).toHaveText('OpenMates');
+  await expect(header.getByTestId('landing-open-web-app')).toHaveAttribute('href', `${app}/`);
+  await expect(header.getByTestId('landing-language-button')).toHaveText('');
+  await expect(page.locator('.workspace-nav, [data-testid^="landing-nav-"]')).toHaveCount(0);
+  await expect(page.getByTestId('header-login-signup-btn')).toHaveCount(0);
+}
 const blog = publicationManifest.publications.find((record) => record.kind === 'blog');
 const release = newsReleases[0];
 if (!blog || !release) throw new Error('Canonical public blog/news records are required for route coverage');
@@ -201,6 +211,7 @@ test('standalone landing and publication indexes are server-rendered without app
     expect(html).not.toContain('login-wrapper');
     await page.goto(site(route), { waitUntil: 'domcontentloaded' });
     await expect(page.locator('main')).toBeVisible();
+    await assertPublicHeader(page);
     if (route === '/') {
       await expect(page.getByTestId('landing-page')).toBeVisible();
       await expect(page.getByTestId('landing-open-web-app')).toHaveAttribute('href', `${app}/`);
@@ -217,7 +228,7 @@ test('standalone landing and publication indexes are server-rendered without app
   noPrivateStartup();
 });
 
-// contract-test: direct surface=gui.web assertions=marketing-landing.public-content
+// contract-test: direct surface=gui.web assertions=marketing-landing.public-content,marketing-landing.destinations
 test('canonical news and blog details render in English and German', async ({ page, request }) => {
   const noPrivateStartup = watchPrivateStartup(page);
   for (const locale of ['en', 'de'] as const) {
@@ -229,12 +240,60 @@ test('canonical news and blog details render in English and German', async ({ pa
       expect(html).toContain('<meta name="description"');
       expect(html).toContain(`href="${site(route)}"`);
       await page.goto(site(route), { waitUntil: 'domcontentloaded' });
+      await assertPublicHeader(page);
       await expect(page.getByTestId('newsroom-surface')).toContainText(record.locales[locale]?.title ?? record.locales.en.title);
       await expect(page.locator('article, [data-testid="newsroom-article"]')).not.toHaveCount(0);
     }
   }
   noPrivateStartup();
 });
+
+for (const width of [390, 1440]) {
+  // contract-test: direct surface=gui.web assertions=marketing-landing.destinations,marketing-landing.public-content,marketing-landing.language-theme
+  test(`public article language switching preserves its route and shared header (${width}px)`, async ({ page }, testInfo) => {
+    test.setTimeout(60_000);
+    const noPrivateStartup = watchPrivateStartup(page);
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.setViewportSize({ width, height: width < 760 ? 844 : 900 });
+    const proof = createVideoProofRuntime(headerProof, {
+      device: width < 760 ? 'web-phone' : 'web-laptop',
+      attach: testInfo.attach.bind(testInfo), captureFrame: () => page.screenshot(),
+    });
+    for (const [section, record] of [['news', release], ['blog', blog]] as const) {
+      const route = `/${section}/${record.slug}`;
+      await page.goto(site(route), { waitUntil: 'domcontentloaded' });
+      await assertPublicHeader(page);
+      await page.getByTestId('sidebar-toggle').click();
+      await expect(page.getByTestId('sidebar-toggle')).toHaveAttribute('aria-expanded', 'true');
+      await page.getByTestId('landing-language-button').click();
+      await page.getByTestId('landing-language-panel').getByRole('button', { name: 'Deutsch', exact: true }).click();
+      await expect(page).toHaveURL(site(`/de${route}`));
+      const root = page.getByTestId('newsroom-surface');
+      await expect(root).toHaveAttribute('data-locale', 'de');
+      await expect(root).toContainText(record.locales.de?.title ?? record.locales.en.title);
+      await assertPublicHeader(page);
+      await expect(page.getByTestId('landing-open-web-app')).toHaveText('Web-App öffnen');
+      expect(await page.evaluate(() => localStorage.getItem('preferredLanguage'))).toBe('de');
+      await page.getByTestId('landing-language-button').click();
+      await page.getByTestId('landing-language-panel').getByRole('button', { name: 'English', exact: true }).click();
+      await expect(page).toHaveURL(site(route));
+      await expect(root).toHaveAttribute('data-locale', 'en');
+      await assertPublicHeader(page);
+      expect(await page.evaluate(() => localStorage.getItem('preferredLanguage'))).toBe('en');
+      await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', site(route));
+    }
+    await proof.assert('landing.public-header', async () => {
+      await assertPublicHeader(page);
+      expect(await page.getByTestId('newsroom-surface').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+    });
+    await testInfo.attach(`public-article-header-${width}px`, { body: await page.screenshot(), contentType: 'image/png' });
+    await proof.checkpoint('header');
+    await proof.attach();
+    expect(errors).toEqual([]);
+    noPrivateStartup();
+  });
+}
 
 // contract-test: direct surface=gui.web assertions=marketing-landing.destinations,marketing-landing.public-content
 test('news subscriptions open the standalone public form in the publication language', async ({ page }) => {
