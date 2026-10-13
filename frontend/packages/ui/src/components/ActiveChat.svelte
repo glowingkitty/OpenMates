@@ -121,7 +121,8 @@ import { storageArchiveFetch } from "../config/api";
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { updateHashParams } from '../utils/settingsHashUtils';
-    import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat } from '../utils/chatDraftState';
+    import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat, classifyFirstTurnComposerContext, canBindUnclaimedFreshShell, reserveInitialFreshShellId } from '../utils/chatDraftState';
+    import { getPreparedChatForSend } from '../services/preparedChatForSend';
     import { formatDraftPreview } from '../utils/draftPreview';
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat, getExampleChat, getExampleChatCompressionCheckpoints, getExampleChatEmbed } from '../demo_chats';
     import { getVideoForLocale } from '../demo_chats/data/videos';
@@ -5521,6 +5522,40 @@ import { storageArchiveFetch } from "../config/api";
             currentChat?.chat_id ? hasLiveDraftComposerContent(currentChat.chat_id) : false,
         ),
      );
+     // Send eligibility follows exact draft/chat identity and unsent data, not
+     // welcome-screen presentation, which can change while the click is handled.
+     function bindUnclaimedFreshShellOnFocus(composerChatId: string): boolean {
+         const draftState = get(draftEditorUIState);
+         if (!canBindUnclaimedFreshShell({
+             chat: currentChat,
+             temporaryChatId,
+             composerChatId,
+             draftChatId: draftState.currentChatId,
+             activeChatId: activeChatStore.get(),
+             pendingDraftSelection: !!draftState.newlyCreatedChatIdToSelect,
+             hasMessages: currentMessages.length > 0,
+             hasLiveDraftContent: messageInputHasContent,
+             showWelcome,
+             authenticated: get(authStore).isAuthenticated,
+             accountId: get(userProfile).user_id,
+             teamId: get(activeTeamId),
+             incognito: get(incognitoMode),
+         })) return false;
+         // There is no await between checking the visible shell and claiming its
+         // draft ID. A non-null binding belongs to another editor or saved chat.
+         draftEditorUIState.update(state => state.currentChatId === null && !state.newlyCreatedChatIdToSelect
+             ? { ...state, currentChatId: composerChatId } : state);
+         return get(draftEditorUIState).currentChatId === composerChatId;
+     }
+     let firstTurnSourceReason = $derived(classifyFirstTurnComposerContext({
+         chat: currentChat,
+         temporaryChatId,
+         draftChatId: $draftEditorUIState.currentChatId,
+         hasLiveDraftContent: messageInputHasContent,
+         authenticated: $authStore.isAuthenticated,
+         accountId: $userProfile.user_id,
+         teamId: $activeTeamId,
+     }));
 
      $effect(() => {
         if (showWelcome && isActiveDraftOnlyChat) {
@@ -11845,6 +11880,19 @@ import { storageArchiveFetch } from "../config/api";
     });
 
     onMount(() => {
+        // The editor can become focusable while initializeApp and server-status
+        // are still pending. Claim its visible shell ID before either await.
+        const draftChatIdAtMount = get(draftEditorUIState).currentChatId;
+        const preparedDraftAtMount = draftChatIdAtMount
+            ? getPreparedChatForSend(draftChatIdAtMount) : null;
+        temporaryChatId = reserveInitialFreshShellId({
+            chat: currentChat,
+            temporaryChatId,
+            selectedChatId: activeChatStore.get(),
+            preparedDraftChatId: preparedDraftAtMount?.shell.chat_id ?? null,
+            showWelcome,
+            hasMessages: currentMessages.length > 0,
+        }, () => crypto.randomUUID());
         if (initialAnonymousChatId) {
             void restoreAnonymousHashChatOnMount();
         }
@@ -11881,13 +11929,6 @@ import { storageArchiveFetch } from "../config/api";
                 isSelfHosted = false; // Default to not self-hosted if check fails
             }
             
-            // Generate a temporary chat ID for draft saving if no chat is loaded
-            // This ensures the draft service always has a chat ID to work with
-            if (!currentChat?.chat_id && !temporaryChatId) {
-                temporaryChatId = crypto.randomUUID();
-                console.debug("[ActiveChat] Generated temporary chat ID for draft saving:", temporaryChatId);
-            }
-
             if (!$authStore.isAuthenticated) {
                 const guestTopicPreferences = topicPreferencesStore.loadGuest();
                 if ((guestTopicPreferences?.selectedTagIds.length ?? 0) >= 4) {
@@ -15178,6 +15219,9 @@ import { storageArchiveFetch } from "../config/api";
                                     bind:this={messageInputFieldRef}
                                     currentChatId={currentChat?.chat_id || temporaryChatId || undefined}
                                     isNewChatContext={(showWelcome && !currentChat?.chat_id) || isActiveDraftOnlyChat}
+                                    firstTurnSendContext={firstTurnSourceReason === 'eligible_shell' || firstTurnSourceReason === 'eligible_draft'}
+                                    firstTurnSourceReason={firstTurnSourceReason}
+                                    onFreshShellFocus={bindUnclaimedFreshShellOnFocus}
                                     preserveChatIdOnNewChatCancellation={isActiveDraftOnlyChat}
                                     showActionButtons={showActionButtons}
                                     inlineCompact={showNewChatButtonBesideInput && !messageInputFocused}

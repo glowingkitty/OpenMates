@@ -626,3 +626,69 @@ async def test_invalidated_empty_details_join_summary_before_detailed_jev(monkey
             await run
         detailed_call.assert_awaited_once()
         assert order == ["details", "hook_start", "hook_done"]
+
+
+# contract-test: supporting surface=cli assertions=chat-processing-feedback.selected-mate-identity
+@pytest.mark.asyncio
+async def test_empty_fast_path_failure_joins_summary_before_private_fallback(monkeypatch):
+    class ReachedDetailedPass(BaseException):
+        pass
+
+    request = AskSkillRequest(
+        chat_id="chat", message_id="turn", user_id="owner", user_id_hash="owner-hash",
+        recovery_task_id="task", current_user_content="Hello",
+        message_history=[{"role": "user", "content": "Hello", "created_at": 1}],
+        admission_context={"scope_complete": True, "active_project_id": None,
+            "active_project_activation_id": None, "active_focus_id": None,
+            "accepted_plan_ref": None, "explicit_related_task_ids": [],
+            "context_revision": "server-admission-v1"},
+    )
+    early = {"project_target_outcome": "none", "selected_app_ids": [],
+             "early_decisions": {"task_area": "general", "topic_area": "general_knowledge",
+                                 "complexity": "simple", "public_decisions": {},
+                                 "needs_detailed_context": False, "needs_related_work": False}}
+    config = SimpleNamespace(default_llms=SimpleNamespace(
+        preprocessing_model="test/preprocessing", decision_model="test/decision",
+    ))
+    cache = SimpleNamespace(get_mates_configs=AsyncMock(return_value=[SimpleNamespace(
+        id="mate-general", category="general_knowledge", description="General", name="General Mate",
+    )]), publish_event=AsyncMock())
+    order = []
+
+    async def hook():
+        order.append("summary_join")
+
+    async def private_catalog(*_args):
+        assert order == ["summary_join"]
+        order.append("private_read")
+        return []
+
+    async def jev(**_kwargs):
+        if "private_read" not in order:
+            raise ValueError("fast decision failed")
+        assert order == ["summary_join", "private_read"]
+        raise ReachedDetailedPass
+
+    monkeypatch.setattr(preprocessor, "check_preprocessing_credits", AsyncMock(return_value=None))
+    monkeypatch.setattr(preprocessor, "load_skill_ledger", AsyncMock(return_value=preprocessor.RoutingLedgerSnapshot(
+        available=False, prompt_rows=(),
+    )))
+    monkeypatch.setattr(jev_preprocessing, "decide_app_and_project_routing_with_jev", AsyncMock(return_value=early))
+    monkeypatch.setattr(preprocessor, "_select_main_model", AsyncMock(return_value={
+        "selected_llm_for_main_id": "test/answer", "selected_llm_for_main_name": "Answer",
+        "complexity_val": "simple", "model_override_applied": False,
+    }))
+    monkeypatch.setattr(agentic_context, "private_focus_candidates", private_catalog)
+    monkeypatch.setattr(context_preselection, "discover_workflow_metadata", AsyncMock(return_value=[]))
+    monkeypatch.setattr(preprocessor, "decide_preprocessing_with_jev", jev)
+    monkeypatch.setattr(preprocessor, "utility_model_fallbacks", lambda *_args: [])
+    monkeypatch.setattr(client_context_continuation, "await_client_context_phase", AsyncMock())
+
+    with pytest.raises(ReachedDetailedPass):
+        await preprocessor.handle_preprocessing(
+            request_data=request, base_instructions={"preprocess_request_tool": {}},
+            skill_config=config, cache_service=cache, secrets_manager=None,
+            directus_service=None, encryption_service=None,
+            discovered_apps_metadata={}, before_related_summary_read=hook,
+        )
+    assert order == ["summary_join", "private_read"]

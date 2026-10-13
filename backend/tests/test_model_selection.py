@@ -11,6 +11,7 @@
 # Run with: /OpenMates/.venv/bin/python3 -m pytest -s backend/tests/test_model_selection.py
 
 import pytest
+from unittest.mock import Mock
 from typing import Dict, Any
 from pathlib import Path
 import yaml
@@ -571,3 +572,33 @@ class TestEdgeCases:
 
         assert result.model_id == "gpt-5.4"
         assert "🤔" in result.cleaned_message
+
+
+def test_static_auto_select_warmup_reads_once_and_clear_reloads(tmp_path, monkeypatch):
+    from backend.apps.ai.utils import model_selector
+
+    provider = tmp_path / "google.yml"
+    provider.write_text("models:\n  - id: gemini-3.8-flash\n    allow_auto_select: true\n")
+    monkeypatch.setattr(model_selector, "PROVIDERS_DIR", tmp_path)
+    monkeypatch.setattr(model_selector, "LLM_PROVIDER_FILES", ["google.yml"])
+    monkeypatch.setattr(model_selector, "_auto_select_cache", None)
+    select = Mock(side_effect=AssertionError("Provider selection ran during static warmup"))
+    monkeypatch.setattr(model_selector.ModelSelector, "select_models", select)
+    loads = []
+    original = model_selector.yaml.safe_load
+
+    def counted_load(stream):
+        loads.append(stream.name)
+        return original(stream)
+
+    monkeypatch.setattr(model_selector.yaml, "safe_load", counted_load)
+    model_selector.warm_auto_select_settings()
+    model_selector.warm_auto_select_settings()
+    select.assert_not_called()
+    assert model_selector._load_auto_select_settings() == {"gemini-3.8-flash": True}
+    assert len(loads) == 1
+    provider.write_text("models:\n  - id: gemini-3.8-flash\n    allow_auto_select: false\n")
+    assert model_selector._load_auto_select_settings()["gemini-3.8-flash"] is True
+    model_selector.clear_auto_select_cache()
+    assert model_selector._load_auto_select_settings()["gemini-3.8-flash"] is False
+    assert len(loads) == 2

@@ -22,6 +22,24 @@ from backend.apps.ai.processing.stage_one_handoff import (
 logger = logging.getLogger(__name__)
 
 
+async def _routing_authority_is_current(cache: Any, directus: Any,
+                                        request: Any, task_id: str) -> bool:
+    """Join fresh Redis and durable admission checks at each routing fence."""
+    checks = (
+        asyncio.create_task(routing_turn_is_current(cache, request, task_id)),
+        asyncio.create_task(routing_admission_is_current(directus, request, task_id)),
+    )
+    try:
+        turn_current, admission_current = await asyncio.gather(*checks)
+        return bool(turn_current and admission_current)
+    except BaseException:
+        for check in checks:
+            if not check.done():
+                check.cancel()
+        await asyncio.gather(*checks, return_exceptions=True)
+        raise
+
+
 def eligible_for_routing_lane(request: dict) -> bool:
     """Restrict the lane to admitted ordinary first-party turns."""
     texts = [request.get("current_user_content") or ""] + [
@@ -61,13 +79,11 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
     fingerprint = request_fingerprint(request.model_dump(mode="json"), config.model_dump(mode="json"))
     started_at = time.monotonic()
     cache = await celery_config.get_worker_cache_service()
-    if not await routing_turn_is_current(cache, request, inference_task_id):
-        return None
     secrets_manager = SecretsManager()
     await secrets_manager.initialize()
     encryption = EncryptionService(cache_service=cache)
     directus = DirectusService(cache_service=cache, encryption_service=encryption)
-    if not await routing_admission_is_current(directus, request, inference_task_id):
+    if not await _routing_authority_is_current(cache, directus, request, inference_task_id):
         return None
     logger.info("Stage-one admission current task=%s elapsed_ms=%.1f",
                 inference_task_id, (time.monotonic() - started_at) * 1000)
@@ -142,10 +158,8 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
     async def publish(routing: dict) -> None:
         encrypted_key = await chat_key_task
         # Recheck at publication: the turn can be replaced while Jev or key I/O runs.
-        if not await routing_turn_is_current(cache, request, inference_task_id):
-            raise RuntimeError("Routing turn no longer current")
-        if not await routing_admission_is_current(directus, request, inference_task_id):
-            raise RuntimeError("Routing admission no longer authorized")
+        if not await _routing_authority_is_current(cache, directus, request, inference_task_id):
+            raise RuntimeError("Routing authority no longer current")
         provider, region = _early_typing_provider_metadata(routing.get("model_id"))
         payload: dict[str, Any] = {
             "type": "ai_processing_started_event", "event_for_client": "ai_typing_started",
@@ -172,6 +186,8 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
             stage_one_only=True, routing_scope_validated=True)
         routing = getattr(request, "_stage_one_routing", None)
         if not isinstance(routing, dict) or not routing.get("early_decisions"):
+            return None
+        if not await _routing_authority_is_current(cache, directus, request, inference_task_id):
             return None
         reference = await store_stage_one(cache=cache, encryption=encryption, request=request,
             task_id=inference_task_id, fingerprint=fingerprint, routing=routing,

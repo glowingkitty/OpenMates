@@ -27,6 +27,8 @@ export function waitForPreflightAcknowledgement(
 	turnId: string,
 	events: PreflightEventSource,
 	recordDebugStep: RecordDebugStep,
+	signal?: AbortSignal,
+	requireExactTurnId = false,
 ): Promise<{ preflight_id: string }> {
 	return new Promise((resolve, reject) => {
 		recordDebugStep("preflight_waiter_registered", { turnId });
@@ -37,7 +39,7 @@ export function waitForPreflightAcknowledgement(
 		}, CHAT_PREFLIGHT_TIMEOUT_MS);
 		const handleAck = (payload: unknown) => {
 			const ack = payload as { turn_id?: string; preflight_id?: string };
-			if (ack.turn_id && ack.turn_id !== turnId) {
+			if (requireExactTurnId ? ack.turn_id !== turnId : !!ack.turn_id && ack.turn_id !== turnId) {
 				recordDebugStep("preflight_ack_ignored_turn_mismatch", {
 					turnId, receivedTurnId: ack.turn_id
 				});
@@ -67,8 +69,13 @@ export function waitForPreflightAcknowledgement(
 			if (debug.turn_id !== turnId || !debug.phase) return;
 			recordDebugStep(`preflight_server_${debug.phase}`, { turnId });
 		};
+		const handleAbort = () => {
+			cleanup();
+			reject(new DOMException("Preflight waiter cancelled", "AbortError"));
+		};
 		const cleanup = () => {
 			globalThis.clearTimeout(timeout);
+			signal?.removeEventListener("abort", handleAbort);
 			events.off("chat_turn_preflight_ack", handleAck);
 			events.off("error", handleError);
 			events.off("chat_turn_preflight_debug", handleDebug);
@@ -76,5 +83,19 @@ export function waitForPreflightAcknowledgement(
 		events.on("chat_turn_preflight_ack", handleAck);
 		events.on("error", handleError);
 		events.on("chat_turn_preflight_debug", handleDebug);
+		if (signal?.aborted) handleAbort();
+		else signal?.addEventListener("abort", handleAbort, { once: true });
 	});
+}
+
+/** Finish the local retry write before replay can mark the message synced. */
+export async function recoverTimedOutAdmission(input: {
+  isCurrent: () => boolean;
+  persistWaiting: () => Promise<void>;
+  reconnect: () => void;
+}): Promise<void> {
+  if (!input.isCurrent()) return;
+  try { await input.persistWaiting(); }
+  catch { /* Reconnect still owns recovery when local status storage is unavailable. */ }
+  if (input.isCurrent()) input.reconnect();
 }

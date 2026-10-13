@@ -2227,6 +2227,66 @@ async def _overlap_preparation(operation):
             await asyncio.gather(task, return_exceptions=True)
 
 
+# Optional admin debug writes must never hold a visible response or queued
+# handoff indefinitely. Their budget starts when the task is created, so a
+# provider stream does not reset the deadline after it returns.
+_OPTIONAL_DEBUG_CACHE_BUDGET_S = 0.3
+_OPTIONAL_DEBUG_CANCEL_GRACE_S = 0.05
+
+
+def _consume_optional_debug_result(task):
+    try:
+        task.result()
+    except BaseException:
+        pass
+
+
+async def _settle_optional_debug_cache(task, started_at, *, wait_for_budget, write_cancelled=None):
+    """Join within the creation-time budget, then cancel and drain briefly."""
+    if task is None:
+        return
+    status = "complete"
+    try:
+        remaining = max(0.0, started_at + _OPTIONAL_DEBUG_CACHE_BUDGET_S - time.monotonic())
+        if wait_for_budget and remaining and not task.done():
+            await asyncio.wait({task}, timeout=remaining)
+        if task.done():
+            try:
+                result = task.result()
+                status = result if isinstance(result, str) and result in {"saved", "not_saved", "failed"} else "complete"
+            except asyncio.CancelledError:
+                status = "cancelled"
+            except Exception:
+                status = "failed"
+            return
+        if write_cancelled is not None:
+            write_cancelled.set()
+        task.cancel()
+        await asyncio.wait({task}, timeout=_OPTIONAL_DEBUG_CANCEL_GRACE_S)
+        if task.done():
+            _consume_optional_debug_result(task)
+            status = "deadline_cancelled" if wait_for_budget else "exit_cancelled"
+        else:
+            # The writer normally propagates cancellation. A bounded grace
+            # keeps even a cancellation-resistant dependency off the handoff.
+            task.add_done_callback(_consume_optional_debug_result)
+            status = "cancel_pending"
+    except asyncio.CancelledError:
+        if write_cancelled is not None:
+            write_cancelled.set()
+        task.cancel()
+        await asyncio.wait({task}, timeout=_OPTIONAL_DEBUG_CANCEL_GRACE_S)
+        if task.done():
+            _consume_optional_debug_result(task)
+        else:
+            task.add_done_callback(_consume_optional_debug_result)
+        status = "caller_cancelled"
+        raise
+    finally:
+        logger.info("[PRE_MAIN] stage=debug_cache status=%s elapsed_ms=%.1f",
+                    status, (time.monotonic() - started_at) * 1000)
+
+
 async def _time_setup_stage(stage: str, task_id: str, operation):
     started = time.monotonic()
     try:
@@ -2236,8 +2296,9 @@ async def _time_setup_stage(stage: str, task_id: str, operation):
                     task_id, stage, (time.monotonic() - started) * 1000)
 
 
-def _can_overlap_first_turn_reads(request_data, stage_one_snapshot, user_overrides=None):
-    """Require a complete empty admission snapshot for bounded first-turn overlap."""
+def _can_overlap_first_turn_reads(request_data, stage_one_snapshot, user_overrides=None,
+                                  *, allow_pending_details=False):
+    """Require an empty admission proof, or defer only a safe pending candidate."""
     if not stage_one_snapshot or request_data.chat_has_title or len(request_data.message_history or []) != 1:
         return False
     message = request_data.message_history[0]
@@ -2259,8 +2320,25 @@ def _can_overlap_first_turn_reads(request_data, stage_one_snapshot, user_overrid
         "legacy_cutover_task_id", "preprocessing_resume_ref", "user_task_id", "team_id",
     )):
         return False
-    from backend.apps.ai.processing.preprocessor import _simple_context_fast_path
-    return _simple_context_fast_path(request_data, stage_one_snapshot.get("routing"), user_overrides)
+    from backend.apps.ai.processing.preprocessor import (
+        _simple_context_fast_path, _stage_one_project_none_candidate,
+    )
+    routing = stage_one_snapshot.get("routing")
+    if _simple_context_fast_path(request_data, routing, user_overrides):
+        return True
+    if not allow_pending_details:
+        return False
+    admission = getattr(request_data, "admission_context", None)
+    # Pending details grant no authority. They only let the summary wait until
+    # the mandatory details phase gives us a complete, fresh scope decision.
+    if not isinstance(admission, dict) or admission.get("scope_complete") is True:
+        return False
+    if any(getattr(request_data, key, None) for key in (
+        "accepted_plan_context", "custom_rule_documents", "project_focus_documents",
+        "project_context_documents", "mentioned_settings_memories_cleartext",
+    )):
+        return False
+    return _stage_one_project_none_candidate(request_data, routing, user_overrides)
 
 
 async def _async_process_ai_skill_ask_task(
@@ -2597,7 +2675,9 @@ async def _async_process_ai_skill_ask_task(
     logger.info("[Task ID: %s] [PRE_MAIN] stage=user_cache elapsed_ms=%.1f",
                 task_id, (time.monotonic() - user_cache_started) * 1000)
 
-    delayed_first_turn_summary = _can_overlap_first_turn_reads(request_data, stage_one_snapshot)
+    delayed_first_turn_summary = _can_overlap_first_turn_reads(
+        request_data, stage_one_snapshot, allow_pending_details=True,
+    )
     summary_operation = None
     if user_vault_key_id and not any(getattr(request_data, flag, False) for flag in (
         "is_external", "is_incognito", "is_anonymous"
@@ -3058,6 +3138,8 @@ async def _async_process_ai_skill_ask_task(
                     icon_names=payload.get("icon_names"),
                 )
         debug_cache_task = None
+        debug_cache_started_at = None
+        debug_cache_write_cancelled = None
         initial_metadata_task = None
         preprocessing_ready_for_main = False
         try:
@@ -3134,6 +3216,13 @@ async def _async_process_ai_skill_ask_task(
 
             prefetched_diffable_embeds = None
             if preprocessing_result is None:
+                if delayed_first_turn_summary:
+                    # Stage one is only a scheduling hint. Complete client scope
+                    # is mandatory before summary and embed overlap may start.
+                    await await_client_context_phase(
+                        cache_service=cache_service_instance, request=request_data,
+                        phase="details", encryption_service=encryption_service_instance,
+                    )
                 first_turn_overlap = (
                     delayed_first_turn_summary
                     and _can_overlap_first_turn_reads(request_data, stage_one_snapshot, user_overrides)
@@ -3259,7 +3348,7 @@ async def _async_process_ai_skill_ask_task(
                     # metadata. Keep its payload snapshot from the preprocessing stage.
                     async def cache_debug_nonfatal():
                         try:
-                            await time_pre_main("debug_cache", cache_service_instance.cache_debug_request_entry(
+                            saved = await cache_service_instance.cache_debug_request_entry(
                                 encryption_service=encryption_service_instance,
                                 task_id=task_id,
                                 chat_id=request_data.chat_id,
@@ -3267,14 +3356,21 @@ async def _async_process_ai_skill_ask_task(
                                 stage="preprocessor",
                                 input_data=preprocessor_input,
                                 output_data=preprocessor_output,
-                            ))
-                            logger.debug(f"[Task ID: {task_id}] Cached preprocessor debug data (admin only)")
-                        except Exception as e_debug:
-                            logger.warning(f"[Task ID: {task_id}] Failed to cache preprocessor debug data (non-fatal): {e_debug}")
+                                accept_write=lambda: (
+                                    not debug_cache_write_cancelled.is_set()
+                                    and time.monotonic() < debug_cache_started_at + _OPTIONAL_DEBUG_CACHE_BUDGET_S
+                                ),
+                            )
+                            return "saved" if saved else "not_saved"
+                        except Exception:
+                            return "failed"
+
+                    debug_cache_started_at = time.monotonic()
+                    debug_cache_write_cancelled = asyncio.Event()
                     debug_cache_task = asyncio.create_task(cache_debug_nonfatal())
-            except Exception as e_debug:
-                # Don't fail the task if debug caching fails - just log the error
-                logger.warning(f"[Task ID: {task_id}] Failed to cache preprocessor debug data (non-fatal): {e_debug}")
+            except Exception:
+                # Debug cache is optional and may never expose private payloads in logs.
+                logger.info("[PRE_MAIN] stage=debug_cache status=snapshot_failed")
 
             # Note: We no longer handle harmful content rejection here.
             # Instead, we let it flow through to the stream consumer which will handle it properly
@@ -3699,15 +3795,13 @@ async def _async_process_ai_skill_ask_task(
                 logger.warning(f"[Task ID: {task_id}] Cache service not available. Skipping 'ai_typing_started' Redis publish.")
 
 
-            if debug_cache_task:
-                await debug_cache_task
             preprocessing_ready_for_main = True
         finally:
-            if debug_cache_task:
-                if not debug_cache_task.done():
-                    debug_cache_task.cancel()
-                await asyncio.gather(debug_cache_task, return_exceptions=True)
             if not preprocessing_ready_for_main:
+                await _settle_optional_debug_cache(
+                    debug_cache_task, debug_cache_started_at, wait_for_budget=False,
+                    write_cancelled=debug_cache_write_cancelled,
+                )
                 await _drain_preparation_tasks(initial_metadata_task)
 
         # --- Step 2: Main Processing (with streaming) ---
@@ -3771,6 +3865,12 @@ async def _async_process_ai_skill_ask_task(
                     )
                 _log_team_ai_pipeline_stage(request_data, task_id, "main", "completed")
             logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
+            if debug_cache_task:
+                await _settle_optional_debug_cache(
+                    debug_cache_task, debug_cache_started_at, wait_for_budget=True,
+                    write_cancelled=debug_cache_write_cancelled,
+                )
+                debug_cache_task = None
 
             # --- TEST RECORD: capture final response and save fixture ---
             if _fixture_recorder:
@@ -3886,6 +3986,11 @@ async def _async_process_ai_skill_ask_task(
                 logger.error(f"[Task ID: {task_id}] Error during main processing stream execution: {e}", exc_info=True)
             raise RuntimeError(f"Main processing stream execution failed: {e}") # Re-raise for sync wrapper
         finally:
+            if debug_cache_task:
+                await _settle_optional_debug_cache(
+                    debug_cache_task, debug_cache_started_at, wait_for_budget=False,
+                    write_cancelled=debug_cache_write_cancelled,
+                )
             await _drain_preparation_tasks(initial_metadata_task)
 
     if legacy_batch_proof is not None:

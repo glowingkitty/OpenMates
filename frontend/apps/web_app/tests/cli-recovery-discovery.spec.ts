@@ -7,7 +7,7 @@ const { getTestAccount } = require('./signup-flow-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { runCli } = require('./helpers/cli-test-helpers');
 const { installRecorderDeps } = require('./cli-tui-proof-helpers');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const {
@@ -18,6 +18,106 @@ const {
 const { email, password, otpKey } = getTestAccount();
 const repositoryRoot = path.resolve(__dirname, '../../../..');
 const isolatedCompose = path.join(repositoryRoot, 'test-results/ci-private/compose.json');
+
+/** Read or remove a private proof only through the disposable CI PostgreSQL service. */
+function isolatedProofSql(chatId: string, operation: 'read' | 'delete'): unknown {
+	if (process.env.OPENMATES_CI_ISOLATED !== '1' || !fs.existsSync(isolatedCompose)) {
+		throw new Error('Routing proof SQL requires the disposable isolated CI database');
+	}
+	if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(chatId)) {
+		throw new Error('Routing proof SQL requires a canonical UUID');
+	}
+	const sql = operation === 'read'
+		? "SELECT COALESCE(json_agg(row_to_json(proof)), '[]'::json)::text FROM (SELECT chat_id, preflight_id, inference_task_id, messages_v, message_digest FROM public.chat_routing_proofs WHERE chat_id = :'chat_id'::uuid) AS proof;"
+		: "WITH deleted AS (DELETE FROM public.chat_routing_proofs WHERE chat_id = :'chat_id'::uuid RETURNING 1) SELECT count(*) FROM deleted;";
+	const output = execFileSync('docker', ['compose', '-f', isolatedCompose, 'exec', '-T', 'cms-database',
+		'sh', '-ec', 'export PGPASSWORD="$POSTGRES_PASSWORD"; exec psql -X -q -A -t -v ON_ERROR_STOP=1 -v chat_id="$1" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f -',
+		'sh', chatId], { cwd: repositoryRoot, input: sql, encoding: 'utf8', timeout: 30_000 }).trim();
+	return operation === 'read' ? JSON.parse(output) : Number(output) === 1;
+}
+
+/** Let the API fixture request proof-only SQL without granting Directus collection access. */
+async function runIsolatedProofFixture(program: string, owner: unknown, testInfo: any): Promise<any> {
+	if (process.env.OPENMATES_CI_ISOLATED !== '1' || !fs.existsSync(isolatedCompose)) {
+		throw new Error('Routing proof fixture requires the disposable isolated CI stack');
+	}
+	const stderrPath = testInfo.outputPath('routing-proof-fixture-stderr.private.log');
+	let stderrFd = fs.openSync(stderrPath, 'w', 0o600);
+	try {
+	return await new Promise((resolve, reject) => {
+		const child = spawn('docker', ['compose', '-f', isolatedCompose, 'exec', '-T', '-e',
+			'OPENMATES_CI_ISOLATED=1', 'api', 'python', '-c', program],
+			{ cwd: repositoryRoot, stdio: ['pipe', 'pipe', 'pipe'] });
+		let stdout = '', stderrTail = '', stderrBytes = 0, result: any = null, settled = false;
+		let sqlFailureOperation = '', sqlFailureCategory = '';
+		const finish = (error?: Error) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timeout);
+			if (stderrFd >= 0) { fs.closeSync(stderrFd); stderrFd = -1; }
+			if (error) reject(error); else resolve(result);
+		};
+		const timeout = setTimeout(() => { child.kill(); finish(new Error('Isolated routing proof fixture timed out')); }, 90_000);
+		child.stdin.write(JSON.stringify(owner) + '\n');
+		child.stdout.setEncoding('utf8');
+		child.stdout.on('data', (chunk: string) => {
+			stdout += chunk;
+			let newline = stdout.indexOf('\n');
+			while (newline >= 0) {
+				const line = stdout.slice(0, newline).trim();
+				stdout = stdout.slice(newline + 1);
+				if (line.startsWith('OPENMATES_PROOF_SQL_REQUEST:')) {
+					let operation = 'parse_request';
+					try {
+						const request = JSON.parse(line.slice('OPENMATES_PROOF_SQL_REQUEST:'.length));
+						operation = request.operation;
+						if (operation !== 'read' && operation !== 'delete') throw new Error('Invalid proof SQL operation');
+						child.stdin.write(JSON.stringify({ value: isolatedProofSql(request.chatId, operation) }) + '\n');
+					} catch (error) {
+						sqlFailureOperation = operation;
+						const sqlStderr = (error as any)?.stderr;
+						if (stderrFd >= 0 && sqlStderr) fs.writeSync(stderrFd, Buffer.isBuffer(sqlStderr) ? sqlStderr : String(sqlStderr));
+						const detail = String(sqlStderr || '').toLowerCase();
+						sqlFailureCategory = detail.includes('syntax error') ? 'sql_syntax'
+							: detail.includes('does not exist') ? 'missing_relation'
+							: detail.includes('permission denied') ? 'sql_permission'
+							: detail.includes('authentication failed') ? 'sql_auth'
+							: error instanceof Error ? error.name : 'UnknownError';
+						child.stdin.write(JSON.stringify({ error: sqlFailureCategory }) + '\n');
+					}
+				} else if (line.startsWith('OPENMATES_PROOF_FIXTURE_RESULT:')) {
+					try { result = JSON.parse(line.slice('OPENMATES_PROOF_FIXTURE_RESULT:'.length)); }
+					catch { finish(new Error('Invalid routing proof fixture result')); }
+				}
+				newline = stdout.indexOf('\n');
+			}
+		});
+		child.stderr.on('data', (chunk: Buffer) => {
+			stderrBytes += chunk.length;
+			if (stderrFd >= 0) fs.writeSync(stderrFd, chunk);
+			stderrTail = (stderrTail + chunk.toString('utf8')).slice(-4096);
+		});
+		child.on('error', (error: Error) => finish(error));
+		child.on('close', (code: number) => {
+			if (code !== 0 || result === null) {
+				const frames = [...stderrTail.matchAll(/File "<string>", line (\d+), in ([a-zA-Z_]+)/g)];
+				const frame = frames.at(-1);
+				const categories = [...stderrTail.matchAll(/(?:^|\n)([A-Za-z_]+(?:Error|Exception))(?=:|$)/g)];
+				const category = categories.at(-1)?.[1] || 'UnknownError';
+				finish(new Error('Routing proof fixture failed (exit ' + code + ', stderr bytes ' + stderrBytes
+					+ ', python ' + category + ' at ' + (frame ? frame[2] + ':' + frame[1] : 'unknown')
+					+ ', sql operation ' + (sqlFailureOperation || 'none') + ', sql category ' + (sqlFailureCategory || 'none') + ')'));
+			} else finish();
+		});
+	});
+	} catch (error) {
+		await testInfo.attach('routing-proof-fixture-stderr-private', {
+			path: stderrPath, contentType: 'text/plain'
+		});
+		throw error;
+	}
+}
+
 
 type CanonicalHistoryFixture = { chatId: string; ownerId: string; clientMessageId: string;
 	chat: Record<string, unknown>; message: Record<string, unknown> };
@@ -213,8 +313,8 @@ test('SDK-minted new chat skips only impossible Focus and Plan discovery', async
 			await client.whoAmI();
 			if(client.getActiveTeamId())throw Error('Expected paired Personal account');
 			let phase='minted';
-			const result={minted:{focus:0,plans:0,projects:0,tasks:0,admission:null,routing:null,details:null},
-				supplied:{focus:0,plans:0,projects:0,tasks:0,admission:null,routing:null,details:null}};
+			const result={minted:{focus:0,plans:0,projects:0,tasks:0,combinedRequests:0,combinedProjectRows:false,admission:null,routing:null,details:null},
+				supplied:{focus:0,plans:0,projects:0,tasks:0,combinedRequests:0,combinedProjectRows:false,admission:null,routing:null,details:null}};
 			for(const [method,field] of [['getActiveProjectFocus','focus'],['listUserPlans','plans'],
 				['listProjects','projects'],['listUserTasks','tasks']]){
 				const original=client[method].bind(client);
@@ -226,6 +326,13 @@ test('SDK-minted new chat skips only impossible Focus and Plan discovery', async
 				const wait=opened.ws.waitForMessage.bind(opened.ws);
 				const waitForDiscovery=opened.ws.waitForRecoveryOutputDiscovery.bind(opened.ws);
 				const currentPhase=phase;
+				const requestCombined=opened.ws.requestPersonalSendContextSnapshot.bind(opened.ws);
+				opened.ws.requestPersonalSendContextSnapshot=async(...args)=>{
+					const snapshot=await requestCombined(...args);
+					result[currentPhase].combinedRequests++;
+					result[currentPhase].combinedProjectRows=Array.isArray(snapshot.project_candidates);
+					return snapshot;
+				};
 				let discoveryCompleted=false,releaseMintedDiscovery;
 				const mintedDiscoveryGate=new Promise(resolve=>{releaseMintedDiscovery=resolve;});
 				opened.ws.waitForRecoveryOutputDiscovery=async()=>{
@@ -292,11 +399,15 @@ test('SDK-minted new chat skips only impossible Focus and Plan discovery', async
 		`);
 		expect(observed.minted.focus).toBe(0);
 		expect(observed.minted.plans).toBe(0);
-		expect(observed.minted.projects).toBeGreaterThan(0);
+		expect(observed.minted.combinedRequests).toBe(1);
+		expect(observed.minted.combinedProjectRows).toBe(true);
+		expect(observed.minted.projects).toBe(0);
 		expect(observed.minted.tasks).toBeGreaterThan(0);
 		expect(observed.supplied.focus).toBe(2);
 		expect(observed.supplied.plans).toBe(1);
-		expect(observed.supplied.projects).toBeGreaterThan(0);
+		expect(observed.supplied.combinedRequests).toBe(1);
+		expect(observed.supplied.combinedProjectRows).toBe(true);
+		expect(observed.supplied.projects).toBe(0);
 		expect(observed.supplied.tasks).toBeGreaterThan(0);
 		expect(observed.minted.selectionDetailsV2).toBe(true);
 		expect(observed.supplied.selectionDetailsV2).toBe(false);
@@ -453,18 +564,77 @@ test('warmed interactive TUI send borrows its authenticated socket for one encry
 });
 
 // contract-test: direct surface=cli assertions=chats.send.immediate-admission,chats.persistence.client-encrypted,chats.message.identity-idempotent
-test('SDK reports a Project directory failure after durable epoch-one first Personal admission', async ({ page }: { page: any }) => {
+test('SDK reports a Project directory failure after durable epoch-one first Personal admission', async ({ page }: { page: any }, testInfo: any) => {
 	test.setTimeout(300_000);
 	test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted'
 		|| process.env.CI_TEST_MODE !== 'e2e', 'Requires the isolated GitHub product stack');
 	skipWithoutCredentials(test, email, password, otpKey);
 	const apiUrl = workflowApiUrl();
 	const home = createWorkflowCliHome('post-admission-context-failure');
+	const diagnosticAttachment = testInfo.outputPath('private-routing-diagnostic.json');
 	try {
 		await loginWorkflowCliViaPair(page, apiUrl, home, 'CLI_POST_ADMISSION_CONTEXT_FAILURE');
-		const observed = canonicalHistorySdk(apiUrl, home, `
+		let observed;
+		try { observed = canonicalHistorySdk(apiUrl, home, `
+			const diagnosticAttachment=${JSON.stringify(diagnosticAttachment)};
 			const owner=await client.whoAmI();
 			if(!owner.id||client.getActiveTeamId())throw Error('Expected paired Personal account');
+			const diagnosticFs=require('node:fs');
+			const {spawnSync}=require('node:child_process');
+			const diagnosticCompose=require('node:path').join(process.cwd(),'test-results/ci-private/compose.json');
+			const diagnosticRuns=[];
+			const runDiagnostic=(name,program,input,timeout)=>{
+				const stdoutPath=diagnosticAttachment+'.'+name+'.stdout';
+				const stderrPath=diagnosticAttachment+'.'+name+'.stderr';
+				let outFd=-1,errFd=-1,result=null,spawnError=null;
+				try{
+					outFd=diagnosticFs.openSync(stdoutPath,'wx',0o600);
+					errFd=diagnosticFs.openSync(stderrPath,'wx',0o600);
+					diagnosticFs.fchmodSync(outFd,0o600);diagnosticFs.fchmodSync(errFd,0o600);
+					result=spawnSync('docker',['compose','-f',diagnosticCompose,'exec','-T','-e',
+						'OPENMATES_CI_ISOLATED=1','api','python','-u','-c',program],{
+						input:JSON.stringify(input),stdio:['pipe',outFd,errFd],timeout,killSignal:'SIGKILL'
+					});
+					spawnError=result.error?.code??null;
+				}catch(error){spawnError=error?.code??'probe_error';}
+				finally{
+					if(outFd>=0)diagnosticFs.closeSync(outFd);
+					if(errFd>=0)diagnosticFs.closeSync(errFd);
+				}
+				const stdout=diagnosticFs.existsSync(stdoutPath)?diagnosticFs.readFileSync(stdoutPath):Buffer.alloc(0);
+				const stderr=diagnosticFs.existsSync(stderrPath)?diagnosticFs.readFileSync(stderrPath):Buffer.alloc(0);
+				if(diagnosticFs.existsSync(stdoutPath))diagnosticFs.unlinkSync(stdoutPath);
+				if(diagnosticFs.existsSync(stderrPath))diagnosticFs.unlinkSync(stderrPath);
+				const run={name,status:result?.status??null,signal:result?.signal??null,
+					errorCode:spawnError,stdout,stderr};
+				diagnosticRuns.push(run);
+				return run;
+			};
+			const saveDiagnostic=()=>{
+				try{
+					const fd=diagnosticFs.openSync(diagnosticAttachment,'wx',0o600);
+					try{
+						diagnosticFs.fchmodSync(fd,0o600);
+						diagnosticFs.writeSync(fd,JSON.stringify({runs:diagnosticRuns.map(run=>({
+							name:run.name,status:run.status,signal:run.signal,errorCode:run.errorCode,
+							stdoutBase64:run.stdout.toString('base64'),stderrBase64:run.stderr.toString('base64')
+						}))}));
+					}finally{diagnosticFs.closeSync(fd);}
+					return true;
+				}catch{return false;}
+			};
+			const runSummary=run=>{
+				const rows=run.stdout.toString('utf8').split(/\\r?\\n/);
+				const allowed=new Set(['broker_bootstrap','broker_app_imported',
+					'broker_main','broker_routing','broker_depth','broker_registered','broker_queues',
+					'state_bootstrap','state_imported','state_preflight','state_outbox','state_active','state_complete']);
+				const stages=rows.filter(line=>line.startsWith('OPENMATES_DIAG_STAGE:'))
+					.map(line=>line.slice('OPENMATES_DIAG_STAGE:'.length)).filter(stage=>allowed.has(stage));
+				return {category:run.errorCode==='ETIMEDOUT'?'timeout'
+					:run.signal?'signalled':run.status===0?'ok':run.errorCode?'spawn_error':'nonzero_exit',
+					stdoutBytes:run.stdout.length,stderrBytes:run.stderr.length,
+					lastStage:stages.at(-1)??'not_started'};
+			};
 			const memorySnapshot=await client.listMemories({personal:true});
 			const newChatId=client.preparedNewChatId();
 			const privateFailure='PRIVATE_PROJECT_DIRECTORY_RESPONSE_MUST_STAY_LOCAL';
@@ -521,12 +691,115 @@ test('SDK reports a Project directory failure after durable epoch-one first Pers
 			let terminalEvent;
 			try{terminalEvent=(await terminal).payload;}
 			catch(error){
-				let activeTaskPresent=null,activityReadFailed=false;
-				try{activeTaskPresent=(await client.getChatActivity({personal:true})).ids.includes(newChatId);}
-				catch{activityReadFailed=true;}
+				let serverState={diagnosticUnavailable:true};
+				try{
+					const brokerProgram=[
+						'import json,logging,os,signal,sys,uuid',
+						'print("OPENMATES_DIAG_STAGE:broker_bootstrap",flush=True)',
+						'assert os.environ.get("OPENMATES_CI_ISOLATED")=="1"',
+						'data=json.load(sys.stdin);task=data["task_id"]',
+						'assert str(uuid.UUID(task))==task',
+						'logging.disable(logging.CRITICAL)',
+						'from backend.core.api.app.tasks.celery_config import app',
+						'print("OPENMATES_DIAG_STAGE:broker_app_imported",flush=True)',
+						'def alarm(*_): raise TimeoutError()',
+						'def bounded(operation):',
+						'    previous=signal.signal(signal.SIGALRM,alarm);signal.setitimer(signal.ITIMER_REAL,2)',
+						'    try: return {"status":"ok","value":operation()}',
+						'    except TimeoutError: return {"status":"timeout"}',
+						'    except Exception: return {"status":"error"}',
+						'    finally: signal.setitimer(signal.ITIMER_REAL,0);signal.signal(signal.SIGALRM,previous)',
+						'def emit(step,value): print("OPENMATES_BROKER_PART:"+json.dumps({"step":step,"value":value}),flush=True)',
+						'def depth():',
+						'    with app.connection_for_read(connect_timeout=1.5,transport_options={"socket_timeout":1.5,"socket_connect_timeout":1.5}) as connection:',
+						'        channel=connection.channel()',
+						'        try:',
+						'            if not channel.__class__.__module__.startswith("kombu.transport.redis") or tuple(channel.priority_steps)!=(0,3,6,9): return {"status":"unsupported_transport"}',
+						'            with channel.client.pipeline() as pipeline:',
+						'                for name in ("app_ai","app_ai_routing"):',
+						'                    for priority in (0,3,6,9): pipeline.llen(channel._q_for_pri(name,priority))',
+						'                counts=pipeline.execute()',
+						'            return {"status":"ok","appAi":sum(counts[:4]),"appAiRouting":sum(counts[4:])}',
+						'        finally: channel.close()',
+						'for label,identifier in (("main",task),("routing",task+":routing")):',
+						'    result=bounded(lambda: app.AsyncResult(identifier).state)',
+						'    emit(label,result.get("value",result["status"]))',
+						'    print("OPENMATES_DIAG_STAGE:broker_"+label,flush=True)',
+						'result=bounded(depth);emit("depth",result.get("value",{"status":result["status"]}))',
+						'print("OPENMATES_DIAG_STAGE:broker_depth",flush=True)',
+						'reg=bounded(lambda: app.control.inspect(timeout=1.2).registered())',
+						'print("OPENMATES_DIAG_STAGE:broker_registered",flush=True)',
+						'queues=bounded(lambda: app.control.inspect(timeout=1.2).active_queues())',
+						'print("OPENMATES_DIAG_STAGE:broker_queues",flush=True)',
+						'registered=reg.get("value") if reg["status"]=="ok" and isinstance(reg.get("value"),dict) else None',
+						'active=queues.get("value") if queues["status"]=="ok" and isinstance(queues.get("value"),dict) else None',
+						'target={name for name,items in (active or {}).items() if isinstance(items,list) and any(isinstance(item,dict) and item.get("name")=="app_ai_routing" for item in items)}',
+						'stage_one={name for name in target if isinstance((registered or {}).get(name),list) and "apps.ai.tasks.stage_one" in registered[name]}',
+						'emit("inspect",{"registrationStatus":reg["status"] if registered is not None else "no_reply","queuesStatus":queues["status"] if active is not None else "no_reply","routingConsumers":len(target) if active is not None else None,"stageOneRegisteredOnRoutingConsumers":len(stage_one) if registered is not None and active is not None else None})'
+					].join(String.fromCharCode(10));
+					const brokerRun=runDiagnostic('broker',brokerProgram,{
+						task_id:preflightAck?.inference_task_id
+					},14000);
+					const stateProgram=[
+						'import asyncio,json,logging,os,sys,uuid',
+						'print("OPENMATES_DIAG_STAGE:state_bootstrap",flush=True)',
+						'assert os.environ.get("OPENMATES_CI_ISOLATED")=="1"',
+						'data=json.load(sys.stdin)',
+						'assert all(str(uuid.UUID(data[key]))==data[key] for key in ("user_id","chat_id","turn_id","message_id","request_id","preflight_id"))',
+						'logging.disable(logging.CRITICAL)',
+						'from backend.core.api.app.services.cache import CacheService',
+						'from backend.core.api.app.services.directus import DirectusService',
+						'from backend.core.api.app.services.client_context_continuation import _scope,_reference,_key',
+						'print("OPENMATES_DIAG_STAGE:state_imported",flush=True)',
+						'def emit(step,value): print("OPENMATES_STATE_PART:"+json.dumps({"step":step,"value":value}),flush=True)',
+						'async def main():',
+						'    cache=CacheService();directus=DirectusService(cache_service=cache)',
+						'    try:',
+						'        preflights=await asyncio.wait_for(directus.get_items("chat_turn_preflights",params={"filter":{"id":{"_eq":data["preflight_id"]}},"limit":1},no_cache=True,admin_required=True,raise_on_error=True),2)',
+						'        emit("preflight",{"state":(preflights or [{}])[0].get("state")})',
+						'        print("OPENMATES_DIAG_STAGE:state_preflight",flush=True)',
+						'        outboxes=await asyncio.wait_for(directus.get_items("chat_inference_outbox",params={"filter":{"preflight_id":{"_eq":data["preflight_id"]}},"limit":2},no_cache=True,admin_required=True,raise_on_error=True),2)',
+						'        task=(outboxes or [{}])[0].get("inference_task_id")',
+						'        emit("outbox",{"state":(outboxes or [{}])[0].get("state"),"count":len(outboxes or []),"taskMatches":bool(task and task==data.get("task_id"))})',
+						'        print("OPENMATES_DIAG_STAGE:state_outbox",flush=True)',
+						'        active=await asyncio.wait_for(cache.get_active_ai_task(data["chat_id"]),2)',
+						'        emit("active",{"present":bool(active),"matches":bool(task and active==task)})',
+						'        print("OPENMATES_DIAG_STAGE:state_active",flush=True)',
+						'        scope=_scope(user_id=data["user_id"],chat_id=data["chat_id"],turn_id=data["turn_id"],message_id=data["message_id"],request_id=data["request_id"])',
+						'        key=_key(_reference(scope));redis=await cache.client',
+						'        phases={name:bool(await asyncio.wait_for(redis.exists(key+suffix),1)) for name,suffix in (("binding",""),("failed",":failed"),("routing",":routing"),("details",":details"))}',
+						'        emit("context",phases)',
+						'        print("OPENMATES_DIAG_STAGE:state_complete",flush=True)',
+						'    finally: await directus.close();await cache.close()',
+						'asyncio.run(main())'
+					].join(String.fromCharCode(10));
+					const stateRun=runDiagnostic('state',stateProgram,{
+						user_id:owner.id,chat_id:newChatId,turn_id:admission.turn_id,
+						message_id:admission.message_id,request_id:admission.inference_request.client_context_request_id,
+						preflight_id:preflightAck.preflight_id,task_id:preflightAck.inference_task_id
+					},12000);
+					const parts=(run,prefix)=>run.stdout.toString('utf8').split(/\\r?\\n/)
+						.filter(line=>line.startsWith(prefix)).map(line=>{
+							try{return JSON.parse(line.slice(prefix.length));}catch{return null;}
+						}).filter(Boolean);
+					serverState={brokerProbe:runSummary(brokerRun),brokerParts:parts(brokerRun,'OPENMATES_BROKER_PART:'),
+						stateProbe:runSummary(stateRun),stateParts:parts(stateRun,'OPENMATES_STATE_PART:')};
+				}catch(diagnosticError){serverState={diagnosticUnavailable:true,
+					category:'probe_exception',errorType:diagnosticError?.name??'UnknownError'};}
+				serverState.attachmentSaved=saveDiagnostic();
+				let activeTaskPresent=null,activityReadFailed=false,activityReadStatus='unavailable';
+				const activityTimeout=Symbol('activity timeout');
+				let activityTimer;
+				try{
+					const deadline=new Promise((_,reject)=>{activityTimer=setTimeout(()=>reject(activityTimeout),3000);});
+					activeTaskPresent=(await Promise.race([client.getChatActivity({personal:true}),deadline])).ids.includes(newChatId);
+					activityReadStatus='ok';
+				}catch(activityError){activityReadFailed=true;
+					activityReadStatus=activityError===activityTimeout?'timeout':'error';
+				}finally{clearTimeout(activityTimer);}
 				console.error('FIRST_PERSONAL_TERMINAL_DIAGNOSTIC',JSON.stringify({
 					...beforeTerminal,observerOpenAfterWait:observer.isOpen(),
-					activeTaskPresent,activityReadFailed,
+					chatActivityPresent:activeTaskPresent,activityReadFailed,activityReadStatus,serverState,
 				}));
 				throw error;
 			}
@@ -534,10 +807,20 @@ test('SDK reports a Project directory failure after durable epoch-one first Pers
 				respectCompressionBoundary:false});
 			const beforeIds=canonicalBefore.messages.map(message=>message.clientMessageId||message.id);
 			const wrongWrapper={...admission,encrypted_chat_key:randomBytes(48).toString('base64')};
-			const rejection=observer.waitForMessage('error',payload=>payload.turn_id===admission?.turn_id,10000);
+			let rejectionTimer,stopRejection=()=>{};
+			const rejection=new Promise((resolve,reject)=>{
+				const finish=(settle,value)=>{clearTimeout(rejectionTimer);stopRejection();settle(value);};
+				stopRejection=observer.onMessageType('error',payload=>{
+					if(payload?.turn_id===admission?.turn_id)finish(resolve,payload);
+				});
+				rejectionTimer=setTimeout(()=>finish(reject,Error('Timed out waiting for scoped wrapper rejection')),10000);
+			});
 			void rejection.catch(()=>{});
-			await observer.sendAsync('chat_turn_admit',wrongWrapper);
-			const rejected=(await rejection).payload;
+			let rejected;
+			try{
+				await observer.sendAsync('chat_turn_admit',wrongWrapper);
+				rejected=await rejection;
+			}finally{clearTimeout(rejectionTimer);stopRejection();}
 			const canonicalAfter=await client.getChatMessagesWindow(newChatId,{personal:true,limit:20,
 				respectCompressionBoundary:false});
 			const afterIds=canonicalAfter.messages.map(message=>message.clientMessageId||message.id);
@@ -552,7 +835,7 @@ test('SDK reports a Project directory failure after durable epoch-one first Pers
 				canonicalSingleUser:beforeIds.length===1&&beforeIds[0]===admission?.message_id
 					&&canonicalBefore.messages[0]?.role==='user',
 				terminalMatches:terminalEvent?.task_id&&terminalEvent.task_id===terminalEvent.message_id,
-				wrapperRejected:rejected?.code==='preflight_mismatch',
+				wrapperRejectionCode:rejected?.code??null,
 				wrapperReplayUnchanged:JSON.stringify(afterIds)===JSON.stringify(beforeIds)
 					&&canonicalAfter.serverMessageCount===canonicalBefore.serverMessageCount,
 				contextPending:admission?.inference_request?.client_context_pending===true,
@@ -570,7 +853,10 @@ test('SDK reports a Project directory failure after durable epoch-one first Pers
 			observer.close();
 			if(preflightAck?.preflight_id)await client.deleteChat(newChatId,{personal:true});
 			process.stdout.write(JSON.stringify(result));
-		`);
+		`); } catch(error) {
+			if (fs.existsSync(diagnosticAttachment)) await testInfo.attach('private-routing-diagnostic', { path: diagnosticAttachment, contentType: 'application/json' });
+			throw error;
+		}
 		expect(observed.projectReads).toBeGreaterThan(0);
 		expect(observed.outbound).toEqual(['chat_turn_admit', 'chat_turn_context_failed']);
 		expect(observed.sendErrorIsPrivate).toBe(true);
@@ -581,7 +867,7 @@ test('SDK reports a Project directory failure after durable epoch-one first Pers
 		expect(observed.clientMessageIdMatches).toBe(true);
 		expect(observed.canonicalSingleUser).toBe(true);
 		expect(observed.terminalMatches).toBe(true);
-		expect(observed.wrapperRejected).toBe(true);
+		expect(observed.wrapperRejectionCode).toBe('immutable_chat_key_mismatch');
 		expect(observed.wrapperReplayUnchanged).toBe(true);
 		expect(observed.contextPending).toBe(true);
 		expect(observed.preflightAck).toBe(true);
@@ -598,7 +884,7 @@ test('SDK reports a Project directory failure after durable epoch-one first Pers
 
 // contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced,chat-queued-followups.editing.stable-revision,chats.persistence.client-encrypted
 // Real isolated Postgres proof: no outbox is published to inference; the fixture marks only the active receipt DISPATCHED.
-test('durable routing proof authorizes the exact active Personal turn across concurrent follower admission', async ({ page }: { page: any }) => {
+test('durable routing proof authorizes the exact active Personal turn across concurrent follower admission', async ({ page }: { page: any }, testInfo: any) => {
 	test.setTimeout(300_000);
 	test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted'
 		|| process.env.CI_TEST_MODE !== 'e2e', 'Requires the isolated GitHub product stack');
@@ -621,7 +907,7 @@ assert os.environ.get('OPENMATES_CI_ISOLATED')=='1'
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService,ChatRecoveryProtocolError
 async def main():
-    owner_id=json.load(sys.stdin)['ownerId']
+    owner_id=json.loads(sys.stdin.readline())['ownerId']
     owner=hashlib.sha256(owner_id.encode()).hexdigest()
     chat_id=str(uuid.uuid4()); turn_id=str(uuid.uuid4()); active_message=str(uuid.uuid4())
     active_task=str(uuid.uuid4()); active_outbox=str(uuid.uuid4()); billing=str(uuid.uuid4())
@@ -636,8 +922,17 @@ async def main():
     follower_commitment=hashlib.sha256(b'isolated-follower-commitment').hexdigest()
     directus=DirectusService(); recovery=ChatRecoveryService(directus)
     async def execute(operation,data): return await recovery.execute(operation,{'protocol_version':1,**data})
+    async def proof_sql(operation):
+        print('OPENMATES_PROOF_SQL_REQUEST:'+json.dumps({'operation':operation,'chatId':chat_id}),flush=True)
+        response=json.loads(sys.stdin.readline())
+        assert 'error' not in response, 'Isolated proof SQL failed: '+str(response.get('error'))
+        return response['value']
     async def rows(collection):
-        result=await directus.get_items(collection,params={'filter':{'chat_id':{'_eq':chat_id}},'limit':-1},no_cache=True)
+        if collection=='chat_routing_proofs':
+            result=await proof_sql('read')
+        else:
+            result=await directus.get_items(collection,params={'filter':{'chat_id':{'_eq':chat_id}},'limit':-1},
+                no_cache=True,raise_on_error=True)
         assert isinstance(result,list), collection+' read unavailable'
         return result
     async def verify():
@@ -695,7 +990,7 @@ async def main():
             return follower_preflight
         samples,follower_preflight=await asyncio.wait_for(asyncio.gather(
             verify_during_follower(),durable_follower()),timeout=35)
-        assert len(samples)==4 and all(type(value) is bool for value in samples)
+        assert len(samples)==4 and all(value is True for value in samples)
         proof=await rows('chat_routing_proofs')
         assert len(proof)==1 and proof[0]['preflight_id']==active_preflight
         assert proof[0]['inference_task_id']==active_task and proof[0]['messages_v']==3
@@ -724,22 +1019,23 @@ async def main():
             'fenced_at':datetime.now(timezone.utc).isoformat()}
         created,_=await directus.create_item('chat_recovery_chat_deletion_fences',fence,admin_required=True)
         assert created and await verify() is False
-        print(json.dumps({'concurrent_verifications':len(samples),'proof_version':proof[0]['messages_v'],
-            'exact_active_authorized':True,'cipher_revision_owner_deletion_rejected':True}))
+        print('OPENMATES_PROOF_FIXTURE_RESULT:'+json.dumps({'concurrent_verifications':len(samples),
+            'proof_version':proof[0]['messages_v'],'exact_active_authorized':True,
+            'cipher_revision_owner_deletion_rejected':True}),flush=True)
     finally:
         for collection in ('chat_recovery_chat_deletion_fences','chat_routing_proofs',
             'chat_inference_outbox','chat_turn_preflights','messages'):
             for row in await rows(collection):
-                assert await directus.delete_item(collection,row.get('id') or row['chat_id'],admin_required=True)
+                if collection=='chat_routing_proofs':
+                    assert await proof_sql('delete')
+                else:
+                    assert await directus.delete_item(collection,row.get('id') or row['chat_id'],admin_required=True)
         chats=await directus.get_items('chats',params={'filter':{'id':{'_eq':chat_id}},'limit':1},no_cache=True)
         for row in chats or []: assert await directus.delete_item('chats',row['id'],admin_required=True)
         await directus.close()
 asyncio.run(main())
 `;
-		const result = JSON.parse(execFileSync('docker', ['compose', '-f', isolatedCompose, 'exec', '-T', '-e',
-			'OPENMATES_CI_ISOLATED=1', 'api', 'python', '-c', program], {
-			cwd: repositoryRoot, input: JSON.stringify(owner), encoding: 'utf8', timeout: 90_000
-		}).trim());
+		const result = await runIsolatedProofFixture(program, owner, testInfo);
 		expect(result.concurrent_verifications).toBe(4);
 		expect(result.proof_version).toBe(3);
 		expect(result.exact_active_authorized).toBe(true);

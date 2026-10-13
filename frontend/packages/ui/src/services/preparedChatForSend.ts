@@ -42,13 +42,18 @@ function matchesScope(entry: PreparedChat, scope: NonNullable<ReturnType<typeof 
 export function prepareChatForSend(input: {
   currentChatId?: string | null;
   draftChatId?: string | null;
+  freshNewChatShell?: boolean;
 } = {}): void {
   const scope = currentScope();
-  if (!scope || input.currentChatId || (input.draftChatId && isPublicChat(input.draftChatId))) {
+  const draftId = input.draftChatId ?? get(draftEditorUIState).currentChatId;
+  // ActiveChat preallocates an ID for an unsent new-chat shell. A loaded chat
+  // cannot opt into preparation without the fresh-shell signal and same draft ID.
+  const ownsFreshShell = input.freshNewChatShell === true && !!input.currentChatId
+    && input.currentChatId === draftId;
+  if (!scope || (input.currentChatId && !ownsFreshShell) || (draftId && isPublicChat(draftId))) {
     prepared = null;
     return;
   }
-  const draftId = input.draftChatId ?? get(draftEditorUIState).currentChatId;
   if (prepared && matchesScope(prepared, scope) && (!draftId || prepared.chatId === draftId)) return;
   // Resolve the encrypted account-directory presence once while the composer
   // is idle. The metadata lookup carries no draft and never gates focus.

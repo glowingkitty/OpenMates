@@ -9,15 +9,16 @@
  * Split from chatSyncServiceSenders.ts for maintainability (Phase 04, Plan 01).
  * See docs/architecture/ for the dual-phase encryption architecture.
  */
-import type { ChatSynchronizationService } from "./chatSyncService";
+import { recordSendPreparationPhase, type ChatSynchronizationService } from "./chatSyncService";
+import { reserveFreshProjectRoutingForSend } from "./earlyProjectRoutingForSend";
 import { getAssistantSpeechPreference, hasAssistantSpeechPreferenceIntent, setAssistantSpeechPreference } from "./assistantSpeechPreference";
 import { chatDB } from "./db";
 import { webSocketService } from "./websocketService";
 import { recordMessageDispatchFailure } from "./sendersChatMessagesDispatchFailure";
 import { FastAdmissionJournalGate, isRetainedFastAdmissionSnapshot } from "./fastAdmissionJournal";
 import { PendingAdmissionCompatibilityError } from "./serverCapabilityGate";
-import { retainOrReuseContextPhaseFrame, type AdmissionContextPhase, type AdmissionContextIdentity } from "./fastAdmissionPhaseJournal";
-import { isSelectionDetailsV2Routing, publishSelectionDetailsPhases, publishContextPreparationFailure } from "./postAdmissionContextPhases";
+import { retainOrReuseContextPhaseFrameWithSeal, type AdmissionContextPhase, type AdmissionContextIdentity } from "./fastAdmissionPhaseJournal";
+import { isSelectionDetailsV2Routing, publishSelectionDetailsPhases, publishContextPreparationFailure, retainFreshRoutingPhase } from "./postAdmissionContextPhases";
 import { notificationStore } from "../stores/notificationStore";
 import { normalizeToUnixSeconds } from "./timestampUtils";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
@@ -53,7 +54,7 @@ import {
 	isProjectFocusId,
 	type ProjectFocusSendIntent,
 } from "./projectFocusSendPreflight";
-import { deactivateProjectFocus, getActiveProjectFocus, listProjects } from "./projectService";
+import { deactivateProjectFocus, getActiveProjectFocus, getProjectsMutationVersion, listFreshProjectsForSend, listProjects } from "./projectService";
 import { collectProjectFocusRoutingCandidates, type ProjectFocusRoutingCandidate } from "./agenticProjectContextService";
 import { collectRelatedTaskSnapshots } from "./relatedTaskContext";
 import { collectAcceptedPlanContext } from "./acceptedPlanContext";
@@ -63,7 +64,7 @@ import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
 import { getActiveTeamContextSnapshot } from "../stores/teamStore";
 import { activeChatStore } from "../stores/activeChatStore";
 import { ordinaryTeamPreflightStorageKey, retainOrReuseOrdinaryTeamPreflight } from "./ordinaryTeamPreflightRetry";
-import { PreflightRejectionError, isPreflightAcknowledgementTimeout, waitForPreflightAcknowledgement } from "./preflightAcknowledgement";
+import { PreflightRejectionError, isPreflightAcknowledgementTimeout, waitForPreflightAcknowledgement, recoverTimedOutAdmission } from "./preflightAcknowledgement";
 import { awaitPersonalChatPredecessor, bindPersonalChatTurn, failPersonalChatTurn, reservePersonalChatTurn, type PersonalChatTurn } from "./personalChatTurnBarrier";
 export { isPreflightAcknowledgementTimeout } from "./preflightAcknowledgement";
 
@@ -403,6 +404,28 @@ async function clearPendingMessageJournal(chatId: string, messageId: string, fie
 			if (!row || row.chat_id !== chatId || row[field] === undefined) return;
 			delete row[field];
 			if (field === MESSAGE_TURN_PREFLIGHT_FIELD) delete row.pending_turn_preflight_v1;
+			store.put(row);
+		};
+	});
+}
+
+/** Compare and delete in one transaction, so a newer retry journal survives. */
+async function clearPendingMessageJournalIfMatch(
+	chatId: string, messageId: string, field: string, expectedSealed: string,
+	canDelete: () => boolean,
+): Promise<void> {
+	const transaction = await chatDB.getTransaction("messages", "readwrite");
+	const store = transaction.objectStore("messages");
+	return new Promise<void>((resolve, reject) => {
+		transaction.oncomplete = () => resolve();
+		transaction.onabort = () => reject(transaction.error ?? new Error("Pending context cleanup aborted."));
+		transaction.onerror = () => reject(transaction.error ?? new Error("Pending context cleanup failed."));
+		const request = store.get(messageId);
+		request.onerror = () => reject(request.error);
+		request.onsuccess = () => {
+			const row = request.result as Record<string, unknown> | undefined;
+			if (!canDelete() || !row || row.chat_id !== chatId || row[field] !== expectedSealed) return;
+			delete row[field];
 			store.put(row);
 		};
 	});
@@ -900,12 +923,12 @@ const contextPhaseJournalField = (phase: AdmissionContextPhase) =>
 	`pending_encrypted_turn_context_${phase}_v1`;
 
 /** Seal each exact phase before network delivery; a duplicate retry must be byte-equivalent. */
-async function retainContextPhaseFrame(
+async function retainContextPhaseFrameWithSeal(
 	message: Message, chatKey: Uint8Array, identity: AdmissionContextIdentity,
 	phase: AdmissionContextPhase, proposed?: Record<string, unknown>,
-): Promise<Record<string, unknown> | null> {
+): Promise<{ frame: Record<string, unknown>; sealed: string; created: boolean } | null> {
 	const field = contextPhaseJournalField(phase);
-	return retainOrReuseContextPhaseFrame({
+	return retainOrReuseContextPhaseFrameWithSeal({
 		identity, phase, proposed,
 		read: () => readPendingMessageJournal(message.chat_id, message.message_id, field),
 		commit: (sealed) => commitPendingMessageJournal(message.chat_id, message.message_id, field, sealed),
@@ -916,11 +939,19 @@ async function retainContextPhaseFrame(
 	});
 }
 
+async function retainContextPhaseFrame(
+	message: Message, chatKey: Uint8Array, identity: AdmissionContextIdentity,
+	phase: AdmissionContextPhase, proposed?: Record<string, unknown>,
+): Promise<Record<string, unknown> | null> {
+	return (await retainContextPhaseFrameWithSeal(message, chatKey, identity, phase, proposed))?.frame ?? null;
+}
+
 async function publishPostAdmissionContext(input: {
 	message: Message;
 	chat: Chat;
 	admission: Record<string, unknown>;
 	postAdmissionConnectedAccounts?: Promise<PreparedConnectedAccountSendContext | undefined>;
+	consumeEarlyProjects?: (() => Promise<Awaited<ReturnType<typeof listFreshProjectsForSend>>> | null) | null;
 	supportsSelectionDetailsV2Now: () => boolean;
 	contextRejected?: () => boolean;
 }): Promise<void> {
@@ -937,6 +968,7 @@ async function publishPostAdmissionContext(input: {
 		&& !team.teamId && !chat.team_id;
 	if (!isCurrent()) return;
 	const chatKey = chatKeyManager.getKeySync(message.chat_id) || await chatKeyManager.getKey(message.chat_id);
+	if (!isCurrent()) return;
 	if (!chatKey) throw new Error("Admitted turn has no local chat key for context replay.");
 	const identity = {
 		chat_id: message.chat_id,
@@ -946,6 +978,7 @@ async function publishPostAdmissionContext(input: {
 	};
 	const accounts = postAdmissionConnectedAccounts ?? Promise.resolve(undefined);
 	let routingFrame = await retainContextPhaseFrame(message, chatKey, identity, "routing");
+	if (!isCurrent()) return;
 	const useSelectionDetailsV2 = routingFrame
 		? isSelectionDetailsV2Routing(routingFrame)
 		: supportsSelectionDetailsV2Now();
@@ -966,27 +999,68 @@ async function publishPostAdmissionContext(input: {
 		void selectionDetails?.catch(() => undefined);
 		// Routing must distinguish a confirmed empty Project list from a stale
 		// cached list whose background refresh failed.
-		const projects = routingFrame ? null : listProjects({ teamId: null, force: true }).then((rows) =>
-			collectProjectFocusRoutingCandidates(rows, null, message.content ?? ""));
+		// This exact optimistic message may already have a fresh, owner-scoped read
+		// from click time. A missing handoff still starts a new request now.
+		const projects = routingFrame ? null : (
+			input.consumeEarlyProjects?.()
+			?? listFreshProjectsForSend()
+		);
+		void projects?.catch(() => undefined);
+		let routingMutationVersion: number | null = null;
+		let routingSealedByThisAttempt: string | null = null;
+		let routingDispatchAttempted = false;
+		const mayDiscardStaleRouting = () => isCurrent() && !routingDispatchAttempted
+			&& routingMutationVersion !== null && getProjectsMutationVersion() !== routingMutationVersion;
+		const discardUnsentRouting = async () => {
+			if (!routingSealedByThisAttempt || !mayDiscardStaleRouting()) return;
+			const expected = routingSealedByThisAttempt;
+			await clearPendingMessageJournalIfMatch(
+				message.chat_id, message.message_id, contextPhaseJournalField("routing"), expected,
+				mayDiscardStaleRouting,
+			);
+			routingSealedByThisAttempt = null;
+		};
+		const assertFreshRouting = () => {
+			if (!isV2Current() || (routingMutationVersion !== null
+				&& getProjectsMutationVersion() !== routingMutationVersion))
+				throw new Error("Post-admission Project routing scope changed before dispatch.");
+		};
+		try {
 		await publishSelectionDetailsPhases({
 			isCurrent: isV2Current,
 			routing: async () => {
 				if (routingFrame) return routingFrame;
-				const candidates = await projects!;
-				if (!isV2Current()) throw new Error("Post-admission routing owner changed.");
-				routingFrame = await retainContextPhaseFrame(message, chatKey, identity, "routing", {
-					...identity, phase: "routing",
-					context: { project_focus_candidates: candidates.slice(0, 40) },
+				const { projects: rows, mutationVersion } = await projects!;
+				if (!isV2Current() || getProjectsMutationVersion() !== mutationVersion)
+					throw new Error("Post-admission Project routing scope changed.");
+				const candidates = await collectProjectFocusRoutingCandidates(rows, null, message.content ?? "");
+				if (!isV2Current() || getProjectsMutationVersion() !== mutationVersion)
+					throw new Error("Post-admission Project routing scope changed.");
+				routingMutationVersion = mutationVersion;
+				routingFrame = await retainFreshRoutingPhase({
+					mutationVersion, getMutationVersion: getProjectsMutationVersion, isCurrent: isV2Current,
+					retain: async () => {
+						const retained = await retainContextPhaseFrameWithSeal(message, chatKey, identity, "routing", {
+							...identity, phase: "routing",
+							context: { project_focus_candidates: candidates.slice(0, 40) },
+						});
+						if (!retained) throw new Error("Post-admission routing frame was not retained.");
+						routingSealedByThisAttempt = retained.created ? retained.sealed : null;
+						return retained.frame;
+					},
+					discard: discardUnsentRouting,
 				});
-				return routingFrame!;
+				return routingFrame;
 			},
 			details: async () => {
 				let detailsFrame = await retainContextPhaseFrame(message, chatKey, identity, "details");
+				if (!isV2Current()) throw new Error("Post-admission details owner changed.");
 				if (detailsFrame) return detailsFrame;
 				selectionDetails ??= collectSelectionDetails();
 				void selectionDetails.catch(() => undefined);
 				const context = await import("./agenticProjectContextService");
 				const { collectCustomRuleDocuments } = await import("./ruleDocumentService");
+				if (!isV2Current()) throw new Error("Post-admission details owner changed.");
 				const sharedFocus = getActiveProjectFocus(message.chat_id);
 				void sharedFocus.catch(() => undefined);
 				const initialFocus = async () => isV2Current() ? await sharedFocus : null;
@@ -1014,10 +1088,21 @@ async function publishPostAdmissionContext(input: {
 				});
 				return detailsFrame!;
 			},
-			send: async (_phase, frame) => {
+			send: async (phase, frame) => {
+				if (phase === "routing") {
+					assertFreshRouting();
+					routingDispatchAttempted = true;
+				}
+				recordSendPreparationPhase(`${phase}_context_ready`);
 				await webSocketService.sendMessage("chat_turn_context_ready", frame);
+				recordSendPreparationPhase(`${phase}_context_sent`);
 			},
 		});
+		await discardUnsentRouting();
+		} catch (error) {
+			await discardUnsentRouting();
+			throw error;
+		}
 		return;
 	}
 	if (!routingFrame) {
@@ -1223,7 +1308,8 @@ async function dispatchFastPersonalTurn(input: {
 					message_id: message.message_id,
 					request_id: retainedRequest.client_context_request_id as string,
 				},
-				isCurrent: () => contextWorkspace !== null
+				isCurrent: () => (contextRejected || isContextAttemptCurrent())
+					&& contextWorkspace !== null
 					&& getWorkspaceCacheIdentity() === contextWorkspace
 					&& get(authStore).isAuthenticated
 					&& getActiveTeamContextSnapshot().epoch === contextTeam.epoch
@@ -1246,21 +1332,47 @@ async function dispatchFastPersonalTurn(input: {
 		await updateMessageStatusForSendRetry(serviceInstance, message, "waiting_for_internet");
 		throw new PendingAdmissionCompatibilityError();
 	}
+	const consumeEarlyProjects = reserveFreshProjectRoutingForSend(message.chat_id, message.message_id);
 	const started = performance.now();
+	const ackAbort = new AbortController();
+	const admissionAck = waitForPreflightAcknowledgement(
+		admission.turn_id as string, webSocketService, recordPreflightDebugStep, ackAbort.signal, true,
+	);
+	void admissionAck.catch(() => undefined);
 	try {
 		await webSocketService.sendMessage("chat_turn_admit", admission);
 		recordPreflightDebugStep("admission_frame_dispatched", {
 			turnId: admission.turn_id, elapsedMs: performance.now() - started,
 		});
 		onUserFrameDispatched?.();
-		void publishPostAdmissionContext({
-			message, chat, admission, postAdmissionConnectedAccounts, supportsSelectionDetailsV2Now,
-			contextRejected: () => contextRejected || !isContextAttemptCurrent(),
+		// The backend commits the user row before this exact-turn ACK. Prepare and
+		// consume context only then; a rejected frame cannot publish a phase.
+		void admissionAck.then(async () => {
+			recordSendPreparationPhase('admission_ack');
+			await publishPostAdmissionContext({
+				message, chat, admission, postAdmissionConnectedAccounts, consumeEarlyProjects, supportsSelectionDetailsV2Now,
+				contextRejected: () => contextRejected || !isContextAttemptCurrent(),
+			});
+		}, async (error) => {
+			if (isPreflightAcknowledgementTimeout(error)) {
+				const stillOwned = () => contextWorkspace !== null
+					&& getWorkspaceCacheIdentity() === contextWorkspace
+					&& get(authStore).isAuthenticated
+					&& getActiveTeamContextSnapshot().epoch === contextTeam.epoch
+					&& !contextTeam.teamId && !chat.team_id && isContextAttemptCurrent();
+				await recoverTimedOutAdmission({
+					isCurrent: stillOwned,
+					persistWaiting: () => updateMessageStatusForSendRetry(serviceInstance, message, "waiting_for_internet"),
+					reconnect: () => webSocketService.forceReconnect("chat admission acknowledgement timed out"),
+				});
+			}
+			console.warn("[ChatSyncService:Senders] Admission acknowledgement unavailable", error);
 		}).catch(async (error) => {
 			await reportContextFailure();
 			console.warn("[ChatSyncService:Senders] Post-admission context unavailable", error);
 		});
 	} catch (error) {
+		ackAbort.abort();
 		const status = await recordMessageDispatchFailure(serviceInstance, message, true);
 		if (status !== "waiting_for_internet") throw error;
 	}

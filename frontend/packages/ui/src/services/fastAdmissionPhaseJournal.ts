@@ -7,8 +7,7 @@ export interface AdmissionContextIdentity {
   request_id: unknown;
 }
 
-/** Reuse a phase sealed before a previous send; never recollect a possibly accepted phase. */
-export async function retainOrReuseContextPhaseFrame(input: {
+export interface ContextPhaseJournalStorage {
   identity: AdmissionContextIdentity;
   phase: AdmissionContextPhase;
   proposed?: Record<string, unknown>;
@@ -16,10 +15,17 @@ export async function retainOrReuseContextPhaseFrame(input: {
   commit: (sealed: string) => Promise<string>;
   seal: (frame: Record<string, unknown>) => Promise<string>;
   open: (sealed: string) => Promise<string | null>;
-}): Promise<Record<string, unknown> | null> {
+}
+
+/** Return the exact ciphertext so an unsent phase can be deleted by comparison. */
+export async function retainOrReuseContextPhaseFrameWithSeal(
+  input: ContextPhaseJournalStorage,
+): Promise<{ frame: Record<string, unknown>; sealed: string; created: boolean } | null> {
   const previous = await input.read();
   if (!previous && !input.proposed) return null;
-  const sealed = previous ?? await input.commit(await input.seal(input.proposed!));
+  const candidate = previous ? null : await input.seal(input.proposed!);
+  const sealed = previous ?? await input.commit(candidate!);
+  const created = candidate !== null && sealed === candidate;
   const plaintext = await input.open(sealed);
   if (!plaintext) throw new Error(`Pending ${input.phase} context cannot be decrypted.`);
   let frame: Record<string, unknown>;
@@ -31,5 +37,12 @@ export async function retainOrReuseContextPhaseFrame(input: {
     Array.isArray(frame.context)) {
     throw new Error(`Pending ${input.phase} context has a different turn identity.`);
   }
-  return frame;
+  return { frame, sealed, created };
+}
+
+/** Reuse a phase sealed before a previous send; never recollect a possibly accepted phase. */
+export async function retainOrReuseContextPhaseFrame(
+  input: ContextPhaseJournalStorage,
+): Promise<Record<string, unknown> | null> {
+  return (await retainOrReuseContextPhaseFrameWithSeal(input))?.frame ?? null;
 }

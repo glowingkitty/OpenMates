@@ -17,7 +17,14 @@ const MAX_TURN_MS = 120000;
 const argv = process.argv.slice(2);
 const option = (name) => { const i = argv.indexOf(name); return i < 0 ? null : argv[i + 1]; };
 const execute = argv.includes('--execute');
-const plan = CASES.flatMap(({ id }) => ['cold', 'warm-1', 'warm-2'].map(sample => ({ id, sample })));
+const selectedCases = (option('--cases') || CASES.map(x => x.id).join(',')).split(',');
+const selectedSamples = (option('--samples') || 'cold,warm-1,warm-2').split(',');
+if (selectedCases.some(id => !CASES.some(x => x.id === id)) ||
+    selectedSamples.some(sample => !['cold', 'warm-1', 'warm-2'].includes(sample))) {
+  throw new Error('Unknown case or sample');
+}
+const plan = CASES.filter(x => selectedCases.includes(x.id))
+  .flatMap(({ id }) => selectedSamples.map(sample => ({ id, sample })));
 if (!execute) {
   process.stdout.write(JSON.stringify({ mode: 'dry', app_origin: APP_ORIGIN, api_origin: API_ORIGIN,
     samples: plan, requires: ['--execute', '--lease-id', '--api-origin', '--output'] }) + '\n');
@@ -67,7 +74,8 @@ function wireObserver(wire) {
       if (!/^[a-z_]{1,60}$/.test(data.type)) return;
       if (!['new_chat_message', 'ai_typing_started', 'ai_message_update', 'ai_message_ready',
         'ai_thinking_update', 'ai_thinking_started', 'ai_thinking_completed', 'ai_skill_execution_started',
-        'ai_skill_execution_completed', 'ai_tool_call', 'ai_tool_result', 'ai_processing_status'].includes(data.type)) return;
+        'ai_skill_execution_completed', 'ai_tool_call', 'ai_tool_result', 'ai_processing_status',
+        'skill_execution_status', 'send_embed_data'].includes(data.type)) return;
       wire.push({ at: Date.now(), type: data.type, chat_id: payload.chat_id, message_id: payload.message_id,
         task_id: payload.task_id, user_message_id: payload.user_message_id,
         sequence: payload.sequence, final: payload.is_final_chunk === true,
@@ -98,6 +106,8 @@ async function login(page, account) {
 }
 async function installPaintProbe(page) {
   await page.evaluate(() => {
+    sessionStorage.setItem('openmates:send-prep-timing', '1');
+    window.__openmatesSendPrepPhases = [];
     if (window.__ordinaryLatencyProbe?.stop) window.__ordinaryLatencyProbe.stop();
     const probe = { clickAt: null, mateAt: null, answerAt: null, answerMessageId: null, mateClasses: null,
       initialAssistantIds: new Set([...document.querySelectorAll('[data-testid="message-assistant"]')]
@@ -185,10 +195,9 @@ async function sample(page, wire, item) {
     const button = [...document.querySelectorAll('[data-testid="composer-send-button"]')]
       .find(e => e.getClientRects().length && !e.disabled);
     const wrapper = button?.closest('[data-action="message-input"]');
-    const selector = [...(wrapper?.querySelectorAll('[data-testid="composer-model-selector"]') || [])]
-      .find(e => e.getClientRects().length);
-    return !!button && !!wrapper && !wrapper.closest('[inert]') &&
-      !!selector && !selector.disabled && selector.getAttribute('data-loading') === 'false';
+    // Send as soon as the composer accepts a click, including while model
+    // preferences are loading. Model readiness belongs to the measured path.
+    return !!button && !!wrapper && !wrapper.closest('[inert]');
   }, null, { timeout: 30000 });
   await installPaintProbe(page);
   const begun = Date.now();
@@ -225,6 +234,9 @@ async function sample(page, wire, item) {
       !/gemini[-_\s]*3[.]8[-_\s]*flash/i.test(typing.model)) {
     throw new Error('Visible Mate did not match current-turn AI typing category/model metadata');
   }
+  const preparationPhases = await page.evaluate(clickAt =>
+    (window.__openmatesSendPrepPhases || []).filter(x => /^[a-z_]{1,80}$/.test(x.phase) && Number.isFinite(x.ms))
+      .map(x => ({ phase: x.phase, elapsed_ms: Math.round(performance.timeOrigin + x.ms - clickAt) })), paint.clickAt);
   const answer = page.getByTestId('message-assistant').last();
   const modelText = await answer.getByTestId('using-model').or(answer.getByTestId('generated-by')).first()
     .textContent({ timeout: 10000 }).catch(() => null);
@@ -236,7 +248,8 @@ async function sample(page, wire, item) {
     send_to_stage1_source_ms: typing.at - paint.clickAt,
     send_to_authored_paint_ms: paint.answerAt - paint.clickAt,
     send_to_source_final_ms: final.at - paint.clickAt,
-    tool_event_count: own.filter(e => /skill|tool/.test(e.type)).length,
+    preparation_phases: preparationPhases,
+    tool_progress_frame_count: own.filter(e => /skill|tool/.test(e.type)).length,
     source_event_count: own.length,
     source_final_sequence: Number.isInteger(final.sequence) ? final.sequence : null,
     _private: { chat_id: chatId, task_id: taskId, user_message_id: userMessageId, final_task_id: final.task_id,
@@ -245,7 +258,7 @@ async function sample(page, wire, item) {
 }
 async function main() {
   const { chromium } = require('playwright');
-  const wire = []; const results = [];
+  const wire = []; const sent = []; const results = [];
   const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
   const clips = [];
   let videoPath = null;
@@ -261,14 +274,31 @@ async function main() {
     // One fresh browser context per prompt provides its cold sample; two following
     // samples reuse the same authenticated context and connections.
     for (const item of plan) {
-      const fresh = item.sample === 'cold';
+      const fresh = item.sample === 'cold' || !main.context;
       if (fresh) {
         await closeContext();
         main.context = await browser.newContext({ viewport: { width: 1440, height: 900 },
           recordVideo: { dir: output, size: { width: 1440, height: 900 } } });
         main.page = await main.context.newPage();
-        main.page.on('websocket', wireObserver(wire));
+        main.page.on('websocket', socket => {
+          wireObserver(wire)(socket);
+          socket.on('framesent', frame => {
+            try {
+              const data = JSON.parse(String(frame.payload));
+              if (!/^[a-z_]{1,60}$/.test(data.type)) return;
+              const payload = data.payload || {};
+              // No draft text, ciphertext, headers, auth tokens or full frames.
+              sent.push({ at: Date.now(), type: data.type,
+                chat_id: /^[a-f0-9-]{36}$/.test(payload.chat_id || '') ? payload.chat_id : null });
+              if (sent.length > 3000) sent.shift();
+            } catch { /* Ignore non-JSON frames. */ }
+          });
+        });
         await login(main.page, readAccount());
+        if (item.sample !== 'cold') {
+          await main.page.getByTestId('message-editor').locator('.ProseMirror').click();
+          await main.page.waitForTimeout(20000);
+        }
       }
       try {
         const result = await sample(main.page, wire, item);
@@ -294,6 +324,7 @@ async function main() {
     }
     const privateData = results.map(({ _private, ...publicRow }) => ({ ...publicRow, ...( _private ? { source: _private } : {}) }));
     const publicData = results.map(({ _private, ...publicRow }) => publicRow);
+    fs.writeFileSync(path.join(output, 'send-wire-timing.private.json'), JSON.stringify(sent, null, 2), { mode: 0o600 });
     fs.writeFileSync(path.join(output, 'source-correlation.private.json'), JSON.stringify(privateData, null, 2), { mode: 0o600 });
     fs.writeFileSync(path.join(output, 'metrics.json'), JSON.stringify({ mode: 'executed', client: 'ordinary-web',
       app_origin: APP_ORIGIN, api_origin: API_ORIGIN, results: publicData,

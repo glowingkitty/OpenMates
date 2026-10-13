@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { isSelectionDetailsV2Routing, publishSelectionDetailsPhases, publishContextPreparationFailure } from './postAdmissionContextPhases';
+import { isSelectionDetailsV2Routing, publishSelectionDetailsPhases, publishContextPreparationFailure, retainFreshRoutingPhase } from './postAdmissionContextPhases';
 
 describe('post-admission selection details v2', () => {
   // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.selection-after-acceptance
@@ -40,6 +40,59 @@ describe('post-admission selection details v2', () => {
       isCurrent: () => current,
     });
     expect(sent).toEqual(['routing']);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.selection-after-acceptance,chats.send.immediate-admission
+  it('discards a sealed phase when Project metadata mutates during retention', async () => {
+    let releaseSeal!: (frame: string) => void;
+    const sealing = new Promise<string>((resolve) => { releaseSeal = resolve; });
+    let mutationVersion = 1;
+    let retained: string | null = null;
+    const sent = vi.fn();
+    const publish = publishSelectionDetailsPhases({
+      routing: () => retainFreshRoutingPhase({
+        mutationVersion, getMutationVersion: () => mutationVersion, isCurrent: () => true,
+        retain: async () => { retained = await sealing; return retained; },
+        discard: async () => { retained = null; },
+      }),
+      details: async () => 'details', send: sent, isCurrent: () => true,
+    });
+    mutationVersion = 2;
+    releaseSeal('sealed-stale-candidates');
+    await expect(publish).rejects.toThrow('routing scope changed');
+    expect(retained).toBeNull();
+    expect(sent).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent,message-input.send.ownership
+  it('leaves a sealed journal for a successor when the old attempt loses ownership', async () => {
+    let releaseSeal!: (value: string) => void;
+    const sealing = new Promise<string>((resolve) => { releaseSeal = resolve; });
+    let releaseOld!: () => void;
+    const oldPaused = new Promise<void>((resolve) => { releaseOld = resolve; });
+    let journal: string | null = null;
+    let oldOwnsTurn = true;
+    const discard = vi.fn(async () => { journal = null; });
+    const oldSend = vi.fn();
+    const oldAttempt = publishSelectionDetailsPhases({
+      routing: () => retainFreshRoutingPhase({
+        mutationVersion: 1, getMutationVersion: () => 2, isCurrent: () => oldOwnsTurn,
+        retain: async () => { journal = await sealing; await oldPaused; return journal; },
+        discard,
+      }),
+      details: async () => 'details', send: oldSend, isCurrent: () => oldOwnsTurn,
+    });
+    releaseSeal('exact-sealed-routing');
+    await vi.waitFor(() => expect(journal).toBe('exact-sealed-routing'));
+    oldOwnsTurn = false;
+    const successorFrame = journal;
+    const successorSent = [successorFrame];
+    releaseOld();
+    await oldAttempt;
+    expect(successorSent).toEqual(['exact-sealed-routing']);
+    expect(journal).toBe(successorFrame);
+    expect(discard).not.toHaveBeenCalled();
+    expect(oldSend).not.toHaveBeenCalled();
   });
 
   // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.selection-after-acceptance

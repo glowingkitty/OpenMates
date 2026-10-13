@@ -430,7 +430,7 @@ export function peekProjects(): ProjectViewModel[] | undefined { return projectL
 export function subscribeProjects(listener: () => void): () => void { return projectListCache.subscribe(listener); }
 export function getProjectsRefreshError(): unknown { return projectListCache.getError(activeProjectListKey()); }
 
-export async function listProjects(options: { force?: boolean; teamId?: string | null } = {}): Promise<ProjectViewModel[]> {
+export async function listProjects(options: { force?: boolean; teamId?: string | null; freshRequest?: boolean } = {}): Promise<ProjectViewModel[]> {
   const teamId = 'teamId' in options ? options.teamId : getActiveTeamContextSnapshot().teamId;
   return projectListCache.load(projectListKey(teamId), async () => {
     const data = await requestJson<{ projects: EncryptedProjectRecord[] }>(withProjectRemoteQuery("/v1/projects", { team_id: teamId }));
@@ -438,6 +438,16 @@ export async function listProjects(options: { force?: boolean; teamId?: string |
     return decrypted.filter((project): project is ProjectViewModel => project !== null);
   }, options);
 }
+
+/** A click starts a new owner-scoped request even if an older refresh is pending. */
+export async function listFreshProjectsForSend(): Promise<{ projects: ProjectViewModel[]; mutationVersion: number }> {
+  const mutationVersion = projectListCache.getMutationVersion();
+  const projects = await listProjects({ teamId: null, force: true, freshRequest: true });
+  if (projectListCache.getMutationVersion() !== mutationVersion) throw new WorkspaceCacheDiscardedError();
+  return { projects, mutationVersion };
+}
+
+export function getProjectsMutationVersion(): number { return projectListCache.getMutationVersion(); }
 
 export async function getProject(projectId: string, context: ProjectApiContext = {}): Promise<ProjectViewModel> {
   const teamId = 'teamId' in context ? context.teamId : getActiveTeamContextSnapshot().teamId;

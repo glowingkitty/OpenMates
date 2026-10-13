@@ -102,7 +102,10 @@ class BillingService:
         """
         if not user_id or hashlib.sha256(user_id.encode("utf-8")).hexdigest() != user_id_hash:
             raise ValueError("Billing admission identity is invalid")
+        lock_started = time.monotonic()
         async with self.settlement_lock.hold(user_id_hash) as lease:
+            lock_wait_ms = (time.monotonic() - lock_started) * 1000
+            read_started = time.monotonic()
             rows = await self.directus_service.get_items(
                 "directus_users",
                 params={"filter[id][_eq]": user_id,
@@ -110,6 +113,7 @@ class BillingService:
                 no_cache=True,
                 admin_required=True,
             )
+            read_ms = (time.monotonic() - read_started) * 1000
             if not isinstance(rows, list) or len(rows) != 1 or rows[0].get("id") != user_id:
                 raise ValueError("Billing admission profile is unavailable")
             row = rows[0]
@@ -118,9 +122,12 @@ class BillingService:
             if (not isinstance(vault_key_id, str) or not vault_key_id
                     or not isinstance(encrypted_balance, str) or not encrypted_balance):
                 raise ValueError("Billing admission profile is incomplete")
+            decrypt_started = time.monotonic()
             decrypted = await self.encryption_service.decrypt_with_user_key(
                 encrypted_balance, vault_key_id
             )
+            logger.info("Billing admission timing lock_wait_ms=%.1f read_ms=%.1f decrypt_ms=%.1f",
+                        lock_wait_ms, read_ms, (time.monotonic() - decrypt_started) * 1000)
             try:
                 if decrypted is None or isinstance(decrypted, bool):
                     raise ValueError

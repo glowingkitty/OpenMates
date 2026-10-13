@@ -171,11 +171,12 @@ def test_preparation_and_metadata_join_boundaries():
     assert body.index("debug_cache_task = asyncio.create_task(cache_debug_nonfatal())") < body.index(
         'initial_metadata_operation = time_pre_main("metadata_job"')
     assert body.index('initial_metadata_task = asyncio.create_task(initial_metadata_operation)') < body.index(
-        "await debug_cache_task") < body.index("# --- Step 2: Main Processing")
+        "# --- Step 2: Main Processing") < body.index(
+            "wait_for_budget=True")
     assert body.index('initial_metadata_job = await time_pre_main("metadata_barrier_wait", initial_metadata_task)') < body.index(
         "metadata_recovery_job=initial_metadata_job", body.index("async def publish_initial_metadata_after_seal"))
-    assert body.index("before_first_chunk_publish=publish_initial_metadata_after_seal") > body.index(
-        "await debug_cache_task")
+    assert body.index("before_first_chunk_publish=publish_initial_metadata_after_seal") < body.index(
+        "wait_for_budget=True")
     assert "if not request_data.is_external:" in body
     assert "if not typing_lifecycle.started:" in body
 
@@ -415,7 +416,8 @@ def test_first_turn_overlap_requires_complete_empty_admission_and_no_mentions():
     helper.body = [node for node in helper.body if not isinstance(node, ast.ImportFrom)]
     module = ast.Module(body=[helper], type_ignores=[])
     ast.fix_missing_locations(module)
-    namespace = {"_simple_context_fast_path": Mock(return_value=True)}
+    namespace = {"_simple_context_fast_path": Mock(return_value=True),
+                 "_stage_one_project_none_candidate": Mock(return_value=False)}
     exec(compile(module, "<first-turn-proof>", "exec"), namespace)
     eligible = namespace["_can_overlap_first_turn_reads"]
     message = SimpleNamespace(role="user", message_id="m1", content="Hello")

@@ -288,6 +288,13 @@ test.describe('Chat metadata warmup WebSocket contract', () => {
 			expect(directoryResponse).toEqual({ status: 200, rowsArray: true, rowCount: 0 });
 			expect(lookupRequests).toBeGreaterThanOrEqual(1);
 			expect(phases.indexOf('connected_lookup_started')).toBeGreaterThanOrEqual(0);
+			// The fresh Project read begins at the click, while the admitted turn
+			// still waits for its exact ACK before publishing private routing.
+			expect(phases.indexOf('project_read_begin')).toBeGreaterThan(phases.indexOf('send_accepted'));
+			expect(phases.indexOf('project_read_begin')).toBeLessThan(phases.indexOf('user_frame_dispatched'));
+			expect(phases.indexOf('admission_ack')).toBeGreaterThan(phases.indexOf('user_frame_dispatched'));
+			if (v2Capability) expect(phases.indexOf('routing_context_sent'))
+				.toBeGreaterThan(phases.indexOf('admission_ack'));
 			expect(phases.indexOf('connected_lookup_started')).toBeLessThan(phases.indexOf('local_message_ready'));
 			expect(phases.indexOf('local_message_ready')).toBeLessThan(phases.indexOf('user_frame_dispatched'));
 			expect(phases.indexOf('user_frame_dispatched')).toBeLessThan(phases.indexOf('connected_lookup_ready'));

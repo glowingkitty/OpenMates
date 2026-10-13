@@ -1,5 +1,7 @@
 # Chat processing architecture
 
+Published development revision `1c7d8e29449be9f161e30f7d3c0d1fb606742bfb` includes atomic first Personal admission, combined fresh Memory/Project send snapshots, context phasing, and the corrected Python admission dispatcher. The timing acceptance criteria remain open. The Core10 changes below are implementation candidates until their exact published source is measured.
+
 The architecture revision (`fa6b90c`), Google transport repair (`e71c72b8`), immediate admission changes (`2453d85d`), first measured SDK/auth/simple-turn fixes (`7a250696`), composer focus repair (`df30b916`), idle authenticated TUI connection / bounded Project projection changes (`ab78d61b`), and profile/refresh/context-failure repairs (`94d03b1a`) are deployed to development. Revision `3d64cfe1` adds fresh Personal Memory batching, first-turn preference overlap, strict-frame tracing preservation and legacy-context identity repair. Revision `58a36dee` also consolidates first Personal admission reads, overlaps independent main setup, fetches fresh Personal ciphertext over the prepared send socket, and releases the first safe prose fragment before paragraph completion. Its actual TUI measurements are included below. Actual TUI measurements still miss the latency targets; no successful timing acceptance is claimed yet. Timing targets are 1.5 seconds from Enter/Send to selected-Mate paint, and 2–3 seconds to authored text for an ordinary factual request. The interactive TUI is measured first, then web. Tool progress, final response, persistence and command exit are separate measurements.
 
 ```mermaid
@@ -123,7 +125,7 @@ Project/Focus/Team-memory cache hits still require a small fresh Directus waterm
 
 Actual PTY Enter-to-paint samples below use the successful Google Gemini 3.8 Flash model with LOW thinking, verified against each exact task/chat in server logs. The Spain question used zero app skills. Warm runs idle for 20 seconds before Enter. These observations are not percentile estimates or matched revision-wide improvement claims; worker restart and cache temperature differ.
 
-| Runtime / condition | User row and composer clear | Selected Mate | First authored text | Final completion | Acceptance |
+| Runtime / condition | User row and composer clear | Selected Mate | First authored text | TUI idle / web source final | Acceptance |
 | --- | ---: | ---: | ---: | ---: | --- |
 | `2453d85d`, cold | 28 ms | 11,088 ms | 15,829 ms | 22,498 ms | Missed |
 | `2453d85d`, warm | 28 ms | 3,168 ms | 5,634 ms | 10,751 ms | Missed |
@@ -240,10 +242,10 @@ flowchart LR
 
 Client context preparation took 1,253 ms and overlapped admission. This contains Project candidate and later detail discovery; no separate Project-candidate duration is attributed without its own measurement. The main active-summary request took 183 ms, preprocessing 251 ms, and debug/initial metadata persistence took approximately 154/150 ms concurrently. These intervals are components of the measured setup path, not additional waits on top of the 983 ms.
 
-The next implementation consolidates narrowly eligible first Personal preparation and enqueue into one transaction, registers required client context before its ACK, joins independent routing checks in parallel, and moves independent read work earlier in main setup. Fresh ownership, risk, protocol, credit, source-version and execution gates remain required. Timing acceptance remains open until this exact next source is deployed and measured in TUI first, then web.
+The implementation published as `149dc600` and corrected as `1c7d8e29` consolidates narrowly eligible first Personal preparation and enqueue into one transaction and registers required client context before its ACK. Core10 further overlaps independent routing checks and eligible main preparation. Fresh ownership, risk, protocol, credit, source-version and execution gates remain required. Timing acceptance remains open until this exact next source is deployed and measured in TUI first, then web.
 
 
-## Next candidate implementation details
+## Atomic admission and phased context implementation
 
 A narrowly eligible first ordinary Personal one-frame admission uses one Directus transaction for fresh account/protocol, immutable key, new chat, encrypted user message, canonical preflight and held outbox. Context registration runs after that durable commit and before the public `ENQUEUED` ACK. Binding failure leaves the held outbox unclaimable; exact replay reuses the same message, task, billing and outbox identities, while bounded expiry prevents an abandoned turn from billing. The dispatch step releases the held outbox only after its existing gates. Existing, Team, Project, attachment, fork and unsupported protocol paths retain established admission.
 
@@ -255,3 +257,57 @@ Google transport diagnostics record request-scoped DNS, connection creation, con
 
 
 Queued followups can advance the chat's message version while the admitted active turn remains unchanged. A separate internal per-chat routing proof now tracks authorized queued mutations without changing the original preflight commit version. New preflights carry a normalized ciphertext fingerprint; proof reuse requires the exact active owner, task, preflight, outbox, message digest and current chat version, plus fresh protocol/expiry/deletion checks. An unrelated edit leaves the proof stale. The proof covers the pre-claim Stage1 window; after main claims the turn, existing fresh execution checks apply. Older schema/rows retain the strict version comparison and full-routing fallback. Schema capability probes add an unmeasured transaction cost and must be included in the next timing result.
+
+
+## Core9 real request measurements
+
+The interactive TUI was tested before the web application. These are individual real requests, not medians, matched-cohort comparisons, or percentile claims. The TUI warm samples used a new product TUI process with 20 seconds of idle startup preparation. The web warm samples used the deployed application and an authenticated browser context with 20 seconds of initial composer preparation. The benchmark accepts Send while model preferences may still be loading. Rendering, authored text, tool progress, final stream and command completion remain distinct milestones.
+
+| Request and condition | Optimistic user row | Selected Mate | First authored text | TUI idle / web source final |
+| --- | ---: | ---: | ---: | ---: |
+| TUI Spain, first after backend restart | 31 ms | 2,358 ms | 5,365 ms | 11,144 ms |
+| TUI Spain, subsequent warmed request | 31 ms | 1,515 ms | 3,932 ms | 10,882 ms |
+| TUI Berlin, warmed request | 30 ms | 1,548 ms | 15,881 ms | 53,180 ms |
+| Web Spain, warmed browser | Not measured | 3,393 ms | 6,129 ms | 8,205 ms |
+| Web Berlin, same authenticated browser | Not measured | 2,719 ms | 15,676 ms | 23,877 ms |
+
+The TUI Spain main request used Google AI Studio Gemini 3.8 Flash, LOW thinking, zero tools and 3,818 input tokens. The TUI Berlin run painted tool progress at 4,976 ms; the simple-answer 3-second target does not apply to its completed events research. Neither client's measured Mate feedback satisfies the 1.5-second acceptance target yet. A failed latency assertion is not a failed message: all five requests above completed.
+
+```mermaid
+sequenceDiagram
+  participant U as TUI Enter
+  participant A as API / durable admission
+  participant R as Routing worker
+  participant M as Main worker
+  participant G as Gemini provider
+  U->>A: Fresh context and encrypted admission
+  Note over A: ACK at 582 ms
+  A->>R: Routing task starts at 695 ms
+  Note over R: Authority current 790 ms; context ready 833 ms
+  Note over R: Credit / Project join 975 ms
+  R->>R: Jev plan 1035 ms; decision 1420 ms
+  R-->>U: Mate published 1487 ms; painted 1515 ms
+  R->>M: Main task starts 1511 ms
+  Note over M: Setup still takes 831 ms before HTTP
+  M->>G: Request starts 2342 ms
+  G-->>M: First authored text 3896 ms
+  M-->>U: First authored text painted 3932 ms
+```
+
+The 831 ms main setup includes a 72.7 ms sealed Stage1 load, 32.9 ms fresh durable claim, 28.4 ms public configuration reads, a 105.2 ms active-summary operation (partly overlapping configuration), preprocessing, a 97.6 ms optional debug write and a 153 ms embed lookup. Initial metadata sealing already overlaps model work: its 94 ms write finishes before first text and the first-publication barrier waits 0 ms. These component durations overlap and must not be added on top of the 831 ms interval.
+
+The Google request takes 1,554 ms to its first authored chunk. Connection creation takes 17.3 ms, including 2.7 ms DNS; headers sent to response headers takes 1,534 ms. That last interval combines remote queueing/processing and response transport; the trace does not attribute it solely to model computation.
+
+On the web Spain/Berlin samples, click to admission transaction start takes about 786/1,004 ms, including browser work, transport and API validation. The routing worker then waits 662/349 ms between its authority check and complete client routing context. A fresh Project directory currently begins only after the admission ACK. The next benchmark records the existing opt-in send-phase markers and outgoing frame times to distinguish client preparation from server work.
+
+## Core10 corrections under verification
+
+AI worker children warm the deployment-static auto-select policy and billing module after fork, before accepting tasks. This makes no paid model request and caches no user authority or balance. Fresh Dragonfly and durable routing checks run concurrently at all three routing fences and must both succeed before publication or handoff.
+
+A pending client-details phase can defer the optional first-turn summary only under the narrow same-turn, no-Project candidate proof. Details then complete the proof before overlap proceeds; any nonempty scope or fallback joins the active-summary mutation before related/private discovery. The initial debug write has a bounded lifetime and a persistence fence; it does not gate provider dispatch or the first visible chunk. Its snapshot is assembled before launching the writer. Initial metadata sealing retains the existing first-chunk and zero-chunk terminal barrier.
+
+Fresh web Project discovery starts at accepted Send and overlaps independent local privacy, encryption and admission work. Consumption still occurs after the correlated admission ACK, under the exact owner/workspace/Team/chat/message/turn and mutation guards. A failed directory read stays a context failure; cached empty data is never used as fresh proof. A dedicated fresh read avoids joining a request begun before Send. No user draft text is sent by focus-time or TUI-startup warm-up.
+
+The final column uses different boundaries: TUI idle occurs after SDK persistence, while web source-final is the server final-stream event. On the TUI Berlin sample the worker final marker arrived at approximately 22.6 seconds and postprocessing completed at 25.9 seconds. Eleven ordinary embed writes occupied approximately 3.6 seconds, followed by encrypted metadata completion at about 30.4 seconds. The SDK then performed a sequential sealed-output recovery replay from about 30.5 to 53.1 seconds before TUI idle at 53.2 seconds. That replay is the largest measured client completion cost; it is separate from inference and from ordinary embed writes. Repeated transaction log lines are not a proven count of distinct recovery requests. Both Berlin samples selected three available skills but executed only `events.search`. The benchmark observes the real `skill_execution_status` and `send_embed_data` event names and reports progress-frame counts separately from actual executed-tool counts.
+
+The internal routing-proof table was verified absent on the shared development runtime `f7efbf5d` before this candidate. Its YAML requests no Directus accountability, but the strict reviewed matrix omitted the collection and rejected creation before making the table. The candidate adds that exact reviewed entry. Isolated schema producers and consumers now reject a prepared bundle missing the required proof table, and the isolated AI worker consumes the reserved routing queue as well as main work. These are prerequisites for the queued-revision proof and routing failure checks; they do not establish a new latency result.

@@ -3811,11 +3811,12 @@ describe("CLI saved-chat recovery preflight", () => {
   });
 
   // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
-  for (const mutation of ["setter", "live session"] as const) it(`rejects prepared context after a ${mutation} Team change`, async () => {
+  for (const mutation of ["setter", "live session"] as const) it(`rejects prepared context after a ${mutation} Team change`, { timeout: 5_000 }, async () => {
     let client: OpenMatesClient | null = null;
-    let socket: import("ws").WebSocket | null = null;
-    let preflightSent = false;
-    let completeProjectRead: (() => void) | null = null;
+    let sendSocket: import("ws").WebSocket | null = null;
+    let userFrameSent = false;
+    let resolveSendSocketClosed!: () => void;
+    const sendSocketClosed = new Promise<void>(resolve => { resolveSendSocketClosed = resolve; });
     const wss = new WebSocketServer({ noServer: true });
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       if (request.method === "POST" && request.url === "/v1/auth/session") {
@@ -3824,19 +3825,14 @@ describe("CLI saved-chat recovery preflight", () => {
         return;
       }
       if (request.method === "GET" && request.url === "/v1/projects") {
-        // Context may start before the authenticated socket opens. Apply the
-        // mutation after auth refresh so it cannot be overwritten by its disk
-        // recheck, then finish the context read and recovery discovery.
-        const finish = () => {
-          assert.ok(client && socket);
-          if (mutation === "setter") client.setActiveTeamId("22222222-2222-4222-8222-222222222222");
-          else client.getSession().activeTeamId = "22222222-2222-4222-8222-222222222222";
-          response.writeHead(200, { "content-type": "application/json" });
-          response.end(JSON.stringify({ projects: [] }));
-          socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
-        };
-        if (socket) finish();
-        else completeProjectRead = finish;
+        // The Personal snapshot receipt keeps this exact authenticated socket
+        // for the send. Mutate only when its context read starts, after auth.
+        assert.ok(client && sendSocket);
+        if (mutation === "setter") client.setActiveTeamId("22222222-2222-4222-8222-222222222222");
+        else client.getSession().activeTeamId = "22222222-2222-4222-8222-222222222222";
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ projects: [] }));
+        sendSocket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         return;
       }
       response.writeHead(404);
@@ -3844,12 +3840,20 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, connection, head) => {
       wss.handleUpgrade(request, connection, head, (ws) => {
-        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
-        socket = ws;
-        completeProjectRead?.();
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: [
+          "personal_memory_snapshot_v1", "chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1",
+        ] } }));
+        ws.on("close", () => { if (ws === sendSocket) resolveSendSocketClosed(); });
         ws.on("message", (raw) => {
-          const frame = JSON.parse(raw.toString()) as { type: string };
-          if (frame.type === "chat_turn_admit") preflightSent = true;
+          const frame = JSON.parse(raw.toString()) as { type: string; payload?: { request_id?: string } };
+          if (frame.type === "personal_memory_snapshot") {
+            sendSocket = ws;
+            ws.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload: {
+              request_id: frame.payload?.request_id, success: true,
+              personal_memories: { encrypted_settings: null, memories: [] },
+            } }));
+          }
+          if (["chat_turn_admit", "chat_turn_preflight", "chat_message_added"].includes(frame.type)) userFrameSent = true;
         });
       });
     });
@@ -3860,7 +3864,8 @@ describe("CLI saved-chat recovery preflight", () => {
       writeLegacySession(`http://127.0.0.1:${address.port}`);
       client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
       await assert.rejects(client.sendMessage({ message: "ordinary question", personal: true, piiDetection: false }), /Chat workspace changed while preparing context/);
-      assert.equal(preflightSent, false);
+      await sendSocketClosed;
+      assert.equal(userFrameSent, false);
     } finally {
       wss.close();
       server.closeAllConnections();
@@ -3922,10 +3927,12 @@ describe("CLI saved-chat recovery preflight", () => {
   });
 
   // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
-  it("closes an opened socket when the session disappears during early context setup", async () => {
+  it("closes the Personal snapshot probe when the session disappears before context setup", { timeout: 5_000 }, async () => {
     let socketClosed = false;
+    let resolveSocketClosed!: () => void;
+    const socketClosedPromise = new Promise<void>(resolve => { resolveSocketClosed = resolve; });
     let contextRead = false;
-    let preflightSent = false;
+    let userFrameSent = false;
     const wss = new WebSocketServer({ noServer: true });
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       if (request.method === "POST" && request.url === "/v1/auth/session") {
@@ -3940,9 +3947,10 @@ describe("CLI saved-chat recovery preflight", () => {
     server.on("upgrade", (request, connection, head) => {
       wss.handleUpgrade(request, connection, head, (ws) => {
         ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
-        ws.on("close", () => { socketClosed = true; });
+        ws.on("close", () => { socketClosed = true; resolveSocketClosed(); });
         ws.on("message", (raw) => {
-          if ((JSON.parse(raw.toString()) as { type: string }).type === "chat_turn_admit") preflightSent = true;
+          if (["chat_turn_admit", "chat_turn_preflight", "chat_message_added"].includes(
+            (JSON.parse(raw.toString()) as { type: string }).type)) userFrameSent = true;
         });
       });
     });
@@ -3963,10 +3971,76 @@ describe("CLI saved-chat recovery preflight", () => {
         return opened;
       };
       await assert.rejects(client.sendMessage({ message: "ordinary question", piiDetection: false }), /Not logged in/);
-      await new Promise<void>((resolve) => setTimeout(resolve, 30));
+      await socketClosedPromise;
       assert.equal(socketClosed, true);
+      assert.equal(contextRead, false, "logout before snapshot completion must not start a context read");
+      assert.equal(userFrameSent, false);
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
+  it("closes the send socket when the session disappears during its context read", { timeout: 5_000 }, async () => {
+    let client: OpenMatesClient | null = null;
+    let sendSocket: import("ws").WebSocket | null = null;
+    let socketClosed = false;
+    let resolveSocketClosed!: () => void;
+    const socketClosedPromise = new Promise<void>(resolve => { resolveSocketClosed = resolve; });
+    let contextRead = false;
+    let userFrameSent = false;
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: "11111111-1111-4111-8111-111111111111" } }));
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/projects") {
+        assert.ok(client && sendSocket, "context must use the authenticated snapshot socket");
+        contextRead = true;
+        (client as unknown as { session: unknown }).session = null;
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ projects: [] }));
+        sendSocket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, connection, head) => {
+      wss.handleUpgrade(request, connection, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: [
+          "personal_memory_snapshot_v1", "chat_turn_admit_v1", "chat_turn_context_v1",
+        ] } }));
+        ws.on("close", () => { socketClosed = true; resolveSocketClosed(); });
+        ws.on("message", (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload?: { request_id?: string } };
+          if (frame.type === "personal_memory_snapshot") {
+            sendSocket = ws;
+            ws.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload: {
+              request_id: frame.payload?.request_id, success: true,
+              personal_memories: { encrypted_settings: null, memories: [] },
+            } }));
+          }
+          if (["chat_turn_admit", "chat_turn_preflight", "chat_message_added"].includes(frame.type)) userFrameSent = true;
+        });
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await assert.rejects(client.sendMessage({ message: "ordinary question", personal: true, piiDetection: false }),
+        /Chat workspace changed while preparing context|Not logged in/);
       assert.equal(contextRead, true);
-      assert.equal(preflightSent, false);
+      assert.equal(userFrameSent, false);
+      await socketClosedPromise;
+      assert.equal(socketClosed, true);
     } finally {
       wss.close();
       server.closeAllConnections();
@@ -4097,6 +4171,9 @@ describe("CLI saved-chat recovery preflight", () => {
       wss.handleUpgrade(request, socket, head, (ws) => {
         if (supported) setTimeout(() => ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } })), 50);
         else {
+          // This server advertises capabilities but lacks single admission;
+          // the CLI must use durable preflight rather than infer no-frame support.
+          ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: [] } }));
           discoverySent = true;
           ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         }

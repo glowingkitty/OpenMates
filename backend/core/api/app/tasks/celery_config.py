@@ -1162,6 +1162,21 @@ def init_worker_process(*args, **kwargs):
             exc_info=True,
         )
 
+    # Both inference and compact-routing workers use deployment-static model
+    # policy. Load it after fork and before accepting tasks, without selecting a
+    # model or calling any provider. BillingService's import graph is also
+    # static; importing it here removes that graph from the first credit check.
+    if _worker_needs_ai_services():
+        try:
+            from backend.apps.ai.utils.model_selector import warm_auto_select_settings
+            warm_auto_select_settings()
+            importlib.import_module("backend.core.api.app.services.billing_service")
+            logger.info("[PERF] AI worker static routing policy and billing imports warmed")
+        except Exception:
+            # First use retains the existing import/read path and fail-closed
+            # credit admission; startup warmup cannot grant turn authority.
+            logger.warning("[PERF] AI static warmup failed; first task will retry", exc_info=True)
+
     # PERFORMANCE OPTIMIZATION: Pre-warm AI provider clients for app-ai-worker
     # This eliminates the cold-start delay on the first AI request after restart
     asyncio.run(prewarm_ai_services())

@@ -9,8 +9,9 @@
     import { canonicalizeAiModelSelection, isAiModelSelectionUsable } from '../../utils/aiModelSelection';
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui'; // Use text store
-    import { chatSyncService } from '../../services/chatSyncService'; // Import chatSyncService
+    import { chatSyncService, recordSendPreparationPhase } from '../../services/chatSyncService'; // Import chatSyncService
     import { prepareChatForSend } from '../../services/preparedChatForSend';
+    import type { FirstTurnComposerReason } from '../../utils/chatDraftState';
     import {
         chatModelSelectionService,
         registerChatModelSelectionSync,
@@ -227,6 +228,11 @@
         startNewChatOnClick?: boolean;
         /** True when this composer is attached to the empty new-chat screen. */
         isNewChatContext?: boolean;
+        /** Exact personal first-turn draft/chat proof supplied by ActiveChat. */
+        firstTurnSendContext?: boolean;
+        firstTurnSourceReason?: FirstTurnComposerReason;
+        /** Claim the exact unbound, personal new-chat shell before the first edit. */
+        onFreshShellFocus?: (chatId: string) => boolean;
         /** Keep an already-persisted draft shell ID when new-chat creation is stopped. */
         preserveChatIdOnNewChatCancellation?: boolean;
         /** Compact single-line mode to match adjacent button height (~48px). Expands on focus/content. */
@@ -261,6 +267,9 @@
         placeholderText = undefined,
         startNewChatOnClick = false,
         isNewChatContext = false,
+        firstTurnSendContext = false,
+        firstTurnSourceReason = 'no_chat',
+        onFreshShellFocus = undefined,
         preserveChatIdOnNewChatCancellation = false,
         inlineCompact = false,
         anonymousFileAttachmentPending = $bindable(false),
@@ -2768,7 +2777,11 @@
         
         isMessageFieldFocused = true;
         isFocused = true; // Update bindable prop for parent components
-        prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
+        if (currentChatId && editor.isEmpty && onFreshShellFocus?.(currentChatId)) {
+            recordSendPreparationPhase('project_read_shell_draft_bound_on_focus');
+        }
+        prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId,
+            freshNewChatShell: isNewChatContext && !preserveChatIdOnNewChatCancellation });
         chatSyncService.warmChatMetadata(currentChatId);
         if (editor.isEmpty) {
             editor.commands.setContent(getInitialContent(), { emitUpdate: false });
@@ -5501,6 +5514,15 @@
             selection: modelSelection,
             wasReady: modelSelectionReady,
         };
+        const firstTurnContextAtClick = firstTurnSendContext;
+        recordSendPreparationPhase(`project_read_source_click_${firstTurnContextAtClick ? 'first_turn' : 'other'}`);
+        recordSendPreparationPhase(`project_read_source_reason_${firstTurnSourceReason}`);
+        recordSendPreparationPhase(`project_read_source_ui_${isNewChatContext ? 'new_chat' : 'existing_chat'}`);
+        // Only booleans enter the opt-in phase trace; no chat/draft IDs or content.
+        recordSendPreparationPhase(`project_read_source_draft_${!currentChatId || currentChatId === modelOwner.draftChatId ? 'matched' : 'mismatched'}`);
+        recordSendPreparationPhase(`project_read_source_draft_binding_${!currentChatId ? 'no_chat' :
+            modelOwner.draftChatId === null ? 'absent' :
+            currentChatId === modelOwner.draftChatId ? 'matched' : 'different'}`);
         invalidateRecordingContext('send');
         // Project mention authority belongs to the exact document the user saw
         // when pressing Send. Later awaits can rebind or restore the composer.
@@ -5615,6 +5637,9 @@
             getE2EServerContentOverride(event),
             projectFocusDocumentAtSendRequest,
             {
+                // Capture the exact first-turn data proof before preview awaits
+                // and visible-content state updates can change presentation.
+                firstTurnContextAtClick,
                 resolveModelSelection: async () => {
                     // A new chat has no saved preference to restore. Keep the
                     // selection visible at this click, including a chosen model.
@@ -5865,7 +5890,8 @@
                 return;
             }
             if ($recordingState.isRecordButtonPressed || $recordingState.showRecordAudioUI) return;
-            prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
+            prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId,
+            freshNewChatShell: isNewChatContext && !preserveChatIdOnNewChatCancellation });
             prepareEditorForRecording();
             await tick();
             const position = getKeyboardRecordStartPosition();
@@ -5996,7 +6022,8 @@
             await handleSignUpClick();
             return;
         }
-        prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
+        prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId,
+            freshNewChatShell: isNewChatContext && !preserveChatIdOnNewChatCancellation });
         prepareEditorForRecording();
         await tick();
         await handleRecordMouseDownLogic(event.detail.originalEvent);
@@ -6028,7 +6055,8 @@
             await handleSignUpClick();
             return;
         }
-        prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
+        prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId,
+            freshNewChatShell: isNewChatContext && !preserveChatIdOnNewChatCancellation });
         prepareEditorForRecording();
         await tick();
         await handleRecordTouchStartLogic(event.detail.originalEvent);

@@ -1635,7 +1635,10 @@ async def check_preprocessing_credits(
                 error_message="User identification is missing. Cannot proceed.",
             )
 
+        billing_import_started = time.monotonic()
         from backend.core.api.app.services.billing_service import BillingService
+        logger.info("%s BillingService import_ms=%.1f", log_prefix,
+                    (time.monotonic() - billing_import_started) * 1000)
 
         billing_service = BillingService(
             cache_service=cache_service,
@@ -3214,6 +3217,9 @@ async def handle_preprocessing(
             simple_context_fast_path = False
             logger.warning("%s Empty-context route could not be reused (%s); running detailed pass",
                            log_prefix, type(exc).__name__)
+            if before_related_summary_read is not None and not related_summary_hook_completed:
+                await before_related_summary_read()
+                related_summary_hook_completed = True
             try:
                 for candidate in await private_focus_candidates(request_data, directus_service, cache_service):
                     available_focus_mode_ids.append(candidate["id"])

@@ -39,6 +39,7 @@ export class WorkspaceQueryCache<T> {
   private readonly listeners = new Set<() => void>();
   private scope: string | null = null;
   private generation = 0;
+  private mutationVersion = 0;
   private readonly scopeForRead: () => string | null;
   private readonly ttlMs: number;
 
@@ -66,6 +67,9 @@ export class WorkspaceQueryCache<T> {
     return entry !== undefined && Date.now() - entry.fetchedAt < this.ttlMs;
   }
 
+  /** Changes only for local writes/invalidation, including owner switches. */
+  getMutationVersion(): number { this.checkScope(); return this.mutationVersion; }
+
   getError(key: string): unknown {
     if (!this.checkScope()) return undefined;
     return this.errors.get(key);
@@ -75,6 +79,7 @@ export class WorkspaceQueryCache<T> {
     if (!this.checkScope()) return;
     // A successful local write supersedes the older read of this key, without
     // discarding unrelated concurrent entity requests.
+    this.mutationVersion += 1;
     this.pending.delete(key);
     this.errors.delete(key);
     this.data.set(key, { value, fetchedAt: Date.now() });
@@ -83,6 +88,7 @@ export class WorkspaceQueryCache<T> {
 
   /** Mutation invalidation removes entries, so deleted rows cannot be reused. */
   invalidate(key?: string): void {
+    this.mutationVersion += 1;
     if (key === undefined) {
       this.generation += 1;
       this.pending.clear();
@@ -105,7 +111,7 @@ export class WorkspaceQueryCache<T> {
 
   private notify(): void { for (const listener of this.listeners) listener(); }
 
-  async load(key: string, loader: () => Promise<T>, options: { force?: boolean } = {}): Promise<T> {
+  async load(key: string, loader: () => Promise<T>, options: { force?: boolean; freshRequest?: boolean } = {}): Promise<T> {
     const scope = this.checkScope();
     const cached = scope ? this.data.get(key) : undefined;
     if (cached && !options.force) {
@@ -116,12 +122,12 @@ export class WorkspaceQueryCache<T> {
       }
       return cached.value;
     }
-    return this.fetch(key, loader, scope);
+    return this.fetch(key, loader, scope, options.freshRequest);
   }
 
-  private fetch(key: string, loader: () => Promise<T>, scope: string | null): Promise<T> {
+  private fetch(key: string, loader: () => Promise<T>, scope: string | null, freshRequest = false): Promise<T> {
     const existing = this.pending.get(key);
-    if (existing) return existing;
+    if (existing && !freshRequest) return existing;
     const generation = this.generation;
     const epoch = getWorkspaceCacheEpoch();
     const promise = Promise.resolve().then(() => {

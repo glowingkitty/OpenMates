@@ -39,7 +39,7 @@
 import logging
 import json
 import time
-from typing import Any, Optional, List, Dict
+from typing import Any, Optional, List, Dict, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +53,19 @@ MAX_DEBUG_REQUESTS_ADMIN = 20
 
 # Redis key for the admin debug requests list
 DEBUG_REQUESTS_KEY = "debug:admin_requests"
+
+# Optional background writers compare the raw ciphertext they observed before
+# decrypting the list. Redis executes the comparison and write atomically.
+_OPTIONAL_DEBUG_CAS = """
+local current = redis.call('GET', KEYS[1])
+if ARGV[1] == '1' then
+    if current ~= false then return 0 end
+elseif current ~= ARGV[2] then
+    return 0
+end
+redis.call('SET', KEYS[1], ARGV[3], 'EX', ARGV[4])
+return 1
+"""
 
 
 class DebugCacheMixin:
@@ -78,6 +91,7 @@ class DebugCacheMixin:
         stage: str,  # "preprocessor", "main_processor", or "postprocessor"
         input_data: Optional[Dict[str, Any]] = None,
         output_data: Optional[Dict[str, Any]] = None,
+        accept_write: Optional[Callable[[], bool]] = None,
     ) -> bool:
         """
         Cache debug data for a specific processing stage.
@@ -96,6 +110,7 @@ class DebugCacheMixin:
             stage: Processing stage ("preprocessor", "main_processor", or "postprocessor")
             input_data: Input data for this stage (will be JSON serialized)
             output_data: Output data for this stage (will be JSON serialized)
+            accept_write: Optional final write fence for an expiring background task
             
         Returns:
             True if caching was successful, False otherwise
@@ -117,6 +132,14 @@ class DebugCacheMixin:
             if not is_admin:
                 # Skip caching for non-admin users
                 logger.debug(f"[DEBUG_CACHE] Skipping cache for non-admin user {user_id}")
+                return False
+            # The optional lane captures the raw ciphertext before loading
+            # entries. A later writer or clear invalidates this snapshot.
+            expected_raw = await client.get(DEBUG_REQUESTS_KEY) if accept_write is not None else None
+            if accept_write is not None and expected_raw is None:
+                # Empty-cache diagnostic initialization belongs to normal
+                # writers. Dropping this best-effort write also prevents an
+                # absent -> write -> clear cycle from resurrecting old data.
                 return False
             # Step 1: Get all existing entries and find/update the one for this task_id
             existing_entries = await self._get_all_debug_entries(encryption_service)
@@ -180,8 +203,13 @@ class DebugCacheMixin:
                     existing_entries = existing_entries[:MAX_DEBUG_REQUESTS_ADMIN]
             
             # Step 6: Encrypt and save all entries
-            await self._save_all_debug_entries(encryption_service, existing_entries)
-            
+            saved = await self._save_all_debug_entries(
+                encryption_service, existing_entries,
+                accept_write=accept_write, expected_raw=expected_raw,
+            )
+            if not saved:
+                return False
+
             logger.debug(f"[DEBUG_CACHE] Cached {stage} data for task {task_id}, chat {chat_id}")
             return True
             
@@ -279,6 +307,9 @@ class DebugCacheMixin:
         self,
         encryption_service: Any,
         entries: List[Dict[str, Any]],
+        *,
+        accept_write: Optional[Callable[[], bool]] = None,
+        expected_raw: Any = None,
     ) -> bool:
         """
         Internal method to encrypt and save all debug entries to cache.
@@ -297,8 +328,27 @@ class DebugCacheMixin:
                 logger.error("[DEBUG_CACHE] Failed to encrypt debug entries")
                 return False
             
-            # Save to Redis with TTL (72 hours for admin requests)
-            await client.set(DEBUG_REQUESTS_KEY, encrypted_data, ex=DEBUG_REQUEST_TTL_ADMIN)
+            # Encryption or upstream reads may outlive an optional task's
+            # deadline even after cancellation. Reject stale snapshots at the
+            # final persistence boundary; ordinary callers have no guard.
+            if accept_write is not None and not accept_write():
+                return False
+
+            # An already-dispatched optional command can finish after the
+            # owner's deadline. Compare and write atomically so it cannot
+            # overwrite a newer entry or resurrect a cleared existing list.
+            if accept_write is not None:
+                stored = await client.eval(
+                    _OPTIONAL_DEBUG_CAS, 1, DEBUG_REQUESTS_KEY,
+                    "1" if expected_raw is None else "0",
+                    expected_raw if expected_raw is not None else "",
+                    encrypted_data, DEBUG_REQUEST_TTL_ADMIN,
+                )
+                if stored != 1:
+                    return False
+            else:
+                # Preserve the original write path for normal debug callers.
+                await client.set(DEBUG_REQUESTS_KEY, encrypted_data, ex=DEBUG_REQUEST_TTL_ADMIN)
             
             logger.debug(f"[DEBUG_CACHE] Saved {len(entries)} debug entries to cache")
             return True

@@ -31,3 +31,22 @@ export async function publishContextPreparationFailure(input: {
   if (!input.isCurrent() || !input.supportsFailure()) return;
   await input.send({ ...input.identity, reason: 'context_preparation_failed' });
 }
+
+/** Discard a sealed, unsent routing frame if Project data changes while retaining it. */
+export async function retainFreshRoutingPhase<T>(input: {
+  retain: () => Promise<T>;
+  discard: () => Promise<void>;
+  isCurrent: () => boolean;
+  mutationVersion: number;
+  getMutationVersion: () => number;
+}): Promise<T> {
+  const frame = await input.retain();
+  // An owner that lost this turn must leave its journal for the successor's
+  // byte-identical replay, even if Projects changed during the seal.
+  if (!input.isCurrent()) return frame;
+  if (input.getMutationVersion() !== input.mutationVersion) {
+    await input.discard();
+    throw new Error('Post-admission Project routing scope changed while retaining context.');
+  }
+  return frame;
+}

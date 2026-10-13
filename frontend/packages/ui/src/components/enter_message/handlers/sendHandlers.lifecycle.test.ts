@@ -54,12 +54,19 @@ const mocks = vi.hoisted(() => {
     createEmbedFromUrl: vi.fn(),
     consumeClickedSuggestion: vi.fn(() => null),
     extractProjectFocusSendIntent: vi.fn(() => null),
+    beginFreshProjectRoutingForSend: vi.fn(),
+    forgetFreshProjectRoutingForSend: vi.fn(),
+    recordSendPreparationPhase: vi.fn(),
     wrapTeamChatKey: vi.fn(async () => 'team-wrapped-key'),
     isTeamAIInvocation: vi.fn(() => false),
   };
 });
 
 vi.mock('../../../services/sendersChatMessages', () => ({ isPreflightAcknowledgementTimeout: vi.fn(() => false) }));
+vi.mock('../../../services/earlyProjectRoutingForSend', () => ({
+  beginFreshProjectRoutingForSend: mocks.beginFreshProjectRoutingForSend,
+  forgetFreshProjectRoutingForSend: mocks.forgetFreshProjectRoutingForSend,
+}));
 vi.mock('../services/urlMetadataService', () => ({ createEmbedFromUrl: mocks.createEmbedFromUrl }));
 vi.mock('../../../stores/demoModeStore', () => ({ demoMode: mocks.store(false) }));
 vi.mock('../../../i18n/translations', () => ({ text: mocks.store((key: string) => key) }));
@@ -70,7 +77,7 @@ vi.mock('../../../services/db', () => ({ chatDB: mocks.chatDB }));
 vi.mock('../../../services/encryption/ChatKeyManager', () => ({ chatKeyManager: { getKeySync: vi.fn(() => 'local-key'), createKeyForNewChat: vi.fn(() => 'local-key') } }));
 vi.mock('../../../services/chatSyncService', () => ({
   chatSyncService: mocks.chatSyncService,
-  recordSendPreparationPhase: vi.fn(),
+  recordSendPreparationPhase: mocks.recordSendPreparationPhase,
 }));
 vi.mock('../../../services/chatListCache', () => ({ chatListCache: { setLastMessage: vi.fn(), removeChat: vi.fn() } }));
 vi.mock('../../../stores/websocketStatusStore', () => ({ websocketStatus: mocks.store(mocks.wsStatus) }));
@@ -89,6 +96,7 @@ vi.mock('../../../stores/userProfile', () => ({ userProfile: mocks.store({ usern
 vi.mock('../../../stores/signupState', () => ({ forcedLogoutInProgress: mocks.store(false) }));
 vi.mock('../../../stores/appSettingsMemoriesPermissionStore', () => ({ appSettingsMemoriesPermissionStore: { getCurrentRequestId: vi.fn(() => null), getCurrentChatId: vi.fn(() => null) } }));
 vi.mock('../../../stores/editMessageStore', () => ({ editMessageStore: mocks.store(null), cancelEdit: vi.fn() }));
+vi.mock('../../../stores/incognitoModeStore', () => ({ incognitoMode: { get: vi.fn(() => false) } }));
 vi.mock('../../../stores/notificationStore', () => ({ notificationStore: { error: vi.fn(), addNotificationWithOptions: vi.fn() } }));
 vi.mock('../../../stores/personalDataStore', () => ({ personalDataStore: { settings: mocks.store({ masterEnabled: false, categories: {} }), enabledEntries: mocks.store([]) } }));
 vi.mock('../services/piiDetectionService', () => ({ detectPII: vi.fn(() => []), replacePIIWithPlaceholders: vi.fn(), createPIIMappingsForStorage: vi.fn(() => []) }));
@@ -252,6 +260,52 @@ describe('handleSend authenticated acceptance lifecycle', () => {
     mocks.teamContext.epoch = 0;
     mocks.isTeamAIInvocation.mockReturnValue(false);
     mocks.tipTapToCanonicalMarkdown.mockReturnValue('Send these attachments');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.selection-after-acceptance,message-input.send.ownership
+  it('begins one exact-message Project read before local DB readiness and discards it after failure', async () => {
+    mocks.draftState.currentChatId = null;
+    mocks.chatDB.ensureReadyForSend.mockRejectedValueOnce(new Error('storage unavailable'));
+    const { editor } = makeEditor(false);
+    const dispatch = vi.fn();
+    expect(await handleSend(editor, dispatch, vi.fn())).toBe(false);
+    expect(mocks.beginFreshProjectRoutingForSend).toHaveBeenCalledOnce();
+    const input = mocks.beginFreshProjectRoutingForSend.mock.calls[0][0];
+    expect(input.chatId).toBeTruthy();
+    expect(input.messageId).toBeTruthy();
+    expect(input.draftChatId).toBeNull();
+    expect(mocks.forgetFreshProjectRoutingForSend).toHaveBeenCalledWith(input.messageId);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.selection-after-acceptance,message-input.send.ownership
+  it('starts the fresh Project read for a preallocated or persisted draft-only first turn', async () => {
+    mocks.chatDB.ensureReadyForSend.mockRejectedValueOnce(new Error('storage unavailable'));
+    const { editor } = makeEditor(false);
+    const dispatch = vi.fn();
+    expect(await handleSend(editor, dispatch, vi.fn(), 'chat-auth', new Set(), false,
+      () => false, undefined, undefined, { firstTurnContextAtClick: true })).toBe(false);
+    expect(mocks.beginFreshProjectRoutingForSend).toHaveBeenCalledOnce();
+    expect(mocks.recordSendPreparationPhase).toHaveBeenCalledWith('project_read_gate_eligible');
+    const input = mocks.beginFreshProjectRoutingForSend.mock.calls[0][0];
+    expect(input.chatId).toBe('chat-auth');
+    expect(input.draftChatId).toBe('chat-auth');
+    expect(mocks.forgetFreshProjectRoutingForSend).toHaveBeenCalledWith(input.messageId);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=message-input.send.ownership,teams.context.full-switch-local
+  it('keeps saved chats, Team turns, and attachments outside click-time Project reading', async () => {
+    for (const restricted of ['saved-chat', 'team', 'attachment'] as const) {
+      vi.clearAllMocks();
+      mocks.chatDB.ensureReadyForSend.mockRejectedValueOnce(new Error('storage unavailable'));
+      mocks.teamContext.teamId = restricted === 'team' ? 'team-one' : null;
+      const { editor } = makeEditor(restricted === 'attachment');
+      await handleSend(editor, vi.fn(), vi.fn(), 'chat-auth', new Set(), false,
+        () => false, undefined, undefined, { firstTurnContextAtClick: restricted !== 'saved-chat' });
+      expect(mocks.beginFreshProjectRoutingForSend).not.toHaveBeenCalled();
+      expect(mocks.recordSendPreparationPhase).toHaveBeenCalledWith(
+        `project_read_gate_${restricted === 'saved-chat' ? 'not_first_turn' : restricted === 'team' ? 'team' : 'attachments'}`);
+    }
+    mocks.teamContext.teamId = null;
   });
 
   // contract-test: direct surface=gui.web assertions=message-input.send.ownership

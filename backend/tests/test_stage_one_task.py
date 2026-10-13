@@ -1,6 +1,7 @@
 """Stage-one broker handoff keeps the signed main invocation and task identity."""
 # contract-test-file: infrastructure
 from unittest.mock import AsyncMock, Mock
+import asyncio
 import pytest
 
 from backend.apps.ai.tasks import stage_one_task
@@ -147,7 +148,7 @@ def test_main_snapshot_load_precedes_recovery_claim():
 
 # contract-test: supporting surface=cli assertions=chat-processing-feedback.selected-mate-identity
 @pytest.mark.asyncio
-@pytest.mark.parametrize("outcome", ["published", "stale", "failed_before_publish"])
+@pytest.mark.parametrize("outcome", ["published", "stale", "stale_before_handoff", "failed_before_publish"])
 async def test_stage_one_prefetches_chat_key_and_rechecks_authority_before_mate(monkeypatch, outcome):
     import asyncio
     from types import SimpleNamespace
@@ -192,7 +193,7 @@ async def test_stage_one_prefetches_chat_key_and_rechecks_authority_before_mate(
     monkeypatch.setattr(recent_work_summary_client, "restore_private_context_payload", AsyncMock(return_value={}))
     monkeypatch.setattr(recent_work_summary_client, "bind_restored_context_turn", lambda *_args: None)
     monkeypatch.setattr(client_context_continuation, "await_client_context_phase", AsyncMock())
-    current = AsyncMock(side_effect=[True, outcome != "stale"])
+    current = AsyncMock(side_effect=[True, outcome != "stale", outcome != "stale_before_handoff"])
     admitted = AsyncMock(return_value=True)
     monkeypatch.setattr(stage_one_task, "routing_turn_is_current", current)
     monkeypatch.setattr(stage_one_task, "routing_admission_is_current", admitted)
@@ -212,12 +213,16 @@ async def test_stage_one_prefetches_chat_key_and_rechecks_authority_before_mate(
 
     monkeypatch.setattr(preprocessor, "handle_preprocessing", decision)
     envelope = request.model_dump(mode="json")
-    if outcome != "published":
+    if outcome in {"stale", "failed_before_publish"}:
         with pytest.raises(RuntimeError, match=(
             "no longer current" if outcome == "stale" else "Jev unavailable"
         )):
             await stage_one_task.route_stage_one(envelope, {}, "task")
         cache.publish_event.assert_not_awaited()
+        handoff.assert_not_awaited()
+    elif outcome == "stale_before_handoff":
+        assert await stage_one_task.route_stage_one(envelope, {}, "task") is None
+        cache.publish_event.assert_awaited_once()
         handoff.assert_not_awaited()
     else:
         assert await stage_one_task.route_stage_one(envelope, {}, "task") == "sealed-routing-ref"
@@ -225,6 +230,87 @@ async def test_stage_one_prefetches_chat_key_and_rechecks_authority_before_mate(
         assert cache.publish_event.await_args.args[1]["encrypted_chat_key"] == "sealed-chat-key"
         handoff.assert_awaited_once()
         assert handoff.await_args.kwargs["typing_started"] is True
-    assert current.await_count == (1 if outcome == "failed_before_publish" else 2)
+    assert current.await_count == (1 if outcome == "failed_before_publish"
+                                   else 2 if outcome == "stale" else 3)
     assert key_cancelled.is_set() is (outcome == "failed_before_publish")
     directus.get_items.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("turn_ok, admission_ok", [(True, True), (False, True), (True, False)])
+async def test_routing_authority_joins_fresh_checks_before_result(monkeypatch, turn_ok, admission_ok):
+    entered = [asyncio.Event(), asyncio.Event()]
+    release = asyncio.Event()
+    calls = []
+
+    async def turn(*args):
+        calls.append("turn")
+        entered[0].set()
+        await release.wait()
+        return turn_ok
+
+    async def admission(*args):
+        calls.append("admission")
+        entered[1].set()
+        await release.wait()
+        return admission_ok
+
+    monkeypatch.setattr(stage_one_task, "routing_turn_is_current", turn)
+    monkeypatch.setattr(stage_one_task, "routing_admission_is_current", admission)
+    check = asyncio.create_task(stage_one_task._routing_authority_is_current(
+        Mock(), Mock(), Mock(), "task"))
+    await asyncio.gather(*(event.wait() for event in entered))
+    assert not check.done()
+    release.set()
+    assert await check is (turn_ok and admission_ok)
+    assert calls == ["turn", "admission"]
+
+
+@pytest.mark.asyncio
+async def test_routing_authority_cancels_peer_on_error(monkeypatch):
+    entered = asyncio.Event()
+    cancelled = asyncio.Event()
+
+    async def waiting(*args):
+        entered.set()
+        try:
+            await asyncio.Future()
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    async def failing(*args):
+        await entered.wait()
+        raise RuntimeError("authority unavailable")
+
+    monkeypatch.setattr(stage_one_task, "routing_turn_is_current", waiting)
+    monkeypatch.setattr(stage_one_task, "routing_admission_is_current", failing)
+    with pytest.raises(RuntimeError, match="authority unavailable"):
+        await stage_one_task._routing_authority_is_current(Mock(), Mock(), Mock(), "task")
+    assert cancelled.is_set()
+
+
+@pytest.mark.asyncio
+async def test_routing_authority_drains_checks_on_caller_cancel(monkeypatch):
+    entered = [asyncio.Event(), asyncio.Event()]
+    cancelled = [asyncio.Event(), asyncio.Event()]
+
+    def checker(index):
+        async def wait(*args):
+            entered[index].set()
+            try:
+                await asyncio.Future()
+            except asyncio.CancelledError:
+                cancelled[index].set()
+                raise
+        return wait
+
+    monkeypatch.setattr(stage_one_task, "routing_turn_is_current", checker(0))
+    monkeypatch.setattr(stage_one_task, "routing_admission_is_current", checker(1))
+    check = asyncio.create_task(stage_one_task._routing_authority_is_current(
+        Mock(), Mock(), Mock(), "task"))
+    await asyncio.gather(*(event.wait() for event in entered))
+    check.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await check
+    assert all(event.is_set() for event in cancelled)

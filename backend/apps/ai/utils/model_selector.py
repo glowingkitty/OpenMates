@@ -139,6 +139,17 @@ def _load_auto_select_settings() -> Dict[str, bool]:
     return settings
 
 
+
+def warm_auto_select_settings() -> None:
+    """Parse deployment-static provider policy once in each AI worker child.
+
+    Runtime provider YAML changes still require clear_auto_select_cache(). This
+    warmup reads local policy only; model choice and provider calls stay per turn.
+    """
+    _load_auto_select_settings()
+
+
+
 def clear_auto_select_cache() -> None:
     """
     Clear the cached auto_select settings.
