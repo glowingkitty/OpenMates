@@ -6,21 +6,14 @@
 // registration belongs in exampleChatStore.ts.
 
 import type { ExampleChat } from "./types";
+import { privacyFirstLocalAiWorkspaceChat as compressionHistoryFixtureChat } from "./data/example_chats/privacy-first-local-ai-workspace";
 
 import { giganticAirplanesChat } from "./data/example_chats/gigantic-airplanes";
-import { artemisIIMissionChat } from "./data/example_chats/artemis-ii-mission";
-import { beautifulSinglePageHtmlChat } from "./data/example_chats/beautiful-single-page-html";
-import { flightsBerlinBangkokChat } from "./data/example_chats/flights-berlin-to-bangkok";
-import { euChatControlLawChat } from "./data/example_chats/eu-chat-control-law-criticisms";
-import { creativityDrawingMeetupsBerlinChat } from "./data/example_chats/creativity-drawing-meetups-berlin";
-import { germanyHistoricFilmIndustryChat } from "./data/example_chats/germany-historic-film-industry";
 import { buildingMaintenanceEmailChat } from "./data/example_chats/building-maintenance-email";
 import { aiWorkshopsMeetupsBerlinChat } from "./data/example_chats/ai-workshops-meetups-berlin";
 import { rightToRepairLawsEuUsChat } from "./data/example_chats/right-to-repair-laws-eu-us";
 import { berlinWeatherBikeCommuteChat } from "./data/example_chats/berlin-weather-bike-commute";
-import { quietCafesTempelhoferFeldChat } from "./data/example_chats/quiet-cafes-tempelhofer-feld";
 import { ragExplainedVideosChat } from "./data/example_chats/rag-explained-videos";
-import { mortgagePaymentCalculationChat } from "./data/example_chats/mortgage-payment-calculation";
 import { rustVectorDatabaseReposChat } from "./data/example_chats/rust-vector-database-repos";
 import { svelteRunesDocsChat } from "./data/example_chats/svelte-runes-docs";
 import { familyStaysKyotoChat } from "./data/example_chats/family-stays-kyoto";
@@ -30,62 +23,23 @@ import { buckConverters24v5vChat } from "./data/example_chats/buck-converters-24
 import { organicGroceriesBerlinChat } from "./data/example_chats/organic-groceries-berlin";
 import { furnishedApartmentsBerlinChat } from "./data/example_chats/furnished-apartments-berlin";
 import { sqliteStrictTablesSummaryChat } from "./data/example_chats/sqlite-strict-tables-summary";
-import { privacyWebsiteHeroBackgroundChat } from "./data/example_chats/privacy-website-hero-background";
-import { northstarMetricsSvgLogoChat } from "./data/example_chats/northstar-metrics-svg-logo";
 import { pythonSquaresCodeRunChat } from "./data/example_chats/python-squares-code-run";
 import { habitTrackerOnboardingDraftChat } from "./data/example_chats/habit-tracker-onboarding-draft";
 import { chickpeaSpinachProteinDinnersChat } from "./data/example_chats/chickpea-spinach-protein-dinners";
 import { nonprofitEventPlanningUseCaseChat } from "./data/example_chats/nonprofit-event-planning-use-case";
 import { lh400FlightStatusCheckChat } from "./data/example_chats/lh400-flight-status-check";
-import { productLaunchSynthLoopChat } from "./data/example_chats/product-launch-synth-loop";
 import { referenceImage3DModelChat } from "./data/example_chats/reference-image-3d-model";
 import { upcomingRemindersListChat } from "./data/example_chats/upcoming-reminders-list";
 import { cancelTestReminderChat } from "./data/example_chats/cancel-test-reminder";
 import { fediverseActivitypubSocialSearchChat } from "./data/example_chats/fediverse-activitypub-social-search";
-import { mastodonAccountRecentPostsChat } from "./data/example_chats/mastodon-account-recent-posts";
-import { pdfReadSecretWordChat } from "./data/example_chats/pdf-read-secret-word";
 import { pdfViewPageLayoutChat } from "./data/example_chats/pdf-view-page-layout";
 import { imageVectorizeOpenmatesHeaderChat } from "./data/example_chats/image-vectorize-openmates-header";
 import { audioTranscribeVoiceNoteChat } from "./data/example_chats/audio-transcribe-voice-note";
 import { usEggPricesDeepResearchChat } from "./data/example_chats/us-egg-prices-deep-research";
 import { frameworkStoreReputationCheckChat } from "./data/example_chats/framework-store-reputation-check";
-import { memoryBooksFavoriteBooksChat } from "./data/example_chats/memory-books-favorite-books";
-import { memoryBooksCurrentlyReadingChat } from "./data/example_chats/memory-books-currently-reading";
-import { memoryBooksToReadListChat } from "./data/example_chats/memory-books-to-read-list";
-import { memoryCodePreferredTechChat } from "./data/example_chats/memory-code-preferred-tech";
-import { memoryCodeProjectsChat } from "./data/example_chats/memory-code-projects";
-import { memoryCodeWantToLearnChat } from "./data/example_chats/memory-code-want-to-learn";
-import { memoryCodeCodingSetupChat } from "./data/example_chats/memory-code-coding-setup";
-import { memoryDocsWritingStyleChat } from "./data/example_chats/memory-docs-writing-style";
-import { memoryEventsSavedEventsChat } from "./data/example_chats/memory-events-saved-events";
-import { memoryHealthAppointmentsChat } from "./data/example_chats/memory-health-appointments";
-import { memoryHealthMedicalHistoryChat } from "./data/example_chats/memory-health-medical-history";
-import { memoryHomeSavedListingsChat } from "./data/example_chats/memory-home-saved-listings";
-import { memoryImagesPreferredStylesChat } from "./data/example_chats/memory-images-preferred-styles";
-import { memoryMailWritingStylesChat } from "./data/example_chats/memory-mail-writing-styles";
-import { memoryReminderDefaultsChat } from "./data/example_chats/memory-reminder-defaults";
-import { memoryStudyLearningGoalsChat } from "./data/example_chats/memory-study-learning-goals";
-import { memoryTravelSavedConnectionsChat } from "./data/example_chats/memory-travel-saved-connections";
-import { memoryTravelSavedStaysChat } from "./data/example_chats/memory-travel-saved-stays";
-import { memoryTravelTripsChat } from "./data/example_chats/memory-travel-trips";
-import { memoryTravelPreferredAirlinesChat } from "./data/example_chats/memory-travel-preferred-airlines";
-import { memoryTravelPreferredTransportChat } from "./data/example_chats/memory-travel-preferred-transport";
-import { memoryTravelPreferredActivitiesChat } from "./data/example_chats/memory-travel-preferred-activities";
-import { memoryTvWatchedMoviesChat } from "./data/example_chats/memory-tv-watched-movies";
-import { memoryTvWatchedShowsChat } from "./data/example_chats/memory-tv-watched-shows";
-import { memoryTvToWatchListChat } from "./data/example_chats/memory-tv-to-watch-list";
-import { memoryVideosToWatchListChat } from "./data/example_chats/memory-videos-to-watch-list";
-import { memoryWebBookmarksChat } from "./data/example_chats/memory-web-bookmarks";
-import { memoryWebReadLaterChat } from "./data/example_chats/memory-web-read-later";
 import { productTeaserRemotionVideoChat } from "./data/example_chats/product-teaser-remotion-video";
-import { dampedSineWavePlotChat } from "./data/example_chats/damped-sine-wave-plot";
-import { berlinCentralStationMapLocationChat } from "./data/example_chats/berlin-central-station-map-location";
-import { launchReadinessChecklistDocChat } from "./data/example_chats/launch-readiness-checklist-doc";
 import { searchParentPreviewStressTestChat } from "./data/example_chats/search-parent-preview-stress-test";
 import { rostockHeavyRainRadarChat } from "./data/example_chats/rostock-heavy-rain-radar";
-import { classicCarReverseImageSearchChat } from "./data/example_chats/classic-car-reverse-image-search";
-import { usbC3v3LdoPcbSchematicChat } from "./data/example_chats/usb-c-3v3-ldo-pcb-schematic";
-import { berlinMorningBikeForecastChat } from "./data/example_chats/berlin-morning-bike-forecast";
 import { housingPolicyDinnerDiscussionChat } from "./data/example_chats/housing-policy-dinner-discussion";
 import { habitGardenWebApplicationChat } from "./data/example_chats/habit-garden-web-application";
 import { printableBenchyPhoneStandModelsChat } from "./data/example_chats/printable-benchy-phone-stand-models";
@@ -94,13 +48,9 @@ import { libraryBookReturnWorkflowChat } from "./data/example_chats/library-book
 import { dashboardSidebarSvgIconsChat } from "./data/example_chats/dashboard-sidebar-svg-icons";
 import { vitalFarmsSecFinancialsChat } from "./data/example_chats/vital-farms-sec-financials";
 import { financeCashFlowOverviewChat } from "./data/example_chats/finance-cash-flow-overview";
-import { privacyFirstLocalAiWorkspaceChat } from "./data/example_chats/privacy-first-local-ai-workspace";
 import { screenshotToHtmlPricingCardChat } from "./data/example_chats/screenshot-to-html-pricing-card";
-import { berlinAiFounderMeetupsMapChat } from "./data/example_chats/berlin-ai-founder-meetups-map";
 import { deutschlandticketTrainFareBreakdownChat } from "./data/example_chats/deutschlandticket-train-fare-breakdown";
 import { berlinMitteWorkFriendlyRestaurantsChat } from "./data/example_chats/berlin-mitte-work-friendly-restaurants";
-import { openMeteoWeatherNotebookChat } from "./data/example_chats/open-meteo-weather-notebook";
-import { audioGenerateOpenmatesSuccessChimeChat } from "./data/example_chats/audio-generate-openmates-success-chime";
 import { audioSpeakOpenmatesWelcomeMessageChat } from "./data/example_chats/audio-speak-openmates-welcome-message";
 import { plumberMessageEmailPhonePrivacyChat } from "./data/example_chats/plumber-message-email-phone-privacy";
 import { privatePlumberEmailChat } from "./data/example_chats/private-plumber-email";
@@ -108,15 +58,10 @@ import { socialAppNameDomainSearchChat } from "./data/example_chats/social-app-n
 import { dampedSineDecayPlotChat } from "./data/example_chats/damped-sine-decay-plot";
 import { communityGardenPlanningMindmapChat } from "./data/example_chats/community-garden-planning-mindmap";
 import { beginnerYogaClassesBerlinChat } from "./data/example_chats/beginner-yoga-classes-berlin";
-import { urbanHeatIslandAtNightChat } from "./data/example_chats/urban-heat-island-at-night";
 import { communityGardenVolunteerOnboardingChat } from "./data/example_chats/community-garden-volunteer-onboarding";
 import { booksAfterLeftHandOfDarknessChat } from "./data/example_chats/books-after-left-hand-of-darkness";
 import { mastodonPublicPostThemesChat } from "./data/example_chats/mastodon-public-post-themes";
 import { adjacentCareerPortfolioExperimentsChat } from "./data/example_chats/adjacent-career-portfolio-experiments";
-import { calmManagerFollowUpChat } from "./data/example_chats/calm-manager-follow-up";
-import { autumnBasilBalconyCareChat } from "./data/example_chats/autumn-basil-balcony-care";
-import { bayesTheoremQuickQuizChat } from "./data/example_chats/bayes-theorem-quick-quiz";
-import { voiceNoteTranscriptionActionItemChat } from "./data/example_chats/voice-note-transcription-action-item";
 import { netCashFromSuppliedBalancesChat } from "./data/example_chats/net-cash-from-supplied-balances";
 import { communityGardenWelcomeMelodyChat } from "./data/example_chats/community-garden-welcome-melody";
 import { berlinEnglishSpeakingGpAppointmentsChat } from "./data/example_chats/berlin-english-speaking-gp-appointments";
@@ -129,19 +74,11 @@ import { jobsInSwedenChat } from "./data/example_chats/jobs-in-sweden";
 
 export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   giganticAirplanesChat,
-  artemisIIMissionChat,
-  beautifulSinglePageHtmlChat,
-  flightsBerlinBangkokChat,
-  euChatControlLawChat,
-  creativityDrawingMeetupsBerlinChat,
-  germanyHistoricFilmIndustryChat,
   buildingMaintenanceEmailChat,
   aiWorkshopsMeetupsBerlinChat,
   rightToRepairLawsEuUsChat,
   berlinWeatherBikeCommuteChat,
-  quietCafesTempelhoferFeldChat,
   ragExplainedVideosChat,
-  mortgagePaymentCalculationChat,
   rustVectorDatabaseReposChat,
   svelteRunesDocsChat,
   familyStaysKyotoChat,
@@ -151,61 +88,22 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   organicGroceriesBerlinChat,
   furnishedApartmentsBerlinChat,
   sqliteStrictTablesSummaryChat,
-  privacyWebsiteHeroBackgroundChat,
-  northstarMetricsSvgLogoChat,
   pythonSquaresCodeRunChat,
   habitTrackerOnboardingDraftChat,
   chickpeaSpinachProteinDinnersChat,
   nonprofitEventPlanningUseCaseChat,
   lh400FlightStatusCheckChat,
-  productLaunchSynthLoopChat,
   referenceImage3DModelChat,
   upcomingRemindersListChat,
   cancelTestReminderChat,
   fediverseActivitypubSocialSearchChat,
-  mastodonAccountRecentPostsChat,
-  pdfReadSecretWordChat,
   pdfViewPageLayoutChat,
   imageVectorizeOpenmatesHeaderChat,
   audioTranscribeVoiceNoteChat,
   usEggPricesDeepResearchChat,
   frameworkStoreReputationCheckChat,
-  memoryBooksFavoriteBooksChat,
-  memoryBooksCurrentlyReadingChat,
-  memoryBooksToReadListChat,
-  memoryCodePreferredTechChat,
-  memoryCodeProjectsChat,
-  memoryCodeWantToLearnChat,
-  memoryCodeCodingSetupChat,
-  memoryDocsWritingStyleChat,
-  memoryEventsSavedEventsChat,
-  memoryHealthAppointmentsChat,
-  memoryHealthMedicalHistoryChat,
-  memoryHomeSavedListingsChat,
-  memoryImagesPreferredStylesChat,
-  memoryMailWritingStylesChat,
-  memoryReminderDefaultsChat,
-  memoryStudyLearningGoalsChat,
-  memoryTravelSavedConnectionsChat,
-  memoryTravelSavedStaysChat,
-  memoryTravelTripsChat,
-  memoryTravelPreferredAirlinesChat,
-  memoryTravelPreferredTransportChat,
-  memoryTravelPreferredActivitiesChat,
-  memoryTvWatchedMoviesChat,
-  memoryTvWatchedShowsChat,
-  memoryTvToWatchListChat,
-  memoryVideosToWatchListChat,
-  memoryWebBookmarksChat,
-  memoryWebReadLaterChat,
   productTeaserRemotionVideoChat,
-  dampedSineWavePlotChat,
-  berlinCentralStationMapLocationChat,
-  launchReadinessChecklistDocChat,
   rostockHeavyRainRadarChat,
-  classicCarReverseImageSearchChat,
-  usbC3v3LdoPcbSchematicChat,
-  berlinMorningBikeForecastChat,
   housingPolicyDinnerDiscussionChat,
   habitGardenWebApplicationChat,
   printableBenchyPhoneStandModelsChat,
@@ -214,13 +112,9 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   dashboardSidebarSvgIconsChat,
   vitalFarmsSecFinancialsChat,
   financeCashFlowOverviewChat,
-  privacyFirstLocalAiWorkspaceChat,
   screenshotToHtmlPricingCardChat,
-  berlinAiFounderMeetupsMapChat,
   deutschlandticketTrainFareBreakdownChat,
   berlinMitteWorkFriendlyRestaurantsChat,
-  openMeteoWeatherNotebookChat,
-  audioGenerateOpenmatesSuccessChimeChat,
   audioSpeakOpenmatesWelcomeMessageChat,
   plumberMessageEmailPhonePrivacyChat,
   privatePlumberEmailChat,
@@ -228,15 +122,10 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   dampedSineDecayPlotChat,
   communityGardenPlanningMindmapChat,
   beginnerYogaClassesBerlinChat,
-  urbanHeatIslandAtNightChat,
   communityGardenVolunteerOnboardingChat,
   booksAfterLeftHandOfDarknessChat,
   mastodonPublicPostThemesChat,
   adjacentCareerPortfolioExperimentsChat,
-  calmManagerFollowUpChat,
-  autumnBasilBalconyCareChat,
-  bayesTheoremQuickQuizChat,
-  voiceNoteTranscriptionActionItemChat,
   netCashFromSuppliedBalancesChat,
   communityGardenWelcomeMelodyChat,
   berlinEnglishSpeakingGpAppointmentsChat,
@@ -252,4 +141,5 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
 // Keep these out of normal example listings and SEO pages.
 export const INTERNAL_EXAMPLE_CHATS: ExampleChat[] = [
   searchParentPreviewStressTestChat,
+  compressionHistoryFixtureChat,
 ];

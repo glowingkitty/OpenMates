@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.marketing-landing
-version: 6
+version: 7
 status: draft
 title: Lightweight Public Website and Scrollable Landing Page
 summary: A lightweight standalone website owns the scrollable landing page, news, blog and legal content,
@@ -13,6 +13,7 @@ scope:
   - Public /news, /blog and legal pages rendered without the chat shell.
   - Web-app workspace, account, example-chat, event-detail and composer deep links.
   - Independent website build and configurable website/app/API origins for separate Vercel deployment.
+  - A shared ordered default example selection for the landing page and web-app welcome carousel.
   excludes:
   - Production DNS, domain ownership transfer, authentication cookie, passkey or OAuth migration.
   - Anonymous workflow execution; guest template viewing is owned by feature.workflows-ui.
@@ -52,7 +53,8 @@ assertions:
     to the website blog index until dedicated posts exist. TestFlight testing links lead to the website
     newsletter section. Social footer links open the existing official destinations in new tabs. App and
     website origins are independently configurable and require HTTP(S); landing.dev.openmates.org targets
-    app.dev.openmates.org by default.
+    app.dev.openmates.org by default. The website browser-tab title and social-preview titles use
+    OpenMates — Your privacy first AI team mates.
   depends_on:
   - examples.destinations
 - id: marketing-landing.composer-focus
@@ -158,6 +160,28 @@ assertions:
     their generated content is valid, and focus examples show actual activation.'
   depends_on:
   - examples.metadata_defaults
+- id: marketing-landing.example-catalog-alignment
+  type: behavior
+  must: The unpersonalized default web-app welcome carousel offers the complete set of landing app-wheel
+    examples in the same app-metadata order. Existing visitor-owned or imported chats keep their place
+    before examples; authenticated personal history, selected-interest ranking and Show all remain available.
+    The public example catalog retains every landing-linked example, including feature-section links,
+    and only enough additional examples to preserve one successful example for each otherwise-unrepresented
+    app skill or focus mode. Redundant non-landing examples are removed from public discovery, direct
+    example routes and interest mappings without deleting subchats of retained examples or internal test
+    fixtures. The shared default selection is compiled from app metadata without a runtime app-catalog request.
+  depends_on:
+  - examples.catalog_alignment
+- id: marketing-landing.hero-entrance
+  type: behavior
+  must: On a fresh landing-page visit, the AI icon and privacy-first team-mates heading enter first,
+    followed after a short stagger by the user-message example, app carousel and In seconds text, then
+    by the scroll-down indicator after another short delay. Opacity fades and restrained lift or scale
+    motion settle into fully readable content without changing layout or delaying composer use. Existing
+    icon glow, app-wheel motion and scroll-cue breathing remain independent. Returning from an example
+    tab does not replay the entrance or hide content. Reduced-motion visitors see all content immediately.
+  depends_on:
+  - examples.hero_entrance
 applies_to:
   rest_api:
     required: false
@@ -189,9 +213,12 @@ examples:
   - hero
   - manual_rail
   - metadata_defaults
+  - catalog_alignment
+  - hero_entrance
   - preferences
 approval_source:
-  instruction: User explicitly instructed responsive hero sizing across mobile to large desktop and a shared
-    header with the full wordmark, no workspace tabs, an Open Web App CTA and preceding icon-only language
-    selection on 2026-10-13. Existing explicit instructions authorize implementation and dev deployment
-    without repeated approval requests for clearly instructed changes.
+  instruction: User explicitly instructed the privacy-first team-mates tab tagline, matching landing and
+    web-app default examples in the same order, pruning redundant examples while retaining the sole
+    example for each skill or focus mode, and a staged hero entrance on 2026-10-13. The user also explicitly authorized further
+    landing-page Specification updates without repeated permission requests. Implementation and scoped
+    dev deployment are authorized.

@@ -101,16 +101,16 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     }
     const railGeometry = await groups.nth(1).locator('.rail-icon').evaluateAll(nodes => nodes.map(node => {
       const rect = node.getBoundingClientRect();
-      const glyph = node.querySelector<HTMLElement>('.rail-glyph')!;
+      const glyph = node.querySelector<HTMLImageElement>('.rail-glyph')!;
       const glyphRect = glyph.getBoundingClientRect();
       const style = getComputedStyle(glyph);
-      return { id: node.getAttribute('data-app-id'), centerY: rect.y + rect.height / 2, width: rect.width, height: rect.height, baseWidth: parseFloat(getComputedStyle(node).width), radius: getComputedStyle(node).borderTopLeftRadius, glyphWidth: glyphRect.width, glyphHeight: glyphRect.height, glyphOffsetX: glyphRect.x + glyphRect.width / 2 - (rect.x + rect.width / 2), glyphOffsetY: glyphRect.y + glyphRect.height / 2 - (rect.y + rect.height / 2), glyphColor: style.backgroundColor, mask: style.maskImage || style.webkitMaskImage };
+      return { id: node.getAttribute('data-app-id'), centerY: rect.y + rect.height / 2, width: rect.width, height: rect.height, baseWidth: parseFloat(getComputedStyle(node).width), radius: getComputedStyle(node).borderTopLeftRadius, glyphWidth: glyphRect.width, glyphHeight: glyphRect.height, glyphOffsetX: glyphRect.x + glyphRect.width / 2 - (rect.x + rect.width / 2), glyphOffsetY: glyphRect.y + glyphRect.height / 2 - (rect.y + rect.height / 2), glyphSource: glyph.getAttribute('src'), glyphLoaded: glyph.complete && glyph.naturalWidth > 0 && glyph.naturalHeight > 0, glyphFilter: style.filter };
     }));
     expect(Math.max(...railGeometry.map(icon => icon.centerY)) - Math.min(...railGeometry.map(icon => icon.centerY))).toBeLessThan(2);
-    expect(railGeometry.every(icon => icon.width >= 60 && icon.width <= 192 && icon.mask.includes('url('))).toBe(true);
+    expect(railGeometry.every(icon => icon.width >= 60 && icon.width <= 192 && icon.glyphLoaded && icon.glyphSource?.startsWith('/icons/'))).toBe(true);
     const nonSquareIcons = railGeometry.filter(icon => Math.abs(icon.width - icon.height) >= 1);
     expect(nonSquareIcons, `App icons must be square: ${JSON.stringify(nonSquareIcons)}`).toEqual([]);
-    const glyphDefects = railGeometry.filter(icon => icon.glyphWidth < (width < 760 ? 20 : 30) || icon.glyphHeight < (width < 760 ? 20 : 30) || Math.abs(icon.glyphWidth / icon.width - 0.53) > 0.02 || Math.abs(icon.glyphHeight / icon.height - 0.53) > 0.02 || Math.abs(icon.glyphOffsetX) > 1 || Math.abs(icon.glyphOffsetY) > 1 || icon.glyphColor === 'rgba(0, 0, 0, 0)' || !icon.mask.includes('url('));
+    const glyphDefects = railGeometry.filter(icon => icon.glyphWidth < (width < 760 ? 20 : 30) || icon.glyphHeight < (width < 760 ? 20 : 30) || Math.abs(icon.glyphWidth / icon.width - 0.53) > 0.02 || Math.abs(icon.glyphHeight / icon.height - 0.53) > 0.02 || Math.abs(icon.glyphOffsetX) > 1 || Math.abs(icon.glyphOffsetY) > 1 || !icon.glyphLoaded || icon.glyphFilter === 'none');
     expect(glyphDefects, `Rendered app glyph geometry: ${JSON.stringify(glyphDefects)}`).toEqual([]);
     expect(railGeometry.every(icon => icon.radius === `${Math.round(icon.baseWidth * 0.25)}px`)).toBe(true);
     for (const path of ['/icons/event.svg', '/icons/travel.svg']) {

@@ -241,7 +241,7 @@ function indexExampleEmbed(embed: ExampleChatEmbed, chatId: string): void {
 
 for (const example of LOOKUP_EXAMPLE_CHATS) {
   chatById.set(example.chat_id, example);
-  chatBySlug.set(example.slug, example);
+  if (ALL_EXAMPLE_CHATS.includes(example)) chatBySlug.set(example.slug, example);
   chatRecordById.set(example.chat_id, { example, rootOrder: example.metadata.order });
   for (const embed of example.embeds) {
     indexExampleEmbed(embed, example.chat_id);

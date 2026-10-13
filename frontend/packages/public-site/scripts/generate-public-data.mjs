@@ -19,6 +19,12 @@ writeFileSync(resolve(output, 'landingLocale.generated.json'), `${JSON.stringify
 const eligible = compilePublicApps(root);
 if (eligible.length === 0 || new Set(eligible.map((app) => app.id)).size !== eligible.length) throw new Error('Public app metadata must contain unique available apps');
 validateLandingAppExamples(root, eligible);
+// The app carousel uses the same canonical landing order without importing
+// website components or the full public-site metadata graph into @repo/ui.
+const landingExamples = eligible.map((app) => ({ appId: app.id, chatId: app.example_chat_id }));
+const appExampleOutput = resolve(root, 'frontend/packages/ui/src/generated');
+mkdirSync(appExampleOutput, { recursive: true });
+writeFileSync(resolve(appExampleOutput, 'landingExampleChats.generated.json'), `${JSON.stringify(landingExamples, null, 2)}\n`);
 const apps = eligible.map((app) => {
   const iconName = app.icon_image?.replace(/\.svg$/, '').trim();
   const icon = iconName;

@@ -27,6 +27,7 @@
   let activeIndex = $state(0);
   let activeApp = $derived(orderedApps[activeIndex] ?? orderedApps[0]);
   let promptHasChanged = $state(false);
+  let heroEntranceComplete = $state(false);
   let reducedMotion = $state(false);
   let chosenLanguage = $state('en');
   let copy = $derived(landingCopy[chosenLanguage === 'de' ? 'de' : 'en']);
@@ -262,6 +263,7 @@
         cancelAnimationFrame(frame);
         frame = 0;
       } else {
+        heroEntranceComplete = true;
         velocity = automaticVelocity;
         pointer = null;
         updateMotion();
@@ -296,38 +298,40 @@
   });
 </script>
 
-<div class="landing-page" bind:this={landingRoot} data-testid="landing-page" lang={chosenLanguage === 'de' ? 'de' : 'en'}>
+<div class="landing-page" class:hero-entrance-complete={heroEntranceComplete} bind:this={landingRoot} data-testid="landing-page" lang={chosenLanguage === 'de' ? 'de' : 'en'}>
   <PublicSiteHeader {appBaseUrl} {websiteBaseUrl} language={chosenLanguage} onLanguageChange={selectLanguage} />
 
   <div class="viewport-container" data-testid="landing-viewport-container">
     <main class="scroll-container" bind:this={scrollContainer} data-testid="landing-scroll-container">
       <section class="hero" aria-labelledby="hero-title" data-testid="landing-hero">
         <div class="hero-visual" data-testid="landing-hero-media">
-          <div class="hero-ai-visual" aria-hidden="true" data-testid="landing-hero-ai-icon"><span class="hero-ai-glyph"></span></div>
+          <div class="hero-ai-entrance"><div class="hero-ai-visual" aria-hidden="true" data-testid="landing-hero-ai-icon"><span class="hero-ai-glyph"></span></div></div>
         </div>
         <h1 id="hero-title">{copy.heroLine1}<br />{copy.heroLine2}</h1>
-        {#if activeApp}
-          {#key activeApp.id}
-            {#if landingAppExamples[activeApp.id]}
-              <a class="prompt-bubble" class:transitioning={promptHasChanged} href={appUrl(`/#chat-id=${encodeURIComponent(landingAppExamples[activeApp.id])}`)} target="_blank" rel="noopener noreferrer" data-testid="landing-prompt" data-active-app={activeApp.id} aria-live="polite">{chosenLanguage === 'de' ? activeApp.promptDe : activeApp.promptEn}</a>
-            {:else}
-              <p class="prompt-bubble" class:transitioning={promptHasChanged} data-testid="landing-prompt" data-active-app={activeApp.id} aria-live="polite">{chosenLanguage === 'de' ? activeApp.promptDe : activeApp.promptEn}</p>
-            {/if}
-          {/key}
-        {/if}
+        <div class="hero-prompt-entrance">
+          {#if activeApp}
+            {#key activeApp.id}
+              {#if landingAppExamples[activeApp.id]}
+                <a class="prompt-bubble" class:transitioning={promptHasChanged} href={appUrl(`/#chat-id=${encodeURIComponent(landingAppExamples[activeApp.id])}`)} target="_blank" rel="noopener noreferrer" data-testid="landing-prompt" data-active-app={activeApp.id} aria-live="polite">{chosenLanguage === 'de' ? activeApp.promptDe : activeApp.promptEn}</a>
+              {:else}
+                <p class="prompt-bubble" class:transitioning={promptHasChanged} data-testid="landing-prompt" data-active-app={activeApp.id} aria-live="polite">{chosenLanguage === 'de' ? activeApp.promptDe : activeApp.promptEn}</p>
+              {/if}
+            {/key}
+          {/if}
+        </div>
         <p class="hero-speed" data-testid="landing-hero-speed">{copy.inSeconds}</p>
         <div class="rail-window" bind:this={railWindow} data-testid="landing-app-rail" data-active-app={activeApp?.id} role="toolbar" aria-label="OpenMates apps" tabindex="0">
           <div class="rail-track" bind:this={railTrack}>
             {#each [0, 1, 2] as group (group)}
               <div class="rail-group" data-testid="landing-rail-group" aria-hidden={group === 1 ? undefined : 'true'}>
                 {#each orderedApps as app, index (app.id)}
-                  <button type="button" class="rail-icon" class:highlighted={activeApp?.id === app.id} onclick={() => selectApp(index)} tabindex={group === 1 && activeApp?.id === app.id ? 0 : -1} aria-label={`Show ${app.id} example`} aria-pressed={group === 1 ? activeApp?.id === app.id : undefined} data-app-id={app.id} style={`--rail-icon-bg:${app.gradient};--rail-icon-url:url('${app.iconUrl}')`}><span class="rail-glyph" aria-hidden="true"></span></button>
+                  <button type="button" class="rail-icon" class:highlighted={activeApp?.id === app.id} onclick={() => selectApp(index)} tabindex={group === 1 && activeApp?.id === app.id ? 0 : -1} aria-label={`Show ${app.id} example`} aria-pressed={group === 1 ? activeApp?.id === app.id : undefined} data-app-id={app.id} style={`--rail-icon-bg:${app.gradient}`}><img class="rail-glyph" src={app.iconUrl} alt="" aria-hidden="true" draggable="false" loading="eager" /></button>
                 {/each}
               </div>
             {/each}
           </div>
         </div>
-        <a class="scroll-cue" href="#actionable" data-testid="landing-scroll-cue"><svg class="cue-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg><span>{copy.scroll}</span><svg class="cue-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></a>
+        <a class="scroll-cue" href="#actionable" data-testid="landing-scroll-cue"><span class="scroll-cue-content"><svg class="cue-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg><span>{copy.scroll}</span><svg class="cue-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></span></a>
       </section>
 
       <section class="feature feature-media" id="actionable" aria-labelledby="actionable-title" data-testid="landing-feature-actionable" data-reveal>
@@ -447,29 +451,34 @@
   .hero { --hero-ai-size: clamp(64px, min(24cqw, 16cqh), 256px); position: relative; height: 100%; box-sizing: border-box; padding: 12px clamp(12px, 2cqw, 32px) 100px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(8px, min(2cqw, 1.4cqh), 18px); overflow: hidden; text-align: center; background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end)); color: var(--color-font-button); }
   .hero > * { flex-shrink: 0; }
   .hero-visual { position: relative; width: var(--hero-ai-size); height: var(--hero-ai-size); display: grid; place-items: center; transform: translateY(var(--hero-parallax-y, 0px)); }
+  .hero-ai-entrance { width: 100%; height: 100%; display: grid; place-items: center; animation: hero-entrance 620ms cubic-bezier(.22, 1, .36, 1) both; }
   .hero-ai-visual { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 1; animation: hero-ai-float 8s ease-in-out infinite alternate; }
   .hero-ai-visual::before { content: ''; position: absolute; inset: 4%; border-radius: var(--radius-full); background: radial-gradient(circle at 35% 35%, var(--color-font-button), transparent 70%); filter: blur(32px); opacity: .24; animation: hero-ai-glow 12s ease-in-out infinite alternate; }
   .hero-ai-glyph { position: relative; display: block; width: 72%; height: 72%; background: var(--color-font-button); -webkit-mask: url('/icons/ai.svg') center / contain no-repeat; mask: url('/icons/ai.svg') center / contain no-repeat; filter: drop-shadow(0 8px 20px color-mix(in srgb, var(--color-grey-100) 18%, transparent)); }
   @keyframes hero-ai-float { from { transform: translateY(4px); } to { transform: translateY(-8px); } }
   @keyframes hero-ai-glow { from { opacity: .15; transform: translate(-5%, 3%) scale(.9); } to { opacity: .3; transform: translate(6%, -3%) scale(1.12); } }
-  .hero h1 { margin: 0; color: var(--color-font-button); max-width: 100%; font-size: clamp(28px, min(8.5cqw, 8.2cqh), 112px); line-height: 1.12; font-weight: 800; letter-spacing: -0.035em; }
+  .hero h1 { animation: hero-entrance 620ms 100ms cubic-bezier(.22, 1, .36, 1) both; margin: 0; color: var(--color-font-button); max-width: 100%; font-size: clamp(28px, min(8.5cqw, 8.2cqh), 112px); line-height: 1.12; font-weight: 800; letter-spacing: -0.035em; }
+  .hero-prompt-entrance { display: flex; justify-content: center; width: 100%; min-width: 0; animation: hero-entrance 570ms 440ms cubic-bezier(.22, 1, .36, 1) both; }
   .prompt-bubble { position: relative; display: block; max-width: min(90%, 720px); margin: 0; padding: clamp(8px, min(1.6cqw, 1.6cqh), 16px) clamp(16px, min(3cqw, 3cqh), 32px); border-radius: var(--radius-5); background: var(--color-grey-blue); color: var(--color-font-primary); opacity: 1; font-size: clamp(18px, min(4cqw, 4.3cqh), 40px); line-height: 1.35; font-weight: 700; box-shadow: var(--shadow-sm); transform-origin: right bottom; }
   .prompt-bubble.transitioning { animation: prompt-appear 420ms ease-out forwards; }
   .prompt-bubble::after { content: ''; position: absolute; inset-inline-end: -12px; bottom: 10px; width: 12px; height: 20px; background: var(--color-grey-blue); -webkit-mask: url('/icons/speechbubble.svg') center / contain no-repeat; mask: url('/icons/speechbubble.svg') center / contain no-repeat; transform: scaleX(-1); }
   @keyframes prompt-appear { from { opacity: 0; transform: scale(0.88); } to { opacity: 1; transform: scale(1); } }
-  .hero-speed { margin: 0; color: var(--color-font-button); font-size: clamp(16px, min(3cqw, 3cqh), 28px); line-height: 1.3; font-weight: 700; }
-  .rail-window { --icon-size: clamp(56px, min(18cqw, 16cqh), 176px); --icon-gap: clamp(16px, 3cqw, 40px); position: relative; flex: 0 0 calc(var(--icon-size) * 1.08 + 12px); width: 100%; overflow: hidden; touch-action: pan-y; cursor: grab; -webkit-mask-image: linear-gradient(to right, transparent, var(--color-font-button) 9%, var(--color-font-button) 91%, transparent); mask-image: linear-gradient(to right, transparent, var(--color-font-button) 9%, var(--color-font-button) 91%, transparent); }
+  .hero-speed { animation: hero-entrance 570ms 520ms cubic-bezier(.22, 1, .36, 1) both; margin: 0; color: var(--color-font-button); font-size: clamp(16px, min(3cqw, 3cqh), 28px); line-height: 1.3; font-weight: 700; }
+  .rail-window { animation: hero-entrance 620ms 480ms cubic-bezier(.22, 1, .36, 1) both; --icon-size: clamp(56px, min(18cqw, 16cqh), 176px); --icon-gap: clamp(16px, 3cqw, 40px); position: relative; flex: 0 0 calc(var(--icon-size) * 1.08 + 12px); width: 100%; overflow: hidden; touch-action: pan-y; cursor: grab; -webkit-mask-image: linear-gradient(to right, transparent, var(--color-font-button) 9%, var(--color-font-button) 91%, transparent); mask-image: linear-gradient(to right, transparent, var(--color-font-button) 9%, var(--color-font-button) 91%, transparent); }
   .rail-window:active { cursor: grabbing; }
   .rail-track { position: absolute; inset-block: 0; left: 50%; display: flex; width: max-content; will-change: transform; }
   .rail-group { display: flex; align-items: center; gap: var(--icon-gap); width: max-content; padding-inline-end: var(--icon-gap); }
   .rail-icon { display: inline-grid; place-items: center; flex: 0 0 var(--icon-size); width: var(--icon-size); min-width: 0; max-width: var(--icon-size); height: var(--icon-size); margin: 0; padding: 0; border: 0; border-radius: var(--rail-corner-radius, 25%); background: var(--rail-icon-bg); filter: none; opacity: 0.42; cursor: pointer; transition: opacity var(--duration-normal) var(--easing-default), scale var(--duration-normal) var(--easing-default); }
   .rail-icon:hover, .rail-icon:active { background: var(--rail-icon-bg); filter: none; }
-  .rail-glyph { display: block; width: calc(var(--icon-size) * 0.53); height: calc(var(--icon-size) * 0.53); background: var(--color-font-button); -webkit-mask: var(--rail-icon-url) center / contain no-repeat; mask: var(--rail-icon-url) center / contain no-repeat; }
+  .rail-glyph { display: block; width: calc(var(--icon-size) * 0.53); height: calc(var(--icon-size) * 0.53); object-fit: contain; filter: brightness(0) invert(1); pointer-events: none; }
   .rail-icon.highlighted, .rail-icon:hover, .rail-icon:focus-visible { opacity: 1; scale: 1.08; }
   .rail-window:focus-visible .rail-icon.highlighted, .rail-icon:focus-visible { outline: 3px solid var(--color-font-button); outline-offset: 3px; }
-  .scroll-cue { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-6); min-height: 28px; color: var(--color-font-button); font-size: clamp(14px, min(2.8cqw, 2.8cqh), 22px); line-height: 1.4; font-weight: 700; animation: cue-pulse 1.8s ease-in-out infinite alternate; }
+  .scroll-cue { display: inline-flex; align-items: center; justify-content: center; animation: hero-entrance 500ms 1020ms cubic-bezier(.22, 1, .36, 1) both; min-height: 28px; color: var(--color-font-button); font-size: clamp(14px, min(2.8cqw, 2.8cqh), 22px); line-height: 1.4; font-weight: 700; }
+  .scroll-cue-content { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-6); animation: cue-pulse 1.8s ease-in-out infinite alternate; }
+  @keyframes hero-entrance { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  .hero-entrance-complete .hero-ai-entrance, .hero-entrance-complete .hero h1, .hero-entrance-complete .hero-prompt-entrance, .hero-entrance-complete .hero-speed, .hero-entrance-complete .rail-window, .hero-entrance-complete .scroll-cue { animation: none; }
   .cue-arrow { display: block; flex: 0 0 1em; width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-  @keyframes cue-pulse { from { opacity: .3; } to { opacity: .8; } }
+  @keyframes cue-pulse { from { opacity: .72; } to { opacity: 1; } }
   .composer-link { position: absolute; z-index: 5; left: 50%; bottom: max(var(--spacing-8), env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(629px, calc(100% - 30px)); min-height: 64px; box-sizing: border-box; padding: 0 var(--spacing-12); display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-8); border-radius: 32px; background: var(--color-grey-blue); color: var(--color-font-primary); font-weight: 700; box-shadow: 0 4px 12px color-mix(in srgb, var(--color-grey-100) 8%, transparent); text-align: center; }
   .composer-link:hover { box-shadow: var(--shadow-lg); }
   .composer-ai, .composer-mic { display: block; flex: 0 0 24px; width: 24px; height: 24px; background: var(--color-grey-60); -webkit-mask: var(--composer-icon-url) center / contain no-repeat; mask: var(--composer-icon-url) center / contain no-repeat; }
@@ -514,7 +523,7 @@
   .social-links a { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: var(--radius-full); background: var(--color-grey-20); }.social-links a:hover { background: var(--color-grey-blue); }.social-icon { display: block; width: 22px; height: 22px; background: var(--color-grey-80); mask: var(--social-icon-url) center / contain no-repeat; -webkit-mask: var(--social-icon-url) center / contain no-repeat; }
   @media (max-width: 900px) { .feature-media { grid-template-columns: 1fr; }.feature-copy, .feature-later .feature-copy { max-width: 680px; }.feature-example, .feature-later .feature-example { width: 100%; margin: 0 auto; } }
   @media (max-width: 760px) { .viewport-container { margin: 0 var(--spacing-4) var(--spacing-4); }.feature { min-height: 100%; padding: var(--spacing-20) var(--spacing-8); gap: var(--spacing-16); }.feature h2 { margin-bottom: var(--spacing-12); }.publication-row { grid-template-columns: 1fr; gap: var(--spacing-12); padding: var(--spacing-16) var(--spacing-8); }.site-footer { flex-direction: column; align-items: flex-start; padding: var(--spacing-16) var(--spacing-8); }.site-footer nav { justify-content: flex-start; } }
-  @media (max-width: 440px) { .scroll-cue { gap: var(--spacing-4); }.publication-cards { grid-template-columns: 1fr; }.publication-card img { height: 170px; } }
+  @media (max-width: 440px) { .scroll-cue-content { gap: var(--spacing-4); }.publication-cards { grid-template-columns: 1fr; }.publication-card img { height: 170px; } }
   @media (max-height: 660px) and (max-width: 760px) {
     .hero { --hero-ai-size: 64px; gap: 6px; padding-bottom: 90px; }
     .hero h1 { font-size: 28px; }
@@ -529,9 +538,9 @@
     .hero-visual { grid-column: 1; grid-row: 1 / 4; justify-self: end; width: 64px; height: 64px; }
     .hero h1 { grid-column: 2; font-size: clamp(22px, 6.9cqh, 28px); line-height: 1.06; }
     .prompt-bubble { grid-column: 2; max-width: 100%; padding: 6px 16px; font-size: 16px; }
-    .hero-speed { grid-column: 2; font-size: 14px; }
+    .hero-prompt-entrance { grid-column: 2; }.hero-speed { grid-column: 2; font-size: 14px; }
     .rail-window { grid-column: 1 / -1; width: 100%; height: 64px; --icon-size: 48px; --icon-gap: 18px; }
     .scroll-cue { grid-column: 1 / -1; min-height: 24px; font-size: 12px; }
   }
-  @media (prefers-reduced-motion: reduce) { .scroll-container { scroll-behavior: auto; }.rail-track, .scroll-cue, .prompt-bubble, .hero-ai-visual, .hero-ai-visual::before { animation: none !important; }.scroll-cue { opacity: .8; }.rail-icon, :global(.reveal-ready) .feature-icon, :global(.reveal-ready) .feature-copy h2, :global(.reveal-ready) .feature-copy p, :global(.reveal-ready) .feature-copy .text-link, :global(.reveal-ready) .feature-example, :global(.newsletter-reveal.reveal-ready), :global(.publication-row.reveal-ready) .publication-intro, :global(.publication-row.reveal-ready) .event-cards, :global(.publication-row.reveal-ready) .publication-cards, :global(.publication-row.reveal-ready) .empty-publication { transition: none !important; }.hero-visual { transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .scroll-container { scroll-behavior: auto; }.hero-ai-entrance, .hero h1, .hero-prompt-entrance, .hero-speed, .rail-window, .rail-track, .scroll-cue, .scroll-cue-content, .prompt-bubble, .hero-ai-visual, .hero-ai-visual::before { animation: none !important; }.rail-icon, :global(.reveal-ready) .feature-icon, :global(.reveal-ready) .feature-copy h2, :global(.reveal-ready) .feature-copy p, :global(.reveal-ready) .feature-copy .text-link, :global(.reveal-ready) .feature-example, :global(.newsletter-reveal.reveal-ready), :global(.publication-row.reveal-ready) .publication-intro, :global(.publication-row.reveal-ready) .event-cards, :global(.publication-row.reveal-ready) .publication-cards, :global(.publication-row.reveal-ready) .empty-publication { transition: none !important; }.hero-visual { transform: none; } }
 </style>

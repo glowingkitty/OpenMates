@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.marketing-landing@6
+specification: feature.marketing-landing@7
 scrolling:
 - id: visitor-controls-reading-time
   given: Alex opens the standalone website while signed out and JavaScript is unavailable.
@@ -34,11 +34,38 @@ destinations:
     link scrolls to newsletter signup. The full wordmark returns to the website home, with no workspace tabs.
 - id: shared-compact-header
   given: Sam visits the website home, news, blog or legal pages on a 320-pixel phone or a wide desktop.
-  when: Sam uses the header and opens language selection.
+  when: Sam reads the landing browser tab, then uses the header and opens language selection.
   then: The complete OpenMates wordmark remains visible, the orange Open Web App pill sits at the right,
     and the language icon immediately before it has an accessible current-language name without visible
     EN or DE text. The language panel stays within the screen. GitHub appears when space permits.
-    Blog links stay on the website and non-HTTP origin overrides are rejected.
+    Blog links stay on the website and non-HTTP origin overrides are rejected. The landing tab and social
+    previews say OpenMates — Your privacy first AI team mates.
+catalog_alignment:
+- id: matching-default-examples
+  given: Alex sees Events, Travel and Code first on the landing page and has not selected interests in the web app.
+  when: Alex opens the web-app welcome screen and browses its default example cards.
+  then: The same Events, Travel and Code conversations lead the complete landing example set in the same
+    order. Alex's own local conversation remains ahead of the examples, and selecting interests or Show all
+    still works.
+- id: retain-capability-coverage
+  given: Two older chats demonstrate image search, neither is linked on the landing page, and one separate
+    chat is the only demonstration of speech generation.
+  when: The public example catalog is cleaned up.
+  then: One successful image-search example and the sole speech-generation example remain. The redundant
+    image-search chat disappears from discovery, direct example pages and interest mappings. Landing-linked
+    examples and their child conversations remain available.
+hero_entrance:
+- id: staged-first-impression
+  given: Sam opens the landing page in a fresh tab with normal motion enabled.
+  when: The hero first appears.
+  then: The AI icon and heading fade and settle into view first, followed by the user message, app row and
+    In seconds text, then the scroll cue. The message input remains usable throughout, and the finished
+    layout is fully visible without shifted or overlapping elements.
+- id: reduced-motion-and-return
+  given: Alex either requests reduced motion or returns to the landing tab after opening an example chat.
+  when: Alex reads the hero and scrolls to the next section.
+  then: Reduced motion shows the complete hero immediately. Returning to the tab leaves the completed
+    entrance visible and does not restart it or interfere with scrolling.
 composer:
 - id: cold-start-focus
   given: Alex has an unsent draft in the web app and opens the public website in another tab.

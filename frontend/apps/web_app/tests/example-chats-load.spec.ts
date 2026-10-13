@@ -26,21 +26,24 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 
 const REMOVED_GENERATED_AUDIO_EXAMPLE_SLUGS = [
 	'audio-generate-confirmation-tick',
+	'audio-generate-openmates-success-chime',
 	'audio-speak-welcome-message'
 ];
 
 const GENERATED_AUDIO_EXAMPLE_CASES = [
 	{
-		chatId: 'example-audio-generate-openmates-success-chime',
-		slug: 'audio-generate-openmates-success-chime',
+		chatId: 'example-community-garden-volunteer-chime',
+		slug: 'community-garden-volunteer-chime',
 		skillId: 'generate',
-		promptSnippet: 'Create a short, friendly success chime for an OpenMates workflow finishing'
+		promptSnippet: 'Create a short, warm notification sound for a community garden app',
+		embedPromptSnippet: 'Warm and gentle two-note acoustic chime'
 	},
 	{
 		chatId: 'example-audio-speak-openmates-welcome-message',
 		slug: 'audio-speak-openmates-welcome-message',
 		skillId: 'speak',
-		promptSnippet: 'Say this as a warm, natural welcome message'
+		promptSnippet: 'Say this as a warm, natural welcome message',
+		embedPromptSnippet: 'Say this as a warm, natural welcome message'
 	}
 ] as const;
 
@@ -387,8 +390,8 @@ test.describe('Example chats loading for new users', () => {
 		await expect(settingsMenu).not.toContainText(/\[T:settings\.chats\]/i);
 	});
 
-	// contract-test: direct surface=gui.web assertions=public-example-chats.navigation.static-public-link,public-example-chats.transcript.safe-rendering
-	test('memory example cards update the reloadable chat hash on wide viewports', async ({
+	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable
+	test('memory settings keep sample entries without retired public memory chats', async ({
 		page
 	}: {
 		page: any;
@@ -403,54 +406,23 @@ test.describe('Example chats loading for new users', () => {
 
 		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 		await expect(settingsMenu).toBeVisible({ timeout: 15000 });
-		const exampleCard = settingsMenu
-			.locator('[data-testid="app-store-example-chat-card"][data-chat-id="example-memory-books-currently-reading"]')
-			.first();
-		await expect(exampleCard).toBeVisible({ timeout: 15000 });
-
-		await exampleCard.click();
-		await expect(page).toHaveURL(/[&#]chat-id=example-memory-books-currently-reading/, { timeout: 15000 });
-		await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 15000 });
-
-		await page.reload({ waitUntil: 'domcontentloaded' });
-		await expect(page).toHaveURL(/[&#]chat-id=example-memory-books-currently-reading/, { timeout: 15000 });
-		await expect(page.getByTestId('message-assistant').filter({ hasText: 'spoiler-free one-week reading plan' })).toBeVisible({ timeout: 15000 });
-	});
-
-	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering
-	test('reported memory examples render current text content without interactive-question errors', async ({
-		page
-	}: {
-		page: any;
-	}) => {
-		test.setTimeout(90000);
-
-		await page.goto(getE2EDebugUrl('/#chat-id=example-memory-books-currently-reading'), {
-			waitUntil: 'domcontentloaded'
-		});
-		await expect(page.getByTestId('message-assistant').filter({ hasText: 'spoiler-free one-week reading plan' })).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('app-settings-memories-summary')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('app-settings-memory-category-badge')).toBeVisible({ timeout: 15000 });
-		await expect(page.locator('body')).not.toContainText('[Interactive Question - Invalid JSON]');
-		await expect(page.locator('body')).not.toContainText('app_settings_memories_request');
-		await expect(page.locator('body')).not.toContainText('app_settings_memories_response');
-		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Project Hail Mary' })).toBeVisible({ timeout: 15000 });
-
-		await page.goto(getE2EDebugUrl('/#chat-id=example-memory-mail-writing-styles'), {
-			waitUntil: 'domcontentloaded'
-		});
-		await page.reload({ waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Friday Update - [Project Name]' })).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('app-settings-memories-summary')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('app-settings-memory-category-badge')).toBeVisible({ timeout: 15000 });
-		await expect(page.locator('body')).not.toContainText('[Interactive Question - Invalid JSON]');
-		await expect(page.locator('body')).not.toContainText('app_settings_memories_request');
-		await expect(page.locator('body')).not.toContainText('app_settings_memories_response');
-		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Best, Alex' })).toBeVisible({ timeout: 15000 });
+		const memoryCategory = settingsMenu.getByTestId('app-settings-memories-category');
+		await expect(memoryCategory).toHaveAttribute('data-app-id', 'books');
+		await expect(memoryCategory).toHaveAttribute('data-category-id', 'currently_reading');
+		await expect(memoryCategory.getByTestId('app-store-memory-example-chats')).toHaveCount(0);
+		const sampleEntries = memoryCategory.locator('.examples-list');
+		await expect(sampleEntries).toBeVisible({ timeout: 15000 });
+		await expect(sampleEntries.locator('.settings-item')).toHaveCount(2);
+		await sampleEntries.locator('.settings-item').first().click();
+		await expect(settingsMenu).toHaveAttribute(
+			'data-active-view',
+			'apps/books/settings_memories/currently_reading/entry/example_0',
+			{ timeout: 10000 }
+		);
 	});
 
 	// contract-test: direct surface=gui.web assertions=public-example-chats.history.explicit-forgotten-reveal,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
-	test('privacy-first local AI example hides compressed history behind forgotten messages', async ({
+	test('internal compression fixture hides compressed history behind forgotten messages', async ({
 		page
 	}: {
 		page: any;
@@ -643,7 +615,7 @@ test.describe('Example chats loading for new users', () => {
 			await expect(preview.getByTestId(`audio-${exampleCase.skillId}-preview`)).toBeVisible({ timeout: 15000 });
 			await expect(preview.getByTestId(`audio-${exampleCase.skillId}-prompt-label`)).toBeVisible({ timeout: 15000 });
 			await expect(preview.getByTestId(`audio-${exampleCase.skillId}-prompt`)).toContainText(
-				exampleCase.promptSnippet,
+				exampleCase.embedPromptSnippet,
 				{ timeout: 15000 }
 			);
 			await expect(preview.getByTestId(`audio-${exampleCase.skillId}-preview-play-button`)).toBeVisible({ timeout: 15000 });

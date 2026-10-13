@@ -213,6 +213,9 @@ test('standalone landing and publication indexes are server-rendered without app
     await expect(page.locator('main')).toBeVisible();
     await assertPublicHeader(page);
     if (route === '/') {
+      await expect(page).toHaveTitle('OpenMates — Your privacy first AI team mates');
+      await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', 'OpenMates — Your privacy first AI team mates');
+      await expect(page.locator('meta[name="twitter:title"]')).toHaveAttribute('content', 'OpenMates — Your privacy first AI team mates');
       await expect(page.getByTestId('landing-page')).toBeVisible();
       await expect(page.getByTestId('landing-open-web-app')).toHaveAttribute('href', `${app}/`);
       await expect(page.locator('.workspace-nav, [data-testid^="landing-nav-"]')).toHaveCount(0);

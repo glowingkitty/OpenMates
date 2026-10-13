@@ -372,30 +372,6 @@ test.describe('Unauthenticated app load', () => {
 		expect(nextAutoPhrase.length).toBeGreaterThan(0);
 	});
 
-	// contract-test: direct surface=gui.web assertions=landing-onboarding.uses-real-chat-shell,landing-onboarding.guest-examples
-	test('guest welcome keeps interest and all-example controls without promotional slides', async ({ page }: { page: any }) => {
-		await page.setViewportSize({ width: 1280, height: 800 });
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
-		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
-		const bannerHeight = (await page.getByTestId('daily-inspiration-banner').boundingBox())?.height ?? 0;
-		expect(bannerHeight).toBeGreaterThan(0);
-		expect(bannerHeight).toBeLessThanOrEqual(420);
-		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible();
-		await expect(page.getByTestId('guest-show-all-examples')).toBeVisible();
-		await expect(page.getByTestId('resume-chat-card').first()).toBeVisible();
-		const beforeSlide = await page.getByTestId('resume-chat-card').evaluateAll((cards: HTMLElement[]) =>
-			cards.map((card) => card.dataset.chatId).filter(Boolean)
-		);
-		expect(beforeSlide.length).toBeGreaterThan(1);
-		await page.getByTestId('daily-inspiration-next').click();
-		const afterSlide = await page.getByTestId('resume-chat-card').evaluateAll((cards: HTMLElement[]) =>
-			cards.map((card) => card.dataset.chatId).filter(Boolean)
-		);
-		expect(afterSlide).toEqual(beforeSlide);
-		await page.getByTestId('guest-show-all-examples').click();
-		await expect(page.getByTestId('guest-all-examples-grid').getByTestId('resume-chat-large-card').first()).toBeVisible();
-	});
 
 	// contract-test: direct surface=gui.web assertions=landing-onboarding.uses-real-chat-shell,public-example-chats.catalog.discoverable
 	test('desktop welcome opens real example chats without runtime errors', async ({
