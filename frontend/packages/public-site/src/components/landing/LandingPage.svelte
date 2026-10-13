@@ -58,10 +58,30 @@
     let target: number | null = null;
     let lastFrame = performance.now();
     let pauseUntil = 0;
-    let pointer: { id: number; x: number; y: number; position: number; dragging: boolean } | null = null;
+    const automaticVelocity = 1 / promptIntervalMs;
+    const momentumDecayMs = 550;
+    const maxVelocity = 0.02;
+    let velocity = automaticVelocity;
+    let lastWheelTime = 0;
+    let pointer: { id: number; x: number; y: number; position: number; dragging: boolean; lastX: number; lastTime: number; velocity: number } | null = null;
     let suppressClick = false;
     let observer: IntersectionObserver | undefined;
     const revealedSections = new WeakSet<HTMLElement>();
+    const revealSection = (element: HTMLElement) => {
+      revealedSections.add(element);
+      element.classList.add('revealed');
+      observer?.unobserve(element);
+    };
+    const revealVisibleSections = () => {
+      const viewport = scrollContainer.getBoundingClientRect();
+      for (const element of landingRoot.querySelectorAll<HTMLElement>('[data-reveal]')) {
+        if (revealedSections.has(element)) continue;
+        const box = element.getBoundingClientRect();
+        const visibleHeight = Math.min(box.bottom, viewport.bottom) - Math.max(box.top, viewport.top);
+        // Background tabs can miss observer notifications. User scrolling must never leave content hidden.
+        if (visibleHeight >= Math.min(box.height, viewport.height) * 0.12 && visibleHeight > 0) revealSection(element);
+      }
+    };
     const scheduleFrame = () => {
       if (!frame && !document.hidden && (!reducedMotion || target !== null)) {
         lastFrame = performance.now();
@@ -93,6 +113,7 @@
     };
     selectApp = (index: number) => {
       if (!orderedApps.length) return;
+      velocity = automaticVelocity;
       target = index + Math.round((position - index) / orderedApps.length) * orderedApps.length;
       setActive(index);
       if (reducedMotion) {
@@ -115,7 +136,10 @@
           pauseUntil = now + 2000;
         }
       } else if (!reducedMotion && !document.hidden && !pointer?.dragging && now >= pauseUntil) {
-        position += elapsed / promptIntervalMs;
+        // Integrate exponential friction so release momentum blends into the usual drift.
+        const decay = Math.exp(-elapsed / momentumDecayMs);
+        position += automaticVelocity * elapsed + (velocity - automaticVelocity) * momentumDecayMs * (1 - decay);
+        velocity = automaticVelocity + (velocity - automaticVelocity) * decay;
         setActive(modulo(Math.round(position)));
       }
       renderRail();
@@ -127,14 +151,20 @@
       if (Math.abs(horizontal) <= Math.abs(event.shiftKey ? event.deltaX : event.deltaY)) return;
       event.preventDefault();
       target = null;
+      const now = performance.now();
+      const gap = now - lastWheelTime;
+      const sample = Math.max(-maxVelocity, Math.min(maxVelocity, horizontal / pitch / (gap > 100 || !lastWheelTime ? 16 : Math.max(16, gap))));
+      velocity = now - lastWheelTime > 100 ? sample : velocity * 0.35 + sample * 0.65;
+      lastWheelTime = now;
       position += horizontal / pitch;
       setActive(modulo(Math.round(position)));
-      pauseUntil = performance.now() + 2000;
+      pauseUntil = 0;
       renderRail();
+      scheduleFrame();
     };
     const onPointerDown = (event: PointerEvent) => {
       if (event.button !== 0 || pointer) return;
-      pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, position, dragging: false };
+      pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, position, dragging: false, lastX: event.clientX, lastTime: performance.now(), velocity: 0 };
     };
     const onPointerMove = (event: PointerEvent) => {
       if (!pointer || event.pointerId !== pointer.id) return;
@@ -146,9 +176,14 @@
       }
       if (!pointer.dragging) return;
       target = null;
+      const now = performance.now();
+      const sample = Math.max(-maxVelocity, Math.min(maxVelocity, (pointer.lastX - event.clientX) / pitch / Math.max(1, now - pointer.lastTime)));
+      pointer.velocity = pointer.velocity * 0.35 + sample * 0.65;
+      pointer.lastX = event.clientX;
+      pointer.lastTime = now;
       position = pointer.position - dx / pitch;
       setActive(modulo(Math.round(position)));
-      pauseUntil = performance.now() + 2000;
+      pauseUntil = 0;
       renderRail();
     };
     const onPointerEnd = (event: PointerEvent) => {
@@ -156,9 +191,12 @@
       if (pointer.dragging) {
         suppressClick = event.type === 'pointerup';
         if (suppressClick) window.setTimeout(() => { suppressClick = false; }, 0);
-        pauseUntil = performance.now() + 2000;
+        velocity = event.type === 'pointerup' && performance.now() - pointer.lastTime < 120 ? pointer.velocity : automaticVelocity;
+        pauseUntil = 0;
+        if (railWindow.hasPointerCapture(event.pointerId)) railWindow.releasePointerCapture(event.pointerId);
       }
       pointer = null;
+      scheduleFrame();
     };
     const onClickCapture = (event: MouseEvent) => {
       if (!suppressClick) return;
@@ -174,11 +212,13 @@
       railTrack.querySelectorAll<HTMLButtonElement>('.rail-group:nth-child(2) .rail-icon')[index]?.focus({ preventScroll: true });
     };
     const onScroll = () => {
+      revealVisibleSections();
       if (reducedMotion) return;
       landingRoot.style.setProperty('--hero-parallax-y', `${Math.min(scrollContainer.scrollTop * 0.12, 48)}px`);
     };
     const updateMotion = () => {
       reducedMotion = motionQuery.matches;
+      velocity = automaticVelocity;
       if (reducedMotion && target !== null) {
         position = target;
         target = null;
@@ -194,9 +234,7 @@
       if (!reducedMotion && 'IntersectionObserver' in window) {
         observer = new IntersectionObserver((entries) => {
           for (const entry of entries) if (entry.isIntersecting) {
-            revealedSections.add(entry.target as HTMLElement);
-            entry.target.classList.add('revealed');
-            observer?.unobserve(entry.target);
+            revealSection(entry.target as HTMLElement);
           }
         }, { root: scrollContainer, threshold: 0.12 });
         sections.forEach((element) => {
@@ -204,6 +242,7 @@
           if (!revealedSections.has(element)) observer?.observe(element);
         });
       }
+      revealVisibleSections();
     };
     motionQuery.addEventListener('change', updateMotion);
     scrollContainer.addEventListener('scroll', onScroll, { passive: true });
@@ -220,10 +259,16 @@
       if (document.hidden) {
         cancelAnimationFrame(frame);
         frame = 0;
-      } else scheduleFrame();
+      } else {
+        velocity = automaticVelocity;
+        pointer = null;
+        updateMotion();
+      }
     };
     document.addEventListener('visibilitychange', onVisibilityChange);
-    const resizeObserver = new ResizeObserver(measureRail);
+    window.addEventListener('focus', revealVisibleSections);
+    window.addEventListener('pageshow', revealVisibleSections);
+    const resizeObserver = new ResizeObserver(() => { measureRail(); revealVisibleSections(); });
     resizeObserver.observe(railWindow);
     measureRail();
     updateMotion();
@@ -243,6 +288,8 @@
       railWindow.removeEventListener('click', onClickCapture, true);
       railWindow.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', revealVisibleSections);
+      window.removeEventListener('pageshow', revealVisibleSections);
     };
   });
 </script>
@@ -380,7 +427,7 @@
       </div>
 
       <footer class="site-footer">
-        <div><a class="wordmark" href={siteUrl('/')}><span>Open</span>Mates</a><p>{copy.social}</p><div class="social-links">{#each socialLinks as social (social.label)}<a href={social.href} target="_blank" rel="noopener noreferrer" aria-label={social.label}><img src={social.iconUrl} alt="" width="22" height="22" /></a>{/each}</div></div>
+        <div><a class="wordmark" href={siteUrl('/')}><span>Open</span>Mates</a><p>{copy.social}</p><div class="social-links">{#each socialLinks as social (social.label)}<a href={social.href} target="_blank" rel="noopener noreferrer" aria-label={social.label}><span class="social-icon" aria-hidden="true" style={`--social-icon-url:url('${social.iconUrl}')`}></span></a>{/each}</div></div>
         <nav aria-label="Footer navigation"><a href={siteUrl('/legal/privacy')}>{copy.privacy}</a><a href={siteUrl('/legal/terms')}>{copy.terms}</a><a href={siteUrl('/legal/imprint')}>{copy.imprint}</a></nav>
       </footer>
     </main>
@@ -394,9 +441,9 @@
   a:focus-visible { outline: 3px solid var(--color-primary-start); outline-offset: 3px; }
   .viewport-container { position: relative; flex: 1; min-height: 0; margin: 0 var(--spacing-10) var(--spacing-10); overflow: hidden; border-radius: var(--radius-6); background: var(--color-grey-0); box-shadow: var(--shadow-md); }
   .scroll-container { width: 100%; height: 100%; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scroll-behavior: smooth; }
-  .hero { position: relative; height: 100%; box-sizing: border-box; padding: 0 var(--spacing-16) 90px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: var(--spacing-4); overflow: hidden; text-align: center; background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end)); color: var(--color-font-button); }
-  .hero-visual { position: relative; flex: 1 1 0; min-height: 0; width: 100%; display: grid; place-items: center; container-type: size; transform: translateY(var(--hero-parallax-y, 0px)); }
-  .hero-ai-visual { position: relative; display: grid; place-items: center; width: clamp(116px, 30cqh, 230px); aspect-ratio: 1; animation: hero-ai-float 8s ease-in-out infinite alternate; }
+  .hero { position: relative; height: 100%; box-sizing: border-box; padding: 0 var(--spacing-16) 90px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--spacing-4); overflow: hidden; text-align: center; background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end)); color: var(--color-font-button); }
+  .hero-visual { position: relative; flex: 1 1 0; min-height: 0; max-height: clamp(116px, 23dvh, 240px); width: 100%; display: grid; place-items: end center; container-type: size; transform: translateY(var(--hero-parallax-y, 0px)); }
+  .hero-ai-visual { position: relative; display: grid; place-items: center; width: min(100cqh, clamp(116px, 30cqh, 230px)); aspect-ratio: 1; animation: hero-ai-float 8s ease-in-out infinite alternate; }
   .hero-ai-visual::before { content: ''; position: absolute; inset: 4%; border-radius: var(--radius-full); background: radial-gradient(circle at 35% 35%, var(--color-font-button), transparent 70%); filter: blur(32px); opacity: .24; animation: hero-ai-glow 12s ease-in-out infinite alternate; }
   .hero-ai-glyph { position: relative; display: block; width: 72%; height: 72%; background: var(--color-font-button); -webkit-mask: url('/icons/ai.svg') center / contain no-repeat; mask: url('/icons/ai.svg') center / contain no-repeat; filter: drop-shadow(0 8px 20px color-mix(in srgb, var(--color-grey-100) 18%, transparent)); }
   @keyframes hero-ai-float { from { transform: translateY(4px); } to { transform: translateY(-8px); } }
@@ -460,7 +507,7 @@
   .site-footer { max-width: 1320px; margin: 0 auto 110px; padding: var(--spacing-16) var(--spacing-24); display: flex; justify-content: space-between; gap: var(--spacing-16); align-items: center; }.site-footer p { color: var(--color-font-tertiary); font-size: var(--font-size-small); }
   .site-footer .wordmark { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.04em; white-space: nowrap; }.site-footer .wordmark span { color: var(--color-primary-start); }
   .site-footer nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--spacing-8); font-size: var(--font-size-small); color: var(--color-font-tertiary); }.social-links { display: flex; flex-wrap: wrap; gap: var(--spacing-4); }
-  .social-links a { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: var(--radius-full); background: var(--color-grey-20); }.social-links a:hover { background: var(--color-grey-blue); }.social-links img { display: block; width: 22px; height: 22px; }
+  .social-links a { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: var(--radius-full); background: var(--color-grey-20); }.social-links a:hover { background: var(--color-grey-blue); }.social-icon { display: block; width: 22px; height: 22px; background: var(--color-grey-80); mask: var(--social-icon-url) center / contain no-repeat; -webkit-mask: var(--social-icon-url) center / contain no-repeat; }
   @media (max-width: 900px) { .feature-media { grid-template-columns: 1fr; }.feature-copy, .feature-later .feature-copy { max-width: 680px; }.feature-example, .feature-later .feature-example { width: 100%; margin: 0 auto; } }
   @media (max-width: 760px) { .viewport-container { margin: 0 var(--spacing-4) var(--spacing-4); }.hero { padding: var(--spacing-4) var(--spacing-8) 90px; gap: var(--spacing-2); justify-content: center; }.hero-visual { flex: 0 1 auto; width: min(130px, 34vw, 26dvh); container-type: normal; }.hero-ai-visual { width: 100%; }.rail-window { --icon-size: clamp(64px, 15vw, 88px); --icon-gap: var(--spacing-8); }.feature { min-height: 100%; padding: var(--spacing-20) var(--spacing-8); gap: var(--spacing-16); }.feature h2 { margin-bottom: var(--spacing-12); }.publication-row { grid-template-columns: 1fr; gap: var(--spacing-12); padding: var(--spacing-16) var(--spacing-8); }.site-footer { flex-direction: column; align-items: flex-start; padding: var(--spacing-16) var(--spacing-8); }.site-footer nav { justify-content: flex-start; } }
   @media (max-width: 440px) { .hero h1 { font-size: 2rem; }.scroll-cue { font-size: var(--font-size-xs); gap: var(--spacing-4); }.publication-cards { grid-template-columns: 1fr; }.publication-card img { height: 170px; } }

@@ -51,6 +51,7 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     const titleTop = (await root.locator('#hero-title').boundingBox())!.y;
     expect(iconBox.y).toBeGreaterThanOrEqual(geometry.hero.top - 1);
     expect(iconBox.y + iconBox.height).toBeLessThanOrEqual(titleTop + 1);
+    expect(titleTop - (iconBox.y + iconBox.height), 'AI icon and title must stay together without a large empty gap').toBeLessThanOrEqual(32);
     await expect(aiVisual).toHaveAttribute('aria-hidden', 'true');
     await expect(page.getByTestId('landing-hero-media').locator('.device-frame')).toHaveCount(0);
     expect(await aiVisual.locator('.hero-ai-glyph').evaluate(element => getComputedStyle(element).maskImage)).toContain('/icons/ai.svg');
@@ -154,11 +155,14 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     await page.screenshot({ path: testInfo.outputPath(`landing-hero-${width}.png`) });
 
     // A full-cycle manual move must render the same icons at the same coordinates.
-    const seamBefore = await groups.nth(1).locator('.rail-icon').first().boundingBox();
-    const period = await groups.nth(1).evaluate(element => element.getBoundingClientRect().width);
-    await page.getByTestId('landing-app-rail').dispatchEvent('wheel', { deltaX: period, deltaY: 0 });
-    expect(seamBefore).not.toBeNull();
-    await expect.poll(async () => Math.abs((await groups.nth(1).locator('.rail-icon').first().boundingBox())!.x - seamBefore!.x)).toBeLessThan(2);
+    const seamOffset = await page.getByTestId('landing-app-rail').evaluate(element => {
+      const group = element.querySelector<HTMLElement>('.rail-group:nth-child(2)')!;
+      const first = group.querySelector<HTMLElement>('.rail-icon')!;
+      const before = first.getBoundingClientRect().x;
+      element.dispatchEvent(new WheelEvent('wheel', { deltaX: group.getBoundingClientRect().width, bubbles: true, cancelable: true }));
+      return Math.abs(first.getBoundingClientRect().x - before);
+    });
+    expect(seamOffset).toBeLessThan(2);
 
     const icons: string[] = [];
     for (const id of sections) {
@@ -298,9 +302,76 @@ test('320px reduced-motion landing offers language-only settings and all event/s
   for (const social of await socials.all()) {
     await expect(social).toHaveAttribute('target', '_blank');
     await expect(social).toHaveAttribute('rel', /noopener.*noreferrer/);
+    const icon = social.locator('.social-icon');
+    await expect(icon).toHaveCount(1);
+    expect(await icon.evaluate(element => {
+      const probe = document.createElement('span');
+      probe.style.backgroundColor = 'var(--color-grey-80)';
+      element.append(probe);
+      const matches = getComputedStyle(element).backgroundColor === getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return matches && getComputedStyle(element).maskImage.includes('/icons/');
+    })).toBe(true);
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
 });
+
+for (const width of [390, 1440]) {
+  // contract-test: direct surface=gui.web assertions=marketing-landing.interactive-rail,marketing-landing.hero-app-rail
+  test(`landing swipe release carries momentum without pausing (${width}px)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width < 760 ? 844 : 900 });
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.goto(preview(width), { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page, 30_000);
+    const rail = page.getByTestId('landing-app-rail');
+    const box = (await rail.boundingBox())!;
+    const cdp = await page.context().newCDPSession(page);
+    if (width < 760) await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+    const startX = box.x + box.width * .65;
+    const y = box.y + box.height / 2;
+    for (const direction of [-1, 1]) {
+      if (width < 760) {
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: startX, y, id: 1 }] });
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: startX + 70 * direction, y, id: 1 }] });
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: startX + 140 * direction, y, id: 1 }] });
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      } else {
+        await page.mouse.move(startX, y);
+        await page.mouse.down();
+        await page.mouse.move(startX + 70 * direction, y);
+        await page.mouse.move(startX + 140 * direction, y);
+        await page.mouse.up();
+      }
+      const samples = await rail.evaluate(async element => {
+        const group = element.querySelector<HTMLElement>('.rail-group')!;
+        const track = element.querySelector<HTMLElement>('.rail-track')!;
+        const period = group.getBoundingClientRect().width;
+        let previous = new DOMMatrix(getComputedStyle(track).transform).m41;
+        const result: number[] = [];
+        for (let frame = 0; frame < 20; frame++) {
+          await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+          const current = new DOMMatrix(getComputedStyle(track).transform).m41;
+          // Map identical rendered cycles into the same continuous coordinate system.
+          result.push((current - previous + period * 1.5) % period - period / 2);
+          previous = current;
+        }
+        return result;
+      });
+      expect(samples.slice(0, 4).some(delta => Math.abs(delta) > .5), 'release must continue immediately').toBe(true);
+      const early = samples.slice(0, 5).reduce((sum, delta) => sum + delta, 0);
+      const late = samples.slice(-5).reduce((sum, delta) => sum + delta, 0);
+      expect(early * direction, 'momentum must preserve swipe direction').toBeGreaterThan(2);
+      expect(Math.abs(late), 'momentum must slow naturally').toBeLessThan(Math.abs(early));
+      await expect(rail).toHaveAttribute('data-active-app', (await page.getByTestId('landing-prompt').getAttribute('data-active-app'))!);
+    }
+    await cdp.detach();
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const track = rail.locator('.rail-track');
+    const stopped = await track.evaluate(element => getComputedStyle(element).transform);
+    await page.waitForTimeout(200);
+    expect(await track.evaluate(element => getComputedStyle(element).transform)).toBe(stopped);
+  });
+}
 
 // contract-test: direct surface=gui.web assertions=marketing-landing.interactive-rail,marketing-landing.hero-app-rail
 test('landing app rail selects, pauses, resumes and accepts manual input', async ({ page }) => {

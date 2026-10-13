@@ -131,6 +131,49 @@ test('standalone hero uses built app defaults and selects icons without app star
   noPrivateStartup();
 });
 
+for (const width of [390, 1440]) {
+  // contract-test: direct surface=gui.web assertions=marketing-landing.destinations,marketing-landing.hero-app-rail,marketing-landing.interactive-rail,marketing-landing.independent-scroll
+  test(`standalone example opens the app and preserves the landing tab (${width}px)`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('crash', () => errors.push('landing tab crashed'));
+    const noPrivateStartup = watchPrivateStartup(page);
+    await page.setViewportSize({ width, height: width < 760 ? 844 : 900 });
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.goto(site('/'), { waitUntil: 'networkidle' });
+    const landingUrl = page.url();
+    const rail = page.getByTestId('landing-app-rail');
+    const prompt = page.getByTestId('landing-prompt');
+    await rail.locator('.rail-group:nth-child(2) [data-app-id="travel"]').evaluate((button: HTMLButtonElement) => button.click());
+    await expect(prompt).toHaveAttribute('data-active-app', 'travel');
+    const destination = await prompt.getAttribute('href');
+    const [popup] = await Promise.all([page.waitForEvent('popup'), prompt.click()]);
+    await expect.poll(() => popup.url()).toBe(destination);
+    await expect(popup.getByTestId('chat-history-content')).toBeVisible({ timeout: 30_000 });
+    await expect(popup.getByTestId('chat-history-content')).toHaveAttribute('data-source-message-count', /^[1-9]\d*$/);
+    await expect(popup.getByTestId('active-chat-history-loading')).toHaveCount(0);
+    await page.bringToFront();
+    await expect(page.getByTestId('landing-page')).toBeVisible();
+    expect(page.url()).toBe(landingUrl);
+    await expect.poll(() => prompt.getAttribute('data-active-app'), { timeout: 8_000 }).not.toBe('travel');
+    const track = rail.locator('.rail-track');
+    const before = await track.evaluate(element => getComputedStyle(element).transform);
+    await rail.dispatchEvent('wheel', { deltaX: 90, deltaY: 0 });
+    expect(await track.evaluate(element => getComputedStyle(element).transform)).not.toBe(before);
+    await expect(rail).toHaveAttribute('data-active-app', (await prompt.getAttribute('data-active-app'))!);
+    for (const id of ['actionable', 'privacy', 'model-choice', 'workflows', 'devices', 'open-source']) {
+      const section = page.getByTestId(`landing-feature-${id}`);
+      await section.scrollIntoViewIfNeeded();
+      await expect(section).toHaveClass(/revealed/);
+      await expect(section.getByRole('heading')).toHaveCSS('opacity', '1');
+      await expect(section.locator('.feature-example')).toHaveCSS('opacity', '1');
+    }
+    expect(errors, 'website errors after opening a real app example').toEqual([]);
+    noPrivateStartup();
+    await popup.close();
+  });
+}
+
 // contract-test: direct surface=gui.web assertions=marketing-landing.app-metadata-defaults
 test('the supplied-events Calendar example is removed from the web app', async ({ request }) => {
   const response = await request.get('/example/calendar-week-from-supplied-events');
