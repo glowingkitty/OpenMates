@@ -66,6 +66,7 @@ import { activeChatStore } from "../stores/activeChatStore";
 import { ordinaryTeamPreflightStorageKey, retainOrReuseOrdinaryTeamPreflight } from "./ordinaryTeamPreflightRetry";
 import { PreflightRejectionError, isPreflightAcknowledgementTimeout, waitForPreflightAcknowledgement, recoverTimedOutAdmission } from "./preflightAcknowledgement";
 import { awaitPersonalChatPredecessor, bindPersonalChatTurn, failPersonalChatTurn, reservePersonalChatTurn, type PersonalChatTurn } from "./personalChatTurnBarrier";
+import { isDraftContextDispatchActive, reserveDraftContextDispatch } from "./draftContextDispatchBarrier";
 export { isPreflightAcknowledgementTimeout } from "./preflightAcknowledgement";
 
 interface SendRouteScope {
@@ -646,7 +647,9 @@ function watchFastAdmissionCompletion(input: {
 			clearPendingMessageJournal(input.chatId, input.messageId, MESSAGE_TURN_PREFLIGHT_FIELD),
 			clearPendingMessageJournal(input.chatId, input.messageId, contextPhaseJournalField("routing")),
 			clearPendingMessageJournal(input.chatId, input.messageId, contextPhaseJournalField("details")),
-		]).catch((error) => console.warn("[ChatSyncService:Senders] Could not clear completed admission journal", error));
+		]).then(() => import("./sendersSync").then(({ sendOfflineChangesImpl }) =>
+			sendOfflineChangesImpl())).catch((error) =>
+			console.warn("[ChatSyncService:Senders] Could not finalize completed admission replay", error));
 	};
 	const confirmed = (payload: unknown) => { gate.acceptConfirmation(payload); complete(); };
 	const context = (payload: unknown) => {
@@ -1334,6 +1337,9 @@ async function dispatchFastPersonalTurn(input: {
 	}
 	const consumeEarlyProjects = reserveFreshProjectRoutingForSend(message.chat_id, message.message_id);
 	const started = performance.now();
+	const releaseDraftCleanup = reserveDraftContextDispatch(
+		message.chat_id, admission.turn_id as string, reportContextFailure, message.message_id,
+	);
 	const ackAbort = new AbortController();
 	const admissionAck = waitForPreflightAcknowledgement(
 		admission.turn_id as string, webSocketService, recordPreflightDebugStep, ackAbort.signal, true,
@@ -1351,7 +1357,8 @@ async function dispatchFastPersonalTurn(input: {
 			recordSendPreparationPhase('admission_ack');
 			await publishPostAdmissionContext({
 				message, chat, admission, postAdmissionConnectedAccounts, consumeEarlyProjects, supportsSelectionDetailsV2Now,
-				contextRejected: () => contextRejected || !isContextAttemptCurrent(),
+				contextRejected: () => contextRejected || !isContextAttemptCurrent()
+					|| !isDraftContextDispatchActive(message.chat_id, admission.turn_id as string),
 			});
 		}, async (error) => {
 			if (isPreflightAcknowledgementTimeout(error)) {
@@ -1370,8 +1377,12 @@ async function dispatchFastPersonalTurn(input: {
 		}).catch(async (error) => {
 			await reportContextFailure();
 			console.warn("[ChatSyncService:Senders] Post-admission context unavailable", error);
+		}).finally(async () => {
+			if (contextRejected) await reportContextFailure();
+			releaseDraftCleanup();
 		});
 	} catch (error) {
+		releaseDraftCleanup();
 		ackAbort.abort();
 		const status = await recordMessageDispatchFailure(serviceInstance, message, true);
 		if (status !== "waiting_for_internet") throw error;

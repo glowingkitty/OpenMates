@@ -15,6 +15,8 @@ import {
   handleOfflineSyncCompleteImpl,
 } from "../chatSyncServiceHandlersCoreSync";
 import { activeTeamContext } from "../../stores/teamStore";
+import { userProfile } from "../../stores/userProfile";
+import { makeDeferredDraftDeleteId } from "../deferredDraftDeleteIntent";
 import type { Chat } from "../../types/chat";
 
 const mocks = vi.hoisted(() => ({
@@ -117,6 +119,8 @@ afterEach(() => {
 describe("handleOfflineSyncCompleteImpl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    userProfile.update((profile) => ({ ...profile, user_id: "member-1" }));
+    activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
     mocks.chatDB.getOfflineChanges.mockResolvedValue([]);
     mocks.chatDB.deleteOfflineChange.mockResolvedValue(undefined);
   });
@@ -159,6 +163,44 @@ describe("handleOfflineSyncCompleteImpl", () => {
     expect(mocks.notificationStore.success).not.toHaveBeenCalled();
     expect(mocks.notificationStore.error).not.toHaveBeenCalled();
     expect(mocks.notificationStore.warning).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative
+  it("retires a receipt-confirmed stale delete left queued after a tab reload", async () => {
+    const tx = { oncomplete: null as (() => void) | null };
+    mocks.chatDB.getTransaction.mockResolvedValue(tx);
+    const changeId = makeDeferredDraftDeleteId("turn-1", "message-1");
+    const pendingRows = new Set([changeId]);
+    mocks.chatDB.deleteOfflineChange.mockImplementation(async (id: string) => {
+      pendingRows.delete(id);
+    });
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    // The direct delete receipt was accepted, but the tab closed before its
+    // IndexedDB row removal. A new runtime submits the old versioned intent.
+    const batchId = beginOfflineSyncBatch([changeId], [changeId]);
+    const receipt = { batch_id: batchId!, successful_change_ids: [],
+      processed: 0, errors: 0, conflicts: 1 };
+
+    await handleOfflineSyncCompleteImpl(service, receipt);
+    tx.oncomplete?.();
+    expect(mocks.chatDB.deleteOfflineChange).toHaveBeenCalledWith(changeId, tx);
+    expect(pendingRows.size).toBe(0);
+    expect(mocks.notificationStore.warning).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: "offlineSyncProcessed", detail: receipt,
+    }));
+  });
+
+  // contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative
+  it("does not retire a deferred delete when the batch also reports an error", async () => {
+    const changeId = makeDeferredDraftDeleteId("turn-2", "message-2");
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    const batchId = beginOfflineSyncBatch([changeId], [changeId]);
+    await handleOfflineSyncCompleteImpl(service, { batch_id: batchId!, successful_change_ids: [],
+      processed: 0, errors: 1, conflicts: 1 });
+    expect(mocks.chatDB.deleteOfflineChange).not.toHaveBeenCalled();
+    expect(mocks.notificationStore.error).toHaveBeenCalledOnce();
+    expect(mocks.notificationStore.warning).toHaveBeenCalledOnce();
   });
 });
 

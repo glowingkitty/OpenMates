@@ -703,6 +703,25 @@ async function protocolStateSnapshot(database) {
   return row;
 }
 
+async function sharedAdmissionProtocolState(trx) {
+  // Admissions only read the protocol singleton. Shared locks permit unrelated
+  // owners to commit concurrently while pause/cutover writers remain exclusive.
+  await trx.raw('SELECT pg_advisory_xact_lock_shared(hashtextextended(?, 0))', [PROTOCOL_STATE_ID]);
+  const row = await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).forShare().first();
+  const emptyMap = row?.active_legacy_tasks && typeof row.active_legacy_tasks === 'object'
+    && !Array.isArray(row.active_legacy_tasks) && Object.keys(row.active_legacy_tasks).length === 0;
+  const needsRepair = !row
+    || ((row.active_legacy_tasks == null || emptyMap)
+      && row.protocol_epoch === 0 && row.legacy_in_flight === 0)
+    || (row.legacy_task_lifecycle == null && Array.isArray(row.active_legacy_tasks)
+      && row.active_legacy_tasks.length === 0 && row.legacy_in_flight === 0);
+  // Never upgrade a shared lock: concurrent upgrade attempts can deadlock.
+  // The established fallback repairs the state in a separate exclusive transaction.
+  if (needsRepair) return null;
+  validateLegacyState(row);
+  return row;
+}
+
 async function getCutoverState(database, raw) {
   operationBody(raw, 'get_cutover_state');
   return cutoverResponse(await protocolStateSnapshot(database));
@@ -2428,13 +2447,10 @@ async function admitFirstPersonal(database, raw, now) {
   try {
     return await database.transaction(async (trx) => {
       await requireUnfencedRecoveryAccount(trx, ownerHash);
-      await lockIdentity(trx, PROTOCOL_STATE_ID);
       // A missing state is epoch zero. Do not initialize it as a side effect
       // of a fast-path probe; the established preflight owns legacy behavior.
-      if (!await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).first()) {
-        return { atomic_fallback: true };
-      }
-      const protocol = await lockedProtocolState(trx);
+      const protocol = await sharedAdmissionProtocolState(trx);
+      if (!protocol) return { atomic_fallback: true };
       if (Number(protocol.protocol_epoch) !== 1) return { atomic_fallback: true };
       if (protocol.sends_paused) fail(503, 'inference_temporarily_paused');
       const prepared = await preparePreflightInTransaction(trx, data, now, { accountAlreadyLocked: true });

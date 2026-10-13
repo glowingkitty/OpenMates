@@ -142,7 +142,7 @@ test.describe('Chat metadata warmup WebSocket contract', () => {
 					try {
 						const envelope = JSON.parse(String(frame.payload || ''));
 						const type = envelope.type;
-					if (!['server_capabilities', 'chat_turn_admit', 'chat_turn_context_ready', 'chat_message_added',
+					if (!['server_capabilities', 'chat_turn_admit', 'chat_turn_context_ready', 'chat_message_added', 'delete_draft',
 						'chat_turn_preflight', 'get_queued_messages', 'queued_messages_snapshot',
 							'request_chat_content_batch'].includes(type)) return;
 						const payload = envelope.payload ?? {};
@@ -151,7 +151,8 @@ test.describe('Chat metadata warmup WebSocket contract', () => {
 								capabilities: Array.isArray(payload.capabilities) ? payload.capabilities : [] });
 							return;
 						}
-						const chatId = typeof payload.chat_id === 'string' ? payload.chat_id : '';
+					const chatId = typeof payload.chat_id === 'string' ? payload.chat_id
+						: typeof payload.chatId === 'string' ? payload.chatId : '';
 						if (type === 'request_chat_content_batch') {
 							for (const id of payload.chat_ids ?? []) {
 								if (typeof id === 'string') queueWire.push({ socket: socketIndex, at: Date.now(), type, chatId: id });
@@ -263,10 +264,10 @@ test.describe('Chat metadata warmup WebSocket contract', () => {
 			const v2Capability = queueWire.some((frame) => frame.type === 'server_capabilities'
 				&& frame.socket === userFrame?.socket && frame.at <= userFrame.at
 				&& frame.capabilities?.includes('chat_turn_context_selection_details_v2'));
+			await expect.poll(() => queueWire.filter((frame) => frame.type === 'chat_turn_context_ready'
+				&& frame.chatId === userFrame?.chatId && frame.socket === userFrame?.socket).length,
+			{ timeout: 15_000 }).toBeGreaterThanOrEqual(2);
 			if (v2Capability) {
-				await expect.poll(() => queueWire.filter((frame) => frame.type === 'chat_turn_context_ready'
-					&& frame.chatId === userFrame?.chatId && frame.socket === userFrame?.socket).length,
-				{ timeout: 15_000 }).toBeGreaterThanOrEqual(2);
 				const contextFrames = queueWire.filter((frame) => frame.type === 'chat_turn_context_ready'
 					&& frame.chatId === userFrame?.chatId && frame.socket === userFrame?.socket);
 				const routing = contextFrames.find((frame) => frame.phase === 'routing');
@@ -279,6 +280,14 @@ test.describe('Chat metadata warmup WebSocket contract', () => {
 				]));
 				expect(routing!.at).toBeLessThanOrEqual(details!.at);
 			}
+			await expect.poll(() => queueWire.some((frame) => frame.type === 'delete_draft'
+				&& frame.chatId === userFrame?.chatId && frame.socket === userFrame?.socket),
+			{ timeout: 15_000 }).toBe(true);
+			const firstDelete = queueWire.findIndex((frame) => frame.type === 'delete_draft'
+				&& frame.chatId === userFrame?.chatId && frame.socket === userFrame?.socket);
+			const lastContext = queueWire.reduce((last, frame, index) => frame.type === 'chat_turn_context_ready'
+				&& frame.chatId === userFrame?.chatId && frame.socket === userFrame?.socket ? index : last, -1);
+			expect(firstDelete).toBeGreaterThan(lastContext);
 			expect(queueWire.filter((frame) => frame.chatId === userFrame?.chatId
 				&& ['chat_turn_admit', 'chat_turn_preflight', 'chat_message_added'].includes(frame.type))
 			).toHaveLength(1);

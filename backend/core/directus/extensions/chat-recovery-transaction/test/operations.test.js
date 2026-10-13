@@ -36,6 +36,7 @@ function fakeDatabase(seed, injectedFailure = null, routingSchema = false) {
   let transactions = 0;
   let transactionTail = Promise.resolve();
   const shareLocks = [];
+  const rawStatements = [];
   const failureCounts = new Map();
   const compare = (left, operator, right) => {
     const a = left instanceof Date ? left.getTime() : left;
@@ -150,13 +151,17 @@ function fakeDatabase(seed, injectedFailure = null, routingSchema = false) {
       hasTable: async (table) => table === 'chat_routing_proofs',
       hasColumn: async (table, column) => table === 'chat_turn_preflights' && column === 'routing_message_digest',
     };
-    client.raw = (value) => typeof value === 'string' && /\w+ \+ 1/.test(value) ? { rawExpression: value } : value;
+    client.raw = (value, bindings) => {
+      rawStatements.push({ sql: value, bindings: structuredClone(bindings) });
+      return typeof value === 'string' && /\w+ \+ 1/.test(value) ? { rawExpression: value } : value;
+    };
     return client;
   };
   const database = makeClient(rows);
   database.rows = rows;
   Object.defineProperty(database, 'transactions', { get: () => transactions });
   Object.defineProperty(database, 'shareLocks', { get: () => [...shareLocks] });
+  Object.defineProperty(database, 'rawStatements', { get: () => [...rawStatements] });
   database.transaction = async (callback) => {
     const run = transactionTail.then(async () => {
       transactions += 1;
@@ -1712,6 +1717,42 @@ test('enqueue_inference atomically transitions PREPARED and creates its outbox r
 const atomicFirstPersonalSeed = () => ({
   chats: [], messages: [], chat_turn_preflights: [], chat_inference_outbox: [],
   ...protocolSeed({ epoch: 1 }),
+});
+
+// contract-test: direct surface=rest_api assertions=chats.send.immediate-admission,chats.persistence.client-encrypted
+test('first Personal admission shares only the protocol gate and retains owner and chat locks', async () => {
+  const database = fakeDatabase(atomicFirstPersonalSeed());
+  await executeOperation(database, 'admit_first_personal', prepareBody());
+  const protocolId = database.rows.chat_recovery_protocol_state[0].id;
+  const protocolLocks = database.rawStatements.filter((row) => row.bindings?.[0] === protocolId);
+  assert.deepEqual(protocolLocks.map((row) => row.sql), [
+    'SELECT pg_advisory_xact_lock_shared(hashtextextended(?, 0))',
+  ]);
+  assert.ok(database.shareLocks.includes('chat_recovery_protocol_state'));
+  assert.ok(database.rawStatements.some((row) => row.sql.includes('pg_advisory_xact_lock(')
+    && row.bindings[0] === `chat-recovery-delete:${CHAT_ID}`));
+  assert.ok(database.rawStatements.some((row) => row.sql.includes('pg_advisory_xact_lock(')
+    && row.bindings[0] === `${OWNER}:${CHAT_ID}:1`));
+});
+
+// contract-test: direct surface=rest_api assertions=chats.send.immediate-admission,chats.persistence.client-encrypted
+test('shared protocol probe leaves missing or repairable state for exclusive fallback', async () => {
+  for (const shape of ['missing', 'empty-map', 'missing-lifecycle']) {
+    const seed = atomicFirstPersonalSeed();
+    if (shape === 'missing') seed.chat_recovery_protocol_state = [];
+    if (shape === 'empty-map') Object.assign(seed.chat_recovery_protocol_state[0], {
+      protocol_epoch: 0, active_legacy_tasks: {},
+    });
+    if (shape === 'missing-lifecycle') seed.chat_recovery_protocol_state[0].legacy_task_lifecycle = null;
+    const before = structuredClone(seed);
+    const database = fakeDatabase(seed);
+    assert.deepEqual(await executeOperation(database, 'admit_first_personal', prepareBody()),
+      { atomic_fallback: true });
+    assert.deepEqual(database.rows, before);
+    const protocolId = before.chat_recovery_protocol_state[0]?.id;
+    assert.ok(!database.rawStatements.some((row) => row.sql.includes('pg_advisory_xact_lock(')
+      && row.bindings?.[0] === protocolId));
+  }
 });
 
 // contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent

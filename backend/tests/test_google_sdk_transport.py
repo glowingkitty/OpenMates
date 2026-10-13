@@ -13,6 +13,29 @@ from google import genai
 from backend.apps.ai.llm_providers import google_client
 
 
+def test_stream_usage_keeps_numeric_attribution_private_and_missing_thoughts_unknown(monkeypatch, caplog):
+    timing = google_client._GoogleStreamTiming("safe-task", "google_ai_studio", "test-model", 0)
+    usage = SimpleNamespace(prompt_token_count=3818, candidates_token_count=64,
+                            total_token_count=3900, thoughts_token_count=None,
+                            system_prompt_tokens=3800, user_input_tokens=18,
+                            provider_request_id="private-request", text="private-answer")
+    monkeypatch.setattr(google_client.logger, "handlers", [caplog.handler])
+    monkeypatch.setattr(google_client.logger, "propagate", False)
+    with caplog.at_level(logging.INFO, logger=google_client.__name__):
+        google_client._log_google_stream_usage(timing, usage)
+    counters = json.loads(caplog.records[-1].getMessage().split("counters=", 1)[1])
+    assert counters == {"prompt_token_count": 3818, "candidates_token_count": 64,
+                        "total_token_count": 3900, "thoughts_token_count": None,
+                        "system_prompt_tokens": 3800, "user_input_tokens": 18}
+    assert "private-request" not in caplog.text and "private-answer" not in caplog.text
+    usage.thoughts_token_count = 18
+    with caplog.at_level(logging.INFO, logger=google_client.__name__):
+        google_client._log_google_stream_usage(timing, usage)
+    assert '"thoughts_token_count": 18' in caplog.records[-1].getMessage()
+    monkeypatch.setattr(google_client.logger, "info", lambda *_args: (_ for _ in ()).throw(RuntimeError()))
+    google_client._log_google_stream_usage(timing, usage)
+
+
 @pytest.mark.asyncio
 async def test_custom_transport_streams_reuses_connections_and_closes(monkeypatch):
     connections = []
@@ -74,7 +97,9 @@ async def test_custom_transport_streams_reuses_connections_and_closes(monkeypatc
 async def test_transport_trace_is_request_scoped_private_and_nonfatal(monkeypatch, caplog):
     timing = google_client._GoogleStreamTiming("safe-task", "google_ai_studio", "test-model", time.monotonic())
     private = SimpleNamespace(url="https://private.invalid?key=private-key", headers={"secret": "private-header"},
-                              body="private-body", exception=RuntimeError("private-exception"))
+                              body="private-body", exception=RuntimeError("private-exception"),
+                              response=SimpleNamespace(headers={"Content-Type": "private-media-type",
+                                                                "Content-Encoding": "private-encoding"}))
     context = SimpleNamespace()
     monkeypatch.setattr(google_client.logger, "handlers", [caplog.handler])
     monkeypatch.setattr(google_client.logger, "propagate", False)
@@ -91,7 +116,9 @@ async def test_transport_trace_is_request_scoped_private_and_nonfatal(monkeypatc
                      for record in caplog.records if "duration_ms=" in record.getMessage()]
         assert len(durations) == 3 and all(duration >= 0 for duration in durations)
         assert "safe-task" in caplog.text
-        for value in ["private.invalid", "private-key", "private-header", "private-body", "private-exception"]:
+        assert "media_type=unknown encoding=unknown" in caplog.text
+        for value in ["private.invalid", "private-key", "private-header", "private-body", "private-exception",
+                      "private-media-type", "private-encoding"]:
             assert value not in caplog.text
         def broken_logger(*_args, **_kwargs):
             raise RuntimeError("diagnostic failure")

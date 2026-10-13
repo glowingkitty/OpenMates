@@ -86,6 +86,11 @@ scope:
     - Typing-time inference or draft prediction; this proposal was explicitly rejected.
     - Production deployment, Apple UI redesign, unrelated rendering optimization or full provider benchmarks.
 decisions:
+  - "Exact a9e warm TUI samples still miss acceptance: Spain Mate 1875 ms / authored 5682 ms; Berlin Mate 1836 ms / authored 17818 ms. Web samples: Spain Mate 2401 ms / authored 4520 ms; Berlin Mate 2506 ms / authored 15850 ms. Individual observations do not establish percentiles."
+  - "Remote draft deletion must follow the exact Personal turn's routing and details context dispatch; immediate local clearing, tombstones, workspace epochs, newer drafts and reconnect handling remain intact."
+  - "Epoch-one first Personal admission can hold a shared protocol advisory and row read lock; pause/cutover writers remain exclusive. Missing/repairable state falls back without upgrading a shared lock, and account/chat/deletion/key guards remain unchanged."
+  - "Independent unbound composite child persistence is capped at four with complete settlement and original order; bound producers and unverified or reconnect SDK replay retain serial authority checks."
+  - "Real chat inference and timing run on development. Isolated CI verifies controlled recovery/security/client fixtures. Short local diagnostics precede a single narrow related batch; unchanged dependency results are retained."
   - Reuse existing durable pending-message/reconnect path; avoid duplicate history rows and executions.
   - Warm-up is optional preparation with a correct cold-cache fallback and must not delay Send.
   - Reauthorize selected Workflow details and Project access; cached metadata never grants execution access.

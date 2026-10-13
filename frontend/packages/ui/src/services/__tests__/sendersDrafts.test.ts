@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => {
     handlers: new Map<string, Handler[]>(),
     statusSubscribers: [] as Array<(state: WebSocketState) => void>,
     currentStatus: "connected",
+    workspaceIdentity: "personal-user",
   };
 
   const webSocketService = {
@@ -44,6 +45,8 @@ const mocks = vi.hoisted(() => {
     upsertRawChat: vi.fn().mockResolvedValue(undefined),
     setTeamDraftPendingSync: vi.fn(),
     addOfflineChange: vi.fn().mockResolvedValue(undefined),
+    getOfflineChanges: vi.fn().mockResolvedValue([]),
+    deleteOfflineChange: vi.fn().mockResolvedValue(undefined),
   };
   const notificationStore = { error: vi.fn() };
   const chatMetadataCache = { invalidateChat: vi.fn() };
@@ -101,9 +104,16 @@ vi.mock("../../stores/notificationStore", () => ({
 vi.mock("../chatMetadataCache", () => ({
   chatMetadataCache: mocks.chatMetadataCache,
 }));
+vi.mock("../workspaceQueryCache", () => ({
+  getWorkspaceCacheIdentity: () => mocks.state.workspaceIdentity,
+}));
 
 import { sendDeleteDraftImpl, sendUpdateDraftImpl } from "../sendersDrafts";
+import { clearDraftContextDispatchBarriers, isDraftContextDispatchActive,
+  pendingDraftContextDispatch, reserveDraftContextDispatch } from "../draftContextDispatchBarrier";
 import { activeTeamContext } from "../../stores/teamStore";
+import { userProfile } from "../../stores/userProfile";
+import { makeDeferredDraftDeleteId } from "../deferredDraftDeleteIntent";
 import { promoteDeferredTeamDraft } from "../drafts/draftContext";
 import type { DraftChatContext } from "../drafts/draftContext";
 
@@ -142,6 +152,8 @@ describe("sendUpdateDraftImpl", () => {
       encrypted_draft_preview: null,
     });
     mocks.chatDB.getMessagesForChat.mockResolvedValue([]);
+    mocks.chatDB.getOfflineChanges.mockResolvedValue([]);
+    userProfile.update((profile) => ({ ...profile, user_id: "user-1" }));
   });
 
   // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted
@@ -160,6 +172,23 @@ describe("sendUpdateDraftImpl", () => {
     await expect(receipt).resolves.toBeUndefined();
     expect(mocks.webSocketService.off).toHaveBeenCalledWith("draft_update_receipt", expect.any(Function));
     expect(mocks.state.statusSubscribers).toHaveLength(0);
+  });
+
+  // contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative
+  it("retires an older delete only after a newer local draft update is confirmed", async () => {
+    const changeId = makeDeferredDraftDeleteId("turn-1", "message-1");
+    mocks.chatDB.getRawChat.mockResolvedValue({ chat_id: "chat-1", draft_v: 1,
+      encrypted_draft_md: "fresh-cipher", encrypted_draft_preview: null });
+    mocks.chatDB.getOfflineChanges.mockResolvedValue([{ change_id: changeId, chat_id: "chat-1",
+      type: "delete_draft", value: null, version_before_edit: 3 }]);
+    const update = sendUpdateDraftImpl({} as never, "chat-1", "fresh-cipher", null, 1);
+    await vi.waitFor(() => expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith(
+      "update_draft", expect.objectContaining({ encrypted_draft_md: "fresh-cipher" }),
+    ));
+    expect(mocks.chatDB.deleteOfflineChange).not.toHaveBeenCalled();
+    mocks.emitReceipt({ chat_id: "chat-1", draft_v: 1, success: true });
+    await update;
+    expect(mocks.chatDB.deleteOfflineChange).toHaveBeenCalledWith(changeId);
   });
 
   // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted
@@ -413,11 +442,13 @@ describe("sendUpdateDraftImpl", () => {
 
 describe("sendDeleteDraftImpl", () => {
   beforeEach(() => {
+    clearDraftContextDispatchBarriers();
     vi.clearAllMocks();
     configureTeamIntentStore();
     mocks.state.handlers.clear();
     mocks.state.statusSubscribers.splice(0);
     mocks.state.currentStatus = "connected";
+    mocks.state.workspaceIdentity = "personal-user";
     activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
     mocks.webSocketService.sendMessage.mockResolvedValue(undefined);
     mocks.chatDB.getChat.mockResolvedValue({ chat_id: "chat-1", draft_v: 3 });
@@ -428,6 +459,166 @@ describe("sendDeleteDraftImpl", () => {
       encrypted_draft_preview: null,
     });
     mocks.chatDB.getMessagesForChat.mockResolvedValue([]);
+    mocks.chatDB.getOfflineChanges.mockResolvedValue([]);
+    userProfile.update((profile) => ({ ...profile, user_id: "user-1" }));
+  });
+
+  // contract-test: direct surface=gui.web assertions=message-input.send.ownership,drafts.persistence.local-first-encrypted
+  it("clears locally before routing completes and sends remote deletion only after context dispatch", async () => {
+    const release = reserveDraftContextDispatch("chat-1", "turn-1");
+    const service = { dispatchEvent: vi.fn() };
+    await sendDeleteDraftImpl(service as never, "chat-1");
+    expect(mocks.chatDB.clearCurrentUserChatDraft).toHaveBeenCalledWith("chat-1");
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "chatUpdated" }));
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalledWith("delete_draft", expect.anything());
+
+    release();
+    await vi.waitFor(() => expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith(
+      "delete_draft", { chatId: "chat-1" },
+    ));
+    mocks.emitDeleteReceipt({ chat_id: "chat-1", success: true, draft_v: 4 });
+    await vi.waitFor(() => expect(mocks.chatDB.upsertRawChat).toHaveBeenCalledWith(
+      expect.objectContaining({ cleared_draft_v: 4 }),
+    ));
+  });
+
+  // contract-test: direct surface=gui.web assertions=message-input.send.ownership,drafts.sync.version-authoritative
+  it("commits the durable intent before local clear and retires it only on the matching receipt", async () => {
+    let finishCommit!: () => void;
+    mocks.chatDB.addOfflineChange.mockReturnValueOnce(new Promise<void>((resolve) => { finishCommit = resolve; }));
+    const release = reserveDraftContextDispatch("chat-1", "turn-1", undefined, "message-1");
+    const deletion = sendDeleteDraftImpl({ dispatchEvent: vi.fn() } as never, "chat-1");
+    await vi.waitFor(() => expect(mocks.chatDB.addOfflineChange).toHaveBeenCalledOnce());
+    expect(mocks.chatDB.clearCurrentUserChatDraft).not.toHaveBeenCalled();
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalledWith("delete_draft", expect.anything());
+
+    finishCommit();
+    await deletion;
+    expect(mocks.chatDB.clearCurrentUserChatDraft).toHaveBeenCalledWith("chat-1");
+    const intent = mocks.chatDB.addOfflineChange.mock.calls[0][0];
+    expect(intent).toEqual(expect.objectContaining({
+      chat_id: "chat-1", type: "delete_draft", version_before_edit: 3,
+      change_id: expect.stringContaining(":turn-1:message-1:"),
+    }));
+    expect(mocks.chatDB.deleteOfflineChange).not.toHaveBeenCalled();
+
+    release();
+    await vi.waitFor(() => expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith(
+      "delete_draft", { chatId: "chat-1" },
+    ));
+    expect(mocks.chatDB.deleteOfflineChange).not.toHaveBeenCalled();
+    mocks.emitDeleteReceipt({ chat_id: "chat-1", success: true, draft_v: 4 });
+    await vi.waitFor(() => expect(mocks.chatDB.deleteOfflineChange).toHaveBeenCalledWith(intent.change_id));
+  });
+
+  // contract-test: direct surface=gui.web assertions=drafts.persistence.local-first-encrypted
+  it("keeps the local draft intact if durable intent storage fails", async () => {
+    reserveDraftContextDispatch("chat-1", "turn-1", undefined, "message-1");
+    mocks.chatDB.addOfflineChange.mockRejectedValueOnce(new Error("storage unavailable"));
+    await expect(sendDeleteDraftImpl({ dispatchEvent: vi.fn() } as never, "chat-1"))
+      .rejects.toThrow("storage unavailable");
+    expect(mocks.chatDB.clearCurrentUserChatDraft).not.toHaveBeenCalled();
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalledWith("delete_draft", expect.anything());
+  });
+
+  // contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative,drafts.persistence.local-first-encrypted
+  it("queues the versioned tombstone if the socket disconnects during context preparation", async () => {
+    reserveDraftContextDispatch("chat-1", "turn-1");
+    const queueOfflineChange = vi.fn().mockResolvedValue(undefined);
+    await sendDeleteDraftImpl({ dispatchEvent: vi.fn(), queueOfflineChange } as never, "chat-1");
+    expect(mocks.chatDB.addOfflineChange).toHaveBeenCalledWith(expect.objectContaining({
+      chat_id: "chat-1", type: "delete_draft", version_before_edit: 3,
+      change_id: expect.stringContaining("draft-context-delete-v1:user-1:"),
+    }));
+    mocks.emitStatus("disconnected");
+    clearDraftContextDispatchBarriers();
+    await vi.waitFor(() => expect(mocks.chatDB.getRawChat).toHaveBeenCalled());
+    expect(queueOfflineChange).not.toHaveBeenCalled();
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalledWith("delete_draft", expect.anything());
+  });
+
+  // contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative,message-input.send.ownership
+  it("does not erase a new same-chat draft entered while context is pending", async () => {
+    const release = reserveDraftContextDispatch("chat-1", "turn-1");
+    await sendDeleteDraftImpl({ dispatchEvent: vi.fn() } as never, "chat-1");
+    mocks.chatDB.getRawChat.mockResolvedValue({ chat_id: "chat-1", draft_v: 1,
+      encrypted_draft_md: "fresh-cipher", encrypted_draft_preview: "fresh-preview" });
+    release();
+    await vi.waitFor(() => expect(mocks.chatDB.getRawChat).toHaveBeenCalled());
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalledWith("delete_draft", expect.anything());
+  });
+
+  // contract-test: direct surface=gui.web assertions=drafts.persistence.local-first-encrypted
+  it("does not hold another chat's draft cleanup behind context", async () => {
+    const release = reserveDraftContextDispatch("other-chat", "other-turn");
+    const deletion = sendDeleteDraftImpl({ dispatchEvent: vi.fn() } as never, "chat-1");
+    await vi.waitFor(() => expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith(
+      "delete_draft", { chatId: "chat-1" },
+    ));
+    mocks.emitDeleteReceipt({ chat_id: "chat-1", success: true });
+    await deletion;
+    release();
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,drafts.sync.version-authoritative
+  it("drops delayed remote cleanup when account scope changes", async () => {
+    reserveDraftContextDispatch("chat-1", "turn-1");
+    await sendDeleteDraftImpl({ dispatchEvent: vi.fn() } as never, "chat-1");
+    mocks.state.workspaceIdentity = "different-account";
+    activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalledWith("delete_draft", expect.anything());
+  });
+
+  // contract-test: direct surface=gui.web assertions=message-input.send.ownership,drafts.sync.version-authoritative
+  it("keeps context barriers for two turns in the same chat independent", async () => {
+    const releaseFirst = reserveDraftContextDispatch("chat-1", "turn-1");
+    const releaseSecond = reserveDraftContextDispatch("chat-1", "turn-2");
+    expect(isDraftContextDispatchActive("chat-1", "turn-1")).toBe(true);
+    expect(isDraftContextDispatchActive("chat-1", "turn-2")).toBe(true);
+    const newest = pendingDraftContextDispatch("chat-1");
+    releaseFirst();
+    expect(isDraftContextDispatchActive("chat-1", "turn-2")).toBe(true);
+    expect(pendingDraftContextDispatch("chat-1")).toBe(newest);
+    releaseSecond();
+    await newest;
+  });
+
+  // contract-test: direct surface=gui.web assertions=message-input.send.ownership,drafts.persistence.local-first-encrypted
+  it("reports stalled context before releasing deferred draft cleanup", async () => {
+    vi.useFakeTimers();
+    try {
+      const order: string[] = [];
+      const onTimeout = vi.fn(async () => { order.push("context_failed"); });
+      reserveDraftContextDispatch("chat-1", "turn-1", onTimeout);
+      const pending = pendingDraftContextDispatch("chat-1")!.then(() => { order.push("draft_released"); });
+      await vi.advanceTimersByTimeAsync(30_000);
+      await pending;
+      expect(order).toEqual(["context_failed", "draft_released"]);
+      expect(isDraftContextDispatchActive("chat-1", "turn-1")).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // contract-test: direct surface=gui.web assertions=message-input.send.ownership,drafts.persistence.local-first-encrypted
+  it("releases cleanup within a bounded time when failure notification hangs", async () => {
+    vi.useFakeTimers();
+    try {
+      const onTimeout = vi.fn(() => new Promise<void>(() => undefined));
+      reserveDraftContextDispatch("chat-1", "turn-1", onTimeout);
+      let released = false;
+      const pending = pendingDraftContextDispatch("chat-1")!.then(() => { released = true; });
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(onTimeout).toHaveBeenCalledTimes(1);
+      expect(released).toBe(false);
+      await vi.advanceTimersByTimeAsync(2_000);
+      await pending;
+      expect(released).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted

@@ -1350,14 +1350,17 @@ export async function handleOfflineSyncCompleteImpl(
 ): Promise<void> {
   chatSyncActivity.completeOffline();
   console.info(
-    "[ChatSyncService:CoreSync] Received offline_sync_complete:",
-    payload,
+    "[ChatSyncService:CoreSync] Received offline_sync_complete",
   );
-  const successfulIds = consumeOfflineSyncBatch(payload.batch_id, payload.successful_change_ids ?? []);
-  if (!successfulIds) return;
-  if (successfulIds.length === 0) {
+  const result = consumeOfflineSyncBatch(payload.batch_id, payload.successful_change_ids ?? [], {
+    processed: payload.processed, errors: payload.errors, conflicts: payload.conflicts,
+  });
+  if (!result) return;
+  const idsToDelete = [...result.successfulIds, ...result.retiredConflictIds];
+  const visibleConflicts = Math.max(0, payload.conflicts - result.retiredConflictIds.length);
+  if (idsToDelete.length === 0) {
     if (payload.errors > 0) notificationStore.error(`Offline sync: ${payload.errors} changes could not be applied.`);
-    if (payload.conflicts > 0) notificationStore.warning(`Offline sync: ${payload.conflicts} changes had conflicts.`);
+    if (visibleConflicts > 0) notificationStore.warning(`Offline sync: ${visibleConflicts} changes had conflicts.`);
     serviceInstance.dispatchEvent(new CustomEvent("offlineSyncProcessed", { detail: payload }));
     return;
   }
@@ -1367,7 +1370,7 @@ export async function handleOfflineSyncCompleteImpl(
       chatDB["OFFLINE_CHANGES_STORE_NAME"],
       "readwrite",
     );
-    for (const changeId of successfulIds) {
+    for (const changeId of idsToDelete) {
       await chatDB.deleteOfflineChange(changeId, tx);
     }
     tx.oncomplete = () => {
@@ -1375,9 +1378,9 @@ export async function handleOfflineSyncCompleteImpl(
         notificationStore.error(
           `Offline sync: ${payload.errors} changes could not be applied.`,
         );
-      if (payload.conflicts > 0)
+      if (visibleConflicts > 0)
         notificationStore.warning(
-          `Offline sync: ${payload.conflicts} changes had conflicts.`,
+          `Offline sync: ${visibleConflicts} changes had conflicts.`,
         );
       serviceInstance.dispatchEvent(
         new CustomEvent("offlineSyncProcessed", { detail: payload }),

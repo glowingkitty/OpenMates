@@ -1,6 +1,21 @@
 # Chat processing architecture
 
-Published development revision `1c7d8e29449be9f161e30f7d3c0d1fb606742bfb` includes atomic first Personal admission, combined fresh Memory/Project send snapshots, context phasing, and the corrected Python admission dispatcher. The timing acceptance criteria remain open. The Core10 changes below are implementation candidates until their exact published source is measured.
+Published development revision `a9e3e575af713a96c5c7446aea7a1763857a1e42` includes atomic first Personal admission, fresh Memory/Project send snapshots, phased context, parallel authority checks and overlapping main setup. Real inference runs on development; isolated CI verifies controlled security, recovery and client fixtures. CI preparation is not part of chat response time. Timing acceptance remains open.
+
+The first warm samples on that exact deployed source still miss the targets:
+
+| Client / request | Selected Mate | First authored text | Completion measurement |
+| --- | ---: | ---: | --- |
+| TUI / Spain capital | 1,875 ms | 5,682 ms | TUI idle 20,493 ms |
+| TUI / Berlin AI events | 1,836 ms | 17,818 ms | TUI idle 58,167 ms |
+| Web / Spain capital | 2,401 ms | 4,520 ms | Final source event 6,231 ms |
+| Web / Berlin AI events | 2,506 ms | 15,850 ms | Final source event 27,163 ms |
+
+These are individual observations, not matched medians or percentiles. All four used Google AI Studio Gemini 3.8 Flash with LOW thinking; Spain used no app skills and Berlin executed one Events search. Provider latency and completion persistence are reported separately in [the October 13 critical path](critical-path-2026-10-13.md).
+
+The Core12 send-path changes order durable remote draft deletion after required context dispatch and permit concurrent epoch-one Personal admissions through a shared protocol read lock. Pause/cutover writers remain exclusive, and missing/repairable protocol state falls back without a lock upgrade. All seven affected recovery cases and both web warm-up/send cases passed. Their exercised product paths remain identical when the separate composite completion optimization is held. Local PostgreSQL primitive checks establish reader overlap and writer ordering; real development measurements are still required for latency acceptance.
+
+The separate four-at-a-time composite persistence/recovery optimization is held after its new E2E fixture timed out twice in the first SDK child process. A bounded local scheduler/socket probe settles the injected ACK failure and exits naturally in 0.34 seconds. The full send path still needs phase evidence; this outcome does not constitute a successful completion optimization or latency acceptance.
 
 The architecture revision (`fa6b90c`), Google transport repair (`e71c72b8`), immediate admission changes (`2453d85d`), first measured SDK/auth/simple-turn fixes (`7a250696`), composer focus repair (`df30b916`), idle authenticated TUI connection / bounded Project projection changes (`ab78d61b`), and profile/refresh/context-failure repairs (`94d03b1a`) are deployed to development. Revision `3d64cfe1` adds fresh Personal Memory batching, first-turn preference overlap, strict-frame tracing preservation and legacy-context identity repair. Revision `58a36dee` also consolidates first Personal admission reads, overlaps independent main setup, fetches fresh Personal ciphertext over the prepared send socket, and releases the first safe prose fragment before paragraph completion. Its actual TUI measurements are included below. Actual TUI measurements still miss the latency targets; no successful timing acceptance is claimed yet. Timing targets are 1.5 seconds from Enter/Send to selected-Mate paint, and 2–3 seconds to authored text for an ordinary factual request. The interactive TUI is measured first, then web. Tool progress, final response, persistence and command exit are separate measurements.
 
@@ -27,6 +42,8 @@ flowchart TD
   Need -- complete empty context --> Minimal[Assemble required answer context]
   Need -- capabilities, active context or uncertainty --> Stage2[Jev stage 2: selected skills, Focus, Memory, Workflows, related work]
   Details[Authorized active or explicit private details] --> Complete
+  Headers --> Cleanup[Optional remote draft cleanup after routing and details dispatch]
+  Details --> Cleanup
   Stage2 --> Hydrate[Authorize and load selected resources in parallel]
   Hydrate --> Minimal
   Minimal --> Main[Main model streams text / tools; nonfatal initial metadata seals concurrently, before visible publication]

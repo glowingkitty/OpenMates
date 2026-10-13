@@ -110,6 +110,23 @@ def _log_google_stream_request_policy(timing: _GoogleStreamTiming, config: types
     )
 
 
+def _log_google_stream_usage(timing: _GoogleStreamTiming, usage: Any) -> None:
+    """Expose numeric attribution without treating missing thought usage as zero."""
+    try:
+        counters = {}
+        for field in ("prompt_token_count", "candidates_token_count", "total_token_count",
+                      "thoughts_token_count", "system_prompt_tokens", "user_input_tokens"):
+            value = getattr(usage, field, None)
+            counters[field] = value if type(value) is int and value >= 0 else None
+        logger.info(
+            "[%s] Google stream usage host=%s model=%s counters=%s",
+            timing.task_id, timing.host, timing.model_id, json.dumps(counters, sort_keys=True),
+        )
+    except Exception:
+        # Observability must never affect inference or billing.
+        pass
+
+
 async def _on_google_http_request_start(_session, trace_context, _params) -> None:
     try:
         trace_context.google_timing = _active_google_stream.get()
@@ -128,6 +145,15 @@ async def _on_google_http_request_end(_session, trace_context, _params) -> None:
         if timing is not None:
             # Headers arrive before the streamed response body.
             _google_stream_phase(timing, "http_response_headers")
+            headers = getattr(getattr(_params, "response", None), "headers", {})
+            media_type = headers.get("Content-Type", "").partition(";")[0].strip().lower()
+            encoding = headers.get("Content-Encoding", "identity").strip().lower()
+            logger.info(
+                "[%s] Google stream response policy host=%s model=%s media_type=%s encoding=%s",
+                timing.task_id, timing.host, timing.model_id,
+                media_type if media_type in {"text/event-stream", "application/json"} else "unknown",
+                encoding if encoding in {"identity", "gzip", "br", "deflate"} else "unknown",
+            )
     except Exception:
         pass
     finally:
@@ -1125,6 +1151,7 @@ async def invoke_google_ai_studio_chat_completions(
             try:
                 if last_usage_metadata:
                     usage = _google_usage_metadata(last_usage_metadata, token_breakdown, "google_ai_studio", provider_request_id)
+                    _log_google_stream_usage(timing, usage)
                     yield usage
             except Exception as e:
                 logger.warning(f"{log_prefix} Could not extract usage metadata after stream: {e}")
@@ -1509,6 +1536,7 @@ async def invoke_google_chat_completions(
             try:
                 if last_usage_metadata:
                     usage = _google_usage_metadata(last_usage_metadata, token_breakdown, "google", provider_request_id)
+                    _log_google_stream_usage(timing, usage)
                     yield usage
             except Exception as e:
                 logger.warning(f"{log_prefix} Could not extract usage metadata after stream: {e}")

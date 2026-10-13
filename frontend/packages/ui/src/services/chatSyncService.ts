@@ -2,6 +2,7 @@
 // Handles chat data synchronization between client and server via WebSockets.
 import { chatDB } from "./db";
 import { clearPersonalChatTurnBarriers, failPersonalChatMessage, failPersonalChatTurn, reservePersonalChatTurn } from "./personalChatTurnBarrier";
+import { clearDraftContextDispatchBarriers } from "./draftContextDispatchBarrier";
 import { getApiEndpoint } from '../config/api';
 import { getWorkspaceCacheIdentity } from './workspaceQueryCache';
 import { chatKeyManager } from "./encryption/ChatKeyManager";
@@ -857,7 +858,10 @@ export class ChatSynchronizationService extends EventTarget {
         // A lost transport cannot prove whether a terminal recovery ACK reached
         // this device. Reject queued dependents; they can retry after sync with
         // a fresh authoritative version instead of waiting indefinitely.
-        if (wasWebSocketConnected) clearPersonalChatTurnBarriers();
+        if (wasWebSocketConnected) {
+          clearPersonalChatTurnBarriers();
+          clearDraftContextDispatchBarriers();
+        }
         this.resetCacheStatusCountEvidence();
         console.warn(
           "[ChatSyncService] WebSocket disconnected or error.",
