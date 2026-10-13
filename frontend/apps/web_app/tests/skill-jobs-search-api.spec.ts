@@ -197,7 +197,7 @@ test.describe('Jobs search programmatic contract', () => {
 		expect(data.results).toHaveLength(2);
 		assertSwedishGroup({ ...data, results: [data.results[0]], result_count: data.results[0].result_count });
 		expect(data.results[1].id).toBe('unsupported');
-		expect(data.results[1].error).toMatch(/country|support/i);
+		expect(data.results[1].error).toMatch(/arbeitnow does not cover selected countries SE/i);
 		expect(data.results[1].results).toEqual([]);
 	});
 

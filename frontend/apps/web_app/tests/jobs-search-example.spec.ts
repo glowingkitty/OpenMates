@@ -103,7 +103,7 @@ for (const [viewport, size] of [
 			);
 			await expect(parentPreview.getByTestId('jobs-search-preview')).toBeVisible({ timeout: 30_000 });
 			const parentOverlay = await openFullscreen(page, parentPreview);
-			await expect(parentOverlay.getByTestId('jobs-search-fullscreen')).toBeVisible({ timeout: 15_000 });
+			await expect(parentOverlay).toHaveAttribute('data-testid', 'jobs-search-fullscreen', { timeout: 15_000 });
 			const cards = await verifySearchGrid(parentOverlay, children.length, 30_000);
 			await expect(cards).toHaveCount(children.length);
 			await expect(cards.first().getByTestId('jobs-result-card')).toBeVisible();
@@ -120,6 +120,15 @@ for (const [viewport, size] of [
 				await expect(detail).toBeVisible({ timeout: 15_000 });
 				await expect(detail).toContainText(title);
 				await expect(detail).toContainText(/JobTech/i);
+				if (viewport === 'phone') {
+					const body = detail.getByTestId('jobs-detail-body');
+					const company = detail.getByTestId('jobs-company-value');
+					await expect(body).toBeVisible();
+					await expect(company).toBeVisible();
+					await expect.poll(async () => (await body.boundingBox())?.width ?? 0).toBeGreaterThan(300);
+					await expect.poll(async () => (await company.boundingBox())?.width ?? 0).toBeGreaterThan(200);
+					await expect.poll(async () => (await company.boundingBox())?.height ?? Infinity).toBeLessThan(100);
+				}
 				if (field(child.content, 'remote') === null) {
 					await expect(detail.getByTestId('jobs-remote-badge')).toHaveCount(0);
 				}
@@ -138,9 +147,8 @@ for (const [viewport, size] of [
 				} else {
 					await expect(detail.getByTestId('jobs-apply-link')).toHaveCount(0);
 				}
-				const detailOverlay = detail.locator('xpath=ancestor::*[@data-testid="embed-fullscreen-overlay"][1]');
-				await closeFullscreen(page, detailOverlay);
-				await expect(parentOverlay.getByTestId('jobs-search-fullscreen')).toBeVisible();
+				await closeFullscreen(page, detail);
+				await expect(parentOverlay).toBeVisible();
 			}
 			await closeFullscreen(page, parentOverlay);
 		}
@@ -151,7 +159,7 @@ for (const [viewport, size] of [
 			const parentPreview = page.locator(`[data-testid="embed-preview"][data-embed-id="${parent.embed_id}"]`);
 			await expect(parentPreview.getByTestId('jobs-search-preview')).toBeVisible({ timeout: 30_000 });
 			const parentOverlay = await openFullscreen(page, parentPreview);
-			await expect(parentOverlay.getByTestId('jobs-search-fullscreen')).toBeVisible({ timeout: 15_000 });
+			await expect(parentOverlay).toHaveAttribute('data-testid', 'jobs-search-fullscreen', { timeout: 15_000 });
 			const cards = await verifySearchGrid(parentOverlay, children.length, 30_000);
 			await expect(cards).toHaveCount(children.length);
 			await closeFullscreen(page, parentOverlay);

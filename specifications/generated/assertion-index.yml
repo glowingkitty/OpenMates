@@ -68020,13 +68020,13 @@ assertions:
       surface: gui.web
     - &id8619
       path: frontend/apps/web_app/tests/components/jobs-search-embeds.spec.ts
-      line: 73
+      line: 83
       name: Jobs recorded Stockholm example keeps real provider attribution and unknown
         claims
       surface: gui.web
     - &id8620
       path: frontend/apps/web_app/tests/components/jobs-search-embeds.spec.ts
-      line: 90
+      line: 100
       name: Jobs parent shows singleton location and selected countries from parent
         metadata
       surface: gui.web

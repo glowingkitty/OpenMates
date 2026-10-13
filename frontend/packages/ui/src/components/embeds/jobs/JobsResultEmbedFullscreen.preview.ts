@@ -12,4 +12,5 @@ export const variants = {
   unsafeUrl: { ...defaultProps, data: { decodedContent: { ...job, url: 'javascript:alert(1)', apply_url: 'data:text/html,bad' } } },
   credentialUrl: { ...defaultProps, data: { decodedContent: { ...job, url: 'https://user:secret@example.com/jobs/climate-data', apply_url: 'https://user:secret@example.com/jobs/climate-data/apply' } } },
   mobile: { ...defaultProps },
+  longMetadata: { ...defaultProps, data: { decodedContent: { ...job, company: 'Example Organization for Sustainable Digital Infrastructure and Research', location: 'Stockholm, Stockholms län, Sweden', employment_type: 'Full-time permanent employment' } } },
 };

@@ -58,6 +58,16 @@ test('Jobs child detail validates external actions and fits a phone width', asyn
   await expect(detail.getByTestId('jobs-salary')).toHaveCount(0);
   expect(await detail.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 
+  await page.goto('/dev/preview/embeds/jobs/JobsResultEmbedFullscreen?chrome=0&theme=light&width=390&variant=longMetadata');
+  await waitForComponentPreview(page);
+  const body = page.getByTestId('jobs-detail-body');
+  const company = body.getByTestId('jobs-company-value');
+  await expect(company).toContainText('Sustainable Digital Infrastructure and Research');
+  expect((await body.boundingBox())!.width).toBeGreaterThan(300);
+  expect((await company.boundingBox())!.width).toBeGreaterThan(200);
+  expect((await company.boundingBox())!.height).toBeLessThan(100);
+  expect(await body.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+
   await page.goto('/dev/preview/embeds/jobs/JobsResultEmbedFullscreen?chrome=0&theme=light&width=390&variant=unsafeUrl');
   await waitForComponentPreview(page);
   await expect(page.getByTestId('jobs-source-link')).toHaveCount(0);
