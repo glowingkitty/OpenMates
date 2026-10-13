@@ -3170,9 +3170,21 @@ describe("TUI one-shot send socket warmup", () => {
 });
 
 describe("CLI saved-chat recovery preflight", () => {
+  // contract-test: supporting surface=sdks.npm assertions=auth.session.isolation
+  it("requires a session before requesting the Personal routing directory", async () => {
+    const client = OpenMatesClient.load({ apiUrl: "http://127.0.0.1:1", loadStoredSession: false });
+    let requests = 0;
+    (client as unknown as { http: { get: () => Promise<never> } }).http.get = async () => {
+      requests++;
+      throw new Error("unexpected HTTP request");
+    };
+    await assert.rejects(client.listPersonalProjectRoutingDirectory(), /Not logged in/);
+    assert.equal(requests, 0);
+  });
+
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity,chats.completion.lease-fenced
-  for (const scenario of ["unavailable-old-server", "unavailable-failure-signal", "unavailable-failure-rejected", "available", "supplied-memory", "routing-ack-rejected", "details-ack-rejected"] as const) it(`keeps v2 admission ahead of Project resolution: ${scenario}`, async () => {
-    const projectsAvailable = scenario === "available" || scenario === "supplied-memory" || scenario.endsWith("ack-rejected");
+  for (const scenario of ["unavailable-old-server", "unavailable-failure-signal", "unavailable-failure-rejected", "available", "routing-directory", "supplied-memory", "routing-ack-rejected", "details-ack-rejected"] as const) it(`keeps v2 admission ahead of Project resolution: ${scenario}`, async () => {
+    const projectsAvailable = scenario === "available" || scenario === "routing-directory" || scenario === "supplied-memory" || scenario.endsWith("ack-rejected");
     const failureSignalAvailable = scenario === "unavailable-failure-signal" || scenario === "unavailable-failure-rejected" || scenario.endsWith("ack-rejected");
     const disabledProjectId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
     const disabledProjectKey = new Uint8Array(32).fill(7);
@@ -3183,8 +3195,16 @@ describe("CLI saved-chat recovery preflight", () => {
       encrypted_description: await encryptWithAesGcmCombined("Excluded from automatic routing", disabledProjectKey),
     };
     const projectList = { projects: scenario === "available" ? [disabledProject] : [] };
+    const routingDirectory = { project_candidates: [{
+      project_id: disabledProjectId, encrypted_project_key: disabledProject.encrypted_project_key,
+      encrypted_name: disabledProject.encrypted_name, encrypted_description: disabledProject.encrypted_description,
+      auto_selection: true, focus_activation_policy: "delayed",
+    }] };
     const suppliedCandidates = [{ project_id: disabledProjectId, name: "Caller disabled Project",
       summary: "Preserve legacy caller routing", auto_selection: false, focus_activation_policy: "delayed" as const }];
+    let legacyListRequests = 0;
+    let routingDirectoryRequests = 0;
+    let settingsRequests = 0;
     let admitted = false;
     let candidatesWaitingAtAdmission = false;
     let deferredProjects: ServerResponse | null = null;
@@ -3203,11 +3223,17 @@ describe("CLI saved-chat recovery preflight", () => {
           user: { id: "11111111-1111-4111-8111-111111111111" } }));
       } else if (request.method === "GET" && request.url === "/v1/sdk/memories") {
         response.end(JSON.stringify({ memories: [] }));
+      } else if (request.method === "GET" && request.url === "/v1/projects/routing-directory") {
+        routingDirectoryRequests++;
+        if (!admitted) { deferredProjects = response; return; }
+        response.end(JSON.stringify(routingDirectory));
       } else if (request.method === "GET" && request.url === "/v1/projects") {
+        legacyListRequests++;
         if (!admitted) { deferredProjects = response; return; }
         response.writeHead(projectsAvailable ? 200 : 503);
         response.end(JSON.stringify(projectsAvailable ? projectList : { message: "temporarily unavailable" }));
       } else if (request.method === "GET" && request.url === `/v1/projects/${disabledProjectId}/settings`) {
+        settingsRequests++;
         response.end(JSON.stringify({ settings: { auto_selection: false, focus_activation_policy: "delayed" } }));
       } else if (request.method === "GET" && request.url?.startsWith("/v1/user-tasks")) {
         response.end(JSON.stringify({ tasks: [] }));
@@ -3222,6 +3248,7 @@ describe("CLI saved-chat recovery preflight", () => {
           "personal_send_context_snapshot_v1", "personal_memory_snapshot_v1",
           "chat_turn_admit_v1", "chat_turn_context_v1", "chat_turn_context_selection_details_v2",
           ...(failureSignalAvailable ? ["chat_turn_context_failure_v1"] : []),
+          ...(scenario === "routing-directory" ? ["personal_project_routing_directory_v1"] : []),
         ] } }));
         ws.on("message", raw => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload?: Record<string, unknown> };
@@ -3239,7 +3266,8 @@ describe("CLI saved-chat recovery preflight", () => {
               turn_id: frame.payload?.turn_id, preflight_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
             } }));
             deferredProjects?.writeHead(projectsAvailable ? 200 : 503, { "content-type": "application/json" });
-            deferredProjects?.end(JSON.stringify(projectsAvailable ? projectList : { message: "temporarily unavailable" }));
+            deferredProjects?.end(JSON.stringify(scenario === "routing-directory" ? routingDirectory
+              : projectsAvailable ? projectList : { message: "temporarily unavailable" }));
           } else if (frame.type === "chat_turn_context_failed") {
             failureFrame = frame.payload ?? {};
             ws.send(JSON.stringify({ type: "chat_turn_context_failed_ack", payload: {
@@ -3255,7 +3283,7 @@ describe("CLI saved-chat recovery preflight", () => {
                 message_id: frame.payload?.message_id, request_id: frame.payload?.request_id,
                 phase: frame.payload?.phase, status: "rejected",
               } }));
-            } else if (frame.payload?.phase === "details" && (scenario === "available" || scenario === "supplied-memory")) {
+            } else if (frame.payload?.phase === "details" && (scenario === "available" || scenario === "routing-directory" || scenario === "supplied-memory")) {
               ws.send(JSON.stringify({ type: "chat_turn_context_ack", payload: {
                 chat_id: frame.payload?.chat_id, turn_id: frame.payload?.turn_id,
                 message_id: frame.payload?.message_id, request_id: "other-request",
@@ -3298,10 +3326,20 @@ describe("CLI saved-chat recovery preflight", () => {
       } else {
         assert.deepEqual(contextFrames.map(frame => frame.phase), projectsAvailable ? ["routing", "details"] : []);
       }
-      if (scenario === "available" || scenario === "supplied-memory") {
+      if (scenario === "available" || scenario === "routing-directory" || scenario === "supplied-memory") {
         assert.deepEqual((contextFrames[0]?.context as Record<string, unknown>)?.project_focus_candidates,
-          scenario === "available" ? [] : suppliedCandidates,
-          "fresh deferred discovery excludes disabled Projects; nondeferred v2 preserves caller candidates");
+          scenario === "available" ? [] : scenario === "supplied-memory" ? suppliedCandidates : [{
+            project_id: disabledProjectId, name: "Disabled Project", summary: "Excluded from automatic routing",
+            auto_selection: true, focus_activation_policy: "delayed",
+          }],
+          "fresh deferred discovery uses enabled Projects; nondeferred v2 preserves caller candidates");
+      }
+      if (scenario === "routing-directory") {
+        assert.equal(routingDirectoryRequests, 1);
+        assert.equal(legacyListRequests, 0);
+        assert.equal(settingsRequests, 0);
+      } else {
+        assert.equal(routingDirectoryRequests, 0, "servers without the advertised capability keep legacy discovery");
       }
       assert.equal(Boolean(failureFrame), failureSignalAvailable);
       if (failureFrame) {
@@ -3313,7 +3351,7 @@ describe("CLI saved-chat recovery preflight", () => {
           (admittedFrame?.inference_request as Record<string, unknown>)?.client_context_request_id);
         assert.deepEqual(Object.keys(failureFrame).sort(), ["chat_id", "message_id", "reason", "request_id", "turn_id"]);
       }
-      assert.equal(debugLines.length, scenario === "available" || scenario === "supplied-memory" ? 0 : 1);
+      assert.equal(debugLines.length, scenario === "available" || scenario === "routing-directory" || scenario === "supplied-memory" ? 0 : 1);
       if (debugLines.length) {
         assert.match(debugLines[0], /^\[chat admission continuation\] phase=(await_routing|await_details|await_confirmation) ack_observed=true routing_sent=(true|false) details_sent=(true|false) socket_open=(true|false) elapsed_ms=\d+$/);
         for (const secret of ["private diagnostic marker", "test-refresh-token", "test-hashed-email", "test-session-id"])

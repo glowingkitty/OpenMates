@@ -370,6 +370,11 @@ immediate_admission:
   given: Alice sends a newly prepared first Personal AI turn on a server supporting phased context while Project discovery is slow.
   when: The client obtains its fresh same-socket one-use Memory privacy snapshot and submits the encrypted turn.
   then: Admission does not wait for Project discovery; only fresh authorized Project candidates reach routing, disabled or caller-supplied stale candidates do not substitute, and failed discovery remains a failure rather than an empty catalogue.
+- id: personal-routing-directory-batches-fresh-project-discovery
+  assertion_ids: [chats.send.immediate-admission, chats.persistence.client-encrypted]
+  given: Alice submits a newly prepared first Personal AI turn and the server advertises the batched Personal Project routing directory.
+  when: Project discovery runs beside durable admission after fresh Memory privacy preparation.
+  then: A single freshly authenticated owner-scoped request supplies enabled Project ciphertext and settings without a per-Project settings request chain; Team and cross-owner rows are rejected, discovery failures remain failures, and older APIs retain the established fallback.
 - id: bound-context-arrives-during-admission-continuation
   assertion_ids: [chats.send.immediate-admission, chats.message.identity-idempotent]
   given: Durable admission has acknowledged and sealed the exact owner, device, chat, turn, message and request binding while broker dispatch is still finishing.

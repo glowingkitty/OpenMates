@@ -86,6 +86,8 @@ scope:
     - Typing-time inference or draft prediction; this proposal was explicitly rejected.
     - Production deployment, Apple UI redesign, unrelated rendering optimization or full provider benchmarks.
 decisions:
+  - "Deployed b57dadf warm observations still miss acceptance: TUI Spain Mate 2203 ms / authored 5638 ms, Berlin Mate 2073 ms / authored 16561 ms; web Spain Mate 2092 ms / authored 4806 ms, Berlin Mate 1903 ms / authored 15624 ms. Ordinary acceptance remains open before Focus and remote Project scenarios."
+  - "Batch Personal Project discovery in one freshly authenticated routing-directory request using the existing owner-scoped service; preserve ciphertext, freshness, enabled selection, privacy and legacy/Team fallbacks."
   - "The deployed eb0af3a warm retest still misses targets: TUI Spain Mate 2559 ms / authored 4793 ms, Berlin Mate 1559 ms / authored 12505 ms; web Spain Mate 2665 ms / authored 5565 ms, Berlin Mate 3420 ms / authored 15820 ms. Focus and remote Project follow-ons remain pending ordinary acceptance."
   - "A fresh one-use Personal Memory-only snapshot can precede SDK-minted first Personal admission; fresh owner-scoped Project discovery overlaps admission and must complete before routing. Saved, Team, explicit-Project and legacy protocols retain full gates."
   - "Exact-bound context-ready/failed delivery may overlap post-ACK admission continuation through a bounded context-only receive lane; other frames retain single-flight ordering and disconnect/exception recovery."
@@ -93,7 +95,7 @@ decisions:
   - "Exact a9e warm TUI samples still miss acceptance: Spain Mate 1875 ms / authored 5682 ms; Berlin Mate 1836 ms / authored 17818 ms. Web samples: Spain Mate 2401 ms / authored 4520 ms; Berlin Mate 2506 ms / authored 15850 ms. Individual observations do not establish percentiles."
   - "Remote draft deletion must follow the exact Personal turn's routing and details context dispatch; immediate local clearing, tombstones, workspace epochs, newer drafts and reconnect handling remain intact."
   - "Epoch-one first Personal admission can hold a shared protocol advisory and row read lock; pause/cutover writers remain exclusive. Missing/repairable state falls back without upgrading a shared lock, and account/chat/deletion/key guards remain unchanged."
-  - "Independent unbound composite child persistence is capped at four with complete settlement and original order; bound producers and unverified or reconnect SDK replay retain serial authority checks."
+  - "The unbound composite child persistence optimization remains held after its isolated SDK fixture timeout; local scheduler settlement passed, but no deployed tail-latency improvement is claimed."
   - "Real chat inference and timing run on development. Isolated CI verifies controlled recovery/security/client fixtures. Short local diagnostics precede a single narrow related batch; unchanged dependency results are retained."
   - Reuse existing durable pending-message/reconnect path; avoid duplicate history rows and executions.
   - Warm-up is optional preparation with a correct cold-cache fallback and must not delay Send.

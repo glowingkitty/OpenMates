@@ -464,7 +464,7 @@ specifications:
     version: 5
     status: draft
     path: features/chats
-    fingerprint: 51d65f47bff8109bd6cf0db4b2ca356d1d2bfa6a364dd83807373c9f3bf4253e
+    fingerprint: bb15c3a64529d314815ae93e0ab022b8ae9bf9576a99c38271190a7f1dc6c413
     required_applies_to:
     - cli
     - gui.web
@@ -5833,7 +5833,7 @@ assertions:
     specification: feature.chats@5
     specification_id: feature.chats
     type: behavior
-    fingerprint: 587dc5b8a11e265515fbda5b7f3bf6ea1b8fa1c44aab2ebf44d5efa3ac909294
+    fingerprint: e65a9100d61c34507b688a6f02bb129d0a9aaa28e4fe95059c7f3ebf4ffd86aa
     required_applies_to:
     - cli
     - gui.web
@@ -5977,7 +5977,7 @@ assertions:
     specification: feature.chats@5
     specification_id: feature.chats
     type: parity
-    fingerprint: 47b4eef90cee76bb3633eefea8937544df556dc987da030d4d022c3f5395944f
+    fingerprint: 97a9b0ffc9c5c4d5c7d0e6689d86dc035ecd129759d8d649e2b556423da68a55
     required_applies_to:
     - cli
     - gui.web

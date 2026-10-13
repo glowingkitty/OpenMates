@@ -212,3 +212,8 @@ The web, authenticated CLI and Apple share backend routing improvements. Web own
 ## Reserved compact routing and prepared admission
 
 The approved chat-latency increment uses a one-frame durable admission and a reserved `app_ai_routing` worker before long main/tool processing. See [the implemented request and cache diagrams](../../plans/chat-latency-improvements/implemented-flow.md) for stage inputs, conditional detail hydration, main-generated composer metadata and retention boundaries. Existing conversation history, Team human-only behavior, consent, billing and recovery remain authoritative.
+
+
+First ordinary Personal CLI admission uses a fresh one-use same-socket Memory snapshot for privacy before Send and discovers Projects alongside admission. The capability-negotiated batched routing directory replaces list-plus-per-Project-settings calls with one freshly authenticated owner-scoped ciphertext request; older, saved, Team and explicitly Project-bound paths keep their established preparation. A bounded exact-context receive lane handles context-ready or failure frames while post-ACK dispatch finishes; unrelated messages remain ordered. Only the authoritative plain-text atomic first-message projection reuses sanitized AI history after the encrypted cache write.
+
+After fresh current-turn and durable routing checks, the routing worker joins valid routing context before credit resolution, top-up or Jev. The current authoritative wallet check retains its post-context order, including the main worker's separate later check. Cached discovery never supplies permission or balance authority. Warm-up keeps encrypted discovery for two sliding hours with fresh revision/access checks; private bodies load only when selected.

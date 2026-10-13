@@ -256,7 +256,8 @@ export async function collectRelatedCliTaskContext(client: OpenMatesClient, chat
 export async function prepareCliJevContext(client: OpenMatesClient, chatId: string, options: TeamContextOptions, supplied: CliJevContext = {}, text?: string,
   discovery: { sdkMintedChatId?: boolean; onRouting?: (context: CliJevContext) => void;
     onProjectRouting?: (context: CliJevContext) => void; onProjectRoutingError?: (error: unknown) => void;
-    verifiedProjectCandidates?: NonNullable<CliJevContext["project_focus_candidates"]> } = {}): Promise<CliJevContext> {
+    verifiedProjectCandidates?: NonNullable<CliJevContext["project_focus_candidates"]>;
+    usePersonalRoutingDirectory?: boolean } = {}): Promise<CliJevContext> {
   let candidates: CliJevContext["project_focus_candidates"] = [];
   let active: Awaited<ReturnType<typeof loadActiveCliProjectContext>> = {};
   let tasks: RelatedTaskCandidate[] = [];
@@ -269,6 +270,8 @@ export async function prepareCliJevContext(client: OpenMatesClient, chatId: stri
   await Promise.all([
     (discovery.verifiedProjectCandidates
       ? Promise.resolve(discovery.verifiedProjectCandidates)
+      : discovery.usePersonalRoutingDirectory
+        ? client.listPersonalProjectRoutingDirectory().then(rows => decodePersonalProjectCandidates(client, rows))
       : discoverCliProjectCandidates(client, options, Boolean(discovery.onProjectRouting))).then(value => {
       candidates = value;
       discovery.onProjectRouting?.({ project_focus_candidates: (discovery.verifiedProjectCandidates ?? supplied.project_focus_candidates ?? value).slice(0, 40) });

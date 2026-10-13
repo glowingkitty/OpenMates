@@ -32,6 +32,7 @@ from backend.core.api.app.services.project_write_authorization_service import (
     ProjectWriteAuthorizationError,
     ProjectWriteAuthorizationService,
 )
+from backend.core.api.app.services.personal_send_context_snapshot import fresh_personal_project_candidates
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowNotFoundError, WorkflowService
 from backend.core.api.app.services.workspace_change_history_service import WorkspaceChangeHistoryService, build_history_commands, s3_workspace_history_archive_io
 from backend.shared.python_utils.encrypted_slug_metadata import DuplicateObjectSlugError
@@ -530,6 +531,23 @@ def _safe_project_focus_projection(binding: Dict[str, Any]) -> Dict[str, Any]:
 
 def _raise_project_authorization_error(exc: ProjectWriteAuthorizationError) -> None:
     raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
+
+
+@router.get("/routing-directory")
+@limiter.limit("60/minute")
+async def get_personal_project_routing_directory(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """First-party Personal routing ciphertext from fresh owner-scoped reads.
+
+    The session dependency rejects API keys. No Team selector is accepted; the
+    shared snapshot helper rejects Team or mismatched-owner rows before output.
+    """
+    return {"project_candidates": await fresh_personal_project_candidates(
+        directus_service, current_user.id,
+    )}
 
 
 @router.get("")

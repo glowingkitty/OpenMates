@@ -313,10 +313,12 @@ test('SDK-minted first Personal chat admits after fresh Memory privacy and befor
 			await client.whoAmI();
 			if(client.getActiveTeamId())throw Error('Expected paired Personal account');
 			let phase='minted';
-			const result={minted:{focus:0,plans:0,projects:0,tasks:0,combinedRequests:0,memoryRequests:0,
+			const result={minted:{focus:0,plans:0,projects:0,tasks:0,routingDirectoryCalls:0,routingDirectoryGets:0,
+				projectSettingsGets:0,routingDirectoryRowsEnabled:false,combinedRequests:0,memoryRequests:0,
 				combinedProjectRows:false,memoryReady:false,privacyAfterMemoryReceipt:false,
 				projectResolvedBeforeAdmission:null,admission:null,routing:null,details:null},
-				supplied:{focus:0,plans:0,projects:0,tasks:0,combinedRequests:0,memoryRequests:0,
+				supplied:{focus:0,plans:0,projects:0,tasks:0,routingDirectoryCalls:0,routingDirectoryGets:0,
+				projectSettingsGets:0,routingDirectoryRowsEnabled:false,combinedRequests:0,memoryRequests:0,
 				combinedProjectRows:false,memoryReady:false,privacyAfterMemoryReceipt:false,
 				projectResolvedBeforeAdmission:null,admission:null,routing:null,details:null}};
 			let releaseMintedProjects,projectGateTimer;
@@ -339,6 +341,28 @@ test('SDK-minted first Personal chat admits after fresh Memory privacy and befor
 					return value;
 				};
 			}
+			const get=client.http.get.bind(client.http);
+			client.http.get=async(...args)=>{
+				const path=args[0];
+				if(path==='/v1/projects/routing-directory')result[phase].routingDirectoryGets++;
+				if(typeof path==='string'&&path.startsWith('/v1/projects/')
+					&&path.split('?')[0].endsWith('/settings'))result[phase].projectSettingsGets++;
+				return get(...args);
+			};
+			const listRoutingDirectory=client.listPersonalProjectRoutingDirectory.bind(client);
+			client.listPersonalProjectRoutingDirectory=async(...args)=>{
+				const currentPhase=phase;
+				result[currentPhase].routingDirectoryCalls++;
+				const rows=await listRoutingDirectory(...args);
+				result[currentPhase].routingDirectoryRowsEnabled=Array.isArray(rows)
+					&&rows.every(row=>row.auto_selection===true&&typeof row.encrypted_project_key==='string'
+						&&typeof row.encrypted_name==='string');
+				if(currentPhase==='minted'){
+					await mintedProjectGate;
+					result.minted.projectResolvedBeforeAdmission=result.minted.admission===null;
+				}
+				return rows;
+			};
 			const open=client.openWsClient.bind(client);
 			client.openWsClient=async(...args)=>{
 				const opened=await open(...args),send=opened.ws.sendAsync.bind(opened.ws);
@@ -432,7 +456,11 @@ test('SDK-minted first Personal chat admits after fresh Memory privacy and befor
 		expect(observed.minted.memoryRequests).toBe(1);
 		expect(observed.minted.memoryReady).toBe(true);
 		expect(observed.minted.combinedProjectRows).toBe(false);
-		expect(observed.minted.projects).toBeGreaterThan(0);
+		expect(observed.minted.projects).toBe(0);
+		expect(observed.minted.routingDirectoryCalls).toBe(1);
+		expect(observed.minted.routingDirectoryGets).toBe(1);
+		expect(observed.minted.projectSettingsGets).toBe(0);
+		expect(observed.minted.routingDirectoryRowsEnabled).toBe(true);
 		expect(observed.minted.projectResolvedBeforeAdmission).toBe(false);
 		expect(observed.minted.admission.privacyAfterMemoryReceipt).toBe(true);
 		expect(observed.minted.tasks).toBeGreaterThan(0);
@@ -443,6 +471,9 @@ test('SDK-minted first Personal chat admits after fresh Memory privacy and befor
 		expect(observed.supplied.combinedProjectRows).toBe(true);
 		expect(observed.supplied.admission.privacyAfterMemoryReceipt).toBe(true);
 		expect(observed.supplied.projects).toBe(0);
+		expect(observed.supplied.routingDirectoryCalls).toBe(0);
+		expect(observed.supplied.routingDirectoryGets).toBe(0);
+		expect(observed.supplied.projectSettingsGets).toBe(0);
 		expect(observed.supplied.tasks).toBeGreaterThan(0);
 		expect(observed.minted.selectionDetailsV2).toBe(true);
 		expect(observed.supplied.selectionDetailsV2).toBe(false);

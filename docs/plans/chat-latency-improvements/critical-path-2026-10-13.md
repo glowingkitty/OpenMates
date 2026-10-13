@@ -89,3 +89,40 @@ A newly SDK-minted Personal AI chat can use the fresh one-use Personal Memory sn
 A context-only receive lane must open only after durable ACK and exact context binding. It can handle matching ready/failed phases while continuation runs, buffer at most one unrelated frame, and join continuation before handling a second admission. Disconnect and exceptions must join or cancel owned work without losing the durable recovery identities. An authoritative one-message plain-text first Personal projection can reuse already sanitized request content for model history while still writing the encrypted cache; attachments, embeds, supplied history and uncertain projection remain on the established path.
 
 The published source already warms encrypted Project, Project Focus, Workflow and Team-Memory discovery with two sliding hours and fresh revision/access boundaries. That feature must be reused, not duplicated. The repeated main credit read remains authoritative; cached discovery and the stage-one balance cannot replace current spending authority.
+
+
+## Core13 deployed observations and next decisive change
+
+Revision `b57dadf12b1b084c0cbb6d6d291d9faa9d934591` passed the retained nine isolated recovery and warm-up cases before real inference on development. The following individual warm runs were measured in the interactive TUI first, then the matching web app. They do not establish percentiles. All requests completed; each selected-Mate timing still misses 1,500 ms, and Spain's first authored text still misses 3,000 ms.
+
+| Client / prompt | User row | Selected Mate | First authored text | Completion boundary |
+|---|---:|---:|---:|---:|
+| TUI / Spain | 32 ms | 2,203 ms | 5,638 ms | TUI idle 15,842 ms |
+| TUI / Berlin | 32 ms | 2,073 ms | 16,561 ms | TUI idle 63,343 ms |
+| Web / Spain | measured separately | 2,092 ms | 4,806 ms | server final 6,740 ms |
+| Web / Berlin | measured separately | 1,903 ms | 15,624 ms | server final 25,759 ms |
+
+The exact TUI Spain trace verifies Google AI Studio Gemini 3.8 Flash, LOW thinking, zero tools and 3,818 input tokens. Its cumulative timeline is:
+
+| Boundary from Enter | Time | Interpretation |
+|---|---:|---|
+| Admission frame | 201 ms | Fresh Memory privacy preparation precedes dispatch |
+| Durable admission ACK | 770 ms | 569 ms after the frame |
+| Routing context sent | 1,284 ms | Project discovery and context preparation continue after ACK |
+| Broker dispatch / routing receipt | 909 / 913 ms | Dispatch no longer awaits context delivery |
+| Fresh routing authority | 1,183 ms | Current durable turn and ownership checked |
+| Routing context and catalogues ready | 1,390 ms | Stage one joins required routing metadata |
+| Credits and Project eligibility ready | 1,626 ms | Fresh spending and owner-scoped Project checks |
+| Jev stage-one request / model resolved | 1,690 / 2,064 ms | Exact routing decisions precede Mate feedback |
+| Mate published / painted | 2,167 / 2,203 ms | No generic Assistant Thinking |
+| Main receipt | 2,293 ms | Main setup remains before provider call |
+| Preprocessing complete | 2,915 ms | Required public decisions reused; detailed stage skipped |
+| Google request / request headers sent | 3,013 / 3,043 ms | Headers sent are an outbound event |
+| Response headers / first authored chunk | 5,600 / 5,603 ms | Remote queue/compute/transport are not separately attributable |
+| Final marker | 7,648 ms | Persistence and postprocessing are distinct from first authored text |
+
+The first encrypted message remains cached but its sanitized one-message AI history is reused: the server reports 0.000 seconds for that reuse. Compared with the individual Core12 Spain sample, provider invocation begins 465 ms earlier, while the provider's first authored chunk arrives 1,308 ms later relative to invocation. This is provider variation, not proof that local setup is finished.
+
+The next bounded change is a single freshly authenticated Personal Project routing-directory request using the existing owner-scoped batch service. The test account has two discoverable Projects even for Spain. Current CLI discovery lists Projects and then requests settings for each before publishing routing; those settings reads finish near routing readiness. Reusing a client WebSocket auth receipt cannot remove server authentication on these independent REST endpoints. The new request must retain fresh ownership, enabled-selection filtering, ciphertext-only transport, and legacy/Team fallback. A tested speculative raw-wallet overlap is held after review found that a concurrent debit could invalidate the earlier result; the existing post-context credit order remains. No access or balance permission is cached.
+
+CI checks controlled correctness and recovery; these latency observations use real inference on development. The last prepared batch reused all four schema/runtime image inputs. Its remaining 163-second web build is separate from chat request processing. Full prepared E2E turnaround still exceeds the 2–3-minute diagnostic goal; focused local probes remain the first debugging step.

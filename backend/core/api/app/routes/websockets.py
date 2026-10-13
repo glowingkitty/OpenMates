@@ -2871,6 +2871,7 @@ async def websocket_endpoint(
         "chat_turn_admit_v1", "chat_turn_context_v1", "chat_turn_context_failure_v1",
         "chat_turn_context_selection_details_v2", "suggested_followup_message_v1",
         "personal_memory_snapshot_v1", "personal_send_context_snapshot_v1",
+        "personal_project_routing_directory_v1",
     ]}})
 
     # A live socket must close at its absolute session deadline even if idle.

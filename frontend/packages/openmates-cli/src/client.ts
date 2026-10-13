@@ -113,7 +113,7 @@ import {
 } from "./ws.js";
 import type { FocusPhaseState } from "../../ui/src/types/focusPhases.js";
 import { registerChatContextEvents, parseChatContextContent, type ChatContextEvent } from "./chatContextEvents.js";
-import { prepareCliJevContext, decodePersonalProjectCandidates, type CliJevContext, type FocusAuthoringDocument } from "./cliJevContext.js";
+import { prepareCliJevContext, decodePersonalProjectCandidates, type CliJevContext, type EncryptedPersonalProjectCandidate, type FocusAuthoringDocument } from "./cliJevContext.js";
 import { registerProjectFocusCountdown, type ProjectFocusCountdown } from "./projectFocusCountdown.js";
 import { assessCliProjectAuthoring, boundedAuthoringHistory } from "./cliProjectAuthoring.js";
 import type { MentionContext, AppInfo, MemoryEntryInfo } from "./mentions.js";
@@ -8888,6 +8888,7 @@ export class OpenMatesClient {
     let socketProjectCandidateRows: Array<Record<string, unknown>> | null = null;
     let verifiedProjectCandidates: NonNullable<CliJevContext["project_focus_candidates"]> | null = null;
     let deferredProjectDirectory = false;
+    let usePersonalRoutingDirectory = false;
     let projectCandidatesReadyFromSendStartMs: number | null = null;
     let socketMemoryReceipt: {
       ws: OpenMatesWsClient;
@@ -8931,6 +8932,8 @@ export class OpenMatesClient {
                 && memorySocket.ws.supportsServerCapability("chat_turn_admit_v1")
                 && memorySocket.ws.supportsServerCapability("chat_turn_context_v1");
               deferredProjectDirectory = deferProjectDirectory;
+              usePersonalRoutingDirectory = deferProjectDirectory
+                && memorySocket.ws.supportsServerCapability("personal_project_routing_directory_v1");
               traceSendTiming("snapshot_request");
               const combined = combinedSupported && !deferProjectDirectory
                 ? await memorySocket.ws.requestPersonalSendContextSnapshot(randomUUID()) : null;
@@ -9069,6 +9072,7 @@ export class OpenMatesClient {
       ? withHttpAbortSignal(earlyContextAbort.signal, () =>
           prepareCliJevContext(this, chatId, contextScope, suppliedContext, finalMessage, {
             sdkMintedChatId, onRouting: publishRouting, verifiedProjectCandidates: verifiedProjectCandidates ?? undefined,
+            usePersonalRoutingDirectory,
             onProjectRouting: publishProjectRoutingTimed, onProjectRoutingError: rejectProjectRouting,
           }))
         .then(value => ({ ok: true as const, value, elapsedMs: Date.now() - contextStartedAt }),
@@ -9382,6 +9386,7 @@ export class OpenMatesClient {
           ? await earlyContext
           : { ok: true as const, value: await withHttpAbortSignal(earlyContextAbort.signal, () => prepareCliJevContext(this, chatId, contextScope, suppliedContext, finalMessage, {
               sdkMintedChatId, onRouting: publishRouting, verifiedProjectCandidates: verifiedProjectCandidates ?? undefined,
+              usePersonalRoutingDirectory,
               onProjectRouting: publishProjectRoutingTimed, onProjectRoutingError: rejectProjectRouting,
             })), elapsedMs: Date.now() - contextStartedAt };
         if (!prepared.ok) throw prepared.error;
@@ -12671,6 +12676,18 @@ export class OpenMatesClient {
     );
     if (!response.ok) throw new Error(`Project list failed with HTTP ${response.status}`);
     return response.data.projects ?? [];
+  }
+
+  /** Fresh Personal-only encrypted routing directory; server verifies owner and current Project settings. */
+  async listPersonalProjectRoutingDirectory(): Promise<EncryptedPersonalProjectCandidate[]> {
+    this.requireSession();
+    const response = await this.http.get<{ project_candidates?: unknown }>(
+      "/v1/projects/routing-directory", this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Personal Project routing directory failed with HTTP ${response.status}`);
+    const rows = response.data?.project_candidates;
+    if (!Array.isArray(rows) || rows.length > 40) throw new Error("Personal Project routing directory is invalid.");
+    return rows as EncryptedPersonalProjectCandidate[];
   }
 
   async getProject(projectId: string, options: TeamContextOptions = {}): Promise<ProjectDetail> {

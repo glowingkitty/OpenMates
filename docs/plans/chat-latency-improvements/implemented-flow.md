@@ -1,19 +1,19 @@
 # Chat processing architecture
 
-Published development revision `eb0af3a865bf3d478576b00f95caf998ccceaddf` includes atomic first Personal admission, phased context, remote draft deletion after required context dispatch, shared protocol reader locking, parallel authority checks and overlapping main setup. Real inference runs on development; isolated CI verifies controlled security, recovery and client fixtures. CI preparation is not part of chat response time. Timing acceptance remains open.
+Published development revision `b57dadf12b1b084c0cbb6d6d291d9faa9d934591` includes atomic first Personal admission, phased context, immediate first Personal CLI dispatch after fresh Memory preparation, a bounded context receive lane during dispatch, sanitized atomic first-message history reuse, remote draft deletion after required context dispatch, shared protocol reader locking, parallel authority checks and overlapping main setup. Real inference runs on development; isolated CI verifies controlled security, recovery and client fixtures. CI preparation is not part of chat response time. Timing acceptance remains open.
 
 The latest warm samples on that exact deployed source still miss the targets:
 
 | Client / request | Selected Mate | First authored text | Completion measurement |
 | --- | ---: | ---: | --- |
-| TUI / Spain capital | 2,559 ms | 4,793 ms | TUI idle 23,566 ms |
-| TUI / Berlin AI events | 1,559 ms | 12,505 ms | TUI idle 66,829 ms |
-| Web / Spain capital | 2,665 ms | 5,565 ms | Final source event 8,091 ms |
-| Web / Berlin AI events | 3,420 ms | 15,820 ms | Final source event 22,588 ms |
+| TUI / Spain capital | 2,203 ms | 5,638 ms | TUI idle 15,842 ms |
+| TUI / Berlin AI events | 2,073 ms | 16,561 ms | TUI idle 63,343 ms |
+| Web / Spain capital | 2,092 ms | 4,806 ms | Final source event 6,740 ms |
+| Web / Berlin AI events | 1,903 ms | 15,624 ms | Final source event 25,759 ms |
 
 These are individual observations, not matched medians or percentiles. All four used Google AI Studio Gemini 3.8 Flash with LOW thinking; Spain used no app skills and Berlin executed one Events search. Provider latency and completion persistence are reported separately in [the October 13 critical path](critical-path-2026-10-13.md).
 
-All seven affected recovery cases and both web warm-up/send cases passed. Their exercised product paths remain identical when the separate composite completion optimization is held. Local PostgreSQL primitive checks establish reader overlap and writer ordering. The real development retest above did not meet the latency targets.
+All seven affected recovery cases and both web warm-up/send cases passed before this publication. The exact exercised callback paths remain unchanged by the later scope-preserving disabled-candidate guard and nonoverlapping upstream WebSocket reconciliation; the guard additionally has two local unit cases. The separate composite completion optimization remains held. Local PostgreSQL primitive checks establish reader overlap and writer ordering. The real development retest above did not meet the latency targets.
 
 The separate four-at-a-time composite persistence/recovery optimization is held after its new E2E fixture timed out twice in the first SDK child process. A bounded local scheduler/socket probe settles the injected ACK failure and exits naturally in 0.34 seconds. The full send path still needs phase evidence; this outcome does not constitute a successful completion optimization or latency acceptance.
 
@@ -24,7 +24,7 @@ flowchart TD
   Focus[Web focus or microphone / TUI startup] --> Prepare[Prepare invisible chat UUID and key; warm authorized discovery]
   Send[Enter / Send] --> Optimistic[One user row; clear submitted composer snapshot]
   Optimistic --> Fresh[Use ready send socket; fresh Personal Memory and device-local privacy preparation]
-  Fresh --> Directory[Eligible first TUI turn: fresh Project discovery overlaps admission; other paths retain full preparation]
+  Fresh --> Directory[Eligible first TUI turn: one fresh authenticated Project directory overlaps admission; other paths retain full preparation]
   Fresh --> Admit[One encrypted chat_turn_admit frame]
   Admit --> Durable[Fresh authentication; atomic first Personal chat, message and held outbox; bind context before ACK]
   Prepare -. reused when ready .-> Admit
@@ -36,7 +36,10 @@ flowchart TD
   Headers --> Router
   Headers -. required discovery fails .-> Failure[Bound encrypted context-failure marker]
   Failure --> End[Release exact active task; terminal failure event; no assistant text]
-  Router --> Stage1[Jev stage 1: complexity, Mate, apps, Projects, public decisions]
+  Router --> Authority[Fresh durable routing and current-turn authority]
+  Authority --> Reads[Join bound routing context and catalogue]
+  Reads --> Credit[Fresh credit and Project eligibility checks; top-up only after valid context]
+  Credit --> Stage1[Jev stage 1: complexity, Mate, apps, Projects, public decisions]
   Stage1 --> Resolve[Resolve permitted model and publish selected Mate]
   Resolve --> Paint[Client paints Mate + Thinking]
   Resolve --> Handoff[Encrypted 120-second routing snapshot; original turn identity]
@@ -61,7 +64,9 @@ Prepared identity does not create an unwanted visible empty chat. With the durab
 
 With `chat_turn_context_selection_details_v2`, the routing continuation needs only the completed authorized Project candidate list. Task candidates, accepted Plan context, Project Focus discovery and the connected-account directory arrive in the separately correlated details continuation. These reads run concurrently and must complete before detailed selection or main-context assembly; they do not delay stage-one Mate feedback. Failed or incomplete Project discovery retains the complete path. Older APIs receive the established full routing payload.
 
-The guarded Core13 flow moves fresh Project discovery after privacy preparation for only the eligible SDK-minted first Personal turn. It allows exact-bound context phases through the same socket while post-ACK dispatch continues, and reuses already sanitized first-turn text only when the atomic projection proves the one-message history. The nine isolated CLI/recovery and web warm-up/send cases passed; the scope-preserving filter guard also has two focused local checks. Deployed inference timing remains a separate acceptance check.
+The guarded Core13 flow moves fresh Project discovery after privacy preparation for only the eligible SDK-minted first Personal turn. It allows exact-bound context phases through the same socket while post-ACK dispatch continues, and reuses already sanitized first-turn text only when the atomic projection proves the one-message history. The nine isolated CLI/recovery and web warm-up/send cases passed; the scope-preserving filter guard also has two focused local checks. The deployed real TUI and web timing observations above still miss acceptance.
+
+The next Core14 candidate batches eligible first Personal CLI Project discovery into one session-authenticated owner-scoped request. Fresh wallet checks retain their existing post-context order; the reviewed speculative overlap is held because a concurrent debit can invalidate an earlier positive result. These candidate diagrams describe code under verification, not a deployed timing claim.
 
 The preprocessor wrapper receives the authenticated request and server configuration. Cached discovery is data; access, source revision, consent, credit and execution checks remain authoritative.
 
