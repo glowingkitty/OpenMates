@@ -4,6 +4,9 @@ from types import SimpleNamespace
 import pytest
 
 from backend.apps.ai.processing import main_processor as main
+from backend.apps.ai.processing.preprocessor import PreprocessingResult
+from backend.apps.ai.skills.ask_skill import AskSkillRequest
+from backend.core.api.app.schemas.chat import AIHistoryMessage
 
 
 def _proven_turn():
@@ -59,6 +62,32 @@ def test_unselected_project_discovery_inventory_does_not_block_proven_empty_turn
     assert main._omit_fact_question_format_guidance(request, preprocessing, None, [])
 
 
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.conditional-context
+def test_declared_request_schema_disabled_learning_mode_allows_exact_benchmark_turn():
+    question = "What’s the capital of Spain?"
+    request = AskSkillRequest(
+        chat_id="chat", message_id="message", user_id="owner", user_id_hash="owner-hash",
+        message_history=[AIHistoryMessage(role="user", content=question, created_at=1)],
+        current_user_content=question,
+        admission_context={
+            "scope_complete": True, "context_revision": "server-admission-v1",
+            "active_project_id": None, "active_project_activation_id": None,
+            "active_focus_id": None, "accepted_plan_ref": None,
+            "explicit_related_task_ids": [],
+        },
+        project_focus_candidates=[{"project_id": "owned-project", "name": "Travel"}],
+        learning_mode={"enabled": False},
+    )
+    preprocessing = PreprocessingResult(
+        context_fast_path=True, early_task_area="general", output_language="en",
+        selected_app_ids=[], relevant_app_skills=[], relevant_focus_modes=[],
+        load_app_settings_and_memories=[], relevant_rules=[], relevant_workflows=[],
+        relevant_related_work=[], relevant_embedded_previews=[],
+    )
+    assert request.learning_mode == {"enabled": False}
+    assert main._omit_fact_question_format_guidance(request, preprocessing, None, [])
+
+
 @pytest.mark.parametrize("change", [
     "forwarded_tool", "no_complete_proof", "unknown_area", "selected_app",
     "prior_history", "mismatched_history", "code_intent", "document_intent",
@@ -66,7 +95,8 @@ def test_unselected_project_discovery_inventory_does_not_block_proven_empty_turn
     "project_document", "active_focus", "user_override", "workflow_request",
     "related_task", "embedding", "learning_mode", "subjective_question",
     "unknown_question", "selected_project_document", "selected_project_binding",
-    "project_routing_state",
+    "project_routing_state", "missing_learning_mode_flag", "invalid_learning_mode_flag",
+    "disabled_with_unexpected_learning_context",
 ])
 # contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.conditional-context
 def test_format_guidance_remains_for_context_or_unknown_intent(change):
@@ -119,6 +149,12 @@ def test_format_guidance_remains_for_context_or_unknown_intent(change):
         preprocessing.relevant_embedded_previews = ["code"]
     elif change == "learning_mode":
         request.learning_mode = {"enabled": True}
+    elif change == "missing_learning_mode_flag":
+        request.learning_mode = {}
+    elif change == "invalid_learning_mode_flag":
+        request.learning_mode = {"enabled": "false"}
+    elif change == "disabled_with_unexpected_learning_context":
+        request.learning_mode = {"enabled": False, "age_group": "adult"}
     elif change in {"subjective_question", "unknown_question"}:
         question = (
             "Who is the best artist?" if change == "subjective_question"

@@ -137,6 +137,7 @@ class AskSkillRequest(BaseModel):
     client_context_pending: bool = Field(default=False, description="Admitted two-phase client context is pending.")
     client_context_request_id: Optional[str] = Field(default=None, max_length=36)
     client_context_binding_ref: Optional[str] = Field(default=None, repr=False, description="Server-only owner/device/Team/turn binding.")
+    client_context_turn_id: Optional[str] = Field(default=None, description="Server-only admitted turn identity for encrypted context phases, independent of recovery output.")
     agentic_context_ref: Optional[str] = Field(default=None, repr=False, description="Opaque API-memory private context reference; never client authority.")
     agentic_context_turn_id: Optional[str] = Field(default=None, description="Server-only original user turn binding of the opaque handoff.")
     agentic_context_request_id: Optional[str] = Field(default=None, description="Content-free binding for the memory handoff.")

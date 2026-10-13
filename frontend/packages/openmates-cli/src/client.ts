@@ -12630,7 +12630,13 @@ export class OpenMatesClient {
 
   async getCustomRuleDocuments(): Promise<NonNullable<CliJevContext["custom_rule_documents"]>> {
     const user = await this.whoAmI();
-    const settings = await this.decryptSettingsRecord(user.encrypted_settings);
+    return this.customRuleDocumentsFromEncryptedSettings(user.encrypted_settings);
+  }
+
+  private async customRuleDocumentsFromEncryptedSettings(
+    encryptedSettings: unknown,
+  ): Promise<NonNullable<CliJevContext["custom_rule_documents"]>> {
+    const settings = await this.decryptSettingsRecord(encryptedSettings);
     const legacy = Array.isArray(settings.rule_documents) ? settings.rule_documents : [];
     const canonical = Array.isArray(settings.memory_documents) ? settings.memory_documents : [];
     const byId = new Map([...legacy, ...canonical].filter(value => value && typeof value.id === "string").map(value => [value.id, value]));
@@ -14841,6 +14847,94 @@ export class OpenMatesClient {
     return legacy.data?.app_settings_memories ?? [];
   }
 
+  private async fetchPersonalMemoryBatch(): Promise<{
+    rows: Array<Record<string, unknown>>;
+    encryptedSettings: string | null;
+    auth: PersonalSendAuthHandoff;
+    assertOwnerCurrent: () => void;
+  } | null> {
+    const original = this.requireSession();
+    const ownerScope = JSON.stringify([original.apiUrl, original.hashedEmail, original.sessionId,
+      original.createdAt, original.masterKeyExportedB64, original.activeTeamId]);
+    const ownerIsCurrent = () => {
+      const session = this.requireSession();
+      return session.apiUrl.replace(/\/$/, "") === this.apiUrl
+        && JSON.stringify([session.apiUrl, session.hashedEmail, session.sessionId,
+          session.createdAt, session.masterKeyExportedB64, session.activeTeamId]) === ownerScope;
+    };
+    if (!ownerIsCurrent()) throw new Error("Personal memory owner changed during preparation.");
+    const result = await this.withFreshStoredSession(async () => {
+      if (!ownerIsCurrent()) throw new Error("Personal memory owner changed during preparation.");
+      const session = this.requireSession();
+      const previousRefreshToken = session.cookies.auth_refresh_token;
+      const response = await this.http.post<{
+        success?: boolean; user?: Record<string, unknown>; ws_token?: string;
+        personal_memories?: unknown;
+      }>("/v1/auth/session", {
+        session_id: session.sessionId, include_personal_memories: true,
+      }, this.getCliRequestHeaders());
+      if (!response.ok || response.data.success !== true) {
+        throw Object.assign(new Error(`Personal memory session validation failed with HTTP ${response.status}.`),
+          { status: response.status, retryAfterMs: response.retryAfterMs });
+      }
+      if (!ownerIsCurrent() || this.requireSession() !== session) {
+        throw new Error("Personal memory owner changed during preparation.");
+      }
+      const ownerId = typeof response.data.user?.id === "string" ? response.data.user.id : "";
+      const trustedAccountId = loadTrustedAccountId();
+      if (trustedAccountId && trustedAccountId !== ownerId) {
+        // HTTP already applied Set-Cookie while reading the response. Do not
+        // leave an untrusted account's rotated cookie on this client.
+        this.http.replaceCookies(session.cookies);
+        throw new Error("Personal memory owner changed during preparation.");
+      }
+      if (typeof response.data.ws_token === "string" && response.data.ws_token) {
+        session.wsToken = response.data.ws_token;
+      }
+      session.cookies = this.http.getCookieMap();
+      saveSession(session, { expectedRefreshToken: previousRefreshToken });
+      const cookieFingerprint = authCookieFingerprint(session.cookies);
+      const wsToken = typeof response.data.ws_token === "string" ? response.data.ws_token : "";
+      const auth: PersonalSendAuthHandoff | null = ownerId && wsToken && session.wsToken === wsToken
+        && cookieFingerprint === authCookieFingerprint(this.http.getCookieMap())
+        ? {
+          ownerId, wsToken, validatedAt: performance.now(), apiUrl: session.apiUrl,
+          hashedEmail: session.hashedEmail, sessionId: session.sessionId,
+          createdAt: session.createdAt, masterKeyExportedB64: session.masterKeyExportedB64,
+          activeTeamId: session.activeTeamId, cookieFingerprint,
+        } : null;
+      return { data: response.data, auth, cookieFingerprint };
+    });
+    if (!ownerIsCurrent()) throw new Error("Personal memory owner changed during preparation.");
+    const { data, auth, cookieFingerprint } = result;
+    const assertOwnerCurrent = () => {
+      if (!ownerIsCurrent()
+        || authCookieFingerprint(this.requireSession().cookies) !== cookieFingerprint
+        || authCookieFingerprint(this.http.getCookieMap()) !== cookieFingerprint) {
+        throw new Error("Personal memory owner changed during preparation.");
+      }
+    };
+    assertOwnerCurrent();
+    if (!Object.prototype.hasOwnProperty.call(data, "personal_memories")) {
+      // A successful response without the opt-in field is an older server.
+      return null;
+    }
+    const payload = data.personal_memories;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new Error("Invalid Personal memory batch response.");
+    }
+    const batch = payload as Record<string, unknown>;
+    if ((batch.encrypted_settings !== null && typeof batch.encrypted_settings !== "string")
+      || !Array.isArray(batch.memories) || !auth) {
+      throw new Error("Invalid Personal memory batch response.");
+    }
+    // Preserve the existing per-row behavior: a null ciphertext or corrupt
+    // encrypted row is skipped without discarding otherwise valid Memories.
+    return { rows: batch.memories as Array<Record<string, unknown>>,
+      encryptedSettings: batch.encrypted_settings as string | null, auth,
+      assertOwnerCurrent };
+  }
+
   async getCachedContinueItems(): Promise<{memories: DecryptedMemoryEntry[]; reminders: Array<Record<string,unknown>>} | null> {
     const teamId=this.resolveTeamContext(),masterKey=Buffer.from(this.getMasterKeyBytes());
     const teamKey=teamId ? loadLocalTeamKey(this.requireSession().hashedEmail,teamId) : null;
@@ -14889,13 +14983,15 @@ export class OpenMatesClient {
     const masterKey = this.getMasterKeyBytes();
     const keyMs = Math.round(performance.now() - startedAt);
     const teamId = this.resolveTeamContext(options);
-    const rawEntries = teamId
-      ? await this.sdkGetTeamMemories(teamId)
-      : await this.sdkGetPersonalMemories();
+    if (!teamId) this.personalMemoryAuthHandoff = null;
+    const personalBatch = teamId ? null : await this.fetchPersonalMemoryBatch();
+    const rawEntries = teamId ? await this.sdkGetTeamMemories(teamId)
+      : personalBatch ? personalBatch.rows : await this.sdkGetPersonalMemories();
     const fetchMs = Math.round(performance.now() - startedAt) - keyMs;
     const results: DecryptedMemoryEntry[] = [];
 
     for (const raw of rawEntries) {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
       const encryptedJson =
         typeof raw.encrypted_item_json === "string"
           ? raw.encrypted_item_json
@@ -14931,24 +15027,28 @@ export class OpenMatesClient {
     const decryptMs = Math.round(performance.now() - startedAt) - keyMs - fetchMs;
     if (!teamId) {
       let accountDocuments: Awaited<ReturnType<OpenMatesClient['getCustomRuleDocuments']>> = [];
-      // Bind the account-settings auth receipt to this exact decrypted
-      // snapshot; a later unrelated memory read must not borrow it.
-      this.pendingWhoAmIAuthHandoff = null;
       let accountDocumentsLoaded = false;
-      try { accountDocuments = await this.getCustomRuleDocuments(); accountDocumentsLoaded = true; }
-      catch { /* Unavailable account settings must not hide valid encrypted row Memories. */ }
-      const handoff = this.pendingWhoAmIAuthHandoff;
       this.pendingWhoAmIAuthHandoff = null;
+      try { accountDocuments = personalBatch
+        ? await this.customRuleDocumentsFromEncryptedSettings(personalBatch.encryptedSettings)
+        : await this.getCustomRuleDocuments(); accountDocumentsLoaded = true; }
+      catch { /* Unavailable account settings must not hide valid encrypted row Memories. */ }
+      const handoff = personalBatch ? personalBatch.auth : this.pendingWhoAmIAuthHandoff;
+      this.pendingWhoAmIAuthHandoff = null;
+      personalBatch?.assertOwnerCurrent();
       for (const memory of accountDocuments) {
         const title = /^title:\s*(.+)$/m.exec(memory.document)?.[1]?.replace(/^['"]|['"]$/g, '') ?? 'Memory';
         results.push({ id: `account-memory-${memory.id.replace(/^personal:/, '')}`, app_id: 'openmates', item_type: 'memories',
           item_key_hash: '', data: { title, document: memory.document }, created_at: 0, updated_at: 0, item_version: 1 });
       }
-      if (accountDocumentsLoaded && handoff) this.personalMemoryAuthHandoff = { snapshot: new WeakRef(results), auth: handoff };
+      if (accountDocumentsLoaded && handoff
+        && this.personalSendAuthHandoffCurrent(handoff)) {
+        this.personalMemoryAuthHandoff = { snapshot: new WeakRef(results), auth: handoff };
+      }
     }
     if (process.env.OPENMATES_DEBUG === "1") {
       const totalMs = Math.round(performance.now() - startedAt);
-      console.error(`[memory preparation] key_ms=${keyMs} fetch_ms=${fetchMs} decrypt_ms=${decryptMs} auth_ms=${totalMs - keyMs - fetchMs - decryptMs} total_ms=${totalMs}`);
+      console.error(`[memory preparation] key_ms=${keyMs} fetch_ms=${fetchMs} decrypt_ms=${decryptMs} documents_ms=${totalMs - keyMs - fetchMs - decryptMs} total_ms=${totalMs}`);
     }
     return results;
   }

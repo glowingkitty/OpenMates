@@ -776,8 +776,9 @@ describe("OpenMatesClient session API URL", () => {
   });
 
   // contract-test: supporting surface=cli assertions=auth.session.lifecycle,auth.session.isolation,chats.completion.lease-fenced
-  it("shares a pending home identity validation with a Personal memory read, then validates again", async () => {
+  it("keeps a Personal batch distinct from a pending home identity validation", async () => {
     let authCalls = 0;
+    const batchFlags: boolean[] = [];
     let resolveFirstRequest!: () => void;
     const firstRequest = new Promise<void>(resolve => { resolveFirstRequest = resolve; });
     let releaseFirstResponse!: () => void;
@@ -786,10 +787,16 @@ describe("OpenMatesClient session API URL", () => {
       response.setHeader("content-type", "application/json");
       if (request.url === "/v1/auth/session") {
         authCalls++;
+        let body = "";
+        request.on("data", chunk => { body += chunk.toString(); });
+        request.on("end", () => {
+          batchFlags.push(JSON.parse(body).include_personal_memories === true);
         if (authCalls === 1) {
           resolveFirstRequest();
           void firstResponse.then(() => response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: "owner-id" } })));
-        } else response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: "owner-id" } }));
+        } else response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: "owner-id" },
+          personal_memories: { encrypted_settings: null, memories: [] } }));
+        });
       } else if (request.url === "/v1/sdk/memories") response.end(JSON.stringify({ memories: [] }));
       else { response.writeHead(404); response.end(JSON.stringify({})); }
     });
@@ -802,23 +809,14 @@ describe("OpenMatesClient session API URL", () => {
       const client = OpenMatesClient.load({ apiUrl });
       const homeIdentity = client.whoAmI();
       await firstRequest;
-      let resolveDocumentRead!: () => void;
-      const documentRead = new Promise<void>(resolve => { resolveDocumentRead = resolve; });
-      const internal = client as unknown as { getCustomRuleDocuments: () => Promise<unknown[]> };
-      const getDocuments = internal.getCustomRuleDocuments.bind(client);
-      internal.getCustomRuleDocuments = () => {
-        const pending = getDocuments();
-        resolveDocumentRead();
-        return pending;
-      };
       const memories = client.listMemories({ personal: true });
-      await documentRead;
       releaseFirstResponse();
       assert.equal((await homeIdentity).id, "owner-id");
       assert.deepEqual(await memories, []);
-      assert.equal(authCalls, 1);
+      assert.deepEqual(batchFlags, [false, true]);
+      assert.equal(authCalls, 2);
       await client.whoAmI();
-      assert.equal(authCalls, 2, "a completed validation must not be reused");
+      assert.equal(authCalls, 3, "a completed validation must not be reused");
     } finally {
       releaseFirstResponse();
       server.closeAllConnections();
@@ -1795,6 +1793,91 @@ describe("memory type registry", () => {
   });
 
   // contract-test: direct surface=cli assertions=app-memories.surface.semantic-parity
+  it("loads Personal rows and account documents from one fresh auth batch", async () => {
+    const key = new Uint8Array(32);
+    const encryptedItem = await encryptWithAesGcmCombined(JSON.stringify({ title: "Private preference" }), key);
+    const document = "title: 'Private document'\nKeep Personal context private.";
+    const encryptedSettings = await encryptWithAesGcmCombined(JSON.stringify({
+      memory_documents: [{ id: "personal:note", source: "personal", document }],
+    }), key);
+    const requestPaths: string[] = [];
+    const requestBodies: Array<Record<string, unknown>> = [];
+    const server = createServer((request, response) => {
+      requestPaths.push(`${request.method ?? "GET"} ${request.url ?? ""}`);
+      if (request.method !== "POST" || request.url !== "/v1/auth/session") {
+        response.writeHead(404); response.end(JSON.stringify({})); return;
+      }
+      let body = "";
+      request.on("data", chunk => { body += chunk.toString(); });
+      request.on("end", () => {
+        requestBodies.push(JSON.parse(body) as Record<string, unknown>);
+        response.writeHead(200, { "content-type": "application/json",
+          "set-cookie": "auth_refresh_token=batched-cookie; Path=/; HttpOnly" });
+        response.end(JSON.stringify({ success: true, ws_token: "batched-ws-token", user: { id: "owner-id" },
+          personal_memories: { encrypted_settings: encryptedSettings, memories: [
+            { id: "row-id", app_id: "code", item_type: "preferred_tech", item_key: "key-hash",
+              encrypted_item_json: encryptedItem, item_version: 3, created_at: 1710000000, updated_at: 1710000100 },
+            { id: "null-row", encrypted_item_json: null },
+            { id: "corrupt-row", encrypted_item_json: "bad-ciphertext" },
+          ] } }));
+      });
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      const memories = await client.listMemories({ personal: true });
+      assert.deepEqual(requestPaths, ["POST /v1/auth/session"]);
+      assert.deepEqual(requestBodies, [{ session_id: "test-session-id", include_personal_memories: true }]);
+      assert.deepEqual(memories.map(row => [row.id, row.data.title]), [
+        ["row-id", "Private preference"], ["account-memory-note", "Private document"],
+      ]);
+      assert.equal(memories[1]?.data.document, document);
+      const internal = client as unknown as { personalMemoryAuthHandoff: {
+        snapshot: WeakRef<unknown[]>; auth: { cookieFingerprint: string; wsToken: string };
+      } | null };
+      assert.equal(internal.personalMemoryAuthHandoff?.snapshot.deref(), memories);
+      assert.equal(internal.personalMemoryAuthHandoff?.auth.wsToken, "batched-ws-token");
+      assert.equal(client.getSession()?.cookies.auth_refresh_token, "batched-cookie");
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=app-memories.surface.semantic-parity,auth.session.isolation
+  it("keeps decrypted row Memories when batched account documents cannot decrypt", async () => {
+    const encryptedItem = await encryptWithAesGcmCombined(JSON.stringify({ title: "Retained row" }), new Uint8Array(32));
+    const server = createServer((_request, response) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ success: true, ws_token: "fresh-token", user: { id: "owner-id" },
+        personal_memories: { encrypted_settings: "corrupt-settings", memories: [
+          { id: "retained-row", app_id: "code", item_type: "preferred_tech", item_key: "key-hash",
+            encrypted_item_json: encryptedItem, item_version: 1, created_at: 1, updated_at: 1 },
+        ] } }));
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      const memories = await client.listMemories({ personal: true });
+      assert.deepEqual(memories.map(row => row.id), ["retained-row"]);
+      const internal = client as unknown as { personalMemoryAuthHandoff: unknown };
+      assert.equal(internal.personalMemoryAuthHandoff, null,
+        "an incomplete account document snapshot must not become a send auth receipt");
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: direct surface=cli assertions=app-memories.surface.semantic-parity
   it("loads personal memories from the owner-scoped memory endpoint without account export", async () => {
     const encryptedItem = await encryptWithAesGcmCombined(
       JSON.stringify({
@@ -1823,6 +1906,11 @@ describe("memory type registry", () => {
         }));
         return;
       }
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "legacy-token", user: { id: "owner-id" } }));
+        return;
+      }
       response.writeHead(404);
       response.end();
     });
@@ -1838,11 +1926,166 @@ describe("memory type registry", () => {
 
       assert.equal(memories.length, 1);
       assert.equal(memories[0]?.data.title, "Private preference");
-      assert.deepEqual(requestPaths, ["GET /v1/sdk/memories", "POST /v1/auth/session"]);
+      assert.deepEqual(requestPaths, ["POST /v1/auth/session", "GET /v1/sdk/memories", "POST /v1/auth/session"]);
       assert.equal(requestPaths.some((path) => path.includes("export-account-data")), false);
     } finally {
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,app-memories.surface.semantic-parity
+  for (const status of [401, 403, 429, 503] as const) it(`does not fall back from failed Personal batch auth: ${status}`, async () => {
+    const requestPaths: string[] = [];
+    const server = createServer((request, response) => {
+      requestPaths.push(`${request.method ?? "GET"} ${request.url ?? ""}`);
+      response.writeHead(status, { "content-type": "application/json" });
+      response.end(JSON.stringify({ success: false }));
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      await assert.rejects(OpenMatesClient.load({ apiUrl }).listMemories({ personal: true }),
+        new RegExp(`Personal memory session validation failed with HTTP ${status}`));
+      assert.deepEqual(requestPaths, ["POST /v1/auth/session"]);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,app-memories.surface.semantic-parity
+  for (const batch of [null, { encrypted_settings: null, memories: {} },
+    { encrypted_settings: 5, memories: [] }, { memories: [] }] as const) {
+    it(`rejects a present malformed Personal batch without fallback: ${JSON.stringify(batch)}`, async () => {
+      const requestPaths: string[] = [];
+      const server = createServer((request, response) => {
+        requestPaths.push(`${request.method ?? "GET"} ${request.url ?? ""}`);
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-token", user: { id: "owner-id" },
+          personal_memories: batch }));
+      });
+      await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+      const address = server.address();
+      assert.ok(address && typeof address === "object");
+      try {
+        const apiUrl = `http://127.0.0.1:${address.port}`;
+        writeLegacySession(apiUrl);
+        await assert.rejects(OpenMatesClient.load({ apiUrl }).listMemories({ personal: true }),
+          /Invalid Personal memory batch response/);
+        assert.deepEqual(requestPaths, ["POST /v1/auth/session"]);
+      } finally {
+        server.closeAllConnections();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
+  }
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,teams.workspace.surface-parity
+  it("rejects a Personal batch if workspace ownership changes during auth", async () => {
+    let releaseResponse!: () => void;
+    const responseGate = new Promise<void>(resolve => { releaseResponse = resolve; });
+    let authRequested!: () => void;
+    const authGate = new Promise<void>(resolve => { authRequested = resolve; });
+    const server = createServer((request, response) => {
+      if (request.url !== "/v1/auth/session") { response.writeHead(404); response.end(); return; }
+      authRequested();
+      void responseGate.then(() => {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-token", user: { id: "owner-id" },
+          personal_memories: { encrypted_settings: null, memories: [] } }));
+      });
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      const read = client.listMemories({ personal: true });
+      await authGate;
+      client.setActiveTeamId("other-team");
+      releaseResponse();
+      await assert.rejects(read, /Personal memory owner changed during preparation/);
+      assert.equal(client.getSession()?.activeTeamId, "other-team");
+    } finally {
+      releaseResponse();
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,auth.session.lifecycle
+  it("rejects a wrong trusted owner before persisting rotated batch credentials", async () => {
+    const trustedPath = join(stateDir, "trusted_account.json");
+    const requestBodies: Array<Record<string, unknown>> = [];
+    const server = createServer((request, response) => {
+      assert.equal(request.url, "/v1/auth/session");
+      let body = "";
+      request.on("data", chunk => { body += chunk.toString(); });
+      request.on("end", () => {
+        requestBodies.push(JSON.parse(body) as Record<string, unknown>);
+        response.writeHead(200, { "content-type": "application/json",
+          "set-cookie": "auth_refresh_token=wrong-owner-cookie; Path=/; HttpOnly" });
+        response.end(JSON.stringify({ success: true, ws_token: "wrong-owner-ws-token",
+          user: { id: "wrong-owner" },
+          personal_memories: { encrypted_settings: null, memories: [] } }));
+      });
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      writeFileSync(trustedPath, JSON.stringify({ accountId: "trusted-owner" }), { mode: 0o600 });
+      const before = readFileSync(sessionPath, "utf8");
+      const client = OpenMatesClient.load({ apiUrl });
+      await assert.rejects(client.listMemories({ personal: true }),
+        /Personal memory owner changed during preparation/);
+      assert.deepEqual(requestBodies, [{ session_id: "test-session-id", include_personal_memories: true }]);
+      assert.equal(readFileSync(sessionPath, "utf8"), before);
+      assert.equal(client.getSession()?.wsToken, "test-ws-token");
+      assert.equal(client.getSession()?.cookies.auth_refresh_token, "test-refresh-token");
+      const internal = client as unknown as {
+        http: { getCookieMap(): Record<string, string> };
+        personalMemoryAuthHandoff: unknown;
+      };
+      assert.equal(internal.http.getCookieMap().auth_refresh_token, "test-refresh-token");
+      assert.equal(internal.personalMemoryAuthHandoff, null);
+    } finally {
+      rmSync(trustedPath, { force: true });
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=teams.workspace.surface-parity
+  it("keeps Team memory reads on the Team endpoint without flagged auth", async () => {
+    const requestPaths: string[] = [];
+    const server = createServer((request, response) => {
+      requestPaths.push(`${request.method ?? "GET"} ${request.url ?? ""}`);
+      response.writeHead(request.url === "/v1/teams/team-1/memories" ? 200 : 404,
+        { "content-type": "application/json" });
+      response.end(JSON.stringify({ memories: [] }));
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      client.setActiveTeamId("team-1");
+      assert.deepEqual(await client.listMemories(), []);
+      assert.deepEqual(requestPaths, ["GET /v1/teams/team-1/memories"]);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
     }
   });
 
@@ -1851,22 +2094,27 @@ describe("memory type registry", () => {
     writeLegacySession();
     const client = OpenMatesClient.load();
     const internal = client as unknown as {
+      fetchPersonalMemoryBatch: () => Promise<null>;
       sdkGetPersonalMemories: () => Promise<Array<Record<string, unknown>>>;
       getCustomRuleDocuments: () => Promise<[]>;
     };
     const finish: Array<(rows: Array<Record<string, unknown>>) => void> = [];
+    internal.fetchPersonalMemoryBatch = async () => null;
     internal.sdkGetPersonalMemories = () => new Promise(resolve => { finish.push(resolve); });
     internal.getCustomRuleDocuments = async () => [];
     const first = client.listMemories({ personal: true });
     const shared = client.listMemories({ personal: true });
+    await Promise.resolve();
     assert.equal(finish.length, 1);
     finish[0]!([]);
     const [firstRows, sharedRows] = await Promise.all([first, shared]);
     assert.equal(sharedRows, firstRows, "privacy snapshot and auth handoff must retain array identity");
     const fresh = client.listMemories({ personal: true });
+    await Promise.resolve();
     assert.equal(finish.length, 2, "a settled read is never cached");
     client.getSession()!.hashedEmail = "another-owner";
     const changedOwner = client.listMemories({ personal: true });
+    await Promise.resolve();
     assert.equal(finish.length, 3, "an in-flight read cannot cross owner identity");
     finish[1]!([]);
     finish[2]!([]);
@@ -3038,8 +3286,15 @@ describe("CLI saved-chat recovery preflight", () => {
         response.setHeader("content-type", "application/json");
         if (request.method === "POST" && request.url === "/v1/auth/session") {
           authCalls++;
-          response.end(JSON.stringify({ success: true, ws_token: `fresh-token-${authCalls}`,
-            user: variant === "missing owner" && authCalls === 1 ? {} : { id: "11111111-1111-4111-8111-111111111111" } }));
+          let body = "";
+          request.on("data", chunk => { body += chunk.toString(); });
+          request.on("end", () => {
+            const batched = JSON.parse(body).include_personal_memories === true;
+            response.end(JSON.stringify({ success: true, ws_token: `fresh-token-${authCalls}`,
+              user: variant === "missing owner" && authCalls === 1 ? {} : { id: "11111111-1111-4111-8111-111111111111" },
+              ...(batched ? { personal_memories: { encrypted_settings: null, memories: [] } } : {}),
+            }));
+          });
         } else if (request.method === "GET" && request.url === "/v1/sdk/memories") {
           response.end(JSON.stringify({ memories: [] }));
         } else if (request.method === "GET" && request.url === "/v1/projects") {
@@ -3077,7 +3332,9 @@ describe("CLI saved-chat recovery preflight", () => {
         writeLegacySession(apiUrl);
         const client = OpenMatesClient.load({ apiUrl });
         const snapshot = variant === "memory-loaded" ? undefined : variant === "arbitrary snapshot"
-          ? (await client.whoAmI(), []) : await client.listMemories({ personal: true });
+          ? (await client.whoAmI(), []) : variant === "missing owner"
+            ? await client.listMemories({ personal: true }).catch(() => [])
+            : await client.listMemories({ personal: true });
         const internal = client as unknown as {
           personalMemoryAuthHandoff: { auth: { validatedAt: number } } | null;
         };

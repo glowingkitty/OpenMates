@@ -3,7 +3,7 @@ export {};
 
 /** Published refresh grace against the disposable isolated CI backend. */
 const { test, expect } = require('./helpers/cookie-audit');
-const { createHash } = require('node:crypto');
+const { createHash, randomUUID } = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
@@ -78,6 +78,121 @@ async function refreshCookie(context: any): Promise<string> {
 	if (!cookie?.value) throw new Error('Authenticated refresh cookie is missing.');
 	return cookie.value;
 }
+
+function updateIsolatedPersonalMemoryRows(userId: string, ownerRowId: string, foreignRowId: string,
+	marker: string, mode: 'seed' | 'delete'): void {
+	const sourceRoot = process.env.OPENMATES_CI_SOURCE_ROOT;
+	if (process.env.OPENMATES_CI_ISOLATED !== '1' || !sourceRoot) {
+		throw new Error('Personal memory fixture requires the disposable isolated CI backend.');
+	}
+	const composeFile = path.join(sourceRoot, 'test-results/ci-private/compose.json');
+	if (!fs.existsSync(composeFile)) throw new Error('Isolated compose fixture is missing.');
+	const fixture = [
+		'import asyncio, hashlib, json, sys, time, uuid',
+		'from backend.core.api.app.services.directus import DirectusService',
+		'data = json.load(sys.stdin)',
+		'assert data["mode"] in ("seed", "delete")',
+		'assert all(isinstance(data[key], str) and data[key] for key in ("user_id", "owner_id", "foreign_id", "marker"))',
+		'assert uuid.UUID(data["owner_id"]) and uuid.UUID(data["foreign_id"])',
+		'async def main():',
+		'    directus = DirectusService()',
+		'    try:',
+		'        ids = (data["owner_id"], data["foreign_id"])',
+		'        if data["mode"] == "delete":',
+		'            for row_id in ids:',
+		'                found = await directus.get_items("user_app_settings_and_memories", params={"filter": {"id": {"_eq": row_id}}, "limit": 1}, no_cache=True)',
+		'                if found: assert await directus.delete_item("user_app_settings_and_memories", row_id)',
+		'            return',
+		'        owner_hash = hashlib.sha256(data["user_id"].encode()).hexdigest()',
+		'        foreign_hash = hashlib.sha256(uuid.uuid4().bytes).hexdigest()',
+		'        now = int(time.time())',
+		'        for row_id, scope_hash in ((data["owner_id"], owner_hash), (data["foreign_id"], foreign_hash)):',
+		'            created, _ = await directus.create_item("user_app_settings_and_memories", {',
+		'                "id": row_id, "hashed_user_id": scope_hash, "hashed_team_id": None,',
+		'                "app_id": "code", "item_type": "test", "item_key": row_id.replace("-", ""),',
+		'                "encrypted_item_json": data["marker"], "encrypted_app_key": "",',
+		'                "item_version": 1, "created_at": now, "updated_at": now, "sequence_number": 1,',
+		'            })',
+		'            assert created',
+		'    finally:',
+		'        await directus.close()',
+		'asyncio.run(main())'
+	].join('\n');
+	execFileSync('docker', ['compose', '-f', composeFile, 'exec', '-T', 'api', 'python', '-c', fixture], {
+		input: JSON.stringify({ user_id: userId, owner_id: ownerRowId, foreign_id: foreignRowId, marker, mode }),
+		stdio: ['pipe', 'pipe', 'pipe'], timeout: 30000
+	});
+}
+
+// contract-test: direct surface=rest_api assertions=auth.session.lifecycle,auth.session.isolation,auth.secrets.lifecycle
+test('opt-in cookie session returns fresh scoped Personal ciphertext without widening default or anonymous responses', async ({ page, playwright }: any) => {
+	test.setTimeout(120000);
+	test.skip(process.env.OPENMATES_CI_ISOLATED !== '1', 'Requires the disposable isolated CI backend.');
+	const credentials = getTestAccount();
+	skipWithoutCredentials(test, credentials.email, credentials.password, credentials.otpKey);
+	await loginToTestAccount(page, undefined, undefined, { waitForEditor: true, credentials });
+	const apiUrl = process.env.OPENMATES_E2E_API_URL;
+	if (!apiUrl || new URL(apiUrl).hostname !== 'localhost') {
+		throw new Error('Personal memory fixture requires the runner-local API.');
+	}
+	const sessionId = await page.evaluate(() => sessionStorage.getItem('session_id'));
+	if (!sessionId) throw new Error('Browser session ID is missing.');
+	const userAgent = await page.evaluate(() => navigator.userAgent);
+	const origin = new URL(page.url()).origin;
+	const cookie = await refreshCookie(page.context());
+	const authenticated = await playwright.request.newContext({
+		baseURL: apiUrl, userAgent, extraHTTPHeaders: { Origin: origin, Cookie: `auth_refresh_token=${cookie}` }
+	});
+	const anonymous = await playwright.request.newContext({
+		baseURL: apiUrl, userAgent, extraHTTPHeaders: { Origin: origin }
+	});
+	const ownerRowId = randomUUID();
+	const foreignRowId = randomUUID();
+	const marker = Buffer.from(`isolated-personal-memory:${ownerRowId}`).toString('base64');
+	let ownerId: string | null = null;
+	try {
+		const ordinary = await authenticated.post('/v1/auth/session', { data: { session_id: sessionId } });
+		expect(ordinary.status()).toBe(200);
+		const ordinaryBody = await ordinary.json();
+		expect(ordinaryBody.success).toBe(true);
+		expect(Object.hasOwn(ordinaryBody, 'personal_memories')).toBe(false);
+		ownerId = ordinaryBody.user?.id;
+		expect(ownerId).toEqual(expect.any(String));
+		updateIsolatedPersonalMemoryRows(ownerId!, ownerRowId, foreignRowId, marker, 'seed');
+
+		const opted = await authenticated.post('/v1/auth/session', {
+			data: { session_id: sessionId, include_personal_memories: true }
+		});
+		expect(opted.status()).toBe(200);
+		const optedBody = await opted.json();
+		expect(optedBody.success).toBe(true);
+		expect(optedBody.user?.id).toBe(ownerId);
+		expect(optedBody.ws_token).toEqual(expect.any(String));
+		const batch = optedBody.personal_memories;
+		expect(Object.keys(batch).sort()).toEqual(['encrypted_settings', 'memories']);
+		expect(batch.encrypted_settings === null || typeof batch.encrypted_settings === 'string').toBe(true);
+		expect(Array.isArray(batch.memories)).toBe(true);
+		const ownerRow = batch.memories.find((row: any) => row.id === ownerRowId);
+		expect(ownerRow).toBeTruthy();
+		expect(Object.keys(ownerRow).sort()).toEqual([
+			'app_id', 'created_at', 'encrypted_item_json', 'id', 'item_key', 'item_type', 'item_version', 'updated_at'
+		]);
+		expect(ownerRow).toMatchObject({ app_id: 'code', item_type: 'test',
+			item_key: ownerRowId.replaceAll('-', ''), encrypted_item_json: marker, item_version: 1 });
+		expect(batch.memories.some((row: any) => row.id === foreignRowId)).toBe(false);
+
+		const unauthenticated = await anonymous.post('/v1/auth/session', {
+			data: { session_id: sessionId, include_personal_memories: true }
+		});
+		expect(unauthenticated.status()).toBe(200);
+		const anonymousBody = await unauthenticated.json();
+		expect(anonymousBody.success).toBe(false);
+		expect(Object.hasOwn(anonymousBody, 'personal_memories')).toBe(false);
+	} finally {
+		if (ownerId) updateIsolatedPersonalMemoryRows(ownerId, ownerRowId, foreignRowId, marker, 'delete');
+		await Promise.all([authenticated.dispose(), anonymous.dispose()]);
+	}
+});
 
 // contract-test: direct surface=rest_api assertions=auth.session.risk-reauth,auth.session.authoritative-enforcement,auth.session.isolation
 test('durable pending risk on a known device with unchanged country requires proof before issuing a WS token', async ({ page, playwright, browser }: any) => {

@@ -148,6 +148,46 @@ describe("webSocketService recovery protocol errors", () => {
 });
 
 describe("webSocketService message dispatch", () => {
+  // contract-test: supporting surface=gui.web assertions=chats.send.immediate-admission,chats.message.identity-idempotent
+  it.each(["chat_turn_preflight", "chat_turn_admit", "chat_turn_context_ready", "chat_turn_context_failed"])(
+    "keeps the sealed %s payload unchanged while tracing its send", async (type) => {
+      const service = webSocketService as unknown as {
+        ws: { readyState: number; send: ReturnType<typeof vi.fn> } | null;
+      };
+      const socket = { readyState: WebSocket.OPEN, send: vi.fn() };
+      service.ws = socket;
+      const span = vi.spyOn(wsTracing, "withActiveWsSpan").mockImplementation(async (_name, callback) => callback());
+      const inject = vi.spyOn(wsTracing, "injectTraceparent").mockImplementation((payload) => {
+        payload._traceparent = "unbound-test-trace";
+      });
+      const payload = { chat_id: "chat", turn_id: "turn", message_id: "message", request_id: "request" };
+      const original = structuredClone(payload);
+      await webSocketService.sendMessage(type, payload);
+      expect(span).toHaveBeenCalledOnce();
+      expect(inject).not.toHaveBeenCalled();
+      expect(payload).toEqual(original);
+      expect(JSON.parse(socket.send.mock.calls[0][0])).toEqual({ type, payload: original });
+      service.ws = null;
+    },
+  );
+
+  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
+  it("preserves distributed trace decoration for ordinary messages", async () => {
+    const service = webSocketService as unknown as {
+      ws: { readyState: number; send: ReturnType<typeof vi.fn> } | null;
+    };
+    const socket = { readyState: WebSocket.OPEN, send: vi.fn() };
+    service.ws = socket;
+    vi.spyOn(wsTracing, "withActiveWsSpan").mockImplementation(async (_name, callback) => callback());
+    const inject = vi.spyOn(wsTracing, "injectTraceparent").mockImplementation((payload) => {
+      payload._traceparent = "ordinary-test-trace";
+    });
+    await webSocketService.sendMessage("ordinary_test_message", {});
+    expect(inject).toHaveBeenCalledOnce();
+    expect(JSON.parse(socket.send.mock.calls[0][0]).payload._traceparent).toBe("ordinary-test-trace");
+    service.ws = null;
+  });
+
   // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
   it("rejects instead of silently dropping a message when the socket changes during tracing", async () => {
     const service = webSocketService as unknown as {

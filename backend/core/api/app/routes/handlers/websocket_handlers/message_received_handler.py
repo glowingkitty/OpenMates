@@ -248,6 +248,47 @@ async def _active_project_context(
     return current_project, focus
 
 
+def _can_prefetch_first_personal_turn(
+    *, payload: dict[str, Any], message: dict[str, Any], metadata: dict[str, Any] | None,
+    chat_id: str, user_id: str, protocol_epoch: int, is_incognito: bool, is_team_chat: bool,
+) -> bool:
+    """Require fresh committed first-turn evidence before speculative preference reads."""
+    excluded_fields = (
+        "current_project", "active_project_focus", "active_focus_id",
+        "project_focus_candidates", "project_focus_catalog", "project_focus_documents",
+        "queue_mode", "queue_revision", "queued_message_id", "accepted_plan_context",
+    )
+    return (
+        protocol_epoch >= 1
+        and isinstance(payload.get("preflight_id"), str)
+        and bool(payload["preflight_id"])
+        and not is_incognito and not is_team_chat and not payload.get("is_fork")
+        and message.get("role") == "user"
+        and payload.get("encrypted_embeds", []) == []
+        and not payload.get("message_history") and not message.get("message_history")
+        and not any(payload.get(field) or message.get(field) for field in excluded_fields)
+        and isinstance(metadata, dict)
+        and metadata.get("id") == chat_id
+        and metadata.get("hashed_user_id") == hash_id(user_id)
+        and "chat_visibility" in metadata
+        and metadata.get("chat_visibility") in (None, "private")
+        and not metadata.get("hashed_team_id") and not metadata.get("is_shared")
+        and not metadata.get("parent_id") and not metadata.get("is_sub_chat")
+        and type(metadata.get("messages_v")) is int
+        and metadata["messages_v"] == 1
+    )
+
+
+async def _read_ai_preference_fields(cache_service: Any, directus_service: Any, user_id: str):
+    """Read only; apply any cache repair at the original request-building point."""
+    cached = await cache_service.get_user_by_id(user_id)
+    cached_data = cached if isinstance(cached, dict) else None
+    if cached_data is not None and all(field in cached_data for field in AI_USER_PREFERENCE_FIELDS):
+        return cached, cached_data, None
+    directus_data = await directus_service.get_user_fields_direct(user_id, AI_USER_PREFERENCE_FIELDS)
+    return cached, cached_data, directus_data
+
+
 def _sanitize_connected_account_directory(value: Any) -> list[dict[str, Any]] | None:
     if value is None:
         return None
@@ -468,6 +509,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
     user_otel_attrs: dict = None,
     is_allowlisted_test_account: bool = False,
     client_context_binding_ref: str | None = None,
+    client_context_turn_id: str | None = None,
 ):
     """
     Handles a new message sent from the client (now via "chat_message_added" type).
@@ -488,6 +530,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
     # --- OpenTelemetry span creation via ws_span_helper (migrated from inline) ---
     # ws_span_helper extracts W3C traceparent from payload automatically.
     _otel_span, _otel_token = None, None
+    preference_read_task: asyncio.Task | None = None
     try:
         from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("message_received", user_id, payload, user_otel_attrs)
@@ -725,6 +768,16 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 return
         else:
             logger.info(f"Processing incognito chat message {message_payload_from_client.get('message_id')} for chat {chat_id} - skipping Directus operations")
+
+        if _can_prefetch_first_personal_turn(
+            payload=payload, message=message_payload_from_client,
+            metadata=chat_metadata_from_db, chat_id=chat_id, user_id=user_id,
+            protocol_epoch=protocol_epoch, is_incognito=is_incognito,
+            is_team_chat=is_team_chat,
+        ):
+            preference_read_task = asyncio.create_task(
+                _read_ai_preference_fields(cache_service, directus_service, user_id)
+            )
 
         if is_team_chat and not team_should_trigger_ai:
             try:
@@ -2264,17 +2317,14 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         
         # Get user's timezone and system language for AI context
         # Fetch user data once from cache to avoid multiple cache lookups
-        user_data_for_prefs = await cache_service.get_user_by_id(user_id)
-        cached_user_data_for_prefs = user_data_for_prefs if isinstance(user_data_for_prefs, dict) else None
-        needs_directus_preferences = (
-            cached_user_data_for_prefs is None
-            or any(field not in cached_user_data_for_prefs for field in AI_USER_PREFERENCE_FIELDS)
-        )
-        if needs_directus_preferences:
-            directus_preference_data = await directus_service.get_user_fields_direct(
-                user_id,
-                AI_USER_PREFERENCE_FIELDS,
+        if preference_read_task is not None:
+            user_data_for_prefs, cached_user_data_for_prefs, directus_preference_data = await preference_read_task
+            preference_read_task = None
+        else:
+            user_data_for_prefs, cached_user_data_for_prefs, directus_preference_data = (
+                await _read_ai_preference_fields(cache_service, directus_service, user_id)
             )
+        if directus_preference_data is not None:
             if directus_preference_data:
                 user_data_for_prefs = {
                     **(cached_user_data_for_prefs or {}),
@@ -2429,6 +2479,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             client_context_pending=bool(client_context_binding_ref),
             client_context_request_id=payload.get("client_context_request_id") if client_context_binding_ref else None,
             client_context_binding_ref=client_context_binding_ref,
+            client_context_turn_id=client_context_turn_id if client_context_binding_ref else None,
             accepted_plan_context=bounded_accepted_plan_snapshot(payload.get("accepted_plan_context")) if not is_incognito else None,
             custom_rule_documents=(payload.get("custom_memory_documents", payload.get("custom_rule_documents")) or [])[:24] if isinstance(payload.get("custom_memory_documents", payload.get("custom_rule_documents")), list) and not is_incognito else [],
             project_focus_catalog=(payload.get("project_focus_catalog") or [])[:20] if isinstance(payload.get("project_focus_catalog"), list) and not is_incognito else [],
@@ -2928,6 +2979,10 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         failure_identity = f"{payload.get('chat_id')}:{payload.get('message_id')}" if isinstance(payload, dict) and payload.get("message_id") else ""
         await notify_chat_failure(failure_identity, stage="dispatch", category="unexpected_error")
     finally:
+        if preference_read_task is not None:
+            if not preference_read_task.done():
+                preference_read_task.cancel()
+            await asyncio.gather(preference_read_task, return_exceptions=True)
         # End the OTel span and detach context via ws_span_helper
         if _otel_span is not None:
             try:

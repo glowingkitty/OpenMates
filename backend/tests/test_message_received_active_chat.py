@@ -177,6 +177,7 @@ class FakeNoTaskSkillRegistry:
     async def dispatch_skill(self, app_name, skill_name, request_payload):
         assert app_name == "ai"
         assert skill_name == "ask"
+        self.manager.request_payload = request_payload
         self.manager.calls.append(("dispatch_skill", app_name, skill_name, request_payload["chat_id"]))
         return {"status": "accepted_without_task"}
 
@@ -205,7 +206,8 @@ def test_exact_project_name_remains_a_routing_hint_without_access(message, expec
     {"id": "chat-123", "hashed_user_id": hash_id("user-123"), "chat_visibility": None,
      "messages_v": 0, "title_v": 0},
 ])
-def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypatch, chat_metadata):
+@pytest.mark.parametrize("context_bound", [False, True])
+def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypatch, chat_metadata, context_bound):
     from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
 
     manager = FakeManager()
@@ -253,6 +255,13 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
             "project_focus_candidates": [{"project_id": "nested-decoy", "name": "Ignore nested routing data"}],
         },
     }
+    context_turn_id = "22222222-2222-4222-8222-222222222222" if context_bound else None
+    if context_bound:
+        payload.update(
+            turn_id=context_turn_id,
+            client_context_pending=True,
+            client_context_request_id="44444444-4444-4444-8444-444444444444",
+        )
 
     monkeypatch.setitem(
         sys.modules,
@@ -282,6 +291,8 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
             user_id="user-123",
             device_fingerprint_hash="device-123",
             payload=payload,
+            client_context_binding_ref="server-binding" if context_bound else None,
+            client_context_turn_id=context_turn_id,
         )
     )
 
@@ -291,6 +302,9 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
     assert manager.request_payload["chat_has_title"] is expected_title
     assert manager.request_payload["project_focus_candidates"] == payload["project_focus_candidates"]
     assert manager.request_payload["active_project_focus"] is None
+    assert manager.request_payload["client_context_pending"] is context_bound
+    assert manager.request_payload["client_context_turn_id"] == context_turn_id
+    assert manager.request_payload["recovery_turn_id"] is None
     assert websocket.sent[0] == {
         "type": "chat_message_confirmed",
         "payload": {
@@ -737,6 +751,22 @@ def test_recovery_send_marks_enqueue_failed_when_dispatch_returns_no_task(monkey
 
     manager = FakeManager()
     cutover = SimpleNamespace(get_epoch=AsyncMock(return_value=1))
+    preference_started = asyncio.Event()
+    release_preferences = asyncio.Event()
+
+    async def delayed_preferences(*_args):
+        preference_started.set()
+        await release_preferences.wait()
+        return {"language": "de"}
+
+    async def enqueue_after_preference_start(**_kwargs):
+        # The preference RPC is deliberately held open until enqueue starts.
+        await asyncio.wait_for(preference_started.wait(), timeout=1)
+        release_preferences.set()
+        return {
+            "inference_task_id": "task-123", "outbox_id": "outbox-123",
+            "committed_messages_v": 2,
+        }
     cached_current_message = json.dumps(
         {
             "id": "msg-current",
@@ -767,24 +797,21 @@ def test_recovery_send_marks_enqueue_failed_when_dispatch_returns_no_task(monkey
     )
     directus_service = SimpleNamespace(
         chat=SimpleNamespace(
-            get_chat_metadata=AsyncMock(return_value={"messages_v": 1, "title_v": 1}),
+            get_chat_metadata=AsyncMock(return_value={
+                "id": "chat-123", "hashed_user_id": hash_id("user-123"),
+                "chat_visibility": None, "messages_v": 1, "title_v": 1,
+            }),
             check_chat_ownership=AsyncMock(return_value=True),
             release_inference_outbox=AsyncMock(return_value={"status": "released"}),
         ),
         get_user_profile=AsyncMock(),
-        get_user_fields_direct=AsyncMock(return_value={}),
+        get_user_fields_direct=AsyncMock(side_effect=delayed_preferences),
     )
     encryption_service = SimpleNamespace(
         encrypt_with_user_key=AsyncMock(return_value=("encrypted-current", 1)),
         decrypt_with_user_key=AsyncMock(return_value="retry me"),
     )
-    enqueue = AsyncMock(
-        return_value={
-            "inference_task_id": "task-123",
-            "outbox_id": "outbox-123",
-            "committed_messages_v": 2,
-        }
-    )
+    enqueue = AsyncMock(side_effect=enqueue_after_preference_start)
     recovery_calls = []
 
     class FakeRecoveryService:
@@ -814,7 +841,7 @@ def test_recovery_send_marks_enqueue_failed_when_dispatch_returns_no_task(monkey
     )
 
     asyncio.run(
-        message_received_handler.handle_message_received(
+        asyncio.wait_for(message_received_handler.handle_message_received(
             websocket=SimpleNamespace(),
             manager=manager,
             cache_service=cache_service,
@@ -837,10 +864,12 @@ def test_recovery_send_marks_enqueue_failed_when_dispatch_returns_no_task(monkey
                     "chat_has_title": True,
                 },
             },
-        )
+        ), timeout=3)
     )
 
     assert ("dispatch_skill", "ai", "ask", "chat-123") in manager.calls
+    assert preference_started.is_set()
+    assert manager.request_payload["user_preferences"]["language"] == "de"
     assert recovery_calls == [
         (
             "mark_inference_failed",
@@ -854,6 +883,80 @@ def test_recovery_send_marks_enqueue_failed_when_dispatch_returns_no_task(monkey
     cache_service.set_active_ai_task.assert_not_awaited()
     error_payloads = [call for call in manager.calls if call[:2] == ("send_personal_message", "error")]
     assert error_payloads
+
+
+@pytest.mark.parametrize("guard_override", [
+    {"protocol_epoch": 0}, {"is_incognito": True}, {"is_team_chat": True},
+    {"metadata": None},
+    {"metadata": {"id": "chat-123", "hashed_user_id": hash_id("user-123"),
+                  "chat_visibility": None, "messages_v": 2}},
+    {"metadata": {"id": "chat-123", "hashed_user_id": hash_id("user-123"),
+                  "chat_visibility": None, "messages_v": 1, "hashed_team_id": hash_id("team-123")}},
+    {"metadata": {"id": "chat-123", "hashed_user_id": hash_id("user-123"),
+                  "chat_visibility": None, "messages_v": 1, "parent_id": "source-chat"}},
+    {"payload": {"preflight_id": "p", "message_history": [{"role": "user"}]}},
+    {"payload": {"preflight_id": "p", "encrypted_embeds": [{}]}},
+    {"payload": {"preflight_id": "p", "current_project": {"project_id": "p"}}},
+    {"payload": {"preflight_id": "p", "queue_mode": "steer"}},
+])
+def test_first_personal_turn_prefetch_requires_authoritative_ordinary_turn(guard_override):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
+
+    inputs = {
+        "payload": {"preflight_id": "p"},
+        "message": {"role": "user"},
+        "metadata": {"id": "chat-123", "hashed_user_id": hash_id("user-123"),
+                     "chat_visibility": None, "messages_v": 1},
+        "chat_id": "chat-123", "user_id": "user-123", "protocol_epoch": 1,
+        "is_incognito": False, "is_team_chat": False,
+    }
+    assert message_received_handler._can_prefetch_first_personal_turn(**inputs)
+    inputs.update(guard_override)
+    assert not message_received_handler._can_prefetch_first_personal_turn(**inputs)
+
+
+def test_first_turn_prefetch_is_cancelled_when_enqueue_rejects(monkeypatch):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
+
+    started = asyncio.Event()
+    cancelled = asyncio.Event()
+
+    async def held_preference_read(*_args):
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled.set()
+
+    async def rejected_enqueue(**_kwargs):
+        await asyncio.wait_for(started.wait(), timeout=1)
+        raise message_received_handler.ChatRecoveryProtocolError(409, "preflight_conflict")
+
+    manager = FakeManager()
+    directus = SimpleNamespace(chat=SimpleNamespace(
+        get_chat_metadata=AsyncMock(return_value={
+            "id": "chat-123", "hashed_user_id": hash_id("user-123"),
+            "chat_visibility": None, "messages_v": 1,
+        }),
+        check_chat_ownership=AsyncMock(return_value=True),
+    ))
+    monkeypatch.setattr(message_received_handler, "ChatRecoveryCutoverController",
+                        lambda *_args: SimpleNamespace(get_epoch=AsyncMock(return_value=1)))
+    monkeypatch.setattr(message_received_handler, "_read_ai_preference_fields", held_preference_read)
+    monkeypatch.setattr(message_received_handler, "enqueue_chat_turn", rejected_enqueue)
+
+    asyncio.run(asyncio.wait_for(message_received_handler.handle_message_received(
+        websocket=FakeWebSocket(), manager=manager, cache_service=SimpleNamespace(),
+        directus_service=directus, encryption_service=SimpleNamespace(),
+        user_id="user-123", device_fingerprint_hash="device-123",
+        payload={
+            "chat_id": "chat-123", "protocol_version": 1, "preflight_id": "p",
+            "message": {"message_id": "msg-123", "role": "user", "content": "hello",
+                        "created_at": 1_700_000_000},
+        },
+    ), timeout=3))
+    assert started.is_set() and cancelled.is_set()
+    assert manager.calls == [("send_personal_message", "error", "user-123", "device-123")]
 
 
 def test_incognito_send_skips_durable_cutover_lookup(monkeypatch):

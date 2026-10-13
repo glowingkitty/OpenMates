@@ -47,6 +47,7 @@ async def handle_chat_turn_admit(
             or request.get("is_incognito") is True
             or "admission_context" in request
             or "client_context_binding_ref" in request
+            or "client_context_turn_id" in request
         ):
             raise ValueError("Admission scope mismatch")
         if request.get("client_context_pending") is True:
@@ -104,6 +105,7 @@ async def handle_chat_turn_admit(
         payload=dispatch, user_otel_attrs=user_otel_attrs,
         is_allowlisted_test_account=is_allowlisted_test_account,
         client_context_binding_ref=binding_ref,
+        client_context_turn_id=payload["turn_id"] if binding_ref else None,
     )
     # Metadata refresh is best-effort and never precedes dispatch. Keep a bounded
     # strong task reference while its fresh-scoped cache renewal completes.

@@ -1,6 +1,6 @@
 # Chat processing architecture
 
-The architecture revision (`fa6b90c`), Google transport repair (`e71c72b8`), immediate admission changes (`2453d85d`), first measured SDK/auth/simple-turn fixes (`7a250696`), composer focus repair (`df30b916`), and idle authenticated TUI connection / bounded Project projection changes (`ab78d61b`) are deployed to development. Actual TUI measurements still miss the latency targets; no successful timing acceptance is claimed yet. Timing targets are 1.5 seconds from Enter/Send to selected-Mate paint, and 2–3 seconds to authored text for an ordinary factual request. The interactive TUI is measured first, then web. Tool progress, final response, persistence and command exit are separate measurements.
+The architecture revision (`fa6b90c`), Google transport repair (`e71c72b8`), immediate admission changes (`2453d85d`), first measured SDK/auth/simple-turn fixes (`7a250696`), composer focus repair (`df30b916`), idle authenticated TUI connection / bounded Project projection changes (`ab78d61b`), and profile/refresh/context-failure repairs (`94d03b1a`) are deployed to development. The current candidate adds fresh Personal Memory batching, first-turn preference overlap, strict-frame tracing preservation and legacy-context identity repair. Actual TUI measurements still miss the latency targets; no successful timing acceptance is claimed yet. Timing targets are 1.5 seconds from Enter/Send to selected-Mate paint, and 2–3 seconds to authored text for an ordinary factual request. The interactive TUI is measured first, then web. Tool progress, final response, persistence and command exit are separate measurements.
 
 ```mermaid
 flowchart TD
@@ -118,23 +118,47 @@ flowchart LR
 
 Project/Focus/Team-memory cache hits still require a small fresh Directus watermark read. These indexes reduce repeated full metadata reads; they are not permission caches. No warm-up sends draft text or invokes an AI model. The TUI also prepares a separate one-use authenticated send connection with a 45-second lifetime. Borrowing requires the same account, session, refresh-cookie authority, device key, Team/key scope and socket options, plus a fresh persisted-state recheck. A foreground send cancels an unfinished optional connection before required preparation; a ready matching connection can be borrowed once. Token expiry renewal under the same refresh-cookie authority does not discard an already-authenticated live connection.
 
-## Measured TUI timing before the next optimization
+## Measured TUI timing and remaining critical path
 
-These are actual PTY Enter-to-paint measurements of “What’s the capital of Spain?”, with the same successful Google Gemini 3.8 Flash model and LOW thinking verified against the exact task and chat in server logs. Every sample completed without app skill calls. The two warmed samples after `7a250696` used a 20-second idle before Enter; the first also followed worker restart. They are individual observations, not a representative percentile or an apples-to-apples improvement claim.
+Actual PTY Enter-to-paint samples below use the successful Google Gemini 3.8 Flash model with LOW thinking, verified against each exact task/chat in server logs. The Spain question used zero app skills. Warm runs idle for 20 seconds before Enter. These observations are not percentile estimates or matched revision-wide improvement claims; worker restart and cache temperature differ.
 
-| Runtime / condition | Optimistic user row and composer clear | Selected Mate | First authored text | Provider request → authored paint | Acceptance |
+| Runtime / condition | User row and composer clear | Selected Mate | First authored text | Final completion | Acceptance |
 | --- | ---: | ---: | ---: | ---: | --- |
-| `2453d85d`, cold composer | 28 ms | 11,088 ms | 15,829 ms | 2,776 ms | Missed |
-| `2453d85d`, warmed | 28 ms | 3,168 ms | 5,634 ms | 1,578 ms | Missed |
-| `7a250696`, warmed after restart | 28 ms | 5,353 ms | 8,939 ms | 2,076 ms | Missed |
-| `7a250696`, warmed, subsequent request | 29 ms | 2,992 ms | 5,740 ms | 1,976 ms | Missed |
+| `2453d85d`, cold | 28 ms | 11,088 ms | 15,829 ms | 22,498 ms | Missed |
+| `2453d85d`, warm | 28 ms | 3,168 ms | 5,634 ms | 10,751 ms | Missed |
+| `7a250696`, warm after restart | 28 ms | 5,353 ms | 8,939 ms | 14,161 ms | Missed |
+| `7a250696`, subsequent warm run | 29 ms | 2,992 ms | 5,740 ms | 10,948 ms | Missed |
+| `94d03b1a`, warm after restart | 28 ms | 4,267 ms | 7,570 ms | 12,675 ms | Missed |
+| `94d03b1a`, subsequent warm run | 30 ms | 2,694 ms | 5,066 ms | 13,186 ms | Missed |
 
-The last sample spends 2,992 ms before selected-Mate paint, then 772 ms before the main provider request and 1,976 ms from that request to authored paint. The main worker reused the original validated no-Project decision and skipped the second Jev phase. Fresh credit verification took about 53 ms in that worker and 67 ms in routing; the first post-restart sample took about 506 and 527 ms respectively. The delay preceding its first credit-check substep is not separately instrumented.
+The latest hot sample has this cumulative timeline; overlapping work must not be added twice:
 
-The deployed `ab78d61b` changes remove two discarded Project-focus reads, parallelize fresh Project key-wrapper projections with a bound of eight, and prepare a separately owned one-shot authenticated TUI send connection while idle. They retain current access/credit checks. Their timing benefit remains unverified: the first actual warmed run admitted the message but failed before any model request. Command completion and postprocessing are recorded separately from first answer paint.
+```mermaid
+flowchart LR
+  Enter[Enter 0 ms] --> Row[User row / clear 30 ms]
+  Row --> Memory[Fresh Memory preparation ends 778 ms]
+  Memory --> Frame[Admission frame leaves about 815 ms]
+  Frame --> Ack[Atomic preparation / admission ACK 1303 ms]
+  Ack --> Dispatch[Handler dispatch 1815 ms]
+  Dispatch --> Jev[Jev planned 2212 ms / decision 2571 ms]
+  Jev --> Mate[Selected Mate paint 2694 ms]
+  Mate --> Provider[Main Google HTTP begins 3483 ms]
+  Provider --> Text[First authored paint 5066 ms]
+  Text --> Final[Final completion paint 13186 ms]
+```
 
-In that failed run, the user row painted at 30 ms and the admission frame left the client at approximately 935 ms. Required Project discovery returned HTTP 503 at approximately 1,345 ms. Admission completed at 1,484 ms; the SDK closed the socket about 24 ms afterward when the pending Project promise rejected. Routing then waited 20 seconds for client context and main repeated that wait, terminating approximately 42.6 seconds after Enter. These are failure timings, not inference latency.
+Memory preparation costs 778 ms; API preflight/admission spans about 466 ms, handler setup before dispatch 486 ms, router startup 211 ms, routing credit check 62 ms, Project eligibility 61 ms, and the observed Jev plan-to-decision interval 359 ms. Those intervals do not cover every gap. Concurrent context preparation lasts 1,143 ms and overlaps admission; it is not an additional serial cost. Main task start to provider HTTP is 790 ms; HTTP to authored paint is 1,583 ms. The main prompt is still 7,163 tokens: the code/document/plot omission guard did not activate because the schema represents disabled Learning Mode as `{enabled: false}`. The candidate recognizes only that exact disabled state, keeps unknown/active policy on the full path, and has not yet measured its token or timing benefit.
 
-The source of the observed authentication churn was a shared profile cache validator treating an explicitly null email-encryption field on legacy/paired accounts as an incomplete profile. It evicted valid cached profiles; concurrent cache-miss requests refreshed credentials, and successful refresh results were visible before their successor security rows were durably published. The next candidate distinguishes a known null field from a missing field, waits for an existing refresh publication using the existing bounded coordination window, and preserves fresh source/successor and passkey checks. It also reports required-context failure through a sealed, exact-turn marker and a matching terminal event, preventing the two silent waits and clearing pending UI state without creating an empty assistant response. The profile and refresh repairs do not establish a positive authorization cache.
+Final completion is a distinct 8,120-ms tail after authored paint in this sample. Authored paint to final marker is 1,272 ms, marker to postprocessor result 3,146 ms, postprocessor result to the API encrypted-metadata request 2,937 ms, API request to persistence 730 ms and persistence to final paint 35 ms. The 2,937-ms interval is not yet attributed to a particular client or transport operation. It is not first-answer latency and no fixed SDK timeout is inferred from it.
 
-The Personal Memory row and account-settings reads remain sequential in this revision. Both can rotate a shared refresh-cookie jar, and account settings supply a one-use auth receipt for the exact Memory snapshot. Parallelizing them requires coordinated response ownership; a plain concurrent call is not safe. The measured warmed preparation cost is about 588 ms (241 ms rows, 14 ms decryption, 333 ms settings/auth).
+The preceding `ab78d61b` failed run admitted its user row but made no AI call. Required Project discovery returned HTTP 503 around 1,345 ms, admission ACK arrived at 1,484 ms and the SDK closed the socket about 24 ms later. Routing and main then each waited 20 seconds for context. `94d03b1a` fixes valid legacy-profile eviction and the credential-publication race, and adds a sealed exact-turn failure marker plus matching terminal task cleanup. Successful hot Core4 runs show no request-session refresh storm or Project 503. This does not establish a positive authorization cache. A legitimate incomplete-profile miss still refetches its source.
+
+## Current candidate context and transport repairs
+
+Personal Memory rows and encrypted account settings now share one opt-in, cookie-authenticated `/v1/auth/session` request. Fresh session ledger, risk, rotation and device checks finish before two independent owner-scoped Directus reads run concurrently. The response contains typed encrypted Personal rows and actual encrypted account settings, with no owner hashes or Team metadata. Decryption remains on the device. The SDK binds the existing five-second one-use auth handoff to that exact completed Memory array and current owner, device, cookie, master-key and Team scope. This consolidates reads; it does not cache positive authorization or plaintext Memory content. Team and API-key Memory routes retain their existing behavior. Only a successful response with the batch field absent permits the older-server serial fallback; authentication errors and malformed present batches do not. Nullable legacy row ciphertext remains supported.
+
+First durably proven ordinary Personal turns start a read-only preference lookup while durable enqueue, encryption, cache and history processing continue. Cache repair still occurs at its original dispatch point. Existing, Team, incognito, fork, explicit Project/Focus, attachment and queued-turn paths retain their established ordering. Active Focus remains freshly checked at dispatch because earlier reads could miss activation or a revision change. Early exit cancels and drains the speculative read.
+
+Context transport uses a dedicated server-supplied admitted-turn identity, independent of durable recovery identity, including epoch-zero legacy dispatch. Clients cannot supply this authority field. The four strict admission/preflight/context frames retain their sealed payloads byte-for-byte; tracing remains local for those frames and continues decorating ordinary messages. Bound failure acknowledgements remain exact-owner/device/Team/chat/turn/message/request scoped and release only the matching active task. These fixes close the previously failed web context-error path; isolated verification is required before claiming it passes.
+
+The 1.5-second Mate and 2–3-second authored-text targets remain open. Actual TUI verification precedes web timing. The candidate is not a successful latency result merely because focused correctness checks pass.

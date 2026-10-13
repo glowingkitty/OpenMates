@@ -51,6 +51,7 @@ async def test_committed_ack_dispatches_same_turn_without_second_client_frame(ad
     assert request["protocol_version"] == 1
     assert request["turn_id"] == original["turn_id"]
     assert request["message"] == original["inference_request"]["message"]
+    assert dispatch.await_args.kwargs["client_context_turn_id"] is None
     assert args["payload"] == original
 
 
@@ -65,7 +66,7 @@ async def test_rejected_persistence_never_dispatches(admission):
 
 # contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
 @pytest.mark.asyncio
-@pytest.mark.parametrize("change", ["chat", "turn", "message", "team", "incognito", "authority"])
+@pytest.mark.parametrize("change", ["chat", "turn", "message", "team", "incognito", "authority", "context_turn_id"])
 async def test_scope_mismatch_rejected_before_persistence(admission, change):
     args, preflight, dispatch = admission
     request = args["payload"]["inference_request"]
@@ -77,6 +78,8 @@ async def test_scope_mismatch_rejected_before_persistence(admission, change):
         request["team_id"] = "another-team"
     elif change == "incognito":
         request["is_incognito"] = True
+    elif change == "context_turn_id":
+        request["client_context_turn_id"] = args["payload"]["turn_id"]
     else:
         request["admission_context"] = {"scope_complete": True}
     await handler.handle_chat_turn_admit(**args)
@@ -100,7 +103,8 @@ async def test_invalid_message_identity_rejected_before_persistence(admission, m
 
 # contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
 @pytest.mark.asyncio
-async def test_cold_context_binding_registered_after_commit_before_dispatch(admission, monkeypatch):
+@pytest.mark.parametrize("state", ["PREPARED", "LEGACY"])
+async def test_cold_context_binding_registered_after_commit_before_dispatch(admission, monkeypatch, state):
     args, preflight, dispatch = admission
     from backend.core.api.app.services import client_context_continuation
     register = AsyncMock(return_value="server-binding")
@@ -110,12 +114,17 @@ async def test_cold_context_binding_registered_after_commit_before_dispatch(admi
     async def commit(**kwargs):
         register.assert_not_awaited()
         dispatch.assert_not_awaited()
-        return {"preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "state": "PREPARED"}
+        return {"preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "state": state}
     preflight.side_effect = commit
     await handler.handle_chat_turn_admit(**args)
     assert dispatch.await_args.kwargs["client_context_binding_ref"] == "server-binding"
+    assert dispatch.await_args.kwargs["client_context_turn_id"] == args["payload"]["turn_id"]
     assert "client_context_binding_ref" not in dispatch.await_args.kwargs["payload"]
+    assert "client_context_turn_id" not in dispatch.await_args.kwargs["payload"]
     assert register.await_args.kwargs["message_id"] == args["payload"]["message_id"]
+    if state == "LEGACY":
+        assert "protocol_version" not in dispatch.await_args.kwargs["payload"]
+        assert "preflight_id" not in dispatch.await_args.kwargs["payload"]
 
 
 # contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted

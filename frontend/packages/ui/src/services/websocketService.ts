@@ -1533,9 +1533,11 @@ class WebSocketService extends EventTarget {
           const tracing = await import("./tracing/wsSpans").catch(() => null);
           if (tracing) {
             await tracing.withActiveWsSpan(`send.${type}`, () => {
-              // A saved turn preflight is replayed byte-for-byte from its sealed
-              // local journal. A new span would change its committed payload.
-              if (type !== "chat_turn_preflight") {
+              // These turn frames are replayed from sealed journals and have a
+              // strict payload schema. Keep the local span without decorating
+              // their committed data with an unbound _traceparent field.
+              if (!["chat_turn_preflight", "chat_turn_admit", "chat_turn_context_ready",
+                "chat_turn_context_failed"].includes(type)) {
                 tracing.injectTraceparent(message.payload as Record<string, unknown>);
               }
               if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {

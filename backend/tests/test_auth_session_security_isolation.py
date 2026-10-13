@@ -223,10 +223,14 @@ def durable_session(monkeypatch):
     ws_tokens = Mock(return_value="synthetic-ws-token")
     monkeypatch.setattr(auth_session, "create_ws_token", ws_tokens)
 
-    async def call(token="pending-token"):
+    async def call(token="pending-token", *, include_personal_memories=None, headers=None):
         request = SimpleNamespace(
-            cookies={"auth_refresh_token": token}, headers=FakeRequest.headers,
-            client=None, json=AsyncMock(return_value={"session_id": "installed-device"}),
+            cookies={"auth_refresh_token": token}, headers=headers or FakeRequest.headers,
+            client=None, json=AsyncMock(return_value={
+                "session_id": "installed-device",
+                **({"include_personal_memories": include_personal_memories}
+                   if include_personal_memories is not None else {}),
+            }),
         )
         return await auth_session.get_session(request, Response(), directus, cache, token)
 
@@ -384,3 +388,276 @@ def test_invalid_basic_auth_does_not_start_parallel_reads(durable_session, monke
     grant.assert_not_awaited()
     state.directus.get_user_device_hashes.assert_not_awaited()
     state.ws_tokens.assert_not_called()
+
+
+def _personal_memory_row(user_id="user-1", team_id=None):
+    return {
+        "id": "memory-1", "app_id": "openmates", "item_type": "memories",
+        "item_key": "key-hash", "encrypted_item_json": "opaque-ciphertext",
+        "item_version": 1, "created_at": 10, "updated_at": 20,
+        "hashed_user_id": hashlib.sha256(user_id.encode()).hexdigest(),
+        "hashed_team_id": team_id,
+    }
+
+
+def _personal_settings_response(*, user_id="user-1", settings=None, include_settings=True):
+    data = {"id": user_id}
+    if include_settings:
+        data["encrypted_settings"] = settings
+    return SimpleNamespace(status_code=200, json=lambda: {"data": data})
+
+
+# contract-test: direct surface=rest_api assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
+def test_session_personal_batch_starts_fresh_reads_after_admission_and_preserves_receipt(durable_session, monkeypatch):
+    state = durable_session
+    events = []
+    original_ledger = auth_session.get_session_state_cached
+    original_items = state.directus.get_items.side_effect
+
+    async def ledger(*args, **kwargs):
+        events.append("ledger")
+        return await original_ledger(*args, **kwargs)
+
+    async def profile(*args, **kwargs):
+        events.append("profile")
+        return _personal_settings_response(settings="settings-ciphertext")
+
+    async def items(collection, params=None, **kwargs):
+        if collection == "user_app_settings_and_memories":
+            events.append("memories")
+            return [_personal_memory_row()]
+        return await original_items(collection, params=params, **kwargs)
+
+    monkeypatch.setattr(auth_session, "get_session_state_cached", ledger)
+    state.directus.base_url = "http://cms.test"
+    state.directus._make_api_request = AsyncMock(side_effect=profile)
+    state.directus.get_items.side_effect = items
+
+    result = asyncio.run(state.call("sibling-token", include_personal_memories=True))
+
+    assert result.success is True
+    assert result.ws_token == "synthetic-ws-token"
+    state.ws_tokens.assert_called_once_with("sibling-token")
+    assert events.index("ledger") < events.index("profile")
+    assert events.index("ledger") < events.index("memories")
+    profile_call = state.directus._make_api_request.await_args
+    assert profile_call.args[0] == "GET"
+    assert profile_call.args[1].startswith("http://cms.test/users/user-1?fields=id,encrypted_settings&_ts=")
+    assert profile_call.kwargs == {"headers": {"Cache-Control": "no-store"}}
+    memory_call = next(call for call in state.directus.get_items.await_args_list
+                       if call.args[0] == "user_app_settings_and_memories")
+    assert memory_call.kwargs["no_cache"] is True
+    assert memory_call.kwargs["raise_on_error"] is True
+    assert memory_call.kwargs["params"]["filter"] == {
+        "hashed_user_id": {"_eq": hashlib.sha256(b"user-1").hexdigest()},
+        "hashed_team_id": {"_null": True},
+    }
+    assert memory_call.kwargs["params"]["limit"] == -1
+    assert memory_call.kwargs["params"]["sort"] == "-updated_at"
+    payload = result.model_dump()
+    assert payload["personal_memories"] == {
+        "encrypted_settings": "settings-ciphertext",
+        "memories": [{key: value for key, value in _personal_memory_row().items()
+                      if key not in ("hashed_user_id", "hashed_team_id")}],
+    }
+
+
+# contract-test: direct surface=rest_api assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
+def test_session_personal_batch_runs_independent_fresh_reads_together(durable_session):
+    state = durable_session
+    original_items = state.directus.get_items.side_effect
+
+    async def scenario():
+        started = set()
+        both_started = asyncio.Event()
+
+        async def read(name, result):
+            started.add(name)
+            if len(started) == 2:
+                both_started.set()
+            await asyncio.wait_for(both_started.wait(), timeout=1)
+            return result
+
+        async def profile(*_args, **_kwargs):
+            return await read("profile", _personal_settings_response(settings="ciphertext"))
+
+        async def items(collection, params=None, **kwargs):
+            if collection == "user_app_settings_and_memories":
+                return await read("memories", [_personal_memory_row()])
+            return await original_items(collection, params=params, **kwargs)
+
+        state.directus.base_url = "http://cms.test"
+        state.directus._make_api_request = AsyncMock(side_effect=profile)
+        state.directus.get_items.side_effect = items
+        result = await asyncio.wait_for(state.call("sibling-token", include_personal_memories=True), timeout=2)
+        return started, result
+
+    started, result = asyncio.run(scenario())
+    assert started == {"profile", "memories"}
+    assert result.success is True
+
+
+# contract-test: direct surface=rest_api assertions=auth.session.lifecycle
+@pytest.mark.parametrize("legacy_row", [False, True])
+def test_session_personal_batch_accepts_null_settings_and_legacy_rows(durable_session, legacy_row):
+    state = durable_session
+    original_items = state.directus.get_items.side_effect
+    state.directus.base_url = "http://cms.test"
+    state.directus._make_api_request = AsyncMock(return_value=_personal_settings_response())
+
+    async def items(collection, params=None, **kwargs):
+        if collection == "user_app_settings_and_memories":
+            if not legacy_row:
+                return []
+            row = _personal_memory_row()
+            row.update(encrypted_item_json=None, created_at=None, updated_at=None)
+            return [row]
+        return await original_items(collection, params=params, **kwargs)
+
+    state.directus.get_items.side_effect = items
+    result = asyncio.run(state.call("sibling-token", include_personal_memories=True))
+
+    assert result.success is True
+    assert result.personal_memories.encrypted_settings is None
+    assert len(result.personal_memories.memories) == (1 if legacy_row else 0)
+    if legacy_row:
+        assert result.personal_memories.memories[0].encrypted_item_json is None
+        assert result.personal_memories.memories[0].created_at is None
+
+
+# contract-test: direct surface=rest_api assertions=auth.session.lifecycle
+@pytest.mark.parametrize("flag", [None, False, "true", 1])
+def test_session_legacy_request_does_not_read_or_serialize_personal_batch(durable_session, flag):
+    state = durable_session
+    state.directus._make_api_request = AsyncMock()
+
+    result = asyncio.run(state.call("sibling-token", include_personal_memories=flag))
+
+    assert result.success is True
+    assert "personal_memories" not in result.model_dump()
+    state.directus._make_api_request.assert_not_awaited()
+    assert all(call.args[0] != "user_app_settings_and_memories"
+               for call in state.directus.get_items.await_args_list)
+
+
+# contract-test: direct surface=rest_api assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
+@pytest.mark.parametrize("failure", ["profile_exception", "memory_exception", "foreign_profile", "missing_settings", "team_row", "foreign_row"])
+def test_session_personal_batch_fails_closed_on_partial_or_foreign_reads(durable_session, failure):
+    state = durable_session
+    original_items = state.directus.get_items.side_effect
+    state.directus.base_url = "http://cms.test"
+    state.directus._make_api_request = AsyncMock(
+        side_effect=RuntimeError("private failure") if failure == "profile_exception" else None,
+        return_value=_personal_settings_response(
+            user_id="other-user" if failure == "foreign_profile" else "user-1",
+            include_settings=failure != "missing_settings",
+        ),
+    )
+
+    async def items(collection, params=None, **kwargs):
+        if collection == "user_app_settings_and_memories":
+            if failure == "memory_exception":
+                raise RuntimeError("private failure")
+            if failure == "team_row":
+                return [_personal_memory_row(team_id="team-hash")]
+            if failure == "foreign_row":
+                return [_personal_memory_row(user_id="other-user")]
+            return [_personal_memory_row()]
+        return await original_items(collection, params=params, **kwargs)
+
+    state.directus.get_items.side_effect = items
+    with pytest.raises(HTTPException) as error:
+        asyncio.run(state.call("sibling-token", include_personal_memories=True))
+
+    assert error.value.status_code == 503
+    assert error.value.detail == "Personal memory snapshot temporarily unavailable"
+    assert "private" not in error.value.detail
+    state.ws_tokens.assert_not_called()
+
+
+# contract-test: direct surface=rest_api assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
+@pytest.mark.parametrize("auth_case", ["invalid_cookie", "api_key_only", "risk_pending"])
+def test_session_personal_batch_never_reads_on_unsuccessful_auth(durable_session, monkeypatch, auth_case):
+    state = durable_session
+    state.directus._make_api_request = AsyncMock()
+    if auth_case != "risk_pending":
+        monkeypatch.setattr(auth_session, "verify_authenticated_user", AsyncMock(
+            return_value=(False, {}, None, "authentication_failed")))
+    else:
+        state.rows[token_hash("sibling-token")]["risk_pending"] = True
+
+    token = None if auth_case == "api_key_only" else "sibling-token"
+    headers = {**FakeRequest.headers, "Authorization": "Bearer sdk-only"} if auth_case == "api_key_only" else None
+    result = asyncio.run(state.call(token, include_personal_memories=True, headers=headers))
+
+    assert result.success is False
+    assert "personal_memories" not in result.model_dump()
+    state.directus._make_api_request.assert_not_awaited()
+    assert all(call.args[0] != "user_app_settings_and_memories"
+               for call in state.directus.get_items.await_args_list)
+
+
+# contract-test: direct surface=rest_api assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
+@pytest.mark.parametrize("kind", ["default", "failed", "batched"])
+def test_session_response_serialization_keeps_legacy_shape_and_complete_batch(kind):
+    import json
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from pydantic import TypeAdapter
+    from backend.core.api.app.schemas.auth import PersonalMemoriesSnapshot, PersonalMemoryRow, SessionResponse
+    from backend.core.api.app.schemas.user import UserResponse
+
+    if kind == "batched":
+        response = SessionResponse(
+            success=True, message="Session valid", ws_token="synthetic-ws-token",
+            user=UserResponse(id="user-1", username="Person", is_admin=False, credits=0, tfa_enabled=False),
+            personal_memories=PersonalMemoriesSnapshot(
+                encrypted_settings=None,
+                memories=[PersonalMemoryRow(
+                    id="memory-1", app_id="openmates", item_type="memories", item_key="key-hash",
+                    encrypted_item_json="opaque-ciphertext", item_version=1,
+                    created_at=10, updated_at=20,
+                )],
+            ),
+        )
+    else:
+        response = SessionResponse(success=kind == "default", message="Session valid" if kind == "default" else "Not logged in")
+
+    adapter = TypeAdapter(SessionResponse)
+    serialized = [
+        response.model_dump(),
+        json.loads(response.model_dump_json()),
+        adapter.dump_python(response, mode="json"),
+        json.loads(adapter.dump_json(response)),
+    ]
+    app = FastAPI()
+
+    @app.get("/session", response_model=SessionResponse)
+    async def session_response():
+        return response
+
+    with TestClient(app) as client:
+        http_response = client.get("/session")
+    assert http_response.status_code == 200
+    serialized.append(http_response.json())
+
+    assert all(payload == serialized[0] for payload in serialized)
+    for payload in serialized:
+        # Existing defaults and null fields remain serialized exactly as before.
+        if kind == "batched":
+            assert payload["user"]["id"] == "user-1"
+        else:
+            assert payload["user"] is None
+        assert payload["re_auth_required"] is None
+        assert payload["session_meta_registered"] is False
+        if kind == "batched":
+            assert payload["personal_memories"] == {
+                "encrypted_settings": None,
+                "memories": [{
+                    "id": "memory-1", "app_id": "openmates", "item_type": "memories",
+                    "item_key": "key-hash", "encrypted_item_json": "opaque-ciphertext",
+                    "item_version": 1, "created_at": 10, "updated_at": 20,
+                }],
+            }
+        else:
+            assert "personal_memories" not in payload

@@ -306,6 +306,16 @@ def _omit_fact_question_format_guidance(
         return False
     if user_overrides is not None and getattr(user_overrides, "has_overrides", True):
         return False
+    learning_mode = getattr(request, "learning_mode", None)
+    # The request schema carries a disabled account policy as {"enabled": False}.
+    # Treat only that exact known state (or no context) as inactive; an
+    # incomplete or malformed policy must keep the full prompt.
+    if learning_mode is not None and not (
+        isinstance(learning_mode, dict)
+        and set(learning_mode) == {"enabled"}
+        and learning_mode["enabled"] is False
+    ):
+        return False
     # An unselected Project candidate/catalog is discovery metadata. The
     # context_fast_path proof excludes selected Project context; reject its
     # documents, binding, and routing state explicitly below.
@@ -313,7 +323,7 @@ def _omit_fact_question_format_guidance(
         "historical_artifact_context", "embed_file_path_index", "has_image_upload_embed",
         "custom_rule_documents", "project_focus_documents", "project_context_documents",
         "project_routing_focus_id",
-        "mentioned_settings_memories_cleartext", "focus_phase_state", "learning_mode",
+        "mentioned_settings_memories_cleartext", "focus_phase_state",
         "connected_account_directory", "connected_account_token_refs",
         "connected_account_permission_state", "related_task_candidates",
     )):

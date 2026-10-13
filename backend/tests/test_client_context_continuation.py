@@ -327,15 +327,72 @@ def test_core_worker_dto_roundtrip_retains_admitted_context_and_private_phase_st
     from backend.apps.ai.skills.ask_skill import AskSkillRequest as WorkerRequest
     core = CoreRequest(chat_id="chat", message_id="message", user_id="owner", user_id_hash="hash",
                        message_history=[], client_context_pending=True, client_context_request_id=str(uuid.uuid4()),
-                       client_context_binding_ref="server-ref", admission_context={"scope_complete": False})
+                       client_context_binding_ref="server-ref", client_context_turn_id="admitted-turn",
+                       admission_context={"scope_complete": False})
     worker = WorkerRequest.model_validate(core.model_dump())
     assert worker.client_context_pending is True
     assert worker.client_context_request_id == core.client_context_request_id
     assert worker.client_context_binding_ref == "server-ref"
+    assert worker.client_context_turn_id == "admitted-turn"
+    assert worker.recovery_turn_id is None
     assert worker.admission_context == {"scope_complete": False}
     worker._client_context_routing_loaded = True
     assert worker._client_context_routing_loaded is True
     assert "_client_context_routing_loaded" not in worker.model_dump()
+
+
+# contract-test: direct surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
+@pytest.mark.asyncio
+@pytest.mark.parametrize("recovery_turn", [False, True])
+async def test_core_worker_context_identity_hydrates_encrypted_legacy_and_recovery_phase(setup, recovery_turn):
+    from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as CoreRequest
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest as WorkerRequest
+
+    cache, _redis, vault, scope = setup
+    reference = await context.register_client_context(
+        cache_service=cache, encryption_service=vault,
+        device_fingerprint_hash="device", **scope,
+    )
+    core = CoreRequest(
+        chat_id=scope["chat_id"], message_id=scope["message_id"],
+        user_id=scope["user_id"], user_id_hash="hash", message_history=[],
+        client_context_pending=True, client_context_request_id=scope["request_id"],
+        client_context_binding_ref=reference, client_context_turn_id=scope["turn_id"],
+        recovery_turn_id=scope["turn_id"] if recovery_turn else None,
+        team_id=scope["team_id"],
+    )
+    worker = WorkerRequest.model_validate(core.model_dump())
+    routing = {"project_focus_candidates": [{"project_id": "project", "name": "Private name"}]}
+    await context.receive_client_context(
+        cache_service=cache, encryption_service=vault,
+        device_fingerprint_hash="device", phase="routing", context=routing, **scope,
+    )
+
+    await context.await_client_context_phase(
+        cache_service=cache, encryption_service=vault, request=worker, phase="routing",
+    )
+
+    assert worker.project_focus_candidates == routing["project_focus_candidates"]
+    assert worker.client_context_turn_id == scope["turn_id"]
+    assert worker.recovery_turn_id == (scope["turn_id"] if recovery_turn else None)
+
+
+# contract-test: direct surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
+@pytest.mark.asyncio
+async def test_no_binding_skips_context_phase_without_recovery_identity(setup):
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest as WorkerRequest
+
+    cache, redis, vault, scope = setup
+    worker = WorkerRequest(
+        chat_id=scope["chat_id"], message_id=scope["message_id"],
+        user_id=scope["user_id"], user_id_hash="hash", message_history=[],
+    )
+    await context.await_client_context_phase(
+        cache_service=cache, encryption_service=vault, request=worker, phase="routing",
+    )
+    assert worker.client_context_turn_id is None
+    assert worker.recovery_turn_id is None
+    assert redis.values == {}
 
 
 # contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution

@@ -316,7 +316,8 @@ async def await_client_context_phase(*, cache_service: Any, request: Any, phase:
     if phase not in {"routing", "details"}:
         raise ValueError("Invalid context phase")
     scope = _scope(user_id=request.user_id, chat_id=request.chat_id,
-                   turn_id=request.recovery_turn_id, message_id=request.message_id,
+                   turn_id=(getattr(request, "client_context_turn_id", None)
+                            or request.recovery_turn_id), message_id=request.message_id,
                    request_id=request.client_context_request_id, team_id=request.team_id)
     reference = getattr(request, "client_context_binding_ref", None)
     if not reference or reference != _reference(scope):
