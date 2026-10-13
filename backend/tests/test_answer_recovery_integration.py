@@ -159,7 +159,7 @@ def _seeded_history(*, signature_provider: str = "google") -> list[dict]:
     ]
 
 
-def _request(history: list[dict]) -> SimpleNamespace:
+def _request(history: list[dict], current_user_content: str | None = CURRENT_REQUEST) -> SimpleNamespace:
     request = SimpleNamespace(
         chat_id="chat-answer-recovery",
         message_id="message-answer-recovery",
@@ -168,7 +168,7 @@ def _request(history: list[dict]) -> SimpleNamespace:
         user_preferences={},
         mentioned_settings_memories_cleartext=None,
         historical_artifact_context=None,
-        current_user_content=CURRENT_REQUEST,
+        current_user_content=current_user_content,
         active_focus_id=None,
         active_project_focus=None,
         current_project=None,
@@ -179,6 +179,7 @@ def _request(history: list[dict]) -> SimpleNamespace:
         orchestration_id=None,
         is_sub_chat=False,
         is_sub_chat_continuation=False,
+        is_async_skill_continuation=False,
         awaiting_async_skill_continuation=False,
         mate_id="mate-1",
         chat_has_title=True,
@@ -282,6 +283,7 @@ def answer_recovery_runner(monkeypatch):
         main_processor, "model_history_token_budget", lambda *_args, **_kwargs: 100_000
     )
     monkeypatch.setattr(main_processor, "_reserve_authenticated_ai_turn", reserve_test_turn)
+    monkeypatch.setattr(main_processor, "_fit_personal_chat_output_token_limit", reserve_test_turn)
     monkeypatch.setattr(
         main_processor, "execute_skill_with_multiple_requests", skill_dispatch
     )
@@ -299,6 +301,7 @@ def answer_recovery_runner(monkeypatch):
         primary_model: str = PRIMARY_MODEL,
         signature_provider: str = "google",
         live_tool_call: bool = False,
+        current_user_content: str | None = CURRENT_REQUEST,
     ) -> tuple[list[object], list[dict], list[dict]]:
         calls_before = len(provider_calls)
         skill_dispatch.reset_mock()
@@ -390,7 +393,7 @@ def answer_recovery_runner(monkeypatch):
             chunk
             async for chunk in main_processor.handle_main_processing(
                 "task-answer-recovery",
-                _request(history),
+                _request(history, current_user_content),
                 _preprocessing(
                     alternate_model, secondary_model, primary_model=primary_model
                 ),
@@ -411,6 +414,38 @@ def answer_recovery_runner(monkeypatch):
         return output, provider_calls[calls_before:], original_history
 
     return run
+
+
+@pytest.mark.parametrize("alternate_needed", [False, True])
+async def test_optional_current_content_recovers_after_empty_tool_answer(
+    answer_recovery_runner, alternate_needed: bool,
+) -> None:
+    responses = [[_forbidden_tool_call(1)]]
+    if alternate_needed:
+        responses.append([_forbidden_tool_call(2)])
+    responses.append([ANSWER])
+
+    output, calls, _history = await answer_recovery_runner(
+        responses,
+        alternate_model=ALTERNATE_MODEL,
+        current_user_content=None,
+    )
+
+    assert [call["model_id"] for call in calls] == (
+        ["answer-primary", "answer-primary", "answer-alternate"]
+        if alternate_needed else ["answer-primary", "answer-primary"]
+    )
+    for call in calls[1:]:
+        _assert_clean_recovery_payload(call)
+        assert sum(
+            message.get("role") == "user" and message.get("content") == CURRENT_REQUEST
+            for message in call["messages"]
+        ) == 1
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == ANSWER
+    assert not any(
+        isinstance(chunk, dict) and chunk.get("__main_processing_failure__") is True
+        for chunk in output
+    )
 
 
 def _assert_clean_recovery_payload(call: dict) -> None:
@@ -658,12 +693,12 @@ async def test_first_answer_partial_503_recovers_without_replaying_signed_tool_h
     )
 
     # The second call has completed signed tool evidence but recovery is not yet
-    # active. The hidden Google server is incompatible with those signatures;
-    # recovering from clean evidence keeps the prefix and avoids replaying it.
+    # active. Once that primary route fails, recovery skips it and can use the
+    # hidden server only with clean evidence, keeping the published prefix.
     assert [call["model_id"] for call in calls] == [
         "answer-primary",
         "answer-primary",
-        "answer-primary",
+        "hidden-server",
     ]
     assert "current-signature" in json.dumps(calls[1]["messages"])
     assert CURRENT_TOOL_EVIDENCE in json.dumps(calls[1]["messages"])
@@ -691,8 +726,7 @@ async def test_partial_503_clean_recovery_exhausts_compatible_models_once(
         [
             [_completed_tool_call()],
             [prefix, _usage(2), RuntimeError("503 high demand")],
-            [_usage(3), RuntimeError("503 high demand")],
-            [_usage(4), RuntimeError("503 high demand")],
+            [_anthropic_usage(3), RuntimeError("503 high demand")],
         ],
         alternate_model=CROSS_PROVIDER_MODEL,
         primary_model=primary_model,
@@ -700,10 +734,12 @@ async def test_partial_503_clean_recovery_exhausts_compatible_models_once(
         live_tool_call=True,
     )
 
-    assert len(calls) == 4
+    assert [call["model_id"] for call in calls] == [
+        "answer-primary", "answer-primary", "answer-alternate",
+    ]
     assert calls[-1]["provider_id"] == "anthropic"
+    assert "current-signature" in json.dumps(calls[1]["messages"])
     _assert_clean_recovery_payload(calls[2])
-    _assert_clean_recovery_payload(calls[3])
     failures = [
         chunk
         for chunk in output

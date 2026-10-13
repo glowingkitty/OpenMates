@@ -76,3 +76,13 @@ def test_workflow_queue_imports_workflow_tasks_module():
     modules = celery_config._task_modules_for_worker_queues("workflow")
 
     assert modules == ["backend.core.api.app.tasks.workflow_tasks"]
+
+
+def test_api_key_new_device_alert_is_registered_on_email_worker():
+    """The API dispatcher names a distinct task from the ordinary new-device alert."""
+    from backend.core.api.app.tasks import celery_config
+
+    task_name = "app.tasks.email_tasks.new_api_key_device_email_task.send_new_api_key_device_email"
+    assert "backend.core.api.app.tasks.email_tasks" in celery_config._task_modules_for_worker_queues("email")
+    assert task_name in celery_config.app.tasks
+    assert celery_config.get_expected_queue_for_task(task_name) == "email"

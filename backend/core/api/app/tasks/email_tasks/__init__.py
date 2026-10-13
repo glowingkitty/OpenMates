@@ -8,6 +8,7 @@
 from . import verification_email_task
 from . import existing_account_email_task
 from . import new_device_email_task
+from . import new_api_key_device_email_task
 from . import backup_code_email_task
 from . import purchase_confirmation_email_task
 from . import credit_note_email_task
@@ -57,6 +58,7 @@ __all__ = [
     'verification_email_task',
     'existing_account_email_task',
     'new_device_email_task',
+    'new_api_key_device_email_task',
     'backup_code_email_task',
     'purchase_confirmation_email_task',
     'credit_note_email_task',
