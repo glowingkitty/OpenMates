@@ -40,6 +40,8 @@ test('landing conversion requires source follow-ups without rejecting legacy con
 import {
   annotateChatWithUsage,
   formatTs,
+  formatYaml,
+  validateLandingCandidate,
   inlineEmbedsMapViewCodeEmbeds,
   removeInternalTaskEventMessages,
   sanitizeEmbedContent,
@@ -249,6 +251,48 @@ After!`);
   assert.equal(sanitized, 'Before\n\nAfter!');
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+test('round trips original user spacing through every generated locale and keeps assistant mate metadata', () => {
+  const metadata = {
+    slug: 'format-fixture', snake: 'format_fixture', chatId: 'example-format-fixture',
+    title: 'Formatting', summary: '', icon: 'code', category: 'software_development',
+    keywords: [], followUps: [], featured: false, order: 1, appSkillExamples: [],
+    appFocusModeExamples: [], appSettingsMemoryExamples: [], contentEmbedExamples: [],
+  };
+  for (const prose of ['  Original request\n\n\nSecond paragraph', '\nFirst line\n\n\n', 'Keep this marker:\n!\nEnd']) {
+    const chat = { messages: [{ id: 'u', role: 'user', content: prose }, { id: 'a', role: 'assistant', content: 'Done' }], embeds: [] };
+    assert.equal(sanitizeExampleMessageContent(prose, 'user'), prose);
+    const parsed = spawnSync('python3', ['-c', 'import sys,json,yaml; print(json.dumps(yaml.safe_load(sys.stdin.read())))'], {
+      input: formatYaml(chat, metadata), encoding: 'utf8',
+    });
+    assert.equal(parsed.status, 0, parsed.stderr);
+    const source = JSON.parse(parsed.stdout);
+    for (const [locale, text] of Object.entries(source.message_1)) {
+      if (!['context', 'verified_by_human'].includes(locale)) assert.equal(text, prose, locale);
+    }
+    assert.match(formatTs(chat, metadata), /"category": "software_development"/);
+  }
+});
+
+// contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete,app-skills.media.application-screenshot
+test('rejects incomplete capability examples and keeps only reviewed public application screenshots', () => {
+  const base = { chat_id: 'source', follow_up_suggestions: ['What next?'], messages: [
+    { role: 'user', content: 'Find recipes' }, { role: 'assistant', content: 'Here they are.' },
+  ], embeds: [] };
+  assert.throws(() => validateLandingCandidate(base, 'nutrition'), /no saved capability output/);
+  assert.throws(() => validateLandingCandidate({ ...base, embeds: [{ embed_id: 'r', type: 'app_skill_use', content: 'app_id: nutrition\nskill_id: search_recipes\nstatus: processing' }] }, 'nutrition'), /unfinished/);
+  assert.throws(() => validateLandingCandidate({ ...base, embeds: [{ embed_id: 'r', type: 'app_skill_use', content: 'app_id: nutrition\nskill_id: search_recipes\nstatus: finished\nresult_count: 0' }] }, 'nutrition'), /successful recipe/);
+  const screenshot = `https://dev-openmates-public-examples.nbg1.your-objectstorage.com/reviewed-media/application_preview/preview/sha256-${'a'.repeat(64)}.png`;
+  const content = JSON.stringify({ type: 'application', app_id: 'code', status: 'finished', latest_screenshot_url: screenshot,
+    latest_screenshot: { aes_key: 'private-key' }, file_refs: [{ path: 'src/App.svelte' }], name: 'Habit Garden' });
+  const safe = JSON.parse(sanitizeEmbedContent(content));
+  assert.equal(safe.latest_screenshot_url, screenshot);
+  assert.equal(safe.latest_screenshot, undefined);
+  assert.equal(safe.file_refs[0].path, 'src/App.svelte');
+  assert.equal(JSON.parse(sanitizeEmbedContent(JSON.stringify({ latest_screenshot_url: 'https://api.dev.openmates.org/v1/embeds/private/file?token=secret' }))).latest_screenshot_url, undefined);
+  assert.doesNotThrow(() => validateLandingCandidate({ ...base, embeds: [{ embed_id: 'a', type: 'application', content: JSON.stringify(safe) }] }, 'code'));
+});
+
 test('removes internal task event system messages from public examples', () => {
   const chat = removeInternalTaskEventMessages({
     chat_id: 'source-chat',
@@ -369,6 +413,71 @@ test('promotes unreferenced parent app-skill embeds as markdown references', () 
   assert.equal(chat.messages[0].content, '[!](embed:parent-skill-use)\n\nNo visible result embeds yet.');
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+test('keeps one generation parent preview when the real answer references its authored alias', () => {
+  for (const content of [
+    'app_id: images\nskill_id: generate\nembed_ref: generated-images-parent-a',
+    JSON.stringify({ app_id: 'images', skill_id: 'generate', embed_ref: 'generated-images-parent-a' }),
+  ]) {
+    const message = 'Here is your result: [Images](embed:generated-images-parent-a)';
+    const chat = withPromotedAppSkillUseMessages({
+      messages: [{ role: 'assistant', content: message }],
+      embeds: [{ embed_id: 'parent-uuid', type: 'app_skill_use', content }],
+    });
+    assert.equal(chat.messages[0].content, message);
+  }
+});
+
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+test('an ID mentioned as prose does not replace a real parent preview', () => {
+  const content = 'The reference parent-skill-use describes this operation.';
+  const chat = withPromotedAppSkillUseMessages({
+    messages: [{ role: 'assistant', content }],
+    embeds: [{ embed_id: 'parent-skill-use', type: 'app_skill_use', content: 'app_id: images\nskill_id: generate' }],
+  });
+  assert.equal(chat.messages[0].content, `[!](embed:parent-skill-use)\n\n${content}`);
+});
+
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+test('recognizes a canonical UUID alias without adding a second parent preview', () => {
+  const parentId = '12345678-1234-4234-8234-123456789abc';
+  const content = `[Images](embed:${parentId.replaceAll('-', '')})`;
+  const chat = withPromotedAppSkillUseMessages({
+    messages: [{ role: 'assistant', content }],
+    embeds: [{ embed_id: parentId, type: 'app_skill_use', content: 'app_id: images\nskill_id: generate' }],
+  });
+  assert.equal(chat.messages[0].content, content);
+});
+
+// contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete,app-skills.media.visible-assistant-results
+test('requires an exact visible reference for every generated output', () => {
+  const chat = {
+    follow_up_suggestions: ['Can you make another?'],
+    messages: [{ role: 'user', content: 'Make two images.' }, { role: 'assistant', content: '[Image](embed:image-ab)' }],
+    embeds: ['image-a', 'image-ab'].map((ref) => ({
+      embed_id: `${ref}-id`, parent_embed_id: 'parent', type: 'generated_image',
+      content: JSON.stringify({ app_id: 'images', prompt: 'A sunflower', model: 'actual-model', embed_ref: ref }),
+    })),
+  };
+  assert.throws(() => validateLandingCandidate(chat, 'images'), /image-a-id is missing/);
+  chat.messages[1].content += '\n[Image](embed:image-a)';
+  assert.doesNotThrow(() => validateLandingCandidate(chat, 'images'));
+});
+
+// contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete
+test('admits an original user video in either registered spelling only with completed transcript work', () => {
+  for (const type of ['video', 'videos-video']) {
+    const chat = {
+      follow_up_suggestions: ['Explain the argument?'],
+      messages: [{ role: 'user', content: 'Summarize [this talk](embed:talk)' }, { role: 'assistant', content: 'The core argument is summarized here.' }],
+      embeds: [{ embed_id: 'talk', type, content: JSON.stringify({ app_id: 'videos', video_id: '8S0FDjFBj8o' }) }],
+    };
+    assert.throws(() => validateLandingCandidate(chat, 'videos'), /completed transcript skill output/);
+    chat.embeds.push({ embed_id: 'transcript', type: 'app_skill_use', content: 'app_id: videos\nskill_id: get_transcript\nstatus: finished' });
+    assert.doesNotThrow(() => validateLandingCandidate(chat, 'videos'));
+  }
+});
+
 test('keeps code image-to-html app-skill promotion as JSON for audit compatibility', () => {
   const chat = withPromotedAppSkillUseMessages({
     chat_id: 'source-chat',
@@ -405,6 +514,95 @@ summary:
 
   assert.doesNotMatch(sanitized, /s3_base_url|aes_key|s3_key/);
   assert.match(sanitized, /^summary:\n  in_10_min: No rain$/m);
+});
+
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+test('strips nested TOON owner and encryption maps without losing public siblings', () => {
+  const sanitized = sanitizeEmbedContent(`type: image
+app_id: images
+results[1]:
+  - title: Public image
+    user_id: private-owner
+    media:
+      vault_key_id: private-vault
+      aes_key: private-aes
+      files:
+        preview:
+          s3_key: private/image.webp.enc
+      source_url: https://public.example/source
+      icon_url: https://public.example/icon.svg
+    screenshot_s3_keys:
+      first: private/screenshot.png.enc
+    status: finished
+summary: A public image`);
+
+  assert.doesNotMatch(sanitized, /private-owner|private-vault|private-aes|private\/image|private\/screenshot|s3_key|user_id|vault_key_id|aes_key|screenshot_s3_keys/);
+  assert.match(sanitized, /^      source_url: https:\/\/public\.example\/source$/m);
+  assert.match(sanitized, /^      icon_url: https:\/\/public\.example\/icon\.svg$/m);
+  assert.match(sanitized, /^    status: finished$/m);
+  assert.match(sanitized, /^summary: A public image$/m);
+});
+
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+test('removes private nested TOON table columns and signed URL cells', () => {
+  const sanitized = sanitizeEmbedContent(`app_id: images
+assets:
+  variants[1]{name,user_id,vault_key_id,s3_key,aes_key,icon_url,source_url}:
+    preview,owner-secret,vault-secret,private/file.enc,key-secret,https://public.example/icon.svg,https://private.example/image.png?X-Amz-Signature=secret
+status: finished`);
+
+  assert.match(sanitized, /^  variants\[1\]\{name,icon_url,source_url\}:$/m);
+  assert.match(sanitized, /^    preview,https:\/\/public\.example\/icon\.svg,$/m);
+  assert.doesNotMatch(sanitized, /owner-secret|vault-secret|private\/file|key-secret|X-Amz|private\.example/);
+  assert.match(sanitized, /^status: finished$/m);
+});
+
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+test('sanitizes nested JSON media metadata and signed URLs while retaining public sources', () => {
+  const source = {
+    app_id: 'images', model: 'image-model',
+    media: { user_id: 'owner-secret', aes_key: 'key-secret', files: { preview: { s3_key: 'private/file' } },
+      icon_url: 'https://public.example/icon.svg', source_url: 'https://public.example/source' },
+    variants: [{ name: 'preview', download_url: 'https://private.example/file?X-Amz-Credential=secret', caption: 'Public preview' }],
+  };
+  const sanitized = JSON.parse(sanitizeEmbedContent(JSON.stringify(source)));
+  assert.deepEqual(sanitized, {
+    app_id: 'images', model: 'image-model',
+    media: { icon_url: 'https://public.example/icon.svg', source_url: 'https://public.example/source' },
+    variants: [{ name: 'preview', caption: 'Public preview' }],
+  });
+});
+
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+test('drops signed TOON asset URLs while keeping ordinary public URLs', () => {
+  const sanitized = sanitizeEmbedContent(`type: image
+icon_url: https://public.example/icon.svg
+source_url: https://public.example/article
+previewImageUrl: https://private.example/image.webp?X-Amz-Credential=private
+status: finished`);
+  assert.match(sanitized, /^icon_url: https:\/\/public\.example\/icon\.svg$/m);
+  assert.match(sanitized, /^source_url: https:\/\/public\.example\/article$/m);
+  assert.doesNotMatch(sanitized, /previewImageUrl|X-Amz|private\.example/);
+});
+
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,app-skills.media.application-screenshot
+test('keeps only immutable reviewed public TOON application screenshots', () => {
+  const publicScreenshot = `https://openmates-public-examples.nbg1.your-objectstorage.com/reviewed-media/application_preview/preview/sha256-${'a'.repeat(64)}.png`;
+  const sanitized = sanitizeEmbedContent(`type: application
+latest_screenshot_url: ${publicScreenshot}
+status: finished`);
+  assert.match(sanitized, new RegExp(`^latest_screenshot_url: ${publicScreenshot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm'));
+  assert.doesNotMatch(sanitizeEmbedContent(`type: application\nlatest_screenshot_url: ${publicScreenshot}?token=private\nstatus: finished`), /latest_screenshot_url/);
+});
+
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+test('removes an all-private TOON table without hiding the following public field', () => {
+  const sanitized = sanitizeEmbedContent(`type: image
+results[1]{user_id,aes_key,s3_key}:
+  owner,key,private/file
+status: finished`);
+  assert.doesNotMatch(sanitized, /results|owner|private\/file|aes_key|s3_key/);
+  assert.match(sanitized, /^status: finished$/m);
 });
 
 test('strips nested screenshot storage metadata and preserves following public fields', () => {
