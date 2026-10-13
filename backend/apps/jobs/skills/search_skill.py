@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 MAX_REQUESTS = 5
 MAX_LIMIT = 50
 DEFAULT_LIMIT = 10
+RANKING_UNAVAILABLE_MESSAGE = "Relevance criteria could not be applied; results remain in provider order."
 PROVIDER_SEARCH = {
     "arbeitnow": arbeitnow.search_jobs,
     "arbeitsagentur": arbeitsagentur.search_jobs,
@@ -302,9 +303,13 @@ class SearchSkill(BaseSkill):
                     search_parameters={"query": item.query, "country": item.country, "location": item.location},
                     profile="jobs", secrets_manager=secrets_manager,
                 )
-                jobs = ranking.candidates
-            except Exception as exc:
-                logger.warning("jobs.search relevance ranking failed; preserving provider order: %s", type(exc).__name__)
+                if ranking.applied:
+                    jobs = ranking.candidates
+                else:
+                    warnings.append(_warning(request_id, "ranking", "ranking_unavailable", RANKING_UNAVAILABLE_MESSAGE))
+            except Exception:
+                logger.warning("jobs.search relevance ranking unavailable; preserving provider order")
+                warnings.append(_warning(request_id, "ranking", "ranking_unavailable", RANKING_UNAVAILABLE_MESSAGE))
         jobs = jobs[:item.limit]
         group: dict[str, Any] = {
             "id": request_id, "query": item.query, "country": item.country,

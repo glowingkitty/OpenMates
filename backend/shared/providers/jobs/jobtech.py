@@ -92,11 +92,13 @@ def _matches_workplace(address: dict[str, Any], requested: str) -> bool | None:
     region = _place_key(address.get("region"))
     if wanted.endswith(" län"):
         return region == wanted if region else None
-    if not city and not municipality:
-        return None
-    # A city request must not match only the wider region (e.g. Solna in
-    # Stockholms län for a requested Stockholm workplace).
-    return wanted in {city, municipality}
+    # The stated city takes precedence: Solna city must not pass a Stockholm
+    # request merely because the municipality happens to say Stockholm.
+    if city:
+        return city == wanted
+    if municipality:
+        return municipality == wanted
+    return None
 
 
 def _normalize(ad: dict[str, Any]) -> JobListing | None:

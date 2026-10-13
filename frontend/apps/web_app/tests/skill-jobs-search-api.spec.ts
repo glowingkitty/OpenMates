@@ -174,7 +174,11 @@ test.describe('Jobs search programmatic contract', () => {
 		expect(app).toBeTruthy();
 		const skill = (app.skills || []).find((item: any) => item.id === 'search');
 		expect(skill).toBeTruthy();
-		expect(skill.providers).toEqual(expect.arrayContaining(['Bundesagentur für Arbeit', 'Arbeitnow', 'JobTech']));
+		expect(skill.providers).toEqual(expect.arrayContaining([
+			expect.objectContaining({ name: 'Bundesagentur für Arbeit', no_api_key: true }),
+			expect.objectContaining({ name: 'Arbeitnow', no_api_key: true }),
+			expect.objectContaining({ name: 'JobTech', no_api_key: true })
+		]));
 	});
 
 	// contract-test: direct surface=rest_api assertions=app-skills.execution.registered-validated,app-skills.surface.semantic-parity

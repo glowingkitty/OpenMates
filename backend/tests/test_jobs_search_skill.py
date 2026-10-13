@@ -257,6 +257,50 @@ async def test_user_criteria_rank_bounded_pool_without_changing_provider_facts(m
     assert "impact" in SEARCH_RELEVANCE_PROFILES["jobs"].instructions
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.search-relevance.safe-finalization
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure_mode", ["fallback", "exception"])
+async def test_ranking_unavailable_keeps_strict_provider_results_and_warns(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, failure_mode: str,
+) -> None:
+    provider_calls: list[dict[str, Any]] = []
+    ranking_calls: list[dict[str, Any]] = []
+
+    async def ba(**kwargs: Any) -> list[dict[str, Any]]:
+        provider_calls.append(kwargs)
+        return [_job("first", remote=True), _job("unknown", remote=None), _job("second", remote=True)]
+
+    async def rank(**kwargs: Any) -> SearchRelevanceRankingResult[dict[str, Any]]:
+        ranking_calls.append(kwargs)
+        if failure_mode == "exception":
+            raise RuntimeError("private-ranking-error-token")
+        return SearchRelevanceRankingResult(
+            candidates=list(reversed(kwargs["candidates"])), applied=False,
+            fallback_reason="provider_failure",
+        )
+
+    monkeypatch.setitem(jobs_search.PROVIDER_SEARCH, "arbeitsagentur", ba)
+    monkeypatch.setattr(jobs_search, "rank_search_candidates", rank)
+    payload = (await _skill().execute(requests=[{
+        "id": "goal", "query": "engineer", "provider": "Arbeitsagentur", "remote": True,
+        "relevance_criteria": "private-career-goal-token",
+    }])).model_dump()
+
+    assert len(provider_calls) == len(ranking_calls) == 1
+    assert provider_calls[0]["remote"] is True
+    assert [job["id"] for job in ranking_calls[0]["candidates"]] == ["first", "second"]
+    assert [job["id"] for job in payload["results"][0]["results"]] == ["first", "second"]
+    assert payload["success"] is True and payload["partial"] is True and payload["error"] is None
+    warning = {
+        "request_id": "goal", "provider": "ranking", "code": "ranking_unavailable",
+        "message": jobs_search.RANKING_UNAVAILABLE_MESSAGE,
+    }
+    assert payload["warnings"] == payload["results"][0]["warnings"] == [warning]
+    assert "private-career-goal-token" not in caplog.text
+    assert "private-ranking-error-token" not in caplog.text
+    assert "private-ranking-error-token" not in str(payload)
+
+
 # contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity,workflows.surface.semantic-parity
 def test_jobs_skill_metadata_declares_bounded_workflow_contract() -> None:
     app_file = Path(__file__).resolve().parents[1] / "apps/jobs/app.yml"

@@ -108,6 +108,21 @@ async def test_requested_city_must_match_workplace_not_description(monkeypatch: 
     assert await jobtech.search_jobs(query="developer", location="Stockholm", country="SE") == []
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
+async def test_workplace_city_takes_precedence_over_municipality(monkeypatch: pytest.MonkeyPatch) -> None:
+    solna = _ad("solna")
+    solna["workplace_address"].update({"city": "Solna", "municipality": "Stockholm"})
+    municipality_only = _ad("municipality-only")
+    municipality_only["workplace_address"].update({"city": None, "municipality": "Stockholm"})
+
+    async def fake_fetch(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        return {"hits": [solna, municipality_only]}
+
+    monkeypatch.setattr(jobtech, "fetch_json", fake_fetch)
+    jobs = await jobtech.search_jobs(location="Stockholm", country="SE")
+    assert [job["id"] for job in jobs] == ["jobtech:municipality-only"]
+
+
 # contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
 async def test_unverifiable_workplace_surfaces_location_warning(monkeypatch: pytest.MonkeyPatch) -> None:
     unknown_city = _ad("unknown-city")
