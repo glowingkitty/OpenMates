@@ -7284,6 +7284,7 @@
                 bind:this={recordAudioComponent}
                 initialPosition={$recordingState.recordStartPosition}
                 enableRealtime={$authStore.isAuthenticated}
+                retainUntilCorrection={true}
                 recordingGeneration={recordingContext?.generation ?? recordingDraftGeneration}
                 on:audiorecorded={handleAudioRecorded}
                 on:close={handleStopRecordingCleanup}

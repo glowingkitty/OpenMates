@@ -7,6 +7,7 @@ import RecordAudio from '../RecordAudio.svelte';
 const realtimeMocks = vi.hoisted(() => ({
     finish: vi.fn(),
     cancel: vi.fn(),
+    correction: null as Promise<unknown> | null,
 }));
 
 vi.mock('@repo/ui', async () => {
@@ -21,7 +22,7 @@ vi.mock('svelte/transition', () => ({
 vi.mock('../../../services/audioRealtimeTranscription', () => ({
     startAudioRealtimeTranscription: vi.fn(() => ({
         transcription: new Promise(() => undefined),
-        correction: new Promise(() => undefined),
+        correction: realtimeMocks.correction ?? new Promise(() => undefined),
         finish: realtimeMocks.finish,
         cancel: realtimeMocks.cancel,
         setChatId: vi.fn(),
@@ -64,7 +65,7 @@ async function flushMount() {
     await tick();
 }
 
-function mountRecorder(options: { externalStream?: MediaStream; realtime?: boolean } = {}) {
+function mountRecorder(options: { externalStream?: MediaStream; realtime?: boolean; retainUntilCorrection?: boolean } = {}) {
     const close = vi.fn();
     const cancel = vi.fn();
     const audioRecorded = vi.fn();
@@ -76,6 +77,7 @@ function mountRecorder(options: { externalStream?: MediaStream; realtime?: boole
             initialPosition: { x: 0, y: 0 },
             externalStream: options.externalStream,
             enableRealtime: options.realtime ?? false,
+            retainUntilCorrection: options.retainUntilCorrection ?? true,
             previewTranscript: null,
         },
         events: {
@@ -95,6 +97,7 @@ describe('RecordAudio finalization', () => {
         FakeMediaRecorder.instances = [];
         realtimeMocks.finish.mockReset();
         realtimeMocks.cancel.mockReset();
+        realtimeMocks.correction = null;
         ownedTrackStop = vi.fn();
         Object.defineProperty(navigator, 'mediaDevices', {
             configurable: true,
@@ -223,6 +226,105 @@ describe('RecordAudio finalization', () => {
         await unmount(mounted.component, { outro: false });
         expect(mounted.cancel).not.toHaveBeenCalled();
         expect(mounted.close).toHaveBeenCalledTimes(1);
+    });
+
+    // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.recording.lifecycle
+    it('keeps processing visible until correction and cycles labels every three seconds', async () => {
+        let resolveCorrection!: (value: unknown) => void;
+        realtimeMocks.correction = new Promise((resolve) => { resolveCorrection = resolve; });
+        const mounted = mountRecorder({ realtime: true });
+        await flushMount();
+        const recorder = FakeMediaRecorder.instances[0];
+        recorder.emitData('recorded-audio');
+        mounted.component.stop();
+        await tick();
+        const status = () => mounted.target.querySelector('[data-testid="recording-processing-text"]')?.textContent;
+        expect(status()).toContain('improving_transcript');
+        recorder.emitStop();
+        await tick();
+        expect(ownedTrackStop).toHaveBeenCalledTimes(1);
+        expect(mounted.audioRecorded).toHaveBeenCalledTimes(1);
+        expect(mounted.close).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(2999);
+        expect(status()).toContain('improving_transcript');
+        await vi.advanceTimersByTimeAsync(1);
+        expect(status()).toContain('removing_filler_words');
+        await vi.advanceTimersByTimeAsync(3000);
+        expect(status()).toContain('making_more_concise');
+        await vi.advanceTimersByTimeAsync(3000);
+        expect(status()).toContain('improving_transcript');
+        mounted.component.stop();
+        expect(realtimeMocks.finish).toHaveBeenCalledTimes(1);
+        resolveCorrection({ transcript: 'Corrected text' });
+        await flushMount();
+        expect(mounted.close).toHaveBeenCalledTimes(1);
+        expect(status()).toBeUndefined();
+        await unmount(mounted.component, { outro: false });
+    });
+
+    // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.recording.lifecycle
+    it('closes processing on correction failure without an unhandled rejection', async () => {
+        let rejectCorrection!: (reason: Error) => void;
+        realtimeMocks.correction = new Promise((_, reject) => { rejectCorrection = reject; });
+        const mounted = mountRecorder({ realtime: true });
+        await flushMount();
+        const recorder = FakeMediaRecorder.instances[0];
+        recorder.emitData('recorded-audio');
+        mounted.component.stop();
+        recorder.emitStop();
+        expect(mounted.close).not.toHaveBeenCalled();
+        rejectCorrection(new Error('Correction failed'));
+        await flushMount();
+        expect(mounted.close).toHaveBeenCalledTimes(1);
+        await unmount(mounted.component, { outro: false });
+    });
+
+    // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.recording.lifecycle
+    it('Escape cancels processing and a late correction cannot close twice', async () => {
+        let resolveCorrection!: (value: unknown) => void;
+        realtimeMocks.correction = new Promise((resolve) => { resolveCorrection = resolve; });
+        const mounted = mountRecorder({ realtime: true });
+        await flushMount();
+        const recorder = FakeMediaRecorder.instances[0];
+        recorder.emitData('recorded-audio');
+        mounted.component.stop();
+        recorder.emitStop();
+        await tick();
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        expect(realtimeMocks.cancel).toHaveBeenCalledTimes(1);
+        expect(mounted.cancel).toHaveBeenCalledTimes(1);
+        expect(mounted.close).toHaveBeenCalledTimes(1);
+        resolveCorrection({ transcript: 'Discarded text' });
+        await flushMount();
+        expect(mounted.close).toHaveBeenCalledTimes(1);
+        await unmount(mounted.component, { outro: false });
+    });
+
+    // contract-test: direct surface=gui.web assertions=message-input.recording.lifecycle
+    it('cancels a pending correction when the overlay is forcibly removed', async () => {
+        const mounted = mountRecorder({ realtime: true });
+        await flushMount();
+        const recorder = FakeMediaRecorder.instances[0];
+        recorder.emitData('recorded-audio');
+        mounted.component.stop();
+        recorder.emitStop();
+        await unmount(mounted.component, { outro: false });
+        expect(realtimeMocks.cancel).toHaveBeenCalledTimes(1);
+        expect(mounted.close).not.toHaveBeenCalled();
+    });
+
+    // contract-test: supporting surface=gui.web assertions=message-input.recording.lifecycle
+    it('preserves asynchronous handoff for existing audio embed consumers', async () => {
+        const mounted = mountRecorder({ realtime: true, retainUntilCorrection: false });
+        await flushMount();
+        const recorder = FakeMediaRecorder.instances[0];
+        recorder.emitData('recorded-audio');
+        mounted.component.stop();
+        recorder.emitStop();
+        expect(mounted.audioRecorded).toHaveBeenCalledTimes(1);
+        expect(mounted.close).toHaveBeenCalledTimes(1);
+        await unmount(mounted.component, { outro: false });
+        expect(realtimeMocks.cancel).not.toHaveBeenCalled();
     });
 
     // contract-test: supporting surface=gui.web assertions=message-input.recording.lifecycle

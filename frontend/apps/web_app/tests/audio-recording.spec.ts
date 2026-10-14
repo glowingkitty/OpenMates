@@ -298,7 +298,7 @@ async function expectWaveformContained(overlay: any, waveform: any) {
 		.toBe(true);
 }
 
-async function dispatchHoldAndReleaseMicButton(page: any, micButton: any, holdMs = 2000, verifyDiagnosticCapture = false) {
+async function dispatchHoldAndReleaseMicButton(page: any, micButton: any, holdMs = 2000, verifyDiagnosticCapture = false, waitForCorrection = true) {
 	await micButton.dispatchEvent('mousedown', { button: 0 });
 	const overlay = page.getByTestId('record-overlay');
 	await expect(overlay).toBeVisible({ timeout: 5000 });
@@ -314,7 +314,7 @@ async function dispatchHoldAndReleaseMicButton(page: any, micButton: any, holdMs
 	}
 	await page.waitForTimeout(holdMs);
 	await overlay.getByTestId('record-finish-button').click();
-	await expect(overlay).not.toBeVisible({ timeout: 10000 });
+    if (waitForCorrection) await expect(overlay).not.toBeVisible({ timeout: 10000 });
 }
 
 async function getEditorPlainText(page: any): Promise<string> {
@@ -687,7 +687,7 @@ test('corrected transcript markup and newlines stay ordinary editable text', asy
 });
 
 // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript
-test('pending correction preserves text typed into the same draft', async ({ page }) => {
+test('pending correction keeps the overlay visible until corrected text is inserted', async ({ page }) => {
 	test.setTimeout(120000);
 	let releaseCorrection: (() => void) | null = null;
 	await page.routeWebSocket('**/v1/apps/audio/realtime-transcription*', (socket: any) => {
@@ -705,9 +705,17 @@ test('pending correction preserves text typed into the same draft', async ({ pag
 	await editor.press('Home');
 	for (let index = 0; index < 7; index++) await editor.press('ArrowRight');
 	await snapshotAudioDraftState(page, 'before-pending-draft-recording');
-	await dispatchHoldAndReleaseMicButton(page, await waitForMicButton(page), 2000, true);
+	await dispatchHoldAndReleaseMicButton(page, await waitForMicButton(page), 2000, true, false);
 	await expect.poll(() => releaseCorrection !== null).toBe(true);
 	await snapshotAudioDraftState(page, 'pending-existing-draft-correction');
+	const overlay = page.getByTestId('record-overlay');
+	const status = overlay.getByTestId('recording-processing-text');
+	await expect(overlay).toBeVisible();
+	await expect(status).toHaveText('Improving transcript…');
+	await expect(overlay.getByTestId('record-finish-button')).toBeDisabled();
+	await expect(overlay.getByTestId('record-cancel-button')).toBeVisible();
+	await expect(editor).toHaveText('Please  now');
+	await expect(editor).not.toBeFocused();
 	const sendButton = page.getByTestId('composer-send-button').last();
 	await expect.poll(async () => (await sendButton.count()) === 0 || await sendButton.isDisabled()).toBe(true);
 	const sentMessagesBefore = await page.getByTestId('message-user').count();
@@ -716,13 +724,65 @@ test('pending correction preserves text typed into the same draft', async ({ pag
 		cancelable: true
 	})));
 	await expect(page.getByTestId('message-user')).toHaveCount(sentMessagesBefore);
-	await editor.click();
-	await editor.press('End');
-	await page.keyboard.type(' and later');
+	await expect(status).toHaveText('Removing filler words…', { timeout: 4000 });
+	await expect(status).toHaveText('Making it more concise…', { timeout: 4000 });
+	await expect(overlay).toBeVisible();
+	await expect(editor).toHaveText('Please  now');
 	(releaseCorrection as (() => void) | null)?.();
-	await expect(editor).toHaveText('Please review now and later');
+	await expect(overlay).not.toBeVisible();
+	await expect(editor).toHaveText('Please review now');
+	await expect(editor).toBeFocused();
+	await page.keyboard.type('!');
+	await expect(editor).toHaveText('Please review! now');
 	await expect(sendButton).toBeVisible();
 	await expect(sendButton).toBeEnabled();
+	await expect(page.getByTestId('recording-preview')).toHaveCount(0);
+});
+
+// contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.recording.lifecycle
+test('Escape cancels pending correction without changing the existing draft', async ({ page }) => {
+	test.setTimeout(120000);
+	let correctionPending = false;
+	await page.routeWebSocket('**/v1/apps/audio/realtime-transcription*', (socket: any) => {
+		socket.send(JSON.stringify({ type: 'session.ready' }));
+		socket.onMessage((payload: string) => {
+			if (JSON.parse(payload).type !== 'input_audio.end') return;
+			socket.send(JSON.stringify({ type: 'transcription.done', transcript: 'discard me', model: 'test-realtime' }));
+			correctionPending = true;
+		});
+	});
+	await setupAndFocusMessageField(page);
+	const editor = getEditableEditor(page);
+	await editor.fill('Keep this draft');
+	await dispatchHoldAndReleaseMicButton(page, await waitForMicButton(page), 2000, false, false);
+	await expect.poll(() => correctionPending).toBe(true);
+	await expect(page.getByTestId('recording-processing-text')).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(page.getByTestId('record-overlay')).not.toBeVisible();
+	await expect(editor).toHaveText('Keep this draft');
+	await expect(page.getByTestId('recording-preview')).toHaveCount(0);
+});
+
+// contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.recording.lifecycle
+test('correction failure closes processing and preserves the existing draft', async ({ page }) => {
+	test.setTimeout(120000);
+	let failCorrection: (() => void) | null = null;
+	await page.routeWebSocket('**/v1/apps/audio/realtime-transcription*', (socket: any) => {
+		socket.send(JSON.stringify({ type: 'session.ready' }));
+		socket.onMessage((payload: string) => {
+			if (JSON.parse(payload).type !== 'input_audio.end') return;
+			failCorrection = () => socket.send(JSON.stringify({ type: 'session.error', message: 'Synthetic correction failure' }));
+		});
+	});
+	await setupAndFocusMessageField(page);
+	const editor = getEditableEditor(page);
+	await editor.fill('Keep this draft');
+	await dispatchHoldAndReleaseMicButton(page, await waitForMicButton(page), 2000, false, false);
+	await expect.poll(() => failCorrection !== null).toBe(true);
+	await expect(page.getByTestId('recording-processing-text')).toBeVisible();
+	(failCorrection as (() => void) | null)?.();
+	await expect(page.getByTestId('record-overlay')).not.toBeVisible();
+	await expect(editor).toHaveText('Keep this draft');
 	await expect(page.getByTestId('recording-preview')).toHaveCount(0);
 });
 
@@ -743,7 +803,7 @@ test('late correction cannot alter the next chat draft', async ({ page }) => {
 	await setupAndFocusMessageField(page);
 	const editor = getEditableEditor(page);
 	await editor.fill('Original note');
-	await dispatchHoldAndReleaseMicButton(page, await waitForMicButton(page));
+	await dispatchHoldAndReleaseMicButton(page, await waitForMicButton(page), 2000, false, false);
 	await expect.poll(() => releaseCorrection !== null).toBe(true);
 	await startNewChat(page, () => undefined);
 	await getEditableEditor(page).fill('New draft');

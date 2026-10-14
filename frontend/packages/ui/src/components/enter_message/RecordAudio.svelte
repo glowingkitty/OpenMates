@@ -58,6 +58,9 @@
         externalStream?: MediaStream | null;
         enableRealtime?: boolean;
         previewTranscript?: string | null;
+        previewProcessing?: boolean;
+        /** Text composers keep the overlay until corrected text is available. */
+        retainUntilCorrection?: boolean;
         correctionContext?: 'workflow';
         recordingGeneration?: number;
     }
@@ -66,6 +69,8 @@
         externalStream = null,
         enableRealtime = false,
         previewTranscript = null,
+        previewProcessing = false,
+        retainUntilCorrection = false,
         correctionContext,
         recordingGeneration = 0,
     }: Props = $props();
@@ -133,6 +138,45 @@
     let realtimeFinishRequested = false;
     let realtimeCancelled = false;
     let realtimeFinishFailed = false;
+    let overlayCloseRequested = $state(false);
+    let processingMessageIndex = $state(0);
+    const processingMessageKeys = [
+        'enter_message.record_audio.improving_transcript',
+        'enter_message.record_audio.removing_filler_words',
+        'enter_message.record_audio.making_more_concise',
+    ];
+    let isProcessing = $derived(
+        !overlayCloseRequested && (previewProcessing || (retainUntilCorrection && stopIntent === 'finish')),
+    );
+
+    $effect(() => {
+        if (!isProcessing) return;
+        processingMessageIndex = 0;
+        const interval = setInterval(() => {
+            processingMessageIndex = (processingMessageIndex + 1) % processingMessageKeys.length;
+        }, 3000);
+        return () => clearInterval(interval);
+    });
+
+    function closeOverlay() {
+        if (overlayCloseRequested) return;
+        overlayCloseRequested = true;
+        dispatch('close');
+    }
+
+    function cancelPendingCorrection() {
+        if (!retainUntilCorrection || !realtimeHandedOff || overlayCloseRequested) return false;
+        isCancelled = true;
+        stopIntent = 'cancel';
+        try {
+            realtimeHandle?.cancel();
+        } catch (error) {
+            logger.error('Failed to cancel transcript correction:', error);
+        }
+        dispatch('cancel');
+        closeOverlay();
+        return true;
+    }
 
     const logger = {
         debug: (...args: unknown[]) => console.debug('[RecordAudio]', ...args),
@@ -165,6 +209,14 @@
 
     onDestroy(() => {
         notifyOverlayRemoved();
+        if (retainUntilCorrection && realtimeHandedOff && !overlayCloseRequested) {
+            try {
+                realtimeHandle?.cancel();
+            } catch (error) {
+                logger.error('Failed to cancel transcript correction on destroy:', error);
+            }
+        }
+        overlayCloseRequested = true;
         logger.debug('Component destroying.');
         stopWaveform();
         stopTranscriptMeasurement();
@@ -275,7 +327,7 @@
                 finalizationCompleted = true;
                 finalized = true;
                 finishRealtime(true);
-                dispatch('close');
+                closeOverlay();
             }
         }
     }
@@ -406,9 +458,15 @@
 
         recordedChunks = [];
         recordedWaveformLevels = [];
-        recordingTime = 0;
         mediaRecorder = null;
-        dispatch('close');
+        if (retainUntilCorrection && realtimeHandedOff && realtimeHandle) {
+            // The parent registers its correction await during audiorecorded.
+            // It inserts the text before this later continuation closes the
+            // overlay, then restores focus after overlayremoved.
+            void realtimeHandle.correction.then(closeOverlay, closeOverlay);
+        } else {
+            closeOverlay();
+        }
     }
 
     /** Core stop/cancel — all paths converge here. */
@@ -577,24 +635,11 @@
     function handleKeyDown(event: KeyboardEvent) {
         if (event.key === 'Enter') {
             event.preventDefault();
-            if (!readyForRelease) {
-                logger.debug('Enter pressed — deferred finish (not ready yet).');
-                pendingReleaseCancel = false;
-                return;
-            }
-            logger.debug('Enter pressed — finishing recording.');
-            dispatch('prepareassistantplayback');
-            stopInternal(false);
+            stop();
         }
         if (event.key === 'Escape') {
             event.preventDefault();
-            if (!readyForRelease) {
-                logger.debug('Escape pressed — deferred cancel (not ready yet).');
-                pendingReleaseCancel = true;
-                return;
-            }
-            logger.debug('Escape pressed — cancelling recording.');
-            stopInternal(true); // cancelled
+            cancel();
         }
     }
 
@@ -602,6 +647,7 @@
 
     /** Complete the recording (produces audiorecorded event). */
     export function stop() {
+        if (stopIntent !== null || finalized || previewProcessing) return;
         dispatch('prepareassistantplayback');
         if (!readyForRelease) {
             logger.debug('stop() called by parent — deferred (not ready for release yet).');
@@ -614,6 +660,8 @@
 
     /** Cancel the recording (no audiorecorded event). */
     export function cancel() {
+        if (cancelPendingCorrection()) return;
+        if (overlayCloseRequested) return;
         if (!readyForRelease) {
             logger.debug('cancel() called by parent — deferred (not ready for release yet).');
             pendingReleaseCancel = true;
@@ -634,6 +682,7 @@
     class="record-overlay"
     data-testid="record-overlay"
     data-recording-finalized={finalized}
+    data-recording-processing={isProcessing}
     data-recording-stop-intent={stopIntent ?? ''}
     tabindex="-1"
     transition:fade={{ duration: 150 }}
@@ -643,7 +692,15 @@
         <!-- Top: explicit completion/cancellation shortcuts. -->
         <div class="record-header">
             <span class="release-text" data-testid="release-text">
-                {#if liveTranscript}
+                {#if isProcessing}
+                    <span role="status" aria-live="polite" aria-atomic="true">
+                        {#key processingMessageIndex}
+                            <span class="processing-text" data-testid="recording-processing-text">
+                                {$text(processingMessageKeys[processingMessageIndex])}
+                            </span>
+                        {/key}
+                    </span>
+                {:else if liveTranscript}
                     <span
                         bind:this={liveTranscriptViewportElement}
                         class="live-transcript-viewport"
@@ -663,23 +720,27 @@
                     {$text('enter_message.record_audio.recording')}
                 {/if}
             </span>
-            <span class="record-shortcuts" data-testid="record-shortcuts">
-                {$text('enter_message.record_audio.enter_to_finish_escape_to_cancel')}
-            </span>
+            {#if !isProcessing}
+                <span class="record-shortcuts" data-testid="record-shortcuts">
+                    {$text('enter_message.record_audio.enter_to_finish_escape_to_cancel')}
+                </span>
+            {/if}
         </div>
 
         <!-- Recent microphone levels enter on the right and roll left. -->
-        <div class="recording-waveform" data-testid="recording-waveform" aria-hidden="true">
-            {#each waveformSamples as level, index (index)}
-                <span
-                    class="recording-waveform-bar"
-                    data-testid="recording-waveform-bar"
-                    data-level={level.toFixed(3)}
-                    style:height={`${Math.max(WAVEFORM_MIN_VISIBLE_LEVEL, level) * 100}%`}
-                ></span>
-            {/each}
-        </div>
-        {#if !liveTranscript && enableRealtime && realtimeStatus === 'connecting'}
+        {#if !isProcessing}
+            <div class="recording-waveform" data-testid="recording-waveform" aria-hidden="true">
+                {#each waveformSamples as level, index (index)}
+                    <span
+                        class="recording-waveform-bar"
+                        data-testid="recording-waveform-bar"
+                        data-level={level.toFixed(3)}
+                        style:height={`${Math.max(WAVEFORM_MIN_VISIBLE_LEVEL, level) * 100}%`}
+                    ></span>
+                {/each}
+            </div>
+        {/if}
+        {#if !isProcessing && !liveTranscript && enableRealtime && realtimeStatus === 'connecting'}
             <span class="live-transcript-placeholder" aria-hidden="true">•••</span>
         {/if}
     </div>
@@ -694,7 +755,7 @@
             <button type="button" class="record-action-button cancel" data-testid="record-cancel-button" onclick={cancel}>
                 {$text('enter_message.record_audio.cancel')}
             </button>
-            <button type="button" class="record-action-button finish" data-testid="record-finish-button" onclick={stop}>
+            <button type="button" class="record-action-button finish" data-testid="record-finish-button" disabled={isProcessing || finalized} onclick={stop}>
                 {$text('enter_message.record_audio.finish')}
             </button>
         </div>
@@ -783,7 +844,23 @@
         will-change: transform;
     }
 
+    .processing-text {
+        display: block;
+        animation: recording-processing-pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes recording-processing-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+    }
+
+    .record-action-button.finish:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+
     @media (prefers-reduced-motion: reduce) {
+        .processing-text { animation: none; }
         .live-transcript-flow {
             transition-duration: 0ms;
         }
