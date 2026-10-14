@@ -83,6 +83,7 @@
   .language-options button { min-width: 0; min-height: 40px; padding: var(--spacing-4); border: 1px solid var(--color-grey-30); border-radius: var(--radius-3); background: var(--color-grey-10); color: var(--color-font-primary); text-align: start; font: inherit; font-size: var(--font-size-small); cursor: pointer; }
   .language-options button:hover, .language-options button.selected { border-color: var(--color-primary-start); background: var(--color-grey-blue); }
   @media (max-width: 760px) { .site-header { padding-inline: var(--spacing-8); gap: var(--spacing-4); }.header-actions { gap: var(--spacing-4); } }
-  @media (max-width: 460px) { .github-link { display: none; } }
-  @media (max-width: 360px) { .site-header { padding-inline: var(--spacing-4); gap: var(--spacing-2); }.header-actions { gap: var(--spacing-2); }.header-icon { flex-basis: 36px; width: 36px; height: 36px; }.header-link { padding-inline: var(--spacing-4); font-size: var(--font-size-small); } }
+  @media (max-width: 460px) { .header-actions { gap: var(--spacing-1); } }
+  @media (max-width: 380px) { .site-header { padding-inline: var(--spacing-4); gap: var(--spacing-2); }.header-actions { gap: var(--spacing-2); }.header-icon { flex-basis: 36px; width: 36px; height: 36px; }.header-link { padding-inline: var(--spacing-4); font-size: var(--font-size-small); } }
+  @media (max-width: 340px) { .header-actions { gap: 0; }.header-icon { flex-basis: 32px; width: 32px; }.header-link { padding-inline: var(--spacing-3); } }
 </style>
