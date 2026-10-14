@@ -282,23 +282,7 @@ function extractChildEmbedIds(content: string): string[] {
     .filter(Boolean);
 }
 
-// Public references and PII sidecars must never enter EmbedStore's private
-// UUID/ref namespace: reviewed examples retain their source embed UUIDs.
-export function resolveExampleChatEmbedRef(
-  ref: string,
-  chatId: string | null | undefined,
-): { embedId: string; appId: string | null; type: string } | null {
-  const group = chatId ? exampleGroupByChatId.get(chatId) : null;
-  if (!group) return null;
-  for (const embed of [...group.embeds, ...(group.sub_chats ?? []).flatMap((subChat) => subChat.embeds)]) {
-    if (!embed.content || !embed.embed_id) continue;
-    const embedId = normalizeEmbedId(embed.embed_id);
-    if (normalizeEmbedId(ref) === embedId || toonField(embed.content, "embed_ref") === ref) {
-      return { embedId, appId: toonField(embed.content, "app_id"), type: embed.type };
-    }
-  }
-  return null;
-}
+export { resolveExampleChatEmbedRef } from "./publicExampleEmbedRefs";
 
 export function getExampleChatEmbedPiiMappings(
   embedId: string,

@@ -673,7 +673,7 @@ test.describe('Example chats loading for new users', () => {
 		await expectAudioCanPlay(fullscreenAudio, 'mobile audio.speak fullscreen audio');
 	});
 
-	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity,chat-processing-feedback.completed-processing-summary
 	test('Deutschlandticket travel example keeps preview metadata readable and shows map route lines', async ({
 		page
 	}: {
@@ -686,11 +686,20 @@ test.describe('Example chats loading for new users', () => {
 			waitUntil: 'domcontentloaded'
 		});
 
-		const assistantMessage = page
-			.getByTestId('message-assistant')
-			.filter({ hasText: 'Deutsche Bahn' })
-			.first();
+		const assistantMessage = page.locator('[data-testid="message-assistant"][data-message-id="9d5fe6e2-bb2b-5491-91fa-7483132bfde0"]');
 		await expect(assistantMessage).toBeVisible({ timeout: 15000 });
+
+		const activity = assistantMessage.getByTestId('assistant-activity-group');
+		const toggle = activity.getByTestId('assistant-activity-toggle');
+		await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+		await expect(activity.getByTestId('assistant-activity-summary-text')).not.toBeEmpty();
+		await expect(activity.getByTestId('assistant-activity-body')).toHaveCount(0);
+		await expect(assistantMessage.locator('[data-testid="embed-preview"][data-app-id="travel"][data-skill-id="search_connections"]')).toHaveCount(0);
+		// Result routes stay inline while the invocation is collapsed.
+		await expect(assistantMessage.getByTestId('embeds-map-view')).toBeVisible();
+		await toggle.click();
+		await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+		await expect(activity.getByTestId('assistant-activity-body')).toBeVisible();
 
 		const travelSearchCards = assistantMessage.locator(
 			'[data-testid="embed-preview"][data-app-id="travel"][data-skill-id="search_connections"][data-status="finished"]'
@@ -713,6 +722,10 @@ test.describe('Example chats loading for new users', () => {
 
 		const firstTravelSearch = travelSearchCards.first();
 		await expect(firstTravelSearch, 'parent preview should use result_count/embed_ids instead of showing 0').toContainText('5 connections');
+
+		await toggle.click();
+		await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+		await expect(activity.getByTestId('assistant-activity-body')).toHaveCount(0);
 
 		const mapView = assistantMessage.getByTestId('embeds-map-view');
 		await expect(mapView, 'Deutschlandticket example should include a grouped route map view').toBeVisible({ timeout: 15000 });
@@ -764,6 +777,8 @@ test.describe('Example chats loading for new users', () => {
 		await filterButton.click();
 		await mapView.getByTestId('embeds-map-view-clear-filters').click();
 
+		await toggle.click();
+		await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 		const fullscreenOverlay = await openFullscreen(page, firstTravelSearch);
 		const resultCards = await verifySearchGrid(fullscreenOverlay, 5, 30000);
 		const cardsToCheck = Math.min(3, await resultCards.count());
