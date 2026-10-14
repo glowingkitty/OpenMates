@@ -26,6 +26,7 @@ ORCHESTRATION_OPERATIONS = {
     "transition_child",
     "transition_root",
     "claim_parent_continuation",
+    "fail_research_verification",
     "mark_parent_continuation_dispatched",
     "get_root_state",
     "reserve_operation",

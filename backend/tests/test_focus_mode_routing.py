@@ -290,3 +290,17 @@ def test_focus_continuations_preserve_system_transition_history():
     ))
     assert [message["role"] for message in history] == ["system", "system", "user"]
     assert [message["content"] for message in history] == [event["encrypted_content"] for event in events]
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_deep_research_verifier_final_barrier_keeps_legacy_and_failure_honest():
+    from backend.apps.ai.processing.focus_mode_routing import can_synthesize_deep_research
+    for stage in ("research", "verification_due", "verification_running", "unknown"):
+        assert can_synthesize_deep_research(stage) is False
+    for stage in (None, "synthesis", "failed"):
+        assert can_synthesize_deep_research(stage) is True
+    # Automatic server verification never grants model continuation capabilities.
+    assert should_expose_subchat_tool(enable_subchats=True, chat_depth=0,
+        is_sub_chat_continuation=True, active_focus_id="web-research") is False
+    assert should_expose_subchat_tool(enable_subchats=True, chat_depth=1,
+        is_sub_chat_continuation=False, active_focus_id="web-research") is False

@@ -45,7 +45,7 @@ const OPERATION_FIELDS = Object.freeze({
   health_check: new Set(['protocol_version']),
   create_root: new Set([
     'protocol_version', 'orchestration_id', 'hashed_user_id', 'hashed_team_id',
-    'root_chat_id', 'root_turn_id', 'descendant_limit', 'credit_limit',
+    'root_chat_id', 'root_turn_id', 'descendant_limit', 'credit_limit', 'deep_research',
   ]),
   approve_root_limits: new Set([
     'protocol_version', 'orchestration_id', 'hashed_user_id', 'descendant_limit', 'credit_limit',
@@ -53,6 +53,7 @@ const OPERATION_FIELDS = Object.freeze({
   prepare_batch: new Set([
     'protocol_version', 'orchestration_id', 'hashed_user_id', 'batch_id',
     'parent_chat_id', 'parent_depth', 'is_continuation', 'children',
+    'research_batch_id', 'continuation_task_id',
   ]),
   claim_child: new Set([
     'protocol_version', 'orchestration_id', 'hashed_user_id', 'child_chat_id',
@@ -66,6 +67,9 @@ const OPERATION_FIELDS = Object.freeze({
   ]),
   claim_parent_continuation: new Set([
     'protocol_version', 'orchestration_id', 'hashed_user_id', 'batch_id',
+  ]),
+  fail_research_verification: new Set([
+    'protocol_version', 'orchestration_id', 'hashed_user_id', 'batch_id', 'continuation_task_id',
   ]),
   mark_parent_continuation_dispatched: new Set([
     'protocol_version', 'orchestration_id', 'hashed_user_id', 'batch_id', 'continuation_task_id',
@@ -247,7 +251,15 @@ const rootResponse = (row) => ({
   approved: row.approved,
   status: row.status,
   version: row.version,
+  research_stage: row.research_stage ?? null,
+  research_batch_id: row.research_batch_id ?? null,
+  verifier_batch_id: row.verifier_batch_id ?? null,
 });
+// Stable identities survive claim, broker and worker retries without creating paid work.
+function verifierIdentity(root, kind) {
+  const h = createHash('sha256').update(`openmates:research-verifier:${kind}:${root.id}:${root.root_turn_id}`).digest('hex').slice(0, 32);
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-8${h.slice(13, 16)}-${((parseInt(h[16], 16) & 3) | 8).toString(16)}${h.slice(17, 20)}-${h.slice(20)}`;
+}
 const operationReservationFits = (root, quotedCredits) => (
   root.spent_credits + root.reserved_credits + quotedCredits <= root.credit_limit
 );
@@ -318,6 +330,7 @@ async function createRoot(database, raw, now) {
   const rootTurnId = uuid(body.root_turn_id, 'invalid_root_turn_id');
   const descendantLimit = integer(body.descendant_limit ?? AUTO_DESCENDANT_LIMIT, 'invalid_descendant_limit');
   const creditLimit = integer(body.credit_limit ?? AUTO_CREDIT_LIMIT, 'invalid_credit_limit');
+  if (body.deep_research != null && typeof body.deep_research !== 'boolean') fail(400, 'invalid_research_mode');
   if (descendantLimit > AUTO_DESCENDANT_LIMIT || creditLimit > AUTO_CREDIT_LIMIT) fail(403, 'root_approval_required');
   return database.transaction(async (trx) => {
     const existing = await trx(ORCHESTRATIONS).where({ id }).forUpdate().first();
@@ -334,6 +347,9 @@ async function createRoot(database, raw, now) {
       descendant_limit: descendantLimit, descendant_count: 0,
       credit_limit: creditLimit, reserved_credits: 0, spent_credits: 0,
       approved: false, status: 'active', version: 1,
+      // Existing roots are deliberately never upgraded on recovery/replay.
+      research_stage: body.deep_research === true ? 'research' : null,
+      research_batch_id: null, verifier_batch_id: null,
       created_at: now, updated_at: now, expires_at: new Date(now.getTime() + ROOT_TTL_MS),
     };
     await trx(ORCHESTRATIONS).insert(row);
@@ -371,7 +387,8 @@ async function prepareBatch(database, raw, now) {
   const batchId = uuid(body.batch_id, 'invalid_batch_id');
   const parentChatId = uuid(body.parent_chat_id, 'invalid_parent_chat_id');
   const parentDepth = integer(body.parent_depth, 'invalid_parent_depth');
-  if (body.is_continuation !== false) fail(409, 'continuation_spawn_forbidden');
+  const verifier = body.is_continuation === true && body.research_batch_id != null;
+  if (body.is_continuation !== false && !verifier) fail(409, 'continuation_spawn_forbidden');
   const children = validatedChildren(body.children);
   return database.transaction(async (trx) => {
     const root = await lockedRoot(trx, orchestrationId, ownerHash);
@@ -384,6 +401,22 @@ async function prepareBatch(database, raw, now) {
         fail(409, 'parent_not_authorized');
       }
     }
+    if (verifier) {
+      const researchBatch = await trx(BATCHES).where({ id: body.research_batch_id, orchestration_id: orchestrationId }).first();
+      if (parentDepth !== 0 || !root.research_stage
+        || !['verification_due', 'verification_running'].includes(root.research_stage)
+        || root.research_batch_id !== body.research_batch_id
+        || !researchBatch?.continuation_claimed
+        || researchBatch.continuation_task_id !== body.continuation_task_id
+        || batchId !== verifierIdentity(root, 'batch') || children.length !== 1
+        || children[0].child_chat_id !== verifierIdentity(root, 'child')) {
+        fail(409, 'verification_spawn_forbidden');
+      }
+    } else if (root.research_stage) {
+      if (parentDepth !== 0 || root.research_stage !== 'research'
+        || (root.research_batch_id && root.research_batch_id !== batchId)
+        || children.length !== 3) fail(409, 'research_batch_forbidden');
+    }
     const existing = await trx(CHILDREN).where({ orchestration_id: orchestrationId, batch_id: batchId });
     if (existing.length) {
       const requested = children
@@ -395,7 +428,10 @@ async function prepareBatch(database, raw, now) {
       if (requested !== persisted) fail(409, 'batch_identity_mismatch');
       return { orchestration_id: orchestrationId, batch_id: batchId, prepared: false, idempotent: true, child_chat_ids: existing.map((row) => row.child_chat_id) };
     }
-    if (root.descendant_count + children.length > root.descendant_limit) fail(409, 'descendant_limit_exceeded');
+    // One reserved verifier slot applies only to this claimed research batch.
+    // Generic descendants and the shared credit ceiling retain their limits.
+    if (root.descendant_count + children.length > root.descendant_limit + (verifier ? 1 : 0)
+      || root.descendant_count + children.length > MAX_DESCENDANT_LIMIT) fail(409, 'descendant_limit_exceeded');
     const depth = parentDepth + 1;
     const timestamp = Math.floor(now.getTime() / 1000);
     await trx(BATCHES).insert({
@@ -423,6 +459,8 @@ async function prepareBatch(database, raw, now) {
     }
     const updated = await trx(ORCHESTRATIONS).where({ id: orchestrationId, version: root.version }).update({
       descendant_count: root.descendant_count + children.length,
+      ...(verifier ? { research_stage: 'verification_running', verifier_batch_id: batchId }
+        : root.research_stage ? { research_batch_id: batchId } : {}),
       version: root.version + 1, updated_at: now,
     });
     if (updated !== 1) fail(409, 'orchestration_conflict');
@@ -560,7 +598,7 @@ async function claimParentContinuation(database, raw, now) {
   const ownerHash = string(body.hashed_user_id, 'invalid_owner', 128);
   const batchId = uuid(body.batch_id, 'invalid_batch_id');
   return database.transaction(async (trx) => {
-    await lockedRoot(trx, orchestrationId, ownerHash);
+    const root = await lockedRoot(trx, orchestrationId, ownerHash);
     const batch = await trx(BATCHES).where({ id: batchId, orchestration_id: orchestrationId }).forUpdate().first();
     if (!batch) fail(404, 'batch_not_found');
     if (batch.terminal_count !== batch.child_count) fail(409, 'batch_not_terminal');
@@ -571,10 +609,56 @@ async function claimParentContinuation(database, raw, now) {
         continuation_task_id: continuationTaskId, updated_at: now,
       });
     }
+    let stage = root.research_stage ?? null;
+    if (stage && batch.parent_depth === 0) {
+      if (root.status !== 'active' || new Date(root.expires_at) <= now) fail(409, 'orchestration_not_active');
+      const children = await trx(CHILDREN).where({ orchestration_id: orchestrationId, batch_id: batchId });
+      const successful = children.length === batch.child_count && children.every((child) => child.state === 'completed');
+      if (batchId === root.research_batch_id && stage === 'research') stage = successful ? 'verification_due' : 'failed';
+      else if (batchId === root.verifier_batch_id && stage === 'verification_running') stage = successful ? 'synthesis' : 'failed';
+      else if (batchId !== root.research_batch_id && batchId !== root.verifier_batch_id) fail(409, 'research_batch_mismatch');
+      if (stage !== root.research_stage) {
+        await trx(ORCHESTRATIONS).where({ id: root.id }).update({ research_stage: stage, updated_at: now, version: root.version + 1 });
+      }
+    }
+    const verifierChild = stage === 'verification_running'
+      ? await trx(CHILDREN).where({ orchestration_id: orchestrationId, child_chat_id: verifierIdentity(root, 'child') }).first()
+      : null;
     return {
       batch_id: batchId, continuation_task_id: continuationTaskId,
-      dispatch_required: !batch.continuation_dispatched_at,
+      dispatch_required: !batch.continuation_dispatched_at
+        && !(stage === 'synthesis' && batchId === root.research_batch_id), research_stage: stage,
+      verifier_child_state: verifierChild?.state ?? null, research_batch_id: root.research_batch_id ?? null,
+      root_chat_id: root.root_chat_id, root_turn_id: root.root_turn_id,
+      ...(stage === 'verification_due' || stage === 'verification_running' ? {
+        verifier_batch_id: verifierIdentity(root, 'batch'), verifier_child_id: verifierIdentity(root, 'child'),
+      } : {}),
     };
+  });
+}
+
+
+async function failResearchVerification(database, raw, now) {
+  const body = operationBody(raw, 'fail_research_verification');
+  const id = uuid(body.orchestration_id, 'invalid_orchestration_id');
+  const owner = string(body.hashed_user_id, 'invalid_owner', 128);
+  const batchId = uuid(body.batch_id, 'invalid_batch_id');
+  const taskId = uuid(body.continuation_task_id, 'invalid_continuation_task_id');
+  return database.transaction(async (trx) => {
+    const root = await lockedRoot(trx, id, owner);
+    const batch = await trx(BATCHES).where({ id: batchId, orchestration_id: id }).first();
+    if (!root.research_stage || !batch?.continuation_claimed || batch.continuation_task_id !== taskId
+      || ![root.research_batch_id, root.verifier_batch_id].includes(batchId)) fail(409, 'verification_claim_required');
+    if (root.verifier_batch_id && batchId === root.research_batch_id) {
+      const child = await trx(CHILDREN).where({ orchestration_id: id, child_chat_id: verifierIdentity(root, 'child') }).first();
+      if (child && ['running', 'completed'].includes(child.state)) fail(409, 'verification_already_running');
+      if (child && !['failed', 'cancelled'].includes(child.state)) {
+        await trx(CHILDREN).where({ id: child.id }).update({ state: 'failed', terminal_at: now, updated_at: now });
+        await trx(BATCHES).where({ id: root.verifier_batch_id }).update({ terminal_count: 1, updated_at: now });
+      }
+    }
+    await trx(ORCHESTRATIONS).where({ id }).update({ research_stage: 'failed', updated_at: now, version: root.version + 1 });
+    return { research_stage: 'failed' };
   });
 }
 
@@ -2975,6 +3059,7 @@ export const operations = Object.freeze({
   transition_child: transitionChild,
   transition_root: transitionRoot,
   claim_parent_continuation: claimParentContinuation,
+  fail_research_verification: failResearchVerification,
   mark_parent_continuation_dispatched: markParentContinuationDispatched,
   get_root_state: getRootState,
   reserve_operation: reserveOperation,

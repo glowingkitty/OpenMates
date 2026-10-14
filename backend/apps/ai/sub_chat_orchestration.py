@@ -75,8 +75,18 @@ def is_sub_chat_continuation(request_data: Any) -> bool:
     )
 
 
-def ensure_orchestration_envelope(request_data: Any) -> None:
+def ensure_orchestration_envelope(request_data: Any, *, verification_claim: dict[str, Any] | None = None) -> None:
     """Create a root envelope or reject incomplete child ancestry."""
+    if verification_claim:
+        if (request_data.is_sub_chat or request_data.sub_chat_depth != 0
+                or request_data.active_focus_id != "web-research"
+                or not all((request_data.orchestration_id, request_data.root_chat_id, request_data.root_turn_id))
+                or verification_claim.get("research_stage") not in {"verification_due", "verification_running"}
+                or verification_claim.get("root_chat_id") != request_data.chat_id
+                or request_data.root_chat_id != request_data.chat_id
+                or verification_claim.get("root_turn_id") != request_data.root_turn_id):
+            raise RuntimeError("Verification requires a claimed root research batch")
+        return
     if is_sub_chat_continuation(request_data):
         raise RuntimeError("Sub-chat continuations cannot start descendants")
 
@@ -259,6 +269,7 @@ async def create_sub_chat_records(
     request_data: Any,
     spawned_sub_chats: list[dict[str, Any]],
     log_prefix: str,
+    verification_claim: dict[str, Any] | None = None,
 ) -> dict[str, str]:
     if getattr(request_data, "is_incognito", False):
         raise RuntimeError("Incognito sub-chats cannot create durable chat records")
@@ -268,9 +279,9 @@ async def create_sub_chat_records(
         return {}
 
     try:
-        ensure_orchestration_envelope(request_data)
+        ensure_orchestration_envelope(request_data, verification_claim=verification_claim)
         service = SubChatOrchestrationService(directus_service)
-        if request_data.sub_chat_depth == 0:
+        if request_data.sub_chat_depth == 0 and not verification_claim:
             await create_orchestration_root(directus_service, request_data)
             if request_data.orchestration_approved:
                 await service.execute("approve_root_limits", {
@@ -297,6 +308,10 @@ async def create_sub_chat_records(
             f"openmates:sub-chat-batch:{request_data.orchestration_id}:"
             + ":".join(sorted(dispatch_tokens)),
         ))
+        if verification_claim:
+            if len(spawned_sub_chats) != 1 or spawned_sub_chats[0]["id"] != verification_claim["verifier_child_id"]:
+                raise RuntimeError("Verification permits exactly one deterministic child")
+            batch_id = verification_claim["verifier_batch_id"]
         await service.execute("prepare_batch", {
             "protocol_version": 1,
             "orchestration_id": request_data.orchestration_id,
@@ -304,7 +319,9 @@ async def create_sub_chat_records(
             "batch_id": batch_id,
             "parent_chat_id": request_data.chat_id,
             "parent_depth": request_data.sub_chat_depth,
-            "is_continuation": False,
+            "is_continuation": bool(verification_claim),
+            **({"research_batch_id": verification_claim["batch_id"],
+                "continuation_task_id": verification_claim["continuation_task_id"]} if verification_claim else {}),
             "children": [
                 {
                     "child_chat_id": str(sc["id"]),
@@ -342,6 +359,7 @@ async def create_orchestration_root(directus_service: Any, request_data: Any) ->
         "root_turn_id": request_data.root_turn_id,
         "descendant_limit": MAX_AUTO_SUB_CHATS_PER_TURN,
         "credit_limit": MAX_AUTO_SUB_CHAT_CREDITS,
+        "deep_research": getattr(request_data, "active_focus_id", None) == "web-research",
     })
 
 
@@ -369,6 +387,10 @@ async def dispatch_sub_chat_task(
             "message_id": msg_id,
             "user_id": request_data.user_id,
             "user_id_hash": request_data.user_id_hash,
+            "team_id": getattr(request_data, "team_id", None),
+            "team_id_hash": getattr(request_data, "team_id_hash", None),
+            "team_workspace_type": getattr(request_data, "team_workspace_type", None),
+            "team_object_id_hash": getattr(request_data, "team_object_id_hash", None),
             "message_history": [{
                 "role": "user",
                 "content": prompt,

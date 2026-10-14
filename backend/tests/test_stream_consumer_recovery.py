@@ -34,6 +34,11 @@ if "toon_format" not in sys.modules:
     toon_stub.encode = lambda value: json.dumps(value, ensure_ascii=False)
     sys.modules["toon_format"] = toon_stub
 
+try:
+    importlib.import_module("redis.asyncio")
+except ImportError:
+    pass
+
 if "redis.asyncio" not in sys.modules:
     redis_stub = types.ModuleType("redis")
     redis_asyncio_stub = types.ModuleType("redis.asyncio")
@@ -1423,3 +1428,426 @@ def test_sealed_metadata_barrier_waits_after_internal_frames_before_visible_or_t
             assert result[0], "zero-chunk path must publish its terminal fallback after the seal"
 
     asyncio.run(check())
+
+
+def _verifier_test_context():
+    request = AskSkillRequest(chat_id="11111111-1111-4111-8111-111111111111",
+        message_id="22222222-2222-4222-8222-222222222222", user_id="user", user_id_hash="owner",
+        message_history=[AIHistoryMessage(role="user", content="Compare competing explanations", created_at=100)],
+        orchestration_id="33333333-3333-4333-8333-333333333333",
+        root_chat_id="11111111-1111-4111-8111-111111111111",
+        root_turn_id="22222222-2222-4222-8222-222222222222", active_focus_id="web-research")
+    context = {"parent_request_data": request.model_dump(mode="json"), "parent_task_id": "parent-task",
+        "expected_sub_chat_ids": ["research-child"], "completed": {"research-child": {
+            "summary": "Provisional allegation: https://agency.example/complaint. Period 2021-2023.",
+            "chat_id": "research-child", "parent_id": request.chat_id, "owner_hash": request.user_id_hash,
+            "root_chat_id": request.root_chat_id, "root_turn_id": request.root_turn_id,
+            "orchestration_id": request.orchestration_id}}}
+    return request, context
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_deep_research_verifier_prompt_contains_primary_urls_not_final_instruction():
+    request, context = _verifier_test_context()
+    assert stream_consumer._successful_research_reports(context, request)
+    context["completed"]["research-child"]["owner_hash"] = "wrong-owner"
+    assert not stream_consumer._successful_research_reports(context, request)
+    context["completed"]["research-child"]["owner_hash"] = request.user_id_hash
+    prompt = stream_consumer._research_verifier_prompt(context)
+    assert "https://agency.example/complaint" in prompt
+    assert "web-search and web-read" in prompt
+    assert "court-approved" in prompt and "period" in prompt
+    assert "FINAL ANSWER TASK" not in prompt and "Return the final answer only" not in prompt
+    context["completed"]["research-child"]["failed"] = True
+    assert not stream_consumer._successful_research_reports(context)
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_deep_research_verifier_dispatch_stages_context_before_paid_work(monkeypatch):
+    request, context = _verifier_test_context()
+    claim = {"research_stage": "verification_due", "root_chat_id": request.chat_id, "root_turn_id": request.root_turn_id, "verifier_child_id": "verifier-child",
+        "verifier_batch_id": "verifier-batch", "batch_id": "initial-batch", "continuation_task_id": "claim-task"}
+    order = []
+    stored = {}
+    async def prepare(**kwargs):
+        order.append("durable")
+        assert kwargs["verification_claim"] is claim
+        assert kwargs["spawned_sub_chats"][0]["id"] == "verifier-child"
+        return {"verifier-child": "signed-token"}
+    async def set_context(key, value, **kwargs):
+        stored[key] = value
+        order.append("private-context")
+        return True
+    async def dispatch(**kwargs):
+        order.append("dispatch")
+        assert order[:2] == ["durable", "private-context"]
+        assert kwargs["dispatch_token"] == "signed-token"
+        return "stable-task"
+    monkeypatch.setattr(stream_consumer, "create_sub_chat_records", prepare)
+    monkeypatch.setattr(stream_consumer, "dispatch_sub_chat_task", dispatch)
+    monkeypatch.setattr(stream_consumer, "_publish_to_redis", AsyncMock())
+    cache = SimpleNamespace(get=AsyncMock(return_value=None), set=set_context, set_active_ai_task=AsyncMock())
+    asyncio.run(stream_consumer._dispatch_research_verifier(cache_service=cache, directus_service=object(),
+        original_request=request, pending_context=context, claim=claim, log_prefix="[test]"))
+    pending = stored[stream_consumer._sub_chat_pending_key(request.chat_id)]
+    assert pending["research_context"] is context
+    assert pending["expected_sub_chat_ids"] == ["verifier-child"]
+    # A retry after the child already started must reuse paid work.
+    claim["research_stage"] = "verification_running"
+    claim["verifier_child_state"] = "running"
+    cache.get = AsyncMock(return_value=pending)
+    asyncio.run(stream_consumer._dispatch_research_verifier(cache_service=cache, directus_service=object(),
+        original_request=request, pending_context=context, claim=claim, log_prefix="[test]"))
+    assert order.count("dispatch") == 1
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_deep_research_verifier_claim_dispatches_child_without_parent_inference(monkeypatch):
+    request, context = _verifier_test_context()
+    claim = {"research_stage": "verification_due", "root_chat_id": request.chat_id, "root_turn_id": request.root_turn_id, "dispatch_required": True, "continuation_task_id": "claim-task"}
+    service = SimpleNamespace(execute=AsyncMock(return_value=claim))
+    directus = SimpleNamespace(close=AsyncMock())
+    monkeypatch.setattr(stream_consumer, "DirectusService", lambda: directus)
+    monkeypatch.setattr(stream_consumer, "SubChatOrchestrationService", lambda _: service)
+    verifier = AsyncMock()
+    monkeypatch.setattr(stream_consumer, "_dispatch_research_verifier", verifier)
+    parent_dispatch = Mock(side_effect=AssertionError("No parent inference before verifier report"))
+    monkeypatch.setattr(stream_consumer.celery_config.app, "send_task", parent_dispatch)
+    dispatched = asyncio.run(stream_consumer._dispatch_sub_chat_parent_continuation(cache_service=object(),
+        pending_context=context, parent_chat_id=request.chat_id, durable_batch_id="initial-batch", log_prefix="[test]"))
+    assert dispatched is False
+    verifier.assert_awaited_once()
+    assert [call.args[0] for call in service.execute.await_args_list] == ["claim_parent_continuation", "mark_parent_continuation_dispatched"]
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_deep_research_verifier_failure_is_honest_and_synthesis_qualifies_claims():
+    _, context = _verifier_test_context()
+    context["research_stage"] = "failed"
+    prompt = stream_consumer._build_sub_chat_completion_context(context)
+    assert "did not complete successfully" in prompt
+    assert "never claim completed verification" in prompt
+    context["research_stage"] = "synthesis"
+    prompt = stream_consumer._build_sub_chat_completion_context(context)
+    assert "Only treat claims as confirmed where the verifier directly supports" in prompt
+    assert "Short Answer and Bottom Line" in prompt
+    assert "proposed settlement is not a court-approved judgment" in prompt
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_deep_research_verifier_duplicate_initial_claim_retains_pending_context(monkeypatch):
+    request, context = _verifier_test_context()
+    service = SimpleNamespace(execute=AsyncMock(return_value={"research_stage": "verification_running", "root_chat_id": request.chat_id, "root_turn_id": request.root_turn_id,
+        "dispatch_required": False, "research_batch_id": "initial-batch"}))
+    monkeypatch.setattr(stream_consumer, "DirectusService", lambda: SimpleNamespace(close=AsyncMock()))
+    monkeypatch.setattr(stream_consumer, "SubChatOrchestrationService", lambda _: service)
+    assert asyncio.run(stream_consumer._dispatch_sub_chat_parent_continuation(cache_service=object(),
+        pending_context=context, parent_chat_id=request.chat_id, durable_batch_id="initial-batch", log_prefix="[test]")) is False
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_deep_research_verifier_dispatch_failure_yields_qualified_terminal_answer(monkeypatch):
+    request, context = _verifier_test_context()
+    service = SimpleNamespace(execute=AsyncMock(return_value={"research_stage": "verification_due", "root_chat_id": request.chat_id, "root_turn_id": request.root_turn_id,
+        "dispatch_required": True, "continuation_task_id": "claim-task"}))
+    monkeypatch.setattr(stream_consumer, "DirectusService", lambda: SimpleNamespace(close=AsyncMock()))
+    monkeypatch.setattr(stream_consumer, "SubChatOrchestrationService", lambda _: service)
+    monkeypatch.setattr(stream_consumer, "_dispatch_research_verifier", AsyncMock(side_effect=RuntimeError("budget unavailable")))
+    sent = []
+    def send(**kwargs):
+        sent.append(kwargs)
+        return SimpleNamespace(id=kwargs["task_id"])
+    monkeypatch.setattr(stream_consumer.celery_config.app, "send_task", send)
+    cache = SimpleNamespace(set=AsyncMock(return_value=True))
+    assert asyncio.run(stream_consumer._dispatch_sub_chat_parent_continuation(cache_service=cache,
+        pending_context=context, parent_chat_id=request.chat_id, durable_batch_id="initial-batch", log_prefix="[test]")) is True
+    payload = sent[0]["kwargs"]["request_data_dict"]
+    assert payload["is_sub_chat_continuation"] is True
+    assert "verification did not complete successfully" in payload["message_history"][-1]["content"]
+    assert [call.args[0] for call in service.execute.await_args_list] == [
+        "claim_parent_continuation", "fail_research_verification", "mark_parent_continuation_dispatched"]
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_deep_research_verifier_ack_failure_preserves_running_work(monkeypatch):
+    request, context = _verifier_test_context()
+    async def execute(operation, payload):
+        if operation == "claim_parent_continuation":
+            return {"research_stage": "verification_due", "root_chat_id": request.chat_id, "root_turn_id": request.root_turn_id, "dispatch_required": True, "continuation_task_id": "claim-task"}
+        assert operation == "mark_parent_continuation_dispatched"
+        raise RuntimeError("ack unavailable")
+    monkeypatch.setattr(stream_consumer, "DirectusService", lambda: SimpleNamespace(close=AsyncMock()))
+    monkeypatch.setattr(stream_consumer, "SubChatOrchestrationService", lambda _: SimpleNamespace(execute=execute))
+    monkeypatch.setattr(stream_consumer, "_dispatch_research_verifier", AsyncMock())
+    monkeypatch.setattr(stream_consumer.celery_config.app, "send_task", Mock(side_effect=AssertionError("Premature final")))
+    assert asyncio.run(stream_consumer._dispatch_sub_chat_parent_continuation(cache_service=object(),
+        pending_context=context, parent_chat_id=request.chat_id, durable_batch_id="initial-batch", log_prefix="[test]")) is False
+
+
+class _AtomicPendingCache:
+    """Existing fakeredis[lua] executes the actual production CAS script in memory."""
+    def __init__(self, initial=None):
+        import fakeredis.aioredis
+        self.redis = fakeredis.aioredis.FakeRedis(decode_responses=False)
+        self.initial = initial or {}
+        self.ready = False
+        self.read_paused, self.resume_read = asyncio.Event(), asyncio.Event()
+        self.pause_task = self.pause_key = None
+
+    @property
+    async def client(self):
+        if not self.ready:
+            if self.initial:
+                await self.redis.mset({key: json.dumps(value) for key, value in self.initial.items()})
+            self.ready = True
+        return self.redis
+
+    async def get(self, key):
+        raw = await (await self.client).get(key)
+        value = json.loads(raw) if raw is not None else None
+        task = asyncio.current_task()
+        if task and task.get_name() == self.pause_task and key == self.pause_key:
+            self.read_paused.set()
+            await asyncio.wait_for(self.resume_read.wait(), timeout=3)
+        return value
+
+    async def set(self, key, value, **kwargs):
+        return bool(await (await self.client).setex(key,
+            kwargs.get("ttl", stream_consumer.SUB_CHAT_PENDING_TTL_SECONDS), json.dumps(value)))
+
+    async def delete(self, key):
+        return bool(await (await self.client).delete(key))
+
+    async def set_active_ai_task(self, *_args):
+        return True
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_research_verifier_pending_cas_merges_siblings_and_fences_stale_delete():
+    async def run():
+        key = "pending"
+        cache = _AtomicPendingCache({key: {"pending_batch_id": "research", "completed": {}}})
+        a, b = await cache.get(key), await cache.get(key)
+        a["completed"], b["completed"] = {"a": {"summary": "A"}}, {"b": {"summary": "B"}}
+        assert await stream_consumer._mutate_sub_chat_pending_context(cache, key, a)
+        assert await stream_consumer._mutate_sub_chat_pending_context(cache, key, b)
+        assert set(b["completed"]) == {"a", "b"}
+        verifier = {"pending_batch_id": "verifier", "completed": {}}
+        assert await stream_consumer._mutate_sub_chat_pending_context(cache, key, b, action="replace", replacement=verifier)
+        assert not await stream_consumer._mutate_sub_chat_pending_context(cache, key, a)
+        assert not await stream_consumer._mutate_sub_chat_pending_context(cache, key, a, action="delete")
+        verifier["completed"]["verifier-child"] = {"summary": "Verified"}
+        assert await stream_consumer._mutate_sub_chat_pending_context(cache, key, verifier)
+        replay = {"pending_batch_id": "verifier", "completed": {}}
+        assert await stream_consumer._mutate_sub_chat_pending_context(cache, key, b, action="replace", replacement=replay)
+        assert replay["completed"]["verifier-child"]["summary"] == "Verified"
+    asyncio.run(run())
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_research_verifier_delayed_initial_callback_cannot_clobber_verifier_or_duplicate_synthesis(monkeypatch):
+    async def run():
+        request, initial = _verifier_test_context()
+        children = ["angle-a", "angle-b", "angle-c"]
+        initial.update(pending_batch_id="research-batch", expected_sub_chat_ids=children, completed={})
+        key = stream_consumer._sub_chat_pending_key(request.chat_id)
+        cache = _AtomicPendingCache({key: initial})
+        for child in children:
+            await cache.set(f"sub_chat_completion:{request.chat_id}:{child}", {
+                "summary": f"Evidence for {child}: https://primary.example/{child}",
+                "chat_id": child, "parent_id": request.chat_id, "owner_hash": request.user_id_hash,
+                "root_chat_id": request.root_chat_id, "root_turn_id": request.root_turn_id,
+                "orchestration_id": request.orchestration_id})
+        cache.pause_task, cache.pause_key = "stale-angle-a", key
+        claims = {"research_ack": False, "synthesis_ack": False}
+        binding = {"root_chat_id": request.chat_id, "root_turn_id": request.root_turn_id}
+        async def execute(operation, payload):
+            if operation == "transition_child":
+                return {"batch_complete": True, "batch_id": "verifier-batch" if payload["child_chat_id"] == "verifier-child" else "research-batch"}
+            if operation == "claim_parent_continuation":
+                if payload["batch_id"] == "research-batch":
+                    return {**binding, "research_stage": "verification_due", "dispatch_required": not claims["research_ack"],
+                        "batch_id": "research-batch", "research_batch_id": "research-batch", "continuation_task_id": "verification-claim",
+                        "verifier_batch_id": "verifier-batch", "verifier_child_id": "verifier-child"}
+                return {**binding, "research_stage": "synthesis", "dispatch_required": not claims["synthesis_ack"],
+                    "batch_id": "verifier-batch", "research_batch_id": "research-batch", "continuation_task_id": "synthesis-task"}
+            assert operation == "mark_parent_continuation_dispatched"
+            claims["research_ack" if payload["batch_id"] == "research-batch" else "synthesis_ack"] = True
+            return {}
+        monkeypatch.setattr(stream_consumer, "DirectusService", lambda: SimpleNamespace(close=AsyncMock()))
+        monkeypatch.setattr(stream_consumer, "SubChatOrchestrationService", lambda _: SimpleNamespace(execute=execute))
+        monkeypatch.setattr(stream_consumer, "_publish_to_redis", AsyncMock())
+        async def prepare(**kwargs):
+            return {"verifier-child": "dispatch-token"}
+        prompts, synthesis = [], []
+        async def child_dispatch(**kwargs):
+            prompts.append(kwargs["sub_chat"]["prompt"])
+            return "stable-verifier-task"
+        monkeypatch.setattr(stream_consumer, "create_sub_chat_records", prepare)
+        monkeypatch.setattr(stream_consumer, "dispatch_sub_chat_task", child_dispatch)
+        def send(**kwargs):
+            synthesis.append(kwargs)
+            return SimpleNamespace(id=kwargs["task_id"])
+        monkeypatch.setattr(stream_consumer.celery_config.app, "send_task", send)
+        async def complete(child):
+            child_request = request.model_copy(update={"chat_id": child, "parent_id": request.chat_id,
+                "is_sub_chat": True, "sub_chat_depth": 1})
+            await stream_consumer._record_sub_chat_completion_and_maybe_continue_parent(
+                cache_service=cache, request_data=child_request, task_id=f"task-{child}",
+                summary=f"Evidence for {child}: https://primary.example/{child}", log_prefix="[race]")
+        stale = asyncio.create_task(complete("angle-a"), name="stale-angle-a")
+        await asyncio.wait_for(cache.read_paused.wait(), timeout=3)
+        await complete("angle-b")
+        assert (await cache.get(key))["pending_batch_id"] == "verifier-batch"
+        cache.resume_read.set()
+        await asyncio.wait_for(stale, timeout=3)
+        assert (await cache.get(key))["expected_sub_chat_ids"] == ["verifier-child"]
+        assert len(prompts) == 1 and all(f"https://primary.example/{child}" in prompts[0] for child in children)
+        assert not synthesis
+        await complete("verifier-child")
+        await complete("verifier-child")
+        assert len(synthesis) == 1
+        payload = synthesis[0]["kwargs"]["request_data_dict"]
+        assert set(payload["recovery_consumed_child_ids"]) == {*children, "verifier-child"}
+        assert "independent verifier report" in payload["message_history"][-1]["content"]
+        assert await cache.get(key) is None
+    asyncio.run(run())
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_research_verifier_pending_cas_retries_conflict_without_losing_reports(monkeypatch):
+    async def run():
+        key = "pending"
+        cache = _AtomicPendingCache({key: {"pending_batch_id": "research", "completed": {}, "user_preferences": {}}})
+        a, b = await cache.get(key), await cache.get(key)
+        a["completed"], b["completed"] = {"a": {"summary": "A"}}, {"b": {"summary": "B"}}
+        read, resume = asyncio.Event(), asyncio.Event()
+        original_get, original_eval = cache.redis.get, cache.redis.eval
+        paused, eval_calls = False, 0
+        async def gated_get(*args, **kwargs):
+            nonlocal paused
+            raw = await original_get(*args, **kwargs)
+            if asyncio.current_task().get_name() == "cas-a" and not paused:
+                paused = True
+                read.set()
+                await asyncio.wait_for(resume.wait(), timeout=3)
+            return raw
+        async def counted_eval(*args):
+            nonlocal eval_calls
+            eval_calls += 1
+            return await original_eval(*args)
+        monkeypatch.setattr(cache.redis, "get", gated_get)
+        monkeypatch.setattr(cache.redis, "eval", counted_eval)
+        task = asyncio.create_task(stream_consumer._mutate_sub_chat_pending_context(cache, key, a), name="cas-a")
+        await asyncio.wait_for(read.wait(), timeout=3)
+        assert await stream_consumer._mutate_sub_chat_pending_context(cache, key, b)
+        resume.set()
+        assert await asyncio.wait_for(task, timeout=3)
+        state = await cache.get(key)
+        assert set(state["completed"]) == {"a", "b"}
+        assert state["user_preferences"] == {}
+        assert eval_calls == 3  # B succeeds, A conflicts, A merges and succeeds.
+        monkeypatch.setattr(cache.redis, "eval", AsyncMock(return_value=0))
+        with pytest.raises(RuntimeError, match="bounded CAS contention"):
+            await stream_consumer._mutate_sub_chat_pending_context(cache, key, a)
+        assert cache.redis.eval.await_count == stream_consumer.SUB_CHAT_PENDING_CAS_MAX_ATTEMPTS
+    asyncio.run(run())
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_research_verifier_embed_only_three_reports_resolve_scoped_urls_and_exclude_wrong_scope(monkeypatch):
+    import hashlib
+    import uuid
+    monkeypatch.setattr("toon_format.decode", json.loads)
+    async def run():
+        request, context = _verifier_test_context()
+        context["expected_sub_chat_ids"] = [f"child-{n}" for n in range(3)]
+        context["completed"] = {}
+        metadata, decrypted, fallback_queries = {}, [], []
+        fallback = {}
+        async def cached(embed_id):
+            return metadata.get(embed_id)
+        async def read(collection, *, params, no_cache):
+            assert collection == "embeds" and no_cache is True
+            fallback_queries.append(params)
+            row = fallback.get(params["filter[embed_id][_eq]"])
+            return [{field: row[field] for field in params["fields"].split(",") if field in row}] if row else []
+        async def decrypt(ciphertext, vault_key):
+            assert vault_key == "owner-vault"
+            decrypted.append(ciphertext)
+            return ciphertext
+        cache = SimpleNamespace(get_embed_from_cache=cached)
+        directus = SimpleNamespace(get_items=read)
+        encryption = SimpleNamespace(decrypt_with_user_key=decrypt)
+        good_urls, excluded_urls = [], []
+        for n, child in enumerate(context["expected_sub_chat_ids"]):
+            child_request = request.model_copy(update={"chat_id": child, "message_id": f"child-turn-{n}",
+                "parent_id": request.chat_id, "is_sub_chat": True, "sub_chat_depth": 1})
+            ref, embed_id = f"primary.example-r{n}", str(uuid.UUID(int=n + 1, version=4))
+            url = f"https://primary.example.org/documents/{n}"
+            good_urls.append(url)
+            # Actual cached child_embed_data uses website, without app_id/skill_id.
+            content = json.dumps({"embed_ref": ref, "app_id": "web", "skill_id": "search", "url": url})
+            # Field names mirror EmbedService's child_embed_data constructor; its
+            # encrypted_content is a Vault working copy despite encryption_mode=client.
+            row = {"embed_id": embed_id, "type": "website", "chat_id": child,
+                "message_id": child_request.message_id,
+                "hashed_chat_id": hashlib.sha256(child.encode()).hexdigest(),
+                "hashed_message_id": hashlib.sha256(child_request.message_id.encode()).hexdigest(),
+                "hashed_task_id": hashlib.sha256(f"skill-task-{n}".encode()).hexdigest(),
+                "status": "finished", "hashed_user_id": request.user_id_hash,
+                "is_private": False, "is_shared": False, "encryption_mode": "client",
+                "parent_embed_id": str(uuid.UUID(int=n + 30, version=4)),
+                "text_length_chars": len(content), "created_at": 100, "updated_at": 100,
+                "encrypted_content": content}
+            assert "app_id" not in row and "skill_id" not in row
+            metadata[embed_id] = row
+            bindings = {ref: embed_id}
+            summary = f"Claim {n}: [Primary document](embed:{ref}); [[wiki:unresolved{n}]]."
+            if n == 0:
+                missing_id = str(uuid.UUID(int=20, version=4))
+                # Actual durable body is client-key ciphertext; metadata fallback is
+                # scoped, but must never be treated as a Vault-decryptable copy.
+                fallback[missing_id] = {key: value for key, value in row.items() if key != "type"} | {
+                    "embed_id": missing_id, "app_id": "web", "encrypted_content": "client-key-ciphertext"}
+                bindings["db-miss.example-m0"] = missing_id
+                summary += " [Expired working copy](embed:db-miss.example-m0)"
+                for index, changes in enumerate([{"hashed_user_id": "another-owner"},
+                        {"hashed_message_id": "another-turn"}, {"type": "email"}, {"app_id": "finance"}]):
+                    bad_ref = f"excluded.example-b{index}"
+                    bad_id = str(uuid.UUID(int=index + 10, version=4))
+                    bad_url = f"https://excluded.example.org/private/{index}"
+                    excluded_urls.append(bad_url)
+                    metadata[bad_id] = {**row, **changes, "embed_id": bad_id,
+                        "encrypted_content": json.dumps({"embed_ref": bad_ref, "app_id": "web", "skill_id": "search", "url": bad_url})}
+                    bindings[bad_ref] = bad_id
+                    summary += f" [Unresolved](embed:{bad_ref})"
+            urls = await stream_consumer._scoped_child_source_urls(
+                request_data=child_request, source_bindings=bindings, cache_service=cache,
+                directus_service=directus, encryption_service=encryption,
+                user_vault_key_id="owner-vault", log_prefix="[source-url-test]")
+            assert urls == {ref: url}
+            context["completed"][child] = {"summary": summary, "chat_id": child,
+                "parent_id": request.chat_id, "owner_hash": request.user_id_hash,
+                "root_chat_id": request.root_chat_id, "root_turn_id": request.root_turn_id,
+                "orchestration_id": request.orchestration_id,
+                "source_refs": list(bindings), "source_bindings": bindings, "source_urls": urls}
+        assert all("http" not in entry["summary"] for entry in context["completed"].values())
+        prompt = stream_consumer._research_verifier_prompt(context)
+        assert all(f"Claim {n}:" in prompt for n in range(3))
+        assert all(url in prompt for url in good_urls)
+        assert all(url not in prompt for url in excluded_urls)
+        assert all(f"excluded.example-b{n}: UNRESOLVED" in prompt for n in range(4))
+        assert all(f"unresolved{n}: UNRESOLVED" in prompt for n in range(3))
+        assert "db-miss.example-m0: UNRESOLVED" in prompt
+        assert "run your own primary-source search" in prompt
+        assert len(decrypted) == 3
+        assert len(fallback_queries) == 1
+        params = fallback_queries[0]
+        assert params["filter[hashed_user_id][_eq]"] == request.user_id_hash
+        assert params["filter[hashed_chat_id][_eq]"] == hashlib.sha256(b"child-0").hexdigest()
+        assert params["filter[hashed_message_id][_eq]"] == hashlib.sha256(b"child-turn-0").hexdigest()
+        assert "encrypted_content" not in params["fields"]
+        assert stream_consumer._research_source_url("http://127.0.0.1/private") is None
+        assert stream_consumer._research_source_url("file:///private") is None
+    asyncio.run(run())

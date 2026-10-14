@@ -112,7 +112,7 @@ async function sendDeepResearchMessage(
 	log('Sent explicit Deep research focus mention request.');
 }
 
-// contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity,chats.local-state.precedence
+// contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity,chats.local-state.precedence,focus-modes.full-instruction
 test('Deep research delegates three angles and renders the final parent synthesis', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
 	test.setTimeout(900_000);
@@ -206,6 +206,15 @@ test('Deep research delegates three angles and renders the final parent synthesi
 	await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-processing', 'false');
 	await screenshot(page, 'deep-research-returned-to-waiting-parent');
 
+	// A verifier is a separate fourth child; final synthesis cannot precede its report.
+	await expect(subChatCards).toHaveCount(4, { timeout: 600_000 });
+	const verifierCard = subChatCards.filter({ hasText: /Independent source verification/i });
+	await expect(verifierCard).toHaveCount(1);
+	if (await verifierCard.getByTestId('sub-chat-status-completed').count() === 0) {
+		await expect(page.getByTestId('message-assistant').last()).not.toContainText('Short Answer');
+	}
+	await expect(verifierCard.getByTestId('sub-chat-status-completed')).toBeVisible({ timeout: 600_000 });
+	await expect(verifierCard.getByTestId('sub-chat-summary')).not.toBeEmpty();
 	const finalAssistant = page.getByTestId('message-assistant').last();
 	await expect(finalAssistant).toContainText('Short Answer', { timeout: 600_000 });
 	await expect(finalAssistant).toHaveAttribute('data-streaming', 'false', { timeout: 60_000 });

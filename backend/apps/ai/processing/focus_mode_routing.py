@@ -139,3 +139,8 @@ def resolve_deep_research_tool_choice(
     ):
         return "required"
     return tool_choice
+
+
+def can_synthesize_deep_research(stage: str | None) -> bool:
+    """Legacy roots stay final-only; tracked roots must finish verification."""
+    return stage in {None, "synthesis", "failed"}

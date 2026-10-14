@@ -180,6 +180,7 @@ from backend.apps.ai.processing.focus_mode_routing import (
     resolve_automatic_focus_proposal,
     should_expose_subchat_tool,
     should_force_deep_research_delegation,
+    can_synthesize_deep_research,
     workflow_clarification_skill_scope,
 )
 from backend.apps.workflows.skills.chat_authoring_context import (
@@ -3788,6 +3789,16 @@ async def handle_main_processing(
 
     # Missing or forged child ancestry fails closed at maximum depth.
     chat_depth = resolve_sub_chat_depth(request_data)
+    if (chat_depth == 0 and request_data.active_focus_id == "web-research"
+            and request_data.is_sub_chat_continuation and request_data.orchestration_id):
+        state = await SubChatOrchestrationService(directus_service).execute("get_root_state", {
+            "protocol_version": 1, "orchestration_id": request_data.orchestration_id,
+            "hashed_user_id": request_data.user_id_hash,
+        })
+        if (state["root_chat_id"] != request_data.chat_id
+                or state["root_turn_id"] != request_data.root_turn_id
+                or not can_synthesize_deep_research(state.get("research_stage"))):
+            raise RuntimeError("Deep research synthesis is waiting for independent verification")
     logger.info(
         "%s Resolved server sub-chat depth to %d (orchestration_id=%s)",
         log_prefix,
@@ -8813,6 +8824,17 @@ async def handle_main_processing(
                                 f"capping to {MAX_AUTO_SUB_CHATS_PER_TURN} to stay within automatic approval limits."
                             )
                             spawned_sub_chats = spawned_sub_chats[:MAX_AUTO_SUB_CHATS_PER_TURN]
+                        if request_data.active_focus_id == "web-research" and chat_depth == 0:
+                            prompts = [str(child.get("prompt") or "").strip() for child in spawned_sub_chats]
+                            if (execution_mode != "parallel" or len(prompts) != 3
+                                    or not all(prompts) or len(set(prompts)) != 3
+                                    or any(child.get("wait_for_completion") is False for child in spawned_sub_chats)):
+                                current_message_history.append({
+                                    "tool_call_id": tool_call_id, "role": "tool", "name": tool_name,
+                                    "content": json.dumps({"status": "rejected", "reason": "independent_research_angles_required",
+                                        "message": "Delegate exactly three distinct research angles in parallel and wait for all reports. Source verification is dispatched separately by the server."}),
+                                })
+                                continue
                         existing_sub_chat_count = await count_direct_sub_chats(directus_service, request_data.chat_id)
                         capacity_result = validate_sub_chat_capacity(
                             existing_sub_chat_count,

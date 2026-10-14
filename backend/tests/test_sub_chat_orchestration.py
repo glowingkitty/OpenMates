@@ -555,3 +555,16 @@ def test_pending_confirmation_is_consumed_exactly_once() -> None:
     results = asyncio.run(consume_twice())
 
     assert sum(result is not None for result in results) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_deep_research_verifier_envelope_is_server_claim_only():
+    request = SimpleNamespace(is_sub_chat=False, sub_chat_depth=0, active_focus_id="web-research", chat_id="chat",
+        is_sub_chat_continuation=True, orchestration_id="root", root_chat_id="chat", root_turn_id="turn")
+    with pytest.raises(RuntimeError, match="continuations cannot"):
+        ensure_orchestration_envelope(request)
+    ensure_orchestration_envelope(request, verification_claim={"research_stage": "verification_due", "root_chat_id": "chat", "root_turn_id": "turn"})
+    for change in ({"is_sub_chat": True}, {"sub_chat_depth": 1}, {"active_focus_id": None}, {"root_turn_id": None}):
+        child = SimpleNamespace(**(vars(request) | change))
+        with pytest.raises(RuntimeError, match="claimed root"):
+            ensure_orchestration_envelope(child, verification_claim={"research_stage": "verification_due", "root_chat_id": "chat", "root_turn_id": "turn"})
