@@ -475,7 +475,8 @@
         "maps-discovery-chat.spec.ts",
         "chat-queued-followups-protocol.spec.ts",
         "workflow-metadata-warmup.spec.ts",
-        "voice-call.spec.ts"
+        "voice-call.spec.ts",
+        "cli-recovery-fixtures.spec.ts"
       ]
     },
     "external_integration": {

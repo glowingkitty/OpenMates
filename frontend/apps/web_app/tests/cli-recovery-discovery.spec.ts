@@ -641,21 +641,16 @@ test('SDK-minted first Personal chat admits after fresh Memory privacy and befor
 		const observed = canonicalHistorySdk(apiUrl, home, `
 			await client.whoAmI();
 			if(client.getActiveTeamId())throw Error('Expected paired Personal account');
-			let phase='minted';
+			let phase='minted',lastFullPrivacyGeneration=null;
+			const privacyReceipts=new Map();
 			const result={minted:{focus:0,plans:0,projects:0,tasks:0,routingDirectoryCalls:0,routingDirectoryGets:0,
-				projectSettingsGets:0,routingDirectoryRowsEnabled:false,combinedRequests:0,memoryRequests:0,
+				projectSettingsGets:0,snapshotDirectoryRowsEnabled:false,combinedRequests:0,memoryRequests:0,
 				combinedProjectRows:false,memoryReady:false,privacyAfterMemoryReceipt:false,
-				projectResolvedBeforeAdmission:null,admission:null,routing:null,details:null},
+				projectDeliveredBeforeAdmission:null,admission:null,routing:null,details:null},
 				supplied:{focus:0,plans:0,projects:0,tasks:0,routingDirectoryCalls:0,routingDirectoryGets:0,
-				projectSettingsGets:0,routingDirectoryRowsEnabled:false,combinedRequests:0,memoryRequests:0,
+				projectSettingsGets:0,snapshotDirectoryRowsEnabled:false,combinedRequests:0,memoryRequests:0,
 				combinedProjectRows:false,memoryReady:false,privacyAfterMemoryReceipt:false,
-				projectResolvedBeforeAdmission:null,admission:null,routing:null,details:null}};
-			let releaseMintedProjects,projectGateTimer;
-			const mintedProjectGate=new Promise((resolve,reject)=>{
-				projectGateTimer=setTimeout(()=>reject(Error('Project discovery blocked first admission')),15000);
-				projectGateTimer.unref?.();
-				releaseMintedProjects=()=>{clearTimeout(projectGateTimer);resolve();};
-			});
+				projectDeliveredBeforeAdmission:null,admission:null,routing:null,details:null}};
 			for(const [method,field] of [['getActiveProjectFocus','focus'],['listUserPlans','plans'],
 				['listProjects','projects'],['listUserTasks','tasks']]){
 				const original=client[method].bind(client);
@@ -663,10 +658,6 @@ test('SDK-minted first Personal chat admits after fresh Memory privacy and befor
 					const currentPhase=phase;
 					result[currentPhase][field]++;
 					const value=await original(...args);
-					if(method==='listProjects'&&currentPhase==='minted'){
-						await mintedProjectGate;
-						result.minted.projectResolvedBeforeAdmission=result.minted.admission===null;
-					}
 					return value;
 				};
 			}
@@ -683,13 +674,6 @@ test('SDK-minted first Personal chat admits after fresh Memory privacy and befor
 				const currentPhase=phase;
 				result[currentPhase].routingDirectoryCalls++;
 				const rows=await listRoutingDirectory(...args);
-				result[currentPhase].routingDirectoryRowsEnabled=Array.isArray(rows)
-					&&rows.every(row=>row.auto_selection===true&&typeof row.encrypted_project_key==='string'
-						&&typeof row.encrypted_name==='string');
-				if(currentPhase==='minted'){
-					await mintedProjectGate;
-					result.minted.projectResolvedBeforeAdmission=result.minted.admission===null;
-				}
 				return rows;
 			};
 			const open=client.openWsClient.bind(client);
@@ -700,6 +684,32 @@ test('SDK-minted first Personal chat admits after fresh Memory privacy and befor
 				const currentPhase=phase;
 				const requestCombined=opened.ws.requestPersonalSendContextSnapshot.bind(opened.ws);
 				const requestMemory=opened.ws.requestPersonalMemorySnapshot.bind(opened.ws);
+				const requestV2=opened.ws.requestPersonalSendContextSnapshotV2.bind(opened.ws);
+				opened.ws.requestPersonalSendContextSnapshotV2=async(request,...args)=>{
+					const snapshot=await requestV2(request,...args);
+					const fullRows=Array.isArray(snapshot.personal_memories?.memories)
+						&&snapshot.personal_memories.memories.every(row=>row&&typeof row==='object'&&!Array.isArray(row));
+					const matchedGeneration=snapshot.unchanged&&typeof request.known_generation==='string'
+						&&request.known_generation===snapshot.privacy_generation
+						&&snapshot.privacy_generation===lastFullPrivacyGeneration;
+					if(fullRows)lastFullPrivacyGeneration=snapshot.privacy_generation;
+					result[currentPhase].snapshotDirectoryRowsEnabled=Array.isArray(snapshot.project_candidates)
+						&&snapshot.project_candidates.length<=40&&snapshot.project_candidates.every(row=>
+							row.auto_selection===true&&typeof row.project_id==='string'
+							&&typeof row.encrypted_project_key==='string'&&row.encrypted_project_key.length>0
+							&&typeof row.encrypted_name==='string'&&row.encrypted_name.length>0);
+					privacyReceipts.set(currentPhase,{request,snapshot});
+					result[currentPhase].v2Requests=(result[currentPhase].v2Requests??0)+1;
+					result[currentPhase].memoryReady=fullRows||matchedGeneration;
+					result[currentPhase].privacyObservation={purposeSend:request.purpose==='send',
+						turnBound:typeof request.turn_id==='string'&&snapshot.turn_id===request.turn_id,
+						receiptPresent:typeof snapshot.receipt_id==='string'&&snapshot.receipt_id.length>0,
+						generationValid:snapshot.privacy_generation===null
+							||typeof snapshot.privacy_generation==='string'&&snapshot.privacy_generation.length>0&&snapshot.privacy_generation.length<=100,
+						memoryRowsOrVerifiedGeneration:fullRows||matchedGeneration,
+						projectCandidatesArray:Array.isArray(snapshot.project_candidates)};
+					return snapshot;
+				};
 				opened.ws.requestPersonalMemorySnapshot=async(...args)=>{
 					const snapshot=await requestMemory(...args);
 					result[currentPhase].memoryRequests++;
@@ -738,11 +748,15 @@ test('SDK-minted first Personal chat admits after fresh Memory privacy and befor
 						result[phase].selectionDetailsV2=currentPhase==='minted'
 							&&opened.ws.supportsServerCapability('chat_turn_context_selection_details_v2')===true;
 						capturedAdmission=payload;
+						const receipt=privacyReceipts.get(currentPhase);
 						result[phase].admission={...describeContext(payload.inference_request??{}),
+							privacyReceiptBound:receipt?.request.turn_id===payload.turn_id
+								&&receipt?.snapshot.receipt_id===payload.privacy_receipt_id
+								&&receipt?.snapshot.privacy_generation===payload.privacy_generation,
 						contextPending:payload.inference_request?.client_context_pending===true,
 						privacyAfterMemoryReceipt:result[phase].privacyAfterMemoryReceipt,
 							discoveryCompleted};
-					if(currentPhase==='minted'){releaseMintedProjects();releaseMintedDiscovery();}
+					if(currentPhase==='minted')releaseMintedDiscovery();
 						if(!resolveCapturedAck)throw Error('Missing admission ACK observer');
 						resolveCapturedAck({type:'chat_turn_preflight_ack',payload:{
 							turn_id:payload.turn_id,preflight_id:'capture-only-no-dispatch'}});
@@ -754,7 +768,17 @@ test('SDK-minted first Personal chat admits after fresh Memory privacy and befor
 						const identitiesMatch=payload.chat_id===capturedAdmission.chat_id
 							&&payload.turn_id===capturedAdmission.turn_id&&payload.message_id===capturedAdmission.message_id
 							&&payload.request_id===initial.client_context_request_id;
-						result[phase][payload.phase]={...describeContext(payload.context??{}),identitiesMatch};
+						const receipt=privacyReceipts.get(currentPhase);
+						const directory=receipt?.snapshot.project_candidates??[];
+						const candidates=payload.context?.project_focus_candidates;
+						const ids=rows=>rows.map(row=>row.project_id).sort();
+						const verifiedDirectory=payload.phase!=='routing'||Array.isArray(candidates)
+							&&JSON.stringify(ids(candidates))===JSON.stringify(ids(directory))
+							&&candidates.every(row=>row.auto_selection===true&&typeof row.name==='string'&&row.name.length>0
+								&&typeof row.summary==='string'&&directory.some(source=>source.project_id===row.project_id
+									&&source.focus_activation_policy===row.focus_activation_policy));
+						if(payload.phase==='routing')result[phase].projectDeliveredBeforeAdmission=capturedAdmission===null;
+						result[phase][payload.phase]={...describeContext(payload.context??{}),identitiesMatch,verifiedDirectory};
 						if(payload.phase==='details')throw Error('EXPECTED_PRE_DISPATCH_STOP');
 						return;
 					}
@@ -782,22 +806,22 @@ test('SDK-minted first Personal chat admits after fresh Memory privacy and befor
 		expect(observed.minted.focus).toBe(0);
 		expect(observed.minted.plans).toBe(0);
 		expect(observed.minted.combinedRequests).toBe(0);
-		expect(observed.minted.memoryRequests).toBe(1);
+		expect(observed.minted.memoryRequests).toBe(0);
 		expect(observed.minted.memoryReady).toBe(true);
 		expect(observed.minted.combinedProjectRows).toBe(false);
 		expect(observed.minted.projects).toBe(0);
-		expect(observed.minted.routingDirectoryCalls).toBe(1);
-		expect(observed.minted.routingDirectoryGets).toBe(1);
+		expect(observed.minted.routingDirectoryCalls).toBe(0);
+		expect(observed.minted.routingDirectoryGets).toBe(0);
 		expect(observed.minted.projectSettingsGets).toBe(0);
-		expect(observed.minted.routingDirectoryRowsEnabled).toBe(true);
-		expect(observed.minted.projectResolvedBeforeAdmission).toBe(false);
+		expect(observed.minted.snapshotDirectoryRowsEnabled).toBe(true);
+		expect(observed.minted.projectDeliveredBeforeAdmission).toBe(false);
 		expect(observed.minted.admission.privacyAfterMemoryReceipt).toBe(true);
 		expect(observed.minted.tasks).toBeGreaterThan(0);
 		expect(observed.supplied.focus).toBe(2);
 		expect(observed.supplied.plans).toBe(1);
-		expect(observed.supplied.combinedRequests).toBe(1);
+		expect(observed.supplied.combinedRequests).toBe(0);
 		expect(observed.supplied.memoryRequests).toBe(0);
-		expect(observed.supplied.combinedProjectRows).toBe(true);
+		expect(observed.supplied.combinedProjectRows).toBe(false);
 		expect(observed.supplied.admission.privacyAfterMemoryReceipt).toBe(true);
 		expect(observed.supplied.projects).toBe(0);
 		expect(observed.supplied.routingDirectoryCalls).toBe(0);
@@ -809,6 +833,15 @@ test('SDK-minted first Personal chat admits after fresh Memory privacy and befor
 		expect(observed.minted.admission.discoveryCompleted).toBe(false);
 		expect(observed.supplied.admission.discoveryCompleted).toBe(true);
 		for (const turn of [observed.minted, observed.supplied]) {
+			expect(turn.v2Requests).toBe(1);
+			expect(turn.memoryReady).toBe(true);
+			expect(turn.privacyObservation).toEqual({ purposeSend: true, turnBound: true,
+				receiptPresent: true, generationValid: true, memoryRowsOrVerifiedGeneration: true,
+				projectCandidatesArray: true });
+			expect(turn.admission.privacyReceiptBound).toBe(true);
+			expect(turn.snapshotDirectoryRowsEnabled).toBe(true);
+			expect(turn.routing.verifiedDirectory).toBe(true);
+			expect(turn.projectDeliveredBeforeAdmission).toBe(false);
 			expect(turn.admission.contextPending).toBe(true);
 			expect(turn.admission.projectCandidates).toBe(false);
 			expect(turn.admission.taskCandidates).toBe(false);
@@ -844,31 +877,57 @@ test('Personal SDK send reuses only its fresh validated session receipt before p
 		const observed = canonicalHistorySdk(apiUrl, home, `
 			if(client.getActiveTeamId())throw Error('Expected paired Personal account');
 			const post=client.http.post.bind(client.http);
-			let authCalls=0,preflights=0;
+			let authCalls=0,preflights=0,liveReceipt=null;
 			client.http.post=async(...args)=>{if(args[0]==='/v1/auth/session')authCalls++;return post(...args);};
 			const open=client.openWsClient.bind(client);
 			client.openWsClient=async(...args)=>{
 				const opened=await open(...args),send=opened.ws.sendAsync.bind(opened.ws);
+				const requestV2=opened.ws.requestPersonalSendContextSnapshotV2.bind(opened.ws);
+				opened.ws.requestPersonalSendContextSnapshotV2=async(request,...options)=>{
+					const snapshot=await requestV2(request,...options);
+					if(request.purpose!=='send'||snapshot.turn_id!==request.turn_id
+						||typeof snapshot.receipt_id!=='string'
+						||!snapshot.unchanged&&!Array.isArray(snapshot.personal_memories?.memories))throw Error('Fresh live privacy receipt missing');
+					liveReceipt={request,snapshot,authCalls};return snapshot;
+				};
 				opened.ws.sendAsync=async(type,payload)=>{
-					if(type==='chat_turn_admit'){preflights++;throw Error('EXPECTED_PRE_DISPATCH_STOP');}
+					if(type==='chat_turn_admit'){
+						if(!liveReceipt||authCalls!==liveReceipt.authCalls
+							||liveReceipt.request.turn_id!==payload.turn_id
+							||liveReceipt.snapshot.receipt_id!==payload.privacy_receipt_id
+							||liveReceipt.snapshot.privacy_generation!==payload.privacy_generation)throw Error('Live privacy auth was not reused at preflight');
+						preflights++;throw Error('EXPECTED_PRE_DISPATCH_STOP');
+					}
 					return send(type,payload);
 				};
 				return opened;
 			};
 			const counts=[];
 			for(const mode of ['fresh','expired']){
-				const snapshot=await client.listMemories({personal:true});
-				if(mode==='expired')client.personalMemoryAuthHandoff.auth.validatedAt-=6000;
+				liveReceipt=null;
+				let expiredReceipt=false;
+				if(mode==='expired'){
+					await client.whoAmI();
+					const validated=client.pendingWhoAmIAuthHandoff;
+					if(!validated)throw Error('Validated owner receipt missing');
+					validated.validatedAt-=6000;
+					expiredReceipt=performance.now()-validated.validatedAt>5000;
+					if(!expiredReceipt)throw Error('Owner receipt was not expired');
+				}
 				try{
 					await client.sendMessage({message:'Ordinary Personal auth boundary check.',personal:true,
-						memorySnapshot:snapshot,piiDetection:false});
+						piiDetection:false});
 					throw Error('Inference preflight was not captured');
 				}catch(error){if(error.message!=='EXPECTED_PRE_DISPATCH_STOP')throw error;}
-				counts.push({authCalls,preflights});
+				counts.push({authCalls,preflights,authAtPrivacyReceipt:liveReceipt?.authCalls,
+					expiredReceipt,receiptReusedAtPreflight:authCalls===liveReceipt?.authCalls});
 			}
 			process.stdout.write(JSON.stringify({counts}));
 		`);
-		expect(observed.counts).toEqual([{ authCalls: 1, preflights: 1 }, { authCalls: 3, preflights: 2 }]);
+		expect(observed.counts).toEqual([
+			{ authCalls: 1, preflights: 1, authAtPrivacyReceipt: 1, expiredReceipt: false, receiptReusedAtPreflight: true },
+			{ authCalls: 3, preflights: 2, authAtPrivacyReceipt: 3, expiredReceipt: true, receiptReusedAtPreflight: true }
+		]);
 	} finally {
 		removeWorkflowCliHome(home);
 	}
@@ -1446,4 +1505,167 @@ asyncio.run(main())
 	} finally {
 		removeWorkflowCliHome(home);
 	}
+});
+
+/** Synthetic sealed records belong only to the disposable CI owner/chat. */
+function sealedParentDependencyFixtureProgram(): string {
+	return `
+import asyncio,base64,hashlib,json,logging,os,sys
+logging.disable(logging.CRITICAL)
+assert os.environ.get('OPENMATES_CI_ISOLATED')=='1'
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus.directus import DirectusService
+from backend.core.api.app.tasks.persistence_tasks import _chat_list_cache_data_from_metadata,_chat_versions_from_metadata
+from backend.shared.python_utils.chat_completion_recovery import derive_recovery_keypair,seal_recovery_output
+async def main():
+    data=json.load(sys.stdin); cache=CacheService(); directus=DirectusService(cache_service=cache)
+    owner=hashlib.sha256(data['ownerId'].encode()).hexdigest()
+    assert data['chat']['hashed_user_id']==owner and data['message']['hashed_user_id']==owner
+    try:
+        if data['operation']=='seed':
+            created,duplicate=await directus.chat.create_chat_in_directus(data['chat']); assert created and not duplicate
+            assert await directus.chat.create_message_in_directus(data['message'])
+            child=data['childEmbed']; assert child['hashed_user_id']==owner and child['hashed_chat_id']==hashlib.sha256(data['chatId'].encode()).hexdigest()
+            created,_=await directus.create_item('embeds',child,admin_required=True); assert created
+            _,public=derive_recovery_keypair(data['fixtureChatKey'],data['chatId'],1)
+            for output,content in zip(data['outputs'],data['sealedContents']):
+                assert output['hashed_user_id']==owner and output['root_chat_id']==data['chatId'] and output['target_chat_id']==data['chatId']
+                plaintext=json.dumps({'record_id':output['id'],'target_chat_id':data['chatId'],'subject_id':output['subject_id'],
+                    'output_kind':'embed','output_version':1,'content':content},sort_keys=True,separators=(',',':')).encode()
+                envelope=seal_recovery_output(plaintext,recovery_public_key=public,owner_id=data['ownerId'],
+                    root_chat_id=data['chatId'],target_chat_id=data['chatId'],turn_id=output['turn_id'],record_id=output['id'],
+                    subject_id=output['subject_id'],output_kind='embed',output_version=1,key_version=1)
+                sealed=json.dumps(envelope,sort_keys=True,separators=(',',':'))
+                row={**output,'sealed_payload':sealed,'sealed_payload_digest':hashlib.sha256(sealed.encode()).hexdigest(),
+                    'payload_storage':'inline','payload_size_bytes':len(sealed.encode())}
+                created,_=await directus.create_item('chat_recovery_outputs',row,admin_required=True); assert created
+            assert await cache.add_chat_to_ids_versions(data['ownerId'],data['chatId'],data['chat']['last_edited_overall_timestamp'])
+            assert await cache.set_chat_list_item_data(data['ownerId'],data['chatId'],_chat_list_cache_data_from_metadata(data['chat']))
+            assert await cache.set_chat_versions(data['ownerId'],data['chatId'],_chat_versions_from_metadata(data['chat']))
+        else:
+            metadata=await directus.chat.get_chat_metadata(data['chatId'])
+            if metadata:
+                assert metadata.get('hashed_user_id')==owner
+                for output in data['outputs']:
+                    rows=await directus.get_items('chat_recovery_outputs',params={'filter':{'id':{'_eq':output['id']}},'limit':2},no_cache=True,admin_required=True)
+                    if rows:
+                        assert len(rows)==1 and rows[0]['hashed_user_id']==owner and rows[0]['root_chat_id']==data['chatId']
+                        assert await directus.delete_item('chat_recovery_outputs',output['id'],admin_required=True)
+                for embed_id in (data['parentId'],data['childEmbed']['embed_id']):
+                    rows=await directus.get_items('embeds',params={'filter':{'embed_id':{'_eq':embed_id}},'limit':2},no_cache=True,admin_required=True)
+                    for row in rows:
+                        assert row['hashed_user_id']==owner and row['hashed_chat_id']==hashlib.sha256(data['chatId'].encode()).hexdigest()
+                        assert await directus.delete_item('embeds',row['id'],admin_required=True)
+                    keys=await directus.get_items('embed_keys',params={'filter':{'hashed_embed_id':{'_eq':hashlib.sha256(embed_id.encode()).hexdigest()}},'limit':3},no_cache=True,admin_required=True)
+                    for key in keys:
+                        assert key['hashed_user_id']==owner
+                        assert await directus.delete_item('embed_keys',key['id'],admin_required=True)
+                for raw in await directus.chat.get_all_messages_for_chat(data['chatId'],decrypt_content=False) or []:
+                    message=json.loads(raw) if isinstance(raw,str) else raw
+                    assert message.get('chat_id')==data['chatId']
+                    if message.get('client_message_id')==data['message']['client_message_id']:
+                        assert await directus.delete_item('messages',message['id'],admin_required=True)
+                assert await directus.delete_item('chats',data['chatId'],admin_required=True)
+            await cache.remove_chat_from_ids_versions(data['ownerId'],data['chatId'])
+        print('sealed parent dependency fixture applied')
+    finally: await directus.close(); await cache.close()
+asyncio.run(main())
+`;
+}
+
+// contract-test: direct surface=cli assertions=chats.sync.key-gated-recovery,chats.completion.recovery-takeover,chats.persistence.client-encrypted
+test('sealed child discovery recovers a later parent across pages without rewriting the orphan head', async ({ page }: { page: any }, testInfo: any) => {
+	test.slow();
+	skipWithoutCredentials(test, email, password, otpKey);
+	if (process.env.OPENMATES_CI_ISOLATED !== '1') test.skip(true, 'Synthetic sealed output seed requires isolated CI');
+	const apiUrl = workflowApiUrl();
+	const home = createWorkflowCliHome('sealed-parent-order');
+	let fixture: any;
+	let primaryFailed = false;
+	const cleanupErrors: unknown[] = [];
+	const apply = (operation: string) => {
+		const output = execFileSync('docker', ['compose', '-f', isolatedCompose, 'exec', '-T', '-e',
+			'OPENMATES_CI_ISOLATED=1', 'api', 'python', '-c', sealedParentDependencyFixtureProgram()], {
+			cwd: repositoryRoot, input: JSON.stringify({ ...fixture, operation }), encoding: 'utf8', timeout: 90_000
+		});
+		expect(output.trim()).toBe('sealed parent dependency fixture applied');
+	};
+	try {
+		await loginWorkflowCliViaPair(page, apiUrl, home, 'CLI_SEALED_PARENT_ORDER');
+		fixture = canonicalHistorySdk(apiUrl, home, `
+			const owner=await client.whoAmI();if(!owner.id)throw Error('Owner identity unavailable');
+			const chatId=randomUUID(),messageId=randomUUID(),parentId=randomUUID(),childId=randomUUID(),turnId=randomUUID(),key=randomBytes(32);
+			const now=Math.floor(Date.now()/1000),date=new Date().toISOString(),ownerHash=hash(owner.id);
+			const chat={id:chatId,hashed_user_id:ownerHash,created_at:now,updated_at:now,last_edited_overall_timestamp:now,
+				last_message_timestamp:now,messages_v:1,title_v:1,metadata_v:1,unread_count:0,
+				encrypted_chat_key:await encrypt(key,client.getMasterKeyBytes()),encrypted_title:await encrypt('Sealed parent recovery',key)};
+			const message={id:messageId,client_message_id:messageId,message_id:messageId,chat_id:chatId,hashed_user_id:ownerHash,
+				role:'user',created_at:now,updated_at:now,encrypted_sender_name:await encrypt('You',key),encrypted_content:await encrypt('Recovery fixture.',key)};
+			const hkdf=await webcrypto.subtle.importKey('raw',key,'HKDF',false,['deriveBits']);
+			const embedKey=Buffer.from(await webcrypto.subtle.deriveBits({name:'HKDF',hash:'SHA-256',salt:Buffer.from('openmates-embed-key-v1'),info:Buffer.from(parentId)},hkdf,256));
+			const childSource='type: website\\nurl: https://example.test/parent-recovery';
+			const childEmbed={id:randomUUID(),embed_id:childId,hashed_embed_id:hash(childId),hashed_chat_id:hash(chatId),
+				hashed_message_id:hash(messageId),hashed_user_id:ownerHash,parent_embed_id:parentId,version_number:1,status:'finished',
+				encryption_mode:'client',encrypted_content:await encrypt(childSource,embedKey),encrypted_type:await encrypt('website',embedKey),created_at:now,updated_at:now};
+			const base={hashed_user_id:ownerHash,root_chat_id:chatId,target_chat_id:chatId,root_hashed_team_id:null,turn_id:turnId,
+				preflight_id:randomUUID(),inference_task_id:randomUUID(),output_kind:'embed',message_role:null,output_version:1,chat_key_version:1,state:'PENDING'};
+			const outputs=[{...base,id:randomUUID(),subject_id:childId,created_at:date},
+				{...base,id:randomUUID(),subject_id:parentId,created_at:new Date(Date.now()+1).toISOString()}];
+			const sealedContents=[{embed_id:childId,parent_embed_id:parentId,version_number:1,type:'website',content:childSource,message_id:messageId},
+				{embed_id:parentId,parent_embed_id:null,version_number:1,type:'app_skill_use',content:'type: app_skill_use\\napp_id: web\\nskill_id: search',embed_ids:[childId],message_id:messageId}];
+			process.stdout.write(JSON.stringify({ownerId:owner.id,chatId,parentId,chat,message,childEmbed,outputs,sealedContents,fixtureChatKey:key.toString('base64url')}));
+		`);
+		apply('seed');
+		clearWorkflowCliSyncCache(home);
+		const observed = canonicalHistorySdk(apiUrl, home, `
+			const frames=[],recordIds=new Set(input.fixture.outputs.map(row=>row.id));let inferenceRequests=0,fixtureSplit=false;
+			const open=client.openWsClient.bind(client);
+			client.openWsClient=async(...args)=>{
+				const result=await open(...args),send=result.ws.sendAsync.bind(result.ws),drain=result.ws.drainAvailableRecoveryOutputPages.bind(result.ws);
+				result.ws.sendAsync=async(type,payload)=>{if(['chat_turn_admit','new_chat','chat_message'].includes(type))inferenceRequests++;
+					if(recordIds.has(payload.record_id)||recordIds.has(payload.recovery_record_id))frames.push({type,id:payload.record_id||payload.recovery_record_id,embedId:payload.embed_id});return send(type,payload)};
+				result.ws.drainAvailableRecoveryOutputPages=(...args)=>{
+					const pages=drain(...args),fixtureRows=pages.flat().filter(row=>recordIds.has(row.record_id));
+					if(fixtureSplit&&fixtureRows.length===0)return pages;
+					if(fixtureRows.length!==2)throw Error('Both pending sealed outputs must be discovered');
+					fixtureSplit=true;
+					const child=fixtureRows.find(row=>row.subject_id===input.fixture.childEmbed.embed_id),parent=fixtureRows.find(row=>row.subject_id===input.fixture.parentId);
+					return [[child],[parent],...pages.map(rows=>rows.filter(row=>!recordIds.has(row.record_id)))];
+				};return result;
+			};
+			const childPath='/v1/embeds/chats/'+input.fixture.chatId+'/embeds/'+input.fixture.childEmbed.embed_id;
+			const before=await client.http.get(childPath,client.getCliRequestHeaders());
+			const result=await client.listChats(100,1,{forceRefresh:true});
+			const childAfter=await client.http.get(childPath,client.getCliRequestHeaders());
+			const parentAfter=await client.http.get('/v1/embeds/chats/'+input.fixture.chatId+'/embeds/'+input.fixture.parentId,client.getCliRequestHeaders());
+			process.stdout.write(JSON.stringify({beforeStatus:before.status,childReadable:childAfter.ok,parentReadable:parentAfter.ok,
+				orphanCipherUnchanged:childAfter.data?.embed?.encrypted_content===input.fixture.childEmbed.encrypted_content,
+				storeIds:frames.filter(row=>row.type==='store_embed').map(row=>row.embedId),
+				ackIds:frames.filter(row=>row.type==='recovery_output_ack_embed').map(row=>row.id),inferenceRequests}));
+		`, { fixture });
+		await testInfo.attach('cli-sealed-parent-order', { body: JSON.stringify(observed), contentType: 'application/json' });
+		expect(observed).toEqual({ beforeStatus: 404, childReadable: true, parentReadable: true,
+			orphanCipherUnchanged: true, storeIds: [fixture.parentId],
+			ackIds: [fixture.outputs[1].id, fixture.outputs[0].id], inferenceRequests: 0 });
+		installRecorderDeps();
+		const result = await runCli(apiUrl, ['chats', 'list', '--limit', '100', '--json'], 120_000, {
+			useApiKey: false, env: { ...workflowCliEnv(apiUrl, home), OPENMATES_CLI_RECORD_E2E: '1', OPENMATES_E2E_SPEC: 'cli-sealed-parent-order' }
+		});
+		expect(result.code).toBe(0);
+		await testInfo.attach('cli-sealed-parent-order-recording', { path: result.recording.videoPath, contentType: 'video/mp4' });
+	} catch (error) {
+		primaryFailed = true;
+		throw error;
+	} finally {
+		try { if (fixture) apply('delete'); } catch (error) { cleanupErrors.push(error); }
+		try { removeWorkflowCliHome(home); } catch (error) { cleanupErrors.push(error); }
+		if (cleanupErrors.length) {
+			await testInfo.attach('cli-sealed-parent-cleanup-errors', { body: JSON.stringify({
+				primaryFailurePreserved: primaryFailed,
+				errors: cleanupErrors.map(error => ({ name: error instanceof Error ? error.name : 'UnknownError',
+					message: error instanceof Error ? error.message : String(error) }))
+			}), contentType: 'application/json' }).catch(() => {});
+		}
+	}
+	if (cleanupErrors.length) throw cleanupErrors[0];
 });

@@ -3396,6 +3396,12 @@ class SessionValidationError extends Error {
   }
 }
 
+interface RecoveryReplayDependencies {
+  bySubject: Map<string, AvailableRecoveryOutputFrame[]>;
+  acknowledged: Map<string, string>;
+  visiting: Set<string>;
+}
+
 export class OpenMatesClient {
   private readonly ownedMetadataSubscriptions = new Set<() => void>();
   private readonly activeSubmittedChatTurns = new Map<string, string>();
@@ -8230,12 +8236,34 @@ export class OpenMatesClient {
     return [];
   }
 
+  private recoveryReplayDependencies(pages: AvailableRecoveryOutputFrame[][]): RecoveryReplayDependencies {
+    const bySubject = new Map<string, AvailableRecoveryOutputFrame[]>();
+    const identities = new Map<string, string>();
+    for (const page of pages) {
+      if (page.length > 100) throw new Error("Recovery output discovery exceeded the bounded batch size.");
+      for (const output of page) {
+        const identity = recoveryOutputIdentity(output);
+        const previous = identities.get(output.record_id);
+        if (previous !== undefined) {
+          if (previous !== identity) throw new Error("Recovery dependency changed identity during discovery.");
+          continue;
+        }
+        identities.set(output.record_id, identity);
+        const group = bySubject.get(output.subject_id) ?? [];
+        group.push(output);
+        bySubject.set(output.subject_id, group);
+      }
+    }
+    return { bySubject, acknowledged: new Map(), visiting: new Set() };
+  }
+
   private async persistAvailableRecoveryOutputs(
     ws: OpenMatesWsClient,
     ownerId: string,
     cache: SyncCache,
     outputs: AvailableRecoveryOutputFrame[],
     teamId: string | null,
+    dependencies = this.recoveryReplayDependencies([outputs]),
   ): Promise<number> {
     if (outputs.length > 100) throw new Error("Recovery output discovery exceeded the bounded batch size.");
     const order: Record<RecoveryOutputKind, number> = { message: 0, embed: 1, diff: 2, summary: 3, checkpoint: 4 };
@@ -8332,6 +8360,15 @@ export class OpenMatesClient {
       }
     };
     for (const output of ordered) {
+      const identity = recoveryOutputIdentity(output);
+      const committed = dependencies.acknowledged.get(output.record_id);
+      if (committed !== undefined) {
+        if (committed !== identity) throw new Error("Acknowledged recovery dependency changed identity.");
+        continue;
+      }
+      if (dependencies.visiting.has(output.record_id) || dependencies.visiting.size >= 32) {
+        throw new Error("Recovery embed dependency is cyclic or exceeds the bounded depth.");
+      }
       if (output.root_hashed_team_id !== undefined
         && output.root_hashed_team_id !== (teamId ? computeSHA256(teamId) : null)) {
         throw new Error(`Recovery output ${output.record_id} Team key context is unavailable; output remains pending.`);
@@ -8364,6 +8401,7 @@ export class OpenMatesClient {
       } catch (error) {
         if (!(error instanceof WebSocketProtocolError) || error.code !== "recovery_output_not_found") throw error;
         await reconcileAcknowledgedEmbed(output, rootKey);
+        dependencies.acknowledged.set(output.record_id, identity);
         acknowledged += 1;
         continue;
       }
@@ -8500,7 +8538,7 @@ export class OpenMatesClient {
         if (content.embed_id !== output.subject_id) throw new Error("Recovery embed identity mismatch.");
         const embedPath = `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(output.subject_id)}`
           + (teamId ? `?team_id=${encodeURIComponent(teamId)}` : "");
-        const canonicalBefore = await this.http.get<{ embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>> }>(
+        let canonicalBefore = await this.http.get<{ embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>> }>(
           embedPath, this.getCliRequestHeaders(),
         );
         let parentId = typeof content.parent_embed_id === "string" ? content.parent_embed_id : null;
@@ -8517,7 +8555,94 @@ export class OpenMatesClient {
         } else if (output.output_kind === "diff" || canonicalBefore.status !== 404) {
           throw new Error(`Canonical recovery embed read failed (HTTP ${canonicalBefore.status}); output remains pending.`);
         }
+        if (output.output_kind === "diff") {
+          if (content.version_number !== output.output_version) throw new Error("Recovery diff version mismatch.");
+          if ((output.output_version === 1 && (typeof content.snapshot !== "string" || typeof content.patch === "string"))
+            || (output.output_version > 1 && typeof content.patch !== "string")) {
+            throw new Error("Recovery diff lacked its required snapshot or patch.");
+          }
+        } else {
+          if (content.version_number !== undefined && content.version_number !== output.output_version) throw new Error("Recovery embed version mismatch.");
+          if (typeof content.content !== "string" || typeof content.type !== "string" || typeof content.message_id !== "string") {
+            throw new Error("Recovery embed content was invalid.");
+          }
+        }
+        // A child must not become an orphan head while its sealed parent is
+        // still pending. Producers seal children first, including across pages.
+        let parentPage: { ok: boolean; status: number; data?: {
+          embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>>;
+        } } | null = null;
+        if (parentId) {
+          const parentPath = `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(parentId)}`
+            + (teamId ? `?team_id=${encodeURIComponent(teamId)}` : "");
+          parentPage = await this.http.get(parentPath, this.getCliRequestHeaders());
+          if (!parentPage.ok && parentPage.status === 404) {
+            const parent = (dependencies.bySubject.get(parentId) ?? []).filter((candidate) =>
+              candidate.output_kind === "embed" && candidate.root_chat_id === output.root_chat_id
+              && candidate.target_chat_id === output.target_chat_id && candidate.turn_id === output.turn_id
+              && candidate.chat_key_version === output.chat_key_version
+              && (candidate.root_hashed_team_id ?? null) === (output.root_hashed_team_id ?? null))
+              .sort((a, b) => a.output_version - b.output_version)[0];
+            if (parent) {
+              dependencies.visiting.add(output.record_id);
+              try {
+                acknowledged += await this.persistAvailableRecoveryOutputs(ws, ownerId, cache, [parent], teamId, dependencies);
+              } finally {
+                dependencies.visiting.delete(output.record_id);
+              }
+              parentPage = await this.http.get(parentPath, this.getCliRequestHeaders());
+              // A prior failed attempt may already have stored this child. Once
+              // its parent is readable, reconcile that exact head, never recipher it.
+              canonicalBefore = await this.http.get(embedPath, this.getCliRequestHeaders());
+              if (canonicalBefore.ok) {
+                const canonical = canonicalBefore.data?.embed;
+                if (!canonical || canonical.hashed_chat_id !== computeSHA256(output.target_chat_id)
+                  || (canonical.parent_embed_id ?? null) !== parentId) {
+                  throw new Error("Canonical recovery embed parent identity was invalid.");
+                }
+              } else if (output.output_kind === "diff" || canonicalBefore.status !== 404) {
+                throw new Error(`Canonical recovery embed read failed (HTTP ${canonicalBefore.status}); output remains pending.`);
+              }
+            }
+          }
+          if (!parentPage.ok || parentPage.data?.embed?.hashed_chat_id !== computeSHA256(output.target_chat_id)) {
+            throw new Error("Canonical recovery parent embed key scope was unavailable.");
+          }
+          // The canonical route grants only direct parent inheritance. Do not
+          // invent a new key or broaden authorization for nested parent graphs.
+          if (parentPage.data.embed.parent_embed_id) {
+            throw new Error("Canonical recovery nested parent key inheritance is unavailable.");
+          }
+        }
+        const keySubject = parentId || output.subject_id;
         const embedKey = await deriveEmbedKeyFromChatKey(childKey, parentId || output.subject_id);
+        const hashedKeySubject = computeSHA256(keySubject);
+        const hashedTargetChat = computeSHA256(output.target_chat_id);
+        const verifiedKeyTypes = async (rows: Array<Record<string, unknown>>) => {
+          const types = new Set<string>();
+          for (const row of rows) {
+            const type = row.key_type;
+            if (type !== "master" && type !== "chat") continue;
+            if (row.hashed_embed_id !== hashedKeySubject
+              || (type === "chat" && row.hashed_chat_id !== hashedTargetChat)
+              || typeof row.encrypted_embed_key !== "string" || !row.encrypted_embed_key) {
+              throw new Error("Canonical recovery embed key wrapper identity was invalid.");
+            }
+            const unwrapped = await decryptBytesWithAesGcm(
+              row.encrypted_embed_key, type === "master" ? masterKey : childKey,
+            );
+            if (!unwrapped || !Buffer.from(unwrapped).equals(Buffer.from(embedKey))) {
+              throw new Error("Canonical recovery embed key wrapper does not match the sealed output.");
+            }
+            if (types.has(type)) throw new Error("Canonical recovery embed key wrappers were duplicated.");
+            types.add(type);
+          }
+          return types;
+        };
+        const parentKeyTypes = parentPage ? await verifiedKeyTypes(parentPage.data?.embed_keys ?? []) : null;
+        if (parentKeyTypes && parentKeyTypes.size === 0) {
+          throw new Error("Canonical recovery parent embed key scope was unavailable.");
+        }
         const hashedUserId = computeSHA256(ownerId);
         let canonicalDigest: string;
         let canonicalSource: "head" | "version_row" = output.output_kind === "diff" ? "version_row" : "head";
@@ -8698,7 +8823,6 @@ export class OpenMatesClient {
             throw new Error(`Canonical recovery embed read failed (HTTP ${existing.status}); output remains pending.`);
           }
         }
-        const keySubject = parentId || output.subject_id;
         const keyPath = `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(keySubject)}`
           + (teamId ? `?team_id=${encodeURIComponent(teamId)}` : "");
         // A root head's confirmed write precedes its wrappers. The read route
@@ -8708,36 +8832,13 @@ export class OpenMatesClient {
           && !canonicalBefore.ok && canonicalBefore.status === 404;
         const keyPage = bootstrapRootKeys ? null : keySubject === output.subject_id && canonicalBefore.ok
           ? canonicalBefore
-          : await this.http.get<{ embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>> }>(
+          : parentPage ?? await this.http.get<{ embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>> }>(
             keyPath, this.getCliRequestHeaders(),
           );
         if (keyPage && (!keyPage.ok || keyPage.data?.embed?.hashed_chat_id !== computeSHA256(output.target_chat_id))) {
           throw new Error("Canonical recovery parent embed key scope was unavailable.");
         }
-        const hashedKeySubject = computeSHA256(keySubject);
-        const hashedTargetChat = computeSHA256(output.target_chat_id);
-        const verifiedKeyTypes = async (rows: Array<Record<string, unknown>>) => {
-          const types = new Set<string>();
-          for (const row of rows) {
-            const type = row.key_type;
-            if (type !== "master" && type !== "chat") continue;
-            if (row.hashed_embed_id !== hashedKeySubject
-              || (type === "chat" && row.hashed_chat_id !== hashedTargetChat)
-              || typeof row.encrypted_embed_key !== "string" || !row.encrypted_embed_key) {
-              throw new Error("Canonical recovery embed key wrapper identity was invalid.");
-            }
-            const unwrapped = await decryptBytesWithAesGcm(
-              row.encrypted_embed_key, type === "master" ? masterKey : childKey,
-            );
-            if (!unwrapped || !Buffer.from(unwrapped).equals(Buffer.from(embedKey))) {
-              throw new Error("Canonical recovery embed key wrapper does not match the sealed output.");
-            }
-            if (types.has(type)) throw new Error("Canonical recovery embed key wrappers were duplicated.");
-            types.add(type);
-          }
-          return types;
-        };
-        const existingTypes = await verifiedKeyTypes(keyPage?.data?.embed_keys ?? []);
+        const existingTypes = parentKeyTypes ?? await verifiedKeyTypes(keyPage?.data?.embed_keys ?? []);
         const keys = [
           { hashed_embed_id: hashedKeySubject, key_type: "master", hashed_chat_id: null,
             encrypted_embed_key: await encryptBytesWithAesGcm(embedKey, masterKey), hashed_user_id: hashedUserId, created_at: now },
@@ -8805,6 +8906,7 @@ export class OpenMatesClient {
           await reconcileAcknowledgedEmbed(output, rootKey, content);
         }
       }
+      dependencies.acknowledged.set(output.record_id, identity);
       acknowledged += 1;
     }
     return acknowledged;
@@ -8816,6 +8918,7 @@ export class OpenMatesClient {
     outputs: AvailableRecoveryOutputFrame[],
     currentCache: SyncCache,
     currentTeamId: string | null,
+    dependencies?: RecoveryReplayDependencies,
   ): Promise<number> {
     if (outputs.length === 0) return 0;
     const teamIdsByHash = new Map<string, string>();
@@ -8857,7 +8960,7 @@ export class OpenMatesClient {
         chats: [], embeds: [], embedKeys: [], chatKeyWrappers: [],
       };
       try {
-        acknowledged += await this.persistAvailableRecoveryOutputs(ws, ownerId, cache, group, teamId);
+        acknowledged += await this.persistAvailableRecoveryOutputs(ws, ownerId, cache, group, teamId, dependencies);
       } finally {
         this.invalidateSyncedHistory(teamId);
       }
@@ -8885,11 +8988,12 @@ export class OpenMatesClient {
     const retry = retryOperation && (this.recoveryFailureRetry ??= new RecoveryFailureRetry());
     const retryScope = retry ? computeSHA256(JSON.stringify([this.apiUrl, ownerId, teamId,
       this.session?.sessionId ?? null, computeSHA256(Buffer.from(this.getMasterKeyBytes()).toString("base64"))])) : "";
+    const dependencies = this.recoveryReplayDependencies(pages);
     let acknowledged = 0;
     for (const page of pages) {
       signal?.throwIfAborted();
       if (!onPending && !verifiedInSync) {
-        acknowledged += await this.replayAvailableRecoveryOutputs(ws, ownerId, page, cache, teamId);
+        acknowledged += await this.replayAvailableRecoveryOutputs(ws, ownerId, page, cache, teamId, dependencies);
         continue;
       }
       // Browsing accepts only verified canonical history. A broken recovery
@@ -8911,16 +9015,28 @@ export class OpenMatesClient {
           onPending?.();
           continue;
         }
+        const committedBefore = new Set(dependencies.acknowledged.keys());
         try {
-          const recovered = await this.replayAvailableRecoveryOutputs(ws, ownerId, [output], cache, teamId);
+          const recovered = await this.replayAvailableRecoveryOutputs(ws, ownerId, [output], cache, teamId, dependencies);
           acknowledged += recovered;
           if (recovered > 0) {
             verifiedInSync?.set(output.record_id, identity);
+            for (const [recordId, committedIdentity] of dependencies.acknowledged) {
+              verifiedInSync?.set(recordId, committedIdentity);
+            }
             if (retry && retryOperation) retry.succeeded(retryScope, output, retryOperation);
           }
         } catch (error) {
           signal?.throwIfAborted();
           if (!onPending) throw error;
+          // A parent can commit before a child fails. Keep its verified identity
+          // and require the same fresh metadata read as any other recovery ACK.
+          for (const [recordId, committedIdentity] of dependencies.acknowledged) {
+            if (!committedBefore.has(recordId)) {
+              acknowledged += 1;
+              verifiedInSync?.set(recordId, committedIdentity);
+            }
+          }
           if (retry && retryOperation) retry.failed(retryScope, output, readiness, retryOperation);
           onPending();
         }
@@ -8937,18 +9053,16 @@ export class OpenMatesClient {
     teamId: string | null,
     chatId: string,
   ): Promise<void> {
-    for (const page of pages) {
-      const isActive = (output: AvailableRecoveryOutputFrame) =>
-        output.root_chat_id === chatId || output.target_chat_id === chatId;
-      const active = page.filter(isActive);
-      const unrelated = page.filter((output) => !isActive(output));
-      if (active.length > 0) {
-        await this.replayRecoveryOutputPages(ws, ownerId, [active], cache, teamId);
-        clearSyncCache(teamId);
-      }
-      if (unrelated.length > 0) {
-        await this.replayRecoveryOutputPages(ws, ownerId, [unrelated], cache, teamId, () => {});
-      }
+    const isActive = (output: AvailableRecoveryOutputFrame) =>
+      output.root_chat_id === chatId || output.target_chat_id === chatId;
+    const active = pages.map((page) => page.filter(isActive));
+    const unrelated = pages.map((page) => page.filter((output) => !isActive(output)));
+    if (active.some((page) => page.length > 0)) {
+      await this.replayRecoveryOutputPages(ws, ownerId, active, cache, teamId);
+      clearSyncCache(teamId);
+    }
+    if (unrelated.some((page) => page.length > 0)) {
+      await this.replayRecoveryOutputPages(ws, ownerId, unrelated, cache, teamId, () => {});
     }
   }
 

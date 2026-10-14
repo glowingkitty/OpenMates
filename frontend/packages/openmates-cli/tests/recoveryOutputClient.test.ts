@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -757,4 +757,152 @@ describe("CLI typed recovery replay", () => {
     assert.equal(await decryptWithAesGcmCombined(String(persisted?.encrypted_summary), rawKey), "private child synthesis");
     assert.equal(JSON.stringify(persisted).includes("private child synthesis"), false);
   });
+});
+
+// contract-test: supporting surface=cli assertions=chats.completion.recovery-takeover,chats.sync.key-gated-recovery,chats.persistence.client-encrypted
+describe("CLI sealed parent dependencies", () => {
+  const previousStateDir = process.env.OPENMATES_STATE_DIR;
+  const stateDir = mkdtempSync(join(tmpdir(), "openmates-cli-parent-dependencies-"));
+  before(() => { process.env.OPENMATES_STATE_DIR = stateDir; });
+  after(() => {
+    if (previousStateDir === undefined) delete process.env.OPENMATES_STATE_DIR;
+    else process.env.OPENMATES_STATE_DIR = previousStateDir;
+    rmSync(stateDir, { recursive: true, force: true });
+  });
+  for (const scenario of ["same-page", "cross-page", "current-turn-cross-page", "orphan-head", "missing", "wrong-root", "wrong-target", "wrong-turn", "wrong-key-version", "wrong-team", "invalid-parent-wrapper", "cycle"] as const) {
+    // contract-test: supporting surface=cli assertions=storage.background.complete-sealed-recovery
+    it(`recovers parents before children without weakening scope: ${scenario}`, async () => {
+      const identity = outputVector.identity;
+      const parentId = "77777777-7777-4777-8777-777777777777";
+      const messageId = "55555555-5555-4555-8555-555555555555";
+      const child: AvailableRecoveryOutputFrame = {
+        record_id: identity.record_id, root_chat_id: identity.root_chat_id,
+        target_chat_id: identity.target_chat_id, turn_id: identity.turn_id,
+        subject_id: identity.subject_id, output_kind: "embed", output_version: 1,
+        chat_key_version: identity.key_version, root_hashed_team_id: null,
+      };
+      const parent: AvailableRecoveryOutputFrame = { ...child,
+        record_id: "88888888-8888-4888-8888-888888888888", subject_id: parentId };
+      if (scenario === "wrong-root") parent.root_chat_id = "99999999-9999-4999-8999-999999999999";
+      if (scenario === "wrong-target") parent.target_chat_id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+      if (scenario === "wrong-turn") parent.turn_id = "99999999-9999-4999-8999-999999999999";
+      if (scenario === "wrong-key-version") parent.chat_key_version += 1;
+      if (scenario === "wrong-team") parent.root_hashed_team_id = "a".repeat(64);
+      const childContent = { embed_id: child.subject_id, version_number: 1, type: "website",
+        content: toonEncode({ type: "website", url: "https://example.test/recovery" }),
+        parent_embed_id: parentId, message_id: messageId };
+      const parentContent = { embed_id: parentId, version_number: 1, type: "app_skill_use",
+        content: toonEncode({ type: "app_skill_use", app_id: "web", skill_id: "search" }),
+        parent_embed_id: scenario === "cycle" ? child.subject_id : null,
+        embed_ids: [child.subject_id], message_id: messageId };
+      const seal = async (output: AvailableRecoveryOutputFrame, content: unknown) => sealRecoveryOutputEnvelopeForTest(
+        new TextEncoder().encode(JSON.stringify({ record_id: output.record_id,
+          target_chat_id: output.target_chat_id, subject_id: output.subject_id,
+          output_kind: output.output_kind, output_version: output.output_version, content })), {
+          ownerId: identity.owner_id, rootChatId: output.root_chat_id,
+          targetChatId: output.target_chat_id, turnId: output.turn_id,
+          recordId: output.record_id, subjectId: output.subject_id,
+          outputKind: output.output_kind, outputVersion: output.output_version,
+          keyVersion: output.chat_key_version, recoveryPublicKey: keyVector.recovery_public_key,
+          ephemeralPrivateKey: keyVector.ephemeral_private_key, nonce: keyVector.nonce,
+        });
+      const sealed = new Map([[child.record_id, await seal(child, childContent)],
+        [parent.record_id, await seal(parent, parentContent)]]);
+      const rawKey = new Uint8Array(Buffer.from(keyVector.chat_key, "base64url"));
+      const master = new Uint8Array(32);
+      const embedKey = await deriveEmbedKeyFromChatKey(rawKey, parentId);
+      const hash = (value: string) => createHash("sha256").update(value).digest("hex");
+      const heads = new Map<string, Record<string, unknown>>();
+      const wrappers: Array<Record<string, unknown>> = [];
+      let orphanCiphertext: string | null = null;
+      if (scenario === "orphan-head") {
+        orphanCiphertext = await encryptWithAesGcmCombined(childContent.content, embedKey);
+        heads.set(child.subject_id, { ...childContent, encrypted_content: orphanCiphertext,
+          encrypted_type: await encryptWithAesGcmCombined(childContent.type, embedKey),
+          hashed_chat_id: hash(child.target_chat_id), hashed_message_id: hash(messageId) });
+      }
+      if (scenario === "invalid-parent-wrapper") {
+        heads.set(parentId, { embed_id: parentId, hashed_chat_id: hash(child.target_chat_id), parent_embed_id: null });
+        wrappers.push({ hashed_embed_id: hash(parentId), key_type: "master",
+          encrypted_embed_key: await encryptBytesWithAesGcm(new Uint8Array(32), master) });
+      }
+      const client = Object.create(OpenMatesClient.prototype) as Record<string, unknown>;
+      client.getMasterKeyBytes = () => master;
+      client.getChatWrappingKey = async () => master;
+      client.resolveChatKey = async () => rawKey;
+      client.getCliRequestHeaders = () => ({});
+      client.invalidateSyncedHistory = () => {};
+      client.http = { get: async (path: string) => {
+        const id = decodeURIComponent(path.split("/embeds/").at(-1)!.split("?")[0]);
+        const head = heads.get(id);
+        const keySubject = String(head?.parent_embed_id || id);
+        const keys = wrappers.filter((row) => row.hashed_embed_id === hash(keySubject));
+        if (!head || !keys.length || head.parent_embed_id && !heads.has(String(head.parent_embed_id))) {
+          return { ok: false, status: 404, data: {} };
+        }
+        return { ok: true, status: 200, data: { embed: head, embed_keys: keys } };
+      } };
+      const frames: Array<{ type: string; payload: Record<string, unknown> }> = [];
+      const pending: Array<{ type: string; predicate: (value: unknown) => boolean; resolve: (value: unknown) => void }> = [];
+      const ws = {
+        waitForMessage: (type: string, predicate: (value: unknown) => boolean) => new Promise(resolve => {
+          pending.push({ type, predicate, resolve });
+        }),
+        sendAsync: async (type: string, payload: Record<string, unknown>) => {
+          frames.push({ type, payload });
+          let responseType: string, response: Record<string, unknown>;
+          if (type === "recovery_output_get") {
+            const output = payload.record_id === child.record_id ? child : parent;
+            responseType = "recovery_output_ready";
+            response = { ...output, sealed_payload: JSON.stringify(sealed.get(output.record_id)), messages_v: 1 };
+          } else if (type === "store_embed") {
+            if (payload.parent_embed_id) {
+              assert.ok(heads.has(String(payload.parent_embed_id)), "child must never store before parent head");
+              assert.equal(wrappers.length, 2, "parent wrappers must be readable before child storage");
+            }
+            heads.set(String(payload.embed_id), payload);
+            responseType = "store_embed_confirmed";
+            response = { embed_id: payload.embed_id, recovery_record_id: payload.recovery_record_id,
+              canonical_source: "head", canonical_digest: hash(String(payload.encrypted_content)) };
+          } else if (type === "store_embed_keys") {
+            wrappers.push(...payload.keys as Array<Record<string, unknown>>);
+            responseType = "store_embed_keys_confirmed";
+            response = { failed_count: 0, created_count: (payload.keys as unknown[]).length, requested_count: (payload.keys as unknown[]).length };
+          } else {
+            assert.equal(type, "recovery_output_ack_embed");
+            const output = payload.record_id === child.record_id ? child : parent;
+            assert.equal(payload.canonical_digest, hash(String(heads.get(output.subject_id)?.encrypted_content)));
+            responseType = "recovery_output_embed_acknowledged";
+            response = { record_id: payload.record_id, state: "ACKNOWLEDGED" };
+          }
+          response.request_id = payload.request_id;
+          const index = pending.findIndex(row => row.type === responseType && row.predicate(response));
+          assert.ok(index >= 0, `matching receipt for ${type}`);
+          pending.splice(index, 1)[0].resolve({ payload: response });
+        },
+      };
+      const cache = { chats: [{ details: { id: child.root_chat_id }, messages: [] }], embeds: [], embedKeys: [] };
+      const crossPage = scenario === "cross-page" || scenario === "current-turn-cross-page";
+      const pages = scenario === "missing" ? [[child]] : crossPage ? [[child], [parent]] : [[child, parent]];
+      const replay = () => scenario === "current-turn-cross-page"
+        ? (client.replayCurrentTurnRecoveryOutputPages as ReplayCurrentTurnPages)(ws, identity.owner_id, pages, cache, null, child.root_chat_id)
+        : (client.replayRecoveryOutputPages as ReplayOutputPages)(ws, identity.owner_id, pages, cache, null);
+      const valid = ["same-page", "cross-page", "current-turn-cross-page", "orphan-head"].includes(scenario);
+      if (!valid) {
+        await assert.rejects(replay(), /parent embed key scope|dependency is cyclic|Recovery Team|key wrapper does not match/);
+        assert.equal(frames.some(row => ["store_embed", "store_embed_keys", "recovery_output_ack_embed"].includes(row.type)), false);
+        assert.equal(heads.size, scenario === "invalid-parent-wrapper" ? 1 : 0);
+      } else {
+        const count = await replay();
+        if (scenario !== "current-turn-cross-page") assert.equal(count, 2);
+        assert.deepEqual(frames.filter(row => row.type === "recovery_output_ack_embed").map(row => row.payload.record_id),
+          [parent.record_id, child.record_id]);
+        assert.equal(frames.filter(row => row.type === "recovery_output_get" && row.payload.record_id === parent.record_id).length, 1);
+        assert.deepEqual(frames.filter(row => row.type === "store_embed").map(row => row.payload.embed_id),
+          scenario === "orphan-head" ? [parentId] : [parentId, child.subject_id]);
+        assert.equal(await decryptWithAesGcmCombined(String(heads.get(child.subject_id)?.encrypted_content), embedKey), childContent.content);
+        if (orphanCiphertext) assert.equal(heads.get(child.subject_id)?.encrypted_content, orphanCiphertext);
+      }
+    });
+  }
 });
