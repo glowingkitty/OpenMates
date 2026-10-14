@@ -2486,6 +2486,34 @@ async def _prepare_artifact_context(
             )
 
 
+async def _consume_sub_chat_recovery_children(
+    request_data: AskSkillRequest, task_id: str,
+    cache_service: CacheService, directus_service: DirectusService,
+) -> None:
+    """Consume admitted source batches before releasing any private child context."""
+    if not request_data.recovery_preflight_id or not request_data.orchestration_id:
+        raise RequiredRecoveryOutputError("Parent continuation lacks durable child recovery identity")
+    from .stream_consumer import _load_sub_chat_consumption_authority
+    source_tasks = await _load_sub_chat_consumption_authority(cache_service, task_id, request_data)
+    if source_tasks is None:
+        raise RequiredRecoveryOutputError("Parent continuation lacks trusted child consumption authority")
+    recovery_service = ChatRecoveryService(directus_service)
+    for child_chat_id in request_data.recovery_consumed_child_ids:
+        await recovery_service.execute("mark_child_parent_consumed", {
+            "protocol_version": 1,
+            "hashed_user_id": request_data.user_id_hash,
+            "child_chat_id": child_chat_id,
+            "root_chat_id": request_data.root_chat_id or request_data.chat_id,
+            "continuation_task_id": source_tasks[child_chat_id],
+        })
+    # Partial consumption is safely idempotent; preserve every context on failure.
+    for child_chat_id in request_data.recovery_consumed_child_ids:
+        if not await cache_service.release_active_ai_child_context(
+            request_data.user_id_hash, child_chat_id,
+        ):
+            raise RequiredRecoveryOutputError("Parent consumed child but its working context could not be released")
+
+
 @_owns_deferred_summary
 async def _async_process_ai_skill_ask_task(
     task_id: str, # task_id is still needed
@@ -2656,21 +2684,9 @@ async def _async_process_ai_skill_ask_task(
 
         durable_claim_started = time.monotonic()
         if request_data.is_sub_chat_continuation and request_data.recovery_consumed_child_ids:
-            if not request_data.recovery_preflight_id or not request_data.orchestration_id:
-                raise RequiredRecoveryOutputError("Parent continuation lacks durable child recovery identity")
-            recovery_service = ChatRecoveryService(directus_service_instance)
-            for child_chat_id in request_data.recovery_consumed_child_ids:
-                await recovery_service.execute("mark_child_parent_consumed", {
-                    "protocol_version": 1,
-                    "hashed_user_id": request_data.user_id_hash,
-                    "child_chat_id": child_chat_id,
-                    "root_chat_id": request_data.root_chat_id or request_data.chat_id,
-                    "continuation_task_id": task_id,
-                })
-                if not await cache_service_instance.release_active_ai_child_context(
-                    request_data.user_id_hash, child_chat_id,
-                ):
-                    raise RequiredRecoveryOutputError("Parent consumed child but its working context could not be released")
+            await _consume_sub_chat_recovery_children(
+                request_data, task_id, cache_service_instance, directus_service_instance,
+            )
 
         if request_data.is_sub_chat:
             if not all((

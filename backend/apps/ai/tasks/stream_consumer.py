@@ -529,10 +529,10 @@ def _web_source_bindings_from_outputs(bindings: list[dict[str, Any]]) -> dict[st
     return refs
 
 
-async def _load_sub_chat_source_authority(
+async def _load_sub_chat_authority_record(
     cache_service: CacheService | None, task_id: str, request_data: AskSkillRequest,
-) -> set[str] | None:
-    """Read the private, exact-task citation set; request fields grant no authority."""
+) -> dict[str, Any] | None:
+    """Validate the private exact-task authority; request fields grant no authority."""
     if not request_data.is_sub_chat_continuation or not cache_service:
         return None
     authority = await cache_service.get(_sub_chat_source_authority_key(task_id))
@@ -559,7 +559,33 @@ async def _load_sub_chat_source_authority(
                    or not _is_canonical_uuid(embed_id)
                    for ref, embed_id in bindings.items())):
         return None
-    return set(refs)
+    return authority
+
+
+async def _load_sub_chat_source_authority(
+    cache_service: CacheService | None, task_id: str, request_data: AskSkillRequest,
+) -> set[str] | None:
+    authority = await _load_sub_chat_authority_record(cache_service, task_id, request_data)
+    return set(authority["refs"]) if authority is not None else None
+
+
+async def _load_sub_chat_consumption_authority(
+    cache_service: CacheService | None, task_id: str, request_data: AskSkillRequest,
+) -> dict[str, str] | None:
+    """Use each child's admitted source-batch task, never a client-provided map."""
+    authority = await _load_sub_chat_authority_record(cache_service, task_id, request_data)
+    if authority is None:
+        return None
+    tasks = authority.get("consumption_task_ids")
+    if tasks is None:
+        # Previously staged ordinary continuations belong to this single batch.
+        # The unchanged durable guard still rejects any older multi-batch mismatch.
+        tasks = {child_id: task_id for child_id in authority["child_ids"]}
+    if (not isinstance(tasks, dict) or set(tasks) != set(authority["child_ids"])
+            or any(not isinstance(source_task, str) or not _is_canonical_uuid(source_task)
+                   for source_task in tasks.values())):
+        return None
+    return tasks
 
 
 async def _summarize_stopped_sub_chat_with_gemini(
@@ -1183,6 +1209,16 @@ async def _dispatch_sub_chat_parent_continuation(
             source_bindings[ref] = embed_id
     if len(source_refs) > 200 or len(source_bindings) > 200:
         raise RequiredRecoveryOutputError("Sub-chat source authority exceeds bounded capacity")
+    consumption_task_ids = {
+        child_id: continuation_task_id for child_id in continuation_request.recovery_consumed_child_ids
+    }
+    if isinstance(research_context, dict):
+        research_task_id = pending_context.get("research_continuation_task_id")
+        if not isinstance(research_task_id, str) or not research_task_id:
+            raise RequiredRecoveryOutputError("Research source-batch admission is unavailable")
+        for child_id in research_context.get("completed") or {}:
+            if child_id in consumption_task_ids:
+                consumption_task_ids[child_id] = research_task_id
     authority = {
         "task_id": continuation_task_id,
         "owner_hash": original_request.user_id_hash,
@@ -1192,6 +1228,7 @@ async def _dispatch_sub_chat_parent_continuation(
         "root_turn_id": original_request.root_turn_id or original_request.message_id,
         "orchestration_id": original_request.orchestration_id,
         "child_ids": sorted(continuation_request.recovery_consumed_child_ids),
+        "consumption_task_ids": consumption_task_ids,
         "refs": source_refs,
         "bindings": source_bindings,
     }
@@ -1404,6 +1441,7 @@ async def _dispatch_research_verifier(
             "skill_config_dict": pending_context.get("skill_config_dict") or {},
             "expected_sub_chat_ids": [child["id"]], "sub_chats": [child], "completed": {},
             "research_context": pending_context, "research_stage": "verification_running",
+            "research_continuation_task_id": claim["continuation_task_id"],
             "pending_batch_id": claim["verifier_batch_id"],
             "report_trigger": "all", "execution_mode": "parallel", "dispatch_tokens": dispatch_tokens,
             "created_at": int(time.time()),
