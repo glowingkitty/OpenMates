@@ -195,10 +195,15 @@
 
         <!-- Extract (article summary) -->
         {#if articleExtract}
-          <div class="wiki-extract">
+          <div class="wiki-extract" data-testid="wiki-fullscreen-extract">
             <p>{articleExtract}</p>
           </div>
         {/if}
+
+        <!-- Attribution for the article text above -->
+        <p class="wiki-attribution" data-testid="wiki-source-attribution">
+          {$_('embeds.wiki.source_attribution.text')}
+        </p>
 
         <section class="wiki-learning" aria-label={$_('embeds.wiki.learn_more.text')} data-testid="wiki-learning">
           <SettingsSectionHeading title={$_('embeds.wiki.learn_more.text')} icon="study" />
@@ -264,10 +269,6 @@
           {/if}
         </section>
 
-        <!-- Attribution -->
-        <p class="wiki-attribution">
-          {$_('embeds.wiki.source_attribution.text')}
-        </p>
       {/if}
     </div>
   {/snippet}

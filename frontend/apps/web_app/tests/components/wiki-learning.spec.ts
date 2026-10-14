@@ -36,6 +36,16 @@ test.describe('Wiki learning fullscreen', () => {
       await page.goto(preview('', width));
       await waitForComponentPreview(page);
       await expect(page.getByTestId('wiki-fullscreen-title')).toHaveText('Ada Lovelace');
+      const attribution = page.getByTestId('wiki-source-attribution');
+      await expect(attribution).toHaveCount(1);
+      await expect(attribution).toContainText('Source: Wikipedia');
+      const sourcePlacement = await page.getByTestId('wiki-fullscreen-content').evaluate(element => {
+        const extract = element.querySelector('[data-testid="wiki-fullscreen-extract"]')!.getBoundingClientRect();
+        const source = element.querySelector('[data-testid="wiki-source-attribution"]')!.getBoundingClientRect();
+        const learning = element.querySelector('[data-testid="wiki-learning"]')!.getBoundingClientRect();
+        return { belowArticle: source.top >= extract.bottom, aboveLearning: source.bottom <= learning.top };
+      });
+      expect(sourcePlacement).toEqual({ belowArticle: true, aboveLearning: true });
       const learning = page.getByTestId('wiki-learning');
       await expect(learning.getByRole('heading', { name: 'Learn more', level: 3 })).toBeVisible();
       const sectionHeading = learning.locator('.settings-section-heading');
@@ -49,6 +59,10 @@ test.describe('Wiki learning fullscreen', () => {
       expect(headingIcon.expected).not.toBe('');
       expect(headingIcon.actual).toBe(headingIcon.expected);
       expect(await sectionHeading.evaluate(element => element.getBoundingClientRect().right <= innerWidth)).toBe(true);
+      await page.getByTestId('wiki-fullscreen-extract').scrollIntoViewIfNeeded();
+      await expect(attribution).toBeInViewport();
+      await expect(learning.getByRole('heading', { name: 'Learn more', level: 3 })).toBeInViewport();
+      await page.screenshot({ path: test.info().outputPath(`wiki-source-${width}.png`), fullPage: true });
       await expect(page.getByTestId('wiki-questions').getByTestId('follow-up-suggestion-item')).toHaveCount(3);
       const relatedRow = page.getByTestId('wiki-related-articles');
       const relatedCards = page.getByTestId('wiki-related-article');
