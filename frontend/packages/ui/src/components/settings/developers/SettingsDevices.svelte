@@ -14,6 +14,7 @@
     import { text } from '@repo/ui';
     import { getApiEndpoint } from '../../../config/api';
     import { encryptWithMasterKey, decryptWithMasterKey } from '../../../services/cryptoService';
+    import SecurityAuth from '../security/SecurityAuth.svelte';
     import {
         SettingsBadge,
         SettingsButton,
@@ -51,6 +52,10 @@
     let editingDeviceId = $state<string | null>(null);
     let editingDeviceName = $state('');
     let selectedDeviceId = $state<string | null>(null);
+    type PendingDeviceAction = { kind: 'approve' | 'revoke'; deviceId: string };
+    let sensitiveAuthVisible = $state(false);
+    let sensitiveAuthPending = $state<PendingDeviceAction | null>(null);
+    let sensitiveMethods = $state({ hasPasskey: false, hasPassword: false, has2FA: false });
 
     let selectedDevice = $derived(
         selectedDeviceId ? devices.find((device) => device.id === selectedDeviceId) : null
@@ -109,7 +114,31 @@
         }
     }
 
-    async function approveDevice(deviceId: string) {
+    async function requestSensitiveProof(pending: PendingDeviceAction) {
+        const response = await fetch(getApiEndpoint('/v1/auth/methods'), { credentials: 'include' });
+        if (!response.ok) throw new Error('Could not load authentication methods');
+        const methods = await response.json();
+        sensitiveMethods = {
+            hasPasskey: !!methods.has_passkey,
+            hasPassword: !!methods.has_password,
+            has2FA: !!methods.has_2fa,
+        };
+        if (!sensitiveMethods.hasPasskey && !sensitiveMethods.hasPassword && !sensitiveMethods.has2FA) {
+            throw new Error('No verification method is available for this account');
+        }
+        sensitiveAuthPending = pending;
+        sensitiveAuthVisible = true;
+    }
+
+    async function onSensitiveProofSuccess() {
+        const pending = sensitiveAuthPending;
+        sensitiveAuthPending = null;
+        sensitiveAuthVisible = false;
+        if (pending?.kind === 'approve') await approveDevice(pending.deviceId, true);
+        if (pending?.kind === 'revoke') await revokeDevice(pending.deviceId, true);
+    }
+
+    async function approveDevice(deviceId: string, proofRetried = false) {
         try {
             processingDeviceId = deviceId;
             error = '';
@@ -124,6 +153,10 @@
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
+                if (!proofRetried && response.status === 401 && String(errorData.detail).includes('Recent verification required')) {
+                    await requestSensitiveProof({ kind: 'approve', deviceId });
+                    return;
+                }
                 throw new Error(errorData.detail || 'Failed to approve device');
             }
 
@@ -136,8 +169,8 @@
         }
     }
 
-    async function revokeDevice(deviceId: string) {
-        if (!confirm($text('settings.developers_devices_confirm_revoke'))) {
+    async function revokeDevice(deviceId: string, proofRetried = false) {
+        if (!proofRetried && !confirm($text('settings.developers_devices_confirm_revoke'))) {
             return;
         }
 
@@ -155,6 +188,10 @@
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
+                if (!proofRetried && response.status === 401 && String(errorData.detail).includes('Recent verification required')) {
+                    await requestSensitiveProof({ kind: 'revoke', deviceId });
+                    return;
+                }
                 throw new Error(errorData.detail || 'Failed to revoke device');
             }
 
@@ -371,3 +408,18 @@
         {/each}
     {/if}
 </SettingsPageContainer>
+
+{#if sensitiveAuthVisible}
+    <SecurityAuth
+        hasPasskey={sensitiveMethods.hasPasskey}
+        hasPassword={sensitiveMethods.hasPassword}
+        has2FA={sensitiveMethods.has2FA}
+        sensitiveActionPurpose="api_key_manage"
+        autoStart={false}
+        title={$text('settings.security.verify_identity')}
+        description={$text('settings.security.verify_identity_description')}
+        onSuccess={() => { void onSensitiveProofSuccess(); }}
+        onFailed={(message) => { error = message; }}
+        onCancel={() => { sensitiveAuthPending = null; sensitiveAuthVisible = false; }}
+    />
+{/if}

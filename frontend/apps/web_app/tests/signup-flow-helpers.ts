@@ -1132,6 +1132,7 @@ const ISOLATED_TEST_ACCOUNT_SLOTS: Record<string, number> = {
 	'recovery-key-settings.spec.ts': 18,
 	'settings-change-email.spec.ts': 19,
 	'api-keys-flow.spec.ts': 20,
+	'device-approval-sensitive-flow.spec.ts': 20,
 	'landing-auth-links.spec.ts': 21
 };
 
