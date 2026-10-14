@@ -21,6 +21,7 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import FollowUpSuggestions from '../../FollowUpSuggestions.svelte';
+  import SettingsSectionHeading from '../../settings/elements/SettingsSectionHeading.svelte';
   import WikipediaEmbedPreview from './WikipediaEmbedPreview.svelte';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
@@ -200,7 +201,7 @@
         {/if}
 
         <section class="wiki-learning" aria-label={$_('embeds.wiki.learn_more.text')} data-testid="wiki-learning">
-          <h3>{$_('embeds.wiki.learn_more.text')}</h3>
+          <SettingsSectionHeading title={$_('embeds.wiki.learn_more.text')} icon="study" />
           {#if !isAuthenticated}
             <button class="wiki-action" onclick={onAuthenticate} data-testid="wiki-learning-login">{$_('embeds.wiki.login_learning.text')}</button>
           {:else}
@@ -417,8 +418,7 @@
     50% { opacity: 0.8; }
   }
   .wiki-learning { width: 100%; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-12); text-align: left; }
-  .wiki-learning h3, .wiki-learning h4, .wiki-learning p { margin: 0; }
-  .wiki-learning h3 { font-size: var(--font-size-h3); }
+  .wiki-learning h4, .wiki-learning p { margin: 0; }
   .wiki-learning h4 { font-size: var(--font-size-p); }
   .wiki-learning-note { font-size: var(--font-size-xs); color: var(--color-grey-70); line-height: 1.5; }
   .wiki-guide-ready {

@@ -122104,7 +122104,7 @@ assertions:
     direct_tests:
     - &id15480
       path: frontend/apps/web_app/tests/components/wiki-learning.spec.ts
-      line: 171
+      line: 184
       name: mismatched link names stay plain text and redirects with another name
         fail closed
       surface: gui.web
@@ -122154,7 +122154,7 @@ assertions:
     direct_tests:
     - &id15488
       path: frontend/apps/web_app/tests/components/wiki-learning.spec.ts
-      line: 146
+      line: 159
       name: provider failure retains the article and saving; retry loads questions;
         guests can sign in
       surface: gui.web
@@ -122228,25 +122228,25 @@ assertions:
       surface: gui.web
     - &id15494
       path: frontend/apps/web_app/tests/components/wiki-learning.spec.ts
-      line: 77
+      line: 90
       name: the article and saving stay available; suggestions fade in without a loading
         indicator
       surface: gui.web
     - &id15495
       path: frontend/apps/web_app/tests/components/wiki-learning.spec.ts
-      line: 120
+      line: 133
       name: a question closes only after accepted submission and repeated taps send
         once
       surface: gui.web
     - &id15496
       path: frontend/apps/web_app/tests/components/wiki-learning.spec.ts
-      line: 146
+      line: 159
       name: provider failure retains the article and saving; retry loads questions;
         guests can sign in
       surface: gui.web
     - &id15498
       path: frontend/apps/web_app/tests/components/wiki-learning.spec.ts
-      line: 212
+      line: 225
       name: wiki suggestions and cards remain readable in dark mode with reduced motion
       surface: gui.web
     - &id15499
@@ -122279,7 +122279,7 @@ assertions:
       surface: rest_api
     - &id15497
       path: frontend/apps/web_app/tests/components/wiki-learning.spec.ts
-      line: 196
+      line: 209
       name: shared follow-ups retain chat dismissal and filtering; disabled prompts
         do not send
       surface: gui.web

@@ -36,6 +36,19 @@ test.describe('Wiki learning fullscreen', () => {
       await page.goto(preview('', width));
       await waitForComponentPreview(page);
       await expect(page.getByTestId('wiki-fullscreen-title')).toHaveText('Ada Lovelace');
+      const learning = page.getByTestId('wiki-learning');
+      await expect(learning.getByRole('heading', { name: 'Learn more', level: 3 })).toBeVisible();
+      const sectionHeading = learning.locator('.settings-section-heading');
+      await expect(sectionHeading.locator('.heading-bar')).toBeVisible();
+      await expect(sectionHeading.locator('.heading-bar')).toHaveCSS('height', '4px');
+      const headingIcon = await sectionHeading.locator('.heading-icon').evaluate(element => {
+        const expected = document.createElement('span');
+        expected.style.maskImage = getComputedStyle(element).getPropertyValue('--icon-url-study').trim();
+        return { expected: expected.style.maskImage, actual: getComputedStyle(element, '::after').maskImage };
+      });
+      expect(headingIcon.expected).not.toBe('');
+      expect(headingIcon.actual).toBe(headingIcon.expected);
+      expect(await sectionHeading.evaluate(element => element.getBoundingClientRect().right <= innerWidth)).toBe(true);
       await expect(page.getByTestId('wiki-questions').getByTestId('follow-up-suggestion-item')).toHaveCount(3);
       const relatedRow = page.getByTestId('wiki-related-articles');
       const relatedCards = page.getByTestId('wiki-related-article');
