@@ -371,7 +371,8 @@
         "components/landing-hero-motion.spec.ts",
         "landing-default-examples.spec.ts",
         "components/landing-mobile-hero.spec.ts",
-        "landing-code-replacement.spec.ts"
+        "landing-code-replacement.spec.ts",
+        "components/nutrition-serving-macros.spec.ts"
       ],
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "execution": "e2e"

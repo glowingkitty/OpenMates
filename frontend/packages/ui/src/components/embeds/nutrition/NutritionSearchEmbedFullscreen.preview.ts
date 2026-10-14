@@ -65,6 +65,30 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  edamamTotals: {
+    ...defaultProps,
+    data: {
+      ...defaultProps.data,
+      decodedContent: {
+        query: 'spinach chickpea bell pepper carrot',
+        provider: 'Edamam',
+        status: 'finished',
+        results: [{
+          title: 'Vegetarian recipe with four servings',
+          servings: 4,
+          calories_per_serving: 390.32275000000004,
+          nutrition_ENERC_KCAL_quantity: 1561.2910000000002,
+          nutrition_ENERC_KCAL_unit: 'kcal',
+          nutrition_PROCNT_quantity: 81.44995,
+          nutrition_PROCNT_unit: 'g',
+          nutrition_FAT_quantity: 28.041700000000002,
+          nutrition_FAT_unit: 'g',
+          nutrition_CHOCDF_quantity: 263.09475,
+          nutrition_CHOCDF_unit: 'g'
+        }]
+      }
+    } as unknown as EmbedFullscreenRawData
+  },
   processing: {
     ...defaultProps,
     data: {
