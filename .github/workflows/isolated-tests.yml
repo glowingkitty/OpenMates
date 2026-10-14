@@ -50,6 +50,10 @@ on:
         description: Exact successful producer run; consumers never search by artifact name
         type: string
         default: ''
+      runtime_seed:
+        description: Coordinator-issued read-only runtime seed; backend-probe only
+        type: string
+        default: ''
       preparation_transport:
         description: Private presigned preparation transfer ticket
         type: string
@@ -250,6 +254,12 @@ jobs:
             --expected-key "${{ inputs.preparation_key }}" \
             --harness-commit "$CI_HARNESS_COMMIT" \
             --input-dir test-results/ci-preparation-download
+      - name: Download exact private backend runtime seed
+        if: inputs.mode == 'backend-probe' && inputs.runtime_seed != ''
+        timeout-minutes: 4
+        run: >-
+          python3 ../tooling/scripts/ci_preparation_transport.py download-runtime
+          --directory test-results/ci-runtime-seed
       - name: Reuse compatible published runtime images
         id: images
         if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe'
@@ -263,7 +273,10 @@ jobs:
           if [ "$needs_upload" = 'true' ]; then
             upload_args+=(--include-upload)
           fi
-          if [ "${{ steps.artifacts.outputs.prepared }}" = 'true' ]; then
+          if [ "${{ inputs.mode }}" = 'backend-probe' ] && [ -n "${{ inputs.runtime_seed != '' && 'seeded' || '' }}" ]; then
+            python3 ../tooling/scripts/ci_runtime_images.py restore \
+              --manifest test-results/ci-runtime-seed/manifest.json
+          elif [ "${{ steps.artifacts.outputs.prepared }}" = 'true' ]; then
             if ! python3 ../tooling/scripts/ci_runtime_images.py restore \
               "${upload_args[@]}" \
               --manifest "${{ steps.artifacts.outputs.manifest }}"; then

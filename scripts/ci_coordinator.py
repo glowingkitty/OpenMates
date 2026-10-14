@@ -224,12 +224,24 @@ class GitHub:
             # Capability URLs live only in an owner-readable ticket, never in
             # queue status/results. Consumers receive read-only capabilities.
             prepared["_preparation_transport"] = dispatch_ticket(self.root, job)
+        if job.get("runtime_seed"):
+            if job.get("mode") != "backend-probe":
+                raise ValueError("Runtime seed is restricted to backend-probe")
+            try:
+                from scripts.ci_preparation_transport import dispatch_ticket
+            except ModuleNotFoundError:
+                from ci_preparation_transport import dispatch_ticket
+            seed = json.loads(job["runtime_seed"])
+            ticket = dispatch_ticket(self.root, {"mode": "backend-probe", "source": seed["source"],
+                "preparation_key": seed["preparation_key"], "preparation_id": seed["producer_id"]})
+            prepared["_runtime_seed_transport"] = json.dumps({"seed": seed, "ticket": json.loads(ticket)}, separators=(",", ":"))
         return prepared
 
     def dispatch(self, job: dict):
         if job.get("candidate_expires") and float(job["candidate_expires"]) <= time.time():
             raise ValueError("CI candidate artifact expired before dispatch; publish again")
-        if job.get("preparation_key") and "_preparation_transport" not in job:
+        if ((job.get("preparation_key") and "_preparation_transport" not in job)
+                or (job.get("runtime_seed") and "_runtime_seed_transport" not in job)):
             job = self.prepare_dispatch(job)
         self.request(
             f"repos/{self.repo}/actions/workflows/{WORKFLOW}/dispatches",
@@ -245,6 +257,7 @@ class GitHub:
                     "specs_json": job["specs"],
                     "case_title": job.get("case_title", ""),
                     "mode": job["mode"],
+                    **({"runtime_seed": job["_runtime_seed_transport"]} if job.get("runtime_seed") else {}),
                     "dispatch_token": job["token"],
                     "proof_video_profile": job.get("proof_profile", ""),
                     **({"capacity_configuration": job["capacity_configuration"]}
@@ -321,6 +334,7 @@ class Queue:
                 "ready_at": "REAL",
                 "capacity_configuration": "TEXT NOT NULL DEFAULT ''",
                 "case_title": "TEXT NOT NULL DEFAULT ''",
+                "runtime_seed": "TEXT NOT NULL DEFAULT ''",
             }
             for name, definition in candidate_columns.items():
                 if name not in columns:
@@ -349,6 +363,7 @@ class Queue:
         preparation: dict | None = None,
         capacity_configuration: dict | None = None,
         case_title: str = "",
+        runtime_seed_job: str = "",
     ) -> dict:
         if not owner or not re.fullmatch(r"[0-9a-f]{40}", source):
             raise ValueError("Owner and full immutable source commit are required")
@@ -435,9 +450,25 @@ class Queue:
             except ModuleNotFoundError:
                 from ci_coverage import validate_runtime_batch
             validate_runtime_batch(specs)
+        runtime_seed = {}
+        if runtime_seed_job:
+            if mode != "backend-probe" or not re.fullmatch(r"[0-9a-f]{64}", runtime_seed_job):
+                raise ValueError("Runtime seed requires backend-probe and an exact producer job ID")
+            producers = self.status(runtime_seed_job)
+            if len(producers) != 1:
+                raise ValueError("Runtime seed producer unavailable")
+            producer = producers[0]
+            if (producer["owner"] != owner or producer["mode"] != "prepare"
+                    or producer["state"] != "success" or not isinstance(producer.get("run_id"), int) or producer["run_id"] <= 0
+                    or not re.fullmatch(r"[0-9a-f]{64}", producer.get("preparation_key", ""))):
+                raise ValueError("Runtime seed requires a successful same-owner preparation")
+            runtime_seed = {"producer_id": producer["id"], "source": producer["source"],
+                            "preparation_key": producer["preparation_key"], "producer_run_id": str(producer["run_id"])}
         encoded = json.dumps(specs, separators=(",", ":"))
         stable_candidate = {key: value for key, value in candidate_values.items() if key not in ("candidate_patch_url", "candidate_expires")}
         identity = [owner, source, specs, mode, nonce, stable_candidate]
+        if runtime_seed:
+            identity.append({"runtime_seed": runtime_seed})
         if specs == ["storage-capacity-target.spec.ts"] and not capacity_configuration:
             raise ValueError("Target capacity requires source-bound calibration configuration")
         if capacity_configuration:
@@ -538,6 +569,9 @@ class Queue:
                 )
             if candidate:
                 db.execute("UPDATE jobs SET candidate_patch_url=?,candidate_expires=? WHERE id=? AND state='queued'", (candidate_values["candidate_patch_url"], candidate_values["candidate_expires"], key))
+            if runtime_seed:
+                db.execute("UPDATE jobs SET runtime_seed=? WHERE id=? AND state='queued'",
+                           (json.dumps(runtime_seed, separators=(",", ":")), key))
             if capacity_configuration:
                 db.execute("UPDATE jobs SET capacity_configuration=? WHERE id=? AND state='queued'",
                            (json.dumps(capacity_configuration, separators=(",", ":")), key))
@@ -854,6 +888,7 @@ def enqueue_submission(
     prepared_builds: bool = False,
     capacity_configuration: dict | None = None,
     case_title: str = "",
+    runtime_seed_job: str = "",
 ) -> list[dict]:
     """Split E2Es and optionally attach exact private shared preparation."""
     if case_title and (mode != "e2e" or specs != ["cli-recovery-discovery.spec.ts"]
@@ -903,6 +938,7 @@ def enqueue_submission(
             preparation,
             capacity_configuration,
             case_title,
+            runtime_seed_job,
         )
         for batch in batches
     ]
@@ -972,6 +1008,7 @@ def main():
     submit.add_argument("--preview-url", action="append", default=[])
     submit.add_argument("--mode", choices=["backend-probe", "component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke"], default="e2e")
     submit.add_argument("--attempt", default="")
+    submit.add_argument("--runtime-seed-job", default="", help="Exact successful same-session preparation; backend-probe runtime images only")
     submit.add_argument("--case-title", default="", help="Exact approved recovery case title")
     submit.add_argument("--capacity-calibration-job", default="")
     submit.add_argument("--capacity-profile", choices=["accelerated", "burst", "sustained"])
@@ -1074,6 +1111,7 @@ def main():
             prepared_builds=args.prepared_builds and args.mode != "backend-probe",
             capacity_configuration=capacity_configuration,
             case_title=args.case_title,
+            runtime_seed_job=args.runtime_seed_job,
         )
         print_receipt(receipts[0] if len(receipts) == 1 else receipts, as_json=args.json)
     elif args.action == "prioritize":
