@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { hasCapabilityEvidence, hasNaturalOpening, validateLandingAppExamples } from './validate-landing-app-examples.mjs';
 
 // contract-test: supporting surface=gui.web assertions=marketing-landing.app-metadata-defaults
@@ -90,4 +91,29 @@ test('rejects attachment-only, machine-only, and internal skill instructions', (
     assert.equal(hasNaturalOpening(opening), false);
   }
   assert.equal(hasNaturalOpening('@mate:general_knowledge Summarize my calendar week from these events.'), true);
+});
+
+// contract-test: supporting surface=gui.web assertions=marketing-landing.app-metadata-defaults
+test('accepts the real activated Politics focus with its substantive saved assistant answer', () => {
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
+  const source = readFileSync(join(root, 'frontend/packages/ui/src/demo_chats/data/example_chats/housing-policy-dinner-discussion.ts'), 'utf8');
+  assert.match(source, /status: activated/);
+  assert.doesNotThrow(() => validateLandingAppExamples(root, [{
+    id: 'politics', capability: { type: 'focus', id: 'prepare_discussion' },
+    example_chat_id: 'example-housing-policy-dinner-discussion'
+  }]));
+});
+
+// contract-test: supporting surface=gui.web assertions=marketing-landing.app-metadata-defaults
+test('activated focus evidence requires its own type, identity, and substantive assistant answer', () => {
+  const source = 'embeds: [\n {\n embed_id: "focus",\n type: "focus-mode-activation",\n content: "app_id: politics\\nfocus_id: politics-prepare_discussion\\nstatus: activated" }\n],\nmetadata: {}';
+  const app = { id: 'politics', capability: { type: 'focus', id: 'prepare_discussion' } };
+  const answer = ['Compare housing supply and tenant protections using these discussion points.'];
+  assert.equal(hasCapabilityEvidence(source, app, answer), true);
+  assert.equal(hasCapabilityEvidence(source, app), false);
+  assert.equal(hasCapabilityEvidence(source, app, ['[!](embed:focus)']), false);
+  assert.equal(hasCapabilityEvidence(source.replace('focus-mode-activation', 'app_skill_use'), app, answer), false);
+  assert.equal(hasCapabilityEvidence(source.replace('app_id: politics', 'app_id: books'), app, answer), false);
+  assert.equal(hasCapabilityEvidence(source.replace('politics-prepare_discussion', 'politics-other'), app, answer), false);
+  assert.equal(hasCapabilityEvidence(source.replace('status: activated', 'status: pending'), app, answer), false);
 });

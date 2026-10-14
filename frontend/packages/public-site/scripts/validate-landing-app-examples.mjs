@@ -16,7 +16,7 @@ export function hasNaturalOpening(opening) {
 }
 
 /** Inspect each recorded embed separately, so one failure cannot borrow another embed's result. */
-export function hasCapabilityEvidence(source, app) {
+export function hasCapabilityEvidence(source, app, assistantMessages = []) {
   const { type, id } = app.capability;
   if (!['skill', 'focus', 'artifact'].includes(type)) return false;
   // Some generated examples build their embed list from named arrays and spread it.
@@ -47,7 +47,13 @@ export function hasCapabilityEvidence(source, app) {
         /(?:^|\n)\s*(?:items|preview_results)\[[1-9]\d*\][^\n]*:/m.test(normalized) ||
         substantive(normalized, 'title|name|summary|description|text|url|previewAudioUrl|previewImageUrl|price|price_before_taxes|price_after_taxes|content|value|answer|data');
     }
-    if (type === 'focus') return field('focus_id', `${app.id}-${id}`, normalized) && field('status', 'finished', normalized);
+    if (type === 'focus') {
+      if (!field('focus_id', `${app.id}-${id}`, normalized)) return false;
+      if (field('status', 'finished', normalized)) return true;
+      // Focus activation has its own saved lifecycle; it does not finish like a skill.
+      return field('type', 'focus-mode-activation', normalized) &&
+        field('status', 'activated', normalized) && assistantMessages.some(hasNaturalOpening);
+    }
     if (!field('status', 'finished', normalized)) return false;
     const aliases = app.evidence_types?.length ? app.evidence_types : [id];
     if (!aliases.some((alias) => field('type', alias, normalized) || field('skill_id', alias, normalized))) return false;
@@ -80,11 +86,16 @@ export function validateLandingAppExamples(root, apps) {
     if (!example.source.slice(0, 700).includes('Extracted from shared chat')) {
       throw new Error(`Landing example lacks shared-chat provenance: ${chatId}`);
     }
-    if (!hasCapabilityEvidence(example.source, app)) {
+    const locale = resolve(root, 'frontend/packages/ui/src/i18n/sources/example_chats', `${slug.replaceAll('-', '_')}.yml`);
+    const messages = parse(readFileSync(locale, 'utf8'));
+    const assistantMessages = example.source.split(/\n\s*["']?role["']?\s*:\s*["']/).slice(1)
+      .filter((record) => /^assistant["']/.test(record))
+      .map((record) => record.match(/\n\s*["']?content["']?\s*:\s*["'](example_chats\.[^."']+\.([^."']+))["']/)?.[2])
+      .map((key) => key ? messages?.[key]?.en : undefined);
+    if (!hasCapabilityEvidence(example.source, app, assistantMessages)) {
       throw new Error(`Landing example does not demonstrate ${app.id} ${app.capability.type}:${app.capability.id}: ${chatId}`);
     }
-    const locale = resolve(root, 'frontend/packages/ui/src/i18n/sources/example_chats', `${slug.replaceAll('-', '_')}.yml`);
-    const opening = parse(readFileSync(locale, 'utf8'))?.message_1?.en;
+    const opening = messages?.message_1?.en;
     if (!hasNaturalOpening(opening)) {
       throw new Error(`Landing example must have a natural opening: ${chatId}`);
     }
