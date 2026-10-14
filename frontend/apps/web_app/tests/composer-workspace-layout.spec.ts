@@ -126,13 +126,12 @@ test.describe('Actual workspace composer layout', () => {
       const field = page.getByTestId('message-field');
       const editor = page.getByTestId('message-editor').locator('.ProseMirror');
       const welcome = page.getByTestId('daily-inspiration-area');
+      const chat = page.getByTestId('active-chat-container');
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await expect(welcome).toBeVisible({ timeout: 30000 });
       await expect(field).toHaveCSS('background-color', color);
       const welcomeHeight = await welcome.evaluate((element) => element.getBoundingClientRect().height);
-      const draft = 'Keep this new-chat draft\nKeep its second line';
       await field.click();
-      await editor.fill(draft);
       await expect(field).toHaveAttribute('data-focused', 'true');
       await expect(field).toHaveCSS('background-color', color);
       await expect(welcome).toBeHidden();
@@ -146,7 +145,6 @@ test.describe('Actual workspace composer layout', () => {
       await expect(field).toHaveAttribute('data-focused', 'false');
       await expect(welcome).toBeVisible();
       await expect(welcome).not.toHaveAttribute('inert', '');
-      await expect(editor).toContainText('Keep its second line');
       await field.click();
       await expect(welcome).toBeHidden();
       // Use a real outside pointer event, including when the empty chat-side has no height.
@@ -154,6 +152,31 @@ test.describe('Actual workspace composer layout', () => {
       await expect(field).toHaveAttribute('data-focused', 'false');
       await expect(welcome).toBeVisible();
       await expect(editor).not.toBeFocused();
+
+      // Guest drafts stay in session storage without selecting an authenticated
+      // saved-chat shell. Both dismissal paths restore this welcome surface.
+      await field.click();
+      await editor.pressSequentially('Keep this new-chat draft');
+      await editor.press('Shift+Enter');
+      await editor.pressSequentially('Keep its second line');
+      await expect(editor).toContainText('Keep its second line');
+      await cancel.click();
+      await expect(field).toHaveAttribute('data-focused', 'false');
+      await expect(chat).toHaveAttribute('data-current-chat-id', '');
+      await expect(welcome).toBeVisible();
+      await expect(welcome).not.toHaveAttribute('inert', '');
+      await expect(editor).toContainText('Keep this new-chat draft');
+      await expect(editor).toContainText('Keep its second line');
+      await field.click();
+      await expect(welcome).toBeHidden();
+      await expect(field).toHaveCSS('background-color', color);
+      await page.mouse.click(5, 5);
+      await expect(field).toHaveAttribute('data-focused', 'false');
+      await expect(editor).not.toBeFocused();
+      await expect(chat).toHaveAttribute('data-current-chat-id', '');
+      await expect(welcome).toBeVisible();
+      await expect(welcome).not.toHaveAttribute('inert', '');
+      await expect(editor).toContainText('Keep this new-chat draft');
       await expect(editor).toContainText('Keep its second line');
     });
   }

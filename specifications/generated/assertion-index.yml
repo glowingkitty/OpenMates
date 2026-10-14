@@ -85335,7 +85335,7 @@ assertions:
       surface: gui.web
     - &id10844
       path: frontend/apps/web_app/tests/composer-workspace-layout.spec.ts
-      line: 162
+      line: 185
       name: empty chat hides welcome on focus while a public example keeps its transcript
         fully visible
       surface: gui.web
@@ -102888,7 +102888,7 @@ assertions:
       surface: gui.web
     - &id13089
       path: frontend/apps/web_app/tests/composer-workspace-layout.spec.ts
-      line: 162
+      line: 185
       name: empty chat hides welcome on focus while a public example keeps its transcript
         fully visible
       surface: gui.web
@@ -132199,7 +132199,7 @@ assertions:
       surface: gui.web
     - &id16740
       path: frontend/apps/web_app/tests/composer-workspace-layout.spec.ts
-      line: 227
+      line: 250
       name: Tasks and Workflows focus hides workspace content, then restores it without
         losing drafts
       surface: gui.web
@@ -133897,13 +133897,13 @@ assertions:
       surface: gui.web
     - &id16938
       path: frontend/apps/web_app/tests/composer-workspace-layout.spec.ts
-      line: 162
+      line: 185
       name: empty chat hides welcome on focus while a public example keeps its transcript
         fully visible
       surface: gui.web
     - &id16939
       path: frontend/apps/web_app/tests/composer-workspace-layout.spec.ts
-      line: 227
+      line: 250
       name: Tasks and Workflows focus hides workspace content, then restores it without
         losing drafts
       surface: gui.web
