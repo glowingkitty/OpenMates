@@ -2,7 +2,8 @@
 /**
  * Deployed Deep research end-to-end proof.
  *
- * Selects the real focus mention, delegates three bounded research child chats plus an independent source verifier through
+ * Sends a natural request that automatically activates focus, delegates three bounded
+ * research child chats plus an independent source verifier through
  * live inference, and verifies resolved citations in the final parent synthesis
  * without route mocks.
  */
@@ -17,7 +18,6 @@ const {
 } = require('./signup-flow-helpers');
 const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { dismissVisibleNotifications } = require('./helpers/embed-test-helpers');
-const { selectMentionResult } = require('./helpers/mention-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
@@ -38,7 +38,7 @@ const proofContract = defineVideoProof({
 	transcript: [
 		{
 			id: 'focus-request',
-			text: 'The request uses the Deep research focus mention in a new OpenMates chat.',
+			text: 'A natural research request automatically activates Deep research in a new OpenMates chat.',
 			checkpoint: 'deep-research-focus-visible',
 			devices: ['web-laptop']
 		},
@@ -90,7 +90,7 @@ const proofContract = defineVideoProof({
 	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
 });
 
-async function sendDeepResearchMessage(
+async function sendNaturalResearchMessage(
 	page: any,
 	prompt: string,
 	log: (message: string, metadata?: Record<string, unknown>) => void,
@@ -99,8 +99,7 @@ async function sendDeepResearchMessage(
 	const messageField = page.getByTestId('message-field').last();
 	const editor = messageField.getByTestId('message-editor');
 	await expect(editor).toBeVisible();
-	await selectMentionResult(page, 'deep', 'Deep research');
-	await page.keyboard.insertText(` ${prompt}`);
+	await editor.fill(prompt);
 	await screenshot(page, 'deep-research-request-typed');
 
 	const userMessages = page.getByTestId('message-user');
@@ -109,10 +108,10 @@ async function sendDeepResearchMessage(
 	await expect(sendButton).toBeVisible({ timeout: 10_000 });
 	await sendButton.click();
 	await expect(userMessages).toHaveCount(userCount + 1, { timeout: 30_000 });
-	log('Sent explicit Deep research focus mention request.');
+	log('Sent natural research request without a focus mention or override.');
 }
 
-// contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity,chats.local-state.precedence,focus-modes.full-instruction
+// contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity,chats.local-state.precedence,focus-modes.full-instruction,focus-modes.natural-request
 test('Deep research delegates three angles and renders the final parent synthesis', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
 	test.setTimeout(900_000);
@@ -146,7 +145,7 @@ test('Deep research delegates three angles and renders the final parent synthesi
 		'Investigate how the EU AI Act general-purpose AI obligations affect open-source model providers, cloud hosts, and downstream startups. ' +
 		'Delegate exactly three distinct regulatory, market-incentive, and counterargument research angles, then independently verify the important provisional claims against primary sources before synthesizing what is confirmed, likely, plausible, and uncertain.';
 
-	await sendDeepResearchMessage(page, prompt, log, screenshot);
+	await sendNaturalResearchMessage(page, prompt, log, screenshot);
 
 	const focusBar = page.getByTestId('focus-mode-bar').filter({ hasText: 'Deep research' }).first();
 	await expect(focusBar).toBeVisible({ timeout: 120_000 });

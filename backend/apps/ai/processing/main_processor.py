@@ -5382,7 +5382,32 @@ async def handle_main_processing(
         # provider tool calls before any dispatcher can see them.
         available_tools_for_llm = []
 
-    if not request_data.orchestration_id and any(
+    # A natural Focus proposal returns through consent before any research.
+    # Decide that existing route before creating the eager ordinary root: the
+    # accepted continuation must create its root with the active Focus policy.
+    automatic_focus_id = resolve_automatic_focus_proposal(
+        relevant_focus_modes=relevant_focus_modes,
+        eligible_focus_ids={
+            f"{app_id}-{focus.id}"
+            for app_id, metadata in discovered_apps_metadata.items()
+            for focus in (getattr(metadata, "focuses", None) or [])
+            if getattr(focus, "auto_activate_when_relevant", False)
+        },
+        has_active_focus=has_active_focus_mode,
+        chat_depth=chat_depth,
+        is_continuation=any(getattr(request_data, name, False) for name in (
+            "is_focus_mode_continuation", "is_async_skill_continuation",
+            "is_sub_chat_continuation", "is_app_settings_memories_continuation",
+        )),
+        exact_skill_request=user_requested_skills_only,
+        explicit_focus_request=user_requested_focus_only,
+        apps_enabled=(request_data.user_preferences or {}).get("apps_enabled") is not False,
+    )
+    automatic_focus_pending = bool(
+        automatic_focus_id and agentic_context.first_party(request_data)
+    )
+
+    if not automatic_focus_pending and not request_data.orchestration_id and any(
         tool.get("function", {}).get("name") == "start_sub_chats"
         for tool in available_tools_for_llm
     ):
@@ -5901,25 +5926,7 @@ async def handle_main_processing(
     # An opted-in, uniquely matched public mode uses the standard pending
     # activation transition before answering. Relevance still grants no active
     # instructions, sub-chat execution or private Project access.
-    automatic_focus_id = resolve_automatic_focus_proposal(
-        relevant_focus_modes=relevant_focus_modes,
-        eligible_focus_ids={
-            f"{app_id}-{focus.id}"
-            for app_id, metadata in discovered_apps_metadata.items()
-            for focus in (getattr(metadata, "focuses", None) or [])
-            if getattr(focus, "auto_activate_when_relevant", False)
-        },
-        has_active_focus=has_active_focus_mode,
-        chat_depth=chat_depth,
-        is_continuation=any(getattr(request_data, name, False) for name in (
-            "is_focus_mode_continuation", "is_async_skill_continuation",
-            "is_sub_chat_continuation", "is_app_settings_memories_continuation",
-        )),
-        exact_skill_request=user_requested_skills_only,
-        explicit_focus_request=user_requested_focus_only,
-        apps_enabled=(request_data.user_preferences or {}).get("apps_enabled") is not False,
-    )
-    if automatic_focus_id and agentic_context.first_party(request_data):
+    if automatic_focus_pending:
         async for focus_chunk in request_app_focus(automatic_focus_id):
             yield focus_chunk
         return
