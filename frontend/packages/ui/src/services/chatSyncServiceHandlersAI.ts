@@ -1,3 +1,7 @@
+import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
+import { persistGeneratedChatMetadata } from "./generatedChatMetadataPersistence";
+import { getWorkspaceCacheEpoch } from "./workspaceCacheLifecycle";
+import { noteChatMetadataTurn, completeChatMetadataTurn, isChatMetadataTurnCurrent } from "./lateChatMetadataGuard";
 // frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
 import type { ChatSynchronizationService } from "./chatSyncService";
 import type { ChatCompressionCheckpoint, PreprocessorStepResult } from "../types/chat";
@@ -592,6 +596,7 @@ export function handleAITaskInitiatedImpl(
 ): void {
   console.info("[ChatSyncService:AI] Received 'ai_task_initiated':", payload);
   // Accessing public member activeAITasks
+  if (!noteChatMetadataTurn(payload.chat_id, payload.ai_task_id, payload.user_message_id)) return;
   serviceInstance.activeAITasks.set(payload.chat_id, {
     taskId: payload.ai_task_id,
     userMessageId: payload.user_message_id,
@@ -755,6 +760,8 @@ export function handleAIMessageUpdateImpl(
       console.warn(`[ChatSyncService:AI] Ignoring stale final chunk for task ${payload.task_id}; ${taskInfo.taskId} is active in chat ${payload.chat_id}.`);
       return;
     }
+
+    completeChatMetadataTurn(payload.chat_id, payload.task_id);
 
     // The suggestion is authored in this successful turn, never as a typing-time
     // inference. It remains separate from postprocessed request chips.
@@ -2559,6 +2566,8 @@ export async function handlePostProcessingCompletedImpl(
   payload: {
     chat_id: string;
     task_id: string;
+    turn_id?: string;
+    user_message_id?: string;
     follow_up_request_suggestions: string[];
     new_chat_request_suggestions: string[];
     chat_summary: string;
@@ -2589,6 +2598,21 @@ export async function handlePostProcessingCompletedImpl(
     `[ChatSyncService:AI] Received 'post_processing_completed' for chat ${payload.chat_id}`,
   );
 
+  const ownerScope = getWorkspaceCacheIdentity();
+  const ownerEpoch = getWorkspaceCacheEpoch();
+  const ownerIsCurrent = () => ownerEpoch === getWorkspaceCacheEpoch() && ownerScope === getWorkspaceCacheIdentity();
+  let latestUserMatches = true;
+  const turnIsCurrent = () => latestUserMatches
+    && isChatMetadataTurnCurrent(payload.chat_id, payload.task_id, payload.user_message_id)
+    && (!serviceInstance.activeAITasks?.get(payload.chat_id)
+      || serviceInstance.activeAITasks.get(payload.chat_id)?.taskId === payload.task_id);
+  const versionedTitle = typeof payload.source_title_v === "number" && Number.isFinite(payload.source_title_v);
+  const versionedSummary = typeof payload.source_metadata_v === "number" && Number.isFinite(payload.source_metadata_v);
+  // Headers belong to the chat. An older turn may still supply a version-bound
+  // header; follow-ups and composer suggestions belong only to its latest turn.
+  const isCurrent = () => ownerIsCurrent() && (turnIsCurrent()
+    || Boolean((payload.updated_chat_title && versionedTitle) || (payload.chat_summary && versionedSummary)));
+  if (!isCurrent()) return;
   try {
     // Capture encrypted values for syncing back to Directus
     let encryptedFollowUpSuggestions: string | null = null;
@@ -2600,7 +2624,15 @@ export async function handlePostProcessingCompletedImpl(
     let encryptedQuickTipSlugs: string | null = null;
     let encryptedUpdatedTitle: string | null = null;
 
-    const chat = await chatDB.getChat(payload.chat_id);
+    const storedChat = await chatDB.getChat(payload.chat_id);
+    const chat = storedChat ? { ...storedChat } : null;
+    if (!isCurrent()) return;
+    if (payload.user_message_id) {
+      const messages = await chatDB.getMessagesForChat(payload.chat_id);
+      const latestUser = messages?.filter(message => message.role === 'user' && message.status !== 'failed').at(-1);
+      latestUserMatches = !latestUser || latestUser.message_id === payload.user_message_id;
+      if (!isCurrent()) return;
+    }
     if (!chat) {
       console.debug(
         `[ChatSyncService:AI] Ignoring post-processing results for deleted/missing chat ${payload.chat_id}`,
@@ -2634,6 +2666,7 @@ export async function handlePostProcessingCompletedImpl(
     }
     if (!postProcessingKey) return; // Safety — should not happen after withKey resolves
     const chatKey: Uint8Array = postProcessingKey;
+    if (!isCurrent()) return;
     if (
       !(await ensureChatKeySafeForWrite(
         payload.chat_id,
@@ -2646,7 +2679,7 @@ export async function handlePostProcessingCompletedImpl(
     // Encrypt and save follow-up suggestions to chat record (last 18)
     // CRITICAL FIX: await encryption operation since encryptArrayWithChatKey is async
     if (
-      payload.follow_up_request_suggestions &&
+      turnIsCurrent() && payload.follow_up_request_suggestions &&
       payload.follow_up_request_suggestions.length > 0
     ) {
       encryptedFollowUpSuggestions = await encryptArrayWithChatKey(
@@ -2664,7 +2697,7 @@ export async function handlePostProcessingCompletedImpl(
     // Save new chat suggestions to separate store (keep last 50)
     // Encrypt each suggestion with master key for global pool
     if (
-      payload.new_chat_request_suggestions &&
+      turnIsCurrent() && payload.new_chat_request_suggestions &&
       payload.new_chat_request_suggestions.length > 0
     ) {
       await chatDB.saveNewChatSuggestions(
@@ -2692,7 +2725,7 @@ export async function handlePostProcessingCompletedImpl(
 
     // Encrypt chat summary and tags
     // CRITICAL FIX: await all encryption operations since encrypt functions are async
-    if (payload.chat_summary) {
+    if (payload.chat_summary && (turnIsCurrent() || versionedSummary)) {
       const latestChatForSummary = await chatDB.getChat(payload.chat_id);
       const latestMetadataV = Math.max(
         latestChatForSummary?.metadata_v ?? 0,
@@ -2720,7 +2753,7 @@ export async function handlePostProcessingCompletedImpl(
       }
     }
 
-    if (payload.share_cta_text) {
+    if (turnIsCurrent() && payload.share_cta_text) {
       encryptedShareCtaText = await encryptWithChatKey(
         payload.share_cta_text,
         chatKey,
@@ -2728,7 +2761,7 @@ export async function handlePostProcessingCompletedImpl(
       chat.encrypted_share_cta_text = encryptedShareCtaText;
     }
 
-    if (payload.chat_tags && payload.chat_tags.length > 0) {
+    if (turnIsCurrent() && payload.chat_tags && payload.chat_tags.length > 0) {
       encryptedChatTags = await encryptArrayWithChatKey(
         payload.chat_tags.slice(0, 10), // Max 10 tags
         chatKey,
@@ -2738,7 +2771,7 @@ export async function handlePostProcessingCompletedImpl(
 
     // Encrypt and save top recommended apps for this chat
     if (
-      payload.top_recommended_apps_for_user &&
+      turnIsCurrent() && payload.top_recommended_apps_for_user &&
       payload.top_recommended_apps_for_user.length > 0
     ) {
       encryptedTopRecommendedApps = await encryptArrayWithChatKey(
@@ -2752,7 +2785,7 @@ export async function handlePostProcessingCompletedImpl(
       );
     }
 
-    if (payload.quick_tip_slugs && payload.quick_tip_slugs.length > 0) {
+    if (turnIsCurrent() && payload.quick_tip_slugs && payload.quick_tip_slugs.length > 0) {
       encryptedQuickTipSlugs = await encryptArrayWithChatKey(
         payload.quick_tip_slugs.slice(0, 2),
         chatKey,
@@ -2765,7 +2798,7 @@ export async function handlePostProcessingCompletedImpl(
 
     // OPE-265: Encrypt and save updated chat title if the postprocessor determined a title change is needed.
     // Manual title edits that happen while AI post-processing is still running must win over stale generated titles.
-    if (payload.updated_chat_title) {
+    if (payload.updated_chat_title && (turnIsCurrent() || versionedTitle)) {
       const sourceTitleV =
         typeof payload.source_title_v === "number" &&
         Number.isFinite(payload.source_title_v)
@@ -2803,7 +2836,33 @@ export async function handlePostProcessingCompletedImpl(
       encryptedQuickTipSlugs ||
       encryptedUpdatedTitle
     ) {
-      await chatDB.updateChat(chat);
+      const persisted = await persistGeneratedChatMetadata(chatDB, storedChat!, {
+        ...(encryptedFollowUpSuggestions ? { encrypted_follow_up_request_suggestions: encryptedFollowUpSuggestions } : {}),
+        ...(encryptedChatSummary ? { encrypted_chat_summary: encryptedChatSummary } : {}),
+        ...(encryptedShareCtaText ? { encrypted_share_cta_text: encryptedShareCtaText } : {}),
+        ...(encryptedChatTags ? { encrypted_chat_tags: encryptedChatTags } : {}),
+        ...(encryptedTopRecommendedApps ? { encrypted_top_recommended_apps_for_chat: encryptedTopRecommendedApps } : {}),
+        ...(encryptedQuickTipSlugs ? { encrypted_quick_tip_slugs: encryptedQuickTipSlugs } : {}),
+        ...(encryptedUpdatedTitle ? { encrypted_title: encryptedUpdatedTitle, title_v: (storedChat!.title_v ?? 0) + 1 } : {}),
+      }, isCurrent, (patch) => {
+        if (turnIsCurrent()) return patch;
+        return {
+          ...(versionedTitle && patch.encrypted_title ? { encrypted_title: patch.encrypted_title, title_v: patch.title_v } : {}),
+          ...(versionedSummary && patch.encrypted_chat_summary ? { encrypted_chat_summary: patch.encrypted_chat_summary } : {}),
+        };
+      });
+      if (!persisted || !isCurrent()) return;
+      if (!turnIsCurrent()) {
+        encryptedFollowUpSuggestions = null;
+        encryptedNewChatSuggestions = [];
+        encryptedShareCtaText = null;
+        encryptedChatTags = null;
+        encryptedTopRecommendedApps = null;
+        encryptedQuickTipSlugs = null;
+      }
+      if (persisted.encrypted_title !== encryptedUpdatedTitle) encryptedUpdatedTitle = null;
+      if (persisted.encrypted_chat_summary !== encryptedChatSummary) encryptedChatSummary = null;
+      Object.assign(chat, persisted);
       // CRITICAL: Invalidate metadata cache so context menu shows updated summary
       chatMetadataCache.invalidateChat(payload.chat_id);
       console.debug(
@@ -2842,6 +2901,15 @@ export async function handlePostProcessingCompletedImpl(
       // key on a secondary device would produce metadata the primary device can't decrypt.
       const chatRecord = await chatDB.getChat(payload.chat_id);
       const encryptedChatKeyForValidation = chatRecord?.encrypted_chat_key || "";
+      if (!isCurrent()) return;
+      if (!turnIsCurrent()) {
+        encryptedFollowUpSuggestions = null;
+        encryptedNewChatSuggestions = [];
+        encryptedShareCtaText = null;
+        encryptedChatTags = null;
+        encryptedTopRecommendedApps = null;
+        encryptedQuickTipSlugs = null;
+      }
       await sendPostProcessingMetadataImpl(
         serviceInstance,
         payload.chat_id,
@@ -2862,7 +2930,7 @@ export async function handlePostProcessingCompletedImpl(
 
     // Aggregate recommendations from recent chats and update user profile
     if (
-      payload.top_recommended_apps_for_user &&
+      turnIsCurrent() && payload.top_recommended_apps_for_user &&
       payload.top_recommended_apps_for_user.length > 0
     ) {
       await aggregateAndUpdateTopRecommendedApps(
@@ -2871,10 +2939,13 @@ export async function handlePostProcessingCompletedImpl(
     }
 
     // Dispatch event to notify components (e.g., to update UI with new suggestions)
+    if (!ownerIsCurrent() || !turnIsCurrent()) return;
     const event = new CustomEvent("postProcessingCompleted", {
       detail: {
         chatId: payload.chat_id,
         taskId: payload.task_id,
+        turnId: payload.turn_id,
+        userMessageId: payload.user_message_id,
         followUpSuggestions: payload.follow_up_request_suggestions,
         quickTipSlugs: payload.quick_tip_slugs || [],
         taskProposals: payload.task_proposals || [],

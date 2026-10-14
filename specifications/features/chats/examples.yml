@@ -1,5 +1,16 @@
 schema_version: 1
-specification: feature.chats@5
+specification: feature.chats@6
+independent_metadata:
+- id: delayed-header-and-suggestions
+  assertion_ids: [chats.completion.independent-metadata]
+  given: Authored response streaming ends and required encrypted reply persistence succeeds before postprocessor metadata arrives.
+  when: The title, summary and follow-up suggestions arrive later, including while a subsequent same-chat turn is running.
+  then: Active response processing has already ended and the next Send is ready; matching metadata updates the chat header and suggestions without reviving processing or replacing newer turn metadata.
+- id: completion-and-navigation-fences
+  assertion_ids: [chats.completion.independent-metadata]
+  given: A tool cycle may continue, or the user navigates or changes account and Team before late metadata arrives.
+  when: A terminal, continuation or metadata event is delivered, duplicated or delayed.
+  then: Continuation remains active, terminal processing clears promptly, stale visible scope is untouched and owned listeners and transports remain bounded and are eventually released.
 encryption_boundary:
 - id: private-chat-durable-row
   durable_state:

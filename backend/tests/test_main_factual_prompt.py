@@ -24,6 +24,8 @@ def _proven_turn():
     )
     preprocessing = SimpleNamespace(
         context_fast_path=True,
+        plain_prose_response=True,
+        complexity="low",
         early_task_area="general",
         output_language="en",
         selected_app_ids=[],
@@ -124,7 +126,7 @@ def test_declared_request_schema_disabled_learning_mode_allows_exact_benchmark_t
         learning_mode={"enabled": False},
     )
     preprocessing = PreprocessingResult(
-        context_fast_path=True, early_task_area="general", output_language="en",
+        context_fast_path=True, plain_prose_response=True, complexity="low", early_task_area="general", output_language="en",
         selected_app_ids=[], relevant_app_skills=[], relevant_focus_modes=[],
         load_app_settings_and_memories=[], relevant_rules=[], relevant_workflows=[],
         relevant_related_work=[], relevant_embedded_previews=[],
@@ -322,3 +324,84 @@ def test_app_guidance_removal_keeps_equal_safety_text_and_prompt_consistency():
     recovery = "\n\n".join(part for part in remaining if part)
     assert full.startswith(prefix)
     assert full == recovery
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.contextual-compact-assembly
+@pytest.mark.parametrize("change", ["none", "incomplete", "complex", "artifact", "tool_history", "interactive_history"])
+def test_contextual_followup_keeps_prior_response_requirements(change):
+    request, preprocessing = _proven_turn()
+    request.current_user_content = "And France?"
+    request.message_history = [
+        {"role": "user", "content": "What is the capital of Spain?"},
+        {"role": "assistant", "content": "Madrid."},
+        {"role": "user", "content": request.current_user_content},
+    ]
+    if change == "incomplete":
+        request.admission_context["scope_complete"] = False
+    elif change == "complex":
+        preprocessing.complexity = "complex"
+    elif change == "artifact":
+        request.message_history[0]["content"] = "What is the capital in this document?"
+    elif change == "tool_history":
+        request.message_history[1]["tool_calls"] = [{"id": "search"}]
+    elif change == "interactive_history":
+        request.message_history[0]["content"] = "What is the capital of Spain for a quiz?"
+    assert main._omit_fact_question_format_guidance(request, preprocessing, None, []) is (
+        change in {"none", "interactive_history"})
+    assert main._omit_fact_question_interactive_guidance(request, preprocessing, None, []) is (change == "none")
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.instructions.required-safety
+def test_optional_instruction_alias_cannot_remove_required_safety():
+    ethics, privacy = "Required ethics", "Required privacy"
+    instructions = {"base_ethics_instruction": ethics, "base_privacy_instruction": privacy,
+                    "base_code_block_instruction": ethics, "base_document_generation_instruction": privacy}
+    prompt, prefix = main._without_optional_fact_format_sections(
+        [ethics, privacy, ethics, privacy], [ethics, privacy], instructions)
+    assert ethics in prompt and privacy in prompt
+    assert prefix == [ethics, privacy]
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.contextual-compact-assembly
+@pytest.mark.parametrize("language,question", [
+    ("es", "escribir archivo?"), ("es", "capital de Francia?"),
+    ("de", "Schreibe Python für Frankreich?"), ("de", "Erstelle eine Datei?"),
+    ("fr", "programme document?"), ("fr", "Écrire un fichier?"),
+    ("fr", "Quelle est ma préférence ?"), ("de", "Was ist mein Plan?"),
+    ("ja", "フランスの首都は？"),
+])
+def test_unknown_languages_and_localized_response_requirements_keep_full_prompt(language, question):
+    request, preprocessing = _proven_turn()
+    preprocessing.output_language = language
+    request.current_user_content = question
+    request.message_history[0].content = question
+    assert not main._omit_fact_question_format_guidance(request, preprocessing, None, [])
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.contextual-compact-assembly
+@pytest.mark.parametrize("language,question", [("en", "And its currency?"), ("fr", "Et sa monnaie ?"), ("de", "Und seine Währung?")])
+def test_public_pronoun_followups_retain_full_needed_history(language, question):
+    request, preprocessing = _proven_turn()
+    preprocessing.output_language = language
+    request.current_user_content = question
+    request.message_history = [{"role": "user", "content": "What is the capital of France?"},
+                               {"role": "assistant", "content": "Paris."},
+                               {"role": "user", "content": question}]
+    original = list(request.message_history)
+    assert main._omit_fact_question_format_guidance(request, preprocessing, None, [])
+    assert request.message_history == original
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.contextual-compact-assembly
+def test_legacy_or_missing_positive_response_requirements_keep_full_guidance():
+    request, preprocessing = _proven_turn()
+    del preprocessing.plain_prose_response
+    assert not main._omit_fact_question_format_guidance(request, preprocessing, None, [])
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.contextual-compact-assembly
+@pytest.mark.parametrize("tier", ["low", "simple", "medium", "high", "max", "unknown", None])
+def test_compact_prose_tracks_current_low_tier_and_safe_legacy_alias(tier):
+    request, preprocessing = _proven_turn()
+    preprocessing.complexity = tier
+    assert main._omit_fact_question_format_guidance(request, preprocessing, None, []) is (tier in {"low", "simple"})

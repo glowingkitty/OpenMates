@@ -9015,6 +9015,55 @@ def _coherent_docker_services(requested: list[str], checkout_root: Path, backend
     return sorted(set(requested) | _incoherent_docker_services(checkout_root, backend_tree))
 
 
+_DEV_SHARED_WORKER_IMAGE = "openmates-dev-celery-worker:local"
+_DEV_SHARED_WORKERS = frozenset({
+    "task-worker", "user-init-worker", "core-worker", "user-tasks-worker",
+    "reminder-worker", "workflow-worker", "task-scheduler", "app-ai-worker",
+    "app-ai-routing-worker", "app-images-worker", "app-music-worker",
+    "app-videos-worker", "app-pdf-worker", "app-code-worker",
+    "app-social-media-worker",
+})
+
+
+def _validate_dev_shared_worker_builds(checkout_root: Path) -> None:
+    """Fail closed if the dev-only shared image would combine different builds."""
+    override = checkout_root / DOCKER_COMPOSE_OVERRIDE.relative_to(CONTROL_PLANE_ROOT)
+    if not override.is_file() or _DEV_SHARED_WORKER_IMAGE not in override.read_text():
+        return
+    rc, stdout, _stderr = _run_cmd(
+        _docker_compose_command("config", "--format", "json", checkout_root=checkout_root),
+        cwd=str(checkout_root),
+    )
+    if rc != 0:
+        raise RuntimeError("Could not validate shared development worker image")
+    try:
+        services = json.loads(stdout)["services"]
+        if not isinstance(services, dict) or not all(isinstance(service, dict) for service in services.values()):
+            raise ValueError("invalid resolved services")
+        sharing = {name for name, service in services.items()
+                   if service.get("image") == _DEV_SHARED_WORKER_IMAGE}
+        if sharing != _DEV_SHARED_WORKERS:
+            raise ValueError("shared worker service set differs")
+        identities = {
+            json.dumps({"build": services[name].get("build"),
+                        "platform": services[name].get("platform")}, sort_keys=True)
+            for name in sharing
+        }
+        if len(identities) != 1 or not all(services[name].get("build") for name in sharing):
+            raise ValueError("shared worker build inputs differ")
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise RuntimeError("Shared development worker image has divergent build inputs") from exc
+
+
+@contextmanager
+def _timed_restart_phase(timings_ms: dict[str, float], phase: str):
+    started = time.monotonic()
+    try:
+        yield
+    finally:
+        timings_ms[phase] = round((time.monotonic() - started) * 1000, 1)
+
+
 def _record_product_runtime_services(
     services: list[str],
     checkout_root: Path,
@@ -9672,46 +9721,56 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
             raise RuntimeError("Setup-gated restart only accepts backend consumers: " + ", ".join(unsupported))
 
     operation = request_docker_restart(args.session, services)
+    timing_started = time.monotonic()
+    phase_timings_ms = {name: 0.0 for name in (
+        "admission", "drain", "checkout", "translation", "compose", "health",
+    )}
     lock_acquired = False
     translation_selection_token = None
     persistent_coordination = _persistent_coordination_enabled()
     try:
-        wait_for_docker_operation_admitted(operation["id"], timeout=args.timeout, poll=args.poll)
-        if not persistent_coordination:
-            _wait_and_acquire_session_lock(
-                "docker_rebuild",
-                args.session,
-                phase="draining_tests",
-                timeout=args.timeout,
-                poll=args.poll,
-                heartbeat=lambda: update_docker_operation(operation["id"], "admitted"),
-            )
-            lock_acquired = True
+        with _timed_restart_phase(phase_timings_ms, "admission"):
+            wait_for_docker_operation_admitted(operation["id"], timeout=args.timeout, poll=args.poll)
+            if not persistent_coordination:
+                _wait_and_acquire_session_lock(
+                    "docker_rebuild",
+                    args.session,
+                    phase="draining_tests",
+                    timeout=args.timeout,
+                    poll=args.poll,
+                    heartbeat=lambda: update_docker_operation(operation["id"], "admitted"),
+                )
+                lock_acquired = True
 
         def heartbeat() -> None:
             if not persistent_coordination:
                 _acquire_session_lock("docker_rebuild", args.session, phase="draining_tests")
             update_docker_operation(operation["id"], "draining_tests")
 
-        wait_for_docker_test_leases(
-            operation["id"],
-            timeout=args.timeout,
-            poll=args.poll,
-            heartbeat=heartbeat,
-        )
+        with _timed_restart_phase(phase_timings_ms, "drain"):
+            wait_for_docker_test_leases(
+                operation["id"],
+                timeout=args.timeout,
+                poll=args.poll,
+                heartbeat=heartbeat,
+            )
         translation_selection_token = _PRODUCT_TRANSLATION_SELECTION_ALLOWED.set(True)
         if setup_service:
             _run_setup_gated_docker_restart(
                 args, operation, checkout_root, services, persistent_coordination
             )
             return
-        checkout_root = _ensure_product_runtime_checkout(refresh=True)
+        with _timed_restart_phase(phase_timings_ms, "checkout"):
+            checkout_root = _ensure_product_runtime_checkout(refresh=True)
         source_commit = _current_git_sha(checkout_root)
         translation_overlay = None
-        if checkout_root.resolve() == PRODUCT_RUNTIME_CHECKOUT.resolve():
-            translation_overlay = product_runtime_translations.prepare_artifact(
-                checkout_root, PRODUCT_RUNTIME_TRANSLATIONS_STORE
-            )
+        with _timed_restart_phase(phase_timings_ms, "translation"):
+            if checkout_root.resolve() == PRODUCT_RUNTIME_CHECKOUT.resolve():
+                translation_overlay = product_runtime_translations.prepare_artifact(
+                    checkout_root, PRODUCT_RUNTIME_TRANSLATIONS_STORE
+                )
+        if getattr(args, "build", False):
+            _validate_dev_shared_worker_builds(checkout_root)
         rc, backend_tree, stderr = _run_cmd(["git", "rev-parse", "HEAD:backend"], cwd=str(checkout_root))
         if rc != 0 or not backend_tree.strip():
             raise RuntimeError(f"Could not resolve product backend source generation: {stderr}")
@@ -9746,30 +9805,32 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
             compose_args = ["up", "-d", "--no-deps", "--force-recreate", *services]
         else:
             compose_args = ["restart", *services]
-        rc, stdout, stderr = _run_cmd_with_heartbeat(
-            _docker_compose_command(*compose_args, checkout_root=checkout_root),
-            cwd=str(checkout_root),
-            timeout=max(120, args.timeout),
-            heartbeat=lambda: (
-                None if persistent_coordination else _acquire_session_lock("docker_rebuild", args.session, phase="restarting"),
-                update_docker_operation(operation["id"], "restarting"),
-            ),
-        )
+        with _timed_restart_phase(phase_timings_ms, "compose"):
+            rc, stdout, stderr = _run_cmd_with_heartbeat(
+                _docker_compose_command(*compose_args, checkout_root=checkout_root),
+                cwd=str(checkout_root),
+                timeout=max(120, args.timeout),
+                heartbeat=lambda: (
+                    None if persistent_coordination else _acquire_session_lock("docker_rebuild", args.session, phase="restarting"),
+                    update_docker_operation(operation["id"], "restarting"),
+                ),
+            )
         if rc != 0:
             raise RuntimeError((stderr or stdout or "Docker Compose restart failed").strip())
         update_docker_operation(operation["id"], "verifying")
         if not persistent_coordination:
             _acquire_session_lock("docker_rebuild", args.session, phase="verifying")
-        health = wait_for_docker_services_healthy(
-            services,
-            timeout=args.health_timeout,
-            poll=args.poll,
-            checkout_root=checkout_root,
-            heartbeat=lambda: (
-                None if persistent_coordination else _acquire_session_lock("docker_rebuild", args.session, phase="verifying"),
-                update_docker_operation(operation["id"], "verifying"),
-            ),
-        )
+        with _timed_restart_phase(phase_timings_ms, "health"):
+            health = wait_for_docker_services_healthy(
+                services,
+                timeout=args.health_timeout,
+                poll=args.poll,
+                checkout_root=checkout_root,
+                heartbeat=lambda: (
+                    None if persistent_coordination else _acquire_session_lock("docker_rebuild", args.session, phase="verifying"),
+                    update_docker_operation(operation["id"], "verifying"),
+                ),
+            )
         _record_product_runtime_services(services, checkout_root, source_commit, backend_tree)
         completed = update_docker_operation(operation["id"], "completed", health=health)
         print(
@@ -9787,6 +9848,13 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
             pass
         raise
     finally:
+        try:
+            print("Docker restart phase timings (ms): " + json.dumps({
+                **phase_timings_ms,
+                "total": round((time.monotonic() - timing_started) * 1000, 1),
+            }, sort_keys=True), flush=True)
+        except Exception:
+            pass  # Observability cannot change restart success or failure.
         if translation_selection_token is not None:
             _PRODUCT_TRANSLATION_SELECTION_ALLOWED.reset(translation_selection_token)
         if lock_acquired:

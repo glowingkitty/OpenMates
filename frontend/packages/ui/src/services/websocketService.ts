@@ -1492,7 +1492,19 @@ class WebSocketService extends EventTarget {
     }
   }
 
-  public async sendMessage(type: string, payload: unknown): Promise<void> {
+  /** An opaque exact connection identity for a server-issued socket receipt. */
+  public getConnectionForSend(): object | null {
+    return this.isConnected() ? this.ws : null;
+  }
+
+  public async sendMessage(type: string, payload: unknown, options?: { expectedConnection: object | null }): Promise<void> {
+    const assertExpectedConnection = () => {
+      if (options && (!options.expectedConnection || options.expectedConnection !== this.ws || !this.isConnected())) {
+        throw Object.assign(new Error("WebSocket receipt connection changed before message dispatch"), { code: "websocket_receipt_connection_changed" });
+      }
+    };
+    // Receipt-bound frames never follow auto-connect onto a replacement socket.
+    assertExpectedConnection();
     const message: WebSocketMessage = { type, payload };
     if (!this.isConnected()) {
       if (type !== "ping") {
@@ -1533,16 +1545,17 @@ class WebSocketService extends EventTarget {
           const tracing = await import("./tracing/wsSpans").catch(() => null);
           if (tracing) {
             await tracing.withActiveWsSpan(`send.${type}`, () => {
-              // These turn frames are replayed from sealed journals and have a
+              // These sealed turn frames and personal snapshot requests have a
               // strict payload schema. Keep the local span without decorating
-              // their committed data with an unbound _traceparent field.
+              // their data with an unbound _traceparent field.
               if (!["chat_turn_preflight", "chat_turn_admit", "chat_turn_context_ready",
-                "chat_turn_context_failed"].includes(type)) {
+                "chat_turn_context_failed", "personal_send_context_snapshot"].includes(type)) {
                 tracing.injectTraceparent(message.payload as Record<string, unknown>);
               }
               if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
                 throw new Error("WebSocket changed before message dispatch");
               }
+              assertExpectedConnection();
               this.ws.send(JSON.stringify(message));
             });
             return;
@@ -1552,6 +1565,7 @@ class WebSocketService extends EventTarget {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
           throw new Error("WebSocket changed before message dispatch");
         }
+        assertExpectedConnection();
         this.ws.send(JSON.stringify(message));
       } catch (error) {
         if (type !== "ping") {

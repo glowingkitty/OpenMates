@@ -84,6 +84,28 @@ const RETIRED_INTRO_CHAT_HASHES = new Set([
 ]);
 
 let activeAuthCheck: { generation: number; promise: Promise<boolean> } | null = null;
+let sessionReadTail: Promise<void> = Promise.resolve();
+
+/** All first-party session POSTs share cookie-rotation ordering. A privacy read
+ * stays fresh rather than reusing an initialized authentication boolean. */
+export function serializeAuthSessionRead<T>(read: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  const run = () => {
+    if (signal?.aborted) throw signal.reason ?? new Error('Session read aborted');
+    return typeof navigator !== 'undefined' && navigator.locks
+      ? navigator.locks.request('openmates:auth-session-refresh', signal ? { signal } : {}, read)
+      : read();
+  };
+  const operation = sessionReadTail.then(run, run);
+  sessionReadTail = operation.then(() => undefined, () => undefined);
+  if (!signal) return operation;
+  return new Promise<T>((resolve, reject) => {
+    const abort = () => reject(signal.reason ?? new Error('Session read aborted'));
+    if (signal.aborted) { abort(); return; }
+    signal.addEventListener('abort', abort, { once: true });
+    void operation.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
+  });
+}
+
 
 /**
  * Checks the session and updates authentication/profile state.
@@ -175,13 +197,7 @@ async function performAuthCheck(
 
         // Cookies are read when fetch starts under the lock, after the previous
         // tab's Set-Cookie rotation has completed. No lock spans UI processing.
-        const result = typeof navigator !== "undefined" && navigator.locks
-          ? await navigator.locks.request(
-              "openmates:auth-session-refresh",
-              { signal: authAbortController.signal },
-              checkSession,
-            )
-          : await checkSession();
+        const result = await serializeAuthSessionRead(checkSession, authAbortController.signal);
         if (result == null || !isCurrentSession()) return currentAuthResult();
         data = result;
       } finally {

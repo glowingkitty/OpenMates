@@ -50,11 +50,12 @@ import {handleTuiPointer} from './tuiPointerActions.js';
 import { registerChatEmbedAliases, hydrateChatEmbedPreviews } from './tuiEmbeds.js';
 import {createChatModelPreferences} from './chatModelPreferences.js';
 import {createTuiModelSelectorShell,isTuiAiComposer,type TuiModelSelectorShell} from './tuiModelSelectorShell.js';
+import {createTuiMentionShell,type TuiMentionShell} from './tuiMentions.js';
 import {createTuiTeamChatRefresh,loadTuiTeamIdentity,reconcileTuiTeamSenderLabels} from './tuiTeamChat.js';
 
 export type CliDefaultMode = "tui" | "quickstart";
 export type TuiResult = { action: "exit" | "signup" | "restart" };
-export type TuiPaintMilestone = { milestone: "optimistic_user" | "selected_mate" | "tool_progress" | "authored_first" | "final"; elapsedMs: number; wallTimeMs: number; chatId: string | null; taskId: string | null; mateName?: string | null; modelName?: string | null };
+export type TuiPaintMilestone = { milestone: "optimistic_user" | "selected_mate" | "tool_progress" | "authored_first" | "response_terminal" | "reply_persisted" | "metadata_received" | "final"; turnSequence?: number; turnId?: string; userMessageId?: string; elapsedMs: number; wallTimeMs: number; chatId: string | null; taskId: string | null; mateName?: string | null; modelName?: string | null };
 
 export function defaultModeForStreams(input: NodeJS.ReadStream, output: NodeJS.WriteStream): CliDefaultMode {
   return input.isTTY === true && output.isTTY === true ? "tui" : "quickstart";
@@ -77,18 +78,24 @@ export async function runTui(
   let resolveResult: ((result: TuiResult) => void) | null = null;
   let renderTimer: NodeJS.Timeout | null = null;
   let lastFrameOwner: (() => boolean) | null = null;
-  let measuredTurn: { keypressAt: number; painted: Set<TuiPaintMilestone["milestone"]> } | null = null;
-  const recordPaint = (milestone: TuiPaintMilestone["milestone"]) => {
-    if (!measuredTurn || measuredTurn.painted.has(milestone)) return;
-    measuredTurn.painted.add(milestone);
+  let turnSequence = 0;
+  let measuredTurn: { keypressAt: number; turnSequence: number; painted: Set<TuiPaintMilestone["milestone"]> } | null = null;
+  const recordPaint = (milestone: TuiPaintMilestone["milestone"], measurement = measuredTurn,
+    identity: { chatId: string; turnId: string; userMessageId: string } | undefined = undefined) => {
+    if (!measurement || measurement.painted.has(milestone)) return;
+    measurement.painted.add(milestone);
     const assistant = state.streamingMessage ?? state.messages.slice().reverse().find(message => message.role === "assistant");
-    const event: TuiPaintMilestone = { milestone, elapsedMs: Math.round(performance.now() - measuredTurn.keypressAt), wallTimeMs: Date.now(),
-      chatId: state.activeChatId, taskId: state.aiTaskId, mateName: assistant?.title, modelName: assistant?.modelName };
+    const event: TuiPaintMilestone = { milestone, elapsedMs: Math.round(performance.now() - measurement.keypressAt), wallTimeMs: Date.now(), turnSequence: measurement.turnSequence, ...identity,
+      chatId: identity?.chatId ?? state.activeChatId, taskId: state.aiTaskId, mateName: assistant?.title, modelName: assistant?.modelName };
     onPaintMilestone?.(event);
     const path = process.env.OPENMATES_TUI_LATENCY_EVENTS;
     if (path) try { appendFileSync(path, `${JSON.stringify(event)}\n`, { mode: 0o600 }); } catch { /* Measurement never blocks chat. */ }
   };
 
+  metadataPaintObserver.set(state, () => {
+    const measurement = measuredTurn;
+    return identity => setTimeout(() => { if (!closed) recordPaint("metadata_received", measurement, identity); }, 20);
+  });
   let closed = false;
   let stopActivity: (() => void) | undefined;
   let workspaceReady = false;
@@ -103,6 +110,7 @@ export async function runTui(
   const scopedDrafts = new Map<string, Record<string,string>>();
   let teamChatRefresh: ReturnType<typeof createTuiTeamChatRefresh> | null = null;
   let modelShell:TuiModelSelectorShell|null=null;
+  let mentionShell:TuiMentionShell|null=null;
   const modelPreferences=createChatModelPreferences(client);
   const refreshActivity = async () => {
     if (closed || state.startup || refreshingActivity || !state.signedIn) return;
@@ -217,6 +225,7 @@ export async function runTui(
       identityRetryTimer=null;
     }
     modelShell?.sync();
+    mentionShell?.sync();
     if (state.screen !== "chat") client.clearInteractiveChatViewer();
     if (renderTimer) return;
     renderTimer = setTimeout(() => {
@@ -233,7 +242,8 @@ export async function runTui(
           const segments = parseMessageSegments(assistant.content, { preserveCodeFences: true });
           if (segments.some(segment => segment.type === "embed")) recordPaint("tool_progress");
           if (segments.some(segment => segment.type === "text" && segment.value.replace(/```(?:json_embed|json)[\s\S]*$/, "").trim())) recordPaint("authored_first");
-          if (!state.isBusy) recordPaint("final");
+          if (!state.isAwaitingAi) recordPaint("response_terminal");
+          if (!state.isBusy) { recordPaint("reply_persisted"); recordPaint("final"); }
         }
       }
     }, 16);
@@ -241,6 +251,7 @@ export async function runTui(
 
   teamChatRefresh=createTuiTeamChatRefresh(state,client,render);
   modelShell=createTuiModelSelectorShell({state,client,preferences:modelPreferences,render});
+  mentionShell=createTuiMentionShell({state,client,modelShell,render});
 
   const stopHomeSync=startHomeSync(state,client,render,()=>closed);
 
@@ -252,6 +263,7 @@ export async function runTui(
     stopHomeSync();stopActivity?.(); teamChatRefresh?.dispose(); clearTimeout(activityTimer); clearInterval(activityPoll); clearInterval(activityAnimation);
     if (identityRetryTimer) clearTimeout(identityRetryTimer);
     modelShell?.dispose();
+    mentionShell?.dispose();
     client.endInteractiveViewerSession();
     if (renderTimer) clearTimeout(renderTimer);
     renderTimer = null;
@@ -278,12 +290,12 @@ export async function runTui(
     if (key.name === "return" && state.focus === "composer" && state.workspace === "chats" &&
         !state.isBusy && state.input.trim() && !state.input.startsWith("/")) {
       measuredTurn = onPaintMilestone || process.env.OPENMATES_TUI_LATENCY_EVENTS
-        ? { keypressAt: performance.now(), painted: new Set() } : null;
+        ? { keypressAt: performance.now(), turnSequence: ++turnSequence, painted: new Set() } : null;
     }
     void (async () => {
-      if(key.name==='mouseclick'){await handleKey({chunk,key,state,client,terminal,render,finish,modelShell:modelShell!});return;}
+      if(key.name==='mouseclick'){await handleKey({chunk,key,state,client,terminal,render,finish,modelShell:modelShell!,mentionShell:mentionShell!});return;}
       if (await startup.handleKey(chunk, key)) return;
-      await handleKey({ chunk, key, state, client, terminal, render, finish, modelShell:modelShell! });
+      await handleKey({ chunk, key, state, client, terminal, render, finish, modelShell:modelShell!,mentionShell:mentionShell! });
     })().catch((error) => {
       state.status = error instanceof Error ? error.message : String(error);
       render();
@@ -302,8 +314,9 @@ async function handleKey(params: {
   render: () => void;
   finish: (result: TuiResult) => void;
   modelShell?:TuiModelSelectorShell;
+  mentionShell?:TuiMentionShell;
 }): Promise<void> {
-  const { chunk, key, state, client, terminal, render, finish, modelShell } = params;
+  const { chunk, key, state, client, terminal, render, finish, modelShell,mentionShell } = params;
   if (key.ctrl && key.name === "c") {
     finish({ action: "exit" });
     return;
@@ -316,14 +329,20 @@ async function handleKey(params: {
   }
   const context: WorkspaceContext = {
     state, client, terminal, render,
-    command: (command) => handleCommand({command,state,client,terminal,render,finish,modelShell}),
+    command: async (command) => {
+      if(command.startsWith('/mention-select ')){await mentionShell?.select(command.slice(16));return;}
+      if(command==='/refresh')mentionShell?.refresh();
+      await handleCommand({command,state,client,terminal,render,finish,modelShell});
+    },
     send: (message, options) => sendTuiMessage({message,state,client,render,modelShell,questionAnswer:options?.questionAnswer}),
     modelShell,
+    mentionShell,
   };
   if(key.name==='mouseclick'){
     if(!key.mouse||key.ctrl||key.meta||key.shift)return;
     const action=pointerTargetAt(state,key.mouse.column,key.mouse.row,terminal.width,terminal.height);
     if(action)await handleTuiPointer(context,action,(text,pressed)=>handleKey({...params,chunk:text,key:pressed}));
+    else if(state.mentionPicker){mentionShell?.close();}
     else if(state.modelSelector?.open){await modelShell?.action('close');}
     return;
   }
@@ -618,6 +637,10 @@ async function handleCommand(params: {
   render();
 }
 
+// Per-view turn ordering survives navigation and a subsequent same-chat send.
+const metadataPaintObserver = new WeakMap<TuiState, () => (identity: { chatId: string; turnId: string; userMessageId: string }) => void>();
+const metadataOrder = new WeakMap<TuiState, { next: number; applied: Map<string, number>; submitted: Map<string, number> }>();
+
 export async function sendTuiMessage(params: {
   questionAnswer?:boolean;
   message: string;
@@ -628,6 +651,11 @@ export async function sendTuiMessage(params: {
 }): Promise<void> {
   const { state, client, render } = params;
   if (state.isBusy) return;
+  let metadataState = metadataOrder.get(state);
+  if (!metadataState) metadataOrder.set(state, metadataState = { next: 0, applied: new Map(), submitted: new Map() });
+  const metadataSequence = ++metadataState.next;
+  const recordMetadataPaint = metadataPaintObserver.get(state)?.();
+  const metadataOwnerCurrent = client.hasSession() ? captureTuiWorkspaceOwner(client) : () => !client.hasSession();
   const initialMessage = params.message.trim();
   if (!initialMessage) return;
   state.suggestedFollowupMessage = null; state.suggestedFollowupChatId = null;
@@ -717,6 +745,8 @@ export async function sendTuiMessage(params: {
   // The composer was cleared when the optimistic row first appeared. Keep any
   // newer draft the user entered while preparation was still in progress.
   const anonymousHistory = history ?? messages.filter((m) => m !== userMessage && m.role !== "system").map((m) => ({message_id:randomUUID(),role:m.role as "user"|"assistant",content:m.content,sender_name:m.title??(m.role==="user"?"User":"Assistant"),created_at:Math.floor(Date.now()/1000)}));
+  metadataState.submitted.set(chatId, metadataSequence);
+  state.followUpSuggestions = [];
   state.activeChatId = chatId; state.headerState = existingChatId ? "ready" : "loading"; state.headerError = null;
   if(!existingChatId && waitForAi)params.modelShell?.adoptNewChat(chatId);
   if (!existingChatId) state.activeChat = null;
@@ -761,6 +791,23 @@ export async function sendTuiMessage(params: {
       const result = await client.sendMessage({
         message: modelDirective && !/@(?:ai-model|best-model):/.test(prepared.message) ? modelDirective+prepared.message : prepared.message,
         interactiveHuman: true,
+        onMetadata: metadata => {
+          if (!metadataOwnerCurrent() || metadata.chatId !== chatId
+            || (metadataState!.applied.get(chatId) ?? -1) > metadataSequence) return;
+          metadataState!.applied.set(chatId, metadataSequence);
+          // Metadata belongs to the chat, independent of the completed send's
+          // route/messages array. It can arrive during the next same-chat turn.
+          if (state.activeChatId !== chatId || state.screen !== "chat") return;
+          state.activeChat = { ...(state.activeChat ?? { id: chatId, shortId: chatId.slice(0, 8), title: null, summary: null,
+            createdAt: Math.floor(Date.now() / 1000), updatedAt: null, category: null, mateName: null }),
+            ...(metadata.updatedChatTitle ? { title: metadata.updatedChatTitle } : {}),
+            ...(metadata.chatSummary ? { summary: metadata.chatSummary } : {}) };
+          if (metadataState!.submitted.get(chatId) === metadataSequence && metadata.followUpSuggestions.length)
+            state.followUpSuggestions = metadata.followUpSuggestions;
+          state.headerState = "ready";
+          render();
+          recordMetadataPaint?.({ chatId: metadata.chatId, turnId: metadata.turnId, userMessageId: metadata.userMessageId });
+        },
         ...privacyCallbacks,
         piiMappings: prepared.piiMappings,
         chatId: existingChatId ?? undefined,
@@ -780,6 +827,12 @@ export async function sendTuiMessage(params: {
         onStream: (event: StreamEvent) => {
           if (!ownsSend()) return;
           if (event.taskId) state.aiTaskId = event.taskId;
+          if (event.kind === "done" && event.responseTerminal !== false) {
+            state.isAwaitingAi = false;
+            if (assistantMessage) assistantMessage.thinkingActive = false;
+          } else if (event.kind === "typing" || event.kind === "chunk") {
+            state.isAwaitingAi = true;
+          }
           if (assistantMessage && event.kind === "typing" && event.category) {
             assistantMessage.category = event.category;
             assistantMessage.title = event.mateName ?? MATE_NAMES[event.category] ?? assistantMessage.title;
@@ -793,6 +846,13 @@ export async function sendTuiMessage(params: {
           if(assistantMessage&&event.thinkingContent!==undefined)assistantMessage.thinkingContent=event.thinkingContent;
           if(assistantMessage&&event.thinkingActive!==undefined)assistantMessage.thinkingActive=event.thinkingActive;
           if (assistantMessage && event.modelName) assistantMessage.modelName = event.modelName;
+          if (event.kind === "typing" && event.chatTitle && event.chatId === chatId && event.userMessageId
+            && event.turnId && event.taskId && event.taskId === state.aiTaskId
+            && metadataState!.submitted.get(chatId) === metadataSequence && !state.activeChat?.title) {
+            state.activeChat = { ...(state.activeChat ?? { id: chatId, shortId: chatId.slice(0, 8), summary: null,
+              createdAt: Math.floor(Date.now() / 1000), updatedAt: null, category: event.category, mateName: null }), title: event.chatTitle };
+            state.headerState = "ready";
+          }
           if (assistantMessage && event.category) {
             state.activeChat = {id:chatId,shortId:chatId.slice(0,8),title:state.activeChat?.title??null,
               summary:state.activeChat?.summary??null,updatedAt:null,
@@ -807,7 +867,8 @@ export async function sendTuiMessage(params: {
       accepted = true;
       showAssistant(result.assistant);
       if (ownsSend()) {
-        ownedChatId = result.chatId; state.activeChatId = result.chatId; state.followUpSuggestions = result.followUpSuggestions ?? [];
+        ownedChatId = result.chatId; state.activeChatId = result.chatId;
+        if (result.followUpSuggestions?.length) state.followUpSuggestions = result.followUpSuggestions;
         if (result.userMessageId) userMessage.id = result.userMessageId;
         if (!existingChatId && params.modelShell) {
           void Promise.resolve().then(() => ownsSend()
@@ -820,12 +881,12 @@ export async function sendTuiMessage(params: {
         }
         if (result.mateName && assistantMessage) assistantMessage.title = result.mateName;
         if (typeof client.getChatMetadata === "function") {
-          const completedLength = messages.length;
-          const ownsMetadata = () => ownsSend() && state.activeChatId === result.chatId && messages.length === completedLength;
+          const ownsMetadata = () => metadataOwnerCurrent() && state.activeChatId === result.chatId
+            && state.screen === "chat" && (metadataState!.applied.get(result.chatId) ?? -1) <= metadataSequence;
           void (async () => {
             try {
               const metadata = await client.getChatMetadata(result.chatId);
-              if (ownsMetadata()) state.activeChat = metadata;
+              if (ownsMetadata() && (metadataState!.applied.get(result.chatId) ?? -1) < metadataSequence) state.activeChat = metadata;
             } catch { /* Saved messages remain usable while metadata catches up. */ }
             finally { if (ownsMetadata()) { state.headerState = "ready"; render(); } }
           })();

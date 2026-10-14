@@ -1,5 +1,8 @@
 import type { BuyerAddress } from "./billingAddress.js";
-import { prepareCliMessagePrivacy } from "./privacyScan.js";
+import { prepareCliMessagePrivacy, type CompiledCliPrivacy } from "./privacyScan.js";
+import { PreparedPrivacyCache } from "./preparedPrivacy.js";
+import { observeOwnedTurnMetadata, type CliTurnMetadata } from "./ownedTurnMetadata.js";
+import { privacyProfile, readPrivacyPreferences } from "./privacyModel.js";
 /*
  * OpenMates CLI SDK client.
  *
@@ -3381,6 +3384,8 @@ function wsTokenSessionBinding(token: string | null | undefined, refreshCookie: 
 }
 
 export class OpenMatesClient {
+  private readonly ownedMetadataSubscriptions = new Set<() => void>();
+  private readonly activeSubmittedChatTurns = new Map<string, string>();
   private recoveryFailureRetry?: RecoveryFailureRetry;
   private readonly workflowDeliveriesBySocket = new WeakMap<OpenMatesWsClient, Map<string, WorkflowDeliveryDiscovery>>();
   private readonly ownTeamDisplayNames = new Map<string, { name: string; expiresAt: number }>();
@@ -3469,6 +3474,8 @@ export class OpenMatesClient {
   }
 
   setActiveTeamId(teamId: string | null): void {
+    this.invalidatePreparedPrivacy();
+    for (const stop of [...this.ownedMetadataSubscriptions]) stop();
     this.closePreparedSendSocket();
     this.personalMemoryReadInFlight = null;
     const session = this.requireSession();
@@ -5444,6 +5451,8 @@ export class OpenMatesClient {
   }
 
   async logout(): Promise<void> {
+    this.invalidatePreparedPrivacy();
+    for (const stop of [...this.ownedMetadataSubscriptions]) stop();
     this.closePreparedSendSocket();
     if (this.session) {
       await this.http
@@ -6065,6 +6074,50 @@ export class OpenMatesClient {
     }
   }
 
+  private readonly preparedPrivacy = new PreparedPrivacyCache();
+  private preparedPrivacyEpoch = 0;
+  private preparedPrivacyWarmOwner: string | null = null;
+  private preparedPrivacyWarmPending: Promise<void> | null = null;
+
+  /** Clear decrypted preparation on local edits, reconnect, or owner/scope change. */
+  invalidatePreparedPrivacy(): void {
+    this.preparedPrivacy.clear();
+    this.preparedPrivacyWarmOwner = null;
+    this.preparedPrivacyEpoch++;
+  }
+
+  private preparedPrivacyOwnerKey(teamId: string | null): string {
+    const session = this.requireSession();
+    return JSON.stringify([this.preparedChatOwner(session, teamId), privacyProfile(),
+      session.authorizerDeviceName ?? null, this.getCliUserAgent()]);
+  }
+
+  private warmPersonalPrivacy(): void {
+    if (!this.interactiveViewerAllowed || !this.hasSession() || this.getActiveTeamId()) return;
+    const activity = this.chatActivitySocket;
+    if (!activity?.ownerCurrent() || this.preparedPrivacyWarmPending) return;
+    const ownerKey = this.preparedPrivacyOwnerKey(null);
+    if (ownerKey === this.preparedPrivacyWarmOwner) return;
+    this.invalidatePreparedPrivacy();
+    const epoch = this.preparedPrivacyEpoch;
+    this.preparedPrivacyWarmOwner = ownerKey;
+    const pending = (async () => {
+      if (!await activity.ws.waitForServerCapability("personal_send_context_snapshot_v2")) return;
+      const preferencesKey = JSON.stringify(await readPrivacyPreferences());
+      const snapshot = await activity.ws.requestPersonalSendContextSnapshotV2({ request_id: randomUUID(), purpose: "prepare", turn_id: null });
+      if (!snapshot.personal_memories || snapshot.unchanged) throw new Error("Privacy preparation requires a full snapshot.");
+      const memories = await this.listMemoriesUnshared({ personal: true }, snapshot.personal_memories);
+      if (epoch !== this.preparedPrivacyEpoch || !activity.ws.isOpen() || !activity.ownerCurrent()
+          || !this.hasSession() || this.preparedPrivacyOwnerKey(null) !== ownerKey
+          || JSON.stringify(await readPrivacyPreferences()) !== preferencesKey) return;
+      this.preparedPrivacy.set(ownerKey, preferencesKey, snapshot.privacy_generation, memories);
+    })();
+    this.preparedPrivacyWarmPending = pending;
+    void pending.catch(() => { this.preparedPrivacy.clear(); }).finally(() => {
+      if (this.preparedPrivacyWarmPending === pending) this.preparedPrivacyWarmPending = null;
+    });
+  }
+
   private preparedChatKey: {
     chatId: string;
     owner: CliPreparedChatOwner;
@@ -6121,6 +6174,9 @@ export class OpenMatesClient {
 
   /** Warm the active chat scope over the TUI's existing authenticated activity socket. */
   warmChatMetadata(): void {
+    if (this.preparedPrivacyWarmOwner && (!this.hasSession()
+      || this.preparedPrivacyWarmOwner !== this.preparedPrivacyOwnerKey(this.getActiveTeamId()))) this.invalidatePreparedPrivacy();
+    this.warmPersonalPrivacy();
     this.warmChatSendPreparation();
     this.warmSendSocket();
     const activity = this.chatActivitySocket;
@@ -6147,7 +6203,7 @@ export class OpenMatesClient {
         && current.sessionId === owner[2] && current.createdAt === owner[3]
         && current.masterKeyExportedB64 === owner[4];
     };
-    const types = ['ai_task_initiated', 'ai_typing_started', 'ai_typing_ended', 'ai_background_response_completed', 'ai_task_cancel_requested', 'ai_task_error', 'pending_ai_response', 'team_chat_message_created'];
+    const types = ['ai_task_initiated', 'ai_typing_started', 'ai_typing_ended', 'ai_background_response_completed', 'ai_task_cancel_requested', 'ai_task_error', 'pending_ai_response', 'team_chat_message_created', 'app_settings_memories_entry_stored', 'app_settings_memories_entry_deleted', 'app_settings_memories_entry_updated', 'encrypted_account_settings_updated'];
     let stopped = false;
     let socket: OpenMatesWsClient | null = null;
     let removeHandlers: Array<() => void> = [];
@@ -6165,6 +6221,7 @@ export class OpenMatesClient {
       active?.close();
     };
     const scheduleReconnect = () => {
+      this.invalidatePreparedPrivacy();
       if (stopped || !ownerCurrent() || retry) return;
       const delay = Math.min(10_000, 250 * 2 ** Math.min(retryAttempt++, 6));
       retry = setTimeout(() => {
@@ -6187,6 +6244,7 @@ export class OpenMatesClient {
       this.chatActivitySocket = { ws: opened, ownerCurrent, lastWarmupScope: null };
       this.warmChatMetadata();
       removeHandlers = types.map(type => opened.onMessageType(type, () => {
+        if (type.startsWith("app_settings_memories_") || type === "encrypted_account_settings_updated") this.invalidatePreparedPrivacy();
         if (!ownerCurrent()) { stop(); return; }
         if (!stopped) { retryAttempt = 0; onChange(); }
       }));
@@ -8842,6 +8900,8 @@ export class OpenMatesClient {
     incognito?: boolean;
     /** Streaming callback — fires for typing, chunk, and done events. */
     onStream?: (event: import("./ws.js").StreamEvent) => void;
+    /** Independent optional metadata updates after required reply persistence. */
+    onMetadata?: (metadata: CliTurnMetadata) => void;
     /** Set only by the attached human terminal chat UI, never by SDK callers. */
     interactiveHuman?: boolean;
     /** Sub-chat lifecycle callback for progress/status output. */
@@ -8996,6 +9056,25 @@ export class OpenMatesClient {
       interactiveHuman: params.interactiveHuman === true && this.interactiveViewerAllowed
         && process.stdin.isTTY === true && process.stdout.isTTY === true,
     };
+    const independentKeyOwner = this.preparedChatOwner(this.requireSession(), teamId);
+    const independentNewChatKey = !params.incognito && !params.chatId ? (async () => {
+      if (ownsPreparedId && this.preparedChatKey?.chatId === chatId) {
+        const prepared = await this.preparedChatKey.value;
+        if (teamId) independentKeyOwner.teamKeyFingerprint = createHash("sha256").update(bytesToBase64(prepared.wrappingKey)).digest("hex");
+        return prepared;
+      }
+      const wrappingKey = await this.getChatWrappingKey(teamId, this.getMasterKeyBytes());
+      if (teamId) independentKeyOwner.teamKeyFingerprint = createHash("sha256").update(bytesToBase64(wrappingKey)).digest("hex");
+      const key = new Uint8Array(randomBytes(32));
+      return { key, wrappingKey, encryptedKey: await encryptBytesWithAesGcm(key, wrappingKey) };
+    })() : null;
+    void independentNewChatKey?.catch(() => {});
+    const independentRecoveryKeypair = independentNewChatKey?.then(prepared => deriveChatCompletionRecoveryKeypair(
+      Buffer.from(prepared.key).toString("base64url"), chatId, 1));
+    void independentRecoveryKeypair?.catch(() => {});
+    const privacyTurnId = params.incognito ? null : randomUUID();
+    let conditionalPrivacyReceipt: { receiptId: string; generation: string | null; preferencesKey: string; epoch: number } | null = null;
+    let compiledPrivacy: CompiledCliPrivacy | undefined;
     let memorySocket: Awaited<ReturnType<OpenMatesClient["openWsClient"]>> | null = null;
     let socketSnapshotAttempted = false;
     let socketSnapshotResultRows: Array<Record<string, unknown>> | null = null;
@@ -9026,7 +9105,7 @@ export class OpenMatesClient {
     let memoryMetadataKeys: string[] = [];
     if (!params.incognito) {
       try {
-        if (!teamId && !params.memorySnapshot) {
+        if (!teamId) {
           try {
             socketSnapshotAttempted = true;
             memorySocket = (sendSocketOptions.interactiveHuman
@@ -9034,7 +9113,8 @@ export class OpenMatesClient {
               ?? await this.openWsClient(sendSocketOptions);
             const ownerKey = JSON.stringify([this.sendSocketOwnerKey(this.requireSession(), teamId),
               authCookieFingerprint(this.http.getCookieMap())]);
-            const combinedSupported = await memorySocket.ws.waitForServerCapability("personal_send_context_snapshot_v1");
+            const conditionalSupported = await memorySocket.ws.waitForServerCapability("personal_send_context_snapshot_v2");
+            const combinedSupported = conditionalSupported || await memorySocket.ws.waitForServerCapability("personal_send_context_snapshot_v1");
             const supported = combinedSupported || await memorySocket.ws.waitForServerCapability("personal_memory_snapshot_v1");
             if (supported) {
               // Only a newly minted Personal AI turn with a durable deferred
@@ -9049,25 +9129,49 @@ export class OpenMatesClient {
               usePersonalRoutingDirectory = deferProjectDirectory
                 && memorySocket.ws.supportsServerCapability("personal_project_routing_directory_v1");
               traceSendTiming("snapshot_request");
-              const combined = combinedSupported && !deferProjectDirectory
+              const privacyOwnerKey = this.preparedPrivacyOwnerKey(null);
+              const preferencesKey = JSON.stringify(await readPrivacyPreferences());
+              const preparedBundle = conditionalSupported ? this.preparedPrivacy.get(privacyOwnerKey, preferencesKey) : null;
+              const conditional = conditionalSupported ? await memorySocket.ws.requestPersonalSendContextSnapshotV2({
+                request_id: randomUUID(), purpose: "send", turn_id: privacyTurnId,
+                ...(preparedBundle ? { known_generation: preparedBundle.generation } : {}),
+              }) : null;
+              const combined = !conditional && combinedSupported && !deferProjectDirectory
                 ? await memorySocket.ws.requestPersonalSendContextSnapshot(randomUUID()) : null;
-              const snapshot = combined?.personal_memories
+              const snapshot = conditional ? conditional.personal_memories ?? null : combined?.personal_memories
                 ?? await memorySocket.ws.requestPersonalMemorySnapshot(randomUUID());
               traceSendTiming("snapshot_ready");
-              if (combined) {
-                socketProjectCandidateRows = combined.project_candidates;
-                verifiedProjectCandidates = await decodePersonalProjectCandidates(this, combined.project_candidates);
+              if (conditional || combined) {
+                socketProjectCandidateRows = (conditional ?? combined)!.project_candidates;
+                verifiedProjectCandidates = await decodePersonalProjectCandidates(this, (conditional ?? combined)!.project_candidates);
                 projectCandidatesReadyFromSendStartMs = Math.round(performance.now() - preWsStartedAt);
               }
-              socketSnapshotResultRows = snapshot.memories;
-              availableMemories = await this.listMemoriesUnshared({ personal: true }, snapshot);
+              if (conditional?.unchanged) {
+                if (!preparedBundle || conditional.privacy_generation !== preparedBundle.generation) throw new Error("Unchanged privacy snapshot has no matching prepared bundle.");
+                availableMemories = preparedBundle.memories;
+                compiledPrivacy = preparedBundle.privacy;
+                socketSnapshotResultRows = [];
+              } else {
+                if (!snapshot) throw new Error("Full Personal privacy snapshot is required.");
+                socketSnapshotResultRows = snapshot.memories;
+                availableMemories = await this.listMemoriesUnshared({ personal: true }, snapshot);
+                if (conditional) {
+                  this.preparedPrivacy.set(privacyOwnerKey, preferencesKey, conditional.privacy_generation, availableMemories);
+                  compiledPrivacy = this.preparedPrivacy.get(privacyOwnerKey, preferencesKey)?.privacy;
+                }
+              }
+              if (conditional) {
+                if (!conditional.receipt_id || conditional.turn_id !== privacyTurnId) throw new Error("Conditional privacy snapshot has no valid send receipt.");
+                conditionalPrivacyReceipt = { receiptId: conditional.receipt_id, generation: conditional.privacy_generation,
+                  preferencesKey, epoch: this.preparedPrivacyEpoch };
+              }
               traceSendTiming("memory_decrypt_ready");
               if (!memorySocket.ws.isOpen() || JSON.stringify([this.sendSocketOwnerKey(this.requireSession(), teamId),
                 authCookieFingerprint(this.http.getCookieMap())]) !== ownerKey) {
                 throw new Error("Personal Memory snapshot owner or socket changed during preparation.");
               }
               socketMemoryReceipt = { ws: memorySocket.ws, snapshot: availableMemories,
-                resultRows: snapshot.memories, projectRows: socketProjectCandidateRows,
+                resultRows: socketSnapshotResultRows!, projectRows: socketProjectCandidateRows,
                 candidates: verifiedProjectCandidates, ownerKey, optionsKey: socketMemoryOptionsKey(), used: false };
             } else {
               memorySocket.ws.close();
@@ -9080,7 +9184,8 @@ export class OpenMatesClient {
             throw error;
           }
         }
-        if (!socketMemoryReceipt) availableMemories = params.memorySnapshot ?? await this.listMemories({ teamId });
+        if (!socketMemoryReceipt) availableMemories = teamId && params.memorySnapshot
+          ? params.memorySnapshot : await this.listMemoriesUnshared({ teamId }, undefined, !teamId);
         memoryCountsLoaded = true;
         memoryMetadataKeys = [
           ...new Set(
@@ -9090,7 +9195,7 @@ export class OpenMatesClient {
           ),
         ];
       } catch (error) {
-        if (socketSnapshotAttempted) throw error;
+        if (socketSnapshotAttempted || !teamId) throw error;
         if (params.autoApproveMemories) {
           const message = error instanceof Error ? error.message : String(error);
           throw new Error(`Failed to load memories for auto-approval: ${message}`);
@@ -9112,7 +9217,7 @@ export class OpenMatesClient {
     let piiMappings = [...(savedPrivacyHistory?.messages.flatMap((message) => (message.piiMappings ?? []).map((mapping) => ({ ...mapping, type: mapping.type ?? "OTHER" }))) ?? []), ...(params.piiMappings ?? [])];
     try {
     if (params.piiDetection !== false) {
-      const prepared = await prepareCliMessagePrivacy(finalMessage, availableMemories, piiMappings, { kind: "message" }, params.onPrivacyProgress);
+      const prepared = await prepareCliMessagePrivacy(finalMessage, availableMemories, piiMappings, { kind: "message" }, params.onPrivacyProgress, compiledPrivacy);
       finalMessage = prepared.message; piiMappings = prepared.mappings;
       // Model-visible text fields only. Embed IDs, protocol metadata and binary
       // uploads are never treated as semantic text or sent to the local model.
@@ -9120,7 +9225,7 @@ export class OpenMatesClient {
         if (!["code-code", "docs-doc", "sheets-sheet"].includes(embed.type)) continue;
         const decoded = toonDecode(embed.content) as Record<string, unknown>;
         for (const field of ["code", "html", "table", "text"]) if (typeof decoded[field] === "string") {
-          const value = await prepareCliMessagePrivacy(decoded[field] as string, availableMemories, piiMappings, { kind: "document" }, params.onPrivacyProgress);
+          const value = await prepareCliMessagePrivacy(decoded[field] as string, availableMemories, piiMappings, { kind: "document" }, params.onPrivacyProgress, compiledPrivacy);
           decoded[field] = value.message; piiMappings = value.mappings;
         }
         embed.content = toonEncodeContent(decoded);
@@ -9218,8 +9323,23 @@ export class OpenMatesClient {
           throw new Error("Personal Memory snapshot owner changed before send.");
         }
       });
+      if (conditionalPrivacyReceipt && (conditionalPrivacyReceipt.epoch !== this.preparedPrivacyEpoch
+        || conditionalPrivacyReceipt.preferencesKey !== JSON.stringify(await readPrivacyPreferences()))) {
+        throw new Error("Privacy preferences changed before send; prepare the turn again.");
+      }
       receipt.used = true;
     };
+    let metadataTransportOwned = false;
+    let metadataHandoffReady = false;
+    let metadataHandoffSuggestion: string | null = null;
+    let initialHeaderWork: Promise<void> | null = null;
+    let initialHeaderNotice: import("./ws.js").StreamEvent | null = null;
+    let initialAdmissionDurable = false;
+    let initialHeaderStopped = false;
+    let initialTitleScheduled: string | undefined;
+    let initialIconScheduled: string | undefined;
+    let persistOptionalHeader: (() => Promise<void>) | undefined;
+    let optionalMetadata: ReturnType<typeof observeOwnedTurnMetadata> | null = null;
     const socketReadyForSendAt = performance.now();
     let capabilitiesWaitMs = 0;
     let keyWaitMs = 0;
@@ -9306,7 +9426,8 @@ export class OpenMatesClient {
         && this.preparedChatOwnerCurrent(this.preparedChatKey.owner, teamId) ? this.preparedChatKey : null;
       if (preparedKey) this.preparedChatKey = null;
       const keyWaitStartedAt = performance.now();
-      const prepared = preparedKey ? await preparedKey.value : null;
+      const prepared = independentNewChatKey ? await independentNewChatKey : preparedKey ? await preparedKey.value : null;
+      if (prepared && !this.preparedChatOwnerCurrent(independentKeyOwner, teamId)) throw new Error("Chat key preparation owner changed before send.");
       const wrappingKey = prepared?.wrappingKey ?? await this.getChatWrappingKey(teamId, masterKey);
       keyWaitMs = Math.round(performance.now() - keyWaitStartedAt);
       chatSlugLookupKey = wrappingKey;
@@ -9648,21 +9769,22 @@ export class OpenMatesClient {
       traceSendTiming("preflight_begin");
       const protocolVersion = 1;
       const chatKeyVersion = 1;
-      const turnId = randomUUID();
+      const turnId = privacyTurnId!;
       savedTurnId = turnId;
       terminalExpectedMessagesV = baselineMessagesV + 1;
       const recoveryKeypairStartedAt = performance.now();
-      const recoveryKeypair = await deriveChatCompletionRecoveryKeypair(
+      const recoveryKeypair = independentRecoveryKeypair ? await independentRecoveryKeypair : await deriveChatCompletionRecoveryKeypair(
         Buffer.from(chatKeyBytes).toString("base64url"),
         chatId,
         chatKeyVersion,
       );
       recoveryKeypairMs = Math.round(performance.now() - recoveryKeypairStartedAt);
       const encryptPayloadStartedAt = performance.now();
-      const encryptedContent = await encryptWithAesGcmCombined(
-        finalMessage,
-        chatKeyBytes,
-      );
+      const [encryptedContent, encryptedSenderName, encryptedPiiMappings] = await Promise.all([
+        encryptWithAesGcmCombined(finalMessage, chatKeyBytes),
+        encryptWithAesGcmCombined(teamSenderName, chatKeyBytes),
+        piiMappings.length ? encryptWithAesGcmCombined(JSON.stringify(piiMappings), chatKeyBytes) : null,
+      ]);
       const encryptedUserMessage: Record<string, unknown> = {
         client_message_id: messageId,
         chat_id: chatId,
@@ -9671,17 +9793,8 @@ export class OpenMatesClient {
         created_at: createdAt,
         updated_at: createdAt,
       };
-      encryptedUserMessage.encrypted_sender_name = await encryptWithAesGcmCombined(
-        teamSenderName,
-        chatKeyBytes,
-      );
-
-      if (piiMappings.length > 0) {
-        encryptedUserMessage.encrypted_pii_mappings = await encryptWithAesGcmCombined(
-          JSON.stringify(piiMappings),
-          chatKeyBytes,
-        );
-      }
+      encryptedUserMessage.encrypted_sender_name = encryptedSenderName;
+      if (encryptedPiiMappings) encryptedUserMessage.encrypted_pii_mappings = encryptedPiiMappings;
 
       Object.assign(messagePayload, {
         turn_id: turnId,
@@ -9730,6 +9843,8 @@ export class OpenMatesClient {
         expected_messages_v: baselineMessagesV,
         encrypted_user_message: encryptedUserMessage,
         inference_request: preflightInferenceRequest,
+        ...(conditionalPrivacyReceipt ? { privacy_receipt_id: conditionalPrivacyReceipt.receiptId,
+          privacy_generation: conditionalPrivacyReceipt.generation } : {}),
       };
       if (isNewChat) {
         if (!chatSlugLookupKey) {
@@ -9786,9 +9901,85 @@ export class OpenMatesClient {
         throw error;
       }
     }
+    const initialHeaderOwner = this.preparedChatOwner(this.requireSession(), teamId);
+    const startInitialHeader = () => {
+      if (!initialAdmissionDurable || !initialHeaderNotice || !chatKeyBytes
+        || !isNewChat || params.incognito || !savedTurnId) return;
+      const notice = { ...initialHeaderNotice }, key = chatKeyBytes, turn = savedTurnId;
+      const titleChanged = !!notice.chatTitle && notice.chatTitle !== initialTitleScheduled;
+      const iconChanged = !!notice.chatIcon && notice.chatIcon !== initialIconScheduled;
+      if (!titleChanged && !iconChanged) return;
+      initialTitleScheduled = notice.chatTitle ?? initialTitleScheduled;
+      initialIconScheduled = notice.chatIcon ?? initialIconScheduled;
+      const current = () => !initialHeaderStopped && ws.isOpen()
+        && this.preparedChatOwnerCurrent(initialHeaderOwner, teamId)
+        && this.activeSubmittedChatTurns.get(chatId) === turn;
+      initialHeaderWork = (initialHeaderWork ?? Promise.resolve()).then(async () => {
+        if (!current()) return;
+        // A missing source version stays unversioned so the existing field
+        // guard retains an already-present title. Known versions are preserved.
+        if (titleChanged) await this.persistPostProcessingMetadata({ ws, chatId, teamId, chatKeyBytes: key,
+          encryptedChatKey, followUpSuggestions: [], suggestedFollowupMessage: null, newChatSuggestions: [],
+          chatSummary: null, chatTags: [], updatedChatTitle: notice.chatTitle ?? null,
+          sourceTitleVersion: notice.sourceTitleVersion ?? null, sourceMetadataVersion: notice.sourceMetadataVersion ?? null,
+          unversionedGeneratedTitle: notice.sourceTitleVersion === undefined && notice.sourceMetadataVersion === undefined,
+          ownerCurrent: current });
+        if (!current()) return;
+        if (iconChanged || notice.category) {
+          const [encryptedIcon, encryptedCategory] = await Promise.all([
+            notice.chatIcon ? encryptWithAesGcmCombined(notice.chatIcon, key) : null,
+            notice.category ? encryptWithAesGcmCombined(notice.category, key) : null,
+          ]);
+          if (!current()) return;
+          const stored = ws.waitForMessage("encrypted_metadata_stored", value =>
+            (value as Record<string, unknown>).chat_id === chatId, 20_000);
+          void stored.catch(() => {});
+          await ws.sendAsync("encrypted_chat_metadata", { chat_id: chatId, ...(teamId ? { team_id: teamId } : {}),
+            encrypted_chat_key: encryptedChatKey,
+            ...(encryptedIcon ? { encrypted_icon: encryptedIcon } : {}),
+            ...(encryptedCategory ? { encrypted_chat_category: encryptedCategory } : {}),
+          });
+          await stored;
+        }
+        if (current()) clearSyncCache(teamId);
+      }).catch(() => { /* Optional header I/O never owns the reply/send lock. */ });
+    };
+    const onTurnStream = (event: import("./ws.js").StreamEvent) => {
+      if (isNewChat && event.kind === "typing" && (event.chatTitle || event.chatIcon)
+        && event.chatId === chatId && event.userMessageId === messageId && event.turnId === savedTurnId
+        && event.taskId && (!initialHeaderNotice?.taskId || event.taskId === initialHeaderNotice.taskId)) {
+        initialHeaderNotice = { ...initialHeaderNotice, ...event };
+        startInitialHeader();
+      }
+      params.onStream?.(event);
+    };
+    if (!params.incognito && chatKeyBytes && savedTurnId) {
+      const key = chatKeyBytes;
+      const ownedTurnId = savedTurnId;
+      this.activeSubmittedChatTurns.set(chatId, ownedTurnId);
+      const owner = this.preparedChatOwner(this.requireSession(), teamId);
+      const stopOwned = () => optionalMetadata?.stop();
+      optionalMetadata = observeOwnedTurnMetadata({ ws, chatId, turnId: savedTurnId, userMessageId: messageId, closeAfterMetadata: true,
+        ownerCurrent: () => this.preparedChatOwnerCurrent(owner, teamId),
+        persist: async metadata => {
+          await this.persistPostProcessingMetadata({ ws, teamId, chatKeyBytes: key, encryptedChatKey, ...metadata });
+          clearSyncCache(teamId);
+        },
+        onMetadata: params.onMetadata,
+        onReleased: () => {
+          this.ownedMetadataSubscriptions.delete(stopOwned);
+          if (this.activeSubmittedChatTurns.get(chatId) === ownedTurnId) this.activeSubmittedChatTurns.delete(chatId);
+          if (metadataTransportOwned) ws.close();
+        },
+      });
+      // A long-lived SDK process retains at most eight postprocessor transports.
+      while (this.ownedMetadataSubscriptions.size >= 8) this.ownedMetadataSubscriptions.values().next().value?.();
+      this.ownedMetadataSubscriptions.add(stopOwned);
+    }
     if (!params.incognito && shouldWaitForAi) {
       precollectedResponse = ws.collectAiResponse(messageId, chatId, {
-        onStream: params.onStream,
+        waitForPostProcessing: false,
+        onStream: onTurnStream,
         onSubChatEvent: async (event) => { await handlersReady; await handleSubChatEvent(event); },
         onAppSettingsMemoriesRequest: async (event) => { await handlersReady; await handleAppSettingsMemoriesRequest(event); },
         timeoutMs: params.responseTimeoutMs,
@@ -9862,6 +10053,8 @@ export class OpenMatesClient {
         if (typeof ackPayload.committed_messages_v === "number" && Number.isSafeInteger(ackPayload.committed_messages_v)) {
           terminalExpectedMessagesV = ackPayload.committed_messages_v;
         }
+        initialAdmissionDurable = true;
+        startInitialHeader();
         if (!useCombinedAdmission) {
           Object.assign(messagePayload, { protocol_version: admissionPayload.protocol_version, preflight_id: ackPayload.preflight_id });
           await ws.sendAsync("chat_message_added", messagePayload);
@@ -10235,7 +10428,8 @@ export class OpenMatesClient {
     };
 
     const streamOpts = {
-      onStream: params.onStream,
+      waitForPostProcessing: false,
+      onStream: onTurnStream,
       onSubChatEvent: handleSubChatEvent,
       onAppSettingsMemoriesRequest: handleAppSettingsMemoriesRequest,
       projectWriteApprovalInteractive: Boolean(params.onProjectWriteApproval),
@@ -10667,40 +10861,7 @@ export class OpenMatesClient {
             ownerId,
             teamId,
           });
-          // Chat-level identity is separate from assistant-message metadata.
-          // Use the same encrypted storage protocol as the web typing handler.
-          if (isNewChat && (resp.generatedTitle || resp.generatedIcon)) {
-            const metadataStored = ws.waitForMessage(
-              "encrypted_metadata_stored",
-              (payload) => (payload as Record<string, unknown>).chat_id === chatId,
-              20_000,
-            );
-            await ws.sendAsync("encrypted_chat_metadata", {
-              chat_id: chatId,
-              ...(teamId ? { team_id: teamId } : {}),
-              encrypted_chat_key: encryptedChatKey,
-              ...(resp.generatedTitle ? { encrypted_title: await encryptWithAesGcmCombined(resp.generatedTitle, chatKeyBytes) } : {}),
-              ...(category ? { encrypted_chat_category: await encryptWithAesGcmCombined(category, chatKeyBytes) } : {}),
-              ...(resp.generatedIcon ? { encrypted_icon: await encryptWithAesGcmCombined(resp.generatedIcon, chatKeyBytes) } : {}),
-              versions: { messages_v: terminalExpectedMessagesV + 1 },
-            });
-            await metadataStored;
-          }
-          await this.persistPostProcessingMetadata({
-            ws,
-            chatId,
-            teamId,
-            chatKeyBytes,
-            followUpSuggestions: resp.followUpSuggestions,
-            suggestedFollowupMessage: resp.suggestedFollowupMessage,
-            newChatSuggestions: resp.newChatSuggestions,
-            chatSummary: resp.chatSummary,
-            chatTags: resp.chatTags,
-            updatedChatTitle: resp.updatedChatTitle,
-            sourceTitleVersion: resp.sourceTitleVersion,
-            sourceMetadataVersion: resp.sourceMetadataVersion,
-            encryptedChatKey,
-          });
+          if (initialHeaderWork) persistOptionalHeader = () => initialHeaderWork!;
           await persistCompressionCheckpoints(ws, chatKeyBytes, resp.compressionCheckpoints);
           if (taskUpdateJobsEnabled) {
             const persistedTaskJobIds = await this.persistPendingTaskUpdateJobs({
@@ -10718,6 +10879,10 @@ export class OpenMatesClient {
           await persistTaskEventSystemMessages(taskEvents);
           await recoverCurrentTurnOutputs();
           clearSyncCache(teamId);
+          if (optionalMetadata) {
+            metadataHandoffReady = true;
+            metadataHandoffSuggestion = resp.suggestedFollowupMessage;
+          }
         }
       } finally {
         try {
@@ -10732,9 +10897,13 @@ export class OpenMatesClient {
             } catch { /* Optional uncertain/unavailable assessment emits no authoring button. */ }
           }
           await chatContextEvents?.flush();
-        } finally { projectFocusCountdown?.(); chatContextEvents?.stop(); ws.close(); }
+        } finally { projectFocusCountdown?.(); chatContextEvents?.stop(); if (!metadataHandoffReady) ws.close(); }
       }
       if (focusPersistenceError) throw focusPersistenceError;
+      if (metadataHandoffReady && optionalMetadata) {
+        metadataTransportOwned = optionalMetadata.handOff(metadataHandoffSuggestion, persistOptionalHeader);
+        if (!metadataTransportOwned) ws.close();
+      }
     }
 
     const mateName = category ? (MATE_NAMES[category] ?? null) : null;
@@ -10764,7 +10933,7 @@ export class OpenMatesClient {
       // running after this send has returned. The promise already handles its
       // own rejection, so settling it here cannot mask the original failure.
       earlyContextAbort.abort();
-      ws.close();
+      if (!metadataTransportOwned) { initialHeaderStopped = true; optionalMetadata?.stop(); ws.close(); }
       if (earlyContext) await earlyContext;
     }
     } catch (error) {
@@ -11486,6 +11655,9 @@ export class OpenMatesClient {
     sourceTitleVersion: number | null;
     sourceMetadataVersion: number | null;
     encryptedChatKey: string | null;
+    /** Initial generated title without an authoritative base must not invent one. */
+    unversionedGeneratedTitle?: boolean;
+    ownerCurrent?: () => boolean;
   }): Promise<void> {
     const encryptedFollowUps = params.followUpSuggestions.length > 0
       ? await encryptWithAesGcmCombined(
@@ -11521,6 +11693,10 @@ export class OpenMatesClient {
 
     if (!encryptedFollowUps && !encryptedSuggestedFollowup && encryptedNewChatSuggestions.length === 0 && !encryptedChatSummary && !encryptedChatTags && !encryptedUpdatedTitle) return;
 
+    if (params.ownerCurrent && !params.ownerCurrent()) return;
+    const stored = params.ws.waitForMessage("post_processing_metadata_stored", payload =>
+      (payload as Record<string, unknown>).chat_id === params.chatId, 20_000);
+    void stored.catch(() => {});
     await params.ws.sendAsync("update_post_processing_metadata", {
       chat_id: params.chatId,
       ...(params.teamId ? { team_id: params.teamId } : {}),
@@ -11532,19 +11708,12 @@ export class OpenMatesClient {
       encrypted_chat_tags: encryptedChatTags,
       encrypted_title: encryptedUpdatedTitle,
       encrypted_chat_key: params.encryptedChatKey ?? "",
-      versions: {
+      ...(params.unversionedGeneratedTitle ? {} : { versions: {
         title_v: nextTitleVersion,
         metadata_v: nextMetadataVersion,
-      },
+      } }),
     });
-    await params.ws.waitForMessage(
-      "post_processing_metadata_stored",
-      (payload) => {
-        const p = payload as Record<string, unknown>;
-        return p.chat_id === params.chatId;
-      },
-      20_000,
-    );
+    await stored;
   }
 
   /**
@@ -14550,6 +14719,7 @@ export class OpenMatesClient {
     apiKey?: string,
   ): Promise<unknown> {
     if (!apiKey) this.requireSession();
+    this.invalidatePreparedPrivacy();
     const normalizedPath = this.normalizePath(path);
     if (BLOCKED_SETTINGS_MUTATE_PATHS.has(normalizedPath)) {
       throw new Error(`Blocked operation: ${normalizedPath}`);
@@ -14569,6 +14739,7 @@ export class OpenMatesClient {
 
   async settingsDelete(path: string, body?: Record<string, unknown>, apiKey?: string): Promise<unknown> {
     if (!apiKey) this.requireSession();
+    this.invalidatePreparedPrivacy();
     const normalizedPath = this.normalizePath(path);
     if (BLOCKED_SETTINGS_MUTATE_PATHS.has(normalizedPath)) {
       throw new Error(`Blocked operation: ${normalizedPath}`);
@@ -14592,6 +14763,7 @@ export class OpenMatesClient {
     apiKey?: string,
   ): Promise<unknown> {
     if (!apiKey) this.requireSession();
+    this.invalidatePreparedPrivacy();
     const normalizedPath = this.normalizePath(path);
     if (BLOCKED_SETTINGS_MUTATE_PATHS.has(normalizedPath)) {
       throw new Error(`Blocked operation: ${normalizedPath}`);
@@ -15394,7 +15566,7 @@ export class OpenMatesClient {
   private async listMemoriesUnshared(options: TeamContextOptions, socketSnapshot?: {
     encrypted_settings: string | null;
     memories: Array<Record<string, unknown>>;
-  }): Promise<DecryptedMemoryEntry[]> {
+  }, strictPrivacy = false): Promise<DecryptedMemoryEntry[]> {
     const startedAt = performance.now();
     const masterKey = this.getMasterKeyBytes();
     const keyMs = Math.round(performance.now() - startedAt);
@@ -15414,6 +15586,7 @@ export class OpenMatesClient {
           ? raw.encrypted_item_json
           : null;
       if (!encryptedJson) {
+        if (socketSnapshot || strictPrivacy) throw new Error("Personal privacy snapshot is missing encrypted row content.");
         continue;
       }
       const decrypted = await decryptWithAesGcmCombined(
@@ -15421,12 +15594,15 @@ export class OpenMatesClient {
         masterKey,
       );
       if (!decrypted) {
+        if (socketSnapshot || strictPrivacy) throw new Error("Personal privacy snapshot could not be decrypted.");
         continue; // skip entries we can't decrypt (wrong key, corrupted)
       }
       let parsed: Record<string, unknown>;
       try {
         parsed = JSON.parse(decrypted) as Record<string, unknown>;
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Invalid encrypted Memory data.");
       } catch {
+        if (socketSnapshot || strictPrivacy) throw new Error("Personal privacy snapshot contains invalid encrypted JSON.");
         continue;
       }
       results.push({
@@ -15449,7 +15625,7 @@ export class OpenMatesClient {
       try { accountDocuments = socketSnapshot || personalBatch
         ? await this.customRuleDocumentsFromEncryptedSettings(socketSnapshot?.encrypted_settings ?? personalBatch?.encryptedSettings)
         : await this.getCustomRuleDocuments(); accountDocumentsLoaded = true; }
-      catch { /* Unavailable account settings must not hide valid encrypted row Memories. */ }
+      catch (error) { if (socketSnapshot || strictPrivacy) throw error; /* Browsing may retain valid row Memories. */ }
       const handoff = personalBatch ? personalBatch.auth : this.pendingWhoAmIAuthHandoff;
       this.pendingWhoAmIAuthHandoff = null;
       personalBatch?.assertOwnerCurrent();
@@ -15533,6 +15709,7 @@ export class OpenMatesClient {
    * WebSocket. The server deletes from Directus and broadcasts to all devices.
    */
   async deleteMemory(entryId: string, options: TeamContextOptions = {}): Promise<{ success: boolean }> {
+    this.invalidatePreparedPrivacy();
     if (!this.resolveTeamContext(options)) this.personalMemoryReadInFlight = null;
     if (entryId.startsWith('account-memory-')) {
       if (this.resolveTeamContext(options)) throw new Error('Account Memories belong to the personal OpenMates category.');
@@ -15564,6 +15741,7 @@ export class OpenMatesClient {
 
   /** Edit legacy account guides in their encrypted owner store, never as public app data. */
   private async mutateAccountMemory(entryId: string, value?: Record<string, unknown>): Promise<void> {
+    this.invalidatePreparedPrivacy();
     this.personalMemoryReadInFlight = null;
     const sessionId = this.requireSession().sessionId;
     const user = await this.whoAmI();
@@ -15607,6 +15785,7 @@ export class OpenMatesClient {
     teamId?: string | null;
     personal?: boolean;
   }): Promise<{ success: boolean; id: string }> {
+    this.invalidatePreparedPrivacy();
     if (!this.resolveTeamContext(params)) this.personalMemoryReadInFlight = null;
     const masterKey = this.getMasterKeyBytes();
     const registryKey = `${params.appId}/${params.itemType}`;
@@ -16427,6 +16606,8 @@ export class OpenMatesClient {
     if (!this.session || typeof this.session.pairedSessionExpiresAt !== "number" ||
         this.session.pairedSessionExpiresAt > Date.now()) return;
     if (!this.explicitSession) purgeLocalPrivateData();
+    this.invalidatePreparedPrivacy();
+    for (const stop of [...this.ownedMetadataSubscriptions]) stop();
     this.closePreparedSendSocket();
     this.session = null;
     this.http.replaceCookies({});
@@ -16498,6 +16679,8 @@ export class OpenMatesClient {
       remoteCommandJobs: options.remoteCommandJobs,
       interactiveHuman: options.interactiveHuman,
       onForceLogout: () => {
+        this.invalidatePreparedPrivacy();
+        for (const stop of [...this.ownedMetadataSubscriptions]) stop();
         this.closePreparedSendSocket();
         purgeLocalPrivateData();
         this.session = null;
@@ -16572,6 +16755,8 @@ export class OpenMatesClient {
   }
 
   endInteractiveViewerSession(): void {
+    this.invalidatePreparedPrivacy();
+    for (const stop of [...this.ownedMetadataSubscriptions]) stop();
     this.interactiveViewerAllowed = false;
     this.closePreparedSendSocket();
     this.preparedSendSocketAttemptOwner = null;

@@ -30,3 +30,18 @@ test('optional offline anonymization controls never download or activate in head
     expect(JSON.parse(end.stdout)).toMatchObject({ installed: false, messages: false, worker: 'stopped' });
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });
+
+// contract-test: supporting surface=cli assertions=ai-model-routing.preprocessing.prepared-privacy
+ test('built SDK prefetches encrypted privacy and validates generation before reusing prepared entries', async () => {
+  const { requireIsolatedCliBuild } = require('./cli-tui-proof-helpers');
+  const { execFile } = require('node:child_process');
+  const { promisify } = require('node:util');
+  const cli = requireIsolatedCliBuild();
+  const fixture = path.resolve(path.dirname(cli), '../tests/fixtures/prepared-privacy-proof.mjs');
+  const directory = mkdtempSync(path.join(tmpdir(), 'cli-privacy-e2e-'));
+  try {
+    const result = await promisify(execFile)(process.execPath, [fixture, cli], { timeout: 30_000,
+      env: { ...process.env, OPENMATES_STATE_DIR: path.join(directory, 'state'), OPENMATES_PRIVACY_DIR: path.join(directory, 'model') } });
+    expect(JSON.parse(result.stdout)).toEqual({ prepared: 1, unchanged: 1, full: 4, redacted: 5 });
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+ });

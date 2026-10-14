@@ -65,7 +65,7 @@ def test_only_standalone_authenticated_chats_enter_cache_customer_tariff(exclude
 # contract-test: supporting surface=rest_api assertions=billing.usage.receipt-token-breakdown
 def test_excluded_quote_uses_legacy_rates_and_does_not_mutate_catalog(monkeypatch):
     pricing = _anthropic_pricing()
-    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: pricing)
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args, **_kwargs: pricing)
     kwargs = {
         "model_id": "anthropic/model", "system_prompt": "system",
         "message_history": [{"role": "user", "content": "long chat " * 100}],
@@ -101,7 +101,7 @@ def test_excluded_openai_quote_disables_context_band(monkeypatch):
             "input": 2, "output": 2,
         }}}},
     }
-    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: pricing)
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args, **_kwargs: pricing)
     kwargs = {
         "model_id": "openai/model", "system_prompt": "x" * 273000,
         "message_history": [], "tools": None, "output_token_limit": 100,
@@ -138,7 +138,7 @@ async def test_excluded_provider_attempt_has_legacy_snapshot_and_no_paid_checkpo
 
         return stream()
 
-    monkeypatch.setattr(llm_utils.config_manager, "get_model_pricing", lambda *_args: pricing)
+    monkeypatch.setattr(llm_utils.config_manager, "get_model_pricing", lambda *_args, **_kwargs: pricing)
     monkeypatch.setattr(llm_utils.config_manager, "get_provider_config", lambda *_args: {})
     monkeypatch.setattr(llm_utils, "_get_provider_client", lambda *_args: provider)
     monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda *_args: ("anthropic", "anthropic/model"))

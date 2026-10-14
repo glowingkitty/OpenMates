@@ -163,6 +163,7 @@ def test_passkey_risk_challenge_offers_email_fallback_only_with_password_wrapper
 @pytest.fixture
 def durable_session(monkeypatch):
     """Exercise the route with synthetic services and the real durable reader."""
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "synthetic-internal-token")
     rows = {
         token_hash(token): {
             "id": token, "user_id": owner, "token_hash": token_hash(token),
@@ -407,6 +408,17 @@ def _personal_settings_response(*, user_id="user-1", settings=None, include_sett
     return SimpleNamespace(status_code=200, json=lambda: {"data": data})
 
 
+def _legacy_personal_api(profile, status_code=200):
+    """Model explicit endpoint non-support separately from legacy profile reads."""
+    async def request(method, url, **kwargs):
+        if url.endswith("/personal-privacy-snapshot"):
+            assert method == "POST"
+            return SimpleNamespace(status_code=status_code, json=lambda: {"data": {"supported": False}})
+        assert method == "GET"
+        return await profile(method, url, **kwargs)
+    return request
+
+
 # contract-test: direct surface=rest_api assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
 def test_session_personal_batch_starts_fresh_reads_after_admission_and_preserves_receipt(durable_session, monkeypatch):
     state = durable_session
@@ -430,7 +442,7 @@ def test_session_personal_batch_starts_fresh_reads_after_admission_and_preserves
 
     monkeypatch.setattr(auth_session, "get_session_state_cached", ledger)
     state.directus.base_url = "http://cms.test"
-    state.directus._make_api_request = AsyncMock(side_effect=profile)
+    state.directus._make_api_request = AsyncMock(side_effect=_legacy_personal_api(profile))
     state.directus.get_items.side_effect = items
 
     result = asyncio.run(state.call("sibling-token", include_personal_memories=True))
@@ -487,7 +499,7 @@ def test_session_personal_batch_runs_independent_fresh_reads_together(durable_se
             return await original_items(collection, params=params, **kwargs)
 
         state.directus.base_url = "http://cms.test"
-        state.directus._make_api_request = AsyncMock(side_effect=profile)
+        state.directus._make_api_request = AsyncMock(side_effect=_legacy_personal_api(profile))
         state.directus.get_items.side_effect = items
         result = await asyncio.wait_for(state.call("sibling-token", include_personal_memories=True), timeout=2)
         return started, result
@@ -499,11 +511,12 @@ def test_session_personal_batch_runs_independent_fresh_reads_together(durable_se
 
 # contract-test: direct surface=rest_api assertions=auth.session.lifecycle
 @pytest.mark.parametrize("legacy_row", [False, True])
-def test_session_personal_batch_accepts_null_settings_and_legacy_rows(durable_session, legacy_row):
+@pytest.mark.parametrize("snapshot_status", [200, 404])
+def test_session_personal_batch_accepts_null_settings_and_legacy_rows(durable_session, legacy_row, snapshot_status):
     state = durable_session
     original_items = state.directus.get_items.side_effect
     state.directus.base_url = "http://cms.test"
-    state.directus._make_api_request = AsyncMock(return_value=_personal_settings_response())
+    state.directus._make_api_request = AsyncMock(side_effect=_legacy_personal_api(AsyncMock(return_value=_personal_settings_response()), snapshot_status))
 
     async def items(collection, params=None, **kwargs):
         if collection == "user_app_settings_and_memories":
@@ -523,6 +536,82 @@ def test_session_personal_batch_accepts_null_settings_and_legacy_rows(durable_se
     if legacy_row:
         assert result.personal_memories.memories[0].encrypted_item_json is None
         assert result.personal_memories.memories[0].created_at is None
+
+
+# contract-test: direct surface=rest_api assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
+def test_session_personal_batch_uses_consistent_supported_snapshot(durable_session):
+    state = durable_session
+    state.directus.base_url = "http://cms.test"
+    snapshot = {
+        "encrypted_settings": "snapshot-ciphertext",
+        "memories": [{key: value for key, value in _personal_memory_row().items()
+                      if key not in ("hashed_user_id", "hashed_team_id")}],
+    }
+    state.directus._make_api_request = AsyncMock(return_value=SimpleNamespace(
+        status_code=200, json=lambda: {"data": {
+            "supported": True, "privacy_generation": "generation-1",
+            "unchanged": False, "personal_memories": snapshot,
+        }},
+    ))
+
+    result = asyncio.run(state.call("sibling-token", include_personal_memories=True))
+
+    assert result.success is True
+    assert result.personal_memories.model_dump() == snapshot
+    state.directus._make_api_request.assert_awaited_once_with(
+        "POST", "http://cms.test/personal-privacy-snapshot",
+        json={"user_id": "user-1", "known_generation": None},
+        headers={"x-internal-service-token": "synthetic-internal-token", "Cache-Control": "no-store"},
+    )
+    assert all(call.args[0] != "user_app_settings_and_memories"
+               for call in state.directus.get_items.await_args_list)
+    state.ws_tokens.assert_called_once_with("sibling-token")
+
+
+# contract-test: direct surface=rest_api assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
+@pytest.mark.parametrize("failure", [
+    "transport", "unavailable", "invalid_json", "invalid_data", "legacy_profile",
+    "missing_generation", "invalid_generation", "missing_unchanged", "unchanged",
+    "missing_snapshot", "invalid_snapshot",
+])
+def test_session_personal_batch_rejects_supported_snapshot_errors_without_fallback(durable_session, failure):
+    state = durable_session
+    state.directus.base_url = "http://cms.test"
+    data = {"supported": True, "privacy_generation": "generation-1", "unchanged": False,
+            "personal_memories": {"encrypted_settings": None, "memories": []}}
+    if failure == "invalid_data":
+        data = None
+    elif failure == "legacy_profile":
+        data = {"id": "user-1", "encrypted_settings": "ciphertext"}
+    elif failure == "missing_generation":
+        data.pop("privacy_generation")
+    elif failure == "invalid_generation":
+        data["privacy_generation"] = ""
+    elif failure == "missing_unchanged":
+        data.pop("unchanged")
+    elif failure == "unchanged":
+        data["unchanged"] = True
+    elif failure == "missing_snapshot":
+        data.pop("personal_memories")
+    elif failure == "invalid_snapshot":
+        data["personal_memories"] = {"encrypted_settings": None, "memories": [{}]}
+    json_response = Mock(return_value={"data": data})
+    if failure == "invalid_json":
+        json_response.side_effect = ValueError("private invalid JSON")
+    state.directus._make_api_request = AsyncMock(
+        side_effect=RuntimeError("private transport failure") if failure == "transport" else None,
+        return_value=SimpleNamespace(status_code=503 if failure == "unavailable" else 200, json=json_response),
+    )
+
+    with pytest.raises(HTTPException) as error:
+        asyncio.run(state.call("sibling-token", include_personal_memories=True))
+
+    assert error.value.status_code == 503
+    assert error.value.detail == "Personal memory snapshot temporarily unavailable"
+    state.directus._make_api_request.assert_awaited_once()
+    assert all(call.args[0] != "user_app_settings_and_memories"
+               for call in state.directus.get_items.await_args_list)
+    state.ws_tokens.assert_not_called()
 
 
 # contract-test: direct surface=rest_api assertions=auth.session.lifecycle
@@ -546,13 +635,13 @@ def test_session_personal_batch_fails_closed_on_partial_or_foreign_reads(durable
     state = durable_session
     original_items = state.directus.get_items.side_effect
     state.directus.base_url = "http://cms.test"
-    state.directus._make_api_request = AsyncMock(
+    state.directus._make_api_request = AsyncMock(side_effect=_legacy_personal_api(AsyncMock(
         side_effect=RuntimeError("private failure") if failure == "profile_exception" else None,
         return_value=_personal_settings_response(
             user_id="other-user" if failure == "foreign_profile" else "user-1",
             include_settings=failure != "missing_settings",
         ),
-    )
+    )))
 
     async def items(collection, params=None, **kwargs):
         if collection == "user_app_settings_and_memories":

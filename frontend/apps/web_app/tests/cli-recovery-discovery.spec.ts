@@ -1041,11 +1041,19 @@ test('SDK reports a Project directory failure after durable epoch-one first Pers
 				&&payload.terminal_failure_code==='client_context_unavailable',30000);
 			void terminal.catch(()=>{});
 			const projectGate=new Promise((_,reject)=>{rejectProjects=reject;});
-			client.listProjects=async()=>{projectReads++;return projectGate;};
+			// Own the fixture rejection before any asynchronous directory consumer starts.
+			void projectGate.catch(()=>{});
+			const failDirectory=async()=>{projectReads++;return projectGate;};
+			client.listProjects=failDirectory;
+			client.listPersonalProjectRoutingDirectory=failDirectory;
 			const outbound=[];
 			const open=client.openWsClient.bind(client);
 			client.openWsClient=async(...args)=>{
 				const opened=await open(...args),send=opened.ws.sendAsync.bind(opened.ws);
+				// Exercise deferred discovery compatibility; v2's verified empty directory
+				// correctly needs no extra Project read and cannot consume this fault.
+				const supports=opened.ws.supportsServerCapability.bind(opened.ws);
+				opened.ws.supportsServerCapability=capability=>capability==='personal_send_context_snapshot_v2'?false:supports(capability);
 				opened.ws.onMessageType('chat_turn_preflight_ack',payload=>{preflightAck=payload;});
 				opened.ws.onMessageType('chat_turn_context_failed_ack',payload=>{failureAck=payload;});
 				opened.ws.sendAsync=async(type,payload)=>{

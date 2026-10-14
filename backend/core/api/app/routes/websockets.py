@@ -24,6 +24,10 @@ from backend.core.api.app.services.directus.user.device_management import _norma
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
 from backend.core.api.app.services.personal_send_context_snapshot import fresh_personal_project_candidates
+from backend.core.api.app.services.personal_privacy_snapshot import (
+    PersonalPrivacySocketState, PersonalPrivacyReceiptCapacityError,
+    privacy_v2_request, read_personal_privacy_snapshot,
+)
 from backend.core.api.app.services.notification_event_service import NotificationEventService
 from backend.core.api.app.utils.encryption import EncryptionService
 # Import ConnectionManager from the new module
@@ -191,7 +195,7 @@ async def _send_initial_server_capabilities(websocket: WebSocket, manager: Conne
         await websocket.send_json({"type": "server_capabilities", "payload": {"capabilities": [
             "chat_turn_admit_v1", "chat_turn_context_v1", "chat_turn_context_failure_v1",
             "chat_turn_context_selection_details_v2", "suggested_followup_message_v1",
-            "personal_memory_snapshot_v1", "personal_send_context_snapshot_v1",
+            "personal_memory_snapshot_v1", "personal_send_context_snapshot_v1", "personal_send_context_snapshot_v2",
             "personal_project_routing_directory_v1",
         ]}})
         sent = True
@@ -397,6 +401,69 @@ async def handle_personal_memory_snapshot(
     await websocket.send_json({"type": "personal_memory_snapshot_result", "payload": {
         "request_id": request_id, "success": False, "error": {"code": error_code},
     }})
+
+
+async def handle_personal_send_context_snapshot_v2(
+    *, websocket: WebSocket, payload: object, auth_data: dict,
+    cache_service: CacheService, directus_service: DirectusService,
+    socket_state: PersonalPrivacySocketState,
+) -> None:
+    """First-party owner-only, no credits, per-request rate and durable authority."""
+    request = privacy_v2_request(payload)
+    result = {"request_id": request["request_id"] if request else None, "success": False}
+    error_code = "invalid_request"
+    if request:
+        error_code = "already_used" if request["purpose"] == "prepare" and socket_state.prepared else None
+        if request["purpose"] == "prepare":
+            socket_state.prepared = True
+        if error_code is None:
+            admission = await _personal_snapshot_rate_admission(cache_service, auth_data)
+            error_code = None if admission == "accepted" else admission
+        if error_code is None and request["purpose"] == "send" and not socket_state.can_issue():
+            error_code = "receipt_capacity"
+        if error_code is None:
+            try:
+                started = time.perf_counter()
+                authorized = await _fresh_personal_snapshot_authority(
+                    cache_service=cache_service, directus_service=directus_service, auth_data=auth_data,
+                )
+                auth_ms = (time.perf_counter() - started) * 1000
+                if not authorized:
+                    error_code = "unauthorized"
+                else:
+                    started = time.perf_counter()
+                    privacy, candidates = await asyncio.gather(
+                        read_personal_privacy_snapshot(directus_service, auth_data["user_id"], request.get("known_generation")),
+                        fresh_personal_project_candidates(directus_service, auth_data["user_id"]),
+                    )
+                    if privacy is None:
+                        snapshot = await _load_fresh_personal_memories(directus_service, auth_data["user_id"], durable_snapshot=False)
+                        privacy = {"privacy_generation": None, "unchanged": False,
+                                   "personal_memories": snapshot.model_dump(mode="json")}
+                    read_ms = (time.perf_counter() - started) * 1000
+                    serialize_started = time.perf_counter()
+                    result.update(success=True, privacy_generation=privacy["privacy_generation"],
+                                  unchanged=privacy["unchanged"], turn_id=request["turn_id"],
+                                  receipt_id=(socket_state.issue(request=request, auth=auth_data,
+                                              generation=privacy["privacy_generation"])
+                                              if request["purpose"] == "send" else None),
+                                  project_candidates=candidates)
+                    if not privacy["unchanged"]:
+                        result["personal_memories"] = privacy["personal_memories"]
+                    await websocket.send_json({"type": "personal_send_context_snapshot_result", "payload": result})
+                    logger.info("Personal privacy phases auth_ms=%.2f read_ms=%.2f serialization_ms=%.2f unchanged=%s source_phases=%s",
+                                auth_ms, read_ms, (time.perf_counter()-serialize_started)*1000,
+                                privacy["unchanged"], privacy.get("phase_durations_ms", {}))
+                    return
+            except PersonalPrivacyReceiptCapacityError:
+                error_code = "receipt_capacity"
+            except HTTPException as exc:
+                error_code = "unauthorized" if exc.status_code in (401, 403) else "unavailable"
+            except Exception:
+                logger.warning("Personal privacy snapshot unavailable", exc_info=True)
+                error_code = "unavailable"
+    result["error"] = {"code": error_code}
+    await websocket.send_json({"type": "personal_send_context_snapshot_result", "payload": result})
 
 
 async def handle_personal_send_context_snapshot(
@@ -1696,6 +1763,7 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         "chat_id": chat_id,
                         "message_id": ai_task_id, # AI's message ID
                         "user_message_id": user_message_id,
+                        "turn_id": redis_payload.get("turn_id"),
                         "category": category,
                         "model_name": model_name, # Include model_name in the client payload
                         "provider_name": provider_name, # Include provider_name in the client payload (e.g., "Anthropic API", "Cerebras")
@@ -1748,6 +1816,8 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                     client_payload = {
                         "chat_id": chat_id,
                         "task_id": task_id,
+                        "turn_id": redis_payload.get("turn_id"),
+                        "user_message_id": redis_payload.get("user_message_id"),
                         "follow_up_request_suggestions": redis_payload.get("follow_up_request_suggestions", []),
                         "new_chat_request_suggestions": redis_payload.get("new_chat_request_suggestions", []),
                         "chat_summary": redis_payload.get("chat_summary", ""),
@@ -3097,6 +3167,7 @@ async def websocket_endpoint(
 
     disconnect_reason = "Server closed connection"
     personal_snapshot_used = False
+    personal_privacy_socket_state = PersonalPrivacySocketState()
     active_context_lane: ContextAdmissionLane | None = None
     try:
         while True:
@@ -3153,6 +3224,25 @@ async def websocket_endpoint(
                         break
                     continue
 
+            if message_type in {"chat_turn_admit", "chat_turn_preflight"} and isinstance(payload, dict) and ("privacy_receipt_id" in payload or "privacy_generation" in payload):
+                receipt_started = time.perf_counter()
+                valid_receipt = personal_privacy_socket_state.consume(payload, auth_data)
+                if valid_receipt:
+                    try:
+                        valid_receipt = await _fresh_personal_snapshot_authority(
+                            cache_service=cache_service, directus_service=directus_service, auth_data=auth_data,
+                        )
+                    except Exception:
+                        valid_receipt = False
+                logger.info("Personal privacy admission auth_ms=%.2f authorized=%s",
+                            (time.perf_counter() - receipt_started) * 1000, valid_receipt)
+                if not valid_receipt:
+                    await websocket.send_json({"type": "error", "payload": {
+                        "code": "invalid_personal_privacy_receipt", "turn_id": payload.get("turn_id"),
+                        "message": "Personal privacy preparation must be refreshed.",
+                    }})
+                    continue
+
             # Process different message types
             if message_type == "personal_memory_snapshot":
                 already_used = personal_snapshot_used
@@ -3163,13 +3253,20 @@ async def websocket_endpoint(
                     already_used=already_used,
                 )
             elif message_type == "personal_send_context_snapshot":
-                already_used = personal_snapshot_used
-                personal_snapshot_used = True
-                await handle_personal_send_context_snapshot(
-                    websocket=websocket, payload=payload, auth_data=auth_data,
-                    cache_service=cache_service, directus_service=directus_service,
-                    already_used=already_used,
-                )
+                if isinstance(payload, dict) and "purpose" in payload:
+                    await handle_personal_send_context_snapshot_v2(
+                        websocket=websocket, payload=payload, auth_data=auth_data,
+                        cache_service=cache_service, directus_service=directus_service,
+                        socket_state=personal_privacy_socket_state,
+                    )
+                else:
+                    already_used = personal_snapshot_used
+                    personal_snapshot_used = True
+                    await handle_personal_send_context_snapshot(
+                        websocket=websocket, payload=payload, auth_data=auth_data,
+                        cache_service=cache_service, directus_service=directus_service,
+                        already_used=already_used,
+                    )
             elif message_type in {"chat_metadata_warmup", "workflow_metadata_warmup"}:
                 # First-party session-authenticated WS surface. No text, inference, credits,
                 # or response payload; Team membership is checked before cache access.
@@ -3268,6 +3365,7 @@ async def websocket_endpoint(
                     payload=payload, user_otel_attrs=user_otel_attrs,
                     is_allowlisted_test_account=is_allowlisted_test_account,
                     schedule_context_dispatch=schedule_context_dispatch,
+                    on_durable_admission=lambda: personal_privacy_socket_state.mark_admitted(payload),
                 )
 
             elif message_type == "chat_turn_context_ready":
@@ -3291,7 +3389,7 @@ async def websocket_endpoint(
                 )
 
             elif message_type == "chat_turn_preflight":
-                await handle_chat_turn_preflight(
+                privacy_preflight_ack = await handle_chat_turn_preflight(
                     websocket=websocket,
                     manager=manager,
                     directus_service=directus_service,
@@ -3302,6 +3400,9 @@ async def websocket_endpoint(
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
                 )
+
+                if privacy_preflight_ack and privacy_preflight_ack.get("preflight_id"):
+                    personal_privacy_socket_state.mark_admitted(payload)
 
             elif message_type == "assistant_speech":
                 await handle_assistant_speech_event(

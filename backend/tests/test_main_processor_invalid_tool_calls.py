@@ -286,6 +286,7 @@ async def _run_mocked_protocol_guard_main_processor(
     user_vault_key_id=None,
     all_mates_configs=None,
     user_overrides_for_main=None,
+    exact_base_instructions=False,
 ):
     """Run the real main processor loop with only external integrations mocked."""
     for name in (
@@ -462,13 +463,20 @@ async def _run_mocked_protocol_guard_main_processor(
     )
     preprocessing_results.__dict__.update(preprocessing_overrides or {})
 
+    from backend.apps.ai.utils.instruction_loader import load_base_instructions
+    production_instructions = load_base_instructions()
+    if exact_base_instructions:
+        production_instructions = base_instructions
+    else:
+        production_instructions.update(base_instructions or {})
+
     output = [
         chunk
         async for chunk in main_processor.handle_main_processing(
             "task-1",
             request_data,
             preprocessing_results,
-            base_instructions or {},
+            production_instructions,
             directus_service,
             None,
             user_vault_key_id,
@@ -1022,6 +1030,8 @@ async def test_proven_first_turn_fact_omits_interactive_protocol_in_provider_pro
         },
         preprocessing_overrides={
             "context_fast_path": True,
+            "plain_prose_response": True,
+            "complexity": "low",
             "early_task_area": "general",
             "selected_app_ids": [],
             "selected_main_llm_model_id": "google/gemini-3.8-flash",
@@ -1155,6 +1165,7 @@ async def test_simple_personal_turn_forwards_task_tool_only_for_task_intent(
         },
         preprocessing_overrides={
             "context_fast_path": True,
+            "complexity": "low",
             "early_task_area": "general",
             "selected_app_ids": [],
         },
@@ -2298,3 +2309,73 @@ async def test_videos_create_rendering_waits_for_terminal_child_before_answer(mo
                 if isinstance(item, dict) and "__authored_inline_outputs__" in item]
     assert any(row["embed_id"] == child_id and row["embed_ref"] == child_ref
                for rows in authored for row in rows)
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.instructions.required-safety,ai-model-routing.preprocessing.contextual-compact-assembly
+@pytest.mark.parametrize("question,previous", [
+    ("capital of france?", []),
+    ("Quelle est la capitale de la France ?", []),
+    ("Hauptstadt von Frankreich?", []),
+    ("And France?", [{"role": "user", "content": "What is the capital of Spain?"},
+                     {"role": "assistant", "content": "Madrid."}]),
+    ("And Germany?", [{"role": "user", "content": "What is the capital of Spain?"},
+                      {"role": "assistant", "content": "Madrid."},
+                      {"role": "user", "content": "And France?"},
+                      {"role": "assistant", "content": "Paris."}]),
+])
+async def test_actual_fixture_compact_provider_prompt_preserves_safety_and_full_history(monkeypatch, question, previous):
+    from backend.apps.ai.utils.instruction_loader import load_base_instructions
+    actual = load_base_instructions()
+    history = previous + [{"role": "user", "content": question}]
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["A mocked authored answer."]], generated_tools=[],
+        request_overrides={"current_user_content": question, "message_history": history,
+            "admission_context": {"scope_complete": True, "context_revision": "server-admission-v1",
+                                  "explicit_related_task_ids": []}, "related_task_candidates": []},
+        preprocessing_overrides={"context_fast_path": True, "plain_prose_response": True, "complexity": "low", "early_task_area": "general",
+            "selected_app_ids": [], "relevant_rules": [], "relevant_workflows": [],
+            "relevant_related_work": [], "output_language": (
+                "fr" if question.startswith("Quelle") else "de" if question.startswith("Hauptstadt") else "en")},
+        user_overrides_for_main=SimpleNamespace(skills=None, wikipedia_references=[], has_overrides=False),
+    )
+    assert len(calls) == 1
+    call = calls[0]
+    for key in ("base_ethics_instruction", "base_privacy_instruction", "follow_up_instruction"):
+        assert actual[key] in call["system_prompt"]
+    for key in main_processor._FACT_QUESTION_OPTIONAL_FORMAT_KEYS:
+        assert actual[key] not in call["system_prompt"]
+    assert main_processor.INTERACTIVE_QUESTIONS_INSTRUCTION not in call["system_prompt"]
+    assert call["message_history"] == history
+    assert call["tools"] == []
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.instructions.required-safety
+@pytest.mark.parametrize("key", ["base_ethics_instruction", "base_privacy_instruction"])
+async def test_missing_required_fixture_section_stops_before_provider(monkeypatch, key):
+    from backend.apps.ai.utils.instruction_loader import load_base_instructions
+    missing = load_base_instructions()
+    missing.pop(key)
+    dispatched = Mock()
+    with pytest.raises(RuntimeError, match=key):
+        await _run_mocked_protocol_guard_main_processor(
+            monkeypatch, [["must never be generated"]], base_instructions=missing,
+            exact_base_instructions=True, on_provider_call=dispatched,
+        )
+    dispatched.assert_not_called()
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.instructions.required-safety
+async def test_actual_safety_fixture_survives_every_answer_recovery_provider_request(monkeypatch):
+    from backend.apps.ai.utils.instruction_loader import load_base_instructions
+    actual = load_base_instructions()
+    protocol = "```toon\napp_id: news\nskill_id: search\nstatus: finished\n```"
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [[protocol], [protocol], ["An authored recovery answer."]],
+        preprocessing_overrides={"selected_secondary_model_id": "google/secondary",
+                                 "selected_fallback_model_id": "anthropic/recovery-model"},
+    )
+    assert len(calls) == 3
+    for call in calls:
+        for key in ("base_ethics_instruction", "base_privacy_instruction"):
+            assert actual[key] in call["system_prompt"]
+    assert main_processor.ANSWER_RECOVERY_INSTRUCTION in calls[-1]["system_prompt"]

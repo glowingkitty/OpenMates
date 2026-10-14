@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.chats
-version: 5
+version: 6
 status: draft
 title: Chats
 summary: 'OpenMates chats preserve client-side encryption boundaries, stable message identities, visible local message
@@ -233,6 +233,10 @@ models:
         messages_unobstructed_by_composer: true
         horizontal_overflow_forbidden: true
 assertions:
+- id: chats.completion.independent-metadata
+  type: invariant
+  must: Authoritative response completion ends the active processing presentation, while send readiness waits for required encrypted reply persistence and remains independent of optional postprocessor metadata. Later title, summary, follow-up request suggestions and eligible contextual composer suggestions still update and persist through owned bounded subscriptions after response completion. A subsequent same-chat turn, navigation or account and Team change cannot let older metadata overwrite newer turn state or another scope. Intermediate tool-cycle continuation remains active and every completion, cancellation, timeout or disconnect releases its listeners and transport ownership correctly.
+  depends_on: [examples.independent_metadata]
 - id: chats.send.immediate-admission
   type: behavior
   must: Eligible personal web and TUI submissions immediately hand off the user snapshot, clear the composer and send the encrypted durable admission with transient inference intent without waiting for its acknowledgement or unrelated context discovery. Saved turn, message, task and billing identities remain idempotent. Required private context may arrive in correlated phases, missing context fails safely, and pending encrypted recovery is retained until admission and required context are acknowledged. Team human-only messages do not start AI.
@@ -494,6 +498,7 @@ applies_to:
 examples:
   file: examples.yml
   required_groups:
+  - independent_metadata
   - encryption_boundary
   - identity_idempotency
   - recovery_takeover

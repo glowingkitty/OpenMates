@@ -1,3 +1,4 @@
+import { freshPersonalPrivacyForSend, filterWithFreshPersonalPrivacy, attachFreshPrivacyReceipt, personalPrivacyMetadataKeys, type PrivacySendReceipt } from "./preparedPrivacyForSend";
 /**
  * sendersChatMessages.ts — Message sending and encrypted storage operations
  *
@@ -68,6 +69,12 @@ import { PreflightRejectionError, isPreflightAcknowledgementTimeout, waitForPref
 import { awaitPersonalChatPredecessor, bindPersonalChatTurn, failPersonalChatTurn, reservePersonalChatTurn, type PersonalChatTurn } from "./personalChatTurnBarrier";
 import { isDraftContextDispatchActive, reserveDraftContextDispatch } from "./draftContextDispatchBarrier";
 export { isPreflightAcknowledgementTimeout } from "./preflightAcknowledgement";
+
+function isReceiptConnectionMismatch(error: unknown): boolean {
+  return !!error && typeof error === 'object'
+    && (error as { code?: string }).code === 'websocket_receipt_connection_changed';
+}
+
 
 interface SendRouteScope {
 	teamId: string | null | undefined;
@@ -249,6 +256,7 @@ export async function reconcileOptimisticUserCiphertext(
 	createdAt: number,
 	canonicalCiphertext: string,
 	openTransaction: () => Promise<IDBTransaction> = () => chatDB.getTransaction("messages", "readwrite"),
+	canonicalPIIMappings?: string | null,
 ): Promise<void> {
 	if (!canonicalCiphertext) throw new Error("Canonical user message ciphertext is missing.");
 	const transaction = await openTransaction();
@@ -266,10 +274,11 @@ export async function reconcileOptimisticUserCiphertext(
 				transaction.abort();
 				return;
 			}
-			if (row.encrypted_content === canonicalCiphertext) return;
+			if (row.encrypted_content === canonicalCiphertext && canonicalPIIMappings === undefined) return;
 			// The row contains ciphertext only. Preserve status and both exact retry
 			// journals while replacing the original editor fence with the ref.
 			row.encrypted_content = canonicalCiphertext;
+			if (canonicalPIIMappings !== undefined) row.encrypted_pii_mappings = canonicalPIIMappings;
 			store.put(row);
 		};
 	});
@@ -1192,6 +1201,8 @@ async function dispatchFastPersonalTurn(input: {
 	personalTurn: PersonalChatTurn;
 	predecessorVersion: number | null;
 	includePreflightChatMetadata: boolean;
+	privacyReceipt: PrivacySendReceipt;
+	privacyContentChanged: boolean;
 	onUserFrameDispatched?: () => void;
 	postAdmissionConnectedAccounts?: Promise<PreparedConnectedAccountSendContext | undefined>;
 	retainedFastAdmission?: boolean;
@@ -1200,7 +1211,7 @@ async function dispatchFastPersonalTurn(input: {
 	supportsContextFailureNow: () => boolean;
 }): Promise<void> {
 	const { serviceInstance, message, chat, personalTurn, predecessorVersion,
-		includePreflightChatMetadata, onUserFrameDispatched,
+		includePreflightChatMetadata, privacyReceipt, privacyContentChanged, onUserFrameDispatched,
 		postAdmissionConnectedAccounts, retainedFastAdmission, supportsAdmissionNow,
 		supportsSelectionDetailsV2Now, supportsContextFailureNow } = input;
 	const encryptedChatKey = await chatDB.getEncryptedChatKey(message.chat_id);
@@ -1214,7 +1225,7 @@ async function dispatchFastPersonalTurn(input: {
 	if (!accountId || !get(authStore).isAuthenticated) {
 		throw new Error("Durable turn admission requires an authenticated account.");
 	}
-	const turnId = generateUUID();
+	const turnId = privacyReceipt.turnId;
 	const clientContextRequestId = generateUUID();
 	const recoveryKeypair = await deriveChatCompletionRecoveryKeypair(
 		encodeBase64Url(chatKey), message.chat_id, CHAT_RECOVERY_KEY_VERSION,
@@ -1250,7 +1261,7 @@ async function dispatchFastPersonalTurn(input: {
 	// These device-local index keys carry no private body or authority. Missing
 	// keys make the backend use its normal detail-request path.
 	try {
-		const keys = await chatDB.getAppSettingsMemoriesMetadataKeys();
+		const keys = [...new Set([...personalPrivacyMetadataKeys(privacyReceipt), ...await chatDB.getAppSettingsMemoriesMetadataKeys()])];
 		if (keys.length) inferenceRequest.app_settings_memories_metadata = keys;
 	} catch (error) {
 		console.warn("[ChatSyncService:Senders] Device memory index unavailable", error);
@@ -1298,6 +1309,14 @@ async function dispatchFastPersonalTurn(input: {
 	admission = retained.payload;
 	if (!retainedFastAdmission && predecessorVersion !== null && admission.expected_messages_v !== predecessorVersion) {
 		throw new Error("Retained encrypted turn admission has a stale canonical version.");
+	}
+	if (privacyContentChanged) {
+		const canonical = admission.encrypted_user_message as { encrypted_content: string; encrypted_pii_mappings?: string | null };
+		await reconcileOptimisticUserCiphertext(message.chat_id, message.message_id, message.created_at,
+			canonical.encrypted_content, undefined, canonical.encrypted_pii_mappings ?? null);
+		serviceInstance.dispatchEvent(new CustomEvent("chatUpdated", { detail: {
+			chat_id: message.chat_id, type: "message_updated", newMessage: message,
+		} }));
 	}
 	bindPersonalChatTurn(personalTurn, admission.turn_id as string);
 	const retainedRequest = admission.inference_request as Record<string, unknown>;
@@ -1350,7 +1369,9 @@ async function dispatchFastPersonalTurn(input: {
 	);
 	void admissionAck.catch(() => undefined);
 	try {
-		await webSocketService.sendMessage("chat_turn_admit", admission);
+		const privacyTransport = await attachFreshPrivacyReceipt(admission, privacyReceipt, message);
+		if (privacyTransport) await webSocketService.sendMessage("chat_turn_admit", admission, privacyTransport);
+		else await webSocketService.sendMessage("chat_turn_admit", admission);
 		recordPreflightDebugStep("admission_frame_dispatched", {
 			turnId: admission.turn_id, elapsedMs: performance.now() - started,
 		});
@@ -1388,6 +1409,11 @@ async function dispatchFastPersonalTurn(input: {
 	} catch (error) {
 		releaseDraftCleanup();
 		ackAbort.abort();
+		if (isReceiptConnectionMismatch(error) && contextWorkspace === getWorkspaceCacheIdentity()) {
+			await updateMessageStatusForSendRetry(serviceInstance, message, "waiting_for_internet");
+			webSocketService.forceReconnect("chat privacy receipt connection changed");
+			return;
+		}
 		const status = await recordMessageDispatchFailure(serviceInstance, message, true);
 		if (status !== "waiting_for_internet") throw error;
 	}
@@ -1548,6 +1574,21 @@ export async function sendNewMessageImpl(
 		return;
 	}
 
+	// Fresh Personal authority gates text on every path, including retries. The
+	// key and recovery work below remains independent of focus preparation.
+	let privacyReceipt: PrivacySendReceipt | null = null;
+	let privacyContentChanged = false;
+	if (!chat?.team_id && !isIncognitoChat && get(authStore).isAuthenticated) {
+		[privacyReceipt] = await Promise.all([
+			freshPersonalPrivacyForSend(generateUUID()),
+			chatKeyManager.getKey(message.chat_id),
+		]);
+		const filtered = filterWithFreshPersonalPrivacy(message.content ?? "", privacyReceipt, message);
+		privacyContentChanged = message.content !== filtered.content;
+		message.content = filtered.content;
+		if (filtered.mappings.length) message.pii_mappings = [...(message.pii_mappings ?? []), ...filtered.mappings];
+	}
+
 	// Use title_v to determine if the chat already has a title generated.
 	// Previously used (messages_v > 1) as a proxy, but this was unreliable due to race conditions:
 	// Between handleSend creating the chat (messages_v=1) and this function reading it back,
@@ -1580,7 +1621,7 @@ export async function sendNewMessageImpl(
 	if (fastPersonalText && chat) {
 		await dispatchFastPersonalTurn({
 			serviceInstance, message, chat, personalTurn, predecessorVersion,
-			includePreflightChatMetadata, onUserFrameDispatched,
+			includePreflightChatMetadata, privacyReceipt: privacyReceipt!, privacyContentChanged, onUserFrameDispatched,
 			retainedFastAdmission, supportsAdmissionNow, supportsSelectionDetailsV2Now, supportsContextFailureNow,
 			postAdmissionConnectedAccounts: postAdmissionConnectedAccounts
 				?? (connectedAccountContext ? Promise.resolve(connectedAccountContext)
@@ -2115,8 +2156,10 @@ export async function sendNewMessageImpl(
 	let appSettingsMemoriesMetadataKeys: string[] = [];
 	if (!isIncognitoChat) {
 		try {
-			appSettingsMemoriesMetadataKeys =
-				await chatDB.getAppSettingsMemoriesMetadataKeys();
+			appSettingsMemoriesMetadataKeys = [...new Set([
+				...(privacyReceipt ? personalPrivacyMetadataKeys(privacyReceipt) : []),
+				...await chatDB.getAppSettingsMemoriesMetadataKeys(),
+			])];
 			if (appSettingsMemoriesMetadataKeys.length > 0) {
 				console.debug(
 					`[ChatSyncService:Senders] Loaded ${appSettingsMemoriesMetadataKeys.length} app settings/memories metadata keys`
@@ -2858,7 +2901,7 @@ export async function sendNewMessageImpl(
 		if (!chatKey || !(await ensureChatKeySafeForWrite(message.chat_id, chatKey, "chat turn preflight"))) {
 			throw new Error(`Saved chat ${message.chat_id} has no safe chat key for durable preflight.`);
 		}
-		let turnId = generateUUID();
+		let turnId = privacyReceipt?.turnId ?? generateUUID();
 		const recoveryKeypair = await deriveChatCompletionRecoveryKeypair(
 			encodeBase64Url(chatKey),
 			message.chat_id,
@@ -3022,13 +3065,17 @@ export async function sendNewMessageImpl(
 				throw error;
 			}
 		}
-		if (message.content !== contentForServer) {
+		if (message.content !== contentForServer || privacyContentChanged) {
 			const canonicalCiphertext = (preflightPayload.encrypted_user_message as
 				{ encrypted_content?: string } | undefined)?.encrypted_content;
 			await reconcileOptimisticUserCiphertext(
 				message.chat_id, message.message_id, message.created_at,
-				canonicalCiphertext ?? "",
+				canonicalCiphertext ?? "", undefined,
+				(preflightPayload.encrypted_user_message as { encrypted_pii_mappings?: string | null })?.encrypted_pii_mappings ?? null,
 			);
+			if (privacyContentChanged) serviceInstance.dispatchEvent(new CustomEvent("chatUpdated", { detail: {
+				chat_id: message.chat_id, type: "message_updated", newMessage: canonicalUserMessageForSend(message, contentForServer),
+			} }));
 		}
 		if (pendingBundleConfirmationIdentity) {
 			watchMessageEmbedBundleConfirmation(
@@ -3046,7 +3093,9 @@ export async function sendNewMessageImpl(
 					turnId,
 					webSocketConnected: serviceInstance.webSocketConnected_FOR_SENDERS_ONLY
 				});
-				await webSocketService.sendMessage("chat_turn_preflight", preflightPayload);
+				const privacyTransport = privacyReceipt ? await attachFreshPrivacyReceipt(preflightPayload, privacyReceipt, message) : undefined;
+				if (privacyTransport) await webSocketService.sendMessage("chat_turn_preflight", preflightPayload, privacyTransport);
+				else await webSocketService.sendMessage("chat_turn_preflight", preflightPayload);
 				recordPreflightDebugStep("preflight_dispatch_complete", { turnId });
 				return acknowledgement;
 			});
@@ -3058,7 +3107,10 @@ export async function sendNewMessageImpl(
 				chat?.team_id && !shouldInvokeTeamAI && error instanceof PreflightRejectionError &&
 				DEFINITIVE_TEAM_PREFLIGHT_ERRORS.has(error.code)
 			) forgetOrdinaryTeamPreflight(message.chat_id, message.message_id);
-			if (isPreflightAcknowledgementTimeout(error)) {
+			if (isReceiptConnectionMismatch(error) && sendWorkspaceIdentity === getWorkspaceCacheIdentity()) {
+				await updateMessageStatusForSendRetry(serviceInstance, message, "waiting_for_internet");
+				webSocketService.forceReconnect("chat privacy receipt connection changed");
+			} else if (isPreflightAcknowledgementTimeout(error)) {
 				await updateMessageStatusForSendRetry(serviceInstance, message, "waiting_for_internet");
 				webSocketService.forceReconnect("chat preflight acknowledgement timed out");
 			} else {

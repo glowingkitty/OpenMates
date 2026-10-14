@@ -63,10 +63,38 @@ export async function scanEnhancedText(text: string, scope: PrivacyScope, disabl
     return ranges;
   } catch (error) { await stopPrivacyDaemon(); throw error; }
 }
-export async function prepareCliMessagePrivacy(text: string, memories: DecryptedMemoryEntry[], existing: PIIMappingGeneric[] = [], scope: PrivacyScope = { kind: "message" }, progress?: (done: number, total: number) => void): Promise<{ message: string; mappings: Array<{ original: string; placeholder: string; type: string }> }> {
-  const options = privacyDetectionOptions(memories); let mappings = existing;
+/** Compile configured custom values once; deterministic detector precedence stays unchanged. */
+export type CompiledCliPrivacy = ReturnType<typeof privacyDetectionOptions> & {
+  matchPersonal: (text: string) => Array<{ start: number; end: number; type: string }>;
+};
+export function compileCliPrivacy(memories: DecryptedMemoryEntry[]): CompiledCliPrivacy {
+  const options = privacyDetectionOptions(memories);
+  const entries = (options.detection.personalDataEntries ?? []).flatMap(entry =>
+    [entry.textToHide, ...(entry.additionalTexts ?? [])].filter(value => value?.trim())
+      .map(value => ({ text: value.toLowerCase(), length: value.length, type: entry.type ?? "EMAIL" })));
+  return { enabled: options.enabled, detection: { ...options.detection, personalDataEntries: [] },
+    matchPersonal(text) {
+      const lower = text.toLowerCase();
+      const ranges: Array<{ start: number; end: number; type: string }> = [];
+      for (const entry of entries) {
+        let from = 0;
+        while (from < lower.length) {
+          const start = lower.indexOf(entry.text, from);
+          if (start < 0) break;
+          const end = start + entry.length;
+          if (!ranges.some(range => start < range.end && end > range.start)) ranges.push({ start, end, type: entry.type });
+          from = end;
+        }
+      }
+      return ranges;
+    },
+  };
+}
+
+export async function prepareCliMessagePrivacy(text: string, memories: DecryptedMemoryEntry[], existing: PIIMappingGeneric[] = [], scope: PrivacyScope = { kind: "message" }, progress?: (done: number, total: number) => void, compiled?: CompiledCliPrivacy): Promise<{ message: string; mappings: Array<{ original: string; placeholder: string; type: string }> }> {
+  const options = compiled ?? compileCliPrivacy(memories); let mappings = existing;
   const privacy = new ProjectFilePrivacy({ ...options, preserveMappedTokens: true, mappings: existing, save: async (value) => { mappings = value; },
-    detectEnhanced: (value) => scanEnhancedText(value, scope, options.detection.disabledCategories, progress),
+    detectEnhanced: async (value) => [...options.matchPersonal(value), ...await scanEnhancedText(value, scope, options.detection.disabledCategories, progress)],
   });
   const message = await privacy.redactResult(text) as string;
   return { message, mappings: mappings.map((mapping) => ({ ...mapping, type: mapping.type ?? "OTHER" })) };

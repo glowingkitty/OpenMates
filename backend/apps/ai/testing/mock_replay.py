@@ -750,6 +750,45 @@ async def _recreate_fixture_embeds(
                     logger.info(
                         f"[MOCK] Recreated {embed_type} embed: {old_embed_id} → {embed_data['embed_id']}"
                     )
+            elif embed_type == "mail":
+                # Email fences create direct mail drafts, not a mail.email skill.
+                # Replay the same placeholder/finalization path as stream_consumer.
+                embed_data = await embed_service.create_mail_embed_placeholder(
+                    chat_id=request_data.chat_id,
+                    message_id=request_data.message_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    receiver=embed_meta.get("receiver", ""),
+                    subject=embed_meta.get("subject", ""),
+                    log_prefix=log_prefix,
+                )
+                if not embed_data:
+                    raise RuntimeError(f"Mock mail embed {old_embed_id} could not be created")
+
+                finished = await embed_service.update_mail_embed_content(
+                    embed_id=embed_data["embed_id"],
+                    receiver=embed_meta.get("receiver", ""),
+                    subject=embed_meta.get("subject", ""),
+                    content=embed_meta.get("content", ""),
+                    footer=embed_meta.get("footer", ""),
+                    chat_id=request_data.chat_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    status="finished",
+                    log_prefix=log_prefix,
+                )
+                if not finished:
+                    raise RuntimeError(f"Mock mail embed {old_embed_id} did not finish")
+
+                new_ref = embed_data["embed_reference"]
+                new_block = f"```json\n{new_ref}\n```"
+                response = response[:match.start()] + new_block + response[match.end():]
+                logger.info(
+                    f"[MOCK] Recreated mail embed: {old_embed_id} → {embed_data['embed_id']}"
+                )
             elif embed_type == "focus_mode_activation":
                 # Focus mode activation embeds are recreated from the fields
                 # inlined in the fixture JSON block (focus_id, app_id,

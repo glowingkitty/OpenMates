@@ -35,6 +35,7 @@ from backend.core.api.app.services.session_security_state import (
     set_session_risk_pending,
 )
 from backend.core.api.app.services.password_v2 import has_password_v2_record
+from backend.core.api.app.services.personal_privacy_snapshot import read_personal_privacy_snapshot
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -93,8 +94,17 @@ async def _read_fresh_personal_settings(directus_service: DirectusService, user_
     return profile
 
 
-async def _load_fresh_personal_memories(directus_service: DirectusService, user_id: str) -> PersonalMemoriesSnapshot:
+async def _load_fresh_personal_memories(directus_service: DirectusService, user_id: str, *, durable_snapshot: bool = True) -> PersonalMemoriesSnapshot:
     """Read the current owner's encrypted Personal snapshot after session admission."""
+    try:
+        consistent = await read_personal_privacy_snapshot(directus_service, user_id) if durable_snapshot else None
+        if consistent is not None:
+            return PersonalMemoriesSnapshot.model_validate(consistent["personal_memories"])
+    except Exception as error:
+        # A failed or malformed durable snapshot must never trigger the legacy
+        # full read or admit partial data.
+        logger.warning("Personal memory snapshot read unavailable (error_type=%s)", type(error).__name__)
+        raise HTTPException(status_code=503, detail="Personal memory snapshot temporarily unavailable") from None
     hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
     profile_result, rows_result = await asyncio.gather(
         _read_fresh_personal_settings(directus_service, user_id),

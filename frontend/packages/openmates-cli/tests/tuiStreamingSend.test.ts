@@ -4,7 +4,12 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {OpenMatesClient} from '../src/client.js';
 import type {StreamEvent} from '../src/ws.js';
-import {sendTuiMessage} from '../src/tui.js';
+import {runTui,sendTuiMessage} from '../src/tui.js';
+import {mkdtempSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import type {TuiTerminal,TerminalKey} from '../src/tuiTerminal.js';
+import {noStartupPrompts} from './tuiTestServices.js';
 import {route} from '../src/tuiWorkspaceController.js';
 import {closeTuiFullscreen} from '../src/tuiFullscreenChrome.js';
 import {createInitialTuiState} from '../src/tuiRenderer.js';
@@ -281,4 +286,123 @@ test('final suggestion remains a ghost and never overwrites a newer draft', asyn
     assert.equal(f.state.suggestedFollowupMessage,draft?null:'Tell me more');
     f.pending.resolve(result('chat-1','Finished'));await send;
   }
+});
+
+// contract-test: supporting surface=cli assertions=chats.completion.independent-metadata
+ test('terminal presentation stops before required persistence and interim completion keeps continuation active', async () => {
+  const f = fixture();
+  const send = sendTuiMessage({ message: 'Ask something', state: f.state, client: f.client, render: f.render, modelShell: f.modelShell });
+  await tick();
+  f.calls[0].onStream?.({ ...stream('done', 'Interim reply'), responseTerminal: false });
+  assert.equal(f.state.isAwaitingAi, true);
+  f.calls[0].onStream?.({ ...stream('done', 'Final reply'), responseTerminal: true });
+  assert.equal(f.state.isAwaitingAi, false, 'Thinking and active glow end on authoritative terminal');
+  assert.equal(f.state.isBusy, true, 'required encrypted persistence still gates send controls');
+  f.pending.resolve(result('chat-1', 'Final reply')); await send;
+  assert.equal(f.state.isBusy, false);
+ });
+
+// contract-test: supporting surface=cli assertions=chats.completion.independent-metadata
+ test('late owned metadata applies during a subsequent same-chat turn and cannot overwrite a newer completed turn', async () => {
+  const f = fixture();
+  const first = sendTuiMessage({ message: 'First question', state: f.state, client: f.client, render: f.render, modelShell: f.modelShell });
+  await tick(); f.pending.resolve(result('chat-1', 'First answer')); await first;
+  const metadata = (title: string) => ({ chatId: 'chat-1', turnId: 'turn-1', userMessageId: 'user-1',
+    updatedChatTitle: title, chatSummary: 'Late summary', followUpSuggestions: [title + ' follow-up'],
+    newChatSuggestions: [], suggestedFollowupMessage: null, chatTags: [], sourceTitleVersion: 1, sourceMetadataVersion: 1 });
+  const secondResult = deferred<SendResult>();
+  f.client.sendMessage = input => { f.calls.push(input); return secondResult.promise; };
+  const second = sendTuiMessage({ message: 'Second question', state: f.state, client: f.client, render: f.render, modelShell: f.modelShell });
+  await tick();
+  f.calls[0].onMetadata?.(metadata('First title'));
+  assert.equal(f.state.activeChat?.title, 'First title');
+  assert.deepEqual(f.state.followUpSuggestions, [], 'old-turn chips never attach to the newly submitted turn');
+  f.calls[1].onMetadata?.(metadata('Second title'));
+  f.calls[0].onMetadata?.(metadata('Stale first title'));
+  assert.equal(f.state.activeChat?.title, 'Second title');
+  assert.deepEqual(f.state.followUpSuggestions, ['Second title follow-up']);
+  secondResult.resolve(result('chat-1', 'Second answer')); await second;
+ });
+
+// contract-test: supporting surface=cli assertions=chats.completion.independent-metadata
+ test('late metadata survives navigation back to its chat while account scope remains current', async () => {
+  const f = fixture();
+  const send = sendTuiMessage({ message: 'Ask something', state: f.state, client: f.client, render: f.render, modelShell: f.modelShell });
+  await tick(); f.pending.resolve(result('chat-1', 'Finished')); await send;
+  route(f.state, 'chats', 'chats');
+  f.state.screen = 'chat'; f.state.activeChatId = 'chat-1'; f.state.messages = [];
+  const metadata = { chatId: 'chat-1', turnId: 'turn-1', userMessageId: 'user-1',
+    updatedChatTitle: 'Recovered late title', chatSummary: 'Recovered late summary', followUpSuggestions: ['Continue here'],
+    newChatSuggestions: [], suggestedFollowupMessage: null, chatTags: [], sourceTitleVersion: 1, sourceMetadataVersion: 1 };
+  f.calls[0].onMetadata?.(metadata);
+  assert.equal(f.state.activeChat?.title, 'Recovered late title');
+  assert.deepEqual(f.state.followUpSuggestions, ['Continue here']);
+  f.client.getSession = () => ({ ...session, hashedEmail: 'another-owner' }) as ReturnType<OpenMatesClient['getSession']>;
+  f.calls[0].onMetadata?.({ ...metadata, updatedChatTitle: 'Wrong account title' });
+  assert.equal(f.state.activeChat?.title, 'Recovered late title');
+ });
+
+// contract-test: supporting surface=cli assertions=chats.completion.independent-metadata
+ test('owned preprocessing title paints during Thinking without releasing required reply persistence or replacing an existing title', async () => {
+  const f = fixture(); f.state.activeChatId = null;
+  const send = sendTuiMessage({ message: 'Ask something', state: f.state, client: f.client, render: f.render, modelShell: f.modelShell });
+  await tick();
+  const chatId = f.calls[0].newChatId!;
+  f.calls[0].onStream?.({ ...stream('typing', ''), chatTitle: 'Wrong chat title', chatId: 'another-chat', turnId: 'turn', userMessageId: 'user' });
+  assert.notEqual(f.state.activeChat?.title, 'Wrong chat title');
+  f.calls[0].onStream?.({ ...stream('typing', ''), chatTitle: 'Early generated title', chatId, turnId: 'turn', userMessageId: 'user' });
+  assert.equal(f.state.activeChat?.title, 'Early generated title'); assert.equal(f.state.headerState, 'ready');
+  assert.equal(f.state.isBusy, true); assert.equal(f.state.isAwaitingAi, true);
+  f.state.activeChat!.title = 'Manual title';
+  f.calls[0].onStream?.({ ...stream('typing', ''), chatTitle: 'Later initial title', chatId, turnId: 'turn', userMessageId: 'user' });
+  assert.equal(f.state.activeChat?.title, 'Manual title');
+  f.pending.resolve(result(chatId, 'Finished')); await send;
+ });
+
+// contract-test: supporting surface=cli assertions=chats.streaming.progressive-presentation,terminal-ui.chat.rich-content
+test('runTui keeps the real mention picker wired while a reply streams',async(t)=>{
+  const previousDir=process.env.OPENMATES_STATE_DIR;
+  const stateDir=mkdtempSync(join(tmpdir(),'openmates-tui-streaming-mentions-'));
+  process.env.OPENMATES_STATE_DIR=stateDir;
+  t.after(()=>{
+    if(previousDir===undefined)delete process.env.OPENMATES_STATE_DIR;
+    else process.env.OPENMATES_STATE_DIR=previousDir;
+    rmSync(stateDir,{recursive:true,force:true});
+  });
+  let keyHandler:((chunk:string,key:TerminalKey)=>void)|undefined;
+  const frames:string[]=[];
+  const terminal={width:140,height:40,colorMode:'none',ascii:true,reducedMotion:true,
+    enter:()=>{},leave:()=>{},onResize:()=>{},render:(frame:string)=>frames.push(frame),
+    onKey:(handler:typeof keyHandler)=>{keyHandler=handler;},
+  } as unknown as TuiTerminal;
+  const calls:SendInput[]=[];
+  const pending=deferred<SendResult>();
+  const owner={...session,masterKeyExportedB64:Buffer.alloc(32,1).toString('base64')};
+  const client={apiUrl:session.apiUrl,hasSession:()=>true,getSession:()=>owner,getActiveTeamId:()=>null,resolveTeamContext:()=>null,
+    getChatModelCatalogSources:async()=>({all:{apps:{}},available:{apps:{}},routes:{data:[]},health:{}}),
+    beginInteractiveViewerSession:()=>{},endInteractiveViewerSession:()=>{},clearInteractiveChatViewer:()=>{},
+    setInteractiveChatViewer:async()=>{},getMasterKeyBytes:()=>Buffer.alloc(32,1),
+    listMemories:async()=>[],listProjects:async()=>[],listWorkflows:async()=>[],listUserTasks:async()=>[],
+    listChats:async()=>({chats:[]}),getAppsWorkspaceCatalog:async()=>({apps:[{id:'web',name:'Web',
+      skills:[{id:'search',name:'Search',description:'Search the web'}]}]}),
+    sendMessage:(input:SendInput)=>{calls.push(input);return pending.promise;},
+  } as unknown as OpenMatesClient;
+  const run=runTui(client,terminal,noStartupPrompts);
+  t.after(async()=>{keyHandler?.('\u0003',{ctrl:true,name:'c'});await run;});
+  const paint=()=>new Promise<void>(resolve=>setTimeout(resolve,40));
+  const type=(value:string)=>{for(const char of value)keyHandler?.(char,{name:char});};
+  await paint();type('Ask something');keyHandler?.('\r',{name:'return'});await paint();
+  assert.equal(calls.length,1);
+  calls[0].onStream?.(stream('chunk','Partial answer'));await paint();
+  assert.match(frames.at(-1)??'',/Partial answer/);
+  type('@search');await paint();
+  assert.match(frames.at(-1)??'',/@ Suggestions/);
+  assert.match(frames.at(-1)??'',/@Web-Search/);
+  keyHandler?.('\r',{name:'return'});await paint();
+  assert.equal(calls.length,1,'Enter selects a mention without sending while the reply is active');
+  assert.match(frames.at(-1)??'',/@skill:web:search/);
+  assert.doesNotMatch(frames.at(-1)??'',/@ Suggestions/);
+  calls[0].onStream?.(stream('done','Completed answer'));
+  pending.resolve(result(calls[0].newChatId!,'Completed answer'));await paint();
+  assert.match(frames.at(-1)??'',/@skill:web:search/,'completion preserves the selected draft');
 });

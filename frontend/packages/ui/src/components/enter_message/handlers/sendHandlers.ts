@@ -1,3 +1,5 @@
+import { noteChatMetadataTurn } from "../../../services/lateChatMetadataGuard";
+import { registerPersonalPrivacyExclusions } from "../../../services/preparedPrivacyForSend";
 import type { Editor, JSONContent } from "@tiptap/core";
 import { get } from "svelte/store"; // Import get
 import { getTracer } from '../../../services/tracing/setup';
@@ -737,6 +739,7 @@ export async function handleSend(
           } as import("../../../types/chat").Chat)
         : undefined;
       saveDraftDebounced.cancel();
+      noteChatMetadataTurn(chatIdAtClick, "", optimisticMessage.message_id);
       dispatch("sendMessage", { message: optimisticMessage, newChat: provisionalChat });
       dispatchedMessage = optimisticMessage;
       optimisticMessageDispatched = true;
@@ -1417,6 +1420,7 @@ export async function handleSend(
   // - Disabled categories are skipped (user can toggle individual PII types)
   // - User-defined personal data entries (names, addresses, etc.) are also detected
   let piiMappingsForStorage: PIIMapping[] = [];
+  let privacyExcludedOriginals = new Set<string>();
   recordSendDebugStep("pii_detection_started", { currentChatId });
   try {
     // Read current privacy settings from the store
@@ -1469,6 +1473,7 @@ export async function handleSend(
       // be blocked with "missing embeds". We swap them out for opaque tokens, run PII on
       // the rest of the markdown, then restore the original blocks afterwards.
       const { safeMarkdown, restore } = protectEmbedRefsFromPII(markdown);
+      privacyExcludedOriginals = getExcludedOriginalsForCurrentSend(safeMarkdown, detectionOptions);
       const rewriteResult = rewriteKnownPIIPlaceholders(safeMarkdown, {
         mappings: getActivePIIMappingsForRewrite(),
         excludedOriginals: getExcludedOriginalsForCurrentSend(
@@ -1800,6 +1805,8 @@ export async function handleSend(
       teamSenderName,
       optimisticMessage?.message_id,
     );
+    noteChatMetadataTurn(chatIdToUse, "", messagePayload.message_id);
+    registerPersonalPrivacyExclusions(messagePayload, privacyExcludedOriginals);
     messagePayload.hashed_user_id = teamAuthorHash;
     didCreateMessagePayload = true;
     // Reserve before the optimistic IndexedDB write. A second click can start

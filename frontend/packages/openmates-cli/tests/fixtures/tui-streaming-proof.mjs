@@ -14,7 +14,8 @@ const {runTui}=await import('../../src/tui.ts');
 const {TuiTerminal}=await import('../../src/tuiTerminal.ts');
 const {noStartupPrompts}=await import('../tuiTestServices.ts');
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-const metadata=id=>({id,shortId:id,slug:id,title:'Synthetic streaming proof',summary:null,category:'software_development',mateName:null,createdAt:Math.floor(Date.now()/1000),updatedAt:null});
+let latestTitle = 'Synthetic streaming proof';
+const metadata=id=>({id,shortId:id,slug:id,title:latestTitle,summary:null,category:'software_development',mateName:null,createdAt:Math.floor(Date.now()/1000),updatedAt:null});
 const call=skill=>'```json_embed\n'+JSON.stringify({type:'app_skill_use',embed_id:skill,app_id:'web',skill_id:skill,status:'processing'})+'\n```';
 const search=call('search'),action=search+'\n\n'+call('create');
 const first=action+'\n\n### Progressive response\n\n**First paragraph** appears while the response continues.';
@@ -36,13 +37,21 @@ const client={apiUrl:'https://example.invalid',hasSession:()=>true,getActiveTeam
   getDraft:async()=>null,listUserTasks:async()=>[],getChatMetadata:async id=>metadata(id),
   sendMessage:async input=>{
     const event=(kind,content)=>({kind,content,category:'software_development',modelName:'Synthetic model',taskId:'synthetic-task'});
-    input.onStream?.(event('typing',''));
+    input.onStream?.({...event('typing',''),chatTitle:'Early generated chat title',chatIcon:'book',chatId:input.chatId??input.newChatId,turnId:'synthetic-turn',userMessageId:'synthetic-user'});
     await delay(2000);input.onStream?.({...event('typing',''),thinkingContent:'Synthetic visible reasoning for this response.',thinkingActive:true});
     await delay(1500);input.onStream?.({...event('chunk',search),thinkingActive:false});
     await delay(4000);input.onStream?.(event('chunk',action));
     await delay(1800);input.onStream?.(event('chunk',first));
     await delay(1800);input.onStream?.(event('chunk',second));
-    await delay(1800);input.onStream?.(event('done',final));
+    await delay(1800);input.onStream?.({...event('done',final),responseTerminal:true});
+    // Required reply persistence is independent of the delayed postprocessor.
+    await delay(1200);
+    setTimeout(()=>{
+      latestTitle='Late title after reply completion';
+      input.onMetadata?.({chatId:input.chatId??input.newChatId,turnId:'synthetic-turn',userMessageId:'synthetic-user',
+        updatedChatTitle:latestTitle,chatSummary:'A delayed summary',followUpSuggestions:['Explain the next step'],
+        newChatSuggestions:[],suggestedFollowupMessage:null,chatTags:[],sourceTitleVersion:1,sourceMetadataVersion:1});
+    },1800);
     return {chatId:input.chatId??input.newChatId,assistant:final,userMessageId:'synthetic-user',
       mateName:'Sophia',category:'software_development',followUpSuggestions:[]};
   },

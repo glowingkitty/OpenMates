@@ -32,6 +32,8 @@ import json
 from enum import Enum
 from pathlib import Path
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
+from functools import wraps
 from typing import Dict, Any, List, Optional
 from pydantic import ValidationError
 from celery.exceptions import Ignore, SoftTimeLimitExceeded
@@ -60,7 +62,7 @@ from backend.core.api.app.utils.log_sanitization import sanitize_request_data_fo
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 from backend.apps.ai.skills.ask_skill import AskSkillDefaultConfig
-from backend.apps.ai.utils.instruction_loader import load_base_instructions
+from backend.apps.ai.utils.instruction_loader import load_validated_base_instructions
 from backend.apps.ai.utils.user_task_turn_finalization import finalize_user_task_turn
 from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.utils.model_selector import DEFAULT_FALLBACK_MODEL
@@ -1569,6 +1571,14 @@ def _early_typing_provider_metadata(model_ref: Optional[str]) -> tuple[str, Opti
     return provider.get("name") or provider_id.capitalize(), None
 
 
+def _metadata_turn_identity(request) -> dict[str, str]:
+    return {
+        "turn_id": (getattr(request, "client_context_turn_id", None)
+                    or getattr(request, "recovery_turn_id", None) or request.message_id),
+        "user_message_id": request.message_id,
+    }
+
+
 async def _publish_typing_ended(
     cache_service: CacheService, task_id: str, chat_id: str,
     user_id: str, user_id_hash: str, message_id: str,
@@ -1606,7 +1616,7 @@ class EarlyTypingLifecycle:
     async def publish_stage_one(self, payload: Dict[str, Any]) -> bool:
         if self.started or self.request.is_external:
             return False
-        await self.cache_service.publish_event(self.channel, payload)
+        await self.cache_service.publish_event(self.channel, {**payload, **_metadata_turn_identity(self.request)})
         self.started = True
         return True
 
@@ -1621,11 +1631,14 @@ class EarlyTypingLifecycle:
             if metadata_recovery_job:
                 await self.cache_service.publish_event(self.channel, {
                     "type": "chat_metadata_recovery_available",
+                    "chat_id": self.request.chat_id,
+                    "task_id": self.task_id,
+                    **_metadata_turn_identity(self.request),
                     "user_id_hash": self.request.user_id_hash,
                     "metadata_recovery_job": metadata_recovery_job,
                 })
         elif late_payload:
-            await self.cache_service.publish_event(self.channel, late_payload)
+            await self.cache_service.publish_event(self.channel, {**late_payload, **_metadata_turn_identity(self.request)})
             self.started = True
 
     async def fail(self) -> None:
@@ -2249,6 +2262,26 @@ async def _overlap_preparation(operation):
             await asyncio.gather(task, return_exceptions=True)
 
 
+async def _load_available_mates(cache_service) -> List[MateConfig]:
+    """Read cached Mate metadata while other independent preparation runs."""
+    if cache_service is not None:
+        try:
+            cached = await cache_service.get_mates_configs()
+            if cached:
+                return cached
+        except Exception:
+            logger.warning("Cached Mate configuration unavailable; reloading from disk", exc_info=True)
+    mates = await asyncio.to_thread(load_mates_config)
+    if not mates:
+        raise RuntimeError("mates/ directory not found, empty, or invalid.")
+    if cache_service is not None:
+        try:
+            await cache_service.set_mates_configs(mates)
+        except Exception:
+            logger.warning("Failed to cache Mate configuration", exc_info=True)
+    return mates
+
+
 # Optional admin debug writes must never hold a visible response or queued
 # handoff indefinitely. Their budget starts when the task is created, so a
 # provider stream does not reset the deadline after it returns.
@@ -2309,6 +2342,47 @@ async def _settle_optional_debug_cache(task, started_at, *, wait_for_budget, wri
                     status, (time.monotonic() - started_at) * 1000)
 
 
+_owned_summary_tasks: ContextVar[list | None] = ContextVar("owned_summary_tasks", default=None)
+
+
+def _owns_deferred_summary(function):
+    """Keep delayed writes owned across preparation, inference and early exits."""
+    @wraps(function)
+    async def owned(*args, **kwargs):
+        tasks = []
+        token = _owned_summary_tasks.set(tasks)
+        try:
+            result = await function(*args, **kwargs)
+            # Early normal returns still finish the active-summary marker.
+            if tasks:
+                await asyncio.gather(*tasks)
+            return result
+        finally:
+            await _drain_preparation_tasks(*tasks)
+            _owned_summary_tasks.reset(token)
+    return owned
+
+
+async def _join_deferred_summary():
+    tasks = _owned_summary_tasks.get() or []
+    if tasks:
+        await asyncio.gather(*tasks)
+
+
+def _can_defer_summary_join(request, preprocessing, stage_one_snapshot, user_overrides):
+    """A fresh complete scope and current-turn route exclude summary consumers."""
+    return bool(
+        _can_overlap_first_turn_reads(request, stage_one_snapshot, user_overrides)
+        and getattr(preprocessing, "context_fast_path", False)
+        and getattr(preprocessing, "plain_prose_response", False) is True
+        and getattr(preprocessing, "selected_app_ids", None) == []
+        and not any(getattr(preprocessing, key, None) for key in (
+            "relevant_app_skills", "relevant_focus_modes", "load_app_settings_and_memories",
+            "relevant_rules", "relevant_workflows", "relevant_related_work", "relevant_embedded_previews",
+        ))
+    )
+
+
 async def _time_setup_stage(stage: str, task_id: str, operation):
     started = time.monotonic()
     try:
@@ -2321,9 +2395,9 @@ async def _time_setup_stage(stage: str, task_id: str, operation):
 def _can_overlap_first_turn_reads(request_data, stage_one_snapshot, user_overrides=None,
                                   *, allow_pending_details=False):
     """Require an empty admission proof, or defer only a safe pending candidate."""
-    if not stage_one_snapshot or request_data.chat_has_title or len(request_data.message_history or []) != 1:
+    if not stage_one_snapshot or not request_data.message_history:
         return False
-    message = request_data.message_history[0]
+    message = request_data.message_history[-1]
     if message.role != "user" or message.message_id != request_data.message_id:
         return False
     if any(getattr(request_data, flag, False) for flag in (
@@ -2412,6 +2486,7 @@ async def _prepare_artifact_context(
             )
 
 
+@_owns_deferred_summary
 async def _async_process_ai_skill_ask_task(
     task_id: str, # task_id is still needed
     request_data: AskSkillRequest,
@@ -2853,67 +2928,11 @@ async def _async_process_ai_skill_ask_task(
         # Task workers read from cache to avoid disk I/O and ensure consistency across containers.
         # Fallback to disk loading if cache is empty (e.g., cache expired or server restarted).
 
-        base_instructions: Dict[str, Any] = {}
-        try:
-            if cache_service_instance:
-                cached_base_instructions = await cache_service_instance.get_base_instructions()
-                if cached_base_instructions:
-                    base_instructions = cached_base_instructions
-                    logger.info(f"[Task ID: {task_id}] Successfully loaded base_instructions from cache (preloaded by main API server).")
-                else:
-                    # Fallback: Cache is empty (expired or server restarted) - load from disk and re-cache
-                    logger.warning(f"[Task ID: {task_id}] base_instructions not found in cache. Loading from disk and re-caching...")
-                    base_instructions = load_base_instructions()
-                    if base_instructions:
-                        try:
-                            await cache_service_instance.set_base_instructions(base_instructions)
-                            logger.info(f"[Task ID: {task_id}] Re-cached base_instructions after disk load.")
-                        except Exception as e:
-                            logger.warning(f"[Task ID: {task_id}] Failed to re-cache base_instructions: {e}")
-            else:
-                # No cache service available, load from disk
-                logger.warning(f"[Task ID: {task_id}] CacheService not available. Loading base_instructions from disk...")
-                base_instructions = load_base_instructions()
-        except Exception as e:
-            logger.error(f"[Task ID: {task_id}] Error loading base_instructions: {e}", exc_info=True)
-            # Fallback to disk loading
-            base_instructions = load_base_instructions()
-
-        if not base_instructions:
-            logger.error(f"[Task ID: {task_id}] Failed to load base_instructions.yml from cache or disk. Aborting task.")
-            # Sync wrapper handles Celery state update
-            raise RuntimeError("base_instructions.yml not found or empty.")
-
-        all_mates_configs: List[MateConfig] = []
-        try:
-            if cache_service_instance:
-                cached_mates_configs = await cache_service_instance.get_mates_configs()
-                if cached_mates_configs:
-                    all_mates_configs = cached_mates_configs
-                    logger.info(f"[Task ID: {task_id}] Successfully loaded {len(all_mates_configs)} mates_configs from cache (preloaded by main API server).")
-                else:
-                    # Fallback: Cache is empty (expired or server restarted) - load from disk and re-cache
-                    logger.warning(f"[Task ID: {task_id}] mates_configs not found in cache. Loading from disk and re-caching...")
-                    all_mates_configs = load_mates_config()
-                    if all_mates_configs:
-                        try:
-                            await cache_service_instance.set_mates_configs(all_mates_configs)
-                            logger.info(f"[Task ID: {task_id}] Re-cached {len(all_mates_configs)} mates_configs after disk load.")
-                        except Exception as e:
-                            logger.warning(f"[Task ID: {task_id}] Failed to re-cache mates_configs: {e}")
-            else:
-                # No cache service available, load from disk
-                logger.warning(f"[Task ID: {task_id}] CacheService not available. Loading mates_configs from disk...")
-                all_mates_configs = load_mates_config()
-        except Exception as e:
-            logger.error(f"[Task ID: {task_id}] Error loading mates_configs: {e}", exc_info=True)
-            # Fallback to disk loading
-            all_mates_configs = load_mates_config()
-
-        if not all_mates_configs:
-            logger.critical(f"[Task ID: {task_id}] Failed to load mates from cache or disk. Aborting task.")
-            # Sync wrapper handles Celery state update
-            raise RuntimeError("mates/ directory not found, empty, or invalid.")
+        # Mate configuration is independent of required-instruction validation.
+        # Drain this read on failure; no preparation result grants execution authority.
+        async with _overlap_preparation(_load_available_mates(cache_service_instance)) as mates_task:
+            base_instructions = await load_validated_base_instructions(cache_service_instance)
+            all_mates_configs = await mates_task
 
         # --- Load discovered_apps_metadata from cache (with fallback to API) ---
         # CRITICAL: Without discovered_apps_metadata, the LLM has NO tools available (no web search, etc.)
@@ -3392,7 +3411,13 @@ async def _async_process_ai_skill_ask_task(
                             before_related_summary_read=before_related_summary_read if summary_task else None,
                         )
                         if summary_task:
-                            await summary_task
+                            if _can_defer_summary_join(
+                                request_data, preprocessing_result, stage_one_snapshot, user_overrides,
+                            ):
+                                _owned_summary_tasks.get().append(summary_task)
+                                summary_task = None
+                            else:
+                                await summary_task
                         if embed_task:
                             prefetched_diffable_embeds = await embed_task
                     finally:
@@ -3956,10 +3981,14 @@ async def _async_process_ai_skill_ask_task(
 
         try:
             skill_config_dict = skill_config.model_dump(mode="json") if hasattr(skill_config, "model_dump") else {}
-            from backend.apps.ai.processing.main_processor import _scoped_diffable_embed_prefetch
+            from backend.apps.ai.processing.main_processor import (
+                _scoped_diffable_embed_prefetch, _scoped_context_summary_barrier,
+            )
             with ai_phase_span("main"):
                 _log_team_ai_pipeline_stage(request_data, task_id, "main", "started")
-                with _scoped_diffable_embed_prefetch(task_id, request_data.chat_id, prefetched_diffable_embeds):
+                pending_summary = next(iter(_owned_summary_tasks.get() or []), None)
+                with _scoped_diffable_embed_prefetch(task_id, request_data.chat_id, prefetched_diffable_embeds), \
+                        _scoped_context_summary_barrier(task_id, request_data.chat_id, request_data.message_id, pending_summary):
                     aggregated_final_response, revoked_in_consumer, soft_limited_in_consumer, thinking_content, main_processor_debug_metadata = await _consume_main_processing_stream(  # type: ignore[assignment]
                         task_id=task_id,
                         request_data=request_data,
@@ -4552,6 +4581,9 @@ async def _async_process_ai_skill_ask_task(
             chat_id=request_data.chat_id,
         )
 
+    # No summary consumer/completion may overtake the marker retained during inference.
+    await _join_deferred_summary()
+
     # --- Step 3: Post-Processing (Generate Suggestions and Metadata) ---
     # Post-processing continues even when revoked - we still have a partial response to process
     # Only skip if there's no response content at all.
@@ -4731,6 +4763,7 @@ async def _async_process_ai_skill_ask_task(
             postprocessing_payload = {
                 "type": "post_processing_completed",
                 "event_for_client": "post_processing_completed",
+                **_metadata_turn_identity(request_data),
                 "task_id": task_id,
                 "chat_id": request_data.chat_id,
                 "user_id_uuid": request_data.user_id,

@@ -34,6 +34,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import type { Chat, ChatCompressionCheckpoint, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult, ResumeCardImageBubble } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
+    import { isChatMetadataTurnCurrent, getChatMetadataTurnKey } from '../services/lateChatMetadataGuard';
     import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
     import { hasRoomForLargeContinueCards } from '../utils/continueCardLayout';
     import { getRecentChatRevision, getRecentChatSelection, getRecentChatWindow, invalidateRecentChatWindow, isRecentChatReadCurrent, putRecentChatWindow, recentChatHeaderMatches, RecentChatWarmReadGuard, reconcileRecentChatMessages, subscribeRecentChatWindowInvalidation } from '../services/recentChatWindowCache';
@@ -2733,7 +2734,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // CRITICAL FIX: Always reload suggestions from database for the current chat
         // This ensures we get the latest state even if there are timing issues or state mismatches
         // The database is the source of truth after post-processing completes
-        const isCurrentChat = currentChat?.chat_id === chatId;
+        const ownerEpoch = getWorkspaceCacheEpoch();
+        const metadataIsCurrent = () => currentChat?.chat_id === chatId && ownerEpoch === getWorkspaceCacheEpoch()
+            && isChatMetadataTurnCurrent(chatId, event.detail.taskId, event.detail.userMessageId);
+        const isCurrentChat = metadataIsCurrent();
         
         // Always try to reload from database if it's the current chat, even if suggestions aren't in event
         // This handles cases where the event arrives before database is updated
@@ -2741,16 +2745,14 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             pendingTaskProposals = Array.isArray(taskProposals) && !isPublicChat(chatId) ? taskProposals : [];
             pendingTaskUpdateProposals = Array.isArray(taskUpdateProposals) && !isPublicChat(chatId) ? taskUpdateProposals : [];
             try {
-                // Small delay to ensure database transaction has completed
-                // Post-processing handler saves to DB, but transaction might not be committed yet
-                await new Promise(resolve => setTimeout(resolve, 100));
-                
                 // Reload chat from database to get the latest encrypted suggestions
                 const freshChat = await chatDB.getChat(chatId);
+                if (!metadataIsCurrent()) return;
                 if (freshChat) {
                     // Update currentChat with latest metadata
                     currentChat = { ...currentChat, ...freshChat };
                     await refreshActiveChatHeaderFromStoredChat(chatId, 'post-processing completed');
+                    if (!metadataIsCurrent()) return;
                     console.debug('[ActiveChat] Refreshed currentChat with latest metadata from database after post-processing');
                     
                     // Load follow-up suggestions from the database (source of truth)
@@ -2781,6 +2783,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                 chatKey
                             );
                             
+                            if (!metadataIsCurrent()) return;
                             if (decryptedSuggestions && decryptedSuggestions.length > 0) {
                                 followUpSuggestions = decryptedSuggestions;
                                 console.info('[ActiveChat] ✅ Loaded follow-up suggestions from database after post-processing:', decryptedSuggestions.length);
@@ -2808,7 +2811,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         const chatKey = chatKeyManager.getKeySync(chatId);
                         if (chatKey) {
                             const { decryptArrayWithChatKey } = await import('../services/cryptoService');
-                            quickTipSlugs = await decryptArrayWithChatKey(freshChat.encrypted_quick_tip_slugs, chatKey) || [];
+                            const decryptedTips = await decryptArrayWithChatKey(freshChat.encrypted_quick_tip_slugs, chatKey) || [];
+                            if (!metadataIsCurrent()) return;
+                            quickTipSlugs = decryptedTips;
                         } else if (newQuickTipSlugs && Array.isArray(newQuickTipSlugs)) {
                             quickTipSlugs = newQuickTipSlugs;
                         }
@@ -2828,6 +2833,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
                 }
             } catch (error) {
+                if (!metadataIsCurrent()) return;
                 console.error('[ActiveChat] Failed to reload suggestions from database after post-processing:', error);
                 // Fallback: use suggestions from event if database reload fails
                 if (newSuggestions && Array.isArray(newSuggestions) && newSuggestions.length > 0) {
@@ -4409,7 +4415,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     }
 
 
+    let headerRefreshSequence = 0;
     async function refreshActiveChatHeaderFromStoredChat(chatId: string, reason: string) {
+        const sequence = ++headerRefreshSequence;
+        const owner = get(userProfile).user_id;
+        const ownerEpoch = getWorkspaceCacheEpoch();
+        const headerIsCurrent = () => sequence === headerRefreshSequence && ownerEpoch === getWorkspaceCacheEpoch()
+            && currentChat?.chat_id === chatId && owner === get(userProfile).user_id;
         if (!currentChat || currentChat.chat_id !== chatId) return;
 
         try {
@@ -4421,7 +4433,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             const storedChat = decryptedChat
                 ? { ...decryptedChat, ...(rawChat ?? {}) }
                 : rawChat;
-            if (!currentChat || currentChat.chat_id !== chatId) return;
+            if (!headerIsCurrent()) return;
             if (!storedChat) {
                 if (wasDraftOnly) {
                     console.info(`[ActiveChat] ${reason}: Active draft-only chat ${chatId} no longer exists locally. Resetting to new chat.`);
@@ -4507,6 +4519,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 try { decryptedSummary = await decryptWithChatKey(storedChat.encrypted_chat_summary, chatKey, { chatId, fieldName: 'encrypted_chat_summary' }); } catch { /* keep previous */ }
             }
 
+            if (!headerIsCurrent()) return;
             activeChatDecryptedTitle = decryptedTitle ?? '';
             activeChatDecryptedCategory = decryptedCategory;
             activeChatDecryptedIcon = decryptedIcon;
@@ -9125,7 +9138,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
         const incomingChatMetadata = detail.chat as Chat | undefined;
         const incomingMessages = detail.messages as ChatMessageModel[] | undefined;
-        console.debug(`[ActiveChat] handleChatUpdated: Event for chat_id: ${incomingChatId}. Current active chat_id: ${currentChat?.chat_id}. Event detail:`, detail);
+        console.debug(`[ActiveChat] handleChatUpdated: Event for chat_id: ${incomingChatId}. Current active chat_id: ${currentChat?.chat_id}.`, { type: detail.type, newMessageId: detail.newMessage?.message_id, messagesUpdated: detail.messagesUpdated });
 
         // ─── Welcome screen carousel/resume card updates ─────────────────────
         // When on the welcome screen (no active chat), metadata and message
@@ -9298,6 +9311,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             isHeaderMetadataUpdate
         ) {
             try {
+                const metadataReadEpoch = getWorkspaceCacheEpoch();
+                const metadataTurnKey = getChatMetadataTurnKey(incomingChatId);
                 const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
                 // Safe key retrieval — same pattern as the title_updated handler above.
                 let postProcKey: Uint8Array | null = await chatKeyManager.getKey(incomingChatId);
@@ -9319,6 +9334,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     // Decrypt summary if present
                     if (incomingChatMetadata.encrypted_chat_summary) {
                         const decryptedSummary = await decryptWithChatKey(incomingChatMetadata.encrypted_chat_summary, postProcKey, { chatId: incomingChatId, fieldName: 'encrypted_chat_summary' });
+                        if (currentChat?.chat_id !== incomingChatId || metadataReadEpoch !== getWorkspaceCacheEpoch()
+                            || metadataTurnKey !== getChatMetadataTurnKey(incomingChatId)) return;
                         if (decryptedSummary) {
                             activeChatDecryptedSummary = decryptedSummary;
                             console.debug('[ActiveChat] Chat header summary updated:', decryptedSummary.substring(0, 60) + '...');
@@ -9327,6 +9344,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     // OPE-265: Decrypt updated title if post-processing detected conversation drift
                     if (incomingChatMetadata.encrypted_title) {
                         const decryptedTitle = await decryptWithChatKey(incomingChatMetadata.encrypted_title, postProcKey, { chatId: incomingChatId, fieldName: 'encrypted_title' });
+                        if (currentChat?.chat_id !== incomingChatId || metadataReadEpoch !== getWorkspaceCacheEpoch()
+                            || metadataTurnKey !== getChatMetadataTurnKey(incomingChatId)) return;
                         if (decryptedTitle) {
                             activeChatDecryptedTitle = decryptedTitle;
                             console.debug('[ActiveChat] Chat header title updated from post-processing:', decryptedTitle);
@@ -9366,7 +9385,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             if (currentChat?.chat_id === newMessage.chat_id) {
                 if (existingMessageIndex !== -1) {
                     // Message exists, update it by merging, prioritizing incoming data, especially content and status
-                    console.debug("[ActiveChat] handleChatUpdated: Event contains newMessage. Updating existing message in currentMessages:", newMessage);
+                    console.debug("[ActiveChat] handleChatUpdated: Updating existing message", newMessage.message_id);
                     // Preserve potentially client-side only or more up-to-date fields from existing if not in newMessage
                     const updatedMessage = { ...currentMessages[existingMessageIndex], ...newMessage };
                     currentMessages[existingMessageIndex] = updatedMessage;
@@ -9374,7 +9393,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     messagesUpdatedInPlace = true;
                 } else {
                     // Message doesn't exist, add it
-                    console.debug("[ActiveChat] handleChatUpdated: Event contains newMessage. Adding new message to currentMessages:", newMessage);
+                    console.debug("[ActiveChat] handleChatUpdated: Adding message", newMessage.message_id);
                     currentMessages = [...currentMessages, newMessage];
                     messagesUpdatedInPlace = true;
                 }

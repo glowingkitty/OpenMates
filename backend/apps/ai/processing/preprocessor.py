@@ -50,7 +50,7 @@ from backend.apps.ai.processing.chat_request_safety import (
 from backend.apps.ai.processing.focus_mode_routing import (
     resolve_subchat_enablement,
 )
-from backend.apps.ai.processing.jev_preprocessing import decide_preprocessing_with_jev
+from backend.apps.ai.processing.jev_preprocessing import decide_preprocessing_with_jev, _complete_public_decisions
 from backend.apps.ai.processing.ai_model_topic_routing import complete_ai_model_topics
 from backend.apps.ai.processing.model_routing import (
     HIGH_TIER,
@@ -1285,7 +1285,8 @@ class PreprocessingResult(BaseModel):
     enable_subchats: bool = False # Whether sub-chats are enabled for this request.
     ai_model_topics: List[str] = Field(default_factory=list, description="AI model families whose current catalogue context is relevant to this request.")
     selected_app_ids: Optional[List[str]] = Field(None, exclude=True, description="Transient Jev app shortlist plus deterministic tool owners; None means the legacy fallback did not shortlist apps.")
-    context_fast_path: bool = Field(False, exclude=True, description="Complete Stage-one and authoritative empty-context proof; main still rechecks the live Project binding.")
+    context_fast_path: bool = Field(False, exclude=True, description="Complete Stage-one and authoritative empty-context proof for this turn, including contextual follow-ups; main still rechecks the live Project binding.")
+    plain_prose_response: bool = Field(False, exclude=True, description="Transient current-turn proof: complete validated public preview=none and general/low routing; absent/legacy snapshots retain full guidance.")
     early_task_area: Optional[str] = Field(None, exclude=True, description="Validated Stage-one task area for narrow main setup decisions.")
     pending_project_focus_id: Optional[str] = Field(None, exclude=True, description="Routing-only consent proposal; no main inference or Project authority.")
     pending_project_catalog_id: Optional[str] = Field(None, exclude=True, description="Selected Project needs minimal owner-client Focus metadata before consent.")
@@ -2140,6 +2141,14 @@ def _simple_context_fast_path(request_data: AskSkillRequest, early_routing: Dict
                                user_overrides.memory_categories, user_overrides.memory_entries)):
         return False
     return not request_data.is_focus_mode_continuation and not request_data.is_app_settings_memories_continuation
+
+
+def _plain_prose_routing_proof(routing, *, is_first_message, context_fast_path,
+                               task_area, complexity, previews) -> bool:
+    public = ((routing or {}).get("early_decisions") or {}).get("public_decisions")
+    return bool(context_fast_path and task_area == "general" and normalize_request_tier(complexity) == LOW_TIER
+                and previews == [] and _complete_public_decisions(public, is_first_message)
+                and public["preview"] == "none")
 
 
 def _stage_one_project_none_candidate(request_data: AskSkillRequest,
@@ -3119,9 +3128,8 @@ async def handle_preprocessing(
         )
     second_stage_started_at = time.monotonic()
     simple_context_fast_path = bool(
-        decision_model and early_model_selection is not None and is_first_message
+        decision_model and early_model_selection is not None
         and _simple_context_fast_path(request_data, early_routing, user_overrides)
-        and sum(row.get("role") == "user" for row in sanitized_message_history) == 1
     )
     related_summary_hook_completed = False
     if not simple_context_fast_path and before_related_summary_read is not None:
@@ -4356,6 +4364,11 @@ async def handle_preprocessing(
         ai_model_topics=ai_model_topics,
         selected_app_ids=final_selected_app_ids,
         context_fast_path=simple_context_fast_path,
+        plain_prose_response=_plain_prose_routing_proof(
+            early_routing, is_first_message=is_first_message,
+            context_fast_path=simple_context_fast_path, task_area=task_area_val,
+            complexity=complexity_val, previews=relevant_embedded_previews_val,
+        ),
         early_task_area=task_area_val if simple_context_fast_path else None,
         topic_area=_normalize_topic_area(llm_analysis_args.get("topic_area")),
         topic_shift=llm_analysis_args.get("topic_shift") if isinstance(llm_analysis_args.get("topic_shift"), str) else None,

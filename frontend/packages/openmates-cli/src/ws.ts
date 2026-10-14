@@ -57,6 +57,8 @@ export interface ProjectRemoteAccessRequestFrame {
 export interface StreamEvent {
   /** Event type. */
   kind: "typing" | "chunk" | "done";
+  /** False for an interim final frame; true only after continuation gates clear. */
+  responseTerminal?: boolean;
   /** Cumulative content so far (only on chunk/done). */
   content: string;
   /** AI category (e.g. "general_knowledge"). */
@@ -66,6 +68,14 @@ export interface StreamEvent {
   /** Server AI task ID, when present in the stream. Used to request cancellation. */
   taskId?: string;
   mateName?: string;
+  /** Initial preprocessing metadata, fenced to this collector's original turn. */
+  chatTitle?: string;
+  chatIcon?: string;
+  chatId?: string;
+  turnId?: string;
+  userMessageId?: string;
+  sourceTitleVersion?: number;
+  sourceMetadataVersion?: number;
   /** Transient suggestion from the final authored response. */
   suggestedFollowupMessage?: string;
   /** Cumulative thinking text received for this response. */
@@ -496,6 +506,8 @@ export class OpenMatesWsClient {
   private recoveryOutputDiscoveryComplete = false;
   private readonly remoteCommandReviewDeferredHandlers = new Set<(payload: Record<string, unknown>) => void>();
   private activeResponseCollectors = 0;
+  private readonly typedObservers = new Map<string, Set<(payload: unknown) => void>>();
+  private readonly closeObservers = new Set<() => void>();
 
   constructor(options: {
     apiUrl: string;
@@ -550,8 +562,21 @@ export class OpenMatesWsClient {
     this.socket.on("close", () => {
       if (this.presenceTimer) clearInterval(this.presenceTimer);
       this.presenceTimer = null;
+      for (const handler of [...this.closeObservers]) {
+        try { handler(); } catch { /* Observer failure is isolated. */ }
+      }
+      this.closeObservers.clear();
+      this.typedObservers.clear();
     });
     this.socket.on("message", (rawData: RawData) => {
+      // Every typed observer shares this single transport listener. Copy the
+      // set so disposal/registration inside a callback cannot alter delivery.
+      try {
+        const parsed = JSON.parse(rawData.toString()) as WsEnvelope;
+        for (const handler of [...(this.typedObservers.get(parsed.type) ?? [])]) {
+          try { handler(parsed.payload); } catch { /* Observer failure is isolated. */ }
+        }
+      } catch { /* Malformed frames are ignored. */ }
       try {
         const frame = JSON.parse(rawData.toString()) as { type?: string; payload?: { capabilities?: unknown } };
         if (frame.type === "server_capabilities") {
@@ -702,6 +727,55 @@ export class OpenMatesWsClient {
         encrypted_description: string | null; auto_selection: true; focus_activation_policy: "delayed" | "immediate" | "approval" }> };
   }
 
+  /** Conditional read on this authenticated socket; a send receipt is never reusable. */
+  async requestPersonalSendContextSnapshotV2(input: {
+    request_id: string; purpose: "prepare" | "send"; turn_id: string | null; known_generation?: string;
+  }, timeoutMs = 5_000): Promise<{
+    privacy_generation: string | null; unchanged: boolean; receipt_id: string | null; turn_id: string | null;
+    personal_memories?: { encrypted_settings: string | null; memories: Array<Record<string, unknown>> };
+    project_candidates: Array<{ project_id: string; encrypted_project_key: string; encrypted_name: string;
+      encrypted_description: string | null; auto_selection: true; focus_activation_policy: "delayed" | "immediate" | "approval" }>;
+  }> {
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuid.test(input.request_id) || (input.purpose === "send" ? !input.turn_id || !uuid.test(input.turn_id) : input.turn_id !== null)) {
+      throw new Error("Invalid conditional Personal snapshot identity.");
+    }
+    const result = this.waitForMessage("personal_send_context_snapshot_result", payload =>
+      !!payload && typeof payload === "object" && (payload as Record<string, unknown>).request_id === input.request_id, timeoutMs);
+    void result.catch(() => {});
+    await this.sendAsync("personal_send_context_snapshot", input);
+    const frame = (await result).payload as Record<string, unknown>;
+    if (!frame || frame.success !== true || typeof frame.unchanged !== "boolean"
+      || (frame.privacy_generation !== null && typeof frame.privacy_generation !== "string")
+      || frame.turn_id !== input.turn_id
+      || (input.purpose === "send" ? typeof frame.receipt_id !== "string" || !uuid.test(frame.receipt_id) : frame.receipt_id !== null)
+      || (frame.unchanged && (!input.known_generation || frame.privacy_generation !== input.known_generation))) {
+      throw new Error("Invalid conditional Personal snapshot receipt.");
+    }
+    const memory = frame.personal_memories as Record<string, unknown> | undefined;
+    if (!frame.unchanged && (!memory || (memory.encrypted_settings !== null && typeof memory.encrypted_settings !== "string")
+      || !Array.isArray(memory.memories) || memory.memories.some(row => !row || typeof row !== "object" || Array.isArray(row)))) {
+      throw new Error("Invalid conditional Personal Memory snapshot.");
+    }
+    if (!Array.isArray(frame.project_candidates) || frame.project_candidates.length > 40) throw new Error("Invalid conditional Personal Project snapshot.");
+    const ids = new Set<string>();
+    for (const row of frame.project_candidates) {
+      if (!row || typeof row !== "object" || Array.isArray(row) || typeof row.project_id !== "string"
+        || !uuid.test(row.project_id) || ids.has(row.project_id) || !row.encrypted_project_key || typeof row.encrypted_project_key !== "string"
+        || !row.encrypted_name || typeof row.encrypted_name !== "string"
+        || (row.encrypted_description !== null && typeof row.encrypted_description !== "string")
+        || row.auto_selection !== true || !["delayed", "immediate", "approval"].includes(row.focus_activation_policy)) {
+        throw new Error("Invalid conditional Personal Project snapshot.");
+      }
+      ids.add(row.project_id);
+    }
+    return { privacy_generation: frame.privacy_generation as string | null, unchanged: frame.unchanged,
+      receipt_id: frame.receipt_id as string | null, turn_id: frame.turn_id as string | null,
+      ...(!frame.unchanged ? { personal_memories: memory as { encrypted_settings: string | null; memories: Array<Record<string, unknown>> } } : {}),
+      project_candidates: frame.project_candidates as Array<{ project_id: string; encrypted_project_key: string; encrypted_name: string;
+        encrypted_description: string | null; auto_selection: true; focus_activation_policy: "delayed" | "immediate" | "approval" }> };
+  }
+
   async open(timeoutMs = 10_000, signal?: AbortSignal): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       let settled = false;
@@ -791,8 +865,8 @@ export class OpenMatesWsClient {
   }
 
   onClose(handler: () => void): () => void {
-    this.socket.once("close", handler);
-    return () => this.socket.off("close", handler);
+    this.closeObservers.add(handler);
+    return () => this.closeObservers.delete(handler);
   }
 
   send(type: string, payload: unknown): void {
@@ -813,16 +887,14 @@ export class OpenMatesWsClient {
   }
 
   onMessageType<T = unknown>(expectedType: string, handler: (payload: T) => void): () => void {
-    const onMessage = (rawData: RawData) => {
-      try {
-        const parsed = JSON.parse(rawData.toString()) as WsEnvelope<T>;
-        if (parsed.type === expectedType) handler(parsed.payload);
-      } catch {
-        // Ignore malformed or unrelated frames.
-      }
+    const observer = handler as (payload: unknown) => void;
+    let handlers = this.typedObservers.get(expectedType);
+    if (!handlers) this.typedObservers.set(expectedType, handlers = new Set());
+    handlers.add(observer);
+    return () => {
+      handlers.delete(observer);
+      if (!handlers.size && this.typedObservers.get(expectedType) === handlers) this.typedObservers.delete(expectedType);
     };
-    this.socket.on("message", onMessage);
-    return () => this.socket.off("message", onMessage);
   }
 
   onRemoteCommandReviewDeferred(handler: (payload: Record<string, unknown>) => void): () => void {
@@ -1166,6 +1238,8 @@ export class OpenMatesWsClient {
         event: AppSettingsMemoriesRequestEvent,
       ) => void | Promise<void>;
       recoveryTurnId?: string | null;
+      /** Required reply collection may complete before optional metadata. */
+      waitForPostProcessing?: boolean;
       projectWriteApprovalInteractive?: boolean;
       remoteCommandReviewInteractive?: boolean;
     },
@@ -1199,7 +1273,12 @@ export class OpenMatesWsClient {
     promptBudget: AiResponsePromptBudget | null;
   }> {
     const timeoutMs = options?.timeoutMs ?? 90_000;
-    const onStream = options?.onStream;
+    let responseTerminalEmitted = false;
+    const onStream = options?.onStream ? (event: StreamEvent) => {
+      if (event.kind === "done" && event.responseTerminal !== false) responseTerminalEmitted = true;
+      else if (event.kind === "typing" || event.kind === "chunk") responseTerminalEmitted = false;
+      options.onStream?.(event);
+    } : undefined;
     const asyncEmbedWaitMs = options?.asyncEmbedWaitMs ?? DEFAULT_ASYNC_EMBED_WAIT_MS;
 
     return new Promise((resolve, reject) => {
@@ -1248,7 +1327,7 @@ export class OpenMatesWsClient {
       let waitingForUserPayload: Record<string, unknown> | null = null;
       // Track whether the AI response is done so we can wait for post-processing.
       let aiResponseDone = false;
-      let postProcessingDone = false;
+      let postProcessingDone = options?.waitForPostProcessing === false;
       // Post-processing metadata arrives up to ~10 s after the AI response.
       // We wait a short window for it so follow-up suggestions are available.
       const POST_PROCESSING_WINDOW_MS = 12_000;
@@ -1580,6 +1659,9 @@ export class OpenMatesWsClient {
           return;
         }
         aiResponseDone = true;
+        if (!responseTerminalEmitted) onStream?.({ kind: "done", responseTerminal: true, content, category, modelName,
+          taskId: taskId ?? undefined, thinkingContent, thinkingActive: false });
+        if (options?.waitForPostProcessing === false) postProcessingDone = true;
         latestContent = content;
         clearTimeout(timeout);
         if (postProcessingDone) {
@@ -1855,7 +1937,8 @@ export class OpenMatesWsClient {
                 awaitingFocusModeContinuation = true;
               }
               onStream?.({
-                kind: "done",
+                kind: "done", responseTerminal: pendingProjectOperations.size === 0 && !awaitingUnidentifiedAsyncContinuation
+                  && !awaitingFocusModeContinuation && !awaitingSubChatsCompletion,
                 content: latestContent,
                 category,
                 modelName,
@@ -1899,7 +1982,8 @@ export class OpenMatesWsClient {
               awaitingUnidentifiedAsyncContinuation = true;
               resetTimeout(Math.max(timeoutMs, 20 * 60_000 + 5_000));
             }
-            onStream?.({ kind: "done", content, category, modelName, taskId: taskId ?? undefined, thinkingContent, thinkingActive: false });
+            onStream?.({ kind: "done", responseTerminal: pendingProjectOperations.size === 0 && !awaitingUnidentifiedAsyncContinuation
+                  && !awaitingFocusModeContinuation && !awaitingSubChatsCompletion, content, category, modelName, taskId: taskId ?? undefined, thinkingContent, thinkingActive: false });
             scheduleResolve(content);
             return;
           }
@@ -1922,7 +2006,8 @@ export class OpenMatesWsClient {
             if (typeof message.model_name === "string" && message.model_name) {
               modelName = message.model_name;
             }
-            onStream?.({ kind: "done", content, category, modelName, taskId: taskId ?? undefined, thinkingContent, thinkingActive: false });
+            onStream?.({ kind: "done", responseTerminal: pendingProjectOperations.size === 0 && !awaitingUnidentifiedAsyncContinuation
+                  && !awaitingFocusModeContinuation && !awaitingSubChatsCompletion, content, category, modelName, taskId: taskId ?? undefined, thinkingContent, thinkingActive: false });
             scheduleResolve(content);
             return;
           }
@@ -1932,6 +2017,8 @@ export class OpenMatesWsClient {
             if (p.chat_id !== chatId
               || (p.user_message_id !== undefined && p.user_message_id !== userMessageId)
               || (p.userMessageId !== undefined && p.userMessageId !== userMessageId)) return;
+            if (p.turn_id !== undefined && p.turn_id !== options?.recoveryTurnId) return;
+            const priorTaskId = taskId;
             beginProjectContinuation(p);
             capture(p);
             // The typing broadcast carries the task ID as message_id.
@@ -1940,8 +2027,12 @@ export class OpenMatesWsClient {
             }
             // Preprocessing owns the initial title; post-processing only retitles
             // conversations that drift. Preserve both until encrypted persistence.
-            if (typeof p.title === "string" && p.title.trim()) generatedTitle = p.title.trim();
-            if (Array.isArray(p.icon_names)) {
+            const ownedInitialMetadata = (p.user_message_id === userMessageId || p.userMessageId === userMessageId)
+              && (p.turn_id === undefined || p.turn_id === options?.recoveryTurnId)
+              && p.is_continuation !== true
+              && (!priorTaskId || p.task_id === priorTaskId || p.message_id === priorTaskId);
+            if (ownedInitialMetadata && typeof p.title === "string" && p.title.trim()) generatedTitle = p.title.trim();
+            if (ownedInitialMetadata && Array.isArray(p.icon_names)) {
               generatedIcon = p.icon_names.find((icon): icon is string => typeof icon === "string" && icon.trim().length > 0) ?? generatedIcon;
             }
             onStream?.({
@@ -1951,6 +2042,12 @@ export class OpenMatesWsClient {
               modelName,
               taskId: taskId ?? undefined,
               mateName: typeof p.mate_name === "string" ? p.mate_name : undefined,
+              ...(ownedInitialMetadata && (generatedTitle || generatedIcon) ? {
+                chatTitle: generatedTitle ?? undefined, chatIcon: generatedIcon ?? undefined,
+                chatId, turnId: options?.recoveryTurnId ?? undefined, userMessageId,
+                sourceTitleVersion: Number.isSafeInteger(p.source_title_v) ? p.source_title_v as number : undefined,
+                sourceMetadataVersion: Number.isSafeInteger(p.source_metadata_v) ? p.source_metadata_v as number : undefined,
+              } : {}),
               thinkingContent,
               thinkingActive: false,
             });

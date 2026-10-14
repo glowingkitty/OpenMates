@@ -85,6 +85,7 @@ async def handle_chat_turn_admit(
     payload: dict[str, Any], stable_device_fingerprint_hash: str | None = None,
     user_otel_attrs: dict | None = None, is_allowlisted_test_account: bool = False,
     schedule_context_dispatch: Callable[[ContextAdmissionLane], None] | None = None,
+    on_durable_admission: Callable[[], None] | None = None,
 ) -> None:
     request = payload.get("inference_request")
     message = request.get("message") if isinstance(request, dict) else None
@@ -219,6 +220,8 @@ async def handle_chat_turn_admit(
                 **({"enqueue_result": acknowledgement}
                    if acknowledgement.get("state") == "ENQUEUED" else {}),
             }
+    if on_durable_admission is not None:
+        on_durable_admission()
     from backend.core.api.app.routes.handlers.websocket_handlers.message_received_handler import (
         handle_message_received,
     )

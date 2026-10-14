@@ -1,3 +1,5 @@
+import { getWorkspaceCacheEpoch } from "./workspaceCacheLifecycle";
+import { isChatMetadataTurnCurrent } from "./lateChatMetadataGuard";
 import { get } from 'svelte/store';
 import type { Chat, AIMessageUpdatePayload } from '../types/chat';
 import { authStore } from '../stores/authStore';
@@ -52,6 +54,11 @@ export async function persistComposerGhostSuggestion(
   serviceInstance: ChatSynchronizationService,
   dispatch: (suggestion: ComposerGhostSuggestion) => void,
 ): Promise<void> {
+  const ownerEpoch = getWorkspaceCacheEpoch();
+  const isCurrent = () => ownerEpoch === getWorkspaceCacheEpoch()
+    && isChatMetadataTurnCurrent(payload.chat_id, payload.task_id, payload.user_message_id)
+    && (!serviceInstance.activeAITasks.get(payload.chat_id)
+      || serviceInstance.activeAITasks.get(payload.chat_id)?.taskId === payload.task_id);
   const text = payload.suggested_followup_message?.trim();
   if (!text || text.length > 400 || !payload.is_final_chunk ||
       payload.awaiting_async_skill_continuation || payload.interrupted_by_revocation ||
@@ -64,7 +71,7 @@ export async function persistComposerGhostSuggestion(
     await new Promise((resolve) => setTimeout(resolve, delay));
     chat = await chatDB.getChat(payload.chat_id);
   }
-  if (!chat || !chatAllowsComposerGhostSuggestion(chat)) return;
+  if (!chat || !isCurrent() || !chatAllowsComposerGhostSuggestion(chat)) return;
   const suggestion: ComposerGhostSuggestion = {
     text, sourceMessageId: payload.message_id,
     sourceUserMessageId: payload.user_message_id, sourceTaskId: payload.task_id,
@@ -77,7 +84,7 @@ export async function persistComposerGhostSuggestion(
   // Recheck scope after every async key operation; logout or Team switches must not
   // leave a suggestion in the next account's local chat projection.
   const latest = await chatDB.getChat(payload.chat_id);
-  if (!latest || !latest.encrypted_chat_key || !chatAllowsComposerGhostSuggestion(latest)) return;
+  if (!isCurrent() || !latest || !latest.encrypted_chat_key || !chatAllowsComposerGhostSuggestion(latest)) return;
   latest.encrypted_suggested_followup_message = encrypted;
   await chatDB.updateChat(latest);
   const outgoing = {
@@ -104,7 +111,7 @@ export async function persistComposerGhostSuggestion(
   const send = async () => {
     if (settled || attempts >= 2) return;
     const current = await chatDB.getChat(payload.chat_id);
-    if (!current || !chatAllowsComposerGhostSuggestion(current) || current.encrypted_chat_key !== outgoing.encrypted_chat_key) {
+    if (!isCurrent() || !current || !chatAllowsComposerGhostSuggestion(current) || current.encrypted_chat_key !== outgoing.encrypted_chat_key) {
       cleanup();
       return;
     }

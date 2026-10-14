@@ -11,6 +11,21 @@ const { getTestAccount, generateTotp } = require('./signup-flow-helpers');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
+function parsePersonalPrivacyProof(output: string): Record<string, unknown> {
+	const marker = 'OPENMATES_PERSONAL_PRIVACY_PROOF=';
+	const marked = output.split(/\r?\n/).filter(line => line.startsWith(marker));
+	if (marked.length !== 1) {
+		throw new Error(`Personal privacy probe expected one proof marker; received ${marked.length}`);
+	}
+	let proof: unknown;
+	try { proof = JSON.parse(marked[0].slice(marker.length)); }
+	catch { throw new Error('Personal privacy probe returned a malformed proof marker'); }
+	if (!proof || typeof proof !== 'object' || Array.isArray(proof)) {
+		throw new Error('Personal privacy probe returned an invalid proof object');
+	}
+	return proof as Record<string, unknown>;
+}
+
 function expireIsolatedAccessWindow(token: string): void {
 	const sourceRoot = process.env.OPENMATES_CI_SOURCE_ROOT;
 	if (process.env.OPENMATES_CI_ISOLATED !== '1' || !sourceRoot) {
@@ -80,7 +95,7 @@ async function refreshCookie(context: any): Promise<string> {
 }
 
 function updateIsolatedPersonalMemoryRows(userId: string, ownerRowId: string, foreignRowId: string,
-	marker: string, mode: 'seed' | 'delete'): void {
+	marker: string, mode: 'seed' | 'update' | 'settings' | 'delete'): void {
 	const sourceRoot = process.env.OPENMATES_CI_SOURCE_ROOT;
 	if (process.env.OPENMATES_CI_ISOLATED !== '1' || !sourceRoot) {
 		throw new Error('Personal memory fixture requires the disposable isolated CI backend.');
@@ -91,13 +106,22 @@ function updateIsolatedPersonalMemoryRows(userId: string, ownerRowId: string, fo
 		'import asyncio, hashlib, json, sys, time, uuid',
 		'from backend.core.api.app.services.directus import DirectusService',
 		'data = json.load(sys.stdin)',
-		'assert data["mode"] in ("seed", "delete")',
+		'assert data["mode"] in ("seed", "update", "settings", "delete")',
 		'assert all(isinstance(data[key], str) and data[key] for key in ("user_id", "owner_id", "foreign_id", "marker"))',
 		'assert uuid.UUID(data["owner_id"]) and uuid.UUID(data["foreign_id"])',
 		'async def main():',
 		'    directus = DirectusService()',
 		'    try:',
 		'        ids = (data["owner_id"], data["foreign_id"])',
+		'        if data["mode"] == "update":',
+		'            assert await directus._update_item("user_app_settings_and_memories", data["owner_id"], {"encrypted_item_json": data["marker"] + ":updated", "item_version": 2}, admin_required=True)',
+		'            return',
+		'        if data["mode"] == "settings":',
+		'            profile = await directus.get_user_fields_direct(data["user_id"], ["id", "encrypted_settings"], no_cache=True)',
+		'            assert profile and "encrypted_settings" in profile',
+		'            assert await directus.update_user(data["user_id"], {"encrypted_settings": data["marker"]})',
+		'            assert await directus.update_user(data["user_id"], {"encrypted_settings": profile["encrypted_settings"]})',
+		'            return',
 		'        if data["mode"] == "delete":',
 		'            for row_id in ids:',
 		'                found = await directus.get_items("user_app_settings_and_memories", params={"filter": {"id": {"_eq": row_id}}, "limit": 1}, no_cache=True)',
@@ -372,9 +396,10 @@ test('Personal memory snapshot socket returns scoped ciphertext once and rejects
 	}
 });
 
-// contract-test: direct surface=gui.web assertions=auth.session.authoritative-enforcement,auth.session.isolation
-test('Personal send-context socket returns fresh scoped ciphertext and eligible Project metadata once', async ({ page, playwright }: any) => {
-	test.setTimeout(150000);
+// contract-test: direct surface=gui.web assertions=auth.session.authoritative-enforcement,auth.session.isolation,ai-model-routing.preprocessing.prepared-privacy
+// contract-test: direct surface=rest_api assertions=ai-model-routing.preprocessing.prepared-privacy
+test('Personal send-context v2 preserves scoped ciphertext, durable generation and one-use receipts', async ({ page, playwright }: any) => {
+	test.setTimeout(240000);
 	test.skip(process.env.OPENMATES_CI_ISOLATED !== '1', 'Requires the disposable isolated CI backend.');
 	const credentials = getTestAccount();
 	skipWithoutCredentials(test, credentials.email, credentials.password, credentials.otpKey);
@@ -414,7 +439,27 @@ test('Personal send-context socket returns fresh scoped ciphertext and eligible 
 		updateIsolatedPersonalMemoryRows(ownerId!, memoryIds.owner, memoryIds.foreign, marker, 'seed');
 		projectsSeeded = true;
 		updateIsolatedSendContextProjects(ownerId!, projectIds, marker, 'seed');
+		const fixtureRoot = process.env.OPENMATES_CI_SOURCE_ROOT!;
+		const generationProbe = fs.readFileSync(path.join(fixtureRoot,
+			'backend/core/directus/extensions/personal-privacy-snapshot/test/postgres_probe.py'), 'utf8');
+		const encodedProbe = Buffer.from(generationProbe, 'utf8').toString('base64');
+		const generationProbeWrapper = [
+			'import base64, json, sys',
+			'namespace = {"__name__": "openmates_personal_privacy_fixture"}',
+			`exec(compile(base64.b64decode(${JSON.stringify(encodedProbe)}), "<personal_privacy_probe>", "exec"), namespace)`,
+			'proof = namespace["run"](json.load(sys.stdin))',
+			'print("OPENMATES_PERSONAL_PRIVACY_PROOF=" + json.dumps(proof, separators=(",", ":"), sort_keys=True), flush=True)',
+		].join('\n');
+		const generationProof = parsePersonalPrivacyProof(execFileSync('docker', ['compose', '-f',
+			path.join(fixtureRoot, 'test-results/ci-private/compose.json'), 'run', '--rm', '--no-deps', '-T',
+			'--entrypoint', 'python', 'cms-setup', '-c', generationProbeWrapper], {
+			input: JSON.stringify({user_id:ownerId}), stdio:['pipe','pipe','pipe'], timeout:30000
+		}).toString());
+		expect(generationProof).toEqual({concurrent_snapshot_commit_fence:true,sql_import_update_delete:true,
+			team_excluded:true,settings_write:true,reset_epoch:true});
 		await page.exposeFunction('__challengePersonalSendContext', () => challengeIsolatedSession(cookie));
+		await page.exposeFunction('__mutatePreparedPrivacy', (mode: 'update' | 'settings' | 'delete') =>
+			updateIsolatedPersonalMemoryRows(ownerId!, memoryIds.owner, memoryIds.foreign, marker, mode));
 		const results = await page.evaluate(async (observedUrl: string) => {
 			const sockets: WebSocket[] = [];
 			const openSocket = () => new Promise<{ socket: WebSocket; capabilities: string[] }>((resolve, reject) => {
@@ -423,11 +468,13 @@ test('Personal send-context socket returns fresh scoped ciphertext and eligible 
 				const socket = new WebSocket(url);
 				sockets.push(socket);
 				const timeout = setTimeout(() => reject(new Error('Send-context socket did not advertise capabilities')), 20000);
+				const closed=(event:CloseEvent)=>{clearTimeout(timeout);reject(new Error(`server_capabilities socket closed (code ${event.code})`));};
+				socket.addEventListener('close',closed,{once:true});
 				socket.addEventListener('message', (event) => {
 					let frame: { type?: string; payload?: { capabilities?: string[] } };
 					try { frame = JSON.parse(String(event.data)); } catch { return; }
 					if (frame.type !== 'server_capabilities') return;
-					clearTimeout(timeout);
+					clearTimeout(timeout);socket.removeEventListener('close',closed);
 					resolve({ socket, capabilities: frame.payload?.capabilities ?? [] });
 				});
 				socket.addEventListener('error', () => {
@@ -435,26 +482,30 @@ test('Personal send-context socket returns fresh scoped ciphertext and eligible 
 					reject(new Error('Send-context socket failed to open'));
 				}, { once: true });
 			});
-			const request = (socket: WebSocket, type: 'personal_send_context_snapshot' | 'personal_memory_snapshot') =>
-				new Promise<Record<string, any>>((resolve, reject) => {
-					const requestId = crypto.randomUUID();
-					const expected = type === 'personal_send_context_snapshot'
-						? 'personal_send_context_snapshot_result' : 'personal_memory_snapshot_result';
-					const timeout = setTimeout(() => {
-						socket.removeEventListener('message', receive);
-						reject(new Error('Send-context result timed out'));
-					}, 20000);
-					function receive(event: MessageEvent) {
-						let frame: { type?: string; payload?: Record<string, any> };
-						try { frame = JSON.parse(String(event.data)); } catch { return; }
-						if (frame.type !== expected || frame.payload?.request_id !== requestId) return;
-						clearTimeout(timeout);
-						socket.removeEventListener('message', receive);
-						resolve(frame.payload);
+			const waitForFrame = (socket: WebSocket, operation: string,
+				matches: (frame: Record<string, any>) => boolean, send: () => void) =>
+				new Promise<Record<string, any>>((resolve,reject) => {
+					const finish = (error?: Error, frame?: Record<string, any>) => {
+						clearTimeout(timeout);socket.removeEventListener('message',receive);socket.removeEventListener('close',closed);
+						if(error)reject(error);else resolve(frame!);
+					};
+					const timeout=setTimeout(()=>finish(new Error(`${operation} result timed out`)),20000);
+					function receive(event:MessageEvent) {
+						let frame:any;try{frame=JSON.parse(String(event.data));}catch{return;}
+						if(matches(frame))finish(undefined,frame);
 					}
-					socket.addEventListener('message', receive);
-					socket.send(JSON.stringify({ type, payload: { request_id: requestId } }));
+					function closed(event:CloseEvent) { finish(new Error(`${operation} socket closed (code ${event.code})`)); }
+					socket.addEventListener('message',receive);socket.addEventListener('close',closed);
+					if(socket.readyState !== WebSocket.OPEN)return finish(new Error(`${operation} socket is not open`));
+					try{send();}catch{finish(new Error(`${operation} request could not be sent`));}
 				});
+			const request = async (socket: WebSocket, type: 'personal_send_context_snapshot' | 'personal_memory_snapshot') => {
+				const requestId=crypto.randomUUID();
+				const frame=await waitForFrame(socket,type,
+					frame=>frame.type === `${type}_result` && frame.payload?.request_id === requestId,
+					()=>socket.send(JSON.stringify({type,payload:{request_id:requestId}})));
+				return frame.payload;
+			};
 			try {
 				const first = await openSocket();
 				const combined = await request(first.socket, 'personal_send_context_snapshot');
@@ -462,15 +513,127 @@ test('Personal send-context socket returns fresh scoped ciphertext and eligible 
 				const second = await openSocket();
 				const oldFirst = await request(second.socket, 'personal_memory_snapshot');
 				const combinedAfterOld = await request(second.socket, 'personal_send_context_snapshot');
+				const v2Request = async (socket: WebSocket, purpose: 'prepare' | 'send', known?: string) => {
+					const requestId=crypto.randomUUID();
+					const frame=await waitForFrame(socket,`personal_send_context_snapshot:${purpose}`,
+						frame=>frame.type === 'personal_send_context_snapshot_result' && frame.payload?.request_id === requestId,
+						()=>socket.send(JSON.stringify({type:'personal_send_context_snapshot',payload:{request_id:requestId,purpose,
+							turn_id:purpose === 'send' ? crypto.randomUUID() : null,...(known ? {known_generation:known} : {})}})));
+					return frame.payload;
+				};
+				const admissionError = async (socket: WebSocket, receipt: Record<string, any>, type = 'chat_turn_admit') => {
+					const frame=await waitForFrame(socket,type,
+						frame=>frame.type === 'error' && frame.payload?.turn_id === receipt.turn_id,
+						()=>socket.send(JSON.stringify({type,payload:{turn_id:receipt.turn_id,
+							privacy_receipt_id:receipt.receipt_id,privacy_generation:receipt.privacy_generation}})));
+					return frame.payload.code;
+				};
+				const prepared = await v2Request(first.socket,'prepare');
+				const unchanged = await v2Request(first.socket,'send',prepared.privacy_generation);
+				const parallelFollowup = await v2Request(first.socket,'send',prepared.privacy_generation);
+				const crossSocket = await admissionError(second.socket,unchanged);
+				const admittedMalformed = await admissionError(first.socket,unchanged);
+				const parallelAdmittedMalformed = await admissionError(first.socket,parallelFollowup);
+				const replay = await admissionError(first.socket,unchanged);
+				await (window as any).__mutatePreparedPrivacy('update');
+				const updated = await v2Request(first.socket,'send',prepared.privacy_generation);
+				await (window as any).__mutatePreparedPrivacy('settings');
+				const settingsChanged = await v2Request(first.socket,'send',updated.privacy_generation);
+				await (window as any).__mutatePreparedPrivacy('delete');
+				const deleted = await v2Request(first.socket,'send',settingsChanged.privacy_generation);
+				const acceptedReceipt = await v2Request(first.socket,'send',deleted.privacy_generation);
+				const receiptChatId = crypto.randomUUID();
+				const receiptMessageId = crypto.randomUUID();
+				const now = Math.floor(Date.now()/1000);
+				const preflightPayload = {protocol_version:1,chat_id:receiptChatId,turn_id:acceptedReceipt.turn_id,
+					message_id:receiptMessageId,chat_key_version:1,expected_messages_v:0,
+					encrypted_chat_key:'synthetic-opaque-key',recovery_public_key:'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+					privacy_receipt_id:acceptedReceipt.receipt_id,privacy_generation:acceptedReceipt.privacy_generation,
+					encrypted_user_message:{client_message_id:receiptMessageId,chat_id:receiptChatId,role:'user',
+						encrypted_content:'synthetic-opaque-content',created_at:now,updated_at:now},
+					encrypted_chat_metadata:{encrypted_title:'synthetic-opaque-title',encrypted_chat_key:'synthetic-opaque-key',created_at:now,updated_at:now},
+					inference_request:{chat_id:receiptChatId,turn_id:acceptedReceipt.turn_id,is_incognito:false,
+						message:{message_id:receiptMessageId,chat_id:receiptChatId,role:'user',content:'Synthetic privacy receipt fixture'}}};
+				const sendPreflight = (body:Record<string,any>) => waitForFrame(first.socket,'chat_turn_preflight',
+					frame=>['chat_turn_preflight_ack','error'].includes(frame.type) && frame.payload?.turn_id === body.turn_id,
+					()=>first.socket.send(JSON.stringify({type:'chat_turn_preflight',payload:body})));
+				const requirePreflightAck = (frame:Record<string,any>) => {
+					if(frame.type !== 'chat_turn_preflight_ack') {
+						const raw=frame.payload?.code;
+						const code=typeof raw === 'string' && /^[a-z0-9_]{1,80}$/.test(raw) ? raw : 'unknown';
+						throw new Error(`chat_turn_preflight rejected (type error, code ${code})`);
+					}
+				};
+				let durableReceiptProof:Record<string,any>;
+				let cleanupFailure:unknown;
+				let cleanupFailed=false;
+				const cleanupReceiptChat = async () => {
+					const cleaned=await waitForFrame(first.socket,'delete_chat',
+						frame=>(frame.type === 'chat_deleted' || frame.type === 'error') && frame.payload?.chat_id === receiptChatId,
+						()=>first.socket.send(JSON.stringify({type:'delete_chat',payload:{chatId:receiptChatId}})));
+					if(cleaned.type !== 'chat_deleted')throw new Error('delete_chat cleanup rejected (type error)');
+				};
+				let primaryFailed=false;
+				try {
+					const originalAck=await sendPreflight(preflightPayload);
+					requirePreflightAck(originalAck);
+					// Treat the first ACK as lost and retry the exact wire envelope.
+					const retryAck=await sendPreflight(preflightPayload);
+					requirePreflightAck(retryAck);
+					const changedReplay=await sendPreflight({...preflightPayload,expected_messages_v:1});
+					durableReceiptProof={originalAck,retryAck,changedReplay};
+				} catch(error) {primaryFailed=true;throw error;}
+				finally {
+					try {
+						await cleanupReceiptChat();
+					} catch(cleanupError) {
+						cleanupFailed=true;
+						cleanupFailure=cleanupError;
+						if(primaryFailed)console.warn('delete_chat cleanup also failed; preserving the primary preflight failure');
+					}
+				}
+				if(cleanupFailed)throw cleanupFailure;
+				const preparedResults = {prepared,unchanged,crossSocket,admittedMalformed,parallelFollowup,parallelAdmittedMalformed,replay,updated,settingsChanged,deleted,durableReceiptProof};
+
 				const third = await openSocket();
 				await (window as typeof window & { __challengePersonalSendContext: () => Promise<void> }).__challengePersonalSendContext();
 				const challenged = await request(third.socket, 'personal_send_context_snapshot');
-				return { capabilities: first.capabilities, combined, oldAfterCombined, oldFirst, combinedAfterOld, challenged };
+				const challengedV2 = await v2Request(third.socket,'send',deleted.privacy_generation);
+				return { capabilities: first.capabilities, combined, oldAfterCombined, oldFirst, combinedAfterOld, challenged, challengedV2, preparedResults };
 		} finally {
 			for (const socket of sockets) socket.close();
 		}
 		}, applicationSocketUrl as string);
 		expect(results.capabilities).toContain('personal_send_context_snapshot_v1');
+		expect(results.capabilities).toContain('personal_send_context_snapshot_v2');
+		const v2 = results.preparedResults;
+		expect(v2.prepared).toMatchObject({success:true,unchanged:false,receipt_id:null,turn_id:null});
+		expect(v2.prepared.privacy_generation).toEqual(expect.any(String));
+		expect(v2.unchanged).toMatchObject({success:true,unchanged:true,privacy_generation:v2.prepared.privacy_generation});
+		expect(Object.hasOwn(v2.unchanged,'personal_memories')).toBe(false);
+		expect(v2.unchanged.receipt_id).toEqual(expect.any(String));
+		expect(v2.crossSocket).toBe('invalid_personal_privacy_receipt');
+		expect(v2.admittedMalformed).toBe('invalid_chat_turn_admission');
+		expect(v2.parallelFollowup).toMatchObject({success:true,unchanged:true});
+		expect(v2.parallelFollowup.receipt_id).not.toBe(v2.unchanged.receipt_id);
+		expect(v2.parallelAdmittedMalformed).toBe('invalid_chat_turn_admission');
+		expect(v2.replay).toBe('invalid_personal_privacy_receipt');
+		expect(v2.durableReceiptProof.originalAck.type).toBe('chat_turn_preflight_ack');
+		expect(v2.durableReceiptProof.retryAck.type).toBe('chat_turn_preflight_ack');
+		expect(v2.durableReceiptProof.retryAck.payload.preflight_id).toBe(v2.durableReceiptProof.originalAck.payload.preflight_id);
+		expect(v2.durableReceiptProof.changedReplay).toMatchObject({type:'error',payload:{code:'invalid_personal_privacy_receipt'}});
+		for (const snapshot of [v2.updated,v2.settingsChanged,v2.deleted]) {
+			expect(snapshot).toMatchObject({success:true,unchanged:false});
+			expect(snapshot.personal_memories).toEqual(expect.any(Object));
+		}
+		expect(v2.updated.privacy_generation).not.toBe(v2.prepared.privacy_generation);
+		expect(v2.settingsChanged.privacy_generation).not.toBe(v2.updated.privacy_generation);
+		expect(v2.deleted.privacy_generation).not.toBe(v2.settingsChanged.privacy_generation);
+		expect(v2.updated.personal_memories.memories.some((row:any)=>row.id === memoryIds.owner && row.encrypted_item_json === `${marker}:updated`)).toBe(true);
+		expect(v2.deleted.personal_memories.memories.some((row:any)=>row.id === memoryIds.owner)).toBe(false);
+		expect(results.challengedV2).toMatchObject({success:false,error:{code:'unauthorized'}});
+		expect(Object.hasOwn(results.challengedV2,'personal_memories')).toBe(false);
+
 		expect(results.combined.success).toBe(true);
 		expect(Object.keys(results.combined).sort()).toEqual(['personal_memories', 'project_candidates', 'request_id', 'success']);
 		const batch = results.combined.personal_memories;

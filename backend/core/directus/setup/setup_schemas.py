@@ -1573,6 +1573,25 @@ def apply_and_verify_workflow_runtime_indexes():
     print(f"Verified {len(WORKFLOW_RUNTIME_INDEXES)} workflow runtime indexes")
 
 
+def apply_and_verify_personal_privacy_generation():
+    """Install the durable all-writer privacy fence before advertising v2 reuse."""
+    path = os.getenv('PERSONAL_PRIVACY_GENERATION_MIGRATION_PATH',
+                     '/usr/src/app/migrations/migrate_personal_privacy_generation.sql')
+    with open(path, 'r', encoding='utf-8') as migration_file:
+        sql = migration_file.read()
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+            cursor.execute("SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal AND tgenabled IN ('O','A') AND ("
+                           "(tgrelid = 'public.user_app_settings_and_memories'::regclass AND tgname IN "
+                           "('personal_privacy_memory_generation','personal_privacy_memory_truncate')) OR "
+                           "(tgrelid = 'public.directus_users'::regclass AND tgname = 'personal_privacy_settings_generation') OR "
+                           "(tgrelid = 'public.personal_privacy_generations'::regclass AND tgname = 'personal_privacy_clock_reset'))")
+            if cursor.fetchone()[0] != 4:
+                raise RuntimeError('Personal privacy generation trigger verification failed')
+    print('Verified durable Personal privacy generation triggers')
+
+
 def apply_and_verify_user_task_indexes():
     """Apply user task hot-path indexes before task boards and retention run."""
     if not os.path.isfile(USER_TASK_MIGRATION_PATH):
@@ -2057,6 +2076,7 @@ def setup_schemas():
 
         print("\n--- Applying user task database indexes ---")
         apply_and_verify_user_task_indexes()
+        apply_and_verify_personal_privacy_generation()
 
         print("\n--- Applying user work-control database indexes ---")
         apply_and_verify_user_work_control_indexes()

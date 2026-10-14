@@ -1,5 +1,41 @@
 schema_version: 1
-specification: feature.ai-model-routing@5
+specification: feature.ai-model-routing@6
+
+required_instructions:
+  - id: incomplete-cache-does-not-start-inference
+    assertion_ids: [ai-model-routing.instructions.required-safety]
+    given: A nonempty cached instruction bundle lacks ethics or mandatory privacy instructions.
+    when: An initial or follow-up request is prepared for the answer model.
+    then: The required bundle is reloaded and validated; if either section remains unavailable, inference does not start. Successful provider requests include the actual complete production sections.
+
+prepared_privacy:
+  - id: warm-unchanged-with-fresh-receipt
+    assertion_ids: [ai-model-routing.preprocessing.prepared-privacy]
+    given: The device has a correctly scoped prepared privacy snapshot and its durable aggregate generation.
+    when: Send validates current authority and the same generation.
+    then: The device reuses local decrypted detection options without fetching source bodies, and admission consumes a fresh expiring socket-and-turn-bound receipt once.
+  - id: changed-or-uncertain-source-reloads
+    assertion_ids: [ai-model-routing.preprocessing.prepared-privacy]
+    given: A Memory was created, changed or deleted, settings changed, a mutation event was lost, or account, Team, key, session or connection scope changed.
+    when: The device attempts to send using a prepared snapshot.
+    then: A mismatch or uncertain proof prevents stale reuse and requires the complete authorized snapshot before privacy-filtered content is transmitted.
+  - id: concurrent-write-cannot-certify-stale-snapshot
+    assertion_ids: [ai-model-routing.preprocessing.prepared-privacy]
+    given: A Memory or relevant settings write occurs concurrently with snapshot creation.
+    when: The server returns a certified snapshot and generation.
+    then: The returned generation covers exactly the returned consistent snapshot; missing or reset state cannot certify unchanged content.
+
+contextual_compact_assembly:
+  - id: factual-phrasing-and-followup-parity
+    assertion_ids: [ai-model-routing.preprocessing.contextual-compact-assembly]
+    given: Authoritative routing and context establish an ordinary factual answer without selected capabilities or active private context.
+    when: The request is What is the capital of Spain?, capital of france?, or And Germany? after the previous capital discussion.
+    then: The eligible compact prompt retains ethics, privacy, required behavior and the conversation needed to resolve references without optional unused format or tool guidance, and uses the configured default model and thinking policy.
+  - id: uncertainty-retains-required-context
+    assertion_ids: [ai-model-routing.preprocessing.contextual-compact-assembly]
+    given: The request has selected tools, private context, an active Focus, learning behavior, explicit overrides or incomplete authoritative context.
+    when: The latest user text is short or resembles a factual question.
+    then: Short wording cannot discard required context or instructions, and the complete relevant path remains available.
 
 tier_classification:
   - id: minimum-reasoning-depth

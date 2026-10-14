@@ -1,3 +1,11 @@
+import { invalidateWorkspaceCaches } from '../workspaceCacheLifecycle';
+beforeEach(() => invalidateWorkspaceCaches());
+vi.mock('../generatedChatMetadataPersistence', () => ({ persistGeneratedChatMetadata: vi.fn(async (_db: unknown, baseline: any, patch: any, isCurrent: () => boolean, filterPatch: (patch: any) => any = (value) => value) => {
+  if (!isCurrent()) return null;
+  const updated = { ...baseline, ...filterPatch(patch) };
+  await mockChatDB.updateChat(updated);
+  return updated;
+}) }));
 // frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
 // Regression coverage for AI websocket embed handlers.
 // These tests focus on event ordering races between embed_update and
@@ -6,6 +14,7 @@
 
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ChatSynchronizationService } from "../chatSyncService";
+import { noteChatMetadataTurn } from "../lateChatMetadataGuard";
 import { hasQueuedProcessing } from "../queuedMessageLifecycle";
 import { markAcknowledgedRecoveredEmbed, withCanonicalEmbedWrite } from "../canonicalEmbedWriteCoordinator";
 import {
@@ -1092,6 +1101,41 @@ describe("handlePostProcessingCompletedImpl", () => {
       `encrypted-master:${value}`,
     );
     mockSendPostProcessingMetadata.mockResolvedValue(undefined);
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.completion.independent-metadata,chats.local-state.precedence
+  it.each([false, true])("accepts version-bound late headers during a newer turn while preserving newer/manual edits (%s)", async (newerHeader) => {
+    noteChatMetadataTurn("chat-1", "new-task", "new-user");
+    const existingChat = {
+      chat_id: "chat-1", encrypted_chat_key: "encrypted-chat-key",
+      title_v: newerHeader ? 3 : 1, metadata_v: newerHeader ? 3 : 1,
+      encrypted_title: newerHeader ? "manual-title" : "initial-title",
+      encrypted_chat_summary: newerHeader ? "manual-summary" : null,
+      encrypted_draft_md: "edited draft",
+    };
+    mockChatDB.getChat.mockResolvedValue(existingChat);
+    mockChatDB.getMessagesForChat.mockResolvedValue([{ role: "user", message_id: "new-user", status: "synced" }]);
+    const service = { activeAITasks: new Map([["chat-1", { taskId: "new-task" }]]), dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    await handlePostProcessingCompletedImpl(service, {
+      chat_id: "chat-1", task_id: "old-task", user_message_id: "old-user",
+      source_title_v: 1, source_metadata_v: 1,
+      updated_chat_title: "Late title", chat_summary: "Late summary",
+      follow_up_request_suggestions: ["Old chips"], new_chat_request_suggestions: [], chat_tags: [], harmful_response: 0,
+    });
+    expect(mockChatDB.updateChat).toHaveBeenCalledWith(expect.objectContaining({
+      encrypted_title: newerHeader ? "manual-title" : "encrypted:Late title",
+      encrypted_chat_summary: newerHeader ? "manual-summary" : "encrypted:Late summary",
+      encrypted_draft_md: "edited draft",
+    }));
+    expect(mockEncryptArrayWithChatKey).not.toHaveBeenCalledWith(["Old chips"], expect.anything());
+    expect(vi.mocked(service.dispatchEvent).mock.calls.some(([event]) => event.type === "postProcessingCompleted")).toBe(false);
+    mockChatDB.updateChat.mockClear();
+    await handlePostProcessingCompletedImpl(service, {
+      chat_id: "chat-1", task_id: "old-task", user_message_id: "old-user",
+      updated_chat_title: "Unversioned stale title", chat_summary: "Unversioned stale summary",
+      follow_up_request_suggestions: ["Old chips"], new_chat_request_suggestions: [], chat_tags: [], harmful_response: 0,
+    });
+    expect(mockChatDB.updateChat).not.toHaveBeenCalled();
   });
 
   // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.local-state.precedence

@@ -1,4 +1,5 @@
 /** A tab-local, invisible new-chat shell reserved before the user presses Send. */
+import { warmPersonalPrivacyForSend } from "./preparedPrivacyForSend";
 import { get } from "svelte/store";
 import { authStore } from "../stores/authStore";
 import { userProfile } from "../stores/userProfile";
@@ -45,6 +46,7 @@ export function prepareChatForSend(input: {
   freshNewChatShell?: boolean;
 } = {}): void {
   const scope = currentScope();
+  if (scope) warmPersonalPrivacyForSend();
   const draftId = input.draftChatId ?? get(draftEditorUIState).currentChatId;
   // ActiveChat preallocates an ID for an unsent new-chat shell. A loaded chat
   // cannot opt into preparation without the fresh-shell signal and same draft ID.

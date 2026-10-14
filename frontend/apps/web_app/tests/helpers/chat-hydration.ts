@@ -30,8 +30,8 @@ export async function waitForHydratedChat(
   }
 }
 
-/** Select a chat only after the account's initial snapshot can no longer replace it. */
-export async function openChatAfterContextSync(page: Page, chatId: string, testInfo: TestInfo): Promise<void> {
+/** Settle initial account sync before seeding or selecting a local fixture chat. */
+export async function waitForContextSyncComplete(page: Page, testInfo: TestInfo): Promise<void> {
   const connectionState = () => page.evaluate(async () => {
     const hook = (window as typeof window & {
       __openmatesE2EChatConnectionState?: () => Promise<{
@@ -58,6 +58,11 @@ export async function openChatAfterContextSync(page: Page, chatId: string, testI
     });
     throw error;
   }
+}
+
+/** Select a chat only after the account's initial snapshot can no longer replace it. */
+export async function openChatAfterContextSync(page: Page, chatId: string, testInfo: TestInfo): Promise<void> {
+  await waitForContextSyncComplete(page, testInfo);
   await page.evaluate((id) => {
     const target = `#chat-id=${encodeURIComponent(id)}`;
     // Reload can leave the target hash in the URL after startup reset selection.

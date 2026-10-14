@@ -5,38 +5,53 @@ services:
   # Workers build the same skill registry as the API. Keep development feature
   # gates consistent, including services inherited from task-worker.
   task-worker:
+    image: &development-celery-image openmates-dev-celery-worker:local
     environment: &development-worker-environment
       BACKEND_CONFIG_FILE: "/app/backend/config/backend_config.dev.yml"
 
   core-worker:
+    image: *development-celery-image
     environment: *development-worker-environment
   user-init-worker:
+    image: *development-celery-image
     environment: *development-worker-environment
   user-tasks-worker:
+    image: *development-celery-image
     environment: *development-worker-environment
   reminder-worker:
+    image: *development-celery-image
     environment: *development-worker-environment
   workflow-worker:
+    image: *development-celery-image
     environment: *development-worker-environment
   task-scheduler:
+    image: *development-celery-image
     environment: *development-worker-environment
   app-ai-worker:
+    image: *development-celery-image
     environment: *development-worker-environment
   app-ai-routing-worker:
+    image: *development-celery-image
     environment: *development-worker-environment
   app-images-worker:
+    image: *development-celery-image
     environment: *development-worker-environment
   app-music-worker:
+    image: *development-celery-image
     environment: *development-worker-environment
   app-videos-worker:
+    image: *development-celery-image
     environment: *development-worker-environment
   app-pdf-worker:
+    image: *development-celery-image
     environment: *development-worker-environment
   app-docs-worker:
     environment: *development-worker-environment
   app-code-worker:
+    image: *development-celery-image
     environment: *development-worker-environment
   app-social-media-worker:
+    image: *development-celery-image
     environment: *development-worker-environment
 
   api:
@@ -61,6 +76,9 @@ services:
       - ../../frontend/apps/web_app/static/intro-frames:/app/frontend/apps/web_app/static/intro-frames:ro
 
   cms:
+    environment:
+      # Reuse immutable schema metadata; normal schema/permission invalidation stays active.
+      CACHE_SCHEMA_FREEZE_ENABLED: "true"
     ports:
       # Expose Directus only on localhost for SSH forwarding
       - "127.0.0.1:8055:8055"

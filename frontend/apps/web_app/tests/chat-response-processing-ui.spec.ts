@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
+const { waitForContextSyncComplete, openChatAfterContextSync } = require('./helpers/chat-hydration');
 /**
  * Deterministic rendered contract for the complete assistant response lifecycle.
  * Synthetic events enter through the real browser WebSocket handler chain while
@@ -125,8 +126,9 @@ async function openFixtureChat(page: any, userContent = FIXTURE.seed.user_conten
 	const log = createSignupLogger('CHAT_RESPONSE_PROCESSING_UI');
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'chat-response-processing-ui' });
 	await loginToTestAccount(page, log, screenshot);
+	await waitForContextSyncComplete(page, test.info());
 	await seedFixtureChat(page, userContent);
-	await page.goto(getE2EDebugUrl(`/#chat-id=${FIXTURE.chat_id}`), { waitUntil: 'domcontentloaded' });
+	await openChatAfterContextSync(page, FIXTURE.chat_id, test.info());
 	await waitForChatReady(page, log);
 	await expect(page.getByTestId('message-user')).toContainText(userContent.replace('@mate:software_development', '@sophia'), {
 		timeout: 20000
@@ -301,6 +303,47 @@ test.describe('Assistant response processing rendered contract', () => {
     await expect(assistant.getByTestId('mate-message-content')).not.toHaveClass(/assistant-response-active/);
     await expect(assistant.getByTestId('assistant-activity-toggle')).toHaveAttribute('aria-expanded', 'false');
     await expect(page.getByTestId('typing-indicator')).toHaveCount(0);
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.completion.independent-metadata,chat-processing-feedback.turn-lifecycle
+  test('finishes the response before optional metadata and accepts late chips without replacing the draft', async ({ page }: { page: any }) => {
+    await openFixtureChat(page);
+    await emitStage(page, 'task-initiated');
+    await emitStage(page, 'preprocessing');
+    await emitStage(page, 'typing');
+    await emitStage(page, 'answer-first');
+    await emitStage(page, 'final');
+    const assistant = page.getByTestId('message-assistant');
+    await expect(assistant.getByTestId('mate-message-content')).not.toHaveClass(/assistant-response-active/);
+    await expect(page.getByTestId('pending-assistant-response')).toHaveCount(0);
+    const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
+    await editor.fill('Late');
+    await page.evaluate(({ fixture }) => {
+      (window as any).__openmatesE2ELifecycle.emit('post_processing_completed', {
+        chat_id: fixture.chat_id, task_id: fixture.task_id, user_message_id: fixture.user_message_id,
+        follow_up_request_suggestions: ['Late fixture follow-up'], new_chat_request_suggestions: [],
+        chat_summary: 'The metadata arrived after the answer.', chat_tags: [], harmful_response: 0,
+        updated_chat_title: 'Late metadata fixture title',
+      });
+    }, { fixture: FIXTURE });
+    await expect(page.getByTestId('follow-up-suggestion-item').filter({ hasText: 'Late fixture follow-up' })).toBeVisible();
+    await expect(page.getByTestId('chat-header-title')).toHaveText('Late metadata fixture title');
+    await expect(editor).toHaveText('Late');
+    await expect(assistant.getByTestId('mate-message-content')).not.toHaveClass(/assistant-response-active/);
+    // A newer task owns subsequent suggestions even if the older job finishes last.
+    await page.evaluate(({ fixture }) => {
+      const harness = (window as any).__openmatesE2ELifecycle;
+      harness.emit('ai_task_initiated', { chat_id: fixture.chat_id, ai_task_id: 'newer-task', user_message_id: 'newer-user', status: 'processing_started' });
+      harness.emit('post_processing_completed', {
+        chat_id: fixture.chat_id, task_id: fixture.task_id, user_message_id: fixture.user_message_id,
+        follow_up_request_suggestions: ['Late stale chips'], new_chat_request_suggestions: [],
+        chat_summary: '', chat_tags: [], harmful_response: 0,
+        source_title_v: 2, updated_chat_title: 'Earlier turn arrived during the next turn',
+      });
+    }, { fixture: FIXTURE });
+    await expect(page.getByTestId('chat-header-title')).toHaveText('Earlier turn arrived during the next turn');
+    await expect(page.getByTestId('follow-up-suggestion-item').filter({ hasText: 'Late stale chips' })).toHaveCount(0);
+    await expect(editor).toHaveText('Late');
   });
 
   // contract-test: direct surface=gui.web assertions=chat-processing-feedback.accessible-responsive,chat-processing-feedback.response-container-glow

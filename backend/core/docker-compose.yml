@@ -179,6 +179,7 @@ services:
       AI_MEMORY_REMOVAL_MIGRATION_PATH: "/usr/src/app/migrations/migrate_remove_ai_memories.sql"
     volumes:
       - ./directus/schemas:/usr/src/app/schemas:ro
+      - ./directus/setup/migrate_personal_privacy_generation.sql:/usr/src/app/migrations/migrate_personal_privacy_generation.sql:ro
       - ./directus/setup/migrate_chat_recovery_unique_indexes.sql:/usr/src/app/migrations/migrate_chat_recovery_unique_indexes.sql:ro
       - ./directus/setup/migrate_chat_recovery_outputs_indexes.sql:/usr/src/app/migrations/migrate_chat_recovery_outputs_indexes.sql:ro
       - ./directus/setup/migrate_storage_replication_indexes.sql:/usr/src/app/migrations/migrate_storage_replication_indexes.sql:ro

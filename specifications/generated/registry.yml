@@ -114,10 +114,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.ai-model-routing:
-    version: 5
+    version: 6
     status: draft
     path: features/ai-model-routing
-    fingerprint: f4c63b816078332c7ab808386101e80172b49b6bf38e9af3d3d3d8099596ecc7
+    fingerprint: 1fb7b5b097b24c6eb80d63c0965b47fbd43c4179905e3ed77e23f8beebd19a4a
     required_applies_to:
     - rest_api
     - cli
@@ -461,10 +461,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.chats:
-    version: 5
+    version: 6
     status: draft
     path: features/chats
-    fingerprint: a4a9d0aea7b2a794f22321bb68a7a7c0874f71757fe22afc64560c62150706c8
+    fingerprint: f3b7791110b9be739c5a4286b7802d08d8d7a34451af9cebce889662e4c0c575
     required_applies_to:
     - cli
     - gui.web
@@ -2062,8 +2062,44 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  ai-model-routing.instructions.required-safety:
+    specification: feature.ai-model-routing@6
+    specification_id: feature.ai-model-routing
+    type: invariant
+    fingerprint: b9f6163cb727928e259e68b61424395b95f599717ea69c7c3e7bbf856a236215
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  ai-model-routing.preprocessing.prepared-privacy:
+    specification: feature.ai-model-routing@6
+    specification_id: feature.ai-model-routing
+    type: privacy
+    fingerprint: df68d6f13323f4b9bdab6101698e48727d365485d9cd3e13772a8a0eab1773a9
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  ai-model-routing.preprocessing.contextual-compact-assembly:
+    specification: feature.ai-model-routing@6
+    specification_id: feature.ai-model-routing
+    type: behavior
+    fingerprint: 396276dc02450a44fab6b5bc613d5f05daf74a01883a3f8139c7ef3ad04a4075
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   ai-model-routing.preprocessing.conditional-context:
-    specification: feature.ai-model-routing@5
+    specification: feature.ai-model-routing@6
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: aebbfd1af1c881cfc5d6304f0b8e600fbe210bc79761d93c52d3145145219896
@@ -2075,7 +2111,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.preprocessing.warm-catalogues:
-    specification: feature.ai-model-routing@5
+    specification: feature.ai-model-routing@6
     specification_id: feature.ai-model-routing
     type: privacy
     fingerprint: dd83186962106d9e4f1924732d510e15dfa5b3a5c3fcb8def5f7ef387a101f5c
@@ -2087,7 +2123,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.preprocessing.early-resolution:
-    specification: feature.ai-model-routing@5
+    specification: feature.ai-model-routing@6
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: b9c16461e21e635606d701222d7475ec3e66cf9d9c9fee3765b145c880b2f637
@@ -2099,7 +2135,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.tiers.conservative-three-way:
-    specification: feature.ai-model-routing@5
+    specification: feature.ai-model-routing@6
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 97d5c97f3368f0e8b3159978147243f8a8780b618ff3a97364dde77f386d04c5
@@ -2111,7 +2147,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.preferences.exclusive-tier-defaults:
-    specification: feature.ai-model-routing@5
+    specification: feature.ai-model-routing@6
     specification_id: feature.ai-model-routing
     type: invariant
     fingerprint: 39bf0471c52e344e806e8986db1476bb8db8148823c72daa5f6eb29bf6038b63
@@ -2123,7 +2159,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.catalog.capability-recommendation-variants:
-    specification: feature.ai-model-routing@5
+    specification: feature.ai-model-routing@6
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 33ab32a41ed2936f844ac0f33701025c75ca00e8a30a8bab5a88dd5faede96aa
@@ -2135,7 +2171,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.catalog.public-read-only:
-    specification: feature.ai-model-routing@5
+    specification: feature.ai-model-routing@6
     specification_id: feature.ai-model-routing
     type: security
     fingerprint: 17680ddfbe234af079ecc36320cf84fdc0a516188f8dd5601d85ad27024acac8
@@ -2147,7 +2183,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.defaults.google-tier-profiles:
-    specification: feature.ai-model-routing@5
+    specification: feature.ai-model-routing@6
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 8ab5b63710080f6ff77ddac2220fc604bb4b8469e627444dc954270a63fd8233
@@ -2159,7 +2195,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.chat-selection.encrypted-user-chat-scope:
-    specification: feature.ai-model-routing@5
+    specification: feature.ai-model-routing@6
     specification_id: feature.ai-model-routing
     type: privacy
     fingerprint: 3b1fe8326b1e4fe38b2dd71db60adeb9cbbaadadaaedd92b1522fc1bc961098a
@@ -2171,7 +2207,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.precedence.chat-over-tier-over-auto:
-    specification: feature.ai-model-routing@5
+    specification: feature.ai-model-routing@6
     specification_id: feature.ai-model-routing
     type: invariant
     fingerprint: 4c8c91fe69cf3659fdbfbeb3d39dd91e73c51273a3abfdfc197e0fff26196be2
@@ -2183,7 +2219,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.preprocessing.missing-output-recovery:
-    specification: feature.ai-model-routing@5
+    specification: feature.ai-model-routing@6
     specification_id: feature.ai-model-routing
     type: failure
     fingerprint: a44b753e15ff0cad7d9f54ca1f40410b75a0912f251d01cfd798ec16f3d36527
@@ -2195,7 +2231,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.composer.mention-to-exact-selection:
-    specification: feature.ai-model-routing@5
+    specification: feature.ai-model-routing@6
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 1588ae8feecbfe893795d7b358c3a58f30c824fde2baa790a137f770891ad24c
@@ -2207,7 +2243,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.unavailable.notify-reset-auto:
-    specification: feature.ai-model-routing@5
+    specification: feature.ai-model-routing@6
     specification_id: feature.ai-model-routing
     type: failure
     fingerprint: e5884209155afd87aa5d33e3d413d6164018ecce677676b5d9effbbcab90647f
@@ -2219,7 +2255,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.settings.hierarchy-canonical:
-    specification: feature.ai-model-routing@5
+    specification: feature.ai-model-routing@6
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 0c5229d5bbb1e34a9e98b85154c0139303f61d8921c02270cd80f439bf349919
@@ -2231,7 +2267,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.composer.responsive-actions:
-    specification: feature.ai-model-routing@5
+    specification: feature.ai-model-routing@6
     specification_id: feature.ai-model-routing
     type: parity
     fingerprint: cde79da48264deaf3f06d90a3d15e897b3f0aac4a69b42a91fe93b4cf23a84a6
@@ -2243,10 +2279,10 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.surface.semantic-parity:
-    specification: feature.ai-model-routing@5
+    specification: feature.ai-model-routing@6
     specification_id: feature.ai-model-routing
     type: parity
-    fingerprint: a61bc3b8fb93f2ef26a4e3774a0eedf04e2980d2ea1b8d9b0d7b38d92533679b
+    fingerprint: bfb2f7bd94eb6a800440d0d215f424ae40f292395796610eb697560bb4011ebd
     required_applies_to:
     - rest_api
     - cli
@@ -5981,8 +6017,17 @@ assertions:
     required_applies_to:
     - gui.web
     - gui.apple
+  chats.completion.independent-metadata:
+    specification: feature.chats@6
+    specification_id: feature.chats
+    type: invariant
+    fingerprint: 569e4a6ab40dbc4d917ca123885226e90d92e7d2f95334f89a37e69ce49565c9
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
   chats.send.immediate-admission:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: behavior
     fingerprint: e65a9100d61c34507b688a6f02bb129d0a9aaa28e4fe95059c7f3ebf4ffd86aa
@@ -5991,7 +6036,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.followups.main-generated-composer:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: privacy
     fingerprint: 2a6d9e6dff0440e9cc10c31aeec1088ae0b559635d8f33073ee0efff07fe9800
@@ -6000,7 +6045,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.persistence.client-encrypted:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: privacy
     fingerprint: 75782c5d8745d90d8ef4e230511348562226e36c586a2616124f0558f98cbbb6
@@ -6009,7 +6054,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.message.identity-idempotent:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: invariant
     fingerprint: c1b93a09622d0b17a3e48447dead75f89e2171ae5c26836db75c8de3ca9ecd45
@@ -6018,7 +6063,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.completion.recovery-takeover:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: behavior
     fingerprint: bf24b3f6fd71d37ab138c4423d64d296ff41aabd8fe25490931cb02110d93fc5
@@ -6027,7 +6072,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.completion.lease-fenced:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: invariant
     fingerprint: db4c803b123e9607dcdbe4591f3bd2ba3f0dba08bd7107c73c80ee26154e12b0
@@ -6036,7 +6081,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.completion.pending-delivery:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: behavior
     fingerprint: 9f431320258b19aba36624f2be7edd24fcbb2dc5c577f6634053d4fb18f60922
@@ -6045,7 +6090,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.local-state.precedence:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: behavior
     fingerprint: 55154868ff4458712fbd39c2dc4916e80fe7717b48e56f3ae6c344addc0b17f7
@@ -6054,7 +6099,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.sync.key-gated-recovery:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: invariant
     fingerprint: 1510dc79394cf653e01d98e159fb2a9fe10631c3cded00b8e709d847797d6a3b
@@ -6063,7 +6108,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.fork.non-destructive-boundary:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: behavior
     fingerprint: 27d41bb48eede1c74597751d446a17c5f1708527d7d8c771254beee5a55d8001
@@ -6072,7 +6117,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.streaming.ordered-final:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: behavior
     fingerprint: 7f9ef466b304d46fe8c7fed191dc58df18f172bfa796b9465751709846f05bdf
@@ -6081,7 +6126,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.streaming.progressive-presentation:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: behavior
     fingerprint: 39a6da4f97e0ac9ab1a6917151f7391efc4ab5d2963367d337988af142a4327f
@@ -6090,7 +6135,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.followups.non-destructive-reconciliation:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: behavior
     fingerprint: b2a2ececcad6fae7e1c76262df58f3bd78183e0f354bbec9e73321cc4fc0ec74
@@ -6099,7 +6144,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.rendering.assistant-document-convergence:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: behavior
     fingerprint: 22c6903d1c5a1e9c545cfc4cb59490247ca018cbbcb58a44db4b9c8c1525ad61
@@ -6108,7 +6153,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.rendering.inline-entity-interaction:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: behavior
     fingerprint: 38bb67252b7ef8d739b1fd20b71336baad61a0b7c88f4c5f737513d6b4dedf3d
@@ -6117,7 +6162,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.layout.responsive-history:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: parity
     fingerprint: be8843bad6a59d7189a1067a0f1886077414dcbb353f5eb9df0f3eb928a5b8db
@@ -6126,16 +6171,16 @@ assertions:
     - gui.web
     - gui.apple
   chats.surface.semantic-parity:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: parity
-    fingerprint: 909d2e662f5e085d0b80c8bcc1678d2b592571bb86342c2749bcc198aa5ab7e7
+    fingerprint: 6da96589d9b818b32a6ffa3c21ac5fa3c359f654ee672329bb1eb5e9e8e66506
     required_applies_to:
     - cli
     - gui.web
     - gui.apple
   chats.context.memory-only-summary:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: privacy
     fingerprint: abdde9cadea3851554f2c18ea879b05b9375a3669229010f387b1468a1fdf973
@@ -6144,7 +6189,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.context.related-work-selection:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: behavior
     fingerprint: bcc88c967f886f729d7d206ba5ae39075e1940dad29315badee497c2cfd0f076
@@ -6153,7 +6198,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.direction.context-assessment:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: behavior
     fingerprint: c93aecf367c1e72141db249ef522b1142c1fbc0f2a9b1e6ce0c614c46ba7648e
@@ -6162,7 +6207,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.direction.reviewed-correction:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: behavior
     fingerprint: 9495cd4f58f6fd6332740b9474acee5b54a3648488929ce6b99c53b2e14c726f
@@ -6171,7 +6216,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.rendering.preview-info-top:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: behavior
     fingerprint: 83c94f28f405a27c0e7844cf74d9f63d0a944f58a614f173922bb8246b41695f
@@ -6180,7 +6225,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.streaming.web-chunk-fade:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: behavior
     fingerprint: a6b1642d9cd61bbd68c63b0460e5b1f943357994c7ea0cb9abac5f0153965319
@@ -6189,7 +6234,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.rendering.web-history-entrance:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: behavior
     fingerprint: a729ac346fe433e2e380442ef6f03841492a6a7430face1edc6a70d9ddd3d612
@@ -6198,7 +6243,7 @@ assertions:
     - gui.web
     - gui.apple
   chats.message.confirmed-haptic:
-    specification: feature.chats@5
+    specification: feature.chats@6
     specification_id: feature.chats
     type: behavior
     fingerprint: 26153aa65831011fef3efd507a71ea2e7e141a93ceff81c6a22ad064dbbd8572

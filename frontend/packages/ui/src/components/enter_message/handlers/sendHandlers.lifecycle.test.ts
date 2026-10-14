@@ -1,3 +1,4 @@
+vi.mock("../../../services/preparedPrivacyForSend", () => ({ registerPersonalPrivacyExclusions: vi.fn() }));
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Editor } from '@tiptap/core';
 import { createHash } from 'node:crypto';

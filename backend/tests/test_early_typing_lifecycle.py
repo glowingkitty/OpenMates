@@ -40,6 +40,7 @@ async def test_stage_one_typing_and_stage_two_metadata_have_distinct_events():
             if "event_for_client" in event] == ["ai_typing_started"]
     assert cache.events[1][1] == {
         "type": "chat_metadata_recovery_available",
+        "chat_id": "chat", "task_id": "task", "turn_id": "message", "user_message_id": "message",
         "user_id_hash": "hash", "metadata_recovery_job": job,
     }
 
@@ -121,3 +122,14 @@ async def test_stale_context_failure_cannot_terminalize_newer_task(monkeypatch):
     assert len(cache.events) == 1
     assert cache.events[0][1]["task_id"] == "old-task"
     assert "terminal_failure_code" not in cache.events[0][1]
+
+
+# contract-test: supporting surface=cli assertions=chats.completion.independent-metadata
+@pytest.mark.parametrize("admitted", [True, False])
+def test_metadata_source_preserves_distinct_admitted_turn_and_message_identity(admitted):
+    request = SimpleNamespace(message_id="chat-prefixed-message", client_context_turn_id=("admitted-turn" if admitted else None),
+                              recovery_turn_id="recovery-turn")
+    assert ask_skill_task._metadata_turn_identity(request) == {
+        "turn_id": "admitted-turn" if admitted else "recovery-turn",
+        "user_message_id": "chat-prefixed-message",
+    }

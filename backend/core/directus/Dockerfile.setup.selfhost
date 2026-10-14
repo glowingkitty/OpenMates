@@ -22,6 +22,7 @@ COPY setup/migrate_user_chat_preferences_indexes.sql /usr/src/app/migrations/mig
 COPY setup/migrate_account_chat_keys.sql /usr/src/app/migrations/migrate_account_chat_keys.sql
 COPY setup/migrate_notification_email_preferences.sql /usr/src/app/migrations/migrate_notification_email_preferences.sql
 COPY setup/migrate_user_task_indexes.sql /usr/src/app/migrations/migrate_user_task_indexes.sql
+COPY setup/migrate_personal_privacy_generation.sql /usr/src/app/migrations/migrate_personal_privacy_generation.sql
 COPY setup/migrate_user_work_control_indexes.sql /usr/src/app/migrations/migrate_user_work_control_indexes.sql
 COPY setup/migrate_usage_overview_indexes.sql /usr/src/app/migrations/migrate_usage_overview_indexes.sql
 COPY setup/migrate_project_owner_context.sql /usr/src/app/migrations/migrate_project_owner_context.sql

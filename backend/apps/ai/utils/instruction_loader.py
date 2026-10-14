@@ -22,6 +22,37 @@ AI_APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE_INSTRUCTIONS_PATH = os.path.join(AI_APP_DIR, "base_instructions.yml")
 PROMPT_INJECTION_PATH = os.path.join(AI_APP_DIR, "prompt_injection_detection.yml")
 INSTRUCTIONS_MD_DIR = os.path.join(AI_APP_DIR, "instructions")
+REQUIRED_ANSWER_INSTRUCTIONS = ("base_ethics_instruction", "base_privacy_instruction")
+
+
+def validate_required_answer_instructions(instructions: dict) -> None:
+    """A partial configuration must never silently remove answer safeguards."""
+    missing = [key for key in REQUIRED_ANSWER_INSTRUCTIONS if not (
+        isinstance(instructions, dict)
+        and isinstance(instructions.get(key), str)
+        and instructions[key].strip()
+    )]
+    if missing:
+        raise RuntimeError(f"Required answer instructions unavailable: {', '.join(missing)}")
+
+
+async def load_validated_base_instructions(cache_service=None) -> dict:
+    """Repair missing/stale cached bundles from disk, then fail closed."""
+    if cache_service is not None:
+        try:
+            cached = await cache_service.get_base_instructions()
+            validate_required_answer_instructions(cached)
+            return cached
+        except Exception:
+            logger.warning("Cached answer instructions unavailable or incomplete; reloading from disk")
+    instructions = load_base_instructions()
+    validate_required_answer_instructions(instructions)
+    if cache_service is not None:
+        try:
+            await cache_service.set_base_instructions(instructions)
+        except Exception:
+            logger.warning("Failed to cache validated answer instructions", exc_info=True)
+    return instructions
 
 
 def _load_yaml(path: str) -> dict:
@@ -73,7 +104,8 @@ def load_base_instructions() -> dict:
       3. instructions/*.md              — plain-text prose (source of truth for prose)
 
     .md files take precedence on collision so prose is always edited in markdown.
-    Returns an empty dict on any fatal load error (callers must tolerate missing keys).
+    Required ethics/privacy sections are validated here, including startup loads.
+    Missing required sections raise before the bundle can be cached or used.
     """
     merged: dict = {}
 
@@ -92,6 +124,7 @@ def load_base_instructions() -> dict:
             f"— .md version wins"
         )
     merged.update(md_instructions)
+    validate_required_answer_instructions(merged)
 
     logger.info(
         f"Loaded AI instructions: {len(base_yaml)} from base_instructions.yml, "

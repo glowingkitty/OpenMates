@@ -148,3 +148,5 @@ export type {
 } from "./storage.js";
 
 export type { BuyerAddress } from "./billingAddress.js";
+
+export type { CliTurnMetadata } from "./ownedTurnMetadata.js";

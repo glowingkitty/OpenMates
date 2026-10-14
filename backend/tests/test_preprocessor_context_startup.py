@@ -331,7 +331,7 @@ async def test_main_reuses_sealed_no_project_route_without_second_candidate_read
         vault, "vault:owner", {"scope": scope, "phase": "details", "context": {}},
     )
     routing = {"project_target_outcome": "none", "selected_app_ids": [],
-        "early_decisions": {"task_area": "general", "complexity": "simple",
+        "early_decisions": {"task_area": "general", "complexity": "low",
             "needs_detailed_context": False, "needs_related_work": False,
             "public_decisions": {}}}
     validate = AsyncMock(side_effect=AssertionError("Unrelated Project candidate reread"))
@@ -344,7 +344,7 @@ async def test_main_reuses_sealed_no_project_route_without_second_candidate_read
     selected_model = AsyncMock(return_value={
         "selected_llm_for_main_id": "google/test-answer",
         "selected_llm_for_main_name": "Test Answer",
-        "complexity_val": "simple", "model_override_applied": False,
+        "complexity_val": "low", "model_override_applied": False,
     })
     monkeypatch.setattr(preprocessor, "_select_main_model", selected_model)
     detailed_decision = AsyncMock(side_effect=ReachedMainSetup)
@@ -498,7 +498,7 @@ async def test_related_summary_fallback_waits_for_active_summary_hook(monkeypatc
     )]), publish_event=AsyncMock())
     early = {"project_target_outcome": "none", "selected_app_ids": [],
              "early_decisions": {"task_area": "general", "topic_area": "general_knowledge",
-                                 "complexity": "simple", "needs_related_work": True}}
+                                 "complexity": "low", "needs_related_work": True}}
     order = []
 
     async def hook():
@@ -521,7 +521,7 @@ async def test_related_summary_fallback_waits_for_active_summary_hook(monkeypatc
     monkeypatch.setattr(jev_preprocessing, "decide_app_and_project_routing_with_jev", AsyncMock(return_value=early))
     monkeypatch.setattr(preprocessor, "_select_main_model", AsyncMock(return_value={
         "selected_llm_for_main_id": "test/answer", "selected_llm_for_main_name": "Answer",
-        "complexity_val": "simple", "model_override_applied": False,
+        "complexity_val": "low", "model_override_applied": False,
     }))
     monkeypatch.setattr(agentic_context, "private_focus_candidates", AsyncMock(return_value=[]))
     monkeypatch.setattr(context_preselection, "discover_workflow_metadata", AsyncMock(return_value=[]))
@@ -569,7 +569,7 @@ async def test_invalidated_empty_details_join_summary_before_detailed_jev(monkey
     )
     early = {"project_target_outcome": "none", "selected_app_ids": [],
              "early_decisions": {"task_area": "general", "topic_area": "general_knowledge",
-                                 "complexity": "simple", "public_decisions": {},
+                                 "complexity": "low", "public_decisions": {},
                                  "needs_detailed_context": False, "needs_related_work": False}}
     assert preprocessor._simple_context_fast_path(request, early, None)
     config = SimpleNamespace(default_llms=SimpleNamespace(
@@ -603,7 +603,7 @@ async def test_invalidated_empty_details_join_summary_before_detailed_jev(monkey
     monkeypatch.setattr(jev_preprocessing, "decide_app_and_project_routing_with_jev", AsyncMock(return_value=early))
     monkeypatch.setattr(preprocessor, "_select_main_model", AsyncMock(return_value={
         "selected_llm_for_main_id": "test/answer", "selected_llm_for_main_name": "Answer",
-        "complexity_val": "simple", "model_override_applied": False,
+        "complexity_val": "low", "model_override_applied": False,
     }))
     monkeypatch.setattr(agentic_context, "private_focus_candidates", AsyncMock(return_value=[]))
     monkeypatch.setattr(context_preselection, "discover_workflow_metadata", AsyncMock(return_value=[]))
@@ -645,7 +645,7 @@ async def test_empty_fast_path_failure_joins_summary_before_private_fallback(mon
     )
     early = {"project_target_outcome": "none", "selected_app_ids": [],
              "early_decisions": {"task_area": "general", "topic_area": "general_knowledge",
-                                 "complexity": "simple", "public_decisions": {},
+                                 "complexity": "low", "public_decisions": {},
                                  "needs_detailed_context": False, "needs_related_work": False}}
     config = SimpleNamespace(default_llms=SimpleNamespace(
         preprocessing_model="test/preprocessing", decision_model="test/decision",
@@ -676,7 +676,7 @@ async def test_empty_fast_path_failure_joins_summary_before_private_fallback(mon
     monkeypatch.setattr(jev_preprocessing, "decide_app_and_project_routing_with_jev", AsyncMock(return_value=early))
     monkeypatch.setattr(preprocessor, "_select_main_model", AsyncMock(return_value={
         "selected_llm_for_main_id": "test/answer", "selected_llm_for_main_name": "Answer",
-        "complexity_val": "simple", "model_override_applied": False,
+        "complexity_val": "low", "model_override_applied": False,
     }))
     monkeypatch.setattr(agentic_context, "private_focus_candidates", private_catalog)
     monkeypatch.setattr(context_preselection, "discover_workflow_metadata", AsyncMock(return_value=[]))
@@ -692,3 +692,97 @@ async def test_empty_fast_path_failure_joins_summary_before_private_fallback(mon
             discovered_apps_metadata={}, before_related_summary_read=hook,
         )
     assert order == ["summary_join", "private_read"]
+
+
+# contract-test: supporting surface=cli assertions=ai-model-routing.preprocessing.contextual-compact-assembly
+@pytest.mark.asyncio
+@pytest.mark.parametrize("complete", [True, False])
+async def test_same_chat_complete_route_reuses_full_history_without_detailed_context(monkeypatch, complete):
+    class ReachedDecision(BaseException):
+        pass
+
+    history = [{"role": "user", "content": "What is the capital of Spain?", "created_at": 1},
+               {"role": "assistant", "content": "Madrid.", "created_at": 2},
+               {"role": "user", "content": "And France?", "created_at": 3}]
+    request = AskSkillRequest(chat_id="chat", message_id="turn", user_id="owner", user_id_hash="owner-hash",
+        recovery_task_id="task", current_user_content="And France?", message_history=history,
+        chat_has_title=True,
+        admission_context={"scope_complete": complete, "active_project_id": None,
+            "active_project_activation_id": None, "active_focus_id": None,
+            "accepted_plan_ref": None, "explicit_related_task_ids": [],
+            "context_revision": "server-admission-v1"})
+    early = {"project_target_outcome": "none", "selected_app_ids": [],
+             "early_decisions": {"task_area": "general", "topic_area": "general_knowledge",
+                "complexity": "low", "public_decisions": {},
+                "needs_detailed_context": False, "needs_related_work": False}}
+    config = SimpleNamespace(default_llms=SimpleNamespace(preprocessing_model="test/preprocessing",
+                                                         decision_model="test/decision"))
+    cache = SimpleNamespace(get_mates_configs=AsyncMock(return_value=[SimpleNamespace(
+        id="mate-general", category="general_knowledge", description="General", name="General Mate")]),
+        get_chat_list_item_data=AsyncMock(return_value=None), publish_event=AsyncMock())
+    join, catalog = AsyncMock(), AsyncMock(return_value=[])
+
+    async def decision(**kwargs):
+        assert [row["content"] for row in kwargs["message_history"]] == [row["content"] for row in history]
+        assert kwargs["is_first_message"] is False
+        if complete:
+            join.assert_not_awaited()
+            catalog.assert_not_awaited()
+            assert kwargs["candidate_discovery_complete"] is True
+            assert kwargs["related_discovery_complete"] is True
+            assert kwargs["available_rules"] == [] and kwargs["available_workflows"] == []
+        else:
+            join.assert_awaited_once()
+            catalog.assert_awaited_once()
+        raise ReachedDecision
+
+    monkeypatch.setattr(preprocessor, "check_preprocessing_credits", AsyncMock(return_value=None))
+    monkeypatch.setattr(preprocessor, "load_skill_ledger", AsyncMock(return_value=preprocessor.RoutingLedgerSnapshot(
+        available=False, prompt_rows=())))
+    monkeypatch.setattr(jev_preprocessing, "decide_app_and_project_routing_with_jev", AsyncMock(return_value=early))
+    monkeypatch.setattr(preprocessor, "_select_main_model", AsyncMock(return_value={
+        "selected_llm_for_main_id": "test/answer", "selected_llm_for_main_name": "Answer",
+        "complexity_val": "low", "model_override_applied": False}))
+    monkeypatch.setattr(agentic_context, "private_focus_candidates", catalog)
+    monkeypatch.setattr(agentic_context, "fresh_project", AsyncMock(return_value=None))
+    monkeypatch.setattr(context_preselection, "discover_workflow_metadata", AsyncMock(return_value=[]))
+    monkeypatch.setattr(preprocessor, "decide_preprocessing_with_jev", decision)
+    monkeypatch.setattr(preprocessor, "utility_model_fallbacks", lambda *_args: [])
+    monkeypatch.setattr(client_context_continuation, "await_client_context_phase", AsyncMock())
+    with pytest.raises(ReachedDecision):
+        await preprocessor.handle_preprocessing(request_data=request, base_instructions={"preprocess_request_tool": {}},
+            skill_config=config, cache_service=cache, secrets_manager=None,
+            directus_service=None, encryption_service=None, discovered_apps_metadata={},
+            before_related_summary_read=join)
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.contextual-compact-assembly
+@pytest.mark.parametrize("change", ["none", "missing_public", "missing_preview", "artifact", "instruction", "complex", "incomplete_scope"])
+def test_positive_plain_prose_proof_comes_only_from_complete_validated_current_routing(change):
+    public = {"temperature": "precise", "enable_subchats": False, "ai_model_topics": [],
+              "harmful_or_illegal": 0, "misuse_risk": 0, "output_language": "en", "preview": "none", "icon_names": []}
+    kwargs = {"is_first_message": False, "context_fast_path": True, "task_area": "general",
+              "complexity": "low", "previews": []}
+    if change == "missing_public":
+        public = {}
+    elif change == "missing_preview":
+        public.pop("preview")
+    elif change == "artifact":
+        public["preview"] = "code"
+    elif change == "instruction":
+        kwargs["task_area"] = "instruction"
+    elif change == "complex":
+        kwargs["complexity"] = "complex"
+    elif change == "incomplete_scope":
+        kwargs["context_fast_path"] = False
+    assert preprocessor._plain_prose_routing_proof({"early_decisions": {"public_decisions": public}}, **kwargs) is (change == "none")
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.contextual-compact-assembly
+@pytest.mark.parametrize("tier", ["low", "simple", "medium", "high", "max", "unknown", None])
+def test_prose_routing_proof_tracks_current_low_tier_and_safe_legacy_alias(tier):
+    public = {"temperature": "precise", "enable_subchats": False, "ai_model_topics": [],
+              "harmful_or_illegal": 0, "misuse_risk": 0, "output_language": "en", "preview": "none", "icon_names": []}
+    assert preprocessor._plain_prose_routing_proof({"early_decisions": {"public_decisions": public}},
+        is_first_message=False, context_fast_path=True, task_area="general", complexity=tier,
+        previews=[]) is (tier in {"low", "simple"})

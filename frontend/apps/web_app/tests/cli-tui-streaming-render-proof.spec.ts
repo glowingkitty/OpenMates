@@ -9,14 +9,17 @@ const path=require('node:path');
 const profile='cli-terminal';
 const contract={id:'cli-tui-synthetic-stream-real-terminal',title:'Synthetic response in the real terminal TUI',surface:'cli',devices:[profile],
   transcript:[
-    {id:'thinking',text:'A deterministic SDK stream exercises immediate user message rendering and transient centered Thinking.',checkpoint:'thinking-animation',devices:[profile]},
+    {id:'thinking',text:'The sent user row and generated chat title appear while centered Thinking remains active.',checkpoint:'thinking-animation',devices:[profile]},
     {id:'writing',text:'The bottom inside rainbow remains animated while ordered paragraphs appear.',checkpoint:'writing-animation',devices:[profile]},
-    {id:'complete',text:'Completion removes the transient indicator and retains one user and one assistant response.',checkpoint:'complete',devices:[profile]},
+    {id:'complete',text:'The response terminal removes Thinking and the active glow while required encrypted persistence settles.',checkpoint:'complete',devices:[profile]},
+    {id:'metadata',text:'The chat title and follow-up request arrive later, independently of reply readiness.',checkpoint:'late-metadata',devices:[profile]},
   ],assertions:[
     {id:'tui.synthetic.optimistic-send',checkpoint:'thinking-animation',visual:'The sent user row appears above centered Thinking and an empty composer.',devices:[profile]},
     {id:'tui.synthetic.streaming-glow',checkpoint:'writing-animation',visual:'The response and its animated rainbow sit above the composer.',devices:[profile]},
     {id:'tui.synthetic.completed',checkpoint:'complete',visual:'The completed response has no Thinking or active rainbow.',devices:[profile]},
+    {id:'tui.synthetic.late-metadata',checkpoint:'late-metadata',visual:'The late title and follow-up request are visible beside the completed response.',devices:[profile]},
   ],tutorial:{readingWordsPerSecond:2.5,minimumHoldMs:1200,maximumHoldMs:5000}};
+// contract-test: supporting surface=cli assertions=chats.completion.independent-metadata
 // eslint-disable-next-line no-empty-pattern
 test('records optimistic send, centered Thinking and bounded rainbow animation in the real TUI loop',async ({},testInfo:any)=>{
   test.setTimeout(150_000);
@@ -41,6 +44,7 @@ test('records optimistic send, centered Thinking and bounded rainbow animation i
       {name:'writing',wait_for:'First paragraph',hold_ms:500},
       {name:'writing-animation',wait_for:'First paragraph',hold_ms:600},
       {name:'complete',wait_for:'Complete response.',wait_for_absent:'Thinking…',hold_ms:400},
+      {name:'late-metadata',wait_for:'Late title after reply completion',wait_for_absent:'Thinking…',hold_ms:500},
       {name:'exit-command',text:'/exit'}, {name:'exit',key:'Return'},
     ];
     const recording=await captureProof(workflowApiUrl(),home,fixture,steps,contract,testInfo);
@@ -48,6 +52,7 @@ test('records optimistic send, centered Thinking and bounded rainbow animation i
     const thinking=frame('thinking');
     expect(thinking.split('Synthetic streaming request')).toHaveLength(2);
     expect(thinking).toContain('Sophia');expect(thinking).toContain('Synthetic model');
+    expect(thinking).toContain('Early generated chat title');expect(thinking).not.toContain('Creating new chat…');
     expect(thinking).toContain('Ask a follow-up');expect(thinking).toContain('▁');
     const row=recording.frame('thinking').find((value:string)=>value.includes('Thinking…'));
     expect(row.indexOf('Thinking…')).toBeGreaterThan(row.indexOf('Sophia')+10);
@@ -74,6 +79,10 @@ test('records optimistic send, centered Thinking and bounded rainbow animation i
     expect(completed.split('Synthetic streaming request')).toHaveLength(2);
     expect(completed.split('Sophia')).toHaveLength(2);
     expect(completed.split('Thinking for this response')).toHaveLength(2);
+    const late=frame('late-metadata');
+    expect(late).toContain('Late title after reply completion');
+    expect(late).toContain('Explain the next step');
+    expect(late).not.toContain('Thinking…');expect(late).not.toContain('▁');
     await recording.attest();
   } finally {removeWorkflowCliHome(home);}
 });

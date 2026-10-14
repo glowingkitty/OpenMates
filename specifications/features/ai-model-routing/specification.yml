@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.ai-model-routing
-version: 5
+version: 6
 status: draft
 title: AI Model Settings And Chat Routing
 summary: >
@@ -231,6 +231,18 @@ models:
       constraints: {values: [followup_suggestions, quick_tips], detail_explainer_reachable: true}
 
 assertions:
+  - id: ai-model-routing.instructions.required-safety
+    type: invariant
+    must: Every answer-producing request, follow-up and recovered request includes the configured complete ethics instruction and mandatory privacy instruction. Missing or invalid required cached sections cause a verified reload; if either required section remains unavailable, no answer-model inference starts. Compact assembly may omit unused capability and output-format guidance, but cannot omit required instructions, referential history, selected tools, active context, learning requirements or explicit overrides.
+    depends_on: [examples.required_instructions]
+  - id: ai-model-routing.preprocessing.prepared-privacy
+    type: privacy
+    must: Authenticated web composer or microphone activation and TUI startup may prepare Personal Memory ciphertext, relevant encrypted settings and local decrypted detection options without sending draft text or starting inference. Prepared plaintext stays device-local in RAM for at most two sliding hours within its exact account, server, session, device, Team, key and privacy-preference scope. Before transmitting request content, a fresh authoritative generation check must certify the prepared bundle and issue an expiring one-use socket-and-turn-bound receipt. Every relevant Memory creation, update or deletion and encrypted-settings write changes the durable aggregate generation atomically. A changed, missing or reset generation, uncertain authority, reconnect, scope change or unsupported protocol requires a fresh complete snapshot; push events and retention time alone never certify freshness.
+    depends_on: [examples.prepared_privacy]
+  - id: ai-model-routing.preprocessing.contextual-compact-assembly
+    type: behavior
+    must: Optional prompt and preparation work is selected from complete authoritative routing and actual response requirements, rather than a question-word whitelist or a first-turn restriction. Equivalent factual wording and same-chat factual follow-ups retain the history needed to resolve references while receiving the same eligible compact preparation. Active private context, actions, tools, artifacts, learning, overrides or incomplete proof retain all required preparation and instructions. Model selection and thinking policy remain unchanged.
+    depends_on: [examples.contextual_compact_assembly]
   - id: ai-model-routing.preprocessing.conditional-context
     type: behavior
     must: Compact stage one selects Mate, complexity, apps and Projects from bounded conversation and discovery metadata. Model resolution and selected-Mate feedback precede detailed selection and private-body loading. Only complete public decisions with freshly verified empty active context can skip stage two; selected capabilities, active context or uncertainty retain detailed selection. Stage two selects relevant skills, Focus, Memory, Workflows and related work once, and main processing revalidates selected sources without repeating that selection inference.
@@ -324,4 +336,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [preprocessing_recovery, tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout]
+  required_groups: [required_instructions, prepared_privacy, contextual_compact_assembly, preprocessing_recovery, tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout]

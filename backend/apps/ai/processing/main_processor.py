@@ -40,6 +40,10 @@ from backend.apps.ai.processing.search_skill_reliability import (
     normalize_string_query_request_items,
     omit_unstated_generic_repository_criteria,
 )
+from backend.apps.ai.processing.model_routing import LOW_TIER, normalize_request_tier
+from backend.apps.ai.utils.instruction_loader import (
+    REQUIRED_ANSWER_INSTRUCTIONS, validate_required_answer_instructions,
+)
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.utils.main_processing_failure import main_processing_failure
 from backend.apps.ai.utils.app_skill_result_groups import is_request_group_failure, maps_result_parent_metadata, jobs_result_parent_metadata
@@ -221,6 +225,18 @@ from backend.shared.python_utils.skill_provider_attribution import resolve_skill
 _prefetched_diffable_embeds: ContextVar[tuple[str, str, bool] | None] = ContextVar(
     "prefetched_diffable_embeds", default=None,
 )
+_context_summary_barrier: ContextVar[tuple[str, str, str, Any] | None] = ContextVar(
+    "context_summary_barrier", default=None,
+)
+
+
+@contextmanager
+def _scoped_context_summary_barrier(task_id: str, chat_id: str, message_id: str, task):
+    token = _context_summary_barrier.set((task_id, chat_id, message_id, task) if task else None)
+    try:
+        yield
+    finally:
+        _context_summary_barrier.reset(token)
 
 
 @contextmanager
@@ -253,7 +269,7 @@ async def _diffable_embeds_for_main_prompt(
 
 def _skip_empty_task_runtime_for_simple_answer(request: AskSkillRequest,
                                                preprocessing: PreprocessingResult) -> bool:
-    """Omit Task lookup/create only for a proven empty English fact question."""
+    """Omit Task setup for a question with validated routing and empty scope."""
     admission = getattr(request, "admission_context", None)
     text = getattr(request, "current_user_content", None)
     related = getattr(request, "related_task_candidates", [])
@@ -264,7 +280,7 @@ def _skip_empty_task_runtime_for_simple_answer(request: AskSkillRequest,
         return False
     if (not getattr(preprocessing, "context_fast_path", False)
             or getattr(preprocessing, "early_task_area", None) != "general"
-            or getattr(preprocessing, "output_language", None) != "en"
+            or getattr(preprocessing, "output_language", None) not in {"en", "fr", "de"}
             or getattr(preprocessing, "selected_app_ids", None) != []
             or any(getattr(preprocessing, key, None) for key in (
                 "relevant_app_skills", "relevant_focus_modes", "load_app_settings_and_memories",
@@ -281,12 +297,16 @@ def _skip_empty_task_runtime_for_simple_answer(request: AskSkillRequest,
             ))
             or not isinstance(text, str) or len(text) > 240):
         return False
-    if (not re.match(r"^\s*(?:what|who|where|when|which)\b", text, re.IGNORECASE)
-            or not text.rstrip().endswith("?") or extract_task_mentions(text)):
+    if (not text.strip() or not text.rstrip().endswith(("?", "？"))
+            or extract_task_mentions(text)):
         return False
     return not re.search(
         r"\b(?:i|we|my|our|you|me|us|should|could|would|can|need|please|help|create|make|set|schedule|"
-        r"tasks?|to-?dos?|remind(?:er|ers)?|follow[- ]?ups?|action items?|tickets?|issues?|deadlines?|plans?|workflows?)\b",
+        r"tasks?|to-?dos?|remind(?:er|ers)?|follow[- ]?ups?|action items?|tickets?|issues?|deadlines?|plans?|workflows?|"
+        r"tâches?|créer|dois|mon|ma|mes|moi|nous|notre|nos|votre|vos|vous|"
+        r"écri(?:s|re|vez)|rédiger|générer|aufgaben?|erstell(?:e|en)|sollte|"
+        r"schreib(?:e|en)?|erzeug(?:e|en)|mein(?:e|en|er|es)?|mir|mich|wir|"
+        r"unser(?:e|en|er|es)?|euch|ihr|planen|einrichten|tareas?|crear)\b",
         text, re.IGNORECASE,
     )
 
@@ -295,19 +315,18 @@ _FACT_QUESTION_FORMAT_INTENT = re.compile(
     r"\b(?:code|coding|script|program(?:ming)?|python|javascript|html|css|markdown|"
     r"document|pdf|file|spreadsheet|sheet|chart|graph|plot|diagram|image|"
     r"formula|equation|calculate|compute|math(?:ematics)?|function|artifact|"
-    r"render|draw|write|generate|create|build|make)\b|```|embed_ref:|!\[",
-    re.IGNORECASE,
-)
-_FACT_QUESTION_OBJECTIVE_SHAPE = re.compile(
-    r"^\s*(?:what(?:\s+(?:is|was|are|were)|'s)\s+(?:the\s+)?(?:capital|population|currency|"
-    r"official\s+language|birthplace|location|date|year)\s+of\s+.+|"
-    r"who\s+(?:is|was|were)\s+.+|where\s+(?:is|was|are|were)\s+.+|"
-    r"when\s+(?:did|was|were|is)\s+.+)\?\s*$",
+    r"render|draw|write|generate|create|build|make|"
+    r"programm(?:e|ation|ieren)?|algorithme|fichier|tableau|graphique|diagramme|"
+    r"équation|calcul(?:er)?|fonction|artefact|écri(?:s|re|vez)|rédiger|générer|"
+    r"skript|datei|dokument|tabelle|diagramm|bild|formel|gleichung|berechnen|"
+    r"funktion|schreib(?:e|en)?|generieren|erstell(?:e|en)|erzeug(?:e|en)|bauen)\b|```|embed_ref:|!\[",
     re.IGNORECASE,
 )
 _FACT_QUESTION_SUBJECTIVE_INTENT = re.compile(
     r"\b(?:best|better|good|favorite|favourite|recommend(?:ation)?|opinion|"
-    r"prefer|ideal|top|worth|suggest)\b",
+    r"prefer|ideal|top|worth|suggest|interesting|ideas?|"
+    r"meilleur(?:e|s|es)?|préféré(?:e|s|es)?|recommand(?:er|ation)|avis|opinion|"
+    r"beste(?:n|r|s)?|besser|empfehl(?:en|ung)|meinung|interessant|ideen)\b",
     re.IGNORECASE,
 )
 _FACT_QUESTION_INTERACTIVE_INTENT = re.compile(
@@ -324,7 +343,9 @@ _FACT_QUESTION_OPTIONAL_FORMAT_KEYS = (
 _FACT_QUESTION_APP_GUIDANCE_INTENT = re.compile(
     r"\b(?:openmates|mates?|assistants?|capabilit(?:y|ies)|features?|apps?|"
     r"settings?|memor(?:y|ies)|preferences?|accounts?|projects?|focus|"
-    r"workflows?|tools?|deep[- ]?links?|links?)\b",
+    r"workflows?|tools?|deep[- ]?links?|links?|"
+    r"paramètres?|mémoire|mémoires|comptes?|projets?|outils?|liens?|"
+    r"einstellungen|erinnerungen|konten|konto|projekte?|werkzeuge?|verknüpfungen)\b",
     re.IGNORECASE,
 )
 
@@ -335,24 +356,35 @@ def _omit_fact_question_format_guidance(
     user_overrides: UserOverrides | None,
     forwarded_tools: list[dict[str, Any]],
 ) -> bool:
-    """Only a proven first-turn factual answer can omit optional artifact syntax."""
+    """Omit syntax only when routing and all retained history need plain prose.
+
+    The locale fallback is deliberately limited to en/fr/de, whose response-
+    requirement guards are covered below. Unknown languages keep the full prompt.
+    The routing proof is fresh for the current turn. History is examined for
+    response requirements, never shortened: "And France?" still receives its
+    preceding question and answer at the provider boundary.
+    """
     if forwarded_tools or not _skip_empty_task_runtime_for_simple_answer(request, preprocessing):
         return False
+    if (normalize_request_tier(getattr(preprocessing, "complexity", None)) != LOW_TIER
+            or getattr(preprocessing, "plain_prose_response", False) is not True):
+        return False
     history = getattr(request, "message_history", None)
-    if not isinstance(history, list) or len(history) != 1:
+    if not isinstance(history, list) or not history or len(history) % 2 != 1:
         return False
-    message = history[0]
-    role = message.get("role") if isinstance(message, dict) else getattr(message, "role", None)
-    content = message.get("content") if isinstance(message, dict) else getattr(message, "content", None)
-    text = request.current_user_content
-    # Normalize typography only for the objective-shape check. The raw turn
-    # remains unchanged for the existing context/Task and intent checks.
-    objective_text = text.replace("\u2019", "'")
-    if (role != "user" or content != text
-            or not _FACT_QUESTION_OBJECTIVE_SHAPE.fullmatch(objective_text)
-            or _FACT_QUESTION_SUBJECTIVE_INTENT.search(text)
-            or _FACT_QUESTION_FORMAT_INTENT.search(text)):
-        return False
+    for index, message in enumerate(history):
+        def field(key):
+            return message.get(key) if isinstance(message, dict) else getattr(message, key, None)
+        content = field("content")
+        if (field("role") != ("user" if index % 2 == 0 else "assistant")
+                or not isinstance(content, str) or not content.strip()
+                or field("tool_calls") or field("tool_call_id")
+                or _FACT_QUESTION_FORMAT_INTENT.search(content)
+                or _FACT_QUESTION_SUBJECTIVE_INTENT.search(content)
+                or _FACT_QUESTION_APP_GUIDANCE_INTENT.search(content)):
+            return False
+        if index == len(history) - 1 and content != request.current_user_content:
+            return False
     if user_overrides is not None and getattr(user_overrides, "has_overrides", True):
         return False
     learning_mode = getattr(request, "learning_mode", None)
@@ -402,7 +434,9 @@ def _omit_fact_question_interactive_guidance(
     """Keep the protocol unless the existing full fact proof and intent permit omission."""
     return (
         _omit_fact_question_format_guidance(request, preprocessing, user_overrides, forwarded_tools)
-        and not _FACT_QUESTION_INTERACTIVE_INTENT.search(request.current_user_content)
+        and not any(_FACT_QUESTION_INTERACTIVE_INTENT.search(
+            message.get("content", "") if isinstance(message, dict) else message.content
+        ) for message in request.message_history)
     )
 
 
@@ -437,6 +471,9 @@ def _without_optional_fact_format_sections(
         id(base_instructions[key]) for key in _FACT_QUESTION_OPTIONAL_FORMAT_KEYS
         if base_instructions.get(key)
     }
+    optional_ids.difference_update(
+        id(base_instructions.get(key)) for key in REQUIRED_ANSWER_INSTRUCTIONS
+    )
     return (
         [part for part in prompt_parts if id(part) not in optional_ids],
         [part for part in stable_prefix_parts if id(part) not in optional_ids],
@@ -546,6 +583,11 @@ async def _load_main_agentic_context(
         if not await timed("fast_path_binding", agentic_context.fresh_project(request, directus, cache)):
             logger.info("[Task ID: %s] [AGENTIC_CONTEXT] complete_empty_context_skipped", task_id)
             return "", []
+    # A Project/context change can invalidate the preprocessing proof while the
+    # summary marker is still writing. Join it before any newly needed consumer.
+    barrier = _context_summary_barrier.get()
+    if barrier and barrier[:3] == (task_id, request.chat_id, request.message_id):
+        await barrier[3]
     outcomes = await asyncio.gather(
         timed("rules", rules()), timed("workflows", workflows()), timed("related", related()),
         timed("project_documents", agentic_context.selected_project_documents(
@@ -3530,6 +3572,7 @@ async def handle_main_processing(
     """
     log_prefix = f"[Celery Task ID: {task_id}, ChatID: {request_data.chat_id}] MainProcessor:"
     logger.info(f"{log_prefix} Starting main processing.")
+    validate_required_answer_instructions(base_instructions)
 
     # Routing-only Project proposals need consent, not an answer-model prompt.
     # Keep the normal stream lifecycle so the card is persisted and cancellation
@@ -4050,7 +4093,8 @@ async def handle_main_processing(
         and not request_data.is_external
     )
     stable_prefix_parts = [
-        base_instructions.get("base_ethics_instruction", ""),
+        base_instructions["base_ethics_instruction"],
+        base_instructions["base_privacy_instruction"],
         base_instructions.get("follow_up_instruction", "") if composer_suggestion_enabled else "",
         base_instructions.get("base_link_encouragement_instruction", ""),
         base_instructions.get("base_wikipedia_linking_instruction", ""),

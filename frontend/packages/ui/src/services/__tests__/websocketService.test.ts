@@ -199,6 +199,48 @@ describe("webSocketService message dispatch", () => {
     },
   );
 
+  // contract-test: supporting surface=gui.web assertions=chats.send.immediate-admission
+  it.each([
+    { purpose: "prepare", turn_id: null },
+    { purpose: "send", turn_id: "b142d730-6f9e-4c1b-a812-67280e6a142c" },
+  ])("keeps the $purpose personal snapshot schema unchanged while tracing its send", async ({ purpose, turn_id }) => {
+    const service = webSocketService as unknown as {
+      ws: { readyState: number; send: ReturnType<typeof vi.fn> } | null;
+    };
+    let spanActive = false;
+    const socket = { readyState: WebSocket.OPEN, send: vi.fn((_data: string) => {
+      expect(spanActive).toBe(true);
+    }) };
+    service.ws = socket;
+    const span = vi.spyOn(wsTracing, "withActiveWsSpan").mockImplementation(async (_name, callback) => {
+      spanActive = true;
+      try {
+        return await callback();
+      } finally {
+        spanActive = false;
+      }
+    });
+    const inject = vi.spyOn(wsTracing, "injectTraceparent").mockImplementation((payload) => {
+      payload._traceparent = "unbound-test-trace";
+    });
+    const payload = {
+      request_id: "e052d617-907e-45ba-b9bd-6471e865047a", purpose, turn_id,
+    };
+    const original = structuredClone(payload);
+    try {
+      await webSocketService.sendMessage("personal_send_context_snapshot", payload);
+      expect(span).toHaveBeenCalledExactlyOnceWith("send.personal_send_context_snapshot", expect.any(Function));
+      expect(inject).not.toHaveBeenCalled();
+      expect(payload).toEqual(original);
+      expect(socket.send).toHaveBeenCalledOnce();
+      const message = JSON.parse(socket.send.mock.calls[0][0]);
+      expect(message).toEqual({ type: "personal_send_context_snapshot", payload: original });
+      expect(message.payload).not.toHaveProperty("_traceparent");
+    } finally {
+      service.ws = null;
+    }
+  });
+
   // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
   it("preserves distributed trace decoration for ordinary messages", async () => {
     const service = webSocketService as unknown as {
@@ -232,6 +274,56 @@ describe("webSocketService message dispatch", () => {
       "WebSocket changed before message dispatch",
     );
     expect(socket.send).not.toHaveBeenCalled();
+  });
+});
+
+describe("webSocketService socket-bound privacy receipts", () => {
+  // contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.prepared-privacy,chats.message.identity-idempotent
+  it("rejects a detached receipt before auto-connect or plaintext transmission", async () => {
+    const service = webSocketService as unknown as { ws: { readyState: number; send: ReturnType<typeof vi.fn> } | null };
+    const socket = { readyState: WebSocket.OPEN, send: vi.fn() };
+    service.ws = socket;
+    const expectedConnection = webSocketService.getConnectionForSend();
+    service.ws = null;
+    const connect = vi.spyOn(webSocketService, "connect").mockResolvedValue();
+    await expect(webSocketService.sendMessage("chat_turn_admit", { inference_request: { message: { content: "filtered user text" } } }, { expectedConnection }))
+      .rejects.toMatchObject({ code: "websocket_receipt_connection_changed" });
+    expect(connect).not.toHaveBeenCalled();
+    expect(socket.send).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.prepared-privacy,chats.message.identity-idempotent
+  it("rejects replacement by another open socket during the tracing await", async () => {
+    const service = webSocketService as unknown as { ws: { readyState: number; send: ReturnType<typeof vi.fn> } | null };
+    const original = { readyState: WebSocket.OPEN, send: vi.fn() };
+    const replacement = { readyState: WebSocket.OPEN, send: vi.fn() };
+    service.ws = original;
+    const expectedConnection = webSocketService.getConnectionForSend();
+    let resume!: () => void;
+    const traceGate = new Promise<void>(resolve => { resume = resolve; });
+    vi.spyOn(wsTracing, "withActiveWsSpan").mockImplementation(async (_name, callback) => { await traceGate; return callback(); });
+    const sending = webSocketService.sendMessage("chat_turn_admit", { privacy_receipt_id: "old-receipt", inference_request: { message: { content: "filtered user text" } } }, { expectedConnection });
+    void sending.catch(() => {});
+    await vi.waitFor(() => expect(wsTracing.withActiveWsSpan).toHaveBeenCalledOnce());
+    service.ws = replacement;
+    resume();
+    await expect(sending).rejects.toMatchObject({ code: "websocket_receipt_connection_changed" });
+    expect(original.send).not.toHaveBeenCalled();
+    expect(replacement.send).not.toHaveBeenCalled();
+    service.ws = null;
+  });
+
+  // contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.prepared-privacy,chats.message.identity-idempotent
+  it("sends unchanged bytes only on the exact connection that issued the receipt", async () => {
+    const service = webSocketService as unknown as { ws: { readyState: number; send: ReturnType<typeof vi.fn> } | null };
+    const socket = { readyState: WebSocket.OPEN, send: vi.fn() };
+    service.ws = socket;
+    const expectedConnection = webSocketService.getConnectionForSend();
+    vi.spyOn(wsTracing, "withActiveWsSpan").mockImplementation(async (_name, callback) => callback());
+    const frame = { privacy_receipt_id: "current-receipt", turn_id: "retained-turn", inference_request: { message: { content: "filtered user text" } } };
+    await webSocketService.sendMessage("chat_turn_admit", frame, { expectedConnection });
+    expect(socket.send).toHaveBeenCalledExactlyOnceWith(JSON.stringify({ type: "chat_turn_admit", payload: frame }));
+    service.ws = null;
   });
 });
 

@@ -300,3 +300,53 @@ def test_empty_fact_question_omits_task_runtime_only_with_complete_proof(change)
         request.current_user_content = "What should I do next?"
     assert main._skip_empty_task_runtime_for_simple_answer(request, preprocessing) is (change in {"none", "unrelated_task"})
 
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.contextual-compact-assembly
+@pytest.mark.asyncio
+@pytest.mark.parametrize("changed", [False, True])
+async def test_main_context_change_joins_retained_summary_before_consumers(monkeypatch, changed):
+    request = SimpleNamespace(user_id="owner", chat_id="chat", message_id="turn", is_external=False,
+        is_incognito=False, current_project=None, current_user_content="And France?", related_task_candidates=[])
+    marker_started, release = asyncio.Event(), asyncio.Event()
+    order = []
+
+    async def marker():
+        marker_started.set()
+        await release.wait()
+        order.append("marker")
+
+    async def rules(**_kwargs):
+        assert order == ["marker"]
+        order.append("rules")
+        return []
+
+    monkeypatch.setattr(main.agentic_context, "fresh_project", AsyncMock(return_value={"project_id": "new"} if changed else None))
+    monkeypatch.setattr(main.agentic_context, "select_rule_guides", rules)
+    for name in ("select_existing_workflows", "selected_project_documents"):
+        monkeypatch.setattr(main.agentic_context, name, AsyncMock(return_value=[]))
+    monkeypatch.setattr(main, "fetch_related_chat_summaries", AsyncMock(return_value=[]))
+    monkeypatch.setattr(main, "fetch_related_task_candidates", AsyncMock(return_value=[]))
+    task = asyncio.create_task(marker())
+    await marker_started.wait()
+    try:
+        with main._scoped_context_summary_barrier("task", "chat", "turn", task):
+            loading = asyncio.create_task(main._load_main_agentic_context(
+                request=request, task_id="task", preprocessing=SimpleNamespace(context_fast_path=True, relevant_related_work=[]),
+                directus=None, cache=None, secrets_manager=None, eligible_app_ids=[], vault_key_id=None,
+                decision_model="jev", effective_instructions="", active_phase="", initial=True))
+            await asyncio.sleep(0)
+            if changed:
+                assert not loading.done() and order == []
+                release.set()
+                assert await loading == ("", [])
+                assert order == ["marker", "rules"]
+            else:
+                assert await loading == ("", [])
+                assert not task.done() and order == []
+                release.set()
+            await task
+    finally:
+        if not task.done():
+            task.cancel()
+        await asyncio.gather(task, return_exceptions=True)

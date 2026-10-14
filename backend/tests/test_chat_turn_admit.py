@@ -298,3 +298,21 @@ async def test_legacy_active_task_hint_never_rejects_preflight(admission):
     await handler.handle_chat_turn_admit(**args)
     assert preflight.await_args.kwargs["server_queued_after_task_id"] is None
     dispatch.assert_awaited_once()
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.prepared-privacy,chats.message.identity-idempotent
+@pytest.mark.asyncio
+@pytest.mark.parametrize("accepted", [True, False])
+async def test_privacy_receipt_replay_authority_is_marked_only_after_durable_acceptance(admission, accepted):
+    from unittest.mock import Mock
+    args, preflight, dispatch = admission
+    marked = Mock()
+    if not accepted:
+        preflight.return_value = None
+    await handler.handle_chat_turn_admit(**args, on_durable_admission=marked)
+    if accepted:
+        marked.assert_called_once_with()
+        dispatch.assert_awaited_once()
+    else:
+        marked.assert_not_called()
+        dispatch.assert_not_awaited()

@@ -1,3 +1,9 @@
+vi.mock('../preparedPrivacyForSend', () => ({
+  freshPersonalPrivacyForSend: vi.fn(async (turnId: string) => ({ turnId })),
+  filterWithFreshPersonalPrivacy: vi.fn((content: string) => ({ content, mappings: [] })),
+  attachFreshPrivacyReceipt: vi.fn(async () => {}),
+  personalPrivacyMetadataKeys: vi.fn(() => []),
+}));
 /**
  * frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
  *
@@ -140,7 +146,7 @@ describe("sendersChatMessages protocol fences", () => {
 		expect(plain.content).toBe("unchanged");
 	});
 
-	// contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,message-input.embeds.gated-send
+	// contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,message-input.embeds.gated-send,ai-model-routing.preprocessing.prepared-privacy
 	it("reconciles the optimistic row to exact canonical ciphertext before a synced reload", async () => {
 		const row: Record<string, unknown> = {
 			message_id: "message-2", chat_id: "chat-1", role: "user", created_at: 200,
@@ -169,8 +175,9 @@ describe("sendersChatMessages protocol fences", () => {
 		};
 		const canonicalCiphertext = "sealed-embed-reference-cipher";
 		await reconcileOptimisticUserCiphertext("chat-1", "message-2", 200,
-			canonicalCiphertext, async () => transaction as unknown as IDBTransaction);
+			canonicalCiphertext, async () => transaction as unknown as IDBTransaction, "fresh-encrypted-pii-mappings");
 		expect(row.encrypted_content).toBe(canonicalCiphertext);
+		expect(row.encrypted_pii_mappings).toBe("fresh-encrypted-pii-mappings");
 		expect(row).not.toHaveProperty("content");
 		expect(row.status).toBe("synced");
 		expect(row.pending_encrypted_embed_bundle_v1).toBe("sealed-bundle");

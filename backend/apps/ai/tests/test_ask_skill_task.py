@@ -11,6 +11,8 @@ ciphertext for that history entry.
 import ast
 from pathlib import Path
 
+import pytest
+
 
 def test_early_typing_skips_duplicate_late_key_read_and_payload():
     source = (Path(__file__).resolve().parents[1] / "tasks" / "ask_skill_task.py").read_text()
@@ -228,7 +230,7 @@ def test_preparation_and_metadata_join_boundaries():
     body = source.split("async def _async_process_ai_skill_ask_task(", 1)[1]
     assert body.index('"claim_inference"') < body.index("user_vault_key_id = cached_user_data.get")
     assert body.index("user_vault_key_id = cached_user_data.get") < body.index("async with _overlap_preparation(summary_operation)")
-    assert body.index("_overlap_preparation(artifact_operation)") < body.index("get_base_instructions()")
+    assert body.index("_overlap_preparation(artifact_operation)") < body.index("load_validated_base_instructions(cache_service_instance)")
     assert body.index("get_discovered_apps_metadata()") < body.index("await artifact_task")
     assert body.index("await artifact_task") < body.index("# --- Step 0: Parse User Overrides")
     assert body.index("await active_summary_task") < body.index("# --- Step 0: Parse User Overrides")
@@ -591,3 +593,110 @@ def test_first_visible_barrier_waits_once_and_stream_covers_terminal_paths():
         "await content_publisher.flush()", consumer.index("async for chunk in main_processing_stream"))
     assert consumer.index("# A zero-chunk or failed stream still joins before terminal output.") < consumer.index(
         'with ai_phase_span("main.response_finalize")')
+
+
+# contract-test: supporting surface=cli assertions=ai-model-routing.preprocessing.contextual-compact-assembly
+@pytest.mark.parametrize("change", ["none", "old_turn", "incomplete_scope", "missing_route", "missing_response_proof", "tool", "related", "artifact"])
+def test_deferred_summary_requires_exact_current_turn_and_complete_context(change):
+    from types import SimpleNamespace
+    from backend.apps.ai.processing.preprocessor import _simple_context_fast_path, _stage_one_project_none_candidate
+    source = (Path(__file__).resolve().parents[1] / "tasks" / "ask_skill_task.py").read_text()
+    tree = ast.parse(source)
+    names = {"_can_overlap_first_turn_reads", "_can_defer_summary_join"}
+    helpers = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name in names]
+    for helper in helpers:
+        helper.body = [node for node in helper.body if not isinstance(node, ast.ImportFrom)]
+    module = ast.Module(body=helpers, type_ignores=[])
+    ast.fix_missing_locations(module)
+    namespace = {"_simple_context_fast_path": _simple_context_fast_path,
+                 "_stage_one_project_none_candidate": _stage_one_project_none_candidate}
+    exec(compile(module, "<current-turn-summary-proof>", "exec"), namespace)
+    request = SimpleNamespace(chat_has_title=True, message_id="current", current_user_content="And France?",
+        message_history=[SimpleNamespace(role="user", message_id="old", content="Capital of Spain?"),
+                         SimpleNamespace(role="assistant", message_id="reply", content="Madrid."),
+                         SimpleNamespace(role="user", message_id="current", content="And France?")],
+        admission_context={"scope_complete": True, "active_project_id": None,
+            "active_project_activation_id": None, "active_focus_id": None, "accepted_plan_ref": None,
+            "explicit_related_task_ids": [], "context_revision": "server-admission-v1"},
+        is_focus_mode_continuation=False, is_app_settings_memories_continuation=False)
+    route = {"routing": {"early_decisions": {"public_decisions": {}, "needs_detailed_context": False,
+                                              "needs_related_work": False},
+                         "selected_app_ids": [], "project_target_outcome": "none"}}
+    preprocessing = SimpleNamespace(context_fast_path=True, plain_prose_response=True, selected_app_ids=[])
+    if change == "old_turn":
+        request.message_history[-1].message_id = "stale"
+    elif change == "incomplete_scope":
+        request.admission_context["scope_complete"] = False
+    elif change == "missing_route":
+        route = None
+    elif change == "missing_response_proof":
+        preprocessing.plain_prose_response = False
+    elif change == "tool":
+        preprocessing.relevant_app_skills = ["web-search"]
+    elif change == "related":
+        preprocessing.relevant_related_work = [{"id": "related"}]
+    elif change == "artifact":
+        request.project_context_documents = [{"id": "private-file"}]
+    assert namespace["_can_defer_summary_join"](request, preprocessing, route, None) is (change == "none")
+
+
+# contract-test: supporting surface=cli assertions=ai-model-routing.preprocessing.contextual-compact-assembly
+@pytest.mark.asyncio
+@pytest.mark.parametrize("outcome", ["normal", "early", "failure", "cancelled"])
+async def test_deferred_summary_has_owner_join_and_failure_drain(outcome):
+    import asyncio
+    from contextvars import ContextVar
+    from functools import wraps
+    source = (Path(__file__).resolve().parents[1] / "tasks" / "ask_skill_task.py").read_text()
+    tree = ast.parse(source)
+    helpers = [node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+               and node.name in {"_drain_preparation_tasks", "_owns_deferred_summary", "_join_deferred_summary"}]
+    module = ast.Module(body=helpers, type_ignores=[])
+    ast.fix_missing_locations(module)
+    namespace = {"asyncio": asyncio, "wraps": wraps,
+                 "_owned_summary_tasks": ContextVar("summary-test", default=None)}
+    exec(compile(module, "<owned-summary-lifetime>", "exec"), namespace)
+    release, started, cleaned = asyncio.Event(), asyncio.Event(), asyncio.Event()
+    order = []
+
+    async def marker():
+        started.set()
+        try:
+            await release.wait()
+            order.append("marker")
+        finally:
+            cleaned.set()
+
+    @namespace["_owns_deferred_summary"]
+    async def request():
+        task = asyncio.create_task(marker())
+        namespace["_owned_summary_tasks"].get().append(task)
+        await started.wait()
+        # An eligible response begins without waiting for this marker write.
+        order.append("answer")
+        if outcome == "failure":
+            raise RuntimeError("owned failure")
+        if outcome == "cancelled":
+            await asyncio.Future()
+        if outcome == "normal":
+            await namespace["_join_deferred_summary"]()
+            order.append("metadata")
+        return "completed"
+
+    operation = asyncio.create_task(request())
+    await started.wait()
+    if outcome == "cancelled":
+        operation.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await operation
+    elif outcome == "failure":
+        with pytest.raises(RuntimeError, match="owned failure"):
+            await operation
+    else:
+        await asyncio.sleep(0)
+        assert order == ["answer"] and not operation.done()
+        release.set()
+        assert await operation == "completed"
+        assert order == (["answer", "marker", "metadata"] if outcome == "normal" else ["answer", "marker"])
+    assert cleaned.is_set()
+    assert namespace["_owned_summary_tasks"].get() is None
