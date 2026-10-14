@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.billing
-version: 9
+version: 10
 status: draft
 title: Billing And Payments
 summary: >
@@ -18,6 +18,7 @@ scope:
     - Invoice, payment-confirmation, credit-note, and refund document visibility.
     - Billing usage overview, detail, export, and receipt-style token breakdowns.
     - Prospective cache-aware model tariffs and provider-reported token receipts.
+    - Provider-independent temporary model prices with verified sources, route eligibility, scheduled expiry, and immutable attempt receipts.
     - First-party REST, CLI, SDK, web, and Apple semantic parity for billing usage surfaces.
     - Official-cloud anonymous virtual-budget admission and provider-operation settlement.
     - Public percentage of an identified guest's remaining daily anonymous allowance.
@@ -214,6 +215,26 @@ assertions:
     type: behavior
     must: Billing usage details show receipt-style token rows where system prompt, user input, and optional app-skill token sub-items reconcile with total input. For an enabled and verified cache tariff, a separate saved receipt partitions input into ordinary input, cache reads and cache writes, prices output including provider-reported billable thinking, and records the actual debit using the rates frozen for each incurred provider attempt. Absent cache counters remain unavailable, never guessed; cumulative events for one attempt are billed once. Category credits plus the displayed rounding or cap adjustment reconcile to the committed debit. Deferred settlements show pending and zero debited until commitment. Composition rows remain a separate view and do not add another charge; older usage and inactive tariffs preserve their existing debit.
     depends_on: [models.UsageTokenBreakdown, examples.cache_usage_receipts]
+  - id: billing.models.scheduled-temporary-tariffs
+    type: behavior
+    must: New paid model attempts use the verified temporary customer and supplier token rates applicable to their dispatch date, eligible inference host, region, and processing tier. A dated offer includes its advertised final UTC calendar day and automatically restores the configured regular tariff the following day without a deployment or process restart. Input, output including billable thinking, eligible cache reads and writes, and configured context bands resolve together. Promotion expiry never by itself expires an independently verified cache policy.
+    depends_on: [examples.scheduled_model_prices]
+  - id: billing.models.unknown-promotion-expiry
+    type: invariant
+    must: A verified provider sale with no published end date can apply as an explicitly undated promotion until the catalog is updated from authoritative evidence. An advertised minimum duration is recorded separately from a firm expiry; it does not schedule an invented price increase. Source and review date are recorded, unknown expiry and unknown replacement rates remain unknown, and verified regular rates are retained separately wherever published.
+    depends_on: [examples.undated_model_prices]
+  - id: billing.models.immutable-attempt-tariffs
+    type: invariant
+    must: Every incurred provider attempt freezes its resolved tariff and pricing identity before paid dispatch, including retries, fallback hosts, preprocessing, and other model-backed work. Later price changes, promotion expiry, deferred settlement, receipt reads, and replay cannot reprice that attempt or its historical debit. A later provider attempt resolves its own applicable tariff while existing charge idempotency and rounding remain in force.
+    depends_on: [examples.frozen_model_prices]
+  - id: billing.models.active-price-consistency
+    type: parity
+    must: Public model discovery, first-party model details, CLI and SDK model metadata, and applicable budget estimates use the same current customer tariff, including the published promotion end date when known. Eligible provider discounts reduce prospective customer token charges using the existing markup convention. Historical usage displays its frozen tariff. Adding Gemini 4 Argon exposes its verified Google route, supported capabilities, and current introductory tariff through existing exact-model selection without silently changing saved preferences or automatic defaults.
+    depends_on: [examples.current_model_prices]
+  - id: billing.models.verified-host-prices
+    type: security
+    must: Model price changes require authoritative evidence for the actual supplier, region, and processing tier. Account credits, retrospective rebates, batch discounts, and another host's promotions are not substituted for a live standard supplier rate. Supplier costs remain separate from customer credits. Invalid, overlapping, incomplete, or inapplicable temporary tariffs cannot authorize a guessed discounted paid dispatch; uncertain legacy rates are retained and reported as unverified rather than silently replaced with another supplier's minimum price.
+    depends_on: [examples.verified_model_prices]
   - id: billing.usage.landing-complete
     type: invariant
     must: The Usage landing page represents every committed usage entry for the authorized billing subject exactly once, either individually or in a clearly labeled non-overlapping group; shows a concise localized description, entry count, and credits for chat, standalone app, API-key, device, workflow, workflow-test, benchmark, incognito, and otherwise unattributed usage; links only to contexts that actually exist; and makes each displayed day total equal the sum of its displayed items without double-counting app work already attributed to a chat or another context.
@@ -292,4 +313,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [credit_charges, settlement_concurrency, settlement_recovery, credit_purchases, billing_documents, storage_failures, bank_transfers, usage_receipts, usage_landing, self_host_guards, storage_usage, storage_weekly, storage_settlement, storage_warning, storage_disclosures, storage_team, storage_cutover, storage_expiry_selection, storage_expiry_closure]
+  required_groups: [credit_charges, settlement_concurrency, settlement_recovery, credit_purchases, billing_documents, storage_failures, bank_transfers, usage_receipts, usage_landing, self_host_guards, storage_usage, storage_weekly, storage_settlement, storage_warning, storage_disclosures, storage_team, storage_cutover, storage_expiry_selection, storage_expiry_closure, scheduled_model_prices, undated_model_prices, frozen_model_prices, current_model_prices, verified_model_prices]

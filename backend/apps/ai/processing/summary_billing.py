@@ -149,7 +149,7 @@ class SummaryBillingOperation:
         if manager is None or "/" not in model_id:
             raise SummaryBillingError("Summary pricing is unavailable")
         provider, suffix = model_id.split("/", 1)
-        pricing = manager.get_model_pricing(provider, suffix)
+        pricing = manager.get_model_pricing(provider, suffix, inference_host=host)
         if not pricing:
             raise SummaryBillingError("Summary model is unpriced")
         tariff = snapshot_model_tariff(pricing)

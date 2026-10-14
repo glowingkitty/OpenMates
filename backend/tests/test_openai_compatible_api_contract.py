@@ -371,3 +371,65 @@ def test_chat_completions_returns_openai_error_for_unavailable_model() -> None:
 def test_stream_contract_fixture_is_valid_json() -> None:
     payload = '{"object":"chat.completion.chunk","choices":[{"delta":{"content":"hi"}}]}'
     assert json.loads(payload)["object"] == "chat.completion.chunk"
+
+
+# contract-test: supporting surface=rest_api assertions=billing.models.active-price-consistency
+def test_model_object_projects_current_promotion_without_supplier_tariff() -> None:
+    metadata = {
+        "id": "sale", "effective_from": "2026-10-14",
+        "source_url": "https://example.test/pricing", "reviewed_on": "2026-10-14",
+        "eligible_hosts": ["mistral"], "processing_tier": "standard",
+    }
+    model = {"id": "large", "pricing": {"tokens": {"input": {"per_credit_unit": 490}}},
+             "active_temporary_price": metadata, "costs": {"supplier_secret": 0.68}}
+    result = openai_compat._model_object("mistral", model)
+    assert result["openmates"]["active_temporary_price"] == metadata
+    assert result["openmates"]["pricing"]["input"] == 490
+    assert "supplier_secret" not in json.dumps(result)
+
+
+# contract-test: direct surface=rest_api assertions=billing.models.active-price-consistency,ai-model-routing.catalog.public-read-only,billing.models.verified-host-prices
+def test_public_current_promotions_use_real_provider_yaml_and_live_config_resolver(monkeypatch) -> None:
+    """Real public router/config resolution; only provider readiness is a fixture.
+
+    The key-free browser runner correctly omits unavailable cloud providers.
+    This bounded route contract does not claim configured-server integration or
+    provider inference evidence, and installs no credentials or auth override.
+    """
+    from datetime import date
+    from pathlib import Path
+
+    import yaml
+    from backend.core.api.app.utils import config_manager as config_module
+
+    providers_dir = Path(__file__).resolve().parents[1] / "providers"
+    # Avoid the process singleton while executing unchanged ConfigManager getters.
+    config = object.__new__(config_module.ConfigManager)
+    config._provider_configs = {
+        provider: yaml.safe_load((providers_dir / f"{provider}.yml").read_text())
+        for provider in ("google", "mistral")
+    }
+    monkeypatch.setattr(config_module, "utc_today", lambda: date(2026, 10, 14))
+    client = _client(config=config, secrets_manager=FakeSecretsManager(
+        configured={"google_ai_studio", "mistral"}), override_auth=False)
+    response = client.get("/v1/models")
+    assert response.status_code == 200
+    catalog = {model["id"]: model for model in response.json()["data"]}
+    argon = catalog["google/gemini-4-argon"]
+    mistral = catalog["mistral/mistral-large-4"]
+    for key, value in {"input": 160, "cache_read": 3200, "output": 30}.items():
+        assert argon["openmates"]["pricing"][key] == value
+    assert argon["openmates"]["active_temporary_price"]["expires_on"] == "2026-11-30"
+    assert argon["openmates"]["active_temporary_price"]["eligible_hosts"] == ["google_ai_studio"]
+    for key, value in {"input": 490, "cache_read": 4760, "output": 158}.items():
+        assert mistral["openmates"]["pricing"][key] == value
+    assert "expires_on" not in mistral["openmates"]["active_temporary_price"]
+    for model in (argon, mistral):
+        metadata = model["openmates"]["active_temporary_price"]
+        assert "costs" not in metadata
+        assert "pricing" not in metadata
+        assert "costs" not in model["openmates"]
+        assert "supplier_cost_profiles" not in model["openmates"]
+        detail = client.get(f"/v1/models/{model['id']}")
+        assert detail.status_code == 200
+        assert detail.json() == model

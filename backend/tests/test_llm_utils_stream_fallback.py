@@ -564,8 +564,18 @@ def test_call_main_llm_stream_strips_google_thought_signatures_for_non_google_fa
     captured_messages_by_provider = {}
     admissions = []
     admitted_limits = {}
+    resolved_hosts = []
 
-    async def admit(server_model_id, current_limit):
+    def get_pricing(_provider, _model, *, inference_host, region):
+        resolved_hosts.append((inference_host, region))
+        return {"pricing": {"tokens": {"input": {"per_credit_unit": 1000},
+                                        "output": {"per_credit_unit": 100}}}}
+
+    monkeypatch.setattr(llm_utils.config_manager, "get_model_pricing", get_pricing)
+
+    async def admit(server_model_id, current_limit, *, tariff_snapshot, region):
+        assert tariff_snapshot["pricing"]["tokens"]["input"]["per_credit_unit"] == 1000
+        assert region is None
         admissions.append(server_model_id)
         return 5 if server_model_id.startswith("fallback/") else current_limit
 
@@ -648,6 +658,7 @@ def test_call_main_llm_stream_strips_google_thought_signatures_for_non_google_fa
     assert chunks == ["Recovered answer"]
     assert calls == ["google_ai_studio", "fallback"]
     assert admissions == ["google_ai_studio/gemini-3-flash-preview", "fallback/neutral-model"]
+    assert resolved_hosts == [("google_ai_studio", None), ("fallback", None)]
     assert admitted_limits == {"google_ai_studio": 10, "fallback": 5}
     assert (
         captured_messages_by_provider["google_ai_studio"][1]["tool_calls"][0]["thought_signature"]
@@ -697,3 +708,114 @@ def test_mistral_thinking_replay_is_removed_for_foreign_fallback(monkeypatch, fa
     assert captured["mistral"][1]["tool_calls"][0]["provider_transport_state"] == state
     assert "provider_transport_state" not in captured[fallback][1]["tool_calls"][0]
     assert messages[0]["tool_calls"][0]["provider_transport_state"] == state
+
+
+# contract-test: supporting surface=rest_api assertions=billing.models.scheduled-temporary-tariffs,billing.models.immutable-attempt-tariffs
+def test_stream_fallback_freezes_actual_host_tariff_before_each_dispatch(monkeypatch):
+    prices = []
+    snapshots = []
+    admitted_snapshots = []
+    admitted_quotes = []
+    mutable_pricing = {
+        "pricing": {"tokens": {"input": {"per_credit_unit": 1000},
+                                 "output": {"per_credit_unit": 100}}},
+        "costs": {},
+        "features": {"max_output_tokens": 1000},
+        "active_temporary_price": {"id": "intro"},
+    }
+
+    def pricing(_provider, _model, *, inference_host, region):
+        assert _provider == "google"
+        assert _model == "gemini-4-argon"
+        prices.append((inference_host, region))
+        mutable_pricing["pricing"]["tokens"]["output"]["per_credit_unit"] = (
+            200 if inference_host == "google_ai_studio" else 100
+        )
+        return mutable_pricing
+
+    async def admit(server_model_id, current_limit, *, tariff_snapshot, region):
+        from backend.apps.ai.processing.main_processor import _quote_ai_iteration_credits
+
+        assert region == "global"
+        # Reload rates inside admission, before its reservation quote is built.
+        mutable_pricing["pricing"]["tokens"]["output"]["per_credit_unit"] = 1
+        admitted_snapshots.append(tariff_snapshot)
+        admitted_quotes.append(_quote_ai_iteration_credits(
+            model_id="google/gemini-4-argon", system_prompt="system",
+            message_history=[{"role": "user", "content": "hello"}], tools=[],
+            output_token_limit=current_limit,
+            inference_host=server_model_id.split("/", 1)[0],
+            tariff_snapshot=tariff_snapshot, region=region,
+        ))
+        return current_limit
+
+    def provider(host):
+        async def invoke(**_kwargs):
+            assert prices[-1] == (host, "global")
+            # An offer ending or a hot reload after dispatch cannot change receipts.
+            mutable_pricing["pricing"]["tokens"]["output"]["per_credit_unit"] = 1
+
+            async def stream():
+                yield GoogleUsageMetadata(prompt_token_count=10, candidates_token_count=5)
+                if host == "google_ai_studio":
+                    yield "[ERROR 503 provider failed]"
+                else:
+                    yield "Recovered"
+
+            return stream()
+        return invoke
+
+    monkeypatch.setattr(llm_utils.config_manager, "get_model_pricing", pricing)
+    monkeypatch.setattr(llm_utils, "_configured_server_region", lambda *_args: "global")
+    monkeypatch.setattr(llm_utils, "_get_provider_client", provider)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config",
+                        lambda _: ("google_ai_studio", "google_ai_studio/gemini-4-argon"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config",
+                        lambda _: ["google/gemini-4-argon"])
+    monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda history: history)
+    monkeypatch.setattr(llm_utils, "_is_reasoning_model", lambda _: True)
+
+    async def run():
+        return [chunk async for chunk in llm_utils.call_main_llm_stream(
+            task_id="task", model_id="google/gemini-4-argon", system_prompt="system",
+            message_history=[{"role": "user", "content": "hello"}], temperature=1.0,
+            max_tokens=1000, pre_dispatch_admission=admit,
+        )]
+
+    chunks = asyncio.run(run())
+    for chunk in chunks:
+        if isinstance(chunk, GoogleUsageMetadata):
+            snapshots.append(chunk._normalized_llm_usage.tariff_snapshot)
+    assert prices == [("google_ai_studio", "global"), ("google", "global")]
+    assert [snapshot["pricing"]["tokens"]["output"]["per_credit_unit"]
+            for snapshot in snapshots] == [200, 100]
+    assert all(snapshot["active_temporary_price"] == {"id": "intro"} for snapshot in snapshots)
+    assert snapshots == admitted_snapshots
+    assert admitted_quotes == [5, 10]
+
+
+@pytest.mark.parametrize("host,level,expected", [
+    ("google_ai_studio", "LOW", "LOW"), ("google", "MEDIUM", "MEDIUM"),
+    ("google", "HIGH", "HIGH"), ("openrouter/google", "LOW", None),
+])
+def test_argon_explicit_thinking_levels_only_reach_matching_native_route(host, level, expected):
+    assert llm_utils._google_profile_thinking_level(
+        "google/gemini-4-argon", f"{host}/gemini-4-argon", level,
+    ) == expected
+
+
+# contract-test: supporting surface=rest_api assertions=billing.models.immutable-attempt-tariffs
+def test_non_chat_scope_retains_resolved_temporary_tariff_identity():
+    pricing = {
+        "pricing": {"tokens": {"input": {"per_credit_unit": 2000},
+                                 "output": {"per_credit_unit": 200}}},
+        "cache_pricing": {"enabled": True},
+        "pricing_version": "resolved-introductory-price",
+        "active_temporary_price": {"id": "intro", "ends_on": "2026-11-30"},
+    }
+    frozen = llm_utils._snapshot_for_customer_scope(pricing, cache_pricing_enabled=False)
+    assert frozen["pricing"]["tokens"]["input"]["per_credit_unit"] == 2000
+    assert frozen["cache_pricing"]["enabled"] is False
+    assert frozen["pricing_version"] == "resolved-introductory-price"
+    assert frozen["active_temporary_price"] == pricing["active_temporary_price"]
+    assert pricing["cache_pricing"]["enabled"] is True

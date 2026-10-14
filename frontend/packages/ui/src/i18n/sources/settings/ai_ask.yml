@@ -2058,3 +2058,21 @@ ai_ask_settings.most_demanding_requests_description:
   sv: Planera en specifikation för ett mycket komplicerat projekt och mer.
   he: תכנון מפרט לפרויקט מורכב במיוחד ועוד.
   verified_by_human: []
+
+ai_ask_model_details.promotion_until:
+  context: Current temporary model price with inclusive expiry date appended in UTC
+  en: Current promotional rates apply through
+  de: Die aktuellen Aktionspreise gelten bis einschließlich
+ai_ask_model_details.promotion_no_end:
+  context: Current temporary model price with no firm published end date; minimum guarantees are not expiry
+  en: Current promotional rates apply. No end date has been announced.
+  de: Es gelten die aktuellen Aktionspreise. Ein Enddatum wurde nicht bekannt gegeben.
+
+ai_ask_model_details.over_200k_pricing:
+  context: Google ordinary long-context customer tariff heading
+  en: Over 200,000 input tokens
+  de: Über 200.000 Eingabe-Tokens
+ai_ask_model_details.over_200k_explanation:
+  context: Ordinary Google long-context tier applies to the whole request independently of cache activation
+  en: When a request exceeds 200,000 input tokens, these input and output rates apply to the whole request.
+  de: Wenn eine Anfrage mehr als 200.000 Eingabe-Tokens enthält, gelten diese Eingabe- und Ausgabepreise für die gesamte Anfrage.

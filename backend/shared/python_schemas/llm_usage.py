@@ -125,6 +125,19 @@ def normalize_provider_usage(
     )
     thoughts = _count(_field(usage, "thoughts_token_count"), "thoughts_token_count") if kind == "google" else None
     google_output_estimated = False
+    if kind == "google" and tariff_snapshot and tariff_snapshot.get("bill_reasoning_tokens") is True:
+        reported_total = _count(_field(usage, "total_token_count"), "total_token_count")
+        if not google_input_missing and output is not None:
+            if thoughts is None:
+                # Argon bills thoughts even while cache pricing is pending.
+                # Google's inclusive total can recover an omitted counter;
+                # without that evidence the output accounting is incomplete.
+                if reported_total is not None and reported_total >= native_input + output:
+                    thoughts = reported_total - native_input - output
+                else:
+                    google_output_estimated = True
+            elif reported_total is not None and reported_total != native_input + output + thoughts:
+                google_output_estimated = True
     if output is None:
         reported_total = _count(_field(usage, "total_token_count"), "total_token_count")
         # Google totals include prompt, candidates and thoughts. This equality

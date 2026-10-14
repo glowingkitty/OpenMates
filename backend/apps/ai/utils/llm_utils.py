@@ -77,9 +77,13 @@ NATIVE_GOOGLE_THOUGHT_SIGNATURE_PROVIDERS = {"google", "google_ai_studio"}
 def _google_profile_thinking_level(
     logical_model_id: str, server_model_id: str, requested_level: str | None,
 ) -> str | None:
-    """Forward only an approved automatic profile to the same native Google model."""
+    """Forward approved profiles or Argon levels to the same native Google model."""
 
-    if not any(
+    is_argon_level = (
+        logical_model_id == "google/gemini-4-argon"
+        and requested_level in {"LOW", "MEDIUM", "HIGH"}
+    )
+    if not is_argon_level and not any(
         profile["model"] == logical_model_id and profile["thinking_level"] == requested_level
         for profile in DEFAULT_TIER_MODEL_PROFILES.values()
     ):
@@ -229,7 +233,10 @@ def prepare_native_cache_context(
             or context.get("server_model_id") != configured_model_id):
         return None
     if tariff_snapshot is None:
-        pricing = config_manager.get_model_pricing(*logical_model_id.split("/", 1))
+        pricing = config_manager.get_model_pricing(
+            *logical_model_id.split("/", 1), inference_host=configured_prefix,
+            region=_configured_server_region(logical_model_id, configured_prefix, configured_model_id),
+        )
         if not pricing:
             return None
         tariff_snapshot = _snapshot_for_customer_scope(
@@ -301,7 +308,6 @@ def _snapshot_for_customer_scope(pricing: Dict[str, Any], *, cache_pricing_enabl
         return snapshot_model_tariff(pricing)
     legacy_pricing = copy.deepcopy(pricing)
     legacy_pricing["cache_pricing"]["enabled"] = False
-    legacy_pricing.pop("pricing_version", None)
     return snapshot_model_tariff(legacy_pricing)
 
 
@@ -1176,10 +1182,13 @@ class LLMPreprocessingCallResult(BaseModel):
 
 def _auxiliary_usage_telemetry(
     usage: Any, *, logical_model_id: str, route_id: str, server_model_id: str,
+    tariff_snapshot: Optional[Dict[str, Any]], region: Optional[str],
 ) -> Dict[str, Any]:
     """Private, numeric supplier estimate for one auxiliary provider attempt."""
     fields: Dict[str, Any] = {
         "inference_host": route_id,
+        "region": region,
+        "tariff_snapshot": tariff_snapshot,
         "input_tokens": None, "uncached_input_tokens": None,
         "cache_read_input_tokens": None, "cache_creation_input_tokens": None,
         "output_tokens": None, "output_reasoning_tokens": None,
@@ -1193,16 +1202,10 @@ def _auxiliary_usage_telemetry(
             "google_ai_studio": "google", "google": "google", "aws_bedrock": "bedrock",
             "groq": "openai", "openrouter": "openai", "cerebras": "openai",
         }.get(route_id, route_id)
-        pricing = None
-        for candidate in (logical_model_id, f"{route_id}/{server_model_id}"):
-            if "/" in candidate:
-                pricing = config_manager.get_model_pricing(*candidate.split("/", 1))
-            if pricing:
-                break
-        frozen = snapshot_model_tariff(pricing) if pricing else None
+        frozen = tariff_snapshot
         normalized = normalize_provider_usage(
             usage, model_id=logical_model_id, provider_kind=provider_kind,
-            inference_host=route_id, region=_configured_server_region(logical_model_id, route_id, server_model_id),
+            inference_host=route_id, region=region,
             tariff_snapshot=frozen,
         )
         bucket = normalized.to_bucket()
@@ -1654,6 +1657,24 @@ async def call_preprocessing_llm(
                     if effective_timeout <= 0:
                         return LLMPreprocessingCallResult(error_message=_preprocessing_budget_exhausted_error())
 
+                    # A concrete host fallback still belongs to the original logical
+                    # model; a cross-model fallback owns its own catalog tariff.
+                    configured_routes = resolve_fallback_servers_from_provider_config(model_id)
+                    attempt_model_id = (
+                        model_id if is_primary_model or requested_model_id in configured_routes
+                        else requested_model_id
+                    )
+                    attempt_region = _configured_server_region(
+                        attempt_model_id, provider_prefix, actual_model_id,
+                    )
+                    attempt_pricing = config_manager.get_model_pricing(
+                        *attempt_model_id.split("/", 1),
+                        inference_host=provider_prefix, region=attempt_region,
+                    )
+                    attempt_tariff = (
+                        _snapshot_for_customer_scope(attempt_pricing, cache_pricing_enabled=False)
+                        if attempt_pricing else None
+                    )
                     provider_started_at = asyncio.get_running_loop().time()
                     response = await asyncio.wait_for(
                         provider_client(**provider_request_kwargs),
@@ -1686,8 +1707,9 @@ async def call_preprocessing_llm(
                     )
                     result = handle_response(response, expected_tool_name)
                     result.usage_telemetry = _auxiliary_usage_telemetry(
-                        usage, logical_model_id=model_id, route_id=provider_prefix,
-                        server_model_id=actual_model_id,
+                        usage, logical_model_id=attempt_model_id, route_id=provider_prefix,
+                        server_model_id=actual_model_id, tariff_snapshot=attempt_tariff,
+                        region=attempt_region,
                     )
                     result.usage_telemetry["model_id"] = requested_model_id
                     if usage is not None and usage_callback is not None:
@@ -1913,7 +1935,7 @@ async def call_main_llm_stream(
     stop_after_provider_failure: bool = False,
     cacheable_system_prefix: Optional[str] = None,
     prompt_cache_key: Optional[str] = None,
-    pre_dispatch_admission: Optional[Callable[[str, Optional[int]], Awaitable[int]]] = None,
+    pre_dispatch_admission: Optional[Callable[..., Awaitable[int]]] = None,
     customer_cache_pricing_enabled: bool = False,
     thinking_level: Optional[str] = None,
     native_cache_context: Optional[Dict[str, Any]] = None,
@@ -2254,13 +2276,16 @@ async def call_main_llm_stream(
             if _retry_thinking_level:
                 _retry_input["thinking_level"] = _retry_thinking_level
             _retry_attempt_id = uuid.uuid4().hex
-            _retry_pricing = config_manager.get_model_pricing(*original_model_id.split("/", 1)) if "/" in original_model_id else None
+            _retry_region = _configured_server_region(
+                original_model_id, _retry_provider_prefix, _retry_actual_model_id,
+            )
+            _retry_pricing = config_manager.get_model_pricing(
+                *original_model_id.split("/", 1),
+                inference_host=_retry_provider_prefix, region=_retry_region,
+            ) if "/" in original_model_id else None
             _retry_tariff = (
                 _snapshot_for_customer_scope(_retry_pricing, cache_pricing_enabled=customer_cache_pricing_enabled)
                 if _retry_pricing else None
-            )
-            _retry_region = _configured_server_region(
-                original_model_id, _retry_provider_prefix, _retry_actual_model_id,
             )
             if (_retry_provider_prefix in {"anthropic", "aws_bedrock"}
                     and sanitized_cacheable_prefix
@@ -2274,7 +2299,10 @@ async def call_main_llm_stream(
             if _retry_provider_prefix == "mistral":
                 _retry_input["catalog_model_id"] = original_model_id
             if pre_dispatch_admission is not None:
-                admitted_limit = await pre_dispatch_admission(_retry_server_model_id, _retry_input["max_tokens"])
+                admitted_limit = await pre_dispatch_admission(
+                    _retry_server_model_id, _retry_input["max_tokens"],
+                    tariff_snapshot=_retry_tariff, region=_retry_region,
+                )
                 if (isinstance(admitted_limit, bool) or not isinstance(admitted_limit, int)
                         or admitted_limit <= 0 or (_retry_input["max_tokens"] is not None
                                                  and admitted_limit > _retry_input["max_tokens"])):
@@ -2470,7 +2498,13 @@ async def call_main_llm_stream(
             continue
 
         attempt_id = uuid.uuid4().hex
-        pricing = config_manager.get_model_pricing(*original_model_id.split("/", 1)) if "/" in original_model_id else None
+        attempt_region = _configured_server_region(
+            original_model_id, server_provider_prefix, server_actual_model_id,
+        )
+        pricing = config_manager.get_model_pricing(
+            *original_model_id.split("/", 1),
+            inference_host=server_provider_prefix, region=attempt_region,
+        ) if "/" in original_model_id else None
         tariff_snapshot = (
             _snapshot_for_customer_scope(pricing, cache_pricing_enabled=customer_cache_pricing_enabled)
             if pricing else None
@@ -2492,9 +2526,6 @@ async def call_main_llm_stream(
             server_llm_input_details["messages"] = prepared_native_context["messages"]
             server_llm_input_details["tools"] = prepared_native_context["baseline_tools"]
             server_llm_input_details["native_cache_context"] = prepared_native_context
-        attempt_region = _configured_server_region(
-            original_model_id, server_provider_prefix, server_actual_model_id,
-        )
         if (prepared_native_context is None and server_provider_prefix in {"anthropic", "aws_bedrock"}
                 and sanitized_cacheable_prefix
                 and _cache_checkpoint_allowed(tariff_snapshot, server_provider_prefix)):
@@ -2510,7 +2541,10 @@ async def call_main_llm_stream(
         # Keep this outside the provider try: wallet failures must never become
         # a supplier fallback or trigger an unreserved retry.
         if pre_dispatch_admission is not None:
-            admitted_limit = await pre_dispatch_admission(server_model_id, server_llm_input_details["max_tokens"])
+            admitted_limit = await pre_dispatch_admission(
+                server_model_id, server_llm_input_details["max_tokens"],
+                tariff_snapshot=tariff_snapshot, region=attempt_region,
+            )
             if (isinstance(admitted_limit, bool) or not isinstance(admitted_limit, int)
                     or admitted_limit <= 0 or (server_llm_input_details["max_tokens"] is not None
                                              and admitted_limit > server_llm_input_details["max_tokens"])):

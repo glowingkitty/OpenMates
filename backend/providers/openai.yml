@@ -472,21 +472,23 @@ models:
         name: "OpenAI API"
         model_id: "gpt-5.6-sol"
         region: "US"
+    # Historical pre-promotion tariff; future replacement remains unpublished.
+    # The undated promotion below does not switch on November 22.
     pricing:
       tokens:
-        input: { per_credit_unit: 80 }
-        cache_read: { per_credit_unit: 800 }
-        cache_write: { per_credit_unit: 64 }
-        output: { per_credit_unit: 15 }
+        input: { per_credit_unit: 65 }
+        cache_read: { per_credit_unit: 650 }
+        cache_write: { per_credit_unit: 52 }
+        output: { per_credit_unit: 10 }
       context_bands:
         over_272k:
           min_input_tokens: 272001
           eligible_hosts: [openai]
           tokens:
-            input: { per_credit_unit: 40 }
-            cache_read: { per_credit_unit: 400 }
-            cache_write: { per_credit_unit: 32 }
-            output: { per_credit_unit: 10 }
+            input: { per_credit_unit: 32 }
+            cache_read: { per_credit_unit: 325 }
+            cache_write: { per_credit_unit: 26 }
+            output: { per_credit_unit: 7 }
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -496,10 +498,10 @@ models:
       status: proposed_pending_provider_evidence
       requires_cache_write_metric: true
     costs:
-      input_per_million_token: { price: 4, currency: USD, max_context: 1050000 }
-      cached_input_per_million_token: { price: 0.4, currency: USD, max_context: 1050000 }
-      cache_write_per_million_token: { price: 5, currency: USD, max_context: 1050000 }
-      output_per_million_token: { price: 20, currency: USD, max_context: 1050000 }
+      input_per_million_token: { price: 5, currency: USD, max_context: 1050000 }
+      cached_input_per_million_token: { price: 0.5, currency: USD, max_context: 1050000 }
+      cache_write_per_million_token: { price: 6.25, currency: USD, max_context: 1050000 }
+      output_per_million_token: { price: 30, currency: USD, max_context: 1050000 }
     supplier_cost_profiles:
       openai:
         context_bands:
@@ -508,6 +510,64 @@ models:
             cache_read: 2
             cache_write: 2
             output: 1.5
+    temporary_prices:
+      - id: promotional-2026-08-21
+        effective_from: '2026-08-21'
+        guaranteed_through: '2026-11-21'
+        source_url: https://developers.openai.com/api/docs/models/gpt-5.6-sol
+        reviewed_on: '2026-10-14'
+        eligible_hosts:
+        - openai
+        processing_tier: standard
+        pricing:
+          tokens:
+            input:
+              per_credit_unit: 80
+            cache_read:
+              per_credit_unit: 800
+            cache_write:
+              per_credit_unit: 64
+            output:
+              per_credit_unit: 15
+          context_bands:
+            over_272k:
+              min_input_tokens: 272001
+              eligible_hosts:
+              - openai
+              tokens:
+                input:
+                  per_credit_unit: 40
+                cache_read:
+                  per_credit_unit: 400
+                cache_write:
+                  per_credit_unit: 32
+                output:
+                  per_credit_unit: 10
+        costs:
+          input_per_million_token:
+            price: 4
+            currency: USD
+            max_context: 1050000
+          cached_input_per_million_token:
+            price: 0.4
+            currency: USD
+            max_context: 1050000
+          cache_write_per_million_token:
+            price: 5
+            currency: USD
+            max_context: 1050000
+          output_per_million_token:
+            price: 20
+            currency: USD
+            max_context: 1050000
+        supplier_cost_profiles:
+          openai:
+            context_bands:
+              over_272k:
+                input: 2
+                cache_read: 2
+                cache_write: 2
+                output: 1.5
     features:
       max_output_tokens: 128000
       reasoning_token_support: true

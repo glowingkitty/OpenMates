@@ -1,3 +1,4 @@
+import type { TemporaryPriceMetadata } from "../utils/temporaryModelPricing";
 import type { Schema } from '../components/workflows/workflowBuilder';
 
 /** Public, account-independent skill presentation returned by the Apps API. */
@@ -15,7 +16,7 @@ export interface AppsSkillDetails {
   defaults: Record<string, unknown>;
   pricing: Record<string, unknown> | null;
   providers: Record<string, unknown>[];
-  models: Record<string, unknown>[];
+  models: Array<Record<string, unknown> & { active_temporary_price?: TemporaryPriceMetadata | null }>;
   anonymous_allowed: boolean;
   execution_available: boolean;
   unavailable_reason: string | null;

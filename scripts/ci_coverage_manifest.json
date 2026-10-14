@@ -1,6 +1,14 @@
 {
   "source_commit": "703e3f9494bb21d2c94d387acfd32a692f7168a9",
   "groups": {
+    "temporary_model_catalog": {
+      "execution": "e2e",
+      "enabling_work": "Read-only public model discovery plus runner-local model-details previews and UTC clock transitions. No signup, provider credentials, or AI inference; the component-marked spec uses the Vite-only profile.",
+      "specs": [
+        "provider-temporary-pricing.spec.ts",
+        "components/temporary-model-pricing.spec.ts"
+      ]
+    },
     "ai_fixture_pending": {
       "execution": null,
       "enabling_work": "Mixed live sends or actual application execution remain: chat-flow sends an unmarked second request; explain-in-new-chat and follow-up-suggestions trigger unmarked continuation requests; application-preview and code-generation-multiturn require real preview/E2B execution. Preserve those original behaviors and provision approved dedicated provider/runtime capabilities.",

@@ -82,3 +82,13 @@ describe('cache pricing catalog admission', () => {
     expect(isLongContextPricingDisplayActive(verified, 'anthropic', standardRates, { ...band, cache_read_tokens_per_credit: undefined }, '2026-10-08')).toBe(false);
   });
 });
+
+// contract-test: supporting surface=gui.web assertions=billing.models.active-price-consistency
+it('shows verified Google ordinary long-context rates independently of cache activation', () => {
+  const band = { min_input_tokens: 200001, eligible_hosts: ['google_ai_studio', 'google'], input_tokens_per_credit: 85, output_tokens_per_credit: 20 };
+  const standard = { input: 170, output: 30 };
+  expect(isLongContextPricingDisplayActive({ enabled: false }, 'google_ai_studio', standard, band)).toBe(true);
+  expect(isLongContextPricingDisplayActive({ enabled: false }, 'google', standard, band)).toBe(true);
+  expect(isLongContextPricingDisplayActive({ enabled: false }, 'openrouter', standard, band)).toBe(false);
+  expect(isLongContextPricingDisplayActive({ enabled: false }, 'google', standard, { ...band, output_tokens_per_credit: 0 })).toBe(false);
+});

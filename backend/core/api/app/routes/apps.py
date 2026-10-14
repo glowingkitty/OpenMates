@@ -435,6 +435,7 @@ class ModelMetadataItem(BaseModel):
     provider_id: str
     provider_name: str
     pricing: Optional[Dict[str, Any]] = None
+    active_temporary_price: Optional[Dict[str, Any]] = None
 
 
 class MemoryMetadataItem(BaseModel):
@@ -583,6 +584,7 @@ def _skill_models(
                 provider_id=provider_id,
                 provider_name=provider.get("name") or provider_id,
                 pricing=model.get("pricing"),
+                active_temporary_price=model.get("active_temporary_price"),
             ))
     return sorted(models, key=lambda model: (model.provider_name.lower(), model.name.lower()))
 

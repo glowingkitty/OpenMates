@@ -76,7 +76,7 @@ def _cerebras_response(*, success=True):
 def priced(monkeypatch):
     monkeypatch.setattr(
         summary_billing.celery_config.config_manager, "get_model_pricing",
-        lambda *_args: _pricing(),
+        lambda *_args, **_kwargs: _pricing(),
     )
 
 
@@ -407,8 +407,8 @@ async def test_summary_task_records_intent_before_checkpoint_then_settles(monkey
 
     monkeypatch.setattr(ask_skill_task, "get_admin_compression_threshold", admin_threshold)
     monkeypatch.setattr(ask_skill_task, "model_compression_threshold", lambda *_args, **_kwargs: 1)
-    monkeypatch.setattr(ask_skill_task, "should_compress", lambda *_args: True)
-    monkeypatch.setattr(ask_skill_task, "selected_main_cache_tariff_active", lambda *_args: True)
+    monkeypatch.setattr(ask_skill_task, "should_compress", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(ask_skill_task, "selected_main_cache_tariff_active", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(ask_skill_task, "SummaryBillingOperation", Billing)
     monkeypatch.setattr(ask_skill_task, "compress_chat_history", compression)
     kwargs = dict(
@@ -449,8 +449,8 @@ async def test_workflow_and_subchat_compression_stays_bundled(monkeypatch, exclu
 
     monkeypatch.setattr(ask_skill_task, "get_admin_compression_threshold", admin_threshold)
     monkeypatch.setattr(ask_skill_task, "model_compression_threshold", lambda *_args, **_kwargs: 1)
-    monkeypatch.setattr(ask_skill_task, "should_compress", lambda *_args: True)
-    monkeypatch.setattr(ask_skill_task, "selected_main_cache_tariff_active", lambda *_args: True)
+    monkeypatch.setattr(ask_skill_task, "should_compress", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(ask_skill_task, "selected_main_cache_tariff_active", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(ask_skill_task, "SummaryBillingOperation", lambda **_kwargs: pytest.fail("summary hold created"))
     monkeypatch.setattr(ask_skill_task, "compress_chat_history", compression)
     assert not await ask_skill_task._compress_for_selected_model(
@@ -512,8 +512,8 @@ async def test_compression_keeps_private_project_file_text_only_in_answer_memory
 
     monkeypatch.setattr(ask_skill_task, "get_admin_compression_threshold", admin_threshold)
     monkeypatch.setattr(ask_skill_task, "model_compression_threshold", lambda *_args, **_kwargs: 1)
-    monkeypatch.setattr(ask_skill_task, "should_compress", lambda *_args: True)
-    monkeypatch.setattr(ask_skill_task, "selected_main_cache_tariff_active", lambda *_args: False)
+    monkeypatch.setattr(ask_skill_task, "should_compress", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(ask_skill_task, "selected_main_cache_tariff_active", lambda *_args, **_kwargs: False)
     monkeypatch.setattr(ask_skill_task, "compress_chat_history", compression)
     assert await ask_skill_task._compress_for_selected_model(
         task_id="task-private-read", request_data=request, selected_model_id="google/model",
@@ -631,6 +631,6 @@ def test_payment_disabled_keeps_separate_summary_tariff_inactive(monkeypatch, pr
         "source_url": "https://example.com/pricing", "reviewed_on": "2026-10-01",
         "expires_on": "2099-12-31",
     }
-    monkeypatch.setattr(manager, "get_model_pricing", lambda *_args: pricing)
+    monkeypatch.setattr(manager, "get_model_pricing", lambda *_args, **_kwargs: pricing)
     monkeypatch.setattr(server_mode, "is_payment_enabled", lambda: False)
     assert not summary_billing.selected_main_cache_tariff_active("google/model")

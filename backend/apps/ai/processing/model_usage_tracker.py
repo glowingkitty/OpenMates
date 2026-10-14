@@ -80,7 +80,7 @@ def build_model_usage_breakdown(
         output_tokens = int(bucket.get("output_tokens") or 0)
         legacy_output = bucket.get("legacy_billable_output_tokens")
         charged_output = (
-            output_tokens if purpose == "summary" or is_cache_tariff_eligible(tariff.get("cache_pricing", {}), bucket.get("inference_host")) or legacy_output is None
+            output_tokens if purpose == "summary" or tariff.get("bill_reasoning_tokens") is True or is_cache_tariff_eligible(tariff.get("cache_pricing", {}), bucket.get("inference_host")) or legacy_output is None
             else int(legacy_output)
         )
         uncached = int(bucket.get("uncached_input_tokens", input_tokens))

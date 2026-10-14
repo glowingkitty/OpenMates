@@ -24,6 +24,7 @@ class FakeSecretsManager:
         return None
 
 
+# contract-test: infrastructure reason=provider_credential_shape_unit
 @pytest.mark.anyio
 async def test_edamam_availability_accepts_app_id_and_app_key(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("SECRET__EDAMAM__API_KEY", raising=False)
@@ -33,6 +34,7 @@ async def test_edamam_availability_accepts_app_id_and_app_key(monkeypatch: pytes
     assert await check_provider_api_key_available("edamam", FakeSecretsManager()) is True
 
 
+# contract-test: infrastructure reason=provider_metadata_schema_unit
 def test_skill_metadata_response_preserves_providers() -> None:
     item = SkillMetadataItem(
         id="get_events",
@@ -46,6 +48,7 @@ def test_skill_metadata_response_preserves_providers() -> None:
     assert payload["providers"] == [{"name": "Google", "display_name": None, "no_api_key": True}]
 
 
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.catalog.capability-recommendation-variants
 def test_skill_models_filter_missing_provider_keys() -> None:
     provider_configs = {
         "openai": {
@@ -68,6 +71,7 @@ def test_skill_models_filter_missing_provider_keys() -> None:
     assert [model.provider_id for model in models] == ["openai"]
 
 
+# contract-test: infrastructure reason=app_metadata_provider_projection_unit
 def test_app_metadata_filters_unavailable_provider_details_and_models() -> None:
     app = AppYAML(
         id="web",
@@ -103,3 +107,20 @@ def test_app_metadata_filters_unavailable_provider_details_and_models() -> None:
 
     assert [provider.id for provider in item.skills[0].provider_details] == []
     assert [model.provider_id for model in item.skills[1].models] == ["openai"]
+
+
+# contract-test: supporting surface=rest_api assertions=billing.models.active-price-consistency
+def test_public_skill_models_preserve_current_promotion_without_supplier_costs() -> None:
+    metadata = {"id": "intro", "effective_from": "2026-10-13", "expires_on": "2026-11-30",
+                "source_url": "https://example.test/pricing", "reviewed_on": "2026-10-14",
+                "eligible_hosts": ["google_ai_studio"], "processing_tier": "standard"}
+    models = _skill_models(app_id="ai", skill_id="ask", provider_configs={"google": {
+        "name": "Google", "models": [{"id": "gemini-4-argon", "for_app_skill": "ai.ask",
+        "pricing": {"tokens": {"input": {"per_credit_unit": 160}},
+                    "context_bands": {"over_200k": {"min_input_tokens": 200001, "tokens": {"input": {"per_credit_unit": 85}}}}},
+        "active_temporary_price": metadata, "costs": {"supplier_secret": 2}}]}})
+    published = models[0].model_dump()
+    assert published["active_temporary_price"] == metadata
+    assert published["pricing"]["tokens"]["input"]["per_credit_unit"] == 160
+    assert published["pricing"]["context_bands"]["over_200k"]["min_input_tokens"] == 200001
+    assert "costs" not in published

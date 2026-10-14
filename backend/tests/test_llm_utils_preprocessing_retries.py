@@ -13,6 +13,7 @@ try:
     from backend.apps.ai.llm_providers.openai_shared import (
         ParsedOpenAIToolCall,
         UnifiedOpenAIResponse,
+        OpenAIUsageMetadata,
     )
     from backend.apps.ai.utils import llm_utils
 except ImportError as exc:
@@ -476,3 +477,62 @@ async def test_preprocessing_reserves_budget_for_remaining_configured_providers(
         assert result.error_message == "Request timeout after 25s"
     if total_budget > 0:
         assert clock[0] < total_budget
+
+
+# contract-test: supporting surface=rest_api assertions=billing.models.immutable-attempt-tariffs,billing.models.verified-host-prices
+@pytest.mark.asyncio
+async def test_preprocessing_freezes_each_model_host_tariff_before_response(monkeypatch):
+    calls = []
+    price_lookups = []
+    pricing = {
+        "pricing": {"tokens": {"input": {"per_credit_unit": 1000},
+                                 "output": {"per_credit_unit": 100}}},
+        "costs": {"input_per_million_token": {"price": 1.0},
+                  "output_per_million_token": {"price": 2.0}},
+        "active_temporary_price": {"id": "intro"},
+    }
+
+    def get_pricing(provider, model, *, inference_host, region):
+        price_lookups.append((provider, model, inference_host, region))
+        pricing["costs"]["output_per_million_token"]["price"] = 2.0 if model == "primary" else 4.0
+        return pricing
+
+    def client(host):
+        async def invoke(**kwargs):
+            calls.append((host, kwargs["model_id"]))
+            assert price_lookups[-1][2] == host
+            # Simulate a config reload while the response is in flight.
+            pricing["costs"]["output_per_million_token"]["price"] = 99.0
+            return UnifiedOpenAIResponse(
+                task_id="task", model_id=kwargs["model_id"], success=host == "openai",
+                error_message="503 unavailable" if host != "openai" else None,
+                usage=OpenAIUsageMetadata(input_tokens=100, output_tokens=10, total_tokens=110),
+                tool_calls_made=[ParsedOpenAIToolCall(
+                    tool_call_id="expected", function_name="expected_tool",
+                    function_arguments_raw="{}", function_arguments_parsed={},
+                )] if host == "openai" else None,
+            )
+        return invoke
+
+    monkeypatch.setattr(llm_utils, "_get_provider_client", client)
+    monkeypatch.setattr(llm_utils, "PROVIDER_CLIENT_REGISTRY", {"mistral": client, "openai": client})
+    monkeypatch.setattr(llm_utils.config_manager, "get_model_pricing", get_pricing)
+    monkeypatch.setattr(llm_utils, "_configured_server_region", lambda *_args: "global")
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config",
+                        lambda _: ("mistral", "mistral/primary"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _: [])
+    monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda history: history)
+    telemetry = []
+    result = await llm_utils.call_preprocessing_llm(
+        task_id="task", model_id="mistral/primary",
+        message_history=[{"role": "user", "content": "hello"}],
+        tool_definition=_tool_definition(), fallback_models=["openai/fallback"],
+        usage_callback=telemetry.append,
+    )
+    assert result.arguments == {}
+    assert calls == [("mistral", "primary"), ("openai", "fallback")]
+    assert price_lookups == [("mistral", "primary", "mistral", "global"),
+                             ("openai", "fallback", "openai", "global")]
+    assert [entry["tariff_snapshot"]["costs"]["output_per_million_token"]["price"]
+            for entry in telemetry] == [2.0, 4.0]
+    assert [entry["supplier_cost_usd"] for entry in telemetry] == pytest.approx([0.00012, 0.00014])

@@ -11,6 +11,7 @@ from typing import List, Dict, Any, Optional
 import logging
 
 from backend.shared.python_utils.model_availability import is_model_available, utc_today
+from backend.shared.python_utils.model_pricing import resolve_model_tariff, validate_temporary_prices
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,9 @@ class ConfigManager:
             return
 
         provider_key = config_data['provider_id']
+        for model in config_data.get("models", []):
+            if isinstance(model, dict):
+                validate_temporary_prices(model)
         existing = self._provider_configs.get(provider_key) if self._provider_configs else None
         if not existing:
             self._provider_configs[provider_key] = config_data
@@ -202,10 +206,10 @@ class ConfigManager:
         if not isinstance(models, list):
             return config
         available = [
-            model for model in models
+            resolve_model_tariff(model, on_date=today) if isinstance(model, dict) else model for model in models
             if not isinstance(model, dict) or is_model_available(model, today=today)
         ]
-        return config if len(available) == len(models) else {**config, "models": available}
+        return {**config, "models": available}
 
     def get_provider_config(self, provider_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -215,7 +219,10 @@ class ConfigManager:
         config = self._provider_configs.get(provider_id) if self._provider_configs else None
         return self._available_provider_config(config, utc_today()) if config else None
 
-    def get_model_pricing(self, provider_id: str, model_id: str) -> Optional[Dict[str, Any]]:
+    def get_model_pricing(
+        self, provider_id: str, model_id: str, *, inference_host: str | None = None,
+        region: str | None = None, processing_tier: str = "standard", on_date: date | None = None,
+    ) -> Optional[Dict[str, Any]]:
         """
         Retrieves all details (pricing, costs, etc.) for a specific model ID 
         from a specific provider.
@@ -230,7 +237,10 @@ class ConfigManager:
         for model in provider_config.get("models", []):
             if isinstance(model, dict) and (model.get("id") == model_id or model_id in model.get("aliases", [])):
                 # Return the entire model block, as it contains costs and other details needed for billing.
-                return model
+                return resolve_model_tariff(
+                    model, inference_host=inference_host, region=region,
+                    processing_tier=processing_tier, on_date=on_date,
+                )
         
         logger.warning(f"Model '{model_id}' not found in provider config for '{provider_id}'.")
         return None

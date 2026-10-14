@@ -1386,7 +1386,7 @@ def test_personal_main_usage_has_no_hold_and_other_scopes_keep_reservation(monke
 def test_personal_main_dispatch_applies_read_only_wallet_fit_before_provider(monkeypatch) -> None:
     import asyncio
 
-    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: {
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args, **_kwargs: {
         "features": {"max_output_tokens": 1_000},
         "pricing": {"tokens": {
             "input": {"per_credit_unit": 100_000},

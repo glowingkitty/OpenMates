@@ -57,6 +57,12 @@ export function isLongContextPricingDisplayActive(
   band: LongContextPricingBand | null | undefined,
   today = new Date().toISOString().slice(0, 10),
 ): boolean {
+  // Google's ordinary long-context input/output tier applies independently of cache activation.
+  if (['google_ai_studio', 'google'].includes(defaultHost ?? '') && band?.min_input_tokens === 200001) {
+    return Boolean(defaultHost && band.eligible_hosts?.includes(defaultHost) &&
+      [standardRates.input, standardRates.output, band.input_tokens_per_credit, band.output_tokens_per_credit]
+        .every(rate => typeof rate === 'number' && Number.isFinite(rate) && rate > 0));
+  }
   if (!isCachePricingDisplayActive(policy, defaultHost, standardRates, today)) return false;
   const expectedThreshold = defaultHost === 'openai' ? 272001 : defaultHost === 'anthropic' ? 100001 : null;
   if (expectedThreshold === null || band?.min_input_tokens !== expectedThreshold ||

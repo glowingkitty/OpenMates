@@ -18,6 +18,17 @@ export default { modelId: model.id };
 // Synthetic policy variants exercise inactive/expired states independently of
 // the live catalog. Catalog variants use the published rates without overrides.
 export const variants = {
+  'catalog-google-pro': { modelId: 'gemini-3.1-pro-preview' },
+  'catalog-argon': { modelId: 'gemini-4-argon' },
+  'catalog-mistral-large': { modelId: 'mistral-large-4' },
+  'promotion-dated': {
+    modelId: model.id,
+    modelOverride: { ...model, active_temporary_price: { id: 'dated-fixture', effective_from: '2026-10-13', expires_on: '2026-11-30', source_url: 'https://example.test/pricing', reviewed_on: '2026-10-14', eligible_hosts: [model.default_server], processing_tier: 'standard' } },
+  },
+  'promotion-undated': {
+    modelId: model.id,
+    modelOverride: { ...model, active_temporary_price: { id: 'undated-fixture', effective_from: '2026-10-13', guaranteed_through: '2026-10-20', source_url: 'https://example.test/pricing', reviewed_on: '2026-10-14', eligible_hosts: [model.default_server], processing_tier: 'standard' } },
+  },
   'catalog-google': { modelId: 'gemini-3.8-flash' },
   'catalog-openai': { modelId: 'gpt-6.1-sol' },
   'catalog-anthropic': { modelId: 'claude-sonnet-5-5' },

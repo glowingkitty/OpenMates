@@ -83,7 +83,7 @@ def _kwargs(request, tracker, state, *, output_limit=100):
 
 async def test_personal_reservation_tops_up_same_final_charge_from_observed_usage(monkeypatch):
     pricing = _pricing()
-    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: pricing)
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args, **_kwargs: pricing)
     sent = []
 
     async def reserve(_method, endpoint, payload):
@@ -114,7 +114,7 @@ async def test_personal_reservation_tops_up_same_final_charge_from_observed_usag
 
 async def test_team_reservation_fits_output_to_authoritative_402_limit(monkeypatch):
     pricing = _pricing()
-    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: pricing)
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args, **_kwargs: pricing)
     sent = []
 
     async def reserve(_method, endpoint, payload):
@@ -160,7 +160,7 @@ async def test_confirmed_terminal_release_clears_ordinary_hold(monkeypatch):
 
 
 async def test_payment_disabled_reservation_skips_hold_without_blocking_inference(monkeypatch):
-    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: _pricing())
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args, **_kwargs: _pricing())
 
     async def skipped(_method, _endpoint, payload):
         return {"state": "skipped", "charge_id": payload["idempotency_key"], "quoted_credits": 0}
@@ -174,7 +174,7 @@ async def test_payment_disabled_reservation_skips_hold_without_blocking_inferenc
 
 
 async def test_ordinary_reservation_uses_model_output_cap_when_unspecified(monkeypatch):
-    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: _pricing())
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args, **_kwargs: _pricing())
 
     async def reserved(_method, _endpoint, payload):
         return {"state": "reserved", "charge_id": payload["idempotency_key"],
@@ -187,9 +187,9 @@ async def test_ordinary_reservation_uses_model_output_cap_when_unspecified(monke
 
 
 def test_personal_output_cap_is_independent_of_customer_hold(monkeypatch):
-    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: _pricing())
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args, **_kwargs: _pricing())
     assert main_processor._personal_chat_output_token_limit("provider/model") == 1_000
-    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: {})
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args, **_kwargs: {})
     assert main_processor._personal_chat_output_token_limit("provider/model") == main_processor.ORCHESTRATED_AI_MAX_OUTPUT_TOKENS
     with pytest.raises(ValueError, match="provider-qualified"):
         main_processor._personal_chat_output_token_limit("model")
@@ -198,7 +198,7 @@ def test_personal_output_cap_is_independent_of_customer_hold(monkeypatch):
 async def test_unreserved_personal_dispatch_fits_low_wallet_without_a_hold(monkeypatch):
     pricing = _pricing()
     pricing["pricing"]["tokens"]["output"]["per_credit_unit"] = 1
-    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: pricing)
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args, **_kwargs: pricing)
     async def forbidden_write(*_args, **_kwargs):
         raise AssertionError("An informational fit must not reserve credits")
     monkeypatch.setattr(main_processor, "_make_internal_api_request", forbidden_write)
@@ -249,7 +249,7 @@ async def test_unreserved_personal_dispatch_fits_low_wallet_without_a_hold(monke
 async def test_unreserved_personal_dispatch_rejects_unaffordable_or_unknown_input(monkeypatch):
     pricing = _pricing()
     pricing["pricing"]["tokens"]["input"]["per_credit_unit"] = 1
-    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: pricing)
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args, **_kwargs: pricing)
 
     class Cache:
         def __init__(self, profile):
@@ -273,7 +273,7 @@ async def test_unreserved_personal_dispatch_rejects_unaffordable_or_unknown_inpu
 
 
 async def test_unreserved_personal_dispatch_requotes_each_actual_fallback_host(monkeypatch):
-    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: _long_context_pricing())
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args, **_kwargs: _long_context_pricing())
     class Cache:
         async def get_user_by_id(self, _user_id):
             return {"credits": 185}
@@ -295,7 +295,7 @@ async def test_unreserved_personal_dispatch_requotes_each_actual_fallback_host(m
 
 async def test_openai_long_context_quote_switches_cold_input_and_output_units_at_boundary(monkeypatch):
     pricing = _long_context_pricing()
-    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: pricing)
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args, **_kwargs: pricing)
 
     def quote(size, host="openai"):
         return main_processor._quote_ai_iteration_credits(
@@ -317,7 +317,7 @@ async def test_openai_long_context_quote_switches_cold_input_and_output_units_at
 async def test_remote_image_quote_reserves_model_context_and_long_context_rates(monkeypatch, image):
     pricing = _long_context_pricing()
     pricing["costs"] = {"input_per_million_token": {"max_context": 300_000}}
-    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: pricing)
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args, **_kwargs: pricing)
     messages = [{"role": "tool", "content": [{"type": "image_url", "image_url": image}]}]
 
     def quote(host):
@@ -331,7 +331,7 @@ async def test_remote_image_quote_reserves_model_context_and_long_context_rates(
 
 
 async def test_remote_image_quote_requires_configured_context_limit(monkeypatch):
-    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: _pricing())
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args, **_kwargs: _pricing())
     with pytest.raises(RuntimeError, match="context limit is unavailable"):
         main_processor._quote_ai_iteration_credits(
             model_id="openai/model", system_prompt="system",
@@ -343,7 +343,7 @@ async def test_remote_image_quote_requires_configured_context_limit(monkeypatch)
 
 async def test_long_context_reservation_fits_output_and_tops_up_for_actual_openai_host(monkeypatch):
     pricing = _long_context_pricing()
-    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: pricing)
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args, **_kwargs: pricing)
     prompt = _system_prompt_for_serialized_input_bytes(272_001)
     quotes = []
     capacity = 683
@@ -374,7 +374,7 @@ async def test_long_context_reservation_fits_output_and_tops_up_for_actual_opena
 @pytest.mark.parametrize("capacity_mode", ["full", "fit", "deny"])
 async def test_hidden_usage_requires_fresh_hold_before_internal_host_fallback(monkeypatch, capacity_mode):
     pricing = _pricing()
-    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: pricing)
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args, **_kwargs: pricing)
     monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _model: ("openai", "openai/model"))
     monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _model: ["mistral/model"])
     first_hold = None
@@ -426,7 +426,7 @@ async def test_hidden_usage_requires_fresh_hold_before_internal_host_fallback(mo
         **_kwargs(request, tracker, state, output_limit=100),
     )
 
-    async def admit(_host, dispatch_limit):
+    async def admit(_host, dispatch_limit, **_context):
         return await main_processor._reserve_authenticated_ai_turn(
             **_kwargs(request, tracker, state, output_limit=dispatch_limit),
         )
@@ -467,12 +467,12 @@ async def test_auxiliary_supplier_telemetry_counts_google_thoughts_once(monkeypa
         "costs": {"input_per_million_token": {"price": 1.0},
                   "output_per_million_token": {"price": 2.0}},
     }
-    monkeypatch.setattr(llm_utils.config_manager, "get_model_pricing", lambda *_args: pricing)
+    monkeypatch.setattr(llm_utils.config_manager, "get_model_pricing", lambda *_args, **_kwargs: pricing)
     telemetry = llm_utils._auxiliary_usage_telemetry(
         {"prompt_token_count": 100, "candidates_token_count": 10,
          "thoughts_token_count": 5, "cached_content_token_count": 0},
         logical_model_id="google/test-model", route_id="google_ai_studio",
-        server_model_id="test-model",
+        server_model_id="test-model", tariff_snapshot=snapshot_model_tariff(pricing), region=None,
     )
     assert telemetry["output_tokens"] == 15
     assert telemetry["output_reasoning_tokens"] == 5

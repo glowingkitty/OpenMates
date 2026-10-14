@@ -1,0 +1,25 @@
+schema_version: 2
+id: temporary-model-pricing
+title: Gemini Argon and temporary provider pricing
+status: approved
+profile: concise
+goal: >
+  Add support for google gemini argon 4 and update gemini prices and add support
+  for temporary prices, then check the prices of the models again to ensure
+  they are up to date.
+specifications:
+  - feature.billing@10
+scope:
+  in:
+    - Resolve verified dated and undated customer and supplier token tariffs per actual provider attempt.
+    - Expose current prices and promotion metadata through existing catalogs and model details.
+    - Add bounded Gemini 4 Argon inference support without changing automatic defaults.
+    - Apply verified catalog corrections and retain documented verification gaps.
+  out:
+    - Production deployment and invented replacement prices or discount expiries.
+    - Background Gemini long decode and unrelated provider or test infrastructure changes.
+verification:
+  required:
+    - Focused Python resolver, immutable billing, Google adapter, and catalog projection checks.
+    - Isolated GitHub catalog and model-details E2E against the exact candidate source.
+    - Scoped repository lint and approved-specification validation before dev deployment.

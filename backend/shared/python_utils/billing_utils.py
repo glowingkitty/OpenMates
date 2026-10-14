@@ -26,6 +26,7 @@ MINIMUM_CREDITS_CHARGED = 1
 OVERDRAFT_LIMIT_CREDITS = -500
 OPENAI_LONG_CONTEXT_MIN_INPUT_TOKENS = 272_001
 ANTHROPIC_LONG_CONTEXT_MIN_INPUT_TOKENS = 100_001
+GOOGLE_LONG_CONTEXT_MIN_INPUT_TOKENS = 200_001
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 
@@ -138,6 +139,10 @@ def snapshot_model_tariff(model_pricing_details: ModelPricingDetails) -> Dict[st
         "local": bool(model_pricing_details.get("local")),
         "self_hosted": bool(model_pricing_details.get("self_hosted")),
     }
+    if model_pricing_details.get("active_temporary_price"):
+        snapshot["active_temporary_price"] = copy.deepcopy(model_pricing_details["active_temporary_price"])
+    if model_pricing_details.get("bill_reasoning_tokens") is True:
+        snapshot["bill_reasoning_tokens"] = True
     policy = snapshot["cache_pricing"]
     if policy.get("enabled"):
         today = date.today()
@@ -222,12 +227,13 @@ def select_customer_context_band(
     pricing = model_pricing_details.get("pricing", model_pricing_details)
     base_rates = pricing.get("tokens", {})
     policy = model_pricing_details.get("cache_pricing", {})
-    if not is_cache_tariff_eligible(policy, inference_host):
+    bands = pricing.get("context_bands")
+    google_band = isinstance(bands, dict) and set(bands) == {"over_200k"}
+    if not google_band and not is_cache_tariff_eligible(policy, inference_host):
         return None, base_rates
     if isinstance(input_total, bool) or not isinstance(input_total, int) or input_total < 0:
         raise BillingError("Inclusive input tokens must be a non-negative integer")
 
-    bands = pricing.get("context_bands")
     supplier_bands = (
         (model_pricing_details.get("supplier_cost_profiles", {}).get("openai", {})
          .get("context_bands") or {})
@@ -242,7 +248,7 @@ def select_customer_context_band(
         raise BillingError("Anthropic long-context supplier price lacks a customer band")
     if bands is None:
         return None, base_rates
-    if not isinstance(bands, dict) or set(bands) not in ({"over_272k"}, {"over_100k"}):
+    if not isinstance(bands, dict) or set(bands) not in ({"over_272k"}, {"over_100k"}, {"over_200k"}):
         raise BillingError("Unsupported customer context bands")
     band_name = next(iter(bands))
     anthropic_band = band_name == "over_100k"
@@ -254,9 +260,13 @@ def select_customer_context_band(
         )
     min_input_tokens = (
         ANTHROPIC_LONG_CONTEXT_MIN_INPUT_TOKENS if anthropic_band
+        else GOOGLE_LONG_CONTEXT_MIN_INPUT_TOKENS if google_band
         else OPENAI_LONG_CONTEXT_MIN_INPUT_TOKENS
     )
-    eligible_hosts = ["anthropic"] if anthropic_band else ["openai"]
+    eligible_hosts = (
+        ["anthropic"] if anthropic_band else
+        ["google_ai_studio", "google"] if google_band else ["openai"]
+    )
     if (type(band["min_input_tokens"]) is not int
             or band["min_input_tokens"] != min_input_tokens
             or band["eligible_hosts"] != eligible_hosts):
@@ -329,7 +339,7 @@ def calculate_token_category_credits(
     cache_policy = model_pricing_details.get("cache_pricing", {})
     eligible_policy = is_cache_tariff_eligible(cache_policy, inference_host)
     charged_output = (
-        output_tokens if eligible_policy
+        output_tokens if eligible_policy or model_pricing_details.get("bill_reasoning_tokens") is True
         else output_tokens if legacy_billable_output is None else legacy_billable_output
     )
     separate_writes = cache_policy.get("write_billing") == "separate"
@@ -459,6 +469,9 @@ def calculate_cache_aware_supplier_cost(
     if (context_band is None and inference_host == "anthropic" and total > 100_000
             and "over_100k" in (profile.get("context_bands") or {})):
         context_band = "over_100k"
+    if (context_band is None and inference_host in {"google_ai_studio", "google"} and total > 200_000
+            and "over_200k" in (profile.get("context_bands") or {})):
+        context_band = "over_200k"
     context_rates = (profile.get("context_bands") or {}).get(context_band or "standard", {})
     tier_rates = (profile.get("service_tiers") or {}).get(service_tier or "standard", {})
     if context_band not in (None, "standard") and not context_rates:

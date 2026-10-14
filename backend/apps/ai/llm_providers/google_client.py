@@ -319,9 +319,14 @@ def _clamp_temperature_for_thinking_model(model_id: str, temperature: float) -> 
 
 
 def _google_thinking_config(model_id: str, thinking_level: Optional[str]) -> types.ThinkingConfig:
-    """Keep the approved Gemini 3.8 Flash profile off unrelated Google models."""
+    """Apply supported native thinking levels without affecting other models."""
 
-    if model_id == "gemini-3.8-flash" and thinking_level in {"LOW", "MEDIUM", "HIGH"}:
+    if model_id == "gemini-4-argon":
+        if thinking_level is None:
+            thinking_level = "MEDIUM"
+        elif thinking_level not in {"LOW", "MEDIUM", "HIGH"}:
+            raise ValueError("Gemini 4 Argon thinking_level must be LOW, MEDIUM, or HIGH")
+    if model_id in {"gemini-3.8-flash", "gemini-4-argon"} and thinking_level in {"LOW", "MEDIUM", "HIGH"}:
         return types.ThinkingConfig(
             include_thoughts=True,
             thinking_level=types.ThinkingLevel(thinking_level),
@@ -910,11 +915,17 @@ async def invoke_google_ai_studio_chat_completions(
         # Clamp temperature for thinking models: Google confirmed that temperature < 1.0 causes
         # infinite reasoning loops that exhaust the token budget and flush raw internal reasoning
         # text (missing thought: true tag) into the response as regular text.
-        effective_temperature = _clamp_temperature_for_thinking_model(model_id, temperature)
+        sampling_config = (
+            {} if normalized_model_id == "gemini-4-argon" else
+            {"temperature": _clamp_temperature_for_thinking_model(model_id, temperature)}
+        )
+        output_limit = (
+            min(max_tokens, 65_536) if max_tokens is not None else 65_536
+        ) if normalized_model_id == "gemini-4-argon" else max_tokens
         generation_config = types.GenerateContentConfig(
             thinking_config=_google_thinking_config(normalized_model_id, thinking_level),
-            temperature=effective_temperature,
-            max_output_tokens=max_tokens,
+            **sampling_config,
+            max_output_tokens=output_limit,
             system_instruction=system_prompt,
             tools=google_tools,
             tool_config=tool_config_dict if tool_config_dict else None,
@@ -1297,11 +1308,17 @@ async def invoke_google_chat_completions(
         # Clamp temperature for thinking models: Google confirmed that temperature < 1.0 causes
         # infinite reasoning loops that exhaust the token budget and flush raw internal reasoning
         # text (missing thought: true tag) into the response as regular text.
-        effective_temperature = _clamp_temperature_for_thinking_model(model_id, temperature)
+        sampling_config = (
+            {} if normalized_model_id == "gemini-4-argon" else
+            {"temperature": _clamp_temperature_for_thinking_model(model_id, temperature)}
+        )
+        output_limit = (
+            min(max_tokens, 65_536) if max_tokens is not None else 65_536
+        ) if normalized_model_id == "gemini-4-argon" else max_tokens
         generation_config = types.GenerateContentConfig(
             thinking_config=_google_thinking_config(normalized_model_id, thinking_level),
-            temperature=effective_temperature,
-            max_output_tokens=max_tokens,
+            **sampling_config,
+            max_output_tokens=output_limit,
             system_instruction=system_prompt,
             tools=google_tools,
             tool_config=tool_config_dict if tool_config_dict else None,

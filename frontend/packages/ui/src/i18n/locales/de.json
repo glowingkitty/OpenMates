@@ -17494,6 +17494,18 @@
         },
         "enable_model": {
           "text": "Modell aktivieren"
+        },
+        "promotion_until": {
+          "text": "Die aktuellen Aktionspreise gelten bis einschließlich"
+        },
+        "promotion_no_end": {
+          "text": "Es gelten die aktuellen Aktionspreise. Ein Enddatum wurde nicht bekannt gegeben."
+        },
+        "over_200k_pricing": {
+          "text": "Über 200.000 Eingabe-Tokens"
+        },
+        "over_200k_explanation": {
+          "text": "Wenn eine Anfrage mehr als 200.000 Eingabe-Tokens enthält, gelten diese Eingabe- und Ausgabepreise für die gesamte Anfrage."
         }
       }
     },

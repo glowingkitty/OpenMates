@@ -2462,11 +2462,15 @@ def _quote_ai_iteration_credits(
     credit_rounding_headroom: int = 0,
     inference_host: Optional[str] = None,
     customer_cache_pricing_enabled: bool = True,
+    tariff_snapshot: Optional[Dict[str, Any]] = None,
+    region: Optional[str] = None,
 ) -> int:
     if "/" not in model_id:
         raise RuntimeError("AI reservation requires a provider-qualified model id")
     provider_id, model_suffix = model_id.split("/", 1)
-    model_config = config_manager.get_model_pricing(provider_id, model_suffix)
+    model_config = tariff_snapshot or config_manager.get_model_pricing(
+        provider_id, model_suffix, inference_host=inference_host, region=region,
+    )
     if not model_config:
         raise RuntimeError(f"AI reservation pricing is unavailable for {model_id}")
     if not customer_cache_pricing_enabled and (model_config.get("cache_pricing") or {}).get("enabled"):
@@ -2573,6 +2577,8 @@ def _max_affordable_ai_output_tokens(
     credit_rounding_headroom: int = 0,
     inference_host: Optional[str] = None,
     customer_cache_pricing_enabled: bool = True,
+    tariff_snapshot: Optional[Dict[str, Any]] = None,
+    region: Optional[str] = None,
 ) -> Optional[int]:
     if requested_output_token_limit <= 0 or available_credits <= 0:
         return None
@@ -2585,6 +2591,8 @@ def _max_affordable_ai_output_tokens(
         "input_envelope_tokens": input_envelope_tokens,
         "credit_rounding_headroom": credit_rounding_headroom,
         "inference_host": inference_host,
+        "tariff_snapshot": tariff_snapshot,
+        "region": region,
         "customer_cache_pricing_enabled": customer_cache_pricing_enabled,
     }
     if _quote_ai_iteration_credits(
@@ -2656,6 +2664,8 @@ async def _reserve_authenticated_ai_turn(
     model_usage_tracker: ModelUsageTracker,
     reservation_state: Dict[str, Any],
     inference_host: Optional[str] = None,
+    tariff_snapshot: Optional[Dict[str, Any]] = None,
+    region: Optional[str] = None,
 ) -> int:
     """Top up one durable turn hold; fit output against authoritative capacity."""
     if getattr(request_data, "is_anonymous", False) or request_data.orchestration_id:
@@ -2689,6 +2699,8 @@ async def _reserve_authenticated_ai_turn(
             message_history=message_history, tools=tools,
             output_token_limit=fitted_limit, credit_rounding_headroom=1,
             inference_host=inference_host,
+            tariff_snapshot=tariff_snapshot,
+            region=region,
             customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
         )
         cumulative_quote = max(int(reservation_state.get("quoted_credits") or 0), observed_credits + next_quote)
@@ -2716,6 +2728,8 @@ async def _reserve_authenticated_ai_turn(
                 available_credits=max_quote - observed_credits,
                 credit_rounding_headroom=1,
                 inference_host=inference_host,
+                tariff_snapshot=tariff_snapshot,
+                region=region,
                 customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
             )
             if affordable is None or affordable >= fitted_limit:
@@ -2898,6 +2912,8 @@ async def _fit_personal_chat_output_token_limit(
     inference_host: str,
     directus_service: Optional[DirectusService] = None,
     encryption_service: Optional[EncryptionService] = None,
+    tariff_snapshot: Optional[Dict[str, Any]] = None,
+    region: Optional[str] = None,
 ) -> int:
     """Bound one unreserved dispatch to the remaining personal-wallet capacity."""
     if not request_data.user_id or cache_service is None:
@@ -2943,6 +2959,8 @@ async def _fit_personal_chat_output_token_limit(
             available_credits=balance + 500 - observed_credits,
             credit_rounding_headroom=1,
             inference_host=inference_host,
+            tariff_snapshot=tariff_snapshot,
+            region=region,
             customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
         )
     except Exception as exc:
@@ -6588,7 +6606,10 @@ async def handle_main_processing(
                         model_usage_tracker=model_usage_tracker,
                         reservation_state=ordinary_reservation_state,
                     )
-                    async def admit_actual_provider(_server_model_id: str, dispatch_limit: Optional[int]) -> int:
+                    async def admit_actual_provider(
+                        _server_model_id: str, dispatch_limit: Optional[int], *,
+                        tariff_snapshot: Optional[Dict[str, Any]] = None, region: Optional[str] = None,
+                    ) -> int:
                         return await _reserve_authenticated_ai_turn(
                             task_id=logical_billing_task_id, request_data=request_data,
                             model_id=current_model_id,
@@ -6599,9 +6620,14 @@ async def handle_main_processing(
                             model_usage_tracker=model_usage_tracker,
                             reservation_state=ordinary_reservation_state,
                             inference_host=_server_model_id.split("/", 1)[0],
+                            tariff_snapshot=tariff_snapshot,
+                            region=region,
                         )
                 elif personal_normal_chat:
-                    async def admit_actual_provider(_server_model_id: str, dispatch_limit: Optional[int]) -> int:
+                    async def admit_actual_provider(
+                        _server_model_id: str, dispatch_limit: Optional[int], *,
+                        tariff_snapshot: Optional[Dict[str, Any]] = None, region: Optional[str] = None,
+                    ) -> int:
                         return await _fit_personal_chat_output_token_limit(
                             request_data=request_data,
                             cache_service=cache_service,
@@ -6614,6 +6640,8 @@ async def handle_main_processing(
                             tools=reservation_tools,
                             requested_output_token_limit=dispatch_limit,
                             inference_host=_server_model_id.split("/", 1)[0],
+                            tariff_snapshot=tariff_snapshot,
+                            region=region,
                         )
                 else:
                     admit_actual_provider = None

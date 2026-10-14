@@ -115,6 +115,7 @@ def _model_object(provider_id: str, model_config: Dict[str, Any]) -> Dict[str, A
             "name": model_config.get("name"),
             "description": model_config.get("description"),
             "capability_level": model_config.get("capability_level"),
+            "active_temporary_price": model_config.get("active_temporary_price"),
             "input_types": model_config.get("input_types"),
             "output_types": model_config.get("output_types"),
             "context_window_tokens": input_costs.get("max_context") or output_costs.get("max_context"),

@@ -44,8 +44,7 @@ models:
     # Regular direct-API supplier rates, verified 2026-10-08:
     # https://docs.mistral.ai/models/mistral-large
     # The page currently advertises a half-price sale without an expiry.
-    # Customer rates and cost coverage use regular prices so the tariff remains
-    # viable when that sale ends.
+    # Keep regular rates separate from the verified undated sale below.
     pricing:
       tokens:
         input:
@@ -74,6 +73,34 @@ models:
         price: 4.18
         currency: USD
         max_context: 1000000
+    temporary_prices:
+      - id: half-price-sale-2026
+        effective_from: '2026-10-14'
+        source_url: https://docs.mistral.ai/models/mistral-large
+        reviewed_on: '2026-10-14'
+        eligible_hosts:
+        - mistral
+        processing_tier: standard
+        pricing:
+          tokens:
+            input:
+              per_credit_unit: 490
+            cache_read:
+              per_credit_unit: 4760
+            output:
+              per_credit_unit: 158
+        costs:
+          input_per_million_token:
+            price: 0.68
+            currency: USD
+            max_context: 1000000
+          cached_input_per_million_token:
+            price: 0.07
+            currency: USD
+          output_per_million_token:
+            price: 2.09
+            currency: USD
+            max_context: 1000000
     features:
       tool_use: true
       streaming: true

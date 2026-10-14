@@ -18339,6 +18339,18 @@
         },
         "enable_model": {
           "text": "Enable model"
+        },
+        "promotion_until": {
+          "text": "Current promotional rates apply through"
+        },
+        "promotion_no_end": {
+          "text": "Current promotional rates apply. No end date has been announced."
+        },
+        "over_200k_pricing": {
+          "text": "Over 200,000 input tokens"
+        },
+        "over_200k_explanation": {
+          "text": "When a request exceeds 200,000 input tokens, these input and output rates apply to the whole request."
         }
       }
     },

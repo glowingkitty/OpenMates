@@ -1,5 +1,55 @@
 schema_version: 1
-specification: feature.billing@9
+specification: feature.billing@10
+
+scheduled_model_prices:
+  - id: argon-introduction-ends-after-november
+    given: Google publishes Gemini 4 Argon rates of $2 input, $0.10 cached input, and $10 output per million tokens through November 30, 2026, followed by regular rates of $4, $0.20, and $20.
+    when: Separate standard Google AI Studio attempts start on November 30 and December 1 in UTC, while the same server process remains running.
+    then: The first freezes the introductory rates and discounted customer tariff; the second freezes the regular rates and regular customer tariff. The change does not disable otherwise valid implicit-cache billing.
+  - id: flash-end-of-year-transition
+    given: Gemini 3.8 Flash has a verified introductory Google AI Studio tariff of $0.75 input, $0.075 cached input, and $3.75 output per million tokens through December 31, 2026, with regular rates twice those amounts.
+    when: New attempts start before the configured introduction, on its final UTC day, and on January 1, 2027.
+    then: Only the attempt inside the introduction receives the discount; both outside attempts use the configured regular tariff without rewriting catalog files.
+
+undated_model_prices:
+  - id: mistral-sale-has-no-invented-end
+    given: Mistral advertises Large 4 sale prices of $0.68 input, $0.07 cached input, and $2.09 output per million tokens alongside regular prices of $1.36, $0.14, and $4.18, with no published end date.
+    when: The verified sale is configured and the current model tariff is requested.
+    then: The Mistral route uses the sale and discounted customer token charges, retains the regular tariff separately, records the official source and review date, and reports no known expiry.
+  - id: minimum-duration-is-not-a-deadline
+    given: OpenAI advertises GPT-5.6 Sol pricing of $4 input and $20 output per million tokens at least through November 21, 2026, without specifying the actual end or replacement price.
+    when: The catalog is inspected on November 22 without a newer provider announcement.
+    then: November 21 is recorded as a minimum guaranteed duration rather than a firm expiry, and the system does not invent a November 22 price increase or an unpublished future tariff.
+
+frozen_model_prices:
+  - id: stream-crosses-the-price-boundary
+    given: A Gemini 4 Argon attempt is dispatched late on November 30, 2026, with the introductory tariff frozen before its provider call.
+    when: Its stream finishes and settlement is retried on December 1, then the user reads the receipt after regular prices become active.
+    then: The attempt settles once using its original introductory customer rates and supplier costs, and the receipt preserves that pricing identity and debit.
+  - id: fallback-attempt-resolves-its-own-route
+    given: A model's direct host has a verified temporary sale and its fallback host has only verified regular pricing.
+    when: A direct-host attempt incurs usage and a separately dispatched fallback attempt completes the request.
+    then: Each attempt freezes its own eligible tariff before dispatch, the fallback does not inherit the other host's discount, and settlement accounts for incurred work once under the existing rounding rules.
+
+current_model_prices:
+  - id: argon-is-selectable-with-current-prices
+    given: Gemini 4 Argon is available on its verified Google API route with introductory standard prices and supported multimodal chat and tool-use capabilities.
+    when: A user lists models through REST, CLI or an SDK, views the model details, and explicitly selects google/gemini-4-argon for a chat.
+    then: Each implemented surface presents the same active customer tariff and known November 30 expiry, and exact selection reaches Argon with supported request settings while existing automatic defaults and other saved preferences stay intact.
+  - id: mistral-discount-reaches-the-customer
+    given: The regular Mistral Large 4 customer tariff allows 245 ordinary input, 2380 cached input, and 79 output tokens per credit, and the verified direct-provider sale halves every corresponding supplier rate.
+    when: A new eligible request is estimated and charged during that sale.
+    then: Its customer tariff allows 490 ordinary input, 4760 cached input, and 158 output tokens per credit, preserving the existing markup and rounding convention; the current catalog agrees and older receipts retain their original rates.
+
+verified_model_prices:
+  - id: vertex-rebate-is-separate-from-gross-cost
+    given: Google AI Studio discounts Flash token rates directly, while the verified Vertex offer applies the same savings through retrospective billing credits.
+    when: Supplier cost is recorded for an eligible Vertex attempt before the invoice credit is confirmed.
+    then: The recorded supplier cost uses the verified gross Vertex tariff and rebate information stays separate; the attempt is not reported as having already received a credit.
+  - id: invalid-discount-and-unknown-supplier-cannot-invent-cost
+    given: One model has overlapping or incomplete temporary tariffs, and another legacy model routes through an unconstrained aggregator whose current supplier rate cannot be verified.
+    when: The catalog is validated and the next pricing audit compares official sources.
+    then: The invalid discount is rejected before it can authorize guessed discounted provider work, and the legacy value is retained with its verification gap recorded rather than replaced with the aggregator's cheapest unrelated endpoint.
 
 anonymous_free_use:
   - id: web-and-cli-share-the-same-allowance
