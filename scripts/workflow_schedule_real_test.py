@@ -53,7 +53,8 @@ def ident(value: object, label: str) -> str:
     return value
 
 
-def author(cli_path: Path, project_id: str, prompt: str, label: str, created_ids: list[str]) -> dict:
+def author(cli_path: Path, project_id: str, prompt: str, label: str,
+           created_ids: list[str], diagnostics: dict) -> dict:
     result = cli(cli_path, ["workflows", "input", prompt, "--project-id", project_id,
                             "--timezone", "Europe/Berlin", "--idempotency-key", str(uuid4())], label, 240)
     deadline = time.monotonic() + 180
@@ -61,7 +62,10 @@ def author(cli_path: Path, project_id: str, prompt: str, label: str, created_ids
         time.sleep(3)
         result = cli(cli_path, ["workflows", "input-show", ident(result.get("session_id"), "authoring_session")],
                      f"{label}_status")
-    if not isinstance(result, dict) or result.get("status") != "executed":
+    # Retain the own synthetic request's response privately, including errors or
+    # clarification, so a failed authoring attempt remains diagnosable after cleanup.
+    diagnostics[label] = result
+    if not isinstance(result, dict):
         raise ProofError(f"{label}_not_executed")
     workflows = result.get("workflows")
     if not isinstance(workflows, list):
@@ -69,6 +73,8 @@ def author(cli_path: Path, project_id: str, prompt: str, label: str, created_ids
     for item in workflows:
         if isinstance(item, dict) and isinstance(item.get("id"), str) and item["id"]:
             created_ids.append(item["id"])
+    if result.get("status") != "executed":
+        raise ProofError(f"{label}_not_executed")
     workflow = workflows[0] if len(workflows) == 1 else None
     if not isinstance(workflow, dict) or workflow.get("enabled") is not False:
         raise ProofError(f"{label}_not_one_disabled_workflow")
@@ -251,7 +257,7 @@ def main() -> int:
     cli_path = Path(args.cli_path).resolve()
     receipt: dict = {"status": "started", "target": API_URL, "started_at": datetime.now(UTC).isoformat(),
                      "session": args.session, "deployed_revision": args.revision,
-                     "workflows": {}, "cleanup": {}}
+                     "workflows": {}, "authoring": {}, "cleanup": {}}
     leases: list[tuple[str, str, set[str], str]] = []
     workflows: list[str] = []
     project_id: str | None = None
@@ -308,21 +314,28 @@ def main() -> int:
         clock = run_at.strftime("%H:%M")
         due_at = int(run_at.astimezone(UTC).timestamp())
         receipt["requested_run_at"] = run_at.isoformat()
+        def search_input(departure: str | dict) -> str:
+            return json.dumps({"requests": [{
+                "legs": [{"origin": "Berlin", "destination": "Hamburg", "date": departure}],
+                "transport_methods": ["train"], "max_results": 3,
+            }]}, separators=(",", ":"))
+
         once_prompt = (f"Create one Workflow in this Project to run only once at {run_at.isoformat()} "
                        f"({clock} Europe/Berlin) and search real train connections from Berlin to Hamburg "
-                       f"departing {date}, with transport_methods [train] and at least three results. "
+                       f"departing {date}. Use exactly this travel.search_connections input: {search_input(date)}. "
                        "Use travel.search_connections, then send the selected connection results in a new chat message. "
                        "Save it disabled.")
         daily_prompt = (f"Create a separate Workflow in this Project to run every day at {clock} "
                         f"Europe/Berlin, starting only from {run_at.isoformat()} onward. "
                         "No checks may run before that future starting date and time. "
                         "Search real train connections from Berlin to Hamburg "
-                        "departing tomorrow relative to each run, using a dynamic $date tomorrow value "
-                        "with format date, transport_methods [train], and at least three results. "
+                        "departing tomorrow relative to each run. "
+                        "Use exactly this travel.search_connections input, preserving its dynamic date: "
+                        f"{search_input({'$date': 'tomorrow', 'format': 'date'})}. "
                         "Use travel.search_connections, then send the selected connection results in a new chat message. "
                         "Save it disabled.")
         for label, prompt, expected in (("once", once_prompt, run_at), ("daily", daily_prompt, run_at)):
-            authored = author(cli_path, project_id, prompt, label, workflows)
+            authored = author(cli_path, project_id, prompt, label, workflows, receipt["authoring"])
             workflow_id = ident(authored.get("id"), f"{label}_workflow_id")
             receipt["workflows"][label] = {"workflow_id": workflow_id, "authored": True}
             travel_id = check_graph(authored, label, expected)
