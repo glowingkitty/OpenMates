@@ -13,4 +13,4 @@
   <meta name="twitter:title" content={pageTitle} />
   <meta property="og:image" content={`${data.websiteBaseUrl}/images/og-image.jpg`} />
 </svelte:head>
-<LandingPage appBaseUrl={data.appBaseUrl} websiteBaseUrl={data.websiteBaseUrl} apiBaseUrl={data.apiBaseUrl} events={data.events} news={data.news} posts={data.posts} />
+<LandingPage appBaseUrl={data.appBaseUrl} websiteBaseUrl={data.websiteBaseUrl} apiBaseUrl={data.apiBaseUrl} serverStatusUrl="/api/server-status" events={data.events} news={data.news} posts={data.posts} />

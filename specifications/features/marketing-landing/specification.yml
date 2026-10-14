@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.marketing-landing
-version: 7
+version: 8
 status: draft
 title: Lightweight Public Website and Scrollable Landing Page
 summary: A lightweight standalone website owns the scrollable landing page, news, blog and legal content,
@@ -59,11 +59,13 @@ assertions:
   - examples.destinations
 - id: marketing-landing.composer-focus
   type: behavior
-  must: 'Activating the hero''s message-input affordance opens the web app with its real message composer
-    focused. This explicit focus request survives a cold start and does not send a message, replace an
-    existing draft, or require the user to click the composer again.
-
-    '
+  must: The fixed message-input affordance is hidden until the public server availability check settles.
+    When free testing is enabled and global capacity is available, it reads Test for free in English or
+    Kostenlos testen in German and opens the web app with its real composer focused. This focus request
+    survives a cold start without sending a message, replacing a draft or requiring another click.
+    Otherwise, including a failed or timed-out status check, it reads Try out now or Jetzt ausprobieren
+    and opens the existing signup entry. After the check it fades in and rises from the bottom; reduced
+    motion shows it without that animation. The check must not load app authentication or chat services.
   depends_on:
   - examples.composer
 - id: marketing-landing.real-screenshots
@@ -177,9 +179,10 @@ assertions:
   must: On a fresh landing-page visit, the AI icon and privacy-first team-mates heading enter first,
     followed after a short stagger by the user-message example, app carousel and In seconds text, then
     by the scroll-down indicator after another short delay. Opacity fades and restrained lift or scale
-    motion settle into fully readable content without changing layout or delaying composer use. Existing
+    motion settle into fully readable content without changing layout. The composer appears independently
+    after its availability check. Existing
     icon glow, app-wheel motion and scroll-cue breathing remain independent. Returning from an example
-    tab does not replay the entrance or hide content. Reduced-motion visitors see all content immediately.
+    tab does not replay the entrance or hide content. Reduced-motion visitors see the hero immediately and the composer after its availability check.
   depends_on:
   - examples.hero_entrance
 applies_to:

@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.marketing-landing@7
+specification: feature.marketing-landing@8
 scrolling:
 - id: visitor-controls-reading-time
   given: Alex opens the standalone website while signed out and JavaScript is unavailable.
@@ -59,7 +59,7 @@ hero_entrance:
   given: Sam opens the landing page in a fresh tab with normal motion enabled.
   when: The hero first appears.
   then: The AI icon and heading fade and settle into view first, followed by the user message, app row and
-    In seconds text, then the scroll cue. The message input remains usable throughout, and the finished
+    In seconds text, then the scroll cue. The message input appears after its availability check, and the finished
     layout is fully visible without shifted or overlapping elements.
 - id: reduced-motion-and-return
   given: Alex either requests reduced motion or returns to the landing tab after opening an example chat.
@@ -67,10 +67,16 @@ hero_entrance:
   then: Reduced motion shows the complete hero immediately. Returning to the tab leaves the completed
     entrance visible and does not restart it or interfere with scrolling.
 composer:
-- id: cold-start-focus
-  given: Alex has an unsent draft in the web app and opens the public website in another tab.
-  when: Alex activates the fixed message-input link and the app finishes starting.
-  then: The real composer receives focus, the draft remains intact and no message is sent.
+- id: available-testing-focus
+  given: Free testing is enabled with available server capacity, and Alex has an unsent app draft.
+  when: Alex visits the landing page and then activates the message-input link after the status check.
+  then: The initially hidden input fades and rises into view with Test for free, or Kostenlos testen in
+    German. It opens the real composer focused, preserves the draft and sends no message.
+- id: unavailable-testing-signup
+  given: Free testing is disabled, its global budget is exhausted, or the availability check cannot finish.
+  when: Alex visits the landing page and the check settles or reaches its timeout.
+  then: The input appears with Try out now, or Jetzt ausprobieren in German, and opens the existing signup
+    entry. Reduced motion shows the input without a fade or movement, and no free testing is advertised.
 screenshots:
 - id: real-safe-device-images
   given: The personal dev account displays events, privacy and Workflows, and the same chat on desktop

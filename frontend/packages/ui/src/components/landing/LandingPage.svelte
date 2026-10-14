@@ -6,6 +6,7 @@
     appBaseUrl,
     websiteBaseUrl,
     apiBaseUrl,
+    serverStatusUrl,
     events = [],
     news = [],
     posts = []
@@ -13,6 +14,7 @@
     appBaseUrl: string;
     websiteBaseUrl: string;
     apiBaseUrl?: string;
+    serverStatusUrl?: string;
     events?: LandingPublication[];
     news?: LandingPublication[];
     posts?: LandingPublication[];
@@ -25,4 +27,4 @@
   ));
 </script>
 
-<PublicLandingPage {appBaseUrl} {websiteBaseUrl} apiBaseUrl={fallbackApiUrl} {events} {news} {posts} />
+<PublicLandingPage {appBaseUrl} {websiteBaseUrl} apiBaseUrl={fallbackApiUrl} {serverStatusUrl} {events} {news} {posts} />

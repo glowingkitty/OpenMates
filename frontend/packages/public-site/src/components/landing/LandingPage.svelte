@@ -13,12 +13,13 @@
     appBaseUrl: string;
     websiteBaseUrl: string;
     apiBaseUrl: string;
+    serverStatusUrl?: string;
     events?: LandingPublication[];
     news?: LandingPublication[];
     posts?: LandingPublication[];
   }
 
-  let { appBaseUrl, websiteBaseUrl, apiBaseUrl, events = [], news = [], posts = [] }: Props = $props();
+  let { appBaseUrl, websiteBaseUrl, apiBaseUrl, serverStatusUrl, events = [], news = [], posts = [] }: Props = $props();
   const appUrl = (path: string) => `${appBaseUrl.replace(/\/$/, '')}${path}`;
   const siteUrl = (path: string) => `${websiteBaseUrl.replace(/\/$/, '')}${path}`;
 
@@ -30,7 +31,9 @@
   let heroEntranceComplete = $state(false);
   let reducedMotion = $state(false);
   let chosenLanguage = $state('en');
+  let freeUsageAvailable = $state<boolean | null>(null);
   let copy = $derived(landingCopy[chosenLanguage === 'de' ? 'de' : 'en']);
+  let composerLabel = $derived(freeUsageAvailable ? copy.tryFree : copy.tryNow);
   let landingRoot: HTMLDivElement;
   let scrollContainer: HTMLElement;
   let railWindow: HTMLDivElement;
@@ -43,6 +46,31 @@
     document.documentElement.lang = code === 'de' ? 'de' : 'en';
     document.documentElement.dir = 'ltr';
   }
+
+  // Use the public server status, without importing the app's account or chat services.
+  onMount(() => {
+    const controller = new AbortController();
+    let disposed = false;
+    const timeout = window.setTimeout(() => controller.abort(), 4000);
+    void (async () => {
+      let available = false;
+      try {
+        const response = await fetch(serverStatusUrl ?? `${apiBaseUrl.replace(/\/$/, '')}/v1/settings/server-status`, {
+          cache: 'no-store', credentials: 'omit', signal: controller.signal,
+        });
+        if (response.ok) {
+          const status = await response.json();
+          const usage = status?.anonymous_free_usage;
+          available = usage?.active === true && usage?.can_send_text !== false;
+        }
+      } catch { /* Unavailable status must never advertise free testing. */ }
+      finally {
+        window.clearTimeout(timeout);
+        if (!disposed) freeUsageAvailable = available;
+      }
+    })();
+    return () => { disposed = true; window.clearTimeout(timeout); controller.abort(); };
+  });
 
   onMount(() => {
     let storedLanguage: string | null = null;
@@ -437,7 +465,9 @@
         <nav aria-label="Footer navigation"><a href={siteUrl('/legal/privacy')}>{copy.privacy}</a><a href={siteUrl('/legal/terms')}>{copy.terms}</a><a href={siteUrl('/legal/imprint')}>{copy.imprint}</a></nav>
       </footer>
     </main>
-    <a class="composer-link" href={appUrl('/#compose')} data-testid="landing-compose" aria-label={copy.tryFree}><span class="composer-ai" aria-hidden="true"></span><span>{copy.tryFree}</span><span class="composer-mic" aria-hidden="true"></span></a>
+    {#if freeUsageAvailable !== null}
+      <a class="composer-link" href={appUrl(freeUsageAvailable ? '/#compose' : '/#signup/basics')} data-testid="landing-compose" aria-label={composerLabel}><span class="composer-ai" aria-hidden="true"></span><span>{composerLabel}</span><span class="composer-mic" aria-hidden="true"></span></a>
+    {/if}
   </div>
 </div>
 
@@ -479,7 +509,8 @@
   .hero-entrance-complete .hero-ai-entrance, .hero-entrance-complete .hero h1, .hero-entrance-complete .hero-prompt-entrance, .hero-entrance-complete .hero-speed, .hero-entrance-complete .rail-window, .hero-entrance-complete .scroll-cue { animation: none; }
   .cue-arrow { display: block; flex: 0 0 1em; width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
   @keyframes cue-pulse { from { opacity: .72; } to { opacity: 1; } }
-  .composer-link { position: absolute; z-index: 5; left: 50%; bottom: max(var(--spacing-8), env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(629px, calc(100% - 30px)); min-height: 64px; box-sizing: border-box; padding: 0 var(--spacing-12); display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-8); border-radius: 32px; background: var(--color-grey-blue); color: var(--color-font-primary); font-weight: 700; box-shadow: 0 4px 12px color-mix(in srgb, var(--color-grey-100) 8%, transparent); text-align: center; }
+  .composer-link { position: absolute; z-index: 5; left: 50%; bottom: max(var(--spacing-8), env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(629px, calc(100% - 30px)); min-height: 64px; box-sizing: border-box; padding: 0 var(--spacing-12); display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-8); border-radius: 32px; background: var(--color-grey-blue); color: var(--color-font-primary); font-weight: 700; box-shadow: 0 4px 12px color-mix(in srgb, var(--color-grey-100) 8%, transparent); text-align: center; animation: composer-enter 550ms cubic-bezier(.2, .75, .25, 1) both; }
+  @keyframes composer-enter { from { opacity: 0; transform: translate(-50%, 24px); } to { opacity: 1; transform: translate(-50%, 0); } }
   .composer-link:hover { box-shadow: var(--shadow-lg); }
   .composer-ai, .composer-mic { display: block; flex: 0 0 24px; width: 24px; height: 24px; background: var(--color-grey-60); -webkit-mask: var(--composer-icon-url) center / contain no-repeat; mask: var(--composer-icon-url) center / contain no-repeat; }
   .composer-ai { --composer-icon-url: url('/icons/ai.svg'); }.composer-mic { --composer-icon-url: url('/icons/recordaudio.svg'); }
@@ -524,25 +555,25 @@
   @media (max-width: 900px) { .feature-media { grid-template-columns: 1fr; }.feature-copy, .feature-later .feature-copy { max-width: 680px; }.feature-example, .feature-later .feature-example { width: 100%; margin: 0 auto; } }
   @media (max-width: 760px) { .viewport-container { margin: 0 var(--spacing-4) var(--spacing-4); }.feature { min-height: 100%; padding: var(--spacing-20) var(--spacing-8); gap: var(--spacing-16); }.feature h2 { margin-bottom: var(--spacing-12); }.publication-row { grid-template-columns: 1fr; gap: var(--spacing-12); padding: var(--spacing-16) var(--spacing-8); }.site-footer { flex-direction: column; align-items: flex-start; padding: var(--spacing-16) var(--spacing-8); }.site-footer nav { justify-content: flex-start; } }
   @media (max-width: 440px) { .scroll-cue-content { gap: var(--spacing-4); }.publication-cards { grid-template-columns: 1fr; }.publication-card img { height: 170px; } }
-  /* Phone heroes use larger readable elements; compact sizing follows the actual
-     panel height after the site header and Safari browser chrome have taken space. */
+  /* Phone sizing balances readable copy with breathing room. The compact rule
+     follows panel height after the header and mobile browser chrome take space. */
   @container (max-width: 480px) {
-    .hero { --hero-ai-size: clamp(6.5rem, min(32cqw, 20cqh), 9.5rem); gap: clamp(.625rem, min(2.6cqw, 1.8cqh), .875rem); }
-    .hero h1 { font-size: clamp(2.125rem, min(10.8cqw, 8cqh), 3rem); }
-    .landing-page:lang(de) .hero h1 { font-size: clamp(2rem, min(8.7cqw, 8cqh), 2.75rem); }
-    .prompt-bubble { box-sizing: border-box; max-width: calc(100% - 1rem); padding: clamp(.5rem, 1.6cqh, .75rem) clamp(.875rem, 3cqw, 1.25rem); font-size: clamp(1.25rem, min(6cqw, 4.3cqh), 1.625rem); }
-    .hero-speed { font-size: clamp(1.125rem, min(5cqw, 3.6cqh), 1.5rem); }
-    .rail-window { --icon-size: clamp(4.5rem, min(24cqw, 18cqh), 6.5rem); }
-    .scroll-cue { font-size: clamp(1rem, min(4.6cqw, 3.4cqh), 1.25rem); }
+    .hero { --hero-ai-size: clamp(6rem, min(28cqw, 20cqh), 8rem); gap: clamp(.625rem, min(2.6cqw, 1.8cqh), .875rem); }
+    .hero h1 { font-size: clamp(2rem, min(9.6cqw, 7.6cqh), 2.75rem); }
+    .landing-page:lang(de) .hero h1 { font-size: clamp(1.5rem, min(7.6cqw, 7.2cqh), 2.25rem); }
+    .prompt-bubble { box-sizing: border-box; max-width: calc(100% - 1rem); padding: clamp(.5rem, 1.6cqh, .75rem) clamp(.875rem, 3cqw, 1.25rem); font-size: clamp(1.1875rem, min(5.4cqw, 4cqh), 1.5rem); }
+    .hero-speed { font-size: clamp(1.0625rem, min(4.6cqw, 3.3cqh), 1.375rem); }
+    .rail-window { --icon-size: clamp(4.25rem, min(21cqw, 17cqh), 6rem); }
+    .scroll-cue { font-size: clamp(.9375rem, min(4.3cqw, 3.2cqh), 1.125rem); }
   }
   @container (max-width: 480px) and (max-height: 560px) {
-    .hero { --hero-ai-size: clamp(5rem, min(28cqw, 16cqh), 6rem); gap: var(--spacing-2); padding-bottom: 96px; }
-    .hero h1 { font-size: clamp(1.875rem, 9.2cqw, 2.25rem); }
-    .landing-page:lang(de) .hero h1 { font-size: clamp(1.625rem, 8.8cqw, 2rem); }
-    .prompt-bubble { padding: .5rem .875rem; font-size: clamp(1.125rem, 5.5cqw, 1.375rem); }
-    .hero-speed { font-size: 1.0625rem; }
-    .rail-window { --icon-size: clamp(4rem, min(21cqw, 17cqh), 5.25rem); }
-    .scroll-cue { min-height: 24px; font-size: .9375rem; }
+    .hero { --hero-ai-size: clamp(4.5rem, min(25cqw, 16cqh), 5rem); gap: var(--spacing-3); padding-bottom: 96px; }
+    .hero h1 { font-size: clamp(1.75rem, 8.8cqw, 2.125rem); }
+    .landing-page:lang(de) .hero h1 { font-size: clamp(1.375rem, 7.4cqw, 1.75rem); }
+    .prompt-bubble { padding: .5rem .875rem; font-size: clamp(1.0625rem, 5.2cqw, 1.25rem); }
+    .hero-speed { font-size: 1rem; }
+    .rail-window { --icon-size: clamp(3.75rem, min(20cqw, 16cqh), 5rem); }
+    .scroll-cue { min-height: 24px; font-size: .875rem; }
   }
   /* A short landscape viewport groups the AI icon beside the text rather than squeezing every row. */
   @media (max-height: 500px) and (min-width: 500px) {
@@ -554,5 +585,5 @@
     .rail-window { grid-column: 1 / -1; width: 100%; height: 64px; --icon-size: 48px; --icon-gap: 18px; }
     .scroll-cue { grid-column: 1 / -1; min-height: 24px; font-size: 12px; }
   }
-  @media (prefers-reduced-motion: reduce) { .scroll-container { scroll-behavior: auto; }.hero-ai-entrance, .hero h1, .hero-prompt-entrance, .hero-speed, .rail-window, .rail-track, .scroll-cue, .scroll-cue-content, .prompt-bubble, .hero-ai-visual, .hero-ai-visual::before { animation: none !important; }.rail-icon, :global(.reveal-ready) .feature-icon, :global(.reveal-ready) .feature-copy h2, :global(.reveal-ready) .feature-copy p, :global(.reveal-ready) .feature-copy .text-link, :global(.reveal-ready) .feature-example, :global(.newsletter-reveal.reveal-ready), :global(.publication-row.reveal-ready) .publication-intro, :global(.publication-row.reveal-ready) .event-cards, :global(.publication-row.reveal-ready) .publication-cards, :global(.publication-row.reveal-ready) .empty-publication { transition: none !important; }.hero-visual { transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .scroll-container { scroll-behavior: auto; }.composer-link, .hero-ai-entrance, .hero h1, .hero-prompt-entrance, .hero-speed, .rail-window, .rail-track, .scroll-cue, .scroll-cue-content, .prompt-bubble, .hero-ai-visual, .hero-ai-visual::before { animation: none !important; }.rail-icon, :global(.reveal-ready) .feature-icon, :global(.reveal-ready) .feature-copy h2, :global(.reveal-ready) .feature-copy p, :global(.reveal-ready) .feature-copy .text-link, :global(.reveal-ready) .feature-example, :global(.newsletter-reveal.reveal-ready), :global(.publication-row.reveal-ready) .publication-intro, :global(.publication-row.reveal-ready) .event-cards, :global(.publication-row.reveal-ready) .publication-cards, :global(.publication-row.reveal-ready) .empty-publication { transition: none !important; }.hero-visual { transform: none; } }
 </style>

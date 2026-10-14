@@ -17,13 +17,15 @@ test('mobile hero elements are prominent and fit above the fixed composer', asyn
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.route('**/api/server-status', route => route.fulfill({ json: { anonymous_free_usage: { active: true, can_send_text: true } } }));
   // The 720px case accounts for visible Safari chrome; the short phone catches
   // cramped layouts, and the desktop verifies that the phone rule stays scoped.
   for (const viewport of [{ width: 390, height: 720 }, { width: 430, height: 932 }, { width: 320, height: 568 }, { width: 1440, height: 900 }]) {
     await page.setViewportSize(viewport);
-    const query = new URLSearchParams({ theme: 'dark', background: '#161616', width: String(viewport.width), chrome: '0' });
+    const query = new URLSearchParams({ theme: 'dark', background: '#161616', width: String(viewport.width), chrome: '0', props: JSON.stringify({ serverStatusUrl: '/api/server-status' }) });
     await page.goto(`/dev/preview/landing/LandingPage?${query}`, { waitUntil: 'domcontentloaded' });
     await waitForComponentPreview(page, 30_000);
+    await expect(page.getByTestId('landing-compose')).toHaveAttribute('href', 'https://app.dev.openmates.org/#compose');
     await page.evaluate(() => document.fonts.ready.then(() => true));
     for (const language of ['en', 'de']) {
       const languageButton = page.getByTestId('landing-language-button');
@@ -40,6 +42,7 @@ test('mobile hero elements are prominent and fit above the fixed composer', asyn
           hero: rect('[data-testid="landing-hero"]'),
           rows: ['.hero-visual', '#hero-title', '.hero-prompt-entrance', '.hero-speed', '.rail-window', '.scroll-cue'].map(rect),
           glyph: rect('.hero-ai-glyph'), iconSize: parseFloat(getComputedStyle(node('.rail-icon')).width),
+          titleLines: rect('#hero-title').height / parseFloat(getComputedStyle(node('#hero-title')).lineHeight),
           titleFont: font('#hero-title'), promptFont: font('.prompt-bubble'), speedFont: font('.hero-speed'), cueFont: font('.scroll-cue'),
           composer: rect('[data-testid="landing-compose"]'),
           glyphsLoaded: [...element.querySelectorAll<HTMLImageElement>('.rail-glyph')].every(image => image.complete && image.naturalWidth > 0),
@@ -61,12 +64,14 @@ test('mobile hero elements are prominent and fit above the fixed composer', asyn
       expect((layout.rows.at(-1)!.bottom - layout.rows[0].top) / available, 'Hero content fills useful mobile space').toBeGreaterThan(.6);
       if (viewport.width < 600) {
         const compact = viewport.height < 600;
-        expect(layout.titleFont).toBeGreaterThanOrEqual(compact ? (language === 'de' ? 26 : 30) : (language === 'de' ? 32 : 36));
-        expect(layout.glyph.width).toBeGreaterThanOrEqual(compact ? 56 : 74);
-        expect(layout.promptFont).toBeGreaterThanOrEqual(compact ? 18 : 20);
-        expect(layout.speedFont).toBeGreaterThanOrEqual(compact ? 17 : 18);
-        expect(layout.iconSize).toBeGreaterThanOrEqual(compact ? 64 : 80);
-        expect(layout.cueFont).toBeGreaterThanOrEqual(compact ? 15 : 16);
+        const bounds = compact
+          ? { title: language === 'de' ? [22, 26] : [28, 32], glyph: [50, 58], prompt: [17, 20], speed: [16, 18], icon: [60, 70], cue: [14, 16] }
+          : { title: language === 'de' ? [27, 33] : [34, 42], glyph: [68, 90], prompt: [19, 24], speed: [17, 21], icon: [76, 90], cue: [15, 18] };
+        for (const [value, range] of [[layout.titleFont, bounds.title], [layout.glyph.width, bounds.glyph], [layout.promptFont, bounds.prompt], [layout.speedFont, bounds.speed], [layout.iconSize, bounds.icon], [layout.cueFont, bounds.cue]] as const) {
+          expect(value, 'Phone elements stay readable without becoming oversized').toBeGreaterThanOrEqual(range[0]);
+          expect(value, 'Phone elements stay readable without becoming oversized').toBeLessThanOrEqual(range[1]);
+        }
+        expect(layout.titleLines, 'Both English and German headings fit on two lines').toBeCloseTo(2, 1);
       }
       await expect(page.getByTestId('landing-open-web-app')).toBeVisible();
       await page.mouse.move(1, 1);
@@ -74,4 +79,47 @@ test('mobile hero elements are prominent and fit above the fixed composer', asyn
     }
   }
   expect(errors).toEqual([]);
+});
+
+// contract-test: direct surface=gui.web assertions=marketing-landing.composer-focus
+test('composer waits for availability and chooses the free-testing or signup destination', async ({ page }, testInfo) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 390, height: 720 });
+  const url = '/dev/preview/landing/LandingPage?theme=dark&background=%23161616&width=390&chrome=0';
+  let releaseStatus!: () => void;
+  const pending = new Promise<void>(resolve => { releaseStatus = resolve; });
+  await page.route('**/v1/settings/server-status', async route => {
+    await pending;
+    await route.fulfill({ json: { anonymous_free_usage: { active: true, can_send_text: true } } });
+  });
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  await waitForComponentPreview(page, 30_000);
+  const composer = page.getByTestId('landing-compose');
+  await expect(composer).toHaveCount(0);
+  releaseStatus();
+  await expect(composer).toHaveText('Test for free');
+  await expect(composer).toHaveAttribute('href', 'https://app.dev.openmates.org/#compose');
+  await expect.poll(() => composer.evaluate(element => Number(getComputedStyle(element).opacity))).toBe(1);
+  await page.getByTestId('landing-language-button').click();
+  await page.getByTestId('landing-language-panel').getByRole('button', { name: 'Deutsch', exact: true }).click();
+  await expect(composer).toHaveText('Kostenlos testen');
+  await page.screenshot({ path: testInfo.outputPath('composer-free-testing-de.png') });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  for (const state of ['disabled', 'exhausted', 'error', 'timeout'] as const) {
+    await page.unroute('**/v1/settings/server-status');
+    await page.route('**/v1/settings/server-status', async route => {
+      if (state === 'error') return route.abort('failed');
+      if (state === 'timeout') return; // Leave the request pending until the bounded check aborts it.
+      await route.fulfill({ json: { anonymous_free_usage: { active: state === 'exhausted', can_send_text: false } } });
+    });
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page, 30_000);
+    await expect(composer).toHaveText('Jetzt ausprobieren', { timeout: 7000 });
+    await expect(composer).toHaveAttribute('href', 'https://app.dev.openmates.org/#signup/basics');
+    await expect(composer).toHaveCSS('animation-name', 'none');
+  }
+  await page.getByTestId('landing-language-button').click();
+  await page.getByTestId('landing-language-panel').getByRole('button', { name: 'English', exact: true }).click();
+  await expect(composer).toHaveText('Try out now');
+  await page.screenshot({ path: testInfo.outputPath('composer-signup-en.png') });
 });

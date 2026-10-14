@@ -11,7 +11,8 @@ copy:
     heroLine2: AI team mates
     inSeconds: In seconds
     scroll: Scroll down to learn more
-    tryFree: Click here to try for free
+    tryFree: Test for free
+    tryNow: Try out now
     actionableTitle1: Actionable chats.
     actionableTitle2: Not just a wall of text.
     actionableBody: OpenMates finds you doctor appointments in seconds. As well as events, apartments, travel connections
@@ -88,7 +89,8 @@ copy:
     heroLine2: mit Privatsphäre
     inSeconds: In Sekunden
     scroll: Scrolle nach unten und erfahre mehr
-    tryFree: Jetzt kostenlos ausprobieren
+    tryFree: Kostenlos testen
+    tryNow: Jetzt ausprobieren
     actionableTitle1: Chats, die etwas bewegen.
     actionableTitle2: Nicht nur eine Wand aus Text.
     actionableBody: OpenMates findet in Sekunden Arzttermine für dich. Ebenso Veranstaltungen, Wohnungen, Reiseverbindungen
