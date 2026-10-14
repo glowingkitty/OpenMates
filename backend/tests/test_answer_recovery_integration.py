@@ -16,6 +16,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from backend.apps.ai.llm_providers.anthropic_shared import AnthropicUsageMetadata
 from backend.apps.ai.llm_providers.google_client import (
     GOOGLE_THOUGHT_SIGNATURE_PROVIDER_STATE_KEY,
     GoogleUsageMetadata,
@@ -73,6 +74,16 @@ def _usage(call_number: int) -> GoogleUsageMetadata:
         prompt_token_count=10 + call_number,
         candidates_token_count=call_number,
         total_token_count=10 + (2 * call_number),
+        user_input_tokens=4,
+        system_prompt_tokens=3,
+    )
+
+
+def _anthropic_usage(call_number: int) -> AnthropicUsageMetadata:
+    return AnthropicUsageMetadata(
+        input_tokens=10 + call_number,
+        output_tokens=call_number,
+        total_tokens=10 + (2 * call_number),
         user_input_tokens=4,
         system_prompt_tokens=3,
     )
@@ -148,7 +159,7 @@ def _seeded_history(*, signature_provider: str = "google") -> list[dict]:
     ]
 
 
-def _request(history: list[dict]) -> SimpleNamespace:
+def _request(history: list[dict], current_user_content: str | None = CURRENT_REQUEST) -> SimpleNamespace:
     request = SimpleNamespace(
         chat_id="chat-answer-recovery",
         message_id="message-answer-recovery",
@@ -157,7 +168,7 @@ def _request(history: list[dict]) -> SimpleNamespace:
         user_preferences={},
         mentioned_settings_memories_cleartext=None,
         historical_artifact_context=None,
-        current_user_content=CURRENT_REQUEST,
+        current_user_content=current_user_content,
         active_focus_id=None,
         active_project_focus=None,
         current_project=None,
@@ -168,6 +179,7 @@ def _request(history: list[dict]) -> SimpleNamespace:
         orchestration_id=None,
         is_sub_chat=False,
         is_sub_chat_continuation=False,
+        is_async_skill_continuation=False,
         awaiting_async_skill_continuation=False,
         mate_id="mate-1",
         chat_has_title=True,
@@ -284,6 +296,7 @@ def answer_recovery_runner(monkeypatch):
         primary_model: str = PRIMARY_MODEL,
         signature_provider: str = "google",
         live_tool_call: bool = False,
+        current_user_content: str | None = CURRENT_REQUEST,
     ) -> tuple[list[object], list[dict], list[dict]]:
         calls_before = len(provider_calls)
         skill_dispatch.reset_mock()
@@ -339,7 +352,11 @@ def answer_recovery_runner(monkeypatch):
                     if isinstance(chunk, BaseException):
                         raise chunk
                     yield chunk
-                yield _usage(call_number)
+                yield (
+                    _anthropic_usage(call_number)
+                    if provider_id == "anthropic"
+                    else _usage(call_number)
+                )
 
             return stream()
 
@@ -371,7 +388,7 @@ def answer_recovery_runner(monkeypatch):
             chunk
             async for chunk in main_processor.handle_main_processing(
                 "task-answer-recovery",
-                _request(history),
+                _request(history, current_user_content),
                 _preprocessing(
                     alternate_model, secondary_model, primary_model=primary_model
                 ),
@@ -392,6 +409,38 @@ def answer_recovery_runner(monkeypatch):
         return output, provider_calls[calls_before:], original_history
 
     return run
+
+
+@pytest.mark.parametrize("alternate_needed", [False, True])
+async def test_optional_current_content_recovers_after_empty_tool_answer(
+    answer_recovery_runner, alternate_needed: bool,
+) -> None:
+    responses = [[_forbidden_tool_call(1)]]
+    if alternate_needed:
+        responses.append([_forbidden_tool_call(2)])
+    responses.append([ANSWER])
+
+    output, calls, _history = await answer_recovery_runner(
+        responses,
+        alternate_model=ALTERNATE_MODEL,
+        current_user_content=None,
+    )
+
+    assert [call["model_id"] for call in calls] == (
+        ["answer-primary", "answer-primary", "answer-alternate"]
+        if alternate_needed else ["answer-primary", "answer-primary"]
+    )
+    for call in calls[1:]:
+        _assert_clean_recovery_payload(call)
+        assert sum(
+            message.get("role") == "user" and message.get("content") == CURRENT_REQUEST
+            for message in call["messages"]
+        ) == 1
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == ANSWER
+    assert not any(
+        isinstance(chunk, dict) and chunk.get("__main_processing_failure__") is True
+        for chunk in output
+    )
 
 
 def _assert_clean_recovery_payload(call: dict) -> None:
@@ -427,6 +476,45 @@ def _assert_usage(
     )
     assert sentinel["total_output_tokens"] == sum(range(1, calls + 1))
     assert sentinel["successful_model_id"] == successful_model
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+@pytest.mark.parametrize("alternate_succeeds", [True, False])
+async def test_fabricated_protocol_uses_clean_context_and_one_configured_alternate(
+    answer_recovery_runner, alternate_succeeds: bool,
+) -> None:
+    safe_prefix = "A verified opening paragraph.\n\n"
+    protocol = "```toon\napp_id: web\nskill_id: search\nstatus: finished\n```"
+    output, calls, _original_history = await answer_recovery_runner(
+        [[safe_prefix + protocol + "\nInvented evidence."], [protocol],
+         [ANSWER if alternate_succeeds else protocol]],
+        alternate_model=CROSS_PROVIDER_MODEL,
+        secondary_model=ALTERNATE_MODEL,
+    )
+
+    assert [call["model_id"] for call in calls] == [
+        "answer-primary", "answer-primary", "answer-alternate",
+    ]
+    assert [call["provider_id"] for call in calls] == ["google", "google", "anthropic"]
+    for call in calls[1:]:
+        _assert_clean_recovery_payload(call)
+        system_messages = [
+            message["content"]
+            for message in call["messages"]
+            if message["role"] == "system"
+        ]
+        assert len(system_messages) == 1
+        assert main_processor.ANSWER_RECOVERY_INSTRUCTION in system_messages[0]
+        assert "Invented evidence." not in json.dumps(call["messages"])
+        assert "status: finished" not in json.dumps(call["messages"])
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == (
+        safe_prefix + (ANSWER if alternate_succeeds else "")
+    )
+    failures = [chunk for chunk in output if isinstance(chunk, dict) and chunk.get("__main_processing_failure__")]
+    assert failures == ([] if alternate_succeeds else [
+        {"__main_processing_failure__": True, "reason": "protocol_guard"},
+    ])
+    _assert_usage(output, calls=3, successful_model=CROSS_PROVIDER_MODEL if alternate_succeeds else PRIMARY_MODEL)
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated

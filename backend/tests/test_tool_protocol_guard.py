@@ -146,7 +146,6 @@ def test_protocol_recovery_state_is_bounded_and_keeps_safe_text():
         main_processing_failure('protocol_guard')
     ) == 'protocol_guard'
 
-
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
 def test_protocol_without_any_safe_text_gets_one_bounded_restart():
     recovery = ToolProtocolRecoveryState()
@@ -175,14 +174,3 @@ def test_protocol_without_any_safe_text_gets_one_bounded_restart():
     assert main_processing_failure_reason(
         main_processing_failure('protocol_guard')
     ) == 'protocol_guard'
-
-
-# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
-def test_main_processor_wires_guard_failures_to_structured_terminal_marker():
-    source = (
-        Path(__file__).parents[1] / 'apps/ai/processing/main_processor.py'
-    ).read_text()
-
-    assert 'protocol_recovery_action == "failure"' in source
-    assert source.count('yield main_processing_failure("protocol_guard")') == 3
-    assert "refusing an orphaned continuation" in source

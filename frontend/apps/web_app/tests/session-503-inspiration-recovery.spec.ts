@@ -52,3 +52,47 @@ test('keeps inspirations through repeated session 503 and WebSocket retries, the
 	dropConnections = false;
 	await expect.poll(() => phasedSyncRequests, { timeout: 60000 }).toBeGreaterThan(0);
 });
+
+// contract-test: direct surface=gui.web assertions=auth.session.lifecycle
+test('stops rejected diagnostic uploads and logs out on a session-check 401', async ({ page }: { page: any }) => {
+	test.setTimeout(120_000);
+	const account = getTestAccount();
+	test.skip(!account.email || !account.password || !account.otpKey, 'An authenticated test account is required.');
+	await loginToTestAccount(page);
+	// Exercise the ordinary cookie-authenticated diagnostic uploader. E2E capture
+	// intentionally takes precedence over it and survives auth transitions.
+	await page.evaluate(() => sessionStorage.removeItem('openmates_e2e_log_forwarding'));
+	let uploads = 0;
+	await page.route('**/v1/client-logs', (route: any) => {
+		uploads += 1;
+		return route.fulfill({ status: 401, json: { detail: 'Session expired or revoked' } });
+	});
+	const restoredSession = page.waitForResponse((response: any) =>
+		response.url().endsWith('/v1/auth/session') && response.status() === 200,
+	);
+	await page.goto('/', { waitUntil: 'domcontentloaded' });
+	await restoredSession;
+	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 30_000 });
+	await expect(page.getByTestId('header-login-signup-btn')).not.toBeVisible();
+	await page.evaluate(() => console.warn('Diagnostic expiry regression: first batch'));
+	await expect.poll(() => uploads, { timeout: 20_000 }).toBe(1);
+	await page.evaluate(() => console.warn('Diagnostic expiry regression: rejected session stays stopped'));
+	// Observe more than one real flush interval; an auth rejection must stop the
+	// timer, not merely drop the first batch and keep generating 401 requests.
+	await page.waitForTimeout(12_000);
+	expect(uploads).toBe(1);
+
+	let rejectedSessionChecks = 0;
+	await page.route('**/v1/auth/session', (route: any) => {
+		rejectedSessionChecks += 1;
+		return route.fulfill({ status: 401, json: { detail: 'Session expired or revoked' } });
+	});
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	await expect.poll(() => rejectedSessionChecks, { timeout: 30_000 }).toBeGreaterThan(0);
+	await expect(page.locator('[data-authenticated="false"]')).toBeVisible({ timeout: 30_000 });
+	await expect(page.getByTestId('header-login-signup-btn')).toBeVisible({ timeout: 30_000 });
+	const afterExpiry = uploads;
+	await page.evaluate(() => console.warn('Diagnostic expiry regression: signed-out batch'));
+	await page.waitForTimeout(12_000);
+	expect(uploads).toBe(afterExpiry);
+});

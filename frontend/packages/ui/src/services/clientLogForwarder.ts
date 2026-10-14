@@ -86,6 +86,13 @@ type QueuedLogEntry = {
   message: string;
 };
 
+type EphemeralMode = {
+  sessionPseudonym: string;
+  flushTimer: ReturnType<typeof setInterval> | null;
+  buffer: QueuedLogEntry[];
+  flushInProgress: boolean;
+};
+
 function openQueueDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     if (typeof indexedDB === "undefined") {
@@ -116,6 +123,7 @@ class ClientLogForwarderService {
   private running = false;
   private flushTimer: ReturnType<typeof setInterval> | null = null;
   private flushInProgress = false;
+  private authenticatedGeneration = 0;
 
   /**
    * When set, the forwarder runs in debug session mode:
@@ -132,11 +140,7 @@ class ClientLogForwarderService {
    * - Sends warning/error logs only and deduplicates repeated messages
    * - Content-level sanitization strips PII (emails, UUIDs, base64, long strings)
    */
-  private ephemeralMode: {
-    sessionPseudonym: string;
-    flushTimer: ReturnType<typeof setInterval> | null;
-    buffer: QueuedLogEntry[];
-  } | null = null;
+  private ephemeralMode: EphemeralMode | null = null;
 
   /**
    * When set, the forwarder runs in E2E test mode:
@@ -149,10 +153,12 @@ class ClientLogForwarderService {
 
   // Fallback queue if IndexedDB is unavailable in the runtime.
   private volatileQueue: QueuedLogEntry[] = [];
+  private durableQueueNeedsReset = false;
+  private durableQueueReset: Promise<void> | null = null;
 
   private readonly logListener = (entry: ConsoleLogEntry): void => {
     // Feed main queue (admin/debug/e2e modes)
-    void this.enqueue(entry);
+    if (this.running || this.e2eMode) void this.enqueue(entry);
     // Feed privacy-safe diagnostic buffer if active (with content sanitization + level filter)
     if (this.ephemeralMode) {
       // Default telemetry only sends warnings/errors. Raw info/debug/log entries are
@@ -180,6 +186,7 @@ class ClientLogForwarderService {
   start(): void {
     if (this.e2eMode || this.restoreE2EFromSession()) return;
     if (this.running) return;
+    this.authenticatedGeneration += 1;
     this.debugSessionId = null;
     this.running = true;
     logCollector.onNewLog(this.logListener);
@@ -196,6 +203,7 @@ class ClientLogForwarderService {
   startDebugSession(debuggingId: string): void {
     if (this.e2eMode || this.restoreE2EFromSession()) return;
     if (this.running) return;
+    this.authenticatedGeneration += 1;
     this.debugSessionId = debuggingId;
     this.running = true;
     logCollector.onNewLog(this.logListener);
@@ -254,6 +262,7 @@ class ClientLogForwarderService {
       sessionPseudonym: pseudonym,
       flushTimer: null,
       buffer: [],
+      flushInProgress: false,
     };
 
     // If we're not already listening for logs (admin mode not running), start.
@@ -271,18 +280,18 @@ class ClientLogForwarderService {
   /**
    * Stop ephemeral mode forwarding and drain any remaining buffer.
    */
-  async stopEphemeral(): Promise<void> {
-    if (!this.ephemeralMode) return;
-    if (this.ephemeralMode.flushTimer !== null) {
-      clearInterval(this.ephemeralMode.flushTimer);
-    }
-    // Best-effort final drain
-    await this.flushEphemeral();
+  async stopEphemeral(drain: boolean = true): Promise<void> {
+    const mode = this.ephemeralMode;
+    if (!mode) return;
+    if (mode.flushTimer !== null) clearInterval(mode.flushTimer);
+    // Detach synchronously so expiry cleanup cannot collect more logs or stop a
+    // new session while a final upload from the old session is in flight.
     this.ephemeralMode = null;
     // Only remove listener if no other mode is active
     if (!this.running && !this.e2eMode) {
       logCollector.offNewLog(this.logListener);
     }
+    if (drain) await this.flushEphemeral(mode);
   }
 
   /** Whether the forwarder is currently running (any mode). */
@@ -307,10 +316,18 @@ class ClientLogForwarderService {
    * NOTE: This does NOT stop E2E mode. E2E mode runs for the entire page
    * lifetime so login/logout transitions are fully captured.
    */
-  async stop(): Promise<void> {
+  async stop(drain: boolean = true): Promise<void> {
     if (!this.running) return;
+    this.authenticatedGeneration += 1;
     this.running = false;
     this.debugSessionId = null;
+    if (!drain && !this.e2eMode) {
+      // A definitively rejected session must not carry raw logs into the next
+      // account/debug session. Serialize the durable clear before new writes.
+      this.volatileQueue = [];
+      this.durableQueueNeedsReset = true;
+      void this.resetDurableQueue();
+    }
     // Ephemeral mode runs independently — do NOT stop it here.
     // It has its own lifecycle (startEphemeral/stopEphemeral) and should
     // survive admin/debug stop calls. It is only stopped explicitly on
@@ -324,10 +341,11 @@ class ClientLogForwarderService {
       this.flushTimer = null;
     }
     // Best-effort final drain before teardown.
-    await this.flush(true);
+    if (drain) await this.flush(true);
   }
 
   private async enqueue(entry: ConsoleLogEntry): Promise<void> {
+    const generation = this.authenticatedGeneration;
     const queued: QueuedLogEntry = {
       timestamp: entry.timestamp,
       level: entry.level,
@@ -335,7 +353,14 @@ class ClientLogForwarderService {
     };
 
     try {
+      await this.resetDurableQueue();
+      if (!this.e2eMode && generation !== this.authenticatedGeneration) return;
+      if (this.durableQueueNeedsReset) throw new Error("Queue reset pending");
       const db = await openQueueDb();
+      if (!this.e2eMode && generation !== this.authenticatedGeneration) {
+        db.close();
+        return;
+      }
       await new Promise<void>((resolve, reject) => {
         const tx = db.transaction([QUEUE_STORE_NAME], "readwrite");
         const store = tx.objectStore(QUEUE_STORE_NAME);
@@ -348,12 +373,37 @@ class ClientLogForwarderService {
       });
       db.close();
     } catch {
-      this.volatileQueue.push(queued);
+      if (this.e2eMode || generation === this.authenticatedGeneration) this.volatileQueue.push(queued);
     }
 
     if (this.running || this.e2eMode) {
       void this.flush();
     }
+  }
+
+  private async resetDurableQueue(): Promise<void> {
+    if (!this.durableQueueNeedsReset) return;
+    if (!this.durableQueueReset) {
+      this.durableQueueReset = (async () => {
+        const db = await openQueueDb();
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const tx = db.transaction([QUEUE_STORE_NAME], "readwrite");
+            tx.objectStore(QUEUE_STORE_NAME).clear();
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error ?? new Error("Queue reset failed"));
+            tx.onabort = () => reject(tx.error ?? new Error("Queue reset aborted"));
+          });
+          this.durableQueueNeedsReset = false;
+        } finally {
+          db.close();
+        }
+      })().catch(() => {
+        // New logs can use the empty volatile queue. Keep durable reads blocked
+        // until a later successful clear so previous-account entries stay local.
+      }).finally(() => { this.durableQueueReset = null; });
+    }
+    await this.durableQueueReset;
   }
 
   private persistE2EToSession(runId: string, token: string): void {
@@ -383,6 +433,8 @@ class ClientLogForwarderService {
 
   private async readQueuedBatch(limit: number): Promise<QueuedLogEntry[]> {
     try {
+      await this.resetDurableQueue();
+      if (this.durableQueueNeedsReset) return [];
       const db = await openQueueDb();
       const rows = await new Promise<QueuedLogEntry[]>((resolve, reject) => {
         const tx = db.transaction([QUEUE_STORE_NAME], "readonly");
@@ -437,11 +489,12 @@ class ClientLogForwarderService {
    * Flush the ephemeral buffer to /v1/client-logs.
    * Runs on its own timer (every 10s). Never throws.
    */
-  private async flushEphemeral(): Promise<void> {
-    if (!this.ephemeralMode || this.ephemeralMode.buffer.length === 0) return;
+  private async flushEphemeral(mode = this.ephemeralMode): Promise<void> {
+    if (!mode || mode.flushInProgress || mode.buffer.length === 0) return;
+    mode.flushInProgress = true;
 
     // Take up to MAX_BATCH_SIZE entries from the buffer
-    const batch = this.ephemeralMode.buffer.splice(0, MAX_BATCH_SIZE);
+    const batch = mode.buffer.splice(0, MAX_BATCH_SIZE);
 
     // Deduplicate: if the same message appears >3 times, collapse
     const deduped: QueuedLogEntry[] = [];
@@ -480,25 +533,35 @@ class ClientLogForwarderService {
       const body = {
         logs: entries,
         metadata,
-        session_pseudonym: this.ephemeralMode.sessionPseudonym,
+        session_pseudonym: mode.sessionPseudonym,
       };
-      await fetch(endpoint, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
         credentials: 'include', // needed for auth + rate limiting only
         keepalive: true,
       });
+      if (response.status === 401 || response.status === 403) {
+        if (this.ephemeralMode === mode) {
+          void this.stopEphemeral(false);
+          void this.stop(false);
+        }
+        return;
+      }
+      if (!response.ok) throw new Error(`Diagnostic upload returned ${response.status}`);
     } catch (err) {
       // Push entries back to buffer on failure (retry next interval)
       console.warn('[ClientLogForwarder] Ephemeral flush failed, will retry:', err);
-      if (this.ephemeralMode) {
-        this.ephemeralMode.buffer.unshift(...deduped);
+      if (this.ephemeralMode === mode) {
+        mode.buffer.unshift(...deduped);
         // Re-cap after re-insert
-        if (this.ephemeralMode.buffer.length > 500) {
-          this.ephemeralMode.buffer = this.ephemeralMode.buffer.slice(-500);
+        if (mode.buffer.length > 500) {
+          mode.buffer = mode.buffer.slice(-500);
         }
       }
+    } finally {
+      mode.flushInProgress = false;
     }
   }
 
@@ -514,12 +577,14 @@ class ClientLogForwarderService {
     if (this.flushInProgress) return;
     const shouldFlushNormal = (this.running || force) && !this.e2eMode;
     const shouldFlushE2E = this.e2eMode !== null;
+    const generation = this.authenticatedGeneration;
     if (!shouldFlushNormal && !shouldFlushE2E) return;
 
     this.flushInProgress = true;
     try {
       let processedBatches = 0;
       while (this.running || force || this.e2eMode) {
+        if (shouldFlushNormal && generation !== this.authenticatedGeneration) break;
         if (processedBatches >= MAX_BATCHES_PER_FLUSH) {
           break;
         }
@@ -534,6 +599,7 @@ class ClientLogForwarderService {
         if (batch.length === 0) {
           break;
         }
+        if (shouldFlushNormal && generation !== this.authenticatedGeneration) break;
 
         const entries = batch.map((e) => ({
           timestamp: e.timestamp,
@@ -567,6 +633,14 @@ class ClientLogForwarderService {
               keepalive: true,
             });
             normalOk = response.ok;
+            // A response from before logout/re-login cannot stop the new
+            // authenticated uploader or acknowledge its queued entries.
+            if (generation !== this.authenticatedGeneration) break;
+            if (response.status === 401 || response.status === 403) {
+              void this.stopEphemeral(false);
+              void this.stop(false);
+              break;
+            }
           } catch {
             normalOk = false;
           }

@@ -914,7 +914,12 @@ class ColdArchiveService:
             no_cache=True,
             admin_required=True,
         )
-        graph: dict[str, list[dict[str, Any]]] = {}
+        # Parts omit empty collections, while the manifest checksum includes them.
+        # Restore those keys when reading archives written before this fix too.
+        graph: dict[str, list[dict[str, Any]]] = {
+            collection: []
+            for collection in ("chats", *ARCHIVE_COLLECTIONS_BY_CHAT_ID, "embeds", "chat_key_wrappers", "embed_keys")
+        }
         for part in parts if isinstance(parts, list) else []:
             compressed = b"".join([chunk async for chunk in self.stream_archive_part(manifest=manifest, part=part)])
             if hashlib.sha256(compressed).hexdigest() != part.get("checksum"):

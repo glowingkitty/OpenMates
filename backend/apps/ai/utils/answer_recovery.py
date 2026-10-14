@@ -18,6 +18,9 @@ the user's constraints.
 
 _CHARS_PER_TOKEN = 4
 _MESSAGE_OVERHEAD_TOKENS = 4
+# Matches the existing per-image allowance in openai_shared. This is a budget
+# floor for recovered media, not a claim about any provider's exact token usage.
+_RECOVERED_MEDIA_BLOCK_TOKEN_FLOOR = 1600
 _SUPPORTED_CONTENT_TYPES = {
     "text",
     "image_url",
@@ -85,6 +88,19 @@ def _history_tokens(history: list[dict[str, Any]]) -> int:
     return sum(_estimated_tokens(message) for message in history)
 
 
+def _recovered_media_tokens(content: str | list[dict[str, Any]]) -> int:
+    if not isinstance(content, list):
+        return 0
+    return sum(
+        max(
+            _RECOVERED_MEDIA_BLOCK_TOKEN_FLOOR,
+            (len(str(block)) + _CHARS_PER_TOKEN - 1) // _CHARS_PER_TOKEN,
+        )
+        for block in content
+        if block.get("type") != "text"
+    )
+
+
 def _tool_names(message_history: list[dict[str, Any]]) -> dict[str, str]:
     names: dict[str, str] = {}
     for message in message_history:
@@ -144,7 +160,7 @@ def _omission_message(context_count: int, evidence_names: list[str]) -> dict[str
 
 def build_answer_recovery_history(
     message_history: list[dict],
-    current_user_content: str,
+    current_user_content: str | None,
     *,
     max_tokens: int,
     published_prefix: str = "",
@@ -152,19 +168,21 @@ def build_answer_recovery_history(
     """Return clean user/assistant context for one answer-only model call.
 
     The estimate deliberately matches the existing history budget convention:
-    four characters per token plus four tokens of message overhead. Non-text
-    media blocks are retained but do not contribute text tokens to that estimate.
+    four characters per token plus four tokens of message overhead. When the
+    current request is inferred from history, retained media blocks also reserve
+    a per-block budget floor and their represented payload size.
     """
     if isinstance(max_tokens, bool) or not isinstance(max_tokens, int) or max_tokens <= 0:
         raise ValueError("max_tokens must be a positive integer")
-    if not isinstance(current_user_content, str):
-        raise ValueError("current_user_content must be a string")
+    if current_user_content is not None and not isinstance(current_user_content, str):
+        raise ValueError("current_user_content must be a string or None")
     if not isinstance(published_prefix, str):
         raise ValueError("published_prefix must be a string")
 
     tool_names = _tool_names(message_history)
     candidates: list[tuple[int, str, dict[str, Any], str | None]] = []
     latest_matching_request: int | None = None
+    latest_user_request: tuple[int, str | list[dict[str, Any]]] | None = None
 
     for index, source in enumerate(message_history):
         if not isinstance(source, dict):
@@ -181,9 +199,17 @@ def build_answer_recovery_history(
         content = _clean_content(source.get("content"))
         if content is None or content == "" or content == []:
             continue
-        if role == "user" and content == current_user_content:
-            latest_matching_request = index
+        if role == "user":
+            latest_user_request = (index, content)
+            if content == current_user_content:
+                latest_matching_request = index
         candidates.append((index, "context", {"role": role, "content": content}, None))
+
+    inferred_request = current_user_content is None
+    if inferred_request:
+        if latest_user_request is None:
+            raise ValueError("No valid current user message in answer-recovery history")
+        latest_matching_request, current_user_content = latest_user_request
 
     if latest_matching_request is not None:
         candidates = [
@@ -212,6 +238,8 @@ def build_answer_recovery_history(
         ])
 
     required_tokens = _history_tokens(required)
+    if inferred_request and isinstance(current_user_content, list):
+        required_tokens += _recovered_media_tokens(current_user_content)
     if required_tokens > max_tokens:
         raise ValueError(
             "Required answer-recovery request and published prefix exceed "

@@ -368,6 +368,8 @@ import { setWebSocketToken } from "../../utils/cookies";
 import { loginInterfaceOpen, loginStayLoggedInRequested } from "../uiStateStore";
 import { dailyInspirationStore } from "../dailyInspirationStore";
 import { loadDefaultInspirations } from "../../demo_chats/loadDefaultInspirations";
+import { clientLogForwarder } from "../../services/clientLogForwarder";
+import { userProfile, defaultProfile } from "../userProfile";
 
 describe("checkAuth auto logout cleanup", () => {
   beforeEach(() => {
@@ -378,6 +380,7 @@ describe("checkAuth auto logout cleanup", () => {
     autoLogoutAction = undefined;
     lastAutoLogoutNotificationId = "";
     vi.clearAllMocks();
+    userProfile.set({ ...defaultProfile, username: "previous-user", user_id: "user-1" });
     localStorage.clear();
     sessionStorage.clear();
     dailyInspirationStore.reset();
@@ -395,6 +398,17 @@ describe("checkAuth auto logout cleanup", () => {
   afterEach(() => {
     vi.clearAllTimers();
     vi.useRealTimers();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
+  it("treats a session 401 as expiry and stops diagnostics without a final upload", async () => {
+    authStore.set({ isAuthenticated: true, isInitialized: true });
+    mockFetch.mockResolvedValue({ ok: false, status: 401, statusText: "Unauthorized" });
+
+    expect(await checkAuth(undefined, true)).toBe(false);
+    expect(get(authStore).isAuthenticated).toBe(false);
+    expect(clientLogForwarder.stopEphemeral).toHaveBeenCalledWith(false);
+    expect(clientLogForwarder.stop).toHaveBeenCalledWith(false);
   });
 
   // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
