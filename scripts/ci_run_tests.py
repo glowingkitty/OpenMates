@@ -644,6 +644,44 @@ def pace_signup():
     _last_signup_started = time.monotonic()
 
 
+def promote_telemetry_admin_fixture(profile: dict, email: str) -> None:
+    """Use normal server-admin promotion only for this disposable proxy fixture."""
+    environment = profile["services"]["api"]["environment"]
+    allowed_emails = {value for key, value in environment.items()
+                     if re.fullmatch(r"OPENMATES_TEST_ACCOUNT_CI_\d+_EMAIL", key)}
+    if (email not in allowed_emails or not email.startswith("ci-") or not email.endswith("@example.com")
+            or environment.get("OPENOBSERVE_ROOT_EMAIL") != "telemetry-fixture@example.com"
+            or environment.get("SERVER_ENVIRONMENT") != "development"
+            or profile.get("networks", {}).get("default", {}).get("internal") is not True):
+        raise RuntimeError("Telemetry admin promotion requires its isolated disposable fixture")
+    token = cms_admin_token(profile)
+    hashed_email = base64.b64encode(hashlib.sha256(email.strip().lower().encode()).digest()).decode()
+    query = urllib.parse.urlencode({"filter[hashed_email][_eq]": hashed_email,
+                                   "fields": "id,hashed_email,is_admin", "limit": "2"})
+    users_url = "http://localhost:8055/users?" + query
+    users = request(users_url, token=token).get("data", [])
+    if len(users) != 1 or users[0].get("hashed_email") != hashed_email or not users[0].get("id"):
+        raise RuntimeError("Disposable telemetry admin identity was not found uniquely")
+    user_id = users[0]["id"]
+    # The same entry point used by `openmates server make-admin`. Its private
+    # output is captured; independent reads verify success because it may exit
+    # zero after a reported promotion failure.
+    try:
+        compose("exec", "-T", "api", "python", "/app/backend/scripts/create_admin.py", email, capture=True)
+    except (OSError, subprocess.SubprocessError):
+        raise RuntimeError("Disposable telemetry admin promotion command failed") from None
+    users = request(users_url, token=token).get("data", [])
+    hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+    admin_query = urllib.parse.urlencode({"filter[hashed_user_id][_eq]": hashed_user_id,
+                                         "filter[is_active][_eq]": "true",
+                                         "fields": "hashed_user_id,is_active", "limit": "2"})
+    admins = request("http://localhost:8055/items/server_admins?" + admin_query, token=token).get("data", [])
+    if (len(users) != 1 or users[0].get("id") != user_id or users[0].get("is_admin") is not True
+            or len(admins) != 1 or admins[0].get("hashed_user_id") != hashed_user_id
+            or admins[0].get("is_active") is not True):
+        raise RuntimeError("Disposable telemetry admin promotion was not confirmed")
+
+
 def provision_account(slot: int, *, identity_index: int, cli_slot: int | None = None, admin: bool = False) -> dict:
     """Use real client crypto/auth; keep the fixture identity separate from CLI slot labels."""
     cli_slot = slot if cli_slot is None else cli_slot
@@ -655,7 +693,7 @@ def provision_account(slot: int, *, identity_index: int, cli_slot: int | None = 
     invite = secrets.token_hex(9)
     request(
         "http://localhost:8055/items/invite_codes",
-        {"code": invite, "remaining_uses": 1, "is_admin": admin, "gifted_credits": FIXTURE_CREDITS},
+        {"code": invite, "remaining_uses": 1, "is_admin": False, "gifted_credits": FIXTURE_CREDITS},
         token,
     )
     private = COMPOSE_PATH.parent
@@ -754,6 +792,8 @@ def provision_account(slot: int, *, identity_index: int, cli_slot: int | None = 
     mapped["OPENMATES_CLI_SIGNUP_INVITE_CODE"] = fixture_invite
     mapped["OPENMATES_STATE_DIR"] = env["OPENMATES_STATE_DIR"]
     accept_fixture_credits(mapped)
+    if admin:
+        promote_telemetry_admin_fixture(profile, email)
     return mapped
 
 

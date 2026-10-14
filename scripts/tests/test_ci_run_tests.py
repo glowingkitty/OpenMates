@@ -21,6 +21,57 @@ def test_disposable_authenticator_code_matches_rfc_6238_vector(monkeypatch):
     assert generate_ci_totp("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", timestamp=59) == "287082"
 
 
+@pytest.mark.parametrize("confirmed", [True, False])
+def test_telemetry_admin_fixture_uses_operator_promotion_and_verifies_authority(monkeypatch, confirmed):
+    import base64
+    import hashlib
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+    email = "ci-telemetry@example.com"
+    profile = ci_environment.compose_profile("a" * 40, telemetry_proxy=True, account_emails=[email])
+    user_id = "synthetic-owner"
+    hashed_email = base64.b64encode(hashlib.sha256(email.encode()).digest()).decode()
+    hashed_user = hashlib.sha256(user_id.encode()).hexdigest()
+    replies = iter([
+        {"data": [{"id": user_id, "hashed_email": hashed_email, "is_admin": False}]},
+        {"data": [{"id": user_id, "hashed_email": hashed_email, "is_admin": confirmed}]},
+        {"data": [{"hashed_user_id": hashed_user, "is_active": True}]},
+    ])
+    monkeypatch.setattr(runner, "cms_admin_token", lambda _: "synthetic-private-token")
+    reads = []
+    def read(url, **kwargs):
+        reads.append(url)
+        assert kwargs == {"token": "synthetic-private-token"}
+        return next(replies)
+    monkeypatch.setattr(runner, "request", read)
+    calls = []
+    monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: calls.append((args, kwargs)))
+    if confirmed:
+        runner.promote_telemetry_admin_fixture(profile, email)
+    else:
+        with pytest.raises(RuntimeError, match="not confirmed"):
+            runner.promote_telemetry_admin_fixture(profile, email)
+    assert calls == [(("exec", "-T", "api", "python", "/app/backend/scripts/create_admin.py", email), {"capture": True})]
+    assert len(reads) == 3
+    assert "/items/server_admins?" in reads[-1]
+
+
+@pytest.mark.parametrize("case", ["ordinary_profile", "unlisted_identity", "external_network"])
+def test_telemetry_admin_fixture_refuses_unscoped_promotion(monkeypatch, case):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+    email = "ci-telemetry@example.com"
+    profile = ci_environment.compose_profile("a" * 40, telemetry_proxy=case != "ordinary_profile", account_emails=[email])
+    if case == "unlisted_identity":
+        email = "ci-other@example.com"
+    if case == "external_network":
+        profile["networks"]["default"]["internal"] = False
+    monkeypatch.setattr(runner, "cms_admin_token", lambda _: pytest.fail("Unscoped fixture must not access CMS"))
+    monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: pytest.fail("Unscoped fixture must not promote"))
+    with pytest.raises(RuntimeError, match="isolated disposable fixture"):
+        runner.promote_telemetry_admin_fixture(profile, email)
+
+
 def test_focused_pytest_runs_only_exact_targets(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
     from scripts import ci_run_tests as runner
