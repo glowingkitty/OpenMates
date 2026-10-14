@@ -623,6 +623,7 @@ def compose_profile(
     account_emails: list[str] | None = None,
     offline_preview: bool = False,
     mail_capture: bool = False,
+    public_website_newsletter: bool = False,
     credential_overrides: dict[str, str] | None = None,
     storage_capacity: bool = False,
     detached_docs: bool = False,
@@ -709,6 +710,10 @@ def compose_profile(
             OPENMATES_TEST_ACCOUNT_API_KEY=credentials["signup_cleanup"],
             SELF_HOST_SIGNUP_MODE="invite_and_domain",
         )
+    if public_website_newsletter:
+        if not mail_capture:
+            raise ValueError("Public website newsletter verification requires isolated mail capture")
+        common["NEWSLETTER_PUBLIC_WEBSITE_ORIGIN"] = "http://127.0.0.1:5180"
     if object_storage:
         common.update(S3_ENDPOINT_URL="http://storage.ci.test:9000", S3_REGIONS="nbg1")
     if storage_capacity:
@@ -1363,7 +1368,7 @@ def main():
                     raise RuntimeError("Candidate lacks isolated storage endpoint support; publish reviewed current-base integration before testing")
         capacity_run_id = (f"{os.environ['GITHUB_RUN_ID']}:{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
                            if capacity_target or target_smoke else None)
-        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, workflow_runtime=needs_workflow_core, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=requested_capacity_slots, capacity_target=full_target, capacity_run_id=capacity_run_id, billing_profile=billing_profile, telemetry_proxy="telemetry-proxy-api.spec.ts" in selected)
+        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, workflow_runtime=needs_workflow_core, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), public_website_newsletter="website-newsletter-delivery.spec.ts" in selected, storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=requested_capacity_slots, capacity_target=full_target, capacity_run_id=capacity_run_id, billing_profile=billing_profile, telemetry_proxy="telemetry-proxy-api.spec.ts" in selected)
         if os.environ.get("GITHUB_OUTPUT"):
             with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
                 output.write(f"uploads={'true' if needs_uploads else 'false'}\n")
