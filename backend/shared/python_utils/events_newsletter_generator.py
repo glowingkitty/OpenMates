@@ -12,22 +12,18 @@ import hashlib
 import html
 import json
 import os
-from base64 import b64encode
-from io import BytesIO
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import quote, urlparse
 from zoneinfo import ZoneInfo
 
-from PIL import Image
+from backend.shared.python_utils.newsletter_assets import newsletter_image_url
 
 NEWSLETTER_WINDOW_DAYS = 28
 EVENTS_CATEGORY = "openmates_events"
 SUPPORTED_LANGUAGES = ("en", "de")
 REPO_ROOT = Path(os.getenv("OPENMATES_REPO_ROOT", Path(__file__).resolve().parents[3]))
-EMAIL_CARD_MAX_WIDTH = 640
-EMAIL_CARD_JPEG_QUALITY = 78
 EMAIL_CONTENT_MAX_WIDTH = 520
 EMAIL_BODY_FONT_SIZE = 16
 EMAIL_HEADING_FONT_SIZE = 30
@@ -249,7 +245,7 @@ def _event_card_html(
     location_prefix = html.escape(labels["where_venue"] if event.get("venue") else labels["where_online"])
     event_app_url = html.escape(_event_app_url(event, base_url), quote=True)
     register_url = html.escape(resolve_event_destination(event, is_openmates_url_live=is_openmates_url_live), quote=True)
-    image_src = html.escape(_event_card_data_uri(event, language, repo_root), quote=True)
+    image_src = html.escape(newsletter_image_url(str(event["assets"]["card"][language]["path"]), base_url, repo_root=repo_root), quote=True)
     image_alt = html.escape(str(event["assets"]["card"][language]["alt"]), quote=True)
     details_label = html.escape(labels["details"])
     register_label = html.escape(labels["register"])
@@ -261,25 +257,6 @@ def _event_card_html(
   <p style="font-size:{EMAIL_BODY_FONT_SIZE}px;line-height:1.35;margin:0 0 14px 0;color:#000000;font-weight:800;">{date_line}<br />{location_prefix} {location}</p>
   <p style="font-size:15px;line-height:1.4;margin:0 0 6px 0;color:#000000;font-weight:700;"><a href="{event_app_url}" style="color:#4867CD;text-decoration:none;">{details_label}</a> &nbsp;|&nbsp; <a href="{register_url}" style="color:#4867CD;text-decoration:none;">{register_label}</a></p>
 </section>'''
-
-
-def _event_card_data_uri(event: dict[str, Any], language: str, repo_root: Path) -> str:
-    asset = event["assets"]["card"][language]
-    raw_path = Path(str(asset["path"]))
-    if raw_path.is_absolute() or ".." in raw_path.parts:
-        raise ValueError(f"unsafe event card path: {raw_path}")
-    path = repo_root / raw_path
-    if not path.exists():
-        raise FileNotFoundError(f"event card image missing: {path}")
-
-    with Image.open(path) as image:
-        converted = image.convert("RGB")
-        if converted.width > EMAIL_CARD_MAX_WIDTH:
-            ratio = EMAIL_CARD_MAX_WIDTH / converted.width
-            converted = converted.resize((EMAIL_CARD_MAX_WIDTH, round(converted.height * ratio)), Image.Resampling.LANCZOS)
-        output = BytesIO()
-        converted.save(output, format="JPEG", quality=EMAIL_CARD_JPEG_QUALITY, optimize=True, progressive=True)
-    return "data:image/jpeg;base64," + b64encode(output.getvalue()).decode("ascii")
 
 
 def _format_event_time(event: dict[str, Any], language: str) -> str:

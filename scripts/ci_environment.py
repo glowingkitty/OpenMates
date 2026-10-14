@@ -729,6 +729,9 @@ def compose_profile(
     source_mounts = [
         f"{SOURCE}/backend:/app/backend:ro",
         f"{SOURCE}/shared:/shared:ro",
+        # Runtime images may predate candidate assets; the module-root event
+        # loader must read this exact candidate registry rather than image COPY.
+        f"{SOURCE}/shared/events/openmates_events.yml:/app/shared/events/openmates_events.yml:ro",
         f"{SOURCE}/scripts:/app/scripts:ro",
         f"{SOURCE}/config:/app/config:ro",
         f"{SOURCE}/backend/config:/config:ro",

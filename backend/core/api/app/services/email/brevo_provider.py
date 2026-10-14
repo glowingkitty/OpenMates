@@ -17,6 +17,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List, Awaitable, Callable
 
 from backend.core.api.app.services.email.base_provider import BaseEmailProvider
+from backend.shared.python_utils.live_email_policy import live_email_policy
 
 logger = logging.getLogger(__name__)
 
@@ -206,6 +207,13 @@ class BrevoProvider(BaseEmailProvider):
         Returns:
             True if email was sent successfully, False otherwise
         """
+        decision = live_email_policy(
+            recipient_email, email_type=(email_headers or {}).get("X-OpenMates-Email-Type", "other"),
+            test_traffic=(email_headers or {}).get("X-OpenMates-Email-Audience") == "test",
+        )
+        if not decision.allowed:
+            logger.warning("Live email rejected by recipient policy: %s", decision.reason)
+            return False
         try:
             # Prepare email data for Brevo API
             # Brevo API structure: https://developers.brevo.com/reference/sendtransacemail
@@ -223,6 +231,7 @@ class BrevoProvider(BaseEmailProvider):
                 "subject": subject,
                 "htmlContent": html_content,
                 "textContent": plain_text_content,
+                "tags": list(decision.tags),
             }
             
             # Add headers if provided (Brevo supports custom headers)

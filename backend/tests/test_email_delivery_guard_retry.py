@@ -267,6 +267,10 @@ async def test_late_opt_out_during_key_lookup_skips_without_transport_or_retry(m
 # contract-test: supporting surface=rest_api assertions=notifications.delivery.email-enabled,notifications.content.privacy-boundary
 @pytest.mark.asyncio
 async def test_late_gate_updates_subject_and_content_before_render(monkeypatch):
+    from backend.core.api.app.services import email_delivery_feedback
+
+    recipient_allowed = AsyncMock(return_value=True)
+    monkeypatch.setattr(email_delivery_feedback, "email_recipient_allowed", recipient_allowed)
     directus, events = FakeDirectus(), []
     template, provider = _transport_ready_template(monkeypatch, events)
     context = {"response_preview": "private preview"}
@@ -285,6 +289,7 @@ async def test_late_gate_updates_subject_and_content_before_render(monkeypatch):
     assert events == ["eligibility_check", "vault_key_ready", "eligibility_check"]
     assert provider.send_email.await_args.kwargs["subject"] == "New message"
     assert provider.send_email.await_args.kwargs["html_content"] == "<p></p>"
+    recipient_allowed.assert_awaited_once_with("user@example.test", secrets_manager=template.secrets_manager)
 
 
 # contract-test: supporting surface=rest_api assertions=notifications.delivery.idempotent,notifications.delivery.email-enabled
@@ -296,6 +301,11 @@ async def test_late_gate_updates_subject_and_content_before_render(monkeypatch):
 ])
 async def test_brevo_accepts_only_documented_duplicate_response(monkeypatch, status, body, expected):
     from backend.core.api.app.services.email import brevo_provider
+
+    # This response-parser unit uses a fake HTTP session. Isolated live-send
+    # rejection is exercised separately by test_live_email_policy.
+    for name in ("CI", "CI_MAIL_CAPTURE", "OPENMATES_CI_MAIL_CAPTURE", "OPENMATES_CI_ISOLATED"):
+        monkeypatch.delenv(name, raising=False)
 
     class Response:
         async def __aenter__(self):

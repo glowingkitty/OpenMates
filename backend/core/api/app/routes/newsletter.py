@@ -22,6 +22,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service, get_cache_service, get_encryption_service
 )
 from backend.core.api.app.utils.newsletter_public_origin import verify_newsletter_subscribe_origin
+from backend.core.api.app.utils.newsletter_unsubscribe import process_newsletter_one_click, newsletter_one_click_rate_key
 from backend.core.api.app.tasks.celery_config import app as celery_app
 from backend.core.api.app.utils.newsletter_utils import (
     hash_email,
@@ -487,6 +488,20 @@ async def newsletter_confirm(
             success=False,
             message="An error occurred while confirming your subscription."
         )
+
+
+# Unauthenticated public REST API: recipient token is the only authority.
+# No Origin/session/cookies or owner lookup; newsletter removal is free, bounded,
+# and rate-limited. Caddy exposes only this POST path without an Origin gate.
+@router.post("/newsletter/unsubscribe/one-click/{token}", response_model=NewsletterUnsubscribeResponse)
+@limiter.shared_limit("300/minute", scope="newsletter-one-click-ip")
+@limiter.shared_limit("5/minute", scope="newsletter-one-click-token", key_func=newsletter_one_click_rate_key)
+async def newsletter_unsubscribe_one_click(
+    request: Request,
+    token: str,
+    directus_service: DirectusService = Depends(get_directus_service),
+):
+    return await process_newsletter_one_click(request, token, directus_service)
 
 
 @router.get("/newsletter/unsubscribe/{token}", response_model=NewsletterUnsubscribeResponse)

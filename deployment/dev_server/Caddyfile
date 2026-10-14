@@ -253,8 +253,25 @@ api.dev.openmates.org {
 		method OPTIONS
 	}
 
+	# Recipient token URLs are bearer secrets and must not enter access logs.
+	@newsletter_token_url path /v1/newsletter/confirm/* /v1/newsletter/unsubscribe/*
+	log_skip @newsletter_token_url
+
+	# RFC 8058 mailbox-server requests carry only the recipient-held token.
+	# Keep this exception POST-only; browser newsletter routes retain Origin gates.
+	@newsletter_one_click {
+		path /v1/newsletter/unsubscribe/one-click/*
+		method POST
+	}
+
 	# Route requests using explicit handlers
 	route {
+		handle @newsletter_one_click {
+			reverse_proxy localhost:8000 {
+				header_up Host {http.request.host}
+			}
+		}
+
 		# === INTERNAL WEBAPP ROUTES (Origin restriction enforced) ===
 		# These handlers must come FIRST so webapp requests with credentials
 		# get proper CORS handling (FastAPI sets specific origin, not wildcard)

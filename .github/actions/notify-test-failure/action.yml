@@ -115,12 +115,20 @@ runs:
       run: |
         python3 - <<'PY'
         import html, json, os, sys, urllib.request, urllib.error
+        sys.path.insert(0, os.environ["GITHUB_WORKSPACE"])
+        from backend.shared.python_utils.live_email_policy import require_live_email
 
         api_key = os.environ["BREVO_API_KEY"]
         to_addr = os.environ["EMAIL_TO"]
         label   = os.environ["RUN_LABEL"]
         url     = os.environ["RUN_URL"]
         summary = os.environ["FAILURE_SUMMARY"]
+
+        try:
+            tags = require_live_email(to_addr, email_type="ci-failure-report", admin_report=True)
+        except ValueError as exc:
+            print(f"::error::{exc}")
+            sys.exit(1)
 
         subject = f"[OpenMates] {label} FAILED"
         # Simple plain HTML — intentionally NOT using the MJML pipeline,
@@ -138,6 +146,7 @@ runs:
         body_text = f"{label} FAILED\n\n{summary}\n\nRun: {url}\n"
 
         payload = {
+            "tags": tags,
             "sender": {"name": "OpenMates", "email": "noreply@openmates.org"},
             "to": [{"email": to_addr}],
             "subject": subject,
@@ -159,10 +168,9 @@ runs:
         try:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 resp.read()
-            print(f"::notice::Brevo email sent to {to_addr}")
+            print("::notice::Brevo email accepted")
         except urllib.error.HTTPError as e:
-            body = e.read().decode("utf-8", errors="replace") if e.fp else ""
-            print(f"::error::Brevo HTTP {e.code}: {body[:300]}")
+            print(f"::error::Brevo HTTP {e.code}")
             sys.exit(1)
         except Exception as e:
             print(f"::error::Brevo email failed: {e}")

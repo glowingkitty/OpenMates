@@ -1166,6 +1166,15 @@ async def _async_delete_user_account(
     
     try:
         logger.info(f"[DELETE_ACCOUNT] Starting deletion for user {user_id}, task_id={task_id}")
+        # The maintenance retirement path must recheck after queue delay; its
+        # earlier snapshot cannot authorize deleting newly acquired Team data.
+        if (deletion_type == "admin_action" and
+                reason == "Retire obsolete Mailosaur development test account"):
+            from backend.scripts.retire_mailosaur_accounts import (
+                assert_retirement_ready, require_development,
+            )
+            require_development()
+            await assert_retirement_ready(directus_service, user_id)
         
         from backend.core.api.app.services.storage_reference_service import (
             assert_no_surviving_account_project_references,

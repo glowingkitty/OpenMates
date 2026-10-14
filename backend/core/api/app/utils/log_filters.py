@@ -3,6 +3,17 @@ import logging
 import os
 from typing import Dict, Pattern
 
+NEWSLETTER_TOKEN_URL_PATTERN = re.compile(
+    r"(newsletter/(?:confirm|unsubscribe(?:/one-click)?)/)[^/\s?#<>\"']+",
+    re.IGNORECASE,
+)
+
+
+def redact_newsletter_token_urls(value: str) -> str:
+    """Keep recipient-held newsletter tokens out of log/metric URL values."""
+    return NEWSLETTER_TOKEN_URL_PATTERN.sub(r"\1[REDACTED]", value)
+
+
 class SensitiveDataFilter(logging.Filter):
     """
     A logging filter that redacts sensitive information from log messages.
@@ -33,6 +44,7 @@ class SensitiveDataFilter(logging.Filter):
             
             # Token pattern
             "token": re.compile(r'"?(?:api_?key|token|secret|jwt)"?\s*[:=]\s*"?[^",\s]+"?', re.IGNORECASE),
+            "newsletter_token_url": NEWSLETTER_TOKEN_URL_PATTERN,
             
             # Bearer auth header pattern
             "bearer": re.compile(r'[Bb]earer\s+[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*'),
@@ -51,6 +63,7 @@ class SensitiveDataFilter(logging.Filter):
             "uuid": "[REDACTED_ID]",
             "password": '"password": "[REDACTED]"',
             "token": '"token": "[REDACTED]"',
+            "newsletter_token_url": r"\1[REDACTED]",
             "bearer": "Bearer [REDACTED]",
             "discord_webhook": "https://discord.com/api/webhooks/[REDACTED]",
         }

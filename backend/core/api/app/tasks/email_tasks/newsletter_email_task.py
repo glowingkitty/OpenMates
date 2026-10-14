@@ -10,6 +10,7 @@ import logging
 import asyncio
 import os
 from urllib.parse import quote
+from backend.core.api.app.utils.newsletter_unsubscribe import build_newsletter_one_click_url
 
 # Import the Celery app
 from backend.core.api.app.tasks.celery_config import app
@@ -222,6 +223,7 @@ async def _async_send_newsletter_confirmed_email(
         response = await directus_service._make_api_request("GET", url, params=params)
         
         unsubscribe_url = None
+        unsubscribe_one_click_url = None
         if response.status_code == 200:
             response_data = response.json()
             items = response_data.get("data", [])
@@ -232,6 +234,7 @@ async def _async_send_newsletter_confirmed_email(
                 if unsubscribe_token:
                     base_url = _resolve_webapp_base_url()
                     unsubscribe_url = f"{base_url}/#settings/newsletter/unsubscribe/{unsubscribe_token}"
+                    unsubscribe_one_click_url = build_newsletter_one_click_url(unsubscribe_token)
                     logger.debug("Generated unsubscribe URL for newsletter confirmed email")
                 else:
                     logger.warning(f"No unsubscribe_token found for subscriber: {hashed_email[:16]}...")
@@ -252,6 +255,7 @@ async def _async_send_newsletter_confirmed_email(
         # Add unsubscribe URL if we successfully retrieved and decrypted the token
         if unsubscribe_url:
             context["unsubscribe_url"] = unsubscribe_url
+            context["unsubscribe_one_click_url"] = unsubscribe_one_click_url
         else:
             logger.warning(f"Newsletter confirmed email will be sent without unsubscribe link for {email[:2]}***")
         

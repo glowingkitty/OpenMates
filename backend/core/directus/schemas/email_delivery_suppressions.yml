@@ -1,0 +1,37 @@
+# Internal only. Never persist plaintext recipient, SMTP reason or message IDs.
+email_delivery_suppressions:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+      note: "Deterministic UUID from environment and normalized recipient hash"
+    recipient_hash:
+      type: string
+      length: 64
+    environment:
+      type: string
+      length: 20
+    status:
+      type: string
+      length: 20
+      note: "clear, temporary or permanent"
+    reason_code:
+      type: string
+      length: 40
+    last_event_at:
+      type: datetime
+    last_event_hash:
+      type: string
+      length: 64
+      note: "SHA-256 event identity; message ID never stored"
+    suppressed_until:
+      type: datetime
+      nullable: true
+    recent_failures:
+      type: json
+      note: "At most three failure hashes/timestamps within 48 hours"
+    version:
+      type: integer
+      default: 1
+      note: "Compare-and-swap event ordering guard"

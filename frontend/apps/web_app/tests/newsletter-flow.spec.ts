@@ -248,6 +248,68 @@ async function callUnsubscribeApi(
 	return data;
 }
 
+/** Inspect only the isolated recipient's delivered headers; never print its token. */
+async function isolatedOneClickUrl(email: string, token: string): Promise<string> {
+	if (process.env.OPENMATES_CI_ISOLATED !== '1' || process.env.OPENMATES_CI_MAILPIT_URL !== 'http://127.0.0.1:8025') {
+		throw new Error('Newsletter header inspection requires isolated CI.');
+	}
+	const inbox = process.env.OPENMATES_CI_MAILPIT_URL;
+	const listingResponse = await fetch(`${inbox}/api/v1/messages?limit=100`);
+	expect(listingResponse.ok).toBe(true);
+	const listing = await listingResponse.json();
+	for (const item of listing.messages || []) {
+		if (!item.To?.some((to: any) => to.Address?.toLowerCase() === email.toLowerCase())) continue;
+		const headersResponse = await fetch(`${inbox}/api/v1/message/${encodeURIComponent(item.ID)}/headers`);
+		expect(headersResponse.ok).toBe(true);
+		const headers = await headersResponse.json();
+		const header = (name: string): string[] => Object.entries(headers)
+			.find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1] as string[] || [];
+		if (header('X-OpenMates-Email-Type')[0] !== 'newsletter-confirmed') continue;
+		const unsubscribe = header('List-Unsubscribe');
+		if (!unsubscribe.some((value) => value.includes(token))) continue;
+		expect(unsubscribe).toHaveLength(1);
+		expect(header('List-Unsubscribe-Post')).toEqual(['List-Unsubscribe=One-Click']);
+		expect(header('X-OpenMates-Email-Type')).toEqual(['newsletter-confirmed']);
+		const match = unsubscribe[0].match(/^<(https:\/\/[^<>]+)>$/);
+		expect(Boolean(match), 'One-click must advertise exactly one HTTPS URL').toBe(true);
+		const target = new URL(match![1]);
+		expect(target.pathname).toBe(`/v1/newsletter/unsubscribe/one-click/${token}`);
+		expect(target.hash).toBe('');
+		expect(target.search).toBe('');
+		// The isolated runner has HTTP localhost transport. Keep the exact
+		// delivered route and token, replacing only the configured public origin.
+		return `${API_BASE_URL}${target.pathname}`;
+	}
+	throw new Error('The isolated welcome email did not include one-click unsubscribe headers.');
+}
+
+/** Send and inspect real EN/DE broadcasts only inside the disposable CI stack. */
+function probeIsolatedNewsletterDelivery(email: string, log: any): void {
+	if (process.env.OPENMATES_CI_ISOLATED !== '1' || process.env.OPENMATES_CI_MAILPIT_URL !== 'http://127.0.0.1:8025') {
+		throw new Error('Newsletter broadcast capture requires isolated CI.');
+	}
+	const sourceRoot = process.env.OPENMATES_CI_SOURCE_ROOT || path.resolve(__dirname, '../../../..');
+	const compose = process.env.OPENMATES_CI_COMPOSE_FILE || path.join(sourceRoot, 'test-results/ci-private/compose.json');
+	const output = execFileSync('docker', [
+		'compose', '-f', compose, 'exec', '-T', '-e', `PROBE_EMAIL=${email}`,
+		'api', 'python', '/app/backend/scripts/probe_newsletter_delivery.py'
+	], { cwd: sourceRoot, encoding: 'utf8', timeout: 90_000 });
+	const receipt = JSON.parse(output.trim().split('\n').at(-1)!);
+	expect(receipt.status).toBe('passed');
+	expect(receipt.languages).toEqual(['en', 'de']);
+	expect(receipt.captured).toBe(2);
+	expect(receipt.max_html_bytes).toBeLessThanOrEqual(80 * 1024);
+	expect(receipt.hosted_images).toBeGreaterThan(0);
+	expect(receipt.one_click_headers).toBe(true);
+	log('Captured real EN/DE newsletter renders with hosted images, text alternatives and one-click headers.');
+}
+
+async function callOneClickApi(url: string, multipart = false): Promise<Response> {
+	const body = multipart ? new FormData() : new URLSearchParams({ 'List-Unsubscribe': 'One-Click' });
+	if (body instanceof FormData) body.set('List-Unsubscribe', 'One-Click');
+	return fetch(url, { method: 'POST', body, redirect: 'manual', credentials: 'omit' });
+}
+
 /** Read only the disposable subscriber's confirmed category row. */
 function readIsolatedConfirmedCategories(email: string): Record<string, boolean> | null {
 	if (process.env.OPENMATES_CI_ISOLATED !== '1' || process.env.OPENMATES_CI_MAILPIT_URL !== 'http://127.0.0.1:8025') {
@@ -500,7 +562,30 @@ test('newsletter: subscribe → confirm → unsubscribe → re-subscribe', async
 	// STEP 7: Call the unsubscribe API directly — verify success
 	// -------------------------------------------------------------------------
 	log('Calling unsubscribe API directly...');
-	const unsubResult = await callUnsubscribeApi(unsubscribeToken, log);
+	let oneClickUrl: string | null = null;
+	let unsubResult: { success: boolean; message: string };
+	if (emailClient?.provider === 'mailpit') {
+		oneClickUrl = await isolatedOneClickUrl(testEmail, unsubscribeToken);
+		probeIsolatedNewsletterDelivery(testEmail, log);
+		const scanner = await fetch(oneClickUrl, { method: 'GET', redirect: 'manual' });
+		expect(scanner.status).toBe(405);
+		expect(readIsolatedConfirmedCategories(testEmail)).not.toBeNull();
+		const malformed = await fetch(oneClickUrl, {
+			method: 'POST', body: new URLSearchParams({ 'List-Unsubscribe': 'wrong' }), redirect: 'manual'
+		});
+		expect(malformed.status).toBe(400);
+		expect(readIsolatedConfirmedCategories(testEmail)).not.toBeNull();
+		const response = await callOneClickApi(oneClickUrl);
+		expect(response.status).toBe(200);
+		expect(response.headers.has('location')).toBe(false);
+		unsubResult = await response.json();
+		expect(readIsolatedConfirmedCategories(testEmail)).toBeNull();
+		const replay = await callOneClickApi(oneClickUrl, true);
+		expect(replay.status).toBe(200);
+		expect(await replay.json()).toEqual(unsubResult);
+	} else {
+		unsubResult = await callUnsubscribeApi(unsubscribeToken, log);
+	}
 	expect(
 		unsubResult.success,
 		`Unsubscribe API should succeed. Message: "${unsubResult.message}"`
@@ -540,6 +625,38 @@ test('newsletter: subscribe → confirm → unsubscribe → re-subscribe', async
 	}
 	log(`Re-subscribe confirmation email received: subject="${resubEmail?.subject}"`);
 	expect(resubEmail?.subject).toBeTruthy();
+
+	if (oneClickUrl) {
+		const resubscribeLink = extractNewsletterLink(resubEmail, /confirm/i, log);
+		expect(resubscribeLink).toBeTruthy();
+		const nextToken = await extractNewsletterToken(resubscribeLink!, 'confirm', log);
+		expect(nextToken).toBeTruthy();
+		expect((await callConfirmApi(nextToken!, log)).success).toBe(true);
+		expect(readIsolatedConfirmedCategories(testEmail)).not.toBeNull();
+		const oldTokenReplay = await callOneClickApi(oneClickUrl);
+		expect(oldTokenReplay.status).toBe(200);
+		expect(await oldTokenReplay.json()).toEqual(unsubResult);
+		expect(readIsolatedConfirmedCategories(testEmail)).not.toBeNull();
+		const nextWelcome = await waitForMessage({
+			sentTo: testEmail, subjectContains: 'confirmed', receivedAfter: sentAfterResubscribe,
+			timeoutMs: 120000, pollIntervalMs: 1000
+		});
+		const nextUnsubscribeLink = extractNewsletterLink(nextWelcome, /unsubscribe/i, log);
+		expect(nextUnsubscribeLink).toBeTruthy();
+		const nextUnsubscribeToken = await extractNewsletterToken(nextUnsubscribeLink!, 'unsubscribe', log);
+		expect(nextUnsubscribeToken).toBeTruthy();
+		expect(nextUnsubscribeToken).not.toBe(unsubscribeToken);
+		// Preserve the legacy browser GET lifecycle with the newly issued token.
+		expect((await callUnsubscribeApi(nextUnsubscribeToken!, log)).success).toBe(true);
+		expect(readIsolatedConfirmedCategories(testEmail)).toBeNull();
+		// Repeated requests for this recipient token share its bounded quota.
+		let rateStatus = 0;
+		for (let attempt = 0; attempt < 6 && rateStatus !== 429; attempt++) {
+			rateStatus = (await callOneClickApi(oneClickUrl)).status;
+		}
+		expect(rateStatus).toBe(429);
+		log('One-click headers, scanner safety, credentialless forms, replay privacy and rate limit verified.');
+	}
 
 	await screenshot(page, '08-complete');
 	log('PASSED — full newsletter lifecycle verified.');

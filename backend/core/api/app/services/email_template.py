@@ -5,7 +5,6 @@ from typing import Dict, Any, Optional, Tuple, Union, Awaitable, Callable
 import cssutils  # Add this import to configure cssutils logger
 import sys
 from html.parser import HTMLParser
-from urllib.parse import urlparse
 
 from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.services.email.config_loader import load_shared_urls, add_shared_urls_to_context
@@ -15,6 +14,9 @@ from backend.core.api.app.services.email.mjml_processor import image_cache
 from backend.core.api.app.services.email.brevo_provider import BrevoProvider
 from backend.core.api.app.services.email.ci_mail_provider import CiMailProvider
 from backend.core.api.app.services.email_sender_profiles import sender_profile_for_template
+from backend.core.api.app.utils.newsletter_unsubscribe import newsletter_one_click_headers
+from backend.shared.python_utils.live_email_policy import email_type_for_template
+from backend.shared.python_utils.newsletter_assets import validate_newsletter_html_size
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter  # Import the filter
 from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager
 
@@ -78,8 +80,13 @@ class HTMLToTextParser(HTMLParser):
     def handle_data(self, data):
         """Handle text content."""
         if not self.in_skip_tag:
-            # Clean up whitespace but preserve line breaks
-            cleaned = re.sub(r'\s+', ' ', data.strip())
+            # Collapse HTML whitespace without discarding spaces around inline
+            # tags. Brand markup deliberately joins "Open" and "Mates", while
+            # the surrounding words retain the author's spaces.
+            cleaned = re.sub(r'\s+', ' ', data)
+            at_line_start = not self.current_text or self.current_text[-1].endswith('\n')
+            if at_line_start:
+                cleaned = cleaned.lstrip()
             if cleaned:
                 self.current_text.append(cleaned)
                 
@@ -89,6 +96,7 @@ class HTMLToTextParser(HTMLParser):
         # Clean up excessive whitespace and line breaks
         text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)  # Max 2 consecutive newlines
         text = re.sub(r'[ \t]+', ' ', text)  # Normalize spaces
+        text = re.sub(r' +\n', '\n', text)  # Remove block-ending indentation
         return text.strip()
 
 
@@ -207,6 +215,9 @@ class EmailTemplateService:
                 context=working_context
             )
 
+            if template_name in ("newsletter", "newsletter_milestone"):
+                validate_newsletter_html_size(html_content)
+
             if return_context:
                 return html_content, working_context
             return html_content
@@ -285,6 +296,11 @@ class EmailTemplateService:
                 raise EmailSendIneligible()
             if subject_options is not None:
                 subject = subject_options.get("subject", subject)
+
+            if not ci_mail_capture:
+                from backend.core.api.app.services.email_delivery_feedback import email_recipient_allowed
+                if not await email_recipient_allowed(recipient_email, secrets_manager=self.secrets_manager):
+                    raise EmailSendIneligible("Recipient is suppressed for email delivery")
 
             # Initialize default context if needed
             if context is None:
@@ -515,11 +531,14 @@ class EmailTemplateService:
                 # Precedence header indicates transactional email
                 "Precedence": "bulk",
                 # Auto-Submitted header indicates automated email
-                "Auto-Submitted": "auto-generated"
+                "Auto-Submitted": "auto-generated",
+                "X-OpenMates-Email-Type": email_type_for_template(template)
             }
             if delivery_idempotency_key:
                 # Brevo deduplicates this UUID across uncertain transport retries.
                 email_headers["idempotencyKey"] = delivery_idempotency_key
+            if render_context.get("_email_audience") == "test":
+                email_headers["X-OpenMates-Email-Audience"] = "test"
             
             # Add List-Unsubscribe header(s).
             # RFC 2369 allows multiple URLs separated by commas; RFC 8058 one-click applies to HTTP(S).
@@ -530,18 +549,12 @@ class EmailTemplateService:
                         unique_urls.append(url)
                 email_headers["List-Unsubscribe"] = ", ".join(f"<{url}>" for url in unique_urls)
 
-                has_http_unsubscribe = False
-                for url in unique_urls:
-                    try:
-                        scheme = urlparse(url).scheme.lower()
-                    except Exception:
-                        scheme = ""
-                    if scheme in ("http", "https"):
-                        has_http_unsubscribe = True
-                        break
-                if has_http_unsubscribe:
-                    email_headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-            
+            # Only newsletter recipient-token POST routes support RFC 8058.
+            # Keep body management/block links separate; one-click advertises
+            # exactly one HTTPS endpoint and never blocks transactional mail.
+            if template in ("newsletter", "newsletter-confirmed", "newsletter_milestone"):
+                email_headers.update(newsletter_one_click_headers(render_context.get("unsubscribe_one_click_url")))
+
             # Return the original log message - filter will redact the email
             log_message = f"Sending email to {recipient_email} using template {template} in language {lang}"
             if attachments:

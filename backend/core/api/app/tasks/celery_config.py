@@ -197,6 +197,7 @@ TASK_CONFIG = [
     {'name': 'app_ai',      'module': 'backend.apps.ai.tasks'},
     {'name': 'app_ai_routing', 'module': 'backend.apps.ai.tasks.stage_one_task'},
     {'name': 'app_web',     'module': 'backend.apps.web.tasks'},  # Web app tasks (to be implemented)
+    {'name': 'health_check', 'module': 'backend.core.api.app.tasks.email_delivery_feedback_tasks'},
     {'name': 'health_check', 'module': 'backend.core.api.app.tasks.health_check_tasks'},  # Health check tasks
     {'name': 'usage',       'module': 'backend.core.api.app.tasks.usage_archive_tasks'},  # Usage archive tasks
     {'name': 'app_images',  'module': 'backend.apps.images.tasks'},  # Image generation tasks
@@ -1195,6 +1196,7 @@ task_routes = {
     "runtime_health.worker_probe": {'queue': 'app_ai'},
     "runtime_health.chat_plumbing_probe": {'queue': 'app_ai'},
     "runtime_health.scheduler_heartbeat": {'queue': 'health_check'},
+    "email_delivery.poll_feedback": {'queue': 'health_check'},
     "health_check.check_all_providers": {'queue': 'health_check'},  # Explicit routing for health check task
     "health_check.check_all_apps": {'queue': 'health_check'},  # Explicit routing for app health check task
     "health_check.send_degraded_services_discord_report": {'queue': 'health_check'},
@@ -1266,6 +1268,7 @@ _EXPLICIT_TASK_ROUTES = {
     "user_tasks.archive_completed_tasks": "persistence",
     
     # Health check tasks
+    "email_delivery.poll_feedback": "health_check",
     "health_check.check_all_providers": "health_check",
     "health_check.check_all_apps": "health_check",
     "health_check.check_external_services": "health_check",
@@ -1501,6 +1504,11 @@ app.conf.beat_schedule = {
     # NOTE: The independent status service (backend/status/) handles the status PAGE,
     # but the core API's /v1/health endpoint reads from these Redis cache keys.
     # Removing these breaks app availability in the frontend Apps.
+    'poll-email-delivery-feedback': {
+        'task': 'email_delivery.poll_feedback',
+        'schedule': timedelta(minutes=15),
+        'options': {'queue': 'health_check'},
+    },
     'health-check-all-providers': {
         'task': 'health_check.check_all_providers',
         'schedule': timedelta(minutes=30),

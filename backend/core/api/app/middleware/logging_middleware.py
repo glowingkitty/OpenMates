@@ -18,6 +18,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from backend.core.api.app.utils.request_context import generate_request_id, set_debugging_id
+from backend.core.api.app.utils.log_filters import redact_newsletter_token_urls
 
 # Maximum number of error fingerprints stored in Redis.
 # Oldest (lowest score) entries are trimmed when this limit is exceeded.
@@ -135,7 +136,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             set_debugging_id(debugging_id)
         
         # Skip metrics tracking for excluded paths
-        path = request.url.path
+        path = redact_newsletter_token_urls(request.url.path)
         is_excluded = False
         for excluded in self.exclude_paths:
             if path.startswith(excluded):
@@ -237,7 +238,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                     response_body_preview = response_body_bytes[:256].decode(errors='replace')
                 
                 headers_to_log = {
-                    h_key: request.headers[h_key] for h_key in
+                    h_key: redact_newsletter_token_urls(request.headers[h_key]) for h_key in
                     ["user-agent", "referer", "accept", "content-type", "origin"]
                     if h_key in request.headers
                 }
@@ -290,7 +291,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 extra_exception_data["query_params"] = str(request.query_params) if request.query_params else None
             if hasattr(request, 'headers'):
                  headers_subset = {
-                    h_key: request.headers[h_key] for h_key in ["user-agent", "referer", "origin"]
+                    h_key: redact_newsletter_token_urls(request.headers[h_key]) for h_key in ["user-agent", "referer", "origin"]
                     if h_key in request.headers
                 }
                  if headers_subset:

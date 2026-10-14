@@ -35,7 +35,10 @@ RUN mkdir -p /directus/extensions/project-task-sync/dist \
         /directus/extensions/workflow-authoring-transaction/dist/ \
     && mkdir -p /directus/extensions/storage-usage-metering/dist \
     && cp /directus/extensions/storage-usage-metering/src/*.js \
-        /directus/extensions/storage-usage-metering/dist/
+        /directus/extensions/storage-usage-metering/dist/ \
+    && mkdir -p /directus/extensions/email-delivery-feedback/dist \
+    && cp /directus/extensions/email-delivery-feedback/src/*.js \
+        /directus/extensions/email-delivery-feedback/dist/
 
 COPY --chmod=755 <<'START_SCRIPT' /usr/local/bin/openmates-directus-start
 #!/bin/sh
@@ -56,6 +59,8 @@ test -r /directus/extensions/workflow-authoring-transaction/package.json
 test -r /directus/extensions/workflow-authoring-transaction/dist/index.js
 test -r /directus/extensions/storage-usage-metering/package.json
 test -r /directus/extensions/storage-usage-metering/dist/index.js
+test -r /directus/extensions/email-delivery-feedback/package.json
+test -r /directus/extensions/email-delivery-feedback/dist/index.js
 
 node cli.js bootstrap
 pm2-runtime start ecosystem.config.cjs &

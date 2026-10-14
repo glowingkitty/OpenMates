@@ -29,6 +29,9 @@ import accessibility_audit
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+from backend.shared.python_utils.live_email_policy import require_live_email  # noqa: E402 (repo path bootstrap)
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "test-results" / "accessibility"
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 DEFAULT_SENDER_EMAIL = "noreply@openmates.org"
@@ -173,9 +176,14 @@ def _send_brevo_email(
     markdown_path: Path,
     sender_email: str,
     sender_name: str,
+    email_environment: dict[str, str] | None = None,
 ) -> None:
+    tags = require_live_email(
+        recipient, email_type="accessibility-audit-report", admin_report=True, environ=email_environment,
+    )
     attachment_content = base64.b64encode(markdown_path.read_bytes()).decode("ascii")
     payload = {
+        "tags": tags,
         "sender": {"name": sender_name, "email": sender_email},
         "to": [{"email": recipient}],
         "subject": subject,
@@ -327,6 +335,10 @@ def main() -> int:
             print("ERROR: ACCESSIBILITY_AUDIT_EMAIL or ADMIN_NOTIFY_EMAIL is required to send email.", file=sys.stderr)
             return 1
         try:
+            require_live_email(
+                recipient, email_type="accessibility-audit-report", admin_report=True,
+                environ={**dot_env, **os.environ},
+            )
             if brevo_api_key:
                 _send_brevo_email(
                     api_key=brevo_api_key,
@@ -337,8 +349,9 @@ def main() -> int:
                     markdown_path=dated_md,
                     sender_email=sender_email,
                     sender_name=sender_name,
+                    email_environment={**dot_env, **os.environ},
                 )
-                print(f"Email sent to {recipient} via Brevo")
+                print("Email accepted via Brevo")
             elif internal_token:
                 payload = _build_internal_summary_payload(
                     report=report,
@@ -351,13 +364,12 @@ def main() -> int:
                     markdown_path=dated_md,
                 )
                 _send_internal_summary_email(api_url=internal_api_url, internal_token=internal_token, payload=payload)
-                print(f"Email dispatched to {recipient} via internal API")
+                print("Email dispatched via internal API")
             else:
                 print("ERROR: BREVO_API_KEY or INTERNAL_API_SHARED_TOKEN is required to send email.", file=sys.stderr)
                 return 1
         except urllib.error.HTTPError as exc:
-            body = exc.read().decode("utf-8", errors="replace") if exc.fp else ""
-            print(f"ERROR: email dispatch failed HTTP {exc.code}: {body[:500]}", file=sys.stderr)
+            print(f"ERROR: email dispatch failed HTTP {exc.code}", file=sys.stderr)
             return 1
         except Exception as exc:
             print(f"ERROR: email dispatch failed: {exc}", file=sys.stderr)

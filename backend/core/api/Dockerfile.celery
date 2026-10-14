@@ -61,6 +61,8 @@ COPY backend /app/backend
 COPY scripts/storage_rollout.py /app/scripts/storage_rollout.py
 COPY scripts/storage_runtime_inventory.py /app/scripts/storage_runtime_inventory.py
 COPY shared /shared
+# Scheduled newsletter tasks use the registry loader's module-root location.
+COPY shared/events/openmates_events.yml /app/shared/events/openmates_events.yml
 COPY config/media_encryption_rollout.yml /app/config/media_encryption_rollout.yml
 COPY frontend/packages/ui/src/i18n /app/frontend/packages/ui/src/i18n
 

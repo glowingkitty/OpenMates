@@ -108,6 +108,47 @@ def test_signup_mail_capture_stays_on_disposable_internal_network():
         assert "BREVO_API_KEY" not in service["environment"]
 
 
+def test_newsletter_registry_mount_uses_exact_candidate_for_cached_runtimes(tmp_path, monkeypatch):
+    import scripts.ci_environment as ci_environment
+    from backend.shared.python_utils.openmates_event_registry import DEFAULT_REGISTRY_PATH, REPO_ROOT
+
+    # A source-only registry must remain available when the reused dependency
+    # image was published before the newsletter Docker COPY was introduced.
+    candidate = tmp_path / "candidate"
+    registry = candidate / "shared/events/openmates_events.yml"
+    registry.parent.mkdir(parents=True)
+    registry.write_bytes((Path(SOURCE) / "shared/events/openmates_events.yml").read_bytes())
+    monkeypatch.setattr(ci_environment, "SOURCE", str(candidate))
+    profile = compose_profile("a" * 40, mail_capture=True)
+    runtime_registry = Path("/app") / DEFAULT_REGISTRY_PATH.relative_to(REPO_ROOT)
+    expected = f"{registry}:{runtime_registry}:ro"
+    for service_name in ("api", "core-worker"):
+        service = profile["services"][service_name]
+        service["image"] = "published-compatible-runtime:without-new-registry-copy"
+        assert service["volumes"].count(expected) == 1
+        assert f"{candidate}/shared:/shared:ro" in service["volumes"]
+        assert not any(
+            str(runtime_registry) in str(mount) and mount != expected
+            for mount in service["volumes"]
+        )
+
+
+def test_celery_image_packages_newsletter_registry_at_loader_location():
+    import shlex
+    from backend.shared.python_utils.openmates_event_registry import DEFAULT_REGISTRY_PATH, REPO_ROOT
+
+    relative_registry = DEFAULT_REGISTRY_PATH.relative_to(REPO_ROOT)
+    runtime_registry = Path("/app") / relative_registry
+    dockerfile = (Path(SOURCE) / "backend/core/api/Dockerfile.celery").read_text()
+    copied_files = [
+        shlex.split(line)[1:]
+        for line in dockerfile.splitlines()
+        if line.startswith("COPY ")
+    ]
+    assert [str(relative_registry), str(runtime_registry)] in copied_files
+    assert (Path(SOURCE) / relative_registry).is_file()
+
+
 @pytest.mark.parametrize("service_name", ["api", "core-worker"])
 def test_worker_email_links_resolve_to_disposable_frontend(monkeypatch, service_name):
     from backend.shared.python_utils.frontend_url import get_frontend_base_url
