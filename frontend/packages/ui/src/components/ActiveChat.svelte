@@ -9979,18 +9979,33 @@
                       console.debug('[ActiveChat] loadChat: Restored chat header for public chat:', t, c, ic);
                   }
               } else if (chatForHeader.is_incognito || chatForHeader.is_anonymous) {
-                  // Session-only chats: category and icon are plaintext; title may be blank on new ones
+                  // Local chats have hydrated title/category/icon; anonymous summaries
+                  // are encrypted with the chat key and survive a same-tab reload.
                   const t = typeof chatForHeader.title === 'string' ? chatForHeader.title : '';
                   const c = chatForHeader.category || null;
                   const rawIcon = chatForHeader.icon || null;
                   const ic = rawIcon ? (rawIcon.split(',')[0]?.trim() || null) : null;
-                  // Show header whenever we have at least a category (title can be empty early on)
-                  if (c) {
+                  let summary: string | null = chatForHeader.is_anonymous ? chatForHeader.chat_summary ?? null : null;
+                  if (chatForHeader.is_anonymous && !summary && chatForHeader.encrypted_chat_summary) {
+                      try {
+                          const chatKey = await chatKeyManager.getKey(chatForHeader.chat_id);
+                          if (chatKey) {
+                              const { decryptWithChatKey } = await import('../services/cryptoService');
+                              summary = await decryptWithChatKey(chatForHeader.encrypted_chat_summary, chatKey, {
+                                  chatId: chatForHeader.chat_id,
+                                  fieldName: 'encrypted_chat_summary',
+                              });
+                          }
+                      } catch (error) {
+                          console.warn('[ActiveChat] Could not restore anonymous chat summary:', error);
+                      }
+                  }
+                  if (c || t) {
+                      if (!isCurrentLoadTarget()) return;
                       activeChatDecryptedTitle = t;
                       activeChatDecryptedCategory = c;
                       activeChatDecryptedIcon = ic;
-                      // Session-only chats do not persist a summary
-                      activeChatDecryptedSummary = null;
+                      activeChatDecryptedSummary = summary;
                       console.debug('[ActiveChat] loadChat: Restored chat header for session-only chat:', t, c, ic);
                   }
               } else {

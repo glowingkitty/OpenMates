@@ -9,6 +9,7 @@
 
 import { get } from "svelte/store";
 
+import { getCurrentLanguage } from "../i18n/setup";
 import { getApiEndpoint } from "../config/api";
 import { getAnonymousLearningModeContext } from "../stores/learningModeStore";
 import { text } from "../i18n/translations";
@@ -183,6 +184,7 @@ function stripPlainChatFields(chat: Chat): Chat {
   delete chatToStore.title;
   delete chatToStore.category;
   delete chatToStore.icon;
+  delete chatToStore.chat_summary;
   return chatToStore;
 }
 
@@ -286,7 +288,7 @@ class AnonymousChatStorage {
 
     const now = Math.floor(Date.now() / 1000);
     const existingChat = isAnonymousChatId(params.currentChatId)
-      ? await chatDB.getChat(params.currentChatId)
+      ? await this.getChat(params.currentChatId)
       : null;
     const isNewChat = !existingChat?.is_anonymous;
     const chatId = existingChat?.is_anonymous
@@ -523,13 +525,15 @@ class AnonymousChatStorage {
     if (chat.encrypted_icon && !hydrated.icon) {
       hydrated.icon = await decryptWithChatKey(chat.encrypted_icon, chatKey) ?? undefined;
     }
+    if (chat.encrypted_chat_summary) {
+      hydrated.chat_summary = await decryptWithChatKey(chat.encrypted_chat_summary, chatKey);
+    }
     return hydrated;
   }
 
   private async ensureAnonymousChatKey(chat: Chat): Promise<Uint8Array> {
-    const existing = chatKeyManager.getKeySync(chat.chat_id) ?? await chatKeyManager.getKey(chat.chat_id);
-    if (existing) return existing;
-
+    // Validate ownership against this tab's wrapping key, even if a raw chat
+    // key was previously cached (for example during signup promotion).
     const anonymousKey = await unwrapAnonymousChatKey(chat.anonymous_encrypted_chat_key);
     if (anonymousKey) {
       chatKeyManager.injectKey(chat.chat_id, anonymousKey, "anonymous_session");
@@ -558,17 +562,23 @@ class AnonymousChatStorage {
   ): Promise<AnonymousChatResponse> {
     let activeChat = chat;
     const learningModeContext = getAnonymousLearningModeContext();
+    const messageHistory = await Promise.all(previousMessages.filter(isConversationMessage).map(async (message) => {
+      let content = message.content ?? "";
+      if (message.role === "assistant" && content.includes("```json")) {
+        const { projectAnonymousChatHistory } = await import("./anonymousChatHistory");
+        content = await projectAnonymousChatHistory(content, chat.chat_id);
+      }
+      return { role: message.role, content, created_at: message.created_at, sender_name: message.sender_name ?? message.role };
+    }));
     const requestBody: Record<string, unknown> = {
       anonymous_id: this.getAnonymousId(),
       client_chat_id: chat.chat_id,
       client_message_id: messageId,
       plaintext_message: markdown,
-      message_history: previousMessages.filter(isConversationMessage).map((message) => ({
-        role: message.role,
-        content: message.content ?? "",
-        created_at: message.created_at,
-        sender_name: message.sender_name ?? message.role,
-      })),
+      system_language: getCurrentLanguage(),
+      current_chat_title: previousMessages.some((message) => message.role === "assistant") ? chat.title : null,
+      current_chat_summary: chat.chat_summary ?? null,
+      message_history: messageHistory,
     };
     if (learningModeContext) {
       requestBody.learning_mode = learningModeContext;
