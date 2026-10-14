@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 import yaml
 
-from backend.apps.ai.processing.model_routing import default_profile_for_tier
+from backend.apps.ai.processing.model_routing import default_profile_for_tier, normalize_request_tier
 
 logger = logging.getLogger(__name__)
 
@@ -253,7 +253,7 @@ class ModelSelector:
     def select_models(
         self,
         task_area: str = "general",
-        complexity: str = "simple",
+        complexity: str = "low",
         china_related: bool = False,
         user_unhappy: bool = False,
         required_input_type: Optional[str] = None,
@@ -267,13 +267,13 @@ class ModelSelector:
         Selection logic:
         1. Get ranked models for the task area from leaderboard
         2. Filter out CN models if china_related is True
-        3. If simple task and user not unhappy → prefer economical model
-        4. If complex task or user unhappy → prefer premium/leading model
-        5. Return top 2 models + hardcoded fallback
+        3. Select the eligible pinned profile for low, medium, high, or max
+        4. Use economical/premium rankings for excluded defaults and fallback
+        5. Return primary, secondary, and configured fallback
 
         Args:
             task_area: The type of task (code, math, creative, instruction, general)
-            complexity: Task complexity (simple, complex, most_demanding)
+            complexity: Task complexity (low, medium, high, max); legacy labels are accepted.
             china_related: If True, exclude CN-origin models
             user_unhappy: If True, use premium models to improve response quality
             required_input_type: Required input type (e.g., "image" for vision)
@@ -284,6 +284,7 @@ class ModelSelector:
         Returns:
             ModelSelectionResult with primary, secondary, and fallback model IDs
         """
+        complexity = normalize_request_tier(complexity)
         reasons = []
 
         # Step 1: Get ranked models (filtered by allow_auto_select=true by default)
@@ -329,8 +330,8 @@ class ModelSelector:
         ranked_models = self._filter_by_capabilities(ranked_models, required_input_type)
 
         # Step 4: Determine selection strategy based on complexity and user satisfaction
-        prefer_economical = complexity == "simple" and not user_unhappy
-        prefer_premium = complexity in {"complex", "most_demanding"} or user_unhappy
+        prefer_economical = complexity == "low" and not user_unhappy
+        prefer_premium = complexity in {"medium", "high", "max"} or user_unhappy
 
         if prefer_premium:
             reasons.append("Premium model preferred (complex task or user unhappy)")

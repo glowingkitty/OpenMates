@@ -1,6 +1,6 @@
 # backend/tests/test_ai_model_routing.py
 #
-# Contract tests for the approved three-tier AI model-routing boundary.
+# Contract tests for the approved four-tier AI model-routing boundary.
 # They define conservative request-tier normalization, fixed Google defaults,
 # and chat-exact precedence while retaining non-model preprocessing.
 # Product implementation belongs to backend/apps/ai/processing/preprocessor.py.
@@ -20,7 +20,7 @@ def _routing_module() -> Any:
         if error.name != "backend.apps.ai.processing.model_routing":
             raise
         pytest.fail(
-            "the approved dependency-free three-tier routing boundary is unimplemented"
+            "the approved dependency-free four-tier routing boundary is unimplemented"
         )
 
 
@@ -28,12 +28,9 @@ def _routing_module() -> Any:
 @pytest.mark.parametrize(
     ("classified_tier", "expected_tier"),
     [
-        ("simple", "simple"),
-        ("complex", "complex"),
-        ("most_demanding", "most_demanding"),
-        ("uncertain", "complex"),
-        ("invalid-tier", "complex"),
-        (None, "complex"),
+        ("low", "low"), ("medium", "medium"), ("high", "high"), ("max", "max"),
+        ("simple", "low"), ("complex", "medium"), ("most_demanding", "max"),
+        ("uncertain", "medium"), ("invalid-tier", "medium"), (None, "medium"),
     ],
 )
 # contract-test: direct surface=rest_api assertions=ai-model-routing.tiers.conservative-three-way
@@ -41,7 +38,7 @@ def test_routing_normalizes_only_approved_tiers_conservatively(
     classified_tier: str | None,
     expected_tier: str,
 ) -> None:
-    """Uncertain or invalid classification must use the safe complex tier."""
+    """Invalid classification uses medium; old callers keep compatible routing."""
 
     decision = _routing_module().resolve_model_routing(
         classified_tier=classified_tier,
@@ -54,36 +51,38 @@ def test_routing_normalizes_only_approved_tiers_conservatively(
 
 
 # contract-test: direct surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles
-def test_routing_uses_approved_google_profiles_for_all_three_auto_tiers() -> None:
+def test_routing_uses_approved_google_profiles_for_all_four_auto_tiers() -> None:
     """Auto routing keeps Gemini variant IDs and thinking configuration together."""
 
     profiles = _routing_module().DEFAULT_TIER_MODEL_PROFILES
 
     assert profiles == {
-        "simple": {
+        "low": {
             "model": "google/gemini-3.8-flash",
             "thinking_level": "LOW",
         },
-        "complex": {
+        "medium": {
             "model": "google/gemini-3.8-flash",
             "thinking_level": "MEDIUM",
         },
-        "most_demanding": {
+        "high": {
             "model": "google/gemini-3.8-flash",
             "thinking_level": "HIGH",
         },
+        "max": {"model": "google/gemini-4-argon", "thinking_level": "HIGH"},
     }
 
 
 # contract-test: direct surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles,ai-model-routing.precedence.chat-over-tier-over-auto
 @pytest.mark.parametrize("tier,level", [
-    ("simple", "LOW"), ("complex", "MEDIUM"), ("most_demanding", "HIGH"),
+    ("low", "LOW"), ("medium", "MEDIUM"), ("high", "HIGH"), ("max", "HIGH"),
 ])
 def test_automatic_profile_applies_only_when_selected_model_matches(tier: str, level: str) -> None:
     routing = _routing_module()
+    model = "google/gemini-4-argon" if tier == "max" else "google/gemini-3.8-flash"
     automatic = routing.resolve_model_routing(
         classified_tier=tier, chat_model_preference="auto", tier_preferences={},
-        automatic_model="google/gemini-3.8-flash",
+        automatic_model=model,
     )
     assert automatic.thinking_level == level
     assert routing.resolve_model_routing(
@@ -91,14 +90,33 @@ def test_automatic_profile_applies_only_when_selected_model_matches(tier: str, l
         automatic_model="google/gemini-3.5-flash-lite",
     ).thinking_level is None
     assert routing.resolve_model_routing(
-        classified_tier=tier, chat_model_preference="google/gemini-3.8-flash",
-        tier_preferences={}, automatic_model="google/gemini-3.8-flash",
+        classified_tier=tier, chat_model_preference=model,
+        tier_preferences={}, automatic_model=model,
     ).thinking_level is None
     assert routing.resolve_model_routing(
         classified_tier=tier, chat_model_preference="auto",
-        tier_preferences={tier: "google/gemini-3.8-flash"},
-        automatic_model="google/gemini-3.8-flash",
+        tier_preferences={tier: model},
+        automatic_model=model,
     ).thinking_level is None
+
+
+# contract-test: direct surface=rest_api assertions=ai-model-routing.preferences.exclusive-tier-defaults,ai-model-routing.precedence.chat-over-tier-over-auto
+@pytest.mark.parametrize("tier,bucket", [
+    ("low", "simple"), ("medium", "complex"), ("high", "complex"), ("max", "most_demanding"),
+])
+def test_four_tiers_honor_existing_saved_preferences(tier: str, bucket: str) -> None:
+    routing = _routing_module()
+    field = f"default_ai_model_{bucket}"
+    assert routing.tier_preference_key(tier) == field
+    for key in (field, bucket):
+        decision = routing.resolve_model_routing(
+            classified_tier=tier, chat_model_preference="auto",
+            tier_preferences={key: "mistral/mistral-small-latest"},
+            automatic_model=routing.default_profile_for_tier(tier)["model"],
+        )
+        assert decision.model_id == "mistral/mistral-small-latest"
+        assert decision.source == "tier_user_preference"
+        assert decision.thinking_level is None
 
 
 # contract-test: direct surface=rest_api assertions=ai-model-routing.precedence.chat-over-tier-over-auto

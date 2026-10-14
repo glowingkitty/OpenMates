@@ -33,7 +33,7 @@ models:
     for_app_skill: "ai.ask"
     release_date: "2026-10-13"
     capability_level: "high"
-    allow_auto_select: false # Exact-model selection; existing automatic defaults stay unchanged.
+    allow_auto_select: false # Max uses the pinned routing profile; exclude from leaderboard fallback picks.
     reasoning: true
     reasoning_effort: "medium"
     default_thinking_level: "MEDIUM"

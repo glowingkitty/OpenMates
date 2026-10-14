@@ -35,13 +35,15 @@ test.describe('CLI default model settings contract', () => {
 
 		const chatIds: string[] = [];
 
-		const setSimpleDefault = async (value: string) => {
+		const setDefaults = async (value: string, allBuckets = false) => {
+			const flags = ['--simple', value];
+			if (allBuckets) flags.push('--complex', value, '--most-demanding', value);
 			const result = await runCli(
 				apiUrl,
-				['settings', 'ai', 'models', 'set-defaults', '--simple', value, '--json'],
+				['settings', 'ai', 'models', 'set-defaults', ...flags, '--json'],
 				30_000
 			);
-			expectCliSuccess(result, `set simple default to ${value}`);
+			expectCliSuccess(result, `set ${allBuckets ? 'all saved model defaults' : 'simple default'} to ${value}`);
 			const parsed = parseCliJson(result);
 			expect(parsed.success).toBe(true);
 		};
@@ -59,21 +61,22 @@ test.describe('CLI default model settings contract', () => {
 		};
 
 		try {
-			await setSimpleDefault(MISTRAL_MODEL_ID);
+			// All three existing settings flags remain accepted with four routing levels.
+			await setDefaults(MISTRAL_MODEL_ID, true);
 			const pinned = await sendQuestion('default_model_mistral');
 			if (typeof pinned.modelName !== 'string') {
 				throw new Error(`Pinned CLI output omitted modelName: ${JSON.stringify(pinned, null, 2)}`);
 			}
 			expect(pinned.modelName).toContain(MISTRAL_MODEL_NAME);
 
-			await setSimpleDefault('auto');
+			await setDefaults('auto');
 			const auto = await sendQuestion('default_model_auto');
 			expect(String(auto.modelName || '').toLowerCase()).not.toContain(
 				MISTRAL_MODEL_NAME.toLowerCase()
 			);
 		} finally {
-			await setSimpleDefault('auto').catch((error: Error) => {
-				console.warn(`[default-model-cli] Failed to reset simple default: ${error.message}`);
+			await setDefaults('auto', true).catch((error: Error) => {
+				console.warn(`[default-model-cli] Failed to reset model defaults: ${error.message}`);
 			});
 			for (const chatId of chatIds) {
 				await runCli(apiUrl, ['chats', 'delete', chatId, '--yes'], 15_000);

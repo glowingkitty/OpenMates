@@ -160,8 +160,8 @@ class TestModelSelector:
         assert model["for_app_skill"] == "ai.ask"
         assert model["allow_auto_select"] is True
         assert model["tier"] == "premium"
-        assert model["pricing"]["tokens"]["input"] == {"per_credit_unit": 450}
-        assert model["pricing"]["tokens"]["output"] == {"per_credit_unit": 90}
+        assert model["pricing"]["tokens"]["input"] == {"per_credit_unit": 225}
+        assert model["pricing"]["tokens"]["output"] == {"per_credit_unit": 45}
 
     def test_select_models_basic(self, mock_leaderboard_data):
         """Test basic model selection returns top-ranked models."""
@@ -210,8 +210,15 @@ class TestModelSelector:
 
         assert result.primary_model_id == "google/gemini-3.8-flash"
 
-    def test_select_models_most_demanding_uses_gemini_3_8(self, mock_leaderboard_data, monkeypatch):
-        """Most-demanding automatic routing uses the configured Gemini 3.8 default."""
+    @pytest.mark.parametrize("tier,model", [
+        ("low", "google/gemini-3.8-flash"),
+        ("medium", "google/gemini-3.8-flash"),
+        ("high", "google/gemini-3.8-flash"),
+        ("max", "google/gemini-4-argon"),
+        ("most_demanding", "google/gemini-4-argon"),
+    ])
+    def test_select_models_four_tiers_use_configured_defaults(self, mock_leaderboard_data, monkeypatch, tier, model):
+        """Pinned profiles work even before the new model appears in rankings."""
         from backend.apps.ai.utils import model_selector
 
         monkeypatch.setattr(
@@ -224,9 +231,9 @@ class TestModelSelector:
         )
 
         selector = model_selector.ModelSelector(leaderboard_data=mock_leaderboard_data)
-        result = selector.select_models(task_area="general", complexity="most_demanding")
+        result = selector.select_models(task_area="general", complexity=tier)
 
-        assert result.primary_model_id == "google/gemini-3.8-flash"
+        assert result.primary_model_id == model
 
     def test_select_models_excludes_cn_when_china_related(self, mock_leaderboard_data):
         """When china_related=True, CN models should be excluded."""
@@ -280,7 +287,7 @@ class TestModelSelector:
         result = selector.select_models(task_area="general", complexity="complex")
 
         assert result.primary_model_id == "google/gemini-3.8-flash"
-        assert "configured complex default" in result.selection_reason.lower()
+        assert "configured medium default" in result.selection_reason.lower()
 
     def test_get_model_ids_list_no_duplicates(self, mock_leaderboard_data):
         """get_model_ids_list should return unique models in order."""

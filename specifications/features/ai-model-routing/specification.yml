@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.ai-model-routing
-version: 4
+version: 5
 status: draft
 title: AI Model Settings And Chat Routing
 summary: >
@@ -12,7 +12,7 @@ summary: >
 scope:
   includes:
     - Bounded recovery from missing required preprocessing tool output without changing the selected answer model.
-    - Three-tier request classification and user defaults for simple, complex, and most-demanding requests.
+    - Four-level request classification (low, medium, high, max), preserving the existing Simple, Complex, and Most demanding user preference buckets.
     - AI settings overview, tier, provider-family, and model-detail navigation and information hierarchy.
     - Provider recommendations per tier and provider-independent model capability indicators.
     - Unauthenticated read-only discovery of available model metadata through the public model catalog.
@@ -32,24 +32,37 @@ models:
   RequestTier:
     value:
       type: enum
-      values: [simple, complex, most_demanding]
+      values: [low, medium, high, max]
       required: true
     classification_policy:
       type: conservative_routing_policy
       required: true
       constraints:
-        simple_is_majority: true
-        most_demanding_requires_sustained_multistage_reasoning: true
-        most_demanding_requires_additional_exceptional_factor: true
+        low_is_majority: true
+        medium_is_bounded_multistep_reasoning: true
+        high_is_intricate_or_sustained_multiconstraint_reasoning: true
+        max_requires_sustained_multistage_reasoning: true
+        max_requires_additional_exceptional_factor: true
         long_prompt_importance_tools_attachments_or_dissatisfaction_alone_insufficient: true
-        uncertainty_resolves_to_complex: true
+        uncertainty_between_high_and_max_resolves_to_high: true
+        invalid_or_missing_classification_resolves_to_medium: true
+
+  PreferenceBucket:
+    value:
+      type: enum
+      values: [simple, complex, most_demanding]
+      required: true
+    request_tier_mapping:
+      type: compatibility_mapping
+      required: true
+      constraints: {low: simple, medium: complex, high: complex, max: most_demanding, saved_fields_unchanged: true}
 
   TierModelPreference:
     owner:
       type: authenticated_user_id
       required: true
     tier:
-      type: RequestTier
+      type: PreferenceBucket
       required: true
     selection:
       type: exclusive_model_choice
@@ -59,9 +72,10 @@ models:
       type: provider_specific_defaults
       required: true
       constraints:
-        simple: {model: google/gemini-3.8-flash, thinking_level: LOW}
-        complex: {model: google/gemini-3.8-flash, thinking_level: MEDIUM}
-        most_demanding: {model: google/gemini-3.8-flash, thinking_level: HIGH}
+        low: {model: google/gemini-3.8-flash, thinking_level: LOW}
+        medium: {model: google/gemini-3.8-flash, thinking_level: MEDIUM}
+        high: {model: google/gemini-3.8-flash, thinking_level: HIGH}
+        max: {model: google/gemini-4-argon, thinking_level: HIGH}
 
   ModelCatalogEntry:
     identity:
@@ -92,7 +106,7 @@ models:
 
   ProviderTierCatalog:
     context_tier:
-      type: RequestTier
+      type: PreferenceBucket
       required: true
       constraints: {visible_in_breadcrumb_heading_and_instruction: true}
     provider:
@@ -149,7 +163,7 @@ models:
     automatic_behavior:
       type: preprocessor_tier_route
       required: true
-      constraints: {preprocessor_selects_one_of_three_tiers: true, selected_tier_preference_applied: true}
+      constraints: {preprocessor_selects_one_of_four_tiers: true, matching_preference_bucket_applied: true, legacy_classification_labels_accepted: true}
 
   ComposerModelControl:
     visible_selection:
@@ -231,12 +245,12 @@ assertions:
     depends_on: [models.RequestTier, examples.early_resolution]
   - id: ai-model-routing.tiers.conservative-three-way
     type: behavior
-    must: Automatic model routing classifies each request as simple, complex, or most demanding; most demanding is selected only for sustained multi-stage reasoning plus an exceptional complexity or correctness factor, prompt length, stated importance, tool use, attachments, or dissatisfaction alone never qualify, and uncertainty resolves to complex.
+    must: Automatic model routing classifies each request as low, medium, high, or max. Low covers ordinary Q&A, retrieval and straightforward transformations; medium covers bounded multi-step reasoning and synthesis; high covers intricate debugging, proofs and sustained reasoning across interacting constraints. Max requires sustained multi-stage reasoning plus an exceptional complexity or correctness factor; prompt length, stated importance, tool use, attachments or dissatisfaction alone never qualify. Uncertainty between high and max resolves to high, and malformed classification resolves to medium.
     depends_on: [models.RequestTier, examples.tier_classification]
   - id: ai-model-routing.preferences.exclusive-tier-defaults
     type: invariant
-    must: Each authenticated user has exactly one Auto or exact-model preference for each of the three request tiers, changing one exact model replaces the prior exact model for that tier, and provider recommendations never silently mutate the preference.
-    depends_on: [models.TierModelPreference, models.ProviderTierCatalog, examples.tier_preferences]
+    must: Each authenticated user retains exactly one Auto or exact-model preference in each existing Simple, Complex and Most demanding bucket. Simple applies to low requests, Complex to both medium and high, and Most demanding to max. Changing one exact model replaces that bucket's prior model, and provider recommendations never silently mutate saved preferences.
+    depends_on: [models.TierModelPreference, models.PreferenceBucket, models.ProviderTierCatalog, examples.tier_preferences]
   - id: ai-model-routing.catalog.capability-recommendation-variants
     type: behavior
     must: Every selectable model variant exposes one provider-independent low, medium, high, or max capability indicator; every visible provider identifies one recommended eligible model for each request tier; and provider-specific reasoning variants appear as distinct models only when the provider supports a meaningful stable configuration.
@@ -247,7 +261,7 @@ assertions:
     depends_on: [models.PublicModelCatalog, examples.catalog]
   - id: ai-model-routing.defaults.google-tier-profiles
     type: behavior
-    must: The initial automatic defaults use Gemini 3.8 Flash with Google LOW thinking for simple, MEDIUM thinking for complex, and HIGH thinking for most-demanding requests, without exposing those thinking levels as a universal user control; exact chat selections and exact per-tier user preferences still take precedence.
+    must: Automatic defaults use Gemini 3.8 Flash with Google LOW, MEDIUM and HIGH thinking for low, medium and high requests respectively, and Gemini 4 Argon with HIGH thinking for max. These levels remain provider-specific configuration; exact chat selections and saved preference-bucket choices take precedence without receiving an automatic thinking override.
     depends_on: [models.TierModelPreference.default_profiles, models.ModelCatalogEntry.provider_reasoning, examples.default_profiles]
   - id: ai-model-routing.chat-selection.encrypted-user-chat-scope
     type: privacy
@@ -255,7 +269,7 @@ assertions:
     depends_on: [models.ChatModelPreference, examples.chat_selection]
   - id: ai-model-routing.precedence.chat-over-tier-over-auto
     type: invariant
-    must: A chat-scoped exact model bypasses request-tier classification for model routing while unrelated preprocessing continues; otherwise the preprocessor chooses one of three tiers, applies that tier's user preference, and only then uses automatic and configured fallback selection.
+    must: A chat-scoped exact model bypasses request-tier classification for model routing while unrelated preprocessing continues; otherwise the preprocessor chooses one of four tiers, applies its compatible saved preference bucket, and only then uses automatic and configured fallback selection. Existing simple, complex and most_demanding classification labels are accepted as low, medium and max respectively.
     depends_on: [models.RoutingDecision, models.TierModelPreference, examples.routing]
   - id: ai-model-routing.preprocessing.missing-output-recovery
     type: failure
@@ -267,7 +281,7 @@ assertions:
     depends_on: [models.ComposerModelControl, models.ChatModelPreference, examples.mentions]
   - id: ai-model-routing.unavailable.notify-reset-auto
     type: failure
-    must: If a saved exact model is unavailable, unhealthy, or has no usable route when loaded or sent, the client visibly notifies the user, resets and synchronizes that selection to Auto, and resumes normal three-tier automatic routing rather than silently retaining or substituting the unavailable exact selection.
+    must: If a saved exact model is unavailable, unhealthy, or has no usable route when loaded or sent, the client visibly notifies the user, resets and synchronizes that selection to Auto, and resumes normal automatic routing rather than silently retaining or substituting the unavailable exact selection.
     depends_on: [models.UnavailableSelection, models.RoutingDecision, examples.unavailable]
   - id: ai-model-routing.settings.hierarchy-canonical
     type: behavior

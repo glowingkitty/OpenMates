@@ -1,44 +1,33 @@
 schema_version: 1
-specification: feature.ai-model-routing@4
+specification: feature.ai-model-routing@5
 
 tier_classification:
-  - id: simple-live-search
-    given: {request: Find today's weather in Berlin, skill_does_heavy_lifting: true}
-    expect: {tier: simple}
-  - id: complex-focused-debugging
-    given: {request: Diagnose this reproducible race in one sync handler and propose a tested fix}
-    expect: {tier: complex}
-  - id: most-demanding-cross-system-plan
-    given: {request: Design and validate a zero-downtime encrypted-data migration across web, CLI, SDK, and native clients with conflicting compatibility constraints}
-    expect: {tier: most_demanding}
-  - id: importance-alone-is-not-most-demanding
-    given: {request: This is extremely important, summarize this short article}
-    expect: {tier: simple, most_demanding: false}
-  - id: uncertain-between-complex-and-most
-    given: {classification_confidence: low, candidates: [complex, most_demanding]}
-    expect: {tier: complex}
+  - id: minimum-reasoning-depth
+    given: Alice asks for today's Berlin weather, a comparison of two short proposals, a proof involving several interacting constraints, and a zero-downtime encrypted-data migration across incompatible clients.
+    when: Automatic routing evaluates the reasoning each request needs.
+    then: It selects low, medium, high and max respectively; the migration qualifies for max because of sustained cross-system reasoning and exceptional correctness constraints.
+  - id: avoid-unnecessary-max
+    given: Alice says a short summary is extremely important, or asks a difficult debugging question for which the classifier is uncertain between high and max.
+    when: Automatic routing classifies her request, or receives a malformed classification.
+    then: Importance alone keeps the summary at low, high-versus-max uncertainty chooses high, and malformed output uses medium instead of inventing a tier.
 
 tier_preferences:
-  - id: independent-exclusive-defaults
-    given:
-      user: alice
-      preferences: {simple: auto, complex: google/gemini-3.7-flash, most_demanding: google/gemini-3.7-flash-high}
-    when: {select_for_complex: anthropic/claude-opus-5}
-    expect:
-      preferences: {simple: auto, complex: anthropic/claude-opus-5, most_demanding: google/gemini-3.7-flash-high}
-      google_complex_still_selected: false
+  - id: independent-compatible-defaults
+    given: Alice has Simple on Auto, Complex on Gemini 3.7 Flash, and Most demanding on Gemini 3.7 Flash (High).
+    when: She replaces the Complex preference with Claude Opus.
+    then: Both medium and high requests use Claude Opus, low remains automatic, and max keeps her Most demanding choice. Existing settings and clients keep the same three saved fields.
   - id: recommendation-change-does-not-mutate
-    given: {simple_preference: openai/gpt-5.6-luna, new_recommended_simple: another/model}
-    expect: {simple_preference: openai/gpt-5.6-luna}
+    given: Alice saved GPT-5.6 Luna for Simple requests.
+    when: The recommended model changes.
+    then: Her low requests still use her saved model until she changes the preference herself.
 
 default_profiles:
   - id: automatic-tier-defaults
     assertion_ids:
       - ai-model-routing.defaults.google-tier-profiles
-      - ai-model-routing.precedence.chat-over-tier-over-auto
-    given: An authenticated user leaves all three request-tier model preferences on Auto and has not selected an exact model for this chat.
-    when: The preprocessor classifies a request as simple, complex, or most demanding.
-    then: The answer uses Gemini 3.8 Flash with LOW, MEDIUM, or HIGH thinking respectively; choosing another exact model in the chat or matching tier settings still overrides that default.
+    given: An authenticated user leaves all three saved model preference buckets on Auto and has not selected an exact model for this chat.
+    when: The preprocessor classifies requests as low, medium, high and max.
+    then: Low, medium and high use Gemini 3.8 Flash with LOW, MEDIUM and HIGH thinking respectively; max uses Gemini 4 Argon with HIGH thinking. An exact chat or matching bucket choice overrides the default without receiving its automatic thinking level.
 
 catalog:
   - id: public-read-only-model-discovery
@@ -79,11 +68,13 @@ chat_selection:
 
 routing:
   - id: exact-chat-model-bypasses-tier
-    given: {chat_selection: anthropic/claude-sonnet-5, request: simple factual question}
-    expect: {model: anthropic/claude-sonnet-5, tier_classification_used_for_model: false, safety_and_skill_preprocessing_continues: true}
+    given: Alice selects an exact Claude model in this chat, while her saved Simple preference selects a different model.
+    when: She asks a low-complexity factual question.
+    then: Her exact chat choice wins, while safety and skill preprocessing still run.
   - id: auto-applies-classified-tier
-    given: {chat_selection: auto, classified_tier: complex, complex_preference: google/gemini-3.7-flash}
-    expect: {model: google/gemini-3.7-flash}
+    given: Alice uses Auto in the chat and has saved Gemini 3.7 Flash in her Complex preference bucket.
+    when: Jev classifies a request as medium or high, or an older preprocessing fixture returns complex.
+    then: The saved Complex model wins in every case; old simple and most_demanding labels similarly map to low and max without changing saved fields.
 
 mentions:
   - id: exact-model-mention
@@ -100,13 +91,13 @@ mentions:
 
 unavailable:
   - id: saved-chat-model-unavailable-on-load
-    given: {saved_selection: anthropic/claude-sonnet-5, usable_routes: []}
-    when: {chat_loaded: true}
-    expect: {notification_visible: true, selection: auto, auto_persisted: true}
+    given: Alice saved an exact Claude model that now has no usable route.
+    when: She loads the chat.
+    then: She sees a notification, the chat resets and synchronizes to Auto, and normal automatic routing resumes.
   - id: tier-default-unavailable-on-send
-    given: {chat_selection: auto, tier: complex, complex_preference: google/gemini-3.7-flash, google_routes_usable: false}
-    when: {send: true}
-    expect: {notification_visible: true, complex_preference: auto, normal_auto_fallback_used: true}
+    given: Alice uses Auto in her chat but her saved Complex model has no usable route.
+    when: She sends a medium or high request.
+    then: She sees a notification, the unavailable Complex preference resets to Auto, and normal automatic fallback resumes.
 
 settings_hierarchy:
   - id: overview-with-canonical-groups

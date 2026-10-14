@@ -6,14 +6,59 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
 from backend.apps.ai.processing import jev_preprocessing
+from backend.apps.ai.processing import preprocessor
+from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.processing.preprocessor import (
     PreprocessingResult, _latest_user_text_from_history, _selected_apps_with_skill_owners,
 )
 from backend.shared.providers.typesafe.models import DecisionResponse
+
+
+# contract-test: direct surface=rest_api assertions=ai-model-routing.tiers.conservative-three-way,ai-model-routing.defaults.google-tier-profiles
+@pytest.mark.asyncio
+@pytest.mark.parametrize("tier,model,level", [
+    ("low", "google/gemini-3.8-flash", "LOW"),
+    ("medium", "google/gemini-3.8-flash", "MEDIUM"),
+    ("high", "google/gemini-3.8-flash", "HIGH"),
+    ("max", "google/gemini-4-argon", "HIGH"),
+])
+async def test_jev_stage_one_routes_real_selector_and_thinking_profile(monkeypatch, tier, model, level):
+    questions = jev_preprocessing._early_routing_questions(["general_misc: General"], False)
+    questions.update(jev_preprocessing._public_decision_questions(False))
+    assert set(questions["complexity"]["criteria"]) == {"low", "medium", "high", "max"}
+    response = _routing_answer(questions)
+    response.answers["complexity"].choice = tier
+    response.answers["complexity"].probabilities = {
+        value: float(value == tier) for value in questions["complexity"]["criteria"]
+    }
+    decisions = jev_preprocessing._validated_early_decisions(
+        response, ["general_misc: General"], False, False,
+    )
+    assert decisions is not None
+    monkeypatch.setattr(
+        "backend.core.api.app.tasks.leaderboard_tasks.get_leaderboard_data",
+        AsyncMock(return_value=None),
+    )
+    request = AskSkillRequest(
+        chat_id="routing-test", message_id="routing-message", user_id="routing-user",
+        user_id_hash="routing-user-hash", message_history=[
+            {"role": "user", "content": "Help with this request", "created_at": 1},
+        ], user_preferences={},
+    )
+    selected = await preprocessor._select_main_model(
+        decisions, request, SimpleNamespace(enable_auto_model_selection=True), None, "routing-test",
+    )
+    assert selected["complexity_val"] == tier
+    assert selected["selected_llm_for_main_id"] == model
+    assert selected["selected_llm_thinking_level"] == level
+    assert selected["model_override_applied"] is False
+    assert "Selected configured" in selected["model_selection_reason"]
 
 
 def test_current_app_catalogue_and_public_questions_fit_one_jev_batch():
@@ -142,7 +187,8 @@ async def test_malformed_cached_public_decision_does_not_skip_safety(monkeypatch
 
 # contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
 @pytest.mark.asyncio
-async def test_detailed_decisions_reuse_stage_one_model_and_mate_routing(monkeypatch):
+@pytest.mark.parametrize("tier", ["low", "medium", "high", "max"])
+async def test_detailed_decisions_reuse_stage_one_model_and_mate_routing(monkeypatch, tier):
     async def evaluate(**kwargs):
         questions = kwargs["questions"]
         assert {"complexity", "task_area", "user_unhappy", "china_sensitive",
@@ -166,12 +212,12 @@ async def test_detailed_decisions_reuse_stage_one_model_and_mate_routing(monkeyp
         available_focus_modes=[], available_settings_and_memories=None,
         recent_skill_activity=[], conversation_summary=None, previous_category=None,
         is_first_message=True, selected_app_ids=[],
-        early_decisions={"complexity": "complex", "task_area": "code",
+        early_decisions={"complexity": tier, "task_area": "code",
                          "user_unhappy": True, "china_model_sensitive": True,
                          "topic_area": "software_development", "topic_shift": "noticeable_shift"},
     )
     assert (result["complexity"], result["task_area"], result["topic_area"]) == (
-        "complex", "code", "software_development",
+        tier, "code", "software_development",
     )
     assert result["user_unhappy"] and result["china_model_sensitive"]
 
@@ -213,7 +259,7 @@ async def test_maps_bounded_decisions_without_generating_title(monkeypatch: pyte
             else:
                 choices = list(question["criteria"])
                 preferred = {
-                    "complexity": "simple", "task_area": "code", "temperature": "precise",
+                    "complexity": "low", "task_area": "code", "temperature": "precise",
                     "topic_area": "software_development", "topic_shift": "noticeable_shift",
                     "language": "en", "preview": "code", "icon": "code",
                 }.get(question_id, choices[0])
@@ -242,7 +288,7 @@ async def test_maps_bounded_decisions_without_generating_title(monkeypatch: pyte
         effective_focus={"id": "code-debug", "phase": "investigate"},
     )
 
-    assert result["complexity"] == "simple"
+    assert result["complexity"] == "low"
     assert result["task_area"] == "code"
     assert result["relevant_app_skills"] == ["code-get_docs"]
     assert result["selected_app_ids"] == ["code"]

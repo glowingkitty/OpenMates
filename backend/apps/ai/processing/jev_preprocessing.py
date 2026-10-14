@@ -197,10 +197,16 @@ async def _evaluate_preprocessing_questions(*, state: dict[str, Any], questions:
 
 def _early_routing_questions(topic_areas: list[str], skip_mate_routing: bool) -> dict[str, dict[str, Any]]:
     questions: dict[str, dict[str, Any]] = {
-        "complexity": {"type": "choice", "instructions": "Select the minimum reasoning depth needed for a high-quality answer.",
-                       "criteria": {"simple": "Ordinary Q&A, retrieval, direct transformation, or straightforward app skill use.",
-                                    "complex": "Multi-step reasoning, nuanced long-form work, intricate debugging, proofs, or consequential judgment.",
-                                    "most_demanding": "Sustained multi-system reasoning with exceptional correctness constraints."}},
+        "complexity": {"type": "choice", "instructions": (
+            "Select the minimum reasoning depth needed for a high-quality answer. Most requests are low. "
+            "Length, importance, tools, attachments, or dissatisfaction alone do not justify max. "
+            "If uncertain between high and max, choose high."
+        ), "criteria": {
+            "low": "Ordinary Q&A, retrieval, direct transformation, or straightforward app skill use.",
+            "medium": "Bounded multi-step reasoning, comparisons, synthesis, or moderately nuanced writing and debugging.",
+            "high": "Intricate debugging, proofs, difficult judgment, or sustained reasoning across several interacting constraints.",
+            "max": "Sustained multi-system or deeply interdependent reasoning with exceptional correctness constraints beyond ordinary high-complexity work.",
+        }},
         "task_area": {"type": "choice", "instructions": "Select the primary task area of the latest user request.",
                       "criteria": {"code": "Programming or software engineering", "math": "Mathematics or formal quantitative reasoning",
                                    "creative": "Creative ideation or artistic composition", "instruction": "Writing, transformation, planning, or following detailed instructions",

@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-09-22
+last_verified: 2026-10-14
 key_files:
 - backend/apps/ai/app.yml
 - backend/apps/ai/utils/model_selector.py
@@ -48,7 +48,7 @@ claims:
 
 # AI Model Selection
 
-> Uses Jev for bounded request decisions, then selects the optimal generative LLM using leaderboard rankings, task analysis, and sensitivity filters, with tiered fallback across models and providers.
+> Jev selects the request's reasoning depth. Saved model choices take precedence over fixed automatic profiles, with sensitivity filters and ranked fallback models.
 
 ## Why This Exists
 
@@ -97,14 +97,35 @@ Model selection is configured in [`backend/apps/ai/app.yml`](../../backend/apps/
 
 - **`enable_auto_model_selection`**: When `true` (current default), uses intelligent leaderboard-based selection. When `false`, falls back to hardcoded `default_llms`.
 - **`default_llms`**: Hardcoded model IDs for preprocessing, simple requests, complex requests, and content sanitization.
-- **Current defaults**: Jev (`typesafe/jev-1.13`) for bounded decisions, Gemini 3.5 Flash Lite (`google/gemini-3.5-flash-lite`) for generative preprocessing fallback, and Gemini 3.8 Flash (`google/gemini-3.8-flash`) for simple and complex main processing.
+- **Current defaults**: Jev (`typesafe/jev-1.13`) for bounded decisions and Gemini 3.5 Flash Lite (`google/gemini-3.5-flash-lite`) for generative preprocessing fallback. Automatic answer profiles live in `backend/apps/ai/processing/model_routing.py`:
+
+| Request complexity | Automatic model | Google thinking | Saved preference bucket |
+| --- | --- | --- | --- |
+| low | Gemini 3.8 Flash | LOW | Simple |
+| medium | Gemini 3.8 Flash | MEDIUM | Complex |
+| high | Gemini 3.8 Flash | HIGH | Complex |
+| max | Gemini 4 Argon | HIGH | Most demanding |
+
+Low covers ordinary Q&A, retrieval and transformations; medium covers bounded
+multi-step reasoning and synthesis; high covers intricate debugging, proofs and
+interacting constraints. Max is rare and requires sustained interdependent
+reasoning with exceptional correctness constraints. Length, importance, tools,
+attachments and dissatisfaction alone do not qualify. High-versus-max uncertainty
+chooses high; malformed classification falls back to medium. Legacy classifier
+labels simple, complex and most_demanding map to low, medium and max.
+
+The three persisted preference fields and settings controls remain compatible.
+An exact chat/API model wins over the matching saved preference, which wins over
+the automatic profile. Automatic thinking levels apply only to the matching
+automatically selected model; explicit choices keep their own configuration.
+Request complexity, catalog capability and provider thinking are separate values.
 
 ### Provider YAML Structure
 
 Each LLM provider has a YAML config in [`backend/providers/`](../../backend/providers/). Models define:
 
 - **`country_origin`**: ISO 3166-1 alpha-2 code (used for China-sensitive filtering)
-- **`allow_auto_select`**: Whether the model participates in auto-selection
+- **`allow_auto_select`**: Whether the model participates in leaderboard fallback selection; pinned request profiles are resolved separately. Argon is pinned only for max and excluded from general leaderboard picks.
 - **`external_ids`**: Cross-platform ID mappings (LMArena, OpenRouter)
 - **`default_server`** and **`servers`**: Provider routing (e.g., AWS Bedrock primary, direct API fallback)
 - **`servers[].model_id`** and **`reasoning_effort`**: Provider-specific upstream IDs and reasoning controls for catalog variants such as Sol Max
@@ -115,7 +136,7 @@ Each LLM provider has a YAML config in [`backend/providers/`](../../backend/prov
 1. **User override check**: If the message contains `@ai-model:{model_id}`, that model is used directly, bypassing all selection logic. Other overrides: `@mate:{name}`, `@skill:{app}:{id}`, `@focus:{app}:{id}`.
 
 2. **Preprocessing decision analysis**: The preprocessor ([`preprocessor.py`](../../backend/apps/ai/processing/preprocessor.py)) first calls Jev's decision endpoint for bounded fields. Jev returns typed Choice, Noul, and Score answers rather than text. It supplies:
-   - `complexity` (simple/complex)
+   - `complexity` (low/medium/high/max), using the same four-level policy in the generative fallback
    - `task_area` (code, math, creative, instruction, general)
    - `user_unhappy` (boolean)
    - `china_model_sensitive` (boolean, detected by LLM -- replaces old hardcoded keyword approach)
@@ -126,8 +147,9 @@ Each LLM provider has a YAML config in [`backend/providers/`](../../backend/prov
 3. **Model selection** ([`model_selector.py`](../../backend/apps/ai/utils/model_selector.py)):
    - Filters to models with `allow_auto_select: true`
    - Excludes CN-origin models if `china_model_sensitive` is true
-   - For simple tasks: selects from economical models (e.g., Claude Haiku, Gemini Flash)
-   - For complex tasks or unhappy users: selects premium models for the detected task area
+   - Uses the eligible pinned profile for the classified request complexity
+   - If that profile is excluded or unavailable, low requests prefer economical ranked models; medium, high and max prefer premium ranked models
+   - Dissatisfaction can affect ranked fallback selection without automatically promoting the request to max
    - Returns primary + secondary + fallback (3 models total)
 
 4. **Main processing with fallback** ([`main_processor.py`](../../backend/apps/ai/processing/main_processor.py)):
@@ -151,7 +173,7 @@ Replay is temporary private context. The completed provider transcript is sealed
 
 Google and Mistral use their providers' implicit cache behavior and bill reads only from reported counters. Mistral's `prompt_tokens_details.cached_tokens` is inclusive within prompt tokens, as its [prompt caching guide](https://docs.mistral.ai/studio/conversations/advanced/prompt-caching) specifies. For direct OpenAI models with separately priced writes, missing write counters do not imply zero writes: customer billing uses the full ordinary input rate for that attempt. Claude requires its reported write and retention categories for separate-write billing; unavailable categories likewise use the ordinary input fallback. Receipts retain the frozen attempt rates and reported categories.
 
-Mistral Large 4's customer token tariff uses the [published regular supplier rates](https://docs.mistral.ai/models/mistral-large), even while the supplier advertises a sale. This changes its per-token credit units; it does not change credit-pack purchase prices. The old sale-based tariff and a same-usage regular-rate full-input comparison are different baselines, so their difference cannot all be attributed to cache savings. The active-catalog and receipt checks are covered by focused tests; the executable Plan tracks the remaining real-provider four-message billing proof.
+Temporary provider rates are resolved for the attempt's host, region, service tier and UTC start time, then frozen for supplier accounting and customer billing. Mistral Large 4's current half-price offer has no published end date, so its scheduled sale remains active until updated; expired dated offers automatically return to the regular tariff. See the [October 14 pricing audit](provider-pricing-audit-2026-10-14.md). Credit-pack purchase prices are unchanged.
 
 GLM 5.3 remains a Z.ai catalog model (`zai/zai-glm-5.3`) and defaults to Mistral's EU API host (`zai-glm-5-3`). Its [published Mistral rates](https://docs.mistral.ai/models/zai-glm-5-3), checked 2026-10-10, are $1.40 input, $0.14 cached input, and $4.40 output per million tokens. OpenMates charges one credit per 238 uncached input, 2380 cached input, or 75 output tokens, including reasoning. Cache writes are included in ordinary input; the discount applies only to provider-reported reads on the Mistral host. Requests carry the existing opaque chat-scoped cache key and the logical catalog identity for GLM's `high` reasoning configuration. Existing exact GLM 5.2 and 4.7 routes retain their own catalogs and pricing; Mistral recommends 5.3 because its hosted 5.2 model is deprecated.
 

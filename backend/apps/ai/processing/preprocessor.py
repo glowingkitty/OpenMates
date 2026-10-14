@@ -53,7 +53,10 @@ from backend.apps.ai.processing.focus_mode_routing import (
 from backend.apps.ai.processing.jev_preprocessing import decide_preprocessing_with_jev
 from backend.apps.ai.processing.ai_model_topic_routing import complete_ai_model_topics
 from backend.apps.ai.processing.model_routing import (
-    MOST_DEMANDING_TIER,
+    HIGH_TIER,
+    LOW_TIER,
+    MAX_TIER,
+    MEDIUM_TIER,
     APPROVED_REQUEST_TIERS,
     automatic_profile_thinking_level,
     default_profile_for_tier,
@@ -1294,7 +1297,7 @@ class PreprocessingResult(BaseModel):
     topic_area: Optional[str] = Field(None, description="Granular topic area used for deterministic mate routing.")
     topic_shift: Optional[str] = Field(None, description="Whether the latest message continues or changes the chat topic.")
     llm_response_temp: Optional[float] = Field(None, description="Suggested temperature for the main LLM response.")
-    complexity: Optional[str] = Field(None, description="Assessed complexity of the request (simple, complex, or most_demanding).")
+    complexity: Optional[str] = Field(None, description="Assessed complexity of the request (low, medium, high, or max).")
     misuse_risk_score: Optional[float] = Field(None, description="Risk score for misuse/scam (1-10).")
     load_app_settings_and_memories: Optional[List[str]] = Field(None, description="List of app memories keys to load (e.g., ['app_id:item_key']).")
     relevant_embedded_previews: Optional[List[str]] = Field(None, description="List of embedded preview types to generate (e.g., ['code', 'math', 'music']).")
@@ -1710,18 +1713,14 @@ async def _select_main_model(
     log_prefix: str,
 ) -> Dict[str, Any]:
     """Resolve the answer model once from the public first-stage decisions."""
-    # --- Validate complexity field (enum: ["simple", "complex", "most_demanding"]) ---
-    # CRITICAL: Invalid complexity values could break model selection logic
-    complexity_val = llm_analysis_args.get("complexity", "simple")
-    valid_complexity_values = list(APPROVED_REQUEST_TIERS)
-    if complexity_val not in valid_complexity_values:
+    raw_complexity = llm_analysis_args.get("complexity")
+    complexity_val = normalize_request_tier(raw_complexity)
+    if raw_complexity not in APPROVED_REQUEST_TIERS and raw_complexity != complexity_val:
         logger.warning(
-            f"{log_prefix} LLM returned invalid complexity value '{complexity_val}'. "
-            f"Valid values are: {valid_complexity_values}. Defaulting to 'complex' (safer default)."
+            f"{log_prefix} Normalized complexity '{raw_complexity}' to '{complexity_val}'. "
+            f"Current values are: {APPROVED_REQUEST_TIERS}."
         )
-        complexity_val = normalize_request_tier(complexity_val)
-        # Update llm_analysis_args for consistency
-        llm_analysis_args["complexity"] = complexity_val
+    llm_analysis_args["complexity"] = complexity_val
 
     # --- Intelligent Model Selection using Leaderboard Rankings ---
     # Extract task_area and user_unhappy from LLM analysis for model selection
@@ -1751,7 +1750,7 @@ async def _select_main_model(
     enable_subchats_val = llm_analysis_args.get("enable_subchats")
     if enable_subchats_val is None:
         # Default to True if complexity needs stronger multi-step planning.
-        enable_subchats_val = (complexity_val in {"complex", MOST_DEMANDING_TIER})
+        enable_subchats_val = complexity_val in {MEDIUM_TIER, HIGH_TIER, MAX_TIER}
     elif not isinstance(enable_subchats_val, bool):
         enable_subchats_val = bool(enable_subchats_val)
     llm_analysis_args["enable_subchats"] = enable_subchats_val
@@ -2046,12 +2045,12 @@ async def _select_main_model(
                     f"Falling back to skill_config defaults."
                 )
                 # Use skill_config defaults as fallback
-                if complexity_val == MOST_DEMANDING_TIER:
-                    profile = default_profile_for_tier(MOST_DEMANDING_TIER)
+                if complexity_val == MAX_TIER:
+                    profile = default_profile_for_tier(MAX_TIER)
                     selected_llm_for_main_id = profile["model"]
                     provider_part, model_id_part = selected_llm_for_main_id.split("/", 1)
                     selected_llm_for_main_name = config_manager.get_model_display_name(model_id_part, provider_part) or model_id_part
-                elif complexity_val == "complex":
+                elif complexity_val in {MEDIUM_TIER, HIGH_TIER}:
                     selected_llm_for_main_id = skill_config.default_llms.main_processing_complex
                     selected_llm_for_main_name = skill_config.default_llms.main_processing_complex_name
                 else:
@@ -2069,12 +2068,12 @@ async def _select_main_model(
                 f"{log_prefix} MODEL_SELECTION: Auto-selection disabled (enable_auto_model_selection=false). "
                 f"Using hardcoded models from skill_config."
             )
-            if complexity_val == MOST_DEMANDING_TIER:
-                profile = default_profile_for_tier(MOST_DEMANDING_TIER)
+            if complexity_val == MAX_TIER:
+                profile = default_profile_for_tier(MAX_TIER)
                 selected_llm_for_main_id = profile["model"]
                 provider_part, model_id_part = selected_llm_for_main_id.split("/", 1)
                 selected_llm_for_main_name = config_manager.get_model_display_name(model_id_part, provider_part) or model_id_part
-            elif complexity_val == "complex":
+            elif complexity_val in {MEDIUM_TIER, HIGH_TIER}:
                 selected_llm_for_main_id = skill_config.default_llms.main_processing_complex
                 selected_llm_for_main_name = skill_config.default_llms.main_processing_complex_name
             else:
@@ -3239,7 +3238,7 @@ async def handle_preprocessing(
                 "misuse_risk": 0,
                 "category": "general_knowledge",
                 "topic_area": "general",
-                "complexity": "simple",
+                "complexity": LOW_TIER,
                 "relevant_app_skills": [],
                 "relevant_focus_modes": [],
                 "relevant_embedded_previews": [],
