@@ -77,6 +77,41 @@ def test_workflow_identity_round_trips_only_through_encrypted_refs() -> None:
 
 
 # contract-test: direct surface=rest_api assertions=workflows-ui.identity.automatic-category-icon
+@pytest.mark.parametrize("category,icon", [
+    ("science", "calendar-days"),
+    ("finance", "home"),
+    ("general_knowledge", "sun"),
+    ("cooking_food", "utensils"),
+    ("software_development", "globe"),
+])
+def test_template_identity_survives_encrypted_creation_and_hydration(category: str, icon: str) -> None:
+    repository = InMemoryWorkflowRepository()
+    service = workflow_service(repository=repository)
+    created = service.create_workflow(
+        "alice", "Template copy", _manual_graph(), category=category, icon=icon,
+    )
+    hydrated = service.get_workflow(created.id, "alice")
+
+    assert (created.category, created.icon) == (category, icon)
+    assert (hydrated.category, hydrated.icon) == (category, icon)
+    record = repository.workflows[created.id]
+    assert record["encrypted_category_ref"]
+    assert record["encrypted_icon_ref"]
+    assert "category" not in record
+    assert "icon" not in record
+
+
+# contract-test: direct surface=rest_api assertions=workflows-ui.identity.automatic-category-icon
+def test_unsupported_template_icon_keeps_category_fallback() -> None:
+    from backend.core.api.app.services.workflow_identity_service import normalize_workflow_identity
+
+    identity = normalize_workflow_identity("science", "unknown-template-icon")
+
+    assert identity.category == "science"
+    assert identity.icon == "microscope"
+
+
+# contract-test: direct surface=rest_api assertions=workflows-ui.identity.automatic-category-icon
 def test_legacy_workflow_without_identity_hydrates_stable_fallbacks() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)

@@ -249,13 +249,14 @@ test("adding a trigger after configuring an action keeps the action intact", () 
 });
 // contract-test: supporting surface=gui.web assertions=workflows-ui.workspace.owned-library-and-templates,workflows.schedule.recurrence
 test("browse templates provide independent, ready V2 graphs", () => {
-  assert.equal(workflowTemplates.length, 2);
+  assert.equal(workflowTemplates.length, 5);
   for (const template of workflowTemplates) {
     const first = workflowTemplateGraph(template.id)!;
     const second = workflowTemplateGraph(template.id)!;
     assert.equal(first.version, 2);
     assert.equal(first.nodes[0].type, "schedule_trigger");
-    assert.equal(first.nodes[1].type, "send_chat_message");
+    assert.equal(first.nodes.at(-1)!.type, "send_chat_message");
+    assert.ok(first.nodes.some(node => node.type === "app_skill_action"));
     assert.equal(workflowGraphReady(first, { requireSchedule: true }), true);
     first.nodes[1].title = "Changed only here";
     assert.notEqual(second.nodes[1].title, first.nodes[1].title);

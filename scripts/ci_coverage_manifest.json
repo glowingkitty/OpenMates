@@ -248,6 +248,7 @@
         "components/public-newsroom-header.spec.ts",
         "components/public-newsletter.spec.ts",
         "marketing-landing-route.spec.ts",
+        "marketing-landing-workspaces.spec.ts",
         "landing-guest-workflows.spec.ts",
         "settings-chat-viewport.spec.ts",
         "components/report-issue-confirmation.spec.ts",
@@ -518,7 +519,8 @@
       "enabling_work": "Run static Workflow completion and encrypted-chat route assertions with the isolated workflow queue and canonical scanner. Keep the backend network internal; optional runner-local Mailpit serves email capture. No external provider proxy, weather egress, paid AI or shared dev service is used. Keep this capability in its own batch.",
       "specs": [
         "workflow-completion-notifications.spec.ts",
-        "workflow-completion-notification-route.spec.ts"
+        "workflow-completion-notification-route.spec.ts",
+        "workflows-template-catalog.spec.ts"
       ]
     },
     "upload_audio_services": {

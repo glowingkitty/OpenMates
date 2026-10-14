@@ -517,6 +517,8 @@ export const workflowWorkspaceStore = {
   async createWorkflow(input: {
     title: string;
     description?: string;
+    category?: string;
+    icon?: string;
     graph: WorkflowGraph;
     enabled: boolean;
     runContentRetention: "last_5" | "none";
@@ -531,6 +533,8 @@ export const workflowWorkspaceStore = {
       body: JSON.stringify({
         title: input.title,
         description: input.description,
+        category: input.category,
+        icon: input.icon,
         graph: input.graph,
         enabled: input.enabled,
         run_content_retention: input.runContentRetention,

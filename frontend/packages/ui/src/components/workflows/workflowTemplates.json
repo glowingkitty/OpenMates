@@ -1,34 +1,288 @@
 [
   {
-    "id": "daily-planning-reminder",
-    "title": "Daily planning reminder",
-    "summary": "A morning message to choose your priorities for the day",
-    "category": "productivity",
-    "icon": "sun",
-    "graph": {
-      "version": 2,
-      "trigger_node_id": "trigger",
-      "nodes": [
-        { "id": "trigger", "type": "schedule_trigger", "title": "Every morning", "config": { "schedule": { "type": "daily", "time": "09:00", "timezone": "Etc/UTC" } } },
-        { "id": "reminder", "type": "send_chat_message", "title": "Plan your day", "config": { "title": "Plan your day", "message": "Choose your top priorities for today." } }
-      ],
-      "edges": [{ "from": "trigger", "to": "reminder" }]
-    }
-  },
-  {
-    "id": "weekly-review-reminder",
-    "title": "Weekly review reminder",
-    "summary": "A Friday prompt to reflect and plan the next week",
-    "category": "productivity",
+    "id": "berlin-ai-events",
+    "title": "Weekly Berlin AI events",
+    "summary": "Discover in-person AI events in Berlin for the coming week",
+    "category": "science",
     "icon": "calendar-days",
     "graph": {
       "version": 2,
       "trigger_node_id": "trigger",
       "nodes": [
-        { "id": "trigger", "type": "schedule_trigger", "title": "Every Friday", "config": { "schedule": { "type": "weekly", "weekdays": ["friday"], "time": "16:00", "timezone": "Etc/UTC" } } },
-        { "id": "reminder", "type": "send_chat_message", "title": "Review your week", "config": { "title": "Weekly review", "message": "What went well this week, and what matters next week?" } }
+        {
+          "id": "trigger",
+          "type": "schedule_trigger",
+          "title": "Scheduled check",
+          "config": {
+            "schedule": {
+              "timezone": "Europe/Berlin",
+              "type": "weekly",
+              "weekdays": [
+                "monday"
+              ],
+              "time": "09:00"
+            }
+          }
+        },
+        {
+          "id": "search",
+          "type": "app_skill_action",
+          "config": {
+            "app_id": "events",
+            "skill_id": "search",
+            "input": {
+              "requests": [
+                {
+                  "query": "AI",
+                  "location": "Berlin, Germany",
+                  "event_type": "PHYSICAL",
+                  "start_date": {
+                    "$date": "next_seven_days_start",
+                    "format": "datetime"
+                  },
+                  "end_date": {
+                    "$date": "next_seven_days_end",
+                    "format": "datetime"
+                  },
+                  "count": 10
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "message",
+          "type": "send_chat_message",
+          "config": {
+            "title": "Berlin AI events",
+            "message": "",
+            "blocks": [
+              {
+                "id": "results",
+                "source": "$nodes.search.output.results",
+                "label": "Berlin AI events"
+              }
+            ]
+          }
+        }
       ],
-      "edges": [{ "from": "trigger", "to": "reminder" }]
+      "edges": [
+        {
+          "from": "trigger",
+          "to": "search"
+        },
+        {
+          "from": "search",
+          "to": "message"
+        }
+      ]
+    }
+  },
+  {
+    "id": "munich-apartments",
+    "title": "Daily Munich apartments",
+    "summary": "New Munich apartment listings with prices and links",
+    "category": "finance",
+    "icon": "home",
+    "graph": {
+      "version": 2,
+      "trigger_node_id": "trigger",
+      "nodes": [
+        {
+          "id": "trigger",
+          "type": "schedule_trigger",
+          "title": "Scheduled check",
+          "config": {
+            "schedule": {
+              "timezone": "Europe/Berlin",
+              "type": "daily",
+              "time": "08:00"
+            }
+          }
+        },
+        {
+          "id": "search",
+          "type": "app_skill_action",
+          "config": {
+            "app_id": "home",
+            "skill_id": "search",
+            "input": {
+              "requests": [
+                {
+                  "query": "Munich",
+                  "listing_type": "rent",
+                  "property_type": "apartment",
+                  "sort": "newest",
+                  "max_results": 10
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "message",
+          "type": "send_chat_message",
+          "config": {
+            "title": "Munich apartments",
+            "message": "",
+            "blocks": [
+              {
+                "id": "results",
+                "source": "$nodes.search.output.results",
+                "label": "Munich apartments"
+              }
+            ]
+          }
+        }
+      ],
+      "edges": [
+        {
+          "from": "trigger",
+          "to": "search"
+        },
+        {
+          "from": "search",
+          "to": "message"
+        }
+      ]
+    }
+  },
+  {
+    "id": "morning-weather",
+    "title": "Morning weather",
+    "summary": "Today’s Berlin forecast before you head out",
+    "category": "general_knowledge",
+    "icon": "sun",
+    "graph": {
+      "version": 2,
+      "trigger_node_id": "trigger",
+      "nodes": [
+        {
+          "id": "trigger",
+          "type": "schedule_trigger",
+          "title": "Scheduled check",
+          "config": {
+            "schedule": {
+              "timezone": "Europe/Berlin",
+              "type": "daily",
+              "time": "07:00"
+            }
+          }
+        },
+        {
+          "id": "search",
+          "type": "app_skill_action",
+          "config": {
+            "app_id": "weather",
+            "skill_id": "forecast",
+            "input": {
+              "location": "Berlin",
+              "start_date": {
+                "$date": "today",
+                "format": "date"
+              },
+              "end_date": {
+                "$date": "today",
+                "format": "date"
+              }
+            }
+          }
+        },
+        {
+          "id": "message",
+          "type": "send_chat_message",
+          "config": {
+            "title": "Berlin weather today",
+            "message": "",
+            "blocks": [
+              {
+                "id": "results",
+                "source": "$nodes.search.output.forecast_day",
+                "label": "Berlin weather today"
+              }
+            ]
+          }
+        }
+      ],
+      "edges": [
+        {
+          "from": "trigger",
+          "to": "search"
+        },
+        {
+          "from": "search",
+          "to": "message"
+        }
+      ]
+    }
+  },
+  {
+    "id": "weekly-dinner-inspiration",
+    "title": "Weekly dinner inspiration",
+    "summary": "Five quick dinner ideas with ingredients and instructions",
+    "category": "cooking_food",
+    "icon": "utensils",
+    "graph": {
+      "version": 2,
+      "trigger_node_id": "trigger",
+      "nodes": [
+        {
+          "id": "trigger",
+          "type": "schedule_trigger",
+          "title": "Scheduled check",
+          "config": {
+            "schedule": {
+              "timezone": "Europe/Berlin",
+              "type": "weekly",
+              "weekdays": [
+                "sunday"
+              ],
+              "time": "16:00"
+            }
+          }
+        },
+        {
+          "id": "search",
+          "type": "app_skill_action",
+          "config": {
+            "app_id": "nutrition",
+            "skill_id": "search_recipes",
+            "input": {
+              "requests": [
+                {
+                  "query": "quick dinner",
+                  "max_results": 5
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "message",
+          "type": "send_chat_message",
+          "config": {
+            "title": "Dinner inspiration",
+            "message": "",
+            "blocks": [
+              {
+                "id": "results",
+                "source": "$nodes.search.output.results",
+                "label": "Dinner inspiration"
+              }
+            ]
+          }
+        }
+      ],
+      "edges": [
+        {
+          "from": "trigger",
+          "to": "search"
+        },
+        {
+          "from": "search",
+          "to": "message"
+        }
+      ]
     }
   },
   {
@@ -36,7 +290,7 @@
     "title": "Website changes",
     "summary": "New Congress articles from events.ccc.de, summarized with links",
     "description": "Check events.ccc.de daily for new Chaos Communication Congress articles and summarize matching changes with links. Edit the website, requirement and schedule before enabling. The first successful read saves a starting point without sending a message.",
-    "category": "technology",
+    "category": "software_development",
     "icon": "globe",
     "graph": {
       "version": 2,
@@ -47,7 +301,7 @@
           "type": "schedule_trigger",
           "config": {
             "schedule": {
-              "timezone": "Etc/UTC",
+              "timezone": "Europe/Berlin",
               "type": "daily",
               "time": "09:00"
             }

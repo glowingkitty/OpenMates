@@ -13,6 +13,7 @@ function apiUrl(): string {
 }
 
 test.describe('Website change workflows', () => {
+  test.use({ timezoneId: 'America/New_York' });
   // contract-test: direct surface=gui.web assertions=workflows-ui.website-change.composition,workflows-ui.workspace.recommendation-led-composition,workflows-ui.workspace.owned-library-and-templates
   test('creates the paused website starter with editable diff-only AI steps', async ({ page }) => {
     test.setTimeout(150000);
@@ -35,13 +36,13 @@ test.describe('Website change workflows', () => {
     const capabilitiesReady = new Promise<void>(resolve => { releaseCapabilities = resolve; });
     // Keep the real schema response pending until the first Check click, so
     // opening the freshly created template cannot erase its saved diff input.
-    await page.route('**/v1/workflows/capabilities', async (route: Route) => {
+    await page.route(url => url.pathname === '/v1/workflows/capabilities', async (route: Route) => {
       capabilitiesRequested = true;
       const response = await route.fetch();
       await capabilitiesReady;
       await route.fulfill({ response });
     });
-    await page.route('**/v1/workflows', async (route: Route) => {
+    await page.route(url => url.pathname === '/v1/workflows', async (route: Route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({ json: { workflows: workflow ? [workflow] : [] } });
         return;
@@ -53,14 +54,14 @@ test.describe('Website change workflows', () => {
         return;
       }
       const body = route.request().postDataJSON();
-      workflow = { ...body, id, version: 1, current_version_id: versionId, category: 'technology', icon: 'globe',
+      workflow = { ...body, id, version: 1, current_version_id: versionId,
         status: 'active', created_at: Date.now() / 1000, updated_at: Date.now() / 1000, next_run_at: null };
       await route.fulfill({ json: { workflow } });
     });
-    await page.route(`**/v1/workflows/${id}`, (route: Route) => route.fulfill({ json: { workflow } }));
-    await page.route(`**/v1/workflows/${id}/runs`, (route: Route) => route.fulfill({ json: { runs: [] } }));
-    await page.route(`**/v1/workflows/${id}/versions`, (route: Route) => route.fulfill({ json: { versions: [], current_version_id: versionId } }));
-    await page.route(`**/v1/workflows/${id}/template-projection`, async (route: Route) => {
+    await page.route(url => url.pathname === `/v1/workflows/${id}`, (route: Route) => route.fulfill({ json: { workflow } }));
+    await page.route(url => url.pathname === `/v1/workflows/${id}/runs`, (route: Route) => route.fulfill({ json: { runs: [] } }));
+    await page.route(url => url.pathname === `/v1/workflows/${id}/versions`, (route: Route) => route.fulfill({ json: { versions: [], current_version_id: versionId } }));
+    await page.route(url => url.pathname === `/v1/workflows/${id}/template-projection`, async (route: Route) => {
       if (route.request().method() === 'PUT') {
         projection = { ...route.request().postDataJSON(), updated_at: Date.now() / 1000 };
         await route.fulfill({ json: projection });
@@ -85,10 +86,14 @@ test.describe('Website change workflows', () => {
     expect(attempts).toBe(2);
     const created = workflow as unknown as WorkflowDetail;
     expect(created.enabled).toBe(false);
+    expect(created.category).toBe('software_development');
+    expect(created.icon).toBe('globe');
+    await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-category', 'software_development');
+    await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-icon', 'globe');
     expect(created.description).toContain('first successful read');
     const graph = created.graph as WorkflowGraph;
     expect(graph.nodes).toHaveLength(5);
-    expect(graph.nodes.find(node => node.id === 'trigger')?.config?.schedule).toMatchObject({ type: 'daily', time: '09:00' });
+    expect(graph.nodes.find(node => node.id === 'trigger')?.config?.schedule).toMatchObject({ type: 'daily', time: '09:00', timezone: 'Europe/Berlin' });
     expect(graph.nodes.find(node => node.id === 'read')?.config?.input).toEqual({ requests: [{ url: 'https://events.ccc.de/', only_main_content: true, max_age: 0 }] });
     expect(graph.nodes.find(node => node.id === 'check')?.config).toMatchObject({ mode: 'ai', selected_inputs: ['$nodes.read.output.changes'] });
     expect(graph.edges.filter(edge => edge.from === 'check')).toEqual([{ from: 'check', to: 'summary', branch: 'true' }]);

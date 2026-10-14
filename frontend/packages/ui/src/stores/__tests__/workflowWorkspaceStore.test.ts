@@ -91,16 +91,19 @@ describe('workflowWorkspaceStore navigation cache', () => {
     expect(fetchMock.mock.calls[1][0]).toBe('https://api.test/v1/workflows/workflow-1/runs/run-1');
   });
 
-  // contract-test: supporting surface=gui.web assertions=workflows-ui.website-change.composition
-  it('preserves a starter description and keeps creation disabled', async () => {
+  // contract-test: supporting surface=gui.web assertions=workflows-ui.website-change.composition,workflows-ui.identity.automatic-category-icon
+  it('preserves a starter description and identity and keeps creation disabled', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({ workflow: detail }));
     await workflowWorkspaceStore.createWorkflow({
       title: 'Website changes', description: 'The first read initializes without a message.',
+      category: 'software_development', icon: 'globe',
       graph: detail.graph, enabled: false, runContentRetention: 'last_5',
     });
     const request = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
     expect(request.description).toBe('The first read initializes without a message.');
     expect(request.enabled).toBe(false);
+    expect(request.category).toBe('software_development');
+    expect(request.icon).toBe('globe');
   });
 
   // contract-test: direct surface=gui.web assertions=workflows-ui.chat-owned,workflows.chat.embedded-lifecycle

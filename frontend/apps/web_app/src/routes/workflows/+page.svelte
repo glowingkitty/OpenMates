@@ -871,18 +871,16 @@
 			messageTitle: $text('workflows.templates.website_changes_message_title')
 		}) : workflowTemplateGraph(item.id);
 		if (!graph) return;
-		const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-		const trigger = graph.nodes.find((node) => node.id === graph.trigger_node_id);
-		if (trigger?.type === 'schedule_trigger' && timezone) {
-			trigger.config = { ...trigger.config, schedule: { ...(trigger.config?.schedule as Record<string, unknown>), timezone } };
-		}
 		const description = item.id === 'website-changes' ? $text('workflows.templates.website_changes_description') : workflowTemplates.find(template => template.id === item.id)?.description;
 		if (!$authStore.isAuthenticated) {
 			guestTemplate = { item, graph, description: description ?? item.summary ?? '' };
 			return;
 		}
 		if (!canLoadWorkflows) return;
-		await createWorkflow(item.title, graph, false, description);
+		await createWorkflow(item.title, graph, false, description, {
+			category: item.category ?? 'general_knowledge',
+			icon: item.icon ?? 'workflow'
+		});
 	}
 
 	async function submitWorkflowInput(text: string = workflowInputText): Promise<boolean> {
@@ -1298,7 +1296,8 @@
 		title: string,
 		graph: WorkflowGraph,
 		enabled: boolean,
-		description?: string
+		description?: string,
+		identity?: { category: string; icon: string }
 	): Promise<boolean> {
 		if (!canLoadWorkflows || saving) return false;
 		const workflowProjectTarget = projectWorkflowTarget;
@@ -1309,6 +1308,7 @@
 			const workflow = await workflowWorkspaceStore.createWorkflow({
 				title,
 				description,
+				...identity,
 				graph,
 				enabled,
 				runContentRetention,
@@ -1589,7 +1589,9 @@
 						itemTestId="workflow-landing-card"
 						showReportIssue
 						showComposer={canRenderWorkflowData}
-						showAllMode={!canRenderWorkflowData || browseMode !== 'recent'}
+						continueItems={canRenderWorkflowData ? [] : workflowTemplateItems}
+						continueItemTestId="workflow-landing-card"
+						showAllMode={browseMode !== 'recent'}
 						contentSlotVisible={partialNotice !== null && partialWorkflowIds.length > 1}
 						showAllLabel="Show my workflows"
 						showAllTestId="workflows-show-all"
@@ -1603,11 +1605,11 @@
 						allItemTestId="workflow-landing-card"
 						backTestId="workflows-back-to-recent"
 						searchTestId="workflows-search"
-						onShowAll={showAllWorkflowCards}
+						onShowAll={canRenderWorkflowData ? showAllWorkflowCards : undefined}
 						onBrowse={showWorkflowTemplates}
-						onBackToRecent={canRenderWorkflowData ? showRecentWorkflowCards : undefined}
+						onBackToRecent={showRecentWorkflowCards}
 						onSearchAll={canRenderWorkflowData ? showWorkflowSearchUnavailable : undefined}
-						onContinueItem={continueWorkflowFromCard}
+						onContinueItem={canRenderWorkflowData ? continueWorkflowFromCard : createWorkflowFromTemplate}
 						onActionItem={startWorkflowFromCard}
 						onAllItem={!canRenderWorkflowData || browseMode === 'templates' ? createWorkflowFromTemplate : continueWorkflowFromCard}
 					>

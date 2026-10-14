@@ -20,9 +20,9 @@
     "onboarding_support": {"start": "#6364FF", "end": "#9B6DFF", "fallback_icon": "compass"}
   },
   "allowed_icons": [
-    "bell", "briefcase", "calendar", "check-circle", "clock", "cloud-rain", "code",
-    "compass", "dollar-sign", "file-text", "gavel", "heart", "help-circle", "mail",
+    "bell", "briefcase", "calendar", "calendar-days", "check-circle", "clock", "cloud-rain", "code",
+    "compass", "dollar-sign", "file-text", "gavel", "globe", "heart", "help-circle", "home", "mail",
     "megaphone", "microscope", "newspaper", "palette", "search", "shield-check",
-    "sparkles", "trending-up", "tv", "users", "utensils", "workflow", "wrench", "zap"
+    "sparkles", "sun", "trending-up", "tv", "users", "utensils", "workflow", "wrench", "zap"
   ]
 }

@@ -59,14 +59,17 @@
   surface="workflows" testId="workflows-start-screen"
   heading={`Hey ${greetingName}!`} subtitle="What do you want to automate next?"
   actionItems={guest || empty ? [] : sortWorkflowContinue(actionItems)} actionItemsTestId="workflow-mixed-row" itemTestId="workflow-landing-card"
-  showReportIssue showComposer={!guest} showAllMode={guest || browseMode !== 'home'} showAllLabel="Show my workflows" showAllTestId="workflows-show-all"
+  continueItems={guest ? guestTemplates : []} continueItemTestId="workflow-landing-card"
+  showReportIssue showComposer={!guest} showAllMode={browseMode !== 'home'} showAllLabel="Show my workflows" showAllTestId="workflows-show-all"
   browseLabel="Show templates" browseTestId="workflows-show-templates"
   allItemsHeading={guest || browseMode === 'templates' ? 'Templates' : 'My workflows'}
   allItems={guest ? guestTemplates : browseMode === 'templates' ? templates : empty ? [] : sortAllWorkflows(actionItems, sortMode)} allItemsViewTestId="all-workflows-view" allItemsGridTestId="all-workflows-grid"
   allItemsToolbarTestId="workflows-all-toolbar" allItemTestId="workflow-landing-card"
   backTestId="workflows-back-to-recent" searchTestId="workflows-search"
-  onShowAll={() => { browseMode = 'workflows'; }} onBrowse={() => { browseMode = 'templates'; }} onBackToRecent={guest ? undefined : () => { browseMode = 'home'; }}
-  onSearchAll={guest ? undefined : () => {}} onActionItem={() => {}} onAllItem={(item) => { if (guest) selectedGuestTemplate = workflowTemplates.find(template => template.id === item.id) ?? null; }}
+  onShowAll={guest ? undefined : () => { browseMode = 'workflows'; }} onBrowse={() => { browseMode = 'templates'; }} onBackToRecent={() => { browseMode = 'home'; }}
+  onSearchAll={guest ? undefined : () => {}} onActionItem={() => {}}
+  onContinueItem={(item) => { if (guest) selectedGuestTemplate = workflowTemplates.find(template => template.id === item.id) ?? null; }}
+  onAllItem={(item) => { if (guest) selectedGuestTemplate = workflowTemplates.find(template => template.id === item.id) ?? null; }}
 >
   <svelte:fragment slot="top-right">
     {#if browseMode === 'workflows'}
