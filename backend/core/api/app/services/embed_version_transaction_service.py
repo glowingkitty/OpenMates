@@ -57,6 +57,7 @@ class EmbedVersionTransactionService:
     async def write_legacy_embed(
         self, embed_id: str, payload: Mapping[str, Any], *, user_id: str,
         bundle_context: Mapping[str, Any] | None = None,
+        canonical_metadata_enrichment: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Persist one client-encrypted embed under the Project revision lock."""
         token = os.getenv("INTERNAL_API_SHARED_TOKEN")
@@ -71,6 +72,8 @@ class EmbedVersionTransactionService:
                 "actor_user_hash": hashlib.sha256(user_id.encode()).hexdigest(),
                 "payload": dict(payload),
                 **({"bundle_context": dict(bundle_context)} if bundle_context is not None else {}),
+                **({"canonical_metadata_enrichment": dict(canonical_metadata_enrichment)}
+                   if canonical_metadata_enrichment is not None else {}),
             },
         )
         try:

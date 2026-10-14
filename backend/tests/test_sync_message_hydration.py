@@ -160,6 +160,15 @@ async def test_embed_window_uses_created_at_and_id_cursor_with_byte_cap(monkeypa
             ]
 
     directus = FakeDirectus()
+    async def native_read(service, request):
+        assert service is directus
+        assert request == {"operation": "embed_window", "hashed_chat_id": "chat-hash",
+                           "before_created_at": 13, "before_id": "id-4"}
+        return await directus.get_items("embeds", params={"limit": embed_methods.SYNC_EMBED_PAGE_LIMIT + 1,
+                                                       "sort": ["-created_at", "-id"],
+                                                       "filter": {"hashed_chat_id": {"_eq": "chat-hash"}}},
+                                        no_cache=True, raise_on_error=True)
+    monkeypatch.setattr(embed_methods, "read_embed_uuid_page", native_read)
     window = await EmbedMethods(directus).get_embed_window_by_hashed_chat_id(
         "chat-hash", before_created_at=13, before_id="id-4",
     )
@@ -194,7 +203,7 @@ async def test_oversized_embed_exposes_skip_cursor(monkeypatch) -> None:
 
 # contract-test: supporting surface=rest_api assertions=storage.cold.discoverable-bounded
 @pytest.mark.anyio
-async def test_embed_key_window_has_cursor_without_dropping_extra_wrappers() -> None:
+async def test_embed_key_window_has_cursor_without_dropping_extra_wrappers(monkeypatch) -> None:
     from backend.core.api.app.services.directus import embed_methods
 
     class FakeDirectus:
@@ -208,14 +217,21 @@ async def test_embed_key_window_has_cursor_without_dropping_extra_wrappers() -> 
                     for index in range(embed_methods.SYNC_EMBED_KEY_PAGE_LIMIT + 1)]
 
     directus = FakeDirectus()
+    async def native_read(service, request):
+        assert service is directus
+        directus.request = request
+        return [{"id": f"key-{index:03d}", "encrypted_embed_key": "cipher"}
+                for index in range(embed_methods.SYNC_EMBED_KEY_PAGE_LIMIT + 1)]
+    monkeypatch.setattr(embed_methods, "read_embed_uuid_page", native_read)
     page = await EmbedMethods(directus).get_sync_embed_key_window_for_page(
         "chat-hash", "user-hash", ["embed-hash"], after_key_id="previous-key",
     )
     assert len(page["embed_keys"]) == embed_methods.SYNC_EMBED_KEY_PAGE_LIMIT
     assert page["has_more_after"] is True
     assert page["end_cursor"] == "key-059"
-    assert directus.params["filter"]["id"] == {"_gt": "previous-key"}
-    assert directus.params["filter"]["_or"][1]["hashed_user_id"] == {"_eq": "user-hash"}
+    assert directus.request == {"operation": "embed_key_window", "hashed_chat_id": "chat-hash",
+                               "hashed_user_id": "user-hash", "hashed_embed_ids": ["embed-hash"],
+                               "include_master_keys": True, "after_id": "previous-key"}
 
 
 # contract-test: supporting surface=rest_api assertions=storage.cold.shared-team-authorized

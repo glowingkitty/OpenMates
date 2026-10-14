@@ -394,6 +394,8 @@ describe("CLI typed recovery replay", () => {
       content: toonEncode({ type: "code", code: "private recovered source" }),
       parent_embed_id: parentId,
       message_id: "55555555-5555-4555-8555-555555555555",
+      task_id: "66666666-6666-4666-8666-666666666666",
+      file_path: "src/recovered.ts", content_hash: "a".repeat(64),
     };
     const sealed = await sealRecoveryOutputEnvelopeForTest(new TextEncoder().encode(JSON.stringify({
       record_id: output.record_id, target_chat_id: output.target_chat_id,
@@ -430,14 +432,25 @@ describe("CLI typed recovery replay", () => {
       : parentId && path.includes(`/embeds/${parentId}`) && wrappers.length ? { ok: true, status: 200, data: { embed: {
         embed_id: parentId, hashed_chat_id: createHash("sha256").update(output.target_chat_id).digest("hex"),
       }, embed_keys: wrappers } }
-      : stored && wrappers.length ? { ok: true, status: 200, data: { embed: stored, embed_keys: wrappers } }
+      : stored && wrappers.length ? { ok: true, status: 200, data: { embed: { ...stored, hashed_embed_id: digest(output.subject_id) }, embed_keys: wrappers } }
         : { ok: false, status: 404, data: {} } };
-    const pending: Array<{ type: string; resolve: (value: unknown) => void }> = [];
+    let terminalReplay = false;
+    const terminalFrames: string[] = [];
+    const pending: Array<{ type: string; resolve: (value: unknown) => void; reject: (error: Error) => void }> = [];
     const ws = {
-      waitForMessage: (type: string, predicate: (value: unknown) => boolean) => new Promise((resolve) => {
-        pending.push({ type, resolve: (value: unknown) => { if (predicate((value as { payload: unknown }).payload)) resolve(value); } });
+      waitForMessage: (type: string, predicate: (value: unknown) => boolean) => new Promise((resolve, reject) => {
+        pending.push({ type, reject, resolve: (value: unknown) => { if (predicate((value as { payload: unknown }).payload)) resolve(value); } });
       }),
       sendAsync: async (type: string, payload: Record<string, unknown>) => {
+        if (terminalReplay) {
+          terminalFrames.push(type);
+          assert.equal(type, "store_embed");
+          const index = pending.findIndex((item) => item.type === "store_embed_confirmed");
+          const waiter = pending.splice(index, 1)[0];
+          assert.ok(waiter);
+          waiter.reject(new WebSocketProtocolError("embed_write_denied", "ACKed canonical head"));
+          return;
+        }
         sent.push(type);
         if (type === "store_embed") stored = payload;
         if (type === "store_embed_keys") {
@@ -486,8 +499,24 @@ describe("CLI typed recovery replay", () => {
     assert.equal(await (client.persistAvailableRecoveryOutputs as PersistAvailableOutputs)(ws, identity.owner_id, cache, [output], null), 1);
     assert.equal(await (client.persistAvailableRecoveryOutputs as PersistAvailableOutputs)(ws, identity.owner_id, cache, [output], null), 1);
     assert.equal(sent.filter((type) => type === "store_embed").length, 1);
+    assert.equal(stored?.hashed_task_id, digest(content.task_id));
+    assert.equal(stored?.file_path, content.file_path);
+    assert.equal(stored?.content_hash, content.content_hash);
     assert.equal(sent.filter((type) => type === "store_embed_keys").length, 1);
     assert.equal(sent.filter((type) => type === "recovery_output_ack_embed").length, 2);
+    if (!child) {
+      // Recovery can win before the terminal send_embed_data repeats this same
+      // real producer metadata. Its first write must need no legacy repair.
+      const originalCiphertext = stored!.encrypted_content;
+      terminalReplay = true;
+      await (client.persistStreamedEmbeds as (params: unknown) => Promise<void>).call(client, {
+        ws, embeds: [{ ...content, status: "finished" }], chatId: output.target_chat_id,
+        chatKeyBytes: rawKey, ownerId: identity.owner_id, fallbackMessageId: content.message_id,
+      });
+      terminalReplay = false;
+      assert.deepEqual(terminalFrames, ["store_embed"]);
+      assert.equal(stored!.encrypted_content, originalCiphertext);
+    }
     historicalSnapshot = await encryptWithAesGcmCombined("private recovered source", embedKey);
     stored!.version_number = 2;
     stored!.encrypted_content = await encryptWithAesGcmCombined("newer unrelated content", embedKey);

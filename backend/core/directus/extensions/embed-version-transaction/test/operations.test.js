@@ -331,6 +331,152 @@ test('legacy ACK protection only applies to the same owner, chat and revision', 
   assert.equal(database.rows.embeds[0].encrypted_content, 'owner-update');
 });
 
+function metadataEnrichmentFixture() {
+  const chatId = 'metadata-chat';
+  const embedId = 'metadata-embed';
+  const hash = (value) => createHash('sha256').update(value).digest('hex');
+  const embed = { id: 'metadata-row', embed_id: embedId, hashed_user_id: ACTOR,
+    hashed_chat_id: hash(chatId), hashed_message_id: hash('metadata-message'),
+    hashed_task_id: null, file_path: null, content_hash: null,
+    encrypted_type: 'sealed-type', encrypted_content: 'canonical-cipher',
+    encrypted_text_preview: 'sealed-preview', encrypted_diff: 'sealed-diff',
+    version_number: 1, status: 'finished', parent_embed_id: null, root_embed_id: embedId,
+    embed_ids: '["child-1"]', app_id: 'web', skill_id: 'search',
+    workspace_origin: 'chat', hashed_team_id: null, created_at: 11, updated_at: 12 };
+  const seed = { embeds: [embed], project_items: [],
+    chats: [{ id: chatId, hashed_user_id: ACTOR, hashed_team_id: null }],
+    embed_keys: [{ id: 'preserved-wrapper', encrypted_embed_key: 'original-wrapped-key' }],
+    chat_recovery_outputs: [{ id: 'metadata-ack', subject_id: embedId,
+      hashed_user_id: ACTOR, target_chat_id: chatId, output_kind: 'embed',
+      output_version: 1, state: 'ACKNOWLEDGED', canonical_digest: hash(embed.encrypted_content) }] };
+  const body = { embed_id: embedId, actor_user_hash: ACTOR,
+    canonical_metadata_enrichment: { expected_version: 1,
+      expected_ciphertext_sha256: hash(embed.encrypted_content) },
+    payload: { embed_id: embedId, hashed_user_id: ACTOR, hashed_task_id: hash('producer-task'),
+      file_path: 'result.json', content_hash: hash('producer-content') } };
+  return { seed, body, hash };
+}
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,projects.files.concurrent-chat-safety
+test('canonical metadata enrichment fills only missing provenance and preserves ACK, catalog and wrappers', async () => {
+  const { seed, body } = metadataEnrichmentFixture();
+  const database = fakeDatabase(seed);
+  assert.equal((await writeLegacyEmbed(database, body)).status, 'enriched');
+  const expected = structuredClone(seed);
+  for (const field of ['hashed_task_id', 'file_path', 'content_hash']) {
+    expected.embeds[0][field] = body.payload[field];
+  }
+  assert.deepEqual(database.rows, expected);
+  assert.equal((await writeLegacyEmbed(database, body)).status, 'idempotent');
+  assert.deepEqual(database.rows, expected);
+});
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,projects.files.concurrent-chat-safety
+test('canonical metadata enrichment rejects conflicts and immutable field changes without writes', async () => {
+  for (const patch of [{ encrypted_content: 'changed-cipher' }, { version_number: 2 },
+    { hashed_user_id: 'b'.repeat(64) }, { hashed_chat_id: 'b'.repeat(64) },
+    { hashed_message_id: 'b'.repeat(64) }, { hashed_team_id: 'b'.repeat(64) },
+    { app_id: 'other' }, { skill_id: 'other' }, { workspace_origin: 'web_apps' },
+    { parent_embed_id: 'other' }, { root_embed_id: 'other' }, { embed_ids: ['other'] },
+    { status: 'processing' }, { encrypted_type: 'changed' }, { updated_at: 13 },
+    { created_at: 13 }, { encrypted_text_preview: 'changed' }, { encrypted_diff: 'changed' },
+    { key_wrappers: [] }]) {
+    const { seed, body } = metadataEnrichmentFixture();
+    const database = fakeDatabase(seed);
+    await assert.rejects(writeLegacyEmbed(database, { ...body, payload: { ...body.payload, ...patch } }),
+      (error) => error instanceof ProtocolError);
+    assert.deepEqual(database.rows, seed);
+  }
+  for (const field of ['hashed_task_id', 'file_path', 'content_hash']) {
+    const { seed, body } = metadataEnrichmentFixture();
+    seed.embeds[0][field] = field === 'file_path' ? 'other.json' : 'b'.repeat(64);
+    const database = fakeDatabase(seed);
+    await assert.rejects(writeLegacyEmbed(database, body),
+      (error) => error.code === 'canonical_metadata_mismatch');
+    assert.deepEqual(database.rows, seed);
+  }
+});
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,projects.files.concurrent-chat-safety
+test('metadata enrichment compares the locked head and denies stale version, digest, missing head and Team access', async () => {
+  for (const mutation of ['version', 'cipher', 'missing', 'team', 'owner']) {
+    const { seed, body } = metadataEnrichmentFixture();
+    if (mutation === 'version') seed.embeds[0].version_number = 2;
+    if (mutation === 'cipher') seed.embeds[0].encrypted_content = 'new-cipher';
+    if (mutation === 'missing') seed.embeds = [];
+    if (mutation === 'team') {
+      seed.embeds[0].hashed_team_id = 'b'.repeat(64);
+      seed.chats[0].hashed_team_id = 'b'.repeat(64);
+      seed.teams = [{ hashed_team_id: 'b'.repeat(64), status: 'active' }];
+      seed.team_memberships = [{ hashed_team_id: 'b'.repeat(64), hashed_user_id: ACTOR, status: 'inactive' }];
+    }
+    if (mutation === 'owner') seed.embeds[0].hashed_user_id = 'b'.repeat(64);
+    const database = fakeDatabase(seed);
+    await assert.rejects(writeLegacyEmbed(database, body), (error) => error instanceof ProtocolError);
+    assert.deepEqual(database.rows, seed);
+  }
+});
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,projects.files.concurrent-chat-safety
+test('ordinary legacy write cannot downgrade a newer head or bypass the current ACK using another version', async () => {
+  for (const version of [0, 2]) {
+    const { seed, body } = metadataEnrichmentFixture();
+    const database = fakeDatabase(seed);
+    await assert.rejects(writeLegacyEmbed(database, { embed_id: body.embed_id, actor_user_hash: ACTOR,
+      payload: { embed_id: body.embed_id, hashed_user_id: ACTOR,
+        version_number: version, encrypted_content: 'rewritten-cipher' } }),
+    (error) => error.code === 'acknowledged_embed_revision_immutable');
+    assert.deepEqual(database.rows, seed);
+  }
+  const { seed, body } = metadataEnrichmentFixture();
+  seed.embeds[0].version_number = 2;
+  const database = fakeDatabase(seed);
+  await assert.rejects(writeLegacyEmbed(database, { embed_id: body.embed_id, actor_user_hash: ACTOR,
+    payload: { embed_id: body.embed_id, hashed_user_id: ACTOR, version_number: 1,
+      encrypted_content: 'stale-v1' } }),
+  (error) => error.code === 'legacy_embed_revision_conflict');
+  assert.deepEqual(database.rows, seed);
+});
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,projects.files.concurrent-chat-safety
+test('a concurrent unacknowledged legacy advance wins without letting enrichment overwrite its newer head', async () => {
+  const { seed, body } = metadataEnrichmentFixture();
+  seed.chat_recovery_outputs = [];
+  const database = fakeDatabase(seed);
+  const advance = { embed_id: body.embed_id, actor_user_hash: ACTOR, payload: {
+    embed_id: body.embed_id, hashed_user_id: ACTOR, version_number: 2,
+    encrypted_content: 'newer-cipher', app_id: 'web', skill_id: 'search',
+    workspace_origin: 'chat', root_embed_id: body.embed_id,
+  } };
+  const outcomes = await Promise.allSettled([
+    writeLegacyEmbed(database, advance), writeLegacyEmbed(database, body),
+  ]);
+  assert.equal(outcomes[0].value.status, 'updated');
+  assert.equal(outcomes[1].reason.code, 'canonical_metadata_version_conflict');
+  assert.equal(database.rows.embeds[0].version_number, 2);
+  assert.equal(database.rows.embeds[0].encrypted_content, 'newer-cipher');
+  assert.equal(database.rows.embeds[0].hashed_task_id, null);
+  assert.deepEqual(database.rows.embed_keys, seed.embed_keys);
+});
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('registered UUIDv5 recovery children also support metadata-only provenance enrichment', async () => {
+  const { seed, body, childId } = registeredChildFixture();
+  const database = fakeDatabase(seed);
+  await writeLegacyEmbed(database, body);
+  const original = structuredClone(database.rows);
+  const taskHash = createHash('sha256').update('registered-task').digest('hex');
+  const enrichment = { embed_id: childId, actor_user_hash: ACTOR,
+    canonical_metadata_enrichment: { expected_version: 1,
+      expected_ciphertext_sha256: createHash('sha256').update(body.payload.encrypted_content).digest('hex') },
+    payload: { embed_id: childId, hashed_user_id: ACTOR, hashed_task_id: taskHash,
+      parent_embed_id: body.payload.parent_embed_id, hashed_chat_id: body.payload.hashed_chat_id,
+      hashed_message_id: body.payload.hashed_message_id } };
+  assert.equal((await writeLegacyEmbed(database, enrichment)).status, 'enriched');
+  original.embeds.find((embed) => embed.embed_id === childId).hashed_task_id = taskHash;
+  assert.deepEqual(database.rows, original);
+});
+
 // contract-test: direct surface=rest_api assertions=teams.chat.encrypted-until-invoked,projects.files.concurrent-chat-safety
 test('registered child write rechecks current Team access and chat scope', async () => {
   const { seed, body } = registeredChildFixture({ team: true });
@@ -1180,3 +1326,80 @@ for (const [appId, skillId] of [['reminder', 'set-reminder'], ['workflows', 'cre
     assert.equal(database.rows.embeds.at(-1).encrypted_content, 'cipher-second');
   });
 }
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,projects.files.concurrent-chat-safety
+test('ordinary metadata updates without a version preserve a v2 head while explicit v1 downgrade rejects', async () => {
+  const { seed, body } = metadataEnrichmentFixture();
+  seed.embeds[0].version_number = 2;
+  seed.chat_recovery_outputs[0].output_version = 2;
+  const database = fakeDatabase(seed);
+  const metadata = { embed_id: body.embed_id, actor_user_hash: ACTOR, payload: {
+    embed_id: body.embed_id, hashed_user_id: ACTOR, hashed_task_id: body.payload.hashed_task_id,
+    app_id: 'web', skill_id: 'search', root_embed_id: body.embed_id,
+  } };
+  assert.equal((await writeLegacyEmbed(database, metadata)).status, 'updated');
+  const expected = structuredClone(seed);
+  expected.embeds[0].hashed_task_id = body.payload.hashed_task_id;
+  expected.embeds[0].hashed_embed_id = createHash('sha256').update(body.embed_id).digest('hex');
+  assert.deepEqual(database.rows, expected);
+  await assert.rejects(writeLegacyEmbed(database, { ...metadata, payload: {
+    ...metadata.payload, version_number: 1,
+  } }), (error) => error.code === 'acknowledged_embed_revision_immutable');
+  assert.deepEqual(database.rows, expected);
+});
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,teams.chat.encrypted-until-invoked
+test('Team metadata enrichment accepts the CLI partial scope payload and rejects revoked scope or actor changes', async () => {
+  for (const mutation of ['none', 'revoked', 'team', 'actor']) {
+    const { seed, body } = metadataEnrichmentFixture();
+    const teamHash = 'b'.repeat(64);
+    Object.assign(seed.embeds[0], { hashed_team_id: teamHash, app_id: null, skill_id: null,
+      workspace_origin: null, root_embed_id: null });
+    seed.chats[0].hashed_team_id = teamHash;
+    seed.teams = [{ hashed_team_id: teamHash, status: 'active' }];
+    seed.team_memberships = [{ hashed_team_id: teamHash, hashed_user_id: ACTOR,
+      status: mutation === 'revoked' ? 'inactive' : 'active', role: 'member' }];
+    const request = { ...body, actor_user_hash: mutation === 'actor' ? 'c'.repeat(64) : ACTOR,
+      payload: { embed_id: body.embed_id, hashed_user_id: ACTOR,
+        hashed_chat_id: seed.embeds[0].hashed_chat_id, hashed_message_id: seed.embeds[0].hashed_message_id,
+        hashed_team_id: mutation === 'team' ? 'c'.repeat(64) : teamHash,
+        parent_embed_id: null, hashed_task_id: body.payload.hashed_task_id } };
+    const database = fakeDatabase(seed);
+    if (mutation === 'none') {
+      assert.equal((await writeLegacyEmbed(database, request)).status, 'enriched');
+      const expected = structuredClone(seed);
+      expected.embeds[0].hashed_task_id = request.payload.hashed_task_id;
+      assert.deepEqual(database.rows, expected);
+    } else {
+      await assert.rejects(writeLegacyEmbed(database, request), (error) => error instanceof ProtocolError);
+      assert.deepEqual(database.rows, seed);
+    }
+  }
+});
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('acknowledged legacy heads reject explicit ciphertext clearing and encrypted type mutation', async () => {
+  for (const change of [{ encrypted_content: null }, { encrypted_content: '' },
+    { encrypted_content: false }, { encrypted_content: 7 }, { encrypted_content: {} },
+    { encrypted_type: null }, { encrypted_type: '' }, { encrypted_type: 'changed-type' },
+    { encrypted_type: false }]) {
+    const { seed, body } = metadataEnrichmentFixture();
+    const database = fakeDatabase(seed);
+    const request = { embed_id: body.embed_id, actor_user_hash: ACTOR, payload: {
+      embed_id: body.embed_id, hashed_user_id: ACTOR, app_id: 'web', skill_id: 'search',
+      root_embed_id: body.embed_id, ...change,
+    } };
+    await assert.rejects(writeLegacyEmbed(database, request),
+      (error) => error.code === 'acknowledged_embed_revision_immutable');
+    assert.deepEqual(database.rows, seed);
+  }
+  const { seed, body } = metadataEnrichmentFixture();
+  const database = fakeDatabase(seed);
+  assert.equal((await writeLegacyEmbed(database, { embed_id: body.embed_id,
+    actor_user_hash: ACTOR, payload: { embed_id: body.embed_id, hashed_user_id: ACTOR,
+      app_id: 'web', skill_id: 'search', root_embed_id: body.embed_id,
+      encrypted_type: seed.embeds[0].encrypted_type,
+    } })).status, 'updated');
+  seed.embeds[0].hashed_embed_id = createHash('sha256').update(body.embed_id).digest('hex');
+  assert.deepEqual(database.rows, seed);
+});

@@ -208,12 +208,31 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	expect(sharedEmbeds.embeds.length).toBeGreaterThan(0);
 	expect(sharedEmbeds.embeds.length).toBeLessThanOrEqual(30);
 	expect(sharedEmbeds.embed_keys.every((key: any) => key.key_type === 'chat')).toBe(true);
+	// Exercise real CMS UUID range reads, including a cursor inside the current
+	// page. A mocked EmbedMethods implementation cannot catch Directus's UUID
+	// operator validator rejecting REST _lt/_gt.
+	expect(sharedEmbeds.has_more_before).toBe(false);
+	const newestEmbed = sharedEmbeds.embeds[0];
+	const continuationResponse = await page.request.get(`${apiUrl}/v1/share/chat/${activeChatId}/embeds/window`
+		+ `?before_created_at=${newestEmbed.created_at}&before_id=${encodeURIComponent(newestEmbed.id)}`);
+	expect(continuationResponse.ok()).toBe(true);
+	const continuation = await continuationResponse.json();
+	expect(continuation.embeds.map((embed: any) => embed.id)).toEqual(sharedEmbeds.embeds.slice(1).map((embed: any) => embed.id));
+	expect(continuation.embed_keys.every((key: any) => key.key_type === 'chat')).toBe(true);
 	const sharedEmbedIds = sharedEmbeds.embeds.map((embed: any) => embed.embed_id);
 	const sharedKeysResponse = await page.request.get(`${apiUrl}/v1/share/chat/${activeChatId}/embeds/keys/window`
 		+ `?embed_ids=${encodeURIComponent(sharedEmbedIds.join(','))}`);
 	expect(sharedKeysResponse.ok()).toBe(true);
 	const sharedKeys = await sharedKeysResponse.json();
 	expect(sharedKeys.embed_keys.every((key: any) => key.key_type === 'chat')).toBe(true);
+	expect(sharedKeys.embed_keys.length).toBeGreaterThan(0);
+	const firstKey = sharedKeys.embed_keys[0];
+	const keyContinuationResponse = await page.request.get(`${apiUrl}/v1/share/chat/${activeChatId}/embeds/keys/window`
+		+ `?embed_ids=${encodeURIComponent(sharedEmbedIds.join(','))}&after_key_id=${encodeURIComponent(firstKey.id)}`);
+	expect(keyContinuationResponse.ok()).toBe(true);
+	const keyContinuation = await keyContinuationResponse.json();
+	expect(keyContinuation.embed_keys.map((key: any) => key.id)).toEqual(sharedKeys.embed_keys.slice(1).map((key: any) => key.id));
+	expect(keyContinuation.embed_keys.every((key: any) => key.key_type === 'chat')).toBe(true);
 	const forgedEmbedId = '00000000-0000-4000-8000-000000000001';
 	expect((await page.request.get(`${apiUrl}/v1/share/chat/${activeChatId}/embeds/keys/window`
 		+ `?embed_ids=${forgedEmbedId}`)).status()).toBe(404);

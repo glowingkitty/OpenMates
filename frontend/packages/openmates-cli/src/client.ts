@@ -8542,6 +8542,9 @@ export class OpenMatesClient {
               ...(typeof content.text_preview === "string" ? { encrypted_text_preview: await encryptWithAesGcmCombined(content.text_preview, embedKey) } : {}),
               status: "finished", hashed_chat_id: computeSHA256(output.target_chat_id),
               hashed_message_id: computeSHA256(content.message_id), hashed_user_id: hashedUserId,
+              ...(typeof content.task_id === "string" ? { hashed_task_id: computeSHA256(content.task_id) } : {}),
+              ...(typeof content.file_path === "string" ? { file_path: content.file_path } : {}),
+              ...(typeof content.content_hash === "string" ? { content_hash: content.content_hash } : {}),
               version_number: output.output_version, ...(parentId ? { parent_embed_id: parentId } : {}),
               ...(Array.isArray(content.embed_ids) ? { embed_ids: content.embed_ids } : {}),
               is_private: content.is_private === true, is_shared: content.is_shared === true,
@@ -11222,21 +11225,35 @@ export class OpenMatesClient {
         const canonicalKeys = canonical.data?.embed_keys;
         const version = embed.version_number ?? 1;
         const parentId = embed.parent_embed_id || null;
-        let canonicalChildren: unknown = head?.embed_ids ?? [];
-        if (typeof canonicalChildren === "string") {
-          try { canonicalChildren = JSON.parse(canonicalChildren); } catch { canonicalChildren = null; }
-        }
+        const normalizedCanonicalChildren = (row: Record<string, unknown>): unknown => {
+          const children = row.embed_ids ?? [];
+          if (typeof children === "string") {
+            try { return JSON.parse(children); } catch { return undefined; }
+          }
+          return children;
+        };
+        const matchesCanonicalChildren = (row: Record<string, unknown>): boolean => {
+          const children = normalizedCanonicalChildren(row);
+          return children !== undefined && (embed.embed_ids === undefined
+            || JSON.stringify(children) === JSON.stringify(embed.embed_ids ?? []));
+        };
+        const canonicalCatalogIdentity = (row: Record<string, unknown>): string => JSON.stringify([
+          row.app_id ?? null, row.skill_id ?? null, row.root_embed_id ?? null,
+          row.workspace_origin ?? null, normalizedCanonicalChildren(row),
+        ]);
+        const declaredMetadata: Record<string, string> = {
+          ...(embed.task_id !== undefined ? { hashed_task_id: computeSHA256(embed.task_id) } : {}),
+          ...(embed.file_path !== undefined ? { file_path: embed.file_path } : {}),
+          ...(embed.content_hash !== undefined ? { content_hash: embed.content_hash } : {}),
+        };
         if (!canonical.ok || !head || head.embed_id !== embed.embed_id
           || head.hashed_embed_id !== hashedEmbedId
           || head.hashed_user_id !== hashedUserId || head.hashed_chat_id !== hashedChatId
           || (head.hashed_team_id ?? null) !== (params.teamId ? computeSHA256(params.teamId) : null)
           || (head.parent_embed_id ?? null) !== parentId
           || head.hashed_message_id !== hashedMessageId
-          || (embed.task_id !== undefined && head.hashed_task_id !== computeSHA256(embed.task_id))
-          || (embed.file_path !== undefined && head.file_path !== embed.file_path)
-          || (embed.content_hash !== undefined && head.content_hash !== embed.content_hash)
-          || (embed.embed_ids !== undefined
-            && JSON.stringify(canonicalChildren) !== JSON.stringify(embed.embed_ids ?? []))
+          || Object.entries(declaredMetadata).some(([field, value]) => head[field] != null && head[field] !== value)
+          || !matchesCanonicalChildren(head)
           || !Number.isSafeInteger(version) || version < 1
           || Number(head.version_number ?? 1) !== version || head.status !== "finished"
           || typeof head.encrypted_type !== "string" || typeof head.encrypted_content !== "string"
@@ -11244,27 +11261,83 @@ export class OpenMatesClient {
           throw new Error(`Denied embed ${embed.embed_id} has no matching canonical head.`);
         }
         const keySubjectHash = computeSHA256(parentId || embed.embed_id);
-        let readableKey = false;
-        for (const wrapper of canonicalKeys) {
-          if (wrapper.hashed_embed_id !== keySubjectHash || wrapper.hashed_user_id !== hashedUserId
-            || typeof wrapper.encrypted_embed_key !== "string") continue;
-          const wrappingKey = wrapper.key_type === "chat" && wrapper.hashed_chat_id === hashedChatId
-            ? params.chatKeyBytes
-            : !params.teamId && wrapper.key_type === "master" && wrapper.hashed_chat_id == null
-              ? masterKey : null;
-          if (!wrappingKey) continue;
-          const unwrapped = await decryptBytesWithAesGcm(wrapper.encrypted_embed_key, wrappingKey);
-          if (unwrapped && Buffer.from(unwrapped).equals(Buffer.from(embedKey))) readableKey = true;
-        }
-        const canonicalType = await decryptWithAesGcmCombined(head.encrypted_type, embedKey);
-        const canonicalContent = await decryptWithAesGcmCombined(head.encrypted_content, embedKey);
-        const contentMetadata = canonicalContent && (embed.app_id !== undefined || embed.skill_id !== undefined)
-          ? parseEmbedContentObject(canonicalContent) : null;
-        if (!readableKey || canonicalType !== (embed.type || "app_skill_use")
-          || canonicalContent !== embed.content
-          || (embed.app_id !== undefined && (head.app_id ?? contentMetadata?.app_id) !== embed.app_id)
-          || (embed.skill_id !== undefined && (head.skill_id ?? contentMetadata?.skill_id) !== embed.skill_id)) {
+        const matchesCanonicalSourceAndKeys = async (
+          row: Record<string, unknown>, wrappers: unknown,
+        ): Promise<boolean> => {
+          if (!Array.isArray(wrappers) || typeof row.encrypted_type !== "string"
+            || typeof row.encrypted_content !== "string") return false;
+          let readableKey = false;
+          for (const wrapper of wrappers) {
+            if (!wrapper || typeof wrapper !== "object"
+              || wrapper.hashed_embed_id !== keySubjectHash || wrapper.hashed_user_id !== hashedUserId
+              || typeof wrapper.encrypted_embed_key !== "string") continue;
+            const wrappingKey = wrapper.key_type === "chat" && wrapper.hashed_chat_id === hashedChatId
+              ? params.chatKeyBytes
+              : !params.teamId && wrapper.key_type === "master" && wrapper.hashed_chat_id == null
+                ? masterKey : null;
+            if (!wrappingKey) continue;
+            const unwrapped = await decryptBytesWithAesGcm(wrapper.encrypted_embed_key, wrappingKey);
+            if (!unwrapped || !Buffer.from(unwrapped).equals(Buffer.from(embedKey))) return false;
+            readableKey = true;
+          }
+          const type = await decryptWithAesGcmCombined(row.encrypted_type, embedKey);
+          const source = await decryptWithAesGcmCombined(row.encrypted_content, embedKey);
+          const metadata = source && (embed.app_id !== undefined || embed.skill_id !== undefined)
+            ? parseEmbedContentObject(source) : null;
+          return readableKey && type === (embed.type || "app_skill_use") && source === embed.content
+            && (embed.app_id === undefined || (row.app_id ?? metadata?.app_id) === embed.app_id)
+            && (embed.skill_id === undefined || (row.skill_id ?? metadata?.skill_id) === embed.skill_id);
+        };
+        if (!await matchesCanonicalSourceAndKeys(head, canonicalKeys)) {
           throw new Error(`Denied embed ${embed.embed_id} canonical head does not match streamed source.`);
+        }
+        const expectedCatalogIdentity = canonicalCatalogIdentity(head);
+        const missingMetadata = Object.fromEntries(Object.entries(declaredMetadata)
+          .filter(([field]) => head[field] == null));
+        if (Object.keys(missingMetadata).length > 0) {
+          // Legacy recovery ACKs may predate producer metadata. Fill only missing
+          // provenance under an atomic revision/ciphertext fence; never recipher
+          // the immutable head or retry a normal legacy write after a race.
+          const expectedCiphertext = head.encrypted_content;
+          const expectedEncryptedType = head.encrypted_type;
+          const expectedDigest = computeSHA256(expectedCiphertext);
+          const requestId = randomUUID();
+          const confirmed = params.ws.waitForMessage("store_embed_confirmed",
+            (payload) => matchesRecoveryEmbedReceipt(payload, requestId, embed.embed_id), 30_000);
+          void confirmed.catch(() => {});
+          await params.ws.sendAsync("store_embed", {
+            request_id: requestId, embed_id: embed.embed_id, chat_id: params.chatId,
+            ...(params.teamId ? { team_id: params.teamId } : {}),
+            hashed_user_id: hashedUserId, hashed_chat_id: hashedChatId,
+            hashed_message_id: hashedMessageId, parent_embed_id: parentId,
+            hashed_team_id: params.teamId ? computeSHA256(params.teamId) : null,
+            ...missingMetadata,
+            canonical_metadata_enrichment: {
+              expected_version: version, expected_ciphertext_sha256: expectedDigest,
+            },
+          });
+          const receipt = (await confirmed).payload as Record<string, unknown>;
+          if (receipt.canonical_source !== "head" || receipt.canonical_digest !== expectedDigest) {
+            throw new Error(`Embed ${embed.embed_id} metadata enrichment receipt does not match canonical head.`);
+          }
+          const enriched = await this.http.get<{
+            embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>>;
+          }>(`/v1/embeds/chats/${encodeURIComponent(params.chatId)}/embeds/${encodeURIComponent(embed.embed_id)}${query}`,
+            this.getCliRequestHeaders());
+          const row = enriched.data?.embed;
+          if (!enriched.ok || !row || row.embed_id !== embed.embed_id
+            || row.hashed_embed_id !== hashedEmbedId || row.hashed_user_id !== hashedUserId
+            || row.hashed_chat_id !== hashedChatId || row.hashed_message_id !== hashedMessageId
+            || (row.hashed_team_id ?? null) !== (params.teamId ? computeSHA256(params.teamId) : null)
+            || (row.parent_embed_id ?? null) !== parentId || row.status !== "finished"
+            || Number(row.version_number ?? 1) !== version
+            || row.encrypted_content !== expectedCiphertext || row.encrypted_type !== expectedEncryptedType
+            || Object.entries(declaredMetadata).some(([field, value]) => row[field] !== value)
+            || !matchesCanonicalChildren(row)
+            || canonicalCatalogIdentity(row) !== expectedCatalogIdentity
+            || !await matchesCanonicalSourceAndKeys(row, enriched.data?.embed_keys)) {
+            throw new Error(`Embed ${embed.embed_id} metadata enrichment canonical reread failed.`);
+          }
         }
         storedHead = false;
       }

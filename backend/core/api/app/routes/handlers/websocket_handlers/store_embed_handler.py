@@ -185,6 +185,13 @@ async def handle_store_embed(
                 logger.error(f"Missing embed_id in store_embed payload from user {user_id}")
                 return
             request_id = payload.pop("request_id", None)
+            # First-party WebSocket protocol control, never an embeds column.
+            # The internal transaction compares the current opaque head and
+            # fills only missing provenance without rewriting ciphertext.
+            has_enrichment = "canonical_metadata_enrichment" in payload
+            enrichment = payload.pop("canonical_metadata_enrichment", None)
+            if has_enrichment and not isinstance(enrichment, dict):
+                raise ValueError("Invalid canonical metadata enrichment")
             # Recovery correlation is a WebSocket protocol field, not an embeds
             # column. The capability gate has already consumed it before this
             # handler forwards the encrypted head to the legacy transaction.
@@ -245,13 +252,14 @@ async def handle_store_embed(
                         "direct_chat_permission_denied", request_id,
                     )
                     return
-            app_id = payload.pop("app_id", None)
-            skill_id = payload.pop("skill_id", None)
+            app_id = payload.get("app_id") if enrichment is not None else payload.pop("app_id", None)
+            skill_id = payload.get("skill_id") if enrichment is not None else payload.pop("skill_id", None)
             # Catalog and scope fields are server-derived. In particular, a
             # Personal chat must never acquire a client-supplied Team hash.
             for field in ("hashed_team_id", "workspace_origin", "root_embed_id", "apps_workspace_root_id"):
-                payload.pop(field, None)
-            if app_id is not None or skill_id is not None:
+                if enrichment is None:
+                    payload.pop(field, None)
+            if enrichment is None and (app_id is not None or skill_id is not None):
                 # Registered skill IDs include hyphens; app IDs retain their existing grammar.
                 app_catalog_id = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
                 skill_catalog_id = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
@@ -326,7 +334,7 @@ async def handle_store_embed(
             # Since embed content is client-encrypted, S3 file keys are stored as server-accessible
             # metadata to enable S3 cleanup when the embed or its parent chat is deleted.
             try:
-                client = await cache_service.client
+                client = await cache_service.client if enrichment is None else None
                 if client:
                     s3_keys_cache_key = f"embed:{embed_id}:s3_file_keys"
                     s3_keys_json = await client.get(s3_keys_cache_key)
@@ -345,7 +353,10 @@ async def handle_store_embed(
             try:
                 write_result = await EmbedVersionTransactionService(
                     directus_service,
-                ).write_legacy_embed(embed_id, payload, user_id=user_id)
+                ).write_legacy_embed(
+                    embed_id, payload, user_id=user_id,
+                    canonical_metadata_enrichment=enrichment,
+                )
             except EmbedVersionTransactionError as exc:
                 if exc.status_code in (403, 409):
                     await _reject_store_embed_write(
@@ -370,14 +381,23 @@ async def handle_store_embed(
 
             canonical_embed = None
             canonical_digest = None
-            if request_id:
+            if request_id or enrichment is not None:
                 canonical_embed = await directus_service.embed.get_embed_by_id(embed_id)
                 if not isinstance(canonical_embed, dict):
                     raise RuntimeError("Canonical embed was unavailable after confirmed write")
                 encrypted_content = canonical_embed.get("encrypted_content")
-                if not isinstance(encrypted_content, str) or encrypted_content != payload.get("encrypted_content"):
+                if not isinstance(encrypted_content, str) or (
+                    enrichment is None and encrypted_content != payload.get("encrypted_content")
+                ):
                     raise RuntimeError("Canonical embed ciphertext did not match the confirmed write")
                 canonical_digest = hashlib.sha256(encrypted_content.encode("utf-8")).hexdigest()
+                if enrichment is not None:
+                    if (canonical_digest != enrichment.get("expected_ciphertext_sha256")
+                            or (canonical_embed.get("version_number") or 1) != enrichment.get("expected_version")):
+                        raise RuntimeError("Canonical embed changed after metadata enrichment")
+                    # Cache and broadcast status come from the preserved head,
+                    # never from the metadata-only request's omitted fields.
+                    payload = canonical_embed
 
             # Update the operational cache (embed:{embed_id}) with the client-encrypted data.
             # This prevents stale "processing" entries from being served to other devices

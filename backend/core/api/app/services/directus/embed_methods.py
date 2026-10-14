@@ -15,6 +15,7 @@ from typing import List, Dict, Any, Optional, TYPE_CHECKING
 import hashlib
 import os
 from datetime import datetime, timezone
+from backend.core.api.app.services.embed_scoped_read_service import read_embed_uuid_page
 
 if TYPE_CHECKING:
     from backend.core.api.app.services.directus.directus import DirectusService
@@ -136,6 +137,37 @@ class EmbedMethods:
     
     def __init__(self, directus_service_instance: 'DirectusService'):
         self.directus_service = directus_service_instance
+
+    async def _complete_embed_records(
+        self, collection: str, *, params: Dict[str, Any], scope: Dict[str, Any],
+        admin_required: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """Read complete scoped exports without unsupported Directus UUID filters."""
+        result: List[Dict[str, Any]] = []
+        after_id = None
+        while True:
+            if after_id is None:
+                rows = await self.directus_service.get_items(
+                    collection, params={**params, "sort": "id", "limit": 20},
+                    no_cache=True, admin_required=admin_required, raise_on_error=True,
+                )
+            else:
+                rows = await read_embed_uuid_page(self.directus_service, {
+                    "operation": f"complete_{collection}", **scope, "after_id": after_id,
+                })
+            if not isinstance(rows, list) or len(rows) > 20:
+                raise RuntimeError("Complete scoped record page unavailable")
+            previous = after_id
+            for row in rows:
+                if not isinstance(row, dict) or not isinstance(row.get("id"), str) or not row["id"]:
+                    raise RuntimeError("Complete scoped record identity unavailable")
+                if previous is not None and row["id"] <= previous:
+                    raise RuntimeError("Complete scoped record cursor did not advance")
+                previous = row["id"]
+            result.extend(rows)
+            if len(rows) < 20:
+                return result
+            after_id = previous
     
     async def get_embed_by_id(self, embed_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -214,13 +246,13 @@ class EmbedMethods:
         Returns:
             List of embeds for the chat
         """
-        from backend.core.api.app.services.scoped_directus_pagination import read_complete_scoped_records
-
         params = {
             'filter[hashed_chat_id][_eq]': hashed_chat_id,
             'fields': EMBED_ALL_FIELDS,
         }
-        rows = await read_complete_scoped_records(self.directus_service, 'embeds', params=params)
+        rows = await self._complete_embed_records(
+            'embeds', params=params, scope={"hashed_chat_id": hashed_chat_id},
+        )
         return sorted(rows, key=lambda row: (int(row.get('created_at') or 0), row['id']), reverse=True)
 
     async def get_embed_window_by_hashed_chat_id(
@@ -239,22 +271,23 @@ class EmbedMethods:
         if before_created_at is not None:
             if not before_id:
                 raise ValueError("Embed continuation requires an id tie breaker")
-            embed_filter["_or"] = [
-                {"created_at": {"_lt": before_created_at}},
-                {"created_at": {"_eq": before_created_at}, "id": {"_lt": before_id}},
-            ]
-        rows = await self.directus_service.get_items(
-            "embeds",
-            params={
-                "filter": embed_filter,
-                "fields": EMBED_ALL_FIELDS,
-                "sort": ["-created_at", "-id"],
-                "limit": SYNC_EMBED_PAGE_LIMIT + 1,
-            },
-            no_cache=True,
-            raise_on_error=True,
-        )
-        if not isinstance(rows, list):
+            rows = await read_embed_uuid_page(self.directus_service, {
+                "operation": "embed_window", "hashed_chat_id": hashed_chat_id,
+                "before_created_at": before_created_at, "before_id": before_id,
+            })
+        else:
+            rows = await self.directus_service.get_items(
+                "embeds",
+                params={
+                    "filter": embed_filter,
+                    "fields": EMBED_ALL_FIELDS,
+                    "sort": ["-created_at", "-id"],
+                    "limit": SYNC_EMBED_PAGE_LIMIT + 1,
+                },
+                no_cache=True,
+                raise_on_error=True,
+            )
+        if not isinstance(rows, list) or len(rows) > SYNC_EMBED_PAGE_LIMIT + 1:
             raise RuntimeError("Embed page unavailable")
         has_more_before = len(rows) > SYNC_EMBED_PAGE_LIMIT
         rows = rows[:SYNC_EMBED_PAGE_LIMIT]
@@ -347,8 +380,6 @@ class EmbedMethods:
         still scoped to the shared chat, so this lookup returns only encrypted
         embed rows addressable by those wrappers.
         """
-        from backend.core.api.app.services.scoped_directus_pagination import read_complete_scoped_records
-
         unique_hashes = [hashed for hashed in dict.fromkeys(hashed_embed_ids) if hashed]
         if not unique_hashes:
             return []
@@ -361,8 +392,8 @@ class EmbedMethods:
                 'filter[hashed_embed_id][_in]': ','.join(chunk),
                 'fields': EMBED_ALL_FIELDS,
             }
-            all_embeds.extend(await read_complete_scoped_records(
-                self.directus_service, 'embeds', params=params, admin_required=True,
+            all_embeds.extend(await self._complete_embed_records(
+                'embeds', params=params, scope={"hashed_embed_ids": chunk}, admin_required=True,
             ))
 
         logger.debug(f"Found {len(all_embeds)} embed(s) for {len(unique_hashes)} hashed_embed_ids")
@@ -531,27 +562,26 @@ class EmbedMethods:
         Returns:
             List of embed_keys entries for the chat (both chat and master key entries)
         """
-        from backend.core.api.app.services.scoped_directus_pagination import read_complete_scoped_records
-
         chat_key_params = {
             'filter[hashed_chat_id][_eq]': hashed_chat_id,
             'filter[key_type][_eq]': 'chat',
             'fields': EMBED_KEY_ALL_FIELDS,
         }
-        all_embed_keys = await read_complete_scoped_records(
-            self.directus_service, 'embed_keys', params=chat_key_params,
+        all_embed_keys = await self._complete_embed_records(
+            'embed_keys', params=chat_key_params, scope={"hashed_chat_id": hashed_chat_id, "key_type": "chat"},
         )
         if include_master_keys:
             hashed_embed_ids = list(dict.fromkeys(
                 key['hashed_embed_id'] for key in all_embed_keys if key.get('hashed_embed_id')
             ))
             for offset in range(0, len(hashed_embed_ids), self._EMBED_KEYS_BATCH_SIZE):
-                all_embed_keys.extend(await read_complete_scoped_records(
-                    self.directus_service, 'embed_keys', params={
+                all_embed_keys.extend(await self._complete_embed_records(
+                    'embed_keys', params={
                         'filter[hashed_embed_id][_in]': ','.join(hashed_embed_ids[offset:offset + self._EMBED_KEYS_BATCH_SIZE]),
                         'filter[key_type][_eq]': 'master',
                         'fields': EMBED_KEY_ALL_FIELDS,
-                    },
+                    }, scope={"hashed_embed_ids": hashed_embed_ids[offset:offset + self._EMBED_KEYS_BATCH_SIZE],
+                              "key_type": "master"},
                 ))
         return all_embed_keys
 
@@ -628,19 +658,25 @@ class EmbedMethods:
             "key_type": {"_eq": "master"}, "hashed_user_id": {"_eq": hashed_user_id},
         }]} if include_master_keys else chat_scope)
         if after_key_id:
-            key_filter["id"] = {"_gt": after_key_id}
-        rows = await self.directus_service.get_items(
-            "embed_keys",
-            params={
-                "filter": key_filter,
-                "fields": EMBED_KEY_ALL_FIELDS,
-                "sort": ["id"],
-                "limit": SYNC_EMBED_KEY_PAGE_LIMIT + 1,
-            },
-            no_cache=True,
-            raise_on_error=True,
-        )
-        if not isinstance(rows, list):
+            rows = await read_embed_uuid_page(self.directus_service, {
+                "operation": "embed_key_window", "hashed_chat_id": hashed_chat_id,
+                "hashed_user_id": hashed_user_id if include_master_keys else None,
+                "hashed_embed_ids": selected_hashes, "include_master_keys": include_master_keys,
+                "after_id": after_key_id,
+            })
+        else:
+            rows = await self.directus_service.get_items(
+                "embed_keys",
+                params={
+                    "filter": key_filter,
+                    "fields": EMBED_KEY_ALL_FIELDS,
+                    "sort": ["id"],
+                    "limit": SYNC_EMBED_KEY_PAGE_LIMIT + 1,
+                },
+                no_cache=True,
+                raise_on_error=True,
+            )
+        if not isinstance(rows, list) or len(rows) > SYNC_EMBED_KEY_PAGE_LIMIT + 1:
             raise RuntimeError("Embed keys unavailable")
         has_more_after = len(rows) > SYNC_EMBED_KEY_PAGE_LIMIT
         kept: List[Dict[str, Any]] = []

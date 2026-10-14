@@ -39,6 +39,7 @@ async function fixture() {
   const reads: string[] = [];
   const waiters = new Map<string, { predicate: (payload: unknown) => boolean;
     resolve: (value: unknown) => void; reject: (error: Error) => void }>();
+  const enrichment = { race: null as "version" | "cipher" | "metadata" | "receipt" | "reread" | "missing-wrapper" | "unreadable-wrapper" | "changed-wrapper" | "fresh-wrapper" | "changed-app" | "changed-skill" | "changed-children" | "changed-root" | "changed-workspace" | "normalized-children" | null };
   const ws = {
     waitForMessage: (type: string, predicate: (payload: unknown) => boolean) => new Promise((resolve, reject) => {
       waiters.set(type, { predicate, resolve, reject });
@@ -47,7 +48,36 @@ async function fixture() {
       frames.push({ type, payload });
       const waiter = waiters.get(type === "store_embed" ? "store_embed_confirmed" : "store_embed_keys_confirmed");
       assert.ok(waiter);
-      if (type === "store_embed") {
+      if (type === "store_embed" && payload.canonical_metadata_enrichment) {
+        const marker = payload.canonical_metadata_enrichment as Record<string, unknown>;
+        assert.equal(payload.encrypted_content, undefined);
+        assert.equal(payload.encrypted_type, undefined);
+        assert.equal(payload.version_number, undefined);
+        assert.equal(payload.embed_ids, undefined);
+        assert.equal(marker.expected_version, 1);
+        assert.equal(marker.expected_ciphertext_sha256, hash(String(head.encrypted_content)));
+        if (enrichment.race === "version" || enrichment.race === "cipher" || enrichment.race === "metadata") {
+          waiter.reject(new WebSocketProtocolError("embed_write_denied", "Canonical metadata changed"));
+          return;
+        }
+        for (const field of ["hashed_task_id", "file_path", "content_hash"]) {
+          if (payload[field] !== undefined) head[field] = payload[field];
+        }
+        const receipt = { request_id: payload.request_id, embed_id: embedId,
+          canonical_source: "head", canonical_digest: enrichment.race === "receipt" ? "0".repeat(64) : hash(String(head.encrypted_content)) };
+        assert.equal(waiter.predicate(receipt), true);
+        waiter.resolve({ payload: receipt });
+        if (enrichment.race === "reread") head.encrypted_content = await encryptWithAesGcmCombined(content, key);
+        if (enrichment.race === "unreadable-wrapper") wrapper.encrypted_embed_key = "not-a-ciphertext";
+        if (enrichment.race === "changed-wrapper") wrapper.encrypted_embed_key = await encryptBytesWithAesGcm(new Uint8Array(32).fill(8), chatKey);
+        if (enrichment.race === "fresh-wrapper") wrapper.encrypted_embed_key = await encryptBytesWithAesGcm(key, chatKey);
+        if (enrichment.race === "changed-app") head.app_id = "other-app";
+        if (enrichment.race === "changed-skill") head.skill_id = "other-skill";
+        if (enrichment.race === "changed-children") head.embed_ids = ["other-child"];
+        if (enrichment.race === "changed-root") head.root_embed_id = "other-root";
+        if (enrichment.race === "changed-workspace") head.workspace_origin = "other-workspace";
+        if (enrichment.race === "normalized-children") head.embed_ids = JSON.stringify(head.embed_ids);
+      } else if (type === "store_embed") {
         const error = { request_id: payload.request_id, code: "embed_write_denied" };
         // The real error frame omits embed_id; matching it must not wait for timeout.
         assert.equal(waiter.predicate({ ...error, request_id: "other-writer" }), false);
@@ -63,7 +93,7 @@ async function fixture() {
   client.getCliRequestHeaders = () => ({});
   client.http = { get: async (path: string) => {
     reads.push(path);
-    return { ok: true, status: 200, data: { embed: head, embed_keys: [wrapper] } };
+    return { ok: true, status: 200, data: { embed: head, embed_keys: reads.length > 1 && enrichment.race === "missing-wrapper" ? [] : [wrapper] } };
   } };
   const run = (overrides: Record<string, unknown> = {}) => {
     const frame: Record<string, unknown> = {
@@ -76,10 +106,111 @@ async function fixture() {
       ws, embeds: [frame], chatId, chatKeyBytes: chatKey, ownerId, fallbackMessageId: "canonical-message",
     });
   };
-  return { client, head, wrapper, frames, reads, ws, run, key };
+  return { client, head, wrapper, frames, reads, ws, run, key, enrichment };
 }
 
 describe("CLI streamed canonical heads", () => {
+  // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+  it("atomically fills absent ACKed recovery provenance without reciphering or downgrading the head", async () => {
+    const state = await fixture();
+    state.head.hashed_task_id = null;
+    const original = structuredClone(state.head), wrapper = structuredClone(state.wrapper);
+    await state.run({ file_path: "src/recovered.ts", content_hash: "a".repeat(64) });
+    assert.equal(state.head.hashed_task_id, hash("canonical-task"));
+    assert.equal(state.head.file_path, "src/recovered.ts");
+    assert.equal(state.head.content_hash, "a".repeat(64));
+    for (const field of ["encrypted_content", "encrypted_type", "version_number", "hashed_user_id", "hashed_chat_id", "hashed_message_id"]) {
+      assert.equal(state.head[field], original[field]);
+    }
+    assert.deepEqual(state.wrapper, wrapper);
+    assert.deepEqual(state.frames.map(frame => frame.type), ["store_embed", "store_embed"]);
+    assert.equal(state.frames[1].payload.canonical_metadata_enrichment !== undefined, true);
+    assert.equal(state.reads.length, 2);
+  });
+
+  for (const race of ["version", "cipher", "metadata", "receipt", "reread"] as const) {
+    // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+    it(`rejects metadata enrichment ${race} conflicts without raw rewrite or ACK`, async () => {
+      const state = await fixture();
+      state.head.hashed_task_id = null;
+      state.enrichment.race = race;
+      await assert.rejects(state.run(), /Canonical metadata changed|enrichment receipt|enrichment canonical reread/);
+      assert.deepEqual(state.frames.map(frame => frame.type), ["store_embed", "store_embed"]);
+      assert.equal(state.frames[1].payload.encrypted_content, undefined);
+    });
+  }
+
+  for (const change of ["missing-wrapper", "unreadable-wrapper", "changed-wrapper", "changed-app", "changed-skill", "changed-children"] as const) {
+    // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+    it(`rejects an enriched canonical reread with ${change}`, async () => {
+      const state = await fixture();
+      state.head.hashed_task_id = null;
+      state.enrichment.race = change;
+      await assert.rejects(state.run(), /enrichment canonical reread failed/);
+      assert.deepEqual(state.frames.map(frame => frame.type), ["store_embed", "store_embed"]);
+      assert.equal(state.frames[1].payload.encrypted_content, undefined);
+    });
+  }
+
+  // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+  it("accepts a fresh-nonce canonical wrapper only when it wraps the same embed key", async () => {
+    const state = await fixture();
+    state.head.hashed_task_id = null;
+    state.enrichment.race = "fresh-wrapper";
+    const originalCiphertext = state.head.encrypted_content;
+    const originalWrapper = state.wrapper.encrypted_embed_key;
+    await state.run();
+    assert.equal(state.head.encrypted_content, originalCiphertext);
+    assert.notEqual(state.wrapper.encrypted_embed_key, originalWrapper);
+    assert.deepEqual(state.frames.map(frame => frame.type), ["store_embed", "store_embed"]);
+  });
+
+  // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+  it("preserves stable canonical catalog and normalized children when the stream omits them", async () => {
+    const state = await fixture();
+    state.head.hashed_task_id = null;
+    state.head.app_id = "web";
+    state.head.skill_id = "research";
+    state.head.root_embed_id = "canonical-root";
+    state.head.workspace_origin = "canonical-workspace";
+    state.head.embed_ids = ["canonical-child"];
+    state.enrichment.race = "normalized-children";
+    await state.run({ app_id: undefined, skill_id: undefined, embed_ids: undefined });
+    assert.equal(state.head.encrypted_content !== undefined, true);
+    assert.equal(state.head.hashed_task_id, hash("canonical-task"));
+    assert.deepEqual(state.frames.map(frame => frame.type), ["store_embed", "store_embed"]);
+  });
+
+  for (const change of ["changed-app", "changed-skill", "changed-children", "changed-root", "changed-workspace"] as const) {
+    // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+    it(`rejects changed canonical ${change} even when the source frame omits catalog and children`, async () => {
+      const state = await fixture();
+      state.head.hashed_task_id = null;
+      state.head.app_id = "web";
+      state.head.skill_id = "research";
+      state.head.root_embed_id = "canonical-root";
+      state.head.workspace_origin = "canonical-workspace";
+      state.head.embed_ids = ["canonical-child"];
+      state.enrichment.race = change;
+      const originalCiphertext = state.head.encrypted_content;
+      await assert.rejects(state.run({ app_id: undefined, skill_id: undefined, embed_ids: undefined }), /enrichment canonical reread failed/);
+      assert.equal(state.head.encrypted_content, originalCiphertext);
+      assert.equal(state.head.version_number, 1);
+      assert.deepEqual(state.frames.map(frame => frame.type), ["store_embed", "store_embed"]);
+    });
+  }
+
+  for (const field of ["file_path", "content_hash"] as const) {
+    // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+    it(`rejects explicitly different canonical ${field} before enrichment`, async () => {
+      const state = await fixture();
+      state.head.hashed_task_id = null;
+      state.head[field] = "other-value";
+      await assert.rejects(state.run({ [field]: "declared-value" }), /no matching canonical head/);
+      assert.equal(state.frames.length, 1);
+    });
+  }
+
   // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
   it("reuses a denied but identical owner-bound head without changing ciphertext or wrappers", async () => {
     const state = await fixture(), original = state.head.encrypted_content;

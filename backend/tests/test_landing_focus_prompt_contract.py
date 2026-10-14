@@ -50,6 +50,23 @@ def test_deep_research_delegation_instruction_survives_legacy_translation_path()
 
 
 # contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_deep_research_runtime_keeps_full_authored_prompt_and_independent_verification() -> None:
+    runtime, canonical = _focus_instructions("web", "research", "research")
+    authored = (ROOT / "backend/apps/web/focus_modes/research/SKILL.md").read_text().split(
+        "## System prompt\n", 1,
+    )[1].strip()
+    # Nested report headings must not truncate the legacy runtime prompt.
+    assert runtime.strip() == authored
+    assert runtime.startswith(canonical)
+    assert runtime.count("## ") == 6
+    assert "separate source-verification child after the initial research children finish" in runtime
+    assert "without starting additional sub-chats" in runtime
+    assert "Reconcile the source-verification child's findings before final synthesis" in runtime
+    assert "A document titled Proposed Final Judgment does not establish court approval" in runtime
+    assert "including the short answer and bottom line" in runtime
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
 def test_all_landing_focus_runtime_locales_keep_complete_instructions() -> None:
     locale_codes = {
         "en", "de", "zh", "es", "fr", "pt", "ru", "ja", "ko", "it", "tr",

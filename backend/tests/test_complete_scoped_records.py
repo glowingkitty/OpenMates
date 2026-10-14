@@ -153,7 +153,7 @@ async def test_hot_message_read_failure_cannot_be_reported_as_empty_history(fail
 
 # contract-test: supporting surface=rest_api assertions=storage.export.persisted-bounded-complete
 @pytest.mark.asyncio
-async def test_legacy_complete_embed_method_returns_record_121():
+async def test_legacy_complete_embed_method_returns_record_121(monkeypatch):
     rows = [{"id": f"row-{number:04d}", "embed_id": f"embed-{number}", "created_at": number}
             for number in range(121)]
 
@@ -162,13 +162,18 @@ async def test_legacy_complete_embed_method_returns_record_121():
         assert params["limit"] == 20
         return [row for row in rows if row["id"] not in params.get("filter[id][_nin]", [])][:20]
 
+    async def native_read(_service, request):
+        assert request["operation"] == "complete_embeds"
+        assert request["hashed_chat_id"] == "authorized-hash"
+        return [row for row in rows if row["id"] > request["after_id"]][:20]
+    monkeypatch.setitem(EmbedMethods._complete_embed_records.__globals__, "read_embed_uuid_page", native_read)
     actual = await EmbedMethods(SimpleNamespace(get_items=read)).get_embeds_by_hashed_chat_id("authorized-hash")
     assert actual == list(reversed(rows))
 
 
 # contract-test: supporting surface=rest_api assertions=storage.export.persisted-bounded-complete,storage.cold.shared-team-authorized
 @pytest.mark.asyncio
-async def test_shared_complete_keys_cross_default_limit_without_master_keys():
+async def test_shared_complete_keys_cross_default_limit_without_master_keys(monkeypatch):
     rows = [{"id": f"key-{number:04d}", "hashed_embed_id": f"embed-{number}", "key_type": "chat"}
             for number in range(121)]
 
@@ -178,6 +183,11 @@ async def test_shared_complete_keys_cross_default_limit_without_master_keys():
         assert params["limit"] == 20
         return [row for row in rows if row["id"] not in params.get("filter[id][_nin]", [])][:20]
 
+    async def native_read(_service, request):
+        assert request["operation"] == "complete_embed_keys"
+        assert request["hashed_chat_id"] == "authorized-hash" and request["key_type"] == "chat"
+        return [row for row in rows if row["id"] > request["after_id"]][:20]
+    monkeypatch.setitem(EmbedMethods._complete_embed_records.__globals__, "read_embed_uuid_page", native_read)
     actual = await EmbedMethods(SimpleNamespace(get_items=read)).get_embed_keys_by_hashed_chat_id(
         "authorized-hash", include_master_keys=False,
     )

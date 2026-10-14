@@ -2,7 +2,7 @@
 /**
  * Deployed Deep research end-to-end proof.
  *
- * Selects the real focus mention, delegates three bounded child chats through
+ * Selects the real focus mention, delegates three bounded research child chats plus an independent source verifier through
  * live inference, and verifies resolved citations in the final parent synthesis
  * without route mocks.
  */
@@ -77,7 +77,7 @@ const proofContract = defineVideoProof({
 		{
 			id: 'deep_research.child_navigation',
 			checkpoint: 'deep-research-child-opened',
-			visual: 'Opening a child chat shows the return-to-parent control.',
+			visual: 'Opening a child chat shows the ordinary close control that returns to the parent.',
 			devices: ['web-laptop']
 		},
 		{
@@ -144,7 +144,7 @@ test('Deep research delegates three angles and renders the final parent synthesi
 
 	const prompt =
 		'Investigate how the EU AI Act general-purpose AI obligations affect open-source model providers, cloud hosts, and downstream startups. ' +
-		'Delegate exactly three distinct regulatory, market-incentive, and counterargument/source-quality angles, use current sources, and synthesize what is confirmed, likely, plausible, and uncertain.';
+		'Delegate exactly three distinct regulatory, market-incentive, and counterargument research angles, then independently verify the important provisional claims against primary sources before synthesizing what is confirmed, likely, plausible, and uncertain.';
 
 	await sendDeepResearchMessage(page, prompt, log, screenshot);
 
@@ -187,21 +187,21 @@ test('Deep research delegates three angles and renders the final parent synthesi
 	await screenshot(page, 'deep-research-initial-child-cards');
 
 	await subChatCards.first().click();
-	const returnToParent = page.getByTestId('return-to-parent-button');
-	await expect(returnToParent).toBeVisible({ timeout: 30_000 });
-	await expect(returnToParent).toBeInViewport();
-	await expect(returnToParent).toContainText('Return to parent chat', { timeout: 30_000 });
+	const closeChild = page.getByTestId('chat-close-button');
+	await expect(closeChild).toBeVisible({ timeout: 30_000 });
+	await expect(closeChild).toBeInViewport();
+	await expect(page.getByTestId('return-to-parent-button')).toHaveCount(0);
 	await proof.assert('deep_research.child_navigation', async () => {
-		await expect(returnToParent).toBeVisible();
-		await expect(returnToParent).toBeInViewport();
-		await expect(returnToParent).toContainText('Return to parent chat');
+		await expect(closeChild).toBeVisible();
+		await expect(closeChild).toBeInViewport();
+		await expect(page.getByTestId('return-to-parent-button')).toHaveCount(0);
 	});
 	await proof.checkpoint('deep-research-child-opened');
 	await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-processing', 'true');
 	await screenshot(page, 'deep-research-active-child-open');
 	await page.waitForTimeout(DEMONSTRATION_REVIEW_HOLD_MS);
 
-	await returnToParent.click();
+	await closeChild.click();
 	await expect(carousel).toBeVisible({ timeout: 30_000 });
 	await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-processing', 'false');
 	await screenshot(page, 'deep-research-returned-to-waiting-parent');
@@ -226,8 +226,10 @@ test('Deep research delegates three angles and renders the final parent synthesi
 	}
 	await expect(page.getByTestId('typing-indicator')).not.toBeVisible();
 	await expect(page.getByTestId('sub-chat-open-cta')).toHaveCount(0);
-	await expect(page.getByTestId('sub-chat-summary')).toHaveCount(3);
-	await expect(page.getByTestId('sub-chat-status-completed')).toHaveCount(3);
+	await expect(subChatCards).toHaveCount(4);
+	await expect(subChatCards.filter({ hasText: /verif|audit|fact.check|source.check/i })).toHaveCount(1);
+	await expect(page.getByTestId('sub-chat-summary')).toHaveCount(4);
+	await expect(page.getByTestId('sub-chat-status-completed')).toHaveCount(4);
 	expect(await page.evaluate(() =>
 		(window as Window & { __subChatRawProtocolObserved?: boolean }).__subChatRawProtocolObserved
 	)).toBe(false);
@@ -256,5 +258,5 @@ test('Deep research delegates three angles and renders the final parent synthesi
 	await proof.attach();
 
 	await deleteActiveChat(page, log, screenshot, 'deep-research-cleanup');
-	log('Deep research completed with three children and a final parent synthesis.');
+	log('Deep research completed with three research children, one source verifier and a final parent synthesis.');
 });

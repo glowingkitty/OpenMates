@@ -76,6 +76,7 @@ class FakeDirectusService:
                       **(chats or {})}
         self.recovery_calls = []
         self.manager = None
+        self.write_calls = []
         self.chat = types.SimpleNamespace(get_chat_metadata=self.get_chat_metadata)
 
     async def get_chat_metadata(self, chat_id, **kwargs):
@@ -101,6 +102,7 @@ class FakeDirectusService:
                 "completed": False, "reason_code": "pending_wrappers",
             }})
         assert url.endswith("/legacy-embed-write")
+        self.write_calls.append(json)
         payload = json["payload"]
         embed_id = json["embed_id"]
         actor_hash = json["actor_user_hash"]
@@ -115,6 +117,12 @@ class FakeDirectusService:
         if self.embed.existing_embed:
             if self.embed.existing_embed.get("hashed_user_id") != actor_hash:
                 return FakeResponse(403, {"error": {"code": "embed_access_denied"}})
+            if "canonical_metadata_enrichment" in json:
+                additions = {field: payload[field] for field in ("hashed_task_id", "file_path", "content_hash")
+                             if field in payload}
+                self.embed.existing_embed = {**self.embed.existing_embed, **additions}
+                self.embed.updated.append((embed_id, additions))
+                return FakeResponse(200, {"data": {"status": "enriched", "embed_id": embed_id}})
             stored = {**payload, "hashed_user_id": actor_hash}
             await self.embed.update_embed(embed_id, stored)
             self.embed.existing_embed = {"embed_id": embed_id, **stored}
@@ -555,3 +563,72 @@ async def test_hyphenated_skill_does_not_bypass_catalog_or_owner_scope(change):
     assert manager.broadcasts == []
     assert manager.personal_messages[0][0]["payload"]["code"] == "embed_write_denied"
     assert manager.personal_messages[0][0]["payload"]["request_id"] == "denied-catalog"
+
+
+# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+@pytest.mark.asyncio
+@pytest.mark.parametrize("team_id", [None, "metadata-team"])
+async def test_metadata_only_enrichment_uses_canonical_ciphertext_and_status_for_receipt(team_id):
+    chat_id = "11111111-1111-4111-8111-111111111111"
+    original = store_payload(
+        version_number=1, hashed_task_id=None,
+        hashed_chat_id=hashlib.sha256(chat_id.encode()).hexdigest(),
+        app_id="web", skill_id="search", workspace_origin="chat", root_embed_id="embed-1",
+    )
+    team_hash = hashlib.sha256(team_id.encode()).hexdigest() if team_id else None
+    if team_id:
+        original.update(hashed_team_id=team_hash, app_id=None, skill_id=None,
+                        workspace_origin=None, root_embed_id=None)
+    directus = FakeDirectusService(existing_embed=original, chats={chat_id: {
+        "id": chat_id, "hashed_user_id": OWNER_HASH, "hashed_team_id": team_hash,
+    }})
+    manager = FakeConnectionManager()
+    marker = {"expected_version": 1,
+              "expected_ciphertext_sha256": hashlib.sha256(b"encrypted-content").hexdigest()}
+    task_hash = hashlib.sha256(b"producer-task").hexdigest()
+    await get_handle_store_embed()(
+        websocket=None, manager=manager, cache_service=FakeCacheService(),
+        directus_service=directus, user_id=OWNER_ID, device_fingerprint_hash="device-1",
+        payload={"embed_id": "embed-1", "hashed_user_id": OWNER_HASH, "chat_id": chat_id,
+                 "hashed_chat_id": original["hashed_chat_id"], "hashed_task_id": task_hash,
+                 "team_id": team_id, "hashed_team_id": team_hash,
+                 "hashed_message_id": original["hashed_message_id"], "parent_embed_id": None,
+                 "canonical_metadata_enrichment": marker, "request_id": "metadata-1"},
+    )
+    assert directus.write_calls[0]["canonical_metadata_enrichment"] == marker
+    assert "canonical_metadata_enrichment" not in directus.write_calls[0]["payload"]
+    assert "encrypted_content" not in directus.write_calls[0]["payload"]
+    assert "app_id" not in directus.write_calls[0]["payload"]
+    assert directus.write_calls[0]["payload"]["hashed_team_id"] == team_hash
+    assert directus.embed.existing_embed == {**original, "hashed_task_id": task_hash}
+    assert manager.broadcasts[0][0]["status"] == "finished"
+    assert manager.personal_messages[0][0] == {"type": "store_embed_confirmed", "payload": {
+        "request_id": "metadata-1", "embed_id": "embed-1",
+        "canonical_digest": marker["expected_ciphertext_sha256"], "canonical_source": "head",
+    }}
+
+
+# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+@pytest.mark.asyncio
+async def test_metadata_enrichment_transaction_conflict_has_no_confirmation_or_broadcast():
+    manager = FakeConnectionManager()
+    directus = FakeDirectusService(existing_embed=store_payload())
+
+    async def conflicted_write(method, url, *, headers, json):
+        if url.endswith("/legacy-embed-write"):
+            return FakeResponse(409, {"error": {"code": "canonical_metadata_version_conflict"}})
+        raise AssertionError("Unexpected Directus operation")
+
+    directus._make_api_request = conflicted_write
+    await get_handle_store_embed()(
+        websocket=None, manager=manager, cache_service=FakeCacheService(),
+        directus_service=directus, user_id=OWNER_ID, device_fingerprint_hash="device-1",
+        payload={"embed_id": "embed-1", "hashed_user_id": OWNER_HASH,
+                 "hashed_task_id": "a" * 64, "request_id": "conflict-1",
+                 "canonical_metadata_enrichment": {"expected_version": 1,
+                    "expected_ciphertext_sha256": "a" * 64}},
+    )
+    assert manager.broadcasts == []
+    assert directus.embed.updated == []
+    assert manager.personal_messages[0][0]["payload"]["request_id"] == "conflict-1"
+    assert manager.personal_messages[0][0]["payload"]["code"] == "embed_write_denied"

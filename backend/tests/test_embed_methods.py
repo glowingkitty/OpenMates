@@ -24,7 +24,7 @@ def _load_embed_methods_class():
 # contract-test: supporting surface=rest_api assertions=hosting-domains.embeds.parent-child,hosting-domains.surface-parity
 @pytest.mark.asyncio
 @pytest.mark.parametrize("embed_count", [101, 501])
-async def test_single_chat_embed_read_preserves_graph_beyond_default_row_limit(embed_count: int) -> None:
+async def test_single_chat_embed_read_preserves_graph_beyond_default_row_limit(embed_count: int, monkeypatch) -> None:
     EmbedMethods = _load_embed_methods_class()
     rows = [{"id": f"{index:04d}", "embed_id": f"domain-{index}",
              "created_at": index, "encrypted_content": "opaque"}
@@ -43,11 +43,20 @@ async def test_single_chat_embed_read_preserves_graph_beyond_default_row_limit(e
         return page[:params["limit"]]
 
     directus = SimpleNamespace(get_items=AsyncMock(side_effect=get_items))
+    native_calls = []
+    async def native_read(service, request):
+        assert service is directus
+        assert request["operation"] == "complete_embeds"
+        assert request["hashed_chat_id"] == "target-chat-hash"
+        native_calls.append(request)
+        return [row for row in rows if row["id"] > request["after_id"]][:20]
+    monkeypatch.setitem(EmbedMethods._complete_embed_records.__globals__, "read_embed_uuid_page", native_read)
     result = await EmbedMethods(directus).get_embeds_by_hashed_chat_id("target-chat-hash")
 
     assert result == list(reversed(rows))
-    assert directus.get_items.await_count == (embed_count + 19) // 20
-    assert directus.get_items.await_args_list[1].kwargs["params"]["filter[id][_gt]"] == "0019"
+    assert directus.get_items.await_count == 1
+    assert len(native_calls) + 1 == (embed_count + 19) // 20
+    assert native_calls[0]["after_id"] == "0019"
 
 
 # contract-test: direct surface=rest_api assertions=storage.files.reference-safe-single-copy

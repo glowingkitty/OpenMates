@@ -1,5 +1,6 @@
 /* Internal, fail-closed endpoint for atomic encrypted Project embed revisions. */
 import { createHash, timingSafeEqual } from 'node:crypto';
+import { readScopedEmbedPage } from './scoped-reads.js';
 import { activateEmbedArchiveReader, commitChatDiagramRevision, commitEmbedRevision, finalizeEmbedArchiveCopy,
   prepareEmbedArchiveCopy, retireEmbedArchiveCopy,
   pruneEmbedArchivePayload, publishEmbedSnapshot, writeLegacyEmbed, ProtocolError } from './operations.js';
@@ -17,6 +18,20 @@ export function isAuthorized(headers, configuredToken) {
 export default {
   id: 'embed-version-transaction',
   handler: (router, { database, env, logger }) => {
+    router.post('/scoped-read', async (req, res) => {
+      if (!isAuthorized(req.headers, env.INTERNAL_API_SHARED_TOKEN)) {
+        return res.status(401).json({ error: { code: 'internal_auth_failed' } });
+      }
+      try {
+        return res.status(200).json({ data: await readScopedEmbedPage(database, req.body) });
+      } catch (error) {
+        if (error instanceof ProtocolError) {
+          return res.status(error.status).json({ error: { code: error.code } });
+        }
+        logger.error({ code: 'scoped_read_failed' }, 'Encrypted embed continuation failed');
+        return res.status(500).json({ error: { code: 'scoped_read_failed' } });
+      }
+    });
     router.get('/health', (req, res) => {
       if (!isAuthorized(req.headers, env.INTERNAL_API_SHARED_TOKEN)) {
         return res.status(401).json({ error: { code: 'internal_auth_failed' } });

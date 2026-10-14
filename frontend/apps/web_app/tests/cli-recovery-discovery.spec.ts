@@ -399,15 +399,34 @@ test('stale CLI embed discovery reconciles only a verified canonical ACK', async
 			const replay=source=>client.persistStreamedEmbeds({ws,chatId:input.chatId,ownerId:input.ownerId,
 				chatKeyBytes:chatKey,fallbackMessageId:input.clientMessageId,embeds:[{
 					embed_id:input.embed.embed_id,type:'code',content:source,status:'finished',version_number:1,
-					message_id:input.clientMessageId,embed_ids:[]}]});
+					message_id:input.clientMessageId,task_id:input.outputs[0].inference_task_id,
+					file_path:'src/recovered.ts',content_hash:hash('verified recovery fixture'),embed_ids:[]}]});
 			try {
 				await replay('type: code\\ncode: verified recovery fixture');
 				let changedRejected=false;
 				try{await replay('type: code\\ncode: changed source');}
 				catch(error){changedRejected=/does not match streamed source/.test(error.message)};
+				const enriched=await read();
+				if(!enriched.ok)throw Error('Enriched fixture reread failed');
+				const enrichmentRejects=[];
+				for(const conflict of ['version','cipher','metadata']){
+					const requestId=randomUUID();
+					const receipt=ws.waitForMessage('store_embed_confirmed',payload=>payload?.request_id===requestId,10000);
+					void receipt.catch(()=>{});
+					await ws.sendAsync('store_embed',{request_id:requestId,embed_id:input.embed.embed_id,
+						chat_id:input.chatId,hashed_user_id:input.embed.hashed_user_id,
+						hashed_chat_id:input.embed.hashed_chat_id,hashed_message_id:input.embed.hashed_message_id,
+						hashed_task_id:conflict==='metadata'?hash('different producer'):hash(input.outputs[0].inference_task_id),
+						canonical_metadata_enrichment:{expected_version:conflict==='version'?2:1,
+							expected_ciphertext_sha256:conflict==='cipher'?'0'.repeat(64):hash(input.embed.encrypted_content)}});
+					try{await receipt;enrichmentRejects.push(null)}catch(error){enrichmentRejects.push(error?.code??null)}
+				}
 				const after=await read();
 				if(!after.ok)throw Error('Canonical fixture reread failed');
-				process.stdout.write(JSON.stringify({changedRejected,
+				process.stdout.write(JSON.stringify({changedRejected,enrichmentRejects,
+					producerTaskPreserved:after.data.embed.hashed_task_id===hash(input.outputs[0].inference_task_id),
+					fileMetadataPreserved:after.data.embed.file_path==='src/recovered.ts'
+						&&after.data.embed.content_hash===hash('verified recovery fixture'),
 					cipherUnchanged:before.data.embed.encrypted_content===after.data.embed.encrypted_content,
 					versionUnchanged:before.data.embed.version_number===after.data.embed.version_number,
 					wrappersUnchanged:JSON.stringify(wrappers(before.data))===JSON.stringify(wrappers(after.data)),
@@ -416,8 +435,10 @@ test('stale CLI embed discovery reconciles only a verified canonical ACK', async
 					newAcknowledgements:frames.filter(type=>type==='recovery_output_ack_embed').length}));
 			} finally {ws.close()}
 		`, fixture);
-		expect(streamedReplay).toEqual({ changedRejected: true, cipherUnchanged: true,
-			versionUnchanged: true, wrappersUnchanged: true, storeAttempts: 2,
+		expect(streamedReplay).toEqual({ changedRejected: true,
+			enrichmentRejects: ['embed_write_denied', 'embed_write_denied', 'embed_write_denied'],
+			producerTaskPreserved: true, fileMetadataPreserved: true, cipherUnchanged: true,
+			versionUnchanged: true, wrappersUnchanged: true, storeAttempts: 6,
 			wrapperWrites: 0, newAcknowledgements: 0 });
 		clearWorkflowCliSyncCache(home);
 		const observed = canonicalHistorySdk(apiUrl, home, `
