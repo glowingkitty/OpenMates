@@ -393,7 +393,8 @@ async def _learning_payload(request: Request, article: dict) -> dict:
                 continue
             seen.add(identity)
             related.append({"title": topic.wiki_title, "canonical_title": topic.wiki_title,
-                            "language": article["language"], "description": topic.description or ""})
+                            "language": article["language"], "description": topic.description or "",
+                            "thumbnail_url": topic.thumbnail_url})
         payload = {"canonical_title": article["canonical_title"], "language": article["language"],
                    "source_url": article["source_url"], "questions": guide["questions"],
                    "related_articles": related, "expires_in_seconds": LEARNING_CACHE_TTL}

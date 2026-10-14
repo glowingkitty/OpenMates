@@ -20,6 +20,8 @@
   import { locale, _ } from 'svelte-i18n';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
+  import FollowUpSuggestions from '../../FollowUpSuggestions.svelte';
+  import WikipediaEmbedPreview from './WikipediaEmbedPreview.svelte';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
   import { getApiEndpoint } from '../../../config/api';
@@ -213,32 +215,49 @@
               {/if}
             </div>
             <p class="wiki-learning-note">{$_('embeds.wiki.memory_privacy.text')}</p>
-            {#if guideLoading}
-              <p role="status" data-testid="wiki-guide-loading">{$_('embeds.wiki.loading_questions.text')}</p>
-            {:else if guideError}
+            {#if guideError}
               <p role="status">{$_('embeds.wiki.guide_error.text')}</p>
               <button class="wiki-action" onclick={loadGuide} data-testid="wiki-guide-retry">{$_('embeds.wiki.retry_questions.text')}</button>
             {:else if bundle}
-              <h4>{$_('embeds.wiki.questions.text')}</h4>
-              <p class="wiki-learning-note">{$_(hasChatContext ? 'embeds.wiki.question_existing_chat.text' : 'embeds.wiki.question_new_chat.text')}</p>
-              <div class="wiki-questions">
-                {#each bundle.questions as question}
-                  <button class="wiki-action wiki-question" onclick={() => sendQuestion(question)} disabled={!!busyAction} data-testid="wiki-question">
-                    {question}
-                  </button>
-                {/each}
-              </div>
-              {#if bundle.related_articles.length}
-                <h4>{$_('embeds.wiki.related_articles.text')}</h4>
-                <div class="wiki-related">
-                  {#each bundle.related_articles as related}
-                    <button class="wiki-action" onclick={() => onRelatedArticle(related)} disabled={!!busyAction} data-testid="wiki-related-article">
-                      <span>{related.title}</span>
-                      {#if related.description}<small>{related.description}</small>{/if}
-                    </button>
-                  {/each}
+              <div class="wiki-guide-ready" data-testid="wiki-guide-ready">
+                <h4>{$_('embeds.wiki.questions.text')}</h4>
+                <p class="wiki-learning-note">{$_(hasChatContext ? 'embeds.wiki.question_existing_chat.text' : 'embeds.wiki.question_new_chat.text')}</p>
+                <div data-testid="wiki-questions">
+                  <FollowUpSuggestions
+                    suggestions={bundle.questions}
+                    disabled={!!busyAction}
+                    dismissOnClick={false}
+                    plainText={true}
+                    onSuggestionClick={sendQuestion}
+                  />
                 </div>
-              {/if}
+                {#if bundle.related_articles.length}
+                  <h4 id="wiki-related-heading">{$_('embeds.wiki.related_articles.text')}</h4>
+                  <!-- Keyboard users focus the scroll region to scroll with the arrow keys. -->
+                  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+                  <div
+                    class="wiki-related"
+                    data-testid="wiki-related-articles"
+                    role="region"
+                    aria-labelledby="wiki-related-heading"
+                    tabindex="0"
+                  >
+                    {#each bundle.related_articles as related (related.language + ':' + related.canonical_title)}
+                      <div class="wiki-related-card" data-testid="wiki-related-article" inert={!!busyAction}>
+                        <WikipediaEmbedPreview
+                          id={`wiki-related-${related.language}-${related.canonical_title}`}
+                          title={related.title}
+                          wikiTitle={related.canonical_title}
+                          description={related.description}
+                          thumbnailUrl={related.thumbnail_url}
+                          isMobile={false}
+                          onFullscreen={() => onRelatedArticle(related)}
+                        />
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
             {/if}
             {#if actionError}<p role="alert">{$_(actionError)}</p>{/if}
           {/if}
@@ -259,6 +278,9 @@
     flex-direction: column;
     align-items: center;
     gap: var(--spacing-16);
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     max-width: 600px;
     margin: 0 auto;
     padding: var(--spacing-16);
@@ -394,17 +416,57 @@
     0%, 100% { opacity: 0.4; }
     50% { opacity: 0.8; }
   }
-  .wiki-learning { width: 100%; display: flex; flex-direction: column; gap: var(--spacing-12); text-align: left; }
+  .wiki-learning { width: 100%; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-12); text-align: left; }
   .wiki-learning h3, .wiki-learning h4, .wiki-learning p { margin: 0; }
   .wiki-learning h3 { font-size: var(--font-size-h3); }
   .wiki-learning h4 { font-size: var(--font-size-p); }
   .wiki-learning-note { font-size: var(--font-size-xs); color: var(--color-grey-70); line-height: 1.5; }
-  .wiki-questions, .wiki-related { display: flex; flex-direction: column; gap: var(--spacing-8); }
+  .wiki-guide-ready {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-12);
+    animation: wiki-guide-fade-in var(--duration-normal) var(--easing-default) both;
+  }
+
+  .wiki-related {
+    display: flex;
+    gap: var(--spacing-16);
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    padding: var(--spacing-8);
+    box-sizing: border-box;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: var(--spacing-8);
+  }
+
+  .wiki-related:focus-visible {
+    outline: 2px solid var(--color-app-study-start);
+    outline-offset: 2px;
+    border-radius: var(--radius-8);
+  }
+
+  .wiki-related-card {
+    /* Keep the same 300px desktop card used in the Daily Inspiration header. */
+    flex: 0 0 300px;
+    container-type: inline-size;
+    container-name: embed-preview;
+    scroll-snap-align: start;
+  }
+
+  @keyframes wiki-guide-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wiki-guide-ready { animation: none; }
+    .wiki-guide-ready :global(.suggestions-wrapper) { animation: none; }
+  }
   .wiki-memory-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-8); }
   .wiki-action { min-height: 44px; padding: var(--spacing-12); border: 1px solid var(--color-grey-20); border-radius: var(--radius-8); background: var(--color-grey-0); color: var(--color-grey-90); font: inherit; font-size: var(--font-size-small); text-align: left; cursor: pointer; overflow-wrap: anywhere; }
   .wiki-action:hover { background: var(--color-grey-10); }
   .wiki-action:focus-visible { outline: 2px solid var(--color-app-study-start); outline-offset: 2px; }
   .wiki-action:disabled { cursor: wait; opacity: 0.6; }
-  .wiki-related .wiki-action { display: flex; flex-direction: column; align-items: flex-start; }
-  .wiki-related small { font-weight: 400; display: block; color: var(--color-grey-70); margin-top: var(--spacing-4); }
 </style>

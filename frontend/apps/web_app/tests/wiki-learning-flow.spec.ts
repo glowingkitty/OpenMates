@@ -130,7 +130,7 @@ test('wiki actions save one encrypted Study interest and submit in the same chat
   await expect(page.getByTestId('message-editor').last()).toContainText(draft);
   await page.getByTestId('message-assistant').last().getByRole('link', { name: title, exact: true }).click();
   const userCount = await page.getByTestId('message-user').count();
-  await page.getByTestId('wiki-question').first().click();
+  await page.getByTestId('wiki-questions').getByTestId('follow-up-suggestion-item').first().click();
   await expect(page.getByTestId('wiki-fullscreen-content')).toHaveCount(0);
   await expect(page).toHaveURL(originalUrl);
   await expect(page.getByTestId('message-user')).toHaveCount(userCount + 1);
@@ -155,7 +155,7 @@ test('an article opened without chat context starts a new chat after its questio
   })));
   await expect(page.getByTestId('wiki-fullscreen-title')).toHaveText(title);
   await expect(page.getByTestId('wiki-learning')).toContainText('start a new learning chat');
-  await page.getByTestId('wiki-question').first().click();
+  await page.getByTestId('wiki-questions').getByTestId('follow-up-suggestion-item').first().click();
   await expect(page.getByTestId('wiki-fullscreen-content')).toHaveCount(0);
   await expect(page).toHaveURL(/chat-id=/);
   await expect(page.getByTestId('message-user').last()).toContainText(question);
@@ -175,10 +175,10 @@ test('the article and draft remain when local admission rejects a question', asy
     detail: { wikiTitle: 'Ada_Lovelace', displayText: 'Ada Lovelace', language: 'en', hasChatContext: false },
   })));
   await expect(page.getByTestId('wiki-fullscreen-title')).toHaveText(title);
-  await page.getByTestId('wiki-question').first().click();
+  await page.getByTestId('wiki-questions').getByTestId('follow-up-suggestion-item').first().click();
   await expect(page.getByTestId('wiki-learning').getByRole('alert')).toBeVisible();
   await expect(page.getByTestId('wiki-fullscreen-content')).toBeVisible();
-  await expect(page.getByTestId('wiki-question').first()).toBeEnabled();
+  await expect(page.getByTestId('wiki-questions').getByTestId('follow-up-suggestion-item').first()).toBeEnabled();
   await expect(page).toHaveURL(originalUrl);
   await page.getByTestId('embed-minimize').click();
   await expect(page.getByTestId('message-editor').last()).toContainText(draft);

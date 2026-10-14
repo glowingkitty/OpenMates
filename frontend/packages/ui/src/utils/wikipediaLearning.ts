@@ -10,6 +10,7 @@ export interface WikipediaRelatedArticle {
   canonical_title: string;
   language: string;
   description?: string;
+  thumbnail_url?: string | null;
 }
 
 export interface WikipediaLearningBundle extends WikipediaArticleIdentity {

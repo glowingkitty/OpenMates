@@ -50,6 +50,7 @@
 
 <UnifiedEmbedPreview
   {id}
+  presentationOnly={true}
   appId="study"
   skillId="study"
   skillIconName="study"

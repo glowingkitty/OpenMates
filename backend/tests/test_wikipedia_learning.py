@@ -153,7 +153,8 @@ async def test_two_accounts_share_one_generation(monkeypatch):
         AsyncMock(
             return_value=[
                 SimpleNamespace(
-                    wiki_title="Analytical engine", description="Mechanical computer"
+                    wiki_title="Analytical engine", description="Mechanical computer",
+                    thumbnail_url="https://upload.wikimedia.org/analytical-engine.jpg"
                 )
             ]
         ),
@@ -186,6 +187,7 @@ async def test_two_accounts_share_one_generation(monkeypatch):
     }
     assert redis.ttls[learning_cache_key(article())] == LEARNING_CACHE_TTL
     assert a["related_articles"][0]["title"] == "Analytical engine"
+    assert a["related_articles"][0]["thumbnail_url"] == "https://upload.wikimedia.org/analytical-engine.jpg"
     assert not any(k.endswith(":lock") for k in redis.values)
 
 
