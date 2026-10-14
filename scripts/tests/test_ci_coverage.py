@@ -38,6 +38,19 @@ def test_search_relevance_schema_parity_uses_core_without_provider_access():
     assert held == {}
 
 
+def test_account_retirement_reader_probe_gets_isolated_api_markers():
+    import json
+    from pathlib import Path
+
+    allowed, held = partition(["account-retirement-reads.spec.ts"])
+    assert allowed == ["account-retirement-reads.spec.ts"]
+    assert held == {}
+    manifest = json.loads((Path(__file__).resolve().parents[1] / "ci_coverage_manifest.json").read_text())
+    # This profile makes the API internal-network-only and supplies all three
+    # CI isolation/capture markers required before the probe can write fixtures.
+    assert "account-retirement-reads.spec.ts" in manifest["groups"]["local_email_signup"]["specs"]
+
+
 def test_embed_preview_replay_uses_real_core_state_without_provider_access():
     allowed, held = partition(["embed-preview-backfill-replay.spec.ts"])
     assert allowed == ["embed-preview-backfill-replay.spec.ts"]

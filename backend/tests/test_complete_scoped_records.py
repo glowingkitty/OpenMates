@@ -2,6 +2,7 @@
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
+from uuid import UUID
 
 import pytest
 
@@ -19,8 +20,9 @@ async def test_complete_collection_crosses_default_limit_without_unbounded_sql_r
     async def read(_collection, *, params, **options):
         calls.append((params, options))
         assert params["filter[hashed_chat_id][_eq]"] == "authorized-chat-hash"
-        after = params.get("filter[id][_gt]", "")
-        return [row for row in rows if row["id"] > after][:params["limit"]]
+        excluded = params.get("filter[id][_nin]", [])
+        assert "filter[id][_gt]" not in params
+        return [row for row in rows if row["id"] not in excluded][:params["limit"]]
 
     actual = await read_complete_scoped_records(
         SimpleNamespace(get_items=read), "embeds",
@@ -28,7 +30,7 @@ async def test_complete_collection_crosses_default_limit_without_unbounded_sql_r
         admin_required=True,
     )
     assert actual == rows
-    assert len(calls) == 7
+    assert len(calls) == 8
     assert all(params["limit"] == 20 and options["admin_required"] and options["raise_on_error"]
                for params, options in calls)
 
@@ -50,6 +52,83 @@ async def test_repeated_provider_page_fails_instead_of_repeating_or_looping():
     with pytest.raises(RuntimeError, match="cursor did not advance"):
         await read_complete_scoped_records(directus, "embed_keys", params={"filter[key_type][_eq]": "chat"})
     assert directus.get_items.await_count == 2
+
+
+# contract-test: supporting surface=rest_api assertions=storage.export.persisted-bounded-complete
+@pytest.mark.asyncio
+async def test_uuid_collection_121_rows_survives_deletion_of_preceding_records():
+    records = [{"id": str(UUID(int=index + 1)), "encrypted_content": f"cipher-{index}"} for index in range(121)]
+    live_rows = list(records)
+    calls = []
+
+    async def read(_collection, *, params, **options):
+        assert params["filter[hashed_user_id][_eq]"] == "authorized-owner"
+        assert params["limit"] == 20 and params["sort"] == "id"
+        assert "offset" not in params and "filter[id][_gt]" not in params
+        assert options["no_cache"] and options["raise_on_error"] and options["admin_required"]
+        if len(calls) == 1:
+            del live_rows[:3]
+        excluded = params.get("filter[id][_nin]", [])
+        calls.append(list(excluded))
+        return [row for row in live_rows if row["id"] not in excluded][:20]
+
+    result = await read_complete_scoped_records(
+        SimpleNamespace(get_items=read), "embed_keys",
+        params={"filter[hashed_user_id][_eq]": "authorized-owner", "fields": "id,encrypted_content"},
+        admin_required=True,
+    )
+    assert result == records
+    assert len(calls) == 8 and len(calls[-1]) == 121
+
+
+# contract-test: supporting surface=rest_api assertions=storage.export.persisted-bounded-complete
+@pytest.mark.asyncio
+@pytest.mark.parametrize("bad_rows", [[{"id": ""}], [{"id": " "}], [{"id": "one,two"}], [{"id": 1}], [{"id": "b"}, {"id": "a"}], [{"id": "a"}, {"id": "a"}]])
+async def test_invalid_identity_and_out_of_order_rows_cannot_complete(bad_rows):
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=bad_rows))
+    with pytest.raises(RuntimeError):
+        await read_complete_scoped_records(directus, "embed_keys", params={"filter[owner][_eq]": "authorized-owner"})
+
+
+# contract-test: supporting surface=rest_api assertions=storage.export.persisted-bounded-complete
+@pytest.mark.asyncio
+async def test_short_page_requires_exact_empty_terminal_read():
+    directus = SimpleNamespace(get_items=AsyncMock(side_effect=[[{"id": "one"}], [{"id": "two"}]]))
+    with pytest.raises(RuntimeError, match="changed at terminal"):
+        await read_complete_scoped_records(directus, "embed_keys", params={"filter[owner][_eq]": "authorized-owner"})
+
+
+# contract-test: supporting surface=rest_api assertions=storage.export.persisted-bounded-complete
+@pytest.mark.asyncio
+async def test_cursor_request_size_limit_never_returns_partial_success(monkeypatch):
+    monkeypatch.setattr("backend.core.api.app.services.scoped_directus_pagination.MAX_COMPLETE_CURSOR_BYTES", 5)
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[{"id": "uuid-like-identity"}]))
+    with pytest.raises(RuntimeError, match="bounded request size"):
+        await read_complete_scoped_records(directus, "embed_keys", params={"filter[owner][_eq]": "authorized-owner"})
+
+
+# contract-test: supporting surface=rest_api assertions=storage.export.persisted-bounded-complete
+@pytest.mark.asyncio
+async def test_nested_original_owner_scope_is_preserved_in_exclusion_pages():
+    records = [{"id": str(UUID(int=index + 1))} for index in range(21)]
+    original = {"filter": {"_or": [{"owner": {"_eq": "authorized-owner"}}, {"team": {"_eq": "authorized-team"}}]}}
+    calls = []
+
+    async def read(_collection, *, params, **options):
+        calls.append(params)
+        if len(calls) == 1:
+            assert params["filter"] == original["filter"]
+            return records[:20]
+        scope, exclusion = params["filter"]["_and"]
+        assert scope == original["filter"]
+        if len(calls) == 2:
+            assert exclusion == {"id": {"_nin": [row["id"] for row in records[:20]]}}
+            return records[20:]
+        assert exclusion == {"id": {"_nin": [row["id"] for row in records]}}
+        return []
+
+    assert await read_complete_scoped_records(SimpleNamespace(get_items=read), "embed_keys", params=original) == records
+    assert "_and" not in original["filter"]
 
 
 # contract-test: supporting surface=rest_api assertions=storage.export.persisted-bounded-complete,storage.cold.discoverable-bounded
@@ -81,7 +160,7 @@ async def test_legacy_complete_embed_method_returns_record_121():
     async def read(_collection, *, params, **_kwargs):
         assert params["filter[hashed_chat_id][_eq]"] == "authorized-hash"
         assert params["limit"] == 20
-        return [row for row in rows if row["id"] > params.get("filter[id][_gt]", "")][:20]
+        return [row for row in rows if row["id"] not in params.get("filter[id][_nin]", [])][:20]
 
     actual = await EmbedMethods(SimpleNamespace(get_items=read)).get_embeds_by_hashed_chat_id("authorized-hash")
     assert actual == list(reversed(rows))
@@ -97,7 +176,7 @@ async def test_shared_complete_keys_cross_default_limit_without_master_keys():
         assert params["filter[hashed_chat_id][_eq]"] == "authorized-hash"
         assert params["filter[key_type][_eq]"] == "chat"
         assert params["limit"] == 20
-        return [row for row in rows if row["id"] > params.get("filter[id][_gt]", "")][:20]
+        return [row for row in rows if row["id"] not in params.get("filter[id][_nin]", [])][:20]
 
     actual = await EmbedMethods(SimpleNamespace(get_items=read)).get_embed_keys_by_hashed_chat_id(
         "authorized-hash", include_master_keys=False,

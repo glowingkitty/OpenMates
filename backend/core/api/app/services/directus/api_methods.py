@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 # Connection-level errors that indicate CMS is temporarily unreachable.
 # These get exponential backoff with more retries than token refresh errors.
 _CONNECTION_ERRORS = (httpx.ConnectError, httpx.ConnectTimeout)
-_READ_ONLY_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+_READ_ONLY_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "SEARCH"})
 
 _PLAINTEXT_PRIVATE_FIELDS_BY_COLLECTION = {
     "chats": frozenset({
@@ -99,7 +99,8 @@ async def _make_api_request(self, method, url, headers=None, **kwargs):
             # Define timeout per attempt (consistent with update_user)
             request_timeout = 3.0
             # Use the shared client from self._client
-            response = await getattr(self._client, method.lower())(
+            response = await self._client.request(
+                method,
                 url,
                 headers=headers,
                 timeout=request_timeout,  # Add explicit timeout here

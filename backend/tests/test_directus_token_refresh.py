@@ -115,7 +115,8 @@ async def test_make_api_request_retries_blank_read_timeouts_as_connection_failur
         def __init__(self):
             self.calls = 0
 
-        async def get(self, *_args, **_kwargs):
+        async def request(self, method, *_args, **_kwargs):
+            assert method == "GET"
             self.calls += 1
             if self.calls == 1:
                 raise httpx.ReadTimeout("")
@@ -141,7 +142,7 @@ async def test_make_api_request_does_not_replay_mutation_after_read_timeout(monk
     from backend.core.api.app.services.directus.api_methods import _make_api_request
 
     client = type("_Client", (), {})()
-    client.post = AsyncMock(side_effect=httpx.ReadTimeout(""))
+    client.request = AsyncMock(side_effect=httpx.ReadTimeout(""))
     service = type("_Service", (), {})()
     service.max_retries = 3
     service._client = client
@@ -153,7 +154,7 @@ async def test_make_api_request_does_not_replay_mutation_after_read_timeout(monk
     with pytest.raises(httpx.ReadTimeout):
         await _make_api_request(service, "POST", "http://cms:8055/items/example", json={"value": 1})
 
-    client.post.assert_awaited_once()
+    client.request.assert_awaited_once()
     sleep.assert_not_awaited()
     assert "CMS mutation transport failed (ReadTimeout); not retrying" in caplog.text
 
@@ -168,7 +169,7 @@ async def test_make_api_request_does_not_replay_mutation_after_ambiguous_transpo
     from backend.core.api.app.services.directus.api_methods import _make_api_request
 
     client = type("_Client", (), {})()
-    client.post = AsyncMock(side_effect=transport_error)
+    client.request = AsyncMock(side_effect=transport_error)
     service = type("_Service", (), {})()
     service.max_retries = 3
     service._client = client
@@ -180,6 +181,6 @@ async def test_make_api_request_does_not_replay_mutation_after_ambiguous_transpo
     with pytest.raises(type(transport_error)):
         await _make_api_request(service, "POST", "http://cms:8055/items/example", json={"value": 1})
 
-    client.post.assert_awaited_once()
+    client.request.assert_awaited_once()
     sleep.assert_not_awaited()
     assert f"CMS mutation transport failed ({type(transport_error).__name__}); not retrying" in caplog.text

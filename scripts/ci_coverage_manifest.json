@@ -547,6 +547,7 @@
         "notification-email-migration.spec.ts",
         "teams-invite-acceptance.spec.ts",
         "newsletter-flow.spec.ts",
+        "account-retirement-reads.spec.ts",
         "teams-direct-chat.spec.ts",
         "cli-tui-team-direct-chat.spec.ts"
       ]
@@ -732,6 +733,13 @@
       "enabling_work": "Run only on the coordinated dev stack with isolated provisioned test accounts, bounded disposable Team credits and real inference; never dispatch to CI.",
       "specs": [
         "teams-chat-collaboration-real.spec.ts"
+      ]
+    },
+    "real_stripe_sandbox_settlement": {
+      "execution": null,
+      "enabling_work": "Run directly on dev with an explicitly authorized Stripe sandbox card, a leased disposable Team account and live provider test-mode keys. Refuses CI and verifies exactly-once Team crediting and an invoice PDF; never substitute mocked settlement.",
+      "specs": [
+        "teams-stripe-card-dev.spec.ts"
       ]
     }
   },
@@ -1552,6 +1560,12 @@
         "OPENMATES_TEST_ACCOUNT_PASSWORD",
         "OPENMATES_TEST_ACCOUNT_OTP_KEY"
       ]
+    },
+    "teams-chat-collaboration-real.spec.ts": {
+      "dependency": "real_inference_dev_only",
+      "next_action": "Run only on the coordinated dev stack with isolated provisioned test accounts, bounded disposable Team credits and real inference; never dispatch to CI.",
+      "user_input_required": true,
+      "source_environment_names": []
     }
   }
 }

@@ -8,6 +8,7 @@ goal: >-
   last since i assume this needs my contacting support).
 scope:
   - Retire confirmed obsolete Mailosaur development accounts after suppressing email and stopping their schedules.
+  - Repair the bounded Directus reads that block the approved account cleanup while retaining ownership checks.
   - Replace embedded newsletter images with compressed first-party hosted assets and reject oversized rendered HTML.
   - Repair token-only one-click newsletter unsubscribe without affecting security or billing email.
   - Apply reason-aware durable recipient suppression and periodic read-only Brevo delivery monitoring.
