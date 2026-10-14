@@ -1216,22 +1216,38 @@ class DirectusWorkflowRepository:
         self._request("DELETE", f"/items/{collection}/{item_id}")
 
     def _request(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
-        headers = kwargs.pop("headers", {}) or {}
+        headers = dict(kwargs.pop("headers", {}) or {})
         # Runtime transactions write through Knex, outside Directus cache invalidation.
         # Fresh reads are required for claim CAS, run deletion fences and delivery ACKs.
         if method.upper() == "GET":
             headers["Cache-Control"] = "no-store"
         headers.setdefault("Authorization", f"Bearer {self._token()}")
-        response = self._client.request(method, f"{self.base_url}{path}", headers=headers, **kwargs)
-        if 200 <= response.status_code < 300:
-            return response
-        if response.status_code == 401:
-            self._admin_token = None
-            self.token = None
-            headers["Authorization"] = f"Bearer {self._admin_login_token()}"
-            response = self._client.request(method, f"{self.base_url}{path}", headers=headers, **kwargs)
+        # Retry only safe reads, including Directus' explicit load-shedding 503.
+        # Never replay runtime transaction POSTs or writes after ambiguous errors.
+        read_only = method.upper() in {"GET", "HEAD", "OPTIONS"}
+        refreshed_auth = False
+        for attempt in range(3):
+            try:
+                response = self._client.request(method, f"{self.base_url}{path}", headers=headers, **kwargs)
+                if response.status_code == 401 and not refreshed_auth:
+                    self._admin_token = None
+                    self.token = None
+                    headers["Authorization"] = f"Bearer {self._admin_login_token()}"
+                    refreshed_auth = True
+                    response = self._client.request(method, f"{self.base_url}{path}", headers=headers, **kwargs)
+            except httpx.TransportError as exc:
+                if not read_only or attempt == 2:
+                    raise
+                logger.warning("Directus workflow read transport failed (%s); retry %s/2", type(exc).__name__, attempt + 1)
+                time.sleep(2 ** (attempt + 1))
+                continue
             if 200 <= response.status_code < 300:
                 return response
+            if read_only and response.status_code in {502, 503, 504} and attempt < 2:
+                logger.warning("Directus workflow read returned HTTP %s; retry %s/2", response.status_code, attempt + 1)
+                time.sleep(2 ** (attempt + 1))
+                continue
+            break
         logger.error("Directus workflow request failed: %s %s -> %s %s", method, path, response.status_code, response.text[:500])
         if is_slug_unique_violation(response.text):
             raise DuplicateObjectSlugError("Workflow slug already exists in this workspace")

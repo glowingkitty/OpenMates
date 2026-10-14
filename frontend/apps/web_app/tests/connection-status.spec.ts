@@ -16,6 +16,8 @@ test('real chat sync and reconnect use one collapsing profile slot without routi
   let holdCompletion = true;
   let blockConnections = false;
   let liveSocket: WebSocketRoute | undefined;
+  let liveServer: WebSocketRoute | undefined;
+  let pongResponses = 0;
   let requests = 0;
   let completions: Array<() => void> = [];
   // Keep the real backend protocol, delaying only its genuine full-sync completion.
@@ -23,6 +25,7 @@ test('real chat sync and reconnect use one collapsing profile slot without routi
     if (blockConnections) { void ws.close({ code: 1013, reason: 'test connection interruption' }); return; }
     liveSocket = ws;
     const server = ws.connectToServer();
+    liveServer = server;
     ws.onMessage(message => {
       try { if (JSON.parse(message.toString()).type === 'phased_sync_request') requests++; } catch { /* Non-JSON frame. */ }
       server.send(message);
@@ -31,6 +34,7 @@ test('real chat sync and reconnect use one collapsing profile slot without routi
       let isFullCompletion = false;
       try {
         const parsed = JSON.parse(message.toString());
+        if (parsed.type === 'pong') pongResponses++;
         isFullCompletion = parsed.type === 'phased_sync_complete' && parsed.payload?.phase === 'all';
       } catch { /* Non-JSON frame. */ }
       if (holdCompletion && isFullCompletion) completions.push(() => ws.send(message));
@@ -123,6 +127,11 @@ test('real chat sync and reconnect use one collapsing profile slot without routi
   await expect.poll(async () => (await companion.boundingBox())!.x - activeX).toBe(38);
   expect((await avatar.boundingBox())!.x).toBe(avatarX);
   await expect(routineCards).toHaveCount(0);
+  // Exercise a fresh backend send on the replacement connection after cleanup.
+  const pongsBeforeProbe = pongResponses;
+  expect(liveServer).toBeDefined();
+  liveServer!.send(JSON.stringify({ type: 'ping', payload: {} }));
+  await expect.poll(() => pongResponses, { timeout: 15_000 }).toBeGreaterThan(pongsBeforeProbe);
   await page.waitForTimeout(1800);
 });
 

@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 # These get exponential backoff with more retries than token refresh errors.
 _CONNECTION_ERRORS = (httpx.ConnectError, httpx.ConnectTimeout)
 _READ_ONLY_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "SEARCH"})
+_TRANSIENT_READ_STATUSES = frozenset({502, 503, 504})
 
 _PLAINTEXT_PRIVATE_FIELDS_BY_COLLECTION = {
     "chats": frozenset({
@@ -113,6 +114,17 @@ async def _make_api_request(self, method, url, headers=None, **kwargs):
                     await self.clear_tokens()
                     if not caller_authorization:
                         headers.pop("Authorization", None)
+                    continue
+
+            # Directus sheds load with SERVICE_UNAVAILABLE/503. Reads may be
+            # replayed safely; writes may already have committed upstream.
+            if method.upper() in _READ_ONLY_METHODS and response.status_code in _TRANSIENT_READ_STATUSES:
+                connection_failures += 1
+                if connection_failures < max_connection_retries and attempt < total_retries - 1:
+                    backoff = min(2 ** connection_failures, 16)
+                    logger.warning("CMS read returned HTTP %s. Retrying in %ss (%s/%s)...",
+                                   response.status_code, backoff, connection_failures, max_connection_retries)
+                    await asyncio.sleep(backoff)
                     continue
 
             return response

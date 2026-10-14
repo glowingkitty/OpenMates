@@ -18,6 +18,59 @@ from starlette.requests import Request
 from backend.core.api.app.routes import telemetry
 
 
+def rate_limited_request(path="/v1/telemetry/traces"):
+    bucket = MagicMock()
+    bucket.get_window_stats.return_value = (1042.25, 0)
+    rate_limiter = SimpleNamespace(
+        limiter=bucket, _inject_headers=lambda response, current_limit: response,
+    )
+    request = Request({
+        "type": "http", "method": "POST", "path": path, "headers": [],
+        "app": SimpleNamespace(state=SimpleNamespace(limiter=rate_limiter)),
+    })
+    request.state.view_rate_limit = ("synthetic-limit", ["synthetic-ip", path])
+    return request, bucket
+
+
+# contract-test: supporting surface=rest_api assertions=ai-request-observability.no-behavior-change
+def test_rate_limit_keeps_429_body_and_reports_remaining_bucket_window(monkeypatch):
+    monkeypatch.setattr(telemetry.time, "time", lambda: 1000.0)
+    request, bucket = rate_limited_request()
+    response = telemetry.rate_limit_exceeded_handler(request, SimpleNamespace(detail="60 per 1 minute"))
+    assert response.status_code == 429
+    assert json.loads(response.body) == {"error": "Rate limit exceeded: 60 per 1 minute"}
+    assert response.headers["Retry-After"] == "43"
+    bucket.get_window_stats.assert_called_once_with("synthetic-limit", "synthetic-ip", "/v1/telemetry/traces")
+
+
+@pytest.mark.parametrize("reset_at,expected", [(1000.0, "1"), (999.0, "1"), (1060.0, "60")])
+# contract-test: supporting surface=rest_api assertions=ai-request-observability.no-behavior-change
+def test_retry_delay_is_positive_and_matches_window(monkeypatch, reset_at, expected):
+    monkeypatch.setattr(telemetry.time, "time", lambda: 1000.0)
+    request, bucket = rate_limited_request()
+    bucket.get_window_stats.return_value = (reset_at, 0)
+    response = telemetry.rate_limit_exceeded_handler(request, SimpleNamespace(detail="60 per 1 minute"))
+    assert response.headers["Retry-After"] == expected
+
+
+# contract-test: supporting surface=rest_api assertions=ai-request-observability.no-behavior-change
+def test_reset_lookup_failure_preserves_quota_response():
+    request, bucket = rate_limited_request()
+    bucket.get_window_stats.side_effect = RuntimeError("synthetic storage failure")
+    response = telemetry.rate_limit_exceeded_handler(request, SimpleNamespace(detail="60 per 1 minute"))
+    assert response.status_code == 429
+    assert response.headers["Retry-After"] == "60"
+
+
+# contract-test: supporting surface=rest_api assertions=ai-request-observability.no-behavior-change
+def test_other_endpoint_rate_limit_response_is_unchanged():
+    request, bucket = rate_limited_request("/v1/other")
+    response = telemetry.rate_limit_exceeded_handler(request, SimpleNamespace(detail="1 per 1 minute"))
+    assert response.status_code == 429
+    assert "Retry-After" not in response.headers
+    bucket.get_window_stats.assert_not_called()
+
+
 @pytest.fixture
 def anyio_backend():
     return "asyncio"

@@ -24,7 +24,6 @@ from fastapi.responses import RedirectResponse  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.openapi.utils import get_openapi  # noqa: E402
 from contextlib import asynccontextmanager  # noqa: E402
-from slowapi import _rate_limit_exceeded_handler  # noqa: E402
 from slowapi.errors import RateLimitExceeded  # noqa: E402
 from prometheus_client import make_asgi_app  # noqa: E402
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware  # noqa: E402
@@ -1232,7 +1231,7 @@ def create_app() -> FastAPI:
 
     # Add rate limiting exception handler
     app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_exception_handler(RateLimitExceeded, telemetry.rate_limit_exceeded_handler)
 
     # Add logging middleware (pass metrics service from backend.core.api.app.state if needed, or remove if unused)
     # Assuming LoggingMiddleware doesn't actually need metrics_service passed here
@@ -1352,7 +1351,7 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-        expose_headers=["Content-Disposition"],  # Expose Content-Disposition header for file downloads
+        expose_headers=["Content-Disposition", "Retry-After"],  # Downloads and OTLP retry backoff
     )
 
     # Add ProxyHeadersMiddleware to handle X-Forwarded-* headers

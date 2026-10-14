@@ -138,11 +138,28 @@ test.describe('Browser telemetry proxy HTTP boundaries', () => {
 			data: { resourceSpans: [] }
 		});
 		expect(limited.status()).toBe(429);
+		const retryAfter = Number(limited.headers()['retry-after']);
+		expect(retryAfter).toBeGreaterThanOrEqual(1);
+		expect(retryAfter).toBeLessThanOrEqual(60);
+		// OTLP exports cross-origin: the browser must be able to read the delay,
+		// otherwise the SDK falls back to repeated 1–5 second retries.
+		const browserLimited = await page.evaluate(async (apiOrigin: string) => {
+			const response = await fetch(`${apiOrigin}/v1/telemetry/traces`, {
+				method: 'POST', credentials: 'include',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ resourceSpans: [] })
+			});
+			return { status: response.status, retryAfter: response.headers.get('Retry-After') };
+		}, api.origin);
+		expect(browserLimited.status).toBe(429);
+		expect(browserLimited.retryAfter).not.toBeNull();
+		expect(Number(browserLimited.retryAfter)).toBeGreaterThanOrEqual(1);
 		await testInfo.attach('telemetry-proxy-boundaries', {
 			body: JSON.stringify({
 				socketAborted: true,
 				acceptedRequests: statuses.length - 1,
-				quotaStatus: 429
+				quotaStatus: 429,
+				browserRetryAfter: browserLimited.retryAfter
 			}),
 			contentType: 'application/json'
 		});
