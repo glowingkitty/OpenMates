@@ -524,13 +524,25 @@
   @media (max-width: 900px) { .feature-media { grid-template-columns: 1fr; }.feature-copy, .feature-later .feature-copy { max-width: 680px; }.feature-example, .feature-later .feature-example { width: 100%; margin: 0 auto; } }
   @media (max-width: 760px) { .viewport-container { margin: 0 var(--spacing-4) var(--spacing-4); }.feature { min-height: 100%; padding: var(--spacing-20) var(--spacing-8); gap: var(--spacing-16); }.feature h2 { margin-bottom: var(--spacing-12); }.publication-row { grid-template-columns: 1fr; gap: var(--spacing-12); padding: var(--spacing-16) var(--spacing-8); }.site-footer { flex-direction: column; align-items: flex-start; padding: var(--spacing-16) var(--spacing-8); }.site-footer nav { justify-content: flex-start; } }
   @media (max-width: 440px) { .scroll-cue-content { gap: var(--spacing-4); }.publication-cards { grid-template-columns: 1fr; }.publication-card img { height: 170px; } }
-  @media (max-height: 660px) and (max-width: 760px) {
-    .hero { --hero-ai-size: 64px; gap: 6px; padding-bottom: 90px; }
-    .hero h1 { font-size: 28px; }
-    .prompt-bubble { padding: 6px 16px; font-size: 16px; }
-    .hero-speed { font-size: 14px; }
-    .rail-window { --icon-size: 56px; }
-    .scroll-cue { min-height: 24px; font-size: 12px; }
+  /* Phone heroes use larger readable elements; compact sizing follows the actual
+     panel height after the site header and Safari browser chrome have taken space. */
+  @container (max-width: 480px) {
+    .hero { --hero-ai-size: clamp(6.5rem, min(32cqw, 20cqh), 9.5rem); gap: clamp(.625rem, min(2.6cqw, 1.8cqh), .875rem); }
+    .hero h1 { font-size: clamp(2.125rem, min(10.8cqw, 8cqh), 3rem); }
+    .landing-page:lang(de) .hero h1 { font-size: clamp(2rem, min(8.7cqw, 8cqh), 2.75rem); }
+    .prompt-bubble { box-sizing: border-box; max-width: calc(100% - 1rem); padding: clamp(.5rem, 1.6cqh, .75rem) clamp(.875rem, 3cqw, 1.25rem); font-size: clamp(1.25rem, min(6cqw, 4.3cqh), 1.625rem); }
+    .hero-speed { font-size: clamp(1.125rem, min(5cqw, 3.6cqh), 1.5rem); }
+    .rail-window { --icon-size: clamp(4.5rem, min(24cqw, 18cqh), 6.5rem); }
+    .scroll-cue { font-size: clamp(1rem, min(4.6cqw, 3.4cqh), 1.25rem); }
+  }
+  @container (max-width: 480px) and (max-height: 560px) {
+    .hero { --hero-ai-size: clamp(5rem, min(28cqw, 16cqh), 6rem); gap: var(--spacing-2); padding-bottom: 96px; }
+    .hero h1 { font-size: clamp(1.875rem, 9.2cqw, 2.25rem); }
+    .landing-page:lang(de) .hero h1 { font-size: clamp(1.625rem, 8.8cqw, 2rem); }
+    .prompt-bubble { padding: .5rem .875rem; font-size: clamp(1.125rem, 5.5cqw, 1.375rem); }
+    .hero-speed { font-size: 1.0625rem; }
+    .rail-window { --icon-size: clamp(4rem, min(21cqw, 17cqh), 5.25rem); }
+    .scroll-cue { min-height: 24px; font-size: .9375rem; }
   }
   /* A short landscape viewport groups the AI icon beside the text rather than squeezing every row. */
   @media (max-height: 500px) and (min-width: 500px) {
