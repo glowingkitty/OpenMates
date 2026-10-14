@@ -62,8 +62,10 @@ test('real LLM sub-chat pipeline supports sending inside a synced sub-chat', asy
 	);
 	await screenshot(page, 'parent-synthesis-completed');
 
+	const parentChatHash = new URL(page.url()).hash;
 	await subChatCards.first().click();
-	await expect(page.getByTestId('return-to-parent-button')).toBeVisible({ timeout: 30_000 });
+	await expect(page.getByTestId('return-to-parent-button')).toHaveCount(0);
+	await expect(page.getByTestId('chat-close-button')).toBeVisible({ timeout: 30_000 });
 	await expect(page.getByTestId('sub-chat-broadcast-toggle')).toBeVisible({ timeout: 30_000 });
 	await screenshot(page, 'real-sub-chat-opened');
 
@@ -82,11 +84,8 @@ test('real LLM sub-chat pipeline supports sending inside a synced sub-chat', asy
 	await expect(subChatAssistant).not.toBeEmpty({ timeout: 60_000 });
 	await screenshot(page, 'sub-chat-message-completed');
 
-	const returnButton = page.getByTestId('return-to-parent-button');
-	if (await returnButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-		await returnButton.click({ timeout: 5000 }).catch(async () => returnButton.click({ force: true }));
-		await page.waitForTimeout(1000);
-	}
+	await page.getByTestId('chat-close-button').click();
+	await expect.poll(() => new URL(page.url()).hash).toBe(parentChatHash);
 
 	await deleteActiveChat(page, log, screenshot, 'real-sub-chat-cleanup');
 	log('Real sub-chat inference pipeline completed successfully.');

@@ -41,6 +41,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 const {
 	dismissSecurityReminderIfPresent,
 	fillMessageEditor,
+	loginToTestAccount,
 	startNewChat,
 	waitForChatReady
 } = require('./helpers/chat-test-helpers');
@@ -135,42 +136,6 @@ function trimProofVideoToProofWindow(rawPath: string, outputPath: string, proofS
 		throw new Error(`Session revoke proof video trim failed: ${String(detail).slice(-1000)}`);
 	}
 	fs.rmSync(rawPath, { force: true });
-}
-
-// ---------------------------------------------------------------------------
-// Login helper (shared between sessions)
-// ---------------------------------------------------------------------------
-
-async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void> {
-	await page.goto('/');
-
-	const headerLoginButton = page.getByTestId('header-login-signup-btn');
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
-
-	// Click Login tab to switch from signup to login view
-	const loginTab = page.getByTestId('tab-login');
-	await expect(loginTab).toBeVisible({ timeout: 10000 });
-	await loginTab.click();
-
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 10000 });
-	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-	logFn('Email submitted.');
-
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible({ timeout: 10000 });
-	await passwordInput.fill(TEST_PASSWORD);
-
-	// Submit password first, then handle OTP if required.
-	// OTP field only appears after backend confirms 2FA is needed (anti-enumeration).
-	const { submitPasswordAndHandleOtp, waitForChatReady } = require('./helpers/chat-test-helpers');
-	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, logFn);
-	logFn('Login submitted, waiting for authenticated chat UI…');
-
-	await waitForChatReady(page, logFn);
-	logFn('Authenticated chat UI ready — login complete.');
 }
 
 // ---------------------------------------------------------------------------
@@ -302,7 +267,9 @@ test('session revoke: revoking session B from session A does not log out session
 	try {
 		// ── Step 1: Log in Session A ─────────────────────────────────────────
 		logA('Logging in Session A…');
-		await loginToApp(pageA, logA);
+		// The shared login helper enables persisted-key login, so sibling tabs
+		// can authenticate without inheriting this document's in-memory key.
+		await loginToTestAccount(pageA, logA);
 		await screenshotA(pageA, '01-logged-in-a');
 
 		// ── Step 2: Wait for TOTP window rollover, then log in Session B ─────
@@ -316,7 +283,7 @@ test('session revoke: revoking session B from session A does not log out session
 		}
 
 		logB('Logging in Session B…');
-		await loginToApp(pageB, logB);
+		await loginToTestAccount(pageB, logB);
 		await screenshotB(pageB, '02-logged-in-b');
 		await startNewChat(pageB, logB);
 		const sessionBDraftText = `Session revoke logout header cleanup ${Date.now().toString(36).replace(/[0-9]/g, 'a')}`;

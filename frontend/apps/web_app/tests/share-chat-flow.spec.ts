@@ -291,10 +291,18 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 		await expect(viewerPage).toHaveURL(new RegExp(`#chat-id=${activeChatId}(?:&|$)`), {
 			timeout: 45000,
 		});
+		// Sharing preserves the rendered source message, including the editor's
+		// typographic quotes, rather than the ASCII text used to type it.
 		await expect(
-			viewerPage.getByTestId('message-user').filter({ hasText: sharedChatMarker }),
+			viewerPage.getByTestId('message-user').filter({ hasText: visibleChatBody }),
 		).toBeVisible({ timeout: 45000 });
 		await expect(viewerPage.getByText('[Content decryption failed]')).toHaveCount(0);
+		const sharedActivityToggle = viewerPage.getByTestId('assistant-activity-toggle').last();
+		await expect(sharedActivityToggle).toBeVisible({ timeout: 10000 });
+		if ((await sharedActivityToggle.getAttribute('aria-expanded')) !== 'true') {
+			await sharedActivityToggle.click();
+		}
+		await expect(sharedActivityToggle).toHaveAttribute('aria-expanded', 'true');
 		await expect(
 			viewerPage.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]').first(),
 		).toBeVisible({ timeout: 45000 });
@@ -308,7 +316,10 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	await page.getByTestId('report-issue-submit-another').click();
 	const shareChatToggle = page.locator('#share-chat-toggle');
 	await expect(shareChatToggle).toBeChecked();
-	await shareChatToggle.uncheck();
+	// The styled toggle's checkbox is hidden; its visible label is the user control.
+	const shareChatToggleLabel = page.locator('label[for="share-chat-toggle"]');
+	await expect(shareChatToggleLabel).toBeVisible();
+	await shareChatToggleLabel.click();
 	await expect(shareChatToggle).not.toBeChecked();
 	await page.getByTestId('report-issue-title').fill('Report without shared chat context');
 	await page.getByTestId('report-issue-submit').click();

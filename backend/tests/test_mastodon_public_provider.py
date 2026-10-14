@@ -75,6 +75,23 @@ def test_post_and_reply_preserve_author_paragraphs_and_empty_lines(content, expe
     assert "<" not in post.body
 
 
+@pytest.mark.parametrize("with_attachment", [False, True])
+# contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete,public-example-chats.transcript.safe-rendering
+def test_post_retains_link_card_image_without_replacing_attachment_preview(with_attachment):
+    status = {
+        **STATUS,
+        "media_attachments": STATUS["media_attachments"] if with_attachment else [],
+        "card": {**STATUS["card"], "image": "https://cdn.example/article-preview.jpg"},
+    }
+    post = public._post_from_status(status, page="Gargron@mastodon.social")
+
+    assert post.thumbnail_url == (
+        "https://cdn.example/preview.jpg" if with_attachment else "https://cdn.example/article-preview.jpg"
+    )
+    assert post.media_url == ("https://cdn.example/full.jpg" if with_attachment else None)
+    assert post.external_url == "https://example.com/article"
+
+
 # contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete
 @pytest.mark.asyncio
 async def test_fetch_account_posts_normalizes_profile_url_and_replies(monkeypatch):

@@ -121,7 +121,7 @@ async function readEquivalentCanonicalHead(head: StoreEmbedPayload): Promise<{
     || (head.app_id !== undefined && !same(embed.app_id, head.app_id))
     || (head.skill_id !== undefined && !same(embed.skill_id, head.skill_id))
     || (head.hashed_task_id !== undefined && !same(embed.hashed_task_id, head.hashed_task_id))
-    || (head.embed_ids !== undefined && JSON.stringify(embed.embed_ids ?? []) !== JSON.stringify(head.embed_ids))
+    || (head.embed_ids !== undefined && JSON.stringify(embed.embed_ids ?? []) !== JSON.stringify(head.embed_ids ?? []))
     || (head.is_private !== undefined && !same(embed.is_private, head.is_private))
     || (head.is_shared !== undefined && !same(embed.is_shared, head.is_shared))
     || typeof embed.encrypted_content !== "string" || typeof embed.encrypted_type !== "string") {

@@ -59,6 +59,68 @@ vi.mock("../../../../stores/appSkillsStore", () => ({
 
 import { parseMarkdownToTiptap, preprocessMarkdown } from "../markdownParser";
 
+describe("math delimiters inside code", () => {
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+  it("preserves the Code example's inline Svelte runes without math placeholders", () => {
+    const doc = parseMarkdownToTiptap("Use `$state` for reactive state and `$derived` for computed values.");
+    const codeNodes = doc.content[0].content.filter(
+      (node: { marks?: { type: string }[] }) => node.marks?.some((mark) => mark.type === "code"),
+    );
+
+    expect(codeNodes.map((node: { text: string }) => node.text)).toEqual(["$state", "$derived"]);
+    expect(JSON.stringify(doc)).not.toContain("MATH_");
+    expect(JSON.stringify(doc)).not.toContain('"type":"inlineMath"');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+  it("keeps genuine inline and display math beside literal code", () => {
+    const doc = parseMarkdownToTiptap(
+      "Math $x^2$ beside `$state` and ``$derived(`value`)`` then $\\sqrt{2}$.\n\n$$y = x^2$$",
+    );
+
+    expect(doc.content[0].content.filter((node: { type: string }) => node.type === "inlineMath"))
+      .toEqual([
+        { type: "inlineMath", attrs: { latex: "x^2" } },
+        { type: "inlineMath", attrs: { latex: "\\sqrt{2}" } },
+      ]);
+    expect(JSON.stringify(doc)).toContain('"latex":"y = x^2"');
+    expect(JSON.stringify(doc)).toContain("$derived(`value`)");
+    expect(JSON.stringify(doc)).not.toContain("MATH_");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+  it("preserves multiline display math, escaped dollars and currency next to runes", () => {
+    const latex = "x = 1\n    y = 2";
+    const doc = parseMarkdownToTiptap(
+      `Use \`$state\`; price $2,199 and escaped \\$10.\n\n$$\n${latex}\n$$`,
+    );
+
+    expect(doc.content).toContainEqual({ type: "blockMath", attrs: { latex } });
+    expect(JSON.stringify(doc)).toContain("price $2,199 and escaped $10");
+    expect(JSON.stringify(doc)).not.toContain("MATH_");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+  it.each(["```svelte", "~~~svelte"])("preserves dollar syntax in %s fences", (fence) => {
+    const source = "let count = $state(0);\nlet total = $derived(count * 2);\nconst formula = '$$x^2$$';";
+    const doc = parseMarkdownToTiptap(`${fence}\n${source}\n${fence.slice(0, 3)}\n\nMath $x^2$`);
+
+    expect(doc.content[0].type).toBe("codeBlock");
+    expect(doc.content[0].content[0].text).toBe(`${source}\n`);
+    expect(JSON.stringify(doc)).toContain('"latex":"x^2"');
+    expect(JSON.stringify(doc)).not.toContain("MATH_");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+  it("preserves indented code while extracting math in the following paragraph", () => {
+    const processed = preprocessMarkdown("    let count = $state(0);\n    let total = $derived(count);\n\nMath $x^2$");
+
+    expect(processed).toContain("let count = $state(0);\n    let total = $derived(count);");
+    expect(processed.match(/MATH_INLINE_/g)).toHaveLength(1);
+    expect(processed).toContain("Math <!-- MATH_INLINE_0 -->");
+  });
+});
+
 describe("inline ratio math", () => {
   it("keeps adjacent ratios and prose in separate valid math nodes", () => {
     const doc = parseMarkdownToTiptap(

@@ -285,8 +285,8 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@toon-format/toon':
-        specifier: 2.3.1
-        version: 2.3.1
+        specifier: 4.4.0
+        version: 4.4.0
       '@xmldom/xmldom':
         specifier: 0.9.12
         version: 0.9.12
@@ -524,8 +524,8 @@ importers:
         specifier: 3.30.5
         version: 3.30.5
       '@toon-format/toon':
-        specifier: 2.3.1
-        version: 2.3.1
+        specifier: 4.4.0
+        version: 4.4.0
       '@types/leaflet':
         specifier: ^1.9.21
         version: 1.9.21
@@ -2251,8 +2251,8 @@ packages:
   '@tiptap/starter-kit@3.30.5':
     resolution: {integrity: sha512-cmDRvukpoqjQjhE96q+l3tCLNZZcJKehxK+00Sp9F4XbKecfM2QpZ2TRHh3vi8qhCeDQNyMoCqfNaqznIjLjIQ==}
 
-  '@toon-format/toon@2.3.1':
-    resolution: {integrity: sha512-sWqEMeAJGMda9qRrfPKrX3C4c33CO9SJuvJzzrcBEn5sbDB+k6pSLkDsfN0rVnLQwR97MV3sDgVbcxQNsq8xVw==}
+  '@toon-format/toon@4.4.0':
+    resolution: {integrity: sha512-A6UcsVoWbNdhdLNhJbe6JpRlocmf/DZGG57fur3bd8oQtsjBaKWo2hHbOU2zTuy+byUmLIOyP1xJeitopCZzpQ==}
 
   '@tsconfig/svelte@5.0.8':
     resolution: {integrity: sha512-UkNnw1/oFEfecR8ypyHIQuWYdkPvHiwcQ78sh+ymIiYoF+uc5H1UBetbjyqT+vgGJ3qQN6nhucJviX6HesWtKQ==}
@@ -7010,7 +7010,7 @@ snapshots:
       '@tiptap/extensions': 3.30.5(@tiptap/core@3.30.5(@tiptap/pm@3.30.5))(@tiptap/pm@3.30.5)
       '@tiptap/pm': 3.30.5
 
-  '@toon-format/toon@2.3.1': {}
+  '@toon-format/toon@4.4.0': {}
 
   '@tsconfig/svelte@5.0.8': {}
 

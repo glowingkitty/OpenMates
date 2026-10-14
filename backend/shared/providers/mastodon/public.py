@@ -385,7 +385,9 @@ def _post_from_status(status: dict[str, Any], *, page: str) -> MastodonPost:
         repost_count=int(status.get("reblogs_count") or 0),
         like_count=int(status.get("favourites_count") or 0),
         media_url=media_url,
-        thumbnail_url=thumbnail_url,
+        # A link card is the post's visual preview when it has no attachment.
+        # Keep an attachment's own thumbnail instead of mixing the two images.
+        thumbnail_url=thumbnail_url or (card.get("image") if not media_url else None),
         external_url=card.get("url"),
         external_title=card.get("title"),
     )

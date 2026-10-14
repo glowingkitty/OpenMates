@@ -176,6 +176,25 @@ const { OpenMatesWsClient } = await import("../src/ws.ts");
 const { createPairApprover, createPairContext, generateGrantSecret } = await import("@repo/pairing-crypto");
 
 describe("saved embed content decoding", () => {
+  // contract-test: direct surface=sdks.npm assertions=app-skills.media.parent-children-and-attribution,app-skills.media.visible-assistant-results
+  it("retains generated-media file variants from Python keyed-tabular TOON", () => {
+    const raw = "type: generated_image\nstatus: finished\n" +
+      "files[3:]{s3_key,width,height,size_bytes,format,encryption}:\n" +
+      "  original: unit/original.png,1024,1024,12000,png,aes-gcm\n" +
+      "  preview: unit/preview.webp,512,512,6000,webp,aes-gcm\n" +
+      "  thumbnail: unit/thumbnail.webp,256,256,3000,webp,aes-gcm\n" +
+      "prompt: A sunflower illustration\nmodel: unit-image-model";
+    const decoded = parseEmbedContentObject(raw);
+    assert.equal(decoded.status, "finished");
+    assert.deepEqual(decoded.files, {
+      original: { s3_key: "unit/original.png", width: 1024, height: 1024, size_bytes: 12000, format: "png", encryption: "aes-gcm" },
+      preview: { s3_key: "unit/preview.webp", width: 512, height: 512, size_bytes: 6000, format: "webp", encryption: "aes-gcm" },
+      thumbnail: { s3_key: "unit/thumbnail.webp", width: 256, height: 256, size_bytes: 3000, format: "webp", encryption: "aes-gcm" },
+    });
+    assert.equal(decoded.prompt, "A sunflower illustration");
+    assert.equal(decoded.model, "unit-image-model");
+  });
+
   // contract-test: supporting surface=sdks.npm assertions=hosting-domains.embeds.parent-child,hosting-domains.surface-parity
   it("retains nested TOON domain results without absorbing them into skill_id", () => {
     const raw = "type: app_skill_use\napp_id: hosting\nskill_id: search_domains\nquery: meetly\n" +

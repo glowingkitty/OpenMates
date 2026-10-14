@@ -348,6 +348,23 @@ test('saved code embed and version diff replay with canonical ciphertext acknowl
 					+ `recoveryErrors=${JSON.stringify(recoveryErrors.slice(-5))}`);
 			}
 		}
+		// Artifact receipts do not seal the recovered assistant message. Finish
+		// that original turn before another device starts its dependent edit.
+		const recoveredJobs = () => frames.filter((frame) => frame.direction === 'received'
+			&& frame.type === 'recovery_jobs_available')
+			.flatMap((frame) => frame.payload.jobs ?? [])
+			.filter((job: any) => job.chat_id === chatId);
+		await expect.poll(() => recoveredJobs().length,
+			{ timeout: 120_000, message: 'The original assistant recovery job must be discovered' })
+			.toBeGreaterThan(0);
+		for (const jobId of new Set(recoveredJobs().map((job: any) => job.job_id))) {
+			await expect.poll(() => frames.some((frame) => frame.direction === 'received'
+				&& frame.type === 'recovery_job_persisted' && frame.payload.job_id === jobId
+				&& frame.payload.state === 'TERMINAL'),
+			{ timeout: 120_000, message: 'The original assistant turn must have a canonical terminal receipt' })
+				.toBe(true);
+		}
+		await expect(restoredPage.getByTestId('message-assistant').first()).toBeVisible();
 		const update = await recordedContext(browser, baseURL, 'update');
 		try {
 			const updatePage = await update.newPage();

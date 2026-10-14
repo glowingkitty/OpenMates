@@ -106,8 +106,65 @@ function extractMathFormulas(markdownText: string): {
   formulas: Map<string, { tex: string; display: boolean }>;
 } {
   const formulas = new Map<string, { tex: string; display: boolean }>();
+  const lineOffsets = [0];
+  for (let index = 0; index < markdownText.length; index++) {
+    if (markdownText[index] === "\n") lineOffsets.push(index + 1);
+  }
+  lineOffsets.push(markdownText.length);
+
+  // Let markdown-it identify fenced and indented code, including list nesting,
+  // rather than treating dollar signs in source code as math delimiters.
+  const codeRanges = md.parse(markdownText, {})
+    .filter((token) => (token.type === "fence" || token.type === "code_block") && token.map)
+    .map((token) => ({
+      start: lineOffsets[token.map![0]],
+      end: lineOffsets[token.map![1]],
+    }));
+
+  const extractOutsideCodeSpans = (text: string): string => {
+    let result = "";
+    let proseStart = 0;
+    const backticks = /`+/g;
+    let opening: RegExpExecArray | null;
+    while ((opening = backticks.exec(text))) {
+      // Escaped opening backticks are prose; escapes inside code stay literal.
+      let escapeStart = opening.index;
+      while (escapeStart > 0 && text[escapeStart - 1] === "\\") escapeStart--;
+      if ((opening.index - escapeStart) % 2 === 1) continue;
+
+      const closingTicks = /`+/g;
+      closingTicks.lastIndex = backticks.lastIndex;
+      let closing: RegExpExecArray | null;
+      while ((closing = closingTicks.exec(text))) {
+        if (closing[0].length === opening[0].length) break;
+      }
+      if (!closing) continue;
+
+      result += extractProseMathFormulas(text.slice(proseStart, opening.index), formulas);
+      result += text.slice(opening.index, closingTicks.lastIndex);
+      proseStart = closingTicks.lastIndex;
+      backticks.lastIndex = proseStart;
+    }
+    return result + extractProseMathFormulas(text.slice(proseStart), formulas);
+  };
+
+  let processed = "";
+  let cursor = 0;
+  for (const range of codeRanges) {
+    processed += extractOutsideCodeSpans(markdownText.slice(cursor, range.start));
+    processed += markdownText.slice(range.start, range.end);
+    cursor = range.end;
+  }
+  processed += extractOutsideCodeSpans(markdownText.slice(cursor));
+  return { processed, formulas };
+}
+
+function extractProseMathFormulas(
+  markdownText: string,
+  formulas: Map<string, { tex: string; display: boolean }>,
+): string {
   let processed = markdownText;
-  let placeholderCounter = 0;
+  let placeholderCounter = formulas.size;
 
   // Extract block math: $$...$$
   // Use a regex that handles multi-line block math
@@ -188,7 +245,7 @@ function extractMathFormulas(markdownText: string): {
 
   processed = inlineProcessed;
 
-  return { processed, formulas };
+  return processed;
 }
 
 function rewriteSettingsMarkdownLinks(markdownText: string): string {

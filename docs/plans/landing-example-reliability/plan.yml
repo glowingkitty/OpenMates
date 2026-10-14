@@ -40,45 +40,45 @@ verification:
   - Existing successful recordings are uploaded and only latest relevant recordings delivered.
 task_tracking: OpenMates Tasks linked to codex:01a13630-3aed-7ae2-943e-ac86f4c45cb9 own status and dependencies.
 remaining:
-- Finish Code and Videos phone/laptop browser admission from their existing test receipts. Shopping passes both
-  viewports, with one phone retry while real image fetches completed. Apps origin navigation is deployed and passes
-  18/18; subchat checks pass 2/2 and visual component checks pass 7/7.
-- The iPad lazy-registration scope is deployed and ready. Guest WebKit concurrent-tab/reload coverage passes
-  without retry; it does not prove authenticated account or physical-iPad behavior. Correct duplicated-tab socket
-  routing identities while retaining server-verified logical session revocation across token rotation, then verify
-  the personal dev account. The conditional socket collision does not establish the original crash cause.
-- Isolate public example embeds from private embeds with the same source UUID, including nested/fullscreen
-  resolution and cached errors. Repair the owned Code card's screenshot fallback so it omits rejected shared
-  context and never automatically starts paid previews for public examples or shared recipients.
-- Publish the bounded CLI recovery refresh and immutable completion-write corrections after isolated checks.
-  The CLI recovery browser job succeeds with eight cases. After correcting the storage spec duplicate declaration,
-  six of nine browser cases pass; three stop before recovery because their signed mock control is not applied and
-  isolated preprocessing tries unavailable live providers. Trace and correct the test control handoff before rerunning
-  those product assertions. Exact deployed backend checks pass
-  141/141, including original-turn identity, duplicate task
-  aliases, Remotion suspend/resume and preview billing idempotency.
-- Admit the reviewed real Audio and Nutrition sources through browser checks; all seven converted
-  candidates have complete translations. Recreate Social after deploying the confirmed provider paragraph and
-  empty-line preservation fix; its prior saved source must not be hand-repaired. Recreate Images once after
-  deploying the already verified trusted-reference finalizer, because the prior saved answer still contains
-  a bare non-URL Markdown image target alongside its canonical embeds. Actual Code preview capture and interaction succeeded. The saved Web
-  conversation performed real research in three children, but five unsupported citations prevent admission. Verify
-  its private source-binding fix and complete shared extraction before creating a replacement; create Music,
-  Design and Politics after completion-write fixes are deployed. Natural focus and visual-output instructions
-  are deployed.
-- Review and publish actual selected media, admit complete sources through phone/laptop preview and fullscreen checks,
-  remove superseded broken examples, and inspect deployed public pages plus the personal dev account with concurrent
-  iPad-size tabs.
+- Publish the reviewed successor to dev commit 428df4265ea7037167264491f40dfde49218e3a7.
+  Frontend and all seventeen backend services are healthy; the current backend tree matches that publication.
+  Preserve concurrent changes when preparing the next exact-source candidate.
+- Finish sharing and session-revocation integration checks after their focused fixes. Canonical storage passes
+  all nine cases and canonical optional-field reconciliation passes 26/26. The sharing viewer decrypts correctly
+  but its skill activity is collapsed; the revocation check now reaches logout but needs the guest-only marker
+  to reflect the actual banner variant. Preserve the remaining assertions.
+- Verify and publish keyed-tabular TOON decoder compatibility and immutable streamed-embed replay handling.
+  The saved Image output contains real files that the old decoder drops. Focused decoder cases pass; the CLI
+  replay fix has eighteen focused and five existing passing cases. Exact-source SDK build and product E2E remain.
+- Run the authorized read-only personal dev-account check with three concurrent iPad-size WebKit tabs and a reload
+  after rollout. Guest WebKit passes without retry and authenticated cloned-tab routing passes; neither establishes
+  physical-iPad behavior or the original crash cause. Keep credentials and private evidence local.
+- Preserve the new Image source for browser admission and reviewed media publication. The new Social source
+  has five link-card images in Mastodon's original data that the provider drops; publish the thumbnail mapping
+  correction, then create its replacement naturally. The new Web source ran three research subchats and real
+  searches, but overstated an allegation/proposed settlement as
+  a confirmed finding; hold it from publication and verify the evidence-status guidance before a replacement run.
+  Create Design, Music and Politics after the SDK fix is verified. Preserve the eligible real Code, Shopping,
+  Videos, Audio and Nutrition sources and their reviewed assets; never repair saved transcripts by hand.
+- Admit all fifteen mindmap examples through thirty phone/laptop cases, covering the actual landing header,
+  direct example pages, reloads and relevant previews/fullscreen views. Code and Shopping have earlier passing
+  viewport evidence; Videos needs the corrected four-visible-suggestions assertion and fullscreen verification.
+  Navigation is deployed and passes 18/18, subchat checks 2/2 and visual component checks 7/7.
+- Publish reviewed media and complete translations for the selected sources, remove superseded broken public
+  fixtures, update only approved landing selectors, and validate per-chat admission records against the final
+  deployed commit. Voice implementation remains deferred.
 local_verification:
 - Ordered completion, generated refs, social callbacks and media graph checks passed in focused Python tests.
 - All 133 Directus recovery operation tests passed; screenshot capture and reviewed asset publisher checks passed.
 - CLI WebSocket wait checks, example conversion, ref registration, origin navigation and user spacing checks passed.
 - Generated media fullscreen resolver checks, focused Svelte compilation and ESLint passed; all 21 locale files
   validated.
-- Whole-app type checks and dependency-heavy backend checks remain for isolated CI; current public examples are
-  not newly admitted or replaced.
+- Exact-source SDK build checks remain for isolated verification; current public examples are not newly admitted
+  or replaced. The stale workspace's type errors are not evidence of an exact-source baseline failure.
 - Full shared extraction has focused coverage for embed/key cursor pages, oversized records, subchat/checkpoint
   continuations and rejection of incomplete or unauthenticated ciphertext; encrypted share routes preserve current
   visibility checks and chat-only key wrappers.
-- Mastodon provider paragraph and empty-line preservation passes twelve focused tests; source post fullscreen
-  admission now compares exact saved text and requires real image pixels. These fixes await a successor publication.
+- Mastodon provider paragraph and empty-line preservation passes twelve focused tests and is published in
+  428df4265ea7037167264491f40dfde49218e3a7; source post fullscreen admission compares exact saved text and
+  requires real image pixels. The successor retains link-card thumbnails and passes all fourteen provider cases;
+  replacement Social content still requires fresh-source and browser admission.

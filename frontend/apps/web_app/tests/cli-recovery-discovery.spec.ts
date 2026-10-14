@@ -345,6 +345,43 @@ test('stale CLI embed discovery reconciles only a verified canonical ACK', async
 		expect(guardedHead).toEqual({ rewriteError: 'embed_write_denied',
 			state: 'ACKNOWLEDGED', canonicalVerified: true });
 		clearWorkflowCliSyncCache(home);
+		const streamedReplay = canonicalHistorySdk(apiUrl, home, `
+			await client.whoAmI();
+			const wrapped=Buffer.from(input.chat.encrypted_chat_key,'base64');
+			const master=await webcrypto.subtle.importKey('raw',client.getMasterKeyBytes(),'AES-GCM',false,['decrypt']);
+			const chatKey=new Uint8Array(await webcrypto.subtle.decrypt({name:'AES-GCM',iv:wrapped.subarray(0,12)},master,wrapped.subarray(12)));
+			const target='/v1/embeds/chats/'+input.chatId+'/embeds/'+input.embed.embed_id;
+			const read=()=>client.http.get(target,client.getCliRequestHeaders());
+			const before=await read();
+			if(!before.ok||!before.data?.embed||!before.data?.embed_keys)throw Error('Canonical fixture read failed');
+			const wrappers=value=>value.embed_keys.map(row=>hash(JSON.stringify(row))).sort();
+			const {ws}=await client.openWsClient({taskUpdateJobs:false});
+			const frames=[],send=ws.sendAsync.bind(ws);
+			ws.sendAsync=async(type,payload)=>{frames.push(type);return send(type,payload)};
+			const replay=source=>client.persistStreamedEmbeds({ws,chatId:input.chatId,ownerId:input.ownerId,
+				chatKeyBytes:chatKey,fallbackMessageId:input.clientMessageId,embeds:[{
+					embed_id:input.embed.embed_id,type:'code',content:source,status:'finished',version_number:1,
+					message_id:input.clientMessageId,embed_ids:[]}]});
+			try {
+				await replay('type: code\\ncode: verified recovery fixture');
+				let changedRejected=false;
+				try{await replay('type: code\\ncode: changed source');}
+				catch(error){changedRejected=/does not match streamed source/.test(error.message)};
+				const after=await read();
+				if(!after.ok)throw Error('Canonical fixture reread failed');
+				process.stdout.write(JSON.stringify({changedRejected,
+					cipherUnchanged:before.data.embed.encrypted_content===after.data.embed.encrypted_content,
+					versionUnchanged:before.data.embed.version_number===after.data.embed.version_number,
+					wrappersUnchanged:JSON.stringify(wrappers(before.data))===JSON.stringify(wrappers(after.data)),
+					storeAttempts:frames.filter(type=>type==='store_embed').length,
+					wrapperWrites:frames.filter(type=>type==='store_embed_keys').length,
+					newAcknowledgements:frames.filter(type=>type==='recovery_output_ack_embed').length}));
+			} finally {ws.close()}
+		`, fixture);
+		expect(streamedReplay).toEqual({ changedRejected: true, cipherUnchanged: true,
+			versionUnchanged: true, wrappersUnchanged: true, storeAttempts: 2,
+			wrapperWrites: 0, newAcknowledgements: 0 });
+		clearWorkflowCliSyncCache(home);
 		const observed = canonicalHistorySdk(apiUrl, home, `
 			await client.whoAmI();
 			const requests=[],statuses=[],accepted=[],rejected=[];

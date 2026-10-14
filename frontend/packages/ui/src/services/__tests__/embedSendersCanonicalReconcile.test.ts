@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
   canonicalContent: "cipher:body:old",
   canonicalType: "cipher:app_skill_use:old",
   canonicalPreview: null as string | null | undefined,
+  canonicalChildren: null as string[] | null | undefined,
   canonicalStatus: "finished",
   canonicalParent: null as string | null,
   canonicalWrapper: "wrapper",
@@ -53,6 +54,7 @@ vi.mock("../../config/api", () => ({
           version_number: 1, status: state.canonicalStatus, app_id: "web", skill_id: "search",
           encrypted_content: state.canonicalContent, encrypted_type: state.canonicalType,
           encrypted_text_preview: state.canonicalPreview,
+          embed_ids: state.canonicalChildren,
         },
         embed_keys: [{ hashed_embed_id: "hash:embed-1", hashed_user_id: "hash:user-1",
           hashed_chat_id: null, key_type: "master", encrypted_embed_key: state.canonicalWrapper }],
@@ -102,6 +104,7 @@ beforeEach(() => {
   state.queued.clear(); state.sent.length = 0; state.handlers.clear(); state.closeHandlers.clear();
   state.canonicalContent = "cipher:body:old"; state.canonicalType = "cipher:app_skill_use:old";
   state.canonicalPreview = null;
+  state.canonicalChildren = null;
   state.canonicalStatus = "finished"; state.canonicalParent = null;
   state.canonicalWrapper = "wrapper"; state.readStatus = 200; state.reads = 0;
   state.localWrites.length = 0;
@@ -134,6 +137,42 @@ describe("canonical embed conflict reconciliation", () => {
     expect(state.queued.size).toBe(0);
     expect(state.localWrites).toHaveLength(1);
     expect(state.sent.map((entry) => entry.type)).toEqual(["store_embed", "store_embed_keys"]);
+  });
+
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it.each([
+    ["null/null", null, null],
+    ["null/undefined", null, undefined],
+    ["null/empty", null, []],
+    ["empty/null", [], null],
+    ["empty/undefined", [], undefined],
+    ["empty/empty", [], []],
+    ["same ordered children", ["child-a", "child-b"], ["child-a", "child-b"]],
+  ] as const)("settles an equivalent canonical child list (%s)", async (_label, queued, canonical) => {
+    state.canonicalChildren = canonical == null ? canonical : [...canonical];
+    await sendStoreEmbedImpl(service, {
+      ...payload, embed_ids: queued,
+    } as unknown as StoreEmbedPayload, keys);
+    expect(state.queued.size).toBe(0);
+    expect(state.localWrites).toHaveLength(1);
+    expect(state.localWrites[0].encrypted_content).toBe("cipher:body:old");
+    expect(state.sent.map((entry) => entry.type)).toEqual(["store_embed", "store_embed_keys"]);
+  });
+
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it.each([
+    ["removed canonical children", null, ["child-a"]],
+    ["added queued children", ["child-a"], null],
+    ["changed child identity", ["child-a"], ["child-b"]],
+    ["changed child order", ["child-b", "child-a"], ["child-a", "child-b"]],
+  ] as const)("retains a queued write with %s", async (_label, queued, canonical) => {
+    state.canonicalChildren = canonical == null ? canonical : [...canonical];
+    await sendStoreEmbedImpl(service, {
+      ...payload, embed_ids: queued,
+    } as unknown as StoreEmbedPayload, keys);
+    expect(state.queued.size).toBe(1);
+    expect(state.localWrites).toEqual([]);
+    expect(state.sent.map((entry) => entry.type)).toEqual(["store_embed"]);
   });
 
   // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted

@@ -11162,12 +11162,10 @@ export class OpenMatesClient {
       const storeRequestId = randomUUID();
       const storeConfirmed = params.ws.waitForMessage(
         "store_embed_confirmed",
-        (payload) => {
-          const p = payload as Record<string, unknown>;
-          return p.request_id === storeRequestId && p.embed_id === embed.embed_id;
-        },
+        (payload) => matchesRecoveryEmbedReceipt(payload, storeRequestId, embed.embed_id),
         30_000,
       );
+      void storeConfirmed.catch(() => {});
       await params.ws.sendAsync("store_embed", {
         request_id: storeRequestId,
         embed_id: embed.embed_id,
@@ -11194,9 +11192,72 @@ export class OpenMatesClient {
         created_at: createdAt,
         updated_at: updatedAt,
       });
-      await storeConfirmed;
+      let storedHead = true;
+      try {
+        await storeConfirmed;
+      } catch (error) {
+        if (!(error instanceof WebSocketProtocolError) || error.code !== "embed_write_denied") throw error;
+        // Typed recovery can ACK this exact head before the terminal stream
+        // repeats it. Fresh AES-GCM nonces cannot replace its verified digest.
+        // A denial is reusable only after an authorized ciphertext/key read
+        // proves the same owner, chat, revision, parent and plaintext.
+        const query = params.teamId ? `?team_id=${encodeURIComponent(params.teamId)}` : "";
+        const canonical = await this.http.get<{
+          embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>>;
+        }>(`/v1/embeds/chats/${encodeURIComponent(params.chatId)}/embeds/${encodeURIComponent(embed.embed_id)}${query}`,
+          this.getCliRequestHeaders());
+        const head = canonical.data?.embed;
+        const canonicalKeys = canonical.data?.embed_keys;
+        const version = embed.version_number ?? 1;
+        const parentId = embed.parent_embed_id || null;
+        let canonicalChildren: unknown = head?.embed_ids ?? [];
+        if (typeof canonicalChildren === "string") {
+          try { canonicalChildren = JSON.parse(canonicalChildren); } catch { canonicalChildren = null; }
+        }
+        if (!canonical.ok || !head || head.embed_id !== embed.embed_id
+          || head.hashed_embed_id !== hashedEmbedId
+          || head.hashed_user_id !== hashedUserId || head.hashed_chat_id !== hashedChatId
+          || (head.hashed_team_id ?? null) !== (params.teamId ? computeSHA256(params.teamId) : null)
+          || (head.parent_embed_id ?? null) !== parentId
+          || head.hashed_message_id !== hashedMessageId
+          || (embed.task_id !== undefined && head.hashed_task_id !== computeSHA256(embed.task_id))
+          || (embed.file_path !== undefined && head.file_path !== embed.file_path)
+          || (embed.content_hash !== undefined && head.content_hash !== embed.content_hash)
+          || (embed.embed_ids !== undefined
+            && JSON.stringify(canonicalChildren) !== JSON.stringify(embed.embed_ids ?? []))
+          || !Number.isSafeInteger(version) || version < 1
+          || Number(head.version_number ?? 1) !== version || head.status !== "finished"
+          || typeof head.encrypted_type !== "string" || typeof head.encrypted_content !== "string"
+          || !Array.isArray(canonicalKeys)) {
+          throw new Error(`Denied embed ${embed.embed_id} has no matching canonical head.`);
+        }
+        const keySubjectHash = computeSHA256(parentId || embed.embed_id);
+        let readableKey = false;
+        for (const wrapper of canonicalKeys) {
+          if (wrapper.hashed_embed_id !== keySubjectHash || wrapper.hashed_user_id !== hashedUserId
+            || typeof wrapper.encrypted_embed_key !== "string") continue;
+          const wrappingKey = wrapper.key_type === "chat" && wrapper.hashed_chat_id === hashedChatId
+            ? params.chatKeyBytes
+            : !params.teamId && wrapper.key_type === "master" && wrapper.hashed_chat_id == null
+              ? masterKey : null;
+          if (!wrappingKey) continue;
+          const unwrapped = await decryptBytesWithAesGcm(wrapper.encrypted_embed_key, wrappingKey);
+          if (unwrapped && Buffer.from(unwrapped).equals(Buffer.from(embedKey))) readableKey = true;
+        }
+        const canonicalType = await decryptWithAesGcmCombined(head.encrypted_type, embedKey);
+        const canonicalContent = await decryptWithAesGcmCombined(head.encrypted_content, embedKey);
+        const contentMetadata = canonicalContent && (embed.app_id !== undefined || embed.skill_id !== undefined)
+          ? parseEmbedContentObject(canonicalContent) : null;
+        if (!readableKey || canonicalType !== (embed.type || "app_skill_use")
+          || canonicalContent !== embed.content
+          || (embed.app_id !== undefined && (head.app_id ?? contentMetadata?.app_id) !== embed.app_id)
+          || (embed.skill_id !== undefined && (head.skill_id ?? contentMetadata?.skill_id) !== embed.skill_id)) {
+          throw new Error(`Denied embed ${embed.embed_id} canonical head does not match streamed source.`);
+        }
+        storedHead = false;
+      }
 
-      if (keys.length > 0) {
+      if (storedHead && keys.length > 0) {
         const keysRequestId = randomUUID();
         const keysConfirmed = params.ws.waitForMessage(
           "store_embed_keys_confirmed",
