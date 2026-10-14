@@ -669,6 +669,57 @@ test('continue carousel remains visible during reconnect churn', async ({ page, 
 	await verifyContinueCarouselSurvivesReconnectChurn(page, context);
 });
 
+// contract-test: supporting surface=gui.web assertions=auth.session.lifecycle,sync.startup.bounded-phases
+test('startup socket close smoke reconnects with capabilities and bounded sync', async ({ page, context }: { page: any; context: any }) => {
+	test.setTimeout(120000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	await context.addInitScript(() => {
+		const NativeWebSocket = window.WebSocket;
+		const smoke = { attempts: 0, earlyCloses: 0, closedAttempt: 0, replacementTypes: [] as string[] };
+		const testWindow = window as typeof window & { __startupSocketCloseSmoke?: typeof smoke };
+		testWindow.__startupSocketCloseSmoke = smoke;
+		window.WebSocket = class extends NativeWebSocket {
+			constructor(url: string | URL, protocols?: string | string[]) {
+				super(url, protocols);
+				if (!String(url).includes('/v1/ws')) return;
+				const attempt = ++smoke.attempts;
+				this.addEventListener('open', () => {
+					if (smoke.earlyCloses === 0) {
+						smoke.earlyCloses++;
+						smoke.closedAttempt = attempt;
+						this.close(1000, 'Synthetic startup socket close');
+					}
+				});
+				this.addEventListener('message', (event) => {
+					if (smoke.closedAttempt === 0 || attempt <= smoke.closedAttempt || typeof event.data !== 'string') return;
+					try {
+						const type = JSON.parse(event.data)?.type;
+						if (typeof type === 'string') smoke.replacementTypes.push(type);
+					} catch { /* Only record protocol message types, never payloads. */ }
+				});
+			}
+		};
+	});
+	await loginToTestAccount(page);
+	await expect.poll(() => page.evaluate(() => {
+		const smoke = (window as typeof window & {
+			__startupSocketCloseSmoke?: { attempts: number; earlyCloses: number; closedAttempt: number; replacementTypes: string[] }
+		}).__startupSocketCloseSmoke;
+		return {
+			earlyCloses: smoke?.earlyCloses,
+			reconnected: Boolean(smoke && smoke.closedAttempt > 0 && smoke.attempts > smoke.closedAttempt),
+			capabilities: smoke?.replacementTypes.includes('server_capabilities'),
+			phase1b: smoke?.replacementTypes.includes('phase_1b_chat_content_ready'),
+			phase2: smoke?.replacementTypes.includes('phase_2_last_20_chats_ready')
+		};
+	}), { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toEqual({
+		earlyCloses: 1, reconnected: true, capabilities: true, phase1b: true, phase2: true
+	});
+	await waitForChatReady(page);
+	// This browser smoke proves recovery after a real early client close. The
+	// deterministic ASGI transport unit and isolated API logs prove server cleanup.
+});
+
 // contract-test: direct surface=gui.web assertions=chat-navigation.open.local-first-coherent,sync.startup.bounded-phases,chats.persistence.client-encrypted,chats.message.identity-idempotent
 test('cached short chat opens coherently before delayed completeness repair', async ({ page }: { page: any }) => {
 	test.slow();

@@ -1,6 +1,13 @@
 {
   "source_commit": "703e3f9494bb21d2c94d387acfd32a692f7168a9",
   "groups": {
+    "telemetry_proxy_boundary": {
+      "execution": "e2e",
+      "enabling_work": "Use the isolated internal-network API, synthetic collector credentials, a disposable primary admin and a normal secondary account. The collector is absent; verify authorization, interrupted uploads, proxy availability and the unchanged per-IP quota without real provider credentials or shared endpoints.",
+      "specs": [
+        "telemetry-proxy-api.spec.ts"
+      ]
+    },
     "temporary_model_catalog": {
       "execution": "e2e",
       "enabling_work": "Read-only public model discovery plus runner-local model-details previews and UTC clock transitions. No signup, provider credentials, or AI inference; the component-marked spec uses the Vite-only profile.",

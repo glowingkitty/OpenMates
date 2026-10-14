@@ -182,6 +182,40 @@ from .handlers.websocket_handlers.chat_model_preference_handler import handle_ch
 logger = logging.getLogger(__name__)
 _workflow_metadata_warmup_tasks: set[asyncio.Task] = set()
 
+
+async def _send_initial_server_capabilities(websocket: WebSocket, manager: ConnectionManager) -> bool:
+    """Send the startup frame, releasing registration if startup cannot continue."""
+    sent = False
+    reason = "Initial capability send failed"
+    try:
+        await websocket.send_json({"type": "server_capabilities", "payload": {"capabilities": [
+            "chat_turn_admit_v1", "chat_turn_context_v1", "chat_turn_context_failure_v1",
+            "chat_turn_context_selection_details_v2", "suggested_followup_message_v1",
+            "personal_memory_snapshot_v1", "personal_send_context_snapshot_v1",
+            "personal_project_routing_directory_v1",
+        ]}})
+        sent = True
+        return True
+    except WebSocketDisconnect as exc:
+        reason = f"Client closed during startup - Code: {exc.code}"
+        logger.debug("WebSocket closed during initial capability send (code=%s)", exc.code)
+        return False
+    finally:
+        if not sent:
+            # No presence, discovery, or watcher tasks exist at this boundary.
+            # disconnect revokes this socket's nonce and preserves the ordinary
+            # metadata grace period, including a replacement socket's identity.
+            try:
+                try:
+                    manager.disconnect(websocket, reason=reason)
+                finally:
+                    manager.mark_volatile_session_unavailable(websocket)
+            except Exception:
+                # Preserve a genuine send exception/cancellation while making
+                # an independent cleanup failure visible to operators.
+                logger.error("Could not clean up failed WebSocket startup", exc_info=True)
+
+
 router = APIRouter(
     prefix="/v1/ws",
     tags=["websockets"],
@@ -2892,12 +2926,8 @@ async def websocket_endpoint(
         ),
     )
 
-    await websocket.send_json({"type": "server_capabilities", "payload": {"capabilities": [
-        "chat_turn_admit_v1", "chat_turn_context_v1", "chat_turn_context_failure_v1",
-        "chat_turn_context_selection_details_v2", "suggested_followup_message_v1",
-        "personal_memory_snapshot_v1", "personal_send_context_snapshot_v1",
-        "personal_project_routing_directory_v1",
-    ]}})
+    if not await _send_initial_server_capabilities(websocket, manager):
+        return
 
     # A live socket must close at its absolute session deadline even if idle.
     pair_expiry_task: asyncio.Task | None = None

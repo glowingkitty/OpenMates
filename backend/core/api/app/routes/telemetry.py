@@ -24,6 +24,7 @@ from typing import Optional
 import httpx
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
+from starlette.requests import ClientDisconnect
 
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_optional
@@ -114,7 +115,16 @@ async def proxy_traces(
             content={"status": "error", "detail": "Telemetry backend not configured"},
         )
 
-    body = await request.body()
+    try:
+        body = await request.body()
+    except ClientDisconnect:
+        # Navigation or an exporter abort can close the request mid-upload.
+        # There is no complete OTLP batch to forward; this is not an API failure.
+        logger.debug("[Telemetry] Client disconnected during upload, dropping incomplete batch")
+        return JSONResponse(
+            status_code=202,
+            content={"status": "dropped", "detail": "Telemetry upload interrupted"},
+        )
     content_type = request.headers.get("content-type", "application/x-protobuf")
 
     try:

@@ -18,6 +18,7 @@
  *
  * Cache behaviour:
  *   - In-memory Map<userId, blobUrl> — persists for the lifetime of the page.
+ *   - Missing-image 404 responses are cached for 30 seconds, scoped to user and URL.
  *   - In-flight deduplication: a second call for the same userId while a fetch
  *     is already pending returns the same Promise, preventing duplicate requests.
  *   - Call `invalidateProfileImageCache(userId)` after an upload to revoke
@@ -35,6 +36,10 @@ const _cache = new Map<string, string>();
  */
 const _inflight = new Map<string, Promise<string | null>>();
 const _generations = new Map<string, number>();
+// Absence is expected for accounts without an image. Briefly reuse it across
+// component remounts; retry later so uploads on another device remain visible.
+const MISSING_IMAGE_TTL_MS = 30_000;
+const _missing = new Map<string, { url: string; expiresAt: number }>();
 
 /**
  * Determine whether a profile_image_url is a legacy public URL or a proxy path.
@@ -81,6 +86,11 @@ export async function getProfileImageBlobUrl(
   const cached = _cache.get(userId);
   if (cached) return cached;
 
+  const fullUrl = imageUrl.startsWith("/") ? `${apiBaseUrl}${imageUrl}` : imageUrl;
+  const missing = _missing.get(userId);
+  if (missing?.url === fullUrl && missing.expiresAt > Date.now()) return null;
+  _missing.delete(userId);
+
   // Deduplicate: if a fetch is already in-flight for this userId, reuse it.
   const existing = _inflight.get(userId);
   if (existing) return existing;
@@ -90,13 +100,14 @@ export async function getProfileImageBlobUrl(
   const generation = _generations.get(userId) ?? 0;
   const fetchPromise = Promise.resolve().then(async (): Promise<string | null> => {
     try {
-      const fullUrl = imageUrl.startsWith("/")
-        ? `${apiBaseUrl}${imageUrl}`
-        : imageUrl;
-
       const response = await fetch(fullUrl, { credentials: "include" });
 
-      if (response.status === 404) return null;
+      if (response.status === 404) {
+        if ((_generations.get(userId) ?? 0) === generation) {
+          _missing.set(userId, { url: fullUrl, expiresAt: Date.now() + MISSING_IMAGE_TTL_MS });
+        }
+        return null;
+      }
       if (!response.ok) {
         console.error(
           `[profileImageService] Failed to fetch profile image for ${userId}: ` +
@@ -143,6 +154,7 @@ export function invalidateProfileImageCache(userId: string): void {
     URL.revokeObjectURL(existing);
   }
   _cache.delete(userId);
+  _missing.delete(userId);
   // Also clear any in-flight promise so the next call starts a fresh request.
   _inflight.delete(userId);
 }
