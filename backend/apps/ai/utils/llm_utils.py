@@ -3,7 +3,7 @@
 # ruff: noqa: E402
 
 import logging
-from typing import Dict, Any, List, Optional, AsyncIterator, Union
+from typing import Callable, Dict, Any, List, Optional, AsyncIterator, Union
 import copy
 from pydantic import BaseModel
 import json
@@ -955,6 +955,7 @@ class LLMPreprocessingCallResult(BaseModel):
     arguments: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
     raw_provider_response_summary: Optional[Dict[str, Any]] = None
+    usage_telemetry: Optional[Dict[str, Any]] = None
 
 async def call_preprocessing_llm(
     task_id: str,
@@ -969,6 +970,8 @@ async def call_preprocessing_llm(
     reasoning_effort: Optional[str] = None,
     temperature: Optional[float] = None,
     observability_purpose: str = "preprocess",
+    usage_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+    max_output_tokens: Optional[int] = None,
 ) -> LLMPreprocessingCallResult:
     if reasoning_effort not in {None, "low", "medium", "high"}:
         raise ValueError("reasoning_effort must be one of: low, medium, high")
@@ -978,6 +981,11 @@ async def call_preprocessing_llm(
         or not 0.0 <= temperature <= 2.0
     ):
         raise ValueError("temperature must be a number between 0.0 and 2.0")
+    if max_output_tokens is not None and (
+        isinstance(max_output_tokens, bool) or not isinstance(max_output_tokens, int)
+        or max_output_tokens < 1
+    ):
+        raise ValueError("max_output_tokens must be a positive integer")
 
     logger.info(f"[{task_id}] LLM Utils: Calling preprocessing LLM {model_id}.")
 
@@ -1255,6 +1263,7 @@ async def call_preprocessing_llm(
         is_primary_model: bool = False,
     ) -> LLMPreprocessingCallResult:
         """Calls a single provider with the given model_id. Returns result with error if provider fails."""
+        requested_model_id = provider_model_id
         provider_prefix = ""
         actual_model_id = provider_model_id
         
@@ -1349,6 +1358,8 @@ async def call_preprocessing_llm(
                         provider_request_kwargs["reasoning_effort"] = reasoning_effort
                     if temperature is not None:
                         provider_request_kwargs["temperature"] = temperature
+                    if max_output_tokens is not None:
+                        provider_request_kwargs["max_tokens"] = max_output_tokens
                     effective_timeout = PREPROCESSING_TIMEOUT_SECONDS
                     if timeout_seconds is not None:
                         effective_timeout = min(PREPROCESSING_TIMEOUT_SECONDS, max(0.0, timeout_seconds))
@@ -1362,7 +1373,7 @@ async def call_preprocessing_llm(
                     )
                     provider_elapsed_seconds = asyncio.get_running_loop().time() - provider_started_at
                     usage = getattr(response, "usage", None)
-                    usage_data = usage.model_dump(exclude_none=True) if hasattr(usage, "model_dump") else {}
+                    usage_data = usage.model_dump(exclude_none=True) if hasattr(usage, "model_dump") else usage if isinstance(usage, dict) else {}
                     provider_input_tokens = (
                         usage_data.get("prompt_token_count")
                         or usage_data.get("prompt_tokens")
@@ -1385,7 +1396,28 @@ async def call_preprocessing_llm(
                         provider_output_tokens,
                         bool(getattr(response, "success", False)),
                     )
-                    return handle_response(response, expected_tool_name)
+                    result = handle_response(response, expected_tool_name)
+                    # Missing provider counts retain the reserved hold; never infer zero usage.
+                    input_count = next((usage_data[key] for key in ("prompt_token_count", "prompt_tokens", "input_tokens") if isinstance(usage_data.get(key), int)), None)
+                    output_count = next((usage_data[key] for key in ("candidates_token_count", "completion_tokens", "output_tokens") if isinstance(usage_data.get(key), int)), None)
+                    if output_count is not None and provider_prefix in {"google", "google_ai_studio"}:
+                        # Production's Google adapter retains total counts but omits
+                        # thinking counts. Total minus prompt includes billed reasoning.
+                        total_count = usage_data.get("total_token_count")
+                        if isinstance(total_count, int) and input_count is not None:
+                            output_count = max(output_count, total_count - input_count)
+                        else:
+                            output_count += usage_data.get("thoughts_token_count") or 0
+                    result.usage_telemetry = {
+                        "model_id": requested_model_id, "inference_host": provider_prefix,
+                        "input_tokens": input_count, "output_tokens": output_count,
+                    }
+                    if usage is not None and usage_callback is not None:
+                        try:
+                            usage_callback(dict(result.usage_telemetry))
+                        except Exception as usage_error:
+                            logger.warning("Auxiliary usage callback failed: %s", type(usage_error).__name__)
+                    return result
                 except asyncio.TimeoutError:
                     remaining_budget = _remaining_preprocessing_budget_seconds()
                     if remaining_budget is not None and remaining_budget <= 0:

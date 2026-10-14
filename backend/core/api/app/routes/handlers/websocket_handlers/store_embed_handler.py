@@ -103,9 +103,10 @@ async def handle_store_embed(
             for field in ("hashed_team_id", "workspace_origin", "root_embed_id", "apps_workspace_root_id"):
                 payload.pop(field, None)
             if app_id is not None or skill_id is not None:
-                catalog_id = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
-                if not (isinstance(app_id, str) and catalog_id.fullmatch(app_id)
-                        and isinstance(skill_id, str) and catalog_id.fullmatch(skill_id)
+                app_catalog_id = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+                skill_catalog_id = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
+                if not (isinstance(app_id, str) and app_catalog_id.fullmatch(app_id)
+                        and isinstance(skill_id, str) and skill_catalog_id.fullmatch(skill_id)
                         and isinstance(chat_id, str)
                         and payload.get("hashed_chat_id") == hashlib.sha256(chat_id.encode()).hexdigest()):
                     await _reject_store_embed_write(manager, user_id, device_fingerprint_hash, embed_id, "invalid app catalog context")

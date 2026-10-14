@@ -235,3 +235,57 @@ def test_dev_apps_workspace_credentialed_cors_precedes_public_api() -> None:
         return
 
     pytest.fail("Could not find credentialed and public Apps routes in adapted dev Caddyfile")
+
+
+@pytest.mark.parametrize("caddyfile", (REPO_ROOT / "deployment/prod_server/Caddyfile", REPO_ROOT / "deployment/Caddyfile.example"))
+@pytest.mark.parametrize("probe_path", [
+    "/v1/embeds/chats/*",
+])
+def test_personal_child_embed_reads_use_credentialed_cors(
+    caddyfile: Path, tmp_path: Path, probe_path: str,
+) -> None:
+    """Personal child ciphertext reads must preserve credentialed CORS before wildcard routes."""
+    caddy = shutil.which("caddy")
+    if caddy is None:
+        pytest.skip("caddy is not installed")
+    env = os.environ.copy()
+    env.setdefault("GANDI_BEARER_TOKEN", "openmates-caddyfile-syntax-check-token")
+    source = caddyfile
+    if caddyfile.name == "Caddyfile.example":
+        source = tmp_path / "Caddyfile"
+        content = caddyfile.read_text()
+        values = {"YOUR_EMAIL@example.com": "admin@example.test", "API_DOMAIN": "api.example.test", "FRONTEND_DOMAIN": "app.example.test", "UPLOAD_DOMAIN": "upload.example.test", "SERVICE_DOMAIN": "service.example.test", "API_UPSTREAM": "localhost:8000", "WEBAPP_UPSTREAM": "localhost:5173", "UPLOADS_UPSTREAM": "localhost:8001", "LOCAL_UPLOADS_UPSTREAM": "localhost:8002", "SERVICE_UPSTREAM": "localhost:8003"}
+        for name, value in values.items():
+            content = content.replace(f"<{name}>", value)
+        source.write_text(content)
+    result = subprocess.run(
+        [caddy, "adapt", "--config", str(source), "--adapter", "caddyfile"],
+        cwd=REPO_ROOT, env=env, text=True, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, check=False,
+    )
+    if "module not registered: dns.providers.gandi" in result.stderr:
+        pytest.skip("installed caddy lacks the Gandi DNS module")
+    assert result.returncode == 0, result.stderr
+
+    for routes in _route_lists(json.loads(result.stdout)):
+        public_routes = {
+            "OPTIONS" if route.get("match", [{}])[0].get("method") == ["OPTIONS"] else "actual": index
+            for index, route in enumerate(routes)
+            if "/v1/embeds/*" in _matched_paths(route)
+            and "headers" in _nested_handlers(route)
+        }
+        if set(public_routes) != {"OPTIONS", "actual"}:
+            continue
+        for method, public_index in public_routes.items():
+            matches = [
+                (index, route) for index, route in enumerate(routes)
+                if probe_path in _matched_paths(route)
+                and (route.get("match", [{}])[0].get("method") == ["OPTIONS"]) == (method == "OPTIONS")
+            ]
+            assert len(matches) == 1, method
+            index, route = matches[0]
+            assert index < public_index, method
+            assert "reverse_proxy" in _nested_handlers(route)
+            assert "headers" not in _nested_handlers(route)
+        return
+    pytest.fail(f"Could not find credentialed and public embed routes in {caddyfile}")

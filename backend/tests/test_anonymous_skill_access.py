@@ -36,6 +36,129 @@ from backend.shared.python_utils.anonymous_skill_policy import has_single_anonym
 from backend.tests.test_anonymous_free_usage_budget import FakeCache, FakeDirectus
 
 
+# contract-test: supporting surface=rest_api assertions=billing.anonymous.local-only-content
+def test_anonymous_code_and_plot_fences_become_local_embeds_without_rewriting_bash() -> None:
+    from toon_format import decode
+
+    content = (
+        'Set the VM name.\n```bash:vm.sh\nVM_NAME="test-vm"\n'
+        'echo "${VM_NAME}"\n```\n```plot\nf(x)=x^2\n```\n'
+        '```json\n{"type":"app_skill_use","embed_id":"existing",'
+        '"app_id":"web","skill_id":"search"}\n```'
+    )
+    rendered, embeds = anonymous_routes._transient_anonymous_fence_embeds(content)
+
+    assert [embed["type"] for embed in embeds] == ["code", "math-plot"]
+    assert decode(embeds[0]["content"])["code"] == 'VM_NAME="test-vm"\necho "${VM_NAME}"'
+    assert decode(embeds[0]["content"])["filename"] == "vm.sh"
+    assert decode(embeds[1]["content"])["plot_spec"] == "f(x)=x^2"
+    assert rendered.count('```json\n{"type":') == 3
+    assert '"embed_id":"existing"' in rendered
+    assert "${VM_NAME}" not in rendered
+    # Generated display references are safe to discard from untrusted history.
+    projected = anonymous_routes._anonymous_history_content({"role": "assistant", "content": rendered})
+    assert all(embed["embed_id"] not in projected for embed in embeds)
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering,billing.anonymous.local-only-content
+async def test_anonymous_postprocessor_uses_detected_language_and_actual_usage(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.apps.ai.processing import main_processor, model_usage_tracker, postprocessor
+
+    calls: list[tuple[str, Any]] = []
+
+    class UsageService:
+        async def reserve_operation(self, **kwargs: Any) -> AnonymousReservationResult:
+            calls.append(("reserve", kwargs))
+            return AnonymousReservationResult(accepted=True, request_id=kwargs["operation_id"])
+
+        async def finalize_charge(self, charge_id: str, *, actual_credits: int) -> None:
+            calls.append(("finalize", {"charge_id": charge_id, "actual_credits": actual_credits}))
+
+    async def fake_postprocessor(**kwargs: Any) -> postprocessor.PostProcessingResult:
+        assert kwargs["is_incognito"] is False
+        assert kwargs["allow_model_fallbacks"] is False
+        assert kwargs["translate_ui_metadata"] is False
+        assert kwargs["output_language"] == "de"
+        assert kwargs["user_system_language"] == "de"
+        assert kwargs["current_chat_title"] == "Deutscher Titel"
+        assert kwargs["available_app_ids"] == ["web"]
+        assert [skill["id"] for skill in kwargs["available_skills"]] == ["web-search"]
+        return postprocessor.PostProcessingResult(
+            follow_up_request_suggestions=["Erkläre mir den nächsten Schritt"],
+            chat_summary="Wir haben den nächsten Schritt erklärt",
+            updated_chat_title="Ein besserer deutscher Titel",
+            usage_telemetry={"input_tokens": 100, "output_tokens": 30, "inference_host": "google"},
+        )
+
+    monkeypatch.setattr(main_processor, "_quote_ai_iteration_credits", lambda **kwargs: 10)
+    monkeypatch.setattr(model_usage_tracker, "calculate_model_usage_credits", lambda *args, **kwargs: 2)
+    monkeypatch.setattr(postprocessor, "handle_postprocessing", fake_postprocessor)
+
+    class MetadataCache(FakeCache):
+        async def get_discovered_apps_metadata(self) -> dict[str, Any]:
+            def skill(skill_id: str, access: str) -> SimpleNamespace:
+                return SimpleNamespace(
+                    id=skill_id, anonymous_access=access, internal=False, preprocessor_hint="Test hint",
+                    api_config=None,
+                )
+            return {
+                "web": SimpleNamespace(skills=[skill("search", "inline"), skill("read", "inline")]),
+                "tasks": SimpleNamespace(skills=[skill("search", "inline")]),
+            }
+
+    payload = AnonymousChatStreamRequest(
+        anonymous_id="anon-1", client_chat_id="chat-1", client_message_id="msg-1",
+        plaintext_message="Wie geht es weiter?", system_language="de",
+    )
+    event = await anonymous_routes._anonymous_post_processing_event(
+        chat_id="chat-1", task_id="task-1", payload=payload,
+        assistant="So geht es weiter.",
+        generated_metadata={"title": "Deutscher Titel", "output_language": "de"},
+        cache_service=MetadataCache(), usage_service=UsageService(), parent_request_id="parent-1",
+    )
+
+    assert event["follow_up_request_suggestions"] == ["Erkläre mir den nächsten Schritt"]
+    assert event["chat_summary"] == "Wir haben den nächsten Schritt erklärt"
+    assert event["updated_chat_title"] == "Ein besserer deutscher Titel"
+    assert calls == [
+        ("reserve", {"parent_request_id": "parent-1", "operation_id": "anonymous-postprocess:task-1",
+                     "charge_id": "anonymous-postprocess:task-1", "quoted_credits": 10}),
+        ("finalize", {"charge_id": "anonymous-postprocess:task-1", "actual_credits": 2}),
+    ]
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+async def test_anonymous_postprocessor_skips_provider_when_quote_denied(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.apps.ai.processing import main_processor, postprocessor
+
+    class DeniedUsageService:
+        async def reserve_operation(self, **kwargs: Any) -> AnonymousReservationResult:
+            return AnonymousReservationResult(accepted=False, request_id=kwargs["operation_id"], reason="budget_exhausted")
+
+        async def finalize_charge(self, *args: Any, **kwargs: Any) -> None:
+            pytest.fail("Denied metadata operation must not finalize")
+
+    async def unexpected_postprocessor(**kwargs: Any) -> Any:
+        pytest.fail("Denied metadata operation must not call a provider")
+
+    monkeypatch.setattr(main_processor, "_quote_ai_iteration_credits", lambda **kwargs: 10)
+    monkeypatch.setattr(postprocessor, "handle_postprocessing", unexpected_postprocessor)
+    payload = AnonymousChatStreamRequest(
+        anonymous_id="anon-1", client_chat_id="chat-1", client_message_id="msg-1",
+        plaintext_message="Wie geht es weiter?", system_language="de", current_chat_summary="Vorher",
+    )
+    event = await anonymous_routes._anonymous_post_processing_event(
+        chat_id="chat-1", task_id="task-1", payload=payload,
+        assistant="So geht es weiter.", generated_metadata={},
+        cache_service=FakeCache(), usage_service=DeniedUsageService(), parent_request_id="parent-1",
+    )
+
+    assert event["chat_summary"] == "Vorher"
+    assert event["follow_up_request_suggestions"] == []
+
+
 @pytest.fixture(autouse=True)
 def use_in_process_anonymous_meter(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
@@ -358,6 +481,7 @@ async def test_anonymous_chat_dispatches_ai_with_open_request_ledger(
             assert request_body["is_anonymous"] is True
             assert request_body["is_incognito"] is True
             assert request_body["apps_enabled"] is True
+            assert request_body["anonymous_current_chat_title"] == payload.current_chat_title
             assert request_body["messages"][-1]["content"] == "Reply with exactly: anonymous inference ok"
             if history_content is not None:
                 assert request_body["messages"][0] == {
@@ -392,6 +516,7 @@ async def test_anonymous_chat_dispatches_ai_with_open_request_ledger(
         client_chat_id="chat-1",
         client_message_id="message-1",
         plaintext_message="Reply with exactly: anonymous inference ok",
+        current_chat_title="Bestehender Titel" if history_content is not None else None,
         message_history=[] if history_content is None else [{
             "role": "assistant", "content": history_content, "created_at": 1,
             "sender_name": "assistant",
@@ -415,6 +540,10 @@ async def test_anonymous_chat_dispatches_ai_with_open_request_ledger(
         "ai_task_ended",
         "post_processing_completed",
     ]
+    assert events[1]["title"] == (
+        "Bestehender Titel" if history_content is not None
+        else "Reply with exactly: anonymous inference ok"
+    )
     final_chunk = events[2]
     assert final_chunk["message_id"] != payload.client_message_id
     assert final_chunk["message_id"].startswith("chat-1-")
@@ -422,8 +551,10 @@ async def test_anonymous_chat_dispatches_ai_with_open_request_ledger(
     assert final_chunk["is_final_chunk"] is True
     post_processing = events[4]
     assert post_processing["chat_id"] == payload.client_chat_id
-    assert post_processing["chat_summary"] == "anonymous inference ok"
-    assert len(post_processing["follow_up_request_suggestions"]) == 6
+    # The fake main result has no preprocessing metadata, and this unit test
+    # does not configure a priced postprocessing model.
+    assert post_processing["chat_summary"] == ""
+    assert post_processing["follow_up_request_suggestions"] == []
     status = await service.get_budget_status()
     assert status.daily_used_credits == 0
     assert any(row.get("status") == "request_open" for row in directus.reservations.values())

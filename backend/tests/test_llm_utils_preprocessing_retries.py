@@ -476,3 +476,37 @@ async def test_preprocessing_reserves_budget_for_remaining_configured_providers(
         assert result.error_message == "Request timeout after 25s"
     if total_budget > 0:
         assert clock[0] < total_budget
+
+
+# contract-test: supporting surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+@pytest.mark.anyio
+@pytest.mark.parametrize("counts, expected", [
+    ({"prompt_token_count": 100, "candidates_token_count": 20, "total_token_count": 150}, (100, 50)),
+    ({"prompt_token_count": 100}, (100, None)),
+])
+async def test_auxiliary_usage_reports_actual_google_counts_and_caps_output(monkeypatch, counts, expected):
+    from backend.apps.ai.llm_providers.google_client import UnifiedGoogleResponse, GoogleUsageMetadata, ParsedGoogleToolCall
+    calls = []
+    usage_events = []
+
+    async def provider(**kwargs):
+        calls.append(kwargs)
+        return UnifiedGoogleResponse(task_id="guest-budget", model_id="model", success=True, usage=GoogleUsageMetadata(**counts), tool_calls_made=[ParsedGoogleToolCall(tool_call_id="call", function_name="expected_tool", function_arguments_raw="{}", function_arguments_parsed={})])
+
+    class CacheServiceWithoutClient:
+        @property
+        async def client(self):
+            return None
+
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _provider: provider)
+    monkeypatch.setattr(llm_utils, "CacheService", CacheServiceWithoutClient)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _model: (None, None))
+    result = await llm_utils.call_preprocessing_llm(
+        task_id="guest-budget", model_id="google/model", message_history=[{"role": "user", "content": "Hallo"}],
+        tool_definition=_tool_definition(), fallback_models=[], usage_callback=usage_events.append, max_output_tokens=2048,
+    )
+    assert len(calls) == 1
+    assert calls[0]["max_tokens"] == 2048
+    assert len(usage_events) == 1
+    assert (result.usage_telemetry["input_tokens"], result.usage_telemetry["output_tokens"]) == expected
+    assert usage_events[0]["model_id"] == "google/model"
