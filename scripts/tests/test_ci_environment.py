@@ -66,6 +66,25 @@ def test_vault_image_uses_verified_pinned_mirror():
     )
 
 
+def test_telemetry_proxy_fixture_credentials_are_api_only_and_isolated(monkeypatch):
+    monkeypatch.setenv("OPENOBSERVE_ROOT_EMAIL", "operator-private@example.invalid")
+    monkeypatch.setenv("OPENOBSERVE_ROOT_PASSWORD", "operator-secret-sentinel")
+    ordinary = compose_profile("a" * 40)
+    profile = compose_profile("a" * 40, telemetry_proxy=True)
+    assert profile["networks"]["default"]["internal"] is True
+    assert "openobserve" not in profile["services"]
+    for service in ordinary["services"].values():
+        assert "OPENOBSERVE_ROOT_PASSWORD" not in service.get("environment", {})
+    for name, service in profile["services"].items():
+        environment = service.get("environment", {})
+        if name == "api":
+            assert environment["OPENOBSERVE_ROOT_EMAIL"] == "telemetry-fixture@example.com"
+            assert len(environment["OPENOBSERVE_ROOT_PASSWORD"]) == 48
+            assert "operator-secret-sentinel" not in environment.values()
+        else:
+            assert "OPENOBSERVE_ROOT_PASSWORD" not in environment
+
+
 def test_signup_mail_capture_stays_on_disposable_internal_network():
     normal = compose_profile("a" * 40)
     assert "mailpit" not in normal["services"]

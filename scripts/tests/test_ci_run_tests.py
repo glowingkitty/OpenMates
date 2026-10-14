@@ -322,7 +322,7 @@ def test_mixed_browser_batch_uses_three_private_dm_accounts_without_identity_ove
 
     web = tmp_path / "web"
     (web / "tests").mkdir(parents=True)
-    specs = ["ordinary-before.spec.ts", "teams-direct-chat.spec.ts", "storage-capacity-replay.spec.ts"]
+    specs = ["ordinary-before.spec.ts", "teams-direct-chat.spec.ts", "storage-capacity-replay.spec.ts", "telemetry-proxy-api.spec.ts"]
     for spec in specs:
         (web / "tests" / spec).write_text("// isolated browser test\n")
     results = tmp_path / "results"
@@ -343,8 +343,8 @@ def test_mixed_browser_batch_uses_three_private_dm_accounts_without_identity_ove
 
     monkeypatch.setattr(runner.subprocess, "Popen", lambda *args, **kwargs: Process())
 
-    def provision(slot, *, identity_index):
-        calls.append((slot, identity_index))
+    def provision(slot, *, identity_index, admin=False):
+        calls.append((slot, identity_index, admin))
         return {
             "OPENMATES_TEST_ACCOUNT_EMAIL": f"ci-{identity_index}@example.com",
             "OPENMATES_TEST_ACCOUNT_PASSWORD": f"password-{identity_index}",
@@ -364,10 +364,11 @@ def test_mixed_browser_batch_uses_three_private_dm_accounts_without_identity_ove
     monkeypatch.setattr(runner, "run_storage_capacity", lambda *, identity_start, **kwargs:
                         capacity_starts.append(identity_start) or {"suite": "storage-capacity", "exit_code": 0})
     receipts = runner.run_e2e(specs)
-    assert calls == [(14, 0), (15, 1), (14, 2), (15, 3), (16, 4), (14, 5), (15, 6)]
-    assert [len(item["accounts"]["identity_hashes"]) for item in receipts[:3]] == [2, 3, 2]
-    assert len({identity for item in receipts[:3] for identity in item["accounts"]["identity_hashes"]}) == 7
-    assert capacity_starts == [7]
+    assert calls == [(14, 0, False), (15, 1, False), (14, 2, False), (15, 3, False), (16, 4, False), (14, 5, False), (15, 6, False), (14, 7, True), (15, 8, False)]
+    browser_receipts = [item for item in receipts if "accounts" in item]
+    assert [len(item["accounts"]["identity_hashes"]) for item in browser_receipts] == [2, 3, 2, 2]
+    assert len({identity for item in browser_receipts for identity in item["accounts"]["identity_hashes"]}) == 9
+    assert capacity_starts == [9]
     assert environments[1]["OPENMATES_TEST_ACCOUNT_3_EMAIL"] == "ci-4@example.com"
     assert environments[1]["OPENMATES_TEST_ACCOUNT_3_OTP_KEY"] == "otp-4"
     assert "OPENMATES_TEST_ACCOUNT_3_EMAIL" not in environments[0]

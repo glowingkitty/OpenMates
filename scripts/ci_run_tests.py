@@ -644,7 +644,7 @@ def pace_signup():
     _last_signup_started = time.monotonic()
 
 
-def provision_account(slot: int, *, identity_index: int, cli_slot: int | None = None) -> dict:
+def provision_account(slot: int, *, identity_index: int, cli_slot: int | None = None, admin: bool = False) -> dict:
     """Use real client crypto/auth; keep the fixture identity separate from CLI slot labels."""
     cli_slot = slot if cli_slot is None else cli_slot
     if cli_slot not in (14, 15, 16, 17, 18, 19, 20):
@@ -655,7 +655,7 @@ def provision_account(slot: int, *, identity_index: int, cli_slot: int | None = 
     invite = secrets.token_hex(9)
     request(
         "http://localhost:8055/items/invite_codes",
-        {"code": invite, "remaining_uses": 1, "is_admin": False, "gifted_credits": FIXTURE_CREDITS},
+        {"code": invite, "remaining_uses": 1, "is_admin": admin, "gifted_credits": FIXTURE_CREDITS},
         token,
     )
     private = COMPOSE_PATH.parent
@@ -1357,7 +1357,7 @@ def run_e2e(
                     capacity_epoch_receipt = activate_isolated_recovery_epoch()
                     recovery_epoch_receipt = capacity_epoch_receipt
                 if not account_free:
-                    primary = provision_account(14, identity_index=first_identity_index)
+                    primary = provision_account(14, identity_index=first_identity_index, **({"admin": True} if name == "telemetry-proxy-api.spec.ts" else {}))
                     if "OPENMATES_TEST_ACCOUNT_API_KEY" in source and not local_signup_assertion:
                         primary["OPENMATES_TEST_ACCOUNT_API_KEY"] = provision_api_key(primary)
                     secondary = provision_account(15, identity_index=first_identity_index + 1)
