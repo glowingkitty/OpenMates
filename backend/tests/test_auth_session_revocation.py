@@ -23,6 +23,8 @@ OTHER_TOKEN_HASH = hashlib.sha256(OTHER_REFRESH_TOKEN.encode()).hexdigest()
 CURRENT_CONNECTION_HASH = "a" * 64
 TARGET_CONNECTION_HASH = "b" * 64
 OTHER_CONNECTION_HASH = "c" * 64
+CURRENT_LOGICAL_SESSION = "current-logical-session"
+TARGET_LOGICAL_SESSION = "target-logical-session"
 
 
 class FakeCache:
@@ -121,13 +123,18 @@ def _revoke_session(monkeypatch: pytest.MonkeyPatch):
     _stub_auth_session_imports(monkeypatch)
     from backend.core.api.app.routes.auth_routes import auth_sessions
     monkeypatch.setattr(auth_sessions, "revoke_session_state", AsyncMock())
+    monkeypatch.setattr(
+        auth_sessions, "_trusted_logical_session_id",
+        AsyncMock(side_effect=lambda _directus, _cache, token_hash, _user_id:
+                  TARGET_LOGICAL_SESSION if token_hash == TARGET_TOKEN_HASH else CURRENT_LOGICAL_SESSION),
+    )
 
     return auth_sessions.revoke_session
 
 
 @pytest.mark.asyncio
 # contract-test: direct surface=rest_api assertions=auth.session.lifecycle
-async def test_revoke_session_targets_revoked_connection_hash(monkeypatch):
+async def test_revoke_session_targets_every_tab_of_revoked_logical_session(monkeypatch):
     revoke_session = _revoke_session(monkeypatch)
     cache = FakeCache({
         CURRENT_TOKEN_HASH: {"connection_hash": CURRENT_CONNECTION_HASH},
@@ -155,7 +162,8 @@ async def test_revoke_session_targets_revoked_connection_hash(monkeypatch):
     channel, event = cache.published[0]
     assert channel == f"user_updates::{USER_ID}"
     assert event["event_for_client"] == "force_logout"
-    assert event["target_device_fingerprint_hash"] == TARGET_CONNECTION_HASH
+    assert event["target_logical_session_id"] == TARGET_LOGICAL_SESSION
+    assert "target_device_fingerprint_hash" not in event
     assert event["payload"] == {
         "reason": "session_revoked",
         "revoked_session_id": TARGET_TOKEN_HASH[:12],
@@ -164,7 +172,7 @@ async def test_revoke_session_targets_revoked_connection_hash(monkeypatch):
 
 @pytest.mark.asyncio
 # contract-test: direct surface=rest_api assertions=auth.session.lifecycle
-async def test_revoke_session_without_target_hash_does_not_broadcast_to_other_sessions(monkeypatch):
+async def test_revoke_session_with_missing_legacy_connection_hash_still_targets_ledger_session(monkeypatch):
     revoke_session = _revoke_session(monkeypatch)
     cache = FakeCache({
         CURRENT_TOKEN_HASH: {"connection_hash": CURRENT_CONNECTION_HASH},
@@ -187,4 +195,5 @@ async def test_revoke_session_without_target_hash_does_not_broadcast_to_other_se
         CURRENT_TOKEN_HASH,
         OTHER_TOKEN_HASH,
     }
-    assert cache.published == []
+    assert len(cache.published) == 1
+    assert cache.published[0][1]["target_logical_session_id"] == TARGET_LOGICAL_SESSION

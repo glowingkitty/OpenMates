@@ -7,6 +7,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ChatSynchronizationService } from "../chatSyncService";
 import { hasQueuedProcessing } from "../queuedMessageLifecycle";
+import { markAcknowledgedRecoveredEmbed, withCanonicalEmbedWrite } from "../canonicalEmbedWriteCoordinator";
 import {
   clearPendingQueuedRevisionsImpl,
   clearProcessedEmbedsTracking,
@@ -1224,6 +1225,25 @@ describe("handleEmbedUpdateImpl", () => {
     vi.clearAllMocks();
   });
 
+  // contract-test: supporting surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it("treats a hashed-chat server broadcast as a refresh hint, without another v1 write", async () => {
+    const embedId = "broadcast-parent-1";
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+
+    await handleEmbedUpdateImpl(service, {
+      type: "embed_update", event_for_client: "embed_update", embed_id: embedId,
+      chat_id: "a".repeat(64), message_id: "", user_id_uuid: "",
+      user_id_hash: "", status: "finished", child_embed_ids: ["child-1"],
+    });
+
+    expect(mockEmbedStore.get).not.toHaveBeenCalled();
+    expect(mockEmbedStore.removeFromMemoryCache).toHaveBeenCalledWith(`embed:${embedId}`);
+    expect(mockSendStoreEmbed).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: "embedUpdated", detail: expect.objectContaining({ embed_id: embedId, status: "finished" }),
+    }));
+  });
+
   // contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity,chats.local-state.precedence
   it("keeps placeholder embeds processing until final content arrives", async () => {
     const existingEmbed = {
@@ -1264,6 +1284,64 @@ describe("handleEmbedUpdateImpl", () => {
         }),
       }),
     );
+  });
+
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it("does not recipher a parent whose finished v1 head was already acknowledged", async () => {
+    const embedId = "recovered-parent-1";
+    const existingEmbed = {
+      embed_id: embedId, status: "processing", version_number: 1,
+      content: "app_id: images\nskill_id: generate\nstatus: finished\nresult_count: 1",
+      chat_id: "chat-1", message_id: "message-1", embed_ids: ["child-1"],
+    };
+    mockEmbedStore.get.mockResolvedValue(existingEmbed);
+    await withCanonicalEmbedWrite(embedId, async (lease) => {
+      markAcknowledgedRecoveredEmbed(lease, "chat-1", 1);
+    });
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+
+    await handleEmbedUpdateImpl(service, {
+      type: "embed_update", event_for_client: "embed_update", embed_id: embedId,
+      chat_id: "chat-1", message_id: "message-1", user_id_uuid: "user-1",
+      user_id_hash: "hashed-user-1", status: "finished", child_embed_ids: ["child-1"],
+    });
+
+    expect(mockEmbedStore.removeFromMemoryCache).toHaveBeenCalledWith(`embed:${embedId}`);
+    expect(mockEmbedStore.putEncrypted).not.toHaveBeenCalled();
+    expect(mockSendStoreEmbed).not.toHaveBeenCalled();
+    expect(existingEmbed.status).toBe("processing");
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: "embedUpdated", detail: expect.objectContaining({ embed_id: embedId, status: "finished" }),
+    }));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=storage.background.complete-sealed-recovery
+  it("allows a newer producer version to continue through the final-content wait", async () => {
+    const embedId = "versioned-parent-1";
+    const existingEmbed = {
+      embed_id: embedId, status: "processing", version_number: 2,
+      content: "app_id: images\nskill_id: generate\nstatus: processing",
+      chat_id: "chat-1", message_id: "message-1", embed_ids: [] as string[],
+    };
+    mockEmbedStore.get.mockResolvedValue(existingEmbed);
+    await withCanonicalEmbedWrite(embedId, async (lease) => {
+      markAcknowledgedRecoveredEmbed(lease, "chat-1", 1);
+    });
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+
+    await handleEmbedUpdateImpl(service, {
+      type: "embed_update", event_for_client: "embed_update", embed_id: embedId,
+      chat_id: "chat-1", message_id: "message-1", user_id_uuid: "user-1",
+      user_id_hash: "hashed-user-1", status: "finished", child_embed_ids: ["child-2"],
+    });
+
+    expect(existingEmbed.embed_ids).toEqual(["child-2"]);
+    expect(existingEmbed.status).toBe("processing");
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: "embedUpdated", detail: expect.objectContaining({
+        embed_id: embedId, isWaitingForContent: true,
+      }),
+    }));
   });
 });
 

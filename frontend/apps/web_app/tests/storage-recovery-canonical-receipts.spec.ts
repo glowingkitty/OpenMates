@@ -33,6 +33,30 @@ async function recordedContext(browser: any, baseURL: string | undefined, label:
 	return context;
 }
 
+async function requireSignedReplayGate(page: any): Promise<void> {
+	const gatePresent = await page.evaluate(() => {
+		try {
+			const state = JSON.parse(sessionStorage.getItem('openmates_e2e_log_forwarding') ?? 'null');
+			return typeof state?.runId === 'string' && typeof state?.token === 'string';
+		} catch { return false; }
+	});
+	expect(gatePresent, 'Signed replay send gate must survive login').toBe(true);
+}
+
+async function requireSignedReplayHandoff(frames: RecoveryFrame[]): Promise<void> {
+	await expect.poll(() => frames.some((frame) => frame.direction === 'sent'
+		&& (frame.type === 'chat_turn_preflight' || frame.type === 'chat_turn_admit')),
+	{ timeout: 15_000, message: 'Signed replay must send a durable turn frame' }).toBe(true);
+	expect(frames.some((frame) => frame.direction === 'sent'
+		&& (frame.type === 'chat_turn_preflight' || frame.type === 'chat_turn_admit')
+		&& (frame.payload.inference_request as { test_mock_marker?: unknown } | undefined)?.test_mock_marker
+			=== '<<<TEST_LIVE_MOCK:storage_capacity_v1>>>'),
+	'Signed replay marker must reach the durable inference request').toBe(true);
+	await expect.poll(() => frames.some((frame) => frame.direction === 'received'
+		&& frame.type === 'chat_turn_preflight_debug' && frame.payload.phase === 'received'),
+	{ timeout: 15_000, message: 'Server must acknowledge receipt of the signed replay preflight' }).toBe(true);
+}
+
 function summarizeReceiptWire(frames: RecoveryFrame[], recordId: string): Array<Record<string, unknown>> {
 	const sentRequests = new Map<string, string>();
 	for (const frame of frames) {
@@ -114,6 +138,7 @@ test('legacy connection preserves typed rows while completing the existing v1 fi
 	const legacy = await legacyContext.newPage();
 	const capable = await capableContext.newPage();
 	const producerFrames: RecoveryFrame[] = [];
+	const producerSentFrames = observeRecoveryFrames(producer, true);
 	const legacyFrames = observeRecoveryFrames(legacy);
 	const capableFrames = observeRecoveryFrames(capable, true);
 	try {
@@ -122,9 +147,11 @@ test('legacy connection preserves typed rows while completing the existing v1 fi
 		await loginToTestAccount(producer, log, screenshot);
 		await requireActiveRecoveryDiscovery(producerFrames);
 		await startNewChat(producer, log);
+		await requireSignedReplayGate(producer);
 		await sendMessage(producer,
 			'Generate gated recovery data. STORAGE_CAPACITY_SCENARIO:recovery_embed <<<TEST_LIVE_MOCK:storage_capacity_v1>>>',
 			log, screenshot, 'storage-recovery-capability-producer');
+		await requireSignedReplayHandoff(producerSentFrames);
 		const chatId = producer.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1];
 		expect(chatId).toBeTruthy();
 		await expect.poll(() => availableOutputs(producerFrames, chatId!).length,
@@ -213,6 +240,32 @@ test('legacy connection preserves typed rows while completing the existing v1 fi
 		expect(headReceipt?.payload.canonical_digest).toMatch(/^[0-9a-f]{64}$/);
 		const keyReceipt = capableFrames.find((frame) => frame.type === 'store_embed_keys_confirmed');
 		expect(keyReceipt?.payload).toMatchObject({ requested_count: 2, created_count: 2, failed_count: 0 });
+		// contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+		const recoveredEmbed = availableOutputs(producerFrames, chatId!)
+			.find((output: any) => output.output_kind === 'embed') as { subject_id?: string } | undefined;
+		const recoveredEmbedId = recoveredEmbed?.subject_id;
+		if (!recoveredEmbedId) throw new Error('Signed recovery fixture returned no embed subject ID.');
+		const readCanonicalHead = () => capable.evaluate(async ({ apiOrigin, chatId, embedId }) => {
+			const response = await fetch(`${apiOrigin.replace(/\/$/, '')}/v1/embeds/chats/${encodeURIComponent(chatId)}`
+				+ `/embeds/${encodeURIComponent(embedId)}`, {
+				credentials: 'include', headers: { 'x-openmates-client-capabilities': 'agentic-storage-v2' },
+			});
+			if (!response.ok) throw new Error(`Canonical replay head read failed (${response.status})`);
+			const body = await response.json();
+			return { encryptedContent: body.embed.encrypted_content, version: body.embed.version_number };
+		}, { apiOrigin, chatId, embedId: recoveredEmbedId });
+		const beforeReplay = await readCanonicalHead();
+		const replay = (changeContent: boolean) => capable.evaluate(async ({ chatId, embedId, changeContent }) => {
+			const hook = (window as any).__openmatesE2EReplayCanonicalEmbedWrite;
+			if (typeof hook !== 'function') throw new Error('Canonical embed sender E2E hook is unavailable');
+			return hook({ chatId, embedId, changeContent });
+		}, { chatId, embedId: recoveredEmbedId, changeContent });
+		expect(await replay(false)).toEqual({ pending: false, connected: true });
+		expect(await readCanonicalHead()).toEqual(beforeReplay);
+		expect(await replay(true)).toEqual({ pending: true, connected: true });
+		expect(await readCanonicalHead()).toEqual(beforeReplay);
+		expect(capableFrames.filter((frame) => frame.type === 'error'
+			&& frame.payload.code === 'embed_write_denied').length).toBeGreaterThanOrEqual(2);
 	} finally {
 		await producerContext.close().catch(() => undefined);
 		await legacyContext.close().catch(() => undefined);
@@ -254,13 +307,16 @@ test('saved code embed and version diff replay with canonical ciphertext acknowl
 	});
 	try {
 		await disconnectCanonicalWrites(firstPage, firstFrames);
+		const firstSentFrames = observeRecoveryFrames(firstPage, true);
 		await installE2EServerContentOverrideGate(firstPage, 'storage-recovery-replay');
 		await loginToTestAccount(firstPage, log, screenshot);
 		await requireActiveRecoveryDiscovery(firstFrames);
 		await startNewChat(firstPage, log);
+		await requireSignedReplayGate(firstPage);
 		await sendMessage(firstPage,
 			'Generate the scripted code artifact. STORAGE_CAPACITY_SCENARIO:recovery_embed <<<TEST_LIVE_MOCK:storage_capacity_v1>>>',
 			log, screenshot, 'storage-recovery-embed');
+		await requireSignedReplayHandoff(firstSentFrames);
 		const chatId = firstPage.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1];
 		expect(chatId).toBeTruthy();
 		await withBillingFailureDiagnostic(firstFrames, 'saved-first-turn', () =>
@@ -301,6 +357,7 @@ test('saved code embed and version diff replay with canonical ciphertext acknowl
 			await loginToTestAccount(updatePage, log, screenshot);
 			await requireActiveRecoveryDiscovery(updateFrames);
 			await updatePage.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId)}`));
+			await requireSignedReplayGate(updatePage);
 			await sendMessage(updatePage,
 				'Apply the scripted patch to recovery_demo.py. STORAGE_CAPACITY_SCENARIO:recovery_diff <<<TEST_LIVE_MOCK:storage_capacity_v1>>>',
 				log, screenshot, 'storage-recovery-diff');
@@ -345,6 +402,7 @@ test('CLI bootstraps root wrappers before protected canonical reads and replay s
 	const context = await recordedContext(browser, baseURL, 'cli-pairing-and-producer');
 	const page = await context.newPage();
 	const frames: RecoveryFrame[] = [];
+	const sentFrames = observeRecoveryFrames(page, true);
 	const log = createSignupLogger('storage-cli-root-recovery');
 	const screenshot = createStepScreenshotter(log);
 	try {
@@ -354,9 +412,15 @@ test('CLI bootstraps root wrappers before protected canonical reads and replay s
 		await loginWorkflowCliViaPair(page, apiUrl, home, 'CLI_ROOT_RECOVERY');
 		await requireActiveRecoveryDiscovery(frames);
 		await startNewChat(page, log);
+		await requireSignedReplayGate(page);
+		const beforeBilling = isolatedBillingSnapshot('cli-producer-before-send');
+		expect(beforeBilling.status).toBe('ok');
+		const beforeBalance = beforeBilling.balance_credits;
+		expect(Number.isSafeInteger(beforeBalance)).toBe(true);
 		await sendMessage(page,
 			'Generate a CLI recovery artifact. STORAGE_CAPACITY_SCENARIO:recovery_embed <<<TEST_LIVE_MOCK:storage_capacity_v1>>>',
 			log, screenshot, 'storage-cli-root-producer');
+		await requireSignedReplayHandoff(sentFrames);
 		const chatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1];
 		expect(chatId).toBeTruthy();
 		await withBillingFailureDiagnostic(frames, 'cli-producer', () =>
@@ -391,6 +455,24 @@ test('CLI bootstraps root wrappers before protected canonical reads and replay s
 		expect(first.body.embed.version_number).toBe(output.output_version);
 		expect(first.body.embed.parent_embed_id ?? null).toBeNull();
 		expect(first.body.embed_keys.map((row: any) => row.key_type).sort()).toEqual(['chat', 'master']);
+		let chargedBalance: number | null = null;
+		await expect.poll(() => {
+			const billing = isolatedBillingSnapshot('cli-producer-charged');
+			if (typeof billing.balance_credits === 'number'
+				&& billing.balance_credits < (beforeBalance as number)) {
+				chargedBalance = billing.balance_credits;
+			}
+			return {
+				status: billing.status,
+				held: billing.active_held_count,
+				unmatched: billing.unmatched_settlement_count,
+				charged: typeof billing.balance_credits === 'number'
+					&& billing.balance_credits < (beforeBalance as number),
+			};
+		}, { timeout: 30_000, intervals: [1000, 1500, 3000],
+			message: 'The completed personal-chat turn must debit its disposable wallet without an unresolved hold' })
+			.toEqual({ status: 'ok', held: 0, unmatched: 0, charged: true });
+		expect(Number.isSafeInteger(chargedBalance)).toBe(true);
 		await runWorkflowCliJson(apiUrl, home, ['chats', 'show', chatId], 'Repeat root read', 180_000);
 		const repeated = await readHead();
 		expect(repeated.body.embed.encrypted_content).toBe(first.body.embed.encrypted_content);
@@ -402,17 +484,16 @@ test('CLI bootstraps root wrappers before protected canonical reads and replay s
 		await requireActiveRecoveryDiscovery(frames);
 		expect(availableOutputs(frames, chatId!).filter((row) => ['embed', 'diff'].includes(row.output_kind))).toEqual([]);
 		await expect.poll(() => {
-			const billing = isolatedBillingSnapshot('replay-settled');
+			const billing = isolatedBillingSnapshot('cli-producer-after-repeat');
 			return {
 				status: billing.status,
 				held: billing.active_held_count,
 				unmatched: billing.unmatched_settlement_count,
-				settled: Number((billing.reservation_status as any)?.settled) > 0,
-				charged: typeof billing.balance_credits === 'number' && billing.balance_credits < 1000,
+				balance: billing.balance_credits,
 			};
 		}, { timeout: 30_000, intervals: [1000, 1500, 3000],
-			message: 'Completed replay turns must settle their real reservations and wallet charges' })
-			.toEqual({ status: 'ok', held: 0, unmatched: 0, settled: true, charged: true });
+			message: 'Repeated CLI recovery must not debit the same personal-chat turn again' })
+			.toEqual({ status: 'ok', held: 0, unmatched: 0, balance: chargedBalance });
 	} finally {
 		await context.close();
 		removeWorkflowCliHome(home);

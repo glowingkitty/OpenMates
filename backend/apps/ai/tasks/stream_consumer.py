@@ -7,6 +7,7 @@ import os
 import re
 import time
 import json
+import uuid
 import httpx
 import asyncio
 from contextlib import contextmanager
@@ -147,6 +148,7 @@ ASSISTANT_RESPONSE_TIMESTAMP_OFFSET_SECONDS = 1
 
 SUB_CHAT_PENDING_TTL_SECONDS = 60 * 60 * 24
 SUB_CHAT_PENDING_KEY_PREFIX = "sub_chat_pending"
+SUB_CHAT_SOURCE_AUTHORITY_PREFIX = "sub_chat_source_authority"
 SUB_CHAT_PARENT_STATUS_MESSAGE = "I've started the sub-chats and will continue once they finish."
 
 
@@ -255,9 +257,12 @@ def _sub_chat_completion_summary(
     explicit_summary: Optional[str],
     aggregated_response: str,
     awaiting_sub_chats_completion: bool,
+    prefer_final_response: bool = False,
 ) -> Optional[str]:
     if awaiting_sub_chats_completion:
         return None
+    if prefer_final_response:
+        return aggregated_response
     return explicit_summary if explicit_summary is not None else aggregated_response
 
 
@@ -431,6 +436,70 @@ def _sub_chat_pending_key(parent_chat_id: str) -> str:
     return f"{SUB_CHAT_PENDING_KEY_PREFIX}:{parent_chat_id}"
 
 
+def _sub_chat_source_authority_key(task_id: str) -> str:
+    return f"{SUB_CHAT_SOURCE_AUTHORITY_PREFIX}:{task_id}"
+
+
+def _is_canonical_uuid(value: str) -> bool:
+    try:
+        return str(uuid.UUID(value)) == value
+    except (TypeError, ValueError, AttributeError):
+        return False
+
+
+def _web_source_bindings_from_outputs(bindings: list[dict[str, Any]]) -> dict[str, str]:
+    """Keep exact Web source ref→child UUID pairs from successful writer output."""
+    refs: dict[str, str] = {}
+    for row in bindings:
+        if not isinstance(row, dict) or (row.get("app_id"), row.get("skill_id")) != ("web", "search"):
+            continue
+        ref, embed_id = row.get("embed_ref"), row.get("embed_id")
+        if row.get("status") != "finished" or not isinstance(ref, str):
+            continue
+        try:
+            canonical_embed_id = str(uuid.UUID(embed_id))
+        except (TypeError, ValueError, AttributeError):
+            continue
+        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._~:-]{0,127}", ref):
+            if ref in refs and refs[ref] != canonical_embed_id:
+                raise RequiredRecoveryOutputError("Conflicting Web source identities in writer output")
+            refs[ref] = canonical_embed_id
+    return refs
+
+
+async def _load_sub_chat_source_authority(
+    cache_service: CacheService | None, task_id: str, request_data: AskSkillRequest,
+) -> set[str] | None:
+    """Read the private, exact-task citation set; request fields grant no authority."""
+    if not request_data.is_sub_chat_continuation or not cache_service:
+        return None
+    authority = await cache_service.get(_sub_chat_source_authority_key(task_id))
+    if not isinstance(authority, dict):
+        return None
+    if (authority.get("task_id") != task_id
+            or authority.get("owner_hash") != request_data.user_id_hash
+            or authority.get("chat_id") != request_data.chat_id
+            or authority.get("turn_id") != request_data.message_id
+            or authority.get("root_chat_id") != (request_data.root_chat_id or request_data.chat_id)
+            or authority.get("root_turn_id") != (request_data.root_turn_id or request_data.message_id)
+            or authority.get("orchestration_id") != request_data.orchestration_id
+            or authority.get("child_ids") != sorted(request_data.recovery_consumed_child_ids)):
+        return None
+    refs = authority.get("refs")
+    if (not isinstance(refs, list) or len(refs) > 200
+            or any(not isinstance(ref, str)
+                   or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._~:-]{0,127}", ref)
+                   for ref in refs)):
+        return None
+    bindings = authority.get("bindings")
+    if (not isinstance(bindings, dict) or len(bindings) > 200
+            or any(ref not in refs or not isinstance(embed_id, str)
+                   or not _is_canonical_uuid(embed_id)
+                   for ref, embed_id in bindings.items())):
+        return None
+    return set(refs)
+
+
 async def _summarize_stopped_sub_chat_with_gemini(
     *,
     summary: str,
@@ -529,6 +598,8 @@ async def _record_sub_chat_completion_and_maybe_continue_parent(
     log_prefix: str,
     secrets_manager: Optional[SecretsManager] = None,
     terminal_state: str = "completed",
+    source_refs: Optional[set[str]] = None,
+    source_bindings: Optional[dict[str, str]] = None,
 ) -> None:
     if not request_data.is_sub_chat or not request_data.parent_id:
         return
@@ -600,6 +671,14 @@ async def _record_sub_chat_completion_and_maybe_continue_parent(
         "completed_at": int(time.time()),
         "failed": terminal_state == "failed",
         "cancelled": terminal_state == "cancelled",
+        "source_refs": sorted(source_refs or set()),
+        "source_bindings": dict(sorted((source_bindings or {}).items())),
+        "chat_id": request_data.chat_id,
+        "parent_id": request_data.parent_id,
+        "owner_hash": request_data.user_id_hash,
+        "root_chat_id": request_data.root_chat_id or request_data.parent_id,
+        "root_turn_id": request_data.root_turn_id or request_data.message_id,
+        "orchestration_id": request_data.orchestration_id,
     }
     completion_key = f"sub_chat_completion:{request_data.parent_id}:{request_data.chat_id}"
     await cache_service.set(completion_key, completion_entry, ttl=SUB_CHAT_PENDING_TTL_SECONDS)
@@ -730,6 +809,7 @@ async def _record_sub_chat_completion_and_maybe_continue_parent(
             return
         await cache_service.set(pending_key, pending_context, ttl=SUB_CHAT_PENDING_TTL_SECONDS)
         await _dispatch_sub_chat_parent_continuation(
+            cache_service=cache_service,
             pending_context=pending_context,
             parent_chat_id=request_data.parent_id,
             log_prefix=log_prefix,
@@ -772,6 +852,7 @@ async def _record_sub_chat_completion_and_maybe_continue_parent(
 
     await cache_service.set(pending_key, pending_context, ttl=SUB_CHAT_PENDING_TTL_SECONDS)
     await _dispatch_sub_chat_parent_continuation(
+        cache_service=cache_service,
         pending_context=pending_context,
         parent_chat_id=request_data.parent_id,
         log_prefix=log_prefix,
@@ -783,8 +864,78 @@ async def _record_sub_chat_completion_and_maybe_continue_parent(
         await cache_service.delete(f"sub_chat_completion:{request_data.parent_id}:{chat_id}")
 
 
+def _verified_sub_chat_source_refs(
+    pending_context: dict[str, Any], original_request: AskSkillRequest,
+) -> list[str]:
+    """Use only source refs recorded by expected children of this owner and turn."""
+    completed = pending_context.get("completed") or {}
+    expected = pending_context.get("expected_sub_chat_ids") or []
+    if not isinstance(completed, dict) or not isinstance(expected, list):
+        return []
+    root_chat_id = original_request.root_chat_id or original_request.chat_id
+    root_turn_id = original_request.root_turn_id or original_request.message_id
+    refs: set[str] = set()
+    for child_id in expected:
+        entry = completed.get(child_id)
+        if not isinstance(entry, dict) or entry.get("failed") or entry.get("cancelled"):
+            continue
+        if (entry.get("chat_id") != child_id
+                or entry.get("parent_id") != original_request.chat_id
+                or entry.get("owner_hash") != original_request.user_id_hash
+                or entry.get("root_chat_id") != root_chat_id
+                or entry.get("root_turn_id") != root_turn_id
+                or entry.get("orchestration_id") != original_request.orchestration_id):
+            continue
+        source_refs = entry.get("source_refs")
+        if not isinstance(source_refs, list) or len(source_refs) > 200:
+            continue
+        for ref in source_refs:
+            if isinstance(ref, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._~:-]{0,127}", ref):
+                refs.add(ref)
+    return sorted(refs)
+
+
+def _verified_sub_chat_source_bindings(
+    pending_context: dict[str, Any], original_request: AskSkillRequest,
+) -> dict[str, str]:
+    """Retain exact child source identities for later quote verification work."""
+    completed = pending_context.get("completed") or {}
+    expected = pending_context.get("expected_sub_chat_ids") or []
+    if not isinstance(completed, dict) or not isinstance(expected, list):
+        return {}
+    root_chat_id = original_request.root_chat_id or original_request.chat_id
+    root_turn_id = original_request.root_turn_id or original_request.message_id
+    bindings: dict[str, str] = {}
+    for child_id in expected:
+        entry = completed.get(child_id)
+        if not isinstance(entry, dict) or entry.get("failed") or entry.get("cancelled"):
+            continue
+        if (entry.get("chat_id") != child_id
+                or entry.get("parent_id") != original_request.chat_id
+                or entry.get("owner_hash") != original_request.user_id_hash
+                or entry.get("root_chat_id") != root_chat_id
+                or entry.get("root_turn_id") != root_turn_id
+                or entry.get("orchestration_id") != original_request.orchestration_id):
+            continue
+        source_bindings = entry.get("source_bindings")
+        source_refs = entry.get("source_refs")
+        if (not isinstance(source_bindings, dict) or len(source_bindings) > 200
+                or not isinstance(source_refs, list)):
+            continue
+        for ref, embed_id in source_bindings.items():
+            if (not isinstance(ref, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._~:-]{0,127}", ref)
+                    or ref not in source_refs or not isinstance(embed_id, str)
+                    or not _is_canonical_uuid(embed_id)):
+                continue
+            if ref in bindings and bindings[ref] != embed_id:
+                raise RequiredRecoveryOutputError("Conflicting sub-chat source identities")
+            bindings[ref] = embed_id
+    return bindings
+
+
 async def _dispatch_sub_chat_parent_continuation(
     *,
+    cache_service: CacheService,
     pending_context: dict[str, Any],
     parent_chat_id: str,
     log_prefix: str,
@@ -878,6 +1029,31 @@ async def _dispatch_sub_chat_parent_continuation(
         embed_file_path_index=original_request.embed_file_path_index,
         has_image_upload_embed=getattr(original_request, "has_image_upload_embed", False),
     )
+
+    # The ref set is server-created, private and task-bound. It is never placed
+    # in AskSkillRequest, which can also be constructed at a client boundary.
+    continuation_task_id = continuation_task_id or str(uuid.uuid4())
+    source_refs = _verified_sub_chat_source_refs(pending_context, original_request)
+    source_bindings = _verified_sub_chat_source_bindings(pending_context, original_request)
+    if len(source_refs) > 200 or len(source_bindings) > 200:
+        raise RequiredRecoveryOutputError("Sub-chat source authority exceeds bounded capacity")
+    authority = {
+        "task_id": continuation_task_id,
+        "owner_hash": original_request.user_id_hash,
+        "chat_id": original_request.chat_id,
+        "turn_id": original_request.message_id,
+        "root_chat_id": original_request.root_chat_id or original_request.chat_id,
+        "root_turn_id": original_request.root_turn_id or original_request.message_id,
+        "orchestration_id": original_request.orchestration_id,
+        "child_ids": sorted(continuation_request.recovery_consumed_child_ids),
+        "refs": source_refs,
+        "bindings": source_bindings,
+    }
+    if not await cache_service.set(
+        _sub_chat_source_authority_key(continuation_task_id), authority,
+        ttl=SUB_CHAT_PENDING_TTL_SECONDS,
+    ):
+        raise RequiredRecoveryOutputError("Sub-chat source authority could not be staged")
 
     try:
         task_result = celery_config.app.send_task(
@@ -2308,9 +2484,17 @@ async def _strip_invalid_inline_embed_links(
     log_prefix: str = "",
     embed_graph: Optional[FinalizationEmbedGraph] = None,
     validated_refs_out: Optional[set[str]] = None,
+    require_authority: bool = False,
 ) -> str:
     """Downgrade non-quote inline embed links whose embed_ref is not real."""
-    if not aggregated_response or not cache_service or not encryption_service or not user_vault_key_id:
+    if not aggregated_response:
+        return aggregated_response
+
+    from backend.apps.ai.processing.native_history_cache import strip_invalid_inline_embed_links
+
+    if not cache_service or not encryption_service or not user_vault_key_id:
+        if require_authority:
+            return strip_invalid_inline_embed_links(aggregated_response, known_valid_refs or set())[0]
         return aggregated_response
 
     matches = list(_INLINE_EMBED_LINK_PATTERN.finditer(aggregated_response))
@@ -2341,6 +2525,8 @@ async def _strip_invalid_inline_embed_links(
 
     all_embed_ids = list({eid for eid in all_embed_ids if isinstance(eid, str) and eid})
     if not all_embed_ids and not known_valid_refs:
+        if require_authority:
+            return strip_invalid_inline_embed_links(aggregated_response, set())[0]
         return aggregated_response
 
     from backend.core.api.app.services.embed_service import EmbedService
@@ -2384,8 +2570,9 @@ async def _strip_invalid_inline_embed_links(
             logger.debug(f"{log_prefix} [EMBED_REF_VALIDATE] Could not inspect embed {embed_id}: {e}")
 
     if not valid_refs:
+        if require_authority:
+            return strip_invalid_inline_embed_links(aggregated_response, set())[0]
         return aggregated_response
-    from backend.apps.ai.processing.native_history_cache import strip_invalid_inline_embed_links
 
     modified, stripped = strip_invalid_inline_embed_links(aggregated_response, valid_refs)
     if validated_refs_out is not None:
@@ -5530,6 +5717,9 @@ async def _consume_main_processing_stream(
     # Their embed references will be stripped from the final message content before persistence
     failed_embed_ids: set[str] = set()
     authored_inline_outputs: list[dict[str, str]] = []
+    child_source_refs: set[str] = set()
+    child_source_bindings: dict[str, str] = {}
+    web_search_performed = False
     # A completed Project file operation has already published a reference-only
     # card. Model prose and fenced file text after that card are never new files.
     project_file_reference_output = False
@@ -10067,9 +10257,20 @@ async def _consume_main_processing_stream(
     # --- Inline Embed Ref Validation ---
     # Downgrade normal inline embed links whose refs do not map to embeds produced
     # by this response. Source quotes have their stricter verifier above.
+    parent_source_refs = await _load_sub_chat_source_authority(cache_service, task_id, request_data)
+    if (request_data.is_sub_chat_continuation and request_data.active_focus_id == "web-research"
+            and request_data.recovery_consumed_child_ids and parent_source_refs is None):
+        raise RequiredRecoveryOutputError("Sub-chat source authority is unavailable for final synthesis")
     if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
         try:
             validated_inline_refs: set[str] = set()
+            authored_web_bindings = _web_source_bindings_from_outputs(authored_inline_outputs)
+            authored_web_refs = set(authored_web_bindings)
+            web_search_performed = bool(authored_web_refs) or any(
+                isinstance(call, dict) and (call.get("app_id"), call.get("skill_id")) == ("web", "search")
+                for call in (tool_calls_info or [])
+            )
+            known_refs = authored_web_refs | (parent_source_refs or set())
             ref_validated_response = await _strip_invalid_inline_embed_links(
                 aggregated_response=aggregated_response,
                 tool_calls_info=tool_calls_info,
@@ -10077,10 +10278,16 @@ async def _consume_main_processing_stream(
                 directus_service=directus_service,
                 encryption_service=encryption_service,
                 user_vault_key_id=user_vault_key_id,
+                known_valid_refs=known_refs,
                 log_prefix=log_prefix,
                 embed_graph=finalization_embed_graph,
                 validated_refs_out=validated_inline_refs,
+                require_authority=(parent_source_refs is not None or
+                                   (request_data.is_sub_chat and web_search_performed)),
             )
+            if request_data.is_sub_chat and (web_search_performed or parent_source_refs is not None):
+                child_source_refs = authored_web_refs | validated_inline_refs
+                child_source_bindings = authored_web_bindings
             if ref_validated_response != aggregated_response:
                 native_presentation_steps.append({"kind": "strip_invalid_links", "refs": sorted(validated_inline_refs)})
                 aggregated_response = ref_validated_response
@@ -10101,6 +10308,10 @@ async def _consume_main_processing_stream(
                 f"{log_prefix} [EMBED_REF_VALIDATE] Error during inline embed ref validation: {e}",
                 exc_info=True
             )
+            if parent_source_refs is not None or web_search_performed:
+                raise RequiredRecoveryOutputError(
+                    "Web source citation validation failed before persistence"
+                ) from e
 
     # --- Missing Embeds Map View Repair ---
     # If the user explicitly asked for a map/list and the final answer contains
@@ -10441,6 +10652,7 @@ async def _consume_main_processing_stream(
             explicit_summary=explicit_sub_chat_completion_summary,
             aggregated_response=aggregated_response,
             awaiting_sub_chats_completion=awaiting_sub_chats_completion,
+            prefer_final_response=request_data.is_sub_chat and web_search_performed,
         )
         if completion_summary is not None and request_data.is_sub_chat and _recovery_inference_task_id(request_data):
             await _persist_sealed_typed_output(
@@ -10699,6 +10911,8 @@ async def _consume_main_processing_stream(
             request_data=request_data,
             task_id=task_id,
             summary=completion_summary,
+            source_refs=child_source_refs,
+            source_bindings=child_source_bindings,
             log_prefix=log_prefix,
             secrets_manager=secrets_manager,
         )

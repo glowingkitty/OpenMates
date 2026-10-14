@@ -1243,6 +1243,10 @@ async function dispatchFastPersonalTurn(input: {
 			current_chat_metadata_v: chat.metadata_v ?? chat.title_v ?? 0,
 		},
 	};
+	const testMockMarker = ((message as unknown) as { testMockMarker?: unknown }).testMockMarker;
+	if (typeof testMockMarker === "string" && testMockMarker.trim().length > 0) {
+		inferenceRequest.test_mock_marker = testMockMarker;
+	}
 	// These device-local index keys carry no private body or authority. Missing
 	// keys make the backend use its normal detail-request path.
 	try {

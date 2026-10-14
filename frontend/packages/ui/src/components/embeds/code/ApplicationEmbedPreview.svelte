@@ -12,12 +12,11 @@
   import { text } from '@repo/ui';
   import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from '../images/imageEmbedCrypto';
   const { retain: retainCachedImage, release: releaseCachedImage, destroy: releaseOwnedImages } = createImageUrlOwner();
-  import { activeChatStore } from '../../../stores/activeChatStore';
   import { authStore } from '../../../stores/authStore';
+  import { isPublicChat } from '../../../demo_chats';
   import {
-    buildApplicationPreviewSharedContext,
+    autoStartVisibleOwnerApplicationPreviewForEmbed,
     getApplicationPreviewStatus,
-    startApplicationPreview,
     type ApplicationPreviewStatus,
     type ApplicationPreviewStatusValue,
   } from '../../../services/applicationPreviewService';
@@ -83,7 +82,9 @@
   let latestScreenshotRef = $state<ScreenshotRef | undefined>(undefined);
   let autoStartRequested = $state(false);
   let destroyed = false;
-  let screenshotUrl = $derived(latestScreenshotUrl || latest_screenshot_url || decryptedScreenshotUrl);
+  let screenshotUrl = $derived(chatId && isPublicChat(chatId)
+    ? latest_screenshot_url || ''
+    : latestScreenshotUrl || latest_screenshot_url || decryptedScreenshotUrl);
   let screenshotRef = $derived(latestScreenshotRef || latest_screenshot);
   let statusText = $derived.by(() => {
     if (status === 'processing') return $text('embeds.processing');
@@ -97,6 +98,7 @@
   }
 
   async function loadEncryptedScreenshot() {
+    if (chatId && isPublicChat(chatId)) return;
     const previewVariant = screenshotRef?.files?.preview;
     const s3Key = previewVariant?.s3_key;
     const aesKey = screenshotRef?.aes_key;
@@ -128,23 +130,6 @@
     }
   }
 
-  function applicationContent(): Record<string, unknown> {
-    return {
-      type: 'application',
-      name,
-      framework,
-      runtime,
-      file_refs,
-      entrypoints,
-    };
-  }
-
-  function getHashChatId(): string | undefined {
-    if (typeof window === 'undefined') return undefined;
-    const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
-    return new URLSearchParams(hash).get('chat-id') || undefined;
-  }
-
   function applyStatusResponse(response: ApplicationPreviewStatus) {
     latestScreenshotUrl = response.latest_screenshot_url ?? latestScreenshotUrl;
     latestScreenshotRef = (response.latest_screenshot as ScreenshotRef | undefined) ?? latestScreenshotRef;
@@ -162,25 +147,19 @@
   }
 
   async function maybeAutoStartThumbnailCapture() {
-    const resolvedChatId = chatId || $activeChatStore || getHashChatId();
     if (
       autoStartRequested ||
       status !== 'finished' ||
       screenshotUrl ||
-      !resolvedChatId ||
+      !chatId ||
       !id ||
       !$authStore.isAuthenticated
     ) return;
 
     autoStartRequested = true;
     try {
-      const sharedContext = await buildApplicationPreviewSharedContext(id, applicationContent());
-      const session = await startApplicationPreview(resolvedChatId, id, {
-        sharedContext,
-        autoStarted: true,
-        sourceMessageId,
-      });
-      await pollForAutoStartedScreenshot(session.session_id);
+      const session = await autoStartVisibleOwnerApplicationPreviewForEmbed(chatId, sourceMessageId, id);
+      if (session) await pollForAutoStartedScreenshot(session.session_id);
     } catch (error) {
       console.warn('[ApplicationEmbedPreview] Failed to auto-start thumbnail capture:', error);
     }

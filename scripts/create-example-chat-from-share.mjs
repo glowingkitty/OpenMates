@@ -572,7 +572,7 @@ export function sanitizeEmbedContent(content) {
     }
     if (line.trim() && table && indent <= table.indent) table = null;
 
-    const field = line.match(/^\s*(?:-\s*)?([A-Za-z_][A-Za-z0-9_]*)(?:\[\d+\](?:\{[^}]*\})?)?:\s*(.*)$/);
+    const field = line.match(/^\s*(?:-\s*)?([A-Za-z_][A-Za-z0-9_]*)(?:\[\d+:?\](?:\{[^}]*\})?)?:\s*(.*)$/);
     if (field) {
       const [, key, value] = field;
       if (key === 'latest_screenshot_url' && indent === 0
@@ -784,7 +784,7 @@ export function inlineEmbedsMapViewCodeEmbeds(chat) {
   };
 }
 
-function validateExtractedChat(chat) {
+export function validateExtractedChat(chat, groupRefs = null) {
   const required = ['chat_id', 'messages', 'embeds'];
   for (const key of required) {
     if (!chat[key]) throw new Error(`Extracted chat is missing ${key}.`);
@@ -797,7 +797,13 @@ function validateExtractedChat(chat) {
   }
 
   const embedRefsInMessages = extractEmbedRefsFromMessages(chat.messages);
-  const embedRefsInEmbeds = extractEmbedRefsFromEmbeds(chat.embeds);
+  // A shared research conversation exposes its parent and actual child chats
+  // together. Parent citations can reference a source saved in a research child.
+  const collectGroupRefs = (node) => new Set([
+    ...extractEmbedRefsFromEmbeds(node.embeds || []),
+    ...(node.sub_chats || []).flatMap((child) => [...collectGroupRefs(child)]),
+  ]);
+  const embedRefsInEmbeds = groupRefs ?? collectGroupRefs(chat);
   const missingRefs = [...embedRefsInMessages].filter((ref) => !embedRefsInEmbeds.has(ref));
   if (missingRefs.length > 0) {
     throw new Error(
@@ -810,8 +816,15 @@ function validateExtractedChat(chat) {
       chat_id: subChat.chat_id || `sub-chat-${index + 1}`,
       messages: subChat.messages || [],
       embeds: subChat.embeds || [],
-    });
+    }, embedRefsInEmbeds);
   }
+}
+
+export function generatedMetadataOrder(source) {
+  // Generated embeds can contain CSS such as `border: 2px` before metadata.
+  // Read only the order property in the generated metadata object.
+  const match = source.match(/^  metadata: \{\r?\n(?:    [^\r\n]*\r?\n)*?    order: (\d+),\r?$/m);
+  return match ? Number(match[1]) : null;
 }
 
 function readExistingMetadata(slug) {
@@ -827,7 +840,6 @@ function readExistingMetadata(slug) {
     };
   }
   const source = readFileSync(filePath, 'utf8');
-  const orderMatch = source.match(/order:\s*(\d+)/);
   const appSkillMatch = source.match(/app_skill_examples:\s*(\[[^\]]*\])/);
   const appFocusMatch = source.match(/app_focus_mode_examples:\s*(\[[^\]]*\])/);
   const appMemoryMatch = source.match(/app_settings_memory_examples:\s*(\[[^\]]*\])/);
@@ -842,7 +854,7 @@ function readExistingMetadata(slug) {
     }
   }
   return {
-    order: orderMatch ? Number(orderMatch[1]) : null,
+    order: generatedMetadataOrder(source),
     appSkillExamples: parseArray(appSkillMatch),
     appFocusModeExamples: parseArray(appFocusMatch),
     appSettingsMemoryExamples: parseArray(appMemoryMatch),
@@ -860,8 +872,8 @@ function nextOrder(excludeSlug = null) {
     const filePath = path.join(EXAMPLE_DATA_DIR, `${importPath}.ts`);
     if (!existsSync(filePath)) continue;
     const source = readFileSync(filePath, 'utf8');
-    const match = source.match(/order:\s*(\d+)/);
-    if (match) orders.push(Number(match[1]));
+    const order = generatedMetadataOrder(source);
+    if (order !== null) orders.push(order);
   }
   return orders.length > 0 ? Math.max(...orders) + 1 : 1;
 }

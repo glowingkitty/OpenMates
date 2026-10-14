@@ -315,11 +315,40 @@ test('stale CLI embed discovery reconciles only a verified canonical ACK', async
 				embed,embedKeys,outputs,staleOutputs}));
 		`);
 		persistCanonicalHistoryFixture(fixture, 'seed');
+		const guardedHead = canonicalHistorySdk(apiUrl, home, `
+			await client.whoAmI();
+			const {ws}=await client.openWsClient();
+			try {
+				const requestId=randomUUID(),now=Math.floor(Date.now()/1000);
+				const attempted=ws.waitForMessage('store_embed_confirmed',payload=>payload?.request_id===requestId,10_000);
+				void attempted.catch(()=>{});
+				await ws.sendAsync('store_embed',{request_id:requestId,chat_id:input.chatId,
+					embed_id:input.embed.embed_id,hashed_user_id:input.embed.hashed_user_id,
+					hashed_chat_id:input.embed.hashed_chat_id,hashed_message_id:input.embed.hashed_message_id,
+					encrypted_content:await encrypt('reciphered recovery head',randomBytes(32)),
+					encrypted_type:input.embed.encrypted_type,status:'finished',version_number:1,
+					is_private:false,is_shared:false,created_at:now,updated_at:now});
+				let rewriteError=null;
+				try{await attempted;}catch(error){rewriteError=error?.code??null;}
+				const statusRequestId=randomUUID();
+				const status=ws.waitForMessage('recovery_output_status_ready',payload=>
+					payload?.request_id===statusRequestId,10_000);
+				void status.catch(()=>{});
+				await ws.sendAsync('recovery_output_status',{protocol_version:1,
+					record_id:input.verifiedRecordId,request_id:statusRequestId});
+				const result=(await status).payload;
+				process.stdout.write(JSON.stringify({rewriteError,state:result.state,
+					canonicalVerified:result.canonical_verified}));
+			} finally {ws.close();}
+		`, { chatId: fixture.chatId, embed: fixture.embed,
+			verifiedRecordId: fixture.outputs![0].id });
+		expect(guardedHead).toEqual({ rewriteError: 'embed_write_denied',
+			state: 'ACKNOWLEDGED', canonicalVerified: true });
 		clearWorkflowCliSyncCache(home);
 		const observed = canonicalHistorySdk(apiUrl, home, `
 			await client.whoAmI();
 			const requests=[],statuses=[],accepted=[],rejected=[];
-			let injected=false;
+			let discoveryPasses=0;
 			const replay=client.replayAvailableRecoveryOutputs.bind(client);
 			client.replayAvailableRecoveryOutputs=async (...args)=>{
 				const id=args[2][0]?.record_id;
@@ -332,7 +361,10 @@ test('stale CLI embed discovery reconciles only a verified canonical ACK', async
 				const drain=ws.drainAvailableRecoveryOutputPages.bind(ws);
 				ws.drainAvailableRecoveryOutputPages=(rootChatId)=>{
 					const pages=drain(rootChatId);
-					if(!injected){injected=true;pages.push(input.staleOutputs);}
+					// Simulate the same stale discovery on the mandatory post-ACK
+					// metadata refresh. A third pass would be an empty recovery loop.
+					discoveryPasses++;
+					pages.push(input.staleOutputs);
 					return pages;
 				};
 				const send=ws.sendAsync.bind(ws);
@@ -349,23 +381,27 @@ test('stale CLI embed discovery reconciles only a verified canonical ACK', async
 			};
 			const listed=await client.listChats(100,1,{forceRefresh:true});
 			process.stdout.write(JSON.stringify({listed:listed.chats.some(chat=>chat.id===input.chatId),
-				requests,statuses,accepted,rejected}));
+				discoveryPasses,requests,statuses,accepted,rejected}));
 		`, { chatId: fixture.chatId, staleOutputs: fixture.staleOutputs });
 		expect(observed.listed).toBe(true);
+		expect(observed.discoveryPasses, 'one post-ACK metadata refresh, then return').toBe(2);
 		const [verified, tampered] = fixture.staleOutputs!;
 		const fixtureIds = new Set([verified.record_id, tampered.record_id]);
 		expect(observed.requests.filter((row: any) => row.type === 'recovery_output_get')
 			.filter((row: any) => fixtureIds.has(row.record_id))
-			.map((row: any) => row.record_id)).toEqual([verified.record_id, tampered.record_id]);
+			.map((row: any) => row.record_id)).toEqual([verified.record_id, tampered.record_id,
+				tampered.record_id]);
 		expect(observed.requests.filter((row: any) => row.type === 'recovery_output_status')
 			.filter((row: any) => fixtureIds.has(row.record_id))
-			.map((row: any) => row.record_id)).toEqual([verified.record_id, tampered.record_id]);
+			.map((row: any) => row.record_id)).toEqual([verified.record_id, tampered.record_id,
+				tampered.record_id]);
 		expect(observed.statuses).toEqual([
 			{ record_id: verified.record_id, state: 'ACKNOWLEDGED', verified: true },
+			{ record_id: tampered.record_id, state: 'ACKNOWLEDGED', verified: false },
 			{ record_id: tampered.record_id, state: 'ACKNOWLEDGED', verified: false }
 		]);
 		expect(observed.accepted).toEqual([verified.record_id]);
-		expect(observed.rejected).toEqual([tampered.record_id]);
+		expect(observed.rejected).toEqual([tampered.record_id, tampered.record_id]);
 
 		installRecorderDeps();
 		const result = await runCli(apiUrl, ['chats', 'list', '--limit', '100', '--json'], 120_000, {

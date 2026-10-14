@@ -3206,6 +3206,20 @@ export async function handleEmbedUpdateImpl(
     `[ChatSyncService:AI] Received 'embed_update' for embed ${payload.embed_id}`,
   );
 
+  // The store_embed server broadcast has only the hashed chat ID and no
+  // producer author/revision. It is a refresh hint for other tabs, never a
+  // request to re-encrypt and write the same v1 head back to the server.
+  if (!payload.user_id_uuid && /^[a-f0-9]{64}$/i.test(payload.chat_id ?? "")) {
+    const { embedStore } = await import("./embedStore");
+    embedStore.removeFromMemoryCache(`embed:${payload.embed_id}`);
+    serviceInstance.dispatchEvent(new CustomEvent("embedUpdated", {
+      detail: { embed_id: payload.embed_id, chat_id: payload.chat_id,
+        message_id: payload.message_id, status: payload.status,
+        child_embed_ids: payload.child_embed_ids },
+    }));
+    return;
+  }
+
   // CRITICAL FIX: If this embed was already fully processed by handleSendEmbedDataImpl
   // (which handles encryption, key storage, and Directus persistence), skip the embed_update
   // entirely. The embed_update is redundant in this case and can cause race conditions
@@ -3270,6 +3284,26 @@ export async function handleEmbedUpdateImpl(
         user_id?: string;
       };
       const existingEmbed = existingEmbedRaw as MutableEmbedRecord;
+      // A recovered finished head is already canonical. embed_update carries no
+      // producer revision or history row, so this status hint cannot authorize a
+      // second ciphertext at the same version. The sealed send_embed_data event
+      // (or a real versioned edit) owns persistence of changed content.
+      const updateChatId = payload.chat_id || existingEmbed.chat_id;
+      if (updateChatId) {
+        const { hasAcknowledgedRecoveredEmbed, withCanonicalEmbedWrite } =
+          await import("./canonicalEmbedWriteCoordinator");
+        const alreadyCanonical = await withCanonicalEmbedWrite(payload.embed_id, async (lease) =>
+          hasAcknowledgedRecoveredEmbed(lease, updateChatId, existingEmbed.version_number ?? 1));
+        if (alreadyCanonical) {
+          embedStore.removeFromMemoryCache(embedRef);
+          serviceInstance.dispatchEvent(new CustomEvent("embedUpdated", {
+            detail: { embed_id: payload.embed_id, chat_id: updateChatId,
+              message_id: payload.message_id, status: payload.status,
+              child_embed_ids: payload.child_embed_ids },
+          }));
+          return;
+        }
+      }
       // STATE MACHINE: Validate transition before applying the status change
       if (existingEmbed.status) {
         try {

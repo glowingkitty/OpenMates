@@ -655,6 +655,7 @@ async function resolveEmbedText(
   embedId: string,
   embedType: string,
   _referenceData?: Record<string, unknown>,
+  sourceChatId?: string,
 ): Promise<{
   text: string;
   title: string;
@@ -696,7 +697,7 @@ async function resolveEmbedText(
     // --- Example chat embed path (unauthenticated users) ---
     // Example chat embeds live in exampleChatStore (cleartext, separate from embedStore),
     // but their content is still TOON-encoded like regular embed rows.
-    const demoEmbed = getExampleChatEmbed(embedId);
+    const demoEmbed = getExampleChatEmbed(embedId, sourceChatId);
     if (demoEmbed) {
       try {
         const { decodeToonContent } = await import("./embedResolver");
@@ -710,7 +711,7 @@ async function resolveEmbedText(
         const exampleChildIds = parseChildEmbedIds(decoded.embed_ids ?? demoEmbed.embed_ids).slice(0, MAX_CHILD_EMBEDS_TO_INDEX);
         for (let index = 0; index < exampleChildIds.length; index++) {
           const childId = exampleChildIds[index];
-          const child = getExampleChatEmbed(childId);
+          const child = getExampleChatEmbed(childId, sourceChatId);
           if (!child) continue;
           const preview = previewChildMetadata(previews[index], childId, child.type.replace(/_/g, '-'));
           if (preview) {
@@ -1066,7 +1067,7 @@ async function buildChatMessageIndex(chatId: string, generation: number): Promis
           // Pass the full ref object as _referenceData so resolveEmbedText can
           // extract the "query" field stored directly in the message markdown
           // (e.g., the search term the user typed for a web/news/code search).
-          const result = await resolveEmbedText(ref.embed_id, ref.type, ref);
+          const result = await resolveEmbedText(ref.embed_id, ref.type, ref, chatId);
           if (!result) continue;
 
           entries.push({

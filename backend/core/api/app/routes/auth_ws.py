@@ -148,6 +148,14 @@ async def get_current_user_ws(
                 directus_service, cache_service, session_hash, user_id,
             )
 
+        # This authenticated ledger identity survives refresh-token rotation.
+        # Keep it server-side for routing session revocation to every tab that
+        # shares the credential; the URL sessionId is only a socket route key.
+        logical_session_id = security_state.get("logical_session_id") if isinstance(security_state, dict) else None
+        if not isinstance(logical_session_id, str) or not logical_session_id:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid session")
+            return None
+
         # 2. Extract sessionId from query parameters for browser instance uniqueness
         session_id = websocket.query_params.get("sessionId")
         if not session_id:
@@ -226,6 +234,7 @@ async def get_current_user_ws(
         )
         return {"user_id": user_id, "device_fingerprint_hash": connection_hash,
                 "stable_device_fingerprint_hash": session_device_hash,
+                "logical_session_id": logical_session_id,
                 "upgrade_device_hash": device_hash, "upgrade_country_code": country_code,
                 "user_data": user_data,
                 "pair_expires_at": pair_expires_at, "session_hash": session_hash,

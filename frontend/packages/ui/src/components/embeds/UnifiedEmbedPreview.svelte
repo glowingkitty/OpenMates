@@ -34,7 +34,10 @@
 -->
 
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
+  const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  const sourceChatId = sourceChatContext?.chatId ?? null;
+  import { onMount, onDestroy, getContext} from 'svelte';
   import BasicInfosBar from './BasicInfosBar.svelte';
   import Icon from '../Icon.svelte';
   import { chatSyncService } from '../../services/chatSyncService';
@@ -242,7 +245,7 @@
       // This is essential for demo chats where embeds are stored in a separate store
       const embedData = localOnly
         ? await (await import('../../services/embedStore')).embedStore.get(`embed:${id}`)
-        : await resolveEmbed(id);
+        : await resolveEmbed(id, { chatId: sourceChatId });
       if (embedData && typeof embedData !== 'string') {
         
         // Update status from fetched data.

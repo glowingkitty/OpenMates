@@ -1,7 +1,10 @@
 <!-- Mount the registered generated-media leaf preview inside a parent grid. -->
 <script lang="ts">
-  import { mount, unmount } from 'svelte';
+  import { getContext, mount, unmount } from 'svelte';
   import { embedPreviewRegistry } from '../../services/embedPreviewRegistry';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
+
+  const sourceChatId = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT)?.chatId ?? null;
 
   interface Props {
     appId: string;
@@ -32,6 +35,7 @@
       if (!resolved) { renderError = true; return; }
       instance = mount(resolved.component as Parameters<typeof mount>[0], {
         target: host, props: resolved.props,
+        context: new Map([[EMBED_SOURCE_CHAT_CONTEXT, { chatId: sourceChatId }]]),
       });
     }).catch(() => { if (!disposed) renderError = true; });
     return () => {

@@ -709,15 +709,15 @@
                 link: false,   // Using MarkdownLink instead (with custom renderHTML for internal links)
                 underline: false, // Using MarkdownUnderline instead
             }),
-            Embed,
+            Embed.configure({ chatId }),
             MateNode,
             AIModelMentionNode, // For @ai-model:id mentions (displays as @Claude-4.5-Opus)
             BestModelMentionNode, // For @best-model:best, @best-model:fast alias mentions
             GenericMentionNode, // For @skill:, @focus:, @memory: mentions
-            EmbedInlineNode, // For inline [text](embed:ref) links produced by the LLM
+            EmbedInlineNode.configure({ chatId }), // For inline [text](embed:ref) links produced by the LLM
             WikiInlineNode, // For Wikipedia topic inline links from post-processing
             SourceQuoteNode, // For > [quoted text](embed:ref) verified source quotes
-            EmbedPreviewLargeNode, // For [!](embed:ref) and [](embed:ref) — responsive preview card (carousel-capable)
+            EmbedPreviewLargeNode.configure({ chatId }), // For [!](embed:ref) and [](embed:ref) — responsive preview card (carousel-capable)
             InteractiveQuestionNode.configure({ chatId }), // For interactive questions embedded in LLM output
             ...MarkdownExtensions, // Spread the array of markdown extensions
         ];

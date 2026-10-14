@@ -594,6 +594,7 @@ def test_rotated_cookie_management_uses_guard_verified_successor(monkeypatch, op
         await refresh.refresh_session_token(cache, directus, "old-secret")
         await publish(cache, "old-secret", "new-secret")
         new_hash, old_hash, sibling_hash = (state.token_hash(token) for token in ("new-secret", "old-secret", "sibling-secret"))
+        assert directus.rows[new_hash]["logical_session_id"] == directus.rows[old_hash]["logical_session_id"]
         cache.values[session_key("new-secret")].update(username="example", vault_key_id="test-vault-key")
         cache.values[session_key("sibling-secret")] = {"user_id": "user-1"}
         cache.values["user_tokens:user-1"] = {
@@ -629,7 +630,37 @@ def test_rotated_cookie_management_uses_guard_verified_successor(monkeypatch, op
             assert directus.rows[sibling_hash]["revoked"] is True
             assert set(cache.values["user_tokens:user-1"]) == {new_hash}
             event = cache.publish_event.await_args.kwargs["event_data"]
-            assert event["exclude_connection_hash"] == "current-connection"
+            assert event["exclude_logical_session_id"] == directus.rows[new_hash]["logical_session_id"]
+            # Two sockets admitted before rotation retain the same trusted
+            # session identity, so the successor credential excludes both.
+            from starlette.websockets import WebSocketState
+            from backend.core.api.app.routes.connection_manager import ConnectionManager
+
+            def socket():
+                return SimpleNamespace(
+                    accept=AsyncMock(), send_json=AsyncMock(),
+                    application_state=WebSocketState.CONNECTED,
+                )
+
+            manager = ConnectionManager()
+            current_tabs = [socket(), socket()]
+            sibling_tab = socket()
+            for index, tab in enumerate(current_tabs):
+                await manager.connect(
+                    tab, "user-1", f"current-route-{index}",
+                    logical_session_id=directus.rows[old_hash]["logical_session_id"],
+                )
+            await manager.connect(
+                sibling_tab, "user-1", "sibling-route",
+                logical_session_id=directus.rows[sibling_hash]["logical_session_id"],
+            )
+            await manager.broadcast_to_user_specific_event(
+                "user-1", "force_logout", event["payload"],
+                exclude_logical_session_id=event["exclude_logical_session_id"],
+            )
+            for tab in current_tabs:
+                tab.send_json.assert_not_awaited()
+            sibling_tab.send_json.assert_awaited_once()
             assert await refresh.resolve_session_credential(cache, directus, "old-secret") == "new-secret"
         else:
             # Logout has no get_current_user dependency; it must independently

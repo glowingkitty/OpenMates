@@ -10,6 +10,7 @@ import copy
 import hashlib
 import json
 import re
+import uuid
 from collections import Counter
 from typing import Any, Mapping, Sequence
 
@@ -278,6 +279,49 @@ def _server_app_skill_references(tool_calls_info: Sequence[dict[str, Any]] | Non
                 allowed[key] += 1
                 recorded_for_call.add(identity)
     return allowed
+
+
+def collect_authored_web_source_bindings(
+    *, app_id: str, skill_id: str, results: Sequence[Mapping[str, Any]],
+    authored_embeds: Sequence[Mapping[str, Any]],
+) -> list[dict[str, str]]:
+    """Bind exact Web search refs to finished, server-authored website children.
+
+    Search result text alone is not citation authority. The writer must return
+    one distinct child UUID for each distinct result ref in the same order.
+    """
+    if (app_id, skill_id) != ("web", "search") or not results:
+        return []
+    child_ids: list[str] = []
+    for embed in authored_embeds:
+        # update_embed_with_results returns status="finished"; the successful
+        # create_embeds_from_skill_results return omits status after sealing all
+        # children and their finished parent. Reject every explicit non-finish.
+        if not isinstance(embed, Mapping) or embed.get("status", "finished") != "finished":
+            return []
+        ids = embed.get("child_embed_ids")
+        if not isinstance(ids, list):
+            return []
+        for child_id in ids:
+            try:
+                child_ids.append(str(uuid.UUID(child_id)))
+            except (TypeError, ValueError, AttributeError):
+                return []
+    if len(child_ids) != len(results) or len(set(child_ids)) != len(child_ids):
+        return []
+    bindings: list[dict[str, str]] = []
+    seen_refs: set[str] = set()
+    for result, child_id in zip(results, child_ids):
+        if not isinstance(result, Mapping):
+            return []
+        ref = result.get("embed_ref")
+        if (not isinstance(ref, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._~:-]{0,127}", ref)
+                or ref in seen_refs):
+            return []
+        seen_refs.add(ref)
+        bindings.append({"app_id": "web", "skill_id": "search", "status": "finished",
+                         "embed_ref": ref, "embed_id": child_id})
+    return bindings
 
 
 def collect_server_embed_provenance(

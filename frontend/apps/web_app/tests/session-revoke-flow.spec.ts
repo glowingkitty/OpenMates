@@ -34,14 +34,15 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	getTestAccount
+	getE2EDebugUrl, getTestAccount
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const {
 	dismissSecurityReminderIfPresent,
 	fillMessageEditor,
-	startNewChat
+	startNewChat,
+	waitForChatReady
 } = require('./helpers/chat-test-helpers');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
@@ -225,7 +226,7 @@ async function _isLoggedOut(page: any): Promise<boolean> {
 // Main test
 // ---------------------------------------------------------------------------
 
-// contract-test: direct surface=gui.web assertions=daily-inspiration.guest-isolated,landing-onboarding.uses-real-chat-shell
+// contract-test: direct surface=gui.web assertions=auth.session.lifecycle,auth.session.isolation,daily-inspiration.guest-isolated,landing-onboarding.uses-real-chat-shell
 // eslint-disable-next-line no-empty-pattern
 test('session revoke: revoking session B from session A does not log out session A', async ({}, testInfo: any) => {
 	test.slow();
@@ -246,6 +247,8 @@ test('session revoke: revoking session B from session A does not log out session
 	const logsB: string[] = [];
 	const forceLogoutEventsA: string[] = [];
 	const forceLogoutEventsB: string[] = [];
+	const forceLogoutEventsSiblingA: string[] = [];
+	const forceLogoutEventsSiblingB: string[] = [];
 
 	const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
 	const browser = await chromium.launch();
@@ -268,6 +271,8 @@ test('session revoke: revoking session B from session A does not log out session
 	});
 	const pageA = await contextA.newPage();
 	const pageB = await contextB.newPage();
+	let siblingA: any;
+	let siblingB: any;
 	const proofRecordingStartedAt = Date.now();
 	const proofVideoB = pageB.video();
 	let proofWindowEndedAtMs = 0;
@@ -322,6 +327,27 @@ test('session revoke: revoking session B from session A does not log out session
 		await expect(pageB.getByTestId('chat-header-banner')).toHaveCount(0);
 		logB('Session B: saved draft composer visible before forced logout.');
 		await screenshotB(pageB, '02b-session-b-active-draft-composer');
+
+		// An opener/duplicated tab can inherit sessionStorage. Both sibling tabs
+		// share their session's cookie but must keep an independent WS route.
+		const sessionIdA = await pageA.evaluate(() => sessionStorage.getItem('session_id'));
+		const sessionIdB = await pageB.evaluate(() => sessionStorage.getItem('session_id'));
+		expect(sessionIdA).toBeTruthy();
+		expect(sessionIdB).toBeTruthy();
+		siblingA = await contextA.newPage();
+		siblingB = await contextB.newPage();
+		for (const [page, inheritedId, events, logFn] of [
+			[siblingA, sessionIdA, forceLogoutEventsSiblingA, logA],
+			[siblingB, sessionIdB, forceLogoutEventsSiblingB, logB]
+		] as const) {
+			await page.addInitScript((id: string) => sessionStorage.setItem('session_id', id), inheritedId!);
+			page.on('console', (msg: any) => {
+				if (msg.text().includes('Received force_logout event')) events.push(msg.text());
+			});
+			await page.goto(getE2EDebugUrl('/'));
+			await waitForChatReady(page, logFn, 30000);
+			expect(await page.evaluate(() => sessionStorage.getItem('session_id'))).toBe(inheritedId);
+		}
 
 		logA(`Both sessions logged in. Waiting ${Math.ceil(SESSION_STABILIZE_MS / 1000)}s for WebSocket connections to stabilise…`);
 		await pageA.waitForTimeout(SESSION_STABILIZE_MS);
@@ -381,6 +407,7 @@ test('session revoke: revoking session B from session A does not log out session
 			logB('Session B: confirmed LOGGED OUT (Login/Sign Up button visible).');
 			await expect(guestBannerB).toBeVisible({ timeout: 10000 });
 		});
+		await expect.poll(() => forceLogoutEventsSiblingB.length, { timeout: 15000 }).toBeGreaterThan(0);
 		await proof.assert('daily-inspiration.guest-isolated-after-force-logout', async () => {
 			await expect(guestBannerB).toBeVisible({ timeout: 5000 });
 			await expect(guestBannerB).toHaveAttribute('data-inspiration-source', 'guest-onboarding');
@@ -444,6 +471,8 @@ test('session revoke: revoking session B from session A does not log out session
 		}
 
 		logA('Session A: CONFIRMED still logged in — NOT logged out.');
+		await expect(siblingA.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 10000 });
+		expect(forceLogoutEventsSiblingA).toHaveLength(0);
 		await screenshotA(pageA, '09-session-a-still-logged-in');
 
 		// ── Step 7: Assert no unexpected force_logout on Session A ───────────

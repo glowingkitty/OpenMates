@@ -26,6 +26,8 @@ decisions:
   automatically.
 - Private inference checkpoints use existing encrypted transient context boundaries and finite deadlines.
 - New public examples come from real CLI conversations after underlying fixes; no synthetic transcript repair.
+- The original request authorizes a bounded read-only personal dev-account browser check after deployment;
+  credentials and private evidence stay local. Voice implementation remains deferred.
 verification:
   required:
   - Focused backend, converter, CLI and frontend unit/lint checks for touched logic.
@@ -38,16 +40,32 @@ verification:
   - Existing successful recordings are uploaded and only latest relevant recordings delivered.
 task_tracking: OpenMates Tasks linked to codex:01a13630-3aed-7ae2-943e-ac86f4c45cb9 own status and dependencies.
 remaining:
-- Finish Apps example-origin and Shopping browser admission verification. Subchat checks pass 2/2, WebKit iPad
-  multi-tab/reload passes without retry, visual component checks pass 7/7, exact scoped backend checks pass 268/268,
-  and clean CLI recovery product checks pass 8/8 with uploaded per-flow recordings.
-- Publish and refresh the live-tested resume recovery identity and duplicate audio task-alias corrections, plus
-  remaining app metadata and CLI changes. The integration dependency prerequisite repair is deployed; natural
-  focus-sensitive replays require the app metadata. New focused recovery checks pass 115/115 locally.
-- Admit the real Code replacement with its owner-reviewed E2B screenshot and completed translations; capture and
-  interactions succeeded on dev. Publish the preview billing idempotency correction. Create fresh Social, Images,
-  Audio, Music and Videos sources after the new recovery corrections are live. Regenerate Web, Nutrition, Design
-  and Politics after their metadata is published. Shopping passed content review and awaits browser admission.
+- Finish Code and Videos phone/laptop browser admission from their existing test receipts. Shopping passes both
+  viewports, with one phone retry while real image fetches completed. Apps origin navigation is deployed and passes
+  18/18; subchat checks pass 2/2 and visual component checks pass 7/7.
+- The iPad lazy-registration scope is deployed and ready. Guest WebKit concurrent-tab/reload coverage passes
+  without retry; it does not prove authenticated account or physical-iPad behavior. Correct duplicated-tab socket
+  routing identities while retaining server-verified logical session revocation across token rotation, then verify
+  the personal dev account. The conditional socket collision does not establish the original crash cause.
+- Isolate public example embeds from private embeds with the same source UUID, including nested/fullscreen
+  resolution and cached errors. Repair the owned Code card's screenshot fallback so it omits rejected shared
+  context and never automatically starts paid previews for public examples or shared recipients.
+- Publish the bounded CLI recovery refresh and immutable completion-write corrections after isolated checks.
+  The CLI recovery browser job succeeds with eight cases. After correcting the storage spec duplicate declaration,
+  six of nine browser cases pass; three stop before recovery because their signed mock control is not applied and
+  isolated preprocessing tries unavailable live providers. Trace and correct the test control handoff before rerunning
+  those product assertions. Exact deployed backend checks pass
+  141/141, including original-turn identity, duplicate task
+  aliases, Remotion suspend/resume and preview billing idempotency.
+- Admit the reviewed real Audio and Nutrition sources through browser checks; all seven converted
+  candidates have complete translations. Recreate Social after deploying the confirmed provider paragraph and
+  empty-line preservation fix; its prior saved source must not be hand-repaired. Recreate Images once after
+  deploying the already verified trusted-reference finalizer, because the prior saved answer still contains
+  a bare non-URL Markdown image target alongside its canonical embeds. Actual Code preview capture and interaction succeeded. The saved Web
+  conversation performed real research in three children, but five unsupported citations prevent admission. Verify
+  its private source-binding fix and complete shared extraction before creating a replacement; create Music,
+  Design and Politics after completion-write fixes are deployed. Natural focus and visual-output instructions
+  are deployed.
 - Review and publish actual selected media, admit complete sources through phone/laptop preview and fullscreen checks,
   remove superseded broken examples, and inspect deployed public pages plus the personal dev account with concurrent
   iPad-size tabs.
@@ -59,3 +77,8 @@ local_verification:
   validated.
 - Whole-app type checks and dependency-heavy backend checks remain for isolated CI; current public examples are
   not newly admitted or replaced.
+- Full shared extraction has focused coverage for embed/key cursor pages, oversized records, subchat/checkpoint
+  continuations and rejection of incomplete or unauthenticated ciphertext; encrypted share routes preserve current
+  visibility checks and chat-only key wrappers.
+- Mastodon provider paragraph and empty-line preservation passes twelve focused tests; source post fullscreen
+  admission now compares exact saved text and requires real image pixels. These fixes await a successor publication.

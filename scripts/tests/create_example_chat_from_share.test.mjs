@@ -41,7 +41,9 @@ import {
   annotateChatWithUsage,
   formatTs,
   formatYaml,
+  generatedMetadataOrder,
   validateLandingCandidate,
+  validateExtractedChat,
   inlineEmbedsMapViewCodeEmbeds,
   removeInternalTaskEventMessages,
   sanitizeEmbedContent,
@@ -50,6 +52,53 @@ import {
   attachReviewedPublicSpeech,
   withPromotedAppSkillUseMessages,
 } from '../create-example-chat-from-share.mjs';
+
+test('strips private generated files encoded as a delimiter-bearing TOON array', () => {
+  const source = 'app_id: images\nstatus: finished\nfiles[3:]:\n'
+    + '  - variant: preview\n    s3_key: private-object\n    width: 1024\n'
+    + '  - variant: full\n    s3_key: private-full-object\n'
+    + 'vault_wrapped_aes_key: private-wrapped-key\nprompt: Sunflower\nmodel: actual-model';
+  const sanitized = sanitizeEmbedContent(source);
+  assert.equal(sanitized, 'app_id: images\nstatus: finished\nprompt: Sunflower\nmodel: actual-model');
+  assert.doesNotMatch(sanitized, /files\[|s3_key|private-/);
+});
+
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+test('validates research citations against the complete shared group and rejects missing sources', () => {
+  const chat = {
+    chat_id: 'parent',
+    messages: [{ role: 'assistant', content: '[Research source](embed:government-source-a1B)' }],
+    embeds: [],
+    sub_chats: [{ chat_id: 'child', messages: [{ role: 'assistant', content: 'Research completed.' }],
+      embeds: [{ embed_id: 'child-website', content: 'embed_ref: government-source-a1B\ntype: website' }] }],
+  };
+  assert.doesNotThrow(() => validateExtractedChat(chat));
+  assert.throws(() => validateExtractedChat({ ...chat,
+    messages: [{ role: 'assistant', content: '[Invented source](embed:government-source-xyz)' }],
+  }), /embed refs not present/);
+  assert.throws(() => validateExtractedChat({ ...chat, sub_chats: [] }), /embed refs not present/);
+});
+
+test('reads generated catalog order after embedded CSS border declarations', () => {
+  const source = formatTs({
+    chat_id: 'source-chat',
+    messages: [{ message_id: 'assistant-1', role: 'assistant', content: 'Here is the app.' }],
+    embeds: [{
+      embed_id: 'code-1',
+      type: 'code',
+      content: 'type: code\napp_id: code\nskill_id: code\ncode: "<style>.card { border: 2px solid green; }</style>"',
+    }],
+  }, {
+    slug: 'css-order-fixture', snake: 'css_order_fixture', chatId: 'example-css-order-fixture',
+    title: 'CSS order fixture', summary: '', icon: 'code', category: 'coding',
+    keywords: [], followUps: [], featured: false, order: 109, appSkillExamples: [],
+    appFocusModeExamples: [], appSettingsMemoryExamples: [], contentEmbedExamples: [], activeFocusId: null,
+  });
+
+  assert.match(source, /border: 2px/);
+  assert.match(source, /^    order: 109,$/m);
+  assert.equal(generatedMetadataOrder(source), 109);
+});
 
 // contract-test: supporting surface=gui.web assertions=brand-naming.activation,public-example-chats.surface.semantic-parity
 test('converts a real multi-skill focus activation to its public renderer type without changing content', () => {

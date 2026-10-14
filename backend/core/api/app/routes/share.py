@@ -484,6 +484,109 @@ async def get_shared_chat_manifest(
         raise HTTPException(status_code=503, detail="SHARED_MANIFEST_UNAVAILABLE") from e
 
 
+def _checked_shared_embed_key_page(
+    page: Dict[str, Any], hashed_chat_id: str, allowed_hashes: set[str],
+) -> Dict[str, Any]:
+    """Do not trust a storage adapter to widen a public key page's chat scope."""
+    if any(not isinstance(key, dict)
+           or key.get("key_type") != "chat"
+           or key.get("hashed_chat_id") != hashed_chat_id
+           or key.get("hashed_embed_id") not in allowed_hashes
+           for key in page["embed_keys"]):
+        raise HTTPException(status_code=503, detail="SHARED_EMBED_KEY_SCOPE_UNAVAILABLE")
+    return page
+
+
+@router.get("/chat/{chat_id}/embeds/window")
+@limiter.limit("120/minute")
+async def get_shared_chat_embed_window(
+    request: Request, chat_id: str,
+    before_created_at: int | None = None, before_id: str | None = None,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """One bounded public ciphertext page after fresh shared-chat visibility."""
+    if ((before_created_at is None) != (before_id is None)
+            or before_created_at is not None and before_created_at < 0
+            or before_id is not None and (not before_id or len(before_id) > 128)):
+        raise HTTPException(status_code=400, detail="Invalid embed cursor")
+    chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
+    if dummy is not None or chat is None:
+        raise HTTPException(status_code=404, detail="Shared chat not found")
+    hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+    page = await directus_service.embed.get_embed_window_by_hashed_chat_id(
+        hashed_chat_id, before_created_at=before_created_at, before_id=before_id,
+    )
+    rows = page["embeds"]
+    if any(not isinstance(row, dict) or row.get("hashed_chat_id") != hashed_chat_id
+           or not isinstance(row.get("embed_id"), str) or not row["embed_id"]
+           for row in rows):
+        raise HTTPException(status_code=503, detail="SHARED_EMBED_PAGE_SCOPE_UNAVAILABLE")
+    hashes = [row.get("hashed_embed_id") or hashlib.sha256(row["embed_id"].encode()).hexdigest()
+              for row in rows]
+    key_page = _checked_shared_embed_key_page(
+        await directus_service.embed.get_sync_embed_key_window_for_page(
+            hashed_chat_id, "", hashes, include_master_keys=False,
+        ), hashed_chat_id, set(hashes),
+    )
+    return {
+        "chat_id": chat_id, "embeds": rows, "embed_keys": key_page["embed_keys"],
+        "embed_keys_has_more_after": key_page["has_more_after"],
+        "embed_keys_end_cursor": key_page["end_cursor"],
+        "oversized_embed_key_id": key_page["oversized_key_id"],
+        "has_more_before": page["has_more_before"], "start_cursor": page["start_cursor"],
+        "oversized_embed_id": page["oversized_embed_id"],
+        "oversized_embed_cursor": page.get("oversized_embed_cursor"),
+    }
+
+
+@router.get("/chat/{chat_id}/embeds/keys/window")
+@limiter.limit("120/minute")
+async def get_shared_chat_embed_keys_window(
+    request: Request, chat_id: str, embed_ids: str,
+    after_key_id: str | None = None, key_id: str | None = None,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """Continue chat-only wrappers for up to 30 exact in-chat embed IDs."""
+    selected = embed_ids.split(",")
+    if (not 1 <= len(selected) <= 30
+            or any(not value or len(value) > 128 for value in selected)
+            or len(set(selected)) != len(selected)
+            or after_key_id and key_id
+            or any(value is not None and (not value or len(value) > 128)
+                   for value in (after_key_id, key_id))):
+        raise HTTPException(status_code=400, detail="Invalid embed key cursor")
+    chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
+    if dummy is not None or chat is None:
+        raise HTTPException(status_code=404, detail="Shared chat not found")
+    hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+    try:
+        hashes = await directus_service.embed.validate_embed_ids_in_chat(hashed_chat_id, selected)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Shared embed page not found") from exc
+    if not hashes or len(hashes) != len(selected):
+        raise HTTPException(status_code=404, detail="Shared embed page not found")
+    allowed_hashes = set(hashes)
+    if key_id:
+        key = await directus_service.embed.get_sync_embed_key_by_id(
+            hashed_chat_id, "", hashes, key_id, include_master_keys=False,
+        )
+        if not key:
+            raise HTTPException(status_code=404, detail="Shared embed key not found")
+        if key.get("id") != key_id:
+            raise HTTPException(status_code=503, detail="SHARED_EMBED_KEY_SCOPE_UNAVAILABLE")
+        if len(json.dumps(key, separators=(",", ":"), ensure_ascii=False).encode()) > 2 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="EMBED_KEY_REQUIRES_BOUNDED_READER")
+        return _checked_shared_embed_key_page(
+            {"embed_keys": [key], "has_more_after": False,
+             "end_cursor": key_id, "oversized_key_id": None},
+            hashed_chat_id, allowed_hashes,
+        )
+    page = await directus_service.embed.get_sync_embed_key_window_for_page(
+        hashed_chat_id, "", hashes, after_key_id=after_key_id, include_master_keys=False,
+    )
+    return _checked_shared_embed_key_page(page, hashed_chat_id, allowed_hashes)
+
+
 @router.get("/chat/{chat_id}/embeds/{embed_id}")
 @limiter.limit("60/minute")
 async def get_shared_chat_embed_by_id(

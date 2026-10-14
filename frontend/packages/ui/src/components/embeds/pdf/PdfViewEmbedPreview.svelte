@@ -24,7 +24,10 @@
 -->
 
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
+  const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  const sourceChatId = sourceChatContext?.chatId ?? null;
+  import { onDestroy, getContext} from 'svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { resolveEmbed, decodeToonContent } from '../../../services/embedResolver';
@@ -136,7 +139,7 @@
     resolvedEmbedId = embedId;
 
     try {
-      const uploadEmbed = await resolveEmbed(embedId);
+      const uploadEmbed = await resolveEmbed(embedId, { chatId: sourceChatId });
       if (!uploadEmbed) {
         console.warn('[PdfViewEmbedPreview] Could not resolve original PDF embed:', embedId);
         return;

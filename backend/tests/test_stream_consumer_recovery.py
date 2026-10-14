@@ -718,14 +718,25 @@ def test_sub_chat_parent_continuation_preserves_inference_without_reusing_execut
         return SimpleNamespace(id="77777777-7777-4777-8777-777777777777")
 
     monkeypatch.setattr(stream_consumer.celery_config.app, "send_task", fake_send_task)
+    cache = SimpleNamespace(set=AsyncMock(return_value=True))
 
     asyncio.run(
         stream_consumer._dispatch_sub_chat_parent_continuation(
+            cache_service=cache,
             pending_context={
                 "parent_request_data": original_request.model_dump(mode="json"),
                 "skill_config_dict": {},
                 "expected_sub_chat_ids": ["child-1"],
-                "completed": {"child-1": {"summary": "Sourced child report"}},
+                "completed": {"child-1": {
+                    "summary": "Sourced child report",
+                    "chat_id": "child-1", "parent_id": original_request.chat_id,
+                    "owner_hash": original_request.user_id_hash,
+                    "root_chat_id": original_request.chat_id,
+                    "root_turn_id": original_request.message_id,
+                    "orchestration_id": original_request.orchestration_id,
+                    "source_refs": ["real.example-a1B"],
+                    "source_bindings": {"real.example-a1B": "88888888-8888-4888-8888-888888888888"},
+                }},
             },
             parent_chat_id=original_request.chat_id,
             log_prefix="test",
@@ -733,12 +744,23 @@ def test_sub_chat_parent_continuation_preserves_inference_without_reusing_execut
     )
 
     request_payload = captured["kwargs"]["request_data_dict"]
-    assert captured["task_id"] is None
+    assert isinstance(captured["task_id"], str)
+    assert captured["task_id"] != original_request.recovery_inference_task_id
+    assert cache.set.await_args.args[0] == stream_consumer._sub_chat_source_authority_key(captured["task_id"])
+    assert cache.set.await_args.args[1]["refs"] == ["real.example-a1B"]
+    assert cache.set.await_args.args[1]["bindings"] == {
+        "real.example-a1B": "88888888-8888-4888-8888-888888888888",
+    }
+    assert "source_refs" not in request_payload
     assert request_payload["recovery_task_id"] is None
     # Continuation is a new execution, but must seal its answer under the
     # original inference so an offline owner can recover the completed turn.
     assert request_payload["recovery_inference_task_id"] == original_request.recovery_inference_task_id
     continuation_request = AskSkillRequest(**request_payload)
+    cache.get = AsyncMock(return_value=cache.set.await_args.args[1])
+    assert asyncio.run(stream_consumer._load_sub_chat_source_authority(
+        cache, captured["task_id"], continuation_request,
+    )) == {"real.example-a1B"}
     assert continuation_request.resolved_recovery_inference_task_id() == original_request.recovery_inference_task_id
     assert continuation_request.is_sub_chat_continuation is True
     assert request_payload["continuation_message_id"] is None
@@ -750,6 +772,128 @@ def test_sub_chat_parent_continuation_preserves_inference_without_reusing_execut
     assert request_payload["is_sub_chat"] is True
     assert request_payload["budget_limit"] == original_request.budget_limit
     assert request_payload["budget_spent"] == original_request.budget_spent
+
+
+# contract-test: supporting surface=rest_api assertions=chats.rendering.inline-entity-interaction
+def test_sub_chat_web_citations_use_only_exact_child_and_task_authority() -> None:
+    parent = AskSkillRequest(
+        chat_id="22222222-2222-4222-8222-222222222222",
+        message_id="33333333-3333-4333-8333-333333333333",
+        user_id="44444444-4444-4444-8444-444444444444",
+        user_id_hash="a" * 64,
+        message_history=[AIHistoryMessage(role="user", content="research", created_at=100)],
+        active_focus_id="web-research", orchestration_id="orchestration-1",
+        is_sub_chat_continuation=True, recovery_consumed_child_ids=["child-1"],
+    )
+    child_entry = {
+        "chat_id": "child-1", "parent_id": parent.chat_id,
+        "owner_hash": parent.user_id_hash, "root_chat_id": parent.chat_id,
+        "root_turn_id": parent.message_id, "orchestration_id": parent.orchestration_id,
+        "source_refs": ["real.example-a1B"], "summary": "[Real](embed:real.example-a1B)",
+        "source_bindings": {"real.example-a1B": "88888888-8888-4888-8888-888888888888"},
+    }
+    pending = {"expected_sub_chat_ids": ["child-1"], "completed": {"child-1": child_entry}}
+    assert stream_consumer._verified_sub_chat_source_refs(pending, parent) == ["real.example-a1B"]
+    assert stream_consumer._verified_sub_chat_source_bindings(pending, parent) == {
+        "real.example-a1B": "88888888-8888-4888-8888-888888888888",
+    }
+    assert stream_consumer._verified_sub_chat_source_refs(
+        {**pending, "completed": {"child-1": {**child_entry, "owner_hash": "b" * 64}}}, parent,
+    ) == []
+    assert stream_consumer._verified_sub_chat_source_bindings(
+        {**pending, "completed": {"child-1": {**child_entry, "owner_hash": "b" * 64}}}, parent,
+    ) == {}
+    for field, foreign_value in (
+        ("root_chat_id", "other-root"),
+        ("root_turn_id", "other-turn"),
+        ("orchestration_id", "other-orchestration"),
+        ("parent_id", "other-parent"),
+    ):
+        assert stream_consumer._verified_sub_chat_source_refs(
+            {**pending, "completed": {"child-1": {**child_entry, field: foreign_value}}}, parent,
+        ) == []
+        assert stream_consumer._verified_sub_chat_source_bindings(
+            {**pending, "completed": {"child-1": {**child_entry, field: foreign_value}}}, parent,
+        ) == {}
+    task_id = "continuation-task"
+    authority = {"task_id": task_id, "owner_hash": parent.user_id_hash,
+                 "chat_id": parent.chat_id, "turn_id": parent.message_id,
+                 "root_chat_id": parent.chat_id, "root_turn_id": parent.message_id,
+                 "orchestration_id": parent.orchestration_id,
+                 "child_ids": ["child-1"], "refs": ["real.example-a1B"],
+                 "bindings": {"real.example-a1B": "88888888-8888-4888-8888-888888888888"}}
+    cache = SimpleNamespace(get=AsyncMock(return_value=authority))
+    trusted = asyncio.run(stream_consumer._load_sub_chat_source_authority(cache, task_id, parent))
+    assert trusted == {"real.example-a1B"}
+    spoofed = parent.model_copy(update={"user_id_hash": "b" * 64})
+    assert asyncio.run(stream_consumer._load_sub_chat_source_authority(cache, task_id, spoofed)) is None
+    assert asyncio.run(stream_consumer._load_sub_chat_source_authority(cache, "other-task", parent)) is None
+    cache.get.return_value = {**authority, "bindings": {"fake.example-c2D": authority["bindings"]["real.example-a1B"]}}
+    assert asyncio.run(stream_consumer._load_sub_chat_source_authority(cache, task_id, parent)) is None
+    cache.get.return_value = authority
+    assert asyncio.run(stream_consumer._load_sub_chat_source_authority(
+        cache, task_id, parent.model_copy(update={"root_chat_id": "other-root"}),
+    )) is None
+    client_spoof = AskSkillRequest.model_validate({
+        **parent.model_dump(mode="json"), "source_refs": ["fake.example-c2D"],
+    })
+    assert "source_refs" not in client_spoof.model_dump(mode="json")
+
+    answer = "[Real](embed:real.example-a1B) and [Made up](embed:fake.example-c2D)."
+    result = asyncio.run(stream_consumer._strip_invalid_inline_embed_links(
+        aggregated_response=answer, tool_calls_info=None, cache_service=None,
+        directus_service=None, encryption_service=None, user_vault_key_id=None,
+        known_valid_refs=trusted, require_authority=True,
+    ))
+    assert result == "[Real](embed:real.example-a1B) and Made up."
+    # Ordinary follow-ups without a new Web call or private child authority
+    # still leave references to legitimate earlier history untouched.
+    assert asyncio.run(stream_consumer._strip_invalid_inline_embed_links(
+        aggregated_response=answer, tool_calls_info=None, cache_service=None,
+        directus_service=None, encryption_service=None, user_vault_key_id=None,
+    )) == answer
+
+
+# contract-test: supporting surface=rest_api assertions=chats.rendering.inline-entity-interaction
+def test_parent_keeps_child_authority_and_own_graph_artifact_before_stripping() -> None:
+    parent_id = "11111111-1111-4111-8111-111111111111"
+    child_id = "22222222-2222-4222-8222-222222222222"
+    current_code_ref = "code-output-yJi"
+    nodes = {
+        parent_id: SimpleNamespace(decoded={"embed_ids": [child_id]}),
+        child_id: SimpleNamespace(decoded={"embed_ref": current_code_ref, "status": "finished"}),
+    }
+
+    async def get_node(embed_id):
+        return nodes.get(embed_id)
+
+    answer = (
+        "[Saved child source](embed:early.example-a1B) and "
+        f"[New code artifact](embed:{current_code_ref}) and "
+        "[Unsupported source](embed:invented.example-c2D)."
+    )
+    validated: set[str] = set()
+    kwargs = dict(
+        aggregated_response=answer,
+        tool_calls_info=[{"app_id": "code", "skill_id": "run", "embed_id": parent_id}],
+        directus_service=None, user_vault_key_id="owner-vault-key",
+        known_valid_refs={"early.example-a1B"}, require_authority=True,
+    )
+    result = asyncio.run(stream_consumer._strip_invalid_inline_embed_links(
+        **kwargs, cache_service=SimpleNamespace(), encryption_service=SimpleNamespace(),
+        embed_graph=SimpleNamespace(get=get_node), validated_refs_out=validated,
+    ))
+    assert result == (
+        f"[Saved child source](embed:early.example-a1B) and "
+        f"[New code artifact](embed:{current_code_ref}) and Unsupported source."
+    )
+    assert validated == {"early.example-a1B", current_code_ref}
+
+    # A cache miss cannot turn an unverified citation into a link.
+    missing = asyncio.run(stream_consumer._strip_invalid_inline_embed_links(
+        **kwargs, cache_service=None, encryption_service=None,
+    ))
+    assert missing == "[Saved child source](embed:early.example-a1B) and New code artifact and Unsupported source."
 
 
 # contract-test: supporting surface=rest_api assertions=storage.validation.synthetic-capacity
@@ -777,10 +921,15 @@ def test_capacity_parent_continuation_preserves_signed_replay(monkeypatch) -> No
 
     class PendingCache:
         payload = None
+        source_authority = None
 
-        async def set(self, _key, payload, *, ttl):
+        async def set(self, key, payload, *, ttl):
             assert ttl == stream_consumer.SUB_CHAT_PENDING_TTL_SECONDS
-            self.payload = payload
+            if key.startswith(stream_consumer.SUB_CHAT_SOURCE_AUTHORITY_PREFIX):
+                self.source_authority = payload
+            else:
+                self.payload = payload
+            return True
 
     cache = PendingCache()
     activate_mock_mode("mock", "storage_capacity_v1")
@@ -803,7 +952,8 @@ def test_capacity_parent_continuation_preserves_signed_replay(monkeypatch) -> No
     monkeypatch.setattr(stream_consumer.celery_config.app, "send_task", fake_send_task)
     cache.payload["completed"] = {"child-1": {"summary": "Synthetic child result"}}
     asyncio.run(stream_consumer._dispatch_sub_chat_parent_continuation(
-        pending_context=cache.payload, parent_chat_id=request.chat_id, log_prefix="test",
+        cache_service=cache, pending_context=cache.payload,
+        parent_chat_id=request.chat_id, log_prefix="test",
     ))
     content = sent["kwargs"]["request_data_dict"]["message_history"][-1]["content"]
     assert detect_live_marker(content, request.user_id).group_id == "storage_capacity_v1"
@@ -811,7 +961,8 @@ def test_capacity_parent_continuation_preserves_signed_replay(monkeypatch) -> No
     cache.payload.pop("capacity_replay_marker")
     with pytest.raises(RuntimeError, match="no isolated replay context"):
         asyncio.run(stream_consumer._dispatch_sub_chat_parent_continuation(
-            pending_context=cache.payload, parent_chat_id=request.chat_id, log_prefix="test",
+            cache_service=cache, pending_context=cache.payload,
+            parent_chat_id=request.chat_id, log_prefix="test",
         ))
 
 
@@ -868,6 +1019,12 @@ def test_awaiting_nested_sub_chat_does_not_report_provisional_completion() -> No
         aggregated_response="fallback response",
         awaiting_sub_chats_completion=False,
     ) == "final child report"
+    assert stream_consumer._sub_chat_completion_summary(
+        explicit_summary="[Unsupported](embed:invented.example-c2D)",
+        aggregated_response="Saved result after source validation.",
+        awaiting_sub_chats_completion=False,
+        prefer_final_response=True,
+    ) == "Saved result after source validation."
 
 
 def test_sub_chat_completion_is_recorded_before_billing_error_is_reraised() -> None:

@@ -698,7 +698,9 @@
         "cli-team-tasks-real.spec.ts",
         "cli-tui-team-collaboration.spec.ts",
         "cli-team-artifacts-parity.spec.ts",
-        "audio-recording.spec.ts"
+        "audio-recording.spec.ts",
+        "example-chat-embed-uuid-isolation.spec.ts",
+        "multi-tab-session-routing.spec.ts"
       ],
       "enabling_work": "Run against existing core stack and fresh real accounts; report missing fixture or product assertion failures without restoring shared accounts."
     },

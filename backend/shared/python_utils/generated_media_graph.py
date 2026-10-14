@@ -57,7 +57,7 @@ _GENERATED_OUTPUT_SKILLS = frozenset({
 })
 _OUTPUT_REF_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._~:-]{0,127}\Z")
 _MARKDOWN_EMBED_LINK = re.compile(
-    r"\[(?P<label>[^\]\n]*)\]\(\s*<?embed:(?P<ref>[^\s<>)]+)>?"
+    r"(?P<image>!?)\[(?P<label>[^\]\n]*)\]\(\s*<?(?P<prefix>embed:)?(?P<ref>[^\s<>)]+)>?"
     r"(?:\s+[\"'][^\"']*[\"'])?\s*\)"
 )
 _INLINE_CODE = re.compile(r"(?<!`)`[^`\n]+`(?!`)")
@@ -194,9 +194,11 @@ def finalize_trusted_inline_refs(
                 saw_ambiguous_ref |= ambiguous
                 return match.group("label") if ambiguous else match.group(0)
             if ref in present:
-                return match.group("label") if match.group("label") != "!" else ""
+                return match.group("label") if not match.group("image") and match.group("label") != "!" else ""
             present.add(ref)
-            return f"[{match.group('label')}](embed:{ref})"
+            generated = (refs[ref].get("app_id"), refs[ref].get("skill_id")) in _GENERATED_OUTPUT_SKILLS
+            label = "!" if generated or match.group("image") else match.group("label")
+            return f"[{label}](embed:{ref})"
 
         normalized_lines.append(_MARKDOWN_EMBED_LINK.sub(normalize_link, line))
 

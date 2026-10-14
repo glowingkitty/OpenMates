@@ -28,7 +28,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { createEventDispatcher, tick, onMount, onDestroy, untrack, setContext } from 'svelte'; // Added onDestroy
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { demoMode } from '../stores/demoModeStore';
-    import { EMBED_CHAT_CONTEXT, type EmbedChatContext } from '../types/embedFullscreen';
+    import { EMBED_CHAT_CONTEXT, EMBED_SOURCE_CHAT_CONTEXT, type EmbedChatContext, type EmbedSourceChatContext } from '../types/embedFullscreen';
     import EmbedFullscreenLoading from './embeds/EmbedFullscreenLoading.svelte';
     import { panelState } from '../stores/panelStateStore'; // Added import
     import type { Chat, ChatCompressionCheckpoint, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult, ResumeCardImageBubble } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
@@ -394,8 +394,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             ...(fullscreenData.decodedContent ?? {})
         } as EmbedDecodedContent;
 
-        if ((!content.app_id || !content.skill_id) && fullscreenData.embedId) {
-            const exampleEmbed = getExampleChatEmbed(fullscreenData.embedId);
+        if (fullscreenData.hasChatContext && (!content.app_id || !content.skill_id) && fullscreenData.embedId) {
+            const exampleEmbed = getExampleChatEmbed(fullscreenData.embedId, currentChat?.chat_id);
             const rawContent = typeof content.content === 'string'
                 ? content.content
                 : exampleEmbed?.content;
@@ -695,6 +695,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     } | null;
 
     type EmbedFullscreenEventDetail = {
+        sourceChatId?: string | null;
         embedId?: string | null;
         embedData?: EmbedDataRecord | null;
         decodedContent?: EmbedDecodedContent | null;
@@ -1807,7 +1808,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
         const detail = event.detail as EmbedFullscreenEventDetail;
         const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId, highlightQuoteText, focusLineRange, focusSheetRange } = detail;
-        const hasChatContext = detail.hasChatContext ?? (!showWelcome && !!currentChat?.chat_id);
+        // Renderer events may arrive after an async parent/child lookup. Never
+        // reinterpret their captured source against a newly selected chat.
+        if (detail.sourceChatId && detail.sourceChatId !== currentChat?.chat_id) return;
+        const hasChatContext = detail.hasChatContext ?? (detail.sourceChatId !== undefined
+            ? !!detail.sourceChatId : (!showWelcome && !!currentChat?.chat_id));
 
         // Ignore route echoes before starting another resolver or replacing the
         // shell. Updates to the open embed arrive through its store subscription.
@@ -1832,6 +1837,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         };
         const openingData = embedFullscreenData;
         const openingChatId = currentChat?.chat_id;
+        const sourceChatId = hasChatContext ? (detail.sourceChatId ?? openingChatId) : null;
         const stillOpening = () => showEmbedFullscreen && embedFullscreenData === openingData && currentChat?.chat_id === openingChatId;
         fullscreenHasChatContext = hasChatContext;
         showEmbedFullscreen = true;
@@ -1885,7 +1891,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         if (embedId && embedType !== 'workflow-run') {
             try {
                 const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
-                const freshEmbedData = await resolveEmbed(embedId) as EmbedResolverData | null;
+                const freshEmbedData = await resolveEmbed(embedId, { chatId: sourceChatId }) as EmbedResolverData | null;
                 if (!stillOpening()) return;
                 
                 if (freshEmbedData) {
@@ -1930,7 +1936,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         decodedContentKeys: finalDecodedContent ? Object.keys(finalDecodedContent) : []
                     });
                 } else if (!finalEmbedData && !finalDecodedContent) {
-                    const exampleEmbedData = getExampleChatEmbed(embedId);
+                    const exampleEmbedData = getExampleChatEmbed(embedId, sourceChatId);
                     if (exampleEmbedData) {
                         finalEmbedData = {
                             embed_id: exampleEmbedData.embed_id,
@@ -2619,12 +2625,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
         const target = await resolveEmbedFullscreenTarget(embedId, {
             embedType: embed.type,
-            exampleResolver: (id) => {
-                const example = getExampleChatEmbed(id);
-                return example?.parent_embed_id
-                    ? { targetEmbedId: example.parent_embed_id, focusChildEmbedId: id }
-                    : null;
-            },
         });
         if (target.targetEmbedId !== embedId) {
             const [parent] = await loadEmbedsWithRetry([target.targetEmbedId]);
@@ -3928,6 +3928,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
             dispatchEmbedFullscreen({
                 embedId: item.embedId,
+                hasChatContext: false,
                 embedData,
                 decodedContent,
                 embedType,
@@ -5377,6 +5378,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     const showChatButtonInFullscreen = $derived(hasSplitChatContext && forceOverlayMode);
     // Nested result overlays must restore the same workspace chat even when
     // their app-specific adapters do not forward the optional toolbar props.
+    setContext<EmbedSourceChatContext>(EMBED_SOURCE_CHAT_CONTEXT, {
+        get chatId() { return showEmbedFullscreen && !fullscreenHasChatContext ? null : currentChat?.chat_id ?? null; },
+    });
     setContext<EmbedChatContext>(EMBED_CHAT_CONTEXT, {
         get showChatButton() { return showChatButtonInFullscreen; },
         get isSplitPane() { return hasSplitChatContext; },

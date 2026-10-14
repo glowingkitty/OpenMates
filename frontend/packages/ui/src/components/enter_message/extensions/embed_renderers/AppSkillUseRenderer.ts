@@ -32,7 +32,7 @@ import {
   hasFullscreenComponent,
   resolveRegistryKey,
 } from "../../../../services/embedFullscreenResolver";
-import { resolveExampleFullscreenTarget } from "../../../../demo_chats/exampleChatStore";
+import { isExampleChat, resolveExampleFullscreenTarget } from "../../../../demo_chats/exampleChatStore";
 import { normalizeEmbedType as registryNormalizeEmbedType } from "../../../../data/embedRegistry.generated";
 import { mount, unmount, disposeEmbedTree, onEmbedCleanup, isEmbedTargetDisposed } from "./mountedEmbedLifecycle";
 import WebSearchEmbedPreview from "../../../embeds/web/WebSearchEmbedPreview.svelte";
@@ -166,7 +166,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       const embedId = attrs.contentRef.replace("embed:", "");
 
       // Load embed from EmbedStore (even if processing, so we can mount the correct component)
-      embedData = await resolveEmbed(embedId);
+      embedData = await resolveEmbed(embedId, { chatId: attrs.sourceChatId });
 
       // DECRYPTION FAILURE RECOVERY: If the embed loaded from IndexedDB but failed to decrypt
       // (e.g. on tab reload when embed key could not be unwrapped), evict the broken entry and
@@ -246,7 +246,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         // cover the common case without introducing perceptible latency.
         for (let attempt = 1; attempt <= 2 && !embedData; attempt++) {
           await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
-          embedData = await resolveEmbed(embedId);
+          embedData = await resolveEmbed(embedId, { chatId: attrs.sourceChatId });
           if (embedData) {
             try {
               decodedContent = embedData.content
@@ -2914,7 +2914,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const resultCount = typeof decodedContent?.result_count === "number" ? decodedContent.result_count : 0;
     const taskId = decodedContent?.task_id || "";
     const skillTaskId = decodedContent?.skill_task_id || "";
-    this.prefetchChildEmbedRefs(decodedContent?.embed_ids || embedData?.embed_ids);
+    this.prefetchChildEmbedRefs(decodedContent?.embed_ids || embedData?.embed_ids, attrs.sourceChatId);
 
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -2957,7 +2957,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     }
   }
 
-  private prefetchChildEmbedRefs(rawEmbedIds: unknown): void {
+  private prefetchChildEmbedRefs(rawEmbedIds: unknown, sourceChatId?: string): void {
     const embedIds = typeof rawEmbedIds === "string"
       ? rawEmbedIds.split("|").map((id) => id.trim()).filter(Boolean)
       : Array.isArray(rawEmbedIds)
@@ -2967,7 +2967,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     if (embedIds.length === 0) return;
 
     void Promise.all(
-      embedIds.slice(0, 50).map((embedId) => resolveEmbed(embedId).catch((error) => {
+      embedIds.slice(0, 50).map((embedId) => resolveEmbed(embedId, { chatId: sourceChatId }).catch((error) => {
         console.debug("[AppSkillUseRenderer] Failed to prefetch child embed ref:", embedId, error);
         return null;
       })),
@@ -4598,7 +4598,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
    * 'embedUpdated' event and retries — preventing silent failures when the user
    * clicks the view embed card immediately after a fresh upload.
    */
-  private async openImageUploadFullscreen(embedId: string, content: HTMLElement): Promise<void> {
+  private async openImageUploadFullscreen(embedId: string, content: HTMLElement, sourceChatId?: string): Promise<void> {
     if (!embedId) {
       console.warn(
         "[AppSkillUseRenderer] openImageUploadFullscreen: no embed_id",
@@ -4644,7 +4644,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     };
 
     try {
-      const uploadEmbed = await resolveEmbed(embedId);
+      const uploadEmbed = await resolveEmbed(embedId, { chatId: sourceChatId });
       if (await dispatchFullscreenEvent(uploadEmbed)) return;
 
       // Embed not in cache yet — register a one-shot listener and retry when it arrives
@@ -4658,7 +4658,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
         chatSyncService.removeEventListener("embedUpdated", handler);
 
-        resolveEmbed(embedId)
+        resolveEmbed(embedId, { chatId: sourceChatId })
           .then((fresh) => dispatchFullscreenEvent(fresh))
           .catch((err) => {
             console.error(
@@ -4682,7 +4682,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
    * Resolves the original PDF upload embed by embed_id, then fires
    * 'pdffullscreen' CustomEvent so ActiveChat mounts PDFEmbedFullscreen.
    */
-  private async openPdfUploadFullscreen(embedId: string): Promise<void> {
+  private async openPdfUploadFullscreen(embedId: string, sourceChatId?: string): Promise<void> {
     if (!embedId) {
       console.warn(
         "[AppSkillUseRenderer] openPdfUploadFullscreen: no embed_id",
@@ -4690,7 +4690,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       return;
     }
     try {
-      const uploadEmbed = await resolveEmbed(embedId);
+      const uploadEmbed = await resolveEmbed(embedId, { chatId: sourceChatId });
       if (!uploadEmbed) {
         console.warn(
           "[AppSkillUseRenderer] Could not resolve original PDF embed:",
@@ -4831,7 +4831,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
       // On fullscreen click: open the ORIGINAL uploaded image's fullscreen
       const handleFullscreen = () => {
-        this.openImageUploadFullscreen(originalEmbedId, content);
+        this.openImageUploadFullscreen(originalEmbedId, content, attrs.sourceChatId);
       };
 
       const component = mount(ImageViewEmbedPreview, {
@@ -4860,6 +4860,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           originalEmbedId,
           component,
           handleFullscreen,
+          attrs.sourceChatId,
         );
       }
 
@@ -4880,7 +4881,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           // Re-run the full render() so renderImageViewComponent is called again
           // with the updated decodedContent (which will now have a real embed_id).
           // We resolve fresh embedData + decodedContent via re-render().
-          resolveEmbed(embedId)
+          resolveEmbed(embedId, { chatId: attrs.sourceChatId })
             .then(async (freshEmbedData) => {
               const freshDecoded = freshEmbedData?.content
                 ? await decodeToonContent(freshEmbedData.content)
@@ -4938,6 +4939,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     originalEmbedId: string,
     component: ReturnType<typeof mount>,
     handleFullscreen: () => void,
+    sourceChatId?: string,
   ): Promise<void> {
     /**
      * Inner helper: decode the upload embed content and remount the preview
@@ -5002,7 +5004,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     };
 
     try {
-      const uploadEmbed = await resolveEmbed(originalEmbedId);
+      const uploadEmbed = await resolveEmbed(originalEmbedId, { chatId: sourceChatId });
       if (await tryUpdateWithEmbed(uploadEmbed)) return;
 
       // Upload embed not in IndexedDB yet (e.g. still syncing from server or the
@@ -5019,7 +5021,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         // Remove listener immediately to avoid duplicate remounts
         chatSyncService.removeEventListener("embedUpdated", handler);
 
-        resolveEmbed(originalEmbedId)
+        resolveEmbed(originalEmbedId, { chatId: sourceChatId })
           .then((fresh) => tryUpdateWithEmbed(fresh))
           .catch((err) => {
             console.error(
@@ -5090,7 +5092,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
       // On fullscreen click: open the ORIGINAL uploaded PDF's fullscreen
       const handleFullscreen = () => {
-        this.openPdfUploadFullscreen(originalEmbedId);
+        this.openPdfUploadFullscreen(originalEmbedId, attrs.sourceChatId);
       };
 
       const component = mount(PdfViewEmbedPreview, {
@@ -5817,7 +5819,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     });
 
     this.prepareMount(content);
-    const previewImageUrl = await this.resolveInputPreviewImageUrl(decodedContent);
+    const previewImageUrl = await this.resolveInputPreviewImageUrl(decodedContent, attrs.sourceChatId);
 
     const component = mount(GenericAppSkillEmbedPreview, {
       target: content,
@@ -5842,12 +5844,13 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
   private async resolveInputPreviewImageUrl(
     decodedContent: Record<string, unknown> | null | undefined,
+    sourceChatId?: string,
   ): Promise<string> {
     const inputEmbedId = normalizeEmbedIdList(decodedContent?.input_embed_ids)[0];
     if (!inputEmbedId) return "";
 
     try {
-      const inputEmbed = await resolveEmbed(inputEmbedId);
+      const inputEmbed = await resolveEmbed(inputEmbedId, { chatId: sourceChatId });
       const inputContent = inputEmbed?.content
         ? await decodeToonContent(inputEmbed.content)
         : null;
@@ -5880,7 +5883,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     }
 
     try {
-      const outputEmbed = await resolveEmbed(outputEmbedId);
+      const outputEmbed = await resolveEmbed(outputEmbedId, { chatId: attrs.sourceChatId });
       const outputContent = outputEmbed?.content
         ? await decodeToonContent(outputEmbed.content)
         : null;
@@ -5986,7 +5989,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
     if (rawEmbedId) {
       try {
-        const resolvedEmbed = await resolveEmbed(rawEmbedId);
+        const resolvedEmbed = await resolveEmbed(rawEmbedId, { chatId: attrs.sourceChatId });
         if (resolvedEmbed) {
           latestEmbedData = resolvedEmbed;
           latestDecodedContent = resolvedEmbed.content
@@ -6041,7 +6044,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       const resolvedTarget = await resolveEmbedFullscreenTarget(rawEmbedId, {
         embedType: inferredEmbedType,
         decodedContent: fullscreenDecodedContent,
-        exampleResolver: resolveExampleFullscreenTarget,
+        exampleResolver: (id) => resolveExampleFullscreenTarget(id, attrs.sourceChatId),
+        exampleOnly: !!attrs.sourceChatId && isExampleChat(attrs.sourceChatId),
       });
       targetEmbedId = resolvedTarget.targetEmbedId;
       focusChildEmbedId = resolvedTarget.focusChildEmbedId;
@@ -6058,6 +6062,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       embedType: inferredEmbedType,
       attrs,
       focusChildEmbedId,
+      sourceChatId: attrs.sourceChatId ?? null,
     };
     dispatchEmbedFullscreen(detail);
     console.debug(

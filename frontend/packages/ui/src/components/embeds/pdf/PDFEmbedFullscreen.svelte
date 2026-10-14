@@ -34,7 +34,10 @@
 -->
 
 <script lang="ts">
-  import { onMount, onDestroy, untrack } from 'svelte';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
+  const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  const sourceChatId = sourceChatContext?.chatId ?? null;
+  import { onMount, onDestroy, untrack, getContext} from 'svelte';
   import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from '../images/imageEmbedCrypto';
   const pageImageOwner = createImageUrlOwner();
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
@@ -269,7 +272,7 @@
     }
     try {
       const { resolveEmbed, decodeToonContent } = await import('../../../services/embedResolver');
-      const embedData = await resolveEmbed(embedId);
+      const embedData = await resolveEmbed(embedId, { chatId: sourceChatId });
       if (!embedData?.content) {
         console.warn('[PDFEmbedFullscreen] No embed content found for:', embedId);
         contentLoaded = true;

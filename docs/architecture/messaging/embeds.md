@@ -122,6 +122,7 @@ sequenceDiagram
 - **Composite embeds:** `app_skill_use` contains `embed_ids` → child embeds loaded via `_load_and_cache_embeds_for_chats()` in [user_cache_tasks.py](../../backend/core/api/app/tasks/user_cache_tasks.py)
 - **Web and news images:** preview strips and article fullscreen share the image-field selector in `searchPreviewImages.ts`, including nested and flattened `thumbnail.src` and `thumbnail.original` fields. Current parent image metadata avoids child reads. A visible legacy web or news preview without image metadata may resolve at most ten unique children through the existing embed cache; offscreen previews do not hydrate, and obsolete results are discarded on teardown.
 - **Cross-chat access:** owner uses master key wrapper; recipient uses chat key wrapper from share link
+- **Public examples:** converted fixtures can retain the same embed UUID as their private source. Fixture resolution therefore requires the owning example chat or subchat context and does not populate the private embed cache. A private decryption error cannot suppress a valid public fixture, and private or background lookups cannot substitute fixture content.
 - **Stale vault keys:** cache decryption fails → request from client → re-cache (same pattern as [message-processing.md](./message-processing.md))
 - **Duplicate detection:** `content_hash` (SHA256) used for code/file/sheet/document embeds — [embed_service.py](../../backend/core/api/app/services/embed_service.py)
 
@@ -146,6 +147,23 @@ sequenceDiagram
 
 Full schema: [app_metadata_schemas.py](../../backend/shared/python_schemas/app_metadata_schemas.py)
 
+### Completion receipts and immutable versions
+
+An acknowledged typed recovery output identifies one encrypted embed version and
+its canonical ciphertext digest. A later legacy `store_embed` retry must preserve
+that ciphertext at the acknowledged version. Byte-identical retries remain
+idempotent; a content edit uses the versioned editing transaction and preserves
+the previous encrypted version. Receipt acknowledgement and head writes share
+the embed advisory lock, so their ordering cannot leave a terminal receipt
+pointing at overwritten ciphertext.
+
+The CLI performs a fresh metadata read after persisting recovered outputs. Within
+one sync operation it remembers only successfully verified record identities,
+avoiding repeated recovery of the same acknowledged output across refreshes.
+Changed identities and unverifiable canonical digests still fail verification;
+continuously arriving new outputs have a bounded refresh count. Unrelated saved
+chat browsing can continue while an unverified recovery record remains pending.
+
 ### Embed Types (`encrypted_type` values)
 
 `app_skill_use` · `website` · `place` · `event` · `code` · `application` · `file` · `sheet` · `document` · `image` · `video` · `audio` · `pdf`
@@ -159,7 +177,14 @@ child `code-code`, image, or file embeds. The durable source of truth remains th
 encrypted parent manifest plus encrypted child embeds; OpenMates does not store a
 full rendered DOM snapshot.
 
-Live previews run only after an explicit user action. The backend creates a
+Application creation can start one bounded owner screenshot capture under the
+existing preview billing contract. A missing-thumbnail card fallback reuses the
+creator's attempt and sends no shared-client context; public examples, shared
+recipients and unknown local chats never start that capture automatically.
+Screenshot enrichment writes a new encrypted embed version so an acknowledged
+previous version remains immutable.
+
+Opening an interactive live preview requires an explicit user action. The backend creates a
 viewer-scoped E2B sandbox session, writes the selected generated files/assets into
 that sandbox, and returns a short-lived preview URL under the configured
 `APPLICATION_PREVIEW_ORIGIN` user-content site. Clients load that URL in an

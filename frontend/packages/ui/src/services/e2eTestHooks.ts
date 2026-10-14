@@ -82,6 +82,59 @@ export async function installE2ETestHooks() {
     __openmatesE2EDraftSelectionGate?: E2EDraftSelectionGate;
     __openmatesE2EDraftSelectionTrace?: E2EDraftSelectionDecision[];
     __openmatesE2EDraftState?: () => Record<string, unknown>;
+    __openmatesE2EReplayCanonicalEmbedWrite?: (input: {
+      chatId: string; embedId: string; changeContent?: boolean;
+    }) => Promise<{ pending: boolean; connected: boolean }>;
+    __openmatesE2EExampleEmbedCollision?: (input: {
+      exampleChatId: string; seedPrivate?: boolean;
+    }) => Promise<{
+      privateCachePreserved: boolean; privateResolverPreserved: boolean; publicResolverSelected: boolean;
+      missingPublicFixtureBlocked: boolean; privateRefIndexPreserved: boolean; privatePiiPreserved: boolean;
+    }>;
+  };
+
+  // Synthetic owner-cache collision against a checked-in public example UUID.
+  // Return only booleans; private/cache content never leaves the browser.
+  testWindow.__openmatesE2EExampleEmbedCollision = async ({ exampleChatId, seedPrivate = false }) => {
+    const { getExampleChatEmbed, getExampleChatEmbeds, resolveExampleChatEmbedRef } = await import('../demo_chats/exampleChatStore');
+    const { embedStore } = await import('./embedStore');
+    const { resolveEmbed } = await import('./embedResolver');
+    const embedId = getExampleChatEmbeds(exampleChatId).find((embed) =>
+      embed.type === 'app_skill_use' && !!embed.content)?.embed_id;
+    if (!embedId) throw new Error('No admitted example parent embed for collision test');
+    const fixture = getExampleChatEmbed(embedId, exampleChatId);
+    if (!fixture) throw new Error('E2E collision fixture is outside the example chat');
+    const sentinel = 'E2E_PRIVATE_COLLISION_SENTINEL';
+    const missingId = '11111111-1111-4111-8111-111111111111';
+    if (seedPrivate) {
+      embedStore.setInMemoryOnly(`embed:${embedId}`, {
+        embed_id: embedId, type: fixture.type, status: 'finished', content: sentinel,
+      });
+      embedStore.setInMemoryOnly(`embed:${missingId}`, {
+        embed_id: missingId, type: fixture.type, status: 'finished', content: sentinel,
+      });
+      embedStore.setInMemoryOnly(`embed_pii:${embedId}`, {
+        embed_id: embedId, pii_mappings: [{ placeholder: sentinel }],
+      });
+      embedStore.registerEmbedRef(embedId, missingId, 'private');
+    }
+    const cached = await embedStore.get(`embed:${embedId}`);
+    const privateEmbed = await resolveEmbed(embedId, { chatId: 'e2e-private-source-chat' });
+    const publicEmbed = await resolveEmbed(embedId, { chatId: exampleChatId });
+    const missingPublicEmbed = await resolveEmbed(missingId, { chatId: exampleChatId });
+    const privatePii = await embedStore.get(`embed_pii:${embedId}`);
+    const privatePiiMappings = privatePii && typeof privatePii === 'object'
+      ? privatePii.pii_mappings : null;
+    return {
+      privateCachePreserved: typeof cached === 'object' && cached?.content === sentinel,
+      privateResolverPreserved: privateEmbed?.content === sentinel,
+      publicResolverSelected: publicEmbed?.content === fixture.content,
+      missingPublicFixtureBlocked: missingPublicEmbed === null,
+      privateRefIndexPreserved: embedStore.resolveByRef(embedId) === missingId
+        && resolveExampleChatEmbedRef(embedId, exampleChatId)?.embedId === embedId,
+      privatePiiPreserved: Array.isArray(privatePiiMappings)
+        && privatePiiMappings[0]?.placeholder === sentinel,
+    };
   };
 
   testWindow.__openmatesE2ESeedChat = async ({ chat, messages }) => {
@@ -192,4 +245,62 @@ export async function installE2ETestHooks() {
   testWindow.__openmatesE2EDraftState = () => structuredClone(
     get(draftEditorUIState) as unknown as Record<string, unknown>,
   );
+
+  // Exercise the real sender against an owner-authorized recovered head. Return
+  // only queue state; neither the plaintext nor encrypted material reaches E2E logs.
+  testWindow.__openmatesE2EReplayCanonicalEmbedWrite = async ({ chatId, embedId, changeContent = false }) => {
+    const { getApiEndpoint, storageArchiveFetch } = await import('../config/api');
+    const { embedStore } = await import('./embedStore');
+    const { decryptWithEmbedKey, encryptWithEmbedKey } = await import('./encryption/MetadataEncryptor');
+    const { chatSyncService } = await import('./chatSyncService');
+    const { sendStoreEmbedImpl } = await import('./embedSenders');
+    const chat = await chatDB.getRawChat(chatId);
+    if (!chat) throw new Error('E2E canonical replay chat is unavailable');
+    const query = chat.team_id ? `?team_id=${encodeURIComponent(chat.team_id)}` : '';
+    const response = await storageArchiveFetch(getApiEndpoint(
+      `/v1/embeds/chats/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(embedId)}${query}`,
+    ), { credentials: 'include' });
+    if (!response.ok) throw new Error(`E2E canonical replay head read failed (${response.status})`);
+    const page = await response.json() as { embed?: Record<string, unknown> };
+    const head = page.embed;
+    if (!head || head.embed_id !== embedId || typeof head.hashed_chat_id !== 'string'
+      || typeof head.encrypted_content !== 'string' || typeof head.encrypted_type !== 'string') {
+      throw new Error('E2E canonical replay head is incomplete');
+    }
+    const key = await embedStore.getEmbedKey(embedId, head.hashed_chat_id);
+    if (!key) throw new Error('E2E canonical replay key is unavailable');
+    const content = await decryptWithEmbedKey(head.encrypted_content, key);
+    const type = await decryptWithEmbedKey(head.encrypted_type, key);
+    if (content === null || type === null) throw new Error('E2E canonical replay decryption failed');
+    const encryptedContent = await encryptWithEmbedKey(
+      changeContent ? `${content}\nE2E changed logical content` : content, key,
+    );
+    const encryptedType = await encryptWithEmbedKey(type, key);
+    if (encryptedContent === head.encrypted_content || encryptedType === head.encrypted_type) {
+      throw new Error('E2E canonical replay did not generate fresh ciphertext');
+    }
+    const connected = chatSyncService.webSocketConnected_FOR_SENDERS_ONLY;
+    if (!connected) throw new Error('E2E canonical replay WebSocket is disconnected');
+    await sendStoreEmbedImpl(chatSyncService, {
+      embed_id: embedId, chat_id: chatId, team_id: chat.team_id ?? null,
+      encrypted_content: encryptedContent, encrypted_type: encryptedType,
+      encrypted_text_preview: head.encrypted_text_preview as string | undefined,
+      status: head.status as string,
+      hashed_chat_id: head.hashed_chat_id,
+      hashed_message_id: head.hashed_message_id as string,
+      hashed_task_id: head.hashed_task_id as string | undefined,
+      hashed_user_id: head.hashed_user_id as string,
+      app_id: head.app_id as string | undefined,
+      skill_id: head.skill_id as string | undefined,
+      embed_ids: head.embed_ids as string[] | undefined,
+      parent_embed_id: head.parent_embed_id as string | undefined,
+      version_number: head.version_number as number | undefined,
+      is_private: head.is_private as boolean | undefined,
+      is_shared: head.is_shared as boolean | undefined,
+      created_at: head.created_at as number,
+      updated_at: head.updated_at as number,
+    } as Parameters<typeof sendStoreEmbedImpl>[1]);
+    const pending = (await chatDB.getPendingEmbedOperations()).some((operation) => operation.embed_id === embedId);
+    return { pending, connected };
+  };
 }

@@ -28,6 +28,9 @@
 -->
 
 <script lang="ts">
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
+  const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  const sourceChatId = sourceChatContext?.chatId ?? null;
   import { onMount, onDestroy, tick, getContext } from 'svelte';
   import { EMBED_CHAT_CONTEXT, type EmbedChatContext } from '../../types/embedFullscreen';
   import { panelState } from '../../stores/panelStateStore';
@@ -514,7 +517,7 @@
         // - Regular embedStore (for encrypted user embeds)
         // - exampleChatStore (for cleartext demo chat embeds)
         // This is critical for demo chats where embeds are stored separately.
-        const embedData = await resolveEmbed(childEmbedId);
+        const embedData = await resolveEmbed(childEmbedId, { chatId: sourceChatId });
         if (!isCurrentChildLoad(generation)) return null;
         if (!embedData) {
           console.warn('[UnifiedEmbedFullscreen] Child embed not found:', childEmbedId);
@@ -659,7 +662,7 @@
     }
     
     try {
-      const embedData = await resolveEmbed(currentEmbedId);
+      const embedData = await resolveEmbed(currentEmbedId, { chatId: sourceChatId });
       if (isDestroyed || isClosing) return;
       if (!embedData) {
         console.warn(`[UnifiedEmbedFullscreen] Embed not found in store: ${currentEmbedId}`);

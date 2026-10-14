@@ -123,7 +123,7 @@ class ConnectionManager:
         
         2. Connection Hash (with sessionId): SHA256(OS:Country:UserID:SessionID)
            - Used for: WebSocket connection routing (stored as device_fingerprint_hash key)
-           - SessionID: UUID generated per browser tab/instance, stored in sessionStorage
+           - SessionID: UUID generated per browser document and reused on reconnect
            - Each browser instance (Arc, Firefox, Chrome) = unique connection hash
            - Allows multiple instances on same physical device without conflicts
     
@@ -138,9 +138,12 @@ class ConnectionManager:
 
     def __init__(self):
         # Structure: {user_id: {device_fingerprint_hash: WebSocket}}
-        # Note: Each browser instance has unique sessionId → unique device_fingerprint_hash
+        # Each browser document has a unique WebSocket routing ID.
         # Example: {user123: {hash_arc: ws_arc, hash_firefox: ws_firefox}}
         self.active_connections: Dict[str, Dict[str, WebSocket]] = {}
+        # Authenticated ledger identity per live route. Never comes from the
+        # caller-controlled WebSocket sessionId query parameter.
+        self.logical_session_per_connection: Dict[Tuple[str, str], str] = {}
         # Structure: {websocket_id: (user_id, device_fingerprint_hash)} for reverse lookup
         self.reverse_lookup: Dict[int, Tuple[str, str]] = {}
         # Structure: {(user_id, device_fingerprint_hash): chat_id} to track active chat per device
@@ -177,6 +180,7 @@ class ConnectionManager:
         user_id: str,
         device_fingerprint_hash: str,
         *,
+        logical_session_id: str | None = None,
         supports_task_update_jobs: bool = False,
         supports_chat_metadata_recovery: bool = False,
         supports_project_file_jobs: bool = False,
@@ -220,6 +224,10 @@ class ConnectionManager:
         
         self.active_connections[user_id][device_fingerprint_hash] = websocket
         self.reverse_lookup[new_ws_id] = connection_key
+        if logical_session_id:
+            self.logical_session_per_connection[connection_key] = logical_session_id
+        else:
+            self.logical_session_per_connection.pop(connection_key, None)
         
         # Preserve active chat if connection_key already exists (reconnection)
         if connection_key not in self.active_chat_per_connection:
@@ -377,6 +385,7 @@ class ConnectionManager:
                     del self.active_chat_per_connection[connection_key]
                     logger.debug(f"Finalized: Cleared active chat tracking for {user_id}/{device_fingerprint_hash} (ws_id: {ws_id_to_finalize}) after grace period.")
                 self.connection_foreground_state.pop(connection_key, None)
+                self.logical_session_per_connection.pop(connection_key, None)
                 self.task_update_job_capability.pop(connection_key, None)
                 self.chat_metadata_recovery_capability.pop(connection_key, None)
                 self.project_file_job_capability.pop(connection_key, None)
@@ -400,6 +409,8 @@ class ConnectionManager:
                     del self.active_chat_per_connection[connection_key]
                     logger.debug(f"Finalized: Cleared lingering active chat tracking for {user_id}/{device_fingerprint_hash} as no active connection exists.")
                 self.connection_foreground_state.pop(connection_key, None)
+                if not self.active_connections.get(user_id, {}).get(device_fingerprint_hash):
+                    self.logical_session_per_connection.pop(connection_key, None)
                 self.task_update_job_capability.pop(connection_key, None)
                 self.chat_metadata_recovery_capability.pop(connection_key, None)
                 self.project_file_job_capability.pop(connection_key, None)
@@ -502,6 +513,8 @@ class ConnectionManager:
         event_name: str,
         payload: dict,
         exclude_device_hash: Optional[str] = None,
+        target_logical_session_id: Optional[str] = None,
+        exclude_logical_session_id: Optional[str] = None,
     ):
         """
         Sends a specific event message to all connected devices for a specific user.
@@ -509,6 +522,16 @@ class ConnectionManager:
         exclude_device_hash: if provided, skip the connection with this hash.
         Used by force_logout broadcasts so the revoking device does not log itself out.
         """
+        if target_logical_session_id is not None and (
+            not isinstance(target_logical_session_id, str) or not target_logical_session_id.strip()
+        ):
+            raise ValueError("A targeted session event needs a nonempty session identity")
+        if exclude_logical_session_id is not None and (
+            not isinstance(exclude_logical_session_id, str) or not exclude_logical_session_id.strip()
+        ):
+            raise ValueError("An excluded session event needs a nonempty session identity")
+        if target_logical_session_id is not None and exclude_logical_session_id is not None:
+            raise ValueError("A session event cannot both target and exclude a session")
         if user_id in self.active_connections:
             message = {"type": event_name, "payload": payload}
             tasks = []
@@ -519,6 +542,12 @@ class ConnectionManager:
             for device_hash, websocket in list(self.active_connections[user_id].items()):
                 if device_hash == exclude_device_hash:
                     continue
+                if target_logical_session_id or exclude_logical_session_id:
+                    bound_session = self.logical_session_per_connection.get((user_id, device_hash))
+                    if (not bound_session
+                            or (target_logical_session_id and bound_session != target_logical_session_id)
+                            or (exclude_logical_session_id and bound_session == exclude_logical_session_id)):
+                        continue
                 # Skip dead sockets in the 30s grace period — see _ws_is_live.
                 if not _ws_is_live(websocket):
                     stale_websockets.append(websocket)

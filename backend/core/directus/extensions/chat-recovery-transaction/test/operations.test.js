@@ -37,6 +37,7 @@ function fakeDatabase(seed, injectedFailure = null, routingSchema = false) {
   let transactionTail = Promise.resolve();
   const shareLocks = [];
   const rawStatements = [];
+  const lockEvents = [];
   const failureCounts = new Map();
   const compare = (left, operator, right) => {
     const a = left instanceof Date ? left.getTime() : left;
@@ -97,7 +98,7 @@ function fakeDatabase(seed, injectedFailure = null, routingSchema = false) {
         whereNotNull(field) { predicates.push((row) => row[field] != null); return query; },
         whereIn(field, values) { predicates.push((row) => values.includes(row[field])); return query; },
         whereNotIn(field, values) { predicates.push((row) => !values.includes(row[field])); return query; },
-        forUpdate() { return query; },
+        forUpdate() { lockEvents.push(`row:${table}`); return query; },
         forShare() { shareLocks.push(table); return query; },
         orderBy(field, direction = 'asc') { orders.push([field, direction]); return query; },
         limit(value) { limitCount = value; return query; },
@@ -153,6 +154,9 @@ function fakeDatabase(seed, injectedFailure = null, routingSchema = false) {
     };
     client.raw = (value, bindings) => {
       rawStatements.push({ sql: value, bindings: structuredClone(bindings) });
+      if (typeof value === 'string' && value.includes('pg_advisory_xact_lock')) {
+        lockEvents.push(`advisory:${bindings?.[0]}`);
+      }
       return typeof value === 'string' && /\w+ \+ 1/.test(value) ? { rawExpression: value } : value;
     };
     return client;
@@ -162,6 +166,7 @@ function fakeDatabase(seed, injectedFailure = null, routingSchema = false) {
   Object.defineProperty(database, 'transactions', { get: () => transactions });
   Object.defineProperty(database, 'shareLocks', { get: () => [...shareLocks] });
   Object.defineProperty(database, 'rawStatements', { get: () => [...rawStatements] });
+  Object.defineProperty(database, 'lockEvents', { get: () => [...lockEvents] });
   database.transaction = async (callback) => {
     const run = transactionTail.then(async () => {
       transactions += 1;
@@ -2828,6 +2833,7 @@ test('checkpoint acknowledgement requires matching canonical client ciphertext a
   assert.equal(database.rows.chat_recovery_outputs[0].sealed_payload, null);
 });
 
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery
 test('embed and diff recovery acknowledge only after canonical encrypted rows exist', async () => {
   const seed = preparedSeed();
   seed.chat_turn_preflights[0].state = 'RUNNING';
@@ -2862,8 +2868,13 @@ test('embed and diff recovery acknowledge only after canonical encrypted rows ex
     { hashed_embed_id: sha256(embedId), hashed_user_id: OWNER, key_type: 'chat', hashed_chat_id: sha256(CHAT_ID), encrypted_embed_key: 'chat-wrapper' },
   );
   await assert.rejects(executeOperation(database, 'acknowledge_output_embed', request(embedId, sha256('wrong'))), /canonical_output_mismatch/);
+  const beforeAckLocks = database.lockEvents.length;
   const embedAck = await executeOperation(database, 'acknowledge_output_embed', request(embedId, embedDigest));
   assert.equal(embedAck.state, 'ACKNOWLEDGED');
+  const ackLocks = database.lockEvents.slice(beforeAckLocks);
+  assert.ok(ackLocks.indexOf(`advisory:embed:${embedId}`) >= 0
+    && ackLocks.indexOf(`advisory:embed:${embedId}`) < ackLocks.indexOf('row:chat_recovery_outputs'),
+  'the ACK takes the writer-compatible embed lock before the output row lock');
   await assert.rejects(executeOperation(database, 'acknowledge_output_embed', request(embedId, sha256('wrong'))), /canonical_output_mismatch/);
   await assert.rejects(executeOperation(database, 'acknowledge_output_embed', request(diffId, diffDigest)), /canonical_diff_missing/);
   database.rows.embed_diffs.push({ embed_id: embedId, version_number: 2,

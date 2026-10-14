@@ -254,3 +254,22 @@ def test_required_generated_output_is_appended_once_using_authored_identity():
     assert finalize_trusted_inline_refs("Here is the image.", [row], required_refs=["made-up-ref"]) == (
         "Here is the image."
     )
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results
+def test_authored_media_markdown_uses_one_visible_card_and_preserves_untrusted_targets():
+    child_id = str(uuid.uuid4())
+    ref = "generated-images-6aa2e8f17ced"
+    row = {"app_id": "images", "skill_id": "generate", "status": "finished",
+           "embed_ref": ref, "embed_id": child_id}
+    answer = f"Here is your illustration:\n\n![Botanical sunflower]({ref})\n\n[!](embed:{ref})"
+    final = finalize_trusted_inline_refs(answer, [row], required_refs=[child_id])
+    assert final == f"Here is your illustration:\n\n[!](embed:{ref})\n\n"
+    assert final.count(f"(embed:{ref})") == 1
+    assert finalize_trusted_inline_refs(final, [row], required_refs=[child_id]) == final
+    assert finalize_trusted_inline_refs(f"[Generated result](embed:{ref})", [row]) == f"[!](embed:{ref})"
+    for protected in [f"`![Sunflower]({ref})`", f"```markdown\n![Sunflower]({ref})\n```",
+                      "![Unverified](generated-images-unknown)", "![Public](https://example.com/image.png)"]:
+        assert finalize_trusted_inline_refs(protected, [row]) == protected
+    failed = {**row, "status": "failed"}
+    assert finalize_trusted_inline_refs(f"![Sunflower]({ref})", [failed]) == f"![Sunflower]({ref})"

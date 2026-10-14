@@ -40,6 +40,8 @@ auth_deps_stub.get_compliance_service = lambda: None
 auth_deps_stub.get_encryption_service = lambda: None
 user_stub = types.ModuleType("backend.core.api.app.models.user")
 user_stub.User = object
+direct_chat_stub = types.ModuleType("backend.core.api.app.services.direct_chat_access")
+direct_chat_stub.is_direct_chat = lambda chat: bool(chat.get("is_direct_chat"))
 
 _STUB_MODULES = {
     "backend.core.api.app.services.directus": directus_stub,
@@ -48,6 +50,7 @@ _STUB_MODULES = {
     "backend.core.api.app.services.limiter": limiter_stub,
     "backend.core.api.app.routes.auth_routes.auth_dependencies": auth_deps_stub,
     "backend.core.api.app.models.user": user_stub,
+    "backend.core.api.app.services.direct_chat_access": direct_chat_stub,
 }
 _previous_modules = {name: sys.modules.get(name) for name in _STUB_MODULES}
 try:
@@ -70,6 +73,14 @@ get_shared_chat_embed_by_id = getattr(
     share_routes.get_shared_chat_embed_by_id,
     "__wrapped__",
     share_routes.get_shared_chat_embed_by_id,
+)
+get_shared_chat_embed_window = getattr(
+    share_routes.get_shared_chat_embed_window,
+    "__wrapped__", share_routes.get_shared_chat_embed_window,
+)
+get_shared_chat_embed_keys_window = getattr(
+    share_routes.get_shared_chat_embed_keys_window,
+    "__wrapped__", share_routes.get_shared_chat_embed_keys_window,
 )
 get_shared_chat_message_by_id = getattr(
     share_routes.get_shared_chat_message_by_id,
@@ -121,9 +132,21 @@ class FakeEmbedMethods:
         requested = set(hashed_embed_ids)
         return [embed for embed in self.key_embeds if embed.get("hashed_embed_id") in requested]
 
-    async def get_embed_window_by_hashed_chat_id(self, hashed_chat_id: str):
-        rows = await self.get_embeds_by_hashed_chat_id(hashed_chat_id)
-        return {"embeds": rows, "has_more_before": False, "start_cursor": None,
+    async def get_embed_window_by_hashed_chat_id(
+        self, hashed_chat_id: str, *, before_created_at=None, before_id=None,
+    ):
+        rows = [dict(row, hashed_chat_id=row.get("hashed_chat_id") or hashed_chat_id,
+                     id=row.get("id") or row["embed_id"],
+                     created_at=row.get("created_at", 1)) for row in self.chat_embeds]
+        rows = [row for row in rows if row["hashed_chat_id"] == hashed_chat_id]
+        rows.sort(key=lambda row: (row["created_at"], row["id"]), reverse=True)
+        if before_created_at is not None:
+            rows = [row for row in rows if (row["created_at"], row["id"])
+                    < (before_created_at, before_id)]
+        page = rows[:30]
+        oldest = page[-1] if page else None
+        return {"embeds": page, "has_more_before": len(rows) > 30,
+                "start_cursor": {"created_at": oldest["created_at"], "id": oldest["id"]} if oldest else None,
                 "oversized_embed_id": None, "oversized_embed_cursor": None}
 
     async def get_sync_embed_key_window_for_page(self, hashed_chat_id: str, hashed_user_id: str,
@@ -134,8 +157,31 @@ class FakeEmbedMethods:
                                     "key_type": "chat", "hashed_embed_id": value} for value in hashes]
         selected = [key for key in keys if key.get("hashed_embed_id") in hashes
                     and key.get("hashed_chat_id") == hashed_chat_id and key.get("key_type") == "chat"]
-        return {"embed_keys": selected, "has_more_after": False, "end_cursor": None,
+        selected.sort(key=lambda key: key.get("id") or "")
+        if after_key_id:
+            selected = [key for key in selected if key.get("id", "") > after_key_id]
+        page = selected[:30]
+        return {"embed_keys": page, "has_more_after": len(selected) > 30,
+                "end_cursor": page[-1].get("id") if page else None,
                 "oversized_key_id": None}
+
+    async def validate_embed_ids_in_chat(self, hashed_chat_id: str, embed_ids: list[str]):
+        by_id = {row["embed_id"]: row for row in self.chat_embeds
+                 if (row.get("hashed_chat_id") or hashed_chat_id) == hashed_chat_id}
+        if any(embed_id not in by_id for embed_id in embed_ids):
+            raise ValueError("Embed id is not in the shared chat")
+        return [by_id[embed_id].get("hashed_embed_id") or hashlib.sha256(embed_id.encode()).hexdigest()
+                for embed_id in embed_ids]
+
+    async def get_sync_embed_key_by_id(
+        self, hashed_chat_id: str, _hashed_user_id: str, hashes: list[str], key_id: str,
+        *, include_master_keys: bool = True,
+    ):
+        assert include_master_keys is False
+        return next((key for key in self.embed_keys if key.get("id") == key_id
+                     and key.get("hashed_chat_id") == hashed_chat_id
+                     and key.get("key_type") == "chat"
+                     and key.get("hashed_embed_id") in hashes), None)
 
     async def get_embed_by_id(self, embed_id: str):
         return next((embed for embed in [*self.chat_embeds, *self.key_embeds]
@@ -290,6 +336,193 @@ async def test_shared_chat_manifest_omits_full_messages():
     assert payload["message_highlights"]
     assert payload["sub_chat_window"]["has_more_before"] is False
     assert payload["message_highlight_window"]["payload_bytes"] > 0
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded,storage.cold.shared-team-authorized
+@pytest.mark.anyio
+async def test_public_embed_windows_complete_beyond_manifest_tail_with_chat_only_wrappers():
+    directus = FakeDirectusService()
+    chat_hash = hashlib.sha256(b"chat-shared").hexdigest()
+    directus.embed.chat_embeds = [
+        {"id": f"row-{index:03d}", "embed_id": f"embed-{index:03d}",
+         "created_at": index, "hashed_chat_id": chat_hash,
+         "hashed_embed_id": hashlib.sha256(f"embed-{index:03d}".encode()).hexdigest(),
+         "encrypted_content": f"cipher-{index}", "is_private": True}
+        for index in range(67)
+    ]
+    directus.embed.embed_keys = [
+        {"id": f"key-{index:03d}", "key_type": "chat", "hashed_chat_id": chat_hash,
+         "hashed_embed_id": row["hashed_embed_id"], "encrypted_embed_key": "wrapped"}
+        for index, row in enumerate(directus.embed.chat_embeds)
+    ] + [{"id": "master", "key_type": "master", "hashed_chat_id": chat_hash,
+          "hashed_embed_id": directus.embed.chat_embeds[0]["hashed_embed_id"]}]
+
+    seen: list[str] = []
+    cursor = None
+    while True:
+        page = await get_shared_chat_embed_window(
+            request=None, chat_id="chat-shared", directus_service=directus,
+            before_created_at=cursor["created_at"] if cursor else None,
+            before_id=cursor["id"] if cursor else None,
+        )
+        assert len(page["embeds"]) <= 30
+        assert all(key["key_type"] == "chat" and key["hashed_chat_id"] == chat_hash
+                   for key in page["embed_keys"])
+        seen.extend(row["embed_id"] for row in page["embeds"])
+        if not page["has_more_before"]:
+            break
+        cursor = page["start_cursor"]
+        assert cursor
+    assert len(seen) == 67
+    assert len(set(seen)) == 67
+    assert "embed-000" in seen and "embed-066" in seen
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.shared-team-authorized,storage.privacy.ciphertext-boundary
+@pytest.mark.anyio
+async def test_public_embed_window_denies_missing_private_chat_and_invalid_cursor():
+    directus = FakeDirectusService()
+    for chat_id in ("missing-chat", "private-chat"):
+        if chat_id == "private-chat":
+            original = directus.chat.get_chat_metadata
+
+            async def private_metadata(value, admin_required=False):
+                row = await original(value, admin_required=admin_required)
+                return {**row, "is_private": True} if row else None
+
+            directus.chat.get_chat_metadata = private_metadata
+        with pytest.raises(share_routes.HTTPException) as error:
+            await get_shared_chat_embed_window(request=None, chat_id=chat_id,
+                                               directus_service=directus)
+        assert error.value.status_code == 404
+    for before_created_at, before_id in ((1, None), (None, "row"), (-1, "row"), (1, "x" * 129)):
+        with pytest.raises(share_routes.HTTPException) as error:
+            await get_shared_chat_embed_window(
+                request=None, chat_id="chat-shared", directus_service=directus,
+                before_created_at=before_created_at, before_id=before_id,
+            )
+        assert error.value.status_code == 400
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.shared-team-authorized,storage.privacy.ciphertext-boundary
+@pytest.mark.anyio
+async def test_public_embed_key_window_rechecks_private_and_missing_chat():
+    directus = FakeDirectusService()
+    directus.embed.chat_embeds = [{"embed_id": "selected", "hashed_chat_id": hashlib.sha256(b"chat-shared").hexdigest()}]
+    with pytest.raises(share_routes.HTTPException) as missing:
+        await get_shared_chat_embed_keys_window(
+            request=None, chat_id="missing-chat", embed_ids="selected", directus_service=directus,
+        )
+    assert missing.value.status_code == 404
+
+    original = directus.chat.get_chat_metadata
+
+    async def private_metadata(chat_id, admin_required=False):
+        row = await original(chat_id, admin_required=admin_required)
+        return {**row, "is_private": True} if row else None
+
+    directus.chat.get_chat_metadata = private_metadata
+    with pytest.raises(share_routes.HTTPException) as private:
+        await get_shared_chat_embed_keys_window(
+            request=None, chat_id="chat-shared", embed_ids="selected", directus_service=directus,
+        )
+    assert private.value.status_code == 404
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.shared-team-authorized,storage.privacy.ciphertext-boundary
+@pytest.mark.anyio
+async def test_public_page_key_continuation_rejects_foreign_ids_master_and_forged_key():
+    directus = FakeDirectusService()
+    chat_hash = hashlib.sha256(b"chat-shared").hexdigest()
+    own_id = "own-embed"
+    own_hash = hashlib.sha256(own_id.encode()).hexdigest()
+    directus.embed.chat_embeds = [{"embed_id": own_id, "hashed_chat_id": chat_hash,
+                                   "hashed_embed_id": own_hash, "is_private": True}]
+    directus.embed.key_embeds = [{"embed_id": "foreign", "hashed_chat_id": "foreign-chat",
+                                  "hashed_embed_id": "foreign-hash"}]
+    directus.embed.embed_keys = [
+        {"id": "key-1", "key_type": "chat", "hashed_chat_id": chat_hash,
+         "hashed_embed_id": own_hash, "encrypted_embed_key": "wrapped"},
+        {"id": "key-2", "key_type": "master", "hashed_chat_id": chat_hash,
+         "hashed_embed_id": own_hash, "encrypted_embed_key": "master"},
+        {"id": "key-3", "key_type": "chat", "hashed_chat_id": "foreign-chat",
+         "hashed_embed_id": own_hash, "encrypted_embed_key": "foreign"},
+    ]
+    page = await get_shared_chat_embed_keys_window(
+        request=None, chat_id="chat-shared", embed_ids=own_id, directus_service=directus,
+    )
+    assert [key["id"] for key in page["embed_keys"]] == ["key-1"]
+    exact = await get_shared_chat_embed_keys_window(
+        request=None, chat_id="chat-shared", embed_ids=own_id,
+        key_id="key-1", directus_service=directus,
+    )
+    assert [key["id"] for key in exact["embed_keys"]] == ["key-1"]
+    for selected_id, key_id in (("foreign", None), (own_id, "key-2"), (own_id, "key-3")):
+        with pytest.raises(share_routes.HTTPException) as error:
+            await get_shared_chat_embed_keys_window(
+                request=None, chat_id="chat-shared", embed_ids=selected_id,
+                key_id=key_id, directus_service=directus,
+            )
+        assert error.value.status_code == 404
+    for ids, after_key_id, key_id in (("", None, None), ("a,a", None, None),
+                                      (",".join(str(i) for i in range(31)), None, None),
+                                      (own_id, "key-1", "key-1"), (own_id, "x" * 129, None)):
+        with pytest.raises(share_routes.HTTPException) as error:
+            await get_shared_chat_embed_keys_window(
+                request=None, chat_id="chat-shared", embed_ids=ids,
+                after_key_id=after_key_id, key_id=key_id, directus_service=directus,
+            )
+        assert error.value.status_code == 400
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded,storage.cold.shared-team-authorized
+@pytest.mark.anyio
+async def test_public_embed_key_cursor_completes_and_rejects_storage_scope_widening(monkeypatch):
+    directus = FakeDirectusService()
+    chat_hash = hashlib.sha256(b"chat-shared").hexdigest()
+    embed_id = "many-wrappers"
+    embed_hash = hashlib.sha256(embed_id.encode()).hexdigest()
+    directus.embed.chat_embeds = [{"embed_id": embed_id, "hashed_chat_id": chat_hash,
+                                   "hashed_embed_id": embed_hash}]
+    directus.embed.embed_keys = [
+        {"id": f"key-{index:03d}", "key_type": "chat", "hashed_chat_id": chat_hash,
+         "hashed_embed_id": embed_hash, "encrypted_embed_key": f"cipher-{index}"}
+        for index in range(35)
+    ]
+    first = await get_shared_chat_embed_keys_window(
+        request=None, chat_id="chat-shared", embed_ids=embed_id, directus_service=directus,
+    )
+    assert len(first["embed_keys"]) == 30
+    assert first["has_more_after"] is True
+    second = await get_shared_chat_embed_keys_window(
+        request=None, chat_id="chat-shared", embed_ids=embed_id,
+        after_key_id=first["end_cursor"], directus_service=directus,
+    )
+    assert len(second["embed_keys"]) == 5
+    assert second["has_more_after"] is False
+    assert {row["id"] for row in first["embed_keys"] + second["embed_keys"]} == {
+        f"key-{index:03d}" for index in range(35)
+    }
+
+    async def forged_page(*_args, **_kwargs):
+        return {"embed_keys": [{"id": "forged", "key_type": "master",
+                                 "hashed_chat_id": chat_hash, "hashed_embed_id": embed_hash}],
+                "has_more_after": False, "end_cursor": "forged", "oversized_key_id": None}
+
+    monkeypatch.setattr(directus.embed, "get_sync_embed_key_window_for_page", forged_page)
+    with pytest.raises(share_routes.HTTPException) as error:
+        await get_shared_chat_embed_keys_window(
+            request=None, chat_id="chat-shared", embed_ids=embed_id, directus_service=directus,
+        )
+    assert error.value.status_code == 503
+
+
+# contract-test: supporting surface=rest_api assertions=storage.cold.discoverable-bounded,storage.cold.shared-team-authorized
+def test_public_embed_window_routes_precede_selected_embed_route():
+    paths = [route.path for route in share_routes.router.routes]
+    selected = paths.index("/v1/share/chat/{chat_id}/embeds/{embed_id}")
+    assert paths.index("/v1/share/chat/{chat_id}/embeds/window") < selected
+    assert paths.index("/v1/share/chat/{chat_id}/embeds/keys/window") < selected
 
 
 # contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded,storage.cold.shared-team-authorized

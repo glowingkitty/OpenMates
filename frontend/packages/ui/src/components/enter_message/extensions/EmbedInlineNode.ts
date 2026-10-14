@@ -25,9 +25,9 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { mount, unmount } from "svelte";
 import EmbedInlineLink from "../../embeds/EmbedInlineLink.svelte";
+import { EMBED_SOURCE_CHAT_CONTEXT } from "../../../types/embedFullscreen";
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface EmbedInlineNodeOptions {}
+export interface EmbedInlineNodeOptions { chatId?: string; }
 
 export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
   name: "embedInline",
@@ -36,6 +36,7 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
   atom: true,
   selectable: true,
   draggable: false,
+  addOptions() { return { chatId: undefined }; },
 
   // renderText so the node contributes to plain-text extraction (e.g. copy)
   renderText({ node }) {
@@ -119,6 +120,7 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
   // Vanilla DOM NodeView using Svelte 5 mount/unmount
   addNodeView() {
     return ({ node }) => {
+      const sourceChatId = this.options.chatId ?? null;
       const dom = document.createElement("span");
       dom.setAttribute("data-type", "embed-inline");
       dom.setAttribute("contenteditable", "false");
@@ -129,6 +131,7 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
       try {
         svelteInstance = mount(EmbedInlineLink, {
           target: dom,
+          context: new Map([[EMBED_SOURCE_CHAT_CONTEXT, { chatId: sourceChatId }]]),
           props: {
             embedRef: node.attrs.embedRef as string,
             embedId: node.attrs.embedId as string | null,
@@ -207,6 +210,7 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
           try {
             svelteInstance = mount(EmbedInlineLink, {
               target: dom,
+              context: new Map([[EMBED_SOURCE_CHAT_CONTEXT, { chatId: sourceChatId }]]),
               props: {
                 embedRef: newAttrs.embedRef as string,
                 embedId: newAttrs.embedId as string | null,

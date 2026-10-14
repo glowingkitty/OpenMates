@@ -82,7 +82,10 @@ def test_signed_ws_cache_link_is_enrolled_in_durable_authority_before_admission(
     monkeypatch.setattr(auth_ws, "verify_ws_token", lambda token: digest if token == "signed-ws-token" else None)
     monkeypatch.setattr(auth_ws, "get_pair_deadline_hash", AsyncMock(return_value=None))
     monkeypatch.setattr(auth_ws, "get_session_state_cached", AsyncMock(return_value=None))
-    enroll = AsyncMock(return_value={"user_id": "u1", "expires_at": 4102444800})
+    enroll = AsyncMock(return_value={
+        "user_id": "u1", "logical_session_id": "credential-session",
+        "expires_at": 4102444800,
+    })
     monkeypatch.setattr(auth_ws, "ensure_legacy_session_hash_state", enroll)
     monkeypatch.setattr(
         auth_ws, "generate_device_fingerprint_hash",
@@ -123,6 +126,7 @@ def test_signed_ws_cache_link_is_enrolled_in_durable_authority_before_admission(
     assert result["user_id"] == "u1"
     assert result["device_fingerprint_hash"] == "connection"
     assert result["stable_device_fingerprint_hash"] == "registered-device"
+    assert result["logical_session_id"] == "credential-session"
     assert result["session_expires_at"] == 4102444800
     enroll.assert_awaited_once_with(Socket.app.state.directus_service,
                                     Socket.app.state.cache_service, digest, "u1")

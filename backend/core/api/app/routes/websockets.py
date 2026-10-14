@@ -2285,6 +2285,29 @@ async def listen_for_user_updates(app: FastAPI):
                 logger.debug(f"User Updates Listener: Received event for user {user_id_uuid}. Forwarding as '{event_for_client}'.")
 
                 target_device_hash = redis_payload.get("target_device_fingerprint_hash")
+                target_logical_session_id = redis_payload.get("target_logical_session_id")
+                exclude_logical_session_id = redis_payload.get("exclude_logical_session_id")
+                if event_for_client == "force_logout" and (
+                    "target_logical_session_id" in redis_payload
+                    or "exclude_logical_session_id" in redis_payload
+                ):
+                    # These are internal routing hints authenticated at WS
+                    # admission. Never forward them in the client payload, and
+                    # never turn a malformed targeted event into a user-wide one.
+                    if (("target_logical_session_id" in redis_payload
+                         and (not isinstance(target_logical_session_id, str) or not target_logical_session_id.strip()))
+                        or ("exclude_logical_session_id" in redis_payload
+                            and (not isinstance(exclude_logical_session_id, str) or not exclude_logical_session_id.strip()))
+                        or (target_logical_session_id and exclude_logical_session_id)):
+                        continue
+                    if target_logical_session_id or exclude_logical_session_id:
+                        await manager.broadcast_to_user_specific_event(
+                            user_id=user_id_uuid, event_name=event_for_client,
+                            payload=client_payload,
+                            target_logical_session_id=target_logical_session_id,
+                            exclude_logical_session_id=exclude_logical_session_id,
+                        )
+                        continue
                 if event_for_client == "project_file_operation_available":
                     chat_id = client_payload.get("chat_id") if isinstance(client_payload, dict) else None
                     project_id = client_payload.get("project_id") if isinstance(client_payload, dict) else None
@@ -2856,6 +2879,7 @@ async def websocket_endpoint(
         websocket,
         user_id,
         device_fingerprint_hash,
+        logical_session_id=auth_data.get("logical_session_id"),
         supports_task_update_jobs=supports_task_update_jobs,
         supports_chat_metadata_recovery=supports_chat_metadata_recovery,
         supports_project_file_jobs=supports_project_file_jobs,

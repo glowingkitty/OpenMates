@@ -8738,11 +8738,12 @@ export class OpenMatesClient {
     teamId: string | null,
     onPending?: () => void,
     signal?: AbortSignal,
+    verifiedInSync?: Map<string, string>,
   ): Promise<number> {
     let acknowledged = 0;
     for (const page of pages) {
       signal?.throwIfAborted();
-      if (!onPending) {
+      if (!onPending && !verifiedInSync) {
         acknowledged += await this.replayAvailableRecoveryOutputs(ws, ownerId, page, cache, teamId);
         continue;
       }
@@ -8750,8 +8751,29 @@ export class OpenMatesClient {
       // record stays pending on the server and cannot hide unrelated chats.
       for (const output of page) {
         signal?.throwIfAborted();
-        try { acknowledged += await this.replayAvailableRecoveryOutputs(ws, ownerId, [output], cache, teamId); }
-        catch { signal?.throwIfAborted();onPending(); }
+        const identity = JSON.stringify([
+          output.root_chat_id, output.target_chat_id, output.turn_id, output.subject_id,
+          output.output_kind, output.output_version, output.chat_key_version,
+          output.message_role ?? null, output.root_hashed_team_id ?? null,
+        ]);
+        const previouslyVerified = verifiedInSync?.get(output.record_id);
+        if (previouslyVerified !== undefined) {
+          if (previouslyVerified !== identity) {
+            throw new Error(`Recovery output ${output.record_id} changed identity during sync.`);
+          }
+          // The prior pass verified and acknowledged this exact record. The
+          // current pass is the required fresh metadata read after that ACK.
+          continue;
+        }
+        try {
+          const recovered = await this.replayAvailableRecoveryOutputs(ws, ownerId, [output], cache, teamId);
+          acknowledged += recovered;
+          if (recovered > 0) verifiedInSync?.set(output.record_id, identity);
+        } catch (error) {
+          signal?.throwIfAborted();
+          if (!onPending) throw error;
+          onPending();
+        }
       }
     }
     return acknowledged;
@@ -16518,7 +16540,11 @@ export class OpenMatesClient {
     includeMessageContentRefresh = false,
     onSyncedCache?: (cache: SyncCache) => Promise<void>,
     signal?: AbortSignal,
-    syncBehavior: { skipTypedRecoveryOutputReplay?: boolean } = {},
+    syncBehavior: {
+      skipTypedRecoveryOutputReplay?: boolean;
+      verifiedRecoveryOutputs?: Map<string, string>;
+      recoveryRefreshes?: number;
+    } = {},
   ): Promise<SyncCache> {
     signal?.throwIfAborted();
     const teamId = this.resolveTeamContext(options);
@@ -16843,8 +16869,10 @@ export class OpenMatesClient {
           syncedAt: Date.now(), totalChatCount, loadedChatCount: chats.length,
           chats, embeds, embedKeys, chatKeyWrappers,
         };
+        const verifiedRecoveryOutputs = syncBehavior.verifiedRecoveryOutputs ?? new Map<string, string>();
         recoveredOutputCount = await this.replayRecoveryOutputPages(ws, ownerId, pages, currentCache, teamId,
-          () => { pendingRecoveryOutputs += 1; }, signal);
+          () => { pendingRecoveryOutputs += 1; }, signal, verifiedRecoveryOutputs);
+        syncBehavior = { ...syncBehavior, verifiedRecoveryOutputs };
       }
       // Normal user-key chat encryption is an owner-device operation. Do not mix
       // personal workflow delivery keys into an active team's cache/key context.
@@ -16869,9 +16897,19 @@ export class OpenMatesClient {
     signal?.throwIfAborted();
 
     if (persistedTaskJobIds.size > 0 || persistedWorkflowDeliveryCount > 0 || recoveredOutputCount > 0) {
+      // Each newly verified output requires a fresh server metadata pass, but
+      // a continuously growing recovery stream must not recurse forever or
+      // publish an older snapshot as current history.
+      const recoveryRefreshes = syncBehavior.recoveryRefreshes ?? 0;
+      if (recoveredOutputCount > 0 && recoveryRefreshes >= 3) {
+        this.invalidateSyncedHistory(teamId);
+        throw new Error("Recovery outputs kept arriving during chat sync. Retry after current completions settle.");
+      }
       this.invalidateSyncedHistory(teamId);
       return this.ensureSynced(true, refreshChatIds, { teamId }, includeMessageContentRefresh,
-        onSyncedCache, signal, syncBehavior);
+        onSyncedCache, signal, { ...syncBehavior,
+          recoveryRefreshes: recoveryRefreshes + (recoveredOutputCount > 0 ? 1 : 0),
+        });
     }
 
     const cache: SyncCache = {

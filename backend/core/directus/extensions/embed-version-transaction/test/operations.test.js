@@ -40,6 +40,10 @@ function fakeDatabase(initial) {
           filters.push((row) => values.includes(row[field]));
           return query;
         },
+        whereNull(field) {
+          filters.push((row) => row[field] == null);
+          return query;
+        },
         whereRaw(sql, bindings) {
           if (table === 'chats' && sql.includes("encode(digest(id::text")) {
             filters.push((row) => createHash('sha256').update(row.id).digest('hex') === bindings[0]);
@@ -275,6 +279,56 @@ test('legacy transaction admits only durable registered AI child heads in the UU
     await assert.rejects(writeLegacyEmbed(fakeDatabase(fixture.seed), fixture.body),
       (error) => error instanceof ProtocolError && error.code === 'project_context_required');
   }
+});
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('acknowledged recovery child keeps its canonical ciphertext across legacy same-version replays', async () => {
+  const { seed, body, childId } = registeredChildFixture();
+  const database = fakeDatabase(seed);
+  assert.equal((await writeLegacyEmbed(database, body)).status, 'created');
+  const beforeAck = { ...body, payload: {
+    ...body.payload, encrypted_content: 'cipher-before-ack',
+  } };
+  assert.equal((await writeLegacyEmbed(database, beforeAck)).status, 'updated');
+  const output = database.rows.chat_recovery_outputs[0];
+  output.state = 'ACKNOWLEDGED';
+  output.canonical_digest = createHash('sha256').update('cipher-before-ack').digest('hex');
+
+  assert.equal((await writeLegacyEmbed(database, beforeAck)).status, 'updated');
+  await assert.rejects(writeLegacyEmbed(database, { ...body, payload: {
+    ...body.payload, encrypted_content: 'reciphered-same-version',
+  } }), (error) => error instanceof ProtocolError
+    && error.code === 'acknowledged_embed_revision_immutable');
+  assert.equal(database.rows.embeds.find((embed) => embed.embed_id === childId).encrypted_content,
+    'cipher-before-ack');
+
+});
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('legacy ACK protection only applies to the same owner, chat and revision', async () => {
+  const seed = existingSeed();
+  const embedId = 'ordinary-ack-scope';
+  const chatId = 'owner-chat';
+  seed.project_items = [];
+  seed.embeds = [{ id: 'ordinary-row', embed_id: embedId, hashed_user_id: ACTOR,
+    hashed_chat_id: createHash('sha256').update(chatId).digest('hex'),
+    encrypted_content: 'original', version_number: 1 }];
+  seed.chat_recovery_outputs = [{ id: 'other-owner', subject_id: embedId,
+    hashed_user_id: 'b'.repeat(64), target_chat_id: chatId, output_kind: 'embed',
+    output_version: 1, state: 'ACKNOWLEDGED', canonical_digest: '0'.repeat(64) },
+  { id: 'other-chat', subject_id: embedId, hashed_user_id: ACTOR,
+    target_chat_id: 'different-chat', output_kind: 'embed', output_version: 1,
+    state: 'ACKNOWLEDGED', canonical_digest: '0'.repeat(64) },
+  { id: 'other-version', subject_id: embedId, hashed_user_id: ACTOR,
+    target_chat_id: chatId, output_kind: 'embed', output_version: 2,
+    state: 'ACKNOWLEDGED', canonical_digest: '0'.repeat(64) }];
+  const database = fakeDatabase(seed);
+  const body = { embed_id: embedId, actor_user_hash: ACTOR, payload: {
+    embed_id: embedId, hashed_user_id: ACTOR, version_number: 1,
+    encrypted_content: 'owner-update',
+  } };
+  assert.equal((await writeLegacyEmbed(database, body)).status, 'updated');
+  assert.equal(database.rows.embeds[0].encrypted_content, 'owner-update');
 });
 
 // contract-test: direct surface=rest_api assertions=teams.chat.encrypted-until-invoked,projects.files.concurrent-chat-safety

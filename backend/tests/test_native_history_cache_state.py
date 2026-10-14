@@ -4,6 +4,7 @@
 
 import copy
 import json
+import uuid
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -11,7 +12,7 @@ import pytest
 
 from backend.apps.ai.processing.native_history_cache import (
     add_dispatch_event, append_provider_output, append_tool_results,
-    collect_server_embed_provenance,
+    collect_authored_web_source_bindings, collect_server_embed_provenance,
     finalize_native_cache_state, matched_visible_prefix, new_native_segment,
     native_replay_fits_budget, replay_byte_estimate, resume_native_segment,
     seal_native_embed_fingerprints, selected_tool_delta, validate_native_embed_fingerprints,
@@ -316,6 +317,40 @@ def test_invalid_inline_link_replay_requires_the_exact_trusted_rewrite():
         content_markdown="Read the result next.", assistant_message_id="a1",
         presentation_steps=[{"kind": "strip_invalid_links", "refs": ["missing-ref"]}],
     ) is None
+
+
+# contract-test: supporting surface=rest_api assertions=chats.rendering.inline-entity-interaction
+def test_web_source_bindings_require_exact_finished_child_identity():
+    first, second = str(uuid.uuid4()), str(uuid.uuid4())
+    results = [{"embed_ref": "first.example-a1B"}, {"embed_ref": "second.example-c2D"}]
+    parent = {"status": "finished", "child_embed_ids": [first, second]}
+    bindings = collect_authored_web_source_bindings(
+        app_id="web", skill_id="search", results=results, authored_embeds=[parent],
+    )
+    assert [(row["embed_ref"], row["embed_id"]) for row in bindings] == [
+        ("first.example-a1B", first), ("second.example-c2D", second),
+    ]
+    # The successful create writer omits status from its return metadata; its
+    # sealed parent and child IDs still provide the same authority.
+    assert collect_authored_web_source_bindings(
+        app_id="web", skill_id="search", results=results,
+        authored_embeds=[{"child_embed_ids": [first, second]}],
+    ) == bindings
+    assert collect_authored_web_source_bindings(
+        app_id="web", skill_id="search", results=results,
+        authored_embeds=[{**parent, "status": "error"}],
+    ) == []
+    assert collect_authored_web_source_bindings(
+        app_id="web", skill_id="search", results=results,
+        authored_embeds=[{**parent, "child_embed_ids": [first, first]}],
+    ) == []
+    assert collect_authored_web_source_bindings(
+        app_id="web", skill_id="search", results=results[:1], authored_embeds=[parent],
+    ) == []
+    assert collect_authored_web_source_bindings(
+        app_id="web", skill_id="search", results=results,
+        authored_embeds=[{**parent, "child_embed_ids": [first, "not-a-uuid"]}],
+    ) == []
 
 
 def test_finished_single_embed_keeps_same_id_placeholder_provenance_for_replay():

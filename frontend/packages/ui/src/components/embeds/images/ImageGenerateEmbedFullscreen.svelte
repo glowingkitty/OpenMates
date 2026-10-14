@@ -12,7 +12,10 @@
 -->
 
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
+  const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  const sourceChatId = sourceChatContext?.chatId ?? null;
+  import { onDestroy, getContext} from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text, settingsDeepLink, panelState } from '@repo/ui';
   import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from './imageEmbedCrypto';
@@ -245,7 +248,7 @@
       if (inputImageUrls.has(embedId)) continue;
 
       try {
-        const embedData = await resolveEmbed(embedId);
+        const embedData = await resolveEmbed(embedId, { chatId: sourceChatId });
         if (!embedData?.content) continue;
 
         const content = await decodeToonContent(embedData.content);

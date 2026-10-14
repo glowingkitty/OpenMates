@@ -30,7 +30,11 @@
     dispatchEmbedFullscreen,
     resolveEmbedFullscreenTarget,
   } from '../../services/embedFullscreenController';
-  import { resolveExampleFullscreenTarget } from '../../demo_chats/exampleChatStore';
+  import { isExampleChat, resolveExampleChatEmbedRef, resolveExampleFullscreenTarget } from '../../demo_chats/exampleChatStore';
+  import { getContext } from 'svelte';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
+  const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  const sourceChatId = sourceChatContext?.chatId ?? null;
   import { resolveEmbedDisplayText } from '../../utils/embedDisplayText';
   import { resolveIconName } from '../../utils/iconNameResolver';
 
@@ -92,7 +96,9 @@
     // Whenever registerEmbedRef() increments this store, Svelte re-runs this
     // derived and picks up the newly available appId — no full re-parse needed.
     void $embedRefIndexVersion;
-    return appId ?? embedStore.resolveAppIdByRef(embedRef) ?? (focusLineStart != null && repairState !== 'broken' ? 'code' : null);
+    return isExampleChat(sourceChatId ?? '')
+      ? (resolveExampleChatEmbedRef(embedRef, sourceChatId)?.appId ?? null)
+      : (appId ?? embedStore.resolveAppIdByRef(embedRef) ?? (focusLineStart != null && repairState !== 'broken' ? 'code' : null));
   });
 
   // Badge gradient (circular icon background) — unchanged from original design.
@@ -132,6 +138,10 @@
   $effect(() => {
     void $embedRefIndexVersion;
 
+    if (isExampleChat(sourceChatId ?? '')) {
+      repairState = resolveExampleChatEmbedRef(embedRef, sourceChatId) ? 'resolved' : 'broken';
+      return;
+    }
     if (embedId || embedStore.resolveByRef(embedRef)) {
       repairState = 'resolved';
       return;
@@ -171,7 +181,10 @@
     e.stopPropagation();
 
     // Resolve embed_ref to embed_id. The deep path repairs cold direct refs after reload.
-    const resolvedEmbedId = embedId || await embedStore.resolveByRefDeep(embedRef);
+    const exampleScope = isExampleChat(sourceChatId ?? '');
+    const resolvedEmbedId = exampleScope
+      ? resolveExampleChatEmbedRef(embedRef, sourceChatId)?.embedId
+      : (embedId || await embedStore.resolveByRefDeep(embedRef));
 
     if (!resolvedEmbedId) {
       repairState = isDirectRepairableRef ? 'broken' : repairState;
@@ -183,7 +196,8 @@
 
     const { targetEmbedId, focusChildEmbedId } =
       await resolveEmbedFullscreenTarget(resolvedEmbedId, {
-        exampleResolver: resolveExampleFullscreenTarget,
+        exampleResolver: (id) => resolveExampleFullscreenTarget(id, sourceChatId),
+        exampleOnly: exampleScope,
       });
 
     console.debug(
@@ -193,6 +207,7 @@
 
     dispatchEmbedFullscreen({
       embedId: targetEmbedId,
+      sourceChatId,
       embedType: 'app-skill-use', // default type; ActiveChat will look up the real type
       // Reuse the badge identity immediately; resolving content stays on demand.
       attrs: { appId: effectiveAppId, title: effectiveDisplayText },

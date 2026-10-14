@@ -3,7 +3,8 @@
  * Deployed Deep research end-to-end proof.
  *
  * Selects the real focus mention, delegates three bounded child chats through
- * live inference, and verifies the final parent synthesis without route mocks.
+ * live inference, and verifies resolved citations in the final parent synthesis
+ * without route mocks.
  */
 export {};
 
@@ -215,6 +216,14 @@ test('Deep research delegates three angles and renders the final parent synthesi
 	await expect(finalAssistant).toContainText('Bottom Line');
 	await expect(finalAssistant).not.toContainText('The AI service encountered an error');
 	await expect(finalAssistant).not.toContainText('Sub-chat failed before completion');
+	// The parent must cite saved child search results, not guessed embed slugs.
+	// A resolved inline citation carries the exact child embed UUID.
+	const parentCitations = finalAssistant.locator('[data-type="embed-inline"][data-embed-ref]');
+	await expect.poll(() => parentCitations.count(), { timeout: 30_000 }).toBeGreaterThan(0);
+	for (let index = 0; index < await parentCitations.count(); index += 1) {
+		await expect(parentCitations.nth(index)).toHaveAttribute('data-embed-id',
+			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+	}
 	await expect(page.getByTestId('typing-indicator')).not.toBeVisible();
 	await expect(page.getByTestId('sub-chat-open-cta')).toHaveCount(0);
 	await expect(page.getByTestId('sub-chat-summary')).toHaveCount(3);

@@ -12,7 +12,7 @@ import {
   isLocalCodeDocPreviewRef,
   type EmbedData,
 } from "../../../../services/embedResolver";
-import { resolveExampleFullscreenTarget } from "../../../../demo_chats/exampleChatStore";
+import { isExampleChat, resolveExampleFullscreenTarget } from "../../../../demo_chats/exampleChatStore";
 import {
   dispatchEmbedFullscreen,
   resolveEmbedFullscreenTarget,
@@ -682,7 +682,7 @@ export class GroupRenderer implements EmbedRenderer {
         const { resolveEmbed, decodeToonContent } =
           await import("../../../../services/embedResolver");
         const embedId = attrs.contentRef.replace("embed:", "");
-        embedData = await resolveEmbed(embedId);
+        embedData = await resolveEmbed(embedId, { chatId: attrs.sourceChatId });
 
         if (embedData && embedData.content) {
           decodedContent = await decodeToonContent(embedData.content);
@@ -878,7 +878,7 @@ export class GroupRenderer implements EmbedRenderer {
         const { resolveEmbed, decodeToonContent } =
           await import("../../../../services/embedResolver");
         const embedId = item.contentRef.replace("embed:", "");
-        embedData = await resolveEmbed(embedId);
+        embedData = await resolveEmbed(embedId, { chatId: item.sourceChatId });
 
         if (embedData && embedData.content) {
           decodedContent = await decodeToonContent(embedData.content);
@@ -1439,7 +1439,7 @@ export class GroupRenderer implements EmbedRenderer {
     if (!embedId) return null;
 
     try {
-      const embedData = await resolveEmbed(embedId);
+      const embedData = await resolveEmbed(embedId, { chatId: item.sourceChatId });
       const decodedContent = embedData?.content
         ? await decodeToonContent(embedData.content)
         : null;
@@ -1653,7 +1653,7 @@ export class GroupRenderer implements EmbedRenderer {
 
     if (embedId) {
       try {
-        embedData = await resolveEmbed(embedId);
+        embedData = await resolveEmbed(embedId, { chatId: item.sourceChatId });
         decodedContent = embedData?.content
           ? await decodeToonContent(embedData.content)
           : null;
@@ -2515,7 +2515,7 @@ export class GroupRenderer implements EmbedRenderer {
         const handleImageViewFullscreen = () => {
           if (!originalEmbedId) return;
           // Open the original uploaded image's fullscreen viewer
-          resolveEmbed(originalEmbedId)
+          resolveEmbed(originalEmbedId, { chatId: item.sourceChatId })
             .then(async (uploadEmbed) => {
               if (!uploadEmbed) return;
               const uploadContent = uploadEmbed.content
@@ -2573,6 +2573,7 @@ export class GroupRenderer implements EmbedRenderer {
             target,
             originalEmbedId,
             handleImageViewFullscreen,
+            item.sourceChatId,
           );
         }
         return;
@@ -2871,7 +2872,7 @@ export class GroupRenderer implements EmbedRenderer {
 
         const handlePdfViewFullscreen = () => {
           if (!originalEmbedId) return;
-          this.openPdfUploadFullscreen(originalEmbedId);
+          this.openPdfUploadFullscreen(originalEmbedId, item.sourceChatId);
         };
 
         const component = mount(PdfViewEmbedPreview, {
@@ -2969,7 +2970,7 @@ export class GroupRenderer implements EmbedRenderer {
       );
     }
 
-    const previewImageUrl = await this.resolveInputPreviewImageUrl(decodedContent);
+    const previewImageUrl = await this.resolveInputPreviewImageUrl(decodedContent, item.sourceChatId);
     const component = mount(GenericAppSkillEmbedPreview, {
       target,
       props: {
@@ -2990,12 +2991,13 @@ export class GroupRenderer implements EmbedRenderer {
 
   private async resolveInputPreviewImageUrl(
     decodedContent: DecodedEmbedContent | null,
+    sourceChatId?: string,
   ): Promise<string> {
     const inputEmbedId = normalizeEmbedIdList(decodedContent?.input_embed_ids)[0];
     if (!inputEmbedId) return "";
 
     try {
-      const inputEmbed = await resolveEmbed(inputEmbedId);
+      const inputEmbed = await resolveEmbed(inputEmbedId, { chatId: sourceChatId });
       const inputContent = inputEmbed?.content
         ? await decodeToonContent(inputEmbed.content)
         : null;
@@ -3028,7 +3030,7 @@ export class GroupRenderer implements EmbedRenderer {
     }
 
     try {
-      const outputEmbed = await resolveEmbed(outputEmbedId);
+      const outputEmbed = await resolveEmbed(outputEmbedId, { chatId: attrs.sourceChatId });
       const outputContent = outputEmbed?.content
         ? await decodeToonContent(outputEmbed.content)
         : null;
@@ -3066,9 +3068,10 @@ export class GroupRenderer implements EmbedRenderer {
     target: HTMLElement,
     originalEmbedId: string,
     handleFullscreen: () => void,
+    sourceChatId?: string,
   ): Promise<void> {
     try {
-      const uploadEmbed = await resolveEmbed(originalEmbedId);
+      const uploadEmbed = await resolveEmbed(originalEmbedId, { chatId: sourceChatId });
       if (!uploadEmbed) return;
       const uploadContent = uploadEmbed.content
         ? await decodeToonContent(uploadEmbed.content)
@@ -3141,13 +3144,13 @@ export class GroupRenderer implements EmbedRenderer {
    * This mirrors the same method in AppSkillUseRenderer — kept separate here so
    * GroupRenderer has no dependency on AppSkillUseRenderer.
    */
-  private async openPdfUploadFullscreen(embedId: string): Promise<void> {
+  private async openPdfUploadFullscreen(embedId: string, sourceChatId?: string): Promise<void> {
     if (!embedId) {
       console.warn("[GroupRenderer] openPdfUploadFullscreen: no embed_id");
       return;
     }
     try {
-      const uploadEmbed = await resolveEmbed(embedId);
+      const uploadEmbed = await resolveEmbed(embedId, { chatId: sourceChatId });
       if (!uploadEmbed) {
         console.warn(
           "[GroupRenderer] Could not resolve original PDF embed:",
@@ -3407,7 +3410,7 @@ export class GroupRenderer implements EmbedRenderer {
         let decodedContent: DecodedEmbedContent | null = null;
 
         if (embedId) {
-          const embedData = await resolveEmbed(embedId);
+          const embedData = await resolveEmbed(embedId, { chatId: item.sourceChatId });
           decodedContent = embedData?.content
             ? await decodeToonContent(embedData.content)
             : null;
@@ -3538,7 +3541,7 @@ export class GroupRenderer implements EmbedRenderer {
 
     if (embedId) {
       try {
-        embedData = await resolveEmbed(embedId);
+        embedData = await resolveEmbed(embedId, { chatId: item.sourceChatId });
         decodedContent = embedData?.content
           ? await decodeToonContent(embedData.content)
           : null;
@@ -3659,7 +3662,7 @@ export class GroupRenderer implements EmbedRenderer {
 
     if (embedId) {
       try {
-        embedData = await resolveEmbed(embedId);
+        embedData = await resolveEmbed(embedId, { chatId: item.sourceChatId });
         decodedContent = embedData?.content
           ? await decodeToonContent(embedData.content)
           : null;
@@ -3727,6 +3730,7 @@ export class GroupRenderer implements EmbedRenderer {
         target,
         props: {
           id: embedId || previewId || item.id || "",
+          chatId: item.sourceChatId,
           language,
           filename,
           lineCount,
@@ -3735,6 +3739,7 @@ export class GroupRenderer implements EmbedRenderer {
           isMobile: false,
           onFullscreen: handleFullscreen,
           codeContent, // Pass full code content - component handles preview extraction
+          codeRunOutput: typeof decodedContent?.code_run_output === "string" ? decodedContent.code_run_output : undefined,
           needsSignup: needsSignupForLocalPreview(item),
           presentationOnly: isLocalCodeDocPreviewRef(item.contentRef),
         },
@@ -3786,7 +3791,7 @@ export class GroupRenderer implements EmbedRenderer {
     let resolvedContent = decodedContent;
     if (embedId && !resolvedContent) {
       try {
-        resolvedEmbedData = await resolveEmbed(embedId);
+        resolvedEmbedData = await resolveEmbed(embedId, { chatId: item.sourceChatId });
         resolvedContent = resolvedEmbedData?.content
           ? await decodeToonContent(resolvedEmbedData.content)
           : null;
@@ -4391,6 +4396,7 @@ export class GroupRenderer implements EmbedRenderer {
         target: content,
         props: {
           id: embedId,
+          chatId: item.sourceChatId,
           language,
           filename,
           lineCount,
@@ -4398,6 +4404,7 @@ export class GroupRenderer implements EmbedRenderer {
           isMobile: false, // Default to desktop in message view
           onFullscreen: handleFullscreen,
           codeContent, // Pass full code content - component handles preview extraction
+          codeRunOutput: typeof decodedContent?.code_run_output === "string" ? decodedContent.code_run_output : undefined,
           presentationOnly: isLocalCodeDocPreviewRef(item.contentRef),
         },
       });
@@ -4519,6 +4526,7 @@ export class GroupRenderer implements EmbedRenderer {
           latest_screenshot: decodedContent?.latest_screenshot,
           status: status as "processing" | "finished" | "error",
           taskId: decodedContent?.task_id,
+          chatId: item.sourceChatId,
           isMobile: false,
           onFullscreen: handleFullscreen,
         },
@@ -4835,7 +4843,7 @@ export class GroupRenderer implements EmbedRenderer {
 
     if (embedId) {
       try {
-        embedData = await resolveEmbed(embedId);
+        embedData = await resolveEmbed(embedId, { chatId: item.sourceChatId });
         decodedContent = embedData?.content
           ? await decodeToonContent(embedData.content)
           : null;
@@ -5289,7 +5297,7 @@ export class GroupRenderer implements EmbedRenderer {
 
     if (embedId) {
       try {
-        embedData = await resolveEmbed(embedId);
+        embedData = await resolveEmbed(embedId, { chatId: item.sourceChatId });
         decodedContent = embedData?.content
           ? await decodeToonContent(embedData.content)
           : null;
@@ -7806,6 +7814,7 @@ export class GroupRenderer implements EmbedRenderer {
     embedData: EmbedData | null,
     decodedContent: DecodedEmbedContent | null,
   ): Promise<void> {
+    const sourceChatId = attrs.sourceChatId ?? null;
     // Determine embed type from attrs
     const embedType = attrs.type === "web-website" ? "website" : attrs.type;
     const normalizedEmbedType = registryNormalizeEmbedType(embedType) || embedType;
@@ -7867,7 +7876,8 @@ export class GroupRenderer implements EmbedRenderer {
         const resolvedTarget = await resolveEmbedFullscreenTarget(rawEmbedId, {
           embedType: normalizedEmbedType,
           decodedContent: finalDecodedContent ?? undefined,
-          exampleResolver: resolveExampleFullscreenTarget,
+          exampleResolver: (id) => resolveExampleFullscreenTarget(id, sourceChatId),
+          exampleOnly: !!sourceChatId && isExampleChat(sourceChatId),
         });
         targetEmbedId = resolvedTarget.targetEmbedId;
         focusChildEmbedId = resolvedTarget.focusChildEmbedId;
@@ -7892,6 +7902,7 @@ export class GroupRenderer implements EmbedRenderer {
       embedType: targetEmbedType,
       attrs: targetAttrs,
       focusChildEmbedId,
+      sourceChatId,
     };
     dispatchEmbedFullscreen(detail);
     console.debug("[GroupRenderer] Dispatched fullscreen event:", detail);

@@ -390,6 +390,7 @@ async function deleteActiveChat(page: any, logFn: (msg: string) => void): Promis
 
 // ---- TEST-01: Two tabs open same chat, both decrypt correctly ----
 
+// contract-test: supporting surface=gui.web assertions=auth.session.lifecycle,chats.persistence.client-encrypted
 test('TEST-01: two tabs open same chat, send messages, both tabs decrypt correctly', async () => {
 	test.slow();
 	test.setTimeout(TEST_TIMEOUT_MS);
@@ -510,6 +511,7 @@ test('TEST-01: two tabs open same chat, send messages, both tabs decrypt correct
 
 // ---- TEST-02: Create in tab A, open in tab B, content decrypts ----
 
+// contract-test: supporting surface=gui.web assertions=auth.session.lifecycle,chats.persistence.client-encrypted
 test('TEST-02: create chat in tab A, open in tab B, content decrypts correctly', async () => {
 	test.slow();
 	test.setTimeout(TEST_TIMEOUT_MS);
@@ -624,6 +626,7 @@ test('TEST-02: create chat in tab A, open in tab B, content decrypts correctly',
 
 // ---- TEST-03: Fresh tab after original closes — key loads from IDB (OPE-314) ----
 
+// contract-test: supporting surface=gui.web assertions=auth.session.lifecycle,chats.persistence.client-encrypted
 test('TEST-03: close originating tab, open fresh tab, messages decrypt from IDB key (OPE-314)', async () => {
 	test.slow();
 	test.setTimeout(TEST_TIMEOUT_MS);

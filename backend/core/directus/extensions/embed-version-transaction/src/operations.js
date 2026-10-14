@@ -415,6 +415,22 @@ export async function writeLegacyEmbed(database, raw) {
     const embed = await trx(EMBEDS).where({ embed_id: embedId }).forUpdate().first();
     if (embed) {
       if (embed.hashed_user_id !== actor) fail(403, 'embed_access_denied');
+      // A typed recovery ACK binds this exact owner/chat/subject/version to the
+      // ciphertext that was durably verified. A later legacy store_embed may
+      // replay that ciphertext or update metadata, but must not silently
+      // re-encrypt the same revision and invalidate the ACK receipt.
+      if (storedPayload.encrypted_content != null
+        && Number(storedPayload.version_number ?? embed.version_number ?? 1)
+          === Number(embed.version_number ?? 1)) {
+        const acknowledged = await trx(RECOVERY_OUTPUTS).where({
+          subject_id: embedId, hashed_user_id: actor, output_kind: 'embed',
+          output_version: Number(embed.version_number ?? 1), state: 'ACKNOWLEDGED',
+        }).whereNull('deleted_at');
+        if (acknowledged.some((output) => sha256(output.target_chat_id) === embed.hashed_chat_id
+          && output.canonical_digest !== sha256(storedPayload.encrypted_content))) {
+          fail(409, 'acknowledged_embed_revision_immutable');
+        }
+      }
       if (bundle) {
         if (Number(embed.version_number ?? 1) !== 1) fail(409, 'bundle_head_advanced');
         for (const [field, value] of Object.entries(storedPayload)) {

@@ -3,13 +3,14 @@
  * Resolves embed references (embed_id) to actual embed content from ContentStore or Directus.
  * Handles TOON-encoded content decoding when needed.
  *
- * For example chats, embeds are stored in the exampleChatStore (cleartext).
- * This resolver checks both the regular embedStore and the example chat store.
+ * Public example embeds are selected only for an explicitly supplied example
+ * chat. Their UUIDs can also belong to private source chats.
  */
 
 import { embedStore } from "./embedStore";
 import {
   getExampleChatEmbed,
+  isExampleChat,
 } from "../demo_chats/exampleChatStore";
 import { EmbedNodeAttributes, EmbedType } from "../message_parsing/types";
 import { generateUUID } from "../message_parsing/utils";
@@ -428,6 +429,7 @@ export interface EmbedData {
  */
 export async function resolveEmbed(
   embed_id: string,
+  options: { chatId?: string | null } = {},
 ): Promise<EmbedData | null> {
   if (isLocalCodeDocPreviewRef(normalizeEmbedId(embed_id))) {
     return null;
@@ -444,6 +446,23 @@ export async function resolveEmbed(
     // resulting in a guaranteed cache miss and an unnecessary server round-trip.
     const bareId = normalizeEmbedId(embed_id);
 
+    // Public examples have their own namespace. Resolve them before private
+    // errors/cache only when the caller identifies the owning example chat.
+    const demoEmbed = getExampleChatEmbed(bareId, options.chatId);
+    if (demoEmbed) {
+      return {
+        embed_id: demoEmbed.embed_id,
+        type: demoEmbed.type,
+        status: "finished" as const,
+        content: demoEmbed.content,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+    }
+    // A public example context is a separate namespace. A missing fixture ID
+    // must never resolve to an owner's same-UUID private cache or server row.
+    if (options.chatId && isExampleChat(options.chatId)) return null;
+
     // Check known failures before touching IndexedDB. Some stale encrypted rows
     // stay present locally after a key mismatch; retrying those WebCrypto decrypts
     // on every render causes severe Safari slowdowns.
@@ -453,23 +472,6 @@ export async function resolveEmbed(
         `[embedResolver] Embed ${bareId} is known ${knownErrorInfo.status} (since ${new Date(knownErrorInfo.timestamp).toISOString()}), returning null without re-reading cache`,
       );
       return null;
-    }
-
-    const demoEmbed = getExampleChatEmbed(bareId);
-    if (demoEmbed) {
-      console.debug(
-        "[embedResolver] Found embed in example chat store:",
-        bareId,
-      );
-      // Convert ExampleChatEmbed to EmbedData format
-      return {
-        embed_id: demoEmbed.embed_id,
-        type: demoEmbed.type,
-        status: "finished" as const,
-        content: demoEmbed.content, // Already cleartext (TOON string)
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
     }
 
     // Second, try to load from EmbedStore (IndexedDB) for regular encrypted embeds

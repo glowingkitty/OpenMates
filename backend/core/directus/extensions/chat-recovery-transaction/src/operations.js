@@ -4610,9 +4610,17 @@ async function acknowledgeOutputEmbed(database, raw, now) {
   }
   return database.transaction(async (trx) => {
     await requireUnfencedRecoveryAccount(trx, ownerHash);
+    // Acquire the embed lock before locking the output row. Registered-child
+    // writers take these locks in this order too, so ACK and store_embed cannot
+    // deadlock while serializing the ciphertext and its receipt.
+    const candidate = await trx(OUTPUTS).where({ id: recordId, hashed_user_id: ownerHash }).first();
+    if (!candidate || candidate.deleted_at) fail(404, 'recovery_output_not_found');
+    if (candidate.output_kind !== 'embed' && candidate.output_kind !== 'diff') fail(409, 'output_kind_mismatch');
+    await lockIdentity(trx, `embed:${candidate.subject_id}`);
     const row = await lockedOutputRecord(trx, recordId, ownerHash);
     if (!row || row.deleted_at) fail(404, 'recovery_output_not_found');
     if (row.output_kind !== 'embed' && row.output_kind !== 'diff') fail(409, 'output_kind_mismatch');
+    if (row.subject_id !== candidate.subject_id) fail(409, 'output_identity_mismatch');
     await authorizedOutputRecordChats(trx, row, ownerHash);
     const canonicalSource = suppliedCanonicalSource || (row.output_kind === 'diff' ? 'version_row' : 'head');
     if (row.state === 'ACKNOWLEDGED') {

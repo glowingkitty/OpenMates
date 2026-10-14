@@ -151,8 +151,7 @@ async function decryptContent(encryptedBase64, keyBytes) {
     );
     return new TextDecoder().decode(decrypted);
   } catch (e) {
-    console.error(`Decryption failed for content (length ${raw.length}):`, e.message);
-    return null;
+    throw new Error('Shared ciphertext could not be authenticated', { cause: e });
   }
 }
 
@@ -181,55 +180,189 @@ function normalizeJsonRows(rows) {
   return (rows || []).map((row) => (typeof row === 'string' ? JSON.parse(row) : row));
 }
 
-async function fetchJson(url, label) {
-  const res = await fetch(url);
+const MAX_SHARED_WINDOW_PAGES = 200;
+const MAX_SHARED_WINDOW_ROWS = 20_000;
+
+function requireJsonRows(rows, label) {
+  if (!Array.isArray(rows)) throw new Error(`${label} rows are missing`);
+  return normalizeJsonRows(rows);
+}
+
+async function fetchJson(url, label, fetchImpl = fetch) {
+  const res = await fetchImpl(url);
   if (!res.ok) {
     throw new Error(`${label} failed: ${res.status} ${res.statusText}`);
   }
   return res.json();
 }
 
-async function fetchSharedMessages(apiBase, targetChatId) {
+async function fetchSharedMessages(apiBase, targetChatId, fetchImpl) {
   const pages = [];
   let beforeTimestamp = null;
   let beforeMessageId = null;
   let hasMore = true;
 
-  while (hasMore) {
+  const seenCursors = new Set();
+  for (let pageCount = 0; hasMore; pageCount += 1) {
+    if (pageCount >= MAX_SHARED_WINDOW_PAGES) throw new Error('Shared message window exceeded page limit');
     const params = new URLSearchParams({ limit: String(SHARED_MESSAGE_PAGE_LIMIT) });
     if (beforeTimestamp !== null) params.set('before_timestamp', String(beforeTimestamp));
     if (beforeMessageId) params.set('before_message_id', beforeMessageId);
     const payload = await fetchJson(
-      `${apiBase}/v1/share/chat/${targetChatId}/messages?${params.toString()}`,
+      `${apiBase}/v1/share/chat/${encodeURIComponent(targetChatId)}/messages?${params.toString()}`,
       `Shared messages fetch for ${targetChatId}`,
+      fetchImpl,
     );
-    const rows = normalizeJsonRows(payload.messages || []);
-    if (rows.length === 0) break;
+    const rows = requireJsonRows(payload.messages, 'Shared message');
+    if (typeof payload.has_more !== 'boolean') throw new Error('Shared message window metadata is missing');
+    if (rows.length === 0 && payload.has_more === true) throw new Error('Shared message window cannot advance');
     pages.unshift(rows);
     hasMore = payload.has_more === true;
     beforeTimestamp = payload.next_before_timestamp ?? null;
     beforeMessageId = payload.next_before_message_id ?? null;
-    if (hasMore && (beforeTimestamp === null || !beforeMessageId)) break;
+    if (hasMore) {
+      const cursor = JSON.stringify([beforeTimestamp, beforeMessageId]);
+      if (!Number.isSafeInteger(beforeTimestamp) || beforeTimestamp < 0 || !beforeMessageId || seenCursors.has(cursor)) {
+        throw new Error('Shared message cursor did not advance');
+      }
+      seenCursors.add(cursor);
+    }
+    if (pages.reduce((count, page) => count + page.length, 0) > MAX_SHARED_WINDOW_ROWS) {
+      throw new Error('Shared message window exceeded row limit');
+    }
   }
 
   return pages.flat();
 }
 
-async function fetchSharedPayload(apiBase, targetChatId) {
-  try {
-    const manifest = await fetchJson(
-      `${apiBase}/v1/share/chat/${targetChatId}/manifest`,
-      `Shared manifest fetch for ${targetChatId}`,
-    );
-    const messages = await fetchSharedMessages(apiBase, targetChatId);
-    return { ...manifest, messages };
-  } catch (error) {
-    console.warn(`   Windowed share fetch failed for ${targetChatId}, falling back to legacy payload: ${error.message}`);
-    return fetchJson(
-      `${apiBase}/v1/share/chat/${targetChatId}`,
-      `Legacy shared payload fetch for ${targetChatId}`,
-    );
+function addRows(target, rawRows, idField, label) {
+  for (const row of requireJsonRows(rawRows, label)) {
+    const id = row?.[idField];
+    if (typeof id !== 'string' || !id) throw new Error(`${label} row is missing its identity`);
+    const existing = target.get(id);
+    if (existing && JSON.stringify(existing) !== JSON.stringify(row)) throw new Error(`${label} identity changed during extraction`);
+    target.set(id, row);
+    if (target.size > MAX_SHARED_WINDOW_ROWS) throw new Error(`${label} exceeded row limit`);
   }
+}
+
+function checkedCursor(cursor, timestampField, seen, label) {
+  const timestamp = cursor?.[timestampField];
+  const id = cursor?.id;
+  const identity = JSON.stringify([timestamp, id]);
+  if (!Number.isSafeInteger(timestamp) || timestamp < 0 || typeof id !== 'string' || !id || seen.has(identity)) {
+    throw new Error(`${label} cursor did not advance`);
+  }
+  seen.add(identity);
+  return cursor;
+}
+
+function requireWindow(window, flag, label) {
+  if (!window || typeof window[flag] !== 'boolean') throw new Error(`${label} window metadata is missing`);
+  return window;
+}
+
+async function completeEmbedKeys(base, embedIds, initialKeys, initialWindow, keys, fetchImpl) {
+  addRows(keys, initialKeys, 'id', 'Shared embed key');
+  let window = requireWindow(initialWindow, 'has_more_after', 'Shared embed key');
+  const seen = new Set();
+  for (let count = 0; window?.has_more_after; count += 1) {
+    if (count >= MAX_SHARED_WINDOW_PAGES) throw new Error('Shared embed key window exceeded page limit');
+    const selectedId = window.oversized_key_id;
+    const cursor = selectedId || window.end_cursor;
+    const position = `${selectedId ? 'selected' : 'after'}:${cursor}`;
+    if (typeof cursor !== 'string' || !cursor || seen.has(position)) throw new Error('Shared embed key cursor did not advance');
+    seen.add(position);
+    const query = new URLSearchParams({ embed_ids: embedIds.join(',') });
+    query.set(selectedId ? 'key_id' : 'after_key_id', cursor);
+    const page = await fetchJson(`${base}/embeds/keys/window?${query}`, 'Shared embed key continuation', fetchImpl);
+    const rows = requireJsonRows(page.embed_keys, 'Shared embed key');
+    if (selectedId && (rows.length !== 1 || rows[0]?.id !== selectedId)) {
+      throw new Error('Shared selected embed key identity mismatch');
+    }
+    addRows(keys, rows, 'id', 'Shared embed key');
+    // An exact oversized-key read completes only that record, not the remainder.
+    window = selectedId ? { has_more_after: true, end_cursor: selectedId }
+      : requireWindow(page, 'has_more_after', 'Shared embed key');
+  }
+}
+
+function embedKeyWindow(page) {
+  return { has_more_after: page.embed_keys_has_more_after, end_cursor: page.embed_keys_end_cursor,
+    oversized_key_id: page.oversized_embed_key_id };
+}
+
+async function completeSharedEmbeds(base, manifest, fetchImpl) {
+  const embeds = new Map();
+  const keys = new Map();
+  let rows = requireJsonRows(manifest.embeds, 'Shared embed');
+  addRows(embeds, rows, 'embed_id', 'Shared embed');
+  await completeEmbedKeys(base, rows.map(row => row.embed_id), manifest.embed_keys,
+    manifest.embed_key_window, keys, fetchImpl);
+  let window = requireWindow(manifest.embed_window, 'has_more_before', 'Shared embed');
+  const cursors = new Set();
+  for (let count = 0; window?.has_more_before; count += 1) {
+    if (count >= MAX_SHARED_WINDOW_PAGES) throw new Error('Shared embed window exceeded page limit');
+    let cursor;
+    if (window.oversized_embed_id) {
+      const id = window.oversized_embed_id;
+      const selected = await fetchJson(`${base}/embeds/${encodeURIComponent(id)}`, 'Shared selected embed', fetchImpl);
+      if (selected.embed?.embed_id !== id) throw new Error('Shared selected embed identity mismatch');
+      addRows(embeds, [selected.embed], 'embed_id', 'Shared embed');
+      await completeEmbedKeys(base, [id], selected.embed_keys, embedKeyWindow(selected), keys, fetchImpl);
+      cursor = window.oversized_embed_cursor || { created_at: selected.embed.created_at, id: selected.embed.id };
+    } else cursor = window.start_cursor;
+    checkedCursor(cursor, 'created_at', cursors, 'Shared embed');
+    const query = new URLSearchParams({ before_created_at: String(cursor.created_at), before_id: cursor.id });
+    const page = await fetchJson(`${base}/embeds/window?${query}`, 'Shared embed continuation', fetchImpl);
+    rows = requireJsonRows(page.embeds, 'Shared embed');
+    addRows(embeds, rows, 'embed_id', 'Shared embed');
+    await completeEmbedKeys(base, rows.map(row => row.embed_id), page.embed_keys, embedKeyWindow(page), keys, fetchImpl);
+    window = requireWindow(page, 'has_more_before', 'Shared embed');
+  }
+  return { embeds: [...embeds.values()], embed_keys: [...keys.values()] };
+}
+
+async function completeSharedAuxiliary(base, initialRows, initialWindow, kind, fetchImpl) {
+  const rows = new Map();
+  const checkpoints = kind === 'compression-checkpoints';
+  const field = checkpoints ? 'checkpoints' : 'items';
+  const timestampField = checkpoints ? 'created_at' : 'timestamp';
+  const path = checkpoints ? `${base}/compression-checkpoints` : `${base}/auxiliary/${kind}`;
+  addRows(rows, initialRows, 'id', `Shared ${kind}`);
+  let window = requireWindow(initialWindow, 'has_more_before', `Shared ${kind}`);
+  const cursors = new Set();
+  for (let count = 0; window?.has_more_before; count += 1) {
+    if (count >= MAX_SHARED_WINDOW_PAGES) throw new Error(`Shared ${kind} window exceeded page limit`);
+    const oversizedId = checkpoints ? window.oversized_checkpoint_id : window.oversized_id;
+    let cursor;
+    if (oversizedId) {
+      const selected = await fetchJson(`${path}/${encodeURIComponent(oversizedId)}`, `Shared selected ${kind}`, fetchImpl);
+      const item = selected[checkpoints ? 'checkpoint' : 'item'];
+      if (item?.id !== oversizedId) throw new Error(`Shared selected ${kind} identity mismatch`);
+      addRows(rows, [item], 'id', `Shared ${kind}`);
+      cursor = { [timestampField]: item.created_at, id: item.id };
+    } else cursor = window.start_cursor;
+    checkedCursor(cursor, timestampField, cursors, `Shared ${kind}`);
+    const query = new URLSearchParams({ before_timestamp: String(cursor[timestampField]), before_id: cursor.id });
+    const page = await fetchJson(`${path}?${query}`, `Shared ${kind} continuation`, fetchImpl);
+    addRows(rows, page[field], 'id', `Shared ${kind}`);
+    window = requireWindow(page, 'has_more_before', `Shared ${kind}`);
+  }
+  return [...rows.values()].sort((a, b) => a.created_at - b.created_at || String(a.id).localeCompare(String(b.id)));
+}
+
+// Extract complete ciphertext windows. A partial/error page must never become a
+// publishable example; no legacy fallback can silently hide an omitted graph.
+export async function fetchSharedPayload(apiBase, targetChatId, fetchImpl = fetch) {
+  const base = `${apiBase.replace(/\/$/, '')}/v1/share/chat/${encodeURIComponent(targetChatId)}`;
+  const manifest = await fetchJson(`${base}/manifest`, 'Shared manifest fetch', fetchImpl);
+  const messages = await fetchSharedMessages(apiBase.replace(/\/$/, ''), targetChatId, fetchImpl);
+  const graph = await completeSharedEmbeds(base, manifest, fetchImpl);
+  const subChats = await completeSharedAuxiliary(base, manifest.sub_chats, manifest.sub_chat_window, 'sub_chats', fetchImpl);
+  const checkpoints = await completeSharedAuxiliary(base, manifest.compression_checkpoints,
+    manifest.compression_checkpoint_window, 'compression-checkpoints', fetchImpl);
+  return { ...manifest, messages, ...graph, sub_chats: subChats, compression_checkpoints: checkpoints };
 }
 
 async function decryptMessages(rawMessages, chatKeyBytes) {
@@ -300,10 +433,15 @@ async function decryptEmbeds(rawEmbeds, rawEmbedKeys, chatKeyBytes) {
       }
     }
   }
-  for (const [childId, parentId] of parentChildMap) {
-    if (!embedKeyMap[childId] && embedKeyMap[parentId]) {
-      embedKeyMap[childId] = embedKeyMap[parentId];
+  for (let pass = 0; pass < parentChildMap.size; pass += 1) {
+    let changed = false;
+    for (const [childId, parentId] of parentChildMap) {
+      if (!embedKeyMap[childId] && embedKeyMap[parentId]) {
+        embedKeyMap[childId] = embedKeyMap[parentId];
+        changed = true;
+      }
     }
+    if (!changed) break;
   }
   console.log(`   After parent propagation: ${Object.keys(embedKeyMap).length} embed keys`);
 
@@ -318,8 +456,8 @@ async function decryptEmbeds(rawEmbeds, rawEmbedKeys, chatKeyBytes) {
       type = embed.encrypted_type
         ? await decryptContent(embed.encrypted_type, embedKey)
         : embed.embed_type;
-    } else {
-      console.error(`   No key for embed ${embed.embed_id} (parent: ${embed.parent_embed_id || 'none'})`);
+    } else if (embed.encrypted_content || embed.encrypted_type) {
+      throw new Error(`No shared key for encrypted embed ${embed.embed_id}`);
     }
 
     embeds.push({
@@ -354,7 +492,7 @@ async function decryptCompressionCheckpoints(rawCheckpoints, chatKeyBytes, targe
   return checkpoints;
 }
 
-async function decryptSharedChatPayload(targetChatId, data, chatKeyBytes, options = {}) {
+export async function decryptSharedChatPayload(targetChatId, data, chatKeyBytes, options = {}) {
   const title = await decryptContent(data.encrypted_title, chatKeyBytes);
   const summary = await decryptContent(data.encrypted_chat_summary, chatKeyBytes);
   const icon = await decryptContent(data.encrypted_icon, chatKeyBytes);
@@ -413,7 +551,7 @@ async function main(inputUrl) {
   if (!chatId || !encryptedBlob) {
     throw new Error('Could not parse chat ID or key from URL');
   }
-  const apiBase = apiBaseFor(url);
+  const apiBase = apiBaseOverride || process.env.OPENMATES_API_BASE || apiBaseFor(url);
 
   console.log(`Chat ID: ${chatId}`);
   console.log(`API Base: ${apiBase}`);
@@ -463,20 +601,16 @@ async function main(inputUrl) {
   output.sub_chats = [];
   for (const subChat of rawSubChats) {
     const subChatId = subChat.id || subChat.chat_id;
-    if (!subChatId) continue;
-    try {
-      const subChatPayload = await fetchSharedPayload(apiBase, subChatId);
-      const decryptedSubChat = await decryptSharedChatPayload(subChatId, subChatPayload, chatKeyBytes, {
-        label: 'Sub-chat',
-      });
-      decryptedSubChat.parent_id = chatId;
-      decryptedSubChat.is_sub_chat = true;
-      decryptedSubChat.budget_limit = subChat.budget_limit ?? null;
-      decryptedSubChat.budget_spent = subChat.budget_spent ?? 0;
-      output.sub_chats.push(decryptedSubChat);
-    } catch (error) {
-      console.error(`   Failed to fetch/decrypt sub-chat ${subChatId}: ${error.message}`);
-    }
+    if (!subChatId) throw new Error('Shared sub-chat is missing its identity');
+    const subChatPayload = await fetchSharedPayload(apiBase, subChatId);
+    const decryptedSubChat = await decryptSharedChatPayload(subChatId, subChatPayload, chatKeyBytes, {
+      label: 'Sub-chat',
+    });
+    decryptedSubChat.parent_id = chatId;
+    decryptedSubChat.is_sub_chat = true;
+    decryptedSubChat.budget_limit = subChat.budget_limit ?? null;
+    decryptedSubChat.budget_spent = subChat.budget_spent ?? 0;
+    output.sub_chats.push(decryptedSubChat);
   }
 
   console.log('\n' + '='.repeat(80));

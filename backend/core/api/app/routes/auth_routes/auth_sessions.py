@@ -22,7 +22,11 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_compliance_service,
 )
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
-from backend.core.api.app.services.session_security_state import revoke_session_state
+from backend.core.api.app.services.session_security_state import (
+    ensure_legacy_session_hash_state,
+    get_session_state_cached,
+    revoke_session_state,
+)
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_handlers import (
     invalidate_recovery_leases_for_device,
 )
@@ -93,40 +97,51 @@ async def _get_current_token_hash(
     return hashlib.sha256(refresh_token.encode()).hexdigest()
 
 
+async def _trusted_logical_session_id(
+    directus_service: DirectusService, cache_service: CacheService,
+    token_hash: str, user_id: str,
+) -> str:
+    """Resolve the authenticated ledger identity, including pre-ledger sessions."""
+    state = await get_session_state_cached(
+        directus_service, cache_service, token_hash, user_id=user_id,
+    )
+    if state is None:
+        state = await ensure_legacy_session_hash_state(
+            directus_service, cache_service, token_hash, user_id,
+        )
+    logical_id = state.get("logical_session_id") if isinstance(state, dict) else None
+    if not isinstance(logical_id, str) or not logical_id:
+        raise HTTPException(status_code=503, detail="Session identity unavailable")
+    return logical_id
+
+
 async def _broadcast_force_logout(
     cache_service: CacheService,
     user_id: str,
     reason: str = "session_revoked",
     revoked_session_id: Optional[str] = None,
-    exclude_connection_hash: Optional[str] = None,
-    target_connection_hash: Optional[str] = None,
+    exclude_logical_session_id: Optional[str] = None,
+    target_logical_session_id: Optional[str] = None,
 ):
     """
     Publish a force_logout event via Redis so the WebSocket listener
     in websockets.py can forward it to the affected user's connections.
 
-    exclude_connection_hash: the connection_hash of the revoking device.
-    The websockets.py listener reads this and passes it as exclude_device_hash
-    to broadcast_to_user_specific_event so the revoking device never receives
-    the force_logout event and does not log itself out.
-
-    target_connection_hash: the connection_hash of one specific session that
-    must receive force_logout. Single-session revocation must target the
-    revoked session instead of broadcasting to every other connection.
+    Session identities are server-verified and never forwarded to the client.
+    All tabs sharing one credential must be targeted or excluded together.
     """
     event_data = {
         "event_for_client": "force_logout",
         "user_id_uuid": user_id,
-        # exclude_connection_hash is a server-internal routing hint; it is NOT
-        # forwarded to the client (stripped in the websockets.py listener).
-        "exclude_connection_hash": exclude_connection_hash,
         "payload": {
             "reason": reason,
             "revoked_session_id": revoked_session_id,
         },
     }
-    if target_connection_hash:
-        event_data["target_device_fingerprint_hash"] = target_connection_hash
+    if exclude_logical_session_id:
+        event_data["exclude_logical_session_id"] = exclude_logical_session_id
+    if target_logical_session_id:
+        event_data["target_logical_session_id"] = target_logical_session_id
 
     await cache_service.publish_event(
         channel=f"user_updates::{user_id}",
@@ -282,11 +297,11 @@ async def revoke_session(
     if target_hash == current_hash:
         raise HTTPException(status_code=400, detail="Cannot revoke the current session. Use logout instead.")
 
+    target_logical_session_id = await _trusted_logical_session_id(
+        request.app.state.directus_service, cache_service, target_hash, user_id,
+    )
     target_meta = tokens_map.get(target_hash, {})
     target_device_hash = target_meta.get("device_hash") if isinstance(target_meta, dict) else None
-    target_connection_hash: Optional[str] = (
-        target_meta.get("connection_hash") if isinstance(target_meta, dict) else None
-    )
     if target_device_hash:
         try:
             await invalidate_recovery_leases_for_device(
@@ -313,23 +328,13 @@ async def revoke_session(
     else:
         await cache_service.delete(user_tokens_key)
 
-    # 3. Broadcast force_logout only to the revoked connection. Falling back to
-    #    user-wide broadcast would log out unrelated sessions when old metadata
-    #    lacks a targetable connection hash.
-    if target_connection_hash:
-        await _broadcast_force_logout(
-            cache_service,
-            user_id,
-            "session_revoked",
-            session_id,
-            target_connection_hash=target_connection_hash,
-        )
-    else:
-        logger.warning(
-            "Skipped targeted force_logout for revoked session %s of user %s: missing connection_hash",
-            session_id,
-            user_id[:6],
-        )
+    # 3. Target every live tab on this authenticated session, never siblings
+    #    of another credential. The ledger remains authoritative across token
+    #    rotation; legacy connection_hash metadata is not a session identity.
+    await _broadcast_force_logout(
+        cache_service, user_id, "session_revoked", session_id,
+        target_logical_session_id=target_logical_session_id,
+    )
 
     # 4. Compliance log
     compliance_service.log_auth_event_safe(
@@ -364,6 +369,10 @@ async def logout_all_others(
     if not current_hash:
         raise HTTPException(status_code=401, detail="Missing auth token")
 
+    current_logical_session_id = await _trusted_logical_session_id(
+        directus_service, cache_service, current_hash, user_id,
+    )
+
     user_tokens_key = f"user_tokens:{user_id}"
     tokens_map: dict = await cache_service.get(user_tokens_key) or {}
 
@@ -396,19 +405,14 @@ async def logout_all_others(
     else:
         await cache_service.delete(user_tokens_key)
 
-    # Broadcast force_logout to all connections, excluding the revoking device.
-    # Without the exclusion the revoking device would receive the event and log
-    # itself out — the same bug as single-session revocation.
+    # Exclude every tab on the revoking credential, including tabs with a
+    # distinct per-document WebSocket route key.
     if revoked_count > 0:
-        current_meta = tokens_map.get(current_hash, {}) if current_hash else {}
-        current_connection_hash: Optional[str] = (
-            current_meta.get("connection_hash") if isinstance(current_meta, dict) else None
-        )
         await _broadcast_force_logout(
             cache_service,
             user_id,
             "all_other_sessions_revoked",
-            exclude_connection_hash=current_connection_hash,
+            exclude_logical_session_id=current_logical_session_id,
         )
 
     compliance_service.log_auth_event_safe(

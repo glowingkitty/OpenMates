@@ -70,7 +70,7 @@ from backend.apps.ai.utils.llm_utils import (
 from backend.apps.ai.llm_providers.native_cache_context import NativeCacheProviderOutput, NativeCacheSchemaChanged
 from backend.apps.ai.processing.native_history_cache import (
     add_dispatch_event, append_provider_output, append_tool_results,
-    collect_server_embed_provenance,
+    collect_authored_web_source_bindings, collect_server_embed_provenance,
     native_replay_fits_budget, new_native_segment, resume_native_segment,
     validate_native_embed_fingerprints,
 )
@@ -11067,8 +11067,16 @@ async def handle_main_processing(
                                     app_id=app_id, skill_id=skill_id,
                                     results=group["results"], authored_embeds=[authored_embed],
                                 ))
+                                authored_inline_outputs.extend(collect_authored_web_source_bindings(
+                                    app_id=app_id, skill_id=skill_id,
+                                    results=group["results"], authored_embeds=[authored_embed],
+                                ))
                     else:
                         authored_inline_outputs.extend(collect_authored_skill_output_bindings(
+                            app_id=app_id, skill_id=skill_id,
+                            results=results_with_refs, authored_embeds=updated_embed_data_list,
+                        ))
+                        authored_inline_outputs.extend(collect_authored_web_source_bindings(
                             app_id=app_id, skill_id=skill_id,
                             results=results_with_refs, authored_embeds=updated_embed_data_list,
                         ))

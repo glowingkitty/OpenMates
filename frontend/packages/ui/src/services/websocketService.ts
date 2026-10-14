@@ -7,7 +7,7 @@
  * WebSocket events like 'open', 'close', 'error', and 'message'.
  */
 import { getWebSocketUrl } from "../config/api";
-import { getSessionId } from "../utils/sessionId";
+import { getWebSocketRoutingId } from "../utils/websocketRoutingId";
 import { getWebSocketToken } from "../utils/cookies"; // Use getWebSocketToken instead of getAuthRefreshToken
 import { authStore } from "../stores/authState"; // To check login status without aggregate-store cycles
 import { get } from "svelte/store"; // Import get
@@ -645,7 +645,7 @@ class WebSocketService extends EventTarget {
     const isReconnecting = this.reconnectAttempts > 0;
     websocketStatus.setStatus(isReconnecting ? "reconnecting" : "connecting");
 
-    const sessionId = getSessionId();
+    const sessionId = getWebSocketRoutingId();
     let authToken = getWebSocketToken(); // Get WebSocket token from sessionStorage (for Safari iOS compatibility)
 
     if (!authToken || isReconnecting) {

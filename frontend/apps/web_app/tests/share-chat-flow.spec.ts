@@ -73,7 +73,7 @@ async function navigateToReportIssue(page: any): Promise<void> {
 	const settingsToggle = page.locator('#settings-menu-toggle');
 	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 	if (await settingsMenu.isVisible().catch(() => false)) {
-		await settingsToggle.click();
+		await page.getByTestId('icon-button-close').click();
 		await expect(settingsMenu).toHaveCount(0, { timeout: 10000 });
 	}
 	await settingsToggle.click();
@@ -131,6 +131,12 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	// ── Step 4: Wait for AI response ───────────────────────────────────────
 	logCheckpoint('Waiting for assistant response...');
 	await waitForAssistantMessage(page, { which: 'last', logCheckpoint });
+	const activityToggle = page.getByTestId('assistant-activity-toggle').last();
+	await expect(activityToggle).toBeVisible({ timeout: 10000 });
+	if ((await activityToggle.getAttribute('aria-expanded')) !== 'true') {
+		await activityToggle.click();
+	}
+	await expect(activityToggle).toHaveAttribute('aria-expanded', 'true');
 	await expect(
 		page.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]').first()
 	).toBeVisible({ timeout: 45000 });
@@ -194,6 +200,26 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	const sharedMessages = await sharedMessagesResponse.json();
 	expect(sharedMessages.messages?.length ?? 0).toBeGreaterThan(0);
 	expect(sharedMessages.messages?.some((message: any) => String(message.message_id || '').startsWith('dummy-'))).toBe(false);
+	// contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded,storage.cold.shared-team-authorized
+	const sharedEmbedsResponse = await page.request.get(`${apiUrl}/v1/share/chat/${activeChatId}/embeds/window`);
+	expect(sharedEmbedsResponse.ok()).toBe(true);
+	const sharedEmbeds = await sharedEmbedsResponse.json();
+	expect(sharedEmbeds.chat_id).toBe(activeChatId);
+	expect(sharedEmbeds.embeds.length).toBeGreaterThan(0);
+	expect(sharedEmbeds.embeds.length).toBeLessThanOrEqual(30);
+	expect(sharedEmbeds.embed_keys.every((key: any) => key.key_type === 'chat')).toBe(true);
+	const sharedEmbedIds = sharedEmbeds.embeds.map((embed: any) => embed.embed_id);
+	const sharedKeysResponse = await page.request.get(`${apiUrl}/v1/share/chat/${activeChatId}/embeds/keys/window`
+		+ `?embed_ids=${encodeURIComponent(sharedEmbedIds.join(','))}`);
+	expect(sharedKeysResponse.ok()).toBe(true);
+	const sharedKeys = await sharedKeysResponse.json();
+	expect(sharedKeys.embed_keys.every((key: any) => key.key_type === 'chat')).toBe(true);
+	const forgedEmbedId = '00000000-0000-4000-8000-000000000001';
+	expect((await page.request.get(`${apiUrl}/v1/share/chat/${activeChatId}/embeds/keys/window`
+		+ `?embed_ids=${forgedEmbedId}`)).status()).toBe(404);
+	expect((await page.request.get(`${apiUrl}/v1/share/chat/${activeChatId}/embeds/window`
+		+ `?before_id=forged`)).status()).toBe(400);
+	expect((await page.request.get(`${apiUrl}/v1/share/chat/${forgedEmbedId}/embeds/window`)).status()).toBe(404);
 	logCheckpoint('Generated chat share link, QR code, and revealed URL verified in browser automation.');
 
 	// ── Step 6: Generate a report-context link from the Report Issue form ──
@@ -223,12 +249,19 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	await navigateToReportIssue(page);
 	await expect(page.locator('#share-chat-toggle')).toBeChecked();
 	await page.getByTestId('report-issue-title').fill('Shared chat decryption verification');
-	await page.evaluate((marker: string) => {
+	const visibleChatBody = await page.evaluate((marker: string) => {
+		const visibleChatBody = Array.from(document.querySelectorAll(
+			'[data-message-id] .read-only-message .ProseMirror, [data-message-id] .chat-message-text .ProseMirror',
+		))
+			.map((body) => body.textContent?.trim() ?? '')
+			.find((body) => body.replace(/[‘’]/g, "'").includes(marker));
+		if (!visibleChatBody) throw new Error('Rendered chat body missing before report redaction probe');
 		console.warn(
 			'[ReportIssueRedactionProbe]',
-			marker,
+			visibleChatBody,
 			'https://app.example/share/chat/example#key=secret-report-share-key-material',
 		);
+		return visibleChatBody;
 	}, sharedChatMarker);
 	const reportMetadataResponsePromise = page.waitForResponse(
 		(response: any) =>
@@ -244,8 +277,9 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	const reportPayload = reportPayloads[0];
 	const reportShareUrl = String(reportPayload.chat_or_embed_url ?? '');
 	expect(reportShareUrl).toContain(`/share/chat/${activeChatId}#key=`);
-	expect(String(reportPayload.last_messages_html ?? '')).toContain(sharedChatMarker);
+	expect(String(reportPayload.last_messages_html ?? '').replace(/[‘’]/g, "'")).toContain(sharedChatMarker);
 	expect(String(reportPayload.console_logs ?? '')).not.toContain(sharedChatMarker);
+	expect(String(reportPayload.console_logs ?? '')).not.toContain(visibleChatBody);
 	expect(String(reportPayload.console_logs ?? '')).not.toContain('secret-report-share-key-material');
 	expect(String(reportPayload.console_logs ?? '')).toContain('[CHAT-CONTENT-REDACTED]');
 	expect(String(reportPayload.console_logs ?? '')).toContain('[SHARE-KEY-REDACTED]');
