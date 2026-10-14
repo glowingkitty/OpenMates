@@ -3452,17 +3452,17 @@ assertions:
       surface: gui.web
     - &id559
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3760
+      line: 3764
       name: forwards relevance criteria through generated typed app-skill flags
       surface: cli
     - &id560
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3787
+      line: 3791
       name: forwards repository relevance criteria through generated typed input
       surface: cli
     - &id561
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3921
+      line: 3926
       name: forwards models3d relevance criteria through generated JSON input
       surface: cli
     supporting_tests:
@@ -4406,17 +4406,17 @@ assertions:
       surface: cli
     - &id581
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3760
+      line: 3764
       name: forwards relevance criteria through generated typed app-skill flags
       surface: cli
     - &id582
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3787
+      line: 3791
       name: forwards repository relevance criteria through generated typed input
       surface: cli
     - &id583
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3921
+      line: 3926
       name: forwards models3d relevance criteria through generated JSON input
       surface: cli
     supporting_tests:
@@ -28300,7 +28300,7 @@ assertions:
       surface: gui.web
     - &id3572
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3524
+      line: 3528
       name: returns a failing process status when the sandbox execution fails
       surface: cli
     supporting_tests:
@@ -28366,7 +28366,7 @@ assertions:
       surface: rest_api
     - &id3573
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3628
+      line: 3632
       name: retrieves Code Run completion through polling when streaming is unavailable
       surface: cli
     - &id3574
@@ -28665,7 +28665,7 @@ assertions:
       surface: rest_api
     - &id3605
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3502
+      line: 3506
       name: prints direct-run output and artifact download metadata in human mode
       surface: cli
     - &id3606
@@ -29216,12 +29216,12 @@ assertions:
       surface: gui.web
     - &id3697
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3502
+      line: 3506
       name: prints direct-run output and artifact download metadata in human mode
       surface: cli
     - &id3698
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3524
+      line: 3528
       name: returns a failing process status when the sandbox execution fails
       surface: cli
     - &id3702
@@ -33540,7 +33540,7 @@ assertions:
       surface: rest_api
     - &id4160
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3654
+      line: 3658
       name: maps pass-aware train flags into the app-skill request
       surface: cli
     tests:
@@ -33684,7 +33684,7 @@ assertions:
     supporting_tests:
     - &id4169
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3654
+      line: 3658
       name: maps pass-aware train flags into the app-skill request
       surface: cli
     tests:
@@ -97285,7 +97285,7 @@ assertions:
       surface: gui.web
     - &id12397
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1253
+      line: 1256
       name: rejects Plan creation without a Project before login or API access
       surface: cli
     - &id12398
@@ -100387,12 +100387,12 @@ assertions:
       surface: gui.web
     - &id12759
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1343
+      line: 1346
       name: requires an explicit write policy for non-interactive Project creation
       surface: cli
     - &id12760
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1396
+      line: 1399
       name: renders exact Project write proposals without emitting terminal controls
       surface: cli
     - &id12761
@@ -100764,12 +100764,12 @@ assertions:
       surface: gui.web
     - &id12803
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1375
+      line: 1378
       name: builds a private default focus for an empty Project
       surface: cli
     - &id12804
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1384
+      line: 1387
       name: recognizes direct Project mentions without treating case variants as conflicts
       surface: cli
     - &id12805
@@ -100887,7 +100887,7 @@ assertions:
       surface: rest_api
     - &id12817
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1355
+      line: 1358
       name: imports root AGENTS.md before CLAUDE.md and supports case variants
       surface: cli
     tests:
@@ -124912,7 +124912,7 @@ assertions:
       surface: cli
     - &id15836
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1647
+      line: 1650
       name: exports a portable YAML graph and imports it as a disabled workflow
       surface: cli
     supporting_tests:
@@ -125017,7 +125017,7 @@ assertions:
       surface: cli
     - &id15850
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1647
+      line: 1650
       name: exports a portable YAML graph and imports it as a disabled workflow
       surface: cli
     supporting_tests:
@@ -125134,7 +125134,7 @@ assertions:
       surface: cli
     - &id15867
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1647
+      line: 1650
       name: exports a portable YAML graph and imports it as a disabled workflow
       surface: cli
     supporting_tests:
@@ -125227,7 +125227,7 @@ assertions:
       surface: cli
     - &id15871
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1647
+      line: 1650
       name: exports a portable YAML graph and imports it as a disabled workflow
       surface: cli
     supporting_tests:
@@ -126246,7 +126246,7 @@ assertions:
       surface: rest_api
     - &id16032
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1522
+      line: 1525
       name: waits through a claimed delivery until this run is acknowledged without
         redispatch
       surface: cli
@@ -127833,7 +127833,7 @@ assertions:
       surface: cli
     - &id16220
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1522
+      line: 1525
       name: waits through a claimed delivery until this run is acknowledged without
         redispatch
       surface: cli
@@ -132783,7 +132783,7 @@ assertions:
       surface: rest_api
     - &id16853
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1574
+      line: 1577
       name: inspects and saves a chat-owned workflow by full ID while library search
         stays hidden
       surface: cli
@@ -132940,7 +132940,7 @@ assertions:
       surface: rest_api
     - &id16866
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1574
+      line: 1577
       name: inspects and saves a chat-owned workflow by full ID while library search
         stays hidden
       surface: cli
@@ -137522,7 +137522,7 @@ assertions:
       surface: cli
     - &id17389
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1522
+      line: 1525
       name: waits through a claimed delivery until this run is acknowledged without
         redispatch
       surface: cli
@@ -138671,7 +138671,7 @@ assertions:
     supporting_tests:
     - &id17541
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3628
+      line: 3632
       name: retrieves Code Run completion through polling when streaming is unavailable
       surface: cli
     - &id17542

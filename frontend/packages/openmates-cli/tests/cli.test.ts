@@ -253,6 +253,7 @@ async function withUpdateRequiredMock<T>(
   server.on("upgrade", (request, socket, head) => {
     if (request.url) requestPaths.push(`${request.method ?? "GET"} ${request.url}`);
     wss.handleUpgrade(request, socket, head, (ws) => {
+      ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: [] } }));
       ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
       ws.on("message", (raw) => {
         const frame = JSON.parse(raw.toString()) as { type: string };
@@ -415,6 +416,7 @@ async function withWorkspaceAskFallbackChatMock<T>(
   });
   server.on("upgrade", (request, socket, head) => {
     wss.handleUpgrade(request, socket, head, (ws) => {
+      ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: [] } }));
       ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
       let turnId = "turn-1";
       let chatId = "chat-1";
@@ -551,6 +553,7 @@ async function withGoalChatMock<T>(
   server.on("upgrade", (request, socket, head) => {
     if (request.url) requestPaths.push(`${request.method ?? "GET"} ${request.url}`);
     wss.handleUpgrade(request, socket, head, (ws) => {
+      ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: [] } }));
       ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
       let turnId = "22222222-2222-4222-8222-222222222222";
       let chatId = "11111111-2222-4333-8444-555555555555";
@@ -2925,7 +2928,8 @@ describe("CLI update-required cutover", () => {
       assert.match(result.stderr, /OpenMates CLI update required\. Run `openmates upgrade` and retry\./);
       assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /success/i);
       assert.equal(requestPaths.includes("GET /v1/learning-mode"), false);
-      assert.equal(requestPaths.filter((path) => path === "GET /v1/sdk/memories").length, 1);
+      // Legacy fallback reads once during CLI preparation and again at the fresh Personal Send boundary.
+      assert.equal(requestPaths.filter((path) => path === "GET /v1/sdk/memories").length, 2);
       assert.equal(requestPaths.some((path) => path.includes("export-account-data")), false);
       assert.equal(frameTypes.includes("chat_turn_preflight"), true);
       assert.equal(frameTypes.includes("chat_message_added"), false);
@@ -3834,11 +3838,12 @@ describe("apps metadata commands", () => {
 
     assert.equal(parsed.app_id, "travel");
     assert.equal(parsed.skill_id, "search_connections");
-    assert.ok(parsed.examples?.some((example) => example.chat_id === "example-flights-berlin-bangkok"));
+    assert.ok(parsed.examples?.some((example) => example.chat_id === "example-deutschlandticket-train-fare-breakdown"));
+    assert.equal(parsed.examples?.some((example) => example.chat_id === "example-flights-berlin-bangkok"), false);
     assert.ok(parsed.examples?.every((example) => example.linked_app_skills?.includes("travel.search_connections")));
     assert.equal(
-      parsed.examples?.find((example) => example.chat_id === "example-flights-berlin-bangkok")?.commands?.show,
-      "openmates chats show example-flights-berlin-bangkok",
+      parsed.examples?.find((example) => example.chat_id === "example-deutschlandticket-train-fare-breakdown")?.commands?.show,
+      "openmates chats show example-deutschlandticket-train-fare-breakdown",
     );
   });
 
