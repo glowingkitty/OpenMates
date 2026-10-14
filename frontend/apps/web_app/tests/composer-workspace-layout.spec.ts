@@ -118,7 +118,7 @@ test.describe('Actual workspace composer layout', () => {
     { height: 800, theme: 'light', color: 'rgb(230, 234, 255)' },
     { height: 400, theme: 'dark', color: 'rgb(45, 47, 53)' },
   ]) {
-    // contract-test: direct surface=gui.web assertions=message-input.focus.guest-welcome-suppression,message-input.focus.workspace-suppression,message-input.layout.responsive-parity
+    // contract-test: direct surface=gui.web assertions=message-input.focus.guest-welcome-suppression,message-input.focus.workspace-suppression,message-input.layout.responsive-parity,message-input.suggestions.contextual
     test(`guest new chat restores its welcome and preserves a draft at 1280x${height}`, async ({ page }: { page: Page }) => {
       await page.setViewportSize({ width: 1280, height });
       await page.addInitScript((theme) => localStorage.setItem('theme_mode', theme), theme);
@@ -127,6 +127,8 @@ test.describe('Actual workspace composer layout', () => {
       const editor = page.getByTestId('message-editor').locator('.ProseMirror');
       const welcome = page.getByTestId('daily-inspiration-area');
       const chat = page.getByTestId('active-chat-container');
+      const suggestions = page.getByTestId('chat-welcome-suggestions');
+      const firstSuggestion = page.getByTestId('new-chat-suggestion-card').first();
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await expect(welcome).toBeVisible({ timeout: 30000 });
       await expect(field).toHaveCSS('background-color', color);
@@ -137,6 +139,11 @@ test.describe('Actual workspace composer layout', () => {
       await expect(welcome).toBeHidden();
       await expect(welcome).toHaveAttribute('inert', '');
       await expect(page.getByTestId('welcome-content')).toBeHidden();
+      await expect(suggestions).toBeVisible();
+      await expect(suggestions).not.toHaveAttribute('inert', '');
+      await expect(suggestions.getByTestId('suggestions-wrapper')).toHaveCSS('opacity', '1');
+      await expect(firstSuggestion).toBeVisible();
+      await expect(firstSuggestion).toBeEnabled();
       await expect.poll(() => welcome.evaluate((element) => element.getBoundingClientRect().height)).toBe(welcomeHeight);
       await expect(field).toBeInViewport({ ratio: 1 });
       const cancel = page.getByTestId('input-dismiss-button');
@@ -145,6 +152,7 @@ test.describe('Actual workspace composer layout', () => {
       await expect(field).toHaveAttribute('data-focused', 'false');
       await expect(welcome).toBeVisible();
       await expect(welcome).not.toHaveAttribute('inert', '');
+      await expect(suggestions).toBeHidden();
       await field.click();
       await expect(welcome).toBeHidden();
       // Use a real outside pointer event, including when the empty chat-side has no height.
@@ -156,6 +164,13 @@ test.describe('Actual workspace composer layout', () => {
       // Guest drafts stay in session storage without selecting an authenticated
       // saved-chat shell. Both dismissal paths restore this welcome surface.
       await field.click();
+      const suggestionText = await firstSuggestion.locator('.card-text').innerText();
+      await firstSuggestion.click();
+      await expect(editor).toContainText(suggestionText);
+      await expect(editor).toBeFocused();
+      await expect(chat).toHaveAttribute('data-current-chat-id', '');
+      await expect(page.getByTestId('message-user')).toHaveCount(0);
+      await editor.fill('');
       await editor.pressSequentially('Keep this new-chat draft');
       await editor.press('Shift+Enter');
       await editor.pressSequentially('Keep its second line');
@@ -181,7 +196,7 @@ test.describe('Actual workspace composer layout', () => {
     });
   }
 
-  // contract-test: direct surface=gui.web assertions=message-input.actions.visibility,public-example-chats.transcript.safe-rendering,workspace-shell.start.chat-visual-parity
+  // contract-test: direct surface=gui.web assertions=message-input.actions.visibility,public-example-chats.transcript.safe-rendering,workspace-shell.start.chat-visual-parity,message-input.suggestions.contextual
   test('empty chat hides welcome on focus while a public example keeps its transcript fully visible', async ({ page }: { page: Page }) => {
     test.setTimeout(180000);
     test.skip(!getTestAccount().email, 'Test account credentials required.');
@@ -207,9 +222,10 @@ test.describe('Actual workspace composer layout', () => {
       await expect(page.getByTestId('daily-inspiration-banner')).toBeHidden();
       await expect(page.getByTestId('welcome-content')).toBeHidden();
       await expect(field).toHaveCSS('background-color', 'rgb(45, 47, 53)');
-      await expect(page.getByTestId('chat-welcome-suggestions')).toHaveCSS('visibility', 'hidden');
-      await expect(page.getByTestId('chat-welcome-suggestions')).toHaveAttribute('inert', '');
-      await expect(page.getByTestId('new-chat-suggestion-card').first()).toBeHidden();
+      await expect(page.getByTestId('chat-welcome-suggestions')).toBeVisible();
+      await expect(page.getByTestId('chat-welcome-suggestions')).not.toHaveAttribute('inert', '');
+      await expect(page.getByTestId('chat-welcome-suggestions').getByTestId('suggestions-wrapper')).toHaveCSS('opacity', '1');
+      await expect(page.getByTestId('new-chat-suggestion-card').first()).toBeVisible();
       await page.screenshot({ path: test.info().outputPath(`chat-welcome-focused-${width}x${height}.png`), fullPage: true });
       // Outside touch dismisses through the document capture listener, even
       // when Safari does not synthesize a subsequent click.

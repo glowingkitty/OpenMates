@@ -338,6 +338,8 @@ Chat should remain familiar and readable.
 
 Empty-chat welcome content fades completely out during composer focus while
 keeping its layout measurements; disable its controls immediately with `inert`.
+New-chat suggestions remain visible and interactive above the active composer;
+they follow the existing map and attachment gates and hide after focus is dismissed.
 The message field keeps its theme-aware blue-grey surface when focused. Existing
 chat transcripts and Project, Task and Workflow workspace content retain full
 opacity during ordinary focus, with background interaction gated. Dismissal

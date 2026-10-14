@@ -213,7 +213,7 @@ test.describe('Chat composer focus and draft preservation', () => {
     { width: 1280, height: 900, theme: 'light', color: 'rgb(230, 234, 255)' },
     { width: 1280, height: 400, theme: 'dark', color: 'rgb(45, 47, 53)' },
   ]) {
-  // contract-test: direct surface=gui.web assertions=message-input.focus.guest-welcome-suppression,message-input.focus.workspace-suppression,message-input.actions.visibility,message-input.layout.responsive-parity
+  // contract-test: direct surface=gui.web assertions=message-input.focus.guest-welcome-suppression,message-input.focus.workspace-suppression,message-input.actions.visibility,message-input.layout.responsive-parity,message-input.suggestions.contextual
   test(`focus and deep-link prefill hide welcome, preserve its layout and restore drafts at ${width}x${height}`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await page.goto(preview('ActiveChatFocusFixture', Math.min(width, 1100), undefined, theme));
@@ -238,8 +238,22 @@ test.describe('Chat composer focus and draft preservation', () => {
     await expect(page.getByTestId('welcome-content')).toHaveAttribute('inert', '');
     await expect.poll(() => welcomeArea.evaluate((element) => element.getBoundingClientRect().height)).toBe(welcomeHeight);
     await expect(field).toHaveCSS('background-color', color);
+    const suggestions = page.getByTestId('chat-welcome-suggestions');
+    const firstSuggestion = page.getByTestId('new-chat-suggestion-card').first();
+    await expect(suggestions).toBeVisible();
+    await expect(suggestions).not.toHaveAttribute('inert', '');
+    await expect(firstSuggestion).toBeVisible();
+    await expect(firstSuggestion).toBeEnabled();
+    const suggestionText = await firstSuggestion.locator('.card-text').innerText();
+    await firstSuggestion.click();
+    await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toContainText(suggestionText);
+    await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toBeFocused();
+    await expect(field).toHaveAttribute('data-focused', 'true');
+    await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', '');
+    await expect(page.getByTestId('message-user')).toHaveCount(0);
     await page.getByTestId('input-dismiss-button').click();
     await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+    await expect(suggestions).toBeHidden();
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('docsMessagePrefill', { detail: { text: 'Unsent deep link\nKeep this second line', autoSend: false } })));
     await expect(field).toHaveAttribute('data-focused', 'true');
     await expect(side).toHaveAttribute('inert', '');
@@ -251,9 +265,9 @@ test.describe('Chat composer focus and draft preservation', () => {
     await expect(field).toBeInViewport({ ratio: 1 });
     await expect(page.getByTestId('daily-inspiration-banner')).toBeHidden();
     await expect(page.getByTestId('welcome-content')).toBeHidden();
-    await expect(page.getByTestId('chat-welcome-suggestions')).toHaveCSS('opacity', '0');
-    await expect(page.getByTestId('chat-welcome-suggestions')).toHaveAttribute('inert', '');
-    await expect(page.getByTestId('new-chat-suggestion-card').first()).toBeHidden();
+    await expect(suggestions).toBeVisible();
+    await expect(suggestions).not.toHaveAttribute('inert', '');
+    await expect(firstSuggestion).toBeVisible();
     await expect(field).toBeVisible();
     await expect(page.getByTestId('input-dismiss-button')).toHaveText('Cancel');
     const cancel = page.getByTestId('input-dismiss-button');

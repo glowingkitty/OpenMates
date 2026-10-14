@@ -15182,8 +15182,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                               rail visible on the inactive welcome screen. -->
                          {#if (showWelcome || isActiveDraftOnlyChat) && !messageInputMapsOpen && messageInputRecentlyFocused && !hideSuggestionsForAnonymousFileAttachment}
                             <div class="suggestions-wrapper composer-suggestions"
-                                class:composer-welcome-hidden={messageInputFocused}
-                                inert={messageInputFocused}
+                                data-preserve-composer-focus="true"
                                 data-testid="chat-welcome-suggestions">
                                 <NewChatSuggestions
                                    messageInputContent={activeSuggestionSearchText}
@@ -17150,14 +17149,14 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         visibility: visible;
         transition: opacity var(--duration-normal) var(--easing-default), visibility 0s;
     }
-    .chat-side.composer-welcome-hidden, .composer-suggestions.composer-welcome-hidden {
+    .chat-side.composer-welcome-hidden {
         opacity: 0;
         visibility: hidden;
         transition-delay: 0s, var(--duration-normal);
     }
     @media (prefers-reduced-motion: reduce) {
         .chat-side, .chat-side.composer-welcome-hidden,
-        .composer-suggestions, .composer-suggestions.composer-welcome-hidden { transition: none; }
+        .composer-suggestions { transition: none; }
     }
 
     .composer-suggestions { width: 100%; }
