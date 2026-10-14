@@ -84,6 +84,35 @@ class RawRedis:
         return True
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier,app-skills.assistant.bounded-private-failure
+def test_resumed_admission_builds_strict_recovery_output_context():
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest
+    from backend.apps.ai.tasks.ask_skill_task import _required_recovery_output_context
+    from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
+
+    resumed = AskSkillRequest.model_validate({
+        "chat_id": "chat", "message_id": "turn", "user_id": "owner",
+        "user_id_hash": "owner-hash", "message_history": [],
+        "is_async_skill_continuation": True,
+        "recovery_inference_task_id": LOGICAL,
+        "recovery_preflight_id": "preflight",
+        "recovery_turn_id": "recovery-turn",
+        "recovery_public_key": "admitted-public-key",
+        "chat_key_version": 4,
+    })
+    context = _required_recovery_output_context(resumed)
+    assert context is not None
+    assert (context.inference_task_id, context.preflight_id, context.turn_id) == (
+        LOGICAL, "preflight", "recovery-turn",
+    )
+    assert (context.public_key, context.key_version) == ("admitted-public-key", 4)
+
+    for field in ("recovery_turn_id", "recovery_public_key", "chat_key_version"):
+        incomplete = resumed.model_copy(update={field: None})
+        with pytest.raises(RequiredRecoveryOutputError, match="lacks sealed output recovery identity"):
+            _required_recovery_output_context(incomplete)
+
+
 @pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier
 async def test_barrier_uses_real_cache_service_json_scalar_decoding():

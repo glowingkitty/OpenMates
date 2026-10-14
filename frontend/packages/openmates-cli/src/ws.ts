@@ -488,7 +488,10 @@ export class OpenMatesWsClient {
   private readonly socket: InstanceType<typeof WebSocket>;
   private readonly passiveTaskUpdateJobs = new Map<string, PendingTaskUpdateJobFrame>();
   private readonly availableRecoveryOutputPages: AvailableRecoveryOutputFrame[][] = [];
-  private readonly queuedRecoveryOutputIds = new Set<string>();
+  // A final-stream discovery may reannounce a record after an earlier page was
+  // drained and acknowledged. Keep the identity for this socket's lifetime so
+  // replay never fetches that now-terminal record a second time.
+  private readonly seenRecoveryOutputIds = new Set<string>();
   private recoveryOutputDiscoveryError: Error | null = null;
   private recoveryOutputDiscoveryComplete = false;
   private readonly remoteCommandReviewDeferredHandlers = new Set<(payload: Record<string, unknown>) => void>();
@@ -961,7 +964,7 @@ export class OpenMatesWsClient {
         this.recoveryOutputDiscoveryError = new Error("Recovery output discovery contained invalid identity data.");
         return;
       }
-      const seenIds = new Set(this.queuedRecoveryOutputIds);
+      const seenIds = new Set(this.seenRecoveryOutputIds);
       const page = outputs.filter((output) => {
         if (seenIds.has(output.record_id)) return false;
         seenIds.add(output.record_id);
@@ -974,7 +977,7 @@ export class OpenMatesWsClient {
           this.recoveryOutputDiscoveryError = new Error("Recovery output discovery exceeded the bounded page queue.");
           return;
         }
-        for (const output of page) this.queuedRecoveryOutputIds.add(output.record_id);
+        for (const output of page) this.seenRecoveryOutputIds.add(output.record_id);
         this.availableRecoveryOutputPages.push(page);
       }
     } catch {
@@ -991,7 +994,6 @@ export class OpenMatesWsClient {
       const kept = rootChatId ? page.filter((output) => output.root_chat_id !== rootChatId) : [];
       if (selected.length) drained.push(selected);
       if (kept.length) remaining.push(kept);
-      for (const output of selected) this.queuedRecoveryOutputIds.delete(output.record_id);
     }
     this.availableRecoveryOutputPages.splice(0, this.availableRecoveryOutputPages.length, ...remaining);
     return drained;

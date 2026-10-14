@@ -121,6 +121,27 @@ from backend.core.api.app.schemas.chat import AIHistoryMessage, MessageInCache
 logger = logging.getLogger(__name__)
 
 
+def _required_recovery_output_context(request_data: AskSkillRequest) -> RecoveryOutputContext | None:
+    """Keep the admitted output identity check at the worker's earliest authority gate."""
+    recovery_inference_id = request_data.resolved_recovery_inference_task_id()
+    if not recovery_inference_id:
+        return None
+    if not all((request_data.recovery_preflight_id, request_data.recovery_turn_id,
+                request_data.recovery_public_key, request_data.chat_key_version)):
+        raise RequiredRecoveryOutputError("Admitted task lacks sealed output recovery identity")
+    return RecoveryOutputContext(
+        owner_id=request_data.user_id,
+        owner_hash=request_data.user_id_hash,
+        root_chat_id=request_data.root_chat_id or request_data.chat_id,
+        target_chat_id=request_data.chat_id,
+        turn_id=request_data.recovery_turn_id,
+        preflight_id=request_data.recovery_preflight_id,
+        inference_task_id=recovery_inference_id,
+        public_key=request_data.recovery_public_key,
+        key_version=request_data.chat_key_version,
+    )
+
+
 class _FailureHandoffOutcome(Enum):
     OWNED_MARKER_CLEARED = "owned_marker_cleared"
 
@@ -2421,7 +2442,9 @@ async def _async_process_ai_skill_ask_task(
         transient = await _time_setup_stage("private_restore", task_id,
                                                    restore_private_context_payload(request_data.model_dump()))
         if request_data.same_turn_batch_id:
-            from backend.apps.ai.tasks.same_turn_skill_barrier import unpack_private_checkpoint
+            from backend.apps.ai.tasks.same_turn_skill_barrier import (
+                unpack_private_checkpoint, verify_resume_recovery_identity,
+            )
             try:
                 original_payload, restored_checkpoint = unpack_private_checkpoint(
                     transient.get("same_turn_request"),
@@ -2442,6 +2465,7 @@ async def _async_process_ai_skill_ask_task(
                     "_celery_task_state": "SUCCESS",
                 }
             resume_envelope = request_data
+            verify_resume_recovery_identity(original_payload, resume_envelope)
             request_data = AskSkillRequest.model_validate(original_payload)
             request_data.same_turn_batch_id = resume_envelope.same_turn_batch_id
             request_data.same_turn_slots = resume_envelope.same_turn_slots
@@ -5067,22 +5091,9 @@ def process_ai_skill_ask_task(
             volatile_context_token = active_volatile_ai_context.set(volatile_context)
         elif volatile_header is not None:
             raise RequiredRecoveryOutputError("Saved AI task carries volatile authority")
-        recovery_inference_id = request_data.resolved_recovery_inference_task_id()
-        if recovery_inference_id:
-            if not all((request_data.recovery_preflight_id, request_data.recovery_turn_id,
-                        request_data.recovery_public_key, request_data.chat_key_version)):
-                raise RequiredRecoveryOutputError("Admitted task lacks sealed output recovery identity")
-            recovery_context_token = active_recovery_output_context.set(RecoveryOutputContext(
-                owner_id=request_data.user_id,
-                owner_hash=request_data.user_id_hash,
-                root_chat_id=request_data.root_chat_id or request_data.chat_id,
-                target_chat_id=request_data.chat_id,
-                turn_id=request_data.recovery_turn_id,
-                preflight_id=request_data.recovery_preflight_id,
-                inference_task_id=recovery_inference_id,
-                public_key=request_data.recovery_public_key,
-                key_version=request_data.chat_key_version,
-            ))
+        recovery_context = _required_recovery_output_context(request_data)
+        if recovery_context:
+            recovery_context_token = active_recovery_output_context.set(recovery_context)
         elif not requires_volatile:
             legacy_identity = (
                 request_data.root_legacy_cutover_task_id

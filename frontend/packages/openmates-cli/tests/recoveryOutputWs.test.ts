@@ -167,6 +167,45 @@ describe("CLI recovery output discovery", () => {
     }
   });
 
+  // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.sync.key-gated-recovery
+  it("replays a recovery output at most once per socket when final stream reannounces it", async () => {
+    const server = new WebSocketServer({ port: 0 });
+    await new Promise<void>((resolve) => server.once("listening", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address !== "string");
+    const output = (recordId: string) => ({
+      record_id: recordId, root_chat_id: "root", target_chat_id: "root",
+      turn_id: "turn", subject_id: recordId, output_kind: "embed",
+      output_version: 1, chat_key_version: 1,
+    });
+    server.on("connection", (socket) => socket.on("message", (raw) => {
+      const frame = JSON.parse(raw.toString()) as { type: string };
+      if (frame.type === "native_client_lifecycle") {
+        socket.send(JSON.stringify({ type: "recovery_outputs_available", payload: { outputs: [output("first")] } }));
+        socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+      } else if (frame.type === "test_reannounce") {
+        socket.send(JSON.stringify({ type: "recovery_outputs_available", payload: {
+          outputs: [output("first"), output("second")],
+        } }));
+      }
+    }));
+    const client = new OpenMatesWsClient({
+      apiUrl: `http://127.0.0.1:${address.port}`, sessionId: "session", wsToken: "token", refreshToken: null,
+    });
+    try {
+      await client.open();
+      await client.waitForRecoveryOutputDiscovery(500);
+      assert.deepEqual(client.drainAvailableRecoveryOutputs().map((row) => row.record_id), ["first"]);
+      const reannounced = client.waitForMessage("recovery_outputs_available", undefined, 500);
+      client.send("test_reannounce", {});
+      await reannounced;
+      assert.deepEqual(client.drainAvailableRecoveryOutputs().map((row) => row.record_id), ["second"]);
+    } finally {
+      client.close();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover
   it("rejects a failed discovery fence before claiming an empty snapshot", async () => {
     const server = new WebSocketServer({ port: 0 });

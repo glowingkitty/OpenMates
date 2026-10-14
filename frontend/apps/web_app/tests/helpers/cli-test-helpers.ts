@@ -17,7 +17,7 @@ const { spawn, spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const REPOSITORY_ROOT = path.resolve(__dirname, '../../../../..');
-let cliRecordingCreated = false;
+const cliRecordingsCreated = new Set<string>();
 
 const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 	? '/workspace/cli/dist/cli.js'
@@ -73,15 +73,15 @@ async function runCli(
 	const apiKey = options.useApiKey === false ? undefined : process.env.OPENMATES_TEST_ACCOUNT_API_KEY;
 	const cliDir = path.dirname(path.dirname(CLI_DIST));
 	const allArgs = apiKey ? ['--api-key', apiKey, ...args] : args;
+	const specSlug = String(options.env?.OPENMATES_E2E_SPEC || process.env.OPENMATES_E2E_SPEC || 'openmates-cli-e2e')
+		.replace(/\.spec\.ts$/, '')
+		.replace(/[^A-Za-z0-9._-]+/g, '-');
 	const shouldRecord = options.record !== false
 		&& (process.env.OPENMATES_CLI_RECORD_E2E === '1' || options.env?.OPENMATES_CLI_RECORD_E2E === '1')
-		&& !cliRecordingCreated;
+		&& !cliRecordingsCreated.has(specSlug);
 	if (shouldRecord) {
-		cliRecordingCreated = true;
+		cliRecordingsCreated.add(specSlug);
 		const startedAt = performance.now();
-		const specSlug = String(options.env?.OPENMATES_E2E_SPEC || process.env.OPENMATES_E2E_SPEC || 'openmates-cli-e2e')
-			.replace(/\.spec\.ts$/, '')
-			.replace(/[^A-Za-z0-9._-]+/g, '-');
 		const outputDir = path.resolve(process.cwd(), 'test-results', 'cli-recordings', specSlug);
 		fs.rmSync(outputDir, {recursive: true, force: true});
 		const recorderArgs = [

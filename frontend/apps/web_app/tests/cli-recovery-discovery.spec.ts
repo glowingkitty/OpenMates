@@ -120,7 +120,9 @@ async function runIsolatedProofFixture(program: string, owner: unknown, testInfo
 
 
 type CanonicalHistoryFixture = { chatId: string; ownerId: string; clientMessageId: string;
-	chat: Record<string, unknown>; message: Record<string, unknown> };
+	chat: Record<string, unknown>; message: Record<string, unknown>;
+	embed?: Record<string, unknown>; embedKeys?: Array<Record<string, unknown>>;
+	outputs?: Array<Record<string, unknown>>; staleOutputs?: Array<Record<string, unknown>> };
 
 function canonicalHistorySdk(apiUrl: string, home: string, program: string, input: unknown = {}): any {
 	const cli = path.resolve(__dirname, '../../../packages/openmates-cli/dist/cli.js');
@@ -164,6 +166,19 @@ async def main():
             assert created and not duplicate, 'Encrypted chat seed failed'
             stored=await directus.chat.create_message_in_directus(data['message'])
             assert stored and stored.get('id'), 'Encrypted message seed failed'
+            if data.get('embed'):
+                assert data['embed']['hashed_user_id']==owner
+                created,_=await directus.create_item('embeds',data['embed'],admin_required=True)
+                assert created, 'Encrypted recovery embed seed failed'
+                for key in data.get('embedKeys',[]):
+                    assert key['hashed_user_id']==owner
+                    created,_=await directus.create_item('embed_keys',key,admin_required=True)
+                    assert created, 'Encrypted recovery key seed failed'
+                for output in data.get('outputs',[]):
+                    assert output['hashed_user_id']==owner and output['root_chat_id']==data['chatId']
+                    assert output['target_chat_id']==data['chatId'] and output['subject_id']==data['embed']['embed_id']
+                    created,_=await directus.create_item('chat_recovery_outputs',output,admin_required=True)
+                    assert created, 'Acknowledged recovery output seed failed'
             assert await cache.add_chat_to_ids_versions(data['ownerId'],data['chatId'],data['chat']['last_edited_overall_timestamp'])
             assert await cache.set_chat_list_item_data(data['ownerId'],data['chatId'],_chat_list_cache_data_from_metadata(data['chat']))
             assert await cache.set_chat_versions(data['ownerId'],data['chatId'],_chat_versions_from_metadata(data['chat']))
@@ -171,6 +186,21 @@ async def main():
             metadata=await directus.chat.get_chat_metadata(data['chatId'])
             if metadata:
                 assert metadata.get('hashed_user_id')==owner, 'Only fixture-owned chat may be removed'
+                for output in data.get('outputs',[]):
+                    rows=await directus.get_items('chat_recovery_outputs',params={'filter':{'id':{'_eq':output['id']}},'limit':1},no_cache=True,admin_required=True)
+                    if rows:
+                        assert rows[0]['hashed_user_id']==owner
+                        assert await directus.delete_item('chat_recovery_outputs',output['id'],admin_required=True)
+                for key in data.get('embedKeys',[]):
+                    rows=await directus.get_items('embed_keys',params={'filter':{'id':{'_eq':key['id']}},'limit':1},no_cache=True,admin_required=True)
+                    if rows:
+                        assert rows[0]['hashed_user_id']==owner
+                        assert await directus.delete_item('embed_keys',key['id'],admin_required=True)
+                if data.get('embed'):
+                    rows=await directus.get_items('embeds',params={'filter':{'id':{'_eq':data['embed']['id']}},'limit':1},no_cache=True,admin_required=True)
+                    if rows:
+                        assert rows[0]['hashed_user_id']==owner
+                        assert await directus.delete_item('embeds',data['embed']['id'],admin_required=True)
                 for raw in await directus.chat.get_all_messages_for_chat(data['chatId'],decrypt_content=False) or []:
                     message=json.loads(raw) if isinstance(raw,str) else raw
                     if message.get('client_message_id')==data['clientMessageId']:
@@ -229,6 +259,125 @@ test('noninteractive cold chats list completes recovery discovery', async ({ pag
 		});
 	} finally {
 		if (draftChatId) await quietJson(['drafts', 'clear', draftChatId]).catch(() => undefined);
+		removeWorkflowCliHome(home);
+	}
+});
+
+// contract-test: direct surface=cli assertions=chats.sync.key-gated-recovery,chats.completion.recovery-takeover,chats.persistence.client-encrypted
+test('stale CLI embed discovery reconciles only a verified canonical ACK', async ({ page }: { page: any }, testInfo: any) => {
+	test.setTimeout(300_000);
+	test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted'
+		|| process.env.CI_TEST_MODE !== 'e2e', 'Requires the isolated GitHub product stack');
+	skipWithoutCredentials(test, email, password, otpKey);
+	const apiUrl = workflowApiUrl();
+	const home = createWorkflowCliHome('stale-recovery-ack');
+	let fixture: CanonicalHistoryFixture | undefined;
+	try {
+		await loginWorkflowCliViaPair(page, apiUrl, home, 'CLI_STALE_RECOVERY_ACK');
+		fixture = canonicalHistorySdk(apiUrl, home, `
+			const owner=await client.whoAmI();
+			if(!owner.id||client.getActiveTeamId())throw Error('Expected paired Personal account');
+			const chatId=randomUUID(),clientMessageId=randomUUID(),embedId=randomUUID(),key=randomBytes(32);
+			const now=Math.floor(Date.now()/1000),date=new Date().toISOString(),hashedOwner=hash(owner.id);
+			const chat={id:chatId,hashed_user_id:hashedOwner,created_at:now,updated_at:now,
+				last_edited_overall_timestamp:now,last_message_timestamp:now,messages_v:1,title_v:1,metadata_v:1,
+				unread_count:0,encrypted_chat_key:await encrypt(key,client.getMasterKeyBytes()),
+				encrypted_title:await encrypt('Stale recovery fixture',key),encrypted_chat_summary:await encrypt('Saved fixture.',key)};
+			const message={id:clientMessageId,client_message_id:clientMessageId,message_id:clientMessageId,
+				chat_id:chatId,hashed_user_id:hashedOwner,role:'user',created_at:now,updated_at:now,
+				encrypted_sender_name:await encrypt('You',key),encrypted_content:await encrypt('Saved fixture prompt.',key)};
+			const hkdf=await webcrypto.subtle.importKey('raw',key,'HKDF',false,['deriveBits']);
+			const embedKey=Buffer.from(await webcrypto.subtle.deriveBits({name:'HKDF',hash:'SHA-256',
+				salt:Buffer.from('openmates-embed-key-v1'),info:Buffer.from(embedId)},hkdf,256));
+			const encryptedContent=await encrypt('type: code\\ncode: verified recovery fixture',embedKey);
+			const embed={id:randomUUID(),embed_id:embedId,hashed_embed_id:hash(embedId),
+				hashed_chat_id:hash(chatId),hashed_message_id:hash(clientMessageId),hashed_user_id:hashedOwner,
+				encrypted_content:encryptedContent,encrypted_type:await encrypt('code',embedKey),
+				status:'finished',version_number:1,encryption_mode:'client',is_private:false,is_shared:false,
+				created_at:now,updated_at:now};
+			const embedKeys=[{id:randomUUID(),hashed_embed_id:hash(embedId),key_type:'master',
+				hashed_chat_id:null,encrypted_embed_key:await encrypt(embedKey,client.getMasterKeyBytes()),
+				hashed_user_id:hashedOwner,created_at:now},{id:randomUUID(),hashed_embed_id:hash(embedId),
+				key_type:'chat',hashed_chat_id:hash(chatId),encrypted_embed_key:await encrypt(embedKey,key),
+				hashed_user_id:hashedOwner,created_at:now}];
+			const canonicalDigest=hash(encryptedContent);
+			const outputs=['verified','tampered'].map((kind)=>({id:randomUUID(),hashed_user_id:hashedOwner,
+				root_chat_id:chatId,root_hashed_team_id:null,target_chat_id:chatId,turn_id:randomUUID(),
+				preflight_id:randomUUID(),inference_task_id:randomUUID(),subject_id:embedId,
+				output_kind:'embed',message_role:null,output_version:1,chat_key_version:1,
+				sealed_payload:null,sealed_payload_digest:hash('fixture-'+kind),payload_storage:'inline',
+				payload_size_bytes:1,state:'ACKNOWLEDGED',created_at:date,acknowledged_at:date,
+				canonical_digest:kind==='verified'?canonicalDigest:'0'.repeat(64)}));
+			const staleOutputs=outputs.map(output=>({record_id:output.id,root_chat_id:output.root_chat_id,
+				root_hashed_team_id:null,target_chat_id:output.target_chat_id,turn_id:output.turn_id,
+				subject_id:embedId,output_kind:'embed',output_version:1,chat_key_version:1,message_role:null}));
+			process.stdout.write(JSON.stringify({chatId,ownerId:owner.id,clientMessageId,chat,message,
+				embed,embedKeys,outputs,staleOutputs}));
+		`);
+		persistCanonicalHistoryFixture(fixture, 'seed');
+		clearWorkflowCliSyncCache(home);
+		const observed = canonicalHistorySdk(apiUrl, home, `
+			await client.whoAmI();
+			const requests=[],statuses=[],accepted=[],rejected=[];
+			let injected=false;
+			const replay=client.replayAvailableRecoveryOutputs.bind(client);
+			client.replayAvailableRecoveryOutputs=async (...args)=>{
+				const id=args[2][0]?.record_id;
+				try{const count=await replay(...args);if(input.staleOutputs.some(row=>row.record_id===id))accepted.push(id);return count;}
+				catch(error){if(input.staleOutputs.some(row=>row.record_id===id))rejected.push(id);throw error;}
+			};
+			const open=client.openWsClient.bind(client);
+			client.openWsClient=async (...args)=>{
+				const result=await open(...args),ws=result.ws;
+				const drain=ws.drainAvailableRecoveryOutputPages.bind(ws);
+				ws.drainAvailableRecoveryOutputPages=(rootChatId)=>{
+					const pages=drain(rootChatId);
+					if(!injected){injected=true;pages.push(input.staleOutputs);}
+					return pages;
+				};
+				const send=ws.sendAsync.bind(ws);
+				ws.sendAsync=async (type,payload)=>{
+					if(type==='recovery_output_get'||type==='recovery_output_status')
+						requests.push({type,record_id:payload.record_id});
+					return send(type,payload);
+				};
+				ws.onMessageType('recovery_output_status_ready',payload=>{
+					if(input.staleOutputs.some(row=>row.record_id===payload.record_id))
+						statuses.push({record_id:payload.record_id,state:payload.state,verified:payload.canonical_verified});
+				});
+				return result;
+			};
+			const listed=await client.listChats(100,1,{forceRefresh:true});
+			process.stdout.write(JSON.stringify({listed:listed.chats.some(chat=>chat.id===input.chatId),
+				requests,statuses,accepted,rejected}));
+		`, { chatId: fixture.chatId, staleOutputs: fixture.staleOutputs });
+		expect(observed.listed).toBe(true);
+		const [verified, tampered] = fixture.staleOutputs!;
+		const fixtureIds = new Set([verified.record_id, tampered.record_id]);
+		expect(observed.requests.filter((row: any) => row.type === 'recovery_output_get')
+			.filter((row: any) => fixtureIds.has(row.record_id))
+			.map((row: any) => row.record_id)).toEqual([verified.record_id, tampered.record_id]);
+		expect(observed.requests.filter((row: any) => row.type === 'recovery_output_status')
+			.filter((row: any) => fixtureIds.has(row.record_id))
+			.map((row: any) => row.record_id)).toEqual([verified.record_id, tampered.record_id]);
+		expect(observed.statuses).toEqual([
+			{ record_id: verified.record_id, state: 'ACKNOWLEDGED', verified: true },
+			{ record_id: tampered.record_id, state: 'ACKNOWLEDGED', verified: false }
+		]);
+		expect(observed.accepted).toEqual([verified.record_id]);
+		expect(observed.rejected).toEqual([tampered.record_id]);
+
+		installRecorderDeps();
+		const result = await runCli(apiUrl, ['chats', 'list', '--limit', '100', '--json'], 120_000, {
+			useApiKey: false,
+			env: { ...workflowCliEnv(apiUrl, home), OPENMATES_CLI_RECORD_E2E: '1', OPENMATES_E2E_SPEC: 'cli-recovery-stale-ack' }
+		});
+		expect(result.code, `CLI list failed: ${result.stderr.slice(-2000)}`).toBe(0);
+		expect(JSON.parse(result.stdout).chats.some((chat: { id: string }) => chat.id === fixture!.chatId)).toBe(true);
+		expect(result.recording?.videoPath).toBeTruthy();
+		await testInfo.attach('cli-stale-recovery-ack', { path: result.recording.videoPath, contentType: 'video/mp4' });
+	} finally {
+		if (fixture) persistCanonicalHistoryFixture(fixture, 'cleanup');
 		removeWorkflowCliHome(home);
 	}
 });

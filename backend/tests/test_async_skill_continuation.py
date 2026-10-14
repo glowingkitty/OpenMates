@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from backend.core.api.app.schemas.chat import AIHistoryMessage  # noqa: E402
+from backend.apps.ai.tasks.ask_skill_task import _required_recovery_output_context
 
 _MODULE_PATH = Path(__file__).resolve().parents[1] / "apps" / "ai" / "tasks" / "async_skill_continuation.py"
 
@@ -280,13 +281,19 @@ async def test_ordered_same_turn_barrier_dispatches_one_private_resume_envelope(
                                    checkpoint_ref="opaque", deadline=time.time() + 600,
                                    logical_task_id=logical, source_delivery_task_id=logical)
     await barrier.arm_barrier(cache, batch)
+    admitted_request = _request()
+    admitted_request.user_id = "owner"
+    admitted_request.chat_id = "chat"
+    admitted_request.root_chat_id = "root-parent"
+    admitted_request.message_id = "turn"
+    admitted_request.recovery_task_id = logical
     for task_id in ("first", "second"):
-        await cache.set(module.async_skill_continuation_key(task_id), {
-            "same_turn_batch_id": batch,
-            "request_data": {"user_id": "owner", "chat_id": "chat", "message_id": "turn",
-                             "recovery_task_id": logical, "message_history": []},
-            "skill_config_dict": {"ready": True},
-        })
+        await module.cache_async_skill_continuation_context(
+            cache_service=cache, async_task_id=task_id,
+            request_data=admitted_request, skill_config_dict={"ready": True},
+            app_id="images", skill_id="generate", tool_name="images-generate",
+            tool_arguments={"prompt": "private"}, same_turn_batch_id=batch,
+        )
     await barrier.record_terminal(cache, batch_id=batch, task_id="second",
                                   payload_ref="ref-second", status="finished")
     assert await module.dispatch_same_turn_barrier(cache_service=cache, batch_id=batch) is None
@@ -299,8 +306,32 @@ async def test_ordered_same_turn_barrier_dispatches_one_private_resume_envelope(
     envelope = skill_sends[0][1]["request_data_dict"]
     assert envelope["continuation_message_id"] == logical
     assert envelope["recovery_inference_task_id"] == logical
+    assert envelope["recovery_preflight_id"] == "preflight-1"
+    assert envelope["recovery_turn_id"] == "turn-1"
+    assert envelope["recovery_public_key"] == "public-key-1"
+    assert envelope["chat_key_version"] == 4
+    assert envelope["chat_id"] == "chat"
+    assert envelope["root_chat_id"] == "root-parent"
     assert envelope["same_turn_slots"][0]["task_id"] == "first"
     assert envelope["message_history"] == []
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest
+    from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
+
+    sealed_original = admitted_request.model_dump(mode="json")
+    resumed_request = AskSkillRequest.model_validate(envelope)
+    barrier.verify_resume_recovery_identity(sealed_original, resumed_request)
+    strict_context = _required_recovery_output_context(resumed_request)
+    assert strict_context is not None
+    assert (strict_context.root_chat_id, strict_context.target_chat_id) == ("root-parent", "chat")
+    for field, tampered in (("recovery_public_key", "other-key"), ("chat_key_version", None)):
+        altered = {**envelope, field: tampered}
+        with pytest.raises(RequiredRecoveryOutputError, match="sealed recovery identity changed"):
+            barrier.verify_resume_recovery_identity(sealed_original, AskSkillRequest.model_validate(altered))
+    for field, tampered in (("root_chat_id", None), ("root_chat_id", "other-root"),
+                            ("chat_id", "other-child")):
+        altered = {**envelope, field: tampered}
+        with pytest.raises(RequiredRecoveryOutputError, match="chat identity changed"):
+            barrier.verify_resume_recovery_identity(sealed_original, AskSkillRequest.model_validate(altered))
     assert await module.dispatch_same_turn_barrier(cache_service=cache, batch_id=batch) is None
 
     # A broker error after the deterministic claim must release chat ownership.
@@ -360,6 +391,27 @@ async def test_same_turn_registration_failure_cannot_return_a_pending_context(as
             tool_arguments={"prompt": "secret"}, same_turn_batch_id="batch-1",
         )
     assert await cache.get(module.async_skill_continuation_key("queued-producer")) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("missing_field", [
+    "recovery_preflight_id", "recovery_turn_id", "recovery_public_key", "chat_key_version",
+])
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier,app-skills.assistant.bounded-private-failure
+async def test_same_turn_rejects_incomplete_recovery_identity_before_caching(
+    async_skill_continuation, missing_field,
+):
+    cache = _FakeCache()
+    request = _request()
+    setattr(request, missing_field, None)
+
+    with pytest.raises(RuntimeError, match="Same-turn recovery identity is incomplete"):
+        await async_skill_continuation.cache_async_skill_continuation_context(
+            cache_service=cache, async_task_id="producer", request_data=request,
+            app_id="images", skill_id="generate", tool_name="images-generate",
+            tool_arguments={"prompt": "private"}, same_turn_batch_id="batch-1",
+        )
+    assert cache.values == {}
 
 
 @pytest.mark.asyncio

@@ -8129,6 +8129,70 @@ export class OpenMatesClient {
       await ws.sendAsync(type, { ...payload, request_id: requestId, recovery_record_id: recoveryRecordId });
       return (await receipt).payload as Record<string, unknown>;
     };
+    const reconcileAcknowledgedEmbed = async (
+      output: AvailableRecoveryOutputFrame, chatKey: Uint8Array,
+      sealedContent?: Record<string, unknown>,
+    ): Promise<void> => {
+      if (output.output_kind !== "embed" && output.output_kind !== "diff") {
+        throw new Error(`Recovery output ${output.record_id} cannot be reconciled without its sealed content.`);
+      }
+      const status = await request("recovery_output_status", "recovery_output_status_ready", output.record_id, {});
+      for (const field of ["record_id", "root_chat_id", "target_chat_id", "turn_id", "subject_id",
+        "output_kind", "output_version", "chat_key_version"] as const) {
+        if (status[field] !== output[field]) throw new Error(`Recovery output status identity mismatch: ${field}.`);
+      }
+      if ((status.root_hashed_team_id ?? null) !== (output.root_hashed_team_id ?? null)
+        || (status.message_role ?? null) !== (output.message_role ?? null)
+        || status.state !== "ACKNOWLEDGED" || status.canonical_verified !== true
+        || typeof status.canonical_digest !== "string" || !/^[0-9a-f]{64}$/.test(status.canonical_digest)
+        || (status.canonical_source !== "head" && status.canonical_source !== "version_row")) {
+        throw new Error(`Recovery output ${output.record_id} lacks verified canonical acknowledgement.`);
+      }
+      const embedPath = `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(output.subject_id)}`
+        + (teamId ? `?team_id=${encodeURIComponent(teamId)}` : "");
+      const canonical = await this.http.get<{ embed?: Record<string, unknown> }>(embedPath, this.getCliRequestHeaders());
+      const row = canonical.data?.embed;
+      if (!canonical.ok || !row || row.hashed_chat_id !== computeSHA256(output.target_chat_id)
+        || typeof row.encrypted_content !== "string" || typeof row.encrypted_type !== "string") {
+        throw new Error(`Recovery output ${output.record_id} canonical embed is unavailable.`);
+      }
+      const parentId = typeof row.parent_embed_id === "string" ? row.parent_embed_id : null;
+      if (sealedContent && typeof sealedContent.parent_embed_id === "string"
+        && sealedContent.parent_embed_id !== parentId) {
+        throw new Error(`Recovery output ${output.record_id} canonical parent differs from sealed output.`);
+      }
+      const embedKey = await deriveEmbedKeyFromChatKey(chatKey, parentId || output.subject_id);
+      const type = await decryptWithAesGcmCombined(row.encrypted_type, embedKey);
+      if (!type || (sealedContent && type !== sealedContent.type)) {
+        throw new Error(`Recovery output ${output.record_id} canonical embed type differs from sealed output.`);
+      }
+      if (status.canonical_source === "head") {
+        if (output.output_kind !== "embed" || Number(row.version_number || 1) !== output.output_version
+          || computeSHA256(row.encrypted_content) !== status.canonical_digest) {
+          throw new Error(`Recovery output ${output.record_id} canonical head digest differs from acknowledgement.`);
+        }
+        const content = await decryptWithAesGcmCombined(row.encrypted_content, embedKey);
+        if (!content || (sealedContent && content !== sealedContent.content)) {
+          throw new Error(`Recovery output ${output.record_id} canonical head content differs from sealed output.`);
+        }
+      } else {
+        const query = new URLSearchParams({ capability: "bounded-v1", chat_id: output.target_chat_id });
+        if (teamId) query.set("team_id", teamId);
+        const history = await this.http.get<{ rows?: Array<Record<string, unknown>> }>(
+          `/v1/embeds/${encodeURIComponent(output.subject_id)}/versions/${output.output_version}?${query}`,
+          this.getCliRequestHeaders(),
+        );
+        const version = history.data?.rows?.find((candidate) => candidate.version_number === output.output_version);
+        const encryptedSnapshot = version?.encrypted_snapshot ?? null;
+        const encryptedPatch = version?.encrypted_patch ?? null;
+        if (!history.ok || !version || (typeof encryptedSnapshot !== "string" && typeof encryptedPatch !== "string")
+          || computeSHA256(JSON.stringify([encryptedSnapshot, encryptedPatch])) !== status.canonical_digest) {
+          throw new Error(`Recovery output ${output.record_id} canonical version digest differs from acknowledgement.`);
+        }
+        if (typeof encryptedSnapshot === "string") await decryptWithAesGcmCombined(encryptedSnapshot, embedKey);
+        if (typeof encryptedPatch === "string") await decryptWithAesGcmCombined(encryptedPatch, embedKey);
+      }
+    };
     for (const output of ordered) {
       if (output.root_hashed_team_id !== undefined
         && output.root_hashed_team_id !== (teamId ? computeSHA256(teamId) : null)) {
@@ -8156,7 +8220,15 @@ export class OpenMatesClient {
         rootKey = await this.resolveChatKey(cache, root, wrappingKey, teamId);
       }
       if (!rootKey) throw new Error(`Recovery root chat ${output.root_chat_id} key is unavailable.`);
-      const ready = await request("recovery_output_get", "recovery_output_ready", output.record_id, {});
+      let ready: Record<string, unknown>;
+      try {
+        ready = await request("recovery_output_get", "recovery_output_ready", output.record_id, {});
+      } catch (error) {
+        if (!(error instanceof WebSocketProtocolError) || error.code !== "recovery_output_not_found") throw error;
+        await reconcileAcknowledgedEmbed(output, rootKey);
+        acknowledged += 1;
+        continue;
+      }
       for (const field of ["record_id", "root_chat_id", "target_chat_id", "turn_id", "subject_id", "output_kind", "output_version", "chat_key_version"] as const) {
         if (ready[field] !== output[field]) throw new Error(`Recovery output ${output.record_id} identity mismatch: ${field}.`);
       }
@@ -8582,10 +8654,15 @@ export class OpenMatesClient {
             throw new Error("Canonical recovery version reread did not match its receipt.");
           }
         }
-        const result = await request("recovery_output_ack_embed", "recovery_output_embed_acknowledged", output.record_id, {
-          canonical_digest: canonicalDigest, canonical_source: canonicalSource,
-        });
-        if (result.state !== "ACKNOWLEDGED") throw new Error("Recovery embed was not acknowledged.");
+        try {
+          const result = await request("recovery_output_ack_embed", "recovery_output_embed_acknowledged", output.record_id, {
+            canonical_digest: canonicalDigest, canonical_source: canonicalSource,
+          });
+          if (result.state !== "ACKNOWLEDGED") throw new Error("Recovery embed was not acknowledged.");
+        } catch (error) {
+          if (!(error instanceof WebSocketProtocolError) || error.code !== "canonical_output_mismatch") throw error;
+          await reconcileAcknowledgedEmbed(output, rootKey, content);
+        }
       }
       acknowledged += 1;
     }

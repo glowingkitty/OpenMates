@@ -133,13 +133,22 @@ async def cache_async_skill_continuation_context(
 
     request_snapshot = request_data.model_dump(mode="json")
     if same_turn_batch_id:
+        if (request_data.recovery_task_id or request_data.recovery_inference_task_id) and not all((
+            request_data.recovery_preflight_id, request_data.recovery_turn_id,
+            request_data.recovery_public_key, request_data.chat_key_version,
+        )):
+            raise RuntimeError("Same-turn recovery identity is incomplete")
         # The full request and provider transcript enter the API-only sealed
-        # handoff at pause. Redis callback context needs identities only.
+        # handoff at pause. Redis callback context needs the immutable recovery
+        # identity so the resumed worker can establish its strict output context
+        # before opening that private checkpoint.
         request_snapshot = {
             key: request_snapshot.get(key) for key in (
-                "user_id", "user_id_hash", "chat_id", "message_id",
+                "user_id", "user_id_hash", "chat_id", "root_chat_id", "message_id",
                 "recovery_task_id", "recovery_inference_task_id",
-                "recovery_preflight_id", "preprocessing_resume_ref",
+                "recovery_preflight_id", "recovery_turn_id",
+                "recovery_public_key", "chat_key_version",
+                "preprocessing_resume_ref",
             )
         }
         request_snapshot["message_history"] = []

@@ -55,10 +55,13 @@ embed_types:
 instructions:
   - instruction: |
       When recommending selected recipes from nutrition.search_recipes,
-      include each recommended recipe using its returned inline embed_ref so
+      include each recommended recipe as [!](embed:the_returned_embed_ref) so
       the user can see the recipe card, image, ingredients and instructions.
-      Keep selected recipes together where useful. Do not force every fetched
-      candidate into the answer or expose raw embed IDs.
+      Replace the_returned_embed_ref with that recipe's exact returned embed_ref.
+      Copy it exactly; do not derive a ref from the recipe title. Do not write a
+      bare embed:ref line. Keep selected recipes together where
+      useful. Do not force every fetched candidate into the answer or expose
+      raw embed IDs.
 skills:
   # -----------------------------------------------------------------------
   # Search Recipes — search Edamam recipes by query and nutrition filters

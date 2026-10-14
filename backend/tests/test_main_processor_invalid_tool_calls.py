@@ -1594,6 +1594,7 @@ def test_orchestrated_async_skills_are_blocked_before_dispatch() -> None:
 
     assert _is_async_skill_blocked_in_orchestration(request, "code", "run") is True
     assert _is_async_skill_blocked_in_orchestration(request, "images", "generate") is True
+    assert _is_async_skill_blocked_in_orchestration(request, "videos", "create") is True
     assert _is_async_skill_blocked_in_orchestration(request, "social_media", "search") is True
     assert _is_async_skill_blocked_in_orchestration(request, "web", "search") is False
 
@@ -1603,6 +1604,7 @@ def test_root_async_skills_remain_available_without_orchestration() -> None:
 
     assert _is_async_skill_blocked_in_orchestration(request, "code", "run") is False
     assert _is_async_skill_blocked_in_orchestration(request, "images", "generate") is False
+    assert _is_async_skill_blocked_in_orchestration(request, "videos", "create") is False
 
 
 def test_empty_post_tool_turn_requires_answer_recovery() -> None:
@@ -2182,3 +2184,117 @@ async def test_natural_public_focus_reuses_countdown_without_extra_answer_infere
         assert any(isinstance(chunk, dict) and chunk.get("__awaiting_focus_mode_confirmation__")
                    and chunk["focus_id"] == "web-research" for chunk in output)
         assert "unexpected-embed" in "".join(chunk for chunk in output if isinstance(chunk, str))
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier,app-skills.assistant.idempotent-resume
+def test_async_task_id_collection_collapses_audio_batch_alias() -> None:
+    # audio.generate reports its one registered batch in both compatibility fields.
+    result = {"status": "processing", "task_id": "audio-batch", "task_ids": ["audio-batch"]}
+    assert main_processor._ordered_async_task_ids(result) == ["audio-batch"]
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier,app-skills.assistant.idempotent-resume
+def test_async_task_id_collection_keeps_distinct_jobs_in_order() -> None:
+    result = {"status": "processing", "task_id": "first", "task_ids": ["first", "second", "third", "second"]}
+    assert main_processor._ordered_async_task_ids(result) == ["first", "second", "third"]
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier,app-skills.execution.registered-validated
+def test_only_videos_create_accepts_rendering_as_async_dispatch() -> None:
+    rendering = {"status": "rendering", "task_id": "render-job"}
+    assert main_processor._is_async_skill_dispatch_result("videos", "create", rendering)
+    assert not main_processor._is_async_skill_dispatch_result("videos", "generate", rendering)
+    assert not main_processor._is_async_skill_dispatch_result("web", "search", rendering)
+    assert not main_processor._is_async_skill_dispatch_result(
+        "videos", "create", {"status": "rendering", "render_id": "render-job"},
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier,app-skills.assistant.idempotent-resume,app-skills.execution.registered-validated
+async def test_videos_create_rendering_waits_for_terminal_child_before_answer(monkeypatch) -> None:
+    from backend.apps.ai.tasks import same_turn_skill_barrier as barrier
+    from backend.shared.python_utils import recent_work_summary_client
+
+    render_task_id = "render-job-1"
+    child_id = "11111111-1111-4111-8111-111111111111"
+    child_ref = "rendered-video-111"
+    dispatched = AsyncMock(return_value=[{
+        "status": "rendering", "task_id": render_task_id,
+        "embed_id": "22222222-2222-4222-8222-222222222222",
+        "render_id": "render-1",
+    }])
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", dispatched)
+    monkeypatch.setattr(main_processor, "_publish_skill_status", AsyncMock())
+    monkeypatch.setattr(barrier, "preflight_private_checkpoint_capacity", Mock())
+
+    continuation = types.ModuleType("backend.apps.ai.tasks.async_skill_continuation")
+    continuation.cache_async_skill_continuation_context = AsyncMock()
+    continuation.wait_for_async_skill_completion = AsyncMock(return_value=None)
+    monkeypatch.setitem(sys.modules, continuation.__name__, continuation)
+
+    loop = asyncio.get_running_loop()
+    client = loop.create_future()
+    client.set_result(None)
+    cache = SimpleNamespace(
+        client=client, get=AsyncMock(return_value=None),
+        set=AsyncMock(return_value=True), delete=AsyncMock(return_value=True),
+    )
+    tool = {"type": "function", "function": {"name": "videos-create", "description": "Render a video."}}
+    metadata = {"videos": SimpleNamespace(
+        skills=[SimpleNamespace(
+            id="create", parallel_safe=False, exclude_fields_for_llm=None, pricing=None,
+            tool_schema={"type": "object", "properties": {"source": {"type": "string"}}, "required": ["source"]},
+        )], instructions=[], focuses=[],
+    )}
+    initial_output, initial_calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[{"fake_google_tool_call": "videos-create", "arguments": {"source": "export default Video;"},
+           "tool_call_id": "call-render"}]],
+        cache_service=cache, generated_tools=[tool], discovered_apps_metadata=metadata,
+        preprocessing_overrides={"selected_app_ids": ["videos"], "relevant_app_skills": ["videos-create"]},
+    )
+
+    assert len(initial_calls) == 1
+    dispatched.assert_awaited_once()
+    assert dispatched.await_args.kwargs["arguments"]["_same_turn_batch_id"] == "task-1:0"
+    continuation.cache_async_skill_continuation_context.assert_awaited_once()
+    assert continuation.cache_async_skill_continuation_context.await_args.kwargs["async_task_id"] == render_task_id
+    pause = next(item for item in initial_output if isinstance(item, dict)
+                 and item.get("__same_turn_skill_pause__"))
+    assert pause["task_ids"] == [render_task_id]
+    assert pause["checkpoint"]["jobs"] == [{
+        "task_id": render_task_id, "tool_call_id": "call-render",
+        "app_id": "videos", "skill_id": "create", "request_count": 1,
+    }]
+    assert not any(isinstance(item, str) and item.strip() for item in initial_output)
+
+    async def restore_terminal(_context):
+        return {"async_tool_completion": {
+            "status": "finished", "tool_name": "videos-create", "results": [{
+                "status": "finished", "child_embed_id": child_id,
+                "embed_ref": child_ref, "request_index": 0,
+            }], "request_metadata": {},
+        }}
+
+    monkeypatch.setattr(recent_work_summary_client, "restore_private_context_payload", restore_terminal)
+    resumed_output, resumed_calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[f"Your rendered video is ready: [!](embed:{child_ref})"]],
+        cache_service=cache, generated_tools=[tool], discovered_apps_metadata=metadata,
+        preprocessing_overrides={"selected_app_ids": ["videos"], "relevant_app_skills": ["videos-create"]},
+        request_overrides={
+            "same_turn_batch_id": pause["batch_id"], "same_turn_checkpoint": pause["checkpoint"],
+            "same_turn_slots": [{"task_id": render_task_id, "status": "finished", "payload_ref": "sealed-terminal"}],
+            "is_async_skill_continuation": True, "continuation_message_id": "task-1",
+        },
+    )
+    assert len(resumed_calls) == 1
+    completed = [message for message in resumed_calls[0]["message_history"]
+                 if message.get("role") == "tool" and message.get("tool_call_id") == "call-render"]
+    assert len(completed) == 1
+    assert json.loads(completed[0]["content"])["results"][0]["embed_ref"] == child_ref
+    assert child_ref in "".join(item for item in resumed_output if isinstance(item, str))
+    authored = [item["__authored_inline_outputs__"] for item in resumed_output
+                if isinstance(item, dict) and "__authored_inline_outputs__" in item]
+    assert any(row["embed_id"] == child_id and row["embed_ref"] == child_ref
+               for rows in authored for row in rows)

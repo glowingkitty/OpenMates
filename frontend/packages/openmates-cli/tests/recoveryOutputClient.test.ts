@@ -10,7 +10,7 @@ import {
   encryptBytesWithAesGcm, encryptWithAesGcmCombined, sealRecoveryOutputEnvelopeForTest,
 } from "../src/crypto.ts";
 import { encode as toonEncode } from "@toon-format/toon";
-import type { AvailableRecoveryOutputFrame } from "../src/ws.ts";
+import { WebSocketProtocolError, type AvailableRecoveryOutputFrame } from "../src/ws.ts";
 
 // Private client methods are invoked through explicit test-only callable shapes.
 // The WS/cache arguments are purpose-built mocks in these tests.
@@ -40,6 +40,67 @@ const outputVector = JSON.parse(readFileSync(
 ));
 
 describe("CLI typed recovery replay", () => {
+  // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.sync.key-gated-recovery
+  it("reconciles a stale discovered embed only with owner-bound ACK and decrypted canonical bytes", async () => {
+    const identity = outputVector.identity;
+    const output: AvailableRecoveryOutputFrame = {
+      record_id: identity.record_id, root_chat_id: identity.root_chat_id,
+      target_chat_id: identity.target_chat_id, turn_id: identity.turn_id,
+      subject_id: identity.subject_id, output_kind: "embed",
+      output_version: 1, chat_key_version: identity.key_version,
+    };
+    const rawKey = new Uint8Array(Buffer.from(keyVector.chat_key, "base64url"));
+    const embedKey = await deriveEmbedKeyFromChatKey(rawKey, output.subject_id);
+    const encryptedContent = await encryptWithAesGcmCombined(toonEncode({ type: "code", code: "verified source" }), embedKey);
+    const encryptedType = await encryptWithAesGcmCombined("code", embedKey);
+    const digest = createHash("sha256").update(encryptedContent).digest("hex");
+    const client = Object.create(OpenMatesClient.prototype) as Record<string, unknown>;
+    client.getMasterKeyBytes = () => new Uint8Array(32);
+    client.getChatWrappingKey = async () => new Uint8Array(32);
+    client.resolveChatKey = async () => rawKey;
+    client.getCliRequestHeaders = () => ({});
+    let canonicalContent = encryptedContent;
+    client.http = { get: async () => ({ ok: true, status: 200, data: { embed: {
+      hashed_chat_id: createHash("sha256").update(output.target_chat_id).digest("hex"),
+      version_number: 1, parent_embed_id: null, encrypted_content: canonicalContent, encrypted_type: encryptedType,
+    } } }) };
+    let statusVerified = true;
+    let statusSubject = output.subject_id;
+    const sent: string[] = [];
+    const ws = {
+      waitForMessage: (type: string, predicate: (value: unknown) => boolean) => {
+        if (type === "recovery_output_ready") return Promise.reject(new WebSocketProtocolError(
+          "recovery_output_not_found", "Output no longer pending",
+        ));
+        assert.equal(type, "recovery_output_status_ready");
+        return new Promise((resolve) => { statusWaiter = (payload: Record<string, unknown>) => {
+          assert.equal(predicate(payload), true);
+          resolve({ payload });
+        }; });
+      },
+      sendAsync: async (type: string, payload: Record<string, unknown>) => {
+        sent.push(type);
+        if (type === "recovery_output_status") statusWaiter({
+          ...output, subject_id: statusSubject, root_hashed_team_id: null,
+          message_role: null, state: "ACKNOWLEDGED", canonical_verified: statusVerified,
+          canonical_digest: digest, canonical_source: "head", request_id: payload.request_id,
+        });
+      },
+    };
+    let statusWaiter!: (payload: Record<string, unknown>) => void;
+    const cache = { chats: [{ details: { id: output.root_chat_id }, messages: [] }] };
+    const replay = client.persistAvailableRecoveryOutputs as PersistAvailableOutputs;
+    assert.equal(await replay.call(client, ws, identity.owner_id, cache, [output], null), 1);
+    assert.deepEqual(sent, ["recovery_output_get", "recovery_output_status"]);
+    statusVerified = false;
+    await assert.rejects(replay.call(client, ws, identity.owner_id, cache, [output], null), /lacks verified canonical acknowledgement/);
+    statusVerified = true;
+    statusSubject = "unrelated-embed";
+    await assert.rejects(replay.call(client, ws, identity.owner_id, cache, [output], null), /status identity mismatch: subject_id/);
+    statusSubject = output.subject_id;
+    canonicalContent = await encryptWithAesGcmCombined(toonEncode({ type: "code", code: "different" }), embedKey);
+    await assert.rejects(replay.call(client, ws, identity.owner_id, cache, [output], null), /canonical head digest differs/);
+  });
   // contract-test: supporting surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
   it("loads and caches verified chat history when canonical recovery reread is unavailable", async () => {
     const previous = process.env.OPENMATES_STATE_DIR;
@@ -51,6 +112,8 @@ describe("CLI typed recovery replay", () => {
       client.getMasterKeyBytes = () => new Uint8Array(32);
       client.getChatWrappingKey = async () => new Uint8Array(32);
       client.hasSession = () => true;
+      client.session = { apiUrl: "http://localhost", sessionId: "recovery-fixture", hashedEmail: "owner-hash",
+        masterKeyExportedB64: "fixture-key", createdAt: 1 };
       client.decryptChatListItem = async (chat: {details: {id: string}}) => ({ id: chat.details.id, title: "Saved conversation" });
       const calls: string[] = [];
       client.openWsClient = async () => ({ ownerId: "owner", ws: {
@@ -358,6 +421,7 @@ describe("CLI typed recovery replay", () => {
       encrypted_embed_key: await encryptBytesWithAesGcm(embedKey, new Uint8Array(32)),
     }] : [];
     let historicalSnapshot: string | null = null;
+    let ackConflict = false;
     const sent: string[] = [];
     const digest = (value: string) => createHash("sha256").update(value).digest("hex");
     client.http = { get: async (path: string) => path.includes("/versions/1?")
@@ -387,10 +451,12 @@ describe("CLI typed recovery replay", () => {
             ? digest(JSON.stringify([historicalSnapshot, null])) : digest(String(stored?.encrypted_content)));
           assert.equal(payload.canonical_source, historicalSnapshot ? "version_row" : "head");
           assert.equal(wrappers.length, 2);
+          if (ackConflict) throw new WebSocketProtocolError("canonical_output_mismatch", "Another device acknowledged this output.");
         }
         const responseType: Record<string, string> = {
           recovery_output_get: "recovery_output_ready", store_embed: "store_embed_confirmed",
           store_embed_keys: "store_embed_keys_confirmed", recovery_output_ack_embed: "recovery_output_embed_acknowledged",
+          recovery_output_status: "recovery_output_status_ready",
         };
         const typeToSend = responseType[type];
         assert.ok(typeToSend);
@@ -400,7 +466,12 @@ describe("CLI typed recovery replay", () => {
             canonical_digest: digest(String(stored?.encrypted_content)), canonical_source: "head" }
             : type === "store_embed_keys" ? { created_count: (payload.keys as unknown[]).length,
               failed_count: 0, requested_count: (payload.keys as unknown[]).length }
-              : { record_id: output.record_id, state: "ACKNOWLEDGED" };
+              : type === "recovery_output_status" ? { ...output, root_hashed_team_id: null,
+                message_role: null, state: "ACKNOWLEDGED", canonical_verified: true,
+                canonical_digest: historicalSnapshot
+                  ? digest(JSON.stringify([historicalSnapshot, null])) : digest(String(stored?.encrypted_content)),
+                canonical_source: historicalSnapshot ? "version_row" : "head" }
+                : { record_id: output.record_id, state: "ACKNOWLEDGED" };
         const waiterIndex = pending.findIndex((item) => item.type === typeToSend);
         const waiter = waiterIndex >= 0 ? pending.splice(waiterIndex, 1)[0] : null;
         assert.ok(waiter);
@@ -423,12 +494,16 @@ describe("CLI typed recovery replay", () => {
     assert.equal(await (client.persistAvailableRecoveryOutputs as PersistAvailableOutputs)(ws, identity.owner_id, cache, [output], null), 1);
     assert.equal(sent.filter((type) => type === "store_embed").length, 1);
     assert.equal(sent.filter((type) => type === "recovery_output_ack_embed").length, 3);
+    ackConflict = true;
+    assert.equal(await (client.persistAvailableRecoveryOutputs as PersistAvailableOutputs)(ws, identity.owner_id, cache, [output], null), 1);
+    assert.equal(sent.filter((type) => type === "recovery_output_status").length, 1);
+    ackConflict = false;
     wrappers[0].encrypted_embed_key = await encryptBytesWithAesGcm(new Uint8Array(32), new Uint8Array(32));
     await assert.rejects(
       (client.persistAvailableRecoveryOutputs as PersistAvailableOutputs)(ws, identity.owner_id, cache, [output], null),
       /key wrapper does not match/,
     );
-    assert.equal(sent.filter((type) => type === "recovery_output_ack_embed").length, 3);
+    assert.equal(sent.filter((type) => type === "recovery_output_ack_embed").length, 4);
   });
   }
 

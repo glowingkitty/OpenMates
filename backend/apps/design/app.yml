@@ -96,9 +96,11 @@ embed_types:
 instructions:
   - instruction: |
       When recommending selected icons from design.search_icons, show each icon
-      you actually recommend with its returned inline embed_ref. Keep the
-      selected previews together where useful. Do not force every fetched
-      candidate into the answer, and do not expose raw embed IDs.
+      you actually recommend as [!](embed:the_returned_embed_ref), replacing
+      the_returned_embed_ref with that icon's exact returned embed_ref. Do not
+      derive it from the icon name and do not write a bare embed:ref line. Keep
+      selected previews together where useful.
+      Do not force every fetched candidate into the answer or expose raw embed IDs.
 skills:
   - id: search_icons
     anonymous_access: inline

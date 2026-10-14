@@ -143,6 +143,27 @@ def unpack_private_checkpoint(value: Any) -> tuple[dict[str, Any], dict[str, Any
     return data["request"], data["checkpoint"]
 
 
+def verify_resume_recovery_identity(original: dict[str, Any], resume: Any) -> None:
+    """Bind queued recovery metadata to the admitted request in the sealed checkpoint."""
+    from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
+
+    original_target = original.get("chat_id")
+    original_root = original.get("root_chat_id") or original_target
+    resume_target = getattr(resume, "chat_id", None)
+    resume_root = getattr(resume, "root_chat_id", None) or resume_target
+    if not original_target or original_target != resume_target or original_root != resume_root:
+        raise RequiredRecoveryOutputError("Same-turn recovery chat identity changed")
+    original_task_id = original.get("recovery_task_id") or original.get("recovery_inference_task_id")
+    if original_task_id != getattr(resume, "recovery_inference_task_id", None):
+        raise RequiredRecoveryOutputError("Same-turn recovery inference identity changed")
+    if original_task_id:
+        fields = ("recovery_preflight_id", "recovery_turn_id",
+                  "recovery_public_key", "chat_key_version")
+        if (not all(original.get(field) for field in fields)
+                or any(original.get(field) != getattr(resume, field, None) for field in fields)):
+            raise RequiredRecoveryOutputError("Same-turn sealed recovery identity changed")
+
+
 _MARKDOWN_EMBED_TARGET = re.compile(
     r"\]\(\s*<?embed:([^\s<>)]+)>?(?:\s+[\"'][^\"']*[\"'])?\s*\)"
 )

@@ -1188,9 +1188,29 @@ ASYNC_SKILLS = ASYNC_SKILL_INLINE_WAIT_SKILLS | {
     ("images", "vectorize"),
     ("models3d", "generate"),
     ("music", "generate"),
+    ("videos", "create"),
     ("videos", "generate"),
 }
 VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak")}
+
+
+def _ordered_async_task_ids(async_result: Dict[str, Any]) -> List[str]:
+    """Treat the scalar task ID and task_ids as aliases when they overlap."""
+    ordered: List[str] = []
+    for task_id in [async_result.get("task_id"), *(async_result.get("task_ids") or [])]:
+        if task_id and task_id not in ordered:
+            ordered.append(task_id)
+    return ordered
+
+
+def _is_async_skill_dispatch_result(app_id: str, skill_id: str, result: Dict[str, Any]) -> bool:
+    """Accept Remotion's rendering state only for the registered videos.create producer."""
+    if not (result.get("task_id") or result.get("task_ids")):
+        return False
+    status = result.get("status")
+    return status == "processing" or (
+        (app_id, skill_id) == ("videos", "create") and status == "rendering"
+    )
 
 
 def _is_async_skill_blocked_in_orchestration(
@@ -9670,10 +9690,11 @@ async def handle_main_processing(
                 is_async_skill = False
                 if results and len(results) == 1 and isinstance(results[0], dict):
                     first_result = results[0]
-                    if first_result.get("status") == "processing" and ("task_id" in first_result or "task_ids" in first_result):
+                    dispatch_status = first_result.get("status")
+                    if _is_async_skill_dispatch_result(app_id, skill_id, first_result):
                         is_async_skill = True
                         logger.info(
-                            f"{log_prefix} Detected async skill '{app_id}.{skill_id}' with status='processing'. "
+                            f"{log_prefix} Detected async skill '{app_id}.{skill_id}' with status={dispatch_status!r}. "
                             f"Skipping embed update flow - Celery task will handle it. "
                             f"task_id={first_result.get('task_id')}, embed_id={first_result.get('embed_id')}"
                         )
@@ -9682,10 +9703,7 @@ async def handle_main_processing(
                     # For async skills, either pass completed results after a short inline
                     # wait or preserve task identifiers so API/chat consumers can track it.
                     async_result = results[0]
-                    async_task_ids = []
-                    if async_result.get("task_id"):
-                        async_task_ids.append(async_result.get("task_id"))
-                    async_task_ids.extend(async_result.get("task_ids") or [])
+                    async_task_ids = _ordered_async_task_ids(async_result)
                     # Inline waits are useful for a single async tool, but in a parallel
                     # tool batch they block later tools and can leave their placeholders
                     # stuck. Let the async continuation path handle multi-tool batches.
