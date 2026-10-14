@@ -36,7 +36,7 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { createHash, randomBytes } = require('node:crypto');
 const { execFileSync } = require('node:child_process');
-const { existsSync } = require('node:fs');
+const { existsSync, lstatSync, readFileSync } = require('node:fs');
 const path = require('node:path');
 const {
 	createSignupLogger,
@@ -283,25 +283,56 @@ async function isolatedOneClickUrl(email: string, token: string): Promise<string
 	throw new Error('The isolated welcome email did not include one-click unsubscribe headers.');
 }
 
-/** Send and inspect real EN/DE broadcasts only inside the disposable CI stack. */
+/** Send source-bound images and inspect real mail inside the disposable CI stack. */
 function probeIsolatedNewsletterDelivery(email: string, log: any): void {
 	if (process.env.OPENMATES_CI_ISOLATED !== '1' || process.env.OPENMATES_CI_MAILPIT_URL !== 'http://127.0.0.1:8025') {
 		throw new Error('Newsletter broadcast capture requires isolated CI.');
 	}
-	const sourceRoot = process.env.OPENMATES_CI_SOURCE_ROOT || path.resolve(__dirname, '../../../..');
+	const sourceRoot = path.resolve(process.env.OPENMATES_CI_SOURCE_ROOT || path.resolve(__dirname, '../../../..'));
 	const compose = process.env.OPENMATES_CI_COMPOSE_FILE || path.join(sourceRoot, 'test-results/ci-private/compose.json');
+	const readCandidateFile = (relative: string, maxBytes: number): Buffer => {
+		const file = path.join(sourceRoot, relative);
+		for (let current = file; current !== path.dirname(sourceRoot); current = path.dirname(current)) {
+			if (lstatSync(current).isSymbolicLink()) throw new Error('Newsletter source fixture contains a symlink.');
+			if (current === sourceRoot) break;
+		}
+		const stat = lstatSync(file);
+		if (!stat.isFile() || stat.size <= 0 || stat.size > maxBytes) throw new Error('Newsletter source fixture exceeds its file bound.');
+		return readFileSync(file);
+	};
+	const assetMap = JSON.parse(readCandidateFile('backend/newsletters/asset-map.json', 1024 * 1024).toString('utf8'));
+	const images: Record<string, string> = {};
+	for (const entry of Object.values(assetMap.assets) as { filename: string; size_bytes: number }[]) {
+		if (!/^[a-f0-9]{64}\.(jpg|svg)$/.test(entry.filename) || !Number.isInteger(entry.size_bytes) || entry.size_bytes <= 0 || entry.size_bytes > 200 * 1024) {
+			throw new Error('Newsletter source image identity is invalid.');
+		}
+		if (images[entry.filename]) continue;
+		const bytes = readCandidateFile(`frontend/apps/website/static/newsletter-assets/${entry.filename}`, 200 * 1024);
+		if (bytes.length !== entry.size_bytes || createHash('sha256').update(bytes).digest('hex') !== entry.filename.split('.')[0]) {
+			throw new Error('Newsletter source image differs from the candidate manifest.');
+		}
+		images[entry.filename] = bytes.toString('base64');
+	}
+	const input = JSON.stringify({ asset_map: assetMap, images });
+	if (Buffer.byteLength(input) > 8 * 1024 * 1024) throw new Error('Newsletter candidate bundle exceeds its bound.');
 	const output = execFileSync('docker', [
 		'compose', '-f', compose, 'exec', '-T', '-e', `PROBE_EMAIL=${email}`,
 		'api', 'python', '/app/backend/scripts/probe_newsletter_delivery.py'
-	], { cwd: sourceRoot, encoding: 'utf8', timeout: 90_000 });
+	], { cwd: sourceRoot, encoding: 'utf8', input, timeout: 180_000 });
 	const receipt = JSON.parse(output.trim().split('\n').at(-1)!);
 	expect(receipt.status).toBe('passed');
 	expect(receipt.languages).toEqual(['en', 'de']);
-	expect(receipt.captured).toBe(2);
+	expect(receipt.captured).toBe(3);
 	expect(receipt.max_html_bytes).toBeLessThanOrEqual(80 * 1024);
 	expect(receipt.hosted_images).toBeGreaterThan(0);
 	expect(receipt.one_click_headers).toBe(true);
-	log('Captured real EN/DE newsletter renders with hosted images, text alternatives and one-click headers.');
+	expect(receipt.preview_headers_safe).toBe(true);
+	expect(receipt.s3_public_objects).toBe(Object.keys(images).length);
+	expect(receipt.s3_public_get).toBe(true);
+	expect(receipt.s3_anonymous_list_denied).toBe(true);
+	expect(receipt.s3_private_prefix_denied).toBe(true);
+	expect(receipt.s3_anonymous_write_denied).toBe(true);
+	log('Captured real EN/DE broadcasts and a safe preview; verified source-bound public S3 images and private/list/write denials.');
 }
 
 async function callOneClickApi(url: string, multipart = false): Promise<Response> {

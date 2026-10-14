@@ -499,6 +499,20 @@ class EmailTemplateService:
                 'billing-processing-error', 'health-status-alert',
             }
             is_transactional = template in transactional_templates
+
+            newsletter_templates = ("newsletter", "newsletter-confirmed", "newsletter_milestone")
+            one_click_headers = (
+                newsletter_one_click_headers(render_context.get("unsubscribe_one_click_url"))
+                if template in newsletter_templates else {}
+            )
+            # A test preview has no subscription to remove. Advertising the
+            # generic block-email action would opt out of unrelated mail and
+            # give the preview a different contract from subscriber delivery.
+            preview_without_subscription = (
+                template in newsletter_templates
+                and render_context.get("_email_audience") == "test"
+                and not one_click_headers
+            )
             
             # For transactional emails, use mailto: support link instead of unsubscribe
             # This satisfies providers that prefer List-Unsubscribe while being appropriate for transactional emails
@@ -509,7 +523,7 @@ class EmailTemplateService:
             if is_transactional:
                 # Transactional emails: include a mailto: method for user support.
                 list_unsubscribe_urls.append(f"mailto:{support_email}?subject=Email%20Preferences")
-            else:
+            elif not preview_without_subscription:
                 # Marketing/newsletter emails: prefer actual unsubscribe/block URLs (no mailto fallbacks).
                 # Use the same context used for rendering, so header links match the email body.
                 unsubscribe_url = render_context.get("unsubscribe_url")
@@ -552,8 +566,7 @@ class EmailTemplateService:
             # Only newsletter recipient-token POST routes support RFC 8058.
             # Keep body management/block links separate; one-click advertises
             # exactly one HTTPS endpoint and never blocks transactional mail.
-            if template in ("newsletter", "newsletter-confirmed", "newsletter_milestone"):
-                email_headers.update(newsletter_one_click_headers(render_context.get("unsubscribe_one_click_url")))
+            email_headers.update(one_click_headers)
 
             # Return the original log message - filter will redact the email
             log_message = f"Sending email to {recipient_email} using template {template} in language {lang}"

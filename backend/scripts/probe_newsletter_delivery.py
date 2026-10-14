@@ -8,6 +8,7 @@ localized text, headers and SMTP transport all use production code paths.
 from __future__ import annotations
 
 import asyncio
+import base64
 import copy
 import html
 import hashlib
@@ -15,6 +16,8 @@ import json
 import logging
 import os
 import re
+import sys
+import tempfile
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -26,6 +29,82 @@ import httpx
 BASE_URL = "https://app.dev.openmates.org"
 HTML_MAX_BYTES = 80 * 1024
 CI_REGISTRY_PATH = Path("/shared/events/openmates_events.yml")
+SOURCE_BUNDLE_MAX_BYTES = 8 * 1024 * 1024
+
+
+def _source_asset_bundle(raw: bytes, *, map_path: Path | None = None) -> tuple[dict, dict]:
+    """Verify runner stdin against the exact candidate's bundled image index."""
+    from backend.scripts.publish_newsletter_s3_assets import validate_image_bytes
+    from backend.shared.python_utils.newsletter_assets import (
+        ASSET_MAP_PATH, NEWSLETTER_IMAGE_MAX_BYTES, REPO_ROOT, newsletter_isolated_s3, validate_asset_manifest,
+    )
+
+    _require_isolation()
+    if not newsletter_isolated_s3():
+        raise RuntimeError("Newsletter S3 proof requires the exact isolated object-storage service")
+    if not raw or len(raw) > SOURCE_BUNDLE_MAX_BYTES:
+        raise ValueError("Newsletter candidate asset bundle is missing or exceeds its bound")
+    bundle = json.loads(raw)
+    if not isinstance(bundle, dict) or set(bundle) != {"asset_map", "images"}:
+        raise ValueError("Newsletter candidate asset bundle has unexpected fields")
+    supplied = bundle["asset_map"]
+    candidate = json.loads((map_path or REPO_ROOT / ASSET_MAP_PATH).read_text())
+    if validate_asset_manifest(supplied) != validate_asset_manifest(candidate):
+        raise ValueError("Newsletter asset bundle does not match the exact candidate index")
+    declared = {asset["filename"]: asset for asset in supplied["assets"].values()}
+    images = bundle["images"]
+    if not isinstance(images, dict) or set(images) != set(declared):
+        raise ValueError("Newsletter asset bundle must contain all and only candidate images")
+    objects = {}
+    for filename, asset in declared.items():
+        encoded = images[filename]
+        if not isinstance(encoded, str) or len(encoded) > 4 * ((NEWSLETTER_IMAGE_MAX_BYTES + 2) // 3):
+            raise ValueError("Newsletter candidate image exceeds its input bound")
+        data = base64.b64decode(encoded, validate=True)
+        content_type = validate_image_bytes(filename, data, asset)
+        objects[filename] = {"data": data, "size": len(data), "content_type": content_type,
+                             "sha256": hashlib.sha256(data).hexdigest()}
+    # Live publication stamps never enter isolated rendering. The actual local
+    # provider must prove this complete candidate asset set again.
+    return {"schema_version": 1, "assets": supplied["assets"]}, objects
+
+
+async def _publish_ci_assets(secrets, root: Path, payload: dict, objects: dict) -> tuple[dict, Path]:
+    import boto3
+    from botocore.config import Config
+    from backend.scripts.publish_newsletter_s3_assets import (
+        STATIC_DIR, atomic_json, publish_to_s3, validated_local_assets,
+    )
+    from backend.shared.python_utils.newsletter_assets import ASSET_MAP_PATH, newsletter_s3_endpoint
+
+    endpoint = newsletter_s3_endpoint()  # Already isolated; no live fallback.
+    directory = root / STATIC_DIR
+    directory.mkdir(parents=True)
+    for filename, image in objects.items():
+        path = directory / filename
+        path.write_bytes(image["data"])
+        path.chmod(0o600)
+    atomic_json(root / ASSET_MAP_PATH, payload)
+    payload, objects = validated_local_assets(root)
+    access = await secrets.get_secret(secret_path="kv/data/providers/hetzner", secret_key="s3_access_key")
+    secret = await secrets.get_secret(secret_path="kv/data/providers/hetzner", secret_key="s3_secret_key")
+    if not access or not secret:
+        raise RuntimeError("Isolated newsletter S3 fixture credentials are missing")
+    client = boto3.client("s3", endpoint_url=endpoint, region_name="nbg1", aws_access_key_id=access,
+                          aws_secret_access_key=secret, config=Config(signature_version="s3v4",
+                          s3={"addressing_style": "path"}, retries={"max_attempts": 0},
+                          connect_timeout=10, read_timeout=20))
+    try:
+        with httpx.Client(timeout=20, follow_redirects=False) as public:
+            receipt, ready = publish_to_s3(payload, objects, environment="development", client=client,
+                                          public=public, apply=True)
+        if ready is None or receipt["status"] != "verified":
+            raise AssertionError("Isolated newsletter S3 fixture did not prove public readiness")
+        path = root / ASSET_MAP_PATH
+        atomic_json(path, ready)
+        return receipt, path
+    finally:
+        client.close()
 
 
 def _load_registry_fixture() -> dict:
@@ -106,13 +185,11 @@ def _normalized(value: str) -> str:
     return " ".join(html.unescape(value).split())
 
 
-def _validate_capture(
+def _validate_content(
     message: dict,
-    headers: dict,
     *,
     expected_images: list[str],
     expected_copy: list[str],
-    one_click_url: str,
 ) -> dict:
     body = message.get("HTML") or ""
     text = message.get("Text") or ""
@@ -139,6 +216,12 @@ def _validate_capture(
         raise AssertionError(
             "Newsletter lost localized event copy in HTML or plain text"
         )
+    return {"html_bytes": size, "hosted_images": len(expected_images)}
+
+
+def _validate_capture(message: dict, headers: dict, *, expected_images: list[str],
+                      expected_copy: list[str], one_click_url: str) -> dict:
+    receipt = _validate_content(message, expected_images=expected_images, expected_copy=expected_copy)
     lowered = {
         key.lower(): value if isinstance(value, list) else [value]
         for key, value in headers.items()
@@ -151,7 +234,17 @@ def _validate_capture(
         raise AssertionError(
             "Newsletter did not advertise the subscriber's persistent one-click route"
         )
-    return {"html_bytes": size, "hosted_images": len(expected_images)}
+    return receipt
+
+
+def _validate_preview_capture(message: dict, headers: dict, *, expected_images: list[str], expected_copy: list[str]) -> dict:
+    receipt = _validate_content(message, expected_images=expected_images, expected_copy=expected_copy)
+    lowered = {key.lower(): value if isinstance(value, list) else [value] for key, value in headers.items()}
+    if (lowered.get("x-openmates-email-audience") != ["test"]
+            or lowered.get("x-openmates-email-type") != ["newsletter"]
+            or "list-unsubscribe" in lowered or "list-unsubscribe-post" in lowered):
+        raise AssertionError("Newsletter preview advertised an unrelated unsubscribe route or lost test audience")
+    return receipt
 
 
 def _admin() -> httpx.Client:
@@ -393,6 +486,7 @@ async def _probe_feedback(
 
 async def main() -> None:
     email = _require_isolation()
+    payload, objects = _source_asset_bundle(sys.stdin.buffer.read(SOURCE_BUNDLE_MAX_BYTES + 1))
     # Suppress routine transport/service logs; the receipt exposes counts only.
     logging.basicConfig(level=logging.WARNING)
     from backend.scripts import send_newsletter
@@ -419,6 +513,8 @@ async def main() -> None:
     delivery_ids = []
     suppression_ids = []
     captures = []
+    stage = tempfile.TemporaryDirectory(prefix="ci-newsletter-assets-", dir="/app/logs")
+    previous_map = os.environ.get("NEWSLETTER_CI_ASSET_MAP_PATH")
     try:
         response = admin.get(
             "/items/newsletter_subscribers",
@@ -447,6 +543,8 @@ async def main() -> None:
             _load_registry_fixture(), datetime.now(timezone.utc).replace(microsecond=0)
         )
         await secrets.initialize()
+        s3_receipt, ready_path = await _publish_ci_assets(secrets, Path(stage.name), payload, objects)
+        os.environ["NEWSLETTER_CI_ASSET_MAP_PATH"] = str(ready_path)
         email_service = EmailTemplateService(secrets_manager=secrets)
         if email_service.selected_delivery_transport() != "ci_smtp":
             raise AssertionError("Newsletter probe must select isolated SMTP capture")
@@ -528,6 +626,22 @@ async def main() -> None:
                     one_click_url=build_newsletter_one_click_url(token),
                 )
             )
+            if language == "en":
+                preview_images, preview_copy = expected_images, expected_copy
+        preview_email = "ci-newsletter-preview-" + uuid.uuid4().hex + "@example.com"
+        preview_id = "events-preview:" + preview_email
+        preview_stage = "preview-en"
+        delivery_ids.append(build_delivery_id(build_delivery_key(
+            email_type="newsletter", campaign_key=manifest["slug"], recipient_kind="newsletter_subscriber",
+            recipient_id=preview_id, stage=preview_stage,
+        )))
+        if await send_newsletter.send_one(
+            directus, email_service, manifest, preview_id, preview_email, "en", False, BASE_URL, None,
+            is_registered=True, stage=preview_stage,
+        ) is not True:
+            raise AssertionError("Newsletter production preview dispatcher rejected isolated capture")
+        message, headers = await _captured(mailpit, recipient=preview_email, subject=manifest["subject"]["en"])
+        captures.append(_validate_preview_capture(message, headers, expected_images=preview_images, expected_copy=preview_copy))
     finally:
         for row_id in suppression_ids:
             removed = admin.delete(f"/items/email_delivery_suppressions/{row_id}")
@@ -545,6 +659,11 @@ async def main() -> None:
         admin.close()
         await directus.close()
         await secrets.close()
+        if previous_map is None:
+            os.environ.pop("NEWSLETTER_CI_ASSET_MAP_PATH", None)
+        else:
+            os.environ["NEWSLETTER_CI_ASSET_MAP_PATH"] = previous_map
+        stage.cleanup()
     print(
         json.dumps(
             {
@@ -554,6 +673,12 @@ async def main() -> None:
                 "max_html_bytes": max(item["html_bytes"] for item in captures),
                 "hosted_images": sum(item["hosted_images"] for item in captures),
                 "one_click_headers": True,
+                "preview_headers_safe": True,
+                "s3_public_objects": s3_receipt["object_count"],
+                "s3_public_get": s3_receipt["anonymous_get"],
+                "s3_anonymous_list_denied": s3_receipt["anonymous_list_denied"],
+                "s3_private_prefix_denied": s3_receipt["private_prefix_denied"],
+                "s3_anonymous_write_denied": s3_receipt["anonymous_write_denied"],
                 "feedback_replay_safe": True,
                 "feedback_cas_safe": True,
                 "feedback_recovery": True,

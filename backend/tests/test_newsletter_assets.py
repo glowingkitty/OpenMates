@@ -12,7 +12,7 @@ from PIL import Image
 from backend.core.api.app.services.email.mjml_processor import embed_images
 from backend.shared.python_utils.newsletter_assets import (
     ASSET_MAP_PATH, NEWSLETTER_HTML_MAX_BYTES, newsletter_image_url,
-    validate_newsletter_html_size,
+    NEWSLETTER_S3_BUCKETS, NEWSLETTER_S3_PREFIX, validate_asset_manifest, validate_newsletter_html_size,
 )
 from backend.scripts import send_newsletter
 from scripts.publish_newsletter_assets import STATIC_DIR, publish_sources
@@ -49,7 +49,7 @@ def test_untrusted_image_sources_are_rejected(source):
 def test_missing_or_corrupt_publication_blocks_rendering(tmp_path):
     path = tmp_path / ASSET_MAP_PATH
     path.parent.mkdir(parents=True)
-    path.write_text(json.dumps({"schema_version": 1, "assets": {}}))
+    path.write_text(json.dumps({"schema_version": 1, "assets": {"campaign/known.png": {"filename": "a" * 64 + ".jpg", "size_bytes": 20}}}))
     with pytest.raises(ValueError, match="no published asset"):
         newsletter_image_url("campaign/missing.png", "https://openmates.org", repo_root=tmp_path)
     path.write_text(json.dumps({"schema_version": 1, "assets": {"campaign/missing.png": {"filename": "../private.jpg", "size_bytes": 30}}}))
@@ -153,3 +153,102 @@ async def test_sender_stamps_trusted_preview_audience(subscriber_id, monkeypatch
     ) is True
     expected = "user" if subscriber_id == "real-subscriber" else "test"
     assert captured["context"]["_email_audience"] == expected
+
+
+# contract-test: direct surface=cli assertions=newsletter.campaign.accessible-event-layout
+@pytest.mark.parametrize("defect", ["missing-target", "stale-hash", "wrong-bucket", "partial-set", "unverified", "wrong-count"])
+def test_s3_renderer_refuses_unverified_or_stale_target(tmp_path, monkeypatch, defect):
+    monkeypatch.delenv("NEWSLETTER_CI_ASSET_MAP_PATH", raising=False)
+    filename = "a" * 64 + ".jpg"
+    payload = {"schema_version": 1, "assets": {"campaign/header.png": {"filename": filename, "size_bytes": 20}}, "delivery_transport": "s3"}
+    publication = {"bucket": NEWSLETTER_S3_BUCKETS["development"], "region": "nbg1", "prefix": NEWSLETTER_S3_PREFIX,
+                   "asset_manifest_sha256": validate_asset_manifest(payload), "object_count": 1,
+                   "verified_filenames": [filename], "verified_public": True}
+    payload["s3_publications"] = {"development": publication}
+    path = tmp_path / ASSET_MAP_PATH
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps(payload))
+    assert newsletter_image_url("campaign/header.png", "https://app.dev.openmates.org", repo_root=tmp_path) == (
+        f"https://dev-openmates-newsletter-assets.nbg1.your-objectstorage.com/newsletter-images/{filename}")
+    if defect == "missing-target":
+        payload["s3_publications"] = {"production": publication}
+    elif defect == "stale-hash":
+        payload["assets"]["campaign/header.png"]["size_bytes"] += 1
+    elif defect == "wrong-bucket":
+        publication["bucket"] = "private-unrelated-bucket"
+    elif defect == "partial-set":
+        publication["verified_filenames"] = []
+    elif defect == "unverified":
+        publication["verified_public"] = False
+    else:
+        publication["object_count"] = 2
+    path.write_text(json.dumps(payload))
+    with pytest.raises(ValueError, match="unpublished or stale"):
+        newsletter_image_url("campaign/header.png", "https://app.dev.openmates.org", repo_root=tmp_path)
+
+
+# contract-test: direct surface=cli assertions=newsletter.campaign.accessible-event-layout
+def test_reauthoring_keeps_old_email_asset_declared_and_invalidates_publication(tmp_path):
+    (tmp_path / "campaign").mkdir()
+    source = tmp_path / "campaign/header.png"
+    Image.new("RGB", (64, 32), "red").save(source)
+    original = publish_sources(["campaign/header.png"], repo_root=tmp_path)
+    old = original["assets"]["campaign/header.png"]
+    original["delivery_transport"] = "s3"
+    original["s3_publications"] = {"development": {"asset_manifest_sha256": validate_asset_manifest(original)}}
+    (tmp_path / ASSET_MAP_PATH).write_text(json.dumps(original))
+    Image.new("RGB", (64, 32), "blue").save(source)
+    updated = publish_sources(["campaign/header.png"], repo_root=tmp_path)
+    assert updated["assets"]["campaign/header.png"]["filename"] != old["filename"]
+    assert updated["assets"]["newsletter-asset-archive/" + old["filename"]] == old
+    assert (tmp_path / STATIC_DIR / old["filename"]).is_file()
+    assert updated["s3_publications"] == original["s3_publications"]
+    with pytest.raises(ValueError, match="unpublished or stale"):
+        newsletter_image_url("campaign/header.png", "https://app.dev.openmates.org", repo_root=tmp_path)
+
+
+# contract-test: direct surface=cli assertions=newsletter.campaign.accessible-event-layout
+@pytest.mark.parametrize("target", [ASSET_MAP_PATH, STATIC_DIR])
+def test_authoring_never_writes_through_output_symlinks(tmp_path, target):
+    (tmp_path / "campaign").mkdir()
+    Image.new("RGB", (64, 32), "red").save(tmp_path / "campaign/header.png")
+    destination = tmp_path / target
+    destination.parent.mkdir(parents=True)
+    outside = tmp_path / "unrelated"
+    if target == STATIC_DIR:
+        outside.mkdir()
+    else:
+        outside.write_text('private sentinel')
+    destination.symlink_to(outside, target_is_directory=target == STATIC_DIR)
+    with pytest.raises(ValueError, match="symlinks"):
+        publish_sources(["campaign/header.png"], repo_root=tmp_path)
+    assert list(outside.iterdir()) == [] if target == STATIC_DIR else outside.read_text() == 'private sentinel'
+
+
+# contract-test: direct surface=cli assertions=newsletter.campaign.accessible-event-layout
+@pytest.mark.parametrize("defect", ["traversal", "symlink", "incomplete-isolation"])
+def test_ci_map_override_is_exact_source_scope_before_read(tmp_path, monkeypatch, defect):
+    from backend.shared.python_utils import newsletter_assets as assets
+
+    root = tmp_path / "logs"
+    root.mkdir()
+    monkeypatch.setattr(assets, "CI_ASSET_MAP_ROOT", root)
+    for name, value in {"CI": "true", "OPENMATES_CI_ISOLATED": "1", "OPENMATES_CI_MAIL_CAPTURE": "1",
+                        "CMS_URL": "http://cms:8055", "SERVER_ENVIRONMENT": "development",
+                        "S3_ENDPOINT_URL": "http://storage.ci.test:9000"}.items():
+        monkeypatch.setenv(name, value)
+    override = root / "asset-map.json"
+    if defect == "traversal":
+        override = root / "../logs/asset-map.json"
+    elif defect == "symlink":
+        outside = tmp_path / "outside.json"
+        outside.write_text('private sentinel')
+        override.symlink_to(outside)
+    else:
+        monkeypatch.delenv("CMS_URL")
+    monkeypatch.setenv("NEWSLETTER_CI_ASSET_MAP_PATH", str(override))
+    def deny_read(*_args, **_kwargs):
+        raise AssertionError("Rejected index must never be read")
+    monkeypatch.setattr(Path, "read_text", deny_read)
+    with pytest.raises(ValueError, match="isolated fixture scope"):
+        assets.newsletter_image_url("campaign/header.png", "https://app.dev.openmates.org")

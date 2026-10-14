@@ -24,10 +24,15 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from backend.shared.python_utils.newsletter_assets import (  # noqa: E402
-    ASSET_MAP_PATH, NEWSLETTER_IMAGE_MAX_BYTES, newsletter_asset_key,
+    ASSET_MAP_PATH, NEWSLETTER_IMAGE_MAX_BYTES, newsletter_asset_key, validate_asset_manifest,
 )
 
 STATIC_DIR = Path("frontend/apps/website/static/newsletter-assets")
+
+
+def _reject_symlinks(path: Path) -> None:
+    if any(part.is_symlink() for part in (path, *path.parents)):
+        raise ValueError("Newsletter authoring paths must not contain symlinks")
 
 
 def manifest_sources(manifest: dict[str, Any]) -> list[str]:
@@ -50,6 +55,8 @@ def manifest_sources(manifest: dict[str, Any]) -> list[str]:
 def publish_sources(sources: list[str], *, repo_root: Path = REPO_ROOT,
                     remote_sources: dict[str, Path] | None = None) -> dict[str, Any]:
     map_path = repo_root / ASSET_MAP_PATH
+    _reject_symlinks(map_path)
+    _reject_symlinks(repo_root / STATIC_DIR)
     payload = json.loads(map_path.read_text()) if map_path.exists() else {"schema_version": 1, "assets": {}}
     if payload.get("schema_version") != 1:
         raise ValueError("Unsupported newsletter asset index version")
@@ -89,9 +96,23 @@ def publish_sources(sources: list[str], *, repo_root: Path = REPO_ROOT,
         if not 0 < len(data) <= NEWSLETTER_IMAGE_MAX_BYTES:
             raise ValueError(f"Compressed newsletter image exceeds {NEWSLETTER_IMAGE_MAX_BYTES} bytes")
         filename = hashlib.sha256(data).hexdigest() + "." + extension
-        (output_dir / filename).write_bytes(data)
+        destination = output_dir / filename
+        _reject_symlinks(destination)
+        if destination.exists():
+            if destination.read_bytes() != data:
+                raise ValueError("Existing immutable newsletter image has different bytes")
+        else:
+            destination.write_bytes(data)
+        previous = payload["assets"].get(key)
+        if isinstance(previous, dict) and previous.get("filename") != filename:
+            # Older email URLs must remain valid. Keep old immutable objects
+            # declared so the strict S3 publisher can retain and verify them.
+            payload["assets"]["newsletter-asset-archive/" + previous["filename"]] = previous
         payload["assets"][key] = {"filename": filename, "size_bytes": len(data), **dimensions}
     map_path.parent.mkdir(parents=True, exist_ok=True)
+    # Keep previous publication records for audit; an altered asset-set hash
+    # makes S3 rendering fail closed until that target is published again.
+    validate_asset_manifest(payload)
     map_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return payload
 
@@ -114,7 +135,7 @@ def main() -> int:
             parser.error("--remote-source requires URL=LOCAL_FILE")
         remote_sources[newsletter_asset_key(source)] = Path(filename).resolve()
     payload = publish_sources(sources, remote_sources=remote_sources)
-    print(f"Published {len(payload['assets'])} newsletter image references; deploy website assets and bundled index before sending.")
+    print(f"Prepared {len(payload['assets'])} immutable image references; publish and verify dedicated S3 targets before deploying the ready index.")
     return 0
 
 

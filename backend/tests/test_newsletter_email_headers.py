@@ -56,6 +56,54 @@ async def test_browser_hash_link_never_advertises_one_click():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("template", ["newsletter", "newsletter-confirmed", "newsletter_milestone"])
+# contract-test: supporting surface=rest_api assertions=newsletter.privacy.identity-and-token-boundary,newsletter.lifecycle.unsubscribe-resubscribe
+async def test_unsubscribed_preview_does_not_advertise_global_block_or_dummy_unsubscribe(template):
+    service = EmailTemplateService.__new__(EmailTemplateService)
+    captured = AsyncMock(return_value=True)
+    service.selected_delivery_transport = lambda: "ci_smtp"
+    service._ci_mail_provider = SimpleNamespace(send_email=captured)
+    service.default_sender_email = "synthetic@example.invalid"
+    service.default_sender_name = "Synthetic sender"
+    service.translation_service = SimpleNamespace(get_translations=lambda *_args, **_kwargs: {})
+    service.render_template = lambda _template, context, *_args, **_kwargs: ("<p>preview</p>", context)
+    assert await service.send_email(
+        template, "ci-inbox+synthetic@example.com", subject="Synthetic preview",
+        context={"_email_audience": "test",
+                 "unsubscribe_url": "https://app.dev.openmates.org/#settings/newsletter/unsubscribe/TEST-TOKEN",
+                 "block_list_url": "https://app.dev.openmates.org/#settings/email/block/synthetic"},
+    )
+    headers = captured.call_args.kwargs["email_headers"]
+    assert headers["X-OpenMates-Email-Audience"] == "test"
+    assert "List-Unsubscribe" not in headers
+    assert "List-Unsubscribe-Post" not in headers
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=newsletter.privacy.identity-and-token-boundary,newsletter.lifecycle.unsubscribe-resubscribe
+async def test_preview_with_real_subscription_preserves_category_token_headers(monkeypatch):
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+    monkeypatch.delenv("NEWSLETTER_PUBLIC_API_ORIGIN", raising=False)
+    service = EmailTemplateService.__new__(EmailTemplateService)
+    captured = AsyncMock(return_value=True)
+    service.selected_delivery_transport = lambda: "ci_smtp"
+    service._ci_mail_provider = SimpleNamespace(send_email=captured)
+    service.default_sender_email = "synthetic@example.invalid"
+    service.default_sender_name = "Synthetic sender"
+    service.translation_service = SimpleNamespace(get_translations=lambda *_args, **_kwargs: {})
+    service.render_template = lambda _template, context, *_args, **_kwargs: ("<p>preview</p>", context)
+    endpoint = build_newsletter_one_click_url("synthetic-token-0000000001")
+    assert await service.send_email(
+        "newsletter", "ci-inbox+synthetic@example.com", subject="Synthetic preview",
+        context={"_email_audience": "test", "unsubscribe_one_click_url": endpoint,
+                 "block_list_url": "https://app.dev.openmates.org/#settings/email/block/synthetic"},
+    )
+    headers = captured.call_args.kwargs["email_headers"]
+    assert headers["List-Unsubscribe"] == f"<{endpoint}>"
+    assert headers["List-Unsubscribe-Post"] == "List-Unsubscribe=One-Click"
+
+
+@pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=newsletter.privacy.identity-and-token-boundary,newsletter.lifecycle.unsubscribe-resubscribe
 async def test_oversize_final_newsletter_render_never_reaches_transport(monkeypatch):
     from backend.core.api.app.services import email_template
