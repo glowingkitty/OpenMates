@@ -170,9 +170,15 @@ async def _reference_target_scope(
             except (PermissionError, ValueError) as exc:
                 raise HTTPException(status_code=404, detail="Chat not found") from exc
         elif team_id and write_required:
-            await directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member"})
+            try:
+                await directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member"})
+            except TeamPermissionError as exc:
+                raise HTTPException(status_code=404, detail="Chat not found") from exc
     elif team_id and write_required:
-        await directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member"})
+        try:
+            await directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member"})
+        except TeamPermissionError as exc:
+            raise HTTPException(status_code=404, detail="Chat not found") from exc
     return _hash_value(chat_id), actor_hash, bool(team_id), bool(rows)
 
 
@@ -443,6 +449,9 @@ async def get_chat_embed_by_id(
     hashed_chat_id, actor_hash, is_team, target_live = await _reference_target_scope(
         chat_id, team_id, current_user, directus_service, write_required=False,
     )
+    # Selected Personal ciphertext reads need a live owner context; reference probes may target new drafts.
+    if not is_team and not target_live:
+        raise HTTPException(status_code=404, detail="Chat not found")
     key_subject_hashes: dict[str, str] = {}
     states = await _reference_availability(
         [embed_id], hashed_chat_id, actor_hash, is_team, directus_service,

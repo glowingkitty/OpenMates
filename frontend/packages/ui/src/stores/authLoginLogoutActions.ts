@@ -4,6 +4,7 @@
  */
 
 import { get } from "svelte/store";
+import { recoverAuthBootstrapAfterConfirmedSession } from "./authBootstrapReadiness";
 import { getApiEndpoint, getApiUrl, apiEndpoints, isDevEnvironment } from "../config/api";
 import {
   currentSignupStep,
@@ -522,6 +523,7 @@ export async function login(
           clientLogForwarder.startEphemeral();
         }
 
+        recoverAuthBootstrapAfterConfirmedSession();
         return {
           success: true,
           tfa_required: false,

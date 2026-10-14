@@ -16,6 +16,7 @@ import { requireInviteCode } from "./signupRequirements";
 import { userDB } from "../services/userDB";
 import { chatDB } from "../services/db"; // Import chatDB
 import { userProfile, defaultProfile, updateProfile } from "./userProfile";
+import { recoverAuthBootstrapAfterConfirmedSession } from "./authBootstrapReadiness";
 import { locale } from "svelte-i18n";
 import * as cryptoService from "../services/cryptoService";
 import { deleteSessionId } from "../utils/sessionId"; // Import deleteSessionId
@@ -801,6 +802,7 @@ async function performAuthCheck(
 
       void submitPendingReferralCode();
 
+      if (isCurrentSession()) recoverAuthBootstrapAfterConfirmedSession();
       return true;
     } else {
       // Handle Server Explicitly Saying User Is Not Logged In
@@ -1377,6 +1379,7 @@ export function setAuthenticatedState(): void {
   needsDeviceVerification.set(false);
   deviceVerificationType.set(null);
   deviceVerificationReason.set(null);
+  recoverAuthBootstrapAfterConfirmedSession();
 
   // Start live console log streaming for admin users on fresh login.
   // The user profile is populated by PasswordAndTfaOtp.svelte (via updateProfile) before

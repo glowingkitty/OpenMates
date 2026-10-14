@@ -18,9 +18,12 @@ import { normalizeEmbedType } from "../data/embedRegistry.generated";
 import { authStore } from "../stores/authState";
 import { get } from "svelte/store";
 import { activeChatStore } from "../stores/activeChatStore";
+import { isAuthBootstrapSettled } from "../stores/authBootstrapReadiness";
 import { activeTeamId } from "../stores/teamStore";
 import { userProfile } from "../stores/userProfile";
 import { getApiEndpoint, storageArchiveFetch } from "../config/api";
+import { capturePersonalEmbedReadScope, assertPersonalEmbedReadScope, runPersonalEmbedReadOperation, personalEmbedReadOperationKey,
+  type PersonalEmbedReadScope } from "./personalEmbedReadOperation";
 
 /**
  * Tracks embed IDs that are known to be in an error or cancelled state.
@@ -54,8 +57,17 @@ const LOCAL_CODE_DOC_PREVIEW_PREFIXES = [
 
 const requestedEmbeds = new Map<
   string,
-  { requestedAt: number; promise: Promise<void> | null; reason: string; embedId: string }
+  { requestedAt: number; promise: Promise<void> | null; reason: string; embedId: string; personal?: true }
 >();
+
+/** Expire only settled Personal metadata; active work and Team/Shared policy stay untouched. */
+function pruneExpiredPersonalRequests(now: number): void {
+  for (const [key, entry] of requestedEmbeds) {
+    if (entry.personal && !entry.promise && now - entry.requestedAt >= EMBED_REQUEST_COOLDOWN_MS) {
+      requestedEmbeds.delete(key);
+    }
+  }
+}
 
 type EmbedReadOptions = { chatId?: string | null };
 
@@ -72,6 +84,7 @@ type EmbedReadContext = {
   authenticated: boolean;
   requestKey: string;
   assertCurrent: () => void;
+  personalScope: PersonalEmbedReadScope | null;
 };
 
 async function captureEmbedReadContext(embedId: string, options: EmbedReadOptions): Promise<EmbedReadContext> {
@@ -79,31 +92,39 @@ async function captureEmbedReadContext(embedId: string, options: EmbedReadOption
   const selectedTeam = get(activeTeamId);
   const authenticated = get(authStore).isAuthenticated;
   const chatId = options.chatId ?? activeChatStore.get();
+  const capturedPersonalScope = chatId ? capturePersonalEmbedReadScope(chatId, embedId) : null;
+  let personalScope: PersonalEmbedReadScope | null = null;
   const assertCurrent = () => {
     if (currentEmbedAccount() !== account || get(activeTeamId) !== selectedTeam) {
       throw new Error("Embed read workspace changed");
     }
+    if (personalScope) assertPersonalEmbedReadScope(personalScope);
   };
   const { chatDB } = await import("./db");
   const chat = chatId ? await chatDB.getChat(chatId) : null;
   assertCurrent();
   const teamId = chat?.team_id !== undefined ? chat.team_id
     : chatId === activeChatStore.get() ? selectedTeam : null;
+  if (authenticated && !teamId && !chat?.is_shared_by_others) {
+    personalScope = capturedPersonalScope;
+    assertCurrent();
+  }
   return {
     chatId, teamId, parentId: chat?.parent_id ?? null,
-    shared: chat?.is_shared_by_others === true, authenticated, assertCurrent,
-    requestKey: JSON.stringify([account, selectedTeam, teamId, chatId, embedId]),
+    shared: chat?.is_shared_by_others === true, authenticated, assertCurrent, personalScope,
+    requestKey: personalScope ? personalEmbedReadOperationKey(personalScope)
+      : JSON.stringify([account, selectedTeam, teamId, chatId, embedId]),
   };
 }
 
-async function fetchEncryptedEmbedForChat(embedId: string, chatId: string, teamId: string | null, shared = false, assertCurrent: () => void = () => {}): Promise<boolean> {
+async function fetchEncryptedEmbedForChat(embedId: string, chatId: string, teamId: string | null, shared = false, assertCurrent: () => void = () => {}, signal?: AbortSignal): Promise<boolean> {
   const scope = new URLSearchParams();
   if (teamId) scope.set("team_id", teamId);
   const suffix = scope.size ? `?${scope}` : "";
   const path = shared
     ? `/v1/share/chat/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(embedId)}`
     : `/v1/embeds/chats/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(embedId)}`;
-  const response = await storageArchiveFetch(getApiEndpoint(`${path}${suffix}`), { credentials: "include" });
+  const response = await storageArchiveFetch(getApiEndpoint(`${path}${suffix}`), { credentials: "include", ...(signal ? { signal } : {}) });
   assertCurrent();
   if (response.status === 404) return false;
   if (!response.ok) throw new Error(`Embed read failed (${response.status})`);
@@ -127,7 +148,7 @@ async function fetchEncryptedEmbedForChat(embedId: string, chatId: string, teamI
     const keyPath = shared
       ? `/v1/share/chat/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(embedId)}/keys/window`
       : `/v1/embeds/chats/${encodeURIComponent(chatId)}/keys/window`;
-    const keyResponse = await storageArchiveFetch(getApiEndpoint(`${keyPath}?${keyParams}`), { credentials: "include" });
+    const keyResponse = await storageArchiveFetch(getApiEndpoint(`${keyPath}?${keyParams}`), { credentials: "include", ...(signal ? { signal } : {}) });
     assertCurrent();
     if (!keyResponse.ok) throw new Error(`Embed key read failed (${keyResponse.status})`);
     const keyPage = await keyResponse.json();
@@ -192,16 +213,49 @@ async function fetchEncryptedEmbedForChat(embedId: string, chatId: string, teamI
   return true;
 }
 
+async function fetchPersonalEmbedForChat(embedId: string, chatId: string, context: EmbedReadContext): Promise<boolean> {
+  // Parent-chat iteration keeps the captured active chat while changing the actual source.
+  const scope = context.personalScope ? { ...context.personalScope, chatId } : null;
+  if (!scope) {
+    if (context.teamId) return fetchEncryptedEmbedForChat(embedId, chatId, null, false, context.assertCurrent);
+    if (!context.authenticated || !get(userProfile).user_id || !isAuthBootstrapSettled()) return false;
+    // Preserve settled legacy non-UUID reads, which are outside canonical child coalescing.
+    return fetchEncryptedEmbedForChat(embedId, chatId, null, false, context.assertCurrent);
+  }
+  let fetched = false;
+  const readableLocal = async () => {
+    const local = await embedStore.get(`embed:${embedId}`);
+    context.assertCurrent();
+    return typeof local === "string" ? !!local : !!local && !local._decryptionPending && !local._decryptionFailed;
+  };
+  await runPersonalEmbedReadOperation(scope, async (assertPending, signal) => {
+    const guard = () => { context.assertCurrent(); assertPending(); };
+    guard();
+    // resolveEmbed's earlier miss may be stale after asynchronous context capture.
+    if (await readableLocal()) return;
+    guard();
+    fetched = await fetchEncryptedEmbedForChat(embedId, chatId, null, false, guard, signal);
+    if (fetched) await readableLocal();
+    guard();
+  });
+  context.assertCurrent();
+  // A strict child repair may have owned the slot; joining alone is not a successful read.
+  return fetched || await readableLocal();
+}
+
 async function fetchEncryptedEmbedForSourceChat(embedId: string, context: EmbedReadContext): Promise<boolean> {
   const { chatId, teamId, parentId, shared, assertCurrent } = context;
   if (!chatId) return false;
   if (shared) return fetchEncryptedEmbedForChat(embedId, chatId, null, true, assertCurrent);
-  if (await fetchEncryptedEmbedForChat(embedId, chatId, teamId, false, assertCurrent)) return true;
+  if (await (teamId ? fetchEncryptedEmbedForChat(embedId, chatId, teamId, false, assertCurrent)
+      : fetchPersonalEmbedForChat(embedId, chatId, context))) return true;
   if (!parentId || parentId === chatId) return false;
   const { chatDB } = await import("./db");
   const parent = await chatDB.getChat(parentId);
   assertCurrent();
-  return fetchEncryptedEmbedForChat(embedId, parentId, parent?.team_id ?? null, false, assertCurrent);
+  return parent?.team_id
+    ? fetchEncryptedEmbedForChat(embedId, parentId, parent.team_id, false, assertCurrent)
+    : fetchPersonalEmbedForChat(embedId, parentId, context);
 }
 
 
@@ -292,6 +346,7 @@ export async function requestEmbedFromServerOnce(
     return false;
   }
   const now = Date.now();
+  if (context.personalScope) pruneExpiredPersonalRequests(now);
   const existing = requestedEmbeds.get(context.requestKey);
   if (existing?.promise) {
     console.debug(
@@ -306,7 +361,8 @@ export async function requestEmbedFromServerOnce(
     return false;
   }
 
-  const requestEntry = { requestedAt: now, promise: null as Promise<void> | null, reason, embedId: bareId };
+  const requestEntry = { requestedAt: now, promise: null as Promise<void> | null, reason, embedId: bareId,
+    ...(context.personalScope ? { personal: true as const } : {}) };
   try {
     const promise = (async () => {
       console.warn(
@@ -323,10 +379,12 @@ export async function requestEmbedFromServerOnce(
         }
       } catch (error) {
         context.assertCurrent();
+        // During a failed/pending initial check, neither REST nor WS may bypass the barrier.
+        if (context.personalScope && !isAuthBootstrapSettled()) throw error;
         console.warn("[embedResolver] Authenticated embed read failed:", error);
       }
       context.assertCurrent();
-      if (context.shared) return;
+      if (context.shared || (!context.teamId && !isAuthBootstrapSettled())) return;
       const { webSocketService } = await import("./websocketService");
       context.assertCurrent();
       await webSocketService.sendMessage("request_embed", {
@@ -337,7 +395,16 @@ export async function requestEmbedFromServerOnce(
     requestedEmbeds.set(context.requestKey, requestEntry);
 
     await promise;
-    if (requestedEmbeds.get(context.requestKey) === requestEntry) requestEntry.promise = null;
+    if (requestedEmbeds.get(context.requestKey) === requestEntry) {
+      requestEntry.promise = null;
+      if (requestEntry.personal) {
+        setTimeout(() => {
+          if (requestedEmbeds.get(context.requestKey) === requestEntry && !requestEntry.promise) {
+            requestedEmbeds.delete(context.requestKey);
+          }
+        }, Math.max(0, requestEntry.requestedAt + EMBED_REQUEST_COOLDOWN_MS - Date.now()));
+      }
+    }
     return true;
   } catch (error) {
     if (requestedEmbeds.get(context.requestKey) === requestEntry) requestedEmbeds.delete(context.requestKey);

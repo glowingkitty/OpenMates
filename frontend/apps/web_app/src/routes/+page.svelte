@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { composerFocusRequested } from '@repo/ui/stores/composerFocusStore';
+	import { beginAuthBootstrapReadiness, settleAuthBootstrapReadiness, failAuthBootstrapReadiness,
+		observeAuthBootstrapFailure } from '@repo/ui/stores/authBootstrapReadiness';
 	import {
 		// components
 		Chats,
@@ -149,6 +151,8 @@
 	let globalOpenSearchShortcutHandler: ((event: KeyboardEvent) => void) | null = null; // Persistent Cmd/Ctrl+F handler
 	let hasAutoOpenedGiftCardRedeemAfterAuth = $state(false);
 	let authSessionValidated = $state(false);
+	// Schedule Personal reads through the existing initial check, before optimistic auth restoration.
+	const authBootstrapToken = browser ? beginAuthBootstrapReadiness() : null;
 	// Native hash navigation can precede SvelteKit's page.url update. Keep the
 	// selected workspace in sync before any asynchronous deep-link work starts.
 	let workspaceHash = $state(browser ? window.location.hash : page.url.hash);
@@ -1845,7 +1849,7 @@
 		}
 	});
 
-	onMount(async () => {
+	onMount(() => observeAuthBootstrapFailure(authBootstrapToken, async () => {
 		console.debug('[+page.svelte] onMount started');
 		// Sweep browser-local download staging left by a closed or crashed Projects tab.
 		void cleanupStaleConnectedProjectDownloads().catch(() => {});
@@ -2800,6 +2804,7 @@
 			await authInitialization;
 		}
 		authSessionValidated = true;
+		settleAuthBootstrapReadiness(authBootstrapToken);
 		console.debug('[+page.svelte] initialize() finished (cryptoReady resolved in parallel)');
 		// NOW safe to consume the shared chat redirect flag from sessionStorage.
 		// checkAuth() (called inside initialize()) has already had a chance to read it.
@@ -3159,10 +3164,11 @@
 				console.debug('[+page.svelte] media-app-ready signal emitted');
 			});
 		}
-	});
+	}));
 
 	// Cleanup function for onDestroy
 	onDestroy(() => {
+		failAuthBootstrapReadiness(authBootstrapToken);
 		voiceCallController.hangup();
 		pendingAuthenticatedDeepLinkCleanup?.();
 		pendingAuthenticatedDeepLinkCleanup = null;

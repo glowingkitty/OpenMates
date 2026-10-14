@@ -11,6 +11,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { get } from "svelte/store";
 import type { DailyInspiration } from "../dailyInspirationStore";
+import { beginAuthBootstrapReadiness, settleAuthBootstrapReadiness, failAuthBootstrapReadiness,
+  isAuthBootstrapSettled } from "../authBootstrapReadiness";
 
 // Session cleanup/refresh checks must not enroll a fixture messaging identity
 // through an unrelated API request while counting the session POSTs.
@@ -377,6 +379,7 @@ import { userProfile, defaultProfile } from "../userProfile";
 
 describe("checkAuth auto logout cleanup", () => {
   beforeEach(() => {
+    settleAuthBootstrapReadiness(beginAuthBootstrapReadiness());
     bumpLoginSessionGeneration();
     vi.useFakeTimers();
     vi.stubGlobal("navigator", {});
@@ -404,6 +407,32 @@ describe("checkAuth auto logout cleanup", () => {
     vi.useRealTimers();
   });
 
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle,chats.sync.key-gated-recovery
+  it("releases failed Personal read scheduling only after an actual successful session check", async () => {
+    const token = beginAuthBootstrapReadiness(); failAuthBootstrapReadiness(token);
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({ success: true, user: {
+      id: "user-1", username: "fixture-owner", language: "en", console_log_forwarding_opted_out: true,
+    } }) });
+    expect(await checkAuth(undefined, true)).toBe(true);
+    expect(isAuthBootstrapSettled()).toBe(true);
+  });
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle,chats.sync.key-gated-recovery
+  it.each([401, 503])("does not release failed Personal read scheduling after session HTTP %s", async status => {
+    const token = beginAuthBootstrapReadiness(); failAuthBootstrapReadiness(token);
+    mockFetch.mockResolvedValue({ ok: false, status, statusText: "fixture-status" });
+    expect(await checkAuth(undefined, true)).toBe(status !== 401);
+    expect(isAuthBootstrapSettled()).toBe(false);
+  });
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle,chats.sync.key-gated-recovery
+  it("does not let a successful session check bypass a newer page's pending auth and crypto bootstrap", async () => {
+    const token = beginAuthBootstrapReadiness();
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({ success: true, user: {
+      id: "user-1", username: "fixture-owner", language: "en", console_log_forwarding_opted_out: true,
+    } }) });
+    expect(await checkAuth(undefined, true)).toBe(true);
+    expect(isAuthBootstrapSettled()).toBe(false);
+    settleAuthBootstrapReadiness(token); expect(isAuthBootstrapSettled()).toBe(true);
+  });
   // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
   it("treats a session 401 as expiry and stops diagnostics without a final upload", async () => {
     authStore.set({ isAuthenticated: true, isInitialized: true });

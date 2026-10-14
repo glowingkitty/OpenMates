@@ -513,7 +513,7 @@ async def test_chat_embed_window_returns_only_one_authorized_ciphertext_page_and
             return chat_id == "chat-1" and user_id == OWNER_ID
 
         async def get_chat_metadata(self, chat_id, admin_required=False):
-            return {"hashed_user_id": OWNER_HASH, "hashed_team_id": None} if chat_id == "chat-1" else None
+            return {"id": chat_id, "hashed_user_id": OWNER_HASH, "hashed_team_id": None} if chat_id == "chat-1" else None
 
     class Embed:
         async def get_embed_window_by_hashed_chat_id(self, chat_hash, **cursor):
@@ -638,7 +638,7 @@ async def test_embed_key_continuation_rechecks_chat_membership_and_exact_embed_s
             return chat_id == "chat-1" and user_id == OWNER_ID
 
         async def get_chat_metadata(self, chat_id, admin_required=False):
-            return {"hashed_user_id": OWNER_HASH, "hashed_team_id": None} if chat_id == "chat-1" else None
+            return {"id": chat_id, "hashed_user_id": OWNER_HASH, "hashed_team_id": None} if chat_id == "chat-1" else None
 
     class Embed:
         async def validate_embed_ids_in_chat(self, chat_hash, embed_ids):
@@ -1054,6 +1054,12 @@ async def test_exact_embed_read_allows_authorized_cross_chat_and_rejects_missing
         current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus,
     )
     assert owned["embed"]["encrypted_content"] == "content-cipher"
+    # An owner master wrapper does not make an uncreated destination a selected-read context.
+    with pytest.raises(HTTPException) as no_target:
+        await get_chat_embed_by_id(chat_id=NEW_PERSONAL_CHAT, embed_id="owned-1",
+            request=SimpleNamespace(), current_user=SimpleNamespace(id=OWNER_ID),
+            directus_service=directus)
+    assert no_target.value.status_code == 404
     with pytest.raises(HTTPException) as no_key:
         await get_chat_embed_by_id(chat_id=PERSONAL_CHAT, embed_id="owned-no-key",
             request=SimpleNamespace(), current_user=SimpleNamespace(id=OWNER_ID),
