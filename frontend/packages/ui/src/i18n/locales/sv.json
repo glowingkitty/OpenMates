@@ -8960,20 +8960,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"2654ed6e-e439-4c21-98c7-95269083da71\", \"app_id\": \"reminder\", \"skill_id\": \"cancel-reminder\"}\n```\n\nOK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.\n\nWould you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?"
       }
     },
-    "chickpea_spinach_protein_dinners": {
-      "title": {
-        "text": "Chickpea Spinach Protein Dinners"
-      },
-      "summary": {
-        "text": "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
-      },
-      "message_1": {
-        "text": "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d7f21a46-8f13-4f14-82c4-d868ba62bb8a\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\",\"query\":\"chickpea and spinach dinner\",\"provider\":\"Edamam\",\"status\":\"finished\"}\n```\n\nHere are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.\n\n### 1. 10-Minute Chickpea and Spinach Curry\nThis is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.\n\n[!](embed:thefieryvegetarian.com-3sr)\n[!](embed:vegancocotte.com-IZt)\n[!](embed:vegancocotte.com-rFn)\n\n*   **Total Time:** 10 minutes\n*   **Protein Content:** ~10.5g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)\n*   1 (15 oz) can diced [tomatoes](wiki:Tomato)\n*   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)\n*   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)\n*   3 cups fresh [spinach](wiki:Spinach)\n*   1 tsp vegetable oil\n\n**Instructions:**\n1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.\n2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.\n3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.\n4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.\n\n---\n\n### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes\nThis Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.\n\n[!](embed:runningonrealfood.com-R8H)\n[!](embed:americanhomecook.com-Alt)\n[!](embed:shortgirltallorder.com-QXv)\n\n*   **Total Time:** 15 minutes\n*   **Protein Content:** ~23.1g per serving\n*   **Servings:** 2\n\n**Ingredients:**\n*   1 (15 oz) can chickpeas (drained and rinsed)\n*   1 (14.5 oz) can diced tomatoes\n*   5 oz baby spinach\n*   1 small onion (diced) & 4 garlic cloves (sliced)\n*   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)\n*   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))\n\n**Instructions:**\n1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).\n2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.\n3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.\n4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).\n\n---\n\n### 3. 20-Minute Middle Eastern Spinach and Chickpeas\nA simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.\n\n[!](embed:carolinescooking.com-Dy7)\n[!](embed:simpleveganblog.com-8dt)\n[!](embed:ourplantbasedworld.com-Krr)\n\n*   **Total Time:** 20 minutes\n*   **Protein Content:** ~8.7g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   3 cups low-sodium canned chickpeas (drained and rinsed)\n*   2 cups baby spinach\n*   2/3 cup diced tomatoes\n*   ½ large white onion (diced)\n*   2 tsp minced garlic\n*   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)\n\n**Instructions:**\n1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.\n2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.\n3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.\n4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.\n5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.\n\n---\n\n**Next steps for your meal prep:**\n*   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?\n*   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?"
-      }
-    },
     "classic_car_reverse_image_search": {
       "title": {
         "text": "Identifiera en klassisk bil från ett foto"
@@ -9086,66 +9072,66 @@
     },
     "community_garden_sunflower_illustration": {
       "title": {
-        "text": "Generera en botanisk solrosillustration"
+        "text": "Botanisk solrosillustration för infoblad till trädgård"
       },
       "summary": {
-        "text": "Skapa en textfri solrosillustration till ett infoblad för en gemensamhetsodling."
+        "text": "Skapade en varm botanisk illustration av en solros för ett infoblad till en gemensamhetsträdgård med designförslag. handout with design suggestions."
       },
       "message_1": {
-        "text": "Skapa gärna en varm botanisk illustration av en solros för ett infoblad till en gemensamhetsträdgård, på en ren, ljus bakgrund utan text."
+        "text": "Skapa en varm botanisk illustration av en solros för ett infoblad till en gemensamhetsträdgård, på en ren ljus bakgrund utan text. handout, on a clean light background with no text."
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6a3857ca-aa90-486f-b481-4e1df6f95faa\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```Jag skapar den där botaniska illustrationen av solrosen till ert infoblad för tillsammansodlingen nu; den bearbetas just nu och kommer att dyka upp här i chatten så fort den är klar.\n\n### Snabba designtips för lokala infoblad\n\nFör att göra ditt infoblad både inbjudande och lättläst:\n\n- **Visuell hierarki och luftighet:** Ge illustrationen lite andrum. Genom att placera den längs en marginal eller i sidhuvudet lämnar du plats för odlingstips eller information om evenemang utan att det känns rörigt.\n- **Färgharmoni:** Hämta varma toner direkt från konstverket – som djup honungsgul, olivbladsgrön eller jordig terracotta – till rubriker och ramar.\n- **Blanda in egen konst:** Om medlemmar eller lokala odlare skapar skisser, bladtryck eller foton av era faktiska odlingsbäddar, ger det en härlig och välkomnande gräsrotskänsla att integrera dessa tillsammans med digitala illustrationer.\n---\n**Nästa steg och alternativ:**\n- [Designa en layout för ett infoblad med rubriker och tips](/#message=Help%20me%20design%20a%20clean%20layout%20and%20copy%20for%20a%20community%20garden%20handout.)\n- [Föreslå en färgpalett baserad på solrosor](/#message=Suggest%20a%20warm%20color%20palette%20and%20typography%20pairing%20for%20a%20botanical%20garden%20flyer.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"83e98b9b-8bcb-4774-9223-be000504a84a\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nHär är den varma botaniska illustrationen av en solros till ditt infoblad för den gemensamma trädgården:\n\n[!](embed:generated-images-ff26d807eb07)\n\n### Design- och arbetsflödesförslag\n\n- **Kombinera med handritade element:** För gemenskapsmaterial fungerar det utmärkt att blanda digitala eller AI-genererade konstverk med autentiska personliga inslag. Du kan till exempel skriva ut den här illustrationen som bakgrund eller visuellt ankare och sedan låta medlemmarna skissa planteringsdiagram, texta skötselråd för hand eller lägga till pressade torkade blad/frön bredvid.\n- **Layout och hierarki för infobladet:**\n  - **Vitt utrymme:** Ha generösa marginaler runt solrosen för att ge infobladet en luftig och välkomnande känsla.\n  - **Typografi:** Kombinera en organisk eller humanistisk antikva (som [Garamond](wiki:Garamond) eller [Georgia](wiki:Georgia_(typeface))) för rubriker med en lättläst sans-serif för planteringsinstruktioner, detaljer om jordförberedelse och datum för evenemang.\n  - **Färgpalett:** Plocka upp bärnstensfärgade och gyllene toner från kronbladen för accentlinjer eller underrubriker, och djupt skogsgrönt för viktiga höjdpunkter.\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"garden_handout_next_step\",\n  \"multiple\": false,\n  \"question\": \"What would you like to work on next for the handout?\",\n  \"options\": [\n    {\n      \"id\": \"layout_tips\",\n      \"text\": \"Get advice on typography and grid layout for the printed flyer\"\n    },\n    {\n      \"id\": \"variations\",\n      \"text\": \"Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)\"\n    },\n    {\n      \"id\": \"custom\",\n      \"text\": \"Something else\"\n    }\n  ],\n  \"custom_option_id\": \"custom\",\n  \"custom_placeholder\": \"Describe what you need...\"\n}\n```\n\n[!](embed:generated-media-images-83e98b9b8bcb)"
       },
       "follow_up_1": {
-        "text": "Sök efter lokala evenemang i gemensamhetsodlingar i området"
+        "text": "Generera en till illustration av ett flitigt honungsbi på lavendel"
       },
       "follow_up_2": {
-        "text": "Hjälp mig skriva en trevlig inledningstext till infobladet om trädgården"
+        "text": "Lista viktiga tips för att designa ett lättläst flygblad för en gemenskapsträdgård"
       },
       "follow_up_3": {
-        "text": "Hitta gratis SVG-växtikoner för dekoration av utdelningsmaterial"
+        "text": "Sök efter gratis typsnitt för utskrivbara flygblad"
       },
       "follow_up_4": {
-        "text": "Lista viktiga tips att inkludera i en guide för gemensamhetsodlingar"
+        "text": "Förklara hur man balanserar negativ yta och text på ett infoblad"
       },
       "follow_up_5": {
-        "text": "Sök efter idéer för typsnittskombinationer till trädgårdsflygblad"
+        "text": "Generera en illustration av mogna kulturarvstomater på rankan"
       },
       "follow_up_6": {
-        "text": "Förklara hur man arrangerar visuella element i en layout för tryck"
+        "text": "Beskriv färgpalettsidéer för naturliga och ekologiska tryckprojekt"
       }
     },
     "community_garden_volunteer_chime": {
       "title": {
-        "text": "En varm ljudsignal för en gemenskapsträdgård"
+        "text": "Ljuddesign för avisering i gemenskapsträdgård"
       },
       "summary": {
-        "text": "Generera ett kort aviseringsljud med två toner för en fiktiv app för en gemenskapsträdgård."
+        "text": "Skapade en mjuk ljudeffekt med två toner av träklockor för en avisering när en volontär anmäler sig till en gemenskapsträdgård."
       },
       "message_1": {
-        "text": "Skapa ett kort, varmt aviseringsljud för en app för en gemenskapsträdgård när en volontär anmäler sig. En mild tvåtonssignal, inget tal och under tre sekunder."
+        "text": "Skapa ett kort, varmt aviseringsljud för en app för en gemenskapsträdgård när en volontär anmäler sig. Ett mjukt pling med två toner, inget tal och under tre sekunder."
       },
       "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nJag genererar den varma, milda tvåtonssignalen för din trädgårdsapp nu. Den bearbetas för närvarande och kommer att visas i chatten så snart den är klar.\n\n### Föreslagna nästa steg\n- [Generera en jordnära, festlig signal för upplåsta märken](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Designa en layout för ett bekräftelsekort för volontärer](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdda9f85-fa01-48ca-acf7-7746de6dc0f3\",\"app_id\":\"audio\",\"skill_id\":\"generate\"}\n```\n\nHär är ett mjukt, varmt pling med två toner skapat för din avisering när en volontär anmäler sig till gemenskapsträdgården:\n\n[!](embed:generated-audio-17f56f2e73be)\n\n### Ljudprofil\n- **Ton:** Organiska, resonanta toner av träklocka/marimba designade för att frammana natur och tillväxt.\n- **Tempo:** En stigande sekvens med två toner för att ge en upplyftande, välkomnande känsla när någon ansluter för att hjälpa till.\n- **Längd:** 2 sekunder, vilket gör den kort och diskret för appanvändare.\n\nHur passar tonen med resten av din apps gränssnitt? Vi kan justera klangen (t.ex. mot ett mjukare akustiskt gitarrplock, en klangskål eller en ljusare glasklocka) om det behövs.\n\n[!](embed:generated-media-audio-fdda9f85fa01)"
       },
       "follow_up_1": {
-        "text": "Generera en festlig ljudsignal för när en användare låser upp ett märke vid slutförd uppgift"
+        "text": "Generera en mjukare version med akustiskt gitarrplock"
       },
       "follow_up_2": {
-        "text": "Förklara hur ljuddesign påverkar användarengagemang i mobilappar"
+        "text": "Diskutera hur man testar aviseringsljud med användare"
       },
       "follow_up_3": {
-        "text": "Skapa en mild påminnelsesignal för morgonens bevattningsschema"
+        "text": "Generera en ljudeffekt av en sjungande klangskål"
       },
       "follow_up_4": {
-        "text": "Lista bästa praxis för att designa icke-påträngande ljudsignaler för UI-notiser"
+        "text": "Lista bästa praxis för aviseringsljud i mobilappar"
       },
       "follow_up_5": {
-        "text": "Generera ett mjukt felmeddelandeljud för misslyckad formulärvalidering"
+        "text": "Generera en ljusare aviseringssignal med glasklocka"
       },
       "follow_up_6": {
-        "text": "Beskriv hur man integrerar anpassade ljudeffekter i mobilapplikationer"
+        "text": "Jämför olika stilar för ljudprofilering (sonic branding) för appar"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -9182,34 +9168,34 @@
     },
     "community_garden_welcome_melody": {
       "title": {
-        "text": "En melodi för välkomnande till en gemenskapsträdgård"
+        "text": "Skapa en mjuk välkomstmelodi för en gemenskapsträdgård"
       },
       "summary": {
-        "text": "Skapa en mjuk instrumentell melodi för en välkomstvideo till en gemenskapsträdgård."
+        "text": "Generera en kort instrumental melodi för en välkomstvideo till en gemenskapsträdgård, med ett varmt akustiskt ljud och utan sång."
       },
       "message_1": {
-        "text": "Kan du skapa en kort, mjuk instrumentell melodi för en välkomstvideo till en gemenskapsträdgård, utan sång?"
+        "text": "Kan du skapa en kort, mjuk instrumental melodi för en välkomstvideo till en gemenskapsträdgård, utan sång?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"296e122a-cd23-4fc6-9c27-99f21f8e3401\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nJag skapar det där mjuka instrumentella spåret för din välkomstvideo till gemenskapsträdgården nu. Det bearbetas just nu och kommer att visas här så snart det är klart.\n\n[Gemenskapsträdgårdar](wiki:Community_gardening) är ett fantastiskt sätt att föra samman grannar och främja lokal biologisk mångfald. Medan musiken skapas, vill du ha hjälp med att planera berättelsen eller det visuella flödet i välkomstvideon?\n\n- [Skissa på ett utkast för välkomstvideon](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)\n- [Brainstorma introduktionstext eller tips för voiceover](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"3e5014d0-2082-4604-b968-1553d6cc43e4\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nHär är ett mjukt, akustiskt instrumentalt spår komponerat för din välkomstvideo till gemenskapsträdgården:\n\n[!](embed:generated-media-music-3e5014d02082)\n[!](embed:generated-music-c89ee4a5f418)\n\n### Information om spåret\n- **Stämning och ton:** Varm, inbjudande och fridfull\n- **Instrumentering:** Akustiskt gitarrplock parat med mjuka pianoackord och lätta melodiska accenter\n- **Längd:** 30 sekunder\n- **Format:** Helt instrumentalt (utan sång), vilket gör det idealiskt som bakgrundsmusik till en berättarröst eller textintroduktion.\n\n### Föreslagna nästa steg\nOm du planerar att producera videon eller skriva ett manus för att introducera nya medlemmar till trädgården:\n\n- [Skriv ett utkast till ett kort välkomstmanus](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)\n- [Generera ett mer upptempo akustiskt alternativ](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)"
       },
       "follow_up_1": {
-        "text": "Sök efter lokala evenemang och workshops för gemenskapsträdgårdar"
+        "text": "Skapa ett något mer upptempo akustiskt spår för vår gemenskapsträdgårdsvideo"
       },
       "follow_up_2": {
-        "text": "Hjälp mig att skissa på ett storyboard för trädgårdsvideon"
+        "text": "Hjälp mig att skriva ett varmt trettio sekunder långt välkomstmanus för vår gemenskapsträdgård"
       },
       "follow_up_3": {
-        "text": "Hitta stockvideor på växter och blommor"
+        "text": "Sök efter handledningar om hur man redigerar videor för gemenskapsträdgårdar i ett videoredigeringsprogram"
       },
       "follow_up_4": {
-        "text": "Skriv välkomnande voiceover-repliker för gemenskapsvideon"
+        "text": "Beskriv hur man kombinerar bakgrundsmusik med en berättarröst"
       },
       "follow_up_5": {
-        "text": "Sök efter trädgårdstips för gemenskapsprojekt"
+        "text": "Hitta lokala evenemang och workshops för gemenskapsträdgårdar i vårt område"
       },
       "follow_up_6": {
-        "text": "Föreslå idéer för aktiviteter på gemenskapsträdgårdens öppningsdag"
+        "text": "Lista idéer för filmklipp att inkludera i välkomstvideon"
       }
     },
     "creativity_drawing_meetups_berlin": {
@@ -9682,40 +9668,34 @@
     },
     "housing_policy_dinner_discussion": {
       "title": {
-        "text": "Prepare for a housing policy dinner discussion"
+        "text": "Förbered dig för en middagsdiskussion om bostadspolitik"
       },
       "summary": {
-        "text": "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+        "text": "Förbered dig för en lugn familjediskussion om bostadspolitik och hyresreglering, med utgångspunkt i frågor om det lokala sammanhanget och vars och ens mål."
       },
       "message_1": {
-        "text": "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+        "text": "Jag ska äta middag med min pappa och han vill diskutera bostadspolitik och hyresreglering. Hjälp mig att förbereda mig så att jag kan ställa bra frågor, kontrollera viktiga fakta, förstå de starkaste argumenten på båda sidor och hålla samtalet lugnt."
       },
       "message_2": {
-        "text": "Focus mode activated: Prepare a political discussion."
-      },
-      "message_3": {
-        "text": "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
-      },
-      "message_4": {
-        "text": "It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. \n\nSince housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** (\"Who is right?\") to a **collaborative exploration** (\"How do we solve this complex problem together?\").\n\nHere is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.\n\n### 1. The Core Debate: Rent Control & Stabilization\n\nTo have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). \n\n**The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**\n*   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.\n*   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.\n*   **It creates \"misallocation\":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.\n*   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.\n\n**The Strongest Arguments FOR Rent Control (The Community & Equity View)**\n*   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.\n*   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.\n*   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply \"shop elsewhere\" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.\n*   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.\n\n### 2. Facts to Keep in Your Back Pocket\n*   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.\n*   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. \n*   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.\n\n### 3. Strategies to Keep It Calm\n*   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., \"I agree with you that property owners shouldn't be forced to operate at a loss.\")*\n*   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.\n*   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).\n\n### 4. Great Questions to Ask Your Dad\n\nThese questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:\n\n1.  **If he is AGAINST rent control:** *\"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?\"*\n2.  **If he is FOR rent control:** *\"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?\"*\n3.  **Zooming out to the bigger picture:** *\"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?\"*\n4.  **Finding balance:** *\"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?\"*\n\nHow are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?"
+        "text": "Att diskutera bostadspolitik och hyresreglering med familjen kan lätt bli hetsigt, särskilt när generationsperspektiv, fastighetsägande eller olika ekonomiska filosofier krockar. \n\nFör att kunna skräddarsy fakta, policydata och specifika frågor inför din middag, kan du berätta lite mer om sammanhanget?\n\n1. **Plats / Jurisdiktion:** Är fokus på en specifik stad, region eller ett land (t.ex. Kalifornien, New York, Berlin eller Storbritannien), eller utgår han från ett brett, nationellt ekonomiskt perspektiv? Lokala regler och marknadstryck varierar stort.\n2. **Din pappas vinkel:** Vad är hans grundinställning eller reaktion? Talar han till exempel som husägare, mindre hyresvärd eller skattebetalare, eller argumenterar han främst utifrån marknadsekonomisk teori mot prisregleringar?\n3. **Ditt huvudmål:** Utöver att hålla det lugnt och konstruktivt, vad skulle kännas som en framgång för dig – att hitta gemensamma nämnare kring kärnvärden (som stabilitet i samhället kontra nytt utbud), att förstå hans perspektiv eller att ha tillförlitliga data redo för att bemöta specifika påståenden?\n\nNär du har delat med dig av dessa detaljer kommer vi att ta fram en skräddarsydd förberedelseguide med verifierade bevis, avvägningar på båda sidor och strategier för att undvika konflikter."
       },
       "follow_up_1": {
-        "text": "Find recent studies on rent control policies"
+        "text": "Sök efter aktuella studier om hyresreglering i storstäder"
       },
       "follow_up_2": {
-        "text": "Explain the economic impact of rent control"
+        "text": "Lista vanliga argument mot hyresregleringar"
       },
       "follow_up_3": {
-        "text": "Search for housing policy debates in our city"
+        "text": "Hitta ekonomisk forskning om elasticitet i bostadsutbudet"
       },
       "follow_up_4": {
-        "text": "Describe how zoning laws affect housing supply"
+        "text": "Jämför lagar om hyresgästskydd i olika regioner"
       },
       "follow_up_5": {
-        "text": "Show me zoning laws in our area"
+        "text": "Sök efter nyhetsartiklar om effekterna av hyresreglering"
       },
       "follow_up_6": {
-        "text": "Summarize the key arguments for rent control"
+        "text": "Förklara hur bostadsmarknadens utbud reagerar på prisregleringar"
       }
     },
     "image_vectorize_openmates_header": {
@@ -9822,40 +9802,34 @@
     },
     "mastodon_public_post_themes": {
       "title": {
-        "text": "Teman i Mastodons offentliga inlägg"
+        "text": "Sammanfattning av inlägg från Mastodons officiella konto"
       },
       "summary": {
-        "text": "Sammanfatta teman i de senaste inläggen från Mastodons officiella konto och utforska representativa exempel."
+        "text": "Sammanfattade senaste offentliga inlägg från Mastodons officiella konto, som täcker Mastodon 5.0, styrning, ekosystemfokus, teamuppdateringar och merchandise."
       },
       "message_1": {
-        "text": "Kan du sammanfatta huvudteman i de senaste offentliga inläggen från det officiella Mastodon-kontot på mastodon.social, med länkar till några exempel?"
+        "text": "Kan du sammanfatta huvudteman i de senaste offentliga inläggen från Mastodons officiella konto på mastodon.social, med länkar till några exempel?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"33ebec48-4730-4b4b-b7d7-f967173ac9b6\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nBegäran om att hämta de senaste offentliga inläggen från @Mastodon (`@Mastodon@mastodon.social`) körs fortfarande i bakgrunden och kommer att uppdatera chatten när den är klar.\n\nMedan vi väntar på att flödet ska laddas:\n- [Kolla de senaste bloggmeddelandena från Mastodon](/#message=Search%20for%20the%20latest%20official%20Mastodon%20blog%20announcements%20and%20releases.)\n- [Utforska Mastodons roadmap](/#message=What%20are%20the%20major%20features%20currently%20on%20the%20Mastodon%20roadmap%3F)"
-      },
-      "message_3": {
-        "text": "Inläggen har laddats nu. Kan du sammanfatta huvudteman och länka till tre representativa inlägg?"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"65b92905-0838-46dd-8fff-8e28cdc8789a\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nDet officiella @Mastodon-kontot på `mastodon.social` lyfter fram flera centrala teman i sina senaste offentliga inlägg:\n\n### 1. Större produktutveckling och användarundersökningar\nEtt huvudfokus har varit grundarbetet för **Mastodon 5.0**, efter deras gemenskapsövergripande forskningsinitiativ \"Discovery Week\" som leddes av deras designteam. Teamet delade förhandsvisningar av ett omdesignat, lugnare gränssnitt och en uppdaterad inläggsskapare som syftar till att göra plattformen mer tillgänglig och användarvänlig.\n\n### 2. Gemenskapens styrning, policyer och personaluppdateringar\nMastodon kommunicerar regelbundet uppdateringar kring styrning och policyer, och har bland annat släppt förtydligande riktlinjer kring sin **varumärkespolicy** som ett direkt svar på feedback från fediverse-administratörer och utvecklare. De meddelade också viktiga ledarskapsförändringar och tackade den avgående community-direktören Hannah Aubry för hennes insatser.\n\n### 3. Serverfokus och fediverse-ekosystemet\nKontot främjar aktivt oberoende fediverse-instanser och infrastrukturinitiativ – till exempel genom att lyfta fram servrar med specifika teman (som Earth.Law) och sprida branschundersökningar som IFTAS verksamhetsforskning.\n\n### 4. Gemenskapens merchandise och projektfinansiering\nFör att stödja den pågående utvecklingen av öppen källkod delar de uppdateringar om officiell merchandise, inklusive nya mjukdjursmaskotar (\"Plushtodons\").\n\n---\n\n### Tre representativa inlägg\n\n- **Produktplan och visuell förnyelse:** [Förhandsvisning av Mastodon 5.0](embed:mastodon-after-publishing-D8d) – visar en förhandsgranskning av den kommande 5.0-layouten och inläggsskaparen baserat på undersökningsresultat.\n- **Policy och feedback från gemenskapen:** [Uppdatering av riktlinjer för varumärkespolicy](embed:mastodon-today-we-YqD) – beskriver reviderade varumärkesregler anpassade efter feedback från gemenskapen.\n- **Projektstöd och merchandise:** [Tillkännagivande av förbeställningar av Plushtodons](embed:mastodon-new-plushtodon-A57) – presenterar nya officiella mjukdjursmaskotar som ett sätt för supportrar att finansiera utvecklingen.\n\n---\n\nVill du utforska något specifikt ämne mer ingående?\n- [Läs mer om funktionerna i Mastodon 5.0](/#message=What%20new%20features%20and%20changes%20are%20coming%20in%20Mastodon%205.0%3F)\n- [Granska riktlinjerna för varumärken](/#message=Summarize%20Mastodon's%20updated%20trademark%20policy%20guidelines.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nDe senaste offentliga inläggen från det officiella @Mastodon-kontot på [Mastodon](wiki:Mastodon_(social_network)) kretsar kring flera centrala teman:\n\n---\n\n### 1. Ny plattformsdesign och kommande funktioner (Mastodon 5.0)\nEtt stort fokus har varit att dela forskning om användarupplevelser och presentera kommande designförändringar:\n- **Förhandstitt på Mastodon 5.0:** En tidig inblick i version 5.0, med fokus på en lugnare layout, ett nytt visuellt uttryck och en uppdaterad inläggsredigerare ([Förhandstitt på Mastodon 5.0](embed:mastodon-after-publishing-WqJ)).\n- **Resultat från Discovery Week:** Resultat från användarworkshoppar och enkäter som designteamet har genomfört för att bättre förstå hur gemenskapen använder plattformen ([Sammanfattning av Discovery Week](embed:mastodon-we-re-5Ll)).\n\n### 2. Styrning och tydligare varumärkespolicy\nMastodon har fokuserat på att bemöta gemenskapens farhågor kring projektets policyer:\n- **Riktlinjer för varumärkespolicyn:** Uppdaterade och förtydligade riktlinjer samt sammanfattningar på klarspråk om Mastodons varumärkespolicyer, framtagna efter synpunkter från gemenskapen ([Tillkännagivande om varumärkesriktlinjer](embed:mastodon-today-we-3Kb)).\n\n### 3. Gemenskapen i fokus och stöd till ekosystemet\nUppmärksamhet på det bredare [Fediverse](wiki:Fediverse)-ekosystemet, serveroperatörer och säkerhetsinitiativ:\n- **Utvald server i fokus:** Marknadsföring av specialiserade instanser som *Earth.Law*, en miljövänlig server anpassad för miljöjurister, forskare och aktivister ([Presentation av Earth.Law-servern](embed:mastodon-here-is-miz)).\n- **Enkäter om ekosystemet:** Spridning av administrativa initiativ som IFTAS enkät om drift av den sociala webben för att stödja moderatorer och administratörer ([Inlägg om IFTAS-enkäten](embed:mastodon-re-https-wnD)).\n\n### 4. Organisations- och teamuppdateringar\nÖppenhet kring förändringar i teamet och ledningen:\n- **Avsked till en ledare:** Uppmärksammande av att gemenskapsansvariga chefen och styrelseledamoten Hannah Aubry lämnar, med tack för hennes bidrag till gemenskapens tillväxt ([Avskedsinlägg för Hannah Aubry](embed:mastodon-hannah-aubry-O6F)).\n\n### 5. Projektfinansiering och profilprodukter\nStöd till fortsatt utveckling av nätverket med öppen källkod:\n- **Förbeställningar av Plushtodon:** Tillkännagivande av nya färger på den mjuka maskoten i butiken, så att supportrar kan bidra direkt till att finansiera utvecklingen ([Inlägg om förbeställningar av Plushtodon](embed:mastodon-new-plushtodon-7D2)).\n\n---\n\n### Utvalda exempel\n\n[@Mastodon: Efter att ha publicerat resultaten från Discovery Week kan vi nu ge er en första förhandstitt](embed:mastodon-after-publishing-WqJ)\n[@Mastodon: I dag delar vi ytterligare riktlinjer om vår varumärkespolicy baserat på …](embed:mastodon-today-we-3Kb)\n[@Mastodon: Nya #Plushtodon-färger kan nu förbeställas i vår butik! Det här är ett sätt](embed:mastodon-new-plushtodon-7D2)"
       },
       "follow_up_1": {
-        "text": "Sök efter nyligen publicerade bloggmeddelanden från Mastodon"
+        "text": "Sök efter nyligen förda diskussioner om Mastodon 5.0 på Reddit"
       },
       "follow_up_2": {
-        "text": "Förklara hur decentraliserad moderering fungerar på Mastodon"
+        "text": "Förklara hur decentraliserad moderering fungerar i Fediverse"
       },
       "follow_up_3": {
-        "text": "Sök efter uppdateringar om utvecklingen av Mastodon 5.0"
+        "text": "Sök efter tekniska artiklar som förklarar funktioner i ActivityPub-protokollet"
       },
       "follow_up_4": {
-        "text": "Jämför ändringarna i Mastodon 5.0 med tidigare versioner"
+        "text": "Jämför Mastodons styrningsmodeller med kommersiella sociala nätverk"
       },
       "follow_up_5": {
-        "text": "Sök efter diskussioner i communityn om moderering av Fediverse-servrar"
+        "text": "Hitta kommande onlinekonferenser om programvara med öppen källkod"
       },
       "follow_up_6": {
-        "text": "Lista de viktigaste utmaningarna för plattformar med öppen källkod"
+        "text": "Diskutera finansieringsmodeller för oberoende plattformar med öppen källkod"
       }
     },
     "memory_books_currently_reading": {
@@ -10388,20 +10362,6 @@
         "text": "List essential items to pack for variable weather bike rides"
       }
     },
-    "organic_groceries_berlin": {
-      "title": {
-        "text": "Organic Grocery Delivery in Berlin"
-      },
-      "summary": {
-        "text": "Compared Berlin organic grocery delivery options for oat milk and bananas using local delivery sources and product results."
-      },
-      "message_1": {
-        "text": "Can you find organic grocery delivery options in Berlin for oat milk and bananas, compare a few reliable local options, and recommend which one to use?"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"91a1a938-12c3-47f9-a00b-e9a59d2a8ad2\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"organic grocery delivery Berlin\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"cf2504cb-56b5-4ea3-89d5-4cf9cc732911\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Bio Lebensmittel Lieferservice Berlin Hafermilch Bananen\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"5cdfdced-0921-47ed-a351-a0d19ccbb8e2\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Hafermilch\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b6f64bdd-2b32-4623-83eb-8cf57975ba70\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Bananen\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\nBerlin has an excellent ecosystem for organic groceries, offering everything from traditional farm-to-door \"Biokisten\" (organic boxes) to ultra-fast delivery apps. Since you are specifically looking for organic oat milk (*Bio Hafermilch*) and organic bananas (*Bio Bananen*), these are staple items available almost everywhere.\n\nHere is a comparison of the most reliable local options, categorized by how they operate:\n\n### 1. The Local \"Biokiste\" Services (Best for Sustainability & Regionality)\nThese are local, dedicated organic delivery services that have been operating in Berlin for years. They focus heavily on sustainability, fair trade, and regional farming.\n*   **[LogischBIO](embed:logisch-bio.de-eeO):**\n    *   **The Vibe:** A true online organic supermarket with a local heart. They've been operating in Berlin since 1998.\n    *   **Pros:** They offer over 5,000 organic items. Crucially, they require **no subscription** (*kein Abo*), which makes them incredibly flexible if you just want to do a one-off grocery haul.\n    *   **Cons:** You need to plan a day or two ahead for your delivery slot.\n*   **[Märkische Kiste](embed:maerkischekiste.de-fJw) & [Landkorb](embed:landkorb.de-Ze3):**\n    *   **The Vibe:** Classic \"Ökokiste\" (Eco-box) providers. They deliver in reusable boxes straight to your door.\n    *   **Pros:** Excellent for supporting regional Brandenburg farmers. You can either subscribe to a pre-made seasonal box or build your own custom box with exact items like oat milk and bananas.\n    *   **Cons:** Often heavily subscription-based (though you can pause/customize easily). Delivery days are sometimes restricted based on your specific Berlin postal code.\n\n### 2. Quick Commerce (Best for Urgent Needs)\nIf you need your oat milk for tomorrow morning's coffee and can't wait for a scheduled delivery slot:\n*   **Alnatura via [Wolt](embed:wolt.com-UR8) / UberEats:**\n    *   **The Vibe:** Ultra-fast delivery from one of Germany's most popular organic supermarket chains.\n    *   **Pros:** Delivery in roughly 30 minutes. You get access to the high-quality Alnatura brand products.\n    *   **Cons:** Higher delivery fees, and the couriers are gig-economy workers, which lacks the community/sustainability ethos of the dedicated farm boxes.\n\n### 3. Mainstream Supermarket Delivery (Best for General Shopping)\nIf you want to combine your organic basics with a regular grocery order:\n*   **REWE Lieferservice:**\n    *   They have a very reliable scheduled delivery network in Berlin and a massive organic (\"REWE Bio\") range.\n    *   For example, you can easily grab [REWE Bio Vegan Oat Drink](embed:rewe-bio-pflanzlich-Q5w) or [Oatly Bio Barista](embed:oatly-bio-haferdrink-cdI), alongside [Organic Bananas](embed:bio-banane-ca-GZn).\n\n---\n\n### 🏆 Recommendation: Which one should you use?\n\n**Go with LogischBIO.**\nIf you want a reliable, Berlin-based company that specializes entirely in organic food, they are the best all-rounder. Because they don't lock you into a subscription box model, you can just treat them like a regular online supermarket. You can easily stock up on a whole carton of oat milk and a bunch of bananas without having to commit to a weekly vegetable box you might not have time to cook.\n\n**However, if you are in a rush right now:** Open the Wolt app and see if the **Alnatura Brand Store** delivers to your specific neighborhood (they cover most of the Ringbahn area). You'll have your organic bananas and oat milk at your door in 30 minutes."
-      }
-    },
     "pdf_read_secret_word": {
       "title": {
         "text": "Read a PDF page"
@@ -10808,16 +10768,34 @@
     },
     "ted_talk_transcript_summary": {
       "title": {
-        "text": "TED Talk Transcript Summary"
+        "text": "Analys av Will Stephens satiriska TED-tal"
       },
       "summary": {
-        "text": "Get a YouTube talk transcript and summarize the speaker's core argument in five bullets."
+        "text": "Sammanfattade Will Stephens satiriska TEDx-tal om retorik i fem komiska kärnargument."
       },
       "message_1": {
-        "text": "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
+        "text": "Hämta transkriberingen för det här TED-talet och sammanfatta kärnargumentet i fem punkter: [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
       },
       "message_2": {
-        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\nVideon är Will Stephens satiriska TEDx-presentation, *\"How to sound smart in your TEDx Talk\"* (se föredraget).\n\nIstället för att hålla en informativ föreläsning använder Stephen metahumor för att dekonstruera konventionerna för [offentligt talande](wiki:Public_speaking). Här är kärnargumentet sammanfattat i fem punkter:\n\n* **Framförandet skapar en illusion av substans:** Tempo, medvetna handgester, dramatisk ögonkontakt och fysisk rekvisita (som glasögon utan styrka) kan övertyga en publik om att en talare är briljant även när hen inte har något av värde att säga.\n* **Scennärvaro är högst formelstyrd:** Bekanta interaktiva grepp – som att ställa retoriska frågor, be om handuppräckning och bjuda på självutlämnande anekdoter – är kalkylerad scenkonst utformad för att skapa konstlad värme och trovärdighet.\n* **Datavisualisering ger oförtjänt auktoritet:** Att visa slumpmässiga siffror, enkel aritmetik och diagram utan sammanhang utnyttjar visuella fördomar och får en presentation att framstå som noggrant underbyggd även när datan är helt irrelevant.\n* **Publiken projicerar mening på nonsens:** Genom att kombinera ett seriöst tonfall och suggestiva arkivbilder med rent svammel kan talare få lyssnare att undermedvetet söka efter – och föreställa sig – djupa kopplingar där inga finns.\n* **Emotionella crescendon kan fabriceras:** Att bygga upp röstens intensitet, sakta ner till en viskning och göra dramatiska pauser efterliknar rytmen av en uppenbarelse, vilket bevisar hur lätt känslan av inspiration kan konstrueras utan någon underliggande insikt."
+      },
+      "follow_up_1": {
+        "text": "Sök efter andra populära satiriska presentationer på YouTube"
+      },
+      "follow_up_2": {
+        "text": "Förklara historien bakom TEDx-formatet och dess kulturella påverkan"
+      },
+      "follow_up_3": {
+        "text": "Hitta masterclass-lektioner i retorik online"
+      },
+      "follow_up_4": {
+        "text": "Analysera de specifika kroppsspråkstekniker som används av kända huvudtalare"
+      },
+      "follow_up_5": {
+        "text": "Sök efter analysvideor om retoriska tekniker"
+      },
+      "follow_up_6": {
+        "text": "Lista tips för att övervinna scenskräck vid offentliga framträdanden"
       }
     },
     "upcoming_reminders_list": {
@@ -11001,6 +10979,70 @@
       },
       "follow_up_6": {
         "text": "Jämför olika metoder för att omvandla talade idéer till organiserade uppgifter"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "Vegetariska receptidéer med basvaror från kylen"
+      },
+      "summary": {
+        "text": "Användaren bad om vegetariska receptidéer med spenat, morötter, paprika och kikärtor; assistenten gav tre alternativ."
+      },
+      "message_1": {
+        "text": "Rekommendationer på vegetariska recept? Jag har fortfarande spenat, morötter, paprika och kikärtor i kylen."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nMed **spenat, morötter, paprika och kikärtor** har du en bra grund för goda, fiberrika vegetariska måltider. \n\nHär är tre olika kulinariska inriktningar beroende på vilken typ av rätt du är sugen på:\n\n---\n\n### 1. Fräscht & krispigt: Hackad sallad i thailändsk stil\nOm du vill ha något snabbt, lätt och krispigt kan du blanda finhackad rå paprika, morötter och spenat med kikärtor i en syrlig [jordnöts-](wiki:Peanut) och limedressing.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Matiga biffar: Krispiga kikärts- och grönsaksfritters\nOm du vill ha något varmt i lagom stora bitar (perfekt i wraps, pitabröd eller tillsammans med en yoghurtdipp), mosa kikärtorna och vänd ner finhackade morötter, paprika och förvälld spenat.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Snabbt vardagsalternativ: Varm kikärts- och grönsakscurry i panna\nOm du vill ha en allt-i-ett-rätt med basvaror från skafferiet (som kokosmjölk på burk eller krossade tomater):\n1. **Fräs smakgivarna:** Hetta upp olivolja i en panna och stek tärnad lök, finhackad vitlök och ingefära tills det doftar gott.\n2. **Tillsätt de fasta grönsakerna:** Skär morötterna och paprikan i munsbitsstora bitar. Blanda ner dem tillsammans med mald spiskummin, [gurkmeja](wiki:Turmeric) och en nypa chilipulver eller curry.\n3. **Sjud:** Tillsätt dina sköljda kikärtor tillsammans med ett par deciliter grönsaksbuljong eller kokosmjölk. Lägg på ett lock och sjud i 10–12 minuter tills morötterna är mjuka.\n4. **Låt spenaten mjukna:** Rör ner den färska spenaten precis på slutet i 1–2 minuter tills den är klarstark grön och har mjuknat. Avsluta med en skvätt citronsaft.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Vilken matlagningsstil föredrar du idag?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Fräsch och krispig hackad sallad\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Krispiga stekta fritters eller biffar\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Varm curry eller gryta i panna\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "Sök efter mer detaljerade instruktioner och fullständiga mått för ingredienserna till curryn i stekpanna"
+      },
+      "follow_up_2": {
+        "text": "Förklara hur man förbereder och förvarar överblivna kikärtsbiffar för matlådor"
+      },
+      "follow_up_3": {
+        "text": "Sök efter recept på vegansk yoghurtdipp som passar bra till kikärtsbiffar"
+      },
+      "follow_up_4": {
+        "text": "Lista enkla kryddersättningar om jag saknar currypulver till stekpannerätten"
+      },
+      "follow_up_5": {
+        "text": "Sök efter alternativa dressingrecept med tahini till den thailändska hackade salladen"
+      },
+      "follow_up_6": {
+        "text": "Jämför protein- och fiberinnehållet i dessa tre vegetariska receptalternativ"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "Jämför airfryers i Tyskland"
+      },
+      "summary": {
+        "text": "Jämförde de populäraste airfryerna på Amazon Tyskland utifrån pris, kapacitet och betyg, och rekommenderade Philips Airfryer 2000-serien för ett hushåll på två personer."
+      },
+      "message_1": {
+        "text": "Hitta airfryers som jag kan köpa online i Tyskland, inklusive listningar på Amazon. Jämför aktuella priser, kapacitet och recensionsbetyg, och rekommendera sedan en för ett hushåll på två personer med källänkar."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nHär är en jämförelse av topprankade airfryers som för närvarande finns tillgängliga på Amazon Tyskland, med jämförelse av pris, kapacitet och kundbetyg.\n\n---\n\n### Jämförelse av populära modeller i Tyskland\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Topprekommendation för ett 2-personershushåll\n\n#### **Huvudval: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **Varför den passar bäst för två personer:**\n  * **Optimal kapacitet (6,2 L):** Korgar mindre än 4,5–5 L kräver tillagning i flera omgångar även för två personer. En korg på 6,2 L gör att du kan lägga två laxfiléer och en hel portion grönsaker eller pommes frites platt i ett lager för jämn krispighet.\n  * **Plats i köket:** Maskiner med dubbla zoner (som Ninja eller Russell Hobbs) tar upp betydande bänkyta. En enkel korg på 6 L ger gott om volym samtidigt som den behåller ett kompakt format som passar typiska tyska köksbänkar.\n  * **Genomskinligt fönster:** Gör det möjligt att kontrollera bryningen utan att dra ut lådan och förlora värme.\n  * **Prisvärdhet:** För 99,99 € erbjuder den pålitlig temperaturstabilitet från [Philips](wiki:Philips) till en rimlig prispunkt.\n\n#### **Alternativ (om du ofta lagar två rätter vid olika temperaturer): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nOm du och din partner föredrar att tillaga protein och grönsaker samtidigt vid olika temperaturer och tider (t.ex. kycklingbröst vid 180 °C och krispig potatis vid 200 °C), är denna modell för närvarande nedsatt till 119,99 € och har synkroniserade tillagningstider.\n\n---\n\n### Viktiga faktorer att tänka på före köp\n1. **Lådans form:** Fyrkantiga korgar (som Cosori och Philips) rymmer platta föremål (biffar, bakformar, spett) mycket bättre än runda korgar med samma literkapacitet.\n2. **Plats i diskmaskinen:** Se till att din diskmaskin har tillräcklig höjd för en 6 L enkel låda, eller överväg att handdiska non-stick-beläggningar för att förlänga deras livslängd."
+      },
+      "follow_up_1": {
+        "text": "Sök efter recept som är specifikt framtagna för airfryers"
+      },
+      "follow_up_2": {
+        "text": "Förklara de främsta skillnaderna mellan airfryers med enkel och dubbel korg"
+      },
+      "follow_up_3": {
+        "text": "Hitta kompatibla baktillbehör till den här airfryern"
+      },
+      "follow_up_4": {
+        "text": "Lista nybörjarvänliga recept för att laga middag i en airfryer"
+      },
+      "follow_up_5": {
+        "text": "Kontrollera aktuell energiförbrukning för dessa modeller"
+      },
+      "follow_up_6": {
+        "text": "Jämför rengörings- och underhållskrav för keramik- kontra teflonbeläggningar"
       }
     }
   },

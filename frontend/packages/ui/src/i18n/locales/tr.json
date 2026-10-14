@@ -8960,20 +8960,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"2654ed6e-e439-4c21-98c7-95269083da71\", \"app_id\": \"reminder\", \"skill_id\": \"cancel-reminder\"}\n```\n\nOK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.\n\nWould you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?"
       }
     },
-    "chickpea_spinach_protein_dinners": {
-      "title": {
-        "text": "Chickpea Spinach Protein Dinners"
-      },
-      "summary": {
-        "text": "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
-      },
-      "message_1": {
-        "text": "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d7f21a46-8f13-4f14-82c4-d868ba62bb8a\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\",\"query\":\"chickpea and spinach dinner\",\"provider\":\"Edamam\",\"status\":\"finished\"}\n```\n\nHere are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.\n\n### 1. 10-Minute Chickpea and Spinach Curry\nThis is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.\n\n[!](embed:thefieryvegetarian.com-3sr)\n[!](embed:vegancocotte.com-IZt)\n[!](embed:vegancocotte.com-rFn)\n\n*   **Total Time:** 10 minutes\n*   **Protein Content:** ~10.5g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)\n*   1 (15 oz) can diced [tomatoes](wiki:Tomato)\n*   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)\n*   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)\n*   3 cups fresh [spinach](wiki:Spinach)\n*   1 tsp vegetable oil\n\n**Instructions:**\n1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.\n2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.\n3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.\n4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.\n\n---\n\n### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes\nThis Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.\n\n[!](embed:runningonrealfood.com-R8H)\n[!](embed:americanhomecook.com-Alt)\n[!](embed:shortgirltallorder.com-QXv)\n\n*   **Total Time:** 15 minutes\n*   **Protein Content:** ~23.1g per serving\n*   **Servings:** 2\n\n**Ingredients:**\n*   1 (15 oz) can chickpeas (drained and rinsed)\n*   1 (14.5 oz) can diced tomatoes\n*   5 oz baby spinach\n*   1 small onion (diced) & 4 garlic cloves (sliced)\n*   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)\n*   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))\n\n**Instructions:**\n1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).\n2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.\n3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.\n4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).\n\n---\n\n### 3. 20-Minute Middle Eastern Spinach and Chickpeas\nA simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.\n\n[!](embed:carolinescooking.com-Dy7)\n[!](embed:simpleveganblog.com-8dt)\n[!](embed:ourplantbasedworld.com-Krr)\n\n*   **Total Time:** 20 minutes\n*   **Protein Content:** ~8.7g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   3 cups low-sodium canned chickpeas (drained and rinsed)\n*   2 cups baby spinach\n*   2/3 cup diced tomatoes\n*   ½ large white onion (diced)\n*   2 tsp minced garlic\n*   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)\n\n**Instructions:**\n1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.\n2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.\n3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.\n4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.\n5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.\n\n---\n\n**Next steps for your meal prep:**\n*   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?\n*   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?"
-      }
-    },
     "classic_car_reverse_image_search": {
       "title": {
         "text": "Fotoğraftan Klasik Bir Arabayı Tanımla"
@@ -9086,66 +9072,66 @@
     },
     "community_garden_sunflower_illustration": {
       "title": {
-        "text": "Botanik bir ayçiçeği illüstrasyonu oluştur"
+        "text": "Bahçe Broşürü için Ayçiçeği Botanik İllüstrasyonu"
       },
       "summary": {
-        "text": "Bir topluluk bahçesi broşürü için metinsiz bir ayçiçeği illüstrasyonu oluştur."
+        "text": "Tasarım önerileriyle birlikte bir topluluk bahçesi broşürü için ayçiçeğinin sıcak bir botanik illüstrasyonu oluşturuldu."
       },
       "message_1": {
-        "text": "Lütfen bir topluluk bahçesi broşürü için, temiz ve açık renkli bir arka plan üzerinde, metin içermeyen, sıcak bir botanik ayçiçeği illüstrasyonu oluştur."
+        "text": "Lütfen bir topluluk bahçesi broşürü için, metin içermeyen temiz ve açık renkli bir arka plan üzerinde, ayçiçeğinin sıcak bir botanik illüstrasyonunu oluştur."
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6a3857ca-aa90-486f-b481-4e1df6f95faa\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nTopluluk bahçesi broşürün için o botanik ayçiçeği illüstrasyonunu şimdi oluşturuyorum; şu anda işleniyor ve tamamlandığında tam burada, sohbette görünecek.\n\n### Topluluk Broşürleri İçin Hızlı Tasarım İpuçları\n\nBahçe broşürünü hem davetkar hem de okunması kolay hale getirmek için:\n\n- **Görsel Hiyerarşi ve Boşluklar:** İllüstrasyona nefes alacak alan bırak. Onu bir kenar boşluğuna veya başlığa yerleştirmek, bahçecilik ipuçları veya etkinlik detayları için karmaşa hissi yaratmadan net bir alan bırakır.\n- **Renk Uyumu:** Bölüm başlıkları ve kenarlıklar için doğrudan sanat eserinden sıcak tonlar seç; koyu bal sarısı, zeytin yaprağı yeşili veya toprak rengi terakota gibi.\n- **Kendi Sanatını Harmanla:** Eğer topluluk üyeleri veya yerel bahçıvanlar gerçek bahçe yataklarınızın eskizlerini, yaprak baskılarını veya fotoğraflarını oluşturursa, bunları dijital illüstrasyonlarla birlikte entegre etmek harika, samimi ve davetkar bir dokunuş yaratır.\n\n---\n\n**Sonraki Adımlar ve Seçenekler:**\n- [Başlıklar ve ipuçlarıyla bir broşür düzeni tasarla](/#message=Help%20me%20design%20a%20clean%20layout%20and%20copy%20for%20a%20community%20garden%20handout.)\n- [Ayçiçeklerine dayalı bir renk paleti öner](/#message=Suggest%20a%20warm%20color%20palette%20and%20typography%20pairing%20for%20a%20botanical%20garden%20flyer.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"83e98b9b-8bcb-4774-9223-be000504a84a\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nİşte topluluk bahçesi el ilanın için ayçiçeğinin sıcak bir botanik illüstrasyonu:\n\n[!](embed:generated-images-ff26d807eb07)\n\n### Tasarım ve İş Akışı Önerileri\n\n- **El çizimi öğelerle birleştirme:** Topluluk materyalleri için dijital veya yapay zeka tarafından oluşturulan sanat eserlerini özgün kişisel dokunuşlarla harmanlamak harika sonuçlar verir. Örneğin, bu illüstrasyonu bir arka plan veya görsel dayanak noktası olarak yazdırabilir, ardından topluluk üyelerinin yanına dikim diyagramları çizmesini, bakım ipuçlarını el yazısıyla yazmasını veya kurutulmuş yapraklar/tohumlar eklemesini sağlayabilirsin.\n- **El İlanı Düzeni ve Hiyerarşisi:**\n  - **Beyaz alan:** El ilanına havadar ve davetkar bir his vermek için ayçiçeğinin etrafında geniş kenar boşlukları bırak.\n  - **Tipografi:** Başlıklar için organik veya hümanist bir serif ([Garamond](wiki:Garamond) veya [Georgia](wiki:Georgia_(typeface)) gibi) ile dikim talimatları, toprak hazırlama detayları ve etkinlik tarihleri için okunaklı bir sans-serif'i eşleştir.\n  - **Renk Paleti:** Vurgu çizgileri veya alt başlıklar için taç yapraklardan kehribar ve altın tonlarını, önemli vurgular için ise koyu orman yeşilini örnekle.\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"garden_handout_next_step\",\n  \"multiple\": false,\n  \"question\": \"What would you like to work on next for the handout?\",\n  \"options\": [\n    {\n      \"id\": \"layout_tips\",\n      \"text\": \"Get advice on typography and grid layout for the printed flyer\"\n    },\n    {\n      \"id\": \"variations\",\n      \"text\": \"Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)\"\n    },\n    {\n      \"id\": \"custom\",\n      \"text\": \"Something else\"\n    }\n  ],\n  \"custom_option_id\": \"custom\",\n  \"custom_placeholder\": \"Describe what you need...\"\n}\n```\n\n[!](embed:generated-media-images-83e98b9b8bcb)"
       },
       "follow_up_1": {
-        "text": "Bölgedeki yerel topluluk bahçesi etkinliklerini ara"
+        "text": "Lavanta üzerinde meşgul bir bal arısının başka bir illüstrasyonunu oluştur"
       },
       "follow_up_2": {
-        "text": "Bahçe broşürü için samimi bir giriş metni yazmama yardım et"
+        "text": "Okunabilir bir topluluk bahçesi broşürü tasarlamak için temel ipuçlarını listele"
       },
       "follow_up_3": {
-        "text": "Broşür süslemesi için ücretsiz SVG bitki simgeleri bul"
+        "text": "Yazdırılabilir broşürler için ücretsiz tipografi yazı tiplerini ara"
       },
       "follow_up_4": {
-        "text": "Bir topluluk bahçesi rehberine dahil edilecek temel ipuçlarını listele"
+        "text": "Bir el ilanında negatif alan ve metin dengesinin nasıl kurulacağını açıkla"
       },
       "follow_up_5": {
-        "text": "Bahçe el ilanları için tipografi eşleştirme fikirleri ara"
+        "text": "Dalında olgunlaşmış yadigâr domateslerin bir illüstrasyonunu oluştur"
       },
       "follow_up_6": {
-        "text": "Görsel öğelerin bir baskı düzeninde nasıl yerleştirileceğini açıkla"
+        "text": "Doğal organik baskı projeleri için renk paleti fikirlerini açıkla"
       }
     },
     "community_garden_volunteer_chime": {
       "title": {
-        "text": "Bir topluluk bahçesi için sıcak bir çan sesi"
+        "text": "Topluluk Bahçesi Bildirim Sesi Tasarımı"
       },
       "summary": {
-        "text": "Kurgusal bir topluluk bahçesi uygulaması için kısa, iki notalı bir bildirim sesi oluştur."
+        "text": "Bir topluluk bahçesi gönüllü kayıt bildirimi için nazik, iki notalı ahşap çan ses efekti oluşturuldu."
       },
       "message_1": {
-        "text": "Bir gönüllü kaydolduğunda topluluk bahçesi uygulaması için çalacak kısa ve sıcak bir bildirim sesi oluştur. Nazik, iki notalı bir çan sesi olsun, konuşma içermesin ve üç saniyenin altında olsun."
+        "text": "Bir topluluk bahçesi uygulaması için, bir gönüllü kaydolduğunda çalacak kısa ve sıcak bir bildirim sesi oluştur. Nazik, iki notalı bir çan sesi olsun, konuşma içermesin ve üç saniyenin altında olsun."
       },
       "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nTopluluk bahçesi uygulaman için sıcak ve nazik iki notalı çan sesini şimdi oluşturuyorum. Şu anda işleniyor ve hazır olur olmaz sohbette görünecek.\n\n### Önerilen Sonraki Adımlar\n- [Toprak tonlarında, kutlama amaçlı bir rozet açma sesi oluştur](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Gönüllü onay kartı düzeni tasarla](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdda9f85-fa01-48ca-acf7-7746de6dc0f3\",\"app_id\":\"audio\",\"skill_id\":\"generate\"}\n```\n\nİşte topluluk bahçesi gönüllü kayıt bildirimin için hazırlanan nazik ve sıcak, iki notalı çan sesi:\n\n[!](embed:generated-audio-17f56f2e73be)\n\n### Ses Profili\n- **Ton:** Doğayı ve büyümeyi çağrıştırmak için tasarlanmış organik, yankılanan ahşap çan/marimba tonları.\n- **Tempo:** Birisi yardım etmek için katıldığında moral verici ve hoş geldin hissi uyandıran yükselen iki notalı bir dizi.\n- **Süre:** 2 saniye; uygulama kullanıcıları için kısa ve rahatsız etmeyecek şekilde tutuldu.\n\nBu ton, uygulamanın geri kalan kullanıcı arayüzü paletiyle nasıl uyum sağlıyor? Gerekirse tınıyı (örneğin, daha yumuşak bir akustik gitar tınısına, bir Tibet kasesine veya daha parlak bir cam zile doğru) ayarlayabiliriz.\n\n[!](embed:generated-media-audio-fdda9f85fa01)"
       },
       "follow_up_1": {
-        "text": "Görev tamamlama için kutlama amaçlı bir rozet açma sesi oluştur"
+        "text": "Daha yumuşak bir akustik gitar tınısı versiyonu oluştur"
       },
       "follow_up_2": {
-        "text": "Ses tasarımının mobil uygulamalarda kullanıcı etkileşimini nasıl etkilediğini açıkla"
+        "text": "Bildirim seslerinin kullanıcılarla nasıl test edileceğini tartış"
       },
       "follow_up_3": {
-        "text": "Sabah sulama programları için nazik bir hatırlatıcı sesi oluştur"
+        "text": "Çınlayan bir Tibet kasesi ses efekti oluştur"
       },
       "follow_up_4": {
-        "text": "Rahatsız etmeyen kullanıcı arayüzü bildirim sesleri tasarlamak için en iyi uygulamaları listele"
+        "text": "Mobil uygulama bildirim sesleri için en iyi uygulamaları listele"
       },
       "follow_up_5": {
-        "text": "Form doğrulama hataları için yumuşak bir hata uyarı sesi oluştur"
+        "text": "Daha parlak bir cam zil bildirim sesi oluştur"
       },
       "follow_up_6": {
-        "text": "Özel ses efektlerinin mobil uygulamalara nasıl entegre edileceğini açıkla"
+        "text": "Uygulamalar için farklı sonik markalama stillerini karşılaştır"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -9182,34 +9168,34 @@
     },
     "community_garden_welcome_melody": {
       "title": {
-        "text": "Topluluk Bahçesi Karşılaması İçin Bir Melodi"
+        "text": "Nazik bir topluluk bahçesi karşılama melodisi oluştur"
       },
       "summary": {
-        "text": "Bir topluluk bahçesi karşılama videosu için nazik bir enstrümantal melodi oluştur."
+        "text": "Bir topluluk bahçesi karşılama videosu için sıcak bir akustik sese sahip, vokalsiz, kısa bir enstrümantal melodi oluştur."
       },
       "message_1": {
-        "text": "Bir topluluk bahçesi karşılama videosu için vokal içermeyen, kısa ve nazik bir enstrümantal melodi oluşturabilir misin?"
+        "text": "Bir topluluk bahçesi karşılama videosu için vokalsiz, kısa ve nazik bir enstrümantal melodi oluşturabilir misin?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"296e122a-cd23-4fc6-9c27-99f21f8e3401\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nTopluluk bahçesi karşılama videon için o nazik enstrümantal parçayı şimdi oluşturuyorum. Şu anda işleniyor ve hazır olduğunda tam burada görünecek.\n\n[Topluluk bahçeciliği](wiki:Community_gardening) projeleri, komşuları bir araya getirmenin ve yerel biyoçeşitliliği desteklemenin harika bir yoludur. Müzik oluşturulurken, karşılama videosunun anlatı veya görsel akışını planlamana yardım etmemi ister misin?\n\n- [Karşılama videosu için bir taslak hazırla](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)\n- [Giriş metni veya seslendirme ipuçları için beyin fırtınası yap](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"3e5014d0-2082-4604-b968-1553d6cc43e4\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nİşte topluluk bahçesi karşılama videon için bestelenmiş nazik, akustik bir enstrümantal parça:\n\n[!](embed:generated-media-music-3e5014d02082)\n[!](embed:generated-music-c89ee4a5f418)\n\n### Parça Detayları\n- **Ruh Hali ve Ton:** Sıcak, davetkar ve huzurlu\n- **Enstrümantasyon:** Yumuşak piyano akorları ve hafif melodik vurgularla eşleştirilmiş akustik gitar parmak stili\n- **Süre:** 30 saniye\n- **Format:** Tamamen enstrümantal (vokalsiz), seslendirme veya metin girişi altında fon müziği olarak kullanım için ideal.\n\n### Önerilen Sonraki Adımlar\nVideoyu hazırlamayı veya bahçeye yeni katılan üyeleri tanıtmak için bir senaryo yazmayı planlıyorsan:\n\n- [Kısa bir karşılama senaryosu taslağı hazırla](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)\n- [Hareketli bir akustik alternatif oluştur](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)"
       },
       "follow_up_1": {
-        "text": "Yerel topluluk bahçesi etkinliklerini ve atölyelerini ara"
+        "text": "Topluluk bahçesi videomuz için biraz daha hareketli bir akustik parça oluştur"
       },
       "follow_up_2": {
-        "text": "Bahçe videosu için bir görsel senaryo taslağı hazırlamama yardım et"
+        "text": "Topluluk bahçemiz için sıcak bir otuz saniyelik karşılama videosu senaryosu yazmama yardım et"
       },
       "follow_up_3": {
-        "text": "Bitki ve çiçeklerin stok videolarını bul"
+        "text": "Bir video düzenleyicide topluluk bahçesi videolarını düzenleme üzerine eğitimler ara"
       },
       "follow_up_4": {
-        "text": "Topluluk videosu için karşılama seslendirme metinleri yaz"
+        "text": "Fon müziğinin bir seslendirme ile nasıl eşleştirileceğini açıkla"
       },
       "follow_up_5": {
-        "text": "Topluluk projeleri için bahçecilik ipuçları ara"
+        "text": "Bölgemizdeki yerel topluluk bahçesi etkinliklerini ve atölyelerini bul"
       },
       "follow_up_6": {
-        "text": "Topluluk bahçesi açılış günü etkinlikleri için fikirler öner"
+        "text": "Karşılama videosuna dahil edilecek görsel çekim fikirlerini listele"
       }
     },
     "creativity_drawing_meetups_berlin": {
@@ -9682,40 +9668,34 @@
     },
     "housing_policy_dinner_discussion": {
       "title": {
-        "text": "Prepare for a housing policy dinner discussion"
+        "text": "Konut politikası üzerine bir akşam yemeği tartışmasına hazırlan"
       },
       "summary": {
-        "text": "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+        "text": "Yerel bağlam ve her kişinin hedefleri hakkındaki sorularla başlayarak, konut politikası ve kira kontrolü üzerine sakin bir aile tartışmasına hazırlan."
       },
       "message_1": {
-        "text": "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+        "text": "Babamla akşam yemeği yiyeceğim ve kendisi konut politikası ile kira kontrolleri hakkında tartışmak istiyor. İyi sorular sorabilmem, temel gerçekleri kontrol edebilmem, her iki tarafın da en güçlü argümanlarını anlayabilmem ve sohbeti sakin tutabilmem için hazırlanmama yardım et."
       },
       "message_2": {
-        "text": "Focus mode activated: Prepare a political discussion."
-      },
-      "message_3": {
-        "text": "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
-      },
-      "message_4": {
-        "text": "It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. \n\nSince housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** (\"Who is right?\") to a **collaborative exploration** (\"How do we solve this complex problem together?\").\n\nHere is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.\n\n### 1. The Core Debate: Rent Control & Stabilization\n\nTo have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). \n\n**The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**\n*   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.\n*   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.\n*   **It creates \"misallocation\":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.\n*   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.\n\n**The Strongest Arguments FOR Rent Control (The Community & Equity View)**\n*   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.\n*   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.\n*   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply \"shop elsewhere\" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.\n*   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.\n\n### 2. Facts to Keep in Your Back Pocket\n*   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.\n*   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. \n*   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.\n\n### 3. Strategies to Keep It Calm\n*   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., \"I agree with you that property owners shouldn't be forced to operate at a loss.\")*\n*   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.\n*   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).\n\n### 4. Great Questions to Ask Your Dad\n\nThese questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:\n\n1.  **If he is AGAINST rent control:** *\"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?\"*\n2.  **If he is FOR rent control:** *\"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?\"*\n3.  **Zooming out to the bigger picture:** *\"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?\"*\n4.  **Finding balance:** *\"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?\"*\n\nHow are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?"
+        "text": "Aileyle konut politikası ve kira düzenlemelerini tartışmak, özellikle kuşaksal bakış açıları, mülk sahipliği veya farklı ekonomik felsefeler çatıştığında kolayca hararetlenebilir.\n\nTemel gerçekleri, politika verilerini ve akşam yemeğine özel soruları kişiselleştirmek için biraz daha bağlam paylaşabilir misin?\n\n1. **Konum / Yargı Yetkisi:** Bu tartışma belirli bir şehre, eyalete veya ülkeye mi (örneğin Kaliforniya, New York, Berlin, Birleşik Krallık) odaklanıyor yoksa baban konuya geniş, ülke çapında bir ekonomik perspektiften mi yaklaşıyor? Yerel kurallar ve piyasa baskıları büyük ölçüde farklılık gösterir.\n2. **Babanın Bakış Açısı:** Temel duruşu veya tepkisi nedir? Örneğin, bir ev sahibi, küçük bir mülk sahibi veya vergi mükellefi olarak mı konuşuyor yoksa öncelikle fiyat kontrollerine karşı serbest piyasa ekonomi teorisi üzerinden mi argüman sunuyor?\n3. **Senin Temel Hedefin:** Ortamı sakin ve yapıcı tutmanın ötesinde, senin için bir \"kazanım\" neye benzerdi; temel değerlerde (toplum istikrarına karşı yeni arz gibi) ortak bir zemin bulmak mı, onun bakış açısını anlamak mı yoksa belirli iddialara yanıt verecek sağlam verilere sahip olmak mı?\n\nBu ayrıntıları paylaştığında, doğrulanmış kanıtlar, her iki tarafın ödünleşimleri ve gerginliği azaltma stratejilerini içeren kişiselleştirilmiş bir hazırlık rehberi oluşturacağız."
       },
       "follow_up_1": {
-        "text": "Find recent studies on rent control policies"
+        "text": "Büyük şehirlerdeki güncel kira kontrolü çalışmalarını ara"
       },
       "follow_up_2": {
-        "text": "Explain the economic impact of rent control"
+        "text": "Kira kontrolü düzenlemelerine karşı sunulan yaygın argümanları listele"
       },
       "follow_up_3": {
-        "text": "Search for housing policy debates in our city"
+        "text": "Konut arzı esnekliği üzerine ekonomik araştırmaları bul"
       },
       "follow_up_4": {
-        "text": "Describe how zoning laws affect housing supply"
+        "text": "Farklı eyaletlerdeki kiracı koruma yasalarını karşılaştır"
       },
       "follow_up_5": {
-        "text": "Show me zoning laws in our area"
+        "text": "Kira düzenlemesi etkileri üzerine haber makalelerini ara"
       },
       "follow_up_6": {
-        "text": "Summarize the key arguments for rent control"
+        "text": "Konut piyasası arzının fiyat kontrollerine nasıl tepki verdiğini açıkla"
       }
     },
     "image_vectorize_openmates_header": {
@@ -9822,40 +9802,34 @@
     },
     "mastodon_public_post_themes": {
       "title": {
-        "text": "Mastodon'un Herkese Açık Gönderilerindeki Temalar"
+        "text": "Resmi Mastodon Hesabı Gönderi Özeti"
       },
       "summary": {
-        "text": "Mastodon'un resmi hesabından paylaşılan son gönderilerdeki temaları özetle ve temsilci örnekleri incele."
+        "text": "Mastodon 5.0, yönetişim, ekosistem tanıtımları, ekip güncellemeleri ve ürünleri kapsayan, resmi Mastodon hesabından gelen son herkese açık gönderilerin özeti."
       },
       "message_1": {
-        "text": "Mastodon'ın mastodon.social üzerindeki resmi hesabından paylaşılan son herkese açık gönderilerdeki ana temaları, birkaç örnek bağlantısıyla birlikte özetleyebilir misin?"
+        "text": "mastodon.social üzerindeki resmi Mastodon hesabının son herkese açık gönderilerindeki ana temaları, birkaç örnek bağlantıyla birlikte özetleyebilir misin?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"33ebec48-4730-4b4b-b7d7-f967173ac9b6\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\n@Mastodon (`@Mastodon@mastodon.social`) hesabından son herkese açık gönderileri getirme isteği şu anda arka planda çalışmaya devam ediyor ve hazır olduğunda sohbeti güncelleyecek.\n\nAkışın yüklenmesini beklerken:\n- [Son Mastodon blog duyurularına göz at](/#message=Search%20for%20the%20latest%20official%20Mastodon%20blog%20announcements%20and%20releases.)\n- [Mastodon yol haritasını incele](/#message=What%20are%20the%20major%20features%20currently%20on%20the%20Mastodon%20roadmap%3F)"
-      },
-      "message_3": {
-        "text": "Gönderiler şimdi yüklendi. Ana temaları özetleyip üç temsilci gönderiye bağlantı verebilir misin?"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"65b92905-0838-46dd-8fff-8e28cdc8789a\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\n`mastodon.social` üzerindeki resmi @Mastodon hesabı, son zamanlardaki herkese açık gönderilerinde birkaç temel temayı öne çıkarıyor:\n\n### 1. Büyük Ürün Gelişimi ve Kullanıcı Araştırması\nTasarım ekipleri tarafından yürütülen topluluk çapındaki \"Keşif Haftası\" araştırma girişiminin ardından, ana odak noktası **Mastodon 5.0**'ın temelleri oldu. Ekip, platformu daha erişilebilir ve kullanıcı dostu hale getirmeyi amaçlayan, yeniden tasarlanmış, daha sakin bir arayüzün ve güncellenmiş bir gönderi oluşturucunun önizlemelerini paylaştı.\n\n### 2. Topluluk Yönetimi, Politikalar ve Personel Güncellemeleri\nMastodon, yönetim ve politika güncellemelerini düzenli olarak paylaşıyor; özellikle fediverse yöneticileri ve geliştiricilerinden gelen geri bildirimlere doğrudan yanıt olarak **Ticari Marka Politikası** hakkında açıklayıcı yönergeler yayınladı. Ayrıca, ayrılan topluluk direktörü Hannah Aubry'ye katkıları için teşekkür ederek önemli liderlik geçişlerini duyurdular.\n\n### 3. Sunucu Tanıtımları ve Fediverse Ekosistemi\nHesap, bağımsız fediverse örneklerini ve altyapı girişimlerini aktif olarak destekliyor; örneğin temalı sunucuları (Earth.Law gibi) öne çıkarıyor ve IFTAS operasyon araştırması gibi sektör anketlerini yaygınlaştırıyor.\n\n### 4. Topluluk Ürünleri ve Proje Finansmanı\nDevam eden açık kaynaklı geliştirmeyi desteklemek için, yeni peluş maskot sürümleri (\"Plushtodonlar\") dahil olmak üzere resmi topluluk ürün güncellemelerini paylaşıyorlar.\n\n---\n\n### Üç Temsili Gönderi\n\n- **Ürün Yol Haritası ve Görsel Yenileme:** [Mastodon 5.0 önizleme duyurusu](embed:mastodon-after-publishing-D8d) — keşif bulgularına dayalı olarak gelecek 5.0 düzeninin ve gönderi oluşturucunun bir önizlemesini paylaşıyor.\n- **Politika ve Topluluk Geri Bildirimi:** [Ticari marka politikası yönergeleri güncellemesi](embed:mastodon-today-we-YqD) — topluluk girdilerine göre uyarlanan revize edilmiş ticari marka kurallarını özetliyor.\n- **Proje Desteği ve Ürünler:** [Plushtodon ön sipariş duyurusu](embed:mastodon-new-plushtodon-A57) — destekçilerin geliştirmeyi finanse etmesi için yeni resmi peluş maskotları duyuruyor.\n\n---\n\nBelirli bir konuyu daha derinlemesine incelemek ister misin?\n- [Mastodon 5.0 özellikleri hakkında daha fazla bilgi oku](/#message=What%20new%20features%20and%20changes%20are%20coming%20in%20Mastodon%205.0%3F)\n- [Ticari marka yönergelerini incele](/#message=Summarize%20Mastodon's%20updated%20trademark%20policy%20guidelines.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nResmi @Mastodon hesabının [Mastodon](wiki:Mastodon_(social_network)) üzerindeki son herkese açık gönderileri birkaç ana tema etrafında toplanıyor:\n\n---\n\n### 1. Platform Yeniden Tasarımı ve Gelecek Özellikler (Mastodon 5.0)\nKullanıcı deneyimi araştırmalarını paylaşmak ve yaklaşan tasarım değişikliklerini tanıtmak ana odak noktalarından biri oldu:\n- **Mastodon 5.0'a İlk Bakış:** Daha sakin bir düzen, yeni bir görsel estetik ve güncellenmiş bir gönderi oluşturucuya sahip 5.0 sürümüne erken bir bakış ([Mastodon 5.0'a ilk bakış](embed:mastodon-after-publishing-WqJ)).\n- **Keşif Haftası Bulguları:** Topluluğun platformla nasıl etkileşim kurduğunu daha iyi anlamak için tasarım ekibi tarafından yürütülen kullanıcı atölyeleri ve anketlerinin sonuçlarının paylaşılması ([Keşif Haftası özeti](embed:mastodon-we-re-5Ll)).\n\n### 2. Yönetişim ve Ticari Marka Netliği\nMastodon, proje politikalarına ilişkin topluluk endişelerini gidermeye odaklandı:\n- **Ticari Marka Politikası Kılavuzları:** Topluluk geri bildirimlerinin ardından Mastodon'un ticari marka politikalarına ilişkin güncellenmiş, netleştirilmiş kılavuzların ve sade dille yazılmış özetlerin yayınlanması ([Ticari marka kılavuzları duyurusu](embed:mastodon-today-we-3Kb)).\n\n### 3. Topluluk Tanıtımları ve Ekosistem Desteği\nDaha geniş [Fediverse](wiki:Fediverse) ekosistemini, sunucu operatörlerini ve güvenlik girişimlerini öne çıkarma:\n- **Öne Çıkan Sunucu Tanıtımı:** Çevre avukatları, bilim insanları ve aktivistler için özel olarak tasarlanmış çevre dostu bir sunucu olan *Earth.Law* gibi özel örneklerin tanıtılması ([Earth.Law sunucu tanıtımı](embed:mastodon-here-is-miz)).\n- **Ekosistem Anketleri:** Moderatörleri ve yöneticileri desteklemek için IFTAS Sosyal Web Operasyonları Anketi gibi idari girişimlerin desteklenmesi ([IFTAS anket gönderisi](embed:mastodon-re-https-wnD)).\n\n### 4. Kurumsal ve Ekip Güncellemeleri\nEkip geçişleri ve liderlik konusundaki şeffaflık:\n- **Liderliğe Veda:** Topluluk Direktörü ve yönetim kurulu üyesi Hannah Aubry'nin ayrılışının duyurulması ve topluluğun büyümesine yaptığı katkılar için kendisine teşekkür edilmesi ([Hannah Aubry veda gönderisi](embed:mastodon-hannah-aubry-O6F)).\n\n### 5. Proje Finansmanı ve Ürünler\nAğın açık kaynaklı gelişiminin sürdürülmesi:\n- **Plushtodon Ön Siparişleri:** Destekçilerin geliştirmeyi doğrudan finanse etmelerine yardımcı olmak için mağazadaki yeni pelüş maskot renklerinin duyurulması ([Plushtodon ön sipariş gönderisi](embed:mastodon-new-plushtodon-7D2)).\n\n---\n\n### Öne Çıkan Örnekler\n\n[@Mastodon: Keşif Haftası sonuçlarını yayınladıktan sonra, şimdi size ilk bakışı sunabiliy](embed:mastodon-after-publishing-WqJ)\n[@Mastodon: Bugün, topluluk geri bildirimlerine dayanarak Ticari Marka Politikamız hakkında ek kılavuz](embed:mastodon-today-we-3Kb)\n[@Mastodon: Yeni #Plushtodon renkleri şimdi mağazamızda ön siparişe açıldı! Bu, geliştirme sürecin](embed:mastodon-new-plushtodon-7D2)"
       },
       "follow_up_1": {
-        "text": "Son Mastodon blog duyurularını ara"
+        "text": "Reddit'te Mastodon 5.0 hakkındaki güncel tartışmaları ara"
       },
       "follow_up_2": {
-        "text": "Mastodon'da merkeziyetsiz moderasyonun nasıl çalıştığını açıkla"
+        "text": "Fediverse'de merkeziyetsiz moderasyonun nasıl çalıştığını açıkla"
       },
       "follow_up_3": {
-        "text": "Mastodon 5.0 geliştirmesiyle ilgili güncellemeleri ara"
+        "text": "ActivityPub protokolü özelliklerini açıklayan teknik makaleleri ara"
       },
       "follow_up_4": {
-        "text": "Mastodon 5.0 değişikliklerini önceki sürümlerle karşılaştır"
+        "text": "Mastodon yönetim modellerini ticari sosyal ağlarla karşılaştır"
       },
       "follow_up_5": {
-        "text": "Fediverse sunucu moderasyonu hakkındaki topluluk tartışmalarını ara"
+        "text": "Yaklaşan çevrim içi açık kaynaklı yazılım konferanslarını bul"
       },
       "follow_up_6": {
-        "text": "Açık kaynaklı platformların karşılaştığı temel zorlukları listele"
+        "text": "Bağımsız açık kaynaklı platformların finansman modellerini tartış"
       }
     },
     "memory_books_currently_reading": {
@@ -10388,20 +10362,6 @@
         "text": "List essential items to pack for variable weather bike rides"
       }
     },
-    "organic_groceries_berlin": {
-      "title": {
-        "text": "Organic Grocery Delivery in Berlin"
-      },
-      "summary": {
-        "text": "Compared Berlin organic grocery delivery options for oat milk and bananas using local delivery sources and product results."
-      },
-      "message_1": {
-        "text": "Can you find organic grocery delivery options in Berlin for oat milk and bananas, compare a few reliable local options, and recommend which one to use?"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"91a1a938-12c3-47f9-a00b-e9a59d2a8ad2\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"organic grocery delivery Berlin\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"cf2504cb-56b5-4ea3-89d5-4cf9cc732911\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Bio Lebensmittel Lieferservice Berlin Hafermilch Bananen\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"5cdfdced-0921-47ed-a351-a0d19ccbb8e2\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Hafermilch\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b6f64bdd-2b32-4623-83eb-8cf57975ba70\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Bananen\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\nBerlin has an excellent ecosystem for organic groceries, offering everything from traditional farm-to-door \"Biokisten\" (organic boxes) to ultra-fast delivery apps. Since you are specifically looking for organic oat milk (*Bio Hafermilch*) and organic bananas (*Bio Bananen*), these are staple items available almost everywhere.\n\nHere is a comparison of the most reliable local options, categorized by how they operate:\n\n### 1. The Local \"Biokiste\" Services (Best for Sustainability & Regionality)\nThese are local, dedicated organic delivery services that have been operating in Berlin for years. They focus heavily on sustainability, fair trade, and regional farming.\n*   **[LogischBIO](embed:logisch-bio.de-eeO):**\n    *   **The Vibe:** A true online organic supermarket with a local heart. They've been operating in Berlin since 1998.\n    *   **Pros:** They offer over 5,000 organic items. Crucially, they require **no subscription** (*kein Abo*), which makes them incredibly flexible if you just want to do a one-off grocery haul.\n    *   **Cons:** You need to plan a day or two ahead for your delivery slot.\n*   **[Märkische Kiste](embed:maerkischekiste.de-fJw) & [Landkorb](embed:landkorb.de-Ze3):**\n    *   **The Vibe:** Classic \"Ökokiste\" (Eco-box) providers. They deliver in reusable boxes straight to your door.\n    *   **Pros:** Excellent for supporting regional Brandenburg farmers. You can either subscribe to a pre-made seasonal box or build your own custom box with exact items like oat milk and bananas.\n    *   **Cons:** Often heavily subscription-based (though you can pause/customize easily). Delivery days are sometimes restricted based on your specific Berlin postal code.\n\n### 2. Quick Commerce (Best for Urgent Needs)\nIf you need your oat milk for tomorrow morning's coffee and can't wait for a scheduled delivery slot:\n*   **Alnatura via [Wolt](embed:wolt.com-UR8) / UberEats:**\n    *   **The Vibe:** Ultra-fast delivery from one of Germany's most popular organic supermarket chains.\n    *   **Pros:** Delivery in roughly 30 minutes. You get access to the high-quality Alnatura brand products.\n    *   **Cons:** Higher delivery fees, and the couriers are gig-economy workers, which lacks the community/sustainability ethos of the dedicated farm boxes.\n\n### 3. Mainstream Supermarket Delivery (Best for General Shopping)\nIf you want to combine your organic basics with a regular grocery order:\n*   **REWE Lieferservice:**\n    *   They have a very reliable scheduled delivery network in Berlin and a massive organic (\"REWE Bio\") range.\n    *   For example, you can easily grab [REWE Bio Vegan Oat Drink](embed:rewe-bio-pflanzlich-Q5w) or [Oatly Bio Barista](embed:oatly-bio-haferdrink-cdI), alongside [Organic Bananas](embed:bio-banane-ca-GZn).\n\n---\n\n### 🏆 Recommendation: Which one should you use?\n\n**Go with LogischBIO.**\nIf you want a reliable, Berlin-based company that specializes entirely in organic food, they are the best all-rounder. Because they don't lock you into a subscription box model, you can just treat them like a regular online supermarket. You can easily stock up on a whole carton of oat milk and a bunch of bananas without having to commit to a weekly vegetable box you might not have time to cook.\n\n**However, if you are in a rush right now:** Open the Wolt app and see if the **Alnatura Brand Store** delivers to your specific neighborhood (they cover most of the Ringbahn area). You'll have your organic bananas and oat milk at your door in 30 minutes."
-      }
-    },
     "pdf_read_secret_word": {
       "title": {
         "text": "Read a PDF page"
@@ -10808,16 +10768,34 @@
     },
     "ted_talk_transcript_summary": {
       "title": {
-        "text": "TED Talk Transcript Summary"
+        "text": "Will Stephen'ın Hicivli TED Konuşmasının Analizi"
       },
       "summary": {
-        "text": "Get a YouTube talk transcript and summarize the speaker's core argument in five bullets."
+        "text": "Will Stephen'ın topluluk önünde konuşma üzerine hicivli TEDx konuşmasını beş temel komedi argümanı halinde özetler."
       },
       "message_1": {
-        "text": "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
+        "text": "Bu TED konuşmasının transkriptini getir ve ana argümanı beş madde halinde özetle: [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
       },
       "message_2": {
-        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\nVideo, Will Stephen'ın hicivli TEDx sunumu olan *\"How to sound smart in your TEDx Talk\"* (konuşmayı izle) adlı videosudur.\n\nStephen, bilgilendirici bir ders vermek yerine [topluluk önünde konuşma](wiki:Public_speaking) kurallarını yapıbozuma uğratmak için meta-mizah kullanıyor. İşte beş maddede özetlenen temel argüman:\n\n* **Sunum, İçerik İllüzyonu Yaratır:** Tempo, bilinçli el hareketleri, dramatik göz teması ve fiziksel aksesuarlar (numarasız gözlükler gibi), bir konuşmacının söyleyecek değerli hiçbir şeyi olmasa bile dinleyiciyi onun zeki olduğuna ikna edebilir.\n* **Sahne Uyumu Son Derece Formülseldir:** Retorik sorular sormak, el kaldırmayı teşvik etmek ve kendini küçümseyen anekdotlar anlatmak gibi tanıdık etkileşimli yöntemler; yapay bir sıcaklık ve güvenilirlik oluşturmak için tasarlanmış hesaplı sahne sanatlarıdır.\n* **Veri Görselleri Hak Edilmemiş Bir Otorite Sağlar:** Rastgele sayıları, temel aritmetiği ve bağlam dışı grafikleri göstermek görsel önyargıyı suistimal eder; veriler tamamen alakasız olsa bile bir sunumun titizlikle araştırılmış görünmesini sağlar.\n* **Dinleyiciler Anlamsızlığa Anlam Yükler:** Konuşmacılar, samimi bir ses tonu ve çağrışım yapan stok görselleri tam anlamıyla saçma sözlerle eşleştirerek, dinleyicilerin bilinçaltında var olmayan derin bağlantılar aramasına ve hayal etmesine neden olabilir.\n* **Duygusal Doruk Noktaları Üretilebilir:** Ses yoğunluğunu artırmak, fısıldamak için yavaşlamak ve dramatik bir şekilde duraksamak bir aydınlanma ritmini taklit eder; bu da ilham hissinin herhangi bir temel içgörü olmadan ne kadar kolay kurgulanabileceğini kanıtlar."
+      },
+      "follow_up_1": {
+        "text": "YouTube'daki diğer popüler hicivli sunumları ara"
+      },
+      "follow_up_2": {
+        "text": "TEDx formatının tarihini ve kültürel etkisini açıkla"
+      },
+      "follow_up_3": {
+        "text": "İnternette topluluk önünde konuşma üzerine ustalık sınıfı eğitimleri bul"
+      },
+      "follow_up_4": {
+        "text": "Ünlü ana konuşmacıların kullandığı spesifik beden dili tekniklerini analiz et"
+      },
+      "follow_up_5": {
+        "text": "Retorik teknikler hakkındaki analiz videolarını ara"
+      },
+      "follow_up_6": {
+        "text": "Topluluk önünde konuşurken sahne korkusunu yenmek için ipuçlarını listele"
       }
     },
     "upcoming_reminders_list": {
@@ -11001,6 +10979,70 @@
       },
       "follow_up_6": {
         "text": "Söylenen fikirleri düzenli görevlere dönüştürmek için farklı yöntemleri karşılaştır"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "Buzdolabındaki Malzemelerle Vejetaryen Tarif Fikirleri"
+      },
+      "summary": {
+        "text": "Kullanıcı ıspanak, havuç, dolmalık biber ve nohut kullanarak vejetaryen tarif fikirleri istedi; asistan üç seçenek sundu."
+      },
+      "message_1": {
+        "text": "Vejetaryen yemek tarifleri için önerilerin var mı? Buzdolabında hala ıspanak, havuç, dolmalık biber ve nohut var."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\n**Ispanak, havuç, dolmalık biber ve nohut** ile lezzetli, lif açısından zengin vejetaryen öğünler için sağlam bir temeliniz var.\n\nCanınızın çektiği yemek tarzına göre üç farklı mutfak yönü aşağıdadır:\n\n---\n\n### 1. Taze ve Kıtır: Tay Usulü Doğranmış Salata\nHızlı, hafif ve gevrek bir şeyler istiyorsanız; ince doğranmış çiğ biber, havuç ve ıspanağı nohutla birleştirip üzerine ekşi bir [fıstık](wiki:Peanut) limon sosu ekleyin.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Tuzlu Köfteler: Çıtır Nohutlu ve Sebzeli Mücver\nSıcak ve lokmalık bir şeyler isterseniz (dürümlerde, pita ekmeğinde veya yoğurtlu sosla harikadır), nohutları ezin ve içine ince kıyılmış havuç, biber ve sotelenmiş ıspanağı ekleyin.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Hızlı Hafta İçi Alternatifi: Sıcak Nohutlu ve Sebzeli Tavada Köri\nTemel kiler malzemelerini (konserve hindistan cevizi sütü veya ezilmiş domates gibi) kullanarak tek tavada bir yemek istiyorsanız:\n1. **Aromatikleri soteleyin:** Bir tavada zeytinyağını ısıtın, ardından doğranmış soğan, kıyılmış sarımsak ve zencefili kokusu çıkana kadar pişirin.\n2. **Sert sebzeleri ekleyin:** Havuçları ve dolmalık biberleri lokma büyüklüğünde dilimleyin. Bunları kimyon, [zerdeçal](wiki:Turmeric) ve bir tutam pul biber veya köri tozuyla birlikte tavaya atın.\n3. **Kısık ateşte pişirin:** Yıkanmış nohutları bir bardak sebze suyu veya hindistan cevizi sütü ile birlikte ekleyin. Kapağını kapatın ve havuçlar yumuşayana kadar 10-12 dakika kısık ateşte pişirin.\n4. **Ispanakları söndürün:** Taze ıspanakları en sonunda ekleyip canlı yeşil bir renk alıp sönene kadar 1-2 dakika karıştırın. Bir miktar limon suyu sıkarak tamamlayın.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Bugün hangi pişirme tarzını tercih edersin?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Taze ve kıtır doğranmış salata\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Tavada kızarmış çıtır mücver veya köfte\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Sıcak, tek tavada köri veya yahni\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "Tava körisi için daha ayrıntılı talimatları ve tam malzeme ölçülerini ara"
+      },
+      "follow_up_2": {
+        "text": "Artan pişmiş nohut köftelerinin öğün hazırlığı için nasıl hazırlanacağını ve saklanacağını açıkla"
+      },
+      "follow_up_3": {
+        "text": "Nohut köfteleriyle iyi giden vegan yoğurt sosu tariflerini ara"
+      },
+      "follow_up_4": {
+        "text": "Tava yemeği için köri tozum yoksa kullanabileceğim basit baharat alternatiflerini listele"
+      },
+      "follow_up_5": {
+        "text": "Tay usulü doğranmış salata için tahin kullanan alternatif sos tariflerini ara"
+      },
+      "follow_up_6": {
+        "text": "Bu üç vejetaryen tarif seçeneğinin protein ve lif içeriğini karşılaştır"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "Almanya'daki Hava Fritözlerini Karşılaştırma"
+      },
+      "summary": {
+        "text": "Amazon Almanya'daki en iyi hava fritözlerini fiyat, kapasite ve puanlara göre karşılaştırarak iki kişilik bir hane için Philips Airfryer 2000 Serisi'ni önerdi."
+      },
+      "message_1": {
+        "text": "Almanya'da çevrim içi satın alabileceğim hava fritözlerini (Amazon listeleri dahil) bul. Güncel fiyatları, kapasiteleri ve inceleme puanlarını karşılaştır, ardından kaynak bağlantılarıyla birlikte iki kişilik bir hane için bir tane öner."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nAmazon Almanya'da şu anda mevcut olan en yüksek puanlı hava fritözlerinin (air fryer) fiyat, kapasite ve müşteri değerlendirmelerini içeren bir karşılaştırmasını aşağıda bulabilirsin.\n\n---\n\n### Almanya'daki Popüler Modellerin Karşılaştırması\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 2 Kişilik Haneler İçin En İyi Öneri\n\n#### **Birinci Tercih: [Philips Airfryer 2000 Serisi 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **Neden iki kişi için en uygunu:**\n  * **Optimal Kapasite (6,2 L):** 4,5–5 L'den küçük sepetler, iki kişi için bile birden fazla seferde pişirme gerektirir. 6,2 L'lik bir sepet, iki somon filetoyu ve yanına tam bir porsiyon sebze veya patates kızartmasını, eşit çıtırlık için tek bir katmana yaymana olanak tanır.\n  * **Mutfakta Kapladığı Alan:** Çift bölgeli makineler (Ninja veya Russell Hobbs gibi) tezgahta önemli ölçüde yer kaplar. Tek bir 6 L'lik sepet, tipik Alman mutfak tezgahları için uygun, kompakt bir yapı sunarken geniş bir hacim sağlar.\n  * **Şeffaf Pencere:** Çekmeceyi açıp ısı kaybetmeden kızarma durumunu kontrol etmeni sağlar.\n  * **Değer:** 99,99 € fiyatıyla, [Philips](wiki:Philips) kalitesinde güvenilir sıcaklık tutarlılığını makul bir fiyata sunar.\n\n#### **Alternatif (Sık Sık Farklı Sıcaklıklarda İki Yemek Pişiriyorsan): [Philips Dual Basket 3000 Serisi (9.0L)](embed:philips-airfryer-dual-pjD)**\nSen ve partnerin proteinleri ve garnitür sebzeleri aynı anda farklı sıcaklık ve sürelerde (örneğin, 180 °C'de tavuk göğsü ve 200 °C'de çıtır patates) hazırlamayı tercih ediyorsanız, bu model şu anda 119,99 €'ya indirimli ve senkronize pişirme süreleri özelliğine sahip.\n\n---\n\n### Satın Almadan Önce Dikkat Edilmesi Gereken Temel Faktörler\n1. **Çekmece Şekli:** Kare sepetler (Cosori ve Philips gibi), aynı litre kapasitesindeki yuvarlak sepetlere göre düz ürünleri (biftekler, fırın kalıpları, şişler) çok daha iyi alır.\n2. **Bulaşık Makinesi Uygunluğu:** Bulaşık makinenin 6 L'lik tek bir çekmece için yeterli raf yüksekliğine sahip olduğundan emin ol veya yapışmaz kaplamaların ömrünü uzatmak için elde yıkamayı düşün."
+      },
+      "follow_up_1": {
+        "text": "Hava fritözleri için özel olarak tasarlanmış tarifleri ara"
+      },
+      "follow_up_2": {
+        "text": "Tek ve çift hazneli hava fritözleri arasındaki temel farkları açıkla"
+      },
+      "follow_up_3": {
+        "text": "Bu hava fritözü için uyumlu pişirme aksesuarlarını bul"
+      },
+      "follow_up_4": {
+        "text": "Hava fritözünde akşam yemeği pişirmek için başlangıç dostu tarifleri listele"
+      },
+      "follow_up_5": {
+        "text": "Bu modellerin güncel enerji tüketim değerlerini kontrol et"
+      },
+      "follow_up_6": {
+        "text": "Seramik ve teflon kaplamalar için temizlik ve bakım gereksinimlerini karşılaştır"
       }
     }
   },

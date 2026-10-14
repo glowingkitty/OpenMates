@@ -8960,20 +8960,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"2654ed6e-e439-4c21-98c7-95269083da71\", \"app_id\": \"reminder\", \"skill_id\": \"cancel-reminder\"}\n```\n\nOK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.\n\nWould you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?"
       }
     },
-    "chickpea_spinach_protein_dinners": {
-      "title": {
-        "text": "Chickpea Spinach Protein Dinners"
-      },
-      "summary": {
-        "text": "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
-      },
-      "message_1": {
-        "text": "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d7f21a46-8f13-4f14-82c4-d868ba62bb8a\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\",\"query\":\"chickpea and spinach dinner\",\"provider\":\"Edamam\",\"status\":\"finished\"}\n```\n\nHere are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.\n\n### 1. 10-Minute Chickpea and Spinach Curry\nThis is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.\n\n[!](embed:thefieryvegetarian.com-3sr)\n[!](embed:vegancocotte.com-IZt)\n[!](embed:vegancocotte.com-rFn)\n\n*   **Total Time:** 10 minutes\n*   **Protein Content:** ~10.5g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)\n*   1 (15 oz) can diced [tomatoes](wiki:Tomato)\n*   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)\n*   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)\n*   3 cups fresh [spinach](wiki:Spinach)\n*   1 tsp vegetable oil\n\n**Instructions:**\n1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.\n2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.\n3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.\n4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.\n\n---\n\n### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes\nThis Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.\n\n[!](embed:runningonrealfood.com-R8H)\n[!](embed:americanhomecook.com-Alt)\n[!](embed:shortgirltallorder.com-QXv)\n\n*   **Total Time:** 15 minutes\n*   **Protein Content:** ~23.1g per serving\n*   **Servings:** 2\n\n**Ingredients:**\n*   1 (15 oz) can chickpeas (drained and rinsed)\n*   1 (14.5 oz) can diced tomatoes\n*   5 oz baby spinach\n*   1 small onion (diced) & 4 garlic cloves (sliced)\n*   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)\n*   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))\n\n**Instructions:**\n1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).\n2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.\n3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.\n4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).\n\n---\n\n### 3. 20-Minute Middle Eastern Spinach and Chickpeas\nA simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.\n\n[!](embed:carolinescooking.com-Dy7)\n[!](embed:simpleveganblog.com-8dt)\n[!](embed:ourplantbasedworld.com-Krr)\n\n*   **Total Time:** 20 minutes\n*   **Protein Content:** ~8.7g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   3 cups low-sodium canned chickpeas (drained and rinsed)\n*   2 cups baby spinach\n*   2/3 cup diced tomatoes\n*   ½ large white onion (diced)\n*   2 tsp minced garlic\n*   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)\n\n**Instructions:**\n1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.\n2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.\n3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.\n4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.\n5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.\n\n---\n\n**Next steps for your meal prep:**\n*   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?\n*   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?"
-      }
-    },
     "classic_car_reverse_image_search": {
       "title": {
         "text": "通过照片识别经典车"
@@ -9086,66 +9072,66 @@
     },
     "community_garden_sunflower_illustration": {
       "title": {
-        "text": "生成向日葵植物插图"
+        "text": "社区花园宣传册的向日葵植物插画"
       },
       "summary": {
-        "text": "为社区花园传单创作一张无文字的向日葵插图。"
+        "text": "为社区花园宣传册创作了一幅温馨的向日葵植物插画，并提供了设计建议。"
       },
       "message_1": {
-        "text": "请为社区花园传单创作一张温馨的向日葵植物插图，背景简洁明亮，不带文字。"
+        "text": "请为社区花园宣传册创作一幅温馨的向日葵植物插画，背景简洁明亮，不含文字。"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6a3857ca-aa90-486f-b481-4e1df6f95faa\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\n我正在为你生成用于社区花园传单的向日葵植物插图；目前正在处理中，完成后将直接显示在对话框中。\n\n### 社区传单快速设计技巧\n\n为了让你的花园传单既吸引人又易于阅读：\n\n- **视觉层级与间距：** 给插图留出呼吸空间。将其放置在页边距或页眉处，可以为园艺技巧或活动详情留出清晰的空间，而不会显得拥挤。\n- **色彩和谐：** 直接从插图中提取暖色调——如深蜂蜜金、橄榄叶绿或大地陶土色——用于章节标题和边框。\n- **融入原创艺术：** 如果社区成员或当地园丁创作了素描、叶子拓印或真实花园的照片，将这些与数字插图结合起来，会营造出一种美妙的、亲民且温馨的感觉。\n\n---\n\n**后续步骤与选项：**\n- [设计包含标题和提示的传单布局](/#message=Help%20me%20design%20a%20clean%20layout%20and%20copy%20for%20a%20community%20garden%20handout.)\n- [建议基于向日葵的配色方案](/#message=Suggest%20a%20warm%20color%20palette%20and%20typography%20pairing%20for%20a%20botanical%20garden%20flyer.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"83e98b9b-8bcb-4774-9223-be000504a84a\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\n这是一张为您社区花园宣传单准备的向日葵温馨植物插画：\n\n[!](embed:generated-images-ff26d807eb07)\n\n### 设计与工作流程建议\n\n- **结合手绘元素：** 对于社区材料，将数字或 AI 生成的艺术作品与真实的个人触感相结合效果极佳。例如，你可以将这张插画作为背景或视觉中心打印出来，然后让社区成员在旁边绘制种植图、手写养护技巧，或者添加压花、干叶/种子。\n- **宣传单布局与层级：**\n  - **留白：** 在向日葵周围保留充足的边距，让宣传单给人一种通透、亲切的感觉。\n  - **排版：** 标题建议搭配有机或人文主义风格的衬线体（如 [Garamond](wiki:Garamond) 或 [Georgia](wiki:Georgia_(typeface))），而种植说明、土壤准备细节和活动日期则使用易读的无衬线体。\n  - **配色方案：** 从花瓣中提取琥珀色和金色调用于装饰线或副标题，并使用深森林绿来突出重点。\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"garden_handout_next_step\",\n  \"multiple\": false,\n  \"question\": \"What would you like to work on next for the handout?\",\n  \"options\": [\n    {\n      \"id\": \"layout_tips\",\n      \"text\": \"Get advice on typography and grid layout for the printed flyer\"\n    },\n    {\n      \"id\": \"variations\",\n      \"text\": \"Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)\"\n    },\n    {\n      \"id\": \"custom\",\n      \"text\": \"Something else\"\n    }\n  ],\n  \"custom_option_id\": \"custom\",\n  \"custom_placeholder\": \"Describe what you need...\"\n}\n```\n\n[!](embed:generated-media-images-83e98b9b8bcb)"
       },
       "follow_up_1": {
-        "text": "搜索该地区的当地社区花园活动"
+        "text": "再生成一张薰衣草上忙碌蜜蜂的插图"
       },
       "follow_up_2": {
-        "text": "帮我为花园传单写一段友好的介绍性文字"
+        "text": "列出设计易读的社区花园传单的关键技巧"
       },
       "follow_up_3": {
-        "text": "寻找用于传单装饰的免费 SVG 植物图标"
+        "text": "搜索适用于可打印传单的免费排版字体"
       },
       "follow_up_4": {
-        "text": "列出社区花园指南中应包含的基本提示"
+        "text": "解释如何在讲义上平衡留白与文本内容"
       },
       "follow_up_5": {
-        "text": "搜索花园传单的字体搭配创意"
+        "text": "生成一张藤蔓上成熟传家宝番茄的插图"
       },
       "follow_up_6": {
-        "text": "解释如何在印刷布局中排列视觉元素"
+        "text": "描述适用于天然有机印刷项目的配色方案创意"
       }
     },
     "community_garden_volunteer_chime": {
       "title": {
-        "text": "社区花园的温暖提示音"
+        "text": "社区花园通知音效设计"
       },
       "summary": {
-        "text": "为一个虚构的社区花园应用生成一段简短的双音节通知音。"
+        "text": "为一个社区花园志愿者报名通知创建了一个柔和的双音节木质风铃音效。"
       },
       "message_1": {
-        "text": "为社区花园应用创建一个简短、温暖的通知音，用于志愿者报名时。要求是温和的双音节提示音，无语音，时长在三秒以内。"
+        "text": "为社区花园应用创建一个简短、温暖的通知音，用于志愿者报名时。要求是柔和的双音节风铃声，无语音，时长在三秒以内。"
       },
       "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\n我正在为你的社区花园应用生成温和、温暖的双音节提示音。目前正在处理中，准备就绪后会立即出现在对话中。\n\n### 建议的后续步骤\n- [生成充满泥土气息的庆祝勋章解锁提示音](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [设计志愿者确认卡片布局](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdda9f85-fa01-48ca-acf7-7746de6dc0f3\",\"app_id\":\"audio\",\"skill_id\":\"generate\"}\n```\n\n这是一个为您社区花园志愿者报名通知精心制作的柔和、温暖的双音节风铃声：\n\n[!](embed:generated-audio-17f56f2e73be)\n\n### 声音概况\n- **音色：** 有机、共鸣的木质风铃/马林巴琴音色，旨在唤起自然与成长的感觉。\n- **节奏：** 上扬的双音节序列，在有人加入帮忙时营造出一种积极、受欢迎的氛围。\n- **时长：** 2 秒，保持简短且不会对应用用户造成干扰。\n\n这个音调与你应用的其他 UI 色调搭配得如何？如果需要，我们可以调整音色（例如，改为更柔和的吉他拨弦、颂钵或更清脆的玻璃铃铛）。\n\n[!](embed:generated-media-audio-fdda9f85fa01)"
       },
       "follow_up_1": {
-        "text": "生成任务完成时的庆祝勋章解锁提示音"
+        "text": "生成一个音色更柔和的吉他拨弦版本"
       },
       "follow_up_2": {
-        "text": "解释声音设计如何影响移动应用的用户参与度"
+        "text": "讨论如何对用户的通知音效进行测试"
       },
       "follow_up_3": {
-        "text": "为早间浇水计划创建一个温和的提醒音"
+        "text": "生成一个颂钵敲击的音效"
       },
       "follow_up_4": {
-        "text": "列出设计非侵入式 UI 通知声音的最佳实践"
+        "text": "列出移动应用通知音频的最佳实践"
       },
       "follow_up_5": {
-        "text": "为表单验证失败生成一个柔和的错误警报声"
+        "text": "生成一个更清脆的玻璃铃铛通知音"
       },
       "follow_up_6": {
-        "text": "描述如何将自定义音效集成到移动应用程序中"
+        "text": "比较应用中不同的音频品牌设计风格"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -9182,34 +9168,34 @@
     },
     "community_garden_welcome_melody": {
       "title": {
-        "text": "社区花园欢迎曲目"
+        "text": "创作一段柔和的社区花园欢迎曲目"
       },
       "summary": {
-        "text": "为社区花园欢迎视频创作一段柔和的器乐旋律。"
+        "text": "为社区花园欢迎视频生成一段简短的器乐曲，音色温暖且无人声。"
       },
       "message_1": {
-        "text": "你能为社区花园的欢迎视频创作一段简短、柔和的器乐旋律吗？不需要人声。"
+        "text": "你能为社区花园的欢迎视频创作一段简短、柔和的器乐曲吗？不要人声。"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"296e122a-cd23-4fc6-9c27-99f21f8e3401\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\n我正在为你的社区花园欢迎视频创作那段柔和的器乐曲目。目前正在处理中，准备就绪后会直接显示在这里。\n\n[社区园艺](wiki:Community_gardening)项目是让邻里聚在一起并促进当地生物多样性的绝佳方式。在生成音乐的同时，你是否需要我帮你规划欢迎视频的叙事或视觉流程？\n\n- [起草欢迎视频的大纲](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)\n- [构思开场白文字或旁白技巧](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"3e5014d0-2082-4604-b968-1553d6cc43e4\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\n这是一段为你的社区花园欢迎视频创作的柔和原声器乐曲：\n\n[!](embed:generated-media-music-3e5014d02082)\n[!](embed:generated-music-c89ee4a5f418)\n\n### 曲目详情\n- **情绪与基调：** 温暖、亲切且宁静\n- **配器：** 原声吉他指弹，搭配柔和的钢琴和弦与轻盈的旋律点缀\n- **时长：** 30 秒\n- **格式：** 纯器乐（无人声），非常适合作为旁白或文字介绍的背景音乐。\n\n### 建议后续步骤\n如果你计划制作视频或编写向新成员介绍花园的脚本：\n\n- [起草一段简短的欢迎脚本](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)\n- [生成一段节奏轻快一些的原声备选曲目](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)"
       },
       "follow_up_1": {
-        "text": "搜索当地社区花园活动和研讨会"
+        "text": "为我们的社区花园视频创作一段节奏稍微轻快一些的原声乐曲"
       },
       "follow_up_2": {
-        "text": "帮我起草花园视频的分镜脚本"
+        "text": "帮我为我们的社区花园写一段 30 秒的温馨欢迎视频脚本"
       },
       "follow_up_3": {
-        "text": "寻找植物和花卉的库存视频素材"
+        "text": "搜索关于在视频编辑器中编辑社区花园视频的教程"
       },
       "follow_up_4": {
-        "text": "为社区视频编写欢迎词旁白"
+        "text": "描述如何将背景音乐与旁白配音相结合"
       },
       "follow_up_5": {
-        "text": "搜索社区项目的园艺技巧"
+        "text": "查找我们当地的社区花园活动和工作坊"
       },
       "follow_up_6": {
-        "text": "为社区花园开放日活动提供建议"
+        "text": "列出欢迎视频中可以包含的视觉镜头创意内容"
       }
     },
     "creativity_drawing_meetups_berlin": {
@@ -9682,40 +9668,34 @@
     },
     "housing_policy_dinner_discussion": {
       "title": {
-        "text": "Prepare for a housing policy dinner discussion"
+        "text": "为住房政策晚餐讨论做准备"
       },
       "summary": {
-        "text": "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+        "text": "为一场关于住房政策和租金管制的冷静家庭讨论做准备，从询问当地背景和每个人的目标开始。"
       },
       "message_1": {
-        "text": "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+        "text": "我要和爸爸一起吃晚饭，他想争论住房政策和租金管制。请帮我做准备，以便我能提出好的问题，核实关键事实，了解双方最有力的论点，并保持对话冷静。"
       },
       "message_2": {
-        "text": "Focus mode activated: Prepare a political discussion."
-      },
-      "message_3": {
-        "text": "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
-      },
-      "message_4": {
-        "text": "It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. \n\nSince housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** (\"Who is right?\") to a **collaborative exploration** (\"How do we solve this complex problem together?\").\n\nHere is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.\n\n### 1. The Core Debate: Rent Control & Stabilization\n\nTo have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). \n\n**The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**\n*   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.\n*   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.\n*   **It creates \"misallocation\":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.\n*   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.\n\n**The Strongest Arguments FOR Rent Control (The Community & Equity View)**\n*   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.\n*   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.\n*   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply \"shop elsewhere\" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.\n*   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.\n\n### 2. Facts to Keep in Your Back Pocket\n*   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.\n*   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. \n*   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.\n\n### 3. Strategies to Keep It Calm\n*   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., \"I agree with you that property owners shouldn't be forced to operate at a loss.\")*\n*   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.\n*   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).\n\n### 4. Great Questions to Ask Your Dad\n\nThese questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:\n\n1.  **If he is AGAINST rent control:** *\"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?\"*\n2.  **If he is FOR rent control:** *\"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?\"*\n3.  **Zooming out to the bigger picture:** *\"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?\"*\n4.  **Finding balance:** *\"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?\"*\n\nHow are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?"
+        "text": "与家人讨论住房政策和租金监管很容易变得激烈，尤其是当世代观点、房产所有权或不同的经济哲学发生碰撞时。 \n\n为了针对你的晚餐定制关键事实、政策数据和具体问题，你能分享更多背景信息吗？\n\n1. **地点/管辖区：** 讨论是集中在特定的城市、州或国家（例如加利福尼亚州、纽约、柏林、英国），还是他从广泛的全国性经济角度出发？当地规则和市场压力差异很大。\n2. **你父亲的角度：** 他的核心立场或反应是什么？例如，他是以房主、小房东还是纳税人的身份发言，或者他主要是根据反对价格管制的自由市场经济理论进行辩论？\n3. **你的主要目标：** 除了保持冷静和建设性之外，对你来说，什么样的结果才算成功——是在核心价值观上找到共同点（如社区稳定性与新供应），了解他的出发点，还是准备好可靠的数据来应对特定的主张？\n\n一旦你分享了这些细节，我们将制定一份量身定制的准备指南，其中包含经过验证的证据、双方的权衡以及降温策略。"
       },
       "follow_up_1": {
-        "text": "Find recent studies on rent control policies"
+        "text": "搜索主要城市最近的租金管制研究"
       },
       "follow_up_2": {
-        "text": "Explain the economic impact of rent control"
+        "text": "列出反对租金管制条例的常见论点"
       },
       "follow_up_3": {
-        "text": "Search for housing policy debates in our city"
+        "text": "查找关于住房供应弹性的经济研究"
       },
       "follow_up_4": {
-        "text": "Describe how zoning laws affect housing supply"
+        "text": "比较不同州的租户保护法"
       },
       "follow_up_5": {
-        "text": "Show me zoning laws in our area"
+        "text": "搜索关于租金监管影响的新闻文章"
       },
       "follow_up_6": {
-        "text": "Summarize the key arguments for rent control"
+        "text": "解释住房市场供应如何应对价格管制"
       }
     },
     "image_vectorize_openmates_header": {
@@ -9822,40 +9802,34 @@
     },
     "mastodon_public_post_themes": {
       "title": {
-        "text": "Mastodon 公开帖子的主题"
+        "text": "Mastodon 官方账号帖子摘要"
       },
       "summary": {
-        "text": "总结 Mastodon 官方账号近期帖子的主题，并探索代表性示例。"
+        "text": "汇总了 Mastodon 官方账号的近期公开帖子，涵盖 Mastodon 5.0、治理、生态系统亮点、团队更新和周边商品。"
       },
       "message_1": {
-        "text": "你能总结一下 mastodon.social 上 Mastodon 官方账号最近发布的公开帖子的主要主题，并提供几个示例链接吗？"
+        "text": "你能总结一下 mastodon.social 上 Mastodon 官方账号近期公开帖子的主要主题，并提供几个示例链接吗？"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"33ebec48-4730-4b4b-b7d7-f967173ac9b6\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\n获取 @Mastodon (`@Mastodon@mastodon.social`) 最近公开帖子的请求目前仍在后台运行，准备就绪后将更新对话。\n\n在等待信息流加载期间：\n- [查看最近的 Mastodon 博客公告](/#message=Search%20for%20the%20latest%20official%20Mastodon%20blog%20announcements%20and%20releases.)\n- [探索 Mastodon 路线图](/#message=What%20are%20the%20major%20features%20currently%20on%20the%20Mastodon%20roadmap%3F)"
-      },
-      "message_3": {
-        "text": "帖子已经加载完毕。你能总结一下主要主题并链接到三篇具有代表性的帖子吗？"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"65b92905-0838-46dd-8fff-8e28cdc8789a\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\n`mastodon.social` 上的官方 @Mastodon 账号在其最近的公开帖子中突出了几个核心主题：\n\n### 1. 重大产品演进与用户研究\n主要焦点一直是 **Mastodon 5.0** 的基础工作，此前由其设计团队领导了社区范围内的“探索周”研究计划。团队分享了重新设计的、更简洁的界面预览以及更新后的编辑器，旨在使平台更易于访问且用户友好。\n\n### 2. 社区治理、政策与人员更新\nMastodon 定期发布治理和政策更新，特别是针对联邦宇宙（fediverse）管理员和开发者的反馈，发布了关于其**商标政策**的澄清指南。他们还宣布了关键的领导层更迭，感谢即将离任的社区总监 Hannah Aubry 所做的贡献。\n\n### 3. 服务器聚焦与联邦宇宙生态系统\n该账号积极推广独立的联邦宇宙实例和基础设施计划——例如突出显示主题服务器（如 Earth.Law）并转发 IFTAS 运营研究等行业调查。\n\n### 4. 社区周边与项目资金\n为了支持持续的开源开发，他们分享了官方社区周边更新，包括发布新的毛绒吉祥物（“Plushtodons”）。\n\n---\n\n### 三篇代表性帖子\n\n- **产品路线图与视觉刷新：** [Mastodon 5.0 预览公告](embed:mastodon-after-publishing-D8d) —— 根据探索发现分享了即将推出的 5.0 布局和帖子编辑器的预览。\n- **政策与社区反馈：** [商标政策指南更新](embed:mastodon-today-we-YqD) —— 概述了根据社区意见调整后的修订版商标规则。\n- **项目支持与周边：** [Plushtodon 预订公告](embed:mastodon-new-plushtodon-A57) —— 宣布推出新的官方毛绒吉祥物，作为支持者资助开发的一种方式。\n\n---\n\n你想进一步了解某个特定话题吗？\n- [阅读更多关于 Mastodon 5.0 功能的信息](/#message=What%20new%20features%20and%20changes%20are%20coming%20in%20Mastodon%205.0%3F)\n- [查看商标指南](/#message=Summarize%20Mastodon's%20updated%20trademark%20policy%20guidelines.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nMastodon 官方 @Mastodon 账号近期在 [Mastodon](wiki:Mastodon_(social_network)) 上发布的公开帖子围绕几个核心主题展开：\n\n---\n\n### 1. 平台重新设计与即将推出的功能（Mastodon 5.0）\n一个主要重点是分享用户体验研究，并介绍即将到来的设计变化：\n- **Mastodon 5.0 抢先看：** 提前了解 5.0 版本，重点展示更简洁宁静的布局、新的视觉风格，以及更新后的帖子编辑器（[Mastodon 5.0 抢先看](embed:mastodon-after-publishing-WqJ)）。\n- **探索周成果：** 分享设计团队开展的用户工作坊和调查的成果，以更好地了解社区如何与平台互动（[探索周总结](embed:mastodon-we-re-5Ll)）。\n\n### 2. 治理与商标政策的明确化\nMastodon 着重回应社区对项目政策的关切：\n- **商标政策指南：** 根据社区反馈，发布更新后更明确的指南，以及用通俗语言撰写的 Mastodon 商标政策摘要（[商标指南公告](embed:mastodon-today-we-3Kb)）。\n\n### 3. 社区亮点与生态系统支持\n重点介绍更广泛的 [联邦宇宙](wiki:Fediverse) 生态系统、服务器运营者和安全倡议：\n- **特色服务器介绍：** 推广 *Earth.Law* 等专门实例，这是一个为环境律师、科学家和行动者打造的环保服务器（[Earth.Law 服务器介绍](embed:mastodon-here-is-miz)）。\n- **生态系统调查：** 推广 IFTAS 社交网络运营调查等管理倡议，以支持内容版主和管理员（[IFTAS 调查帖子](embed:mastodon-re-https-wnD)）。\n\n### 4. 组织与团队更新\n公开说明团队变动和领导层情况：\n- **领导成员告别：** 宣布社区总监兼董事会成员 Hannah Aubry 离任，并感谢她为社区发展作出的贡献（[Hannah Aubry 告别帖子](embed:mastodon-hannah-aubry-O6F)）。\n\n### 5. 项目资金与周边商品\n支持网络的开源开发持续开展：\n- **Plushtodon 预订：** 宣布商店推出新配色的毛绒吉祥物，让支持者能够直接资助开发（[Plushtodon 预订帖子](embed:mastodon-new-plushtodon-7D2)）。\n\n---\n\n### 精选示例\n\n[@Mastodon：发布探索周的成果后，我们现在可以为大家带来首次抢先预览](embed:mastodon-after-publishing-WqJ)\n[@Mastodon：今天，我们分享有关商标政策的补充指南，依据的是……](embed:mastodon-today-we-3Kb)\n[@Mastodon：新配色的 #Plushtodon 现已可在我们的商店预订！这是一种方式](embed:mastodon-new-plushtodon-7D2)"
       },
       "follow_up_1": {
-        "text": "搜索 Mastodon 最近的博客公告"
+        "text": "搜索 Reddit 上近期关于 Mastodon 5.0 的讨论"
       },
       "follow_up_2": {
-        "text": "解释 Mastodon 的去中心化审核机制是如何运作的"
+        "text": "解释联邦宇宙中的去中心化内容管理如何运作"
       },
       "follow_up_3": {
-        "text": "搜索 Mastodon 5.0 开发的更新动态"
+        "text": "搜索介绍 ActivityPub 协议功能的技术文章"
       },
       "follow_up_4": {
-        "text": "比较 Mastodon 5.0 与之前版本的变化"
+        "text": "将 Mastodon 的治理模式与商业社交网络进行比较"
       },
       "follow_up_5": {
-        "text": "搜索关于 Fediverse 服务器审核的社区讨论"
+        "text": "查找即将举行的开源软件线上会议"
       },
       "follow_up_6": {
-        "text": "列出开源平台面临的主要挑战"
+        "text": "讨论独立开源平台的资金筹措模式"
       }
     },
     "memory_books_currently_reading": {
@@ -10388,20 +10362,6 @@
         "text": "List essential items to pack for variable weather bike rides"
       }
     },
-    "organic_groceries_berlin": {
-      "title": {
-        "text": "Organic Grocery Delivery in Berlin"
-      },
-      "summary": {
-        "text": "Compared Berlin organic grocery delivery options for oat milk and bananas using local delivery sources and product results."
-      },
-      "message_1": {
-        "text": "Can you find organic grocery delivery options in Berlin for oat milk and bananas, compare a few reliable local options, and recommend which one to use?"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"91a1a938-12c3-47f9-a00b-e9a59d2a8ad2\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"organic grocery delivery Berlin\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"cf2504cb-56b5-4ea3-89d5-4cf9cc732911\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Bio Lebensmittel Lieferservice Berlin Hafermilch Bananen\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"5cdfdced-0921-47ed-a351-a0d19ccbb8e2\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Hafermilch\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b6f64bdd-2b32-4623-83eb-8cf57975ba70\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Bananen\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\nBerlin has an excellent ecosystem for organic groceries, offering everything from traditional farm-to-door \"Biokisten\" (organic boxes) to ultra-fast delivery apps. Since you are specifically looking for organic oat milk (*Bio Hafermilch*) and organic bananas (*Bio Bananen*), these are staple items available almost everywhere.\n\nHere is a comparison of the most reliable local options, categorized by how they operate:\n\n### 1. The Local \"Biokiste\" Services (Best for Sustainability & Regionality)\nThese are local, dedicated organic delivery services that have been operating in Berlin for years. They focus heavily on sustainability, fair trade, and regional farming.\n*   **[LogischBIO](embed:logisch-bio.de-eeO):**\n    *   **The Vibe:** A true online organic supermarket with a local heart. They've been operating in Berlin since 1998.\n    *   **Pros:** They offer over 5,000 organic items. Crucially, they require **no subscription** (*kein Abo*), which makes them incredibly flexible if you just want to do a one-off grocery haul.\n    *   **Cons:** You need to plan a day or two ahead for your delivery slot.\n*   **[Märkische Kiste](embed:maerkischekiste.de-fJw) & [Landkorb](embed:landkorb.de-Ze3):**\n    *   **The Vibe:** Classic \"Ökokiste\" (Eco-box) providers. They deliver in reusable boxes straight to your door.\n    *   **Pros:** Excellent for supporting regional Brandenburg farmers. You can either subscribe to a pre-made seasonal box or build your own custom box with exact items like oat milk and bananas.\n    *   **Cons:** Often heavily subscription-based (though you can pause/customize easily). Delivery days are sometimes restricted based on your specific Berlin postal code.\n\n### 2. Quick Commerce (Best for Urgent Needs)\nIf you need your oat milk for tomorrow morning's coffee and can't wait for a scheduled delivery slot:\n*   **Alnatura via [Wolt](embed:wolt.com-UR8) / UberEats:**\n    *   **The Vibe:** Ultra-fast delivery from one of Germany's most popular organic supermarket chains.\n    *   **Pros:** Delivery in roughly 30 minutes. You get access to the high-quality Alnatura brand products.\n    *   **Cons:** Higher delivery fees, and the couriers are gig-economy workers, which lacks the community/sustainability ethos of the dedicated farm boxes.\n\n### 3. Mainstream Supermarket Delivery (Best for General Shopping)\nIf you want to combine your organic basics with a regular grocery order:\n*   **REWE Lieferservice:**\n    *   They have a very reliable scheduled delivery network in Berlin and a massive organic (\"REWE Bio\") range.\n    *   For example, you can easily grab [REWE Bio Vegan Oat Drink](embed:rewe-bio-pflanzlich-Q5w) or [Oatly Bio Barista](embed:oatly-bio-haferdrink-cdI), alongside [Organic Bananas](embed:bio-banane-ca-GZn).\n\n---\n\n### 🏆 Recommendation: Which one should you use?\n\n**Go with LogischBIO.**\nIf you want a reliable, Berlin-based company that specializes entirely in organic food, they are the best all-rounder. Because they don't lock you into a subscription box model, you can just treat them like a regular online supermarket. You can easily stock up on a whole carton of oat milk and a bunch of bananas without having to commit to a weekly vegetable box you might not have time to cook.\n\n**However, if you are in a rush right now:** Open the Wolt app and see if the **Alnatura Brand Store** delivers to your specific neighborhood (they cover most of the Ringbahn area). You'll have your organic bananas and oat milk at your door in 30 minutes."
-      }
-    },
     "pdf_read_secret_word": {
       "title": {
         "text": "Read a PDF page"
@@ -10808,16 +10768,34 @@
     },
     "ted_talk_transcript_summary": {
       "title": {
-        "text": "TED Talk Transcript Summary"
+        "text": "分析 Will Stephen 的讽刺性 TED 演讲"
       },
       "summary": {
-        "text": "Get a YouTube talk transcript and summarize the speaker's core argument in five bullets."
+        "text": "将 Will Stephen 关于演讲技巧的讽刺性 TEDx 演讲总结为五个核心喜剧论点。"
       },
       "message_1": {
-        "text": "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
+        "text": "获取这段 TED 演讲的逐字稿，并用五个要点总结其核心论点：[!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
       },
       "message_2": {
-        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\n这段视频是 Will Stephen 的讽刺性 TEDx 演讲，《How to sound smart in your TEDx Talk》(观看演讲)。\n\nStephen 并没有进行知识性的讲座，而是利用元幽默（meta-humor）解构了主题[演讲](wiki:Public_speaking)的惯例。以下是总结为五点的核心论点：\n\n* **演讲技巧营造出有内涵的假象：** 语速、刻意的手势、戏剧性的眼神交流以及实物道具（如平光眼镜）可以让观众相信演讲者才华横溢，即使他们所说的话毫无价值。\n* **舞台亲和力是高度公式化的：** 熟悉的互动套路——如提出反问、要求举手示意以及讲述自嘲的轶事——都是经过精心设计的舞台技巧，旨在制造虚假的人情味和可信度。\n* **数据可视化提供了名不副实的权威感：** 展示随机数字、基础算术和脱离语境的图表利用了视觉偏见，使演讲看起来经过严谨研究，即使数据完全无关紧要。\n* **观众会将意义投射到废话上：** 通过将诚恳的语调和引起共鸣的素材图片与字面上的胡言乱语相结合，演讲者可以促使听众在潜意识中寻找并想象出原本并不存在的深刻联系。\n* **情感高潮是可以制造的：** 增强语势、放慢语速转为低语以及戏剧性的停顿，模仿了顿悟的节奏，证明了在没有任何深刻见解的情况下，灵感迸发的感觉是多么容易被策划出来。"
+      },
+      "follow_up_1": {
+        "text": "在 YouTube 上搜索其他热门的讽刺性演讲"
+      },
+      "follow_up_2": {
+        "text": "解释 TEDx 形式的历史及其文化影响"
+      },
+      "follow_up_3": {
+        "text": "在网上查找公众演讲大师班教程"
+      },
+      "follow_up_4": {
+        "text": "分析著名主讲嘉宾使用的具体肢体语言技巧"
+      },
+      "follow_up_5": {
+        "text": "搜索关于修辞技巧的分析视频"
+      },
+      "follow_up_6": {
+        "text": "列出克服公众演讲时舞台恐惧的技巧"
       }
     },
     "upcoming_reminders_list": {
@@ -11001,6 +10979,70 @@
       },
       "follow_up_6": {
         "text": "比较将口头想法转化为有条理任务的不同方法"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "冰箱常备食材的素食食谱"
+      },
+      "summary": {
+        "text": "用户询问使用菠菜、胡萝卜、甜椒和鹰嘴豆的素食食谱创意；助手提供了三个选项。"
+      },
+      "message_1": {
+        "text": "有什么素食食谱推荐吗？我冰箱里还有菠菜、胡萝卜、甜椒和鹰嘴豆。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\n有了**菠菜、胡萝卜、甜椒和鹰嘴豆**，你就有了制作美味、富含纤维的素食餐的坚实基础。\n\n根据你渴望的菜肴风格，这里有三个不同的烹饪方向：\n\n---\n\n### 1. 清爽脆口：泰式碎沙拉\n如果你想吃点快速、轻盈且爽口的东西，可以将切碎的生甜椒、胡萝卜和菠菜与鹰嘴豆混合，拌入酸甜的[花生](wiki:Peanut)青柠酱汁。\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. 咸香小饼：酥脆鹰嘴豆蔬菜饼\n如果你想吃点温热且小巧的食物（非常适合夹在卷饼、皮塔饼中，或搭配酸奶蘸酱），可以将鹰嘴豆捣碎，拌入胡萝卜碎、甜椒碎和烫熟的菠菜。\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. 快速工作日晚餐：温热鹰嘴豆蔬菜平底锅咖喱\n如果你想用基本的橱柜主食（如罐装椰奶或碎番茄）做一锅出料理：\n1. **炒香佐料：** 在平底锅中加热橄榄油，炒香洋葱丁、蒜末和姜末。\n2. **加入硬质蔬菜：** 将胡萝卜和甜椒切成一口大小。放入锅中，加入孜然粉、[姜黄](wiki:Turmeric)以及一小撮辣椒粉或咖喱粉。\n3. **炖煮：** 加入冲洗干净的鹰嘴豆，以及一杯蔬菜高汤或椰奶。盖上盖子炖煮 10–12 分钟，直到胡萝卜变软。\n4. **烫熟菠菜：** 最后加入新鲜菠菜，翻炒 1–2 分钟，直到菠菜变软且颜色鲜绿。最后挤入一点柠檬汁。\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"你今天更想尝试哪种烹饪风格？\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"清爽脆口的碎沙拉\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"酥脆的煎饼或小饼\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"温热的一锅出平底锅咖喱或炖菜\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "搜索平底锅咖喱的更详细说明和完整配料用量"
+      },
+      "follow_up_2": {
+        "text": "解释如何准备和储存剩余的熟鹰嘴豆饼以用于备餐"
+      },
+      "follow_up_3": {
+        "text": "搜索适合搭配鹰嘴豆饼的纯素酸奶蘸酱食谱"
+      },
+      "follow_up_4": {
+        "text": "如果我没有平底锅餐所需的咖喱粉，请列出简单的香料替代品"
+      },
+      "follow_up_5": {
+        "text": "搜索使用芝麻酱的泰式切碎沙拉替代酱汁食谱"
+      },
+      "follow_up_6": {
+        "text": "比较这三种素食食谱选项的蛋白质和纤维含量"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "比较德国的空气炸锅"
+      },
+      "summary": {
+        "text": "比较了德国亚马逊上热门空气炸锅的价格、容量和评分，并为两人家庭推荐了飞利浦 2000 系列空气炸锅。"
+      },
+      "message_1": {
+        "text": "查找我在德国可以在线购买的空气炸锅，包括亚马逊上的商品。比较当前的价格、容量和评价等级，然后为两人家庭推荐一款，并附上来源链接。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\n以下是目前在德国亚马逊上热销的空气炸锅对比，涵盖了价格、容量和客户评分。\n\n---\n\n### 德国热门型号对比\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 两人家庭首选推荐\n\n#### **首选：[飞利浦 2000 系列空气炸锅 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **为什么它最适合两人：**\n  * **最佳容量 (6.2 L)：** 小于 4.5–5 L 的炸篮即使是两人份也需要分批烹饪。6.2 L 的炸篮可以让你平铺两块三文鱼排和一整份蔬菜或薯条，确保受热均匀、口感酥脆。\n  * **厨房占用空间：** 双篮机型（如 Ninja 或 Russell Hobbs）会占用大量的台面空间。单篮 6 L 炸锅在提供充足容量的同时，保持了紧凑的外形，适合典型的德国厨房台面。\n  * **透明视窗：** 无需拉开抽屉即可查看上色情况，避免热量流失。\n  * **性价比：** 售价 99.99 欧元，以合理的价格提供了来自[飞利浦](wiki:Philips)可靠的控温性能。\n\n#### **备选（如果你经常以不同温度烹饪两道菜）：[飞利浦 3000 系列双篮空气炸锅 (9.0L)](embed:philips-airfryer-dual-pjD)**\n如果你和伴侣喜欢同时以不同的温度和时间准备主食和配菜（例如，180 °C 烤鸡胸肉和 200 °C 炸薯条），这款型号目前折扣价为 119.99 欧元，并具有同步烹饪功能。\n\n---\n\n### 购买前需考虑的关键因素\n1. **炸篮形状：** 方形炸篮（如 Cosori 和飞利浦）比同等升数的圆形炸篮更能容纳扁平食物（牛排、烤盘、串烧）。\n2. **洗碗机空间：** 确保你的洗碗机架高度足以容纳 6 L 的单抽屉，或者考虑手洗非粘涂层以延长其使用寿命。"
+      },
+      "follow_up_1": {
+        "text": "搜索专为空气炸锅设计的食谱"
+      },
+      "follow_up_2": {
+        "text": "解释单篮和双篮空气炸锅的主要区别"
+      },
+      "follow_up_3": {
+        "text": "寻找适用于这款空气炸锅的烘焙配件"
+      },
+      "follow_up_4": {
+        "text": "列出适合初学者的空气炸锅晚餐食谱"
+      },
+      "follow_up_5": {
+        "text": "查看这些型号的当前能耗等级"
+      },
+      "follow_up_6": {
+        "text": "比较陶瓷涂层与特氟龙涂层的清洁和维护要求"
       }
     }
   },

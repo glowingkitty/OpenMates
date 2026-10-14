@@ -8960,20 +8960,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"2654ed6e-e439-4c21-98c7-95269083da71\", \"app_id\": \"reminder\", \"skill_id\": \"cancel-reminder\"}\n```\n\nOK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.\n\nWould you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?"
       }
     },
-    "chickpea_spinach_protein_dinners": {
-      "title": {
-        "text": "Chickpea Spinach Protein Dinners"
-      },
-      "summary": {
-        "text": "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
-      },
-      "message_1": {
-        "text": "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d7f21a46-8f13-4f14-82c4-d868ba62bb8a\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\",\"query\":\"chickpea and spinach dinner\",\"provider\":\"Edamam\",\"status\":\"finished\"}\n```\n\nHere are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.\n\n### 1. 10-Minute Chickpea and Spinach Curry\nThis is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.\n\n[!](embed:thefieryvegetarian.com-3sr)\n[!](embed:vegancocotte.com-IZt)\n[!](embed:vegancocotte.com-rFn)\n\n*   **Total Time:** 10 minutes\n*   **Protein Content:** ~10.5g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)\n*   1 (15 oz) can diced [tomatoes](wiki:Tomato)\n*   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)\n*   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)\n*   3 cups fresh [spinach](wiki:Spinach)\n*   1 tsp vegetable oil\n\n**Instructions:**\n1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.\n2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.\n3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.\n4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.\n\n---\n\n### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes\nThis Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.\n\n[!](embed:runningonrealfood.com-R8H)\n[!](embed:americanhomecook.com-Alt)\n[!](embed:shortgirltallorder.com-QXv)\n\n*   **Total Time:** 15 minutes\n*   **Protein Content:** ~23.1g per serving\n*   **Servings:** 2\n\n**Ingredients:**\n*   1 (15 oz) can chickpeas (drained and rinsed)\n*   1 (14.5 oz) can diced tomatoes\n*   5 oz baby spinach\n*   1 small onion (diced) & 4 garlic cloves (sliced)\n*   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)\n*   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))\n\n**Instructions:**\n1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).\n2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.\n3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.\n4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).\n\n---\n\n### 3. 20-Minute Middle Eastern Spinach and Chickpeas\nA simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.\n\n[!](embed:carolinescooking.com-Dy7)\n[!](embed:simpleveganblog.com-8dt)\n[!](embed:ourplantbasedworld.com-Krr)\n\n*   **Total Time:** 20 minutes\n*   **Protein Content:** ~8.7g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   3 cups low-sodium canned chickpeas (drained and rinsed)\n*   2 cups baby spinach\n*   2/3 cup diced tomatoes\n*   ½ large white onion (diced)\n*   2 tsp minced garlic\n*   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)\n\n**Instructions:**\n1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.\n2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.\n3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.\n4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.\n5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.\n\n---\n\n**Next steps for your meal prep:**\n*   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?\n*   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?"
-      }
-    },
     "classic_car_reverse_image_search": {
       "title": {
         "text": "写真からクラシックカーを特定する"
@@ -9086,66 +9072,66 @@
     },
     "community_garden_sunflower_illustration": {
       "title": {
-        "text": "ヒマワリのボタニカルイラストを生成する"
+        "text": "ガーデン配布物用のひまわりのボタニカルイラスト"
       },
       "summary": {
-        "text": "コミュニティガーデンの配布物用に、テキストなしのヒマワリのイラストを作成します。"
+        "text": "コミュニティガーデンの配布物用に、ひまわりの温かみのあるボタニカルイラストをデザイン案とともに作成しました。"
       },
       "message_1": {
-        "text": "コミュニティガーデンの配布物用に、ヒマワリの温かみのあるボタニカルイラストを作成してください。背景はすっきりとした明るい色で、テキストは入れないでください。"
+        "text": "コミュニティガーデンの配布物用に、ひまわりの温かみのあるボタニカルイラストを作成してください。背景はすっきりとした明るい色で、テキストは入れないでください。"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6a3857ca-aa90-486f-b481-4e1df6f95faa\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nコミュニティガーデンの配布物用のヒマワリのボタニカルイラストを生成しています。現在処理中ですので、完了次第このチャットに表示されます。\n\n### コミュニティ配布物のためのクイックデザインヒント\n\nガーデンの配布物を魅力的で読みやすくするためのポイントです。\n\n- **視覚的階層と余白：** イラストの周りに十分な余白を作りましょう。余白やヘッダーに配置することで、ガーデニングのヒントやイベントの詳細を記載するスペースを確保でき、圧迫感を抑えられます。\n- **色の調和：** イラストから直接、温かみのある色（ディープハニーゴールド、オリーブリーフグリーン、アーステラコッタなど）を抽出して、見出しや枠線に使用しましょう。\n- **自作のアートを組み合わせる：** コミュニティのメンバーが描いたスケッチや実際の庭の写真をデジタルイラストと組み合わせることで、手作り感のある温かい雰囲気になります。\n\n---\n\n**次のステップとオプション：**\n- [見出しとヒントを含めた配布物のレイアウトをデザインする](/#message=Help%20me%20design%20a%20clean%20layout%20and%20copy%20for%20a%20community%20garden%20handout.)\n- [ヒマワリに基づいたカラーパレットを提案してもらう](/#message=Suggest%20a%20warm%20color%20palette%20and%20typography%20pairing%20for%20a%20botanical%20garden%20flyer.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"83e98b9b-8bcb-4774-9223-be000504a84a\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nコミュニティガーデンの配布資料にぴったりの、温かみのあるヒマワリのボタニカルイラストがこちらです：\n\n[!](embed:generated-images-ff26d807eb07)\n\n### デザインとワークフローの提案\n\n- **手書き要素との組み合わせ：** コミュニティ向けの資料では、デジタルやAIで生成されたアートワークに、手書きの温かみを加えるのが効果的です。例えば、このイラストを背景やビジュアルの主役として印刷し、その周りにコミュニティのメンバーが植え付け図をスケッチしたり、手書きで手入れのコツを書き込んだり、押し葉や種を添えたりすることができます。\n- **配布資料のレイアウトと階層：**\n  - **余白：** ヒマワリの周囲に十分な余白を設けることで、資料に開放感と親しみやすさが生まれます。\n  - **タイポグラフィ：** 見出しにはオーガニックまたはヒューマニスト・セリフ体（[Garamond](wiki:Garamond)や[Georgia](wiki:Georgia_(typeface))など）を使い、植え付け手順や土作りの詳細、イベント日程などには読みやすいサンセリフ体を組み合わせましょう。\n  - **カラーパレット：** 花びらのアンバーやゴールデントーンをアクセントラインや小見出しに、深いフォレストグリーンを重要なハイライトに使用してみてください。\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"garden_handout_next_step\",\n  \"multiple\": false,\n  \"question\": \"What would you like to work on next for the handout?\",\n  \"options\": [\n    {\n      \"id\": \"layout_tips\",\n      \"text\": \"Get advice on typography and grid layout for the printed flyer\"\n    },\n    {\n      \"id\": \"variations\",\n      \"text\": \"Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)\"\n    },\n    {\n      \"id\": \"custom\",\n      \"text\": \"Something else\"\n    }\n  ],\n  \"custom_option_id\": \"custom\",\n  \"custom_placeholder\": \"Describe what you need...\"\n}\n```\n\n[!](embed:generated-media-images-83e98b9b8bcb)"
       },
       "follow_up_1": {
-        "text": "地域のコミュニティガーデンイベントを検索する"
+        "text": "ラベンダーに止まる忙しいミツバチのイラストをもう一枚生成して"
       },
       "follow_up_2": {
-        "text": "配布物用の親しみやすい紹介文を書いて"
+        "text": "読みやすいコミュニティガーデンのチラシをデザインするための重要なヒントをリストアップして"
       },
       "follow_up_3": {
-        "text": "装飾用の無料SVG植物アイコンを探す"
+        "text": "印刷用チラシに使える無料のタイポグラフィフォントを探して"
       },
       "follow_up_4": {
-        "text": "ガイドに含めるべき重要なヒントをリストアップして"
+        "text": "配布資料におけるネガティブスペースとテキストのバランスの取り方を説明して"
       },
       "follow_up_5": {
-        "text": "チラシ用のタイポグラフィの組み合わせを検索する"
+        "text": "蔓に実った熟したエアルームトマトのイラストを生成して"
       },
       "follow_up_6": {
-        "text": "印刷レイアウトの視覚要素の配置方法を教えて"
+        "text": "ナチュラルでオーガニックな印刷プロジェクト向けのカラーパレットのアイデアを教えて"
       }
     },
     "community_garden_volunteer_chime": {
       "title": {
-        "text": "コミュニティガーデンのための温かいチャイム"
+        "text": "コミュニティガーデンの通知音デザイン"
       },
       "summary": {
-        "text": "架空のコミュニティガーデンアプリ向けの、短い2音の通知音を生成します。"
+        "text": "コミュニティガーデンのボランティア登録通知用に、穏やかな2音の木製チャイム音を作成しました。"
       },
       "message_1": {
-        "text": "コミュニティガーデンアプリでボランティアが登録した時のための、短くて温かみのある通知音を作成して。優しい2音のチャイムで、音声なし、3秒以内で。"
+        "text": "コミュニティガーデンアプリでボランティアが登録した時のための、短くて温かみのある通知音を作成して。穏やかな2音のチャイムで、音声なし、3秒以内で。"
       },
       "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nコミュニティガーデンアプリ用の、温かみのある優しい2音のチャイムを生成しています。現在処理中ですので、準備ができ次第チャットに表示されます。\n\n### 次のステップの提案\n- [土のぬくもりを感じる、お祝いのバッジ獲得チャイムを生成する](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [ボランティア登録完了カードのレイアウトをデザインする](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdda9f85-fa01-48ca-acf7-7746de6dc0f3\",\"app_id\":\"audio\",\"skill_id\":\"generate\"}\n```\n\nコミュニティガーデンのボランティア登録通知用に作成した、穏やかで温かみのある2音のチャイムです：\n\n[!](embed:generated-audio-17f56f2e73be)\n\n### サウンドプロフィール\n- **トーン:** 自然と成長を連想させる、オーガニックで響きのある木製チャイム/マリンバの音色。\n- **テンポ:** 誰かが手伝いに加わった時に、気分を高揚させ、歓迎する雰囲気を与える上昇する2音のシーケンス。\n- **長さ:** 2秒。アプリユーザーの邪魔にならないよう短くまとめています。\n\nこのトーンは、アプリの他のUIパレットと合っていますか？必要に応じて、音色を調整することも可能です（例：より柔らかなアコースティックギターの撥弦音、シンギングボウル、より明るいガラスベルなど）。\n\n[!](embed:generated-media-audio-fdda9f85fa01)"
       },
       "follow_up_1": {
-        "text": "タスク完了時のバッジ獲得を祝うチャイムを生成して"
+        "text": "より柔らかなアコースティックギターの撥弦音バージョンを生成して"
       },
       "follow_up_2": {
-        "text": "サウンドデザインがモバイルアプリのユーザーエンゲージメントに与える影響を説明して"
+        "text": "ユーザーと通知音をテストする方法について話し合う"
       },
       "follow_up_3": {
-        "text": "朝の水やりスケジュールのための優しいリマインダー音を作成して"
+        "text": "響き渡るシンギングボウルの効果音を生成して"
       },
       "follow_up_4": {
-        "text": "邪魔にならないUI通知音をデザインするためのベストプラクティスを教えて"
+        "text": "モバイルアプリの通知音に関するベストプラクティスをリストアップして"
       },
       "follow_up_5": {
-        "text": "フォームの入力エラー用の柔らかなアラート音を生成して"
+        "text": "より明るいガラスベルの通知チャイムを生成して"
       },
       "follow_up_6": {
-        "text": "モバイルアプリにカスタム効果音を組み込む方法を教えて"
+        "text": "アプリのさまざまなソニックブランディングスタイルを比較する"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -9182,34 +9168,34 @@
     },
     "community_garden_welcome_melody": {
       "title": {
-        "text": "コミュニティガーデン紹介用のメロディ"
+        "text": "コミュニティガーデンの穏やかなウェルカム曲を作成する"
       },
       "summary": {
-        "text": "コミュニティガーデンの紹介動画用に、穏やかなインストゥルメンタルのメロディを作成します。"
+        "text": "コミュニティガーデンのウェルカム動画用に、温かみのあるアコースティックサウンドの短いインストゥルメンタル曲（ボーカルなし）を生成します。"
       },
       "message_1": {
-        "text": "コミュニティガーデンの紹介動画用に、ボーカルのない短くて穏やかなインストゥルメンタルのメロディを作ってくれますか？"
+        "text": "コミュニティガーデンのウェルカム動画用に、ボーカルなしの短くて穏やかなインストゥルメンタル曲を作ってくれますか？"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"296e122a-cd23-4fc6-9c27-99f21f8e3401\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nコミュニティガーデンの紹介動画用の穏やかなインストゥルメンタルトラックを作成しています。現在処理中で、準備ができ次第ここに表示されます。\n\n[コミュニティガーデン](wiki:Community_gardening)プロジェクトは、近隣住民を結びつけ、地域の生物多様性を育む素晴らしい方法です。音楽を生成している間に、紹介動画の構成や視覚的な流れの計画をお手伝いしましょうか？\n\n- [紹介動画の構成案を作成する](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)\n- [導入テキストやナレーションのヒントを考える](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"3e5014d0-2082-4604-b968-1553d6cc43e4\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nコミュニティガーデンのウェルカム動画用に作曲された、穏やかなアコースティックのインストゥルメンタル曲です。\n\n[!](embed:generated-media-music-3e5014d02082)\n[!](embed:generated-music-c89ee4a5f418)\n\n### トラックの詳細\n- **雰囲気とトーン:** 温かく、親しみやすく、平和的\n- **楽器構成:** アコースティックギターのスリーフィンガー・ピッキングに、柔らかなピアノのコードと軽やかなメロディのアクセント\n- **長さ:** 30秒\n- **形式:** 完全なインストゥルメンタル（ボーカルなし）。ナレーションやテキスト紹介の背景音楽として最適です。\n\n### 次のステップの提案\n動画の制作や、新しいメンバーにガーデンを紹介するスクリプトの作成を検討されている場合は、以下をお試しください。\n\n- [短いウェルカムスクリプトをドラフトする](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)\n- [アップテンポなアコースティックの別案を生成する](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)"
       },
       "follow_up_1": {
-        "text": "地域のコミュニティガーデンのイベントやワークショップを検索する"
+        "text": "コミュニティガーデンの動画用に、もう少しアップテンポなアコースティック曲を作成して"
       },
       "follow_up_2": {
-        "text": "ガーデン動画のストーリーボード作成を手伝って"
+        "text": "コミュニティガーデンの30秒の温かいウェルカム動画用スクリプトを作成して"
       },
       "follow_up_3": {
-        "text": "植物や花のストック動画を探す"
+        "text": "動画編集ソフトでコミュニティガーデンの動画を編集するチュートリアルを検索して"
       },
       "follow_up_4": {
-        "text": "コミュニティ動画用の歓迎のナレーション案を書いて"
+        "text": "BGMとナレーションを合わせる方法を教えて"
       },
       "follow_up_5": {
-        "text": "コミュニティプロジェクト向けのガーデニングのコツを検索する"
+        "text": "地域のコミュニティガーデンのイベントやワークショップを探して"
       },
       "follow_up_6": {
-        "text": "コミュニティガーデンのオープン記念日のアクティビティ案を提案して"
+        "text": "ウェルカム動画に入れるべきカットのアイデアをリストアップして"
       }
     },
     "creativity_drawing_meetups_berlin": {
@@ -9682,40 +9668,34 @@
     },
     "housing_policy_dinner_discussion": {
       "title": {
-        "text": "Prepare for a housing policy dinner discussion"
+        "text": "住宅政策に関する夕食時の議論に備える"
       },
       "summary": {
-        "text": "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+        "text": "住宅政策や家賃規制について、地域の状況や各人の目標に関する質問から始めることで、家族との穏やかな議論の準備をします。"
       },
       "message_1": {
-        "text": "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+        "text": "父と夕食を食べるのですが、彼は住宅政策や家賃規制について議論したがっています。良い質問を投げかけ、主要な事実を確認し、双方の最も強力な主張を理解し、会話を穏やかに保てるよう、準備を手伝ってください。"
       },
       "message_2": {
-        "text": "Focus mode activated: Prepare a political discussion."
-      },
-      "message_3": {
-        "text": "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
-      },
-      "message_4": {
-        "text": "It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. \n\nSince housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** (\"Who is right?\") to a **collaborative exploration** (\"How do we solve this complex problem together?\").\n\nHere is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.\n\n### 1. The Core Debate: Rent Control & Stabilization\n\nTo have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). \n\n**The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**\n*   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.\n*   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.\n*   **It creates \"misallocation\":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.\n*   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.\n\n**The Strongest Arguments FOR Rent Control (The Community & Equity View)**\n*   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.\n*   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.\n*   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply \"shop elsewhere\" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.\n*   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.\n\n### 2. Facts to Keep in Your Back Pocket\n*   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.\n*   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. \n*   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.\n\n### 3. Strategies to Keep It Calm\n*   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., \"I agree with you that property owners shouldn't be forced to operate at a loss.\")*\n*   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.\n*   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).\n\n### 4. Great Questions to Ask Your Dad\n\nThese questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:\n\n1.  **If he is AGAINST rent control:** *\"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?\"*\n2.  **If he is FOR rent control:** *\"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?\"*\n3.  **Zooming out to the bigger picture:** *\"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?\"*\n4.  **Finding balance:** *\"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?\"*\n\nHow are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?"
+        "text": "家族と住宅政策や家賃規制について話し合うことは、特に世代間の視点の違い、不動産の所有状況、あるいは異なる経済哲学が衝突する場合、簡単に熱を帯びてしまいがちです。\n\n夕食に向けて、主要な事実、政策データ、具体的な質問を調整するために、もう少し詳しい状況を教えていただけますか？\n\n1. **場所・管轄:** 特定の都市、州、または国（例：カリフォルニア、ニューヨーク、ベルリン、イギリスなど）に焦点を当てたものですか？それとも、彼は全国的な広範な経済的視点からアプローチしていますか？地域の規則や市場の圧力は大きく異なります。\n2. **お父様の視点:** 彼の核心的な立場や反応はどのようなものですか？例えば、住宅所有者、小規模な大家、あるいは納税者としての立場でしょうか？それとも、主に価格統制に反対する自由市場経済理論の観点から主張していますか？\n3. **あなたの主な目標:** 会話を穏やかで建設的なものに保つこと以外に、あなたにとっての「成功」とはどのようなものですか？核心的な価値観（コミュニティの安定 vs 新規供給など）で共通点を見つけること、彼の考えの根拠を理解すること、あるいは特定の主張に対処するための確かなデータを用意しておくことでしょうか？\n\nこれらの詳細を共有していただければ、検証済みの証拠、双方のトレードオフ、そして沈静化戦略を盛り込んだ、あなた専用の準備ガイドを作成します。"
       },
       "follow_up_1": {
-        "text": "Find recent studies on rent control policies"
+        "text": "主要都市における最近の家賃規制に関する研究を検索して"
       },
       "follow_up_2": {
-        "text": "Explain the economic impact of rent control"
+        "text": "家賃規制に対する一般的な反対意見をリストアップして"
       },
       "follow_up_3": {
-        "text": "Search for housing policy debates in our city"
+        "text": "住宅供給の弾力性に関する経済調査を見つけて"
       },
       "follow_up_4": {
-        "text": "Describe how zoning laws affect housing supply"
+        "text": "異なる州間での借主保護法を比較して"
       },
       "follow_up_5": {
-        "text": "Show me zoning laws in our area"
+        "text": "家賃規制の影響に関するニュース記事を検索して"
       },
       "follow_up_6": {
-        "text": "Summarize the key arguments for rent control"
+        "text": "住宅市場の供給が価格統制にどのように反応するか説明して"
       }
     },
     "image_vectorize_openmates_header": {
@@ -9822,40 +9802,34 @@
     },
     "mastodon_public_post_themes": {
       "title": {
-        "text": "Mastodonの公開投稿のテーマ"
+        "text": "Mastodon公式アカウントの投稿要約"
       },
       "summary": {
-        "text": "Mastodon公式アカウントの最近の投稿からテーマを要約し、代表的な例を探索します。"
+        "text": "Mastodon公式アカウントの最近の公開投稿を要約しました。Mastodon 5.0、ガバナンス、エコシステムのスポットライト、チームの最新情報、グッズなどのトピックをカバーしています。"
       },
       "message_1": {
-        "text": "mastodon.socialにあるMastodon公式アカウントの最近の公開投稿の主なテーマを要約し、いくつかの例へのリンクを教えてもらえますか？"
+        "text": "mastodon.socialにあるMastodon公式アカウントの最近の公開投稿について、主なテーマをいくつか例へのリンクを添えて要約してもらえますか？"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"33ebec48-4730-4b4b-b7d7-f967173ac9b6\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\n@Mastodon (`@Mastodon@mastodon.social`) から最近の公開投稿を取得するリクエストは、現在バックグラウンドで実行中です。準備ができ次第、チャットを更新します。\n\nフィードの読み込みを待つ間に：\n- [Mastodonブログの最近の発表を確認する](/#message=Search%20for%20the%20latest%20official%20Mastodon%20blog%20announcements%20and%20releases.)\n- [Mastodonのロードマップを探索する](/#message=What%20are%20the%20major%20features%20currently%20on%20the%20Mastodon%20roadmap%3F)"
-      },
-      "message_3": {
-        "text": "投稿が読み込まれました。主なテーマを要約し、3つの代表的な投稿へのリンクを教えてもらえますか？"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"65b92905-0838-46dd-8fff-8e28cdc8789a\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\n`mastodon.social`上の公式@Mastodonアカウントは、最近の公開投稿でいくつかの主要なテーマを強調しています：\n\n### 1. 主要な製品の進化とユーザー調査\nデザインチームが主導したコミュニティ全体の調査イニシアチブ「Discovery Week」を経て、**Mastodon 5.0**に向けた土台作りが主な焦点となっています。チームは、プラットフォームをよりアクセシブルで使いやすくすることを目的とした、再設計された落ち着いたインターフェースと更新された投稿作成画面のプレビューを共有しました。\n\n### 2. コミュニティガバナンス、ポリシー、スタッフの更新\nMastodonは定期的にガバナンスとポリシーの更新を伝えており、特にフェディバースの管理者や開発者からのフィードバックに直接応える形で、**商標ポリシー**に関する明確なガイドラインを公開しました。また、主要なリーダーシップの交代も発表され、退任するコミュニティディレクターのHannah Aubry氏の貢献に感謝の意を表しました。\n\n### 3. サーバースポットライトとフェディバースのエコシステム\nこのアカウントは、独立したフェディバースのインスタンスやインフラの取り組みを積極的に推進しています。例えば、テーマ別のサーバー（Earth.Lawなど）の紹介や、IFTASの運用調査などの業界アンケートの拡散などを行っています。\n\n### 4. コミュニティグッズとプロジェクト資金\n継続的なオープンソース開発を支援するため、新しいぬいぐるみのマスコット（「Plushtodons」）のリリースを含む、公式コミュニティグッズの最新情報を共有しています。\n\n---\n\n### 3つの代表的な投稿\n\n- **製品ロードマップとビジュアルの刷新：** [Mastodon 5.0のスニークピーク発表](embed:mastodon-after-publishing-D8d) — 調査結果に基づいた、次期5.0のレイアウトと投稿作成画面のプレビューを共有しています。\n- **ポリシーとコミュニティのフィードバック：** [商標ポリシーガイドラインの更新](embed:mastodon-today-we-YqD) — コミュニティの意見を取り入れて改訂された商標ルールを概説しています。\n- **プロジェクト支援とグッズ：** [Plushtodonの予約注文開始のお知らせ](embed:mastodon-new-plushtodon-A57) — サポーターが開発資金を支援する方法として、新しい公式ぬいぐるみのマスコットを発表しています。\n\n---\n\nさらに詳しく知りたいトピックはありますか？\n- [Mastodon 5.0の新機能について詳しく読む](/#message=What%20new%20features%20and%20changes%20are%20coming%20in%20Mastodon%205.0%3F)\n- [商標ガイドラインを確認する](/#message=Summarize%20Mastodon's%20updated%20trademark%20policy%20guidelines.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\n[Mastodon](wiki:Mastodon_(social_network))上の公式@Mastodonアカウントによる最近の公開投稿は、主に以下のいくつかの主要なテーマに集約されます：\n\n---\n\n### 1. プラットフォームの再設計と今後の機能（Mastodon 5.0）\nユーザーエクスペリエンス調査の共有や、今後予定されているデザイン変更の公開に大きな焦点が当てられています。\n- **Mastodon 5.0の先行公開：** バージョン5.0の初期プレビュー。より落ち着いたレイアウト、新しいビジュアル、刷新された投稿作成画面などが特徴です（[Mastodon 5.0の先行公開](embed:mastodon-after-publishing-WqJ)）。\n- **Discovery Weekの調査結果：** コミュニティがプラットフォームをどのように利用しているかをより深く理解するため、デザインチームが主導したユーザーワークショップやアンケートの結果を共有しています（[Discovery Weekの概要](embed:mastodon-we-re-5Ll)）。\n\n### 2. ガバナンスと商標の明確化\nプロジェクトのポリシーに関するコミュニティの懸念への対応に注力しています。\n- **商標ポリシーのガイドライン：** コミュニティからの意見を受け、Mastodonの商標ポリシーに関する更新・明確化されたガイドラインと、平易な言葉による要約を公開しました（[商標ガイドラインの発表](embed:mastodon-today-we-3Kb)）。\n\n### 3. コミュニティスポットライトとエコシステムのサポート\nより広範な[Fediverse](wiki:Fediverse)エコシステム、サーバー運営者、および安全性の取り組みにスポットライトを当てています。\n- **注目のサーバー紹介：** 環境分野の弁護士、科学者、活動家向けに調整されたエコフレンドリーなサーバー「*Earth.Law*」など、特定の目的を持ったインスタンスを宣伝しています（[Earth.Lawサーバーの紹介](embed:mastodon-here-is-miz)）。\n- **エコシステム調査：** モデレーターや管理者を支援するため、IFTAS Social Web Operations Surveyなどの管理イニシアチブを後押ししています（[IFTAS調査の投稿](embed:mastodon-re-https-wnD)）。\n\n### 4. 組織とチームの最新情報\nチームの交代やリーダーシップに関する透明性を確保しています。\n- **リーダーシップの退任：** コミュニティディレクター兼理事のHannah Aubry氏の退任を報告し、コミュニティの成長への貢献に感謝を述べています（[Hannah Aubry氏の退任投稿](embed:mastodon-hannah-aubry-O6F)）。\n\n### 5. プロジェクトの資金調達とグッズ\nネットワークのオープンソース開発を維持するための取り組みです。\n- **Plushtodonの予約販売：** ショップで新しい色のマスコットぬいぐるみを発表し、サポーターが開発資金を直接支援できるようにしています（[Plushtodon予約販売の投稿](embed:mastodon-new-plushtodon-7D2)）。\n\n---\n\n### 注目の例\n\n[@Mastodon: Discovery Weekの結果を公開したところで、いよいよ最初の先行公開を...](embed:mastodon-after-publishing-WqJ)\n[@Mastodon: 本日、コミュニティからの意見に基づき、商標ポリシーに関する追加のガイドラインを...](embed:mastodon-today-we-3Kb)\n[@Mastodon: ショップで新しい色の #Plushtodon が予約可能になりました！これは開発を...](embed:mastodon-new-plushtodon-7D2)"
       },
       "follow_up_1": {
-        "text": "Mastodonの最新のブログ告知を検索する"
+        "text": "RedditでMastodon 5.0に関する最近の議論を検索する"
       },
       "follow_up_2": {
-        "text": "Mastodonにおける分散型モデレーションの仕組みを説明する"
+        "text": "Fediverseにおける分散型モデレーションの仕組みを説明する"
       },
       "follow_up_3": {
-        "text": "Mastodon 5.0の開発に関するアップデートを検索する"
+        "text": "ActivityPubプロトコルの機能を解説している技術記事を検索する"
       },
       "follow_up_4": {
-        "text": "Mastodon 5.0の変更点を以前のリリースと比較する"
+        "text": "Mastodonのガバナンスモデルを商用のSNSと比較する"
       },
       "follow_up_5": {
-        "text": "Fediverseサーバーのモデレーションに関するコミュニティの議論を検索する"
+        "text": "今後開催されるオンラインのオープンソースソフトウェア会議を探す"
       },
       "follow_up_6": {
-        "text": "オープンソースプラットフォームが直面している主な課題をリストアップする"
+        "text": "独立したオープンソースプラットフォームの資金調達モデルについて議論する"
       }
     },
     "memory_books_currently_reading": {
@@ -10388,20 +10362,6 @@
         "text": "List essential items to pack for variable weather bike rides"
       }
     },
-    "organic_groceries_berlin": {
-      "title": {
-        "text": "Organic Grocery Delivery in Berlin"
-      },
-      "summary": {
-        "text": "Compared Berlin organic grocery delivery options for oat milk and bananas using local delivery sources and product results."
-      },
-      "message_1": {
-        "text": "Can you find organic grocery delivery options in Berlin for oat milk and bananas, compare a few reliable local options, and recommend which one to use?"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"91a1a938-12c3-47f9-a00b-e9a59d2a8ad2\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"organic grocery delivery Berlin\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"cf2504cb-56b5-4ea3-89d5-4cf9cc732911\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Bio Lebensmittel Lieferservice Berlin Hafermilch Bananen\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"5cdfdced-0921-47ed-a351-a0d19ccbb8e2\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Hafermilch\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b6f64bdd-2b32-4623-83eb-8cf57975ba70\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Bananen\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\nBerlin has an excellent ecosystem for organic groceries, offering everything from traditional farm-to-door \"Biokisten\" (organic boxes) to ultra-fast delivery apps. Since you are specifically looking for organic oat milk (*Bio Hafermilch*) and organic bananas (*Bio Bananen*), these are staple items available almost everywhere.\n\nHere is a comparison of the most reliable local options, categorized by how they operate:\n\n### 1. The Local \"Biokiste\" Services (Best for Sustainability & Regionality)\nThese are local, dedicated organic delivery services that have been operating in Berlin for years. They focus heavily on sustainability, fair trade, and regional farming.\n*   **[LogischBIO](embed:logisch-bio.de-eeO):**\n    *   **The Vibe:** A true online organic supermarket with a local heart. They've been operating in Berlin since 1998.\n    *   **Pros:** They offer over 5,000 organic items. Crucially, they require **no subscription** (*kein Abo*), which makes them incredibly flexible if you just want to do a one-off grocery haul.\n    *   **Cons:** You need to plan a day or two ahead for your delivery slot.\n*   **[Märkische Kiste](embed:maerkischekiste.de-fJw) & [Landkorb](embed:landkorb.de-Ze3):**\n    *   **The Vibe:** Classic \"Ökokiste\" (Eco-box) providers. They deliver in reusable boxes straight to your door.\n    *   **Pros:** Excellent for supporting regional Brandenburg farmers. You can either subscribe to a pre-made seasonal box or build your own custom box with exact items like oat milk and bananas.\n    *   **Cons:** Often heavily subscription-based (though you can pause/customize easily). Delivery days are sometimes restricted based on your specific Berlin postal code.\n\n### 2. Quick Commerce (Best for Urgent Needs)\nIf you need your oat milk for tomorrow morning's coffee and can't wait for a scheduled delivery slot:\n*   **Alnatura via [Wolt](embed:wolt.com-UR8) / UberEats:**\n    *   **The Vibe:** Ultra-fast delivery from one of Germany's most popular organic supermarket chains.\n    *   **Pros:** Delivery in roughly 30 minutes. You get access to the high-quality Alnatura brand products.\n    *   **Cons:** Higher delivery fees, and the couriers are gig-economy workers, which lacks the community/sustainability ethos of the dedicated farm boxes.\n\n### 3. Mainstream Supermarket Delivery (Best for General Shopping)\nIf you want to combine your organic basics with a regular grocery order:\n*   **REWE Lieferservice:**\n    *   They have a very reliable scheduled delivery network in Berlin and a massive organic (\"REWE Bio\") range.\n    *   For example, you can easily grab [REWE Bio Vegan Oat Drink](embed:rewe-bio-pflanzlich-Q5w) or [Oatly Bio Barista](embed:oatly-bio-haferdrink-cdI), alongside [Organic Bananas](embed:bio-banane-ca-GZn).\n\n---\n\n### 🏆 Recommendation: Which one should you use?\n\n**Go with LogischBIO.**\nIf you want a reliable, Berlin-based company that specializes entirely in organic food, they are the best all-rounder. Because they don't lock you into a subscription box model, you can just treat them like a regular online supermarket. You can easily stock up on a whole carton of oat milk and a bunch of bananas without having to commit to a weekly vegetable box you might not have time to cook.\n\n**However, if you are in a rush right now:** Open the Wolt app and see if the **Alnatura Brand Store** delivers to your specific neighborhood (they cover most of the Ringbahn area). You'll have your organic bananas and oat milk at your door in 30 minutes."
-      }
-    },
     "pdf_read_secret_word": {
       "title": {
         "text": "Read a PDF page"
@@ -10808,16 +10768,34 @@
     },
     "ted_talk_transcript_summary": {
       "title": {
-        "text": "TED Talk Transcript Summary"
+        "text": "ウィル・スティーブンの風刺的なTEDトークの分析"
       },
       "summary": {
-        "text": "Get a YouTube talk transcript and summarize the speaker's core argument in five bullets."
+        "text": "パブリックスピーキングに関するウィル・スティーブンの風刺的なTEDxトークを、5つの主要なコメディ的論点に要約しました。"
       },
       "message_1": {
-        "text": "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
+        "text": "このTEDトークの書き起こしを取得し、その核心となる主張を5つの箇条書きで要約してください： [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
       },
       "message_2": {
-        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\nこの動画は、ウィル・スティーブンによる風刺的なTEDxプレゼンテーション「*How to sound smart in your TEDx Talk*」（動画を見る）です。\n\nスティーブンは、有益な講義を行うのではなく、メタ的なユーモアを用いて基調講演の[パブリックスピーキング](wiki:Public_speaking)の慣習を解体しています。主な論点を5つのポイントにまとめました：\n\n* **話し方が内容の伴っているような錯覚を生む：** ペース配分、意図的な身振り手振り、ドラマチックなアイコンタクト、そして小道具（度なしの眼鏡など）を使うことで、話す内容に価値がなくても、聞き手に「このスピーカーは素晴らしい」と思わせることができます。\n* **ステージ上での信頼関係の構築は極めて定型的である：** 修辞的な質問を投げかける、挙手を促す、自虐的なエピソードを披露するといったお決まりのやり取りは、人工的な親しみやすさと信頼感を作り出すために計算された演出です。\n* **データの視覚化は不当な権威を与える：** ランダムな数字や単純な計算、文脈のないチャートを次々と見せることで視覚的なバイアスを利用し、データが全く無関係であっても、プレゼンテーションが厳密に調査されたものであるかのように見せかけます。\n* **観客は無意味なものに意味を投影する：** 真剣な口調や感情に訴えるストック画像と、文字通りの「でたらめ」を組み合わせることで、聞き手の潜在意識に働きかけ、実際には存在しない深い繋がりを探させ、想像させることができます。\n* **感情的な盛り上がりは捏造できる：** 声のトーンを強めたり、ささやくようにゆっくり話したり、ドラマチックな間を置いたりすることで、ひらめきの瞬間のリズムを模倣できます。これは、根本的な洞察がなくても、いかに簡単に「インスピレーションを受けた」という感覚を作り出せるかを証明しています。"
+      },
+      "follow_up_1": {
+        "text": "YouTubeで他の人気のある風刺的なプレゼンテーションを検索する"
+      },
+      "follow_up_2": {
+        "text": "TEDx形式の歴史とその文化的影響を説明する"
+      },
+      "follow_up_3": {
+        "text": "オンラインでパブリックスピーキングのマスタークラスのチュートリアルを探す"
+      },
+      "follow_up_4": {
+        "text": "有名な基調講演者が使用する特定のボディランゲージのテクニックを分析する"
+      },
+      "follow_up_5": {
+        "text": "修辞技法に関する分析動画を検索する"
+      },
+      "follow_up_6": {
+        "text": "人前で話す際にあがり症を克服するためのヒントをリストアップする"
       }
     },
     "upcoming_reminders_list": {
@@ -11001,6 +10979,70 @@
       },
       "follow_up_6": {
         "text": "話したアイデアを整理されたタスクに変換するさまざまな方法を比較する"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "冷蔵庫の常備野菜で作るベジタリアンレシピ"
+      },
+      "summary": {
+        "text": "ほうれん草、人参、ピーマン、ひよこ豆を使ったベジタリアンレシピのアイデアをユーザーが求め、アシスタントが3つの選択肢を提案しました。"
+      },
+      "message_1": {
+        "text": "ベジタリアンレシピのおすすめはありますか？冷蔵庫にほうれん草、人参、ピーマン、ひよこ豆が残っています。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\n**ほうれん草、人参、パプリカ、ひよこ豆**があれば、食物繊維たっぷりの美味しいベジタリアン料理を作るための素晴らしいベースが揃っています。\n\n気分に合わせて選べる、3つの異なる料理のアイデアをご紹介します：\n\n---\n\n### 1. フレッシュ＆シャキシャキ：タイ風チョップドサラダ\n手早く、軽くてシャキシャキしたものが食べたいときは、細かく刻んだ生のパプリカ、人参、ほうれん草をひよこ豆と合わせ、酸味の効いた[ピーナッツ](wiki:Peanut)ライムドレッシングで和えましょう。\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. 香ばしいパテ：ひよこ豆と野菜のカリカリフリッター\n温かくて一口サイズの料理（ラップサンドやピタパン、ヨーグルトディップとの相性も抜群です）がお好みの場合は、ひよこ豆を潰し、みじん切りにした人参、パプリカ、さっと火を通したほうれん草を混ぜて焼き上げます。\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. 平日の時短メニュー：ひよこ豆と野菜の温かいフライパンカレー\n常備菜やストック食材（ココナッツミルク缶やカットトマト缶など）を使ってフライパン一つで作りたい場合：\n1. **香味野菜を炒める：** フライパンにオリーブオイルを熱し、みじん切りにした玉ねぎ、にんにく、生姜を香りが出るまで炒めます。\n2. **硬い野菜を加える：** 人参とパプリカを一口大に切ります。クミンパウダー、[ターメリック](wiki:Turmeric)、チリパウダーまたはカレー粉を少々加え、野菜と一緒に炒め合わせます。\n3. **煮込む：** 水気を切ったひよこ豆と、野菜だしまたはココナッツミルクを1カップ加えます。蓋をして、人参が柔らかくなるまで10〜12分ほど煮込みます。\n4. **ほうれん草を加える：** 最後に生のほうれん草を加え、鮮やかな緑色になり、しんなりするまで1〜2分ほど火を通します。仕上げにレモン汁を絞って完成です。\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"今日はどのスタイルの料理を作りたいですか？\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"フレッシュ＆シャキシャキのチョップドサラダ\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"カリッと香ばしいフリッターまたはパテ\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"温かいフライパンカレーまたは煮込み料理\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "スキレットカレーのより詳細な作り方と正確な分量を検索する"
+      },
+      "follow_up_2": {
+        "text": "作り置き用に、余ったひよこ豆のフリッターの下準備と保存方法を教えて"
+      },
+      "follow_up_3": {
+        "text": "ひよこ豆のフリッターに合うヴィーガンヨーグルトディップのレシピを検索する"
+      },
+      "follow_up_4": {
+        "text": "スキレット料理でカレー粉がない場合の、簡単なスパイスの代用法をリストアップして"
+      },
+      "follow_up_5": {
+        "text": "タイ風チョップドサラダに使える、タヒニを使った別のドレッシングのレシピを検索する"
+      },
+      "follow_up_6": {
+        "text": "これら3つのベジタリアンレシピのタンパク質と食物繊維の含有量を比較して"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "ドイツで買えるエアフライヤーの比較"
+      },
+      "summary": {
+        "text": "Amazonドイツの人気エアフライヤーを価格、容量、評価で比較し、2人暮らしにはPhilips Airfryer 2000シリーズをおすすめしました。"
+      },
+      "message_1": {
+        "text": "ドイツでオンライン購入できるエアフライヤーを、Amazonの出品を含めて探して。現在の価格、容量、レビュー評価を比較し、出典リンクを付けて2人暮らし向けの1台をおすすめして。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\n現在ドイツのAmazonで販売されている高評価のエアフライヤーについて、価格、容量、購入者の評価を比較します。\n\n---\n\n### ドイツで人気のモデルを比較\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 2人暮らしに最もおすすめのモデル\n\n#### **第一候補：[Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **2人に最適な理由：**\n  * **適切な容量（6.2 L）：** 4.5–5 L未満のバスケットでは、2人分でも何回かに分けて調理する必要があります。6.2 Lならサーモンの切り身2枚と野菜やフライドポテトを一層に広げて、むらなく加熱できます。\n  * **キッチンでの設置面積：** NinjaやRussell Hobbsのような2ゾーン型は調理台をかなり占有します。6 Lのシングルバスケットなら、一般的なドイツのキッチンでも比較的省スペースで、十分な調理容量を確保できます。\n  * **透明窓：** 引き出しを開けて熱を逃がさずに焼き色を確認できます。\n  * **価格と性能のバランス：** €99.99で、[Philips](wiki:Philips)の安定した温度管理が得られる、手頃な価格のモデルです。\n\n#### **別の候補（異なる温度で2品を同時に作ることが多い場合）：[Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\n肉や魚と付け合わせの野菜を異なる温度と時間で同時に調理したい場合（例：鶏むね肉を180 °C、カリカリのポテトを200 °C）、このモデルは現在€119.99に値下げされており、2つのバスケットの調理完了時刻をそろえられます。\n\n---\n\n### 購入前に確認したいポイント\n1. **バスケットの形：** 四角いバスケット（CosoriやPhilipsなど）は、同じ容量の丸いバスケットより、ステーキや焼き型、串など平らな食品を入れやすくなります。\n2. **食洗機に入るか：** 6 Lのシングルバスケットを入れられる高さがあるか確認しましょう。フッ素樹脂などの焦げ付き防止コーティングを長持ちさせたいなら、手洗いも検討してください。"
+      },
+      "follow_up_1": {
+        "text": "エアフライヤー専用のレシピを探す"
+      },
+      "follow_up_2": {
+        "text": "シングルバスケットとデュアルバスケットのエアフライヤーの主な違いを説明して"
+      },
+      "follow_up_3": {
+        "text": "このエアフライヤーに対応した調理用アクセサリーを探す"
+      },
+      "follow_up_4": {
+        "text": "エアフライヤーで作れる初心者向けの夕食レシピを挙げて"
+      },
+      "follow_up_5": {
+        "text": "これらのモデルの現在の消費電力を確認して"
+      },
+      "follow_up_6": {
+        "text": "セラミックコーティングとテフロンコーティングの洗浄・手入れ方法を比較して"
       }
     }
   },

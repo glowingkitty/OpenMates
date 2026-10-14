@@ -8960,20 +8960,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"2654ed6e-e439-4c21-98c7-95269083da71\", \"app_id\": \"reminder\", \"skill_id\": \"cancel-reminder\"}\n```\n\nOK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.\n\nWould you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?"
       }
     },
-    "chickpea_spinach_protein_dinners": {
-      "title": {
-        "text": "Chickpea Spinach Protein Dinners"
-      },
-      "summary": {
-        "text": "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
-      },
-      "message_1": {
-        "text": "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d7f21a46-8f13-4f14-82c4-d868ba62bb8a\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\",\"query\":\"chickpea and spinach dinner\",\"provider\":\"Edamam\",\"status\":\"finished\"}\n```\n\nHere are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.\n\n### 1. 10-Minute Chickpea and Spinach Curry\nThis is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.\n\n[!](embed:thefieryvegetarian.com-3sr)\n[!](embed:vegancocotte.com-IZt)\n[!](embed:vegancocotte.com-rFn)\n\n*   **Total Time:** 10 minutes\n*   **Protein Content:** ~10.5g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)\n*   1 (15 oz) can diced [tomatoes](wiki:Tomato)\n*   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)\n*   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)\n*   3 cups fresh [spinach](wiki:Spinach)\n*   1 tsp vegetable oil\n\n**Instructions:**\n1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.\n2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.\n3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.\n4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.\n\n---\n\n### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes\nThis Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.\n\n[!](embed:runningonrealfood.com-R8H)\n[!](embed:americanhomecook.com-Alt)\n[!](embed:shortgirltallorder.com-QXv)\n\n*   **Total Time:** 15 minutes\n*   **Protein Content:** ~23.1g per serving\n*   **Servings:** 2\n\n**Ingredients:**\n*   1 (15 oz) can chickpeas (drained and rinsed)\n*   1 (14.5 oz) can diced tomatoes\n*   5 oz baby spinach\n*   1 small onion (diced) & 4 garlic cloves (sliced)\n*   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)\n*   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))\n\n**Instructions:**\n1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).\n2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.\n3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.\n4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).\n\n---\n\n### 3. 20-Minute Middle Eastern Spinach and Chickpeas\nA simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.\n\n[!](embed:carolinescooking.com-Dy7)\n[!](embed:simpleveganblog.com-8dt)\n[!](embed:ourplantbasedworld.com-Krr)\n\n*   **Total Time:** 20 minutes\n*   **Protein Content:** ~8.7g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   3 cups low-sodium canned chickpeas (drained and rinsed)\n*   2 cups baby spinach\n*   2/3 cup diced tomatoes\n*   ½ large white onion (diced)\n*   2 tsp minced garlic\n*   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)\n\n**Instructions:**\n1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.\n2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.\n3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.\n4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.\n5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.\n\n---\n\n**Next steps for your meal prep:**\n*   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?\n*   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?"
-      }
-    },
     "classic_car_reverse_image_search": {
       "title": {
         "text": "Определи классический автомобиль по фото"
@@ -9086,66 +9072,66 @@
     },
     "community_garden_sunflower_illustration": {
       "title": {
-        "text": "Создать ботаническую иллюстрацию подсолнуха"
+        "text": "Ботаническая иллюстрация подсолнуха для садового буклета"
       },
       "summary": {
-        "text": "Создай иллюстрацию подсолнуха без текста для листовки общественного сада."
+        "text": "Создана теплая ботаническая иллюстрация подсолнуха для буклета общественного сада с рекомендациями по дизайну."
       },
       "message_1": {
-        "text": "Пожалуйста, создай теплую ботаническую иллюстрацию подсолнуха для листовки общественного сада на чистом светлом фоне без текста."
+        "text": "Пожалуйста, создай теплую ботаническую иллюстрацию подсолнуха для буклета общественного сада на чистом светлом фоне без текста."
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6a3857ca-aa90-486f-b481-4e1df6f95faa\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nЯ создаю ботаническую иллюстрацию подсолнуха для твоей листовки; она сейчас обрабатывается и появится прямо здесь в чате, как только будет готова.\n\n### Быстрые советы по дизайну листовок\n\nЧтобы сделать твою садовую листовку привлекательной и легкочитаемой:\n\n- **Визуальная иерархия и отступы:** Дай иллюстрации «пространство для дыхания». Размещение ее вдоль края или в заголовке оставит место для советов по садоводству или деталей мероприятия, не создавая ощущения загроможденности.\n- **Цветовая гармония:** Используй теплые тона прямо из рисунка — например, насыщенный медово-золотой, оливково-зеленый или землистую терракоту — для заголовков разделов и рамок.\n- **Сочетание с собственным творчеством:** Если участники сообщества или местные садоводы создают эскизы, отпечатки листьев или фотографии ваших грядок, их интеграция вместе с цифровыми иллюстрациями добавит душевности и уюта.\n\n---\n\n**Следующие шаги и варианты:**\n- [Разработать макет листовки с заголовками и советами](/#message=Help%20me%20design%20a%20clean%20layout%20and%20copy%20for%20a%20community%20garden%20handout.)\n- [Предложить цветовую палитру на основе подсолнухов](/#message=Suggest%20a%20warm%20color%20palette%20and%20typography%20pairing%20for%20a%20botanical%20garden%20flyer.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"83e98b9b-8bcb-4774-9223-be000504a84a\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nВот тёплая ботаническая иллюстрация подсолнуха для памятки вашего общественного сада:\n\n[!](embed:generated-images-ff26d807eb07)\n\n### Рекомендации по оформлению и работе\n\n- **Сочетание с рисунками от руки:** В материалах для сообщества цифровые изображения или иллюстрации, созданные ИИ, прекрасно сочетаются с индивидуальными штрихами. Например, можно напечатать эту иллюстрацию как фон или основной визуальный элемент, а затем предложить участникам сообщества дополнить её схемами посадки, написанными от руки советами по уходу или засушенными листьями и семенами.\n- **Макет памятки и визуальная иерархия:**\n  - **Свободное пространство:** Оставьте достаточно широкие поля вокруг подсолнуха, чтобы памятка выглядела лёгкой и приветливой.\n  - **Типографика:** Для заголовков используйте шрифт с засечками и естественными или гуманистическими формами, например [Garamond](wiki:Garamond) или [Georgia](wiki:Georgia_(typeface)), а для инструкций по посадке, сведений о подготовке почвы и дат мероприятий — хорошо читаемый шрифт без засечек.\n  - **Цветовая палитра:** Используйте янтарные и золотистые оттенки лепестков для акцентных линий или подзаголовков, а глубокий лесной зелёный — для ключевых акцентов.\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"garden_handout_next_step\",\n  \"multiple\": false,\n  \"question\": \"What would you like to work on next for the handout?\",\n  \"options\": [\n    {\n      \"id\": \"layout_tips\",\n      \"text\": \"Get advice on typography and grid layout for the printed flyer\"\n    },\n    {\n      \"id\": \"variations\",\n      \"text\": \"Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)\"\n    },\n    {\n      \"id\": \"custom\",\n      \"text\": \"Something else\"\n    }\n  ],\n  \"custom_option_id\": \"custom\",\n  \"custom_placeholder\": \"Describe what you need...\"\n}\n```\n\n[!](embed:generated-media-images-83e98b9b8bcb)"
       },
       "follow_up_1": {
-        "text": "Найти мероприятия в местных общественных садах поблизости"
+        "text": "Создай еще одну иллюстрацию с трудолюбивой пчелой на лаванде"
       },
       "follow_up_2": {
-        "text": "Помоги мне написать дружелюбный вступительный текст для садовой листовки"
+        "text": "Перечисли основные советы по созданию читабельной листовки для общественного сада"
       },
       "follow_up_3": {
-        "text": "Найти бесплатные SVG-иконки растений для оформления листовки"
+        "text": "Найди бесплатные шрифты для печатных листовок"
       },
       "follow_up_4": {
-        "text": "Составить список основных советов для руководства по общественному саду"
+        "text": "Объясни, как сбалансировать пустое пространство и текст в раздаточном материале"
       },
       "follow_up_5": {
-        "text": "Найти идеи сочетания шрифтов для садовых флаеров"
+        "text": "Создай иллюстрацию спелых сортовых помидоров на ветке"
       },
       "follow_up_6": {
-        "text": "Объяснить, как расположить визуальные элементы в макете для печати"
+        "text": "Предложи идеи цветовых палитр для печатных проектов в органическом стиле"
       }
     },
     "community_garden_volunteer_chime": {
       "title": {
-        "text": "Теплый сигнал для общественного сада"
+        "text": "Дизайн звука уведомления для общественного сада"
       },
       "summary": {
-        "text": "Создай короткий двухнотный звук уведомления для вымышленного приложения общественного сада."
+        "text": "Создан мягкий двухнотный деревянный перезвон для уведомления о регистрации волонтера в общественном саду."
       },
       "message_1": {
-        "text": "Создай короткий, теплый звук уведомления для приложения общественного сада, который звучит при регистрации волонтера. Мягкий двухнотный сигнал, без речи, длительностью менее трех секунд."
+        "text": "Создай короткий, теплый звук уведомления для приложения общественного сада, когда регистрируется волонтер. Мягкий двухнотный перезвон, без речи, длительностью менее трех секунд."
       },
       "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nЯ создаю теплый, мягкий двухнотный сигнал для твоего приложения общественного сада. Он сейчас обрабатывается и появится в чате, как только будет готов.\n\n### Рекомендуемые следующие шаги\n- [Создать естественный праздничный сигнал для разблокировки значка](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Разработать макет карточки подтверждения для волонтера](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdda9f85-fa01-48ca-acf7-7746de6dc0f3\",\"app_id\":\"audio\",\"skill_id\":\"generate\"}\n```\n\nВот мягкий, теплый двухнотный перезвон, созданный для уведомления о регистрации волонтера в твоем общественном саду:\n\n[!](embed:generated-audio-17f56f2e73be)\n\n### Профиль звука\n- **Тон:** органические, резонирующие звуки деревянного перезвона/маримбы, призванные вызывать ассоциации с природой и ростом.\n- **Темп:** восходящая последовательность из двух нот, создающая воодушевляющее и приветливое ощущение, когда кто-то присоединяется, чтобы помочь.\n- **Длительность:** 2 секунды — кратко и ненавязчиво для пользователей приложения.\n\nКак этот тон сочетается с остальной палитрой интерфейса твоего приложения? При необходимости мы можем изменить тембр (например, в сторону более мягкого перебора акустической гитары, поющей чаши или более звонкого стеклянного колокольчика).\n\n[!](embed:generated-media-audio-fdda9f85fa01)"
       },
       "follow_up_1": {
-        "text": "Создай праздничный сигнал разблокировки значка за выполнение задачи"
+        "text": "Создай версию с более мягким перебором акустической гитары"
       },
       "follow_up_2": {
-        "text": "Объясни, как звуковой дизайн влияет на вовлеченность пользователей в мобильных приложениях"
+        "text": "Обсудить, как тестировать звуки уведомлений с пользователями"
       },
       "follow_up_3": {
-        "text": "Создай мягкий сигнал напоминания для графика утреннего полива"
+        "text": "Создай звуковой эффект поющей чаши"
       },
       "follow_up_4": {
-        "text": "Перечисли лучшие практики создания ненавязчивых звуков уведомлений для интерфейса"
+        "text": "Перечисли лучшие практики для аудиоуведомлений в мобильных приложениях"
       },
       "follow_up_5": {
-        "text": "Создай мягкий звук предупреждения об ошибке при сбое валидации формы"
+        "text": "Создай более звонкий звук стеклянного колокольчика для уведомления"
       },
       "follow_up_6": {
-        "text": "Опиши, как интегрировать собственные звуковые эффекты в мобильные приложения"
+        "text": "Сравни различные стили звукового брендинга для приложений"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -9182,34 +9168,34 @@
     },
     "community_garden_welcome_melody": {
       "title": {
-        "text": "Мелодия для приветствия в общественном саду"
+        "text": "Создай нежную приветственную мелодию для общественного сада"
       },
       "summary": {
-        "text": "Создай нежную инструментальную мелодию для приветственного видео общественного сада."
+        "text": "Сгенерируй короткую инструментальную мелодию для приветственного видео общественного сада с теплым акустическим звучанием и без вокала."
       },
       "message_1": {
         "text": "Можешь создать короткую нежную инструментальную мелодию для приветственного видео общественного сада, без вокала?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"296e122a-cd23-4fc6-9c27-99f21f8e3401\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nЯ создаю этот нежный инструментальный трек для твоего приветственного видео общественного сада. Он сейчас обрабатывается и появится здесь, как только будет готов.\n\nПроекты [общественного садоводства](wiki:Community_gardening) — это прекрасный способ сплотить соседей и поддержать местное биоразнообразие. Пока музыка создается, хочешь, я помогу тебе спланировать повествование или визуальный ряд для приветственного видео?\n\n- [Составить план приветственного видео](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)\n- [Придумать текст вступления или советы по озвучке](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"3e5014d0-2082-4604-b968-1553d6cc43e4\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nВот нежный акустический инструментальный трек, созданный для твоего приветственного видео общественного сада:\n\n[!](embed:generated-media-music-3e5014d02082)\n[!](embed:generated-music-c89ee4a5f418)\n\n### Детали трека\n- **Настроение и тон:** Теплый, приветливый и спокойный\n- **Инструменты:** Перебор на акустической гитаре в сочетании с мягкими фортепианными аккордами и легкими мелодическими акцентами\n- **Длительность:** 30 секунд\n- **Формат:** Полностью инструментальный (без вокала), что делает его идеальным в качестве фоновой музыки для закадрового голоса или текстового вступления.\n\n### Рекомендуемые следующие шаги\nЕсли ты планируешь создать видео или написать сценарий для знакомства новых участников с садом:\n\n- [Набросать короткий приветственный сценарий](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)\n- [Сгенерировать более бодрую акустическую альтернативу](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)"
       },
       "follow_up_1": {
-        "text": "Найти местные мероприятия и мастер-классы в общественных садах"
+        "text": "Создай чуть более бодрый акустический трек для видео нашего общественного сада"
       },
       "follow_up_2": {
-        "text": "Помоги мне составить раскадровку для видео о саде"
+        "text": "Помоги мне написать теплый 30-секундный сценарий приветственного видео для нашего общественного сада"
       },
       "follow_up_3": {
-        "text": "Найти стоковые видео растений и цветов"
+        "text": "Найди уроки по монтажу видео об общественных садах в видеоредакторе"
       },
       "follow_up_4": {
-        "text": "Написать приветственный текст для озвучки видео сообщества"
+        "text": "Опиши, как сочетать фоновую музыку с закадровым голосом"
       },
       "follow_up_5": {
-        "text": "Найти советы по садоводству для общественных проектов"
+        "text": "Найди местные мероприятия и мастер-классы в общественных садах в нашем районе"
       },
       "follow_up_6": {
-        "text": "Предложить идеи для мероприятий в день открытия общественного сада"
+        "text": "Составь список идей для кадров, которые стоит включить в приветственное видео"
       }
     },
     "creativity_drawing_meetups_berlin": {
@@ -9682,40 +9668,34 @@
     },
     "housing_policy_dinner_discussion": {
       "title": {
-        "text": "Prepare for a housing policy dinner discussion"
+        "text": "Подготовка к обсуждению жилищной политики за ужином"
       },
       "summary": {
-        "text": "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+        "text": "Подготовься к спокойному семейному обсуждению жилищной политики и контроля арендной платы, начав с вопросов о местном контексте и целях каждого участника."
       },
       "message_1": {
-        "text": "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+        "text": "Я собираюсь поужинать с отцом, и он хочет поспорить о жилищной политике и контроле арендной платы. Помоги мне подготовиться, чтобы я мог задавать правильные вопросы, проверять ключевые факты, понимать самые сильные аргументы обеих сторон и сохранять спокойствие в разговоре."
       },
       "message_2": {
-        "text": "Focus mode activated: Prepare a political discussion."
-      },
-      "message_3": {
-        "text": "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
-      },
-      "message_4": {
-        "text": "It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. \n\nSince housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** (\"Who is right?\") to a **collaborative exploration** (\"How do we solve this complex problem together?\").\n\nHere is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.\n\n### 1. The Core Debate: Rent Control & Stabilization\n\nTo have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). \n\n**The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**\n*   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.\n*   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.\n*   **It creates \"misallocation\":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.\n*   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.\n\n**The Strongest Arguments FOR Rent Control (The Community & Equity View)**\n*   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.\n*   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.\n*   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply \"shop elsewhere\" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.\n*   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.\n\n### 2. Facts to Keep in Your Back Pocket\n*   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.\n*   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. \n*   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.\n\n### 3. Strategies to Keep It Calm\n*   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., \"I agree with you that property owners shouldn't be forced to operate at a loss.\")*\n*   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.\n*   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).\n\n### 4. Great Questions to Ask Your Dad\n\nThese questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:\n\n1.  **If he is AGAINST rent control:** *\"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?\"*\n2.  **If he is FOR rent control:** *\"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?\"*\n3.  **Zooming out to the bigger picture:** *\"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?\"*\n4.  **Finding balance:** *\"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?\"*\n\nHow are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?"
+        "text": "Обсуждение жилищной политики и регулирования арендной платы с семьей может легко перерасти в жаркий спор, особенно когда сталкиваются взгляды разных поколений, вопросы владения недвижимостью или различные экономические философии. \n\nЧтобы подобрать ключевые факты, данные о политике и конкретные вопросы для твоего ужина, не мог бы ты поделиться контекстом?\n\n1. **Местоположение / Юрисдикция:** Речь идет о конкретном городе, штате или стране (например, Калифорния, Нью-Йорк, Берлин, Великобритания) или он подходит к вопросу с широкой общенациональной экономической точки зрения? Местные правила и рыночное давление сильно различаются.\n2. **Позиция твоего отца:** Какова его основная позиция или реакция? Например, он выступает как домовладелец, мелкий арендодатель или налогоплательщик, или он в первую очередь аргументирует с точки зрения теории свободного рынка против контроля цен?\n3. **Твоя главная цель:** Помимо сохранения спокойствия и конструктивности, что для тебя было бы успехом — поиск точек соприкосновения в основных ценностях (например, стабильность сообщества против нового предложения), понимание его мотивов или наличие надежных данных для ответа на конкретные утверждения?\n\nКак только ты поделишься этими деталями, мы составим индивидуальное руководство по подготовке с проверенными доказательствами, компромиссами обеих сторон и стратегиями деэскалации."
       },
       "follow_up_1": {
-        "text": "Find recent studies on rent control policies"
+        "text": "Найти недавние исследования контроля арендной платы в крупных городах"
       },
       "follow_up_2": {
-        "text": "Explain the economic impact of rent control"
+        "text": "Перечислить основные аргументы против регулирования арендной платы"
       },
       "follow_up_3": {
-        "text": "Search for housing policy debates in our city"
+        "text": "Найти экономические исследования эластичности предложения жилья"
       },
       "follow_up_4": {
-        "text": "Describe how zoning laws affect housing supply"
+        "text": "Сравнить законы о защите прав арендаторов в разных штатах/регионах"
       },
       "follow_up_5": {
-        "text": "Show me zoning laws in our area"
+        "text": "Найти новостные статьи о последствиях регулирования арендной платы"
       },
       "follow_up_6": {
-        "text": "Summarize the key arguments for rent control"
+        "text": "Объяснить, как предложение на рынке жилья реагирует на контроль цен"
       }
     },
     "image_vectorize_openmates_header": {
@@ -9822,40 +9802,34 @@
     },
     "mastodon_public_post_themes": {
       "title": {
-        "text": "Темы в публичных постах Mastodon"
+        "text": "Сводка постов официального аккаунта Mastodon"
       },
       "summary": {
-        "text": "Обобщи темы недавних постов из официального аккаунта Mastodon и изучи характерные примеры."
+        "text": "Краткий обзор недавних публичных постов официального аккаунта Mastodon, охватывающий Mastodon 5.0, управление, обзоры экосистемы, новости команды и мерч."
       },
       "message_1": {
-        "text": "Можешь обобщить основные темы недавних публичных постов официального аккаунта Mastodon на mastodon.social и дать ссылки на несколько примеров?"
+        "text": "Можешь кратко описать основные темы недавних публичных постов официального аккаунта Mastodon на mastodon.social и привести ссылки на несколько примеров?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"33ebec48-4730-4b4b-b7d7-f967173ac9b6\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nЗапрос на получение недавних публичных постов от @Mastodon (`@Mastodon@mastodon.social`) все еще выполняется в фоновом режиме и обновит чат, как только будет готов.\n\nПока мы ждем загрузки ленты:\n- [Посмотреть недавние объявления в блоге Mastodon](/#message=Search%20for%20the%20latest%20official%20Mastodon%20blog%20announcements%20and%20releases.)\n- [Изучить дорожную карту Mastodon](/#message=What%20are%20the%20major%20features%20currently%20on%20the%20Mastodon%20roadmap%3F)"
-      },
-      "message_3": {
-        "text": "Посты загрузились. Можешь обобщить основные темы и дать ссылки на три характерных поста?"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"65b92905-0838-46dd-8fff-8e28cdc8789a\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nОфициальный аккаунт @Mastodon на `mastodon.social` выделяет несколько основных тем в своих недавних публичных постах:\n\n### 1. Крупные изменения продукта и исследования пользователей\nОсновное внимание уделялось подготовке к **Mastodon 5.0** по итогам общественной исследовательской инициативы «Discovery Week», проведенной командой дизайнеров. Команда представила превью обновленного, более спокойного интерфейса и улучшенного редактора постов, призванных сделать платформу более доступной и удобной.\n\n### 2. Управление сообществом, политики и кадровые обновления\nMastodon регулярно сообщает об обновлениях в управлении и политиках, в частности, выпустив уточняющие рекомендации по **Политике использования товарных знаков** в ответ на отзывы администраторов и разработчиков fediverse. Также было объявлено о смене руководства: команда поблагодарила уходящего директора по работе с сообществом Ханну Обри за её вклад.\n\n### 3. Обзоры серверов и экосистема Fediverse\nАккаунт активно продвигает независимые инстансы fediverse и инфраструктурные инициативы — например, освещает тематические серверы (такие как Earth.Law) и распространяет отраслевые опросы, такие как исследование операционной деятельности IFTAS.\n\n### 4. Мерч сообщества и финансирование проекта\nДля поддержки разработки открытого ПО они делятся новостями об официальном мерче сообщества, включая выпуск новых плюшевых талисманов («Plushtodons»).\n\n---\n\n### Три показательных поста\n\n- **Дорожная карта продукта и визуальное обновление:** [Анонс Mastodon 5.0](embed:mastodon-after-publishing-D8d) — превью будущего интерфейса 5.0 и редактора постов на основе результатов исследований.\n- **Политика и отзывы сообщества:** [Обновление правил использования товарных знаков](embed:mastodon-today-we-YqD) — описание пересмотренных правил, адаптированных с учетом мнений сообщества.\n- **Поддержка проекта и мерч:** [Анонс предзаказов Plushtodon](embed:mastodon-new-plushtodon-A57) — новые официальные плюшевые талисманы как способ поддержать разработку.\n\n---\n\nХочешь узнать больше о какой-то конкретной теме?\n- [Узнать больше о функциях Mastodon 5.0](/#message=What%20new%20features%20and%20changes%20are%20coming%20in%20Mastodon%205.0%3F)\n- [Ознакомиться с правилами использования товарных знаков](/#message=Summarize%20Mastodon's%20updated%20trademark%20policy%20guidelines.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nПоследние публичные посты официального аккаунта @Mastodon в [Mastodon](wiki:Mastodon_(social_network)) посвящены нескольким основным темам:\n\n---\n\n### 1. Редизайн платформы и новые функции (Mastodon 5.0)\nОсновное внимание уделялось публикации результатов исследований пользовательского опыта и анонсу предстоящих изменений в дизайне:\n- **Обзор Mastodon 5.0:** Предварительный взгляд на версию 5.0, в которой представлены более спокойный интерфейс, новая визуальная эстетика и обновленный редактор постов ([обзор Mastodon 5.0](embed:mastodon-after-publishing-WqJ)).\n- **Результаты Discovery Week:** Публикация итогов воркшопов и опросов пользователей, проведенных командой дизайнеров для лучшего понимания того, как сообщество взаимодействует с платформой ([итоги Discovery Week](embed:mastodon-we-re-5Ll)).\n\n### 2. Управление и ясность в вопросах товарных знаков\nMastodon сосредоточился на решении вопросов сообщества, касающихся политики проекта:\n- **Руководство по политике в отношении товарных знаков:** Выпуск обновленных, уточненных рекомендаций и кратких изложений политики Mastodon в отношении товарных знаков на простом языке с учетом отзывов сообщества ([анонс руководства по товарным знакам](embed:mastodon-today-we-3Kb)).\n\n### 3. В центре внимания — сообщество и поддержка экосистемы\nОсвещение более широкой экосистемы [Fediverse](wiki:Fediverse), операторов серверов и инициатив по безопасности:\n- **Обзор серверов:** Продвижение специализированных инстансов, таких как *Earth.Law* — экологичного сервера, созданного для юристов-экологов, ученых и активистов ([обзор сервера Earth.Law](embed:mastodon-here-is-miz)).\n- **Опросы экосистемы:** Поддержка административных инициатив, таких как опрос IFTAS Social Web Operations Survey, для помощи модераторам и администраторам ([пост об опросе IFTAS](embed:mastodon-re-https-wnD)).\n\n### 4. Организационные новости и обновления команды\nПрозрачность в вопросах кадровых изменений и руководства:\n- **Прощание с руководством:** Сообщение об уходе комьюнити-директора и члена совета директоров Ханны Обри с благодарностью за её вклад в развитие сообщества ([пост о прощании с Ханной Обри](embed:mastodon-hannah-aubry-O6F)).\n\n### 5. Финансирование проекта и мерч\nПоддержка разработки сети с открытым исходным кодом:\n- **Предзаказы Plushtodon:** Анонс новых цветов плюшевого талисмана в магазине, что позволяет сторонникам напрямую финансировать разработку ([пост о предзаказе Plushtodon](embed:mastodon-new-plushtodon-7D2)).\n\n---\n\n### Избранные примеры\n\n[@Mastodon: После публикации результатов Discovery Week мы можем представить вам первый обзо](embed:mastodon-after-publishing-WqJ)\n[@Mastodon: Сегодня мы делимся дополнительными рекомендациями по нашей политике в отношени](embed:mastodon-today-we-3Kb)\n[@Mastodon: Новые цвета #Plushtodon теперь доступны для предзаказа в нашем магазине! Это спо](embed:mastodon-new-plushtodon-7D2)"
       },
       "follow_up_1": {
-        "text": "Найти недавние объявления в блоге Mastodon"
+        "text": "Найти недавние обсуждения Mastodon 5.0 на Reddit"
       },
       "follow_up_2": {
-        "text": "Объяснить, как работает децентрализованная модерация в Mastodon"
+        "text": "Объяснить, как работает децентрализованная модерация в Fediverse"
       },
       "follow_up_3": {
-        "text": "Найти новости о разработке Mastodon 5.0"
+        "text": "Найти технические статьи о функциях протокола ActivityPub"
       },
       "follow_up_4": {
-        "text": "Сравнить изменения в Mastodon 5.0 с предыдущими версиями"
+        "text": "Сравнить модели управления Mastodon с коммерческими соцсетями"
       },
       "follow_up_5": {
-        "text": "Найти обсуждения сообщества о модерации серверов Fediverse"
+        "text": "Найти ближайшие онлайн-конференции по открытому ПО"
       },
       "follow_up_6": {
-        "text": "Перечислить основные проблемы платформ с открытым исходным кодом"
+        "text": "Обсудить модели финансирования независимых платформ с открытым кодом"
       }
     },
     "memory_books_currently_reading": {
@@ -10388,20 +10362,6 @@
         "text": "List essential items to pack for variable weather bike rides"
       }
     },
-    "organic_groceries_berlin": {
-      "title": {
-        "text": "Organic Grocery Delivery in Berlin"
-      },
-      "summary": {
-        "text": "Compared Berlin organic grocery delivery options for oat milk and bananas using local delivery sources and product results."
-      },
-      "message_1": {
-        "text": "Can you find organic grocery delivery options in Berlin for oat milk and bananas, compare a few reliable local options, and recommend which one to use?"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"91a1a938-12c3-47f9-a00b-e9a59d2a8ad2\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"organic grocery delivery Berlin\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"cf2504cb-56b5-4ea3-89d5-4cf9cc732911\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Bio Lebensmittel Lieferservice Berlin Hafermilch Bananen\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"5cdfdced-0921-47ed-a351-a0d19ccbb8e2\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Hafermilch\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b6f64bdd-2b32-4623-83eb-8cf57975ba70\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Bananen\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\nBerlin has an excellent ecosystem for organic groceries, offering everything from traditional farm-to-door \"Biokisten\" (organic boxes) to ultra-fast delivery apps. Since you are specifically looking for organic oat milk (*Bio Hafermilch*) and organic bananas (*Bio Bananen*), these are staple items available almost everywhere.\n\nHere is a comparison of the most reliable local options, categorized by how they operate:\n\n### 1. The Local \"Biokiste\" Services (Best for Sustainability & Regionality)\nThese are local, dedicated organic delivery services that have been operating in Berlin for years. They focus heavily on sustainability, fair trade, and regional farming.\n*   **[LogischBIO](embed:logisch-bio.de-eeO):**\n    *   **The Vibe:** A true online organic supermarket with a local heart. They've been operating in Berlin since 1998.\n    *   **Pros:** They offer over 5,000 organic items. Crucially, they require **no subscription** (*kein Abo*), which makes them incredibly flexible if you just want to do a one-off grocery haul.\n    *   **Cons:** You need to plan a day or two ahead for your delivery slot.\n*   **[Märkische Kiste](embed:maerkischekiste.de-fJw) & [Landkorb](embed:landkorb.de-Ze3):**\n    *   **The Vibe:** Classic \"Ökokiste\" (Eco-box) providers. They deliver in reusable boxes straight to your door.\n    *   **Pros:** Excellent for supporting regional Brandenburg farmers. You can either subscribe to a pre-made seasonal box or build your own custom box with exact items like oat milk and bananas.\n    *   **Cons:** Often heavily subscription-based (though you can pause/customize easily). Delivery days are sometimes restricted based on your specific Berlin postal code.\n\n### 2. Quick Commerce (Best for Urgent Needs)\nIf you need your oat milk for tomorrow morning's coffee and can't wait for a scheduled delivery slot:\n*   **Alnatura via [Wolt](embed:wolt.com-UR8) / UberEats:**\n    *   **The Vibe:** Ultra-fast delivery from one of Germany's most popular organic supermarket chains.\n    *   **Pros:** Delivery in roughly 30 minutes. You get access to the high-quality Alnatura brand products.\n    *   **Cons:** Higher delivery fees, and the couriers are gig-economy workers, which lacks the community/sustainability ethos of the dedicated farm boxes.\n\n### 3. Mainstream Supermarket Delivery (Best for General Shopping)\nIf you want to combine your organic basics with a regular grocery order:\n*   **REWE Lieferservice:**\n    *   They have a very reliable scheduled delivery network in Berlin and a massive organic (\"REWE Bio\") range.\n    *   For example, you can easily grab [REWE Bio Vegan Oat Drink](embed:rewe-bio-pflanzlich-Q5w) or [Oatly Bio Barista](embed:oatly-bio-haferdrink-cdI), alongside [Organic Bananas](embed:bio-banane-ca-GZn).\n\n---\n\n### 🏆 Recommendation: Which one should you use?\n\n**Go with LogischBIO.**\nIf you want a reliable, Berlin-based company that specializes entirely in organic food, they are the best all-rounder. Because they don't lock you into a subscription box model, you can just treat them like a regular online supermarket. You can easily stock up on a whole carton of oat milk and a bunch of bananas without having to commit to a weekly vegetable box you might not have time to cook.\n\n**However, if you are in a rush right now:** Open the Wolt app and see if the **Alnatura Brand Store** delivers to your specific neighborhood (they cover most of the Ringbahn area). You'll have your organic bananas and oat milk at your door in 30 minutes."
-      }
-    },
     "pdf_read_secret_word": {
       "title": {
         "text": "Read a PDF page"
@@ -10808,16 +10768,34 @@
     },
     "ted_talk_transcript_summary": {
       "title": {
-        "text": "TED Talk Transcript Summary"
+        "text": "Анализ сатирического выступления Уилла Стивена на TED"
       },
       "summary": {
-        "text": "Get a YouTube talk transcript and summarize the speaker's core argument in five bullets."
+        "text": "Сатирическое выступление Уилла Стивена на TEDx об ораторском искусстве кратко изложено в виде пяти основных комедийных аргументов."
       },
       "message_1": {
-        "text": "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
+        "text": "Получи расшифровку этого выступления на TED и кратко изложи основной аргумент в пяти пунктах: [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
       },
       "message_2": {
-        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\nЭто видео — сатирическое выступление Уилла Стивена на TEDx под названием *«How to sound smart in your TEDx Talk»* (смотреть выступление).\n\nВместо того чтобы читать информативную лекцию, Стивен использует мета-юмор для деконструкции канонов [публичных выступлений](wiki:Public_speaking). Вот основные тезисы, изложенные в пяти пунктах:\n\n* **Подача создает иллюзию содержательности:** Темп речи, выверенная жестикуляция, драматичный зрительный контакт и реквизит (например, очки без диоптрий) могут убедить аудиторию в гениальности спикера, даже если ему совершенно нечего сказать.\n* **Установление контакта с залом глубоко шаблонно:** Знакомые интерактивные приемы — риторические вопросы, просьбы поднять руки и самоироничные анекдоты — это просчитанные сценические уловки, призванные создать искусственную атмосферу теплоты и доверия.\n* **Визуализация данных дает незаслуженный авторитет:** Демонстрация случайных чисел, простых арифметических действий и графиков без контекста эксплуатирует когнитивные искажения, придавая презентации вид глубокого исследования, даже если данные не имеют никакого значения.\n* **Аудитория проецирует смысл на бессмыслицу:** Сочетая серьезную интонацию и выразительные стоковые изображения с откровенной чепухой, ораторы заставляют слушателей подсознательно искать — и воображать — глубокие связи там, где их нет.\n* **Эмоциональную кульминацию можно сфабриковать:** Наращивание громкости, переход на шепот и драматические паузы имитируют ритм озарения, доказывая, как легко можно вызвать чувство вдохновения без какой-либо реальной идеи."
+      },
+      "follow_up_1": {
+        "text": "Найти другие популярные сатирические выступления на YouTube"
+      },
+      "follow_up_2": {
+        "text": "Объяснить историю формата TEDx и его влияние на культуру"
+      },
+      "follow_up_3": {
+        "text": "Найти онлайн-мастер-классы по ораторскому искусству"
+      },
+      "follow_up_4": {
+        "text": "Проанализировать конкретные приемы языка тела, используемые известными спикерами"
+      },
+      "follow_up_5": {
+        "text": "Найти видео с анализом риторических приемов"
+      },
+      "follow_up_6": {
+        "text": "Перечислить советы по преодолению страха перед публичными выступлениями"
       }
     },
     "upcoming_reminders_list": {
@@ -11001,6 +10979,70 @@
       },
       "follow_up_6": {
         "text": "Сравнить различные методы превращения устных идей в организованные задачи"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "Вегетарианские рецепты из продуктов в холодильнике"
+      },
+      "summary": {
+        "text": "Пользователь попросил идеи вегетарианских рецептов со шпинатом, морковью, болгарским перцем и нутом; ассистент предложил три варианта."
+      },
+      "message_1": {
+        "text": "Посоветуешь вегетарианские рецепты? У меня в холодильнике остались шпинат, морковь, болгарский перец и нут."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nИмея под рукой **шпинат, морковь, болгарский перец и нут**, у тебя есть отличная основа для вкусных вегетарианских блюд, богатых клетчаткой. \n\nВот три разных кулинарных направления в зависимости от того, чего тебе хочется:\n\n---\n\n### 1. Свежий и хрустящий: рубленый салат в тайском стиле\nЕсли хочется чего-то быстрого, легкого и хрустящего, смешай мелко нарезанный сырой перец, морковь и шпинат с нутом в пикантной [арахисовой](wiki:Peanut) заправке с лаймом.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Аппетитные котлетки: хрустящие оладьи из нута и овощей\nЕсли тебе хочется чего-то теплого и порционного (отлично подходит для роллов, питы или с йогуртовым соусом), разомни нут и добавь в него измельченную морковь, перец и припущенный шпинат.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Быстрый вариант на ужин: теплое карри из нута и овощей на сковороде\nЕсли тебе нужно блюдо в одной сковороде из базовых продуктов (таких как консервированное кокосовое молоко или протертые томаты):\n1. **Обжарь ароматные ингредиенты:** разогрей оливковое масло в сковороде, затем обжарь нарезанный кубиками лук, измельченный чеснок и имбирь до появления аромата.\n2. **Добавь твердые овощи:** нарежь морковь и болгарский перец небольшими кусочками. Добавь их к луку вместе с молотым кумином, [куркумой](wiki:Turmeric) и щепоткой порошка чили или карри.\n3. **Потуши:** добавь промытый нут вместе со стаканом овощного бульона или кокосового молока. Накрой крышкой и туши 10–12 минут, пока морковь не станет мягкой.\n4. **Добавь шпинат:** в самом конце добавь свежий шпинат на 1–2 минуты, пока он не станет мягким и ярко-зеленым. В конце сбрызни лимонным соком.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Какой вариант приготовления ты выберешь сегодня?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Свежий и хрустящий рубленый салат\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Хрустящие жареные оладьи или котлетки\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Горячее карри или рагу в одной сковороде\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "Найти более подробные инструкции и точные пропорции ингредиентов для карри на сковороде"
+      },
+      "follow_up_2": {
+        "text": "Объяснить, как подготовить и хранить готовые оладьи из нута для заготовок"
+      },
+      "follow_up_3": {
+        "text": "Найти рецепты веганских соусов на основе йогурта к оладьям из нута"
+      },
+      "follow_up_4": {
+        "text": "Предложить простые замены специй, если нет порошка карри для блюда на сковороде"
+      },
+      "follow_up_5": {
+        "text": "Найти альтернативные рецепты заправок с тахини для тайского рубленого салата"
+      },
+      "follow_up_6": {
+        "text": "Сравнить содержание белка и клетчатки в этих трех вегетарианских рецептах"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "Сравнение аэрофритюрниц в Германии"
+      },
+      "summary": {
+        "text": "Сравнение популярных аэрофритюрниц на Amazon в Германии по цене, объёму и оценкам с рекомендацией Philips Airfryer серии 2000 для семьи из двух человек."
+      },
+      "message_1": {
+        "text": "Найди аэрофритюрницы, которые можно купить онлайн в Германии, включая предложения Amazon. Сравни текущие цены, объём и оценки покупателей, затем порекомендуй модель для семьи из двух человек со ссылками на источники."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nНиже — сравнение аэрофритюрниц с высокими оценками, которые сейчас продаются на Amazon в Германии: цены, объём и оценки покупателей.\n\n---\n\n### Сравнение популярных моделей в Германии\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Главная рекомендация для семьи из двух человек\n\n#### **Основной выбор: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **Почему она лучше всего подходит двоим:**\n  * **Оптимальный объём (6.2 L):** Корзина меньше 4.5–5 L может потребовать готовить в несколько заходов даже на двоих. Корзина объёмом 6.2 L позволяет разложить два филе лосося и полноценный гарнир из овощей или картофеля одним слоем для равномерной готовки.\n  * **Место на кухне:** Модели с двумя зонами (например, Ninja или Russell Hobbs) занимают много места на столешнице. Одна корзина объёмом 6 L даёт достаточно пространства, оставаясь относительно компактной для обычной кухни в Германии.\n  * **Прозрачное окошко:** Позволяет следить за подрумяниванием, не выдвигая корзину и не теряя тепло.\n  * **Соотношение цены и качества:** За €99.99 модель предлагает стабильное поддержание температуры от [Philips](wiki:Philips) по разумной цене.\n\n#### **Альтернатива (если вы часто готовите два блюда при разной температуре): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nЕсли вам нужно одновременно готовить белковые продукты и овощной гарнир при разных температурах и с разным временем приготовления (например, куриную грудку при 180 °C и хрустящий картофель при 200 °C), эта модель сейчас продаётся со скидкой за €119.99 и умеет синхронизировать завершение готовки.\n\n---\n\n### Что учитывать перед покупкой\n1. **Форма корзины:** В квадратные корзины (например, Cosori и Philips) плоские продукты (стейки, формы для выпечки, шпажки) помещаются намного лучше, чем в круглые корзины того же объёма.\n2. **Размер посудомоечной машины:** Убедитесь, что в ней достаточно места по высоте для одной корзины объёмом 6 L. Чтобы продлить срок службы антипригарного покрытия, его можно мыть вручную."
+      },
+      "follow_up_1": {
+        "text": "Найти рецепты специально для аэрофритюрниц"
+      },
+      "follow_up_2": {
+        "text": "Объяснить основные различия между аэрофритюрницами с одной и двумя корзинами"
+      },
+      "follow_up_3": {
+        "text": "Найти совместимые аксессуары для выпечки для этой аэрофритюрницы"
+      },
+      "follow_up_4": {
+        "text": "Подобрать простые рецепты ужина в аэрофритюрнице для начинающих"
+      },
+      "follow_up_5": {
+        "text": "Проверить текущие показатели энергопотребления этих моделей"
+      },
+      "follow_up_6": {
+        "text": "Сравнить требования к очистке и уходу за керамическим и тефлоновым покрытием"
       }
     }
   },

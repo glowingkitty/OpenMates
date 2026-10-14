@@ -1,460 +1,675 @@
 title:
-  context: "Title of example chat: A Melody for a Community Garden Welcome"
-  en: "A Melody for a Community Garden Welcome"
-  de: Eine Melodie zur Begrüßung im Gemeinschaftsgarten
-  zh: 社区花园欢迎曲目
-  es: Una melodía para la bienvenida a un huerto comunitario
-  fr: "Une mélodie pour l'accueil d'un jardin communautaire"
-  pt: Uma Melodia para as Boas-vindas a uma Horta Comunitária
-  ru: Мелодия для приветствия в общественном саду
-  ja: コミュニティガーデン紹介用のメロディ
-  ko: 커뮤니티 정원 환영 인사를 위한 멜로디
-  it: Una melodia per il benvenuto in un giardino comunitario
-  tr: Topluluk Bahçesi Karşılaması İçin Bir Melodi
-  vi: Giai điệu chào mừng vườn cộng đồng
-  id: Melodi untuk Sambutan Kebun Komunitas
-  pl: Melodia na powitanie w ogrodzie społecznościowym
-  nl: Een melodie voor een welkom in de buurttuin
-  ar: لحن ترحيبي لحديقة مجتمعية
-  hi: सामुदायिक उद्यान स्वागत के लिए एक धुन
-  th: ท่วงทำนองสำหรับการต้อนรับสู่สวนชุมชน
-  cs: Melodie pro uvítání v komunitní zahradě
-  sv: En melodi för välkomnande till en gemenskapsträdgård
-  he: מנגינה לקבלת פנים בגינה קהילתית
+  context: 'Title of example chat: Create a gentle community garden welcome melody'
+  en: Create a gentle community garden welcome melody
+  de: Erstelle eine sanfte Begrüßungsmelodie für einen Gemeinschaftsgarten
+  zh: 创作一段柔和的社区花园欢迎曲目
+  es: Crear una melodía suave de bienvenida para un jardín comunitario
+  fr: Créer une mélodie de bienvenue douce pour un jardin communautaire
+  pt: Criar uma melodia suave de boas-vindas para uma horta comunitária
+  ru: Создай нежную приветственную мелодию для общественного сада
+  ja: コミュニティガーデンの穏やかなウェルカム曲を作成する
+  ko: 부드러운 커뮤니티 정원 환영 멜로디 만들기
+  it: Crea una melodia delicata di benvenuto per un orto comunitario
+  tr: Nazik bir topluluk bahçesi karşılama melodisi oluştur
+  vi: Tạo một giai điệu chào mừng nhẹ nhàng cho vườn cộng đồng
+  id: Buat melodi selamat datang taman komunitas yang lembut
+  pl: Stwórz łagodną melodię powitalną dla ogrodu społecznego
+  nl: Maak een zachte welkomstmelodie voor een moestuin
+  ar: إنشاء لحن ترحيبي هادئ لحديقة مجتمعية
+  hi: सामुदायिक उद्यान के लिए एक मधुर स्वागत धुन बनाएं
+  th: สร้างทำนองเพลงต้อนรับสวนชุมชนที่อ่อนโยน
+  sv: Skapa en mjuk välkomstmelodi för en gemenskapsträdgård
+  he: יצירת מנגינת פתיחה עדינה לגינה קהילתית
+  cs: Vytvoř jemnou uvítací melodii pro komunitní zahradu
   verified_by_human: []
-
 summary:
-  context: "Summary of example chat: A Melody for a Community Garden Welcome"
-  en: "Create a gentle instrumental melody for a community garden welcome video."
-  de: Erstelle eine sanfte Instrumentalmelodie für ein Begrüßungsvideo eines Gemeinschaftsgartens.
-  zh: 为社区花园欢迎视频创作一段柔和的器乐旋律。
-  es: Crea una melodía instrumental suave para un video de bienvenida de un huerto comunitario.
-  fr: "Crée une mélodie instrumentale douce pour une vidéo d'accueil d'un jardin communautaire."
-  pt: Cria uma melodia instrumental suave para um vídeo de boas-vindas de uma horta comunitária.
-  ru: Создай нежную инструментальную мелодию для приветственного видео общественного сада.
-  ja: コミュニティガーデンの紹介動画用に、穏やかなインストゥルメンタルのメロディを作成します。
-  ko: 커뮤니티 정원 환영 영상에 어울리는 부드러운 연주곡 멜로디를 만듭니다.
-  it: Crea una dolce melodia strumentale per un video di benvenuto di un giardino comunitario.
-  tr: Bir topluluk bahçesi karşılama videosu için nazik bir enstrümantal melodi oluştur.
-  vi: Tạo một giai điệu không lời nhẹ nhàng cho video chào mừng vườn cộng đồng.
-  id: Buat melodi instrumental yang lembut untuk video sambutan kebun komunitas.
-  pl: Stwórz łagodną melodię instrumentalną do filmu powitalnego w ogrodzie społecznościowym.
-  nl: Maak een rustige instrumentale melodie voor een welkomstvideo van een buurttuin.
-  ar: إنشاء لحن موسيقي هادئ لفيديو ترحيبي بحديقة مجتمعية.
-  hi: सामुदायिक उद्यान के स्वागत वीडियो के लिए एक सौम्य वाद्य धुन (instrumental melody) बनाएं।
-  th: สร้างทำนองเพลงบรรเลงที่นุ่มนวลสำหรับวิดีโอต้อนรับของสวนชุมชน
-  cs: Vytvoř jemnou instrumentální melodii pro uvítací video komunitní zahrady.
-  sv: Skapa en mjuk instrumentell melodi för en välkomstvideo till en gemenskapsträdgård.
-  he: יצירת מנגינה אינסטרומנטלית עדינה לסרטון קבלת פנים בגינה קהילתית.
+  context: 'Summary of example chat: Create a gentle community garden welcome melody'
+  en: Generate a short instrumental melody for a community garden welcome video, with a warm acoustic sound and no vocals.
+  de: Erzeuge eine kurze Instrumentalmelodie für ein Begrüßungsvideo für einen Gemeinschaftsgarten, mit einem warmen akustischen Klang und ohne Gesang.
+  zh: 为社区花园欢迎视频生成一段简短的器乐曲，音色温暖且无人声。
+  es: Genera una melodía instrumental corta para un vídeo de bienvenida de un jardín comunitario, con un sonido acústico cálido y sin voces.
+  fr: "Génère une courte mélodie instrumentale pour une vidéo de bienvenue d'un jardin communautaire, avec un son acoustique chaleureux et sans paroles."
+  pt: Gera uma melodia instrumental curta para um vídeo de boas-vindas de uma horta comunitária, com um som acústico acolhedor e sem vozes.
+  ru: Сгенерируй короткую инструментальную мелодию для приветственного видео общественного сада с теплым акустическим звучанием и без вокала.
+  ja: コミュニティガーデンのウェルカム動画用に、温かみのあるアコースティックサウンドの短いインストゥルメンタル曲（ボーカルなし）を生成します。
+  ko: 커뮤니티 정원 환영 영상에 사용할 보컬 없는 따뜻한 어쿠스틱 사운드의 짧은 연주곡을 생성합니다.
+  it: Genera una breve melodia strumentale per un video di benvenuto di un orto comunitario, con un suono acustico caldo e senza voce.
+  tr: Bir topluluk bahçesi karşılama videosu için sıcak bir akustik sese sahip, vokalsiz, kısa bir enstrümantal melodi oluştur.
+  vi: Tạo một giai điệu không lời ngắn cho video chào mừng vườn cộng đồng, với âm thanh acoustic ấm áp và không có lời hát.
+  id: Hasilkan melodi instrumental pendek untuk video selamat datang taman komunitas, dengan suara akustik yang hangat dan tanpa vokal.
+  pl: Wygeneruj krótką melodię instrumentalną do filmu powitalnego ogrodu społecznego, o ciepłym, akustycznym brzmieniu i bez wokalu.
+  nl: Genereer een korte instrumentale melodie voor een welkomstvideo voor een moestuin, met een warm akoestisch geluid en zonder zang.
+  ar: أنشئ لحناً موسيقياً قصيراً لفيديو ترحيبي بحديقة مجتمعية، بصوت دافئ وبدون غناء.
+  hi: सामुदायिक उद्यान के स्वागत वीडियो के लिए एक छोटा वाद्य संगीत तैयार करें, जिसमें गर्मजोशी भरी ध्वनिक ध्वनि हो और कोई स्वर न हो।
+  th: สร้างทำนองเพลงบรรเลงสั้นๆ สำหรับวิดีโอต้อนรับสวนชุมชน ด้วยโทนเสียงอะคูสติกที่อบอุ่นและไม่มีเสียงร้อง
+  sv: Generera en kort instrumental melodi för en välkomstvideo till en gemenskapsträdgård, med ett varmt akustiskt ljud och utan sång.
+  he: יצירת מנגינה אינסטרומנטלית קצרה לסרטון פתיחה של גינה קהילתית, עם צליל אקוסטי חם וללא שירה.
+  cs: Vygeneruj krátkou instrumentální melodii pro uvítací video komunitní zahrady s hřejivým akustickým zvukem a bez vokálů.
   verified_by_human: []
-
 message_1:
-  context: "user message 1 in example chat: A Melody for a Community Garden Welcome. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: "Could you create a short, gentle instrumental melody for a community garden welcome video, without vocals?"
-  de: "Könntest du eine kurze, sanfte Instrumentalmelodie für ein Begrüßungsvideo eines Gemeinschaftsgartens erstellen, ohne Gesang?"
-  zh: 你能为社区花园的欢迎视频创作一段简短、柔和的器乐旋律吗？不需要人声。
-  es: "¿Podrías crear una melodía instrumental corta y suave para un video de bienvenida de un huerto comunitario, sin voces?"
-  fr: "Pourrais-tu créer une mélodie instrumentale courte et douce pour une vidéo d'accueil d'un jardin communautaire, sans paroles ?"
+  context: 'user message 1 in example chat: Create a gentle community garden welcome melody. Keep markdown, JSON code blocks,
+    embed links, source quote links, and placeholders unchanged.'
+  en: Could you create a short, gentle instrumental melody for a community garden welcome video, without vocals?
+  de: "Könntest du eine kurze, sanfte Instrumentalmelodie für ein Begrüßungsvideo für einen Gemeinschaftsgarten erstellen, ohne Gesang?"
+  zh: 你能为社区花园的欢迎视频创作一段简短、柔和的器乐曲吗？不要人声。
+  es: "¿Podrías crear una melodía instrumental corta y suave para un vídeo de bienvenida de un jardín comunitario, sin voces?"
+  fr: "Pourrais-tu créer une mélodie instrumentale courte et douce pour une vidéo de bienvenue d'un jardin communautaire, sans paroles ?"
   pt: "Poderias criar uma melodia instrumental curta e suave para um vídeo de boas-vindas de uma horta comunitária, sem vozes?"
   ru: "Можешь создать короткую нежную инструментальную мелодию для приветственного видео общественного сада, без вокала?"
-  ja: コミュニティガーデンの紹介動画用に、ボーカルのない短くて穏やかなインストゥルメンタルのメロディを作ってくれますか？
-  ko: "커뮤니티 정원 환영 영상에 쓸 보컬 없는 짧고 부드러운 연주곡 멜로디를 만들어 줄 수 있어?"
-  it: "Potresti creare una melodia strumentale breve e dolce per un video di benvenuto di un giardino comunitario, senza voce?"
-  tr: "Bir topluluk bahçesi karşılama videosu için vokal içermeyen, kısa ve nazik bir enstrümantal melodi oluşturabilir misin?"
-  vi: "Bạn có thể tạo một giai điệu không lời ngắn, nhẹ nhàng cho video chào mừng vườn cộng đồng không?"
-  id: "Bisakah kamu membuat melodi instrumental yang pendek dan lembut untuk video sambutan kebun komunitas, tanpa vokal?"
-  pl: "Czy możesz stworzyć krótką, łagodną melodię instrumentalną do filmu powitalnego w ogrodzie społecznościowym, bez wokalu?"
-  nl: "Zou je een korte, rustige instrumentale melodie kunnen maken voor een welkomstvideo van een buurttuin, zonder zang?"
-  ar: هل يمكنك إنشاء لحن موسيقي قصير وهادئ لفيديو ترحيبي بحديقة مجتمعية، بدون غناء؟
-  hi: "क्या आप सामुदायिक उद्यान के स्वागत वीडियो के लिए एक छोटी, सौम्य वाद्य धुन (instrumental melody) बना सकते हैं, जिसमें स्वर (vocals) न हों?"
-  th: "ช่วยสร้างทำนองเพลงบรรเลงสั้นๆ ที่นุ่มนวลสำหรับวิดีโอต้อนรับของสวนชุมชนแบบไม่มีเสียงร้องให้หน่อยได้ไหม?"
-  cs: "Mohl bys vytvořit krátkou, jemnou instrumentální melodii pro uvítací video komunitní zahrady, bez vokálů?"
-  sv: "Kan du skapa en kort, mjuk instrumentell melodi för en välkomstvideo till en gemenskapsträdgård, utan sång?"
-  he: "תוכל ליצור מנגינה אינסטרומנטלית קצרה ועדינה לסרטון קבלת פנים בגינה קהילתית, ללא שירה?"
+  ja: コミュニティガーデンのウェルカム動画用に、ボーカルなしの短くて穏やかなインストゥルメンタル曲を作ってくれますか？
+  ko: "커뮤니티 정원 환영 영상에 사용할 짧고 부드러운 연주곡을 보컬 없이 만들어 줄 수 있어?"
+  it: "Potresti creare una melodia strumentale breve e delicata per un video di benvenuto di un orto comunitario, senza voce?"
+  tr: "Bir topluluk bahçesi karşılama videosu için vokalsiz, kısa ve nazik bir enstrümantal melodi oluşturabilir misin?"
+  vi: "Bạn có thể tạo một giai điệu không lời ngắn, nhẹ nhàng cho video chào mừng vườn cộng đồng mà không có lời hát không?"
+  id: "Bisakah kamu membuat melodi instrumental yang pendek dan lembut untuk video selamat datang taman komunitas, tanpa vokal?"
+  pl: "Czy możesz stworzyć krótką, łagodną melodię instrumentalną do filmu powitalnego ogrodu społecznego, bez wokalu?"
+  nl: "Zou je een korte, zachte instrumentale melodie kunnen maken voor een welkomstvideo voor een moestuin, zonder zang?"
+  ar: هل يمكنك إنشاء لحن موسيقي قصير ولطيف لفيديو ترحيبي بحديقة مجتمعية، بدون غناء؟
+  hi: "क्या आप सामुदायिक उद्यान के स्वागत वीडियो के लिए एक छोटा, मधुर वाद्य संगीत (instrumental melody) बना सकते हैं, जिसमें स्वर (vocals) न हों?"
+  th: "ช่วยสร้างทำนองเพลงบรรเลงสั้นๆ ที่อ่อนโยนสำหรับวิดีโอต้อนรับสวนชุมชน โดยไม่มีเสียงร้องได้ไหม?"
+  sv: "Kan du skapa en kort, mjuk instrumental melodi för en välkomstvideo till en gemenskapsträdgård, utan sång?"
+  he: "תוכל ליצור מנגינה אינסטרומנטלית קצרה ועדינה לסרטון פתיחה של גינה קהילתית, ללא שירה?"
+  cs: "Můžeš vytvořit krátkou, jemnou instrumentální melodii pro uvítací video komunitní zahrady, bez vokálů?"
   verified_by_human: []
-
 message_2:
-  context: "assistant message 2 in example chat: A Melody for a Community Garden Welcome. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: |
-    ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
+  context: 'assistant message 2 in example chat: Create a gentle community garden welcome melody. Keep markdown, JSON code
+    blocks, embed links, source quote links, and placeholders unchanged.'
+  en: '```json
+
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
+
     ```
 
-    I'm creating that gentle instrumental track for your community garden welcome video now. It is currently processing and will appear right here once ready.
 
-    [Community gardening](wiki:Community_gardening) projects are a wonderful way to bring neighbors together and foster local biodiversity. While the music generates, would you like help planning the narrative or visual flow of the welcome video?
+    Here is a gentle, acoustic instrumental track composed for your community garden welcome video:
 
-    - [Draft an outline for the welcome video](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [Brainstorm introductory text or voiceover tips](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
+
+    [!](embed:generated-media-music-3e5014d02082)
+
+    [!](embed:generated-music-c89ee4a5f418)
+
+
+    ### Track Details
+
+    - **Mood & Tone:** Warm, inviting, and peaceful
+
+    - **Instrumentation:** Acoustic guitar fingerpicking paired with soft piano chords and light melodic accents
+
+    - **Duration:** 30 seconds
+
+    - **Format:** Fully instrumental (no vocals), making it ideal as background music under a voiceover or text introduction.
+
+
+    ### Suggested Next Steps
+
+    If you plan to produce the video or write a script to introduce new members to the garden:
+
+
+    - [Draft a short welcome script](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)
+
+    - [Generate an upbeat acoustic alternative](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)'
   de: |
     ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
     ```
-
-    Ich erstelle jetzt diesen sanften Instrumentaltitel für dein Begrüßungsvideo des Gemeinschaftsgartens. Er wird gerade verarbeitet und erscheint hier, sobald er fertig ist.
-
-    [Gemeinschaftsgärten](wiki:Community_gardening) sind eine wunderbare Möglichkeit, Nachbarn zusammenzubringen und die lokale Artenvielfalt zu fördern. Während die Musik generiert wird, möchtest du Hilfe bei der Planung des narrativen oder visuellen Ablaufs des Begrüßungsvideos?
-
-    - [Einen Entwurf für das Begrüßungsvideo erstellen](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [Ideen für Einführungstexte oder Voiceover-Tipps sammeln](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
+    
+    Hier ist ein sanfter, akustischer Instrumental-Track, der für dein Begrüßungsvideo für den Gemeinschaftsgarten komponiert wurde:
+    
+    [!](embed:generated-media-music-3e5014d02082)
+    [!](embed:generated-music-c89ee4a5f418)
+    
+    ### Track-Details
+    - **Stimmung & Ton:** Warm, einladend und friedlich
+    - **Instrumentierung:** Akustikgitarren-Fingerpicking kombiniert mit sanften Klavierakkorden und leichten melodischen Akzenten
+    - **Dauer:** 30 Sekunden
+    - **Format:** Rein instrumental (kein Gesang), ideal als Hintergrundmusik für ein Voiceover oder eine Texteinführung.
+    
+    ### Vorgeschlagene nächste Schritte
+    Wenn du planst, das Video zu produzieren oder ein Skript zu schreiben, um neue Mitglieder im Garten zu begrüßen:
+    
+    - [Entwirf ein kurzes Begrüßungsskript](/#message=Hilf%20mir%2C%20ein%20herzliches%2030-sek%C3%BCndiges%20Skript%20f%C3%BCr%20das%20Begr%C3%BC%C3%9Fungsvideo%20unseres%20Gemeinschaftsgartens%20zu%20schreiben.)
+    - [Erstelle eine schwungvollere akustische Alternative](/#message=Erstelle%20einen%20etwas%20schwungvolleren%20Akustik-Track%20f%C3%BCr%20unser%20Gemeinschaftsgarten-Video.)
   zh: |
     ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
     ```
-
-    我正在为你的社区花园欢迎视频创作那段柔和的器乐曲目。目前正在处理中，准备就绪后会直接显示在这里。
-
-    [社区园艺](wiki:Community_gardening)项目是让邻里聚在一起并促进当地生物多样性的绝佳方式。在生成音乐的同时，你是否需要我帮你规划欢迎视频的叙事或视觉流程？
-
-    - [起草欢迎视频的大纲](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [构思开场白文字或旁白技巧](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
+    
+    这是一段为你的社区花园欢迎视频创作的柔和原声器乐曲：
+    
+    [!](embed:generated-media-music-3e5014d02082)
+    [!](embed:generated-music-c89ee4a5f418)
+    
+    ### 曲目详情
+    - **情绪与基调：** 温暖、亲切且宁静
+    - **配器：** 原声吉他指弹，搭配柔和的钢琴和弦与轻盈的旋律点缀
+    - **时长：** 30 秒
+    - **格式：** 纯器乐（无人声），非常适合作为旁白或文字介绍的背景音乐。
+    
+    ### 建议后续步骤
+    如果你计划制作视频或编写向新成员介绍花园的脚本：
+    
+    - [起草一段简短的欢迎脚本](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)
+    - [生成一段节奏轻快一些的原声备选曲目](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)
   es: |
     ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
     ```
-
-    Ahora mismo estoy creando esa pista instrumental suave para tu video de bienvenida del huerto comunitario. Se está procesando y aparecerá aquí mismo en cuanto esté lista.
-
-    Los proyectos de [huertos comunitarios](wiki:Community_gardening) son una forma maravillosa de reunir a los vecinos y fomentar la biodiversidad local. Mientras se genera la música, ¿te gustaría que te ayude a planificar la narrativa o el flujo visual del video de bienvenida?
-
-    - [Redactar un esquema para el video de bienvenida](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [Hacer una lluvia de ideas para el texto de introducción o consejos de locución](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
+    
+    Aquí tienes una pista instrumental acústica y suave compuesta para el vídeo de bienvenida de tu jardín comunitario:
+    
+    [!](embed:generated-media-music-3e5014d02082)
+    [!](embed:generated-music-c89ee4a5f418)
+    
+    ### Detalles de la pista
+    - **Estado de ánimo y tono:** Cálido, acogedor y tranquilo
+    - **Instrumentación:** Guitarra acústica punteada combinada con acordes suaves de piano y ligeros acentos melódicos
+    - **Duración:** 30 segundos
+    - **Formato:** Totalmente instrumental (sin voces), lo que la hace ideal como música de fondo para una voz en off o una introducción de texto.
+    
+    ### Próximos pasos sugeridos
+    Si tienes pensado producir el vídeo o escribir un guion para presentar el jardín a los nuevos miembros:
+    
+    - [Redactar un guion de bienvenida corto](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)
+    - [Generar una alternativa acústica más animada](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)
   fr: |
     ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
     ```
-
-    Je crée actuellement cette piste instrumentale douce pour ta vidéo d'accueil du jardin communautaire. Elle est en cours de traitement et apparaîtra ici dès qu'elle sera prête.
-
-    Les projets de [jardinage communautaire](wiki:Community_gardening) sont un excellent moyen de rassembler les voisins et de favoriser la biodiversité locale. Pendant que la musique se génère, aimerais-tu de l'aide pour planifier le récit ou le déroulement visuel de la vidéo d'accueil ?
-
-    - [Rédiger un plan pour la vidéo d'accueil](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [Trouver des idées de textes d'introduction ou des conseils de voix off](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
+    
+    Voici une piste instrumentale acoustique et douce composée pour la vidéo de bienvenue de ton jardin communautaire :
+    
+    [!](embed:generated-media-music-3e5014d02082)
+    [!](embed:generated-music-c89ee4a5f418)
+    
+    ### Détails de la piste
+    - **Ambiance et ton :** Chaleureux, invitant et paisible
+    - **Instrumentation :** Guitare acoustique en fingerpicking accompagnée d'accords de piano doux et de légers accents mélodiques
+    - **Durée :** 30 secondes
+    - **Format :** Entièrement instrumental (sans paroles), idéal comme musique de fond sous une voix hors champ ou une introduction textuelle.
+    
+    ### Prochaines étapes suggérées
+    Si tu prévois de produire la vidéo ou d'écrire un script pour présenter le jardin aux nouveaux membres :
+    
+    - [Rédiger un court script de bienvenue](/#message=Aide-moi%20%C3%A0%20%C3%A9crire%20un%20script%20chaleureux%20de%2030%20secondes%20pour%20la%20vid%C3%A9o%20de%20bienvenue%20de%20notre%20jardin%20communautaire.)
+    - [Générer une alternative acoustique plus entraînante](/#message=Cr%C3%A9e%20une%20piste%20acoustique%20un%20peu%20plus%20entra%C3%AEnante%20pour%20la%20vid%C3%A9o%20de%20notre%20jardin%20communautaire.)
   pt: |
     ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
     ```
-
-    Estou a criar essa faixa instrumental suave para o teu vídeo de boas-vindas da horta comunitária agora. Está a ser processada e aparecerá aqui assim que estiver pronta.
-
-    Os projetos de [jardinagem comunitária](wiki:Community_gardening) são uma forma maravilhosa de aproximar vizinhos e promover a biodiversidade local. Enquanto a música é gerada, gostarias de ajuda para planear a narrativa ou o fluxo visual do vídeo de boas-vindas?
-
-    - [Elaborar um esboço para o vídeo de boas-vindas](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [Fazer um brainstorming de textos introdutórios ou dicas de locução](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
+    
+    Aqui tens uma faixa instrumental acústica e suave, composta para o teu vídeo de boas-vindas da horta comunitária:
+    
+    [!](embed:generated-media-music-3e5014d02082)
+    [!](embed:generated-music-c89ee4a5f418)
+    
+    ### Detalhes da Faixa
+    - **Humor e Tom:** Acolhedor, convidativo e pacífico
+    - **Instrumentação:** Dedilhado de guitarra acústica combinado com acordes suaves de piano e leves apontamentos melódicos
+    - **Duração:** 30 segundos
+    - **Formato:** Totalmente instrumental (sem vozes), o que a torna ideal como música de fundo para uma narração ou introdução de texto.
+    
+    ### Próximos Passos Sugeridos
+    Se planeias produzir o vídeo ou escrever um guião para apresentar a horta a novos membros:
+    
+    - [Escreve um rascunho de um guião de boas-vindas curto](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)
+    - [Gera uma alternativa acústica mais animada](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)
   ru: |
     ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
     ```
-
-    Я создаю этот нежный инструментальный трек для твоего приветственного видео общественного сада. Он сейчас обрабатывается и появится здесь, как только будет готов.
-
-    Проекты [общественного садоводства](wiki:Community_gardening) — это прекрасный способ сплотить соседей и поддержать местное биоразнообразие. Пока музыка создается, хочешь, я помогу тебе спланировать повествование или визуальный ряд для приветственного видео?
-
-    - [Составить план приветственного видео](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [Придумать текст вступления или советы по озвучке](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
+    
+    Вот нежный акустический инструментальный трек, созданный для твоего приветственного видео общественного сада:
+    
+    [!](embed:generated-media-music-3e5014d02082)
+    [!](embed:generated-music-c89ee4a5f418)
+    
+    ### Детали трека
+    - **Настроение и тон:** Теплый, приветливый и спокойный
+    - **Инструменты:** Перебор на акустической гитаре в сочетании с мягкими фортепианными аккордами и легкими мелодическими акцентами
+    - **Длительность:** 30 секунд
+    - **Формат:** Полностью инструментальный (без вокала), что делает его идеальным в качестве фоновой музыки для закадрового голоса или текстового вступления.
+    
+    ### Рекомендуемые следующие шаги
+    Если ты планируешь создать видео или написать сценарий для знакомства новых участников с садом:
+    
+    - [Набросать короткий приветственный сценарий](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)
+    - [Сгенерировать более бодрую акустическую альтернативу](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)
   ja: |
     ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
     ```
-
-    コミュニティガーデンの紹介動画用の穏やかなインストゥルメンタルトラックを作成しています。現在処理中で、準備ができ次第ここに表示されます。
-
-    [コミュニティガーデン](wiki:Community_gardening)プロジェクトは、近隣住民を結びつけ、地域の生物多様性を育む素晴らしい方法です。音楽を生成している間に、紹介動画の構成や視覚的な流れの計画をお手伝いしましょうか？
-
-    - [紹介動画の構成案を作成する](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [導入テキストやナレーションのヒントを考える](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
+    
+    コミュニティガーデンのウェルカム動画用に作曲された、穏やかなアコースティックのインストゥルメンタル曲です。
+    
+    [!](embed:generated-media-music-3e5014d02082)
+    [!](embed:generated-music-c89ee4a5f418)
+    
+    ### トラックの詳細
+    - **雰囲気とトーン:** 温かく、親しみやすく、平和的
+    - **楽器構成:** アコースティックギターのスリーフィンガー・ピッキングに、柔らかなピアノのコードと軽やかなメロディのアクセント
+    - **長さ:** 30秒
+    - **形式:** 完全なインストゥルメンタル（ボーカルなし）。ナレーションやテキスト紹介の背景音楽として最適です。
+    
+    ### 次のステップの提案
+    動画の制作や、新しいメンバーにガーデンを紹介するスクリプトの作成を検討されている場合は、以下をお試しください。
+    
+    - [短いウェルカムスクリプトをドラフトする](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)
+    - [アップテンポなアコースティックの別案を生成する](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)
   ko: |
     ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
     ```
-
-    커뮤니티 정원 환영 영상에 어울리는 부드러운 연주곡 트랙을 지금 만들고 있어. 현재 처리 중이며 준비가 되면 바로 여기에 나타날 거야.
-
-    [커뮤니티 가드닝](wiki:Community_gardening) 프로젝트는 이웃을 하나로 모으고 지역의 생물 다양성을 가꾸는 멋진 방법이야. 음악이 생성되는 동안 환영 영상의 내러티브나 시각적 흐름을 기획하는 데 도움을 줄까?
-
-    - [환영 영상의 개요 작성하기](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [도입부 문구 또는 내레이션 팁 브레인스토밍](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
+    
+    커뮤니티 정원 환영 영상을 위해 작곡된 부드러운 어쿠스틱 연주곡이야:
+    
+    [!](embed:generated-media-music-3e5014d02082)
+    [!](embed:generated-music-c89ee4a5f418)
+    
+    ### 트랙 상세 정보
+    - **분위기 및 톤:** 따뜻하고 친근하며 평화로운 느낌
+    - **악기 구성:** 부드러운 피아노 화음과 가벼운 멜로디 포인트가 어우러진 어쿠스틱 기타 핑거피킹
+    - **길이:** 30초
+    - **형식:** 순수 연주곡(보컬 없음)으로, 나레이션이나 텍스트 소개의 배경 음악으로 사용하기에 이상적이야.
+    
+    ### 추천 다음 단계
+    영상을 제작하거나 새로운 회원들에게 정원을 소개하는 대본을 쓸 계획이라면:
+    
+    - [짧은 환영 대본 초안 작성하기](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)
+    - [경쾌한 어쿠스틱 대안곡 생성하기](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)
   it: |
     ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
     ```
-
-    Sto creando la traccia strumentale dolce per il tuo video di benvenuto del giardino comunitario. È in fase di elaborazione e apparirà proprio qui non appena sarà pronta.
-
-    I progetti di [giardinaggio comunitario](wiki:Community_gardening) sono un modo meraviglioso per unire i vicini e favorire la biodiversità locale. Mentre la musica viene generata, vorresti aiuto per pianificare la narrazione o il flusso visivo del video di benvenuto?
-
-    - [Bozza di una scaletta per il video di benvenuto](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [Idee per il testo introduttivo o consigli per il voiceover](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
+    
+    Ecco un brano strumentale acustico e delicato composto per il video di benvenuto del tuo orto comunitario:
+    
+    [!](embed:generated-media-music-3e5014d02082)
+    [!](embed:generated-music-c89ee4a5f418)
+    
+    ### Dettagli del brano
+    - **Atmosfera e tono:** Caldo, invitante e tranquillo
+    - **Strumentazione:** Fingerpicking di chitarra acustica abbinato a morbidi accordi di pianoforte e leggeri accenti melodici
+    - **Durata:** 30 secondi
+    - **Formato:** Completamente strumentale (senza voce), ideale come musica di sottofondo per una voce fuori campo o un'introduzione testuale.
+    
+    ### Prossimi passi suggeriti
+    Se hai intenzione di produrre il video o scrivere una sceneggiatura per presentare l'orto ai nuovi membri:
+    
+    - [Scrivi una breve sceneggiatura di benvenuto](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)
+    - [Genera un'alternativa acustica più vivace](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)
   tr: |
     ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
     ```
-
-    Topluluk bahçesi karşılama videon için o nazik enstrümantal parçayı şimdi oluşturuyorum. Şu anda işleniyor ve hazır olduğunda tam burada görünecek.
-
-    [Topluluk bahçeciliği](wiki:Community_gardening) projeleri, komşuları bir araya getirmenin ve yerel biyoçeşitliliği desteklemenin harika bir yoludur. Müzik oluşturulurken, karşılama videosunun anlatı veya görsel akışını planlamana yardım etmemi ister misin?
-
-    - [Karşılama videosu için bir taslak hazırla](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [Giriş metni veya seslendirme ipuçları için beyin fırtınası yap](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
+    
+    İşte topluluk bahçesi karşılama videon için bestelenmiş nazik, akustik bir enstrümantal parça:
+    
+    [!](embed:generated-media-music-3e5014d02082)
+    [!](embed:generated-music-c89ee4a5f418)
+    
+    ### Parça Detayları
+    - **Ruh Hali ve Ton:** Sıcak, davetkar ve huzurlu
+    - **Enstrümantasyon:** Yumuşak piyano akorları ve hafif melodik vurgularla eşleştirilmiş akustik gitar parmak stili
+    - **Süre:** 30 saniye
+    - **Format:** Tamamen enstrümantal (vokalsiz), seslendirme veya metin girişi altında fon müziği olarak kullanım için ideal.
+    
+    ### Önerilen Sonraki Adımlar
+    Videoyu hazırlamayı veya bahçeye yeni katılan üyeleri tanıtmak için bir senaryo yazmayı planlıyorsan:
+    
+    - [Kısa bir karşılama senaryosu taslağı hazırla](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)
+    - [Hareketli bir akustik alternatif oluştur](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)
   vi: |
     ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
     ```
-
-    Tôi đang tạo bản nhạc không lời nhẹ nhàng đó cho video chào mừng vườn cộng đồng của bạn. Bản nhạc đang được xử lý và sẽ xuất hiện ngay tại đây khi sẵn sàng.
-
-    Các dự án [làm vườn cộng đồng](wiki:Community_gardening) là một cách tuyệt vời để gắn kết những người hàng xóm và thúc đẩy đa dạng sinh học địa phương. Trong khi chờ nhạc được tạo, bạn có muốn tôi giúp lập kế hoạch cho nội dung hoặc luồng hình ảnh của video chào mừng không?
-
-    - [Phác thảo dàn ý cho video chào mừng](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [Lên ý tưởng cho văn bản giới thiệu hoặc mẹo thuyết minh](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
+    
+    Đây là bản nhạc không lời acoustic nhẹ nhàng được sáng tác cho video chào mừng vườn cộng đồng của bạn:
+    
+    [!](embed:generated-media-music-3e5014d02082)
+    [!](embed:generated-music-c89ee4a5f418)
+    
+    ### Chi tiết bản nhạc
+    - **Tâm trạng & Âm hưởng:** Ấm áp, mời gọi và yên bình
+    - **Nhạc cụ:** Tiếng đàn guitar acoustic rải ngón kết hợp với các hợp âm piano mềm mại và những điểm nhấn giai điệu nhẹ nhàng
+    - **Thời lượng:** 30 giây
+    - **Định dạng:** Hoàn toàn không lời (không có giọng hát), lý tưởng để làm nhạc nền cho phần thuyết minh hoặc giới thiệu bằng văn bản.
+    
+    ### Các bước tiếp theo gợi ý
+    Nếu bạn dự định sản xuất video hoặc viết kịch bản để giới thiệu các thành viên mới với khu vườn:
+    
+    - [Soạn thảo một kịch bản chào mừng ngắn](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)
+    - [Tạo một bản nhạc acoustic thay thế sôi động hơn](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)
   id: |
     ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
     ```
-
-    Aku sedang membuat trek instrumental lembut untuk video sambutan kebun komunitasmu sekarang. Saat ini sedang diproses dan akan muncul di sini setelah siap.
-
-    Proyek [berkebun komunitas](wiki:Community_gardening) adalah cara yang luar biasa untuk menyatukan tetangga dan memupuk keanekaragaman hayati lokal. Selagi musiknya dibuat, apakah kamu ingin bantuan merencanakan narasi atau alur visual video sambutannya?
-
-    - [Buat draf kerangka untuk video sambutan](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [Cari ide teks pengantar atau tips sulih suara](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
+    
+    Berikut adalah trek instrumental akustik yang lembut yang digubah untuk video selamat datang taman komunitasmu:
+    
+    [!](embed:generated-media-music-3e5014d02082)
+    [!](embed:generated-music-c89ee4a5f418)
+    
+    ### Detail Trek
+    - **Suasana & Nada:** Hangat, mengundang, dan damai
+    - **Instrumentasi:** Petikan gitar akustik yang dipadukan dengan akor piano lembut dan aksen melodi ringan
+    - **Durasi:** 30 detik
+    - **Format:** Sepenuhnya instrumental (tanpa vokal), menjadikannya ideal sebagai musik latar di bawah sulih suara atau pengantar teks.
+    
+    ### Langkah Selanjutnya yang Disarankan
+    Jika kamu berencana untuk memproduksi video atau menulis naskah untuk memperkenalkan anggota baru ke taman:
+    
+    - [Buat draf naskah selamat datang singkat](/#message=Bantu%20saya%20menulis%20naskah%20video%20selamat%20datang%2030%20detik%20yang%20hangat%20untuk%20taman%20komunitas%20kami.)
+    - [Hasilkan alternatif akustik yang lebih ceria](/#message=Buat%20trek%20akustik%20yang%20sedikit%20lebih%20ceria%20untuk%20video%20taman%20komunitas%20kami.)
   pl: |
     ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
     ```
-
-    Tworzę właśnie ten łagodny utwór instrumentalny do Twojego filmu powitalnego w ogrodzie społecznościowym. Jest on teraz przetwarzany i pojawi się tutaj, gdy tylko będzie gotowy.
-
-    Projekty [ogrodnictwa społecznościowego](wiki:Community_gardening) to wspaniały sposób na zintegrowanie sąsiadów i wspieranie lokalnej bioróżnorodności. Podczas gdy muzyka się generuje, czy chcesz, abym pomógł Ci zaplanować narrację lub przebieg wizualny filmu powitalnego?
-
-    - [Przygotuj szkic filmu powitalnego](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [Pomysły na tekst powitalny lub lektora](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
+    
+    Oto łagodny, akustyczny utwór instrumentalny skomponowany do Twojego filmu powitalnego ogrodu społecznego:
+    
+    [!](embed:generated-media-music-3e5014d02082)
+    [!](embed:generated-music-c89ee4a5f418)
+    
+    ### Szczegóły utworu
+    - **Nastrój i ton:** Ciepły, zachęcający i spokojny
+    - **Instrumentarium:** Fingerpicking na gitarze akustycznej w połączeniu z delikatnymi akordami pianina i lekkimi akcentami melodycznymi
+    - **Czas trwania:** 30 sekund
+    - **Format:** W pełni instrumentalny (bez wokalu), co czyni go idealnym jako podkład muzyczny pod lektora lub napisy.
+    
+    ### Sugerowane kolejne kroki
+    Jeśli planujesz wyprodukować film lub napisać scenariusz, aby przedstawić ogród nowym członkom:
+    
+    - [Przygotuj szkic krótkiego scenariusza powitalnego](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)
+    - [Wygeneruj radosną, akustyczną alternatywę](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)
   nl: |
     ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
     ```
-
-    Ik maak nu die rustige instrumentale track voor de welkomstvideo van je buurttuin. Deze wordt momenteel verwerkt en verschijnt hier zodra hij klaar is.
-
-    [Buurttuinen](wiki:Community_gardening) zijn een prachtige manier om buren samen te brengen en de lokale biodiversiteit te bevorderen. Terwijl de muziek wordt gegenereerd, kan ik je helpen bij het plannen van het verhaal of de visuele flow van de welkomstvideo?
-
-    - [Maak een opzet voor de welkomstvideo](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [Brainstorm over inleidende tekst of voice-over tips](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
+    
+    Hier is een zacht, akoestisch instrumentaal nummer gecomponeerd voor de welkomstvideo van je moestuin:
+    
+    [!](embed:generated-media-music-3e5014d02082)
+    [!](embed:generated-music-c89ee4a5f418)
+    
+    ### Details van het nummer
+    - **Sfeer & toon:** Warm, uitnodigend en vredig
+    - **Instrumentatie:** Akoestisch gitaarspel gecombineerd met zachte pianoakkoorden en lichte melodische accenten
+    - **Duur:** 30 seconden
+    - **Formaat:** Volledig instrumentaal (geen zang), waardoor het ideaal is als achtergrondmuziek onder een voice-over of tekstuele introductie.
+    
+    ### Voorgestelde vervolgstappen
+    Als je van plan bent de video te produceren of een script te schrijven om nieuwe leden in de tuin te introduceren:
+    
+    - [Ontwerp een kort welkomstscript](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)
+    - [Genereer een vrolijker akoestisch alternatief](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)
   ar: |
     ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
     ```
-
-    أقوم الآن بإنشاء ذلك المقطع الموسيقي الهادئ لفيديو الترحيب بالحديقة المجتمعية. جارٍ المعالجة وسيظهر هنا بمجرد جاهزيته.
-
-    تُعد مشاريع [البستنة المجتمعية](wiki:Community_gardening) وسيلة رائعة لجمع الجيران معاً وتعزيز التنوع البيولوجي المحلي. بينما يتم إنشاء الموسيقى، هل تود المساعدة في التخطيط للسرد أو التدفق البصري لفيديو الترحيب؟
-
-    - [إعداد مسودة لمخطط فيديو الترحيب](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [تبادل الأفكار حول نص تقديمي أو نصائح للتعليق الصوتي](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
+    
+    إليك مقطوعة موسيقية هادئة تم تأليفها لفيديو الترحيب بحديقتك المجتمعية:
+    
+    [!](embed:generated-media-music-3e5014d02082)
+    [!](embed:generated-music-c89ee4a5f418)
+    
+    ### تفاصيل المقطوعة
+    - **المزاج والنغمة:** دافئة، ترحيبية، وهادئة
+    - **الآلات الموسيقية:** عزف غيتار صوتي (acoustic) مع نغمات بيانو ناعمة ولمسات لحنية خفيفة
+    - **المدة:** 30 ثانية
+    - **التنسيق:** موسيقى آلية بالكامل (بدون غناء)، مما يجعلها مثالية كموسيقى خلفية لتعليق صوتي أو مقدمة نصية.
+    
+    ### الخطوات التالية المقترحة
+    إذا كنت تخطط لإنتاج الفيديو أو كتابة نص لتعريف الأعضاء الجدد بالحديقة:
+    
+    - [مسودة نص فيديو ترحيبي قصير](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)
+    - [إنشاء بديل صوتي أكثر حيوية](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)
   hi: |
     ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
     ```
-
-    मैं अभी तुम्हारे सामुदायिक उद्यान के स्वागत वीडियो के लिए वह सौम्य वाद्य ट्रैक बना रहा हूँ। यह अभी प्रोसेस हो रहा है और तैयार होते ही यहीं दिखाई देगा।
-
-    [सामुदायिक बागवानी](wiki:Community_gardening) परियोजनाएं पड़ोसियों को एक साथ लाने और स्थानीय जैव विविधता को बढ़ावा देने का एक शानदार तरीका हैं। जब तक संगीत बन रहा है, क्या तुम स्वागत वीडियो के कथानक या विज़ुअल फ्लो की योजना बनाने में मदद चाहोगे?
-
-    - [स्वागत वीडियो के लिए एक रूपरेखा तैयार करें](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [प्रारंभिक टेक्स्ट या वॉयसओवर युक्तियों पर विचार-मंथन करें](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
+    
+    यहाँ आपके सामुदायिक उद्यान स्वागत वीडियो के लिए तैयार किया गया एक मधुर, ध्वनिक वाद्य ट्रैक (acoustic instrumental track) है:
+    
+    [!](embed:generated-media-music-3e5014d02082)
+    [!](embed:generated-music-c89ee4a5f418)
+    
+    ### ट्रैक का विवरण
+    - **मूड और टोन:** आत्मीय, आमंत्रित करने वाला और शांतिपूर्ण
+    - **वाद्य यंत्र:** ध्वनिक गिटार फिंगरपिकिंग के साथ कोमल पियानो कॉर्ड्स और हल्के मधुर लहजे
+    - **अवधि:** 30 सेकंड
+    - **फॉर्मेट:** पूरी तरह से वाद्य (कोई स्वर नहीं), जो इसे वॉयसओवर या टेक्स्ट परिचय के पीछे बैकग्राउंड म्यूजिक के रूप में आदर्श बनाता है।
+    
+    ### सुझाए गए अगले कदम
+    यदि आप वीडियो बनाने या नए सदस्यों को उद्यान से परिचित कराने के लिए स्क्रिप्ट लिखने की योजना बना रहे हैं:
+    
+    - [एक संक्षिप्त स्वागत स्क्रिप्ट का मसौदा तैयार करें](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)
+    - [एक उत्साहपूर्ण ध्वनिक विकल्प तैयार करें](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)
   th: |
     ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
     ```
-
-    ฉันกำลังสร้างเพลงบรรเลงที่นุ่มนวลสำหรับวิดีโอต้อนรับของสวนชุมชนให้คุณอยู่ เพลงกำลังอยู่ในระหว่างการประมวลผลและจะปรากฏที่นี่เมื่อพร้อมใช้งาน
-
-    โครงการ [สวนชุมชน](wiki:Community_gardening) เป็นวิธีที่ยอดเยี่ยมในการดึงดูดเพื่อนบ้านให้มาทำกิจกรรมร่วมกันและส่งเสริมความหลากหลายทางชีวภาพในท้องถิ่น ในระหว่างที่รอสร้างเพลง คุณต้องการให้ฉันช่วยวางแผนการเล่าเรื่องหรือลำดับภาพของวิดีโอต้อนรับไหม?
-
-    - [ร่างโครงร่างสำหรับวิดีโอต้อนรับ](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [ระดมสมองหาข้อความเกริ่นนำหรือเคล็ดลับการพากย์เสียง](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
-  cs: |
-    ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
-    ```
-
-    Právě pro tvé uvítací video komunitní zahrady vytvářím tu jemnou instrumentální skladbu. Momentálně se zpracovává a jakmile bude hotová, objeví se přímo zde.
-
-    Projekty [komunitního zahradničení](wiki:Community_gardening) jsou skvělým způsobem, jak sblížit sousedy a podpořit místní biodiverzitu. Zatímco se hudba generuje, chceš pomoci s plánováním narativu nebo vizuálního toku uvítacího videa?
-
-    - [Navrhnout osnovu uvítacího videa](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [Probrat nápady na úvodní text nebo tipy na komentář](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
+    
+    นี่คือเพลงบรรเลงอะคูสติกที่อ่อนโยนซึ่งแต่งขึ้นสำหรับวิดีโอต้อนรับสวนชุมชนของคุณ:
+    
+    [!](embed:generated-media-music-3e5014d02082)
+    [!](embed:generated-music-c89ee4a5f418)
+    
+    ### รายละเอียดแทร็ก
+    - **อารมณ์และโทน:** อบอุ่น เชื้อเชิญ และสงบ
+    - **เครื่องดนตรี:** การเกากีตาร์อะคูสติกคู่กับคอร์ดเปียโนที่นุ่มนวลและลูกเล่นทำนองเบาๆ
+    - **ระยะเวลา:** 30 วินาที
+    - **รูปแบบ:** เพลงบรรเลงล้วน (ไม่มีเสียงร้อง) เหมาะสำหรับใช้เป็นเพลงประกอบเบื้องหลังเสียงบรรยายหรือข้อความแนะนำ
+    
+    ### ขั้นตอนถัดไปที่แนะนำ
+    หากคุณวางแผนที่จะผลิตวิดีโอหรือเขียนบทเพื่อแนะนำสมาชิกใหม่ให้รู้จักกับสวน:
+    
+    - [ร่างบทวิดีโอต้อนรับสั้นๆ](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)
+    - [สร้างเพลงอะคูสติกทางเลือกที่มีจังหวะสนุกสนานขึ้น](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)
   sv: |
     ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
     ```
-
-    Jag skapar det där mjuka instrumentella spåret för din välkomstvideo till gemenskapsträdgården nu. Det bearbetas just nu och kommer att visas här så snart det är klart.
-
-    [Gemenskapsträdgårdar](wiki:Community_gardening) är ett fantastiskt sätt att föra samman grannar och främja lokal biologisk mångfald. Medan musiken skapas, vill du ha hjälp med att planera berättelsen eller det visuella flödet i välkomstvideon?
-
-    - [Skissa på ett utkast för välkomstvideon](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [Brainstorma introduktionstext eller tips för voiceover](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
+    
+    Här är ett mjukt, akustiskt instrumentalt spår komponerat för din välkomstvideo till gemenskapsträdgården:
+    
+    [!](embed:generated-media-music-3e5014d02082)
+    [!](embed:generated-music-c89ee4a5f418)
+    
+    ### Information om spåret
+    - **Stämning och ton:** Varm, inbjudande och fridfull
+    - **Instrumentering:** Akustiskt gitarrplock parat med mjuka pianoackord och lätta melodiska accenter
+    - **Längd:** 30 sekunder
+    - **Format:** Helt instrumentalt (utan sång), vilket gör det idealiskt som bakgrundsmusik till en berättarröst eller textintroduktion.
+    
+    ### Föreslagna nästa steg
+    Om du planerar att producera videon eller skriva ett manus för att introducera nya medlemmar till trädgården:
+    
+    - [Skriv ett utkast till ett kort välkomstmanus](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)
+    - [Generera ett mer upptempo akustiskt alternativ](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)
   he: |
     ```json
-    {"type":"app_skill_use","embed_id":"296e122a-cd23-4fc6-9c27-99f21f8e3401","app_id":"music","skill_id":"generate"}
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
     ```
-
-    אני יוצר כעת את הרצועה האינסטרומנטלית העדינה עבור סרטון קבלת הפנים בגינה הקהילתית שלך. היא נמצאת כעת בעיבוד ותופיע כאן ברגע שתהיה מוכנה.
-
-    פרויקטים של [גינון קהילתי](wiki:Community_gardening) הם דרך נפלאה לקרב בין שכנים ולטפח את המגוון הביולוגי המקומי. בזמן שהמוזיקה נוצרת, תרצה עזרה בתכנון הנרטיב או הזרימה הוויזואלית של סרטון קבלת הפנים?
-
-    - [ניסוח מתווה לסרטון קבלת הפנים](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)
-    - [סיעור מוחות לטקסט פתיחה או טיפים לקריינות](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)
+    
+    הנה רצועה אינסטרומנטלית אקוסטית ועדינה שהולחנה עבור סרטון הפתיחה של הגינה הקהילתית שלך:
+    
+    [!](embed:generated-media-music-3e5014d02082)
+    [!](embed:generated-music-c89ee4a5f418)
+    
+    ### פרטי הרצועה
+    - **מצב רוח וטון:** חם, מזמין ושלו
+    - **כלים:** פריטה על גיטרה אקוסטית בשילוב אקורדים רכים של פסנתר ודגשים מלודיים קלילים
+    - **משך:** 30 שניות
+    - **פורמט:** אינסטרומנטלי לחלוטין (ללא שירה), מה שהופך אותו לאידיאלי כמוזיקת רקע לקריינות או להקדמה בטקסט.
+    
+    ### צעדים הבאים מוצעים
+    אם בכוונתך להפיק את הסרטון או לכתוב תסריט כדי להציג את הגינה לחברים חדשים:
+    
+    - [כתיבת טיוטה לתסריט פתיחה קצר](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)
+    - [יצירת חלופה אקוסטית קצבית יותר](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)
+  cs: |
+    ```json
+    {"type":"app_skill_use","embed_id":"3e5014d0-2082-4604-b968-1553d6cc43e4","app_id":"music","skill_id":"generate"}
+    ```
+    
+    Zde je jemná, akustická instrumentální skladba složená pro tvé uvítací video komunitní zahrady:
+    
+    [!](embed:generated-media-music-3e5014d02082)
+    [!](embed:generated-music-c89ee4a5f418)
+    
+    ### Podrobnosti o skladbě
+    - **Nálada a tón:** Hřejivá, lákavá a klidná
+    - **Instrumentace:** Vybrnkávání na akustickou kytaru v kombinaci s jemnými klavírními akordy a lehkými melodickými akcenty
+    - **Délka:** 30 sekund
+    - **Formát:** Plně instrumentální (bez vokálů), díky čemuž je ideální jako hudba na pozadí pod mluvený komentář nebo textový úvod.
+    
+    ### Navrhované další kroky
+    Pokud plánuješ video produkovat nebo napsat scénář pro představení zahrady novým členům:
+    
+    - [Navrhni krátký uvítací scénář](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)
+    - [Vygeneruj svižnější akustickou alternativu](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)
   verified_by_human: []
-
 follow_up_1:
-  context: "Follow-up suggestion 1"
-  en: "Search for local community garden events and workshops"
-  de: Suche nach lokalen Veranstaltungen und Workshops in Gemeinschaftsgärten
-  zh: 搜索当地社区花园活动和研讨会
-  es: Busca eventos y talleres de huertos comunitarios locales
-  fr: Rechercher des événements et des ateliers de jardins communautaires locaux
-  pt: Pesquisar eventos e workshops de hortas comunitárias locais
-  ru: Найти местные мероприятия и мастер-классы в общественных садах
-  ja: 地域のコミュニティガーデンのイベントやワークショップを検索する
-  ko: 지역 커뮤니티 정원 행사 및 워크숍 검색
-  it: Cerca eventi e workshop di giardini comunitari locali
-  tr: Yerel topluluk bahçesi etkinliklerini ve atölyelerini ara
-  vi: Tìm kiếm các sự kiện và hội thảo về vườn cộng đồng tại địa phương
-  id: Cari acara dan lokakarya kebun komunitas lokal
-  pl: Wyszukaj lokalne wydarzenia i warsztaty w ogrodach społecznościowych
-  nl: Zoek naar lokale buurtuin-evenementen en workshops
-  ar: ابحث عن فعاليات وورش عمل الحدائق المجتمعية المحلية
-  hi: स्थानीय सामुदायिक उद्यान कार्यक्रमों और कार्यशालाओं को खोजें
-  th: ค้นหากิจกรรมและเวิร์กช็อปสวนชุมชนในท้องถิ่น
-  cs: Vyhledat místní akce a workshopy v komunitních zahradách
-  sv: Sök efter lokala evenemang och workshops för gemenskapsträdgårdar
-  he: חיפוש אירועים וסדנאות בגינות קהילתיות מקומיות
+  context: Follow-up suggestion 1
+  en: Create a slightly more upbeat acoustic track for our community garden video
+  de: Erstelle einen etwas schwungvolleren Akustik-Track für unser Gemeinschaftsgarten-Video
+  zh: 为我们的社区花园视频创作一段节奏稍微轻快一些的原声乐曲
+  es: Crea una pista acústica un poco más animada para el vídeo de nuestro jardín comunitario
+  fr: Crée une piste acoustique un peu plus entraînante pour la vidéo de notre jardin communautaire
+  pt: Cria uma faixa acústica um pouco mais animada para o vídeo da nossa horta comunitária
+  ru: Создай чуть более бодрый акустический трек для видео нашего общественного сада
+  ja: コミュニティガーデンの動画用に、もう少しアップテンポなアコースティック曲を作成して
+  ko: 우리 커뮤니티 정원 영상을 위해 조금 더 경쾌한 어쿠스틱 트랙을 만들어줘
+  it: Crea un brano acustico leggermente più vivace per il video del nostro orto comunitario
+  tr: Topluluk bahçesi videomuz için biraz daha hareketli bir akustik parça oluştur
+  vi: Tạo một bản nhạc acoustic sôi động hơn một chút cho video vườn cộng đồng của chúng tôi
+  id: Buat trek akustik yang sedikit lebih ceria untuk video taman komunitas kami
+  pl: Stwórz nieco bardziej radosny utwór akustyczny do naszego filmu o ogrodzie społecznym
+  nl: Maak een iets vrolijker akoestisch nummer voor onze moestuinvideo
+  ar: أنشئ مقطوعة صوتية (acoustic) أكثر حيوية قليلاً لفيديو حديقتنا المجتمعية
+  hi: हमारे सामुदायिक उद्यान वीडियो के लिए थोड़ा अधिक उत्साहपूर्ण ध्वनिक ट्रैक बनाएं
+  th: สร้างเพลงอะคูสติกที่มีจังหวะสนุกสนานขึ้นเล็กน้อยสำหรับวิดีโอสวนชุมชนของเรา
+  sv: Skapa ett något mer upptempo akustiskt spår för vår gemenskapsträdgårdsvideo
+  he: יצירת רצועה אקוסטית קצבית מעט יותר לסרטון הגינה הקהילתית שלנו
+  cs: Vytvoř o něco svižnější akustickou skladbu pro naše video o komunitní zahradě
   verified_by_human: []
-
 follow_up_2:
-  context: "Follow-up suggestion 2"
-  en: "Help me draft a storyboard for the garden video"
-  de: Hilf mir, ein Storyboard für das Gartenvideo zu entwerfen
-  zh: 帮我起草花园视频的分镜脚本
-  es: Ayúdame a redactar un guion gráfico para el video del huerto
-  fr: Aide-moi à rédiger un storyboard pour la vidéo du jardin
-  pt: Ajuda-me a elaborar um storyboard para o vídeo da horta
-  ru: Помоги мне составить раскадровку для видео о саде
-  ja: ガーデン動画のストーリーボード作成を手伝って
-  ko: 정원 영상 스토리보드 작성을 도와줘
-  it: Aiutami a creare uno storyboard per il video del giardino
-  tr: Bahçe videosu için bir görsel senaryo taslağı hazırlamama yardım et
-  vi: Giúp tôi phác thảo kịch bản phân cảnh cho video về khu vườn
-  id: Bantu aku menyusun papan cerita untuk video kebun tersebut
-  pl: Pomóż mi przygotować scenorys filmu o ogrodzie
-  nl: Help me een storyboard te maken voor de tuinvideo
-  ar: ساعدني في إعداد لوحة قصة لفيديو الحديقة
-  hi: उद्यान वीडियो के लिए स्टोरीबोर्ड तैयार करने में मेरी मदद करें
-  th: ช่วยฉันร่างสตอรี่บอร์ดสำหรับวิดีโอสวนชุมชนหน่อย
-  cs: Pomoz mi navrhnout storyboard pro video o zahradě
-  sv: Hjälp mig att skissa på ett storyboard för trädgårdsvideon
-  he: עזור לי לנסח סטוריבורד לסרטון הגינה
+  context: Follow-up suggestion 2
+  en: Help me write a warm thirty-second welcome video script for our community garden
+  de: Hilf mir, ein herzliches 30-sekündiges Skript für das Begrüßungsvideo unseres Gemeinschaftsgartens zu schreiben
+  zh: 帮我为我们的社区花园写一段 30 秒的温馨欢迎视频脚本
+  es: Ayúdame a escribir un guion cálido de treinta segundos para el vídeo de bienvenida de nuestro jardín comunitario
+  fr: Aide-moi à écrire un script chaleureux de trente secondes pour la vidéo de bienvenue de notre jardin communautaire
+  pt: Ajuda-me a escrever um guião acolhedor de trinta segundos para o vídeo de boas-vindas da nossa horta comunitária
+  ru: Помоги мне написать теплый 30-секундный сценарий приветственного видео для нашего общественного сада
+  ja: コミュニティガーデンの30秒の温かいウェルカム動画用スクリプトを作成して
+  ko: 우리 커뮤니티 정원을 위한 따뜻한 느낌의 30초 분량 환영 영상 대본 작성을 도와줘
+  it: Aiutami a scrivere una sceneggiatura calorosa di trenta secondi per il video di benvenuto del nostro orto comunitario
+  tr: Topluluk bahçemiz için sıcak bir otuz saniyelik karşılama videosu senaryosu yazmama yardım et
+  vi: Giúp tôi viết kịch bản video chào mừng dài 30 giây ấm áp cho vườn cộng đồng của chúng tôi
+  id: Bantu saya menulis naskah video selamat datang tiga puluh detik yang hangat untuk taman komunitas kami
+  pl: Pomóż mi napisać ciepły, trzydziestosekundowy scenariusz filmu powitalnego dla naszego ogrodu społecznego
+  nl: Help me een warm script van dertig seconden te schrijven voor de welkomstvideo van onze moestuin
+  ar: ساعدني في كتابة نص فيديو ترحيبي دافئ مدته ثلاثون ثانية لحديقتنا المجتمعية
+  hi: हमारे सामुदायिक उद्यान के लिए तीस सेकंड का एक आत्मीय स्वागत वीडियो स्क्रिप्ट लिखने में मेरी मदद करें
+  th: ช่วยฉันเขียนบทวิดีโอต้อนรับความยาว 30 วินาทีที่อบอุ่นสำหรับสวนชุมชนของเรา
+  sv: Hjälp mig att skriva ett varmt trettio sekunder långt välkomstmanus för vår gemenskapsträdgård
+  he: עזור לי לכתוב תסריט חם באורך שלושים שניות לסרטון פתיחה של הגינה הקהילתית שלנו
+  cs: Pomoz mi napsat hřejivý třicetisekundový scénář uvítacího videa pro naši komunitní zahradu
   verified_by_human: []
-
 follow_up_3:
-  context: "Follow-up suggestion 3"
-  en: "Find stock videos of plants and flowers"
-  de: Finde Stock-Videos von Pflanzen und Blumen
-  zh: 寻找植物和花卉的库存视频素材
-  es: Busca videos de archivo de plantas y flores
-  fr: Trouver des vidéos de stock de plantes et de fleurs
-  pt: Encontrar vídeos de stock de plantas e flores
-  ru: Найти стоковые видео растений и цветов
-  ja: 植物や花のストック動画を探す
-  ko: 식물 및 꽃 스톡 영상 찾기
-  it: Trova video stock di piante e fiori
-  tr: Bitki ve çiçeklerin stok videolarını bul
-  vi: Tìm video có sẵn về cây cối và hoa lá
-  id: Cari video stok tanaman dan bunga
-  pl: Znajdź filmy stockowe z roślinami i kwiatami
-  nl: "Vind stockvideo's van planten en bloemen"
-  ar: ابحث عن مقاطع فيديو جاهزة للنباتات والزهور
-  hi: पौधों और फूलों के स्टॉक वीडियो खोजें
-  th: ค้นหาวิดีโอสต็อกพืชและดอกไม้
-  cs: Najít stock videa rostlin a květin
-  sv: Hitta stockvideor på växter och blommor
-  he: מציאת סרטוני סטוק של צמחים ופרחים
+  context: Follow-up suggestion 3
+  en: Search for tutorials on editing community garden videos in a video editor
+  de: Suche nach Tutorials zur Bearbeitung von Gemeinschaftsgarten-Videos in einem Video-Editor
+  zh: 搜索关于在视频编辑器中编辑社区花园视频的教程
+  es: Busca tutoriales sobre cómo editar vídeos de jardines comunitarios en un editor de vídeo
+  fr: Recherche des tutoriels sur le montage de vidéos de jardins communautaires dans un éditeur vidéo
+  pt: Procura tutoriais sobre como editar vídeos de hortas comunitárias num editor de vídeo
+  ru: Найди уроки по монтажу видео об общественных садах в видеоредакторе
+  ja: 動画編集ソフトでコミュニティガーデンの動画を編集するチュートリアルを検索して
+  ko: 동영상 편집기에서 커뮤니티 정원 영상을 편집하는 방법에 대한 튜토리얼을 찾아줘
+  it: Cerca tutorial su come montare video di orti comunitari in un editor video
+  tr: Bir video düzenleyicide topluluk bahçesi videolarını düzenleme üzerine eğitimler ara
+  vi: Tìm kiếm các hướng dẫn về cách chỉnh sửa video vườn cộng đồng trong trình chỉnh sửa video
+  id: Cari tutorial tentang mengedit video taman komunitas di editor video
+  pl: Wyszukaj poradniki dotyczące edycji filmów o ogrodach społecznych w edytorze wideo
+  nl: "Zoek naar tutorials over het bewerken van moestuinvideo's in een video-editor"
+  ar: ابحث عن دروس تعليمية حول تحرير فيديوهات الحدائق المجتمعية في برنامج تحرير فيديو
+  hi: वीडियो एडिटर में सामुदायिक उद्यान वीडियो को एडिट करने के ट्यूटोरियल खोजें
+  th: ค้นหาบทแนะนำเกี่ยวกับการตัดต่อวิดีโอสวนชุมชนในโปรแกรมตัดต่อวิดีโอ
+  sv: Sök efter handledningar om hur man redigerar videor för gemenskapsträdgårdar i ett videoredigeringsprogram
+  he: חיפוש מדריכים לעריכת סרטוני גינה קהילתית בתוכנת עריכת וידאו
+  cs: Vyhledej návody na úpravu videí o komunitních zahradách ve video editoru
   verified_by_human: []
-
 follow_up_4:
-  context: "Follow-up suggestion 4"
-  en: "Write welcoming voiceover lines for the community video"
-  de: Schreibe begrüßende Voiceover-Zeilen für das Gemeinschaftsvideo
-  zh: 为社区视频编写欢迎词旁白
-  es: Escribe frases de locución de bienvenida para el video comunitario
-  fr: Écrire des phrases de voix off accueillantes pour la vidéo communautaire
-  pt: Escrever frases de locução de boas-vindas para o vídeo comunitário
-  ru: Написать приветственный текст для озвучки видео сообщества
-  ja: コミュニティ動画用の歓迎のナレーション案を書いて
-  ko: 커뮤니티 영상용 환영 내레이션 문구 작성
-  it: Scrivi dei testi per il voiceover di benvenuto per il video della comunità
-  tr: Topluluk videosu için karşılama seslendirme metinleri yaz
-  vi: Viết lời thuyết minh chào mừng cho video cộng đồng
-  id: Tulis naskah sulih suara sambutan untuk video komunitas tersebut
-  pl: Napisz powitalne kwestie dla lektora do filmu społecznościowego
-  nl: Schrijf welkomstteksten voor de voice-over van de buurtvideo
-  ar: اكتب عبارات تعليق صوتي ترحيبية للفيديو المجتمعي
-  hi: सामुदायिक वीडियो के लिए स्वागत योग्य वॉयसओवर लाइनें लिखें
-  th: เขียนบทพากย์ต้อนรับสำหรับวิดีโอชุมชนให้หน่อย
-  cs: Napsat uvítací texty pro komentář k videu o komunitě
-  sv: Skriv välkomnande voiceover-repliker för gemenskapsvideon
-  he: כתיבת שורות קריינות מזמינות לסרטון הקהילתי
+  context: Follow-up suggestion 4
+  en: Describe how to pair background music with a voiceover narration
+  de: Beschreibe, wie man Hintergrundmusik mit einer Voiceover-Erzählung kombiniert
+  zh: 描述如何将背景音乐与旁白配音相结合
+  es: Describe cómo combinar música de fondo con una narración de voz en off
+  fr: Décris comment associer une musique de fond avec une narration en voix hors champ
+  pt: Descreve como combinar música de fundo com uma narração de voz
+  ru: Опиши, как сочетать фоновую музыку с закадровым голосом
+  ja: BGMとナレーションを合わせる方法を教えて
+  ko: 배경 음악과 내레이션 음성을 조화롭게 맞추는 방법을 설명해줘
+  it: Descrivi come abbinare la musica di sottofondo a una narrazione fuori campo
+  tr: Fon müziğinin bir seslendirme ile nasıl eşleştirileceğini açıkla
+  vi: Mô tả cách kết hợp nhạc nền với lời thuyết minh
+  id: Jelaskan cara memadukan musik latar dengan narasi sulih suara
+  pl: Opisz, jak połączyć muzykę w tle z narracją lektora
+  nl: Beschrijf hoe je achtergrondmuziek combineert met een voice-over-vertelling
+  ar: صِف كيفية دمج الموسيقى الخلفية مع التعليق الصوتي
+  hi: बताएं कि बैकग्राउंड म्यूजिक को वॉयसओवर नरेशन के साथ कैसे जोड़ा जाए
+  th: อธิบายวิธีจับคู่เพลงประกอบกับเสียงบรรยาย
+  sv: Beskriv hur man kombinerar bakgrundsmusik med en berättarröst
+  he: תיאור כיצד לשלב מוזיקת רקע עם קריינות
+  cs: Popiš, jak zkombinovat hudbu na pozadí s mluveným komentářem
   verified_by_human: []
-
 follow_up_5:
-  context: "Follow-up suggestion 5"
-  en: "Search for gardening tips for community projects"
-  de: Suche nach Garten-Tipps für Gemeinschaftsprojekte
-  zh: 搜索社区项目的园艺技巧
-  es: Busca consejos de jardinería para proyectos comunitarios
-  fr: Rechercher des conseils de jardinage pour des projets communautaires
-  pt: Pesquisar dicas de jardinagem para projetos comunitários
-  ru: Найти советы по садоводству для общественных проектов
-  ja: コミュニティプロジェクト向けのガーデニングのコツを検索する
-  ko: 커뮤니티 프로젝트를 위한 가드닝 팁 검색
-  it: Cerca consigli di giardinaggio per progetti comunitari
-  tr: Topluluk projeleri için bahçecilik ipuçları ara
-  vi: Tìm kiếm mẹo làm vườn cho các dự án cộng đồng
-  id: Cari tips berkebun untuk proyek komunitas
-  pl: Wyszukaj porady ogrodnicze dla projektów społecznościowych
-  nl: Zoek naar tuiniertips voor buurtprojecten
-  ar: ابحث عن نصائح بستنة للمشاريع المجتمعية
-  hi: सामुदायिक परियोजनाओं के लिए बागवानी युक्तियों की खोज करें
-  th: ค้นหาเคล็ดลับการทำสวนสำหรับโครงการชุมชน
-  cs: Vyhledat tipy na zahradničení pro komunitní projekty
-  sv: Sök efter trädgårdstips för gemenskapsprojekt
-  he: חיפוש טיפים לגינון עבור פרויקטים קהילתיים
+  context: Follow-up suggestion 5
+  en: Find local community garden events and workshops in our area
+  de: Finde lokale Veranstaltungen und Workshops in Gemeinschaftsgärten in unserer Nähe
+  zh: 查找我们当地的社区花园活动和工作坊
+  es: Busca eventos y talleres de jardines comunitarios locales en nuestra zona
+  fr: Trouve des événements et des ateliers de jardins communautaires locaux dans notre région
+  pt: Encontra eventos e workshops de hortas comunitárias locais na nossa área
+  ru: Найди местные мероприятия и мастер-классы в общественных садах в нашем районе
+  ja: 地域のコミュニティガーデンのイベントやワークショップを探して
+  ko: 우리 지역의 로컬 커뮤니티 정원 행사와 워크숍을 찾아줘
+  it: Trova eventi e workshop di orti comunitari locali nella nostra zona
+  tr: Bölgemizdeki yerel topluluk bahçesi etkinliklerini ve atölyelerini bul
+  vi: Tìm các sự kiện và hội thảo về vườn cộng đồng tại địa phương trong khu vực của chúng tôi
+  id: Cari acara dan lokakarya taman komunitas lokal di area kami
+  pl: Znajdź lokalne wydarzenia i warsztaty w ogrodach społecznych w naszej okolicy
+  nl: Vind lokale moestuinevenementen en workshops bij ons in de buurt
+  ar: ابحث عن فعاليات وورش عمل الحدائق المجتمعية المحلية في منطقتنا
+  hi: हमारे क्षेत्र में स्थानीय सामुदायिक उद्यान कार्यक्रमों और कार्यशालाओं को खोजें
+  th: ค้นหากิจกรรมและเวิร์กช็อปสวนชุมชนในพื้นที่ของเรา
+  sv: Hitta lokala evenemang och workshops för gemenskapsträdgårdar i vårt område
+  he: מציאת אירועים וסדנאות בגינות קהילתיות מקומיות באזורנו
+  cs: Najdi akce a workshopy v místních komunitních zahradách v naší oblasti
   verified_by_human: []
-
 follow_up_6:
-  context: "Follow-up suggestion 6"
-  en: "Suggest ideas for community garden opening day activities"
-  de: Schlage Ideen für Aktivitäten am Eröffnungstag des Gemeinschaftsgartens vor
-  zh: 为社区花园开放日活动提供建议
-  es: Sugiere ideas para actividades del día de inauguración del huerto comunitario
-  fr: "Suggérer des idées d'activités pour la journée d'inauguration du jardin communautaire"
-  pt: Sugerir ideias para atividades no dia da inauguração da horta comunitária
-  ru: Предложить идеи для мероприятий в день открытия общественного сада
-  ja: コミュニティガーデンのオープン記念日のアクティビティ案を提案して
-  ko: 커뮤니티 정원 개장일 활동 아이디어 제안
-  it: Suggerisci idee per le attività del giorno di inaugurazione del giardino comunitario
-  tr: Topluluk bahçesi açılış günü etkinlikleri için fikirler öner
-  vi: Gợi ý ý tưởng cho các hoạt động ngày khai trương vườn cộng đồng
-  id: Berikan ide kegiatan untuk hari pembukaan kebun komunitas
-  pl: Zaproponuj pomysły na atrakcje z okazji otwarcia ogrodu społecznościowego
-  nl: Suggereer ideeën voor activiteiten tijdens de openingsdag van de buurttuin
-  ar: اقترح أفكاراً لأنشطة يوم افتتاح الحديقة المجتمعية
-  hi: सामुदायिक उद्यान के उद्घाटन दिवस की गतिविधियों के लिए विचार सुझाएं
-  th: แนะนำไอเดียกิจกรรมสำหรับวันเปิดสวนชุมชน
-  cs: Navrhnout nápady na aktivity pro den otevření komunitní zahrady
-  sv: Föreslå idéer för aktiviteter på gemenskapsträdgårdens öppningsdag
-  he: הצעת רעיונות לפעילויות ליום הפתיחה של הגינה הקהילתית
+  context: Follow-up suggestion 6
+  en: List ideas for visual shots to include in the welcome video
+  de: Liste Ideen für visuelle Aufnahmen auf, die im Begrüßungsvideo enthalten sein sollten
+  zh: 列出欢迎视频中可以包含的视觉镜头创意内容
+  es: Haz una lista de ideas de tomas visuales para incluir en el vídeo de bienvenida
+  fr: Énumère des idées de plans visuels à inclure dans la vidéo de bienvenue
+  pt: Lista ideias de planos visuais para incluir no vídeo de boas-vindas
+  ru: Составь список идей для кадров, которые стоит включить в приветственное видео
+  ja: ウェルカム動画に入れるべきカットのアイデアをリストアップして
+  ko: 환영 영상에 포함할 시각적 장면들에 대한 아이디어를 나열해줘
+  it: Elenca idee per inquadrature da includere nel video di benvenuto
+  tr: Karşılama videosuna dahil edilecek görsel çekim fikirlerini listele
+  vi: Liệt kê các ý tưởng cho các cảnh quay hình ảnh để đưa vào video chào mừng
+  id: Daftar ide untuk pengambilan gambar visual untuk disertakan dalam video selamat datang
+  pl: Wymień pomysły na ujęcia do filmu powitalnego
+  nl: Maak een lijst met ideeën voor beelden om in de welkomstvideo op te nemen
+  ar: أدرج أفكاراً للقطات بصرية لتضمينها في الفيديو الترحيبي
+  hi: स्वागत वीडियो में शामिल करने के लिए विजुअल शॉट्स के विचारों की सूची बनाएं
+  th: รวบรวมไอเดียช็อตภาพสำหรับใส่ในวิดีโอต้อนรับ
+  sv: Lista idéer för filmklipp att inkludera i välkomstvideon
+  he: רשימת רעיונות לצילומים שכדאי לכלול בסרטון הפתיחה
+  cs: Vyjmenuj nápady na vizuální záběry, které by se měly objevit v uvítacím videu
   verified_by_human: []
-

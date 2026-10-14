@@ -3,7 +3,7 @@ examples:
 - app: social_media
   chat_id: example-mastodon-public-post-themes
   fixture: frontend/packages/ui/src/demo_chats/data/example_chats/mastodon-public-post-themes.ts
-  source_chat_id: 6ea1aeee-9c78-480d-9579-ef524b13cc6f
+  source_chat_id: 5eabe567-0e2a-4b07-9346-da2f7d8d4a7d
   original_request: Could you summarize the main themes in recent public posts by
     the official Mastodon account on mastodon.social, with links to a few examples?
 - app: health
@@ -29,35 +29,35 @@ examples:
     supply recovery, market concentration, retailer margins, regulation, and counterarguments.
     State confirmed vs inferred evidence.
 - app: shopping
-  chat_id: example-organic-groceries-berlin
-  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/organic-groceries-berlin.ts
-  source_chat_id: 998c323a-c64f-44df-84a7-bf188fceadb9
-  original_request: Can you find organic grocery delivery options in Berlin for oat
-    milk and bananas, compare a few reliable local options, and recommend which one
-    to use?
+  chat_id: example-air-fryers-amazon-germany
+  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/air-fryers-amazon-germany.ts
+  source_chat_id: ec38150c-eb3b-4cfe-a03b-4a00f6893a75
+  original_request: Find air fryers I can buy online in Germany, including Amazon
+    listings. Compare current prices, capacities, and review ratings, then
+    recommend one for a two-person household with source links.
 - app: nutrition
-  chat_id: example-chickpea-spinach-protein-dinners
-  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
-  source_chat_id: 91e57096-c6fc-45cc-9a1a-bea822ee968a
-  original_request: Find 3 vegetarian chickpea and spinach dinner recipes under 35
-    minutes with step-by-step instructions and protein details
+  chat_id: example-vegetarian-recipes-from-fridge
+  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/vegetarian-recipes-from-fridge-vegetables.ts
+  source_chat_id: 621012cc-2977-4ba0-989a-c4e0693254ce
+  original_request: Recommendations for vegetarian recipes? I still have spinach,
+    carrots, bell peppers and chickpeas in the fridge.
 - app: images
   chat_id: example-community-garden-sunflower-illustration
   fixture: frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-sunflower-illustration.ts
-  source_chat_id: d4917cd6-f9ba-4786-badc-825c8566c987
+  source_chat_id: e2ba3fa6-f222-4352-afad-4a2a13fa239e
   original_request: Please create a warm botanical illustration of a sunflower for
     a community garden handout, on a clean light background with no text.
 - app: audio
   chat_id: example-community-garden-volunteer-chime
   fixture: frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-volunteer-chime.ts
-  source_chat_id: b304d77b-b27a-4168-9590-029de097b1c4
+  source_chat_id: a5bc2412-46f0-46c3-99fc-f087745ffe7e
   original_request: Create a short, warm notification sound for a community garden
     app when a volunteer signs up. A gentle two-note chime, no speech, and under three
     seconds.
 - app: videos
   chat_id: example-ted-talk-transcript-summary
   fixture: frontend/packages/ui/src/demo_chats/data/example_chats/ted-talk-transcript-summary.ts
-  source_chat_id: 0828c4f9-ee63-4115-992f-6e42c85ce37d
+  source_chat_id: 05eb748b-4628-410c-ab67-e2d9e920a1c3
   original_request: 'Get the transcript for this TED talk and summarize the core argument
     in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o'
 - app: books

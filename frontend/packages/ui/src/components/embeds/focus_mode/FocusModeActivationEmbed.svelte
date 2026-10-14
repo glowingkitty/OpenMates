@@ -347,7 +347,7 @@
   >
     <!-- App icon in gradient circle (matches BasicInfosBar style) -->
     <div class="app-icon-circle {appId}" style={appGradientStyle}>
-      <div class="icon_rounded {appId}"></div>
+      <div class="icon_rounded {appId === 'books' ? 'book' : appId}"></div>
     </div>
 
     <!-- Focus/insight skill icon (purple color for focus mode) -->

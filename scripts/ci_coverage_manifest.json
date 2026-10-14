@@ -374,7 +374,19 @@
         "components/landing-mobile-hero.spec.ts",
         "landing-code-replacement.spec.ts",
         "components/nutrition-serving-macros.spec.ts",
-        "public-example-activity-summary.spec.ts"
+        "public-example-activity-summary.spec.ts",
+        "landing-shopping-replacement.spec.ts",
+        "landing-videos-replacement.spec.ts",
+        "landing-reviewed-media-recipes.spec.ts",
+        "landing-mindmap-preserved-examples.spec.ts",
+        "landing-social-targeted.spec.ts",
+        "landing-nutrition-targeted.spec.ts",
+        "landing-provider-icons-targeted.spec.ts",
+        "landing-music-politics-targeted.spec.ts",
+        "landing-images-targeted.spec.ts",
+        "landing-audio-targeted.spec.ts",
+        "landing-mindmap-recreated-examples.spec.ts",
+        "landing-health-targeted.spec.ts"
       ],
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "execution": "e2e"

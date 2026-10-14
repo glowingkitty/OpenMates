@@ -8960,20 +8960,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"2654ed6e-e439-4c21-98c7-95269083da71\", \"app_id\": \"reminder\", \"skill_id\": \"cancel-reminder\"}\n```\n\nOK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.\n\nWould you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?"
       }
     },
-    "chickpea_spinach_protein_dinners": {
-      "title": {
-        "text": "Chickpea Spinach Protein Dinners"
-      },
-      "summary": {
-        "text": "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
-      },
-      "message_1": {
-        "text": "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d7f21a46-8f13-4f14-82c4-d868ba62bb8a\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\",\"query\":\"chickpea and spinach dinner\",\"provider\":\"Edamam\",\"status\":\"finished\"}\n```\n\nHere are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.\n\n### 1. 10-Minute Chickpea and Spinach Curry\nThis is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.\n\n[!](embed:thefieryvegetarian.com-3sr)\n[!](embed:vegancocotte.com-IZt)\n[!](embed:vegancocotte.com-rFn)\n\n*   **Total Time:** 10 minutes\n*   **Protein Content:** ~10.5g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)\n*   1 (15 oz) can diced [tomatoes](wiki:Tomato)\n*   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)\n*   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)\n*   3 cups fresh [spinach](wiki:Spinach)\n*   1 tsp vegetable oil\n\n**Instructions:**\n1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.\n2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.\n3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.\n4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.\n\n---\n\n### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes\nThis Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.\n\n[!](embed:runningonrealfood.com-R8H)\n[!](embed:americanhomecook.com-Alt)\n[!](embed:shortgirltallorder.com-QXv)\n\n*   **Total Time:** 15 minutes\n*   **Protein Content:** ~23.1g per serving\n*   **Servings:** 2\n\n**Ingredients:**\n*   1 (15 oz) can chickpeas (drained and rinsed)\n*   1 (14.5 oz) can diced tomatoes\n*   5 oz baby spinach\n*   1 small onion (diced) & 4 garlic cloves (sliced)\n*   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)\n*   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))\n\n**Instructions:**\n1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).\n2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.\n3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.\n4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).\n\n---\n\n### 3. 20-Minute Middle Eastern Spinach and Chickpeas\nA simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.\n\n[!](embed:carolinescooking.com-Dy7)\n[!](embed:simpleveganblog.com-8dt)\n[!](embed:ourplantbasedworld.com-Krr)\n\n*   **Total Time:** 20 minutes\n*   **Protein Content:** ~8.7g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   3 cups low-sodium canned chickpeas (drained and rinsed)\n*   2 cups baby spinach\n*   2/3 cup diced tomatoes\n*   ½ large white onion (diced)\n*   2 tsp minced garlic\n*   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)\n\n**Instructions:**\n1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.\n2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.\n3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.\n4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.\n5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.\n\n---\n\n**Next steps for your meal prep:**\n*   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?\n*   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?"
-      }
-    },
     "classic_car_reverse_image_search": {
       "title": {
         "text": "사진으로 클래식 카 식별하기"
@@ -9086,66 +9072,66 @@
     },
     "community_garden_sunflower_illustration": {
       "title": {
-        "text": "보태니컬 해바라기 일러스트 생성"
+        "text": "정원 안내문용 해바라기 보태니컬 일러스트"
       },
       "summary": {
-        "text": "커뮤니티 정원 안내문에 사용할 텍스트 없는 해바라기 일러스트를 만듭니다."
+        "text": "디자인 제안과 함께 커뮤니티 정원 안내문용 따뜻한 느낌의 해바라기 보태니컬 일러스트를 제작했습니다."
       },
       "message_1": {
-        "text": "커뮤니티 정원 안내문에 사용할 따뜻한 느낌의 보태니컬 해바라기 일러스트를 그려줘. 배경은 깨끗하고 밝게 하고 텍스트는 넣지 말아줘."
+        "text": "커뮤니티 정원 안내문에 사용할 따뜻한 느낌의 해바라기 보태니컬 일러스트를 그려주세요. 텍스트 없이 깨끗하고 밝은 배경으로 부탁합니다."
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6a3857ca-aa90-486f-b481-4e1df6f95faa\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\n커뮤니티 정원 안내문에 사용할 보태니컬 해바라기 일러스트를 생성하고 있어요. 현재 처리 중이며, 완료되면 여기 채팅창에 바로 나타날 거예요.\n\n### 커뮤니티 안내문을 위한 간단한 디자인 팁\n\n정원 안내문을 매력적이고 읽기 쉽게 만드는 방법은 다음과 같아요:\n\n- **시각적 계층 구조 및 여백:** 일러스트에 충분한 여백을 주세요. 여백이나 헤더 쪽에 배치하면 가드닝 팁이나 행사 세부 정보를 넣을 공간이 확보되어 복잡해 보이지 않습니다.\n- **색상 조화:** 일러스트에서 직접 따뜻한 톤(진한 허니 골드, 올리브 그린, 흙빛 테라코타 등)을 추출하여 섹션 제목과 테두리에 사용해 보세요.\n- **직접 만든 예술 작품 활용:** 커뮤니티 회원이나 지역 정원사가 직접 그린 스케치, 나뭇잎 판화, 실제 정원 사진 등을 디지털 일러스트와 함께 배치하면 친근하고 따뜻한 느낌을 줄 수 있습니다.\n\n---\n\n**다음 단계 및 옵션:**\n- [제목과 팁이 포함된 안내문 레이아웃 디자인하기](/#message=Help%20me%20design%20a%20clean%20layout%20and%20copy%20for%20a%20community%20garden%20handout.)\n- [해바라기에 어울리는 색상 팔레트 추천받기](/#message=Suggest%20a%20warm%20color%20palette%20and%20typography%20pairing%20for%20a%20botanical%20garden%20flyer.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"83e98b9b-8bcb-4774-9223-be000504a84a\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\n커뮤니티 정원 유인물에 사용할 따뜻한 느낌의 해바라기 보태니컬 일러스트입니다:\n\n[!](embed:generated-images-ff26d807eb07)\n\n### 디자인 및 워크플로 제안\n\n- **손으로 그린 요소와 결합하기:** 커뮤니티 자료의 경우, 디지털 또는 AI 생성 아트워크를 실제적인 개인의 손길과 혼합하면 멋진 결과물을 얻을 수 있습니다. 예를 들어, 이 일러스트를 배경이나 시각적 중심점으로 인쇄한 다음, 커뮤니티 구성원들이 그 옆에 식재 도표를 그리거나, 관리 팁을 손글씨로 적거나, 말린 잎이나 씨앗을 붙이도록 할 수 있습니다.\n- **유인물 레이아웃 및 계층 구조:**\n  - **여백:** 해바라기 주변에 넉넉한 여백을 두어 유인물에 여유롭고 환영하는 분위기를 더하세요.\n  - **타이포그래피:** 제목에는 유기적이거나 휴머니스트 세리프체([Garamond](wiki:Garamond) 또는 [Georgia](wiki:Georgia_(typeface)) 등)를 사용하고, 식재 지침, 토양 준비 세부 사항, 행사 날짜 등에는 가독성이 좋은 산세리프체를 조합해 보세요.\n  - **색상 팔레트:** 꽃잎에서 호박색과 황금색 톤을 추출하여 강조선이나 소제목에 사용하고, 짙은 숲의 초록색을 주요 하이라이트 색상으로 활용해 보세요.\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"garden_handout_next_step\",\n  \"multiple\": false,\n  \"question\": \"What would you like to work on next for the handout?\",\n  \"options\": [\n    {\n      \"id\": \"layout_tips\",\n      \"text\": \"Get advice on typography and grid layout for the printed flyer\"\n    },\n    {\n      \"id\": \"variations\",\n      \"text\": \"Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)\"\n    },\n    {\n      \"id\": \"custom\",\n      \"text\": \"Something else\"\n    }\n  ],\n  \"custom_option_id\": \"custom\",\n  \"custom_placeholder\": \"Describe what you need...\"\n}\n```\n\n[!](embed:generated-media-images-83e98b9b8bcb)"
       },
       "follow_up_1": {
-        "text": "주변 지역의 커뮤니티 정원 행사 검색하기"
+        "text": "라벤더 위에 있는 바쁜 꿀벌 일러스트를 하나 더 생성해 줘"
       },
       "follow_up_2": {
-        "text": "정원 안내문에 들어갈 친근한 소개 문구 작성을 도와줘"
+        "text": "가독성 좋은 커뮤니티 정원 전단지 디자인을 위한 필수 팁 목록을 알려줘"
       },
       "follow_up_3": {
-        "text": "안내문 꾸미기에 사용할 무료 SVG 식물 아이콘 찾기"
+        "text": "인쇄용 전단지에 적합한 무료 타이포그래피 폰트 검색해 줘"
       },
       "follow_up_4": {
-        "text": "커뮤니티 정원 가이드에 포함해야 할 필수 팁 목록"
+        "text": "유인물에서 여백과 텍스트의 균형을 맞추는 방법을 설명해 줘"
       },
       "follow_up_5": {
-        "text": "정원 전단지를 위한 타이포그래피 조합 아이디어 검색"
+        "text": "덩굴에 열린 잘 익은 에어룸 토마토 일러스트를 생성해 줘"
       },
       "follow_up_6": {
-        "text": "인쇄 레이아웃에서 시각적 요소를 배치하는 방법 설명"
+        "text": "천연 유기농 인쇄 프로젝트를 위한 컬러 팔레트 아이디어를 설명해 줘"
       }
     },
     "community_garden_volunteer_chime": {
       "title": {
-        "text": "커뮤니티 정원을 위한 따뜻한 차임벨"
+        "text": "커뮤니티 정원 알림 사운드 디자인"
       },
       "summary": {
-        "text": "가상의 커뮤니티 정원 앱을 위한 짧은 두 음절 알림음을 생성해."
+        "text": "커뮤니티 정원 자원봉사 신청 알림을 위한 부드러운 두 음절의 나무 차임 사운드 효과를 제작했습니다."
       },
       "message_1": {
-        "text": "자원봉사자가 등록할 때 커뮤니티 정원 앱에서 사용할 짧고 따뜻한 알림음을 만들어줘. 부드러운 두 음절 차임벨이어야 하고, 음성은 없어야 하며, 3초 미만이어야 해."
+        "text": "커뮤니티 정원 앱에서 자원봉사자가 등록할 때 사용할 짧고 따뜻한 알림음을 만들어줘. 부드러운 두 음절의 차임벨이어야 하고, 음성은 없어야 하며, 3초 이내로 해줘."
       },
       "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\n지금 커뮤니티 정원 앱을 위한 따뜻하고 부드러운 두 음절 차임벨을 생성하고 있어. 현재 처리 중이며 준비되는 대로 채팅창에 나타날 거야.\n\n### 추천 다음 단계\n- [자연의 느낌이 나는 축하 배지 획득 차임벨 생성](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [자원봉사자 확인 카드 레이아웃 디자인](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdda9f85-fa01-48ca-acf7-7746de6dc0f3\",\"app_id\":\"audio\",\"skill_id\":\"generate\"}\n```\n\n커뮤니티 정원 자원봉사 신청 알림을 위해 제작된 부드럽고 따뜻한 두 음절의 차임벨이야:\n\n[!](embed:generated-audio-17f56f2e73be)\n\n### 사운드 프로필\n- **톤:** 자연과 성장을 연상시키도록 설계된 유기적이고 공명이 있는 나무 차임/마림바 톤.\n- **속도:** 누군가 도움을 주러 왔을 때 고무적이고 환영하는 느낌을 주는 상승하는 두 음절 시퀀스.\n- **길이:** 2초로, 앱 사용자에게 방해가 되지 않도록 짧게 유지함.\n\n이 톤이 앱의 나머지 UI 팔레트와 잘 어울리니? 필요하다면 음색을 조정할 수 있어 (예: 더 부드러운 어쿠스틱 기타 탄주음, 싱잉볼, 또는 더 밝은 유리종 소리 등).\n\n[!](embed:generated-media-audio-fdda9f85fa01)"
       },
       "follow_up_1": {
-        "text": "작업 완료를 위한 축하 배지 획득 차임벨 생성"
+        "text": "더 부드러운 어쿠스틱 기타 탄주 버전 생성하기"
       },
       "follow_up_2": {
-        "text": "사운드 디자인이 모바일 앱의 사용자 참여에 미치는 영향 설명"
+        "text": "사용자와 함께 알림음을 테스트하는 방법 논의하기"
       },
       "follow_up_3": {
-        "text": "아침 물 주기 일정을 위한 부드러운 알림 차임벨 생성"
+        "text": "울리는 싱잉볼 사운드 효과 생성하기"
       },
       "follow_up_4": {
-        "text": "방해되지 않는 UI 알림음 디자인을 위한 모범 사례 목록"
+        "text": "모바일 앱 알림 오디오의 모범 사례 목록 보기"
       },
       "follow_up_5": {
-        "text": "양식 유효성 검사 실패를 위한 부드러운 오류 알림음 생성"
+        "text": "더 밝은 유리종 알림 차임벨 생성하기"
       },
       "follow_up_6": {
-        "text": "모바일 애플리케이션에 맞춤형 사운드 효과를 통합하는 방법 설명"
+        "text": "앱을 위한 다양한 소닉 브랜딩 스타일 비교하기"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -9182,34 +9168,34 @@
     },
     "community_garden_welcome_melody": {
       "title": {
-        "text": "커뮤니티 정원 환영 인사를 위한 멜로디"
+        "text": "부드러운 커뮤니티 정원 환영 멜로디 만들기"
       },
       "summary": {
-        "text": "커뮤니티 정원 환영 영상에 어울리는 부드러운 연주곡 멜로디를 만듭니다."
+        "text": "커뮤니티 정원 환영 영상에 사용할 보컬 없는 따뜻한 어쿠스틱 사운드의 짧은 연주곡을 생성합니다."
       },
       "message_1": {
-        "text": "커뮤니티 정원 환영 영상에 쓸 보컬 없는 짧고 부드러운 연주곡 멜로디를 만들어 줄 수 있어?"
+        "text": "커뮤니티 정원 환영 영상에 사용할 짧고 부드러운 연주곡을 보컬 없이 만들어 줄 수 있어?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"296e122a-cd23-4fc6-9c27-99f21f8e3401\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\n커뮤니티 정원 환영 영상에 어울리는 부드러운 연주곡 트랙을 지금 만들고 있어. 현재 처리 중이며 준비가 되면 바로 여기에 나타날 거야.\n\n[커뮤니티 가드닝](wiki:Community_gardening) 프로젝트는 이웃을 하나로 모으고 지역의 생물 다양성을 가꾸는 멋진 방법이야. 음악이 생성되는 동안 환영 영상의 내러티브나 시각적 흐름을 기획하는 데 도움을 줄까?\n\n- [환영 영상의 개요 작성하기](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)\n- [도입부 문구 또는 내레이션 팁 브레인스토밍](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"3e5014d0-2082-4604-b968-1553d6cc43e4\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\n커뮤니티 정원 환영 영상을 위해 작곡된 부드러운 어쿠스틱 연주곡이야:\n\n[!](embed:generated-media-music-3e5014d02082)\n[!](embed:generated-music-c89ee4a5f418)\n\n### 트랙 상세 정보\n- **분위기 및 톤:** 따뜻하고 친근하며 평화로운 느낌\n- **악기 구성:** 부드러운 피아노 화음과 가벼운 멜로디 포인트가 어우러진 어쿠스틱 기타 핑거피킹\n- **길이:** 30초\n- **형식:** 순수 연주곡(보컬 없음)으로, 나레이션이나 텍스트 소개의 배경 음악으로 사용하기에 이상적이야.\n\n### 추천 다음 단계\n영상을 제작하거나 새로운 회원들에게 정원을 소개하는 대본을 쓸 계획이라면:\n\n- [짧은 환영 대본 초안 작성하기](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)\n- [경쾌한 어쿠스틱 대안곡 생성하기](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)"
       },
       "follow_up_1": {
-        "text": "지역 커뮤니티 정원 행사 및 워크숍 검색"
+        "text": "우리 커뮤니티 정원 영상을 위해 조금 더 경쾌한 어쿠스틱 트랙을 만들어줘"
       },
       "follow_up_2": {
-        "text": "정원 영상 스토리보드 작성을 도와줘"
+        "text": "우리 커뮤니티 정원을 위한 따뜻한 느낌의 30초 분량 환영 영상 대본 작성을 도와줘"
       },
       "follow_up_3": {
-        "text": "식물 및 꽃 스톡 영상 찾기"
+        "text": "동영상 편집기에서 커뮤니티 정원 영상을 편집하는 방법에 대한 튜토리얼을 찾아줘"
       },
       "follow_up_4": {
-        "text": "커뮤니티 영상용 환영 내레이션 문구 작성"
+        "text": "배경 음악과 내레이션 음성을 조화롭게 맞추는 방법을 설명해줘"
       },
       "follow_up_5": {
-        "text": "커뮤니티 프로젝트를 위한 가드닝 팁 검색"
+        "text": "우리 지역의 로컬 커뮤니티 정원 행사와 워크숍을 찾아줘"
       },
       "follow_up_6": {
-        "text": "커뮤니티 정원 개장일 활동 아이디어 제안"
+        "text": "환영 영상에 포함할 시각적 장면들에 대한 아이디어를 나열해줘"
       }
     },
     "creativity_drawing_meetups_berlin": {
@@ -9682,40 +9668,34 @@
     },
     "housing_policy_dinner_discussion": {
       "title": {
-        "text": "Prepare for a housing policy dinner discussion"
+        "text": "주택 정책 관련 저녁 토론 준비하기"
       },
       "summary": {
-        "text": "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+        "text": "지역적 맥락과 각자의 목표에 대한 질문으로 시작하여, 주택 정책 및 임대료 규제에 관한 차분한 가족 토론을 준비해 보세요."
       },
       "message_1": {
-        "text": "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+        "text": "아버지와 저녁 식사를 하는데, 아버지가 주택 정책과 임대료 규제에 대해 논쟁하고 싶어 하셔. 내가 좋은 질문을 던지고, 주요 사실을 확인하고, 양측의 가장 강력한 논거를 이해하며, 대화를 차분하게 유지할 수 있도록 준비를 도와줘."
       },
       "message_2": {
-        "text": "Focus mode activated: Prepare a political discussion."
-      },
-      "message_3": {
-        "text": "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
-      },
-      "message_4": {
-        "text": "It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. \n\nSince housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** (\"Who is right?\") to a **collaborative exploration** (\"How do we solve this complex problem together?\").\n\nHere is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.\n\n### 1. The Core Debate: Rent Control & Stabilization\n\nTo have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). \n\n**The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**\n*   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.\n*   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.\n*   **It creates \"misallocation\":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.\n*   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.\n\n**The Strongest Arguments FOR Rent Control (The Community & Equity View)**\n*   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.\n*   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.\n*   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply \"shop elsewhere\" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.\n*   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.\n\n### 2. Facts to Keep in Your Back Pocket\n*   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.\n*   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. \n*   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.\n\n### 3. Strategies to Keep It Calm\n*   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., \"I agree with you that property owners shouldn't be forced to operate at a loss.\")*\n*   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.\n*   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).\n\n### 4. Great Questions to Ask Your Dad\n\nThese questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:\n\n1.  **If he is AGAINST rent control:** *\"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?\"*\n2.  **If he is FOR rent control:** *\"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?\"*\n3.  **Zooming out to the bigger picture:** *\"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?\"*\n4.  **Finding balance:** *\"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?\"*\n\nHow are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?"
+        "text": "가족과 주택 정책 및 임대료 규제에 대해 논의하는 것은 특히 세대 간의 관점, 부동산 소유 여부 또는 서로 다른 경제 철학이 충돌할 때 쉽게 격앙될 수 있어. \n\n너의 저녁 식사에 맞춰 주요 사실, 정책 데이터 및 구체적인 질문을 조정하기 위해 맥락을 조금 더 공유해 줄 수 있을까?\n\n1. **위치 / 관할 구역:** 특정 도시, 주 또는 국가(예: 캘리포니아, 뉴욕, 베를린, 영국)에 초점을 맞추고 있니, 아니면 아버지가 광범위한 전국적 경제 관점에서 접근하고 계시니? 지역 규정과 시장 압력은 매우 다양해.\n2. **아버지의 관점:** 아버지의 핵심 입장이나 반응은 어떠니? 예를 들어, 주택 소유자, 소규모 임대인 또는 납세자로서 말씀하시니, 아니면 주로 가격 통제에 반대하는 자유 시장 경제 이론에 근거해 주장하시니?\n3. **너의 주요 목표:** 대화를 차분하고 건설적으로 유지하는 것 외에, 너에게 '성공적인 대화'란 어떤 모습이니? 핵심 가치(예: 공동체 안정 대 신규 공급)에 대한 공통 분모를 찾는 것, 아버지의 입장을 이해하는 것, 아니면 특정 주장에 대응할 수 있는 확실한 데이터를 준비하는 것 중 무엇일까?\n\n이 세부 사항들을 공유해 주면, 검증된 증거, 양측의 상충 관계, 그리고 갈등 완화 전략이 포함된 맞춤형 준비 가이드를 만들어 줄게."
       },
       "follow_up_1": {
-        "text": "Find recent studies on rent control policies"
+        "text": "주요 도시의 최근 임대료 규제 연구 검색하기"
       },
       "follow_up_2": {
-        "text": "Explain the economic impact of rent control"
+        "text": "임대료 규제에 반대하는 일반적인 논거 나열하기"
       },
       "follow_up_3": {
-        "text": "Search for housing policy debates in our city"
+        "text": "주택 공급 탄력성에 관한 경제 연구 찾기"
       },
       "follow_up_4": {
-        "text": "Describe how zoning laws affect housing supply"
+        "text": "여러 주의 세입자 보호법 비교하기"
       },
       "follow_up_5": {
-        "text": "Show me zoning laws in our area"
+        "text": "임대료 규제 영향에 관한 뉴스 기사 검색하기"
       },
       "follow_up_6": {
-        "text": "Summarize the key arguments for rent control"
+        "text": "주택 시장 공급이 가격 통제에 어떻게 반응하는지 설명하기"
       }
     },
     "image_vectorize_openmates_header": {
@@ -9822,40 +9802,34 @@
     },
     "mastodon_public_post_themes": {
       "title": {
-        "text": "Mastodon 공개 게시물의 테마"
+        "text": "마스토돈 공식 계정 게시물 요약"
       },
       "summary": {
-        "text": "Mastodon 공식 계정의 최근 게시물 테마를 요약하고 대표적인 사례를 살펴봅니다."
+        "text": "마스토돈 5.0, 거버넌스, 생태계 스포트라이트, 팀 업데이트, 굿즈 등 마스토돈 공식 계정의 최근 공개 게시물을 요약했습니다."
       },
       "message_1": {
-        "text": "mastodon.social에 있는 Mastodon 공식 계정의 최근 공개 게시물에서 주요 테마를 요약하고, 몇 가지 예시 링크를 알려줄 수 있나요?"
+        "text": "mastodon.social의 마스토돈 공식 계정에 올라온 최근 공개 게시물의 주요 테마를 요약하고 몇 가지 예시 링크를 알려줄 수 있나요?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"33ebec48-4730-4b4b-b7d7-f967173ac9b6\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\n@Mastodon(`@Mastodon@mastodon.social`)의 최근 공개 게시물을 가져오기 위한 요청이 현재 백그라운드에서 실행 중이며, 준비가 되면 채팅이 업데이트됩니다.\n\n피드가 로드되는 동안:\n- [최근 Mastodon 블로그 공지사항 확인하기](/#message=Search%20for%20the%20latest%20official%20Mastodon%20blog%20announcements%20and%20releases.)\n- [Mastodon 로드맵 살펴보기](/#message=What%20are%20the%20major%20features%20currently%20on%20the%20Mastodon%20roadmap%3F)"
-      },
-      "message_3": {
-        "text": "이제 게시물이 로드되었습니다. 주요 테마를 요약하고 대표적인 게시물 세 개의 링크를 알려줄 수 있나요?"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"65b92905-0838-46dd-8fff-8e28cdc8789a\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\n`mastodon.social`의 공식 @Mastodon 계정은 최근 공개 게시물에서 몇 가지 핵심 테마를 강조하고 있습니다:\n\n### 1. 주요 제품 진화 및 사용자 연구\n디자인 팀이 주도한 커뮤니티 전반의 \"Discovery Week\" 연구 이니셔티브에 이어, **Mastodon 5.0**을 위한 기초 작업이 주요 초점이 되었습니다. 팀은 플랫폼을 더 접근하기 쉽고 사용자 친화적으로 만들기 위해 재설계된 차분한 인터페이스와 업데이트된 작성기(composer)의 미리보기를 공유했습니다.\n\n### 2. 커뮤니티 거버넌스, 정책 및 직원 업데이트\nMastodon은 거버넌스 및 정책 업데이트를 정기적으로 소통하며, 특히 페디버스 관리자 및 개발자의 피드백에 직접 대응하여 **상표권 정책(Trademark Policy)**에 관한 명확한 가이드라인을 발표했습니다. 또한 주요 리더십 전환을 발표하며, 퇴임하는 커뮤니티 디렉터 Hannah Aubry의 공헌에 감사를 표했습니다.\n\n### 3. 서버 스포트라이트 및 페디버스 생태계\n이 계정은 독립적인 페디버스 인스턴스 및 인프라 이니셔티브를 적극적으로 홍보합니다. 예를 들어 테마 서버(Earth.Law 등)를 강조하거나 IFTAS 운영 연구와 같은 업계 설문 조사를 널리 알립니다.\n\n### 4. 커뮤니티 굿즈 및 프로젝트 자금 조달\n지속적인 오픈 소스 개발을 지원하기 위해 새로운 인형 마스코트 출시(\"Plushtodons\")를 포함한 공식 커뮤니티 굿즈 업데이트를 공유합니다.\n\n---\n\n### 세 가지 대표 게시물\n\n- **제품 로드맵 및 시각적 리프레시:** [Mastodon 5.0 미리보기 발표](embed:mastodon-after-publishing-D8d) — 연구 결과를 바탕으로 곧 출시될 5.0 레이아웃과 게시물 작성기의 미리보기를 공유합니다.\n- **정책 및 커뮤니티 피드백:** [상표권 정책 가이드라인 업데이트](embed:mastodon-today-we-YqD) — 커뮤니티 의견을 반영하여 수정된 상표권 규칙을 설명합니다.\n- **프로젝트 지원 및 굿즈:** [Plushtodon 선주문 발표](embed:mastodon-new-plushtodon-A57) — 후원자들이 개발 자금을 지원할 수 있는 방법으로 새로운 공식 인형 마스코트를 발표합니다.\n\n---\n\n특정 주제에 대해 더 자세히 알아보고 싶으신가요?\n- [Mastodon 5.0 기능에 대해 더 읽어보기](/#message=What%20new%20features%20and%20changes%20are%20coming%20in%20Mastodon%205.0%3F)\n- [상표권 가이드라인 검토하기](/#message=Summarize%20Mastodon's%20updated%20trademark%20policy%20guidelines.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\n[Mastodon](wiki:Mastodon_(social_network))의 공식 @Mastodon 계정에서 올라온 최근 공개 게시물들은 몇 가지 핵심 주제를 중심으로 구성되어 있습니다:\n\n---\n\n### 1. 플랫폼 리디자인 및 예정된 기능 (Mastodon 5.0)\n사용자 경험 연구 결과를 공유하고 향후 디자인 변경 사항을 공개하는 데 주요 초점을 맞추고 있습니다:\n- **Mastodon 5.0 미리 보기:** 더 차분해진 레이아웃, 새로운 시각적 미학, 업데이트된 게시물 작성 도구 등 버전 5.0의 초기 모습을 강조합니다 ([Mastodon 5.0 미리 보기](embed:mastodon-after-publishing-WqJ)).\n- **디스커버리 위크(Discovery Week) 결과:** 커뮤니티가 플랫폼과 상호작용하는 방식을 더 잘 이해하기 위해 디자인 팀이 주도한 사용자 워크숍 및 설문 조사 결과를 공유합니다 ([디스커버리 위크 요약](embed:mastodon-we-re-5Ll)).\n\n### 2. 거버넌스 및 상표권 명확화\n마스토돈은 프로젝트 정책에 관한 커뮤니티의 우려 사항을 해결하는 데 집중해 왔습니다:\n- **상표권 정책 가이드라인:** 커뮤니티의 의견을 수렴하여 마스토돈의 상표권 정책에 관한 업데이트되고 명확해진 가이드라인과 쉬운 언어로 된 요약본을 발표했습니다 ([상표권 가이드라인 공지](embed:mastodon-today-we-3Kb)).\n\n### 3. 커뮤니티 스포트라이트 및 생태계 지원\n더 넓은 [페디버스(Fediverse)](wiki:Fediverse) 생태계, 서버 운영자 및 안전 이니셔티브를 강조합니다:\n- **주요 서버 스포트라이트:** 환경 전문 변호사, 과학자 및 활동가를 위해 맞춤 제작된 친환경 서버인 *Earth.Law*와 같은 전용 인스턴스를 홍보합니다 ([Earth.Law 서버 하이라이트](embed:mastodon-here-is-miz)).\n- **생태계 설문 조사:** 중재자와 관리자를 지원하기 위한 IFTAS 소셜 웹 운영 설문 조사와 같은 관리 이니셔티브를 장려합니다 ([IFTAS 설문 조사 게시물](embed:mastodon-re-https-wnD)).\n\n### 4. 조직 및 팀 업데이트\n팀 전환 및 리더십에 관한 투명성:\n- **리더십 작별 인사:** 커뮤니티 디렉터이자 이사회 멤버인 Hannah Aubry의 퇴임을 알리며, 커뮤니티 성장에 기여한 그녀의 공로에 감사를 표합니다 ([Hannah Aubry 작별 인사 게시물](embed:mastodon-hannah-aubry-O6F)).\n\n### 5. 프로젝트 펀딩 및 굿즈\n네트워크의 오픈 소스 개발을 지속하기 위한 노력:\n- **플러시토돈(Plushtodon) 예약 판매:** 후원자들이 개발 비용을 직접 지원할 수 있도록 상점에 새로운 색상의 인형 마스코트 출시를 알립니다 ([플러시토돈 예약 판매 게시물](embed:mastodon-new-plushtodon-7D2)).\n\n---\n\n### 주요 예시\n\n[@Mastodon: 디스커버리 위크 결과를 발표한 후, 이제 여러분께 첫 번째 미리 보기를...](embed:mastodon-after-publishing-WqJ)\n[@Mastodon: 오늘은 커뮤니티의 의견을 바탕으로 상표권 정책에 관한 추가 가이드라인을...](embed:mastodon-today-we-3Kb)\n[@Mastodon: 이제 저희 상점에서 새로운 #Plushtodon 색상을 예약 주문하실 수 있습니다! 이것은...](embed:mastodon-new-plushtodon-7D2)"
       },
       "follow_up_1": {
-        "text": "최근 Mastodon 블로그 공지사항 검색하기"
+        "text": "Reddit에서 Mastodon 5.0에 관한 최근 토론 검색하기"
       },
       "follow_up_2": {
-        "text": "Mastodon의 분산형 중재 방식 설명하기"
+        "text": "페디버스에서 탈중앙화된 운영 방식이 어떻게 작동하는지 설명하기"
       },
       "follow_up_3": {
-        "text": "Mastodon 5.0 개발 업데이트 검색하기"
+        "text": "ActivityPub 프로토콜 기능을 설명하는 기술 문서 검색하기"
       },
       "follow_up_4": {
-        "text": "Mastodon 5.0의 변경 사항을 이전 버전과 비교하기"
+        "text": "Mastodon의 거버넌스 모델과 상업용 소셜 네트워크 비교하기"
       },
       "follow_up_5": {
-        "text": "Fediverse 서버 중재에 관한 커뮤니티 토론 검색하기"
+        "text": "예정된 온라인 오픈 소스 소프트웨어 컨퍼런스 찾기"
       },
       "follow_up_6": {
-        "text": "오픈 소스 플랫폼이 직면한 주요 과제 나열하기"
+        "text": "독립적인 오픈 소스 플랫폼의 자금 조달 모델에 대해 논의하기"
       }
     },
     "memory_books_currently_reading": {
@@ -10388,20 +10362,6 @@
         "text": "List essential items to pack for variable weather bike rides"
       }
     },
-    "organic_groceries_berlin": {
-      "title": {
-        "text": "Organic Grocery Delivery in Berlin"
-      },
-      "summary": {
-        "text": "Compared Berlin organic grocery delivery options for oat milk and bananas using local delivery sources and product results."
-      },
-      "message_1": {
-        "text": "Can you find organic grocery delivery options in Berlin for oat milk and bananas, compare a few reliable local options, and recommend which one to use?"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"91a1a938-12c3-47f9-a00b-e9a59d2a8ad2\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"organic grocery delivery Berlin\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"cf2504cb-56b5-4ea3-89d5-4cf9cc732911\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Bio Lebensmittel Lieferservice Berlin Hafermilch Bananen\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"5cdfdced-0921-47ed-a351-a0d19ccbb8e2\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Hafermilch\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b6f64bdd-2b32-4623-83eb-8cf57975ba70\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Bananen\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\nBerlin has an excellent ecosystem for organic groceries, offering everything from traditional farm-to-door \"Biokisten\" (organic boxes) to ultra-fast delivery apps. Since you are specifically looking for organic oat milk (*Bio Hafermilch*) and organic bananas (*Bio Bananen*), these are staple items available almost everywhere.\n\nHere is a comparison of the most reliable local options, categorized by how they operate:\n\n### 1. The Local \"Biokiste\" Services (Best for Sustainability & Regionality)\nThese are local, dedicated organic delivery services that have been operating in Berlin for years. They focus heavily on sustainability, fair trade, and regional farming.\n*   **[LogischBIO](embed:logisch-bio.de-eeO):**\n    *   **The Vibe:** A true online organic supermarket with a local heart. They've been operating in Berlin since 1998.\n    *   **Pros:** They offer over 5,000 organic items. Crucially, they require **no subscription** (*kein Abo*), which makes them incredibly flexible if you just want to do a one-off grocery haul.\n    *   **Cons:** You need to plan a day or two ahead for your delivery slot.\n*   **[Märkische Kiste](embed:maerkischekiste.de-fJw) & [Landkorb](embed:landkorb.de-Ze3):**\n    *   **The Vibe:** Classic \"Ökokiste\" (Eco-box) providers. They deliver in reusable boxes straight to your door.\n    *   **Pros:** Excellent for supporting regional Brandenburg farmers. You can either subscribe to a pre-made seasonal box or build your own custom box with exact items like oat milk and bananas.\n    *   **Cons:** Often heavily subscription-based (though you can pause/customize easily). Delivery days are sometimes restricted based on your specific Berlin postal code.\n\n### 2. Quick Commerce (Best for Urgent Needs)\nIf you need your oat milk for tomorrow morning's coffee and can't wait for a scheduled delivery slot:\n*   **Alnatura via [Wolt](embed:wolt.com-UR8) / UberEats:**\n    *   **The Vibe:** Ultra-fast delivery from one of Germany's most popular organic supermarket chains.\n    *   **Pros:** Delivery in roughly 30 minutes. You get access to the high-quality Alnatura brand products.\n    *   **Cons:** Higher delivery fees, and the couriers are gig-economy workers, which lacks the community/sustainability ethos of the dedicated farm boxes.\n\n### 3. Mainstream Supermarket Delivery (Best for General Shopping)\nIf you want to combine your organic basics with a regular grocery order:\n*   **REWE Lieferservice:**\n    *   They have a very reliable scheduled delivery network in Berlin and a massive organic (\"REWE Bio\") range.\n    *   For example, you can easily grab [REWE Bio Vegan Oat Drink](embed:rewe-bio-pflanzlich-Q5w) or [Oatly Bio Barista](embed:oatly-bio-haferdrink-cdI), alongside [Organic Bananas](embed:bio-banane-ca-GZn).\n\n---\n\n### 🏆 Recommendation: Which one should you use?\n\n**Go with LogischBIO.**\nIf you want a reliable, Berlin-based company that specializes entirely in organic food, they are the best all-rounder. Because they don't lock you into a subscription box model, you can just treat them like a regular online supermarket. You can easily stock up on a whole carton of oat milk and a bunch of bananas without having to commit to a weekly vegetable box you might not have time to cook.\n\n**However, if you are in a rush right now:** Open the Wolt app and see if the **Alnatura Brand Store** delivers to your specific neighborhood (they cover most of the Ringbahn area). You'll have your organic bananas and oat milk at your door in 30 minutes."
-      }
-    },
     "pdf_read_secret_word": {
       "title": {
         "text": "Read a PDF page"
@@ -10808,16 +10768,34 @@
     },
     "ted_talk_transcript_summary": {
       "title": {
-        "text": "TED Talk Transcript Summary"
+        "text": "윌 스티븐의 풍자적인 TED 강연 분석"
       },
       "summary": {
-        "text": "Get a YouTube talk transcript and summarize the speaker's core argument in five bullets."
+        "text": "대중 연설에 관한 윌 스티븐의 풍자적인 TEDx 강연을 다섯 가지 핵심 코미디 논거로 요약함."
       },
       "message_1": {
-        "text": "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
+        "text": "이 TED 강연의 스크립트를 가져와서 핵심 주장을 다섯 개의 글머리 기호로 요약해 줘: [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
       },
       "message_2": {
-        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\n이 영상은 Will Stephen의 풍자적인 TEDx 강연인 *\"How to sound smart in your TEDx Talk\"* (강연 보기)입니다.\n\n정보를 전달하는 강의라기보다, Stephen은 메타 유머를 사용하여 기조 [대중 연설](wiki:Public_speaking)의 관습을 해체합니다. 핵심 주장을 다섯 가지 포인트로 요약하면 다음과 같습니다:\n\n* **전달 방식이 실체의 환상을 만든다:** 속도 조절, 의도적인 손짓, 극적인 눈 맞춤, 그리고 신체적 소품(도수 없는 안경 등)은 화자가 가치 있는 말을 전혀 하지 않더라도 청중에게 화자가 훌륭하다는 확신을 줄 수 있습니다.\n* **무대 위의 유대감은 매우 정형화되어 있다:** 수사적 질문 던지기, 거수 유도하기, 자기비하적인 일화 들려주기 등 익숙한 상호작용 방식은 인위적인 따뜻함과 신뢰를 만들어내기 위해 계산된 무대 연출입니다.\n* **데이터 시각화는 부당한 권위를 부여한다:** 무작위 숫자, 기초 산수, 맥락 없는 차트를 보여주는 것은 시각적 편향을 이용하며, 데이터가 전혀 관련이 없더라도 발표가 철저히 조사된 것처럼 보이게 만듭니다.\n* **청중은 무의미한 것에 의미를 투영한다:** 진지한 목소리 톤과 감흥을 일으키는 스톡 이미지를 말도 안 되는 헛소리와 결합함으로써, 화자는 청취자가 존재하지 않는 심오한 연결 고리를 무의식적으로 찾고 상상하도록 유도할 수 있습니다.\n* **감정적 고조는 조작될 수 있다:** 목소리 강도를 높이고, 속도를 늦춰 속삭이고, 극적으로 멈추는 것은 깨달음의 리듬을 흉내 내며, 근본적인 통찰 없이도 영감을 받는 기분을 얼마나 쉽게 설계할 수 있는지 증명합니다."
+      },
+      "follow_up_1": {
+        "text": "YouTube에서 다른 인기 있는 풍자 발표 검색하기"
+      },
+      "follow_up_2": {
+        "text": "TEDx 형식의 역사와 문화적 영향 설명하기"
+      },
+      "follow_up_3": {
+        "text": "온라인에서 대중 연설 마스터클래스 튜토리얼 찾기"
+      },
+      "follow_up_4": {
+        "text": "유명 기조 연설가들이 사용하는 구체적인 보디랭귀지 기법 분석하기"
+      },
+      "follow_up_5": {
+        "text": "수사학적 기법에 관한 분석 영상 검색하기"
+      },
+      "follow_up_6": {
+        "text": "대중 연설 중 무대 공포증을 극복하기 위한 팁 목록 작성하기"
       }
     },
     "upcoming_reminders_list": {
@@ -11001,6 +10979,70 @@
       },
       "follow_up_6": {
         "text": "음성 아이디어를 체계적인 작업으로 전환하는 다양한 방법 비교하기"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "냉장고 속 재료를 활용한 채식 레시피 아이디어"
+      },
+      "summary": {
+        "text": "사용자가 시금치, 당근, 피망, 병아리콩을 활용한 채식 레시피 아이디어를 요청했고, 어시스턴트가 세 가지 옵션을 제공했습니다."
+      },
+      "message_1": {
+        "text": "채식 레시피 좀 추천해 줄 수 있어? 냉장고에 시금치, 당근, 피망, 병아리콩이 남아 있어."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\n**시금치, 당근, 피망, 병아리콩**이 있다면 맛있고 식이섬유가 풍부한 채식 요리를 만들 수 있는 훌륭한 기초가 마련된 셈이에요. \n\n원하는 요리 스타일에 따라 시도해 볼 수 있는 세 가지 레시피를 소개할게요:\n\n---\n\n### 1. 신선하고 아삭한 맛: 태국식 찹 샐러드\n빠르고 가볍고 아삭한 음식을 원한다면, 잘게 썬 생피망, 당근, 시금치를 병아리콩과 섞은 뒤 새콤한 [땅콩](wiki:Peanut) 라임 드레싱을 곁들여 보세요.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. 고소한 패티: 바삭한 병아리콩 채소 프리터\n따뜻하고 한입 크기로 즐기기 좋은 요리(랩, 피타 브레드에 넣거나 요거트 딥과 함께 먹기 좋아요)를 원한다면, 병아리콩을 으깬 뒤 다진 당근, 피망, 살짝 데친 시금치를 넣어 반죽해 보세요.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. 간편한 평일 저녁 메뉴: 따뜻한 병아리콩 채소 스킬렛 커리\n팬 하나로 끝내는 요리를 원한다면(코코넛 밀크 캔이나 으깬 토마토 같은 기본 식재료 활용):\n1. **향신 채소 볶기:** 스킬렛에 올리브유를 두르고 다진 양파, 마늘, 생강을 향이 올라올 때까지 볶으세요.\n2. **단단한 채소 넣기:** 당근과 피망을 한입 크기로 써세요. 큐민 가루, [강황](wiki:Turmeric), 칠리 파우더나 카레 가루 한 꼬집과 함께 넣고 볶으세요.\n3. **졸이기:** 씻어둔 병아리콩과 채소 육수 또는 코코넛 밀크 한 컵을 넣으세요. 뚜껑을 덮고 당근이 부드러워질 때까지 10~12분간 뭉근하게 끓이세요.\n4. **시금치 익히기:** 마지막에 신선한 시금치를 넣고 선명한 초록색이 돌며 숨이 죽을 때까지 1~2분간 더 익히세요. 레몬즙을 살짝 뿌려 마무리하세요.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"오늘 어떤 스타일의 요리를 만들어 보고 싶나요?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"신선하고 아삭한 찹 샐러드\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"바삭하게 구운 프리터 또는 패티\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"따뜻한 원팬 스킬렛 커리 또는 스튜\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "팬 커리(skillet curry)의 상세 조리법과 정확한 재료 계량법 검색하기"
+      },
+      "follow_up_2": {
+        "text": "남은 병아리콩 프리터의 밀프렙을 위한 손질 및 보관 방법 설명하기"
+      },
+      "follow_up_3": {
+        "text": "병아리콩 프리터와 잘 어울리는 비건 요거트 소스 레시피 검색하기"
+      },
+      "follow_up_4": {
+        "text": "팬 요리에 커리 가루가 없을 때 대신 사용할 수 있는 간단한 향신료 목록 만들기"
+      },
+      "follow_up_5": {
+        "text": "태국식 찹 샐러드에 곁들일 타히니를 활용한 다른 드레싱 레시피 검색하기"
+      },
+      "follow_up_6": {
+        "text": "이 세 가지 채식 레시피의 단백질 및 식이섬유 함량 비교하기"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "독일에서 판매되는 에어프라이어 비교"
+      },
+      "summary": {
+        "text": "독일 아마존의 인기 에어프라이어를 가격, 용량, 평점으로 비교하고 2인 가구에 Philips Airfryer 2000 시리즈를 추천했습니다."
+      },
+      "message_1": {
+        "text": "아마존 판매 상품을 포함해 독일에서 온라인으로 살 수 있는 에어프라이어를 찾아줘. 현재 가격, 용량, 구매자 평점을 비교하고 출처 링크와 함께 2인 가구에 적합한 제품 하나를 추천해 줘."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\n현재 독일 아마존에서 판매되는 평점이 높은 에어프라이어의 가격, 용량, 구매자 평가를 비교했습니다.\n\n---\n\n### 독일에서 인기 있는 모델 비교\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 2인 가구를 위한 가장 좋은 선택\n\n#### **추천 제품: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **두 사람에게 적합한 이유:**\n  * **적절한 용량(6.2 L):** 바스켓이 4.5–5 L보다 작으면 두 사람 분량도 여러 번 나눠 조리해야 할 수 있습니다. 6.2 L 바스켓에는 연어 필레 두 조각과 채소 또는 감자튀김을 한 겹으로 펼쳐 고르게 익힐 수 있습니다.\n  * **주방 공간:** Ninja나 Russell Hobbs 같은 듀얼 존 제품은 조리대 공간을 많이 차지합니다. 6 L 단일 바스켓은 독일의 일반적인 주방에도 비교적 잘 맞으면서 충분한 조리 공간을 제공합니다.\n  * **투명 창:** 서랍을 열어 열을 잃지 않고 익은 정도를 확인할 수 있습니다.\n  * **가격 대비 가치:** €99.99에 [Philips](wiki:Philips)의 안정적인 온도 제어 기능을 제공하는 합리적인 가격의 제품입니다.\n\n#### **대안(서로 다른 온도로 두 요리를 자주 조리한다면): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\n단백질 요리와 채소 곁들임을 서로 다른 온도와 시간에 동시에 만들고 싶다면(예: 닭가슴살은 180 °C, 바삭한 감자는 200 °C), 현재 €119.99로 할인 중인 이 모델은 두 바스켓의 조리 완료 시간을 맞출 수 있습니다.\n\n---\n\n### 구매 전에 확인할 점\n1. **바스켓 모양:** Cosori와 Philips 같은 사각 바스켓은 같은 용량의 둥근 바스켓보다 스테이크, 베이킹 틀, 꼬치처럼 넓게 펼쳐야 하는 음식을 넣기 좋습니다.\n2. **식기세척기 공간:** 6 L 단일 서랍이 들어갈 만큼 높이가 충분한지 확인하세요. 논스틱 코팅을 더 오래 쓰고 싶다면 손세척도 고려해 보세요."
+      },
+      "follow_up_1": {
+        "text": "에어프라이어 전용 레시피 찾아보기"
+      },
+      "follow_up_2": {
+        "text": "싱글 바스켓과 듀얼 바스켓 에어프라이어의 주요 차이점 설명하기"
+      },
+      "follow_up_3": {
+        "text": "이 에어프라이어와 호환되는 베이킹 액세서리 찾기"
+      },
+      "follow_up_4": {
+        "text": "에어프라이어로 만드는 초보자용 저녁 요리법 살펴보기"
+      },
+      "follow_up_5": {
+        "text": "이 모델들의 현재 에너지 소비 정보 확인하기"
+      },
+      "follow_up_6": {
+        "text": "세라믹 코팅과 테플론 코팅의 세척 및 유지 관리 요구 사항 비교하기"
       }
     }
   },

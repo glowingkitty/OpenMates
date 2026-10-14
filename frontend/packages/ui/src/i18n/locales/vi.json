@@ -8960,20 +8960,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"2654ed6e-e439-4c21-98c7-95269083da71\", \"app_id\": \"reminder\", \"skill_id\": \"cancel-reminder\"}\n```\n\nOK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.\n\nWould you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?"
       }
     },
-    "chickpea_spinach_protein_dinners": {
-      "title": {
-        "text": "Chickpea Spinach Protein Dinners"
-      },
-      "summary": {
-        "text": "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
-      },
-      "message_1": {
-        "text": "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d7f21a46-8f13-4f14-82c4-d868ba62bb8a\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\",\"query\":\"chickpea and spinach dinner\",\"provider\":\"Edamam\",\"status\":\"finished\"}\n```\n\nHere are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.\n\n### 1. 10-Minute Chickpea and Spinach Curry\nThis is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.\n\n[!](embed:thefieryvegetarian.com-3sr)\n[!](embed:vegancocotte.com-IZt)\n[!](embed:vegancocotte.com-rFn)\n\n*   **Total Time:** 10 minutes\n*   **Protein Content:** ~10.5g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)\n*   1 (15 oz) can diced [tomatoes](wiki:Tomato)\n*   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)\n*   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)\n*   3 cups fresh [spinach](wiki:Spinach)\n*   1 tsp vegetable oil\n\n**Instructions:**\n1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.\n2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.\n3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.\n4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.\n\n---\n\n### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes\nThis Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.\n\n[!](embed:runningonrealfood.com-R8H)\n[!](embed:americanhomecook.com-Alt)\n[!](embed:shortgirltallorder.com-QXv)\n\n*   **Total Time:** 15 minutes\n*   **Protein Content:** ~23.1g per serving\n*   **Servings:** 2\n\n**Ingredients:**\n*   1 (15 oz) can chickpeas (drained and rinsed)\n*   1 (14.5 oz) can diced tomatoes\n*   5 oz baby spinach\n*   1 small onion (diced) & 4 garlic cloves (sliced)\n*   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)\n*   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))\n\n**Instructions:**\n1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).\n2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.\n3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.\n4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).\n\n---\n\n### 3. 20-Minute Middle Eastern Spinach and Chickpeas\nA simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.\n\n[!](embed:carolinescooking.com-Dy7)\n[!](embed:simpleveganblog.com-8dt)\n[!](embed:ourplantbasedworld.com-Krr)\n\n*   **Total Time:** 20 minutes\n*   **Protein Content:** ~8.7g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   3 cups low-sodium canned chickpeas (drained and rinsed)\n*   2 cups baby spinach\n*   2/3 cup diced tomatoes\n*   ½ large white onion (diced)\n*   2 tsp minced garlic\n*   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)\n\n**Instructions:**\n1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.\n2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.\n3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.\n4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.\n5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.\n\n---\n\n**Next steps for your meal prep:**\n*   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?\n*   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?"
-      }
-    },
     "classic_car_reverse_image_search": {
       "title": {
         "text": "Nhận diện xe cổ từ ảnh"
@@ -9086,66 +9072,66 @@
     },
     "community_garden_sunflower_illustration": {
       "title": {
-        "text": "Tạo minh họa thực vật hoa hướng dương"
+        "text": "Minh họa thực vật hoa hướng dương cho tờ rơi của vườn cộng đồng"
       },
       "summary": {
-        "text": "Tạo minh họa hoa hướng dương không chữ cho tờ rơi vườn cộng đồng."
+        "text": "Đã tạo một minh họa thực vật ấm áp về hoa hướng dương cho tờ rơi của vườn cộng đồng cùng với các gợi ý thiết kế. handout with design suggestions."
       },
       "message_1": {
-        "text": "Vui lòng tạo một minh họa thực vật ấm áp về hoa hướng dương cho tờ rơi vườn cộng đồng, trên nền sáng sạch và không có chữ."
+        "text": "Hãy tạo một minh họa thực vật ấm áp về hoa hướng dương cho tờ rơi của vườn cộng đồng, trên nền sáng sạch và không có chữ. handout, on a clean light background with no text."
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6a3857ca-aa90-486f-b481-4e1df6f95faa\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nTôi đang tạo minh họa thực vật hoa hướng dương cho tờ rơi vườn cộng đồng của bạn; hình ảnh đang được xử lý và sẽ xuất hiện ngay tại đây trong đoạn chat sau khi hoàn tất.\n\n### Mẹo thiết kế nhanh cho tờ rơi cộng đồng\n\nĐể làm cho tờ rơi khu vườn của bạn vừa lôi cuốn vừa dễ đọc:\n\n- **Phân cấp thị giác & Khoảng cách:** Hãy để hình minh họa có không gian thở. Đặt nó dọc theo lề hoặc tiêu đề sẽ để lại không gian trống rõ ràng cho các mẹo làm vườn hoặc chi tiết sự kiện mà không gây cảm giác lộn xộn.\n- **Sự hài hòa màu sắc:** Lấy các tông màu ấm trực tiếp từ tác phẩm nghệ thuật—như vàng mật ong đậm, xanh lá ô liu hoặc màu đất nung—cho các tiêu đề mục và đường viền.\n- **Kết hợp nghệ thuật tự làm:** Nếu các thành viên cộng đồng hoặc những người làm vườn địa phương tạo ra các bản phác thảo, bản in lá cây hoặc ảnh chụp các luống vườn thực tế, việc tích hợp chúng cùng với các minh họa kỹ thuật số sẽ tạo ra một nét mộc mạc, chào đón tuyệt vời.\n\n---\n\n**Các bước tiếp theo & Tùy chọn:**\n- [Thiết kế bố cục tờ rơi với các tiêu đề và mẹo](/#message=Help%20me%20design%20a%20clean%20layout%20and%20copy%20for%20a%20community%20garden%20handout.)\n- [Gợi ý bảng màu dựa trên hoa hướng dương](/#message=Suggest%20a%20warm%20color%20palette%20and%20typography%20pairing%20for%20a%20botanical%20garden%20flyer.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"83e98b9b-8bcb-4774-9223-be000504a84a\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nĐây là hình minh họa thực vật ấm áp về hoa hướng dương cho tờ rơi vườn cộng đồng của bạn:\n\n[!](embed:generated-images-ff26d807eb07)\n\n### Gợi ý Thiết kế & Quy trình làm việc\n\n- **Kết hợp với các yếu tố vẽ tay:** Đối với các tài liệu cộng đồng, việc kết hợp tác phẩm nghệ thuật kỹ thuật số hoặc do AI tạo ra với những nét cá nhân chân thực sẽ mang lại hiệu quả tuyệt vời. Ví dụ, bạn có thể in hình minh họa này làm nền hoặc điểm nhấn thị giác, sau đó để các thành viên trong cộng đồng phác thảo sơ đồ trồng trọt, viết tay các mẹo chăm sóc hoặc thêm lá/hạt khô ép bên cạnh.\n- **Bố cục & Phân cấp Tờ rơi:**\n  - **Khoảng trắng:** Giữ lề rộng rãi xung quanh hoa hướng dương để tạo cho tờ rơi cảm giác thoáng đãng, thân thiện.\n  - **Kiểu chữ:** Kết hợp phông chữ có chân (serif) hữu cơ hoặc nhân văn (như [Garamond](wiki:Garamond) hoặc [Georgia](wiki:Georgia_(typeface))) cho các tiêu đề với phông chữ không chân (sans-serif) dễ đọc cho các hướng dẫn trồng trọt, chi tiết chuẩn bị đất và ngày diễn ra sự kiện.\n  - **Bảng màu:** Lấy mẫu các tông màu hổ phách và vàng từ cánh hoa cho các đường nhấn hoặc tiêu đề phụ, và màu xanh lá cây rừng đậm cho các điểm nhấn chính.\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"garden_handout_next_step\",\n  \"multiple\": false,\n  \"question\": \"What would you like to work on next for the handout?\",\n  \"options\": [\n    {\n      \"id\": \"layout_tips\",\n      \"text\": \"Get advice on typography and grid layout for the printed flyer\"\n    },\n    {\n      \"id\": \"variations\",\n      \"text\": \"Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)\"\n    },\n    {\n      \"id\": \"custom\",\n      \"text\": \"Something else\"\n    }\n  ],\n  \"custom_option_id\": \"custom\",\n  \"custom_placeholder\": \"Describe what you need...\"\n}\n```\n\n[!](embed:generated-media-images-83e98b9b8bcb)"
       },
       "follow_up_1": {
-        "text": "Tìm kiếm các sự kiện vườn cộng đồng địa phương trong khu vực"
+        "text": "Tạo một hình minh họa khác về một chú ong mật bận rộn trên hoa oải hương"
       },
       "follow_up_2": {
-        "text": "Giúp tôi viết văn bản giới thiệu thân thiện cho tờ rơi khu vườn"
+        "text": "Liệt kê các mẹo thiết yếu để thiết kế tờ rơi vườn cộng đồng dễ đọc"
       },
       "follow_up_3": {
-        "text": "Tìm các biểu tượng thực vật SVG miễn phí để trang trí tờ rơi"
+        "text": "Tìm kiếm các phông chữ nghệ thuật miễn phí cho tờ rơi in ấn"
       },
       "follow_up_4": {
-        "text": "Liệt kê các mẹo thiết yếu cần có trong hướng dẫn vườn cộng đồng"
+        "text": "Giải thích cách cân bằng khoảng trắng và văn bản trên một tờ rơi quảng cáo"
       },
       "follow_up_5": {
-        "text": "Tìm kiếm ý tưởng kết hợp phông chữ cho tờ rơi khu vườn"
+        "text": "Tạo một hình minh họa về những quả cà chua gia truyền chín mọng trên cành"
       },
       "follow_up_6": {
-        "text": "Giải thích cách sắp xếp các yếu tố thị giác trong bố cục in ấn"
+        "text": "Mô tả các ý tưởng bảng màu cho các dự án in ấn hữu cơ tự nhiên"
       }
     },
     "community_garden_volunteer_chime": {
       "title": {
-        "text": "Tiếng chuông ấm áp cho vườn cộng đồng"
+        "text": "Thiết kế âm thanh thông báo Vườn cộng đồng"
       },
       "summary": {
-        "text": "Tạo âm thanh thông báo hai nốt ngắn cho một ứng dụng vườn cộng đồng giả tưởng."
+        "text": "Đã tạo hiệu ứng âm thanh chuông gỗ hai nốt nhẹ nhàng cho thông báo đăng ký tình nguyện viên vườn cộng đồng."
       },
       "message_1": {
-        "text": "Tạo một âm thanh thông báo ngắn, ấm áp cho ứng dụng vườn cộng đồng khi có tình nguyện viên đăng ký. Một tiếng chuông hai nốt nhẹ nhàng, không có tiếng nói và dưới ba giây."
+        "text": "Tạo một âm thanh thông báo ngắn, ấm áp cho ứng dụng vườn cộng đồng khi có tình nguyện viên đăng ký. Một tiếng chuông hai nốt nhẹ nhàng, không có lời nói và dưới ba giây."
       },
       "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nTôi đang tạo tiếng chuông hai nốt ấm áp, nhẹ nhàng cho ứng dụng vườn cộng đồng của bạn. Yêu cầu đang được xử lý và sẽ xuất hiện trong đoạn chat ngay khi sẵn sàng.\n\n### Các bước tiếp theo gợi ý\n- [Tạo âm thanh mở khóa huy hiệu mang âm hưởng mộc mạc, hân hoan](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Thiết kế bố cục thẻ xác nhận tình nguyện viên](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdda9f85-fa01-48ca-acf7-7746de6dc0f3\",\"app_id\":\"audio\",\"skill_id\":\"generate\"}\n```\n\nDưới đây là tiếng chuông hai nốt nhẹ nhàng, ấm áp được thiết kế cho thông báo đăng ký tình nguyện viên vườn cộng đồng của bạn:\n\n[!](embed:generated-audio-17f56f2e73be)\n\n### Hồ sơ âm thanh\n- **Âm sắc:** Tiếng chuông gỗ/mộc cầm vang vọng, tự nhiên, được thiết kế để gợi lên thiên nhiên và sự phát triển.\n- **Nhịp độ:** Chuỗi hai nốt tăng dần để tạo cảm giác phấn chấn, chào đón khi có người tham gia giúp đỡ.\n- **Thời lượng:** 2 giây, ngắn gọn và không gây phiền nhiễu cho người dùng ứng dụng.\n\nÂm sắc này có phù hợp với bảng màu giao diện còn lại của ứng dụng không? Chúng ta có thể điều chỉnh âm sắc (ví dụ: chuyển sang tiếng đàn guitar acoustic gảy mềm mại hơn, tiếng chuông xoay hoặc tiếng chuông thủy tinh trong trẻo hơn) nếu cần.\n\n[!](embed:generated-media-audio-fdda9f85fa01)"
       },
       "follow_up_1": {
-        "text": "Tạo âm thanh chúc mừng mở khóa huy hiệu khi hoàn thành nhiệm vụ"
+        "text": "Tạo phiên bản tiếng đàn guitar acoustic gảy nhẹ nhàng hơn"
       },
       "follow_up_2": {
-        "text": "Giải thích thiết kế âm thanh ảnh hưởng thế nào đến sự tương tác của người dùng trong ứng dụng di động"
+        "text": "Thảo luận về cách thử nghiệm âm thanh thông báo với người dùng"
       },
       "follow_up_3": {
-        "text": "Tạo âm thanh nhắc nhở nhẹ nhàng cho lịch tưới cây buổi sáng"
+        "text": "Tạo hiệu ứng âm thanh tiếng chuông xoay ngân vang"
       },
       "follow_up_4": {
-        "text": "Liệt kê các phương pháp hay nhất để thiết kế âm thanh thông báo UI không gây phiền nhiễu"
+        "text": "Liệt kê các phương pháp hay nhất cho âm thanh thông báo ứng dụng di động"
       },
       "follow_up_5": {
-        "text": "Tạo âm thanh báo lỗi nhẹ nhàng khi xác thực biểu mẫu thất bại"
+        "text": "Tạo tiếng chuông thông báo bằng thủy tinh trong trẻo hơn"
       },
       "follow_up_6": {
-        "text": "Mô tả cách tích hợp hiệu ứng âm thanh tùy chỉnh vào ứng dụng di động"
+        "text": "So sánh các phong cách xây dựng thương hiệu âm thanh khác nhau cho ứng dụng"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -9182,34 +9168,34 @@
     },
     "community_garden_welcome_melody": {
       "title": {
-        "text": "Giai điệu chào mừng vườn cộng đồng"
+        "text": "Tạo một giai điệu chào mừng nhẹ nhàng cho vườn cộng đồng"
       },
       "summary": {
-        "text": "Tạo một giai điệu không lời nhẹ nhàng cho video chào mừng vườn cộng đồng."
+        "text": "Tạo một giai điệu không lời ngắn cho video chào mừng vườn cộng đồng, với âm thanh acoustic ấm áp và không có lời hát."
       },
       "message_1": {
-        "text": "Bạn có thể tạo một giai điệu không lời ngắn, nhẹ nhàng cho video chào mừng vườn cộng đồng không?"
+        "text": "Bạn có thể tạo một giai điệu không lời ngắn, nhẹ nhàng cho video chào mừng vườn cộng đồng mà không có lời hát không?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"296e122a-cd23-4fc6-9c27-99f21f8e3401\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nTôi đang tạo bản nhạc không lời nhẹ nhàng đó cho video chào mừng vườn cộng đồng của bạn. Bản nhạc đang được xử lý và sẽ xuất hiện ngay tại đây khi sẵn sàng.\n\nCác dự án [làm vườn cộng đồng](wiki:Community_gardening) là một cách tuyệt vời để gắn kết những người hàng xóm và thúc đẩy đa dạng sinh học địa phương. Trong khi chờ nhạc được tạo, bạn có muốn tôi giúp lập kế hoạch cho nội dung hoặc luồng hình ảnh của video chào mừng không?\n\n- [Phác thảo dàn ý cho video chào mừng](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)\n- [Lên ý tưởng cho văn bản giới thiệu hoặc mẹo thuyết minh](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"3e5014d0-2082-4604-b968-1553d6cc43e4\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nĐây là bản nhạc không lời acoustic nhẹ nhàng được sáng tác cho video chào mừng vườn cộng đồng của bạn:\n\n[!](embed:generated-media-music-3e5014d02082)\n[!](embed:generated-music-c89ee4a5f418)\n\n### Chi tiết bản nhạc\n- **Tâm trạng & Âm hưởng:** Ấm áp, mời gọi và yên bình\n- **Nhạc cụ:** Tiếng đàn guitar acoustic rải ngón kết hợp với các hợp âm piano mềm mại và những điểm nhấn giai điệu nhẹ nhàng\n- **Thời lượng:** 30 giây\n- **Định dạng:** Hoàn toàn không lời (không có giọng hát), lý tưởng để làm nhạc nền cho phần thuyết minh hoặc giới thiệu bằng văn bản.\n\n### Các bước tiếp theo gợi ý\nNếu bạn dự định sản xuất video hoặc viết kịch bản để giới thiệu các thành viên mới với khu vườn:\n\n- [Soạn thảo một kịch bản chào mừng ngắn](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)\n- [Tạo một bản nhạc acoustic thay thế sôi động hơn](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)"
       },
       "follow_up_1": {
-        "text": "Tìm kiếm các sự kiện và hội thảo về vườn cộng đồng tại địa phương"
+        "text": "Tạo một bản nhạc acoustic sôi động hơn một chút cho video vườn cộng đồng của chúng tôi"
       },
       "follow_up_2": {
-        "text": "Giúp tôi phác thảo kịch bản phân cảnh cho video về khu vườn"
+        "text": "Giúp tôi viết kịch bản video chào mừng dài 30 giây ấm áp cho vườn cộng đồng của chúng tôi"
       },
       "follow_up_3": {
-        "text": "Tìm video có sẵn về cây cối và hoa lá"
+        "text": "Tìm kiếm các hướng dẫn về cách chỉnh sửa video vườn cộng đồng trong trình chỉnh sửa video"
       },
       "follow_up_4": {
-        "text": "Viết lời thuyết minh chào mừng cho video cộng đồng"
+        "text": "Mô tả cách kết hợp nhạc nền với lời thuyết minh"
       },
       "follow_up_5": {
-        "text": "Tìm kiếm mẹo làm vườn cho các dự án cộng đồng"
+        "text": "Tìm các sự kiện và hội thảo về vườn cộng đồng tại địa phương trong khu vực của chúng tôi"
       },
       "follow_up_6": {
-        "text": "Gợi ý ý tưởng cho các hoạt động ngày khai trương vườn cộng đồng"
+        "text": "Liệt kê các ý tưởng cho các cảnh quay hình ảnh để đưa vào video chào mừng"
       }
     },
     "creativity_drawing_meetups_berlin": {
@@ -9682,40 +9668,34 @@
     },
     "housing_policy_dinner_discussion": {
       "title": {
-        "text": "Prepare for a housing policy dinner discussion"
+        "text": "Chuẩn bị cho một cuộc thảo luận về chính sách nhà ở trong bữa tối"
       },
       "summary": {
-        "text": "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+        "text": "Chuẩn bị cho một cuộc thảo luận gia đình bình tĩnh về chính sách nhà ở và kiểm soát tiền thuê nhà, bắt đầu bằng các câu hỏi về bối cảnh địa phương và mục tiêu của mỗi người."
       },
       "message_1": {
-        "text": "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+        "text": "Mình sắp đi ăn tối với bố và ông ấy muốn tranh luận về chính sách nhà ở và kiểm soát tiền thuê nhà. Hãy giúp mình chuẩn bị để mình có thể đặt những câu hỏi hay, kiểm tra các sự kiện chính, hiểu những lập luận mạnh mẽ nhất của cả hai bên và giữ cho cuộc trò chuyện diễn ra bình tĩnh."
       },
       "message_2": {
-        "text": "Focus mode activated: Prepare a political discussion."
-      },
-      "message_3": {
-        "text": "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
-      },
-      "message_4": {
-        "text": "It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. \n\nSince housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** (\"Who is right?\") to a **collaborative exploration** (\"How do we solve this complex problem together?\").\n\nHere is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.\n\n### 1. The Core Debate: Rent Control & Stabilization\n\nTo have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). \n\n**The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**\n*   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.\n*   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.\n*   **It creates \"misallocation\":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.\n*   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.\n\n**The Strongest Arguments FOR Rent Control (The Community & Equity View)**\n*   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.\n*   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.\n*   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply \"shop elsewhere\" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.\n*   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.\n\n### 2. Facts to Keep in Your Back Pocket\n*   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.\n*   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. \n*   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.\n\n### 3. Strategies to Keep It Calm\n*   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., \"I agree with you that property owners shouldn't be forced to operate at a loss.\")*\n*   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.\n*   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).\n\n### 4. Great Questions to Ask Your Dad\n\nThese questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:\n\n1.  **If he is AGAINST rent control:** *\"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?\"*\n2.  **If he is FOR rent control:** *\"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?\"*\n3.  **Zooming out to the bigger picture:** *\"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?\"*\n4.  **Finding balance:** *\"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?\"*\n\nHow are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?"
+        "text": "Thảo luận về chính sách nhà ở và quy định về tiền thuê nhà với gia đình có thể dễ dàng trở nên căng thẳng, đặc biệt là khi quan điểm giữa các thế hệ, quyền sở hữu tài sản hoặc các triết lý kinh tế khác nhau xung đột. \n\nĐể điều chỉnh các sự kiện chính, dữ liệu chính sách và các câu hỏi cụ thể cho bữa tối của bạn, bạn có thể chia sẻ thêm một chút bối cảnh không?\n\n1. **Vị trí / Quyền hạn:** Cuộc thảo luận này tập trung vào một thành phố, tiểu bang hoặc quốc gia cụ thể (ví dụ: California, New York, Berlin, Vương quốc Anh), hay ông ấy đang tiếp cận từ góc độ kinh tế rộng lớn trên toàn quốc? Các quy tắc địa phương và áp lực thị trường rất khác nhau.\n2. **Góc nhìn của bố bạn:** Quan điểm hoặc phản ứng cốt lõi của ông ấy là gì? Ví dụ, ông ấy đang nói với tư cách là chủ sở hữu nhà, chủ cho thuê nhỏ hay người nộp thuế, hay ông ấy chủ yếu lập luận từ lý thuyết kinh tế thị trường tự do chống lại việc kiểm soát giá?\n3. **Mục tiêu chính của bạn:** Ngoài việc giữ cho mọi thứ bình tĩnh và mang tính xây dựng, một kết quả tốt đối với bạn sẽ như thế nào—tìm thấy điểm chung về các giá trị cốt lõi (như sự ổn định của cộng đồng so với nguồn cung mới), hiểu được quan điểm của ông ấy, hay có sẵn dữ liệu vững chắc để giải quyết các tuyên bố cụ thể?\n\nSau khi bạn chia sẻ những chi tiết đó, chúng tôi sẽ xây dựng một hướng dẫn chuẩn bị phù hợp với các bằng chứng đã được xác minh, sự đánh đổi của cả hai bên và các chiến lược xoa dịu căng thẳng."
       },
       "follow_up_1": {
-        "text": "Find recent studies on rent control policies"
+        "text": "Tìm kiếm các nghiên cứu gần đây về kiểm soát tiền thuê nhà tại các thành phố lớn"
       },
       "follow_up_2": {
-        "text": "Explain the economic impact of rent control"
+        "text": "Liệt kê các lập luận phổ biến chống lại các quy định kiểm soát tiền thuê nhà"
       },
       "follow_up_3": {
-        "text": "Search for housing policy debates in our city"
+        "text": "Tìm nghiên cứu kinh tế về độ co giãn của nguồn cung nhà ở"
       },
       "follow_up_4": {
-        "text": "Describe how zoning laws affect housing supply"
+        "text": "So sánh luật bảo vệ người thuê nhà giữa các tiểu bang khác nhau"
       },
       "follow_up_5": {
-        "text": "Show me zoning laws in our area"
+        "text": "Tìm kiếm các bài báo về tác động của quy định tiền thuê nhà"
       },
       "follow_up_6": {
-        "text": "Summarize the key arguments for rent control"
+        "text": "Giải thích cách nguồn cung thị trường nhà ở phản ứng với việc kiểm soát giá"
       }
     },
     "image_vectorize_openmates_header": {
@@ -9822,40 +9802,34 @@
     },
     "mastodon_public_post_themes": {
       "title": {
-        "text": "Các chủ đề trong bài đăng công khai của Mastodon"
+        "text": "Tóm tắt bài đăng tài khoản Mastodon chính thức"
       },
       "summary": {
-        "text": "Tóm tắt các chủ đề trong các bài đăng gần đây từ tài khoản chính thức của Mastodon và khám phá các ví dụ tiêu biểu."
+        "text": "Tóm tắt các bài đăng công khai gần đây từ tài khoản Mastodon chính thức, bao gồm Mastodon 5.0, quản trị, tiêu điểm hệ sinh thái, cập nhật đội ngũ và vật phẩm lưu niệm."
       },
       "message_1": {
         "text": "Bạn có thể tóm tắt các chủ đề chính trong các bài đăng công khai gần đây của tài khoản Mastodon chính thức trên mastodon.social, kèm theo liên kết đến một vài ví dụ không?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"33ebec48-4730-4b4b-b7d7-f967173ac9b6\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nYêu cầu lấy các bài đăng công khai gần đây từ @Mastodon (`@Mastodon@mastodon.social`) hiện vẫn đang chạy ngầm và sẽ cập nhật cuộc trò chuyện khi sẵn sàng.\n\nTrong khi chờ nguồn cấp dữ liệu tải xong:\n- [Kiểm tra các thông báo blog Mastodon gần đây](/#message=Search%20for%20the%20latest%20official%20Mastodon%20blog%20announcements%20and%20releases.)\n- [Khám phá lộ trình của Mastodon](/#message=What%20are%20the%20major%20features%20currently%20on%20the%20Mastodon%20roadmap%3F)"
-      },
-      "message_3": {
-        "text": "Các bài đăng đã được tải xong. Bạn có thể tóm tắt các chủ đề chính và liên kết đến ba bài đăng tiêu biểu không?"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"65b92905-0838-46dd-8fff-8e28cdc8789a\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nTài khoản @Mastodon chính thức trên `mastodon.social` làm nổi bật một số chủ đề cốt lõi trong các bài đăng công khai gần đây:\n\n### 1. Sự phát triển sản phẩm chính & Nghiên cứu người dùng\nTrọng tâm chính là nền tảng cho **Mastodon 5.0**, sau sáng kiến nghiên cứu \"Tuần lễ Khám phá\" (Discovery Week) trên toàn cộng đồng do đội ngũ thiết kế dẫn dắt. Nhóm đã chia sẻ các bản xem trước của giao diện được thiết kế lại, tinh gọn hơn và trình soạn thảo được cập nhật nhằm giúp nền tảng dễ tiếp cận và thân thiện với người dùng hơn.\n\n### 2. Quản trị cộng đồng, Chính sách & Cập nhật nhân sự\nMastodon thường xuyên thông báo các cập nhật về quản trị và chính sách, đáng chú ý là việc phát hành các hướng dẫn làm rõ về **Chính sách Nhãn hiệu** để phản hồi trực tiếp các ý kiến đóng góp từ quản trị viên và nhà phát triển fediverse. Họ cũng thông báo về những chuyển đổi nhân sự chủ chốt, gửi lời cảm ơn đến giám đốc cộng đồng sắp mãn nhiệm Hannah Aubry vì những đóng góp của cô.\n\n### 3. Tiêu điểm máy chủ & Hệ sinh thái Fediverse\nTài khoản này tích cực quảng bá các phiên bản fediverse độc lập và các sáng kiến hạ tầng—chẳng hạn như làm nổi bật các máy chủ theo chủ đề (như Earth.Law) và lan tỏa các khảo sát ngành như nghiên cứu vận hành của IFTAS.\n\n### 4. Vật phẩm cộng đồng & Tài trợ dự án\nĐể hỗ trợ quá trình phát triển mã nguồn mở đang diễn ra, họ chia sẻ các cập nhật về vật phẩm cộng đồng chính thức, bao gồm việc ra mắt linh vật thú nhồi bông mới (\"Plushtodons\").\n\n---\n\n### Ba bài đăng tiêu biểu\n\n- **Lộ trình sản phẩm & Làm mới giao diện:** [Thông báo xem trước Mastodon 5.0](embed:mastodon-after-publishing-D8d) — chia sẻ bản xem trước về bố cục 5.0 sắp tới và trình soạn thảo bài đăng dựa trên các phát hiện từ quá trình khám phá.\n- **Chính sách & Phản hồi cộng đồng:** [Cập nhật hướng dẫn chính sách nhãn hiệu](embed:mastodon-today-we-YqD) — phác thảo các quy tắc nhãn hiệu đã được sửa đổi dựa trên ý kiến đóng góp của cộng đồng.\n- **Hỗ trợ dự án & Vật phẩm:** [Thông báo đặt trước Plushtodon](embed:mastodon-new-plushtodon-A57) — thông báo về các linh vật thú nhồi bông chính thức mới như một cách để những người ủng hộ tài trợ cho việc phát triển.\n\n---\n\nBạn có muốn tìm hiểu thêm về chủ đề cụ thể nào không?\n- [Đọc thêm về các tính năng của Mastodon 5.0](/#message=What%20new%20features%20and%20changes%20are%20coming%20in%20Mastodon%205.0%3F)\n- [Xem lại các hướng dẫn về nhãn hiệu](/#message=Summarize%20Mastodon's%20updated%20trademark%20policy%20guidelines.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nCác bài đăng công khai gần đây từ tài khoản @Mastodon chính thức trên [Mastodon](wiki:Mastodon_(social_network)) xoay quanh một số chủ đề chính:\n\n---\n\n### 1. Thiết kế lại nền tảng & Các tính năng sắp tới (Mastodon 5.0)\nTrọng tâm chính là chia sẻ nghiên cứu về trải nghiệm người dùng và hé lộ những thay đổi về thiết kế sắp tới:\n- **Xem trước Mastodon 5.0:** Cái nhìn sớm về phiên bản 5.0, làm nổi bật bố cục tinh gọn hơn, thẩm mỹ thị giác mới và trình soạn thảo bài đăng được cập nhật ([Mastodon 5.0 sneak peek](embed:mastodon-after-publishing-WqJ)).\n- **Kết quả từ Tuần lễ Khám phá:** Chia sẻ kết quả từ các buổi hội thảo và khảo sát người dùng do đội ngũ thiết kế dẫn dắt để hiểu rõ hơn về cách cộng đồng tương tác với nền tảng ([Discovery Week summary](embed:mastodon-we-re-5Ll)).\n\n### 2. Quản trị & Sự rõ ràng về Thương hiệu\nMastodon đã tập trung vào việc giải quyết các mối quan tâm của cộng đồng liên quan đến các chính sách của dự án:\n- **Hướng dẫn Chính sách Thương hiệu:** Phát hành các hướng dẫn được cập nhật, làm rõ và các bản tóm tắt bằng ngôn ngữ dễ hiểu liên quan đến chính sách thương hiệu của Mastodon sau khi tiếp nhận ý kiến đóng góp từ cộng đồng ([Trademark guidelines announcement](embed:mastodon-today-we-3Kb)).\n\n### 3. Tiêu điểm Cộng đồng & Hỗ trợ Hệ sinh thái\nLàm nổi bật hệ sinh thái [Fediverse](wiki:Fediverse) rộng lớn hơn, các nhà vận hành máy chủ và các sáng kiến an toàn:\n- **Tiêu điểm Máy chủ Nổi bật:** Quảng bá các máy chủ chuyên dụng như *Earth.Law*, một máy chủ thân thiện với môi trường dành riêng cho các luật sư, nhà khoa học và nhà hoạt động môi trường ([Earth.Law server highlight](embed:mastodon-here-is-miz)).\n- **Khảo sát Hệ sinh thái:** Thúc đẩy các sáng kiến quản trị như Khảo sát Hoạt động Web Xã hội của IFTAS để hỗ trợ các điều phối viên và quản trị viên ([IFTAS survey post](embed:mastodon-re-https-wnD)).\n\n### 4. Cập nhật về Tổ chức & Đội ngũ\nSự minh bạch xung quanh các chuyển đổi trong đội ngũ và ban lãnh đạo:\n- **Lời chia tay Ban lãnh đạo:** Ghi nhận sự rời đi của Giám đốc Cộng đồng và thành viên hội đồng quản trị Hannah Aubry, cảm ơn cô vì những đóng góp cho sự phát triển của cộng đồng ([Hannah Aubry farewell post](embed:mastodon-hannah-aubry-O6F)).\n\n### 5. Gây quỹ Dự án & Hàng hóa\nDuy trì sự phát triển mã nguồn mở của mạng lưới:\n- **Đặt trước Plushtodon:** Thông báo các màu sắc linh vật nhồi bông mới trong cửa hàng để cho phép những người ủng hộ giúp gây quỹ phát triển trực tiếp ([Plushtodon pre-orders post](embed:mastodon-new-plushtodon-7D2)).\n\n---\n\n### Các ví dụ nổi bật\n\n[@Mastodon: After publishing the results of Discovery Week, we can now give you a first snea](embed:mastodon-after-publishing-WqJ)\n[@Mastodon: Today we're sharing additional guidelines about our Trade Mark Policy based on c](embed:mastodon-today-we-3Kb)\n[@Mastodon: New #Plushtodon colours now available for pre-orders on our shop! This is a way](embed:mastodon-new-plushtodon-7D2)"
       },
       "follow_up_1": {
-        "text": "Tìm kiếm các thông báo blog gần đây của Mastodon"
+        "text": "Tìm kiếm các thảo luận gần đây về Mastodon 5.0 trên Reddit"
       },
       "follow_up_2": {
-        "text": "Giải thích cách hoạt động của kiểm duyệt phi tập trung trên Mastodon"
+        "text": "Giải thích cách kiểm duyệt phi tập trung hoạt động trên Fediverse"
       },
       "follow_up_3": {
-        "text": "Tìm kiếm các cập nhật về quá trình phát triển Mastodon 5.0"
+        "text": "Tìm các bài viết kỹ thuật giải thích tính năng của giao thức ActivityPub"
       },
       "follow_up_4": {
-        "text": "So sánh các thay đổi của Mastodon 5.0 với các bản phát hành trước đó"
+        "text": "So sánh mô hình quản trị của Mastodon với các mạng xã hội thương mại"
       },
       "follow_up_5": {
-        "text": "Tìm kiếm các cuộc thảo luận cộng đồng về kiểm duyệt máy chủ Fediverse"
+        "text": "Tìm các hội nghị phần mềm nguồn mở trực tuyến sắp tới"
       },
       "follow_up_6": {
-        "text": "Liệt kê các thách thức chính mà các nền tảng mã nguồn mở phải đối mặt"
+        "text": "Thảo luận về mô hình tài trợ cho các nền tảng nguồn mở độc lập"
       }
     },
     "memory_books_currently_reading": {
@@ -10388,20 +10362,6 @@
         "text": "List essential items to pack for variable weather bike rides"
       }
     },
-    "organic_groceries_berlin": {
-      "title": {
-        "text": "Organic Grocery Delivery in Berlin"
-      },
-      "summary": {
-        "text": "Compared Berlin organic grocery delivery options for oat milk and bananas using local delivery sources and product results."
-      },
-      "message_1": {
-        "text": "Can you find organic grocery delivery options in Berlin for oat milk and bananas, compare a few reliable local options, and recommend which one to use?"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"91a1a938-12c3-47f9-a00b-e9a59d2a8ad2\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"organic grocery delivery Berlin\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"cf2504cb-56b5-4ea3-89d5-4cf9cc732911\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Bio Lebensmittel Lieferservice Berlin Hafermilch Bananen\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"5cdfdced-0921-47ed-a351-a0d19ccbb8e2\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Hafermilch\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b6f64bdd-2b32-4623-83eb-8cf57975ba70\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Bananen\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\nBerlin has an excellent ecosystem for organic groceries, offering everything from traditional farm-to-door \"Biokisten\" (organic boxes) to ultra-fast delivery apps. Since you are specifically looking for organic oat milk (*Bio Hafermilch*) and organic bananas (*Bio Bananen*), these are staple items available almost everywhere.\n\nHere is a comparison of the most reliable local options, categorized by how they operate:\n\n### 1. The Local \"Biokiste\" Services (Best for Sustainability & Regionality)\nThese are local, dedicated organic delivery services that have been operating in Berlin for years. They focus heavily on sustainability, fair trade, and regional farming.\n*   **[LogischBIO](embed:logisch-bio.de-eeO):**\n    *   **The Vibe:** A true online organic supermarket with a local heart. They've been operating in Berlin since 1998.\n    *   **Pros:** They offer over 5,000 organic items. Crucially, they require **no subscription** (*kein Abo*), which makes them incredibly flexible if you just want to do a one-off grocery haul.\n    *   **Cons:** You need to plan a day or two ahead for your delivery slot.\n*   **[Märkische Kiste](embed:maerkischekiste.de-fJw) & [Landkorb](embed:landkorb.de-Ze3):**\n    *   **The Vibe:** Classic \"Ökokiste\" (Eco-box) providers. They deliver in reusable boxes straight to your door.\n    *   **Pros:** Excellent for supporting regional Brandenburg farmers. You can either subscribe to a pre-made seasonal box or build your own custom box with exact items like oat milk and bananas.\n    *   **Cons:** Often heavily subscription-based (though you can pause/customize easily). Delivery days are sometimes restricted based on your specific Berlin postal code.\n\n### 2. Quick Commerce (Best for Urgent Needs)\nIf you need your oat milk for tomorrow morning's coffee and can't wait for a scheduled delivery slot:\n*   **Alnatura via [Wolt](embed:wolt.com-UR8) / UberEats:**\n    *   **The Vibe:** Ultra-fast delivery from one of Germany's most popular organic supermarket chains.\n    *   **Pros:** Delivery in roughly 30 minutes. You get access to the high-quality Alnatura brand products.\n    *   **Cons:** Higher delivery fees, and the couriers are gig-economy workers, which lacks the community/sustainability ethos of the dedicated farm boxes.\n\n### 3. Mainstream Supermarket Delivery (Best for General Shopping)\nIf you want to combine your organic basics with a regular grocery order:\n*   **REWE Lieferservice:**\n    *   They have a very reliable scheduled delivery network in Berlin and a massive organic (\"REWE Bio\") range.\n    *   For example, you can easily grab [REWE Bio Vegan Oat Drink](embed:rewe-bio-pflanzlich-Q5w) or [Oatly Bio Barista](embed:oatly-bio-haferdrink-cdI), alongside [Organic Bananas](embed:bio-banane-ca-GZn).\n\n---\n\n### 🏆 Recommendation: Which one should you use?\n\n**Go with LogischBIO.**\nIf you want a reliable, Berlin-based company that specializes entirely in organic food, they are the best all-rounder. Because they don't lock you into a subscription box model, you can just treat them like a regular online supermarket. You can easily stock up on a whole carton of oat milk and a bunch of bananas without having to commit to a weekly vegetable box you might not have time to cook.\n\n**However, if you are in a rush right now:** Open the Wolt app and see if the **Alnatura Brand Store** delivers to your specific neighborhood (they cover most of the Ringbahn area). You'll have your organic bananas and oat milk at your door in 30 minutes."
-      }
-    },
     "pdf_read_secret_word": {
       "title": {
         "text": "Read a PDF page"
@@ -10808,16 +10768,34 @@
     },
     "ted_talk_transcript_summary": {
       "title": {
-        "text": "TED Talk Transcript Summary"
+        "text": "Phân tích bài diễn thuyết TED châm biếm của Will Stephen"
       },
       "summary": {
-        "text": "Get a YouTube talk transcript and summarize the speaker's core argument in five bullets."
+        "text": "Tóm tắt bài diễn thuyết TEDx châm biếm của Will Stephen về kỹ năng nói trước công chúng thành năm lập luận hài hước cốt lõi."
       },
       "message_1": {
-        "text": "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
+        "text": "Lấy bản chép lời cho bài diễn thuyết TED này và tóm tắt lập luận cốt lõi thành năm gạch đầu dòng: [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
       },
       "message_2": {
-        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\nVideo này là bài thuyết trình TEDx châm biếm của Will Stephen, *\"How to sound smart in your TEDx Talk\"* (xem bài diễn thuyết).\n\nThay vì trình bày một bài giảng cung cấp thông tin, Stephen sử dụng sự hài hước mang tính tự trào để giải mã các quy ước [diễn thuyết trước công chúng](wiki:Public_speaking) chính yếu. Dưới đây là luận điểm cốt lõi được tóm tắt trong năm điểm:\n\n* **Cách trình bày tạo ra ảo giác về nội dung:** Nhịp độ, cử chỉ tay có chủ đích, giao tiếp bằng mắt đầy kịch tính và các đạo cụ vật lý (như kính không độ) có thể thuyết phục khán giả rằng diễn giả là người xuất chúng ngay cả khi họ không có điều gì giá trị để nói.\n* **Sự kết nối trên sân khấu mang tính công thức cao:** Những mô-típ tương tác quen thuộc—như đặt câu hỏi tu từ, yêu cầu giơ tay và kể những giai thoại tự hạ thấp bản thân—là những kỹ thuật sân khấu được tính toán kỹ lưỡng nhằm tạo ra sự ấm áp và uy tín giả tạo.\n* **Hình ảnh dữ liệu mang lại uy quyền không đáng có:** Việc đưa ra các con số ngẫu nhiên, các phép tính cơ bản và các biểu đồ không có ngữ cảnh sẽ khai thác định kiến về thị giác, làm cho bài thuyết trình có vẻ như được nghiên cứu kỹ lưỡng ngay cả khi dữ liệu hoàn toàn không liên quan.\n* **Khán giả tự gán ý nghĩa cho những điều vô nghĩa:** Bằng cách kết hợp ngữ điệu giọng nói chân thành và những hình ảnh minh họa gợi cảm với những lời nói nhảm nhí theo đúng nghĩa đen, diễn giả có thể thúc đẩy người nghe tìm kiếm—và tưởng tượng—những mối liên hệ sâu sắc trong tiềm thức ở những nơi không hề tồn tại chúng.\n* **Các cao trào cảm xúc có thể được dàn dựng:** Việc tăng cường độ giọng nói, nói chậm lại để thì thầm và tạm dừng một cách đầy kịch tính sẽ mô phỏng nhịp điệu của một sự khai sáng, chứng minh rằng cảm giác truyền cảm hứng có thể được tạo ra dễ dàng như thế nào mà không cần bất kỳ sự thấu hiểu thực sự nào bên dưới."
+      },
+      "follow_up_1": {
+        "text": "Tìm kiếm các bài thuyết trình châm biếm phổ biến khác trên YouTube"
+      },
+      "follow_up_2": {
+        "text": "Giải thích lịch sử của định dạng TEDx và tác động văn hóa của nó"
+      },
+      "follow_up_3": {
+        "text": "Tìm các hướng dẫn lớp học chuyên sâu về thuyết trình trước công chúng trực tuyến"
+      },
+      "follow_up_4": {
+        "text": "Phân tích các kỹ thuật ngôn ngữ cơ thể cụ thể được sử dụng bởi các diễn giả chính nổi tiếng"
+      },
+      "follow_up_5": {
+        "text": "Tìm kiếm các video phân tích về kỹ thuật hùng biện"
+      },
+      "follow_up_6": {
+        "text": "Liệt kê các mẹo để vượt qua nỗi sợ sân khấu khi thuyết trình trước công chúng"
       }
     },
     "upcoming_reminders_list": {
@@ -11001,6 +10979,70 @@
       },
       "follow_up_6": {
         "text": "So sánh các phương pháp khác nhau để chuyển ý tưởng nói thành các tác vụ có tổ chức"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "Ý tưởng món chay từ nguyên liệu trong tủ lạnh"
+      },
+      "summary": {
+        "text": "Người dùng yêu cầu ý tưởng món chay sử dụng cải bó xôi, cà rốt, ớt chuông và đậu gà; trợ lý đã cung cấp ba lựa chọn."
+      },
+      "message_1": {
+        "text": "Gợi ý cho mình vài món chay nhé? Mình còn cải bó xôi, cà rốt, ớt chuông và đậu gà trong tủ lạnh."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nVới **cải bó xôi, cà rốt, ớt chuông và đậu gà**, bạn đã có một nền tảng vững chắc cho những bữa ăn chay ngon miệng và giàu chất xơ. \n\nDưới đây là ba hướng chế biến khác nhau tùy thuộc vào phong cách món ăn mà bạn đang thèm:\n\n---\n\n### 1. Tươi mát & Giòn rụm: Salad thái nhỏ kiểu Thái\nNếu bạn muốn món gì đó nhanh gọn, nhẹ nhàng và giòn, hãy kết hợp ớt chuông, cà rốt và cải bó xôi sống thái nhỏ với đậu gà trong nước sốt chanh [lạc](wiki:Peanut) chua thanh.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Bánh mặn: Chả đậu gà & rau củ giòn\nNếu bạn thích món gì đó ấm nóng và vừa miệng (tuyệt vời khi cuốn, ăn kèm bánh pita hoặc chấm với sốt sữa chua), hãy nghiền đậu gà rồi trộn với cà rốt, ớt chuông băm nhỏ và cải bó xôi đã làm chín.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Lựa chọn nhanh cho ngày trong tuần: Cà ri đậu gà & rau củ áp chảo ấm nóng\nNếu bạn muốn một bữa ăn nấu trong một chảo bằng các nguyên liệu cơ bản có sẵn (như nước cốt dừa đóng hộp hoặc cà chua nghiền):\n1. **Xào các loại gia vị:** Đun nóng dầu ô liu trong chảo, sau đó xào hành tây thái hạt lựu, tỏi băm và gừng cho đến khi thơm.\n2. **Thêm các loại rau củ cứng:** Thái cà rốt và ớt chuông thành miếng vừa ăn. Cho chúng vào chảo cùng với bột thì là Ai Cập, [nghệ](wiki:Turmeric) và một chút bột ớt hoặc bột cà ri.\n3. **Ninh nhỏ lửa:** Thêm đậu gà đã rửa sạch cùng với một cốc nước dùng rau củ hoặc nước cốt dừa. Đậy nắp và ninh trong 10–12 phút cho đến khi cà rốt mềm.\n4. **Làm chín cải bó xôi:** Cho cải bó xôi tươi vào cuối cùng, đảo trong 1–2 phút cho đến khi rau có màu xanh tươi và hơi héo. Hoàn tất bằng một chút nước cốt chanh.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Bạn muốn nấu theo phong cách nào hôm nay?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Salad thái nhỏ tươi mát & giòn rụm\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Chả hoặc bánh rau củ áp chảo giòn\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Cà ri hoặc món hầm áp chảo ấm nóng\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "Tìm hướng dẫn chi tiết hơn và định lượng nguyên liệu đầy đủ cho món cà ri chảo"
+      },
+      "follow_up_2": {
+        "text": "Giải thích cách sơ chế và bảo quản bánh đậu gà rán còn thừa để chuẩn bị bữa ăn (meal prep)"
+      },
+      "follow_up_3": {
+        "text": "Tìm công thức sốt chấm sữa chua thuần chay phù hợp với bánh đậu gà rán"
+      },
+      "follow_up_4": {
+        "text": "Liệt kê các loại gia vị thay thế đơn giản nếu tôi thiếu bột cà ri cho món xào chảo"
+      },
+      "follow_up_5": {
+        "text": "Tìm các công thức nước sốt thay thế sử dụng xốt vừng (tahini) cho món salad thái nhỏ kiểu Thái"
+      },
+      "follow_up_6": {
+        "text": "So sánh hàm lượng protein và chất xơ của ba lựa chọn công thức món chay này"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "So sánh nồi chiên không dầu tại Đức"
+      },
+      "summary": {
+        "text": "Đã so sánh các loại nồi chiên không dầu hàng đầu trên Amazon Đức theo giá, dung tích và đánh giá, đồng thời đề xuất Philips Airfryer 2000 Series cho hộ gia đình hai người."
+      },
+      "message_1": {
+        "text": "Tìm các loại nồi chiên không dầu tôi có thể mua trực tuyến tại Đức, bao gồm cả danh sách trên Amazon. So sánh giá hiện tại, dung tích và xếp hạng đánh giá, sau đó đề xuất một loại cho hộ gia đình hai người kèm theo các liên kết nguồn."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nDưới đây là bảng so sánh các mẫu nồi chiên không dầu được đánh giá cao nhất hiện có trên Amazon Đức, dựa trên tiêu chí giá cả, dung tích và đánh giá của khách hàng.\n\n---\n\n### So sánh các mẫu phổ biến tại Đức\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Đề xuất hàng đầu cho gia đình 2 người\n\n#### **Lựa chọn chính: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **Tại sao mẫu này phù hợp nhất cho hai người:**\n  * **Dung tích tối ưu (6,2 L):** Các giỏ chiên nhỏ hơn 4,5–5 L thường yêu cầu nấu nhiều đợt ngay cả khi chỉ cho hai người. Giỏ 6,2 L cho phép bạn đặt phẳng hai miếng phi lê cá hồi cùng với rau củ hoặc khoai tây chiên trên một lớp để thực phẩm chín giòn đều.\n  * **Diện tích chiếm dụng:** Các dòng máy hai ngăn (như Ninja hoặc Russell Hobbs) chiếm khá nhiều diện tích mặt bếp. Một giỏ chiên 6 L duy nhất vừa cung cấp dung tích rộng rãi vừa giữ được kích thước nhỏ gọn, phù hợp với mặt bếp điển hình tại Đức.\n  * **Cửa sổ trong suốt:** Cho phép kiểm tra độ vàng giòn mà không cần kéo ngăn ra, tránh làm thất thoát nhiệt.\n  * **Giá trị:** Với mức giá 99,99 €, sản phẩm mang lại khả năng duy trì nhiệt độ ổn định từ [Philips](wiki:Philips) với mức giá hợp lý.\n\n#### **Lựa chọn thay thế (Nếu bạn thường xuyên nấu hai món ở nhiệt độ khác nhau): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nNếu bạn và người thân muốn chuẩn bị món chính và rau củ cùng lúc ở nhiệt độ và thời gian khác nhau (ví dụ: ức gà ở 180 °C và khoai tây giòn ở 200 °C), mẫu này hiện đang được giảm giá còn 119,99 € và có tính năng đồng bộ hóa thời gian nấu.\n\n---\n\n### Các yếu tố chính cần lưu ý trước khi mua\n1. **Hình dáng ngăn chiên:** Giỏ vuông (như của Cosori và Philips) chứa các thực phẩm dạng phẳng (bít tết, khuôn nướng, xiên que) tốt hơn nhiều so với giỏ tròn có cùng dung tích lít.\n2. **Kích thước máy rửa bát:** Đảm bảo máy rửa bát của bạn có đủ chiều cao ngăn cho giỏ đơn 6 L hoặc cân nhắc rửa tay các lớp phủ chống dính để kéo dài tuổi thọ của chúng."
+      },
+      "follow_up_1": {
+        "text": "Tìm kiếm các công thức nấu ăn được thiết kế riêng cho nồi chiên không dầu"
+      },
+      "follow_up_2": {
+        "text": "Giải thích sự khác biệt chính giữa nồi chiên không dầu giỏ đơn và giỏ đôi"
+      },
+      "follow_up_3": {
+        "text": "Tìm các phụ kiện nướng bánh tương thích cho nồi chiên không dầu này"
+      },
+      "follow_up_4": {
+        "text": "Liệt kê các công thức nấu bữa tối bằng nồi chiên không dầu cho người mới bắt đầu"
+      },
+      "follow_up_5": {
+        "text": "Kiểm tra xếp hạng mức tiêu thụ năng lượng hiện tại cho các mẫu này"
+      },
+      "follow_up_6": {
+        "text": "So sánh yêu cầu vệ sinh và bảo dưỡng giữa lớp phủ gốm và teflon"
       }
     }
   },

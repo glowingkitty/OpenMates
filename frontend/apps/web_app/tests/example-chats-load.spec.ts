@@ -513,25 +513,30 @@ test.describe('Example chats loading for new users', () => {
 	}) => {
 		test.setTimeout(60000);
 
-		await page.goto(getE2EDebugUrl('/#chat-id=example-chickpea-spinach-protein-dinners'), {
+		await page.goto(getE2EDebugUrl('/#chat-id=example-vegetarian-recipes-from-fridge'), {
 			waitUntil: 'domcontentloaded'
 		});
 
 		await expect(page.getByTestId('user-message-content').filter({
-			hasText: 'Find 3 vegetarian chickpea and spinach dinner recipes'
+			hasText: 'Recommendations for vegetarian recipes? I still have spinach, carrots, bell peppers and chickpeas in the fridge.'
 		})).toBeVisible({ timeout: 15000 });
+
+		const activityToggle = page.getByTestId('assistant-activity-toggle').first();
+		await expect(activityToggle).toBeVisible({ timeout: 15000 });
+		if ((await activityToggle.getAttribute('aria-expanded')) !== 'true') await activityToggle.click();
+		await expect(activityToggle).toHaveAttribute('aria-expanded', 'true');
 
 		const nutritionSearchCardSelector = '[data-testid="embed-preview"][data-app-id="nutrition"][data-skill-id="search_recipes"][data-status="finished"]';
 		const assistantMessageWithNutritionCard = page
 			.getByTestId('message-assistant')
-			.filter({ hasText: 'Here are three delicious' })
+			.filter({ hasText: 'Here are three distinct culinary directions' })
 			.filter({ has: page.locator(nutritionSearchCardSelector) })
 			.first();
 		await expect(assistantMessageWithNutritionCard).toBeVisible({ timeout: 15000 });
 
 		const nutritionSearchCard = assistantMessageWithNutritionCard.locator(nutritionSearchCardSelector);
 		await expect(nutritionSearchCard).toBeVisible({ timeout: 15000 });
-		await expect(nutritionSearchCard).toContainText('chickpea and spinach dinner');
+		await expect(nutritionSearchCard).toContainText('spinach chickpea bell pepper carrot');
 		await expect(nutritionSearchCard).toContainText('Edamam');
 		await expect(assistantMessageWithNutritionCard).not.toContainText('"type":"app_skill_use"');
 		expect(
@@ -540,7 +545,7 @@ test.describe('Example chats loading for new users', () => {
 				const walker = document.createTreeWalker(message, NodeFilter.SHOW_TEXT);
 				let answerTextNode: Node | null = null;
 				while (walker.nextNode()) {
-					if (walker.currentNode.textContent?.includes('Here are three delicious')) {
+					if (walker.currentNode.textContent?.includes('Here are three distinct culinary directions')) {
 						answerTextNode = walker.currentNode;
 						break;
 					}
@@ -554,15 +559,19 @@ test.describe('Example chats loading for new users', () => {
 		).toBe(true);
 
 		const fullscreenOverlay = await openFullscreen(page, nutritionSearchCard);
-		const resultCards = await verifySearchGrid(fullscreenOverlay, 3, 30000);
+		const resultCards = await verifySearchGrid(fullscreenOverlay, 4, 30000);
+		await expect(resultCards).toHaveCount(4);
 		await expect(resultCards.first().getByTestId('nutrition-recipe-preview-image')).toBeVisible({ timeout: 15000 });
 
-		await resultCards.first().click({ force: true });
+		const selectedRecipeCard = fullscreenOverlay.locator('[data-testid="embed-preview"][data-embed-id="9c8b68fa-8220-4a7c-be8a-e18350135861"]');
+		await expect(selectedRecipeCard.getByTestId('nutrition-recipe-preview-image')).toBeVisible({ timeout: 15000 });
+		await selectedRecipeCard.click();
 		await expect(page.getByTestId('nutrition-recipe-image')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('nutrition-recipe-details')).toContainText('4 servings');
 		await expect(page.getByTestId('nutrition-recipe-tags')).toContainText('Vegetarian');
-		await expect(page.getByTestId('nutrition-recipe-categories')).toContainText('middle eastern');
-		await expect(page.locator('body')).toContainText('8.7g');
+		await expect(page.getByTestId('nutrition-recipe-categories')).toContainText('american');
+		// Reviewed selected result: 81.44995g total protein / 4 servings.
+		await expect(page.locator('body')).toContainText('20.4g');
 	});
 
 	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity,audio-generate.output.playable-audio,audio-speak.output.playable-audio,audio-generate.surface-parity,audio-speak.surface-parity

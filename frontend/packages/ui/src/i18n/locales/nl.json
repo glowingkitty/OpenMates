@@ -8960,20 +8960,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"2654ed6e-e439-4c21-98c7-95269083da71\", \"app_id\": \"reminder\", \"skill_id\": \"cancel-reminder\"}\n```\n\nOK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.\n\nWould you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?"
       }
     },
-    "chickpea_spinach_protein_dinners": {
-      "title": {
-        "text": "Chickpea Spinach Protein Dinners"
-      },
-      "summary": {
-        "text": "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
-      },
-      "message_1": {
-        "text": "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d7f21a46-8f13-4f14-82c4-d868ba62bb8a\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\",\"query\":\"chickpea and spinach dinner\",\"provider\":\"Edamam\",\"status\":\"finished\"}\n```\n\nHere are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.\n\n### 1. 10-Minute Chickpea and Spinach Curry\nThis is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.\n\n[!](embed:thefieryvegetarian.com-3sr)\n[!](embed:vegancocotte.com-IZt)\n[!](embed:vegancocotte.com-rFn)\n\n*   **Total Time:** 10 minutes\n*   **Protein Content:** ~10.5g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)\n*   1 (15 oz) can diced [tomatoes](wiki:Tomato)\n*   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)\n*   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)\n*   3 cups fresh [spinach](wiki:Spinach)\n*   1 tsp vegetable oil\n\n**Instructions:**\n1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.\n2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.\n3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.\n4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.\n\n---\n\n### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes\nThis Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.\n\n[!](embed:runningonrealfood.com-R8H)\n[!](embed:americanhomecook.com-Alt)\n[!](embed:shortgirltallorder.com-QXv)\n\n*   **Total Time:** 15 minutes\n*   **Protein Content:** ~23.1g per serving\n*   **Servings:** 2\n\n**Ingredients:**\n*   1 (15 oz) can chickpeas (drained and rinsed)\n*   1 (14.5 oz) can diced tomatoes\n*   5 oz baby spinach\n*   1 small onion (diced) & 4 garlic cloves (sliced)\n*   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)\n*   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))\n\n**Instructions:**\n1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).\n2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.\n3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.\n4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).\n\n---\n\n### 3. 20-Minute Middle Eastern Spinach and Chickpeas\nA simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.\n\n[!](embed:carolinescooking.com-Dy7)\n[!](embed:simpleveganblog.com-8dt)\n[!](embed:ourplantbasedworld.com-Krr)\n\n*   **Total Time:** 20 minutes\n*   **Protein Content:** ~8.7g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   3 cups low-sodium canned chickpeas (drained and rinsed)\n*   2 cups baby spinach\n*   2/3 cup diced tomatoes\n*   ½ large white onion (diced)\n*   2 tsp minced garlic\n*   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)\n\n**Instructions:**\n1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.\n2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.\n3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.\n4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.\n5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.\n\n---\n\n**Next steps for your meal prep:**\n*   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?\n*   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?"
-      }
-    },
     "classic_car_reverse_image_search": {
       "title": {
         "text": "Identificeer een klassieke auto van een foto"
@@ -9086,66 +9072,66 @@
     },
     "community_garden_sunflower_illustration": {
       "title": {
-        "text": "Genereer een botanische illustratie van een zonnebloem"
+        "text": "Botanische illustratie van een zonnebloem voor een tuin-handout"
       },
       "summary": {
-        "text": "Maak een tekstloze illustratie van een zonnebloem voor een folder van een buurttuin."
+        "text": "Een warme botanische illustratie van een zonnebloem gemaakt voor een buurttuin-handout met ontwerpsuggesties. handout with design suggestions."
       },
       "message_1": {
-        "text": "Maak alsjeblieft een warme botanische illustratie van een zonnebloem voor een folder van een buurttuin, op een schone, lichte achtergrond zonder tekst."
+        "text": "Maak een warme botanische illustratie van een zonnebloem voor een buurttuin-handout, op een rustige lichte achtergrond zonder tekst. handout, on a clean light background with no text."
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6a3857ca-aa90-486f-b481-4e1df6f95faa\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nIk genereer nu de botanische illustratie van de zonnebloem voor de folder van je buurttuin; deze wordt momenteel verwerkt en verschijnt hier in de chat zodra hij klaar is.\n\n### Snelle ontwerptips voor buurtfolders\n\nOm je tuinfolder zowel uitnodigend als goed leesbaar te maken:\n\n- **Visuele hiërarchie en witruimte:** Geef de illustratie de ruimte. Door deze langs een kantlijn of in de koptekst te plaatsen, blijft er duidelijke ruimte over voor tuiniertips of evenementdetails zonder dat het rommelig aanvoelt.\n- **Kleurharmonie:** Gebruik warme tinten rechtstreeks uit het kunstwerk — zoals diep honinggoud, olijfgroen of aards terracotta — voor sectiekoppen en kaders.\n- **Eigen kunst toevoegen:** Als buurtbewoners of lokale tuiniers schetsen, bladafdrukken of foto's van de eigen tuinbedden maken, zorgt het integreren daarvan naast digitale illustraties voor een prachtig, gastvrij en lokaal karakter.\n\n---\n\n**Volgende stappen en opties:**\n- [Ontwerp een lay-out voor een folder met koppen en tips](/#message=Help%20me%20design%20a%20clean%20layout%20and%20copy%20for%20a%20community%20garden%20handout.)\n- [Stel een kleurenpalet voor op basis van zonnebloemen](/#message=Suggest%20a%20warm%20color%20palette%20and%20typography%20pairing%20for%20a%20botanical%20garden%20flyer.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"83e98b9b-8bcb-4774-9223-be000504a84a\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nHier is de warme botanische illustratie van een zonnebloem voor de flyer van je buurttuin:\n\n[!](embed:generated-images-ff26d807eb07)\n\n### Ontwerp- en werksuggesties\n\n- **Combineren met handgetekende elementen:** Voor buurtmateriaal werkt het prachtig om digitale of door AI gegenereerde kunstwerken te mengen met authentieke persoonlijke accenten. Je kunt deze illustratie bijvoorbeeld afdrukken als achtergrond of visueel anker, en buurtbewoners vervolgens plantdiagrammen laten schetsen, verzorgingstips laten schrijven of gedroogde bladeren/zaden ernaast laten plakken.\n- **Lay-out en hiërarchie van de flyer:**\n  - **Witruimte:** Houd royale marges rond de zonnebloem om de flyer een luchtige, uitnodigende uitstraling te geven.\n  - **Typografie:** Combineer een organische of humanistische schreefletter (zoals [Garamond](wiki:Garamond) of [Georgia](wiki:Georgia_(typeface))) voor koppen met een leesbare schreefloze letter voor plantinstructies, details over bodemvoorbereiding en evenementdata.\n  - **Kleurenpalet:** Gebruik de amber- en goudtinten van de bloembladen voor accentlijnen of subkoppen, en diep bosgroen voor belangrijke highlights.\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"garden_handout_next_step\",\n  \"multiple\": false,\n  \"question\": \"What would you like to work on next for the handout?\",\n  \"options\": [\n    {\n      \"id\": \"layout_tips\",\n      \"text\": \"Get advice on typography and grid layout for the printed flyer\"\n    },\n    {\n      \"id\": \"variations\",\n      \"text\": \"Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)\"\n    },\n    {\n      \"id\": \"custom\",\n      \"text\": \"Something else\"\n    }\n  ],\n  \"custom_option_id\": \"custom\",\n  \"custom_placeholder\": \"Describe what you need...\"\n}\n```\n\n[!](embed:generated-media-images-83e98b9b8bcb)"
       },
       "follow_up_1": {
-        "text": "Zoek naar lokale evenementen in buurttuinen in de buurt"
+        "text": "Genereer nog een illustratie van een bezige honingbij op lavendel"
       },
       "follow_up_2": {
-        "text": "Help me een vriendelijke inleidende tekst te schrijven voor de folder van de tuin"
+        "text": "Lijst met essentiële tips voor het ontwerpen van een leesbare flyer voor een buurttuin"
       },
       "follow_up_3": {
-        "text": "Vind gratis SVG-planteniconen voor de decoratie van de folder"
+        "text": "Zoek naar gratis typografie-lettertypen voor printbare flyers"
       },
       "follow_up_4": {
-        "text": "Maak een lijst met essentiële tips voor een gids over buurttuinen"
+        "text": "Leg uit hoe je witruimte en tekst in evenwicht brengt op een hand-out"
       },
       "follow_up_5": {
-        "text": "Zoek naar ideeën voor typografiecombinaties voor tuinflyers"
+        "text": "Genereer een illustratie van rijpe erfgoedtomaten aan de struik"
       },
       "follow_up_6": {
-        "text": "Leg uit hoe je visuele elementen rangschikt in een lay-out voor drukwerk"
+        "text": "Beschrijf kleurenpalet-ideeën voor natuurlijke, biologische printprojecten"
       }
     },
     "community_garden_volunteer_chime": {
       "title": {
-        "text": "Een warme chime voor een gemeenschapstuin"
+        "text": "Geluidsontwerp voor buurtuin-melding"
       },
       "summary": {
-        "text": "Genereer een kort tweekleurig meldingsgeluid voor een fictieve app voor een gemeenschapstuin."
+        "text": "Een zacht houten chime-geluidseffect met twee noten gemaakt voor een aanmeldingsmelding voor vrijwilligers in een buurtuin."
       },
       "message_1": {
-        "text": "Maak een kort, warm meldingsgeluid voor een app voor een gemeenschapstuin voor wanneer een vrijwilliger zich aanmeldt. Een zachte tweekleurige chime, geen spraak en korter dan drie seconden."
+        "text": "Maak een kort, warm meldingsgeluid voor een buurtuin-app wanneer een vrijwilliger zich aanmeldt. Een zachte tweekleurige chime, zonder spraak en korter dan drie seconden."
       },
       "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nIk genereer nu de warme, zachte tweekleurige chime voor je gemeenschapstuin-app. Deze wordt momenteel verwerkt en verschijnt in de chat zodra hij klaar is.\n\n### Voorgestelde vervolgstappen\n- [Genereer een aards, feestelijk geluid voor het ontgrendelen van een badge](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Ontwerp een lay-out voor een vrijwilligersbevestigingskaart](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdda9f85-fa01-48ca-acf7-7746de6dc0f3\",\"app_id\":\"audio\",\"skill_id\":\"generate\"}\n```\n\nHier is een zachte, warme tweekleurige chime, gemaakt voor de aanmeldingsmelding van vrijwilligers voor je buurtuin:\n\n[!](embed:generated-audio-17f56f2e73be)\n\n### Geluidsprofiel\n- **Toon:** Organische, resonerende houten chime/marimba-tonen, ontworpen om natuur en groei op te roepen.\n- **Tempo:** Een stijgende reeks van twee noten voor een opbeurend, gastvrij gevoel wanneer iemand zich aanmeldt om te helpen.\n- **Duur:** 2 seconden, kort en niet-storend voor app-gebruikers.\n\nHoe past de toon bij de rest van het UI-palet van je app? We kunnen het timbre aanpassen (bijv. naar een zachtere tokkel op een akoestische gitaar, een klankschaal of een helderdere glazen bel) indien nodig.\n\n[!](embed:generated-media-audio-fdda9f85fa01)"
       },
       "follow_up_1": {
-        "text": "Genereer een feestelijk geluid voor het ontgrendelen van een badge na voltooiing van een taak"
+        "text": "Genereer een zachtere versie met een tokkel op een akoestische gitaar"
       },
       "follow_up_2": {
-        "text": "Leg uit hoe geluidsontwerp de gebruikersbetrokkenheid in mobiele apps beïnvloedt"
+        "text": "Bespreek hoe je meldingsgeluiden kunt testen met gebruikers"
       },
       "follow_up_3": {
-        "text": "Maak een zacht herinneringsgeluid voor de ochtendbewateringsschema's"
+        "text": "Genereer het geluidseffect van een zingende klankschaal"
       },
       "follow_up_4": {
-        "text": "Lijst met best practices voor het ontwerpen van niet-opdringerige UI-meldingsgeluiden"
+        "text": "Lijst met best practices voor audio van mobiele app-meldingen"
       },
       "follow_up_5": {
-        "text": "Genereer een zacht foutmeldingsgeluid voor mislukte formuliervalidaties"
+        "text": "Genereer een helderder meldingsgeluid van een glazen bel"
       },
       "follow_up_6": {
-        "text": "Beschrijf hoe je aangepaste geluidseffecten integreert in mobiele applicaties"
+        "text": "Vergelijk verschillende sonic branding-stijlen voor apps"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -9182,34 +9168,34 @@
     },
     "community_garden_welcome_melody": {
       "title": {
-        "text": "Een melodie voor een welkom in de buurttuin"
+        "text": "Maak een zachte welkomstmelodie voor een moestuin"
       },
       "summary": {
-        "text": "Maak een rustige instrumentale melodie voor een welkomstvideo van een buurttuin."
+        "text": "Genereer een korte instrumentale melodie voor een welkomstvideo voor een moestuin, met een warm akoestisch geluid en zonder zang."
       },
       "message_1": {
-        "text": "Zou je een korte, rustige instrumentale melodie kunnen maken voor een welkomstvideo van een buurttuin, zonder zang?"
+        "text": "Zou je een korte, zachte instrumentale melodie kunnen maken voor een welkomstvideo voor een moestuin, zonder zang?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"296e122a-cd23-4fc6-9c27-99f21f8e3401\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nIk maak nu die rustige instrumentale track voor de welkomstvideo van je buurttuin. Deze wordt momenteel verwerkt en verschijnt hier zodra hij klaar is.\n\n[Buurttuinen](wiki:Community_gardening) zijn een prachtige manier om buren samen te brengen en de lokale biodiversiteit te bevorderen. Terwijl de muziek wordt gegenereerd, kan ik je helpen bij het plannen van het verhaal of de visuele flow van de welkomstvideo?\n\n- [Maak een opzet voor de welkomstvideo](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)\n- [Brainstorm over inleidende tekst of voice-over tips](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"3e5014d0-2082-4604-b968-1553d6cc43e4\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nHier is een zacht, akoestisch instrumentaal nummer gecomponeerd voor de welkomstvideo van je moestuin:\n\n[!](embed:generated-media-music-3e5014d02082)\n[!](embed:generated-music-c89ee4a5f418)\n\n### Details van het nummer\n- **Sfeer & toon:** Warm, uitnodigend en vredig\n- **Instrumentatie:** Akoestisch gitaarspel gecombineerd met zachte pianoakkoorden en lichte melodische accenten\n- **Duur:** 30 seconden\n- **Formaat:** Volledig instrumentaal (geen zang), waardoor het ideaal is als achtergrondmuziek onder een voice-over of tekstuele introductie.\n\n### Voorgestelde vervolgstappen\nAls je van plan bent de video te produceren of een script te schrijven om nieuwe leden in de tuin te introduceren:\n\n- [Ontwerp een kort welkomstscript](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)\n- [Genereer een vrolijker akoestisch alternatief](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)"
       },
       "follow_up_1": {
-        "text": "Zoek naar lokale buurtuin-evenementen en workshops"
+        "text": "Maak een iets vrolijker akoestisch nummer voor onze moestuinvideo"
       },
       "follow_up_2": {
-        "text": "Help me een storyboard te maken voor de tuinvideo"
+        "text": "Help me een warm script van dertig seconden te schrijven voor de welkomstvideo van onze moestuin"
       },
       "follow_up_3": {
-        "text": "Vind stockvideo's van planten en bloemen"
+        "text": "Zoek naar tutorials over het bewerken van moestuinvideo's in een video-editor"
       },
       "follow_up_4": {
-        "text": "Schrijf welkomstteksten voor de voice-over van de buurtvideo"
+        "text": "Beschrijf hoe je achtergrondmuziek combineert met een voice-over-vertelling"
       },
       "follow_up_5": {
-        "text": "Zoek naar tuiniertips voor buurtprojecten"
+        "text": "Vind lokale moestuinevenementen en workshops bij ons in de buurt"
       },
       "follow_up_6": {
-        "text": "Suggereer ideeën voor activiteiten tijdens de openingsdag van de buurttuin"
+        "text": "Maak een lijst met ideeën voor beelden om in de welkomstvideo op te nemen"
       }
     },
     "creativity_drawing_meetups_berlin": {
@@ -9682,40 +9668,34 @@
     },
     "housing_policy_dinner_discussion": {
       "title": {
-        "text": "Prepare for a housing policy dinner discussion"
+        "text": "Bereid je voor op een dinergesprek over huisvestingsbeleid"
       },
       "summary": {
-        "text": "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+        "text": "Bereid je voor op een rustig familiegesprek over huisvestingsbeleid en huurprijsbeheersing, beginnend met vragen over de lokale context en de doelen van elke persoon."
       },
       "message_1": {
-        "text": "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+        "text": "Ik ga eten met mijn vader en hij wil discussiëren over huisvestingsbeleid en huurprijsbeheersing. Help me om me voor te bereiden, zodat ik goede vragen kan stellen, belangrijke feiten kan controleren, de sterkste argumenten van beide kanten kan begrijpen en het gesprek rustig kan houden."
       },
       "message_2": {
-        "text": "Focus mode activated: Prepare a political discussion."
-      },
-      "message_3": {
-        "text": "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
-      },
-      "message_4": {
-        "text": "It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. \n\nSince housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** (\"Who is right?\") to a **collaborative exploration** (\"How do we solve this complex problem together?\").\n\nHere is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.\n\n### 1. The Core Debate: Rent Control & Stabilization\n\nTo have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). \n\n**The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**\n*   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.\n*   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.\n*   **It creates \"misallocation\":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.\n*   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.\n\n**The Strongest Arguments FOR Rent Control (The Community & Equity View)**\n*   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.\n*   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.\n*   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply \"shop elsewhere\" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.\n*   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.\n\n### 2. Facts to Keep in Your Back Pocket\n*   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.\n*   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. \n*   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.\n\n### 3. Strategies to Keep It Calm\n*   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., \"I agree with you that property owners shouldn't be forced to operate at a loss.\")*\n*   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.\n*   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).\n\n### 4. Great Questions to Ask Your Dad\n\nThese questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:\n\n1.  **If he is AGAINST rent control:** *\"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?\"*\n2.  **If he is FOR rent control:** *\"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?\"*\n3.  **Zooming out to the bigger picture:** *\"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?\"*\n4.  **Finding balance:** *\"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?\"*\n\nHow are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?"
+        "text": "Het bespreken van huisvestingsbeleid en huurregulering met familie kan makkelijk verhit raken, vooral wanneer generatiegebonden standpunten, woningbezit of verschillende economische filosofieën botsen. \n\nOm de belangrijkste feiten, beleidsgegevens en specifieke vragen voor je diner op maat te maken, kun je wat meer context delen?\n\n1. **Locatie / Rechtsgebied:** Richt dit zich op een specifieke stad, provincie of land (bijv. Californië, New York, Berlijn, het VK), of benadert hij het vanuit een breed, landelijk economisch perspectief? Lokale regels en marktdruk variëren sterk.\n2. **De invalshoek van je vader:** Wat is zijn kernstandpunt of reactie? Spreekt hij bijvoorbeeld als huiseigenaar, kleine verhuurder of belastingbetaler, of redeneert hij primair vanuit de vrije-markttheorie tegen prijsbeheersing?\n3. **Je hoofddoel:** Naast het rustig en constructief houden van de zaken, hoe zou een succes er voor jou uitzien — het vinden van een gemeenschappelijke basis over kernwaarden (zoals gemeenschapsstabiliteit versus nieuw aanbod), begrijpen waar hij vandaan komt, of het bij de hand hebben van solide data om specifieke beweringen aan te pakken?\n\nZodra je die details deelt, stellen we een op maat gemaakte voorbereidingsgids op met geverifieerd bewijs, afwegingen aan beide kanten en de-escalatiestrategieën."
       },
       "follow_up_1": {
-        "text": "Find recent studies on rent control policies"
+        "text": "Zoek naar recente onderzoeken naar huurprijsbeheersing in grote steden"
       },
       "follow_up_2": {
-        "text": "Explain the economic impact of rent control"
+        "text": "Maak een lijst van veelvoorkomende argumenten tegen huurprijsregulering"
       },
       "follow_up_3": {
-        "text": "Search for housing policy debates in our city"
+        "text": "Vind economisch onderzoek naar de elasticiteit van het woningaanbod"
       },
       "follow_up_4": {
-        "text": "Describe how zoning laws affect housing supply"
+        "text": "Vergelijk wetten voor huurdersbescherming in verschillende regio's"
       },
       "follow_up_5": {
-        "text": "Show me zoning laws in our area"
+        "text": "Zoek nieuwsartikelen over de impact van huurregulering"
       },
       "follow_up_6": {
-        "text": "Summarize the key arguments for rent control"
+        "text": "Leg uit hoe het aanbod op de woningmarkt reageert op prijsbeheersing"
       }
     },
     "image_vectorize_openmates_header": {
@@ -9822,40 +9802,34 @@
     },
     "mastodon_public_post_themes": {
       "title": {
-        "text": "Thema's in de openbare berichten van Mastodon"
+        "text": "Samenvatting berichten officieel Mastodon-account"
       },
       "summary": {
-        "text": "Vat de thema's in recente berichten van het officiële Mastodon-account samen en bekijk representatieve voorbeelden."
+        "text": "Samenvatting van recente openbare berichten van het officiële Mastodon-account, over Mastodon 5.0, bestuur, ecosysteem-spotlights, teamupdates en merchandise."
       },
       "message_1": {
-        "text": "Kun je de belangrijkste thema's in recente openbare berichten van het officiële Mastodon-account op mastodon.social samenvatten, met links naar een paar voorbeelden?"
+        "text": "Kun je de belangrijkste thema's samenvatten in recente openbare berichten van het officiële Mastodon-account op mastodon.social, met links naar een paar voorbeelden?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"33ebec48-4730-4b4b-b7d7-f967173ac9b6\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nHet verzoek om recente openbare berichten van @Mastodon (`@Mastodon@mastodon.social`) op te halen wordt momenteel nog op de achtergrond uitgevoerd en zal de chat bijwerken zodra het klaar is.\n\nTerwijl we wachten tot de feed is geladen:\n- [Bekijk recente Mastodon-blogaankondigingen](/#message=Search%20for%20the%20latest%20official%20Mastodon%20blog%20announcements%20and%20releases.)\n- [Bekijk de Mastodon-roadmap](/#message=What%20are%20the%20major%20features%20currently%20on%20the%20Mastodon%20roadmap%3F)"
-      },
-      "message_3": {
-        "text": "De berichten zijn nu geladen. Kun je de belangrijkste thema's samenvatten en linken naar drie representatieve berichten?"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"65b92905-0838-46dd-8fff-8e28cdc8789a\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nHet officiële @Mastodon-account op `mastodon.social` belicht verschillende kernthema's in zijn recente openbare berichten:\n\n### 1. Belangrijke productevolutie & gebruikersonderzoek\nEen belangrijk aandachtspunt is de basis voor **Mastodon 5.0**, volgend op hun community-brede \"Discovery Week\"-onderzoeksinitiatief onder leiding van hun ontwerpteam. Het team deelde voorbeelden van een vernieuwde, rustigere interface en een bijgewerkte tekstverwerker die bedoeld zijn om het platform toegankelijker en gebruiksvriendelijker te maken.\n\n### 2. Community-beheer, beleid & personeelsupdates\nMastodon communiceert regelmatig over updates op het gebied van beheer en beleid, met name door verduidelijkende richtlijnen uit te brengen over hun **handelsmerkbeleid** als directe reactie op feedback van fediverse-beheerders en -ontwikkelaars. Ze kondigden ook belangrijke overgangen in het leiderschap aan en bedankten vertrekkend community-directeur Hannah Aubry voor haar bijdragen.\n\n### 3. Server-spotlights & fediverse-ecosysteem\nHet account promoot actief onafhankelijke fediverse-instanties en infrastructuurinitiatieven — zoals het uitlichten van themaservers (zoals Earth.Law) en het versterken van sectoronderzoeken zoals het IFTAS-operationeel onderzoek.\n\n### 4. Community-merchandise & projectfinanciering\nTer ondersteuning van de voortdurende open-source ontwikkeling delen ze updates over officiële community-merchandise, waaronder de release van nieuwe pluchen mascottes (\"Plushtodons\").\n\n---\n\n### Drie representatieve berichten\n\n- **Productroadmap & visuele vernieuwing:** [Aankondiging voorproefje Mastodon 5.0](embed:mastodon-after-publishing-D8d) — deelt een preview van de komende 5.0-lay-out en tekstverwerker op basis van de onderzoeksresultaten.\n- **Beleid & community-feedback:** [Update richtlijnen handelsmerkbeleid](embed:mastodon-today-we-YqD) — beschrijft de herziene handelsmerkregels die zijn aangepast op basis van input van de community.\n- **Projectondersteuning & merchandise:** [Aankondiging pre-orders Plushtodon](embed:mastodon-new-plushtodon-A57) — kondigt nieuwe officiële pluchen mascottes aan als een manier voor supporters om de ontwikkeling te financieren.\n\n---\n\nWil je een specifiek onderwerp verder verkennen?\n- [Lees meer over de functies van Mastodon 5.0](/#message=What%20new%20features%20and%20changes%20are%20coming%20in%20Mastodon%205.0%3F)\n- [Bekijk de richtlijnen voor handelsmerken](/#message=Summarize%20Mastodon's%20updated%20trademark%20policy%20guidelines.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nRecente openbare berichten van het officiële @Mastodon-account op [Mastodon](wiki:Mastodon_(social_network)) draaien om een aantal kernthema's:\n\n---\n\n### 1. Platform-redesign & aankomende functies (Mastodon 5.0)\nEen belangrijk aandachtspunt was het delen van onderzoek naar gebruikerservaringen en het onthullen van aankomende ontwerpwijzigingen:\n- **Mastodon 5.0 Sneak Peek:** Een eerste blik op versie 5.0, met de nadruk op een rustigere lay-out, een nieuwe visuele esthetiek en een vernieuwde editor voor berichten ([Mastodon 5.0 sneak peek](embed:mastodon-after-publishing-WqJ)).\n- **Bevindingen van de Discovery Week:** Het delen van resultaten van gebruikersworkshops en enquêtes onder leiding van het ontwerpteam om beter te begrijpen hoe de community met het platform omgaat ([Samenvatting Discovery Week](embed:mastodon-we-re-5Ll)).\n\n### 2. Governance & duidelijkheid over handelsmerken\nMastodon heeft zich gericht op het aanpakken van zorgen uit de community over het projectbeleid:\n- **Richtlijnen voor het handelsmerkbeleid:** Het uitbrengen van bijgewerkte, verduidelijkte richtlijnen en samenvattingen in begrijpelijke taal over het handelsmerkbeleid van Mastodon naar aanleiding van input uit de community ([Aankondiging richtlijnen handelsmerk](embed:mastodon-today-we-3Kb)).\n\n### 3. Community-spotlights & ondersteuning van het ecosysteem\nAandacht voor het bredere [Fediverse](wiki:Fediverse)-ecosysteem, serverbeheerders en veiligheidsinitiatieven:\n- **Uitgelichte server-spotlight:** Promotie van specifieke instances zoals *Earth.Law*, een milieuvriendelijke server op maat gemaakt voor milieuadvocaten, wetenschappers en activisten ([Earth.Law server-highlight](embed:mastodon-here-is-miz)).\n- **Ecosysteem-enquêtes:** Het stimuleren van administratieve initiatieven zoals de IFTAS Social Web Operations Survey om moderators en beheerders te ondersteunen ([IFTAS-enquêtebericht](embed:mastodon-re-https-wnD)).\n\n### 4. Updates over de organisatie & het team\nTransparantie over teamovergangen en leiderschap:\n- **Afscheid van leidinggevenden:** Erkenning van het vertrek van Community Director en bestuurslid Hannah Aubry, met dank voor haar bijdragen aan de groei van de community ([Afscheidsbericht Hannah Aubry](embed:mastodon-hannah-aubry-O6F)).\n\n### 5. Projectfinanciering & merchandise\nHet ondersteunen van de open-source ontwikkeling van het netwerk:\n- **Plushtodon pre-orders:** Aankondiging van nieuwe kleuren voor de pluchen mascotte in de winkel, zodat supporters de ontwikkeling direct kunnen helpen financieren ([Bericht over Plushtodon pre-orders](embed:mastodon-new-plushtodon-7D2)).\n\n---\n\n### Uitgelichte voorbeelden\n\n[@Mastodon: Na het publiceren van de resultaten van de Discovery Week kunnen we je nu een eerste snea](embed:mastodon-after-publishing-WqJ)\n[@Mastodon: Vandaag delen we aanvullende richtlijnen over ons handelsmerkbeleid op basis van c](embed:mastodon-today-we-3Kb)\n[@Mastodon: Nieuwe #Plushtodon-kleuren nu beschikbaar voor pre-orders in onze winkel! Dit is een manie](embed:mastodon-new-plushtodon-7D2)"
       },
       "follow_up_1": {
-        "text": "Zoek naar recente Mastodon-blogaankondigingen"
+        "text": "Zoek naar recente discussies over Mastodon 5.0 op Reddit"
       },
       "follow_up_2": {
-        "text": "Leg uit hoe gedecentraliseerde moderatie werkt op Mastodon"
+        "text": "Leg uit hoe gedecentraliseerde moderatie werkt op het Fediverse"
       },
       "follow_up_3": {
-        "text": "Zoek naar updates over de ontwikkeling van Mastodon 5.0"
+        "text": "Zoek naar technische artikelen die de functies van het ActivityPub-protocol uitleggen"
       },
       "follow_up_4": {
-        "text": "Vergelijk de wijzigingen in Mastodon 5.0 met eerdere releases"
+        "text": "Vergelijk de bestuursmodellen van Mastodon met commerciële sociale netwerken"
       },
       "follow_up_5": {
-        "text": "Zoek naar discussies in de community over servermoderatie op het Fediverse"
+        "text": "Vind komende online conferenties over open-sourcesoftware"
       },
       "follow_up_6": {
-        "text": "Lijst de belangrijkste uitdagingen op voor open-sourceplatforms"
+        "text": "Bespreek de financieringsmodellen voor onafhankelijke open-sourceplatforms"
       }
     },
     "memory_books_currently_reading": {
@@ -10388,20 +10362,6 @@
         "text": "List essential items to pack for variable weather bike rides"
       }
     },
-    "organic_groceries_berlin": {
-      "title": {
-        "text": "Organic Grocery Delivery in Berlin"
-      },
-      "summary": {
-        "text": "Compared Berlin organic grocery delivery options for oat milk and bananas using local delivery sources and product results."
-      },
-      "message_1": {
-        "text": "Can you find organic grocery delivery options in Berlin for oat milk and bananas, compare a few reliable local options, and recommend which one to use?"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"91a1a938-12c3-47f9-a00b-e9a59d2a8ad2\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"organic grocery delivery Berlin\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"cf2504cb-56b5-4ea3-89d5-4cf9cc732911\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Bio Lebensmittel Lieferservice Berlin Hafermilch Bananen\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"5cdfdced-0921-47ed-a351-a0d19ccbb8e2\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Hafermilch\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b6f64bdd-2b32-4623-83eb-8cf57975ba70\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Bananen\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\nBerlin has an excellent ecosystem for organic groceries, offering everything from traditional farm-to-door \"Biokisten\" (organic boxes) to ultra-fast delivery apps. Since you are specifically looking for organic oat milk (*Bio Hafermilch*) and organic bananas (*Bio Bananen*), these are staple items available almost everywhere.\n\nHere is a comparison of the most reliable local options, categorized by how they operate:\n\n### 1. The Local \"Biokiste\" Services (Best for Sustainability & Regionality)\nThese are local, dedicated organic delivery services that have been operating in Berlin for years. They focus heavily on sustainability, fair trade, and regional farming.\n*   **[LogischBIO](embed:logisch-bio.de-eeO):**\n    *   **The Vibe:** A true online organic supermarket with a local heart. They've been operating in Berlin since 1998.\n    *   **Pros:** They offer over 5,000 organic items. Crucially, they require **no subscription** (*kein Abo*), which makes them incredibly flexible if you just want to do a one-off grocery haul.\n    *   **Cons:** You need to plan a day or two ahead for your delivery slot.\n*   **[Märkische Kiste](embed:maerkischekiste.de-fJw) & [Landkorb](embed:landkorb.de-Ze3):**\n    *   **The Vibe:** Classic \"Ökokiste\" (Eco-box) providers. They deliver in reusable boxes straight to your door.\n    *   **Pros:** Excellent for supporting regional Brandenburg farmers. You can either subscribe to a pre-made seasonal box or build your own custom box with exact items like oat milk and bananas.\n    *   **Cons:** Often heavily subscription-based (though you can pause/customize easily). Delivery days are sometimes restricted based on your specific Berlin postal code.\n\n### 2. Quick Commerce (Best for Urgent Needs)\nIf you need your oat milk for tomorrow morning's coffee and can't wait for a scheduled delivery slot:\n*   **Alnatura via [Wolt](embed:wolt.com-UR8) / UberEats:**\n    *   **The Vibe:** Ultra-fast delivery from one of Germany's most popular organic supermarket chains.\n    *   **Pros:** Delivery in roughly 30 minutes. You get access to the high-quality Alnatura brand products.\n    *   **Cons:** Higher delivery fees, and the couriers are gig-economy workers, which lacks the community/sustainability ethos of the dedicated farm boxes.\n\n### 3. Mainstream Supermarket Delivery (Best for General Shopping)\nIf you want to combine your organic basics with a regular grocery order:\n*   **REWE Lieferservice:**\n    *   They have a very reliable scheduled delivery network in Berlin and a massive organic (\"REWE Bio\") range.\n    *   For example, you can easily grab [REWE Bio Vegan Oat Drink](embed:rewe-bio-pflanzlich-Q5w) or [Oatly Bio Barista](embed:oatly-bio-haferdrink-cdI), alongside [Organic Bananas](embed:bio-banane-ca-GZn).\n\n---\n\n### 🏆 Recommendation: Which one should you use?\n\n**Go with LogischBIO.**\nIf you want a reliable, Berlin-based company that specializes entirely in organic food, they are the best all-rounder. Because they don't lock you into a subscription box model, you can just treat them like a regular online supermarket. You can easily stock up on a whole carton of oat milk and a bunch of bananas without having to commit to a weekly vegetable box you might not have time to cook.\n\n**However, if you are in a rush right now:** Open the Wolt app and see if the **Alnatura Brand Store** delivers to your specific neighborhood (they cover most of the Ringbahn area). You'll have your organic bananas and oat milk at your door in 30 minutes."
-      }
-    },
     "pdf_read_secret_word": {
       "title": {
         "text": "Read a PDF page"
@@ -10808,16 +10768,34 @@
     },
     "ted_talk_transcript_summary": {
       "title": {
-        "text": "TED Talk Transcript Summary"
+        "text": "Will Stephens satirische TED-talk analyseren"
       },
       "summary": {
-        "text": "Get a YouTube talk transcript and summarize the speaker's core argument in five bullets."
+        "text": "Vatte Will Stephens satirische TEDx-talk over spreken in het openbaar samen in vijf komische kernargumenten."
       },
       "message_1": {
-        "text": "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
+        "text": "Haal het transcript van deze TED-talk op en vat het kernargument samen in vijf opsommingstekens: [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
       },
       "message_2": {
-        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\nDe video is Will Stephens satirische TEDx-presentatie, *\"How to sound smart in your TEDx Talk\"* (bekijk talk).\n\nIn plaats van een informatieve lezing te geven, gebruikt Stephen meta-humor om de conventies van keynote [spreken in het openbaar](wiki:Public_speaking) te deconstrueren. Hier is het kernargument samengevat in vijf punten:\n\n* **Voordracht creëert de illusie van inhoud:** Tempo, bewuste handgebaren, dramatisch oogcontact en fysieke rekwisieten (zoals een bril zonder sterkte) kunnen een publiek ervan overtuigen dat een spreker briljant is, zelfs als diegene niets waardevols te zeggen heeft.\n* **Interactie op het podium is uiterst formulematig:** Bekende interactieve stijlmiddelen — zoals het stellen van retorische vragen, het vragen om handen op te steken en het vertellen van zelfspot-anekdotes — zijn berekende podiumtechnieken die zijn ontworpen om kunstmatige warmte en geloofwaardigheid te creëren.\n* **Datavisualisaties zorgen voor onverdiende autoriteit:** Het tonen van willekeurige getallen, eenvoudige rekenkunde en grafieken zonder context maakt misbruik van visuele vooroordelen, waardoor een presentatie er grondig onderzocht uitziet, zelfs als de gegevens totaal irrelevant zijn.\n* **Publiek projecteert betekenis op onzin:** Door een ernstige stemcadans en suggestieve stockfoto's te combineren met letterlijk gebrabbel, kunnen sprekers luisteraars aanzetten om onbewust te zoeken naar — en zich een voorstelling te maken van — diepzinnige verbanden waar deze niet bestaan.\n* **Emotionele crescendo's kunnen worden gefabriceerd:** Het opbouwen van stemintensiteit, vertragen tot een fluistering en dramatisch pauzeren bootsen het ritme van een openbaring na, wat bewijst hoe gemakkelijk het gevoel van inspiratie kan worden gemanipuleerd zonder enig onderliggend inzicht."
+      },
+      "follow_up_1": {
+        "text": "Zoek naar andere populaire satirische presentaties op YouTube"
+      },
+      "follow_up_2": {
+        "text": "Leg de geschiedenis van het TEDx-formaat en de culturele impact ervan uit"
+      },
+      "follow_up_3": {
+        "text": "Vind online masterclass-tutorials over spreken in het openbaar"
+      },
+      "follow_up_4": {
+        "text": "Analyseer de specifieke lichaamstaaltechnieken die door beroemde keynote-sprekers worden gebruikt"
+      },
+      "follow_up_5": {
+        "text": "Zoek naar analysevideo's over retorische technieken"
+      },
+      "follow_up_6": {
+        "text": "Lijst met tips voor het overwinnen van plankenkoorts tijdens het spreken in het openbaar"
       }
     },
     "upcoming_reminders_list": {
@@ -11001,6 +10979,70 @@
       },
       "follow_up_6": {
         "text": "Vergelijk verschillende methoden om gesproken ideeën om te zetten in georganiseerde taken"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "Vegetarische receptideeën met koelkastvoorraad"
+      },
+      "summary": {
+        "text": "Gebruiker vroeg om vegetarische receptideeën met spinazie, wortels, paprika en kikkererwten; de assistent gaf drie opties."
+      },
+      "message_1": {
+        "text": "Aanbevelingen voor vegetarische recepten? Ik heb nog spinazie, wortels, paprika en kikkererwten in de koelkast liggen."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nMet **spinazie, wortels, paprika en kikkererwten** heb je een uitstekende basis voor heerlijke, vezelrijke vegetarische maaltijden. \n\nHier zijn drie verschillende culinaire richtingen, afhankelijk van waar je trek in hebt:\n\n---\n\n### 1. Fris & Knapperig: Thaise Chopped Salad\nAls je iets snels, lichts en knapperigs wilt, combineer dan fijngehakte rauwe paprika, wortels en spinazie met kikkererwten in een frisse [pindadressing](wiki:Peanut) met limoen.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Hartige Koekjes: Krokante Kikkererwten- & Groentefritters\nAls je zin hebt in iets warms en hapklaars (lekker in wraps, pita's of met een yoghurtdip), prak dan de kikkererwten en meng er fijngehakte wortels, paprika en geslonken spinazie doorheen.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Snel Doordeweeks Alternatief: Warme Kikkererwten- & Groentecurry uit de pan\nAls je een eenpansgerecht wilt maken met basisproducten uit de voorraadkast (zoals kokosmelk uit blik of tomatenblokjes):\n1. **Fruit de smaakmakers:** Verhit olijfolie in een koekenpan en bak gesnipperde ui, fijngehakte knoflook en gember tot het geurt.\n2. **Voeg de stevige groenten toe:** Snijd de wortels en paprika in hapklare stukjes. Voeg ze toe samen met gemalen komijn, [kurkuma](wiki:Turmeric) en een snufje chilipoeder of kerriepoeder.\n3. **Laten sudderen:** Voeg de afgespoelde kikkererwten toe samen met een kopje groentebouillon of kokosmelk. Dek af en laat 10-12 minuten sudderen tot de wortels zacht zijn.\n4. **Laat de spinazie slinken:** Meng de verse spinazie er pas op het laatst doorheen gedurende 1-2 minuten tot deze felgroen en geslonken is. Maak af met een kneepje citroensap.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Welke kookstijl heeft vandaag je voorkeur?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Frisse & knapperige chopped salad\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Krokante fritters of koekjes uit de pan\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Warme eenpanscurry of stoofschotel\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "Zoek naar meer gedetailleerde instructies en volledige hoeveelheden ingrediënten voor de curry uit de koekenpan"
+      },
+      "follow_up_2": {
+        "text": "Leg uit hoe je overgebleven gebakken kikkererwtenkoekjes klaarmaakt en bewaart voor meal prep"
+      },
+      "follow_up_3": {
+        "text": "Zoek naar recepten voor veganistische yoghurtdips die goed passen bij kikkererwtenkoekjes"
+      },
+      "follow_up_4": {
+        "text": "Lijst met eenvoudige kruidenvervangers als ik geen kerriepoeder heb voor de maaltijd uit de koekenpan"
+      },
+      "follow_up_5": {
+        "text": "Zoek naar alternatieve dressingrecepten met tahini voor de Thaise gehakte salade"
+      },
+      "follow_up_6": {
+        "text": "Vergelijk het eiwit- en vezelgehalte van deze drie vegetarische receptopties"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "Airfryers vergelijken in Duitsland"
+      },
+      "summary": {
+        "text": "Vergeleek de beste airfryers op Amazon Duitsland op basis van prijs, capaciteit en beoordelingen, met een aanbeveling voor de Philips Airfryer 2000-serie voor een tweepersoonshuishouden."
+      },
+      "message_1": {
+        "text": "Zoek airfryers die ik online kan kopen in Duitsland, inclusief Amazon-vermeldingen. Vergelijk de huidige prijzen, capaciteiten en beoordelingen, en raad er vervolgens een aan voor een tweepersoonshuishouden met bronvermeldingen."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nHier is een vergelijking van de best beoordeelde airfryers die momenteel beschikbaar zijn op Amazon Duitsland, waarbij prijs, capaciteit en klantbeoordelingen worden vergeleken.\n\n---\n\n### Vergelijking van populaire modellen in Duitsland\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Beste aanbeveling voor een huishouden van 2 personen\n\n#### **Eerste keuze: [Philips Airfryer 2000 Series 6,2L](embed:philips-airfryer-2000-fay)**\n\n* **Waarom dit het beste past bij twee personen:**\n  * **Optimale capaciteit (6,2 L):** Bij manden kleiner dan 4,5–5 L moet je zelfs voor twee personen in meerdere porties koken. In een mand van 6,2 L kun je twee zalmfilets en een volledige portie groenten of frietjes plat in één laag leggen voor een gelijkmatig krokant resultaat.\n  * **Ruimtebeslag in de keuken:** Dual-zone machines (zoals Ninja of Russell Hobbs) nemen veel ruimte in op het aanrecht. Een enkele mand van 6 L biedt voldoende volume terwijl hij een compact formaat behoudt dat geschikt is voor typische Duitse keukenbladen.\n  * **Transparant venster:** Hiermee kun je de bruining controleren zonder de lade te openen en warmte te verliezen.\n  * **Waarde:** Voor € 99,99 biedt het een betrouwbare temperatuurconsistentie van [Philips](wiki:Philips) voor een redelijke prijs.\n\n#### **Alternatief (als je vaak twee gerechten op verschillende temperaturen bereidt): [Philips Dual Basket 3000 Series (9,0 L)](embed:philips-airfryer-dual-pjD)**\nAls jij en je partner liever proteïnen en bijgerechten tegelijkertijd bereiden op verschillende temperaturen en tijden (bijv. kipfilets op 180 °C en krokante aardappeltjes op 200 °C), dan is dit model momenteel afgeprijsd naar € 119,99 en beschikt het over gesynchroniseerde bereidingstijden.\n\n---\n\n### Belangrijke factoren om te overwegen voor aankoop\n1. **Vorm van de lade:** Vierkante manden (zoals Cosori and Philips) zijn veel geschikter voor platte items (steaks, bakvormen, spiesen) dan ronde manden met een identieke inhoud in liters.\n2. **Ruimte in de vaatwasser:** Zorg ervoor dat je vaatwasser genoeg hoogte heeft voor een enkele lade van 6 L, of overweeg om antiaanbaklagen met de hand te wassen om de levensduur te verlengen."
+      },
+      "follow_up_1": {
+        "text": "Zoek recepten die specifiek zijn ontworpen voor airfryers"
+      },
+      "follow_up_2": {
+        "text": "Leg de belangrijkste verschillen uit tussen airfryers met een enkele en een dubbele mand"
+      },
+      "follow_up_3": {
+        "text": "Vind compatibele bakaccessoires voor deze airfryer"
+      },
+      "follow_up_4": {
+        "text": "Toon een lijst met beginnersvriendelijke recepten voor het avondeten in een airfryer"
+      },
+      "follow_up_5": {
+        "text": "Bekijk de huidige energieverbruikscijfers voor deze modellen"
+      },
+      "follow_up_6": {
+        "text": "Vergelijk de reinigings- en onderhoudsvereisten voor keramische versus tefloncoatings"
       }
     }
   },

@@ -22,4 +22,17 @@ describe('mixed assistant activity source positions', () => {
     expect(runs[2].appIds).toEqual(['code']);
     expect(runs[0].id).toBe('skills:focus');
   });
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,app-skills.media.visible-assistant-results
+  it('gives repeated generation invocations distinct keys at their source positions', () => {
+    const invocation = embed({ type: 'app-skill-use', id: 'saved-generation', app_id: 'images', skill_id: 'generate' });
+    const prose = { type: 'paragraph', content: [{ type: 'text', text: 'The generated result follows.' }] };
+    const nodes = [invocation, prose, invocation];
+    const runs = splitAssistantActivityRuns({ type: 'doc', content: nodes })!;
+    expect(runs.map(run => run.kind)).toEqual(['skills', 'content', 'skills']);
+    expect(runs[0].id).toBe('skills:saved-generation');
+    expect(new Set(runs.map(run => run.id)).size).toBe(runs.length);
+    expect(runs.flatMap(run => run.document.content)).toEqual(nodes);
+    expect(runs.filter(run => run.kind === 'skills').map(run => run.skillIds)).toEqual([['generate'], ['generate']]);
+    expect(splitAssistantActivityRuns({ type: 'doc', content: nodes })?.map(run => run.id)).toEqual(runs.map(run => run.id));
+  });
 });

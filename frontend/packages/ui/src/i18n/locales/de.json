@@ -10303,20 +10303,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"2654ed6e-e439-4c21-98c7-95269083da71\", \"app_id\": \"reminder\", \"skill_id\": \"cancel-reminder\"}\n```\n\nOK. Ich habe die Erinnerung mit der ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9` abgebrochen. Sie wird nicht mehr ausgelöst.\n\nMöchtest du, dass ich [eine neue Erinnerung erstelle](/#settings/apps/reminder), oder soll ich [deine restlichen aktiven Erinnerungen prüfen](/#settings/apps/reminder)?"
       }
     },
-    "chickpea_spinach_protein_dinners": {
-      "title": {
-        "text": "Kichererbsen-Spinat-Protein-Abendessen"
-      },
-      "summary": {
-        "text": "Finde schnelle vegetarische Abendessen mit Kichererbsen und Spinat mit Edamam-Rezeptkarten, Anleitungen und Proteinangaben."
-      },
-      "message_1": {
-        "text": "Finde 3 vegetarische Rezepte für Abendessen mit Kichererbsen und Spinat unter 35 Minuten mit Schritt-für-Schritt-Anleitungen und Proteinangaben."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d7f21a46-8f13-4f14-82c4-d868ba62bb8a\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\",\"query\":\"chickpea and spinach dinner\",\"provider\":\"Edamam\",\"status\":\"finished\"}\n```\n\nHier sind drei köstliche, proteinreiche vegetarische Abendessen-Rezepte mit Kichererbsen und Spinat, die du in weniger als 35 Minuten zubereiten kannst.\n\n### 1. 10-Minuten-Kichererbsen-Spinat-Curry\nDies ist ein unglaublich schnelles [Curry](wiki:Curry), das auf Aromen und Vorratskammer-Basics setzt, um in Rekordzeit einen reichhaltigen, sättigenden Geschmack zu erzielen.\n\n[!](embed:thefieryvegetarian.com-3sr)\n[!](embed:vegancocotte.com-IZt)\n[!](embed:vegancocotte.com-rFn)\n\n*   **Gesamtzeit:** 10 Minuten\n*   **Proteingehalt:** ~10,5 g pro Portion\n*   **Portionen:** 4\n\n**Zutaten:**\n*   1 Dose (15 oz) [Kichererbsen](wiki:Chickpea) (abgetropft und abgespült)\n*   1 Dose (15 oz) gewürfelte [Tomaten](wiki:Tomato)\n*   1 [Zwiebel](wiki:Onion), 4 [Knoblauchzehen](wiki:Garlic), 1 rote Chili, 1 EL Ingwer (alles fein gewürfelt)\n*   3 EL Currypaste & 2 EL [Tomatenmark](wiki:Tomato_paste)\n*   3 Tassen frischer [Spinat](wiki:Spinach)\n*   1 TL Pflanzenöl\n\n**Anleitung:**\n1.  **Aromen anbraten:** Öl in einem großen Topf erhitzen. Gewürfelte Zwiebel, Knoblauch, Ingwer und Chili hinzufügen. Etwa 1 Minute anbraten, bis es duftet.\n2.  **Geschmack aufbauen:** Tomatenmark und Currypaste einrühren und eine weitere Minute anbraten, damit sich die Aromen entfalten.\n3.  **Köcheln lassen:** Tomaten aus der Dose und Kichererbsen hinzufügen. Abdecken und bei mittlerer bis hoher Hitze 3–5 Minuten köcheln lassen.\n4.  **Spinat unterheben:** Frische Spinatblätter einrühren, bis sie zusammenfallen (etwa 1–2 Minuten). Sofort servieren.\n\n---\n\n### 2. 15-Minuten-Pfannen-Kichererbsen mit Spinat und Tomaten\nDieses mediterrane Gericht verwendet Gewürze wie [Kurkuma](wiki:Turmeric) und einen Schuss Zitronensaft für eine frische, gesunde Mahlzeit.\n\n[!](embed:runningonrealfood.com-R8H)\n[!](embed:americanhomecook.com-Alt)\n[!](embed:shortgirltallorder.com-QXv)\n\n*   **Gesamtzeit:** 15 Minuten\n*   **Proteingehalt:** ~23,1 g pro Portion\n*   **Portionen:** 2\n\n**Zutaten:**\n*   1 Dose (15 oz) Kichererbsen (abgetropft und abgespült)\n*   1 Dose (14,5 oz) gewürfelte Tomaten\n*   5 oz Babyspinat\n*   1 kleine Zwiebel (gewürfelt) & 4 Knoblauchzehen (in Scheiben geschnitten)\n*   ½ TL gemahlener Kurkuma & ½ TL [Chiliflocken](wiki:Crushed_red_pepper)\n*   3 EL [Olivenöl](wiki:Olive_oil), Zitronensaft und frische Kräuter ([Koriander](wiki:Coriander) oder [Petersilie](wiki:Parsley))\n\n**Anleitung:**\n1.  **Aromen anbraten:** Öl in einer Pfanne bei niedriger Hitze erhitzen. Zwiebel und Knoblauch glasig und leicht gebräunt dünsten (3–5 Minuten).\n2.  **Gewürze anrösten:** Kurkuma und Chiliflocken hinzufügen. 1 Minute anrösten, dann Kichererbsen mit einem Schuss Öl sowie Salz/Pfeffer hinzufügen. 5–7 Minuten braten.\n3.  **Kombinieren:** Tomaten einrühren und köcheln lassen, bis die Flüssigkeit etwas reduziert ist.\n4.  **Vollenden:** Spinat hinzufügen und rühren, bis er zusammenfällt. Von der Kochstelle nehmen, Zitronensaft einrühren und mit frischen Kräutern sowie einem Klecks [Joghurt](wiki:Yogurt) garnieren.\n\n---\n\n### 3. 20-Minuten-Kichererbsen mit Spinat nach nahöstlicher Art\nEine einfachere, puristischere Version des klassischen [Tapas](wiki:Tapas)-Gerichts, die auf die natürliche Süße von gedünsteten Zwiebeln und weißen Bohnen setzt.\n\n[!](embed:carolinescooking.com-Dy7)\n[!](embed:simpleveganblog.com-8dt)\n[!](embed:ourplantbasedworld.com-Krr)\n\n*   **Gesamtzeit:** 20 Minuten\n*   **Proteingehalt:** ~8,7 g pro Portion\n*   **Portionen:** 4\n\n**Zutaten:**\n*   3 Tassen natriumarme Kichererbsen aus der Dose (abgetropft und abgespült)\n*   2 Tassen Babyspinat\n*   2/3 Tasse gewürfelte Tomaten\n*   ½ große weiße Zwiebel (gewürfelt)\n*   2 TL gehackter Knoblauch\n*   1½ EL [natives Olivenöl extra](wiki:Olive_oil#Grades)\n\n**Anleitung:**\n1.  **Zwiebeln dünsten:** Olivenöl in einer Pfanne erhitzen. Die Zwiebel 2–3 Minuten dünsten.\n2.  **Würzen:** Knoblauch einrühren und eine weitere Minute dünsten.\n3.  **Einkochen:** Tomaten hinzufügen und 1 Minute garen.\n4.  **Bohnen köcheln:** Kichererbsen und etwa 3–4 Esslöffel Wasser (oder [Gemüsebrühe](wiki:Broth)) hinzufügen. 10 Minuten garen.\n5.  **Spinat unterheben:** Den Babyspinat vorsichtig unterheben, bis er gerade so zusammengefallen ist. Nach Geschmack würzen und servieren.\n\n---\n\n**Nächste Schritte für deine Essensplanung:**\n*   Möchtest du Vorschläge für Beilagen finden, wie zum Beispiel ein Rezept für [Basmati-Reis](wiki:Basmati) oder [Naan](wiki:Naan), die dazu passen?\n*   Hast du Interesse an proteinreichen veganen Dessert-Ideen, um dein Abendessen abzurunden?"
-      }
-    },
     "classic_car_reverse_image_search": {
       "title": {
         "text": "Einen Oldtimer anhand eines Fotos identifizieren"
@@ -10429,66 +10415,66 @@
     },
     "community_garden_sunflower_illustration": {
       "title": {
-        "text": "Botanische Sonnenblumen-Illustration erstellen"
+        "text": "Botanische Sonnenblumen-Illustration für Garten-Handzettel"
       },
       "summary": {
-        "text": "Erstelle eine textfreie Sonnenblumen-Illustration für ein Handout eines Gemeinschaftsgartens."
+        "text": "Erstellte eine warme botanische Illustration einer Sonnenblume für einen Gemeinschaftsgarten-Handzettel mit Designvorschlägen."
       },
       "message_1": {
-        "text": "Bitte erstelle eine warme botanische Illustration einer Sonnenblume für ein Handout eines Gemeinschaftsgartens, auf einem sauberen, hellen Hintergrund ohne Text."
+        "text": "Bitte erstelle eine warme botanische Illustration einer Sonnenblume für einen Gemeinschaftsgarten-Handzettel auf einem sauberen, hellen Hintergrund ohne Text."
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6a3857ca-aa90-486f-b481-4e1df6f95faa\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nIch erstelle jetzt die botanische Illustration der Sonnenblume für dein Gemeinschaftsgarten-Handout. Sie wird gerade verarbeitet und erscheint hier im Chat, sobald sie fertig ist.\n\n### Schnelle Design-Tipps für Community-Handouts\n\nDamit dein Garten-Handout sowohl einladend als auch gut lesbar ist:\n\n- **Visuelle Hierarchie & Abstände:** Gib der Illustration Raum zum Atmen. Wenn du sie am Rand oder im Header platzierst, bleibt klarer Platz für Gartentipps oder Veranstaltungsdetails, ohne dass es überladen wirkt.\n- **Farbharmonie:** Übernimm warme Töne direkt aus dem Kunstwerk – wie tiefes Honiggold, Olivenblattgrün oder erdiges Terrakotta – für Abschnittsüberschriften und Rahmen.\n- **Eigene Kunst einbinden:** Wenn Community-Mitglieder oder lokale Gärtner Skizzen, Blattdrucke oder Fotos von echten Gartenbeeten erstellen, verleiht die Integration dieser Elemente neben digitalen Illustrationen dem Ganzen eine wunderbare, persönliche Note.\n\n---\n\n**Nächste Schritte & Optionen:**\n- [Ein Handout-Layout mit Überschriften und Tipps entwerfen](/#message=Help%20me%20design%20a%20clean%20layout%20and%20copy%20for%20a%20community%20garden%20handout.)\n- [Eine Farbpalette basierend auf Sonnenblumen vorschlagen](/#message=Suggest%20a%20warm%20color%20palette%20and%20typography%20pairing%20for%20a%20botanical%20garden%20flyer.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"83e98b9b-8bcb-4774-9223-be000504a84a\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nHier ist die warme botanische Illustration einer Sonnenblume für den Handzettel deines Gemeinschaftsgartens:\n\n[!](embed:generated-images-ff26d807eb07)\n\n### Design- & Workflow-Vorschläge\n\n- **Kombination mit handgezeichneten Elementen:** Für Gemeinschaftsmaterialien funktioniert die Mischung aus digitaler oder KI-generierter Kunst mit authentischen persönlichen Akzenten wunderbar. Du kannst diese Illustration zum Beispiel als Hintergrund oder visuellen Anker drucken und dann die Community-Mitglieder Pflanzdiagramme skizzieren, Pflegetipps von Hand lettern oder gepresste getrocknete Blätter/Samen daneben hinzufügen lassen.\n- **Layout & Hierarchie des Handzettels:**\n  - **Weißraum:** Halte großzügige Ränder um die Sonnenblume herum ein, um dem Handzettel ein luftiges, einladendes Gefühl zu geben.\n  - **Typografie:** Kombiniere eine organische oder humanistische Serifen-Schrift (wie [Garamond](wiki:Garamond) oder [Georgia](wiki:Georgia_(typeface))) für Überschriften mit einer gut lesbaren serifenlosen Schrift für Pflanzanleitungen, Details zur Bodenvorbereitung und Veranstaltungstermine.\n  - **Farbpalette:** Nutze die Bernstein- und Goldtöne der Blütenblätter für Akzentlinien oder Unterüberschriften und ein tiefes Waldgrün für wichtige Highlights.\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"garden_handout_next_step\",\n  \"multiple\": false,\n  \"question\": \"What would you like to work on next for the handout?\",\n  \"options\": [\n    {\n      \"id\": \"layout_tips\",\n      \"text\": \"Get advice on typography and grid layout for the printed flyer\"\n    },\n    {\n      \"id\": \"variations\",\n      \"text\": \"Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)\"\n    },\n    {\n      \"id\": \"custom\",\n      \"text\": \"Something else\"\n    }\n  ],\n  \"custom_option_id\": \"custom\",\n  \"custom_placeholder\": \"Describe what you need...\"\n}\n```\n\n[!](embed:generated-media-images-83e98b9b8bcb)"
       },
       "follow_up_1": {
-        "text": "Suche nach lokalen Gemeinschaftsgarten-Events in der Nähe"
+        "text": "Erstelle eine weitere Illustration einer fleißigen Honigbiene auf Lavendel"
       },
       "follow_up_2": {
-        "text": "Hilf mir, einen freundlichen Einleitungstext für das Garten-Handout zu schreiben"
+        "text": "Liste wichtige Tipps für die Gestaltung eines lesbaren Gemeinschaftsgarten-Flyers auf"
       },
       "follow_up_3": {
-        "text": "Finde kostenlose SVG-Pflanzensymbole zur Dekoration des Handouts"
+        "text": "Suche nach kostenlosen Schriftarten für druckbare Flyer"
       },
       "follow_up_4": {
-        "text": "Liste wichtige Tipps auf, die in einen Leitfaden für Gemeinschaftsgärten gehören"
+        "text": "Erkläre, wie man Negativraum und Text auf einem Handzettel ausbalanciert"
       },
       "follow_up_5": {
-        "text": "Suche nach Ideen für Schriftkombinationen für Garten-Flyer"
+        "text": "Erstelle eine Illustration von reifen alten Tomatensorten an der Ranke"
       },
       "follow_up_6": {
-        "text": "Erkläre, wie man visuelle Elemente in einem Drucklayout anordnet"
+        "text": "Beschreibe Farbpaletten-Ideen für natürliche, organische Printprojekte"
       }
     },
     "community_garden_volunteer_chime": {
       "title": {
-        "text": "Ein warmer Chime für einen Gemeinschaftsgarten"
+        "text": "Sounddesign für Gemeinschaftsgarten-Benachrichtigung"
       },
       "summary": {
-        "text": "Erstelle einen kurzen Zwei-Ton-Benachrichtigungssound für eine fiktive Gemeinschaftsgarten-App."
+        "text": "Ein sanfter Zwei-Ton-Holzglocken-Soundeffekt für die Benachrichtigung bei der Anmeldung von Freiwilligen in einem Gemeinschaftsgarten wurde erstellt."
       },
       "message_1": {
-        "text": "Erstelle einen kurzen, warmen Benachrichtigungston für eine Gemeinschaftsgarten-App, wenn sich ein Freiwilliger anmeldet. Ein sanfter Zwei-Ton-Chime, ohne Sprache und unter drei Sekunden."
+        "text": "Erstelle einen kurzen, warmen Benachrichtigungston für eine Gemeinschaftsgarten-App, wenn sich ein Freiwilliger anmeldet. Ein sanftes Zwei-Ton-Läuten, keine Sprache und unter drei Sekunden."
       },
       "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nIch erstelle jetzt den warmen, sanften Zwei-Ton-Chime für deine Gemeinschaftsgarten-App. Er wird gerade verarbeitet und erscheint im Chat, sobald er fertig ist.\n\n### Vorgeschlagene nächste Schritte\n- [Erstelle einen erdigen, feierlichen Chime für das Freischalten eines Abzeichens](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Entwirf ein Layout für eine Bestätigungskarte für Freiwillige](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdda9f85-fa01-48ca-acf7-7746de6dc0f3\",\"app_id\":\"audio\",\"skill_id\":\"generate\"}\n```\n\nHier ist ein sanftes, warmes Zwei-Ton-Läuten, das für deine Benachrichtigung bei der Anmeldung von Freiwilligen im Gemeinschaftsgarten erstellt wurde:\n\n[!](embed:generated-audio-17f56f2e73be)\n\n### Sound-Profil\n- **Ton:** Organische, resonante Holzglocken-/Marimba-Töne, die Natur und Wachstum suggerieren sollen.\n- **Tempo:** Eine aufsteigende Zwei-Ton-Sequenz für ein aufmunterndes, einladendes Gefühl, wenn jemand zur Hilfe dazustößt.\n- **Dauer:** 2 Sekunden, damit es für App-Nutzer kurz und unaufdringlich bleibt.\n\nWie passt der Ton zur restlichen UI-Palette deiner App? Wir können das Klangbild bei Bedarf anpassen (z. B. hin zu einem weicheren akustischen Gitarrenzupfen, einer Klangschale oder einer helleren Glasglocke).\n\n[!](embed:generated-media-audio-fdda9f85fa01)"
       },
       "follow_up_1": {
-        "text": "Erstelle einen feierlichen Chime für das Freischalten eines Abzeichens nach Abschluss einer Aufgabe"
+        "text": "Erstelle eine leisere Version mit einem akustischen Gitarrenzupfen"
       },
       "follow_up_2": {
-        "text": "Erkläre, wie Sounddesign das Nutzerengagement in mobilen Apps beeinflusst"
+        "text": "Diskutiere, wie man Benachrichtigungstöne mit Nutzern testet"
       },
       "follow_up_3": {
-        "text": "Erstelle einen sanften Erinnerungston für morgendliche Bewässerungspläne"
+        "text": "Erstelle einen Soundeffekt mit einer klingenden Klangschale"
       },
       "follow_up_4": {
-        "text": "Liste Best Practices für das Design unaufdringlicher UI-Benachrichtigungstöne auf"
+        "text": "Liste Best Practices für Benachrichtigungstöne in mobilen Apps auf"
       },
       "follow_up_5": {
-        "text": "Erstelle einen sanften Fehlerton für fehlgeschlagene Formularvalidierungen"
+        "text": "Erstelle einen helleren Benachrichtigungston mit einer Glasglocke"
       },
       "follow_up_6": {
-        "text": "Beschreibe, wie man benutzerdefinierte Soundeffekte in mobile Anwendungen integriert"
+        "text": "Vergleiche verschiedene Sonic-Branding-Stile für Apps"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -10525,34 +10511,34 @@
     },
     "community_garden_welcome_melody": {
       "title": {
-        "text": "Eine Melodie zur Begrüßung im Gemeinschaftsgarten"
+        "text": "Erstelle eine sanfte Begrüßungsmelodie für einen Gemeinschaftsgarten"
       },
       "summary": {
-        "text": "Erstelle eine sanfte Instrumentalmelodie für ein Begrüßungsvideo eines Gemeinschaftsgartens."
+        "text": "Erzeuge eine kurze Instrumentalmelodie für ein Begrüßungsvideo für einen Gemeinschaftsgarten, mit einem warmen akustischen Klang und ohne Gesang."
       },
       "message_1": {
-        "text": "Könntest du eine kurze, sanfte Instrumentalmelodie für ein Begrüßungsvideo eines Gemeinschaftsgartens erstellen, ohne Gesang?"
+        "text": "Könntest du eine kurze, sanfte Instrumentalmelodie für ein Begrüßungsvideo für einen Gemeinschaftsgarten erstellen, ohne Gesang?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"296e122a-cd23-4fc6-9c27-99f21f8e3401\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nIch erstelle jetzt diesen sanften Instrumentaltitel für dein Begrüßungsvideo des Gemeinschaftsgartens. Er wird gerade verarbeitet und erscheint hier, sobald er fertig ist.\n\n[Gemeinschaftsgärten](wiki:Community_gardening) sind eine wunderbare Möglichkeit, Nachbarn zusammenzubringen und die lokale Artenvielfalt zu fördern. Während die Musik generiert wird, möchtest du Hilfe bei der Planung des narrativen oder visuellen Ablaufs des Begrüßungsvideos?\n\n- [Einen Entwurf für das Begrüßungsvideo erstellen](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)\n- [Ideen für Einführungstexte oder Voiceover-Tipps sammeln](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"3e5014d0-2082-4604-b968-1553d6cc43e4\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nHier ist ein sanfter, akustischer Instrumental-Track, der für dein Begrüßungsvideo für den Gemeinschaftsgarten komponiert wurde:\n\n[!](embed:generated-media-music-3e5014d02082)\n[!](embed:generated-music-c89ee4a5f418)\n\n### Track-Details\n- **Stimmung & Ton:** Warm, einladend und friedlich\n- **Instrumentierung:** Akustikgitarren-Fingerpicking kombiniert mit sanften Klavierakkorden und leichten melodischen Akzenten\n- **Dauer:** 30 Sekunden\n- **Format:** Rein instrumental (kein Gesang), ideal als Hintergrundmusik für ein Voiceover oder eine Texteinführung.\n\n### Vorgeschlagene nächste Schritte\nWenn du planst, das Video zu produzieren oder ein Skript zu schreiben, um neue Mitglieder im Garten zu begrüßen:\n\n- [Entwirf ein kurzes Begrüßungsskript](/#message=Hilf%20mir%2C%20ein%20herzliches%2030-sek%C3%BCndiges%20Skript%20f%C3%BCr%20das%20Begr%C3%BC%C3%9Fungsvideo%20unseres%20Gemeinschaftsgartens%20zu%20schreiben.)\n- [Erstelle eine schwungvollere akustische Alternative](/#message=Erstelle%20einen%20etwas%20schwungvolleren%20Akustik-Track%20f%C3%BCr%20unser%20Gemeinschaftsgarten-Video.)"
       },
       "follow_up_1": {
-        "text": "Suche nach lokalen Veranstaltungen und Workshops in Gemeinschaftsgärten"
+        "text": "Erstelle einen etwas schwungvolleren Akustik-Track für unser Gemeinschaftsgarten-Video"
       },
       "follow_up_2": {
-        "text": "Hilf mir, ein Storyboard für das Gartenvideo zu entwerfen"
+        "text": "Hilf mir, ein herzliches 30-sekündiges Skript für das Begrüßungsvideo unseres Gemeinschaftsgartens zu schreiben"
       },
       "follow_up_3": {
-        "text": "Finde Stock-Videos von Pflanzen und Blumen"
+        "text": "Suche nach Tutorials zur Bearbeitung von Gemeinschaftsgarten-Videos in einem Video-Editor"
       },
       "follow_up_4": {
-        "text": "Schreibe begrüßende Voiceover-Zeilen für das Gemeinschaftsvideo"
+        "text": "Beschreibe, wie man Hintergrundmusik mit einer Voiceover-Erzählung kombiniert"
       },
       "follow_up_5": {
-        "text": "Suche nach Garten-Tipps für Gemeinschaftsprojekte"
+        "text": "Finde lokale Veranstaltungen und Workshops in Gemeinschaftsgärten in unserer Nähe"
       },
       "follow_up_6": {
-        "text": "Schlage Ideen für Aktivitäten am Eröffnungstag des Gemeinschaftsgartens vor"
+        "text": "Liste Ideen für visuelle Aufnahmen auf, die im Begrüßungsvideo enthalten sein sollten"
       }
     },
     "creativity_drawing_meetups_berlin": {
@@ -11025,40 +11011,34 @@
     },
     "housing_policy_dinner_discussion": {
       "title": {
-        "text": "Vorbereitung auf ein Abendessen-Gespräch über Wohnungspolitik"
+        "text": "Bereite dich auf eine Diskussion über Wohnungspolitik beim Abendessen vor"
       },
       "summary": {
-        "text": "Ein zweirundiger Politik-Fokusmodus-Chat, der hilft, ruhige und ausgewogene Fragen für ein Familiengespräch über Mietregulierung und Wohnungspolitik vorzubereiten."
+        "text": "Bereite dich auf eine ruhige Familiendiskussion über Wohnungspolitik und Mietpreisbindung vor, beginnend mit Fragen zum lokalen Kontext und den Zielen der Beteiligten."
       },
       "message_1": {
-        "text": "Ich esse mit meinem Vater zu Abend, und er will über Wohnungspolitik und Mietregulierung streiten. Hilf mir bei der Vorbereitung, damit ich gute Fragen stellen, wichtige Fakten prüfen, die stärksten Argumente beider Seiten verstehen und das Gespräch ruhig halten kann."
+        "text": "Ich esse heute Abend mit meinem Vater zu Abend und er möchte über Wohnungspolitik und Mietpreisbremsen diskutieren. Hilf mir bei der Vorbereitung, damit ich gute Fragen stellen, Fakten prüfen, die stärksten Argumente beider Seiten verstehen und das Gespräch ruhig halten kann."
       },
       "message_2": {
-        "text": "Fokusmodus aktiviert: Politisches Gespräch vorbereiten."
-      },
-      "message_3": {
-        "text": "Super. Bitte erstelle mir einen praktischen Vorbereitungszettel: Welche Fakten sollte ich vor dem Abendessen prüfen, was sind die stärksten fairen Argumente auf beiden Seiten, und welche konkreten Fragen kann ich stellen, wenn das Gespräch angespannt wird?"
-      },
-      "message_4": {
-        "text": "Es ist sehr umsichtig, dass du dich darauf vorbereitest. Familiengespräche über Politik können schnell zu Debatten werden, in denen beide Seiten nur darauf warten, selbst zu sprechen, statt wirklich zuzuhören.\n\nWohnen berührt grundlegende menschliche Bedürfnisse, Eigentumsrechte und den Zusammenhalt von Gemeinschaften, deshalb ist das Thema emotional. Der beste Weg, das Gespräch ruhig zu halten, ist ein Wechsel von einer **konkurrierenden Debatte** (\"Wer hat recht?\") zu einer **gemeinsamen Erkundung** (\"Wie lösen wir dieses komplexe Problem zusammen?\").\n\nHier ist eine Übersicht der stärksten Argumente auf beiden Seiten, der wichtigsten Fakten für ein geerdetes Gespräch und strategischer Fragen, mit denen du das Abendessen konstruktiv halten kannst.\n\n### 1. Der Kern der Debatte: Mietkontrolle und Mietstabilisierung\n\nFür ein produktives Gespräch hilft es, zwischen **strenger Mietkontrolle** (Mieten komplett einfrieren, heute selten) und **Mietstabilisierung** (jährliche Mieterhöhungen auf einen Prozentsatz begrenzen, oft an Inflation gekoppelt) zu unterscheiden.\n\n**Die stärksten Argumente GEGEN Mietkontrolle (Markt- und Angebotsseite)**\n*   **Sie entmutigt Neubau:** Wenn Entwickler und Investoren erwarten, dass künftige Einnahmen staatlich begrenzt werden, bauen sie möglicherweise weniger neue Wohnungen. Das verschärft den Wohnungsmangel.\n*   **Sie kann die Wohnqualität senken:** Wenn Vermieter steigende Instandhaltungs- und Steuerkosten nicht durch höhere Mieten decken können, verschieben sie Reparaturen häufiger. Der Wohnungsbestand kann sich verschlechtern.\n*   **Sie schafft Fehlverteilung:** Mieter in regulierten Wohnungen ziehen selten um, selbst wenn die Wohnung nicht mehr zu ihrer Lebenssituation passt. Dadurch kommen jüngere oder wachsende Familien schwerer an passenden Wohnraum.\n*   **Sie hilft Bestandsmietern, nicht unbedingt den Ärmsten:** Mietkontrolle schützt vor allem Menschen, die bereits eine Wohnung haben. Neuankömmlinge oder junge Menschen treffen auf einen noch engeren und teureren Markt, weil die Fluktuation niedrig ist.\n\n**Die stärksten Argumente FÜR Mietkontrolle (Gemeinschafts- und Gerechtigkeitssicht)**\n*   **Sie verhindert unmittelbare Verdrängung:** Neubau dauert Jahre. In der Zwischenzeit können massive Mietsteigerungen Familien verdrängen, Menschen in Wohnungslosigkeit treiben und Nachbarschaften zerreißen. Mietregulierung wirkt als kurzfristige Notbremse.\n*   **Nachbarschaften sind Gemeinschaften, nicht nur Märkte:** Wer Wohnen nur als Finanzprodukt betrachtet, übersieht die menschlichen Kosten von Verdrängung: Schulwechsel für Kinder, verlorene Stammkunden für lokale Geschäfte und lange Pendelwege für Beschäftigte.\n*   **Machtungleichgewicht:** Bei starkem Wohnungsmangel haben Vermieter faktisch viel Marktmacht. Mieter können bei 1 % Leerstand nicht einfach \"woanders einkaufen\". Mietstabilisierung gleicht dieses Machtgefälle etwas aus.\n*   **Moderne Stabilisierung ist moderat:** Viele moderne Regeln erlauben Inflation plus einen Prozentsatz und nehmen Neubau aus. Das schützt vor *räuberischen* Sprüngen, ohne Entwicklern jede faire Rendite zu nehmen.\n\n### 2. Fakten, die du im Hinterkopf behalten solltest\n*   **Der Konsens:** Traditionell sind viele Ökonomen der Ansicht, dass *strenge* Preisobergrenzen Menge und Qualität des Wohnraums senken. Neuere Studien zu *moderater* Mietstabilisierung sind gemischter: Sie halten aktuelle Mieter sehr wirksam in ihren Wohnungen, können aber das verfügbare Mietangebot leicht verringern.\n*   **Die Wurzel ist Angebot:** In den USA fehlen seit der Finanzkrise 2008 Millionen Wohneinheiten. Es wurde nicht genug gebaut, um mit dem Bevölkerungswachstum Schritt zu halten.\n*   **Zoning-Regeln:** In vielen nordamerikanischen Großstädten ist ein großer Teil der Wohnflächen ausschließlich für Einfamilienhäuser vorgesehen. Das macht Duplexe, Reihenhäuser oder kleinere Mehrfamilienhäuser illegal und verknappt das Angebot künstlich.\n\n### 3. Strategien, um ruhig zu bleiben\n*   **Finde früh den gemeinsamen Wert:** Geht es deinem Vater vor allem um Fairness, wirtschaftliche Effizienz, Schutz vor Wohnungslosigkeit oder Eigentumsrechte? Wenn du seinen Kernwert erkennst, bestätige ihn. *(z. B. \"Ich stimme dir zu, dass Eigentümer nicht gezwungen werden sollten, mit Verlust zu wirtschaften.\")*\n*   **Frage nach seinem Prozess, nicht nur nach dem Ergebnis:** Greife seine Position nicht direkt an, sondern bitte ihn zu erklären, wie sein ideales System schwierige Grenzfälle lösen würde.\n*   **Erweitere den Blick:** Mietkontrolle ist nur ein Werkzeug. Wenn ihr feststeckt, zoomt auf die größere Wohnungskrise heraus: Zoning, öffentlicher Wohnungsbau, institutionelle Käufer von Einfamilienhäusern.\n\n### 4. Gute Fragen an deinen Vater\n\nDiese Fragen sollen ihn zum aktiven Nachdenken bringen, statt nur bekannte Argumente zu wiederholen, und laden zu gemeinsamer Problemlösung ein:\n\n1.  **Wenn er GEGEN Mietkontrolle ist:** *\"Ich verstehe das wirtschaftliche Argument, dass Mietdeckel Neubau bremsen können. Aber Neubau dauert 3 bis 5 Jahre. Wenn die Miete einer alleinerziehenden Mutter morgen um 40 % steigt, welche Politik schützt sie und ihre Kinder sofort vor Verdrängung?\"*\n2.  **Wenn er FÜR Mietkontrolle ist:** *\"Wenn wir Mieten begrenzen, wie stellen wir sicher, dass Vermieter trotzdem genug Geld und Anreiz haben, Dächer zu reparieren und Leitungen zu erneuern? Wie verhindern wir, dass Gebäude verfallen?\"*\n3.  **Auf das größere Bild zoomen:** *\"Viele Experten sagen, das eigentliche Problem sei, dass in großen Teilen unserer Städte fast nur Einfamilienhäuser erlaubt sind. Sollten wir solche Zoning-Regeln abschaffen, damit mehr Wohnungen gebaut werden können?\"*\n4.  **Balance finden:** *\"Wie balancieren wir das Recht eines Eigentümers auf Rendite mit dem Bedürfnis einer Gemeinschaft nach stabilen Nachbarschaften, in denen Menschen nicht ständig wegziehen müssen?\"*\n\nWie stehst du selbst vor dem Abendessen zu dem Thema? Möchtest du eine bestimmte Seite vertreten, oder willst du eher kritisch nachfragen und lernen?"
+        "text": "Diskussionen über Wohnungspolitik und Mietregulierung mit der Familie können leicht hitzig werden, besonders wenn Generationenkonflikte, Immobilieneigentum oder unterschiedliche Wirtschaftsphilosophien aufeinandertreffen. \n\nUm die wichtigsten Fakten, Daten zur Politik und spezifische Fragen für dein Abendessen maßzuschneidern, könntest du mir etwas mehr Kontext geben?\n\n1. **Ort / Zuständigkeit:** Geht es um eine bestimmte Stadt, ein Bundesland oder ein Land (z. B. Berlin, Kalifornien, New York, Großbritannien) oder betrachtet er das Thema aus einer breiten, landesweiten wirtschaftlichen Perspektive? Lokale Regeln und Marktdruck variieren stark.\n2. **Die Perspektive deines Vaters:** Was ist seine Kernposition oder Reaktion? Spricht er zum Beispiel als Hausbesitzer, kleiner Vermieter oder Steuerzahler, oder argumentiert er primär aus einer marktwirtschaftlichen Theorie gegen Preiskontrollen?\n3. **Dein Hauptziel:** Abgesehen davon, die Sache ruhig und konstruktiv zu halten, wie sähe ein Erfolg für dich aus – eine gemeinsame Basis bei Grundwerten zu finden (wie Gemeinschaftsstabilität vs. neues Angebot), zu verstehen, woher er kommt, oder solide Daten bereit zu haben, um auf spezifische Behauptungen zu reagieren?\n\nSobald du diese Details teilst, erstellen wir einen maßgeschneiderten Leitfaden mit verifizierten Belegen, Abwägungen für beide Seiten und Deeskalationsstrategien."
       },
       "follow_up_1": {
-        "text": "Finde aktuelle Studien zu Mietregulierung"
+        "text": "Suche nach aktuellen Studien zur Mietpreisbindung in Großstädten"
       },
       "follow_up_2": {
-        "text": "Erkläre die wirtschaftlichen Auswirkungen von Mietkontrolle"
+        "text": "Liste gängige Argumente gegen Mietpreisregulierungen auf"
       },
       "follow_up_3": {
-        "text": "Suche nach wohnungspolitischen Debatten in unserer Stadt"
+        "text": "Finde wirtschaftswissenschaftliche Forschung zur Angebotselastizität auf dem Wohnungsmarkt"
       },
       "follow_up_4": {
-        "text": "Beschreibe, wie Zoning-Regeln das Wohnungsangebot beeinflussen"
+        "text": "Vergleiche Mieterschutzgesetze in verschiedenen Bundesländern"
       },
       "follow_up_5": {
-        "text": "Zeig mir Zoning-Regeln in unserer Gegend"
+        "text": "Suche nach Nachrichtenartikeln über die Auswirkungen von Mietregulierungen"
       },
       "follow_up_6": {
-        "text": "Fasse die wichtigsten Argumente für Mietkontrolle zusammen"
+        "text": "Erkläre, wie das Angebot auf dem Wohnungsmarkt auf Preiskontrollen reagiert"
       }
     },
     "image_vectorize_openmates_header": {
@@ -11165,40 +11145,34 @@
     },
     "mastodon_public_post_themes": {
       "title": {
-        "text": "Themen in Mastodons öffentlichen Beiträgen"
+        "text": "Beitragszusammenfassung des offiziellen Mastodon-Accounts"
       },
       "summary": {
-        "text": "Fasse Themen in aktuellen Beiträgen des offiziellen Mastodon-Accounts zusammen und erkunde repräsentative Beispiele."
+        "text": "Zusammenfassung aktueller öffentlicher Beiträge des offiziellen Mastodon-Accounts zu Themen wie Mastodon 5.0, Governance, Ecosystem Spotlights, Team-Updates und Merchandise."
       },
       "message_1": {
-        "text": "Könntest du die Hauptthemen in den aktuellen öffentlichen Beiträgen des offiziellen Mastodon-Accounts auf mastodon.social zusammenfassen, mit Links zu ein paar Beispielen?"
+        "text": "Könntest du die Hauptthemen der jüngsten öffentlichen Beiträge des offiziellen Mastodon-Accounts auf mastodon.social zusammenfassen und Links zu einigen Beispielen einfügen?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"33ebec48-4730-4b4b-b7d7-f967173ac9b6\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nDie Anfrage zum Abrufen aktueller öffentlicher Beiträge von @Mastodon (`@Mastodon@mastodon.social`) läuft derzeit noch im Hintergrund und wird den Chat aktualisieren, sobald sie fertig ist.\n\nWährend wir auf das Laden des Feeds warten:\n- [Sieh dir aktuelle Mastodon-Blog-Ankündigungen an](/#message=Search%20for%20the%20latest%20official%20Mastodon%20blog%20announcements%20and%20releases.)\n- [Erkunde die Mastodon-Roadmap](/#message=What%20are%20the%20major%20features%20currently%20on%20the%20Mastodon%20roadmap%3F)"
-      },
-      "message_3": {
-        "text": "Die Beiträge wurden jetzt geladen. Könntest du die Hauptthemen zusammenfassen und auf drei repräsentative Beiträge verlinken?"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"65b92905-0838-46dd-8fff-8e28cdc8789a\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nDer offizielle @Mastodon-Account auf `mastodon.social` hebt in seinen jüngsten öffentlichen Beiträgen mehrere Kernthemen hervor:\n\n### 1. Wichtige Produktentwicklung & Nutzerforschung\nEin Schwerpunkt lag auf den Vorarbeiten für **Mastodon 5.0**, im Anschluss an die community-weite Forschungsinitiative „Discovery Week“, die vom Design-Team geleitet wurde. Das Team zeigte Vorschauen auf eine neu gestaltete, ruhigere Benutzeroberfläche und einen aktualisierten Editor, um die Plattform zugänglicher und benutzerfreundlicher zu machen.\n\n### 2. Community-Governance, Richtlinien & Personal-Updates\nMastodon kommuniziert regelmäßig Updates zu Governance und Richtlinien, insbesondere durch die Veröffentlichung klärender Leitfäden zur **Markenrichtlinie** (Trademark Policy) als direkte Reaktion auf Feedback von Fediverse-Admins und -Entwicklern. Zudem wurden wichtige personelle Veränderungen in der Führungsebene bekannt gegeben, wobei der scheidenden Community-Direktorin Hannah Aubry für ihre Arbeit gedankt wurde.\n\n### 3. Server-Spotlights & Fediverse-Ökosystem\nDer Account bewirbt aktiv unabhängige Fediverse-Instanzen und Infrastruktur-Initiativen – etwa durch das Hervorheben themenbezogener Server (wie Earth.Law) und die Verbreitung von Branchenumfragen wie der IFTAS-Betriebsforschung.\n\n### 4. Community-Merchandise & Projektfinanzierung\nUm die laufende Open-Source-Entwicklung zu unterstützen, werden Updates zu offiziellem Community-Merchandise geteilt, einschließlich neuer Plüsch-Maskottchen („Plushtodons“).\n\n---\n\n### Drei repräsentative Beiträge\n\n- **Produkt-Roadmap & visuelle Auffrischung:** [Ankündigung der Vorschau auf Mastodon 5.0](embed:mastodon-after-publishing-D8d) – zeigt eine Vorschau auf das kommende 5.0-Layout und den Beitrags-Editor basierend auf den Forschungsergebnissen.\n- **Richtlinien & Community-Feedback:** [Update der Markenrichtlinien](embed:mastodon-today-we-YqD) – skizziert überarbeitete Markenregeln, die auf Basis von Community-Input angepasst wurden.\n- **Projektunterstützung & Merch:** [Ankündigung der Plushtodon-Vorbestellungen](embed:mastodon-new-plushtodon-A57) – kündigt neue offizielle Plüsch-Maskottchen an, mit denen Unterstützer die Entwicklung finanzieren können.\n\n---\n\nMöchtest du ein bestimmtes Thema vertiefen?\n- [Mehr über die Funktionen von Mastodon 5.0 erfahren](/#message=What%20new%20features%20and%20changes%20are%20coming%20in%20Mastodon%205.0%3F)\n- [Die Markenrichtlinien ansehen](/#message=Summarize%20Mastodon's%20updated%20trademark%20policy%20guidelines.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nAktuelle öffentliche Beiträge vom offiziellen @Mastodon-Account auf [Mastodon](wiki:Mastodon_(social_network)) drehen sich um mehrere Kernthemen:\n\n---\n\n### 1. Plattform-Redesign & kommende Funktionen (Mastodon 5.0)\nEin Schwerpunkt lag auf dem Teilen von Nutzererfahrungsforschung und der Vorstellung kommender Designänderungen:\n- **Mastodon 5.0 Sneak Peek:** Ein erster Einblick in Version 5.0, der ein ruhigeres Layout, eine neue visuelle Ästhetik und einen aktualisierten Beitragseditor hervorhebt ([Mastodon 5.0 Sneak Peek](embed:mastodon-after-publishing-WqJ)).\n- **Ergebnisse der Discovery Week:** Teilen von Ergebnissen aus Nutzer-Workshops und Umfragen des Designteams, um besser zu verstehen, wie die Community mit der Plattform interagiert ([Zusammenfassung der Discovery Week](embed:mastodon-we-re-5Ll)).\n\n### 2. Governance & Marken-Klarheit\nMastodon hat sich darauf konzentriert, Bedenken der Community bezüglich der Projektrichtlinien anzusprechen:\n- **Markenrichtlinien:** Veröffentlichung aktualisierter, präzisierter Richtlinien und Zusammenfassungen in einfacher Sprache zu Mastodons Markenrichtlinien nach Rückmeldungen aus der Community ([Ankündigung der Markenrichtlinien](embed:mastodon-today-we-3Kb)).\n\n### 3. Community-Spotlights & Unterstützung des Ökosystems\nHervorhebung des breiteren [Fediverse](wiki:Fediverse)-Ökosystems, der Serverbetreiber und Sicherheitsinitiativen:\n- **Server-Spotlight:** Bewerbung spezieller Instanzen wie *Earth.Law*, ein umweltfreundlicher Server für Umweltanwälte, Wissenschaftler und Aktivisten ([Earth.Law Server-Highlight](embed:mastodon-here-is-miz)).\n- **Ökosystem-Umfragen:** Unterstützung administrativer Initiativen wie der IFTAS Social Web Operations Survey zur Unterstützung von Moderatoren und Administratoren ([IFTAS-Umfrage-Beitrag](embed:mastodon-re-https-wnD)).\n\n### 4. Organisations- & Team-Updates\nTransparenz bei Team-Übergängen und Führung:\n- **Abschied aus der Führungsebene:** Anerkennung des Ausscheidens von Community Director und Vorstandsmitglied Hannah Aubry, mit Dank für ihre Beiträge zum Community-Wachstum ([Abschiedsbeitrag für Hannah Aubry](embed:mastodon-hannah-aubry-O6F)).\n\n### 5. Projektfinanzierung & Merchandise\nSicherung der Open-Source-Entwicklung des Netzwerks:\n- **Plushtodon-Vorbestellungen:** Ankündigung neuer Farben für das Plüsch-Maskottchen im Shop, damit Unterstützer die Entwicklung direkt mitfinanzieren können ([Beitrag zu Plushtodon-Vorbestellungen](embed:mastodon-new-plushtodon-7D2)).\n\n---\n\n### Hervorgehobene Beispiele\n\n[@Mastodon: Nach der Veröffentlichung der Ergebnisse der Discovery Week können wir euch nun einen ersten Einbl](embed:mastodon-after-publishing-WqJ)\n[@Mastodon: Heute teilen wir zusätzliche Richtlinien zu unserer Markenrichtlinie basierend auf C](embed:mastodon-today-we-3Kb)\n[@Mastodon: Neue #Plushtodon-Farben jetzt zur Vorbestellung in unserem Shop verfügbar! Dies ist eine Mögl](embed:mastodon-new-plushtodon-7D2)"
       },
       "follow_up_1": {
-        "text": "Suche nach aktuellen Mastodon-Blog-Ankündigungen"
+        "text": "Suche nach aktuellen Diskussionen über Mastodon 5.0 auf Reddit"
       },
       "follow_up_2": {
-        "text": "Erkläre, wie dezentrale Moderation auf Mastodon funktioniert"
+        "text": "Erkläre, wie dezentrale Moderation im Fediverse funktioniert"
       },
       "follow_up_3": {
-        "text": "Suche nach Updates zur Entwicklung von Mastodon 5.0"
+        "text": "Suche nach technischen Artikeln, die Funktionen des ActivityPub-Protokolls erklären"
       },
       "follow_up_4": {
-        "text": "Vergleiche die Änderungen in Mastodon 5.0 mit früheren Versionen"
+        "text": "Vergleiche Mastodon-Governance-Modelle mit kommerziellen sozialen Netzwerken"
       },
       "follow_up_5": {
-        "text": "Suche nach Community-Diskussionen über die Moderation von Fediverse-Servern"
+        "text": "Finde anstehende Online-Konferenzen für Open-Source-Software"
       },
       "follow_up_6": {
-        "text": "Liste die wichtigsten Herausforderungen für Open-Source-Plattformen auf"
+        "text": "Diskutiere die Finanzierungsmodelle für unabhängige Open-Source-Plattformen"
       }
     },
     "memory_books_currently_reading": {
@@ -11731,20 +11705,6 @@
         "text": "Wichtige Dinge zum Einpacken fuer Radtouren bei wechselhaftem Wetter auflisten"
       }
     },
-    "organic_groceries_berlin": {
-      "title": {
-        "text": "Bio-Lebensmittellieferung in Berlin"
-      },
-      "summary": {
-        "text": "Vergleich von Berliner Bio-Lieferdiensten für Hafermilch und Bananen unter Verwendung lokaler Lieferquellen und Produktergebnisse."
-      },
-      "message_1": {
-        "text": "Kannst du Bio-Lieferoptionen in Berlin für Hafermilch und Bananen finden, einige zuverlässige lokale Anbieter vergleichen und eine Empfehlung aussprechen?"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"91a1a938-12c3-47f9-a00b-e9a59d2a8ad2\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"organic grocery delivery Berlin\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"cf2504cb-56b5-4ea3-89d5-4cf9cc732911\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Bio Lebensmittel Lieferservice Berlin Hafermilch Bananen\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"5cdfdced-0921-47ed-a351-a0d19ccbb8e2\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Hafermilch\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b6f64bdd-2b32-4623-83eb-8cf57975ba70\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Bananen\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\nBerlin hat ein hervorragendes Ökosystem für Bio-Lebensmittel und bietet alles von traditionellen „Biokisten“ bis hin zu ultraschnellen Liefer-Apps. Da du gezielt nach Bio-Hafermilch und Bio-Bananen suchst: Das sind Grundnahrungsmittel, die fast überall erhältlich sind.\n\nHier ist ein Vergleich der zuverlässigsten lokalen Optionen, kategorisiert nach ihrer Funktionsweise:\n\n### 1. Lokale „Biokisten“-Dienste (Am besten für Nachhaltigkeit & Regionalität)\nDiese lokalen, spezialisierten Bio-Lieferdienste sind seit Jahren in Berlin tätig. Sie legen großen Wert auf Nachhaltigkeit, fairen Handel und regionale Landwirtschaft.\n*   **[LogischBIO](embed:logisch-bio.de-eeO):**\n    *   **Der Vibe:** Ein echter Online-Bio-Supermarkt mit lokalem Herz. Sie sind seit 1998 in Berlin aktiv.\n    *   **Vorteile:** Sie bieten über 5.000 Bio-Artikel an. Entscheidend ist, dass sie **kein Abo** erfordern, was sie unglaublich flexibel macht, wenn du nur einen einmaligen Einkauf tätigen möchtest.\n    *   **Nachteile:** Du musst dein Lieferzeitfenster ein oder zwei Tage im Voraus planen.\n*   **[Märkische Kiste](embed:maerkischekiste.de-fJw) & [Landkorb](embed:landkorb.de-Ze3):**\n    *   **Der Vibe:** Klassische „Ökokisten“-Anbieter. Sie liefern in Mehrwegkisten direkt an deine Haustür.\n    *   **Vorteile:** Hervorragend geeignet, um regionale Brandenburger Landwirte zu unterstützen. Du kannst entweder eine vorgefertigte Saisonkiste abonnieren oder deine eigene Kiste mit genau den Artikeln zusammenstellen, die du brauchst, wie Hafermilch und Bananen.\n    *   **Nachteile:** Oft stark abonnementbasiert (obwohl man diese leicht pausieren oder anpassen kann). Die Liefertage sind manchmal abhängig von deiner spezifischen Berliner Postleitzahl eingeschränkt.\n\n### 2. Quick Commerce (Am besten für dringende Bedürfnisse)\nWenn du deine Hafermilch für den Kaffee morgen früh brauchst und nicht auf ein geplantes Lieferzeitfenster warten kannst:\n*   **Alnatura via [Wolt](embed:wolt.com-UR8) / UberEats:**\n    *   **Der Vibe:** Ultraschnelle Lieferung von einer der beliebtesten Bio-Supermarktketten Deutschlands.\n    *   **Vorteile:** Lieferung in etwa 30 Minuten. Du hast Zugriff auf die hochwertigen Produkte der Marke Alnatura.\n    *   **Nachteile:** Höhere Liefergebühren, und die Kuriere sind Gig-Economy-Arbeiter, was nicht ganz dem Gemeinschafts- und Nachhaltigkeitsgedanken der spezialisierten Biokisten entspricht.\n\n### 3. Klassische Supermarkt-Lieferung (Am besten für den allgemeinen Einkauf)\nWenn du deine Bio-Basics mit einem regulären Lebensmitteleinkauf kombinieren möchtest:\n*   **REWE Lieferservice:**\n    *   Sie verfügen über ein sehr zuverlässiges Liefernetzwerk in Berlin und ein riesiges Bio-Sortiment („REWE Bio“).\n    *   Zum Beispiel kannst du ganz einfach [REWE Bio Veganer Haferdrink](embed:rewe-bio-pflanzlich-Q5w) oder [Oatly Bio Barista](embed:oatly-bio-haferdrink-cdI) zusammen mit [Bio-Bananen](embed:bio-banane-ca-GZn) bestellen.\n\n---\n\n### 🏆 Empfehlung: Welchen Dienst solltest du nutzen?\n\n**Wähle LogischBIO.**\nWenn du ein zuverlässiges, in Berlin ansässiges Unternehmen suchst, das sich ganz auf Bio-Lebensmittel spezialisiert hat, sind sie der beste Allrounder. Da sie dich nicht an ein Abo-Modell binden, kannst du sie wie einen ganz normalen Online-Supermarkt nutzen. Du kannst dich problemlos mit einem ganzen Karton Hafermilch und einem Bund Bananen eindecken, ohne dich auf eine wöchentliche Gemüsekiste festlegen zu müssen, für deren Zubereitung du vielleicht keine Zeit hast.\n\n**Wenn es jedoch schnell gehen muss:** Öffne die Wolt-App und schau nach, ob der **Alnatura Brand Store** in dein Viertel liefert (sie decken den Großteil des S-Bahn-Rings ab). Dann hast du deine Bio-Bananen und Hafermilch in 30 Minuten an der Tür."
-      }
-    },
     "pdf_read_secret_word": {
       "title": {
         "text": "Eine PDF-Seite lesen"
@@ -12151,16 +12111,34 @@
     },
     "ted_talk_transcript_summary": {
       "title": {
-        "text": "Zusammenfassung eines TED-Talk-Transkripts"
+        "text": "Analyse von Will Stephens satirischem TED-Talk"
       },
       "summary": {
-        "text": "Hol dir das Transkript eines YouTube-Vortrags und fasse das Kernargument des Sprechers in fünf Stichpunkten zusammen."
+        "text": "Will Stephens satirischen TEDx-Talk über Rhetorik in fünf komödiantische Kernargumente zusammengefasst."
       },
       "message_1": {
-        "text": "Hol dir das Transkript für diesen TED-Talk und fasse das Kernargument in fünf Stichpunkten zusammen: https://www.youtube.com/watch?v=8S0FDjFBj8o"
+        "text": "Hol das Transkript für diesen TED-Talk und fasse das Kernargument in fünf Stichpunkten zusammen: [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
       },
       "message_2": {
-        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nDieser TEDx-Talk von Will Stephen ist eine satirische Performance mit dem Titel „How to sound smart in your TEDx Talk“. Der Sprecher verbringt die gesamte Zeit damit, zu erklären, dass er absolut nichts zu sagen hat, nutzt aber die Konventionen des öffentlichen Redens, um es so *aussehen* zu lassen, als würde er eine brillante Präsentation halten.\n\n### Zusammenfassung der Kernargumente\n\n*   **Vortragsweise vor Inhalt:** Der Talk zeigt, dass das „Wie“ einer Präsentation (Tonfall, Tempo und Selbstvertrauen) oft das „Was“ überschatten kann, was dazu führt, dass das Publikum das Gefühl hat, etwas gelernt zu haben, selbst wenn keine Informationen vermittelt wurden.\n*   **Physische Manipulation:** Stephen hebt hervor, wie spezifische Gesten – wie Handbewegungen, das Zurechtrücken der Brille und gezieltes Auf-und-ab-Gehen – kalkulierte Tropen sind, die dazu dienen, Autorität auszustrahlen und den Sprecher beim Publikum beliebt zu machen.\n*   **Die Illusion von Daten:** Er zeigt, wie visuelle Hilfsmittel wie [Tortendiagramme](wiki:Pie_chart), [Balkendiagramme](wiki:Bar_chart) und große Zahlen verwendet werden können, um gründliche Recherche und „Hausaufgaben“ zu suggerieren, unabhängig davon, ob die Daten tatsächlich relevant oder aussagekräftig sind.\n*   **Narrative Formeln:** Die Performance parodiert den Standard-Erzählbogen von [TED](wiki:TED_(conference)), einschließlich der „peinlichen persönlichen Anekdote“ und der „intellektuellen Wende“, um zu zeigen, wie diese Strukturen genutzt werden, um eine falsche Dynamik aufzubauen.\n*   **Satire des „TED-Stils“:** Die Kernbotschaft ist eine Kritik an der formelhaften Natur des modernen [öffentlichen Redens](wiki:Public_speaking). Sie legt nahe, dass das Publikum Rednern gegenüber kritischer sein sollte, die sich auf einen geschliffenen Präsentationsstil verlassen, um einen Mangel an tatsächlichem Inhalt zu kaschieren.\n\n---\n\n**Was möchtest du als Nächstes erkunden?**\n*   Möchtest du einen Vergleich mit einem [wirklich informativen TED-Talk](/#settings/apps/videos) zu einem ähnlichen Thema sehen?\n*   Interessierst du dich für Tipps für [effektives öffentliches Reden](/#settings/apps/web), die darüber hinausgehen, nur schlau zu „klingen“?"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\nDas Video ist Will Stephens satirische TEDx-Präsentation *„How to sound smart in your TEDx Talk“* (Vortrag ansehen).\n\nAnstatt einen informativen Vortrag zu halten, nutzt Stephen Meta-Humor, um die Konventionen von [Reden vor Publikum](wiki:Public_speaking) zu dekonstruieren. Hier ist das Kernargument in fünf Punkten zusammengefasst:\n\n* **Die Art des Vortrags erzeugt die Illusion von Substanz:** Sprechtempo, bewusste Handgesten, dramatischer Blickkontakt und physische Requisiten (wie Brillen ohne Sehstärke) können ein Publikum davon überzeugen, dass ein Redner brillant ist, selbst wenn er nichts Gehaltvolles zu sagen hat.\n* **Die Verbindung zum Publikum auf der Bühne ist höchst formelhaft:** Bekannte interaktive Tropen – wie das Stellen rhetorischer Fragen, das Bitten um Handzeichen und das Erzählen selbstironischer Anekdoten – sind kalkulierte Bühnenkunst, die darauf ausgelegt ist, künstliche Wärme und Glaubwürdigkeit zu erzeugen.\n* **Datenvisualisierungen verleihen unverdiente Autorität:** Das Einblenden von Zufallszahlen, einfacher Arithmetik und kontextlosen Diagrammen nutzt visuelle Voreingenommenheit aus und lässt eine Präsentation gründlich recherchiert erscheinen, selbst wenn die Daten völlig irrelevant sind.\n* **Das Publikum projiziert Bedeutung in Unsinn:** Durch die Kombination von ernster Stimmlage und suggestiven Stockfotos mit buchstäblichem Kauderwelsch können Redner die Zuhörer dazu bringen, unterbewusst nach tiefgründigen Zusammenhängen zu suchen – und sich diese einzubilden –, wo keine existieren.\n* **Emotionale Höhepunkte können künstlich erzeugt werden:** Der Aufbau von stimmlicher Intensität, das Verlangsamen bis zum Flüstern und dramatische Pausen ahmen den Rhythmus einer Epiphanie nach und beweisen, wie leicht das Gefühl von Inspiration ohne jegliche zugrunde liegende Erkenntnis konstruiert werden kann."
+      },
+      "follow_up_1": {
+        "text": "Suche nach anderen beliebten satirischen Präsentationen auf YouTube"
+      },
+      "follow_up_2": {
+        "text": "Erkläre die Geschichte des TEDx-Formats und seine kulturellen Auswirkungen"
+      },
+      "follow_up_3": {
+        "text": "Finde Online-Masterclass-Tutorials für öffentliches Reden"
+      },
+      "follow_up_4": {
+        "text": "Analysiere die spezifischen Körpersprache-Techniken berühmter Keynote-Speaker"
+      },
+      "follow_up_5": {
+        "text": "Suche nach Analyse-Videos über rhetorische Techniken"
+      },
+      "follow_up_6": {
+        "text": "Liste Tipps zur Überwindung von Lampenfieber beim Reden vor Publikum auf"
       }
     },
     "upcoming_reminders_list": {
@@ -12344,6 +12322,70 @@
       },
       "follow_up_6": {
         "text": "Vergleiche verschiedene Methoden, um gesprochene Ideen in organisierte Aufgaben umzuwandeln"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "Vegetarische Rezeptideen mit Kühlschrank-Vorräten"
+      },
+      "summary": {
+        "text": "Der Nutzer fragte nach vegetarischen Rezeptideen mit Spinat, Karotten, Paprika und Kichererbsen; der Assistent schlug drei Optionen vor."
+      },
+      "message_1": {
+        "text": "Empfehlungen für vegetarische Rezepte? Ich habe noch Spinat, Karotten, Paprika und Kichererbsen im Kühlschrank."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nMit **Spinat, Karotten, Paprika und Kichererbsen** hast du eine solide Basis für köstliche, ballaststoffreiche vegetarische Mahlzeiten. \n\nHier sind drei verschiedene kulinarische Richtungen, je nachdem, worauf du gerade Lust hast:\n\n---\n\n### 1. Frisch & knackig: Gehackter Salat nach thailändischer Art\nWenn du etwas Schnelles, Leichtes und Knackiges möchtest, kombiniere fein gehackte rohe Paprika, Karotten und Spinat mit Kichererbsen in einem würzigen [Erdnuss](wiki:Peanut)-Limetten-Dressing.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Herzhafte Bratlinge: Knusprige Kichererbsen-Gemüse-Puffer\nWenn du etwas Warmes und Häppchengroßes möchtest (toll in Wraps, Pitabrot oder mit einem Joghurt-Dip), zerdrücke die Kichererbsen und mische fein gewürfelte Karotten, Paprika und zusammengefallenen Spinat unter.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Schnelle Alternative für unter der Woche: Warmes Kichererbsen-Gemüse-Pfannencurry\nWenn du ein One-Pot-Gericht aus einfachen Vorratszutaten (wie Kokosmilch aus der Dose oder stückigen Tomaten) möchtest:\n1. **Aromen anbraten:** Erhitze Olivenöl in einer Pfanne und dünste gewürfelte Zwiebeln, gehackten Knoblauch und Ingwer an, bis sie duften.\n2. **Das feste Gemüse hinzufügen:** Schneide die Karotten und Paprika in mundgerechte Stücke. Gib sie zusammen mit gemahlenem Kreuzkümmel, [Kurkuma](wiki:Turmeric) und einer Prise Chilipulver oder Currypulver hinzu.\n3. **Köcheln lassen:** Gib die abgespülten Kichererbsen zusammen mit einer Tasse Gemüsebrühe oder Kokosmilch hinzu. Decke die Pfanne ab und lass alles 10–12 Minuten köcheln, bis die Karotten weich sind.\n4. **Spinat unterheben:** Hebe den frischen Spinat ganz am Ende für 1–2 Minuten unter, bis er leuchtend grün und zusammengefallen ist. Mit einem Spritzer Zitronensaft abschmecken.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Welche Zubereitungsart bevorzugst du heute?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Frischer & knackiger gehackter Salat\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Knusprige Puffer oder Bratlinge\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Warmes Pfannencurry oder Eintopf\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "Suche nach detaillierteren Anweisungen und vollständigen Mengenangaben für das Pfannencurry"
+      },
+      "follow_up_2": {
+        "text": "Erkläre, wie man übrig gebliebene Kichererbsen-Puffer für Meal Prep vorbereitet und lagert"
+      },
+      "follow_up_3": {
+        "text": "Suche nach Rezepten für vegane Joghurt-Dips, die gut zu Kichererbsen-Puffern passen"
+      },
+      "follow_up_4": {
+        "text": "Liste einfache Gewürzersatzmöglichkeiten auf, falls ich kein Currypulver für das Pfannengericht habe"
+      },
+      "follow_up_5": {
+        "text": "Suche nach alternativen Dressing-Rezepten mit Tahini für den Thai-Salat"
+      },
+      "follow_up_6": {
+        "text": "Vergleiche den Protein- und Ballaststoffgehalt dieser drei vegetarischen Rezeptoptionen"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "Heißluftfritteusen in Deutschland vergleichen"
+      },
+      "summary": {
+        "text": "Vergleich der Top-Heißluftfritteusen bei Amazon Deutschland nach Preis, Kapazität und Bewertungen; empfiehlt den Philips Airfryer der 2000er Serie für einen Zwei-Personen-Haushalt."
+      },
+      "message_1": {
+        "text": "Finde Heißluftfritteusen, die ich in Deutschland online kaufen kann, einschließlich Amazon-Angeboten. Vergleiche aktuelle Preise, Kapazitäten und Bewertungen und empfiehl dann eine für einen Zwei-Personen-Haushalt mit Quellenlinks."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nHier ist ein Vergleich der am besten bewerteten Heißluftfritteusen, die derzeit bei Amazon Deutschland erhältlich sind, basierend auf Preis, Kapazität und Kundenbewertungen.\n\n---\n\n### Vergleich beliebter Modelle in Deutschland\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Top-Empfehlung für einen 2-Personen-Haushalt\n\n#### **Hauptempfehlung: [Philips Airfryer 2000 Serie 6,2 l](embed:philips-airfryer-2000-fay)**\n\n* **Warum sie am besten für zwei Personen geeignet ist:**\n  * **Optimale Kapazität (6,2 l):** Körbe, die kleiner als 4,5–5 l sind, erfordern selbst für zwei Personen oft das Garen in mehreren Durchgängen. Ein 6,2-l-Korb ermöglicht es dir, zwei Lachsfilets und eine komplette Beilage aus Gemüse oder Pommes flach in einer Schicht auszulegen, um ein gleichmäßiges Knusperergebnis zu erzielen.\n  * **Platzbedarf in der Küche:** Zwei-Zonen-Geräte (wie von Ninja oder Russell Hobbs) nehmen viel Platz auf der Arbeitsplatte ein. Ein einzelner 6-l-Korb bietet reichlich Volumen bei gleichzeitig kompakter Stellfläche, die für typische deutsche Küchenarbeitsplatten geeignet ist.\n  * **Sichtfenster:** Ermöglicht es, den Bräunungsgrad zu prüfen, ohne die Schublade zu öffnen und Hitze zu verlieren.\n  * **Preis-Leistung:** Für 99,99 € bietet sie eine zuverlässige Temperaturkonstanz von [Philips](wiki:Philips) zu einem fairen Preis.\n\n#### **Alternative (wenn du häufig zwei Gerichte bei unterschiedlichen Temperaturen zubereitest): [Philips Dual Basket 3000 Serie (9,0 l)](embed:philips-airfryer-dual-pjD)**\nWenn du und dein Partner es vorzieht, Proteine und Gemüsebeilagen gleichzeitig bei unterschiedlichen Temperaturen und Zeiten zuzubereiten (z. B. Hähnchenbrust bei 180 °C und knusprige Kartoffeln bei 200 °C), ist dieses Modell derzeit auf 119,99 € reduziert und verfügt über synchronisierte Garzeiten.\n\n---\n\n### Wichtige Faktoren, die du vor dem Kauf beachten solltest\n1. **Form der Schublade:** Eckige Körbe (wie von Cosori und Philips) bieten viel mehr Platz für flache Lebensmittel (Steaks, Backformen, Spieße) als runde Körbe mit identischem Fassungsvermögen.\n2. **Platz in der Spülmaschine:** Stelle sicher, dass deine Spülmaschine genügend Höhe im Korb für eine einzelne 6-l-Schublade bietet, oder ziehe das Spülen von Hand in Betracht, um die Antihaftbeschichtung zu schonen."
+      },
+      "follow_up_1": {
+        "text": "Suche Rezepte speziell für Heißluftfritteusen"
+      },
+      "follow_up_2": {
+        "text": "Erkläre die Hauptunterschiede zwischen Heißluftfritteusen mit einem Korb und zwei Körben"
+      },
+      "follow_up_3": {
+        "text": "Finde passendes Backzubehör für diese Heißluftfritteuse"
+      },
+      "follow_up_4": {
+        "text": "Liste anfängerfreundliche Rezepte für das Abendessen in der Heißluftfritteuse auf"
+      },
+      "follow_up_5": {
+        "text": "Prüfe die aktuellen Energieverbrauchswerte für diese Modelle"
+      },
+      "follow_up_6": {
+        "text": "Vergleiche Reinigungs- und Pflegeaufwand von Keramik- und Teflonbeschichtungen"
       }
     }
   },

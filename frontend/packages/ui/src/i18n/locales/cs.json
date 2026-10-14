@@ -8960,20 +8960,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"2654ed6e-e439-4c21-98c7-95269083da71\", \"app_id\": \"reminder\", \"skill_id\": \"cancel-reminder\"}\n```\n\nOK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.\n\nWould you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?"
       }
     },
-    "chickpea_spinach_protein_dinners": {
-      "title": {
-        "text": "Chickpea Spinach Protein Dinners"
-      },
-      "summary": {
-        "text": "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
-      },
-      "message_1": {
-        "text": "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d7f21a46-8f13-4f14-82c4-d868ba62bb8a\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\",\"query\":\"chickpea and spinach dinner\",\"provider\":\"Edamam\",\"status\":\"finished\"}\n```\n\nHere are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.\n\n### 1. 10-Minute Chickpea and Spinach Curry\nThis is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.\n\n[!](embed:thefieryvegetarian.com-3sr)\n[!](embed:vegancocotte.com-IZt)\n[!](embed:vegancocotte.com-rFn)\n\n*   **Total Time:** 10 minutes\n*   **Protein Content:** ~10.5g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)\n*   1 (15 oz) can diced [tomatoes](wiki:Tomato)\n*   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)\n*   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)\n*   3 cups fresh [spinach](wiki:Spinach)\n*   1 tsp vegetable oil\n\n**Instructions:**\n1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.\n2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.\n3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.\n4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.\n\n---\n\n### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes\nThis Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.\n\n[!](embed:runningonrealfood.com-R8H)\n[!](embed:americanhomecook.com-Alt)\n[!](embed:shortgirltallorder.com-QXv)\n\n*   **Total Time:** 15 minutes\n*   **Protein Content:** ~23.1g per serving\n*   **Servings:** 2\n\n**Ingredients:**\n*   1 (15 oz) can chickpeas (drained and rinsed)\n*   1 (14.5 oz) can diced tomatoes\n*   5 oz baby spinach\n*   1 small onion (diced) & 4 garlic cloves (sliced)\n*   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)\n*   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))\n\n**Instructions:**\n1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).\n2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.\n3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.\n4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).\n\n---\n\n### 3. 20-Minute Middle Eastern Spinach and Chickpeas\nA simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.\n\n[!](embed:carolinescooking.com-Dy7)\n[!](embed:simpleveganblog.com-8dt)\n[!](embed:ourplantbasedworld.com-Krr)\n\n*   **Total Time:** 20 minutes\n*   **Protein Content:** ~8.7g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   3 cups low-sodium canned chickpeas (drained and rinsed)\n*   2 cups baby spinach\n*   2/3 cup diced tomatoes\n*   ½ large white onion (diced)\n*   2 tsp minced garlic\n*   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)\n\n**Instructions:**\n1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.\n2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.\n3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.\n4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.\n5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.\n\n---\n\n**Next steps for your meal prep:**\n*   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?\n*   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?"
-      }
-    },
     "classic_car_reverse_image_search": {
       "title": {
         "text": "Identifikuj veterána z fotky"
@@ -9086,66 +9072,66 @@
     },
     "community_garden_sunflower_illustration": {
       "title": {
-        "text": "Vytvoř botanickou ilustraci slunečnice"
+        "text": "Botanická ilustrace slunečnice pro zahradní leták"
       },
       "summary": {
-        "text": "Vytvoř ilustraci slunečnice bez textu pro leták komunitní zahrady."
+        "text": "Vytvořena hřejivá botanická ilustrace slunečnice pro leták komunitní zahrady včetně návrhů designu. handout with design suggestions."
       },
       "message_1": {
-        "text": "Prosím, vytvoř hřejivou botanickou ilustraci slunečnice pro leták komunitní zahrady na čistém světlém pozadí a bez textu."
+        "text": "Prosím, vytvoř hřejivou botanickou ilustraci slunečnice pro leták komunitní zahrady na čistém světlém pozadí bez textu. handout, on a clean light background with no text."
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6a3857ca-aa90-486f-b481-4e1df6f95faa\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nPrávě generuji botanickou ilustraci slunečnice pro tvůj leták komunitní zahrady; požadavek se zpracovává a jakmile bude hotov, objeví se přímo zde v chatu.\n\n### Rychlé tipy pro design komunitních letáků\n\nAby byl tvůj zahradní leták lákavý a zároveň čitelný:\n\n- **Vizuální hierarchie a rozvržení:** Dopřej ilustraci prostor. Umístění k okraji nebo do záhlaví ponechá volné místo pro zahradnické tipy nebo podrobnosti o akci, aniž by leták působil přeplněně.\n- **Barevná harmonie:** Pro nadpisy sekcí a ohraničení použij hřejivé tóny přímo z ilustrace – například sytě medově zlatou, olivově zelenou nebo zemitou terakotu.\n- **Zapojení vlastní tvorby:** Pokud členové komunity nebo místní zahradníci vytvoří skici, otisky listů nebo fotografie vašich skutečných záhonů, jejich začlenění vedle digitálních ilustrací dodá letáku skvělý, autentický a přívětivý nádech.\n\n---\n\n**Další kroky a možnosti:**\n- [Navrhni rozvržení letáku s nadpisy a tipy](/#message=Help%20me%20design%20a%20clean%20layout%20and%20copy%20for%20a%20community%20garden%20handout.)\n- [Navrhni barevnou paletu založenou na slunečnicích](/#message=Suggest%20a%20warm%20color%20palette%20and%20typography%20pairing%20for%20a%20botanical%20garden%20flyer.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"83e98b9b-8bcb-4774-9223-be000504a84a\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nZde je hřejivá botanická ilustrace slunečnice pro tvůj leták pro komunitní zahradu:\n\n[!](embed:generated-images-ff26d807eb07)\n\n### Návrhy designu a pracovního postupu\n\n- **Kombinování s ručně kreslenými prvky:** U komunitních materiálů skvěle funguje propojení digitálních děl nebo děl vytvořených umělou inteligencí s autentickými osobními prvky. Tuto ilustraci můžeš například vytisknout jako pozadí nebo vizuální kotvu a poté nechat členy komunity dokreslit schémata výsadby, ručně dopsat tipy na péči nebo k ní přidat vylisované sušené listy či semínka.\n- **Rozvržení a hierarchie letáku:**\n  - **Bílé místo:** Kolem slunečnice ponech velkorysé okraje, aby leták působil vzdušně a přívětivě.\n  - **Typografie:** Zkombinuj organický nebo humanistický serif (např. [Garamond](wiki:Garamond) nebo [Georgia](wiki:Georgia_(typeface))) pro nadpisy s čitelným bezpatkovým písmem pro pokyny k výsadbě, podrobnosti o přípravě půdy a data konání akcí.\n  - **Barevná paleta:** Pro akcentní linky nebo podnadpisy vyber jantarové a zlaté tóny z okvětních lístků a pro klíčové zvýraznění použij tmavě lesní zelenou.\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"garden_handout_next_step\",\n  \"multiple\": false,\n  \"question\": \"What would you like to work on next for the handout?\",\n  \"options\": [\n    {\n      \"id\": \"layout_tips\",\n      \"text\": \"Get advice on typography and grid layout for the printed flyer\"\n    },\n    {\n      \"id\": \"variations\",\n      \"text\": \"Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)\"\n    },\n    {\n      \"id\": \"custom\",\n      \"text\": \"Something else\"\n    }\n  ],\n  \"custom_option_id\": \"custom\",\n  \"custom_placeholder\": \"Describe what you need...\"\n}\n```\n\n[!](embed:generated-media-images-83e98b9b8bcb)"
       },
       "follow_up_1": {
-        "text": "Vyhledej akce v místních komunitních zahradách v okolí"
+        "text": "Vygeneruj další ilustraci pilné včely na levanduli"
       },
       "follow_up_2": {
-        "text": "Pomoz mi napsat přátelský úvodní text pro zahradní leták"
+        "text": "Vypiš základní tipy pro návrh čitelného letáku pro komunitní zahradu"
       },
       "follow_up_3": {
-        "text": "Najdi bezplatné SVG ikony rostlin pro výzdobu letáku"
+        "text": "Vyhledej bezplatná písma pro tištěné letáky"
       },
       "follow_up_4": {
-        "text": "Vyjmenuj základní tipy, které by měl obsahovat průvodce komunitní zahradou"
+        "text": "Vysvětli, jak na letáku vyvážit prázdný prostor a text"
       },
       "follow_up_5": {
-        "text": "Vyhledej nápady na kombinace písem pro zahradní letáky"
+        "text": "Vygeneruj ilustraci zralých rajčat na stonku"
       },
       "follow_up_6": {
-        "text": "Vysvětli, jak uspořádat vizuální prvky v tiskovém rozvržení"
+        "text": "Popiš nápady na barevné palety pro tiskové projekty s přírodní tematikou"
       }
     },
     "community_garden_volunteer_chime": {
       "title": {
-        "text": "Hřejivá znělka pro komunitní zahradu"
+        "text": "Návrh zvuku oznámení pro komunitní zahradu"
       },
       "summary": {
-        "text": "Vygeneruj krátký dvoutónový zvuk oznámení pro fiktivní aplikaci pro komunitní zahradu."
+        "text": "Vytvořen jemný dvoutónový zvukový efekt dřevěné zvonkohry pro oznámení o přihlášení dobrovolníka do komunitní zahrady."
       },
       "message_1": {
-        "text": "Vytvoř krátký, hřejivý zvuk oznámení pro aplikaci pro komunitní zahradu při přihlášení dobrovolníka. Jemná dvoutónová znělka, beze slov a pod tři sekundy."
+        "text": "Vytvoř krátký, hřejivý zvuk oznámení pro aplikaci komunitní zahrady, když se přihlásí dobrovolník. Jemné dvoutónové zazvonění, beze slov a pod tři sekundy."
       },
       "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nPrávě generuji hřejivou, jemnou dvoutónovou znělku pro tvou aplikaci pro komunitní zahradu. Právě se zpracovává a v chatu se objeví, jakmile bude hotová.\n\n### Navrhované další kroky\n- [Vygeneruj zemitou, oslavnou znělku pro odemknutí odznaku](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Navrhni rozvržení potvrzovací karty pro dobrovolníky](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdda9f85-fa01-48ca-acf7-7746de6dc0f3\",\"app_id\":\"audio\",\"skill_id\":\"generate\"}\n```\n\nZde je jemné, hřejivé dvoutónové zazvonění vytvořené pro oznámení o přihlášení dobrovolníka do tvé komunitní zahrady:\n\n[!](embed:generated-audio-17f56f2e73be)\n\n### Profil zvuku\n- **Tón:** Organické, rezonující tóny dřevěné zvonkohry/marimby navržené tak, aby evokovaly přírodu a růst.\n- **Tempo:** Stoupající dvoutónová sekvence, která dodává povznášející a vítající pocit, když se někdo připojí k pomoci.\n- **Délka:** 2 sekundy, aby byl zvuk pro uživatele aplikace stručný a nevtíravý.\n\nJak tento tón ladí se zbytkem uživatelského rozhraní tvé aplikace? V případě potřeby můžeme upravit barvu zvuku (např. směrem k jemnějšímu brnknutí na akustickou kytaru, zpívající míse nebo jasnějšímu skleněnému zvonku).\n\n[!](embed:generated-media-audio-fdda9f85fa01)"
       },
       "follow_up_1": {
-        "text": "Vygeneruj oslavnou znělku pro odemknutí odznaku za splnění úkolu"
+        "text": "Vygeneruj verzi s jemnějším brnknutím na akustickou kytaru"
       },
       "follow_up_2": {
-        "text": "Vysvětli, jak zvukový design ovlivňuje zapojení uživatelů v mobilních aplikacích"
+        "text": "Diskutuj o tom, jak testovat zvuky oznámení s uživateli"
       },
       "follow_up_3": {
-        "text": "Vytvoř jemnou připomínací znělku pro ranní rozvrh zalévání"
+        "text": "Vygeneruj zvukový efekt rezonující zpívající mísy"
       },
       "follow_up_4": {
-        "text": "Uveď osvědčené postupy pro návrh nevtíravých zvuků oznámení v UI"
+        "text": "Vyjmenuj osvědčené postupy pro zvuková oznámení v mobilních aplikacích"
       },
       "follow_up_5": {
-        "text": "Vygeneruj jemný zvuk upozornění na chybu při selhání validace formuláře"
+        "text": "Vygeneruj jasnější zvuk oznámení ve formě skleněného zvonku"
       },
       "follow_up_6": {
-        "text": "Popiš, jak integrovat vlastní zvukové efekty do mobilních aplikací"
+        "text": "Porovnej různé styly zvukového brandingu pro aplikace"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -9182,34 +9168,34 @@
     },
     "community_garden_welcome_melody": {
       "title": {
-        "text": "Melodie pro uvítání v komunitní zahradě"
+        "text": "Vytvoř jemnou uvítací melodii pro komunitní zahradu"
       },
       "summary": {
-        "text": "Vytvoř jemnou instrumentální melodii pro uvítací video komunitní zahrady."
+        "text": "Vygeneruj krátkou instrumentální melodii pro uvítací video komunitní zahrady s hřejivým akustickým zvukem a bez vokálů."
       },
       "message_1": {
-        "text": "Mohl bys vytvořit krátkou, jemnou instrumentální melodii pro uvítací video komunitní zahrady, bez vokálů?"
+        "text": "Můžeš vytvořit krátkou, jemnou instrumentální melodii pro uvítací video komunitní zahrady, bez vokálů?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"296e122a-cd23-4fc6-9c27-99f21f8e3401\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nPrávě pro tvé uvítací video komunitní zahrady vytvářím tu jemnou instrumentální skladbu. Momentálně se zpracovává a jakmile bude hotová, objeví se přímo zde.\n\nProjekty [komunitního zahradničení](wiki:Community_gardening) jsou skvělým způsobem, jak sblížit sousedy a podpořit místní biodiverzitu. Zatímco se hudba generuje, chceš pomoci s plánováním narativu nebo vizuálního toku uvítacího videa?\n\n- [Navrhnout osnovu uvítacího videa](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)\n- [Probrat nápady na úvodní text nebo tipy na komentář](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"3e5014d0-2082-4604-b968-1553d6cc43e4\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nZde je jemná, akustická instrumentální skladba složená pro tvé uvítací video komunitní zahrady:\n\n[!](embed:generated-media-music-3e5014d02082)\n[!](embed:generated-music-c89ee4a5f418)\n\n### Podrobnosti o skladbě\n- **Nálada a tón:** Hřejivá, lákavá a klidná\n- **Instrumentace:** Vybrnkávání na akustickou kytaru v kombinaci s jemnými klavírními akordy a lehkými melodickými akcenty\n- **Délka:** 30 sekund\n- **Formát:** Plně instrumentální (bez vokálů), díky čemuž je ideální jako hudba na pozadí pod mluvený komentář nebo textový úvod.\n\n### Navrhované další kroky\nPokud plánuješ video produkovat nebo napsat scénář pro představení zahrady novým členům:\n\n- [Navrhni krátký uvítací scénář](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)\n- [Vygeneruj svižnější akustickou alternativu](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)"
       },
       "follow_up_1": {
-        "text": "Vyhledat místní akce a workshopy v komunitních zahradách"
+        "text": "Vytvoř o něco svižnější akustickou skladbu pro naše video o komunitní zahradě"
       },
       "follow_up_2": {
-        "text": "Pomoz mi navrhnout storyboard pro video o zahradě"
+        "text": "Pomoz mi napsat hřejivý třicetisekundový scénář uvítacího videa pro naši komunitní zahradu"
       },
       "follow_up_3": {
-        "text": "Najít stock videa rostlin a květin"
+        "text": "Vyhledej návody na úpravu videí o komunitních zahradách ve video editoru"
       },
       "follow_up_4": {
-        "text": "Napsat uvítací texty pro komentář k videu o komunitě"
+        "text": "Popiš, jak zkombinovat hudbu na pozadí s mluveným komentářem"
       },
       "follow_up_5": {
-        "text": "Vyhledat tipy na zahradničení pro komunitní projekty"
+        "text": "Najdi akce a workshopy v místních komunitních zahradách v naší oblasti"
       },
       "follow_up_6": {
-        "text": "Navrhnout nápady na aktivity pro den otevření komunitní zahrady"
+        "text": "Vyjmenuj nápady na vizuální záběry, které by se měly objevit v uvítacím videu"
       }
     },
     "creativity_drawing_meetups_berlin": {
@@ -9682,40 +9668,34 @@
     },
     "housing_policy_dinner_discussion": {
       "title": {
-        "text": "Prepare for a housing policy dinner discussion"
+        "text": "Příprava na diskuzi o bytové politice u večeře"
       },
       "summary": {
-        "text": "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+        "text": "Připrav se na klidnou rodinnou diskuzi o bytové politice a regulaci nájemného. Začni otázkami na místní kontext a cíle jednotlivých účastníků."
       },
       "message_1": {
-        "text": "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+        "text": "Jdu na večeři s tátou a on se chce dohadovat o bytové politice a regulaci nájemného. Pomoz mi se připravit, abych mohl klást dobré otázky, ověřit si klíčová fakta, pochopit nejsilnější argumenty obou stran a udržet konverzaci v klidu."
       },
       "message_2": {
-        "text": "Focus mode activated: Prepare a political discussion."
-      },
-      "message_3": {
-        "text": "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
-      },
-      "message_4": {
-        "text": "It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. \n\nSince housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** (\"Who is right?\") to a **collaborative exploration** (\"How do we solve this complex problem together?\").\n\nHere is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.\n\n### 1. The Core Debate: Rent Control & Stabilization\n\nTo have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). \n\n**The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**\n*   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.\n*   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.\n*   **It creates \"misallocation\":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.\n*   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.\n\n**The Strongest Arguments FOR Rent Control (The Community & Equity View)**\n*   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.\n*   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.\n*   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply \"shop elsewhere\" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.\n*   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.\n\n### 2. Facts to Keep in Your Back Pocket\n*   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.\n*   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. \n*   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.\n\n### 3. Strategies to Keep It Calm\n*   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., \"I agree with you that property owners shouldn't be forced to operate at a loss.\")*\n*   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.\n*   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).\n\n### 4. Great Questions to Ask Your Dad\n\nThese questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:\n\n1.  **If he is AGAINST rent control:** *\"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?\"*\n2.  **If he is FOR rent control:** *\"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?\"*\n3.  **Zooming out to the bigger picture:** *\"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?\"*\n4.  **Finding balance:** *\"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?\"*\n\nHow are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?"
+        "text": "Diskuze o bytové politice a regulaci nájemného s rodinou se může snadno vyhrotit, zvláště když se střetnou generační pohledy, vlastnictví nemovitostí nebo odlišné ekonomické filozofie. \n\nAbych mohl připravit klíčová fakta, údaje o politikách a konkrétní otázky přímo pro tvou večeři, mohl bys mi sdělit trochu více informací?\n\n1. **Lokalita / Jurisdikce:** Zaměřuje se na konkrétní město, stát nebo zemi (např. Kalifornie, New York, Berlín, Velká Británie), nebo k tomu přistupuje z širší celostátní ekonomické perspektivy? Místní pravidla a tržní tlaky se značně liší.\n2. **Tátův pohled:** Jaký je jeho základní postoj nebo reakce? Mluví například jako majitel domu, malý pronajímatel nebo daňový poplatník, nebo argumentuje především z pohledu ekonomické teorie volného trhu proti cenové regulaci?\n3. **Tvůj hlavní cíl:** Kromě udržení klidu a konstruktivnosti, co by pro tebe byl úspěch – nalezení společné řeči v základních hodnotách (jako stabilita komunity vs. nová výstavba), pochopení jeho pohledu, nebo mít připravená solidní data pro reakci na konkrétní tvrzení?\n\nJakmile tyto podrobnosti nasdílíš, vytvoříme průvodce přípravou na míru s ověřenými důkazy, kompromisy na obou stranách a strategiemi pro deeskalaci."
       },
       "follow_up_1": {
-        "text": "Find recent studies on rent control policies"
+        "text": "Vyhledat nedávné studie o regulaci nájemného ve velkých městech"
       },
       "follow_up_2": {
-        "text": "Explain the economic impact of rent control"
+        "text": "Seznam běžných argumentů proti regulaci nájemného"
       },
       "follow_up_3": {
-        "text": "Search for housing policy debates in our city"
+        "text": "Najít ekonomický výzkum o elasticitě nabídky bydlení"
       },
       "follow_up_4": {
-        "text": "Describe how zoning laws affect housing supply"
+        "text": "Porovnat zákony na ochranu nájemníků v různých státech"
       },
       "follow_up_5": {
-        "text": "Show me zoning laws in our area"
+        "text": "Vyhledat novinové články o dopadech regulace nájemného"
       },
       "follow_up_6": {
-        "text": "Summarize the key arguments for rent control"
+        "text": "Vysvětlit, jak nabídka na trhu s bydlením reaguje na cenovou regulaci"
       }
     },
     "image_vectorize_openmates_header": {
@@ -9822,40 +9802,34 @@
     },
     "mastodon_public_post_themes": {
       "title": {
-        "text": "Témata ve veřejných příspěvcích Mastodonu"
+        "text": "Souhrn příspěvků oficiálního účtu Mastodon"
       },
       "summary": {
-        "text": "Shrň témata v nedávných příspěvcích z oficiálního účtu Mastodonu a prozkoumej reprezentativní příklady."
+        "text": "Shrnutí nedávných veřejných příspěvků z oficiálního účtu Mastodon, které se týkají Mastodonu 5.0, správy, představení ekosystému, aktualizací týmu a reklamních předmětů."
       },
       "message_1": {
-        "text": "Mohl bys shrnout hlavní témata v nedávných veřejných příspěvcích oficiálního účtu Mastodon na mastodon.social a uvést odkazy na několik příkladů?"
+        "text": "Můžeš shrnout hlavní témata nedávných veřejných příspěvků oficiálního účtu Mastodon na mastodon.social a uvést odkazy na několik příkladů?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"33ebec48-4730-4b4b-b7d7-f967173ac9b6\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nPožadavek na načtení nedávných veřejných příspěvků od @Mastodon (`@Mastodon@mastodon.social`) momentálně stále běží na pozadí a chat se aktualizuje, jakmile bude připraven.\n\nZatímco čekáme na načtení kanálu:\n- [Podívej se na nedávná oznámení na blogu Mastodonu](/#message=Search%20for%20the%20latest%20official%20Mastodon%20blog%20announcements%20and%20releases.)\n- [Prozkoumej roadmapu Mastodonu](/#message=What%20are%20the%20major%20features%20currently%20on%20the%20Mastodon%20roadmap%3F)"
-      },
-      "message_3": {
-        "text": "Příspěvky se již načetly. Mohl bys shrnout hlavní témata a odkázat na tři reprezentativní příspěvky?"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"65b92905-0838-46dd-8fff-8e28cdc8789a\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nOficiální účet @Mastodon na `mastodon.social` ve svých nedávných veřejných příspěvcích vyzdvihuje několik hlavních témat:\n\n### 1. Zásadní vývoj produktu a uživatelský průzkum\nHlavním tématem byla příprava na **Mastodon 5.0**, která navazuje na celokomunitní výzkumnou iniciativu „Discovery Week“ vedenou jejich designovým týmem. Tým sdílel náhledy přepracovaného, klidnějšího rozhraní a aktualizovaného editoru příspěvků, jejichž cílem je učinit platformu přístupnější a uživatelsky přívětivější.\n\n### 2. Správa komunity, zásady a personální novinky\nMastodon pravidelně informuje o novinkách v oblasti správy a zásad, zejména o vydání upřesňujících pokynů k **ochranným známkám** v přímé reakci na zpětnou vazbu od správců a vývojářů fediversu. Oznámili také klíčové změny ve vedení a poděkovali odcházející komunitní ředitelce Hannah Aubry za její přínos.\n\n### 3. Představení serverů a ekosystém fediversu\nÚčet aktivně propaguje nezávislé instance fediversu a infrastrukturní iniciativy – například vyzdvihuje tematické servery (jako Earth.Law) a šíří oborové průzkumy, jako je provozní výzkum IFTAS.\n\n### 4. Komunitní merch a financování projektu\nNa podporu probíhajícího vývoje open-source sdílejí novinky o oficiálním komunitním merchi, včetně vydání nových plyšových maskotů („Plushtodons“).\n\n---\n\n### Tři reprezentativní příspěvky\n\n- **Plán produktu a vizuální osvěžení:** [Oznámení s náhledem na Mastodon 5.0](embed:mastodon-after-publishing-D8d) – sdílí náhled nadcházejícího rozvržení verze 5.0 a editoru příspěvků na základě výsledků průzkumu.\n- **Zásady a zpětná vazba komunity:** [Aktualizace pokynů k ochranným známkám](embed:mastodon-today-we-YqD) – nastiňuje revidovaná pravidla pro ochranné známky upravená na základě podnětů komunity.\n- **Podpora projektu a merch:** [Oznámení předobjednávek Plushtodonů](embed:mastodon-new-plushtodon-A57) – oznamuje nové oficiální plyšové maskoty jako způsob, jakým mohou příznivci financovat vývoj.\n\n---\n\nChceš prozkoumat některé konkrétní téma podrobněji?\n- [Přečíst si více o funkcích Mastodonu 5.0](/#message=What%20new%20features%20and%20changes%20are%20coming%20in%20Mastodon%205.0%3F)\n- [Projít si pokyny k ochranným známkám](/#message=Summarize%20Mastodon's%20updated%20trademark%20policy%20guidelines.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nNedávné veřejné příspěvky oficiálního účtu @Mastodon na [Mastodonu](wiki:Mastodon_(social_network)) se točí kolem několika hlavních témat:\n\n---\n\n### 1. Nový design platformy a připravované funkce (Mastodon 5.0)\nVelký důraz byl kladen na sdílení výzkumu uživatelské zkušenosti a představování připravovaných změn designu:\n- **První pohled na Mastodon 5.0:** Předběžná ukázka verze 5.0, která zdůrazňuje klidnější rozvržení, novou vizuální estetiku a aktualizovaný editor příspěvků ([první pohled na Mastodon 5.0](embed:mastodon-after-publishing-WqJ)).\n- **Zjištění z Discovery Week:** Sdílení výsledků uživatelských workshopů a průzkumů vedených designovým týmem s cílem lépe porozumět tomu, jak komunita s platformou pracuje ([shrnutí Discovery Week](embed:mastodon-we-re-5Ll)).\n\n### 2. Správa projektu a vyjasnění pravidel ochranných známek\nMastodon se zaměřil na řešení obav komunity ohledně pravidel projektu:\n- **Pokyny k pravidlům ochranných známek:** Zveřejnění aktualizovaných a vyjasněných pokynů a srozumitelných shrnutí pravidel Mastodonu týkajících se ochranných známek na základě podnětů komunity ([oznámení pokynů k ochranným známkám](embed:mastodon-today-we-3Kb)).\n\n### 3. Představení komunity a podpora ekosystému\nPřiblížení širšího ekosystému [Fediverse](wiki:Fediverse), provozovatelů serverů a bezpečnostních iniciativ:\n- **Představení vybraného serveru:** Propagace specializovaných instancí, jako je *Earth.Law*, ekologický server určený právníkům v oblasti životního prostředí, vědcům a aktivistům ([představení serveru Earth.Law](embed:mastodon-here-is-miz)).\n- **Průzkumy ekosystému:** Podpora administrativních iniciativ, jako je průzkum IFTAS Social Web Operations Survey, na pomoc moderátorům a administrátorům ([příspěvek o průzkumu IFTAS](embed:mastodon-re-https-wnD)).\n\n### 4. Novinky z organizace a týmu\nTransparentnost ohledně změn v týmu a vedení:\n- **Rozloučení s členkou vedení:** Oznámení odchodu ředitelky komunity a členky správní rady Hannah Aubry a poděkování za její přínos k růstu komunity ([příspěvek na rozloučenou s Hannah Aubry](embed:mastodon-hannah-aubry-O6F)).\n\n### 5. Financování projektu a propagační zboží\nZajištění dalšího vývoje sítě s otevřeným zdrojovým kódem:\n- **Předobjednávky Plushtodonu:** Oznámení nových barev plyšového maskota v obchodě, aby podporovatelé mohli přímo přispět na financování vývoje ([příspěvek o předobjednávkách Plushtodonu](embed:mastodon-new-plushtodon-7D2)).\n\n---\n\n### Vybrané příklady\n\n[@Mastodon: Po zveřejnění výsledků Discovery Week vám nyní můžeme nabídnout první náh](embed:mastodon-after-publishing-WqJ)\n[@Mastodon: Dnes sdílíme další pokyny k našim pravidlům ochranných známek na základě k](embed:mastodon-today-we-3Kb)\n[@Mastodon: Nové barvy #Plushtodon jsou nyní k dispozici k předobjednání v našem obchodě! Je to způsob](embed:mastodon-new-plushtodon-7D2)"
       },
       "follow_up_1": {
-        "text": "Vyhledat nedávná oznámení na blogu Mastodonu"
+        "text": "Vyhledej nedávné diskuze o Mastodonu 5.0 na Redditu"
       },
       "follow_up_2": {
-        "text": "Vysvětlit, jak na Mastodonu funguje decentralizovaná moderace"
+        "text": "Vysvětli, jak funguje decentralizovaná moderace ve Fediverse"
       },
       "follow_up_3": {
-        "text": "Vyhledat novinky o vývoji Mastodonu 5.0"
+        "text": "Vyhledej technické články vysvětlující funkce protokolu ActivityPub"
       },
       "follow_up_4": {
-        "text": "Porovnat změny v Mastodonu 5.0 s předchozími verzemi"
+        "text": "Porovnej modely správy Mastodonu s komerčními sociálními sítěmi"
       },
       "follow_up_5": {
-        "text": "Vyhledat komunitní diskuze o moderování serverů ve Fediverse"
+        "text": "Najdi nadcházející online konference o open source softwaru"
       },
       "follow_up_6": {
-        "text": "Vypsat hlavní výzvy, kterým čelí open-source platformy"
+        "text": "Diskutuj o modelech financování nezávislých open source platforem"
       }
     },
     "memory_books_currently_reading": {
@@ -10388,20 +10362,6 @@
         "text": "List essential items to pack for variable weather bike rides"
       }
     },
-    "organic_groceries_berlin": {
-      "title": {
-        "text": "Organic Grocery Delivery in Berlin"
-      },
-      "summary": {
-        "text": "Compared Berlin organic grocery delivery options for oat milk and bananas using local delivery sources and product results."
-      },
-      "message_1": {
-        "text": "Can you find organic grocery delivery options in Berlin for oat milk and bananas, compare a few reliable local options, and recommend which one to use?"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"91a1a938-12c3-47f9-a00b-e9a59d2a8ad2\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"organic grocery delivery Berlin\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"cf2504cb-56b5-4ea3-89d5-4cf9cc732911\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Bio Lebensmittel Lieferservice Berlin Hafermilch Bananen\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"5cdfdced-0921-47ed-a351-a0d19ccbb8e2\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Hafermilch\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b6f64bdd-2b32-4623-83eb-8cf57975ba70\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Bananen\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\nBerlin has an excellent ecosystem for organic groceries, offering everything from traditional farm-to-door \"Biokisten\" (organic boxes) to ultra-fast delivery apps. Since you are specifically looking for organic oat milk (*Bio Hafermilch*) and organic bananas (*Bio Bananen*), these are staple items available almost everywhere.\n\nHere is a comparison of the most reliable local options, categorized by how they operate:\n\n### 1. The Local \"Biokiste\" Services (Best for Sustainability & Regionality)\nThese are local, dedicated organic delivery services that have been operating in Berlin for years. They focus heavily on sustainability, fair trade, and regional farming.\n*   **[LogischBIO](embed:logisch-bio.de-eeO):**\n    *   **The Vibe:** A true online organic supermarket with a local heart. They've been operating in Berlin since 1998.\n    *   **Pros:** They offer over 5,000 organic items. Crucially, they require **no subscription** (*kein Abo*), which makes them incredibly flexible if you just want to do a one-off grocery haul.\n    *   **Cons:** You need to plan a day or two ahead for your delivery slot.\n*   **[Märkische Kiste](embed:maerkischekiste.de-fJw) & [Landkorb](embed:landkorb.de-Ze3):**\n    *   **The Vibe:** Classic \"Ökokiste\" (Eco-box) providers. They deliver in reusable boxes straight to your door.\n    *   **Pros:** Excellent for supporting regional Brandenburg farmers. You can either subscribe to a pre-made seasonal box or build your own custom box with exact items like oat milk and bananas.\n    *   **Cons:** Often heavily subscription-based (though you can pause/customize easily). Delivery days are sometimes restricted based on your specific Berlin postal code.\n\n### 2. Quick Commerce (Best for Urgent Needs)\nIf you need your oat milk for tomorrow morning's coffee and can't wait for a scheduled delivery slot:\n*   **Alnatura via [Wolt](embed:wolt.com-UR8) / UberEats:**\n    *   **The Vibe:** Ultra-fast delivery from one of Germany's most popular organic supermarket chains.\n    *   **Pros:** Delivery in roughly 30 minutes. You get access to the high-quality Alnatura brand products.\n    *   **Cons:** Higher delivery fees, and the couriers are gig-economy workers, which lacks the community/sustainability ethos of the dedicated farm boxes.\n\n### 3. Mainstream Supermarket Delivery (Best for General Shopping)\nIf you want to combine your organic basics with a regular grocery order:\n*   **REWE Lieferservice:**\n    *   They have a very reliable scheduled delivery network in Berlin and a massive organic (\"REWE Bio\") range.\n    *   For example, you can easily grab [REWE Bio Vegan Oat Drink](embed:rewe-bio-pflanzlich-Q5w) or [Oatly Bio Barista](embed:oatly-bio-haferdrink-cdI), alongside [Organic Bananas](embed:bio-banane-ca-GZn).\n\n---\n\n### 🏆 Recommendation: Which one should you use?\n\n**Go with LogischBIO.**\nIf you want a reliable, Berlin-based company that specializes entirely in organic food, they are the best all-rounder. Because they don't lock you into a subscription box model, you can just treat them like a regular online supermarket. You can easily stock up on a whole carton of oat milk and a bunch of bananas without having to commit to a weekly vegetable box you might not have time to cook.\n\n**However, if you are in a rush right now:** Open the Wolt app and see if the **Alnatura Brand Store** delivers to your specific neighborhood (they cover most of the Ringbahn area). You'll have your organic bananas and oat milk at your door in 30 minutes."
-      }
-    },
     "pdf_read_secret_word": {
       "title": {
         "text": "Read a PDF page"
@@ -10808,16 +10768,34 @@
     },
     "ted_talk_transcript_summary": {
       "title": {
-        "text": "TED Talk Transcript Summary"
+        "text": "Analýza satirické přednášky TED Willa Stephena"
       },
       "summary": {
-        "text": "Get a YouTube talk transcript and summarize the speaker's core argument in five bullets."
+        "text": "Shrnutí satirické přednášky TEDx Willa Stephena o veřejném vystupování do pěti hlavních komediálních argumentů."
       },
       "message_1": {
-        "text": "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
+        "text": "Získej přepis této přednášky TED a shrň její hlavní argumenty v pěti bodech: [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
       },
       "message_2": {
-        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\nVideo je satirická prezentace Willa Stephena na TEDx s názvem *„How to sound smart in your TEDx Talk“* (přehrát video).\n\nNamísto předávání informací využívá Stephen meta-humor k dekonstrukci konvencí [řečnictví](wiki:Public_speaking). Zde je hlavní argument shrnutý v pěti bodech:\n\n* **Přednes vytváří iluzi obsahu:** Tempo řeči, promyšlená gesta rukou, dramatický oční kontakt a fyzické rekvizity (jako nedioptrické brýle) dokážou publikum přesvědčit o genialitě mluvčího, i když nemá co říct.\n* **Vztah s publikem je vysoce šablonovitý:** Známé interaktivní obraty – jako kladení řečnických otázek, vyzývání k hlasování zdvižením ruky a vyprávění sebeironických historek – jsou vykalkulované triky navržené k vytvoření umělého pocitu vřelosti a důvěryhodnosti.\n* **Vizualizace dat dodává nezaslouženou autoritu:** Ukazování náhodných čísel, základní aritmetiky a grafů bez kontextu zneužívá vizuální zkreslení, díky čemuž prezentace vypadá jako důkladně podložená výzkumem, i když jsou data zcela irelevantní.\n* **Publikum si do nesmyslů promítá význam:** Spojením vážné intonace hlasu a sugestivních ilustračních obrázků s naprostými nesmysly mohou řečníci přimět posluchače k podvědomému hledání – a představování si – hlubokých souvislostí tam, kde žádné nejsou.\n* **Emoční gradaci lze uměle vytvořit:** Stupňování intenzity hlasu, zpomalení do šepotu a dramatické pauzy napodobují rytmus prozření, což dokazuje, jak snadno lze vyvolat pocit inspirace bez jakéhokoli hlubšího vhledu."
+      },
+      "follow_up_1": {
+        "text": "Vyhledej další populární satirické prezentace na YouTube"
+      },
+      "follow_up_2": {
+        "text": "Vysvětli historii formátu TEDx a jeho kulturní dopad"
+      },
+      "follow_up_3": {
+        "text": "Najdi online kurzy (masterclass) veřejného vystupování"
+      },
+      "follow_up_4": {
+        "text": "Analyzuj konkrétní techniky řeči těla, které používají slavní řečníci"
+      },
+      "follow_up_5": {
+        "text": "Vyhledej analytická videa o rétorických technikách"
+      },
+      "follow_up_6": {
+        "text": "Vypiš tipy, jak překonat trému při veřejném vystupování"
       }
     },
     "upcoming_reminders_list": {
@@ -11001,6 +10979,70 @@
       },
       "follow_up_6": {
         "text": "Porovnat různé metody převodu mluvených nápadů na uspořádané úkoly"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "Vegetariánské recepty ze zásob v lednici"
+      },
+      "summary": {
+        "text": "Uživatel požádal o nápady na vegetariánské recepty ze špenátu, mrkve, paprik a cizrny; asistent nabídl tři možnosti."
+      },
+      "message_1": {
+        "text": "Doporučení na vegetariánské recepty? V lednici mám ještě špenát, mrkev, papriky a cizrnu."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nSe **špenátem, mrkví, paprikou a cizrnou** máš skvělý základ pro chutná vegetariánská jídla bohatá na vlákninu. \n\nTady jsou tři různé kulinářské směry podle toho, na jaký styl jídla máš zrovna chuť:\n\n---\n\n### 1. Svěží a křupavé: Thajský sekaný salát\nPokud chceš něco rychlého, lehkého a křupavého, smíchej nadrobno nakrájenou syrovou papriku, mrkev a špenát s cizrnou v pikantním [arašídovém](wiki:Peanut) limetkovém dresinku.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Slané placičky: Křupavé cizrnovo-zeleninové placičky\nPokud chceš něco teplého a akorát do ruky (skvělé do wrapů, pita chleba nebo s jogurtovým dipem), rozmačkej cizrnu a vmíchej do ní nadrobno nakrájenou mrkev, papriku a spařený špenát.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Rychlá alternativa k večeři: Teplé cizrnovo-zeleninové kari z pánve\nPokud chceš jídlo z jedné pánve ze základních surovin ze spíže (jako je kokosové mléko v plechovce nebo drcená rajčata):\n1. **Orestuj základ:** Na pánvi rozehřej olivový olej a osmahni nadrobno nakrájenou cibuli, česnek a zázvor, dokud se nerozvoní.\n2. **Přidej tvrdší zeleninu:** Nakrájej mrkev a papriku na kousky velikosti sousta. Přidej je k základu spolu s mletým římským kmínem, [kurkumou](wiki:Turmeric) a špetkou chilli nebo kari koření.\n3. **Povař:** Přidej propláchnutou cizrnu spolu s hrnkem zeleninového vývaru nebo kokosového mléka. Přikryj a vař 10–12 minut, dokud mrkev nezměkne.\n4. **Nech zavadnout špenát:** Úplně nakonec vmíchej čerstvý špenát a nechej ho 1–2 minuty zavadnout, dokud nebude mít zářivě zelenou barvu. Dokonči zastříknutím citronovou šťávou.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Který styl vaření bys dnes chtěl/a vyzkoušet?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Svěží a křupavý sekaný salát\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Křupavé smažené placičky\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Teplé kari nebo směs z jedné pánve\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "Vyhledej podrobnější pokyny a přesné množství ingrediencí pro kari z pánve"
+      },
+      "follow_up_2": {
+        "text": "Vysvětli, jak připravit a skladovat zbylé cizrnové placičky pro pozdější konzumaci"
+      },
+      "follow_up_3": {
+        "text": "Vyhledej recepty na veganské jogurtové dipy, které se hodí k cizrnovým placičkám"
+      },
+      "follow_up_4": {
+        "text": "Vyjmenuj jednoduché náhrady koření, pokud mi na kari z pánve chybí kari koření"
+      },
+      "follow_up_5": {
+        "text": "Vyhledej alternativní recepty na dresink s použitím tahini pro thajský sekaný salát"
+      },
+      "follow_up_6": {
+        "text": "Porovnej obsah bílkovin a vlákniny u těchto tří vegetariánských receptů"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "Srovnání horkovzdušných fritéz v Německu"
+      },
+      "summary": {
+        "text": "Srovnání nejlepších horkovzdušných fritéz na německém Amazonu podle ceny, kapacity a hodnocení s doporučením modelu Philips Airfryer řady 2000 pro dvoučlennou domácnost."
+      },
+      "message_1": {
+        "text": "Najdi horkovzdušné fritézy, které si můžu koupit online v Německu, včetně nabídek na Amazonu. Porovnej aktuální ceny, kapacity a hodnocení a poté doporuč jednu pro dvoučlennou domácnost i s odkazy na zdroje."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nZde je srovnání nejlépe hodnocených horkovzdušných fritéz aktuálně dostupných na Amazon Germany, které porovnává cenu, kapacitu a hodnocení zákazníků.\n\n---\n\n### Srovnání oblíbených modelů v Německu\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Hlavní doporučení pro domácnost o 2 osobách\n\n#### **Hlavní volba: [Philips Airfryer 2000 Series 6,2 l](embed:philips-airfryer-2000-fay)**\n\n* **Proč se nejlépe hodí pro dva lidi:**\n  * **Optimální kapacita (6,2 l):** Košíky menší než 4,5–5 l vyžadují vaření ve více dávkách i pro dvě osoby. Košík o objemu 6,2 l ti umožní položit dva filety z lososa a celou přílohu ze zeleniny nebo hranolek naplocho v jedné vrstvě pro rovnoměrné propečení.\n  * **Prostorová náročnost:** Dvouzónové přístroje (jako Ninja nebo Russell Hobbs) zabírají na lince značné množství místa. Jeden 6l košík poskytuje dostatečný objem při zachování kompaktních rozměrů vhodných pro typické německé kuchyňské pracovní desky.\n  * **Průhledné okénko:** Umožňuje kontrolovat míru opečení bez nutnosti vysouvat zásuvku a ztrácet teplo.\n  * **Poměr cena/výkon:** Za 99,99 € nabízí spolehlivou konzistenci teploty od značky [Philips](wiki:Philips) za rozumnou cenu.\n\n#### **Alternativa (pokud často připravuješ dva pokrmy při různých teplotách): [Philips Dual Basket 3000 Series (9,0 l)](embed:philips-airfryer-dual-pjD)**\nPokud s partnerem dáváte přednost přípravě bílkovin a zeleninových příloh současně při různých teplotách a časech (např. kuřecí prsa na 180 °C a křupavé brambory na 200 °C), je tento model aktuálně zlevněn na 119,99 € a disponuje funkcí synchronizovaného času vaření.\n\n---\n\n### Klíčové faktory, které je třeba zvážit před nákupem\n1. **Tvar zásuvky:** Čtvercové košíky (jako Cosori a Philips) pojmou ploché potraviny (steaky, pečicí formy, špízy) mnohem lépe než kulaté košíky o stejném objemu v litrech.\n2. **Místo v myčce:** Ujisti se, že tvoje myčka má dostatečnou výšku koše pro jednu 6l zásuvku, nebo zvaž ruční mytí nepřilnavých povrchů pro prodloužení jejich životnosti."
+      },
+      "follow_up_1": {
+        "text": "Vyhledat recepty určené speciálně pro horkovzdušné fritézy"
+      },
+      "follow_up_2": {
+        "text": "Vysvětlit hlavní rozdíly mezi fritézami s jedním a dvěma koši"
+      },
+      "follow_up_3": {
+        "text": "Najít kompatibilní příslušenství na pečení pro tuto fritézu"
+      },
+      "follow_up_4": {
+        "text": "Vypsat recepty na večeři z horkovzdušné fritézy vhodné pro začátečníky"
+      },
+      "follow_up_5": {
+        "text": "Zkontrolovat aktuální hodnocení spotřeby energie u těchto modelů"
+      },
+      "follow_up_6": {
+        "text": "Porovnat nároky na čištění a údržbu u keramických a teflonových povrchů"
       }
     }
   },

@@ -1,0 +1,1216 @@
+title:
+  context: "Title of example chat: Vegetarian Recipe Ideas with Fridge Staples"
+  en: "Vegetarian Recipe Ideas with Fridge Staples"
+  de: Vegetarische Rezeptideen mit Kühlschrank-Vorräten
+  zh: 冰箱常备食材的素食食谱
+  es: Recetas vegetarianas con básicos de la nevera
+  fr: Idées de recettes végétariennes avec les basiques du frigo
+  pt: Ideias de Receitas Vegetarianas com o que tens no Frigorífico
+  ru: Вегетарианские рецепты из продуктов в холодильнике
+  ja: 冷蔵庫の常備野菜で作るベジタリアンレシピ
+  ko: 냉장고 속 재료를 활용한 채식 레시피 아이디어
+  it: Idee per ricette vegetariane con ingredienti base
+  tr: Buzdolabındaki Malzemelerle Vejetaryen Tarif Fikirleri
+  vi: Ý tưởng món chay từ nguyên liệu trong tủ lạnh
+  id: Ide Resep Vegetarian dengan Bahan Sisa di Kulkas
+  pl: Wegetariańskie pomysły na dania z zapasów z lodówki
+  nl: Vegetarische receptideeën met koelkastvoorraad
+  ar: أفكار لوصفات نباتية بمكونات الثلاجة الأساسية
+  hi: फ्रिज की चीज़ों से शाकाहारी रेसिपी के आइडिया
+  th: ไอเดียเมนูมังสวิรัติจากของในตู้เย็น
+  cs: Vegetariánské recepty ze zásob v lednici
+  sv: Vegetariska receptidéer med basvaror från kylen
+  he: רעיונות למתכונים צמחוניים ממוצרים שיש במקרר
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Vegetarian Recipe Ideas with Fridge Staples"
+  en: "User asked for vegetarian recipe ideas using spinach, carrots, bell peppers, and chickpeas; assistant provided three options."
+  de: Der Nutzer fragte nach vegetarischen Rezeptideen mit Spinat, Karotten, Paprika und Kichererbsen; der Assistent schlug drei Optionen vor.
+  zh: 用户询问使用菠菜、胡萝卜、甜椒和鹰嘴豆的素食食谱创意；助手提供了三个选项。
+  es: El usuario pidió ideas de recetas vegetarianas usando espinacas, zanahorias, pimientos y garbanzos; el asistente ofreció tres opciones.
+  fr: "L'utilisateur a demandé des idées de recettes végétariennes à base d'épinards, de carottes, de poivrons et de pois chiches ; l'assistant a proposé trois options."
+  pt: O utilizador pediu ideias de receitas vegetarianas usando espinafres, cenouras, pimentos e grão-de-bico; o assistente forneceu três opções.
+  ru: Пользователь попросил идеи вегетарианских рецептов со шпинатом, морковью, болгарским перцем и нутом; ассистент предложил три варианта.
+  ja: ほうれん草、人参、ピーマン、ひよこ豆を使ったベジタリアンレシピのアイデアをユーザーが求め、アシスタントが3つの選択肢を提案しました。
+  ko: 사용자가 시금치, 당근, 피망, 병아리콩을 활용한 채식 레시피 아이디어를 요청했고, 어시스턴트가 세 가지 옵션을 제공했습니다.
+  it: "L'utente ha chiesto idee per ricette vegetariane usando spinaci, carote, peperoni e ceci; l'assistente ha fornito tre opzioni."
+  tr: Kullanıcı ıspanak, havuç, dolmalık biber ve nohut kullanarak vejetaryen tarif fikirleri istedi; asistan üç seçenek sundu.
+  vi: Người dùng yêu cầu ý tưởng món chay sử dụng cải bó xôi, cà rốt, ớt chuông và đậu gà; trợ lý đã cung cấp ba lựa chọn.
+  id: Pengguna meminta ide resep vegetarian menggunakan bayam, wortel, paprika, dan kacang arab; asisten memberikan tiga pilihan.
+  pl: Użytkownik poprosił o wegetariańskie przepisy z wykorzystaniem szpinaku, marchwi, papryki i ciecierzycy; asystent zaproponował trzy opcje.
+  nl: Gebruiker vroeg om vegetarische receptideeën met spinazie, wortels, paprika en kikkererwten; de assistent gaf drie opties.
+  ar: طلب المستخدم أفكاراً لوصفات نباتية باستخدام السبانخ والجزر والفلفل الحلو والحمص؛ وقدم المساعد ثلاثة خيارات.
+  hi: यूज़र ने पालक, गाजर, शिमला मिर्च और छोले का उपयोग करके शाकाहारी रेसिपी के आइडिया मांगे; असिस्टेंट ने तीन विकल्प दिए।
+  th: ผู้ใช้ขอไอเดียเมนูมังสวิรัติโดยใช้ผักโขม แครอท พริกหวาน และถั่วลูกไก่ ผู้ช่วยเสนอให้ 3 ตัวเลือก
+  cs: Uživatel požádal o nápady na vegetariánské recepty ze špenátu, mrkve, paprik a cizrny; asistent nabídl tři možnosti.
+  sv: Användaren bad om vegetariska receptidéer med spenat, morötter, paprika och kikärtor; assistenten gav tre alternativ.
+  he: המשתמש ביקש רעיונות למתכונים צמחוניים המשתמשים בתרד, גזר, פלפלים וגרגירי חומוס; העוזר הציע שלוש אפשרויות.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Vegetarian Recipe Ideas with Fridge Staples. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Recommendations for vegetarian recipes? I still have spinach, carrots, bell peppers and chickpeas in the fridge."
+  de: "Empfehlungen für vegetarische Rezepte? Ich habe noch Spinat, Karotten, Paprika und Kichererbsen im Kühlschrank."
+  zh: 有什么素食食谱推荐吗？我冰箱里还有菠菜、胡萝卜、甜椒和鹰嘴豆。
+  es: "¿Recomendaciones de recetas vegetarianas? Todavía tengo espinacas, zanahorias, pimientos y garbanzos en la nevera."
+  fr: "Des recommandations de recettes végétariennes ? Il me reste des épinards, des carottes, des poivrons et des pois chiches dans le frigo."
+  pt: "Recomendações de receitas vegetarianas? Ainda tenho espinafres, cenouras, pimentos e grão-de-bico no frigorífico."
+  ru: "Посоветуешь вегетарианские рецепты? У меня в холодильнике остались шпинат, морковь, болгарский перец и нут."
+  ja: ベジタリアンレシピのおすすめはありますか？冷蔵庫にほうれん草、人参、ピーマン、ひよこ豆が残っています。
+  ko: "채식 레시피 좀 추천해 줄 수 있어? 냉장고에 시금치, 당근, 피망, 병아리콩이 남아 있어."
+  it: "Consigli per ricette vegetariane? Ho ancora spinaci, carote, peperoni e ceci in frigo."
+  tr: "Vejetaryen yemek tarifleri için önerilerin var mı? Buzdolabında hala ıspanak, havuç, dolmalık biber ve nohut var."
+  vi: "Gợi ý cho mình vài món chay nhé? Mình còn cải bó xôi, cà rốt, ớt chuông và đậu gà trong tủ lạnh."
+  id: "Rekomendasi resep vegetarian? Aku masih punya bayam, wortel, paprika, dan kacang arab di kulkas."
+  pl: "Jakieś polecenia na wegetariańskie przepisy? Mam w lodówce szpinak, marchew, paprykę i ciecierzycę."
+  nl: "Aanbevelingen voor vegetarische recepten? Ik heb nog spinazie, wortels, paprika en kikkererwten in de koelkast liggen."
+  ar: هل لديك توصيات لوصفات نباتية؟ لا يزال لدي سبانخ وجزر وفلفل حلو وحمص في الثلاجة.
+  hi: "शाकाहारी रेसिपी के लिए कुछ सुझाव? मेरे पास फ्रिज में अभी भी पालक, गाजर, शिमला मिर्च और छोले हैं।"
+  th: "มีเมนูมังสวิรัติแนะนำไหม? ในตู้เย็นฉันยังมีผักโขม แครอท พริกหวาน และถั่วลูกไก่อยู่เลย"
+  cs: "Doporučení na vegetariánské recepty? V lednici mám ještě špenát, mrkev, papriky a cizrnu."
+  sv: "Rekommendationer på vegetariska recept? Jag har fortfarande spenat, morötter, paprika och kikärtor i kylen."
+  he: "המלצות למתכונים צמחוניים? נשארו לי במקרר תרד, גזרים, פלפלים וגרגירי חומוס."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Vegetarian Recipe Ideas with Fridge Staples. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |2-
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    With **spinach, carrots, bell peppers, and chickpeas**, you have a solid foundation for delicious, fiber-rich vegetarian meals. 
+
+    Here are three distinct culinary directions depending on what style of dish you are craving:
+
+    ---
+
+    ### 1. Fresh & Crunchy: Thai-Style Chopped Salad
+    If you want something quick, light, and crisp, combine finely chopped raw peppers, carrots, and spinach with chickpeas in a tangy [peanut](wiki:Peanut) lime dressing.
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. Savory Patties: Crispy Chickpea & Veggie Fritters
+    If you'd like something warm and bite-sized (great in wraps, pita pockets, or paired with a yogurt dip), mash the chickpeas and fold in minced carrots, peppers, and wilted spinach.
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. Quick Weeknight Alternative: Warm Chickpea & Vegetable Skillet Curry
+    If you want a one-pan meal using basic pantry staples (like canned coconut milk or crushed tomatoes):
+    1. **Sauté the aromatics:** Heat olive oil in a skillet, then cook diced onion, minced garlic, and ginger until fragrant.
+    2. **Add the firm veggies:** Slice the carrots and bell peppers into bite-sized pieces. Toss them in with ground cumin, [turmeric](wiki:Turmeric), and a pinch of chili powder or curry powder.
+    3. **Simmer:** Add your rinsed chickpeas along with a cup of vegetable broth or coconut milk. Cover and simmer for 10–12 minutes until the carrots are tender.
+    4. **Wilt the spinach:** Fold in the fresh spinach right at the end for 1–2 minutes until vibrant green and wilted. Finish with a squeeze of lemon juice.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "Which cooking style would you prefer to make today?",
+      "options": [
+        { "id": "salad", "text": "Fresh & crunchy chopped salad", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "Crispy pan-fried fritters or patties", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "Warm one-pan skillet curry or stew" }
+      ]
+    }
+    ```
+  de: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    Mit **Spinat, Karotten, Paprika und Kichererbsen** hast du eine solide Basis für köstliche, ballaststoffreiche vegetarische Mahlzeiten. 
+
+    Hier sind drei verschiedene kulinarische Richtungen, je nachdem, worauf du gerade Lust hast:
+
+    ---
+
+    ### 1. Frisch & knackig: Gehackter Salat nach thailändischer Art
+    Wenn du etwas Schnelles, Leichtes und Knackiges möchtest, kombiniere fein gehackte rohe Paprika, Karotten und Spinat mit Kichererbsen in einem würzigen [Erdnuss](wiki:Peanut)-Limetten-Dressing.
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. Herzhafte Bratlinge: Knusprige Kichererbsen-Gemüse-Puffer
+    Wenn du etwas Warmes und Häppchengroßes möchtest (toll in Wraps, Pitabrot oder mit einem Joghurt-Dip), zerdrücke die Kichererbsen und mische fein gewürfelte Karotten, Paprika und zusammengefallenen Spinat unter.
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. Schnelle Alternative für unter der Woche: Warmes Kichererbsen-Gemüse-Pfannencurry
+    Wenn du ein One-Pot-Gericht aus einfachen Vorratszutaten (wie Kokosmilch aus der Dose oder stückigen Tomaten) möchtest:
+    1. **Aromen anbraten:** Erhitze Olivenöl in einer Pfanne und dünste gewürfelte Zwiebeln, gehackten Knoblauch und Ingwer an, bis sie duften.
+    2. **Das feste Gemüse hinzufügen:** Schneide die Karotten und Paprika in mundgerechte Stücke. Gib sie zusammen mit gemahlenem Kreuzkümmel, [Kurkuma](wiki:Turmeric) und einer Prise Chilipulver oder Currypulver hinzu.
+    3. **Köcheln lassen:** Gib die abgespülten Kichererbsen zusammen mit einer Tasse Gemüsebrühe oder Kokosmilch hinzu. Decke die Pfanne ab und lass alles 10–12 Minuten köcheln, bis die Karotten weich sind.
+    4. **Spinat unterheben:** Hebe den frischen Spinat ganz am Ende für 1–2 Minuten unter, bis er leuchtend grün und zusammengefallen ist. Mit einem Spritzer Zitronensaft abschmecken.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "Welche Zubereitungsart bevorzugst du heute?",
+      "options": [
+        { "id": "salad", "text": "Frischer & knackiger gehackter Salat", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "Knusprige Puffer oder Bratlinge", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "Warmes Pfannencurry oder Eintopf" }
+      ]
+    }
+    ```
+  zh: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    有了**菠菜、胡萝卜、甜椒和鹰嘴豆**，你就有了制作美味、富含纤维的素食餐的坚实基础。
+
+    根据你渴望的菜肴风格，这里有三个不同的烹饪方向：
+
+    ---
+
+    ### 1. 清爽脆口：泰式碎沙拉
+    如果你想吃点快速、轻盈且爽口的东西，可以将切碎的生甜椒、胡萝卜和菠菜与鹰嘴豆混合，拌入酸甜的[花生](wiki:Peanut)青柠酱汁。
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. 咸香小饼：酥脆鹰嘴豆蔬菜饼
+    如果你想吃点温热且小巧的食物（非常适合夹在卷饼、皮塔饼中，或搭配酸奶蘸酱），可以将鹰嘴豆捣碎，拌入胡萝卜碎、甜椒碎和烫熟的菠菜。
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. 快速工作日晚餐：温热鹰嘴豆蔬菜平底锅咖喱
+    如果你想用基本的橱柜主食（如罐装椰奶或碎番茄）做一锅出料理：
+    1. **炒香佐料：** 在平底锅中加热橄榄油，炒香洋葱丁、蒜末和姜末。
+    2. **加入硬质蔬菜：** 将胡萝卜和甜椒切成一口大小。放入锅中，加入孜然粉、[姜黄](wiki:Turmeric)以及一小撮辣椒粉或咖喱粉。
+    3. **炖煮：** 加入冲洗干净的鹰嘴豆，以及一杯蔬菜高汤或椰奶。盖上盖子炖煮 10–12 分钟，直到胡萝卜变软。
+    4. **烫熟菠菜：** 最后加入新鲜菠菜，翻炒 1–2 分钟，直到菠菜变软且颜色鲜绿。最后挤入一点柠檬汁。
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "你今天更想尝试哪种烹饪风格？",
+      "options": [
+        { "id": "salad", "text": "清爽脆口的碎沙拉", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "酥脆的煎饼或小饼", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "温热的一锅出平底锅咖喱或炖菜" }
+      ]
+    }
+    ```
+  es: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    Con **espinacas, zanahorias, pimientos y garbanzos**, tienes una base sólida para preparar deliciosas comidas vegetarianas ricas en fibra. 
+
+    Aquí tienes tres direcciones culinarias distintas según el estilo de plato que te apetezca:
+
+    ---
+
+    ### 1. Fresca y crujiente: Ensalada picada al estilo tailandés
+    Si quieres algo rápido, ligero y crujiente, combina pimientos crudos, zanahorias y espinacas finamente picados con garbanzos en un aderezo ácido de lima y [cacahuete](wiki:Peanut).
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. Tortitas saladas: Buñuelos crujientes de garbanzos y verduras
+    Si te apetece algo caliente y de bocado (ideal en wraps, pan de pita o acompañado de una salsa de yogur), machaca los garbanzos e incorpora zanahorias y pimientos picados, y espinacas salteadas.
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. Alternativa rápida para entre semana: Curry de garbanzos y verduras en sartén
+    Si quieres una comida en una sola sartén usando productos básicos de la despensa (como leche de coco en lata o tomate triturado):
+    1. **Sofríe los aromáticos:** Calienta aceite de oliva en una sartén y cocina cebolla picada, ajo picado y jengibre hasta que suelten su aroma.
+    2. **Añade las verduras firmes:** Corta las zanahorias y los pimientos en trozos de bocado. Échalos a la sartén con comino molido, [cúrcuma](wiki:Turmeric) y una pizca de chile en polvo o curry.
+    3. **Cocina a fuego lento:** Añade los garbanzos escurridos junto con una taza de caldo de verduras o leche de coco. Tapa y cocina a fuego lento durante 10-12 minutos hasta que las zanahorias estén tiernas.
+    4. **Añade las espinacas:** Incorpora las espinacas frescas justo al final durante 1-2 minutos hasta que estén de un verde intenso y se hayan reducido. Termina con un chorrito de zumo de limón.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "¿Qué estilo de cocina prefieres preparar hoy?",
+      "options": [
+        { "id": "salad", "text": "Ensalada picada fresca y crujiente", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "Buñuelos o tortitas crujientes a la sartén", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "Curry o guiso caliente en una sola sartén" }
+      ]
+    }
+    ```
+  fr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    Avec des **épinards, des carottes, des poivrons et des pois chiches**, tu as une base solide pour de délicieux repas végétariens riches en fibres. 
+
+    Voici trois directions culinaires différentes selon tes envies :
+
+    ---
+
+    ### 1. Frais et croquant : Salade hachée à la thaïlandaise
+    Si tu veux quelque chose de rapide, léger et croquant, mélange des poivrons crus finement hachés, des carottes et des épinards avec des pois chiches dans une vinaigrette acidulée à la [cacahuète](wiki:Peanut) et au citron vert.
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. Galettes savoureuses : Beignets croustillants aux pois chiches et légumes
+    Si tu as envie de quelque chose de chaud et de format bouchée (parfait dans des wraps, des pains pita ou avec une sauce au yaourt), écrase les pois chiches et incorpore les carottes et poivrons émincés, ainsi que les épinards tombés à la poêle.
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. Alternative rapide pour la semaine : Curry de pois chiches et légumes à la poêle
+    Si tu veux un plat unique utilisant des produits de base du placard (comme du lait de coco en conserve ou des tomates concassées) :
+    1. **Fais revenir les aromates :** fais chauffer de l'huile d'olive dans une poêle, puis fais cuire l'oignon désé, l'ail haché et le gingembre jusqu'à ce qu'ils embaument.
+    2. **Ajoute les légumes fermes :** coupe les carottes et les poivrons en morceaux. Ajoute-les avec du cumin moulu, du [curcuma](wiki:Turmeric) et une pincée de piment ou de curry en poudre.
+    3. **Laisse mijoter :** ajoute tes pois chiches rincés ainsi qu'une tasse de bouillon de légumes ou de lait de coco. Couvre et laisse mijoter 10 à 12 minutes jusqu'à ce que les carottes soient tendres.
+    4. **Fais tomber les épinards :** incorpore les épinards frais tout à la fin pendant 1 à 2 minutes jusqu'à ce qu'ils soient d'un vert éclatant et flétris. Termine par un filet de jus de citron.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "Quel style de cuisine préfères-tu préparer aujourd'hui ?",
+      "options": [
+        { "id": "salad", "text": "Salade hachée fraîche et croquante", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "Beignets ou galettes croustillants à la poêle", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "Curry ou ragoût chaud à la poêle" }
+      ]
+    }
+    ```
+  pt: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    Com **espinafres, cenouras, pimentos e grão-de-bico**, tens uma base sólida para refeições vegetarianas deliciosas e ricas em fibra. 
+
+    Aqui estão três direções culinárias distintas, dependendo do estilo de prato que te apetece:
+
+    ---
+
+    ### 1. Fresca e Crocante: Salada Picada ao Estilo Tailandês
+    Se queres algo rápido, leve e crocante, combina pimentos crus, cenouras e espinafres finamente picados com grão-de-bico num molho de [amendoim](wiki:Peanut) e lima acidulado.
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. Bolinhos Salgados: Bolinhos Crocantes de Grão e Vegetais
+    Se preferires algo quente e em porções pequenas (ótimo em wraps, pão pita ou acompanhado com um molho de iogurte), esmaga o grão-de-bico e envolve as cenouras picadas, os pimentos e os espinafres salteados.
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. Alternativa Rápida para os Dias de Semana: Caril de Grão e Vegetais na Frigideira
+    Se queres uma refeição de uma só panela usando ingredientes básicos da despensa (como leite de coco em lata ou tomate esmagado):
+    1. **Refoga os aromáticos:** Aquece o azeite numa frigideira e depois cozinha a cebola picada, o alho picado e o gengibre até libertarem o aroma.
+    2. **Adiciona os vegetais firmes:** Corta as cenouras e os pimentos em pedaços pequenos. Junta-os com cominhos moídos, [curcuma](wiki:Turmeric) e uma pitada de malagueta em pó ou caril em pó.
+    3. **Deixa apurar:** Adiciona o grão-de-bico lavado juntamente com uma chávena de caldo de legumes ou leite de coco. Tapa e deixa cozinhar em lume brando por 10–12 minutos até as cenouras estarem tenras.
+    4. **Murcha os espinafres:** Envolve os espinafres frescos mesmo no fim durante 1–2 minutos até ficarem com um verde vibrante e murcharem. Finaliza com um pouco de sumo de limão.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "Que estilo de cozinha preferes preparar hoje?",
+      "options": [
+        { "id": "salad", "text": "Salada picada fresca e crocante", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "Bolinhos ou hambúrgueres crocantes na frigideira", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "Caril ou guisado quente de uma só frigideira" }
+      ]
+    }
+    ```
+  ru: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    Имея под рукой **шпинат, морковь, болгарский перец и нут**, у тебя есть отличная основа для вкусных вегетарианских блюд, богатых клетчаткой. 
+
+    Вот три разных кулинарных направления в зависимости от того, чего тебе хочется:
+
+    ---
+
+    ### 1. Свежий и хрустящий: рубленый салат в тайском стиле
+    Если хочется чего-то быстрого, легкого и хрустящего, смешай мелко нарезанный сырой перец, морковь и шпинат с нутом в пикантной [арахисовой](wiki:Peanut) заправке с лаймом.
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. Аппетитные котлетки: хрустящие оладьи из нута и овощей
+    Если тебе хочется чего-то теплого и порционного (отлично подходит для роллов, питы или с йогуртовым соусом), разомни нут и добавь в него измельченную морковь, перец и припущенный шпинат.
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. Быстрый вариант на ужин: теплое карри из нута и овощей на сковороде
+    Если тебе нужно блюдо в одной сковороде из базовых продуктов (таких как консервированное кокосовое молоко или протертые томаты):
+    1. **Обжарь ароматные ингредиенты:** разогрей оливковое масло в сковороде, затем обжарь нарезанный кубиками лук, измельченный чеснок и имбирь до появления аромата.
+    2. **Добавь твердые овощи:** нарежь морковь и болгарский перец небольшими кусочками. Добавь их к луку вместе с молотым кумином, [куркумой](wiki:Turmeric) и щепоткой порошка чили или карри.
+    3. **Потуши:** добавь промытый нут вместе со стаканом овощного бульона или кокосового молока. Накрой крышкой и туши 10–12 минут, пока морковь не станет мягкой.
+    4. **Добавь шпинат:** в самом конце добавь свежий шпинат на 1–2 минуты, пока он не станет мягким и ярко-зеленым. В конце сбрызни лимонным соком.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "Какой вариант приготовления ты выберешь сегодня?",
+      "options": [
+        { "id": "salad", "text": "Свежий и хрустящий рубленый салат", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "Хрустящие жареные оладьи или котлетки", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "Горячее карри или рагу в одной сковороде" }
+      ]
+    }
+    ```
+  ja: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    **ほうれん草、人参、パプリカ、ひよこ豆**があれば、食物繊維たっぷりの美味しいベジタリアン料理を作るための素晴らしいベースが揃っています。
+
+    気分に合わせて選べる、3つの異なる料理のアイデアをご紹介します：
+
+    ---
+
+    ### 1. フレッシュ＆シャキシャキ：タイ風チョップドサラダ
+    手早く、軽くてシャキシャキしたものが食べたいときは、細かく刻んだ生のパプリカ、人参、ほうれん草をひよこ豆と合わせ、酸味の効いた[ピーナッツ](wiki:Peanut)ライムドレッシングで和えましょう。
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. 香ばしいパテ：ひよこ豆と野菜のカリカリフリッター
+    温かくて一口サイズの料理（ラップサンドやピタパン、ヨーグルトディップとの相性も抜群です）がお好みの場合は、ひよこ豆を潰し、みじん切りにした人参、パプリカ、さっと火を通したほうれん草を混ぜて焼き上げます。
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. 平日の時短メニュー：ひよこ豆と野菜の温かいフライパンカレー
+    常備菜やストック食材（ココナッツミルク缶やカットトマト缶など）を使ってフライパン一つで作りたい場合：
+    1. **香味野菜を炒める：** フライパンにオリーブオイルを熱し、みじん切りにした玉ねぎ、にんにく、生姜を香りが出るまで炒めます。
+    2. **硬い野菜を加える：** 人参とパプリカを一口大に切ります。クミンパウダー、[ターメリック](wiki:Turmeric)、チリパウダーまたはカレー粉を少々加え、野菜と一緒に炒め合わせます。
+    3. **煮込む：** 水気を切ったひよこ豆と、野菜だしまたはココナッツミルクを1カップ加えます。蓋をして、人参が柔らかくなるまで10〜12分ほど煮込みます。
+    4. **ほうれん草を加える：** 最後に生のほうれん草を加え、鮮やかな緑色になり、しんなりするまで1〜2分ほど火を通します。仕上げにレモン汁を絞って完成です。
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "今日はどのスタイルの料理を作りたいですか？",
+      "options": [
+        { "id": "salad", "text": "フレッシュ＆シャキシャキのチョップドサラダ", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "カリッと香ばしいフリッターまたはパテ", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "温かいフライパンカレーまたは煮込み料理" }
+      ]
+    }
+    ```
+  ko: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    **시금치, 당근, 피망, 병아리콩**이 있다면 맛있고 식이섬유가 풍부한 채식 요리를 만들 수 있는 훌륭한 기초가 마련된 셈이에요. 
+
+    원하는 요리 스타일에 따라 시도해 볼 수 있는 세 가지 레시피를 소개할게요:
+
+    ---
+
+    ### 1. 신선하고 아삭한 맛: 태국식 찹 샐러드
+    빠르고 가볍고 아삭한 음식을 원한다면, 잘게 썬 생피망, 당근, 시금치를 병아리콩과 섞은 뒤 새콤한 [땅콩](wiki:Peanut) 라임 드레싱을 곁들여 보세요.
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. 고소한 패티: 바삭한 병아리콩 채소 프리터
+    따뜻하고 한입 크기로 즐기기 좋은 요리(랩, 피타 브레드에 넣거나 요거트 딥과 함께 먹기 좋아요)를 원한다면, 병아리콩을 으깬 뒤 다진 당근, 피망, 살짝 데친 시금치를 넣어 반죽해 보세요.
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. 간편한 평일 저녁 메뉴: 따뜻한 병아리콩 채소 스킬렛 커리
+    팬 하나로 끝내는 요리를 원한다면(코코넛 밀크 캔이나 으깬 토마토 같은 기본 식재료 활용):
+    1. **향신 채소 볶기:** 스킬렛에 올리브유를 두르고 다진 양파, 마늘, 생강을 향이 올라올 때까지 볶으세요.
+    2. **단단한 채소 넣기:** 당근과 피망을 한입 크기로 써세요. 큐민 가루, [강황](wiki:Turmeric), 칠리 파우더나 카레 가루 한 꼬집과 함께 넣고 볶으세요.
+    3. **졸이기:** 씻어둔 병아리콩과 채소 육수 또는 코코넛 밀크 한 컵을 넣으세요. 뚜껑을 덮고 당근이 부드러워질 때까지 10~12분간 뭉근하게 끓이세요.
+    4. **시금치 익히기:** 마지막에 신선한 시금치를 넣고 선명한 초록색이 돌며 숨이 죽을 때까지 1~2분간 더 익히세요. 레몬즙을 살짝 뿌려 마무리하세요.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "오늘 어떤 스타일의 요리를 만들어 보고 싶나요?",
+      "options": [
+        { "id": "salad", "text": "신선하고 아삭한 찹 샐러드", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "바삭하게 구운 프리터 또는 패티", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "따뜻한 원팬 스킬렛 커리 또는 스튜" }
+      ]
+    }
+    ```
+  it: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    Con **spinaci, carote, peperoni e ceci**, hai un'ottima base per piatti vegetariani deliziosi e ricchi di fibre. 
+
+    Ecco tre diverse direzioni culinarie a seconda del tipo di piatto che desideri:
+
+    ---
+
+    ### 1. Fresca e croccante: Insalata tritata in stile Thai
+    Se vuoi qualcosa di veloce, leggero e croccante, unisci peperoni crudi tritati finemente, carote e spinaci con i ceci in un condimento piccante alle [arachidi](wiki:Peanut) e lime.
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. Polpette saporite: Frittelle croccanti di ceci e verdure
+    Se preferisci qualcosa di caldo e sfizioso (ottimo in wrap, pita o accompagnato da una salsa allo yogurt), schiaccia i ceci e aggiungi carote tritate, peperoni e spinaci saltati.
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. Alternativa veloce per la cena: Curry di ceci e verdure in padella
+    Se vuoi un piatto unico usando ingredienti base della dispensa (come latte di cocco in lattina o pomodori pelati):
+    1. **Soffriggi gli odori:** scalda l'olio d'oliva in una padella, poi cuoci cipolla a dadini, aglio tritato e zenzero fino a quando non sprigionano il loro profumo.
+    2. **Aggiungi le verdure sode:** taglia le carote e i peperoni a pezzetti. Aggiungili in padella con cumino, [curcuma](wiki:Turmeric) e un pizzico di peperoncino o curry in polvere.
+    3. **Cuoci a fuoco lento:** aggiungi i ceci sciacquati insieme a una tazza di brodo vegetale o latte di cocco. Copri e cuoci a fuoco lento per 10-12 minuti finché le carote non saranno tenere.
+    4. **Appassisci gli spinaci:** aggiungi gli spinaci freschi proprio alla fine per 1-2 minuti finché non saranno appassiti ma ancora di un verde brillante. Rifinisci con una spruzzata di succo di limone.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "Quale stile di cucina preferiresti preparare oggi?",
+      "options": [
+        { "id": "salad", "text": "Insalata tritata fresca e croccante", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "Frittelle o polpette croccanti in padella", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "Curry o stufato caldo in padella" }
+      ]
+    }
+    ```
+  tr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    **Ispanak, havuç, dolmalık biber ve nohut** ile lezzetli, lif açısından zengin vejetaryen öğünler için sağlam bir temeliniz var.
+
+    Canınızın çektiği yemek tarzına göre üç farklı mutfak yönü aşağıdadır:
+
+    ---
+
+    ### 1. Taze ve Kıtır: Tay Usulü Doğranmış Salata
+    Hızlı, hafif ve gevrek bir şeyler istiyorsanız; ince doğranmış çiğ biber, havuç ve ıspanağı nohutla birleştirip üzerine ekşi bir [fıstık](wiki:Peanut) limon sosu ekleyin.
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. Tuzlu Köfteler: Çıtır Nohutlu ve Sebzeli Mücver
+    Sıcak ve lokmalık bir şeyler isterseniz (dürümlerde, pita ekmeğinde veya yoğurtlu sosla harikadır), nohutları ezin ve içine ince kıyılmış havuç, biber ve sotelenmiş ıspanağı ekleyin.
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. Hızlı Hafta İçi Alternatifi: Sıcak Nohutlu ve Sebzeli Tavada Köri
+    Temel kiler malzemelerini (konserve hindistan cevizi sütü veya ezilmiş domates gibi) kullanarak tek tavada bir yemek istiyorsanız:
+    1. **Aromatikleri soteleyin:** Bir tavada zeytinyağını ısıtın, ardından doğranmış soğan, kıyılmış sarımsak ve zencefili kokusu çıkana kadar pişirin.
+    2. **Sert sebzeleri ekleyin:** Havuçları ve dolmalık biberleri lokma büyüklüğünde dilimleyin. Bunları kimyon, [zerdeçal](wiki:Turmeric) ve bir tutam pul biber veya köri tozuyla birlikte tavaya atın.
+    3. **Kısık ateşte pişirin:** Yıkanmış nohutları bir bardak sebze suyu veya hindistan cevizi sütü ile birlikte ekleyin. Kapağını kapatın ve havuçlar yumuşayana kadar 10-12 dakika kısık ateşte pişirin.
+    4. **Ispanakları söndürün:** Taze ıspanakları en sonunda ekleyip canlı yeşil bir renk alıp sönene kadar 1-2 dakika karıştırın. Bir miktar limon suyu sıkarak tamamlayın.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "Bugün hangi pişirme tarzını tercih edersin?",
+      "options": [
+        { "id": "salad", "text": "Taze ve kıtır doğranmış salata", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "Tavada kızarmış çıtır mücver veya köfte", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "Sıcak, tek tavada köri veya yahni" }
+      ]
+    }
+    ```
+  vi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    Với **cải bó xôi, cà rốt, ớt chuông và đậu gà**, bạn đã có một nền tảng vững chắc cho những bữa ăn chay ngon miệng và giàu chất xơ. 
+
+    Dưới đây là ba hướng chế biến khác nhau tùy thuộc vào phong cách món ăn mà bạn đang thèm:
+
+    ---
+
+    ### 1. Tươi mát & Giòn rụm: Salad thái nhỏ kiểu Thái
+    Nếu bạn muốn món gì đó nhanh gọn, nhẹ nhàng và giòn, hãy kết hợp ớt chuông, cà rốt và cải bó xôi sống thái nhỏ với đậu gà trong nước sốt chanh [lạc](wiki:Peanut) chua thanh.
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. Bánh mặn: Chả đậu gà & rau củ giòn
+    Nếu bạn thích món gì đó ấm nóng và vừa miệng (tuyệt vời khi cuốn, ăn kèm bánh pita hoặc chấm với sốt sữa chua), hãy nghiền đậu gà rồi trộn với cà rốt, ớt chuông băm nhỏ và cải bó xôi đã làm chín.
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. Lựa chọn nhanh cho ngày trong tuần: Cà ri đậu gà & rau củ áp chảo ấm nóng
+    Nếu bạn muốn một bữa ăn nấu trong một chảo bằng các nguyên liệu cơ bản có sẵn (như nước cốt dừa đóng hộp hoặc cà chua nghiền):
+    1. **Xào các loại gia vị:** Đun nóng dầu ô liu trong chảo, sau đó xào hành tây thái hạt lựu, tỏi băm và gừng cho đến khi thơm.
+    2. **Thêm các loại rau củ cứng:** Thái cà rốt và ớt chuông thành miếng vừa ăn. Cho chúng vào chảo cùng với bột thì là Ai Cập, [nghệ](wiki:Turmeric) và một chút bột ớt hoặc bột cà ri.
+    3. **Ninh nhỏ lửa:** Thêm đậu gà đã rửa sạch cùng với một cốc nước dùng rau củ hoặc nước cốt dừa. Đậy nắp và ninh trong 10–12 phút cho đến khi cà rốt mềm.
+    4. **Làm chín cải bó xôi:** Cho cải bó xôi tươi vào cuối cùng, đảo trong 1–2 phút cho đến khi rau có màu xanh tươi và hơi héo. Hoàn tất bằng một chút nước cốt chanh.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "Bạn muốn nấu theo phong cách nào hôm nay?",
+      "options": [
+        { "id": "salad", "text": "Salad thái nhỏ tươi mát & giòn rụm", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "Chả hoặc bánh rau củ áp chảo giòn", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "Cà ri hoặc món hầm áp chảo ấm nóng" }
+      ]
+    }
+    ```
+  id: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    Dengan **bayam, wortel, paprika, dan kacang arab**, kamu punya bahan dasar yang mantap untuk hidangan vegetarian yang lezat dan kaya serat. 
+
+    Berikut adalah tiga pilihan masakan berbeda tergantung jenis hidangan yang kamu inginkan:
+
+    ---
+
+    ### 1. Segar & Renyah: Salad Cincang ala Thailand
+    Jika kamu ingin sesuatu yang cepat, ringan, dan renyah, campurkan paprika mentah, wortel, dan bayam yang dicincang halus dengan kacang arab dalam saus [kacang](wiki:Peanut) jeruk nipis yang segar.
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. Bakwan Gurih: Bakwan Kacang Arab & Sayuran yang Renyah
+    Jika kamu ingin sesuatu yang hangat dan seukuran gigitan (cocok untuk isian wrap, roti pita, atau disajikan dengan saus yoghurt), hancurkan kacang arab lalu campurkan dengan wortel cincang, paprika, dan bayam yang sudah layu.
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. Alternatif Cepat untuk Malam Hari: Kari Wajan Kacang Arab & Sayuran yang Hangat
+    Jika kamu ingin hidangan satu wajan menggunakan bahan dasar dapur (seperti santan kaleng atau tomat hancur):
+    1. **Tumis bumbu aromatik:** Panaskan minyak zaitun di wajan, lalu masak bawang bombay potong dadu, bawang putih cincang, dan jahe hingga harum.
+    2. **Masukkan sayuran keras:** Iris wortel dan paprika seukuran satu gigitan. Masukkan bersama jintan bubuk, [kunyit](wiki:Turmeric), dan sedikit bubuk cabai atau bubuk kari.
+    3. **Masak perlahan:** Tambahkan kacang arab yang sudah dibilas bersama satu cangkir kaldu sayur atau santan. Tutup dan masak selama 10–12 menit hingga wortel empuk.
+    4. **Layukan bayam:** Masukkan bayam segar di bagian akhir selama 1–2 menit hingga berwarna hijau cerah dan layu. Akhiri dengan perasan air lemon.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "Gaya memasak mana yang ingin kamu coba hari ini?",
+      "options": [
+        { "id": "salad", "text": "Salad cincang yang segar & renyah", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "Bakwan atau perkedel goreng yang renyah", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "Kari atau semur wajan yang hangat" }
+      ]
+    }
+    ```
+  pl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    Mając **szpinak, marchewkę, paprykę i ciecierzycę**, masz solidną bazę do przygotowania pysznych, bogatych w błonnik wegetariańskich posiłków. 
+
+    Oto trzy różne kierunki kulinarne, w zależności od tego, na co masz ochotę:
+
+    ---
+
+    ### 1. Świeża i chrupiąca: Sałatka siekana w stylu tajskim
+    Jeśli chcesz czegoś szybkiego, lekkiego i chrupiącego, połącz drobno posiekaną surową paprykę, marchewkę i szpinak z ciecierzycą w wyrazistym [orzechowym](wiki:Peanut) sosie z limonką.
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. Wytrawne placuszki: Chrupiące kotleciki z ciecierzycy i warzyw
+    Jeśli masz ochotę na coś ciepłego i w sam raz na jeden kęs (świetne do wrapów, chlebków pita lub z dipem jogurtowym), rozgnieć ciecierzycę i wymieszaj z posiekaną marchewką, papryką i podduszonym szpinakiem.
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. Szybka alternatywa na kolację: Rozgrzewające curry z ciecierzycą i warzywami z patelni
+    Jeśli chcesz dania jednogarnkowego z podstawowych produktów (takich jak mleczko kokosowe w puszce lub krojone pomidory):
+    1. **Podsmaż bazę:** Rozgrzej oliwę na patelni, a następnie podsmaż pokrojoną w kostkę cebulę, posiekany czosnek i imbir, aż zaczną pachnieć.
+    2. **Dodaj twarde warzywa:** Pokrój marchewkę i paprykę na kawałki wielkości kęsa. Wrzuć je na patelnię wraz z mielonym kminem rzymskim, [kurkumą](wiki:Turmeric) oraz szczyptą chili lub przyprawy curry.
+    3. **Duś:** Dodaj opłukaną ciecierzycę wraz ze szklanką bulionu warzywnego lub mleczka kokosowego. Przykryj i duś przez 10–12 minut, aż marchewka zmięknie.
+    4. **Dodaj szpinak:** Na samym końcu wrzuć świeży szpinak i gotuj przez 1–2 minuty, aż zwiędnie i nabierze intensywnego koloru. Wykończ danie odrobiną soku z cytryny.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "Który styl gotowania wybierasz dzisiaj?",
+      "options": [
+        { "id": "salad", "text": "Świeża i chrupiąca sałatka siekana", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "Chrupiące smażone placuszki lub kotleciki", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "Rozgrzewające curry lub gulasz jednogarnkowy" }
+      ]
+    }
+    ```
+  nl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    Met **spinazie, wortels, paprika en kikkererwten** heb je een uitstekende basis voor heerlijke, vezelrijke vegetarische maaltijden. 
+
+    Hier zijn drie verschillende culinaire richtingen, afhankelijk van waar je trek in hebt:
+
+    ---
+
+    ### 1. Fris & Knapperig: Thaise Chopped Salad
+    Als je iets snels, lichts en knapperigs wilt, combineer dan fijngehakte rauwe paprika, wortels en spinazie met kikkererwten in een frisse [pindadressing](wiki:Peanut) met limoen.
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. Hartige Koekjes: Krokante Kikkererwten- & Groentefritters
+    Als je zin hebt in iets warms en hapklaars (lekker in wraps, pita's of met een yoghurtdip), prak dan de kikkererwten en meng er fijngehakte wortels, paprika en geslonken spinazie doorheen.
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. Snel Doordeweeks Alternatief: Warme Kikkererwten- & Groentecurry uit de pan
+    Als je een eenpansgerecht wilt maken met basisproducten uit de voorraadkast (zoals kokosmelk uit blik of tomatenblokjes):
+    1. **Fruit de smaakmakers:** Verhit olijfolie in een koekenpan en bak gesnipperde ui, fijngehakte knoflook en gember tot het geurt.
+    2. **Voeg de stevige groenten toe:** Snijd de wortels en paprika in hapklare stukjes. Voeg ze toe samen met gemalen komijn, [kurkuma](wiki:Turmeric) en een snufje chilipoeder of kerriepoeder.
+    3. **Laten sudderen:** Voeg de afgespoelde kikkererwten toe samen met een kopje groentebouillon of kokosmelk. Dek af en laat 10-12 minuten sudderen tot de wortels zacht zijn.
+    4. **Laat de spinazie slinken:** Meng de verse spinazie er pas op het laatst doorheen gedurende 1-2 minuten tot deze felgroen en geslonken is. Maak af met een kneepje citroensap.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "Welke kookstijl heeft vandaag je voorkeur?",
+      "options": [
+        { "id": "salad", "text": "Frisse & knapperige chopped salad", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "Krokante fritters of koekjes uit de pan", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "Warme eenpanscurry of stoofschotel" }
+      ]
+    }
+    ```
+  ar: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    مع **السبانخ، والجزر، والفلفل الحلو، والحمص**، لديك أساس متين لوجبات نباتية لذيذة وغنية بالألياف. 
+
+    إليك ثلاثة اتجاهات طهي مختلفة بناءً على نوع الطبق الذي تشتهيه:
+
+    ---
+
+    ### 1. طازجة ومقرمشة: سلطة مقطعة على الطريقة التايلاندية
+    إذا كنت تريد شيئاً سريعاً وخفيفاً ومقرمشاً، امزج الفلفل النيئ المقطع ناعماً والجزر والسبانخ مع الحمص في تتبيلة [الفول السوداني](wiki:Peanut) والليمون الحامضة.
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. فطائر مالحة: عجة الحمص والخضروات المقرمشة
+    إذا كنت تفضل شيئاً دافئاً وبحجم اللقمة (رائع في السندويشات، أو خبز البيتا، أو مع تغميسة الزبادي)، اهرس الحمص وأضف إليه الجزر المفروم والفلفل والسبانخ المذبلة.
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. بديل سريع لأيام الأسبوع: كاري الحمص والخضروات الدافئ في المقلاة
+    إذا كنت تريد وجبة في مقلاة واحدة باستخدام المكونات الأساسية المتوفرة (مثل حليب جوز الهند المعلب أو الطماطم المهروسة):
+    1. **شوّح المنكهات:** سخن زيت الزيتون في مقلاة، ثم اطبخ البصل المقطع والثوم المفروم والزنجبيل حتى تظهر رائحتهم.
+    2. **أضف الخضروات الصلبة:** قطع الجزر والفلفل الحلو إلى قطع صغيرة. أضفها مع الكمون المطحون، و[الكركم](wiki:Turmeric)، ورشة من مسحوق الفلفل الحار أو مسحوق الكاري.
+    3. **اتركها على نار هادئة:** أضف الحمص المغسول مع كوب من مرق الخضار أو حليب جوز الهند. غطِ المقلاة واتركها على نار هادئة لمدة 10–12 دقيقة حتى ينضج الجزر.
+    4. **ذبل السبانخ:** أضف السبانخ الطازجة في النهاية لمدة 1–2 دقيقة حتى تذبل ويصبح لونها أخضر زاهياً. اختم الوجبة بعصرة من عصير الليمون.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "أي أسلوب طهي تفضل إعداده اليوم؟",
+      "options": [
+        { "id": "salad", "text": "سلطة مقطعة طازجة ومقرمشة", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "فطائر أو عجة مقلية مقرمشة", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "كاري أو يخنة دافئة في مقلاة واحدة" }
+      ]
+    }
+    ```
+  hi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    **पालक, गाजर, शिमला मिर्च और छोले** के साथ, आपके पास स्वादिष्ट, फाइबर से भरपूर शाकाहारी भोजन के लिए एक ठोस आधार है।
+
+    आप किस तरह का व्यंजन खाना चाहते हैं, इसके आधार पर यहाँ तीन अलग-अलग पाक दिशाएँ दी गई हैं:
+
+    ---
+
+    ### 1. ताज़ा और कुरकुरा: थाई-स्टाइल चॉप्ड सलाद
+    यदि आप कुछ जल्दी बनने वाला, हल्का और कुरकुरा चाहते हैं, तो बारीक कटी हुई कच्ची मिर्च, गाजर और पालक को छोलों के साथ तीखी [मूंगफली](wiki:Peanut) और नींबू की ड्रेसिंग में मिलाएँ।
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. नमकीन पैटीज़: क्रिस्पी छोले और वेजी फ्रिटर्स
+    यदि आप कुछ गर्म और छोटे आकार का (रैप्स, पीटा पॉकेट्स में बढ़िया, या दही के डिप के साथ) चाहते हैं, तो छोलों को मैश करें और उसमें बारीक कटी हुई गाजर, मिर्च और हल्का पका हुआ पालक मिलाएँ।
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. झटपट बनने वाला विकल्प: वार्म चिकपी एंड वेजिटेबल स्किलेट करी
+    यदि आप बुनियादी पेंट्री स्टेपल (जैसे डिब्बाबंद नारियल का दूध या पिसे हुए टमाटर) का उपयोग करके वन-पैन मील बनाना चाहते हैं:
+    1. **सुगंधित चीज़ों को भूनें:** एक कड़ाही में जैतून का तेल गरम करें, फिर कटा हुआ प्याज, बारीक कटा हुआ लहसुन और अदरक खुशबू आने तक पकाएं।
+    2. **सख्त सब्जियां डालें:** गाजर और शिमला मिर्च को छोटे टुकड़ों में काट लें। उन्हें पिसा हुआ जीरा, [हल्दी](wiki:Turmeric), और एक चुटकी मिर्च पाउडर या करी पाउडर के साथ डालें।
+    3. **धीमी आंच पर पकाएं:** धुले हुए छोले के साथ एक कप सब्जियों का शोरबा या नारियल का दूध डालें। ढककर 10-12 मिनट तक धीमी आंच पर पकाएं जब तक कि गाजर नरम न हो जाए।
+    4. **पालक डालें:** अंत में ताज़ा पालक डालें और 1-2 मिनट तक पकाएं जब तक कि वह गहरा हरा और नरम न हो जाए। नींबू के रस के साथ समाप्त करें।
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "आज आप कौन सी कुकिंग स्टाइल पसंद करेंगे?",
+      "options": [
+        { "id": "salad", "text": "ताज़ा और कुरकुरा चॉप्ड सलाद", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "कुरकुरे पैन-फ्राइड फ्रिटर्स या पैटीज़", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "गरमागरम वन-पैन स्किलेट करी या स्टू" }
+      ]
+    }
+    ```
+  th: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    ด้วย **ผักโขม, แครอท, พริกหวาน และถั่วลูกไก่** คุณมีวัตถุดิบพื้นฐานชั้นยอดสำหรับเมนูมังสวิรัติที่อร่อยและมีกากใยสูง
+
+    นี่คือ 3 แนวทางอาหารที่แตกต่างกัน ขึ้นอยู่กับว่าคุณอยากทานสไตล์ไหน:
+
+    ---
+
+    ### 1. สดชื่นและกรุบกรอบ: สลัดผักสับสไตล์ไทย
+    หากคุณต้องการอะไรที่รวดเร็ว เบา และกรอบ ให้ผสมพริกหวาน แครอท และผักโขมดิบที่สับละเอียด เข้ากับถั่วลูกไก่ในน้ำสลัดมะนาวผสม [ถั่วลิสง](wiki:Peanut) รสเปรี้ยวจี๊ดจ๊าด
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. แผ่นผักทอดรสกลมกล่อม: ทอดมันถั่วลูกไก่และผักแบบกรอบ
+    หากคุณชอบอะไรที่อุ่นและพอดีคำ (เหมาะสำหรับใส่ในแรป, ขนมปังพิต้า หรือทานคู่กับดิปโยเกิร์ต) ให้บดถั่วลูกไก่แล้วผสมแครอทสับ พริกหวาน และผักโขมลวกสุกลงไป
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. ทางเลือกด่วนสำหรับมื้อเย็น: แกงถั่วลูกไก่และผักในกระทะแบบอุ่น
+    หากคุณต้องการอาหารมื้อเดียวที่ใช้ของพื้นฐานในครัว (เช่น กะทิกระป๋อง หรือมะเขือเทศบด):
+    1. **ผัดเครื่องเทศ:** อุ่นน้ำมันมะกอกในกระทะ จากนั้นผัดหอมหัวใหญ่หั่นเต๋า กระเทียมสับ และขิงจนมีกลิ่นหอม
+    2. **ใส่ผักเนื้อแข็ง:** หั่นแครอทและพริกหวานเป็นชิ้นพอดีคำ ใส่ลงไปพร้อมกับยี่หร่าป่น [ขมิ้น](wiki:Turmeric) และพริกป่นหรือผงกะหรี่เล็กน้อย
+    3. **เคี่ยว:** ใส่ถั่วลูกไก่ที่ล้างแล้วลงไปพร้อมกับน้ำสต๊อกผักหรือกะทิหนึ่งถ้วย ปิดฝาแล้วเคี่ยวประมาณ 10–12 นาทีจนแครอทนิ่ม
+    4. **ใส่ผักโขม:** ใส่ผักโขมสดลงไปในตอนท้ายสุด ผัดต่อ 1–2 นาทีจนผักยุบตัวและมีสีเขียวสด ปิดท้ายด้วยการบีบน้ำมะนาว
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "วันนี้คุณอยากทำอาหารสไตล์ไหน?",
+      "options": [
+        { "id": "salad", "text": "สลัดผักสับที่สดชื่นและกรุบกรอบ", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "ทอดมันหรือแผ่นผักทอดกรอบ", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "แกงหรือสตูว์ในกระทะแบบอุ่น" }
+      ]
+    }
+    ```
+  cs: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    Se **špenátem, mrkví, paprikou a cizrnou** máš skvělý základ pro chutná vegetariánská jídla bohatá na vlákninu. 
+
+    Tady jsou tři různé kulinářské směry podle toho, na jaký styl jídla máš zrovna chuť:
+
+    ---
+
+    ### 1. Svěží a křupavé: Thajský sekaný salát
+    Pokud chceš něco rychlého, lehkého a křupavého, smíchej nadrobno nakrájenou syrovou papriku, mrkev a špenát s cizrnou v pikantním [arašídovém](wiki:Peanut) limetkovém dresinku.
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. Slané placičky: Křupavé cizrnovo-zeleninové placičky
+    Pokud chceš něco teplého a akorát do ruky (skvělé do wrapů, pita chleba nebo s jogurtovým dipem), rozmačkej cizrnu a vmíchej do ní nadrobno nakrájenou mrkev, papriku a spařený špenát.
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. Rychlá alternativa k večeři: Teplé cizrnovo-zeleninové kari z pánve
+    Pokud chceš jídlo z jedné pánve ze základních surovin ze spíže (jako je kokosové mléko v plechovce nebo drcená rajčata):
+    1. **Orestuj základ:** Na pánvi rozehřej olivový olej a osmahni nadrobno nakrájenou cibuli, česnek a zázvor, dokud se nerozvoní.
+    2. **Přidej tvrdší zeleninu:** Nakrájej mrkev a papriku na kousky velikosti sousta. Přidej je k základu spolu s mletým římským kmínem, [kurkumou](wiki:Turmeric) a špetkou chilli nebo kari koření.
+    3. **Povař:** Přidej propláchnutou cizrnu spolu s hrnkem zeleninového vývaru nebo kokosového mléka. Přikryj a vař 10–12 minut, dokud mrkev nezměkne.
+    4. **Nech zavadnout špenát:** Úplně nakonec vmíchej čerstvý špenát a nechej ho 1–2 minuty zavadnout, dokud nebude mít zářivě zelenou barvu. Dokonči zastříknutím citronovou šťávou.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "Který styl vaření bys dnes chtěl/a vyzkoušet?",
+      "options": [
+        { "id": "salad", "text": "Svěží a křupavý sekaný salát", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "Křupavé smažené placičky", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "Teplé kari nebo směs z jedné pánve" }
+      ]
+    }
+    ```
+  sv: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    Med **spenat, morötter, paprika och kikärtor** har du en bra grund för goda, fiberrika vegetariska måltider. 
+
+    Här är tre olika kulinariska inriktningar beroende på vilken typ av rätt du är sugen på:
+
+    ---
+
+    ### 1. Fräscht & krispigt: Hackad sallad i thailändsk stil
+    Om du vill ha något snabbt, lätt och krispigt kan du blanda finhackad rå paprika, morötter och spenat med kikärtor i en syrlig [jordnöts-](wiki:Peanut) och limedressing.
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. Matiga biffar: Krispiga kikärts- och grönsaksfritters
+    Om du vill ha något varmt i lagom stora bitar (perfekt i wraps, pitabröd eller tillsammans med en yoghurtdipp), mosa kikärtorna och vänd ner finhackade morötter, paprika och förvälld spenat.
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. Snabbt vardagsalternativ: Varm kikärts- och grönsakscurry i panna
+    Om du vill ha en allt-i-ett-rätt med basvaror från skafferiet (som kokosmjölk på burk eller krossade tomater):
+    1. **Fräs smakgivarna:** Hetta upp olivolja i en panna och stek tärnad lök, finhackad vitlök och ingefära tills det doftar gott.
+    2. **Tillsätt de fasta grönsakerna:** Skär morötterna och paprikan i munsbitsstora bitar. Blanda ner dem tillsammans med mald spiskummin, [gurkmeja](wiki:Turmeric) och en nypa chilipulver eller curry.
+    3. **Sjud:** Tillsätt dina sköljda kikärtor tillsammans med ett par deciliter grönsaksbuljong eller kokosmjölk. Lägg på ett lock och sjud i 10–12 minuter tills morötterna är mjuka.
+    4. **Låt spenaten mjukna:** Rör ner den färska spenaten precis på slutet i 1–2 minuter tills den är klarstark grön och har mjuknat. Avsluta med en skvätt citronsaft.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "Vilken matlagningsstil föredrar du idag?",
+      "options": [
+        { "id": "salad", "text": "Fräsch och krispig hackad sallad", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "Krispiga stekta fritters eller biffar", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "Varm curry eller gryta i panna" }
+      ]
+    }
+    ```
+  he: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fc9bde68-0bdb-4f14-bda2-2335c21e792b","app_id":"nutrition","skill_id":"search_recipes"}
+    ```
+
+    עם **תרד, גזר, פלפלים וחומוס**, יש לך בסיס מצוין לארוחות צמחוניות טעימות ועשירות בסיבים. 
+
+    הנה שלושה כיוונים קולינריים שונים, בהתאם לסגנון המנה שמתחשק לך:
+
+    ---
+
+    ### 1. רענן ופריך: סלט קצוץ בסגנון תאילנדי
+    אם מתחשק לך משהו מהיר, קליל ופריך, כדאי לשלב פלפלים חיים קצוצים דק, גזר ותרד עם חומוס ברוטב ליים ו[בוטנים](wiki:Peanut) פיקנטי.
+
+    [!](embed:thai-chopped-spinach-Gfw)
+
+    ---
+
+    ### 2. קציצות מלוחות: לביבות חומוס וירקות פריכות
+    אם מתחשק לך משהו חם בגודל ביס (נהדר בטורטייה, בפיתה או לצד מטבל יוגורט), אפשר למעוך את החומוס ולהוסיף גזר קצוץ דק, פלפלים ותרד מאודה.
+
+    [!](embed:chickpea-fritters-with-qY9)
+
+    ---
+
+    ### 3. חלופה מהירה לאמצע השבוע: תבשיל קארי חומוס וירקות במחבת
+    אם מתחשק לך ארוחה במחבת אחת ממרכיבים בסיסיים שיש במזווה (כמו חלב קוקוס בשימורים או עגבניות מרוסקות):
+    1. **טיגון הירקות הארומטיים:** מחממים שמן זית במחבת, ומטגנים בצל קצוץ, שום כתוש וג'ינג'ר עד להפצת ריח.
+    2. **הוספת הירקות הקשים:** חותכים את הגזר והפלפלים לקוביות בגודל ביס. מוסיפים אותם למחבת יחד עם כמון טחון, [כורכום](wiki:Turmeric) וקורט אבקת צ'ילי או אבקת קארי.
+    3. **בישול:** מוסיפים את החומוס השטוף יחד עם כוס ציר ירקות או חלב קוקוס. מכסים ומבשלים על אש קטנה במשך 10–12 דקות עד שהגזר מתרכך.
+    4. **הוספת התרד:** מוסיפים את התרד הטרי ממש בסוף למשך 1–2 דקות עד שהוא מצטמצם ומקבל צבע ירוק עז. מסיימים עם סחיטת מיץ לימון.
+
+    ---
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "recipe_preference",
+      "multiple": false,
+      "question": "איזה סגנון בישול מתחשק לך להכין היום?",
+      "options": [
+        { "id": "salad", "text": "סלט קצוץ רענן ופריך", "embed_ids": ["thai-chopped-spinach-Gfw"] },
+        { "id": "fritters", "text": "לביבות או קציצות פריכות בטיגון במחבת", "embed_ids": ["chickpea-fritters-with-qY9"] },
+        { "id": "curry", "text": "תבשיל קארי חם במחבת או נזיד" }
+      ]
+    }
+    ```
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for more detailed instructions and full ingredient measurements for the skillet curry"
+  de: Suche nach detaillierteren Anweisungen und vollständigen Mengenangaben für das Pfannencurry
+  zh: 搜索平底锅咖喱的更详细说明和完整配料用量
+  es: Busca instrucciones más detalladas y medidas completas de los ingredientes para el curry en sartén
+  fr: Cherche des instructions plus détaillées et les quantités exactes des ingrédients pour le curry à la poêle
+  pt: Pesquisar instruções mais detalhadas e medidas completas de ingredientes para o caril de frigideira
+  ru: Найти более подробные инструкции и точные пропорции ингредиентов для карри на сковороде
+  ja: スキレットカレーのより詳細な作り方と正確な分量を検索する
+  ko: 팬 커리(skillet curry)의 상세 조리법과 정확한 재료 계량법 검색하기
+  it: Cerca istruzioni più dettagliate e le dosi complete degli ingredienti per il curry in padella
+  tr: Tava körisi için daha ayrıntılı talimatları ve tam malzeme ölçülerini ara
+  vi: Tìm hướng dẫn chi tiết hơn và định lượng nguyên liệu đầy đủ cho món cà ri chảo
+  id: Cari instruksi yang lebih mendetail dan takaran bahan lengkap untuk kari wajan ini
+  pl: Wyszukaj bardziej szczegółowe instrukcje i dokładne proporcje składników dla curry z patelni
+  nl: Zoek naar meer gedetailleerde instructies en volledige hoeveelheden ingrediënten voor de curry uit de koekenpan
+  ar: ابحث عن تعليمات أكثر تفصيلاً ومقادير المكونات الكاملة لطبق الكاري في المقلاة
+  hi: स्किलिट करी के लिए अधिक विस्तृत निर्देश और सामग्री के सटीक माप खोजें
+  th: ค้นหาวิธีทำอย่างละเอียดและปริมาณส่วนผสมทั้งหมดสำหรับเมนูแกงกะหรี่กระทะ
+  cs: Vyhledej podrobnější pokyny a přesné množství ingrediencí pro kari z pánve
+  sv: Sök efter mer detaljerade instruktioner och fullständiga mått för ingredienserna till curryn i stekpanna
+  he: חפש הוראות מפורטות יותר וכמויות מדויקות של רכיבים עבור הקארי במחבת
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain how to prep and store leftover cooked chickpea fritters for meal prep"
+  de: Erkläre, wie man übrig gebliebene Kichererbsen-Puffer für Meal Prep vorbereitet und lagert
+  zh: 解释如何准备和储存剩余的熟鹰嘴豆饼以用于备餐
+  es: Explica cómo preparar y guardar las sobras de los buñuelos de garbanzos cocinados para organizar las comidas de la semana
+  fr: Explique comment préparer et conserver les restes de beignets de pois chiches pour tes repas de la semaine
+  pt: Explicar como preparar e guardar sobras de fritos de grão-de-bico cozinhados para preparar refeições antecipadamente
+  ru: Объяснить, как подготовить и хранить готовые оладьи из нута для заготовок
+  ja: 作り置き用に、余ったひよこ豆のフリッターの下準備と保存方法を教えて
+  ko: 남은 병아리콩 프리터의 밀프렙을 위한 손질 및 보관 방법 설명하기
+  it: Spiega come preparare e conservare le frittelle di ceci avanzate per il meal prep
+  tr: Artan pişmiş nohut köftelerinin öğün hazırlığı için nasıl hazırlanacağını ve saklanacağını açıkla
+  vi: Giải thích cách sơ chế và bảo quản bánh đậu gà rán còn thừa để chuẩn bị bữa ăn (meal prep)
+  id: Jelaskan cara menyiapkan dan menyimpan sisa perkedel kacang arab untuk persiapan makan (meal prep)
+  pl: Wyjaśnij, jak przygotować i przechowywać resztki smażonych placuszków z ciecierzycy w ramach meal prepu
+  nl: Leg uit hoe je overgebleven gebakken kikkererwtenkoekjes klaarmaakt en bewaart voor meal prep
+  ar: اشرح كيفية تحضير وتخزين بقايا فطائر الحمص المطهوة لتجهيز الوجبات مسبقاً
+  hi: मील प्रेप के लिए बचे हुए पके हुए छोले के पकोड़ों (चिकपी फ्रिटर्स) को तैयार करने और स्टोर करने का तरीका बताएं
+  th: อธิบายวิธีเตรียมและเก็บรักษาทอดมันถั่วลูกไก่ที่เหลือสำหรับเตรียมอาหารล่วงหน้า
+  cs: Vysvětli, jak připravit a skladovat zbylé cizrnové placičky pro pozdější konzumaci
+  sv: Förklara hur man förbereder och förvarar överblivna kikärtsbiffar för matlådor
+  he: הסבר איך להכין ולאחסן לביבות חומוס מבושלות שנותרו עבור הכנת ארוחות מראש (meal prep)
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Search for vegan yogurt dip recipes that pair well with chickpea fritters"
+  de: Suche nach Rezepten für vegane Joghurt-Dips, die gut zu Kichererbsen-Puffern passen
+  zh: 搜索适合搭配鹰嘴豆饼的纯素酸奶蘸酱食谱
+  es: Busca recetas de salsas de yogur vegano que combinen bien con los buñuelos de garbanzos
+  fr: Cherche des recettes de sauce au yaourt végétalien qui se marient bien avec les beignets de pois chiches
+  pt: Pesquisar receitas de molho de iogurte vegan que combinem bem com fritos de grão-de-bico
+  ru: Найти рецепты веганских соусов на основе йогурта к оладьям из нута
+  ja: ひよこ豆のフリッターに合うヴィーガンヨーグルトディップのレシピを検索する
+  ko: 병아리콩 프리터와 잘 어울리는 비건 요거트 소스 레시피 검색하기
+  it: Cerca ricette per salse allo yogurt vegano da abbinare alle frittelle di ceci
+  tr: Nohut köfteleriyle iyi giden vegan yoğurt sosu tariflerini ara
+  vi: Tìm công thức sốt chấm sữa chua thuần chay phù hợp với bánh đậu gà rán
+  id: Cari resep saus cocolan yogurt vegan yang cocok dengan perkedel kacang arab
+  pl: Wyszukaj przepisy na wegańskie dipy jogurtowe, które dobrze pasują do placuszków z ciecierzycy
+  nl: Zoek naar recepten voor veganistische yoghurtdips die goed passen bij kikkererwtenkoekjes
+  ar: ابحث عن وصفات لغموس الزبادي النباتي التي تتناسب مع فطائر الحمص
+  hi: छोले के पकोड़ों के साथ अच्छे लगने वाले वीगन योगर्ट डिप की रेसिपी खोजें
+  th: ค้นหาสูตรดิปโยเกิร์ตวีแกนที่เข้ากันได้ดีกับทอดมันถั่วลูกไก่
+  cs: Vyhledej recepty na veganské jogurtové dipy, které se hodí k cizrnovým placičkám
+  sv: Sök efter recept på vegansk yoghurtdipp som passar bra till kikärtsbiffar
+  he: חפש מתכונים למטבל יוגורט טבעוני שמשתלבים טוב עם לביבות חומוס
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "List simple spice substitutions if I am missing curry powder for the skillet meal"
+  de: Liste einfache Gewürzersatzmöglichkeiten auf, falls ich kein Currypulver für das Pfannengericht habe
+  zh: 如果我没有平底锅餐所需的咖喱粉，请列出简单的香料替代品
+  es: Enumera sustitutos sencillos de especias por si me falta curry en polvo para la comida en sartén
+  fr: "Liste des substitutions d'épices simples si je n'ai pas de poudre de curry pour le plat à la poêle"
+  pt: Listar substituições simples de especiarias se me faltar caril em pó para a refeição de frigideira
+  ru: Предложить простые замены специй, если нет порошка карри для блюда на сковороде
+  ja: スキレット料理でカレー粉がない場合の、簡単なスパイスの代用法をリストアップして
+  ko: 팬 요리에 커리 가루가 없을 때 대신 사용할 수 있는 간단한 향신료 목록 만들기
+  it: Elenca semplici sostituzioni di spezie se non ho il curry in polvere per il piatto in padella
+  tr: Tava yemeği için köri tozum yoksa kullanabileceğim basit baharat alternatiflerini listele
+  vi: Liệt kê các loại gia vị thay thế đơn giản nếu tôi thiếu bột cà ri cho món xào chảo
+  id: Sebutkan substitusi rempah sederhana jika aku tidak punya bubuk kari untuk masakan wajan ini
+  pl: Wymień proste zamienniki przypraw, jeśli nie mam przyprawy curry do dania z patelni
+  nl: Lijst met eenvoudige kruidenvervangers als ik geen kerriepoeder heb voor de maaltijd uit de koekenpan
+  ar: اذكر بدائل بسيطة للتوابل إذا لم يتوفر لدي مسحوق الكاري لطبق المقلاة
+  hi: अगर मेरे पास स्किलिट मील के लिए करी पाउडर नहीं है, तो मसालों के सरल विकल्पों की सूची दें
+  th: แนะนำเครื่องเทศที่ใช้แทนกันได้ง่ายๆ หากไม่มีผงกะหรี่สำหรับเมนูกระทะ
+  cs: Vyjmenuj jednoduché náhrady koření, pokud mi na kari z pánve chybí kari koření
+  sv: Lista enkla kryddersättningar om jag saknar currypulver till stekpannerätten
+  he: פרט תחליפי תבלינים פשוטים אם חסרה לי אבקת קארי עבור התבשיל במחבת
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Search for alternative dressing recipes using tahini for the Thai-style chopped salad"
+  de: Suche nach alternativen Dressing-Rezepten mit Tahini für den Thai-Salat
+  zh: 搜索使用芝麻酱的泰式切碎沙拉替代酱汁食谱
+  es: Busca recetas alternativas de aderezos con tahini para la ensalada picada al estilo tailandés
+  fr: Cherche des recettes alternatives de vinaigrette au tahini pour la salade hachée de style thaï
+  pt: Pesquisar receitas alternativas de molho usando tahini para a salada picada de estilo tailandês
+  ru: Найти альтернативные рецепты заправок с тахини для тайского рубленого салата
+  ja: タイ風チョップドサラダに使える、タヒニを使った別のドレッシングのレシピを検索する
+  ko: 태국식 찹 샐러드에 곁들일 타히니를 활용한 다른 드레싱 레시피 검색하기
+  it: "Cerca ricette alternative per il condimento a base di tahina per l'insalata tritata in stile thailandese"
+  tr: Tay usulü doğranmış salata için tahin kullanan alternatif sos tariflerini ara
+  vi: Tìm các công thức nước sốt thay thế sử dụng xốt vừng (tahini) cho món salad thái nhỏ kiểu Thái
+  id: Cari resep saus alternatif menggunakan tahini untuk salad cincang ala Thailand ini
+  pl: Wyszukaj alternatywne przepisy na dressing z tahini do sałatki siekanej w stylu tajskim
+  nl: Zoek naar alternatieve dressingrecepten met tahini voor de Thaise gehakte salade
+  ar: ابحث عن وصفات بديلة لصلصة السلطة باستخدام الطحينة للسلطة المقطعة على الطريقة التايلاندية
+  hi: थाई-स्टाइल चॉप्ड सलाद के लिए ताहिनी का उपयोग करने वाली वैकल्पिक ड्रेसिंग रेसिपी खोजें
+  th: ค้นหาสูตรน้ำสลัดทางเลือกที่ใช้ทาฮินีสำหรับสลัดผักสับสไตล์ไทย
+  cs: Vyhledej alternativní recepty na dresink s použitím tahini pro thajský sekaný salát
+  sv: Sök efter alternativa dressingrecept med tahini till den thailändska hackade salladen
+  he: חפש מתכונים חלופיים לרוטב המבוססים על טחינה עבור הסלט הקצוץ בסגנון תאילנדי
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Compare the protein and fiber content of these three vegetarian recipe options"
+  de: Vergleiche den Protein- und Ballaststoffgehalt dieser drei vegetarischen Rezeptoptionen
+  zh: 比较这三种素食食谱选项的蛋白质和纤维含量
+  es: Compara el contenido de proteínas y fibra de estas tres opciones de recetas vegetarianas
+  fr: Compare la teneur en protéines et en fibres de ces trois options de recettes végétariennes
+  pt: Comparar o teor de proteína e fibra destas três opções de receitas vegetarianas
+  ru: Сравнить содержание белка и клетчатки в этих трех вегетарианских рецептах
+  ja: これら3つのベジタリアンレシピのタンパク質と食物繊維の含有量を比較して
+  ko: 이 세 가지 채식 레시피의 단백질 및 식이섬유 함량 비교하기
+  it: Confronta il contenuto di proteine e fibre di queste tre opzioni di ricette vegetariane
+  tr: Bu üç vejetaryen tarif seçeneğinin protein ve lif içeriğini karşılaştır
+  vi: So sánh hàm lượng protein và chất xơ của ba lựa chọn công thức món chay này
+  id: Bandingkan kandungan protein dan serat dari ketiga pilihan resep vegetarian ini
+  pl: Porównaj zawartość białka i błonnika w tych trzech wegetariańskich przepisach
+  nl: Vergelijk het eiwit- en vezelgehalte van deze drie vegetarische receptopties
+  ar: قارن بين محتوى البروتين والألياف لخيارات الوصفات النباتية الثلاثة هذه
+  hi: इन तीन शाकाहारी रेसिपी विकल्पों के प्रोटीन और फाइबर सामग्री की तुलना करें
+  th: เปรียบเทียบปริมาณโปรตีนและใยอาหารของเมนูมังสวิรัติทั้ง 3 ตัวเลือกนี้
+  cs: Porovnej obsah bílkovin a vlákniny u těchto tří vegetariánských receptů
+  sv: Jämför protein- och fiberinnehållet i dessa tre vegetariska receptalternativ
+  he: השווה בין תכולת החלבון והסיבים של שלוש אפשרויות המתכונים הצמחוניים האלו
+  verified_by_human: []
+

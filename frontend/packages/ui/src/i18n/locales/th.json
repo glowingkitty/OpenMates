@@ -8960,20 +8960,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"2654ed6e-e439-4c21-98c7-95269083da71\", \"app_id\": \"reminder\", \"skill_id\": \"cancel-reminder\"}\n```\n\nOK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.\n\nWould you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?"
       }
     },
-    "chickpea_spinach_protein_dinners": {
-      "title": {
-        "text": "Chickpea Spinach Protein Dinners"
-      },
-      "summary": {
-        "text": "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
-      },
-      "message_1": {
-        "text": "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d7f21a46-8f13-4f14-82c4-d868ba62bb8a\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\",\"query\":\"chickpea and spinach dinner\",\"provider\":\"Edamam\",\"status\":\"finished\"}\n```\n\nHere are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.\n\n### 1. 10-Minute Chickpea and Spinach Curry\nThis is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.\n\n[!](embed:thefieryvegetarian.com-3sr)\n[!](embed:vegancocotte.com-IZt)\n[!](embed:vegancocotte.com-rFn)\n\n*   **Total Time:** 10 minutes\n*   **Protein Content:** ~10.5g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)\n*   1 (15 oz) can diced [tomatoes](wiki:Tomato)\n*   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)\n*   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)\n*   3 cups fresh [spinach](wiki:Spinach)\n*   1 tsp vegetable oil\n\n**Instructions:**\n1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.\n2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.\n3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.\n4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.\n\n---\n\n### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes\nThis Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.\n\n[!](embed:runningonrealfood.com-R8H)\n[!](embed:americanhomecook.com-Alt)\n[!](embed:shortgirltallorder.com-QXv)\n\n*   **Total Time:** 15 minutes\n*   **Protein Content:** ~23.1g per serving\n*   **Servings:** 2\n\n**Ingredients:**\n*   1 (15 oz) can chickpeas (drained and rinsed)\n*   1 (14.5 oz) can diced tomatoes\n*   5 oz baby spinach\n*   1 small onion (diced) & 4 garlic cloves (sliced)\n*   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)\n*   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))\n\n**Instructions:**\n1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).\n2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.\n3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.\n4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).\n\n---\n\n### 3. 20-Minute Middle Eastern Spinach and Chickpeas\nA simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.\n\n[!](embed:carolinescooking.com-Dy7)\n[!](embed:simpleveganblog.com-8dt)\n[!](embed:ourplantbasedworld.com-Krr)\n\n*   **Total Time:** 20 minutes\n*   **Protein Content:** ~8.7g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   3 cups low-sodium canned chickpeas (drained and rinsed)\n*   2 cups baby spinach\n*   2/3 cup diced tomatoes\n*   ½ large white onion (diced)\n*   2 tsp minced garlic\n*   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)\n\n**Instructions:**\n1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.\n2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.\n3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.\n4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.\n5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.\n\n---\n\n**Next steps for your meal prep:**\n*   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?\n*   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?"
-      }
-    },
     "classic_car_reverse_image_search": {
       "title": {
         "text": "ระบุรุ่นรถคลาสสิกจากรูปถ่าย"
@@ -9086,66 +9072,66 @@
     },
     "community_garden_sunflower_illustration": {
       "title": {
-        "text": "สร้างภาพประกอบดอกทานตะวันแนวพฤกษศาสตร์"
+        "text": "ภาพประกอบพฤกษศาสตร์ดอกทานตะวันสำหรับเอกสารแจกในสวน"
       },
       "summary": {
-        "text": "สร้างภาพประกอบดอกทานตะวันแบบไม่มีข้อความสำหรับใบปลิวสวนชุมชน"
+        "text": "สร้างภาพประกอบพฤกษศาสตร์ดอกทานตะวันที่ให้ความรู้สึกอบอุ่นสำหรับเอกสารแจกในสวนชุมชน พร้อมคำแนะนำในการออกแบบ handout with design suggestions."
       },
       "message_1": {
-        "text": "ช่วยสร้างภาพประกอบดอกทานตะวันแนวพฤกษศาสตร์ที่ดูอบอุ่นสำหรับใบปลิวสวนชุมชน บนพื้นหลังสีอ่อนที่สะอาดตาและไม่มีข้อความให้หน่อย"
+        "text": "โปรดสร้างภาพประกอบพฤกษศาสตร์ดอกทานตะวันที่ให้ความรู้สึกอบอุ่นสำหรับเอกสารแจกในสวนชุมชน โดยใช้พื้นหลังสีอ่อนที่สะอาดตาและไม่มีข้อความ handout, on a clean light background with no text."
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6a3857ca-aa90-486f-b481-4e1df6f95faa\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nฉันกำลังสร้างภาพประกอบดอกทานตะวันแนวพฤกษศาสตร์สำหรับใบปลิวสวนชุมชนให้คุณอยู่ ระบบกำลังประมวลผลและจะปรากฏขึ้นที่นี่ทันทีเมื่อเสร็จเรียบร้อย\n\n### เคล็ดลับการออกแบบอย่างรวดเร็วสำหรับใบปลิวชุมชน\n\nเพื่อให้ใบปลิวสวนของคุณดูน่าดึงดูดและอ่านง่าย:\n\n- **ลำดับความสำคัญทางสายตาและระยะห่าง:** ให้ภาพประกอบมีพื้นที่ว่าง การวางภาพไว้ตามขอบหรือส่วนหัวจะช่วยให้มีพื้นที่ชัดเจนสำหรับเคล็ดลับการทำสวนหรือรายละเอียดกิจกรรมโดยไม่รู้สึกอึดอัด\n- **ความกลมกลืนของสี:** ดึงโทนสีอุ่นจากภาพโดยตรง เช่น สีทองน้ำผึ้งเข้ม สีเขียวใบมะกอก หรือสีดินเผา เพื่อใช้สำหรับหัวข้อและเส้นขอบ\n- **การผสมผสานงานศิลปะของคุณเอง:** หากสมาชิกในชุมชนหรือคนสวนในท้องถิ่นสร้างภาพสเก็ตช์ ภาพพิมพ์ใบไม้ หรือภาพถ่ายสวนจริง การนำสิ่งเหล่านั้นมาใช้ร่วมกับภาพประกอบดิจิทัลจะช่วยสร้างความรู้สึกที่เป็นกันเองและเป็นมิตร\n\n---\n\n**ขั้นตอนถัดไปและตัวเลือก:**\n- [ออกแบบเลย์เอาต์ใบปลิวพร้อมหัวข้อและเคล็ดลับ](/#message=Help%20me%20design%20a%20clean%20layout%20and%20copy%20for%20a%20community%20garden%20handout.)\n- [แนะนำจานสีตามดอกทานตะวัน](/#message=Suggest%20a%20warm%20color%20palette%20and%20typography%20pairing%20for%20a%20botanical%20garden%20flyer.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"83e98b9b-8bcb-4774-9223-be000504a84a\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nนี่คือภาพวาดพฤกษศาสตร์ของดอกทานตะวันที่ดูอบอุ่นสำหรับใบปลิวสวนชุมชนของคุณ:\n\n[!](embed:generated-images-ff26d807eb07)\n\n### ข้อแนะนำในการออกแบบและขั้นตอนการทำงาน\n\n- **การผสมผสานกับองค์ประกอบที่วาดด้วยมือ:** สำหรับสื่อประชาสัมพันธ์ชุมชน การผสมผสานงานศิลปะดิจิทัลหรือที่สร้างโดย AI เข้ากับสัมผัสส่วนตัวที่ดูจริงใจนั้นให้ผลลัพธ์ที่ยอดเยี่ยม ตัวอย่างเช่น คุณสามารถพิมพ์ภาพประกอบนี้เป็นพื้นหลังหรือจุดนำสายตา จากนั้นให้สมาชิกในชุมชนช่วยกันวาดแผนผังการปลูก เขียนเคล็ดลับการดูแลด้วยลายมือ หรือติดใบไม้/เมล็ดพืชแห้งทับลงไปข้างๆ\n- **การจัดวางเลย์เอาต์และลำดับความสำคัญของใบปลิว:**\n  - **พื้นที่ว่าง (White space):** เว้นขอบรอบๆ ดอกทานตะวันให้กว้างพอสมควรเพื่อให้ใบปลิวดูโปร่งและให้ความรู้สึกต้อนรับ\n  - **ตัวอักษร (Typography):** จับคู่ฟอนต์แบบมีหัว (serif) ที่ดูเป็นธรรมชาติหรือมีความเป็นมนุษย์ (เช่น [Garamond](wiki:Garamond) หรือ [Georgia](wiki:Georgia_(typeface))) สำหรับหัวข้อ กับฟอนต์แบบไม่มีหัว (sans-serif) ที่อ่านง่ายสำหรับคำแนะนำในการปลูก รายละเอียดการเตรียมดิน และวันที่จัดกิจกรรม\n  - **จานสี (Color Palette):** เลือกใช้โทนสีอำพันและสีทองจากกลีบดอกไม้สำหรับเส้นเน้นหรือหัวข้อย่อย และสีเขียวเข้มแบบป่าลึกสำหรับจุดเน้นที่สำคัญ\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"garden_handout_next_step\",\n  \"multiple\": false,\n  \"question\": \"What would you like to work on next for the handout?\",\n  \"options\": [\n    {\n      \"id\": \"layout_tips\",\n      \"text\": \"Get advice on typography and grid layout for the printed flyer\"\n    },\n    {\n      \"id\": \"variations\",\n      \"text\": \"Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)\"\n    },\n    {\n      \"id\": \"custom\",\n      \"text\": \"Something else\"\n    }\n  ],\n  \"custom_option_id\": \"custom\",\n  \"custom_placeholder\": \"Describe what you need...\"\n}\n```\n\n[!](embed:generated-media-images-83e98b9b8bcb)"
       },
       "follow_up_1": {
-        "text": "ค้นหากิจกรรมสวนชุมชนในพื้นที่"
+        "text": "สร้างภาพประกอบผึ้งที่กำลังวุ่นอยู่บนดอกลาเวนเดอร์อีกภาพหนึ่ง"
       },
       "follow_up_2": {
-        "text": "ช่วยเขียนข้อความเกริ่นนำที่เป็นมิตรสำหรับใบปลิวสวนให้หน่อย"
+        "text": "รายการเคล็ดลับสำคัญสำหรับการออกแบบใบปลิวสวนชุมชนให้อ่านง่าย"
       },
       "follow_up_3": {
-        "text": "ค้นหาไอคอนรูปพืชแบบ SVG ฟรีสำหรับตกแต่งใบปลิว"
+        "text": "ค้นหาฟอนต์ตัวอักษรฟรีสำหรับใบปลิวที่พิมพ์ได้"
       },
       "follow_up_4": {
-        "text": "รายการเคล็ดลับสำคัญที่ควรมีในคู่มือสวนชุมชน"
+        "text": "อธิบายวิธีสร้างสมดุลระหว่างพื้นที่ว่างและข้อความบนเอกสารแจก"
       },
       "follow_up_5": {
-        "text": "ค้นหาไอเดียการจับคู่ฟอนต์สำหรับใบปลิวสวน"
+        "text": "สร้างภาพประกอบมะเขือเทศพันธุ์พื้นเมืองที่สุกงอมบนเถา"
       },
       "follow_up_6": {
-        "text": "อธิบายวิธีจัดวางองค์ประกอบภาพในเลย์เอาต์สิ่งพิมพ์"
+        "text": "อธิบายไอเดียจานสีสำหรับโปรเจกต์งานพิมพ์แนวธรรมชาติออร์แกนิก"
       }
     },
     "community_garden_volunteer_chime": {
       "title": {
-        "text": "เสียงกริ่งที่แสนอบอุ่นสำหรับสวนชุมชน"
+        "text": "การออกแบบเสียงแจ้งเตือนสำหรับสวนชุมชน"
       },
       "summary": {
-        "text": "สร้างเสียงแจ้งเตือนสั้นๆ สองตัวโน้ตสำหรับแอปสวนชุมชนสมมติ"
+        "text": "สร้างเอฟเฟกต์เสียงกระดิ่งไม้สองตัวโน้ตที่นุ่มนวล สำหรับการแจ้งเตือนการลงทะเบียนอาสาสมัครในสวนชุมชน"
       },
       "message_1": {
-        "text": "สร้างเสียงแจ้งเตือนที่สั้นและอบอุ่นสำหรับแอปสวนชุมชนเมื่อมีอาสาสมัครลงทะเบียน ขอเป็นเสียงกริ่งสองตัวโน้ตที่นุ่มนวล ไม่มีเสียงพูด และความยาวไม่เกินสามวินาที"
+        "text": "สร้างเสียงแจ้งเตือนสั้นๆ ที่ดูอบอุ่นสำหรับแอปสวนชุมชนเมื่อมีอาสาสมัครลงทะเบียน ขอเป็นเสียงกระดิ่งสองตัวโน้ตที่นุ่มนวล ไม่มีเสียงพูด และความยาวไม่เกินสามวินาที"
       },
       "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nฉันกำลังสร้างเสียงกริ่งสองตัวโน้ตที่นุ่มนวลและอบอุ่นสำหรับแอปสวนชุมชนของคุณในขณะนี้ ระบบกำลังประมวลผลและจะแสดงในแชททันทีที่พร้อมใช้งาน\n\n### ขั้นตอนถัดไปที่แนะนำ\n- [สร้างเสียงกริ่งฉลองการปลดล็อกเหรียญรางวัลที่ให้ความรู้สึกเป็นธรรมชาติ](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [ออกแบบเลย์เอาต์การ์ดยืนยันอาสาสมัคร](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdda9f85-fa01-48ca-acf7-7746de6dc0f3\",\"app_id\":\"audio\",\"skill_id\":\"generate\"}\n```\n\nนี่คือเสียงกระดิ่งสองตัวโน้ตที่นุ่มนวลและอบอุ่น ซึ่งสร้างขึ้นสำหรับการแจ้งเตือนการลงทะเบียนอาสาสมัครในสวนชุมชนของคุณ:\n\n[!](embed:generated-audio-17f56f2e73be)\n\n### ข้อมูลเสียง\n- **โทนเสียง:** เสียงกระดิ่งไม้/มาริมบาที่กังวานและเป็นธรรมชาติ ออกแบบมาเพื่อให้หวนนึกถึงธรรมชาติและการเติบโต\n- **จังหวะ:** ลำดับเสียงสองตัวโน้ตแบบไล่ระดับเสียงขึ้น เพื่อให้ความรู้สึกที่ยกระดับจิตใจและเป็นการต้อนรับเมื่อมีคนมาร่วมช่วยเหลือ\n- **ความยาว:** 2 วินาที สั้นและไม่รบกวนผู้ใช้แอป\n\nโทนเสียงนี้เข้ากับส่วนอื่นๆ ของ UI ในแอปของคุณอย่างไรบ้าง? เราสามารถปรับแต่งเสียง (เช่น เปลี่ยนเป็นเสียงดีดกีตาร์โปร่งที่นุ่มนวลขึ้น เสียงระฆังขัน หรือกระดิ่งแก้วที่สดใสขึ้น) ได้หากต้องการ\n\n[!](embed:generated-media-audio-fdda9f85fa01)"
       },
       "follow_up_1": {
-        "text": "สร้างเสียงกริ่งฉลองการปลดล็อกเหรียญรางวัลเมื่อทำงานเสร็จสิ้น"
+        "text": "สร้างเวอร์ชันเสียงดีดกีตาร์โปร่งที่นุ่มนวลกว่านี้"
       },
       "follow_up_2": {
-        "text": "อธิบายว่าการออกแบบเสียงส่งผลต่อการมีส่วนร่วมของผู้ใช้ในแอปมือถืออย่างไร"
+        "text": "หารือเกี่ยวกับวิธีทดสอบเสียงแจ้งเตือนกับผู้ใช้"
       },
       "follow_up_3": {
-        "text": "สร้างเสียงกริ่งเตือนความจำที่นุ่มนวลสำหรับตารางการรดน้ำต้นไม้ตอนเช้า"
+        "text": "สร้างเอฟเฟกต์เสียงระฆังขัน (Singing bowl)"
       },
       "follow_up_4": {
-        "text": "รายการแนวทางปฏิบัติที่ดีที่สุดสำหรับการออกแบบเสียงแจ้งเตือน UI ที่ไม่รบกวนผู้ใช้"
+        "text": "รายการแนวทางปฏิบัติที่ดีที่สุดสำหรับเสียงแจ้งเตือนบนแอปมือถือ"
       },
       "follow_up_5": {
-        "text": "สร้างเสียงแจ้งเตือนข้อผิดพลาดที่นุ่มนวลสำหรับกรณีการตรวจสอบความถูกต้องของฟอร์มไม่ผ่าน"
+        "text": "สร้างเสียงแจ้งเตือนแบบกระดิ่งแก้วที่สดใสกว่านี้"
       },
       "follow_up_6": {
-        "text": "อธิบายวิธีผสานรวมเอฟเฟกต์เสียงที่กำหนดเองเข้ากับแอปพลิเคชันมือถือ"
+        "text": "เปรียบเทียบสไตล์การสร้างแบรนด์ด้วยเสียง (Sonic Branding) แบบต่างๆ สำหรับแอป"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -9182,34 +9168,34 @@
     },
     "community_garden_welcome_melody": {
       "title": {
-        "text": "ท่วงทำนองสำหรับการต้อนรับสู่สวนชุมชน"
+        "text": "สร้างทำนองเพลงต้อนรับสวนชุมชนที่อ่อนโยน"
       },
       "summary": {
-        "text": "สร้างทำนองเพลงบรรเลงที่นุ่มนวลสำหรับวิดีโอต้อนรับของสวนชุมชน"
+        "text": "สร้างทำนองเพลงบรรเลงสั้นๆ สำหรับวิดีโอต้อนรับสวนชุมชน ด้วยโทนเสียงอะคูสติกที่อบอุ่นและไม่มีเสียงร้อง"
       },
       "message_1": {
-        "text": "ช่วยสร้างทำนองเพลงบรรเลงสั้นๆ ที่นุ่มนวลสำหรับวิดีโอต้อนรับของสวนชุมชนแบบไม่มีเสียงร้องให้หน่อยได้ไหม?"
+        "text": "ช่วยสร้างทำนองเพลงบรรเลงสั้นๆ ที่อ่อนโยนสำหรับวิดีโอต้อนรับสวนชุมชน โดยไม่มีเสียงร้องได้ไหม?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"296e122a-cd23-4fc6-9c27-99f21f8e3401\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nฉันกำลังสร้างเพลงบรรเลงที่นุ่มนวลสำหรับวิดีโอต้อนรับของสวนชุมชนให้คุณอยู่ เพลงกำลังอยู่ในระหว่างการประมวลผลและจะปรากฏที่นี่เมื่อพร้อมใช้งาน\n\nโครงการ [สวนชุมชน](wiki:Community_gardening) เป็นวิธีที่ยอดเยี่ยมในการดึงดูดเพื่อนบ้านให้มาทำกิจกรรมร่วมกันและส่งเสริมความหลากหลายทางชีวภาพในท้องถิ่น ในระหว่างที่รอสร้างเพลง คุณต้องการให้ฉันช่วยวางแผนการเล่าเรื่องหรือลำดับภาพของวิดีโอต้อนรับไหม?\n\n- [ร่างโครงร่างสำหรับวิดีโอต้อนรับ](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)\n- [ระดมสมองหาข้อความเกริ่นนำหรือเคล็ดลับการพากย์เสียง](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"3e5014d0-2082-4604-b968-1553d6cc43e4\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nนี่คือเพลงบรรเลงอะคูสติกที่อ่อนโยนซึ่งแต่งขึ้นสำหรับวิดีโอต้อนรับสวนชุมชนของคุณ:\n\n[!](embed:generated-media-music-3e5014d02082)\n[!](embed:generated-music-c89ee4a5f418)\n\n### รายละเอียดแทร็ก\n- **อารมณ์และโทน:** อบอุ่น เชื้อเชิญ และสงบ\n- **เครื่องดนตรี:** การเกากีตาร์อะคูสติกคู่กับคอร์ดเปียโนที่นุ่มนวลและลูกเล่นทำนองเบาๆ\n- **ระยะเวลา:** 30 วินาที\n- **รูปแบบ:** เพลงบรรเลงล้วน (ไม่มีเสียงร้อง) เหมาะสำหรับใช้เป็นเพลงประกอบเบื้องหลังเสียงบรรยายหรือข้อความแนะนำ\n\n### ขั้นตอนถัดไปที่แนะนำ\nหากคุณวางแผนที่จะผลิตวิดีโอหรือเขียนบทเพื่อแนะนำสมาชิกใหม่ให้รู้จักกับสวน:\n\n- [ร่างบทวิดีโอต้อนรับสั้นๆ](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)\n- [สร้างเพลงอะคูสติกทางเลือกที่มีจังหวะสนุกสนานขึ้น](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)"
       },
       "follow_up_1": {
-        "text": "ค้นหากิจกรรมและเวิร์กช็อปสวนชุมชนในท้องถิ่น"
+        "text": "สร้างเพลงอะคูสติกที่มีจังหวะสนุกสนานขึ้นเล็กน้อยสำหรับวิดีโอสวนชุมชนของเรา"
       },
       "follow_up_2": {
-        "text": "ช่วยฉันร่างสตอรี่บอร์ดสำหรับวิดีโอสวนชุมชนหน่อย"
+        "text": "ช่วยฉันเขียนบทวิดีโอต้อนรับความยาว 30 วินาทีที่อบอุ่นสำหรับสวนชุมชนของเรา"
       },
       "follow_up_3": {
-        "text": "ค้นหาวิดีโอสต็อกพืชและดอกไม้"
+        "text": "ค้นหาบทแนะนำเกี่ยวกับการตัดต่อวิดีโอสวนชุมชนในโปรแกรมตัดต่อวิดีโอ"
       },
       "follow_up_4": {
-        "text": "เขียนบทพากย์ต้อนรับสำหรับวิดีโอชุมชนให้หน่อย"
+        "text": "อธิบายวิธีจับคู่เพลงประกอบกับเสียงบรรยาย"
       },
       "follow_up_5": {
-        "text": "ค้นหาเคล็ดลับการทำสวนสำหรับโครงการชุมชน"
+        "text": "ค้นหากิจกรรมและเวิร์กช็อปสวนชุมชนในพื้นที่ของเรา"
       },
       "follow_up_6": {
-        "text": "แนะนำไอเดียกิจกรรมสำหรับวันเปิดสวนชุมชน"
+        "text": "รวบรวมไอเดียช็อตภาพสำหรับใส่ในวิดีโอต้อนรับ"
       }
     },
     "creativity_drawing_meetups_berlin": {
@@ -9682,40 +9668,34 @@
     },
     "housing_policy_dinner_discussion": {
       "title": {
-        "text": "Prepare for a housing policy dinner discussion"
+        "text": "เตรียมตัวสำหรับการพูดคุยเรื่องนโยบายที่อยู่อาศัยในมื้อค่ำ"
       },
       "summary": {
-        "text": "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+        "text": "เตรียมตัวสำหรับการพูดคุยในครอบครัวอย่างใจเย็นเกี่ยวกับนโยบายที่อยู่อาศัยและการควบคุมค่าเช่า โดยเริ่มจากการตั้งคำถามเกี่ยวกับบริบทในท้องถิ่นและเป้าหมายของแต่ละคน"
       },
       "message_1": {
-        "text": "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+        "text": "ฉันกำลังจะไปทานมื้อค่ำกับคุณพ่อ และท่านต้องการถกเถียงเรื่องนโยบายที่อยู่อาศัยและการควบคุมค่าเช่า ช่วยฉันเตรียมตัวหน่อยเพื่อให้ฉันสามารถตั้งคำถามที่ดี ตรวจสอบข้อเท็จจริงที่สำคัญ เข้าใจข้อโต้แย้งที่หนักแน่นที่สุดของทั้งสองฝ่าย และทำให้การสนทนาเป็นไปอย่างราบรื่น"
       },
       "message_2": {
-        "text": "Focus mode activated: Prepare a political discussion."
-      },
-      "message_3": {
-        "text": "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
-      },
-      "message_4": {
-        "text": "It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. \n\nSince housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** (\"Who is right?\") to a **collaborative exploration** (\"How do we solve this complex problem together?\").\n\nHere is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.\n\n### 1. The Core Debate: Rent Control & Stabilization\n\nTo have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). \n\n**The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**\n*   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.\n*   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.\n*   **It creates \"misallocation\":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.\n*   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.\n\n**The Strongest Arguments FOR Rent Control (The Community & Equity View)**\n*   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.\n*   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.\n*   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply \"shop elsewhere\" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.\n*   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.\n\n### 2. Facts to Keep in Your Back Pocket\n*   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.\n*   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. \n*   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.\n\n### 3. Strategies to Keep It Calm\n*   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., \"I agree with you that property owners shouldn't be forced to operate at a loss.\")*\n*   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.\n*   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).\n\n### 4. Great Questions to Ask Your Dad\n\nThese questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:\n\n1.  **If he is AGAINST rent control:** *\"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?\"*\n2.  **If he is FOR rent control:** *\"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?\"*\n3.  **Zooming out to the bigger picture:** *\"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?\"*\n4.  **Finding balance:** *\"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?\"*\n\nHow are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?"
+        "text": "การพูดคุยเรื่องนโยบายที่อยู่อาศัยและการควบคุมค่าเช่ากับครอบครัวอาจกลายเป็นเรื่องเผ็ดร้อนได้ง่าย โดยเฉพาะอย่างยิ่งเมื่อมุมมองที่ต่างกันระหว่างรุ่น การเป็นเจ้าของทรัพย์สิน หรือปรัชญาทางเศรษฐกิจที่แตกต่างกันมาปะทะกัน \n\nเพื่อให้ข้อมูลข้อเท็จจริงที่สำคัญ ข้อมูลนโยบาย และคำถามเฉพาะเจาะจงเหมาะสมกับมื้อค่ำของคุณ คุณช่วยแชร์บริบทเพิ่มเติมอีกสักนิดได้ไหม?\n\n1. **สถานที่ / เขตอำนาจศาล:** เรื่องนี้เน้นไปที่เมือง รัฐ หรือประเทศใดเป็นพิเศษ (เช่น แคลิฟอร์เนีย นิวยอร์ก เบอร์ลิน สหราชอาณาจักร) หรือเขามองจากมุมมองทางเศรษฐกิจในระดับประเทศกว้างๆ? กฎเกณฑ์ในท้องถิ่นและความกดดันของตลาดนั้นแตกต่างกันอย่างมาก\n2. **มุมมองของคุณพ่อ:** จุดยืนหรือปฏิกิริยาหลักของท่านคืออะไร? ตัวอย่างเช่น ท่านพูดในฐานะเจ้าของบ้าน เจ้าของที่พักรายย่อย หรือผู้เสียภาษี หรือท่านกำลังโต้แย้งโดยใช้ทฤษฎีเศรษฐศาสตร์แบบตลาดเสรีเพื่อต่อต้านการควบคุมราคาเป็นหลัก?\n3. **เป้าหมายหลักของคุณ:** นอกเหนือจากการรักษาบรรยากาศให้สงบและสร้างสรรค์แล้ว อะไรคือสิ่งที่คุณมองว่าเป็นความสำเร็จ—การหาจุดร่วมในค่านิยมหลัก (เช่น ความมั่นคงของชุมชน เทียบกับ อุปทานใหม่) การทำความเข้าใจที่มาของท่าน หรือการมีข้อมูลที่แน่นหนาพร้อมสำหรับตอบข้อโต้แย้งเฉพาะเรื่อง?\n\nเมื่อคุณแชร์รายละเอียดเหล่านี้แล้ว เราจะสร้างคู่มือการเตรียมตัวที่ปรับให้เหมาะสม พร้อมด้วยหลักฐานที่ผ่านการตรวจสอบแล้ว ข้อดีข้อเสียของทั้งสองฝ่าย และกลยุทธ์ในการลดความขัดแย้ง"
       },
       "follow_up_1": {
-        "text": "Find recent studies on rent control policies"
+        "text": "ค้นหาการศึกษาเกี่ยวกับการควบคุมค่าเช่าล่าสุดในเมืองใหญ่ๆ"
       },
       "follow_up_2": {
-        "text": "Explain the economic impact of rent control"
+        "text": "รายการข้อโต้แย้งทั่วไปที่คัดค้านกฎระเบียบการควบคุมค่าเช่า"
       },
       "follow_up_3": {
-        "text": "Search for housing policy debates in our city"
+        "text": "ค้นหางานวิจัยทางเศรษฐศาสตร์เกี่ยวกับความยืดหยุ่นของอุปทานที่อยู่อาศัย"
       },
       "follow_up_4": {
-        "text": "Describe how zoning laws affect housing supply"
+        "text": "เปรียบเทียบกฎหมายคุ้มครองผู้เช่าในรัฐต่างๆ"
       },
       "follow_up_5": {
-        "text": "Show me zoning laws in our area"
+        "text": "ค้นหาบทความข่าวเกี่ยวกับผลกระทบของการควบคุมค่าเช่า"
       },
       "follow_up_6": {
-        "text": "Summarize the key arguments for rent control"
+        "text": "อธิบายว่าอุปทานในตลาดที่อยู่อาศัยตอบสนองต่อการควบคุมราคาอย่างไร"
       }
     },
     "image_vectorize_openmates_header": {
@@ -9822,40 +9802,34 @@
     },
     "mastodon_public_post_themes": {
       "title": {
-        "text": "หัวข้อในโพสต์สาธารณะของ Mastodon"
+        "text": "สรุปโพสต์จากบัญชีทางการของ Mastodon"
       },
       "summary": {
-        "text": "สรุปหัวข้อในโพสต์ล่าสุดจากบัญชีทางการของ Mastodon และสำรวจตัวอย่างที่เป็นตัวแทน"
+        "text": "สรุปโพสต์สาธารณะล่าสุดจากบัญชีทางการของ Mastodon ครอบคลุมถึง Mastodon 5.0, การกำกับดูแล, ไฮไลท์ระบบนิเวศ, การอัปเดตทีม และสินค้าที่ระลึก"
       },
       "message_1": {
         "text": "ช่วยสรุปหัวข้อหลักในโพสต์สาธารณะล่าสุดจากบัญชีทางการของ Mastodon บน mastodon.social พร้อมแนบลิงก์ตัวอย่างบางส่วนให้หน่อยได้ไหม?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"33ebec48-4730-4b4b-b7d7-f967173ac9b6\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nคำขอเพื่อดึงโพสต์สาธารณะล่าสุดจาก @Mastodon (`@Mastodon@mastodon.social`) กำลังทำงานอยู่ในพื้นหลัง และจะอัปเดตแชทเมื่อพร้อมใช้งาน\n\nในระหว่างที่รอโหลดฟีด:\n- [ตรวจสอบประกาศล่าสุดจากบล็อกของ Mastodon](/#message=Search%20for%20the%20latest%20official%20Mastodon%20blog%20announcements%20and%20releases.)\n- [สำรวจแผนการดำเนินงานของ Mastodon](/#message=What%20are%20the%20major%20features%20currently%20on%20the%20Mastodon%20roadmap%3F)"
-      },
-      "message_3": {
-        "text": "โพสต์โหลดเสร็จแล้ว ช่วยสรุปหัวข้อหลักและลิงก์ไปยังโพสต์ที่เป็นตัวแทน 3 โพสต์ให้หน่อยได้ไหม?"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"65b92905-0838-46dd-8fff-8e28cdc8789a\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nบัญชีทางการของ @Mastodon บน `mastodon.social` เน้นย้ำถึงธีมหลักหลายประการในโพสต์สาธารณะล่าสุด:\n\n### 1. วิวัฒนาการหลักของผลิตภัณฑ์และการวิจัยผู้ใช้\nจุดเน้นหลักคือการวางรากฐานสำหรับ **Mastodon 5.0** หลังจากโครงการวิจัย \"Discovery Week\" ทั่วทั้งชุมชนซึ่งนำโดยทีมออกแบบ ทีมงานได้แชร์ตัวอย่างอินเทอร์เฟซที่ออกแบบใหม่ให้ดูสบายตาขึ้น และตัวสร้างโพสต์ที่อัปเดตเพื่อให้แพลตฟอร์มเข้าถึงได้ง่ายและเป็นมิตรกับผู้ใช้มากขึ้น\n\n### 2. การกำกับดูแลชุมชน นโยบาย และการอัปเดตทีมงาน\nMastodon สื่อสารการอัปเดตด้านการกำกับดูแลและนโยบายอย่างสม่ำเสมอ โดยเฉพาะการออกแนวทางปฏิบัติที่ชัดเจนเกี่ยวกับ **นโยบายเครื่องหมายการค้า (Trademark Policy)** เพื่อตอบสนองต่อข้อเสนอแนะจากผู้ดูแลระบบและนักพัฒนาใน Fediverse โดยตรง นอกจากนี้ยังมีการประกาศการเปลี่ยนผ่านผู้นำที่สำคัญ โดยขอบคุณ Hannah Aubry ผู้อำนวยการชุมชนที่กำลังจะพ้นจากตำแหน่งสำหรับผลงานของเธอ\n\n### 3. การแนะนำเซิร์ฟเวอร์และระบบนิเวศของ Fediverse\nบัญชีนี้ส่งเสริมอินสแตนซ์ Fediverse ที่เป็นอิสระและโครงการริเริ่มด้านโครงสร้างพื้นฐานอย่างแข็งขัน เช่น การแนะนำเซิร์ฟเวอร์ตามธีม (เช่น Earth.Law) และการเผยแพร่ผลสำรวจในอุตสาหกรรม เช่น งานวิจัยด้านการดำเนินงานของ IFTAS\n\n### 4. สินค้าที่ระลึกของชุมชนและการระดมทุนโครงการ\nเพื่อสนับสนุนการพัฒนาโอเพนซอร์สอย่างต่อเนื่อง พวกเขาได้แชร์การอัปเดตสินค้าที่ระลึกอย่างเป็นทางการของชุมชน รวมถึงการเปิดตัวตุ๊กตามาสคอตตัวใหม่ (\"Plushtodons\")\n\n---\n\n### โพสต์ตัวอย่าง 3 โพสต์\n\n- **แผนงานผลิตภัณฑ์และการปรับโฉมใหม่:** [ประกาศตัวอย่าง Mastodon 5.0](embed:mastodon-after-publishing-D8d) — แชร์ตัวอย่างเลย์เอาต์ 5.0 และตัวสร้างโพสต์ที่กำลังจะมาถึงตามผลการวิจัย\n- **นโยบายและข้อเสนอแนะจากชุมชน:** [อัปเดตแนวทางนโยบายเครื่องหมายการค้า](embed:mastodon-today-we-YqD) — สรุปกฎเครื่องหมายการค้าที่ปรับปรุงใหม่ตามข้อมูลจากชุมชน\n- **การสนับสนุนโครงการและสินค้า:** [ประกาศสั่งจอง Plushtodon ล่วงหน้า](embed:mastodon-new-plushtodon-A57) — ประกาศเปิดตัวตุ๊กตามาสคอตตัวใหม่เพื่อเป็นช่องทางให้ผู้สนับสนุนช่วยระดมทุนในการพัฒนา\n\n---\n\nคุณต้องการสำรวจหัวข้อใดเป็นพิเศษเพิ่มเติมไหม?\n- [อ่านเพิ่มเติมเกี่ยวกับฟีเจอร์ของ Mastodon 5.0](/#message=What%20new%20features%20and%20changes%20are%20coming%20in%20Mastodon%205.0%3F)\n- [ตรวจสอบแนวทางปฏิบัติเกี่ยวกับเครื่องหมายการค้า](/#message=Summarize%20Mastodon's%20updated%20trademark%20policy%20guidelines.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nโพสต์สาธารณะล่าสุดจากบัญชีทางการ @Mastodon บน [Mastodon](wiki:Mastodon_(social_network)) จะเน้นไปที่ธีมหลักหลายประการ:\n\n---\n\n### 1. การออกแบบแพลตฟอร์มใหม่และฟีเจอร์ที่กำลังจะมาถึง (Mastodon 5.0)\nจุดเน้นสำคัญคือการแบ่งปันงานวิจัยเกี่ยวกับประสบการณ์ผู้ใช้และการเปิดตัวการเปลี่ยนแปลงการออกแบบที่กำลังจะเกิดขึ้น:\n- **ตัวอย่าง Mastodon 5.0:** การดูตัวอย่างเวอร์ชัน 5.0 ในช่วงแรก โดยเน้นที่เลย์เอาต์ที่ดูสบายตาขึ้น ความสวยงามแบบใหม่ และเครื่องมือเขียนโพสต์ที่อัปเดต ([ตัวอย่าง Mastodon 5.0](embed:mastodon-after-publishing-WqJ))\n- **ผลลัพธ์จาก Discovery Week:** การแบ่งปันผลลัพธ์จากเวิร์กช็อปและการสำรวจผู้ใช้ที่นำโดยทีมออกแบบ เพื่อทำความเข้าใจวิธีที่ชุมชนโต้ตอบกับแพลตฟอร์มได้ดียิ่งขึ้น ([สรุป Discovery Week](embed:mastodon-we-re-5Ll))\n\n### 2. ธรรมาภิบาลและความชัดเจนของเครื่องหมายการค้า\nMastodon ให้ความสำคัญกับการตอบสนองต่อข้อกังวลของชุมชนเกี่ยวกับนโยบายของโปรเจกต์:\n- **แนวทางนโยบายเครื่องหมายการค้า:** การเผยแพร่แนวทางที่อัปเดตและชัดเจน พร้อมสรุปด้วยภาษาที่เข้าใจง่ายเกี่ยวกับนโยบายเครื่องหมายการค้าของ Mastodon หลังจากได้รับความคิดเห็นจากชุมชน ([ประกาศแนวทางเครื่องหมายการค้า](embed:mastodon-today-we-3Kb))\n\n### 3. ไฮไลท์ชุมชนและการสนับสนุนระบบนิเวศ\nการเน้นย้ำถึงระบบนิเวศ [Fediverse](wiki:Fediverse) ในวงกว้าง ผู้ดูแลเซิร์ฟเวอร์ และโครงการริเริ่มด้านความปลอดภัย:\n- **ไฮไลท์เซิร์ฟเวอร์ที่โดดเด่น:** การโปรโมตอินสแตนซ์เฉพาะทาง เช่น *Earth.Law* ซึ่งเป็นเซิร์ฟเวอร์ที่เป็นมิตรต่อสิ่งแวดล้อมซึ่งปรับแต่งมาสำหรับนักกฎหมายสิ่งแวดล้อม นักวิทยาศาสตร์ และนักกิจกรรม ([ไฮไลท์เซิร์ฟเวอร์ Earth.Law](embed:mastodon-here-is-miz))\n- **การสำรวจระบบนิเวศ:** การส่งเสริมโครงการริเริ่มด้านการบริหารจัดการ เช่น IFTAS Social Web Operations Survey เพื่อสนับสนุนผู้ดูแลและผู้บริหารระบบ ([โพสต์แบบสำรวจ IFTAS](embed:mastodon-re-https-wnD))\n\n### 4. การอัปเดตองค์กรและทีมงาน\nความโปร่งใสเกี่ยวกับการเปลี่ยนผ่านของทีมและความเป็นผู้นำ:\n- **การอำลาตำแหน่งผู้นำ:** การรับทราบถึงการลาออกของ Hannah Aubry ผู้อำนวยการฝ่ายชุมชนและสมาชิกคณะกรรมการ พร้อมขอบคุณสำหรับการมีส่วนร่วมในการเติบโตของชุมชน ([โพสต์อำลา Hannah Aubry](embed:mastodon-hannah-aubry-O6F))\n\n### 5. เงินทุนของโปรเจกต์และสินค้าที่ระลึก\nการรักษาการพัฒนาโอเพนซอร์สของเครือข่าย:\n- **การสั่งจอง Plushtodon ล่วงหน้า:** การประกาศสีใหม่ของตุ๊กตามาสคอตในร้านค้า เพื่อให้ผู้สนับสนุนสามารถช่วยระดมทุนในการพัฒนาได้โดยตรง ([โพสต์สั่งจอง Plushtodon ล่วงหน้า](embed:mastodon-new-plushtodon-7D2))\n\n---\n\n### ตัวอย่างที่โดดเด่น\n\n[@Mastodon: After publishing the results of Discovery Week, we can now give you a first snea](embed:mastodon-after-publishing-WqJ)\n[@Mastodon: Today we're sharing additional guidelines about our Trade Mark Policy based on c](embed:mastodon-today-we-3Kb)\n[@Mastodon: New #Plushtodon colours now available for pre-orders on our shop! This is a way](embed:mastodon-new-plushtodon-7D2)"
       },
       "follow_up_1": {
-        "text": "ค้นหาประกาศล่าสุดจากบล็อกของ Mastodon"
+        "text": "ค้นหาการสนทนาล่าสุดเกี่ยวกับ Mastodon 5.0 บน Reddit"
       },
       "follow_up_2": {
-        "text": "อธิบายวิธีการทำงานของการดูแลเนื้อหาแบบกระจายศูนย์บน Mastodon"
+        "text": "อธิบายวิธีการทำงานของการดูแลเนื้อหาแบบกระจายศูนย์บน Fediverse"
       },
       "follow_up_3": {
-        "text": "ค้นหาความคืบหน้าล่าสุดเกี่ยวกับการพัฒนา Mastodon 5.0"
+        "text": "ค้นหาบทความทางเทคนิคที่อธิบายคุณสมบัติของโปรโตคอล ActivityPub"
       },
       "follow_up_4": {
-        "text": "เปรียบเทียบการเปลี่ยนแปลงใน Mastodon 5.0 กับเวอร์ชันก่อนหน้า"
+        "text": "เปรียบเทียบรูปแบบการกำกับดูแลของ Mastodon กับเครือข่ายโซเชียลเชิงพาณิชย์"
       },
       "follow_up_5": {
-        "text": "ค้นหาการพูดคุยในชุมชนเกี่ยวกับการดูแลเซิร์ฟเวอร์บน Fediverse"
+        "text": "ค้นหาการประชุมซอฟต์แวร์โอเพนซอร์สออนไลน์ที่กำลังจะเกิดขึ้น"
       },
       "follow_up_6": {
-        "text": "รายการความท้าทายหลักที่แพลตฟอร์มโอเพนซอร์สต้องเผชิญ"
+        "text": "อภิปรายเกี่ยวกับรูปแบบการระดมทุนสำหรับแพลตฟอร์มโอเพนซอร์สอิสระ"
       }
     },
     "memory_books_currently_reading": {
@@ -10388,20 +10362,6 @@
         "text": "List essential items to pack for variable weather bike rides"
       }
     },
-    "organic_groceries_berlin": {
-      "title": {
-        "text": "Organic Grocery Delivery in Berlin"
-      },
-      "summary": {
-        "text": "Compared Berlin organic grocery delivery options for oat milk and bananas using local delivery sources and product results."
-      },
-      "message_1": {
-        "text": "Can you find organic grocery delivery options in Berlin for oat milk and bananas, compare a few reliable local options, and recommend which one to use?"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"91a1a938-12c3-47f9-a00b-e9a59d2a8ad2\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"organic grocery delivery Berlin\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"cf2504cb-56b5-4ea3-89d5-4cf9cc732911\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Bio Lebensmittel Lieferservice Berlin Hafermilch Bananen\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"5cdfdced-0921-47ed-a351-a0d19ccbb8e2\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Hafermilch\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b6f64bdd-2b32-4623-83eb-8cf57975ba70\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Bananen\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\nBerlin has an excellent ecosystem for organic groceries, offering everything from traditional farm-to-door \"Biokisten\" (organic boxes) to ultra-fast delivery apps. Since you are specifically looking for organic oat milk (*Bio Hafermilch*) and organic bananas (*Bio Bananen*), these are staple items available almost everywhere.\n\nHere is a comparison of the most reliable local options, categorized by how they operate:\n\n### 1. The Local \"Biokiste\" Services (Best for Sustainability & Regionality)\nThese are local, dedicated organic delivery services that have been operating in Berlin for years. They focus heavily on sustainability, fair trade, and regional farming.\n*   **[LogischBIO](embed:logisch-bio.de-eeO):**\n    *   **The Vibe:** A true online organic supermarket with a local heart. They've been operating in Berlin since 1998.\n    *   **Pros:** They offer over 5,000 organic items. Crucially, they require **no subscription** (*kein Abo*), which makes them incredibly flexible if you just want to do a one-off grocery haul.\n    *   **Cons:** You need to plan a day or two ahead for your delivery slot.\n*   **[Märkische Kiste](embed:maerkischekiste.de-fJw) & [Landkorb](embed:landkorb.de-Ze3):**\n    *   **The Vibe:** Classic \"Ökokiste\" (Eco-box) providers. They deliver in reusable boxes straight to your door.\n    *   **Pros:** Excellent for supporting regional Brandenburg farmers. You can either subscribe to a pre-made seasonal box or build your own custom box with exact items like oat milk and bananas.\n    *   **Cons:** Often heavily subscription-based (though you can pause/customize easily). Delivery days are sometimes restricted based on your specific Berlin postal code.\n\n### 2. Quick Commerce (Best for Urgent Needs)\nIf you need your oat milk for tomorrow morning's coffee and can't wait for a scheduled delivery slot:\n*   **Alnatura via [Wolt](embed:wolt.com-UR8) / UberEats:**\n    *   **The Vibe:** Ultra-fast delivery from one of Germany's most popular organic supermarket chains.\n    *   **Pros:** Delivery in roughly 30 minutes. You get access to the high-quality Alnatura brand products.\n    *   **Cons:** Higher delivery fees, and the couriers are gig-economy workers, which lacks the community/sustainability ethos of the dedicated farm boxes.\n\n### 3. Mainstream Supermarket Delivery (Best for General Shopping)\nIf you want to combine your organic basics with a regular grocery order:\n*   **REWE Lieferservice:**\n    *   They have a very reliable scheduled delivery network in Berlin and a massive organic (\"REWE Bio\") range.\n    *   For example, you can easily grab [REWE Bio Vegan Oat Drink](embed:rewe-bio-pflanzlich-Q5w) or [Oatly Bio Barista](embed:oatly-bio-haferdrink-cdI), alongside [Organic Bananas](embed:bio-banane-ca-GZn).\n\n---\n\n### 🏆 Recommendation: Which one should you use?\n\n**Go with LogischBIO.**\nIf you want a reliable, Berlin-based company that specializes entirely in organic food, they are the best all-rounder. Because they don't lock you into a subscription box model, you can just treat them like a regular online supermarket. You can easily stock up on a whole carton of oat milk and a bunch of bananas without having to commit to a weekly vegetable box you might not have time to cook.\n\n**However, if you are in a rush right now:** Open the Wolt app and see if the **Alnatura Brand Store** delivers to your specific neighborhood (they cover most of the Ringbahn area). You'll have your organic bananas and oat milk at your door in 30 minutes."
-      }
-    },
     "pdf_read_secret_word": {
       "title": {
         "text": "Read a PDF page"
@@ -10808,16 +10768,34 @@
     },
     "ted_talk_transcript_summary": {
       "title": {
-        "text": "TED Talk Transcript Summary"
+        "text": "วิเคราะห์ TED Talk เชิงล้อเลียนของ Will Stephen"
       },
       "summary": {
-        "text": "Get a YouTube talk transcript and summarize the speaker's core argument in five bullets."
+        "text": "สรุปการพูด TEDx เชิงล้อเลียนของ Will Stephen เกี่ยวกับการพูดในที่สาธารณะ โดยแบ่งเป็น 5 ประเด็นหลักที่ตลกขบขัน"
       },
       "message_1": {
-        "text": "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
+        "text": "ดึงบทถอดความของ TED talk นี้และสรุปประเด็นหลักเป็น 5 หัวข้อ: [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
       },
       "message_2": {
-        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\nวิดีโอนี้คือการนำเสนอ TEDx เชิงล้อเลียนของ Will Stephen ในหัวข้อ *\"How to sound smart in your TEDx Talk\"* (ดูการบรรยาย)\n\nแทนที่จะเป็นการบรรยายให้ความรู้ Stephen ใช้ตลกแนวเสียดสี (meta-humor) เพื่อถอดรหัสขนบธรรมเนียมของการ [พูดในที่สาธารณะ](wiki:Public_speaking) แบบปาฐกถา นี่คือสรุปประเด็นสำคัญ 5 ข้อ:\n\n* **การนำเสนอสร้างภาพลวงตาของเนื้อหาสาระ:** จังหวะการพูด การใช้มือประกอบอย่างตั้งใจ การสบตาที่ดูจริงจัง และอุปกรณ์ประกอบฉาก (เช่น แว่นตาที่ไม่มีค่าสายตา) สามารถทำให้ผู้ฟังเชื่อว่าผู้พูดนั้นเก่งกาจ แม้ว่าพวกเขาจะไม่มีอะไรที่มีสาระจะพูดเลยก็ตาม\n* **การสร้างความสัมพันธ์บนเวทีมีสูตรสำเร็จตายตัว:** รูปแบบการโต้ตอบที่คุ้นเคย เช่น การถามคำถามเชิงโวหาร การขอให้ยกมือ และการเล่าเรื่องตลกเกี่ยวกับตัวเอง เป็นเทคนิคบนเวทีที่ถูกคำนวณมาแล้วเพื่อสร้างความอบอุ่นและความน่าเชื่อถือแบบจอมปลอม\n* **ภาพประกอบข้อมูลให้ความน่าเชื่อถือที่ไม่ได้มาจากความจริง:** การแสดงตัวเลขสุ่มๆ การคำนวณพื้นฐาน และแผนภูมิที่ไม่มีบริบท เป็นการใช้ประโยชน์จากอคติทางการมองเห็น ทำให้การนำเสนอแลดูผ่านการวิจัยมาอย่างเข้มข้น ทั้งที่ข้อมูลเหล่านั้นไม่เกี่ยวข้องเลยแม้แต่น้อย\n* **ผู้ฟังตีความหมายจากเรื่องไร้สาระไปเอง:** ด้วยการจับคู่จังหวะเสียงที่ดูจริงจังและภาพสต็อกที่กระตุ้นอารมณ์เข้ากับคำพูดที่ไร้ความหมาย ผู้พูดสามารถกระตุ้นให้ผู้ฟังค้นหาและจินตนาการถึงความเชื่อมโยงที่ลึกซึ้งในจิตใต้สำนึก ทั้งที่ความจริงแล้วไม่มีอะไรเลย\n* **การสร้างจุดพีคทางอารมณ์สามารถปรุงแต่งขึ้นได้:** การเพิ่มระดับเสียง การผ่อนเสียงลงเป็นเสียงกระซิบ และการหยุดเว้นวรรคอย่างมีชั้นเชิง เป็นการเลียนแบบจังหวะของการตระหนักรู้ (epiphany) ซึ่งพิสูจน์ให้เห็นว่าความรู้สึกของการได้รับแรงบันดาลใจนั้นสามารถสร้างขึ้นได้อย่างง่ายดายโดยไม่ต้องมีข้อมูลเชิงลึกใดๆ รองรับ"
+      },
+      "follow_up_1": {
+        "text": "ค้นหาการนำเสนอแนวเสียดสีที่เป็นที่นิยมอื่นๆ บน YouTube"
+      },
+      "follow_up_2": {
+        "text": "อธิบายประวัติของรูปแบบ TEDx และผลกระทบทางวัฒนธรรมของมัน"
+      },
+      "follow_up_3": {
+        "text": "ค้นหาบทเรียนมาสเตอร์คลาสเกี่ยวกับการพูดในที่สาธารณะทางออนไลน์"
+      },
+      "follow_up_4": {
+        "text": "วิเคราะห์เทคนิคภาษากายเฉพาะที่ใช้โดยนักพูดคนสำคัญที่มีชื่อเสียง"
+      },
+      "follow_up_5": {
+        "text": "ค้นหาวิดีโอวิเคราะห์เกี่ยวกับเทคนิคการใช้โวหารเพื่อการโน้มน้าวใจ"
+      },
+      "follow_up_6": {
+        "text": "รายการเคล็ดลับในการเอาชนะความประหม่าเมื่อต้องพูดในที่สาธารณะ"
       }
     },
     "upcoming_reminders_list": {
@@ -11001,6 +10979,70 @@
       },
       "follow_up_6": {
         "text": "เปรียบเทียบวิธีต่างๆ ในการเปลี่ยนไอเดียจากการพูดให้เป็นงานที่เป็นระเบียบ"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "ไอเดียเมนูมังสวิรัติจากของในตู้เย็น"
+      },
+      "summary": {
+        "text": "ผู้ใช้ขอไอเดียเมนูมังสวิรัติโดยใช้ผักโขม แครอท พริกหวาน และถั่วลูกไก่ ผู้ช่วยเสนอให้ 3 ตัวเลือก"
+      },
+      "message_1": {
+        "text": "มีเมนูมังสวิรัติแนะนำไหม? ในตู้เย็นฉันยังมีผักโขม แครอท พริกหวาน และถั่วลูกไก่อยู่เลย"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nด้วย **ผักโขม, แครอท, พริกหวาน และถั่วลูกไก่** คุณมีวัตถุดิบพื้นฐานชั้นยอดสำหรับเมนูมังสวิรัติที่อร่อยและมีกากใยสูง\n\nนี่คือ 3 แนวทางอาหารที่แตกต่างกัน ขึ้นอยู่กับว่าคุณอยากทานสไตล์ไหน:\n\n---\n\n### 1. สดชื่นและกรุบกรอบ: สลัดผักสับสไตล์ไทย\nหากคุณต้องการอะไรที่รวดเร็ว เบา และกรอบ ให้ผสมพริกหวาน แครอท และผักโขมดิบที่สับละเอียด เข้ากับถั่วลูกไก่ในน้ำสลัดมะนาวผสม [ถั่วลิสง](wiki:Peanut) รสเปรี้ยวจี๊ดจ๊าด\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. แผ่นผักทอดรสกลมกล่อม: ทอดมันถั่วลูกไก่และผักแบบกรอบ\nหากคุณชอบอะไรที่อุ่นและพอดีคำ (เหมาะสำหรับใส่ในแรป, ขนมปังพิต้า หรือทานคู่กับดิปโยเกิร์ต) ให้บดถั่วลูกไก่แล้วผสมแครอทสับ พริกหวาน และผักโขมลวกสุกลงไป\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. ทางเลือกด่วนสำหรับมื้อเย็น: แกงถั่วลูกไก่และผักในกระทะแบบอุ่น\nหากคุณต้องการอาหารมื้อเดียวที่ใช้ของพื้นฐานในครัว (เช่น กะทิกระป๋อง หรือมะเขือเทศบด):\n1. **ผัดเครื่องเทศ:** อุ่นน้ำมันมะกอกในกระทะ จากนั้นผัดหอมหัวใหญ่หั่นเต๋า กระเทียมสับ และขิงจนมีกลิ่นหอม\n2. **ใส่ผักเนื้อแข็ง:** หั่นแครอทและพริกหวานเป็นชิ้นพอดีคำ ใส่ลงไปพร้อมกับยี่หร่าป่น [ขมิ้น](wiki:Turmeric) และพริกป่นหรือผงกะหรี่เล็กน้อย\n3. **เคี่ยว:** ใส่ถั่วลูกไก่ที่ล้างแล้วลงไปพร้อมกับน้ำสต๊อกผักหรือกะทิหนึ่งถ้วย ปิดฝาแล้วเคี่ยวประมาณ 10–12 นาทีจนแครอทนิ่ม\n4. **ใส่ผักโขม:** ใส่ผักโขมสดลงไปในตอนท้ายสุด ผัดต่อ 1–2 นาทีจนผักยุบตัวและมีสีเขียวสด ปิดท้ายด้วยการบีบน้ำมะนาว\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"วันนี้คุณอยากทำอาหารสไตล์ไหน?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"สลัดผักสับที่สดชื่นและกรุบกรอบ\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"ทอดมันหรือแผ่นผักทอดกรอบ\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"แกงหรือสตูว์ในกระทะแบบอุ่น\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "ค้นหาวิธีทำอย่างละเอียดและปริมาณส่วนผสมทั้งหมดสำหรับเมนูแกงกะหรี่กระทะ"
+      },
+      "follow_up_2": {
+        "text": "อธิบายวิธีเตรียมและเก็บรักษาทอดมันถั่วลูกไก่ที่เหลือสำหรับเตรียมอาหารล่วงหน้า"
+      },
+      "follow_up_3": {
+        "text": "ค้นหาสูตรดิปโยเกิร์ตวีแกนที่เข้ากันได้ดีกับทอดมันถั่วลูกไก่"
+      },
+      "follow_up_4": {
+        "text": "แนะนำเครื่องเทศที่ใช้แทนกันได้ง่ายๆ หากไม่มีผงกะหรี่สำหรับเมนูกระทะ"
+      },
+      "follow_up_5": {
+        "text": "ค้นหาสูตรน้ำสลัดทางเลือกที่ใช้ทาฮินีสำหรับสลัดผักสับสไตล์ไทย"
+      },
+      "follow_up_6": {
+        "text": "เปรียบเทียบปริมาณโปรตีนและใยอาหารของเมนูมังสวิรัติทั้ง 3 ตัวเลือกนี้"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "เปรียบเทียบหม้อทอดไร้น้ำมันในเยอรมนี"
+      },
+      "summary": {
+        "text": "เปรียบเทียบหม้อทอดไร้น้ำมันยอดนิยมใน Amazon เยอรมนีตามราคา ความจุ และคะแนนรีวิว พร้อมแนะนำ Philips Airfryer 2000 Series สำหรับครัวเรือนที่มี 2 คน"
+      },
+      "message_1": {
+        "text": "ช่วยหาหม้อทอดไร้น้ำมันที่ซื้อออนไลน์ได้ในเยอรมนี รวมถึงรายการสินค้าจาก Amazon เปรียบเทียบราคาปัจจุบัน ความจุ และคะแนนรีวิว จากนั้นช่วยแนะนำรุ่นที่เหมาะสำหรับครัวเรือนที่มี 2 คน พร้อมแนบลิงก์แหล่งที่มา"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nนี่คือการเปรียบเทียบหม้อทอดไร้น้ำมันที่ได้รับคะแนนสูงสุดซึ่งมีจำหน่ายใน Amazon เยอรมนี โดยเปรียบเทียบทั้งราคา ความจุ และคะแนนรีวิวจากลูกค้า\n\n---\n\n### การเปรียบเทียบรุ่นยอดนิยมในเยอรมนี\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### คำแนะนำอันดับต้นๆ สำหรับครัวเรือนที่มี 2 คน\n\n#### **ตัวเลือกหลัก: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **ทำไมรุ่นนี้ถึงเหมาะกับคนสองคนที่สุด:**\n  * **ความจุที่เหมาะสม (6.2 ลิตร):** ตะกร้าที่มีขนาดเล็กกว่า 4.5–5 ลิตร จำเป็นต้องปรุงอาหารหลายรอบแม้จะทานแค่สองคน ตะกร้าขนาด 6.2 ลิตรช่วยให้คุณวางเนื้อปลาแซลมอนสองชิ้นพร้อมผักหรือเฟรนช์ฟรายส์เป็นเครื่องเคียงได้ในชั้นเดียว เพื่อให้ได้ความกรอบที่ทั่วถึง\n  * **พื้นที่จัดวางในครัว:** เครื่องแบบสองโซน (เช่น Ninja หรือ Russell Hobbs) ใช้พื้นที่บนเคาน์เตอร์ค่อนข้างมาก ตะกร้าเดี่ยวขนาด 6 ลิตรให้ความจุที่เพียงพอในขณะที่ยังมีขนาดกะทัดรัด เหมาะสำหรับพื้นที่เตรียมอาหารในห้องครัวเยอรมันทั่วไป\n  * **หน้าต่างโปร่งใส:** ช่วยให้ตรวจสอบความสุกได้โดยไม่ต้องเลื่อนลิ้นชักเปิดออก ซึ่งจะทำให้สูญเสียความร้อน\n  * **ความคุ้มค่า:** ในราคา 99.99 ยูโร รุ่นนี้ให้ความเสถียรของอุณหภูมิที่เชื่อถือได้จาก [Philips](wiki:Philips) ในราคาที่สมเหตุสมผล\n\n#### **ทางเลือกอื่น (หากคุณทำอาหารสองอย่างพร้อมกันด้วยอุณหภูมิที่ต่างกันบ่อยๆ): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nหากคุณและคู่ของคุณชอบเตรียมโปรตีนและผักเครื่องเคียงไปพร้อมๆ กันด้วยอุณหภูมิและเวลาที่ต่างกัน (เช่น อกไก่ที่ 180 °C และมันฝรั่งทอดกรอบที่ 200 °C) รุ่นนี้กำลังลดราคาเหลือ 119.99 ยูโร และมีฟังก์ชันตั้งเวลาทำอาหารให้เสร็จพร้อมกัน\n\n---\n\n### ปัจจัยสำคัญที่ควรพิจารณาก่อนซื้อ\n1. **รูปทรงของลิ้นชัก:** ตะกร้าทรงเหลี่ยม (เช่น Cosori และ Philips) รองรับอาหารที่มีลักษณะแบน (สเต็ก, ถาดอบ, ไม้เสียบย่าง) ได้ดีกว่าตะกร้าทรงกลมที่มีความจุลิตรเท่ากัน\n2. **พื้นที่ในเครื่องล้างจาน:** ตรวจสอบให้แน่ใจว่าเครื่องล้างจานของคุณมีพื้นที่ชั้นวางสูงพอสำหรับลิ้นชักเดี่ยวขนาด 6 ลิตร หรือพิจารณาการล้างด้วยมือเพื่อยืดอายุการใช้งานของสารเคลือบกันติด"
+      },
+      "follow_up_1": {
+        "text": "ค้นหาสูตรอาหารที่ออกแบบมาสำหรับหม้อทอดไร้น้ำมันโดยเฉพาะ"
+      },
+      "follow_up_2": {
+        "text": "อธิบายความแตกต่างหลักระหว่างหม้อทอดไร้น้ำมันแบบตะกร้าเดี่ยวและตะกร้าคู่"
+      },
+      "follow_up_3": {
+        "text": "ค้นหาอุปกรณ์เสริมสำหรับการอบที่ใช้งานร่วมกับหม้อทอดไร้น้ำมันรุ่นนี้ได้"
+      },
+      "follow_up_4": {
+        "text": "รายการสูตรอาหารเย็นที่ทำง่ายสำหรับมือใหม่ด้วยหม้อทอดไร้น้ำมัน"
+      },
+      "follow_up_5": {
+        "text": "ตรวจสอบระดับการใช้พลังงานปัจจุบันของรุ่นเหล่านี้"
+      },
+      "follow_up_6": {
+        "text": "เปรียบเทียบข้อกำหนดในการทำความสะอาดและการบำรุงรักษาระหว่างการเคลือบเซรามิกกับเทฟลอน"
       }
     }
   },

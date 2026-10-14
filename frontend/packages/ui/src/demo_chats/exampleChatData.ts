@@ -20,12 +20,12 @@ import { familyStaysKyotoChat } from "./data/example_chats/family-stays-kyoto";
 import { tedTalkTranscriptSummaryChat } from "./data/example_chats/ted-talk-transcript-summary";
 import { balconyPlantReminderChat } from "./data/example_chats/balcony-plant-reminder";
 import { buckConverters24v5vChat } from "./data/example_chats/buck-converters-24v-5v";
-import { organicGroceriesBerlinChat } from "./data/example_chats/organic-groceries-berlin";
+import { airFryersAmazonGermanyChat } from "./data/example_chats/air-fryers-amazon-germany";
 import { furnishedApartmentsBerlinChat } from "./data/example_chats/furnished-apartments-berlin";
 import { sqliteStrictTablesSummaryChat } from "./data/example_chats/sqlite-strict-tables-summary";
 import { pythonSquaresCodeRunChat } from "./data/example_chats/python-squares-code-run";
 import { habitTrackerOnboardingDraftChat } from "./data/example_chats/habit-tracker-onboarding-draft";
-import { chickpeaSpinachProteinDinnersChat } from "./data/example_chats/chickpea-spinach-protein-dinners";
+import { vegetarianRecipesFromFridgeVegetablesChat } from "./data/example_chats/vegetarian-recipes-from-fridge-vegetables";
 import { nonprofitEventPlanningUseCaseChat } from "./data/example_chats/nonprofit-event-planning-use-case";
 import { lh400FlightStatusCheckChat } from "./data/example_chats/lh400-flight-status-check";
 import { referenceImage3DModelChat } from "./data/example_chats/reference-image-3d-model";
@@ -85,12 +85,12 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   tedTalkTranscriptSummaryChat,
   balconyPlantReminderChat,
   buckConverters24v5vChat,
-  organicGroceriesBerlinChat,
+  airFryersAmazonGermanyChat,
   furnishedApartmentsBerlinChat,
   sqliteStrictTablesSummaryChat,
   pythonSquaresCodeRunChat,
   habitTrackerOnboardingDraftChat,
-  chickpeaSpinachProteinDinnersChat,
+  vegetarianRecipesFromFridgeVegetablesChat,
   nonprofitEventPlanningUseCaseChat,
   lh400FlightStatusCheckChat,
   referenceImage3DModelChat,

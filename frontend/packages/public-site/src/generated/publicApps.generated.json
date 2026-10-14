@@ -127,7 +127,7 @@
       "type": "skill",
       "id": "search_products"
     },
-    "exampleChatId": "example-organic-groceries-berlin",
+    "exampleChatId": "example-air-fryers-amazon-germany",
     "promptEn": "Find products online",
     "promptDe": "Finde Produkte online"
   },
@@ -139,7 +139,7 @@
       "type": "skill",
       "id": "search_recipes"
     },
-    "exampleChatId": "example-chickpea-spinach-protein-dinners",
+    "exampleChatId": "example-vegetarian-recipes-from-fridge",
     "promptEn": "Find recipes",
     "promptDe": "Finde Rezepte"
   },
@@ -296,8 +296,8 @@
       "id": "search"
     },
     "exampleChatId": "example-printable-benchy-phone-stand",
-    "promptEn": "Find a 3D model",
-    "promptDe": "Finde ein 3D-Modell"
+    "promptEn": "Find 3D models",
+    "promptDe": "Finde 3D-Modelle"
   },
   {
     "id": "music",

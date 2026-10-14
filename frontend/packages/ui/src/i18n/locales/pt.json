@@ -8987,20 +8987,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"2654ed6e-e439-4c21-98c7-95269083da71\", \"app_id\": \"reminder\", \"skill_id\": \"cancel-reminder\"}\n```\n\nOK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.\n\nWould you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?"
       }
     },
-    "chickpea_spinach_protein_dinners": {
-      "title": {
-        "text": "Chickpea Spinach Protein Dinners"
-      },
-      "summary": {
-        "text": "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
-      },
-      "message_1": {
-        "text": "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d7f21a46-8f13-4f14-82c4-d868ba62bb8a\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\",\"query\":\"chickpea and spinach dinner\",\"provider\":\"Edamam\",\"status\":\"finished\"}\n```\n\nHere are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.\n\n### 1. 10-Minute Chickpea and Spinach Curry\nThis is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.\n\n[!](embed:thefieryvegetarian.com-3sr)\n[!](embed:vegancocotte.com-IZt)\n[!](embed:vegancocotte.com-rFn)\n\n*   **Total Time:** 10 minutes\n*   **Protein Content:** ~10.5g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)\n*   1 (15 oz) can diced [tomatoes](wiki:Tomato)\n*   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)\n*   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)\n*   3 cups fresh [spinach](wiki:Spinach)\n*   1 tsp vegetable oil\n\n**Instructions:**\n1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.\n2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.\n3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.\n4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.\n\n---\n\n### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes\nThis Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.\n\n[!](embed:runningonrealfood.com-R8H)\n[!](embed:americanhomecook.com-Alt)\n[!](embed:shortgirltallorder.com-QXv)\n\n*   **Total Time:** 15 minutes\n*   **Protein Content:** ~23.1g per serving\n*   **Servings:** 2\n\n**Ingredients:**\n*   1 (15 oz) can chickpeas (drained and rinsed)\n*   1 (14.5 oz) can diced tomatoes\n*   5 oz baby spinach\n*   1 small onion (diced) & 4 garlic cloves (sliced)\n*   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)\n*   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))\n\n**Instructions:**\n1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).\n2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.\n3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.\n4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).\n\n---\n\n### 3. 20-Minute Middle Eastern Spinach and Chickpeas\nA simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.\n\n[!](embed:carolinescooking.com-Dy7)\n[!](embed:simpleveganblog.com-8dt)\n[!](embed:ourplantbasedworld.com-Krr)\n\n*   **Total Time:** 20 minutes\n*   **Protein Content:** ~8.7g per serving\n*   **Servings:** 4\n\n**Ingredients:**\n*   3 cups low-sodium canned chickpeas (drained and rinsed)\n*   2 cups baby spinach\n*   2/3 cup diced tomatoes\n*   ½ large white onion (diced)\n*   2 tsp minced garlic\n*   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)\n\n**Instructions:**\n1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.\n2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.\n3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.\n4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.\n5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.\n\n---\n\n**Next steps for your meal prep:**\n*   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?\n*   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?"
-      }
-    },
     "classic_car_reverse_image_search": {
       "title": {
         "text": "Identificar um Carro Clássico a partir de uma Foto"
@@ -9113,66 +9099,66 @@
     },
     "community_garden_sunflower_illustration": {
       "title": {
-        "text": "Gerar uma ilustração botânica de girassol"
+        "text": "Ilustração Botânica de Girassol para Folheto de Jardim"
       },
       "summary": {
-        "text": "Cria uma ilustração de girassol sem texto para um folheto de horta comunitária."
+        "text": "Criou uma ilustração botânica acolhedora de um girassol para um folheto de horta comunitária com sugestões de design."
       },
       "message_1": {
         "text": "Por favor, cria uma ilustração botânica acolhedora de um girassol para um folheto de horta comunitária, num fundo claro e limpo, sem texto."
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6a3857ca-aa90-486f-b481-4e1df6f95faa\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nEstou a gerar essa ilustração botânica do girassol para o teu folheto de horta comunitária; está a ser processada e aparecerá aqui no chat assim que estiver concluída.\n\n### Dicas Rápidas de Design para Folhetos Comunitários\n\nPara tornares o teu folheto de horta convidativo e fácil de ler:\n\n- **Hierarquia Visual e Espaçamento:** Dá espaço à ilustração. Colocá-la numa margem ou cabeçalho deixa espaço livre para dicas de jardinagem ou detalhes do evento sem parecer sobrecarregado.\n- **Harmonia de Cores:** Usa tons quentes diretamente da ilustração — como dourado mel profundo, verde folha de oliveira ou terracota terroso — para cabeçalhos de secção e bordas.\n- **Mistura a Tua Própria Arte:** Se os membros da comunidade ou jardineiros locais criarem esboços, impressões de folhas ou fotos dos canteiros reais, integrar esses elementos ao lado de ilustrações digitais cria um toque acolhedor e autêntico.\n\n---\n\n**Próximos Passos e Opções:**\n- [Desenha o layout de um folheto com cabeçalhos e dicas](/#message=Help%20me%20design%20a%20clean%20layout%20and%20copy%20for%20a%20community%20garden%20handout.)\n- [Sugere uma paleta de cores baseada em girassóis](/#message=Suggest%20a%20warm%20color%20palette%20and%20typography%20pairing%20for%20a%20botanical%20garden%20flyer.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"83e98b9b-8bcb-4774-9223-be000504a84a\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nAqui está a ilustração botânica acolhedora de um girassol para o folheto da tua horta comunitária:\n\n[!](embed:generated-images-ff26d807eb07)\n\n### Sugestões de Design e Fluxo de Trabalho\n\n- **Combinar com elementos desenhados à mão:** Para materiais comunitários, misturar arte digital ou gerada por IA com toques pessoais autênticos funciona maravilhosamente. Por exemplo, podes imprimir esta ilustração como fundo ou âncora visual e depois pedir aos membros da comunidade que desenhem diagramas de plantação, escrevam dicas de cuidados à mão ou adicionem folhas/sementes secas prensadas ao lado.\n- **Layout e Hierarquia do Folheto:**\n  - **Espaço em branco:** Mantém margens generosas à volta do girassol para dar ao folheto uma sensação arejada e acolhedora.\n  - **Tipografia:** Combina uma serifada orgânica ou humanista (como [Garamond](wiki:Garamond) ou [Georgia](wiki:Georgia_(typeface))) para os títulos com uma sans-serif legível para as instruções de plantação, detalhes de preparação do solo e datas de eventos.\n  - **Paleta de Cores:** Usa os tons âmbar e dourados das pétalas para linhas de destaque ou subtítulos, e o verde-floresta profundo para os destaques principais.\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"garden_handout_next_step\",\n  \"multiple\": false,\n  \"question\": \"What would you like to work on next for the handout?\",\n  \"options\": [\n    {\n      \"id\": \"layout_tips\",\n      \"text\": \"Get advice on typography and grid layout for the printed flyer\"\n    },\n    {\n      \"id\": \"variations\",\n      \"text\": \"Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)\"\n    },\n    {\n      \"id\": \"custom\",\n      \"text\": \"Something else\"\n    }\n  ],\n  \"custom_option_id\": \"custom\",\n  \"custom_placeholder\": \"Describe what you need...\"\n}\n```\n\n[!](embed:generated-media-images-83e98b9b8bcb)"
       },
       "follow_up_1": {
-        "text": "Pesquisar eventos locais de hortas comunitárias na área"
+        "text": "Gera outra ilustração de uma abelha atarefada em alfazema"
       },
       "follow_up_2": {
-        "text": "Ajuda-me a escrever um texto introdutório amigável para o folheto da horta"
+        "text": "Lista dicas essenciais para desenhar um folheto de horta comunitária legível"
       },
       "follow_up_3": {
-        "text": "Encontrar ícones de plantas em SVG gratuitos para decorar o folheto"
+        "text": "Pesquisa tipos de letra gratuitos para folhetos imprimíveis"
       },
       "follow_up_4": {
-        "text": "Listar dicas essenciais para incluir num guia de horta comunitária"
+        "text": "Explica como equilibrar o espaço negativo e o texto num folheto informativo"
       },
       "follow_up_5": {
-        "text": "Pesquisar ideias de combinações tipográficas para folhetos de jardim"
+        "text": "Gera uma ilustração de tomates tradicionais maduros na videira"
       },
       "follow_up_6": {
-        "text": "Explicar como organizar elementos visuais num layout de impressão"
+        "text": "Descreve ideias de paletas de cores para projetos de impressão orgânicos naturais"
       }
     },
     "community_garden_volunteer_chime": {
       "title": {
-        "text": "Um toque acolhedor para uma horta comunitária"
+        "text": "Design de Som de Notificação para Horta Comunitária"
       },
       "summary": {
-        "text": "Gere um som de notificação curto de duas notas para um aplicativo fictício de horta comunitária."
+        "text": "Criação de um efeito sonoro suave de carrilhão de madeira de duas notas para uma notificação de inscrição de voluntários numa horta comunitária."
       },
       "message_1": {
-        "text": "Crie um som de notificação curto e acolhedor para um aplicativo de horta comunitária para quando um voluntário se inscrever. Um toque suave de duas notas, sem fala e com menos de três segundos."
+        "text": "Cria um som de notificação curto e caloroso para um app de horta comunitária para quando um voluntário se inscrever. Um carrilhão suave de duas notas, sem fala e com menos de três segundos."
       },
       "message_2": {
-        "text": "[!](embed:2647eea0-0e9c-420e-aeba-9e6ae7537904)\n\nEstou gerando o toque suave e acolhedor de duas notas para o seu aplicativo de horta comunitária agora. Ele está sendo processado e aparecerá no chat assim que estiver pronto.\n\n### Próximos passos sugeridos\n- [Gerar um toque de desbloqueio de emblema festivo e natural](/#message=Create%20a%20short%20celebratory%20acoustic%20chime%20for%20when%20a%20gardener%20completes%20a%20volunteer%20task.)\n- [Projetar o layout de um cartão de confirmação de voluntário](/#message=Design%20a%20UI%20confirmation%20card%20for%20when%20a%20volunteer%20signs%20up%20in%20the%20community%20garden%20app.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdda9f85-fa01-48ca-acf7-7746de6dc0f3\",\"app_id\":\"audio\",\"skill_id\":\"generate\"}\n```\n\nAqui está um carrilhão suave e caloroso de duas notas, criado para a notificação de inscrição de voluntários da tua horta comunitária:\n\n[!](embed:generated-audio-17f56f2e73be)\n\n### Perfil Sonoro\n- **Tom:** Tons orgânicos e ressonantes de carrilhão de madeira/marimba, projetados para evocar a natureza e o crescimento.\n- **Ritmo:** Uma sequência ascendente de duas notas para dar uma sensação inspiradora e acolhedora quando alguém se junta para ajudar.\n- **Duração:** 2 segundos, mantendo-o breve e não intrusivo para os utilizadores da app.\n\nComo é que o tom se ajusta ao resto da paleta de UI da tua app? Podemos ajustar o timbre (por exemplo, para um dedilhado de violão acústico mais suave, uma tigela tibetana ou um sino de vidro mais brilhante), se necessário.\n\n[!](embed:generated-media-audio-fdda9f85fa01)"
       },
       "follow_up_1": {
-        "text": "Gerar um toque de desbloqueio de emblema festivo para a conclusão de tarefas"
+        "text": "Gera uma versão com um dedilhado suave de violão acústico"
       },
       "follow_up_2": {
-        "text": "Explicar como o design de som afeta o engajamento do usuário em aplicativos móveis"
+        "text": "Discute como testar sons de notificação com usuários"
       },
       "follow_up_3": {
-        "text": "Criar um toque de lembrete suave para cronogramas de rega matinais"
+        "text": "Gera um efeito sonoro de uma tigela tibetana ressoando"
       },
       "follow_up_4": {
-        "text": "Listar as melhores práticas para projetar sons de notificação de interface não intrusivos"
+        "text": "Lista as melhores práticas para áudio de notificação em apps móveis"
       },
       "follow_up_5": {
-        "text": "Gerar um som de alerta de erro suave para falhas de validação de formulário"
+        "text": "Gera um toque de notificação de sino de vidro mais brilhante"
       },
       "follow_up_6": {
-        "text": "Descrever como integrar efeitos sonoros personalizados em aplicativos móveis"
+        "text": "Compara diferentes estilos de branding sonoro para apps"
       }
     },
     "community_garden_volunteer_onboarding": {
@@ -9209,34 +9195,34 @@
     },
     "community_garden_welcome_melody": {
       "title": {
-        "text": "Uma Melodia para as Boas-vindas a uma Horta Comunitária"
+        "text": "Criar uma melodia suave de boas-vindas para uma horta comunitária"
       },
       "summary": {
-        "text": "Cria uma melodia instrumental suave para um vídeo de boas-vindas de uma horta comunitária."
+        "text": "Gera uma melodia instrumental curta para um vídeo de boas-vindas de uma horta comunitária, com um som acústico acolhedor e sem vozes."
       },
       "message_1": {
         "text": "Poderias criar uma melodia instrumental curta e suave para um vídeo de boas-vindas de uma horta comunitária, sem vozes?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"296e122a-cd23-4fc6-9c27-99f21f8e3401\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nEstou a criar essa faixa instrumental suave para o teu vídeo de boas-vindas da horta comunitária agora. Está a ser processada e aparecerá aqui assim que estiver pronta.\n\nOs projetos de [jardinagem comunitária](wiki:Community_gardening) são uma forma maravilhosa de aproximar vizinhos e promover a biodiversidade local. Enquanto a música é gerada, gostarias de ajuda para planear a narrativa ou o fluxo visual do vídeo de boas-vindas?\n\n- [Elaborar um esboço para o vídeo de boas-vindas](/#message=Help%20me%20draft%20a%20simple%20storyboard%20or%20script%20for%20our%20community%20garden%20welcome%20video.)\n- [Fazer um brainstorming de textos introdutórios ou dicas de locução](/#message=Give%20me%20some%20ideas%20for%20welcoming%20voiceover%20lines%20for%20our%20garden%20video.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"3e5014d0-2082-4604-b968-1553d6cc43e4\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nAqui tens uma faixa instrumental acústica e suave, composta para o teu vídeo de boas-vindas da horta comunitária:\n\n[!](embed:generated-media-music-3e5014d02082)\n[!](embed:generated-music-c89ee4a5f418)\n\n### Detalhes da Faixa\n- **Humor e Tom:** Acolhedor, convidativo e pacífico\n- **Instrumentação:** Dedilhado de guitarra acústica combinado com acordes suaves de piano e leves apontamentos melódicos\n- **Duração:** 30 segundos\n- **Formato:** Totalmente instrumental (sem vozes), o que a torna ideal como música de fundo para uma narração ou introdução de texto.\n\n### Próximos Passos Sugeridos\nSe planeias produzir o vídeo ou escrever um guião para apresentar a horta a novos membros:\n\n- [Escreve um rascunho de um guião de boas-vindas curto](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)\n- [Gera uma alternativa acústica mais animada](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)"
       },
       "follow_up_1": {
-        "text": "Pesquisar eventos e workshops de hortas comunitárias locais"
+        "text": "Cria uma faixa acústica um pouco mais animada para o vídeo da nossa horta comunitária"
       },
       "follow_up_2": {
-        "text": "Ajuda-me a elaborar um storyboard para o vídeo da horta"
+        "text": "Ajuda-me a escrever um guião acolhedor de trinta segundos para o vídeo de boas-vindas da nossa horta comunitária"
       },
       "follow_up_3": {
-        "text": "Encontrar vídeos de stock de plantas e flores"
+        "text": "Procura tutoriais sobre como editar vídeos de hortas comunitárias num editor de vídeo"
       },
       "follow_up_4": {
-        "text": "Escrever frases de locução de boas-vindas para o vídeo comunitário"
+        "text": "Descreve como combinar música de fundo com uma narração de voz"
       },
       "follow_up_5": {
-        "text": "Pesquisar dicas de jardinagem para projetos comunitários"
+        "text": "Encontra eventos e workshops de hortas comunitárias locais na nossa área"
       },
       "follow_up_6": {
-        "text": "Sugerir ideias para atividades no dia da inauguração da horta comunitária"
+        "text": "Lista ideias de planos visuais para incluir no vídeo de boas-vindas"
       }
     },
     "creativity_drawing_meetups_berlin": {
@@ -9709,40 +9695,34 @@
     },
     "housing_policy_dinner_discussion": {
       "title": {
-        "text": "Prepare for a housing policy dinner discussion"
+        "text": "Prepara-te para uma discussão ao jantar sobre política de habitação"
       },
       "summary": {
-        "text": "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+        "text": "Prepara-te para uma discussão familiar calma sobre política de habitação e controlo de rendas, começando com perguntas sobre o contexto local e os objetivos de cada pessoa."
       },
       "message_1": {
-        "text": "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+        "text": "Vou jantar com o meu pai e ele quer discutir política de habitação e controlo de rendas. Ajuda-me a preparar-me para que eu possa fazer boas perguntas, verificar factos fundamentais, compreender os argumentos mais fortes de ambos os lados e manter a conversa calma."
       },
       "message_2": {
-        "text": "Focus mode activated: Prepare a political discussion."
-      },
-      "message_3": {
-        "text": "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
-      },
-      "message_4": {
-        "text": "It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. \n\nSince housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** (\"Who is right?\") to a **collaborative exploration** (\"How do we solve this complex problem together?\").\n\nHere is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.\n\n### 1. The Core Debate: Rent Control & Stabilization\n\nTo have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). \n\n**The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**\n*   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.\n*   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.\n*   **It creates \"misallocation\":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.\n*   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.\n\n**The Strongest Arguments FOR Rent Control (The Community & Equity View)**\n*   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.\n*   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.\n*   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply \"shop elsewhere\" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.\n*   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.\n\n### 2. Facts to Keep in Your Back Pocket\n*   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.\n*   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. \n*   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.\n\n### 3. Strategies to Keep It Calm\n*   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., \"I agree with you that property owners shouldn't be forced to operate at a loss.\")*\n*   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.\n*   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).\n\n### 4. Great Questions to Ask Your Dad\n\nThese questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:\n\n1.  **If he is AGAINST rent control:** *\"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?\"*\n2.  **If he is FOR rent control:** *\"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?\"*\n3.  **Zooming out to the bigger picture:** *\"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?\"*\n4.  **Finding balance:** *\"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?\"*\n\nHow are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?"
+        "text": "Discutir política de habitação e regulação de rendas com a família pode tornar-se facilmente acalorado, especialmente quando visões geracionais, a propriedade de imóveis ou diferentes filosofias económicas colidem. \n\nPara adaptar os factos fundamentais, os dados sobre políticas e as perguntas específicas para o teu jantar, poderias partilhar um pouco mais de contexto?\n\n1. **Localização / Jurisdição:** O foco é uma cidade, estado ou país específico (ex: Califórnia, Nova Iorque, Berlim, Reino Unido) ou ele está a abordar o tema de uma perspetiva económica nacional e abrangente? As regras locais e as pressões do mercado variam imenso.\n2. **O Ângulo do teu Pai:** Qual é a posição ou reação principal dele? Por exemplo, ele está a falar como proprietário, pequeno senhorio ou contribuinte, ou está a argumentar principalmente a partir da teoria económica do mercado livre contra o controlo de preços?\n3. **O teu Objetivo Principal:** Além de manter as coisas calmas e construtivas, o que seria uma vitória para ti — encontrar pontos comuns em valores fundamentais (como estabilidade comunitária vs. nova oferta), compreender a perspetiva dele ou ter dados sólidos prontos para responder a alegações específicas?\n\nAssim que partilhares esses detalhes, criaremos um guia de preparação personalizado com evidências verificadas, prós e contras de ambos os lados e estratégias de desescalada."
       },
       "follow_up_1": {
-        "text": "Find recent studies on rent control policies"
+        "text": "Pesquisar estudos recentes sobre o controlo de rendas em grandes cidades"
       },
       "follow_up_2": {
-        "text": "Explain the economic impact of rent control"
+        "text": "Listar argumentos comuns contra as regulações de controlo de rendas"
       },
       "follow_up_3": {
-        "text": "Search for housing policy debates in our city"
+        "text": "Encontrar investigação económica sobre a elasticidade da oferta de habitação"
       },
       "follow_up_4": {
-        "text": "Describe how zoning laws affect housing supply"
+        "text": "Comparar leis de proteção de inquilinos em diferentes estados"
       },
       "follow_up_5": {
-        "text": "Show me zoning laws in our area"
+        "text": "Pesquisar artigos de notícias sobre os impactos da regulação de rendas"
       },
       "follow_up_6": {
-        "text": "Summarize the key arguments for rent control"
+        "text": "Explicar como a oferta do mercado de habitação responde ao controlo de preços"
       }
     },
     "image_vectorize_openmates_header": {
@@ -9849,40 +9829,34 @@
     },
     "mastodon_public_post_themes": {
       "title": {
-        "text": "Temas nas Publicações Públicas do Mastodon"
+        "text": "Resumo de Publicações da Conta Oficial do Mastodon"
       },
       "summary": {
-        "text": "Resume os temas das publicações recentes da conta oficial do Mastodon e explora exemplos representativos."
+        "text": "Resumo das publicações públicas recentes da conta oficial do Mastodon, abrangendo o Mastodon 5.0, governança, destaques do ecossistema, atualizações da equipe e merchandising."
       },
       "message_1": {
-        "text": "Poderias resumir os principais temas das publicações públicas recentes da conta oficial do Mastodon no mastodon.social, com links para alguns exemplos?"
+        "text": "Podes resumir os principais temas das publicações públicas recentes da conta oficial do Mastodon no mastodon.social, com links para alguns exemplos?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"33ebec48-4730-4b4b-b7d7-f967173ac9b6\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nO pedido para obter as publicações públicas recentes de @Mastodon (`@Mastodon@mastodon.social`) ainda está a ser processado em segundo plano e atualizará o chat assim que estiver pronto.\n\nEnquanto aguardamos que o feed carregue:\n- [Consulta os anúncios recentes do blogue do Mastodon](/#message=Search%20for%20the%20latest%20official%20Mastodon%20blog%20announcements%20and%20releases.)\n- [Explora o roteiro do Mastodon](/#message=What%20are%20the%20major%20features%20currently%20on%20the%20Mastodon%20roadmap%3F)"
-      },
-      "message_3": {
-        "text": "As publicações já carregaram. Poderias resumir os temas principais e incluir links para três publicações representativas?"
-      },
-      "message_4": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"65b92905-0838-46dd-8fff-8e28cdc8789a\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nA conta oficial @Mastodon em `mastodon.social` destaca vários temas centrais nas suas publicações públicas recentes:\n\n### 1. Evolução Significativa do Produto e Pesquisa de Usuários\nO foco principal tem sido o trabalho de base para o **Mastodon 5.0**, após a iniciativa de pesquisa comunitária \"Discovery Week\" liderada pela sua equipe de design. A equipe compartilhou prévias de uma interface redesenhada e mais tranquila, além de um compositor atualizado, com o objetivo de tornar a plataforma mais acessível e fácil de usar.\n\n### 2. Governança Comunitária, Políticas e Atualizações de Equipe\nO Mastodon comunica regularmente atualizações de governança e políticas, destacando-se o lançamento de diretrizes esclarecedoras sobre a sua **Política de Marcas Registradas** em resposta direta ao feedback de administradores e desenvolvedores do fediverso. Também anunciaram transições importantes na liderança, agradecendo à diretora de comunidade cessante, Hannah Aubry, pelas suas contribuições.\n\n### 3. Destaques de Servidores e Ecossistema do Fediverso\nA conta promove ativamente instâncias independentes do fediverso e iniciativas de infraestrutura — como o destaque de servidores temáticos (como o Earth.Law) e a divulgação de pesquisas do setor, como a pesquisa de operações da IFTAS.\n\n### 4. Mercadorias da Comunidade e Financiamento de Projetos\nPara apoiar o desenvolvimento contínuo de código aberto, compartilham atualizações sobre mercadorias oficiais da comunidade, incluindo o lançamento de novas mascotes de pelúcia (\"Plushtodons\").\n\n---\n\n### Três Publicações Representativas\n\n- **Roteiro do Produto e Renovação Visual:** [Anúncio de prévia do Mastodon 5.0](embed:mastodon-after-publishing-D8d) — compartilha uma prévia do próximo layout do 5.0 e do compositor de posts com base nas descobertas da pesquisa.\n- **Política e Feedback da Comunidade:** [Atualização das diretrizes da política de marcas registradas](embed:mastodon-today-we-YqD) — descreve as regras de marca registrada revisadas e adaptadas com base nas contribuições da comunidade.\n- **Apoio ao Projeto e Mercadorias:** [Anúncio de pré-venda de Plushtodons](embed:mastodon-new-plushtodon-A57) — anuncia novas mascotes de pelúcia oficiais como uma forma de os apoiadores financiarem o desenvolvimento.\n\n---\n\nGostarias de explorar algum tópico específico com mais detalhe?\n- [Ler mais sobre as funcionalidades do Mastodon 5.0](/#message=What%20new%20features%20and%20changes%20are%20coming%20in%20Mastodon%205.0%3F)\n- [Rever as diretrizes de marca registrada](/#message=Summarize%20Mastodon's%20updated%20trademark%20policy%20guidelines.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\nAs publicações públicas recentes da conta oficial @Mastodon no [Mastodon](wiki:Mastodon_(social_network)) giram em torno de vários temas centrais:\n\n---\n\n### 1. Redesenho da plataforma e funcionalidades futuras (Mastodon 5.0)\nUm dos principais focos tem sido compartilhar pesquisas sobre a experiência do usuário e apresentar as próximas mudanças de design:\n- **Prévia do Mastodon 5.0:** Um primeiro olhar sobre a versão 5.0, destacando um layout mais tranquilo, uma nova estética visual e um editor de publicações atualizado ([prévia do Mastodon 5.0](embed:mastodon-after-publishing-WqJ)).\n- **Resultados da Discovery Week:** Compartilhamento dos resultados de oficinas com usuários e pesquisas conduzidas pela equipe de design para compreender melhor como a comunidade interage com a plataforma ([resumo da Discovery Week](embed:mastodon-we-re-5Ll)).\n\n### 2. Governança e clareza sobre marcas registradas\nO Mastodon tem se concentrado em responder às preocupações da comunidade sobre as políticas do projeto:\n- **Diretrizes da política de marcas registradas:** Publicação de diretrizes atualizadas e esclarecidas e de resumos em linguagem simples sobre as políticas de marcas registradas do Mastodon, após contribuições da comunidade ([anúncio das diretrizes de marcas registradas](embed:mastodon-today-we-3Kb)).\n\n### 3. Destaques da comunidade e apoio ao ecossistema\nDestaque para o ecossistema mais amplo do [Fediverso](wiki:Fediverse), operadores de servidores e iniciativas de segurança:\n- **Servidor em destaque:** Promoção de instâncias especializadas como *Earth.Law*, um servidor ecológico voltado para advogados ambientais, cientistas e ativistas ([destaque do servidor Earth.Law](embed:mastodon-here-is-miz)).\n- **Pesquisas do ecossistema:** Divulgação de iniciativas administrativas como a IFTAS Social Web Operations Survey para apoiar moderadores e administradores ([publicação sobre a pesquisa IFTAS](embed:mastodon-re-https-wnD)).\n\n### 4. Atualizações da organização e da equipe\nTransparência sobre transições na equipe e na liderança:\n- **Despedida de uma dirigente:** Reconhecimento da saída de Hannah Aubry, diretora de comunidade e membro do conselho, com agradecimentos por suas contribuições para o crescimento da comunidade ([publicação de despedida de Hannah Aubry](embed:mastodon-hannah-aubry-O6F)).\n\n### 5. Financiamento do projeto e produtos da marca\nSustentação do desenvolvimento de código aberto da rede:\n- **Pré-vendas do Plushtodon:** Anúncio de novas cores do mascote de pelúcia na loja para permitir que apoiadores ajudem a financiar diretamente o desenvolvimento ([publicação sobre as pré-vendas do Plushtodon](embed:mastodon-new-plushtodon-7D2)).\n\n---\n\n### Exemplos em destaque\n\n[@Mastodon: Depois de publicar os resultados da Discovery Week, agora podemos dar a vocês uma primeira pré](embed:mastodon-after-publishing-WqJ)\n[@Mastodon: Hoje estamos compartilhando diretrizes adicionais sobre nossa política de marcas registradas com base em c](embed:mastodon-today-we-3Kb)\n[@Mastodon: Novas cores do #Plushtodon já estão disponíveis para pré-venda em nossa loja! Esta é uma maneira](embed:mastodon-new-plushtodon-7D2)"
       },
       "follow_up_1": {
-        "text": "Pesquisar anúncios recentes no blog do Mastodon"
+        "text": "Pesquisar discussões recentes sobre o Mastodon 5.0 no Reddit"
       },
       "follow_up_2": {
-        "text": "Explicar como funciona a moderação descentralizada no Mastodon"
+        "text": "Explicar como funciona a moderação descentralizada no Fediverso"
       },
       "follow_up_3": {
-        "text": "Pesquisar atualizações sobre o desenvolvimento do Mastodon 5.0"
+        "text": "Pesquisar artigos técnicos que explicam as funcionalidades do protocolo ActivityPub"
       },
       "follow_up_4": {
-        "text": "Comparar as mudanças do Mastodon 5.0 com versões anteriores"
+        "text": "Comparar os modelos de governança do Mastodon com redes sociais comerciais"
       },
       "follow_up_5": {
-        "text": "Pesquisar discussões da comunidade sobre moderação de servidores no Fediverse"
+        "text": "Encontrar as próximas conferências online de software de código aberto"
       },
       "follow_up_6": {
-        "text": "Listar os principais desafios enfrentados por plataformas de código aberto"
+        "text": "Discutir os modelos de financiamento para plataformas independentes de código aberto"
       }
     },
     "memory_books_currently_reading": {
@@ -10415,20 +10389,6 @@
         "text": "List essential items to pack for variable weather bike rides"
       }
     },
-    "organic_groceries_berlin": {
-      "title": {
-        "text": "Organic Grocery Delivery in Berlin"
-      },
-      "summary": {
-        "text": "Compared Berlin organic grocery delivery options for oat milk and bananas using local delivery sources and product results."
-      },
-      "message_1": {
-        "text": "Can you find organic grocery delivery options in Berlin for oat milk and bananas, compare a few reliable local options, and recommend which one to use?"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"91a1a938-12c3-47f9-a00b-e9a59d2a8ad2\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"organic grocery delivery Berlin\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"cf2504cb-56b5-4ea3-89d5-4cf9cc732911\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Bio Lebensmittel Lieferservice Berlin Hafermilch Bananen\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"5cdfdced-0921-47ed-a351-a0d19ccbb8e2\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Hafermilch\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b6f64bdd-2b32-4623-83eb-8cf57975ba70\", \"app_id\": \"shopping\", \"skill_id\": \"search_products\", \"query\": \"Bio Bananen\", \"provider\": \"REWE\", \"providers\": [\"REWE\"]}\n```\n\nBerlin has an excellent ecosystem for organic groceries, offering everything from traditional farm-to-door \"Biokisten\" (organic boxes) to ultra-fast delivery apps. Since you are specifically looking for organic oat milk (*Bio Hafermilch*) and organic bananas (*Bio Bananen*), these are staple items available almost everywhere.\n\nHere is a comparison of the most reliable local options, categorized by how they operate:\n\n### 1. The Local \"Biokiste\" Services (Best for Sustainability & Regionality)\nThese are local, dedicated organic delivery services that have been operating in Berlin for years. They focus heavily on sustainability, fair trade, and regional farming.\n*   **[LogischBIO](embed:logisch-bio.de-eeO):**\n    *   **The Vibe:** A true online organic supermarket with a local heart. They've been operating in Berlin since 1998.\n    *   **Pros:** They offer over 5,000 organic items. Crucially, they require **no subscription** (*kein Abo*), which makes them incredibly flexible if you just want to do a one-off grocery haul.\n    *   **Cons:** You need to plan a day or two ahead for your delivery slot.\n*   **[Märkische Kiste](embed:maerkischekiste.de-fJw) & [Landkorb](embed:landkorb.de-Ze3):**\n    *   **The Vibe:** Classic \"Ökokiste\" (Eco-box) providers. They deliver in reusable boxes straight to your door.\n    *   **Pros:** Excellent for supporting regional Brandenburg farmers. You can either subscribe to a pre-made seasonal box or build your own custom box with exact items like oat milk and bananas.\n    *   **Cons:** Often heavily subscription-based (though you can pause/customize easily). Delivery days are sometimes restricted based on your specific Berlin postal code.\n\n### 2. Quick Commerce (Best for Urgent Needs)\nIf you need your oat milk for tomorrow morning's coffee and can't wait for a scheduled delivery slot:\n*   **Alnatura via [Wolt](embed:wolt.com-UR8) / UberEats:**\n    *   **The Vibe:** Ultra-fast delivery from one of Germany's most popular organic supermarket chains.\n    *   **Pros:** Delivery in roughly 30 minutes. You get access to the high-quality Alnatura brand products.\n    *   **Cons:** Higher delivery fees, and the couriers are gig-economy workers, which lacks the community/sustainability ethos of the dedicated farm boxes.\n\n### 3. Mainstream Supermarket Delivery (Best for General Shopping)\nIf you want to combine your organic basics with a regular grocery order:\n*   **REWE Lieferservice:**\n    *   They have a very reliable scheduled delivery network in Berlin and a massive organic (\"REWE Bio\") range.\n    *   For example, you can easily grab [REWE Bio Vegan Oat Drink](embed:rewe-bio-pflanzlich-Q5w) or [Oatly Bio Barista](embed:oatly-bio-haferdrink-cdI), alongside [Organic Bananas](embed:bio-banane-ca-GZn).\n\n---\n\n### 🏆 Recommendation: Which one should you use?\n\n**Go with LogischBIO.**\nIf you want a reliable, Berlin-based company that specializes entirely in organic food, they are the best all-rounder. Because they don't lock you into a subscription box model, you can just treat them like a regular online supermarket. You can easily stock up on a whole carton of oat milk and a bunch of bananas without having to commit to a weekly vegetable box you might not have time to cook.\n\n**However, if you are in a rush right now:** Open the Wolt app and see if the **Alnatura Brand Store** delivers to your specific neighborhood (they cover most of the Ringbahn area). You'll have your organic bananas and oat milk at your door in 30 minutes."
-      }
-    },
     "pdf_read_secret_word": {
       "title": {
         "text": "Read a PDF page"
@@ -10835,16 +10795,34 @@
     },
     "ted_talk_transcript_summary": {
       "title": {
-        "text": "TED Talk Transcript Summary"
+        "text": "Análise da Palestra Satírica de Will Stephen no TED"
       },
       "summary": {
-        "text": "Get a YouTube talk transcript and summarize the speaker's core argument in five bullets."
+        "text": "Resumiu a palestra satírica de Will Stephen no TEDx sobre falar em público em cinco argumentos cómicos principais."
       },
       "message_1": {
-        "text": "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
+        "text": "Obtém a transcrição desta palestra TED e resume o argumento central em cinco tópicos: [!](embed:www-youtube-com-watch-v-8s0fdjfbj8o-457b-ca6ef5)"
       },
       "message_2": {
-        "text": "[!](embed:59da3895-7f69-4e16-b430-cc2280c70f2e)\n\nThis TEDx Talk by Will Stephen is a satirical performance titled \"How to sound smart in your TEDx Talk.\" The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.\n\n### Core Argument Summary\n\n*   **Delivery Over Substance:** The talk demonstrates that the \"how\" of a presentation (tone, pacing, and confidence) can often overshadow the \"what,\" leading audiences to feel like they’ve learned something even when no information was shared.\n*   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.\n*   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and \"homework,\" regardless of whether the data is actually relevant or meaningful.\n*   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the \"embarrassing personal anecdote\" and the \"intellectual shift,\" to show how these structures are used to build a false sense of momentum.\n*   **Satire of \"The TED Style\":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.\n\n---\n\n**What would you like to explore next?**\n*   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?\n*   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just \"sounding\" smart?"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"afd1d285-87e3-4f28-9d29-25bf5b74b0a0\",\"app_id\":\"videos\",\"skill_id\":\"get_transcript\"}\n```\n\nO vídeo é a apresentação satírica de Will Stephen no TEDx, *\"How to sound smart in your TEDx Talk\"* (ver palestra).\n\nEm vez de dar uma palestra informativa, Stephen usa meta-humor para desconstruir as convenções de [falar em público](wiki:Public_speaking). Aqui está o argumento principal resumido em cinco pontos:\n\n* **A oratória cria a ilusão de substância:** O ritmo, gestos deliberados com as mãos, contato visual dramático e adereços físicos (como óculos sem grau) podem convencer o público de que um orador é brilhante, mesmo quando ele não tem nada de valor a dizer.\n* **A conexão no palco é altamente formulada:** Tropos interativos familiares — como fazer perguntas retóricas, pedir para levantarem as mãos e oferecer anedotas autodepreciativas — são encenações calculadas projetadas para fabricar cordialidade e credibilidade artificiais.\n* **Os visuais de dados fornecem autoridade imerecida:** Exibir números aleatórios, aritmética básica e gráficos sem contexto explora o viés visual, fazendo com que uma apresentação pareça rigorosamente pesquisada, mesmo quando os dados são inteiramente irrelevantes.\n* **O público projeta significado no absurdo:** Ao combinar uma cadência vocal séria e imagens de banco de dados evocativas com puro palavreado sem sentido, os oradores podem levar os ouvintes a procurar subconscientemente por — e imaginar — conexões profundas onde não existe nenhuma.\n* **Crescendos emocionais podem ser fabricados:** Aumentar a intensidade vocal, desacelerar para sussurrar e fazer pausas dramáticas imitam o ritmo de uma epifania, provando como a sensação de inspiração pode ser facilmente projetada sem qualquer percepção subjacente."
+      },
+      "follow_up_1": {
+        "text": "Pesquisar outras apresentações satíricas populares no YouTube"
+      },
+      "follow_up_2": {
+        "text": "Explicar a história do formato TEDx e o seu impacto cultural"
+      },
+      "follow_up_3": {
+        "text": "Encontrar tutoriais de masterclass de oratória online"
+      },
+      "follow_up_4": {
+        "text": "Analisar as técnicas específicas de linguagem corporal utilizadas por oradores famosos"
+      },
+      "follow_up_5": {
+        "text": "Pesquisar vídeos de análise sobre técnicas retóricas"
+      },
+      "follow_up_6": {
+        "text": "Listar dicas para superar o medo do palco ao falar em público"
       }
     },
     "upcoming_reminders_list": {
@@ -11028,6 +11006,70 @@
       },
       "follow_up_6": {
         "text": "Comparar diferentes métodos para transformar ideias faladas em tarefas organizadas"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "Ideias de Receitas Vegetarianas com o que tens no Frigorífico"
+      },
+      "summary": {
+        "text": "O utilizador pediu ideias de receitas vegetarianas usando espinafres, cenouras, pimentos e grão-de-bico; o assistente forneceu três opções."
+      },
+      "message_1": {
+        "text": "Recomendações de receitas vegetarianas? Ainda tenho espinafres, cenouras, pimentos e grão-de-bico no frigorífico."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nCom **espinafres, cenouras, pimentos e grão-de-bico**, tens uma base sólida para refeições vegetarianas deliciosas e ricas em fibra. \n\nAqui estão três direções culinárias distintas, dependendo do estilo de prato que te apetece:\n\n---\n\n### 1. Fresca e Crocante: Salada Picada ao Estilo Tailandês\nSe queres algo rápido, leve e crocante, combina pimentos crus, cenouras e espinafres finamente picados com grão-de-bico num molho de [amendoim](wiki:Peanut) e lima acidulado.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Bolinhos Salgados: Bolinhos Crocantes de Grão e Vegetais\nSe preferires algo quente e em porções pequenas (ótimo em wraps, pão pita ou acompanhado com um molho de iogurte), esmaga o grão-de-bico e envolve as cenouras picadas, os pimentos e os espinafres salteados.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Alternativa Rápida para os Dias de Semana: Caril de Grão e Vegetais na Frigideira\nSe queres uma refeição de uma só panela usando ingredientes básicos da despensa (como leite de coco em lata ou tomate esmagado):\n1. **Refoga os aromáticos:** Aquece o azeite numa frigideira e depois cozinha a cebola picada, o alho picado e o gengibre até libertarem o aroma.\n2. **Adiciona os vegetais firmes:** Corta as cenouras e os pimentos em pedaços pequenos. Junta-os com cominhos moídos, [curcuma](wiki:Turmeric) e uma pitada de malagueta em pó ou caril em pó.\n3. **Deixa apurar:** Adiciona o grão-de-bico lavado juntamente com uma chávena de caldo de legumes ou leite de coco. Tapa e deixa cozinhar em lume brando por 10–12 minutos até as cenouras estarem tenras.\n4. **Murcha os espinafres:** Envolve os espinafres frescos mesmo no fim durante 1–2 minutos até ficarem com um verde vibrante e murcharem. Finaliza com um pouco de sumo de limão.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Que estilo de cozinha preferes preparar hoje?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Salada picada fresca e crocante\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Bolinhos ou hambúrgueres crocantes na frigideira\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Caril ou guisado quente de uma só frigideira\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "Pesquisar instruções mais detalhadas e medidas completas de ingredientes para o caril de frigideira"
+      },
+      "follow_up_2": {
+        "text": "Explicar como preparar e guardar sobras de fritos de grão-de-bico cozinhados para preparar refeições antecipadamente"
+      },
+      "follow_up_3": {
+        "text": "Pesquisar receitas de molho de iogurte vegan que combinem bem com fritos de grão-de-bico"
+      },
+      "follow_up_4": {
+        "text": "Listar substituições simples de especiarias se me faltar caril em pó para a refeição de frigideira"
+      },
+      "follow_up_5": {
+        "text": "Pesquisar receitas alternativas de molho usando tahini para a salada picada de estilo tailandês"
+      },
+      "follow_up_6": {
+        "text": "Comparar o teor de proteína e fibra destas três opções de receitas vegetarianas"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "Comparação de fritadeiras sem óleo na Alemanha"
+      },
+      "summary": {
+        "text": "Comparação das principais fritadeiras sem óleo da Amazon Alemanha por preço, capacidade e avaliações, com recomendação da Philips Airfryer Série 2000 para uma casa de duas pessoas."
+      },
+      "message_1": {
+        "text": "Encontra fritadeiras sem óleo que eu possa comprar online na Alemanha, incluindo ofertas da Amazon. Compara os preços atuais, as capacidades e as avaliações dos clientes e recomenda uma para uma casa de duas pessoas, com ligações às fontes."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nAqui está uma comparação de fritadeiras sem óleo bem avaliadas que estão atualmente disponíveis na Amazon Alemanha, com preços, capacidades e avaliações dos clientes.\n\n---\n\n### Comparação de modelos populares na Alemanha\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Principal recomendação para uma casa de duas pessoas\n\n#### **Escolha principal: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **Porque é a melhor opção para duas pessoas:**\n  * **Capacidade adequada (6.2 L):** Com cestos inferiores a 4.5–5 L, até duas pessoas podem precisar de cozinhar em várias levas. Um cesto de 6.2 L permite dispor dois filetes de salmão e uma porção completa de legumes ou batatas numa só camada para cozinhar uniformemente.\n  * **Espaço ocupado na cozinha:** Os modelos com duas zonas (como os da Ninja ou da Russell Hobbs) ocupam bastante bancada. Um cesto único de 6 L oferece bom espaço sem ocupar demasiado uma bancada típica de cozinha alemã.\n  * **Janela transparente:** Permite verificar o ponto de cozedura sem abrir a gaveta e perder calor.\n  * **Relação qualidade/preço:** Por €99.99, oferece uma temperatura de cozedura estável da [Philips](wiki:Philips) a um preço razoável.\n\n#### **Alternativa (se cozinhares frequentemente dois pratos a temperaturas diferentes): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nSe tu e outra pessoa gostam de preparar proteína e legumes ao mesmo tempo, mas a temperaturas e tempos diferentes (por exemplo, peito de frango a 180 °C e batatas crocantes a 200 °C), este modelo custa atualmente €119.99 com desconto e sincroniza a conclusão dos dois cestos.\n\n---\n\n### Aspetos importantes antes de comprar\n1. **Formato do cesto:** Os cestos quadrados (como os da Cosori e da Philips) acomodam alimentos planos (bifes, formas, espetos) muito melhor do que cestos redondos com o mesmo volume em litros.\n2. **Espaço na máquina de lavar loiça:** Confirma que a máquina tem altura suficiente para uma gaveta única de 6 L. Se preferires, lava o revestimento antiaderente à mão para prolongar a sua vida útil."
+      },
+      "follow_up_1": {
+        "text": "Pesquisar receitas criadas especificamente para fritadeiras sem óleo"
+      },
+      "follow_up_2": {
+        "text": "Explicar as principais diferenças entre fritadeiras sem óleo de cesto único e de cesto duplo"
+      },
+      "follow_up_3": {
+        "text": "Encontrar acessórios de cozinha compatíveis com esta fritadeira sem óleo"
+      },
+      "follow_up_4": {
+        "text": "Listar receitas de jantar fáceis para principiantes fazerem na fritadeira sem óleo"
+      },
+      "follow_up_5": {
+        "text": "Verificar os dados atuais de consumo de energia destes modelos"
+      },
+      "follow_up_6": {
+        "text": "Comparar os cuidados de limpeza e manutenção dos revestimentos cerâmicos e de teflon"
       }
     }
   },

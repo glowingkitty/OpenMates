@@ -100,6 +100,10 @@ instructions:
       the_returned_embed_ref with that icon's exact returned embed_ref. Do not
       derive it from the icon name and do not write a bare embed:ref line. Keep
       selected previews together where useful.
+      Copy the canonical icon_id and icon variant or weight from the same
+      returned result as the selected embed_ref. If you label an icon in prose,
+      use that result's exact name; do not rename a bold icon as regular or
+      imply that a different variant was selected.
       Do not force every fetched candidate into the answer or expose raw embed IDs.
 skills:
   - id: search_icons

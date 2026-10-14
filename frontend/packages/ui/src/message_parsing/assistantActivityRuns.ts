@@ -29,6 +29,7 @@ export function splitAssistantActivityRuns(value: unknown): AssistantActivityRun
   const doc = value as AssistantDocument;
   if (doc.type !== 'doc' || !Array.isArray(doc.content)) return null;
   const runs: AssistantActivityRun[] = [];
+  const runKeys = new Set<string>();
   let nodes: Array<Record<string, unknown>> = [];
   let currentKind: 'content' | 'skills' | null = null;
   const flush = () => {
@@ -36,8 +37,14 @@ export function splitAssistantActivityRuns(value: unknown): AssistantActivityRun
     const document: AssistantDocument = { type: 'doc', content: nodes };
     const items = assistantActivityItems(document);
     const skills = items.filter((item) => item.type !== 'focus-mode-activation' && item.type !== 'sub-chat-batch');
+    const baseKey = currentKind === 'skills' ? `skills:${items[0]?.id ?? runs.length}` : `content:${runs.length}`;
+    let key = baseKey;
+    // Preserve the first invocation key; repeated refs at later source positions
+    // still need their own keyed component rather than crashing the transcript.
+    for (let occurrence = 1; runKeys.has(key); occurrence++) key = `${baseKey}:occurrence:${occurrence}`;
+    runKeys.add(key);
     runs.push({
-      id: currentKind === 'skills' ? `skills:${items[0]?.id ?? runs.length}` : `content:${runs.length}`,
+      id: key,
       kind: currentKind, document,
       appIds: [...new Set(skills.flatMap((item) => typeof item.app_id === 'string' ? [item.app_id] : []))],
       skillIds: skills.flatMap((item) => typeof item.skill_id === 'string' ? [item.skill_id] : []),

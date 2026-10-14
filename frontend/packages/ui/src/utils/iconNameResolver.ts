@@ -53,6 +53,7 @@ export const ICON_NAME_MAP: Record<string, string> = {
     // (e.g. app ID "code" uses coding.svg → --icon-url-coding)
     'books': 'book',
     'code': 'coding',
+    'electronics': 'pcbdesign',
     'events': 'event',
     'finance': 'finance',
     'health': 'heart',

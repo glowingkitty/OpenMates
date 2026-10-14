@@ -101,6 +101,7 @@ function embedField(embed: ExampleChatEmbed, field: string): string | undefined 
       if (typeof decoded === 'string') return decoded;
     } catch { /* Legacy unquoted values follow. */ }
   }
+  if (value === 'null') return undefined;
   return value?.replace(/^"|"$/g, '');
 }
 
@@ -290,6 +291,23 @@ async function inspectIconAsset(page: Page, icon: Locator, expectedName: string,
   });
   expect(iconUrl, `${context}: icon has its actual SVG asset`).toBeTruthy();
   const url = new URL(iconUrl!, page.url());
+  if (url.protocol === 'data:') {
+    // Vite inlines small icons. Verify the shipped glyph as well as drawable
+    // SVG content; an arbitrary inline SVG must not pass the icon check.
+    expect(url.href, `${context}: inline asset is SVG`).toMatch(/^data:image\/svg\+xml(?:;base64)?,/);
+    const comma = url.href.indexOf(',');
+    const svg = url.href.slice(0, comma).endsWith(';base64')
+      ? Buffer.from(url.href.slice(comma + 1), 'base64').toString('utf8')
+      : decodeURIComponent(url.href.slice(comma + 1));
+    const glyphs: Record<string, string> = {
+      book: 'M24 40a21.072 21.072',
+      pcbdesign: 'M14 19.828l12 12V47',
+    };
+    expect(glyphs[expectedName], `${context}: known shipped glyph`).toBeTruthy();
+    expect(svg, `${context}: correct inline app icon`).toContain(glyphs[expectedName]);
+    expect(svg, `${context}: SVG contains drawable paths`).toMatch(/<(?:path|rect|circle|polygon|polyline|line|ellipse)\b/);
+    return;
+  }
   expect(url.pathname, `${context}: correct app icon`).toMatch(new RegExp(`/${expectedName}[.-]`));
   const response = await page.request.get(url.href);
   expect(response.ok(), `${context}: SVG asset loads`).toBe(true);
@@ -331,7 +349,7 @@ async function inspectReportedHeaderRegressions(page: Page, history: Locator, ch
     await expect(card.locator('.insurance-unknown-badge')).toHaveText(verifiedLabel);
     await expect(card).not.toContainText(/verify on Jameda/i);
     await card.click();
-    const child = fullscreen.locator('.child-embed-overlay .unified-embed-fullscreen-overlay').last();
+    const child = page.locator('.child-embed-overlay .unified-embed-fullscreen-overlay').last();
     await expect(child).toBeVisible();
     await expect(child.locator('.insurance-unknown-badge')).toHaveText(verifiedLabel);
     await expect(child).not.toContainText(/verify on Jameda/i);
@@ -445,7 +463,8 @@ async function inspectSavedResultGraph(page: Page, history: Locator, chat: Examp
     const recipes = chat.embeds.filter(embed => embed.type === 'recipe' && embed.parent_embed_id);
     expect(recipes.length, `${chat.slug}: saved nutrition recipe children`).toBeGreaterThan(0);
     const parent = chat.embeds.find(embed => embed.embed_id === recipes[0].parent_embed_id);
-    expect(parent?.embed_ids, `${chat.slug}: recipe parent includes first result`).toContain(recipes[0].embed_id);
+    expect(parent?.embed_ids, `${chat.slug}: recipe parent includes all saved results`).toEqual(
+      expect.arrayContaining(recipes.map(recipe => recipe.embed_id)));
     await collapseCompletedActivity(history, chat.slug);
     const answers = chat.messages.filter(message => message.role === 'assistant')
       .map(message => sourceMessage(message.content)).join('\n');
@@ -460,6 +479,34 @@ async function inspectSavedResultGraph(page: Page, history: Locator, chat: Examp
       const preview = await selectInlineEmbedPreview(history, recipe,
         `${chat.slug}: recommended recipe ${recipe.embed_id}`);
       await expect(preview, `${chat.slug}: recommended recipe visible with activity collapsed`).toBeVisible();
+      const servings = Number(embedField(recipe, 'servings'));
+      expect(Number.isFinite(servings) && servings > 0,
+        `${chat.slug}: source recipe has a positive serving count`).toBe(true);
+      const nutrientCodes = ['ENERC_KCAL', 'PROCNT', 'FAT', 'CHOCDF'];
+      const perServingValues = nutrientCodes.map((code, index) => {
+        const total = Number(embedField(recipe, `nutrition_${code}_quantity`));
+        expect(Number.isFinite(total) && total >= 0,
+          `${chat.slug}: source recipe has ${code} total`).toBe(true);
+        expect(embedField(recipe, `nutrition_${code}_unit`)).toBe(index === 0 ? 'kcal' : 'g');
+        return `${Number((total / servings).toFixed(1))}${index === 0 ? '' : 'g'}`;
+      });
+      const recipeFullscreen = await openFullscreen(page, preview);
+      await expect(recipeFullscreen).toContainText(embedField(recipe, 'title')!);
+      await expect(recipeFullscreen.getByTestId('nutrition-recipe-details'))
+        .toContainText(`${servings} ${sourceMessage('embeds.nutrition.servings')}`);
+      const image = recipeFullscreen.getByTestId('nutrition-recipe-image');
+      await expect(image).toBeVisible();
+      await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth),
+        { message: `${chat.slug}: recommended recipe image loads` }).toBeGreaterThan(0);
+      const macros = recipeFullscreen.locator('.nutrition-grid');
+      await expect(macros.locator('.nutrition-value'),
+        `${chat.slug}: calories and macros use the source serving count`).toHaveText(perServingValues);
+      await macros.scrollIntoViewIfNeeded();
+      for (const item of await macros.locator('.nutrition-item').all()) {
+        await expect(item.locator('.nutrition-value')).toBeInViewport({ ratio: 1 });
+        await expect(item.locator('.nutrition-label')).toBeInViewport({ ratio: 1 });
+      }
+      await closeFullscreen(page, recipeFullscreen);
     }
     await expandCompletedActivity(history, `${chat.slug}: recipe search activity`);
     const preview = assistantPreview(history, parent!).filter({ visible: true }).first();
@@ -467,7 +514,7 @@ async function inspectSavedResultGraph(page: Page, history: Locator, chat: Examp
     const fullscreen = await openFullscreen(page, preview);
     const recipeCards = fullscreen.getByTestId('search-template-grid').getByTestId('embed-preview');
     await expect(recipeCards.first()).toBeVisible();
-    expect(await recipeCards.count()).toBeGreaterThanOrEqual(Math.min(recipes.length, 3));
+    await expect(recipeCards, `${chat.slug}: search fullscreen renders every saved recipe`).toHaveCount(recipes.length);
     await closeFullscreen(page, fullscreen);
   }
   if (appId === 'social_media') {
@@ -496,10 +543,45 @@ async function inspectSavedResultGraph(page: Page, history: Locator, chat: Examp
     const firstParent = chat.embeds.find(embed => embed.embed_id === posts[0].parent_embed_id);
     expect(firstParent?.embed_ids, `${chat.slug}: post parent includes saved child`).toContain(posts[0].embed_id);
     await collapseCompletedActivity(history, chat.slug);
-    const visibleResults = assistantPreview(history, firstParent!).or(history.getByTestId('message-assistant')
-      .locator(posts.map(post => `[data-testid="embed-preview"][data-embed-id="${post.embed_id}"]`).join(',')))
-      .filter({ visible: true }).first();
-    await expect(visibleResults, `${chat.slug}: social results visible in the assistant body with activity collapsed`).toBeVisible();
+    const answers = chat.messages.filter(message => message.role === 'assistant')
+      .map(message => sourceMessage(message.content)).join('\n');
+    const citations = [...answers.matchAll(/\[([^\]]+)\]\(embed:([^)]+)\)/g)]
+      .filter(([, label]) => label !== '!');
+    if (citations.length > 0) {
+      // Ordinary source citations render as inline links; only [!] requests a card.
+      // Follow each distinct saved post while its completed skill activity is hidden.
+      const citedRefs = new Set<string>();
+      for (const [, label, ref] of citations) {
+        if (citedRefs.has(ref)) continue;
+        citedRefs.add(ref);
+        const post = posts.find(item => item.embed_id === ref || embedField(item, 'embed_ref') === ref);
+        expect(post, `${chat.slug}: source citation ${ref} resolves to a saved social post`).toBeDefined();
+        const citation = history.getByTestId('message-assistant').getByRole('link', { name: label, exact: true }).first();
+        await expect(citation, `${chat.slug}: cited post ${ref} remains visible with activity collapsed`).toBeVisible();
+        const postFullscreen = await openFullscreen(page, citation);
+        const originalBody = postFullscreen.locator('.original-post-card .post-content > p');
+        await expect(originalBody).toBeVisible();
+        expect(await originalBody.textContent(), `${chat.slug}: citation opens its exact saved post body`)
+          .toBe(embedField(post!, 'body'));
+        await expect(originalBody).toHaveCSS('white-space', 'pre-wrap');
+        const sourceLink = postFullscreen.locator('a.embed-header-cta');
+        await expect(sourceLink, `${chat.slug}: citation opens the saved post source`).toBeVisible();
+        await expect(sourceLink).toHaveAttribute('href', embedField(post!, 'url')!);
+        if (postsWithMedia.some(item => item.embed_id === post!.embed_id)) {
+          const originalImage = postFullscreen.locator('.original-post-card img.media');
+          await expect(originalImage).toBeVisible();
+          await expect.poll(() => originalImage.evaluate((element: HTMLImageElement) => element.naturalWidth),
+            { message: `${chat.slug}: cited original social post image loads` }).toBeGreaterThan(0);
+        }
+        await closeFullscreen(page, postFullscreen);
+        await expect(citation).toBeVisible();
+      }
+    } else {
+      const visibleResults = assistantPreview(history, firstParent!).or(history.getByTestId('message-assistant')
+        .locator(posts.map(post => `[data-testid="embed-preview"][data-embed-id="${post.embed_id}"]`).join(',')))
+        .filter({ visible: true }).first();
+      await expect(visibleResults, `${chat.slug}: social result previews remain visible with activity collapsed`).toBeVisible();
+    }
     await expandCompletedActivity(history, `${chat.slug}: social search activity`);
     for (const parentId of new Set(postsWithMedia.map(post => post.parent_embed_id))) {
       const parent = chat.embeds.find(embed => embed.embed_id === parentId);
@@ -514,7 +596,7 @@ async function inspectSavedResultGraph(page: Page, history: Locator, chat: Examp
         await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth),
           { message: `${chat.slug}: saved social post ${post.embed_id} image loads` }).toBeGreaterThan(0);
         await postCard.click();
-        const childOverlay = fullscreen.locator('.child-embed-overlay');
+        const childOverlay = page.locator('.child-embed-overlay');
         await expect(childOverlay).toBeVisible();
         const childFullscreen = childOverlay.locator('.unified-embed-fullscreen-overlay').last();
         const originalBody = childFullscreen.locator('.original-post-card .post-content > p');
@@ -568,7 +650,7 @@ async function inspectWebSubChats(page: Page, chat: ExampleChat): Promise<void> 
         const resultCard = grid.getByTestId('embed-preview').first();
         await expect(resultCard).toBeVisible();
         await resultCard.click();
-        const resultOverlay = fullscreen.locator('.child-embed-overlay');
+        const resultOverlay = page.locator('.child-embed-overlay');
         await expect(resultOverlay).toBeVisible();
         await expect(resultOverlay).not.toBeEmpty();
         await closeFullscreen(page, resultOverlay.locator('.unified-embed-fullscreen-overlay').last());
