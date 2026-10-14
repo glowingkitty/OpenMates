@@ -225,14 +225,14 @@ class GitHub:
             # queue status/results. Consumers receive read-only capabilities.
             prepared["_preparation_transport"] = dispatch_ticket(self.root, job)
         if job.get("runtime_seed"):
-            if job.get("mode") != "backend-probe":
-                raise ValueError("Runtime seed is restricted to backend-probe")
+            if job.get("mode") not in {"backend-probe", "e2e"} or job.get("preparation_key"):
+                raise ValueError("Runtime seed requires an unprepared backend-probe or E2E")
             try:
                 from scripts.ci_preparation_transport import dispatch_ticket
             except ModuleNotFoundError:
                 from ci_preparation_transport import dispatch_ticket
             seed = json.loads(job["runtime_seed"])
-            ticket = dispatch_ticket(self.root, {"mode": "backend-probe", "source": seed["source"],
+            ticket = dispatch_ticket(self.root, {"mode": job["mode"], "source": seed["source"],
                 "preparation_key": seed["preparation_key"], "preparation_id": seed["producer_id"]})
             prepared["_runtime_seed_transport"] = json.dumps({"seed": seed, "ticket": json.loads(ticket)}, separators=(",", ":"))
         return prepared
@@ -257,7 +257,9 @@ class GitHub:
                     "specs_json": job["specs"],
                     "case_title": job.get("case_title", ""),
                     "mode": job["mode"],
-                    **({"runtime_seed": job["_runtime_seed_transport"]} if job.get("runtime_seed") else {}),
+                    **({"runtime_seed": job["_runtime_seed_transport"],
+                        **({"prepare_cli": "true"} if job["mode"] == "e2e" else {})}
+                       if job.get("runtime_seed") else {}),
                     "dispatch_token": job["token"],
                     "proof_video_profile": job.get("proof_profile", ""),
                     **({"capacity_configuration": job["capacity_configuration"]}
@@ -452,8 +454,8 @@ class Queue:
             validate_runtime_batch(specs)
         runtime_seed = {}
         if runtime_seed_job:
-            if mode != "backend-probe" or not re.fullmatch(r"[0-9a-f]{64}", runtime_seed_job):
-                raise ValueError("Runtime seed requires backend-probe and an exact producer job ID")
+            if mode not in {"backend-probe", "e2e"} or preparation or not re.fullmatch(r"[0-9a-f]{64}", runtime_seed_job):
+                raise ValueError("Runtime seed requires an unprepared backend-probe or E2E and an exact producer job ID")
             producers = self.status(runtime_seed_job)
             if len(producers) != 1:
                 raise ValueError("Runtime seed producer unavailable")
@@ -896,6 +898,8 @@ def enqueue_submission(
         raise ValueError("Case filter requires the exact recovery spec and approved test title")
     if prepared_builds and (source_root is None or mode not in ("e2e", "visual-smoke")):
         raise ValueError("Prepared builds require an E2E/visual source root")
+    if runtime_seed_job and (mode not in {"backend-probe", "e2e"} or prepared_builds):
+        raise ValueError("Runtime seed requires --no-prepared-builds for E2E and backend-probe only")
     selections = list(specs) if mode == "pytest" else sorted(set(specs))
     if mode in ("component", "e2e") and not selections:
         raise ValueError("Browser requests require explicit specs")
@@ -1008,7 +1012,7 @@ def main():
     submit.add_argument("--preview-url", action="append", default=[])
     submit.add_argument("--mode", choices=["backend-probe", "component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke"], default="e2e")
     submit.add_argument("--attempt", default="")
-    submit.add_argument("--runtime-seed-job", default="", help="Exact successful same-session preparation; backend-probe runtime images only")
+    submit.add_argument("--runtime-seed-job", default="", help="Exact successful same-session runtime seed; backend-probe or E2E with --no-prepared-builds")
     submit.add_argument("--case-title", default="", help="Exact approved recovery case title")
     submit.add_argument("--capacity-calibration-job", default="")
     submit.add_argument("--capacity-profile", choices=["accelerated", "burst", "sustained"])
@@ -1018,7 +1022,7 @@ def main():
         "--prepared-builds",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Reuse exact private prepared builds (default); use --no-prepared-builds for a cold-path diagnostic",
+        help="Reuse exact private prepared builds (default); use --no-prepared-builds to build current-source web/CLI output",
     )
     submit.add_argument(
         "--proof-video-profile", choices=["web-phone", "web-laptop"], default=""

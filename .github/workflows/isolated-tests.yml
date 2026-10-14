@@ -51,7 +51,7 @@ on:
         type: string
         default: ''
       runtime_seed:
-        description: Coordinator-issued read-only runtime seed; backend-probe only
+        description: Coordinator-issued runtime images; backend-probe or unprepared E2E only
         type: string
         default: ''
       preparation_transport:
@@ -255,7 +255,10 @@ jobs:
             --harness-commit "$CI_HARNESS_COMMIT" \
             --input-dir test-results/ci-preparation-download
       - name: Download exact private backend runtime seed
-        if: inputs.mode == 'backend-probe' && inputs.runtime_seed != ''
+        if: >-
+          inputs.runtime_seed != '' &&
+          (inputs.mode == 'backend-probe' ||
+           (inputs.mode == 'e2e' && inputs.preparation_key == '' && inputs.prepared_run_id == ''))
         timeout-minutes: 4
         run: >-
           python3 ../tooling/scripts/ci_preparation_transport.py download-runtime
@@ -273,7 +276,7 @@ jobs:
           if [ "$needs_upload" = 'true' ]; then
             upload_args+=(--include-upload)
           fi
-          if [ "${{ inputs.mode }}" = 'backend-probe' ] && [ -n "${{ inputs.runtime_seed != '' && 'seeded' || '' }}" ]; then
+          if [ -n "${{ inputs.runtime_seed != '' && 'seeded' || '' }}" ]; then
             python3 ../tooling/scripts/ci_runtime_images.py restore \
               --manifest test-results/ci-runtime-seed/manifest.json
           elif [ "${{ steps.artifacts.outputs.prepared }}" = 'true' ]; then

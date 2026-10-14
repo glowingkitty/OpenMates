@@ -723,7 +723,9 @@ def runtime_seed_event(
             raise ValueError
         inputs = json.loads(path.read_text())["inputs"]
         raw = inputs["runtime_seed"]
-        if inputs.get("mode") != "backend-probe" or not isinstance(raw, str):
+        if inputs.get("mode") not in {"backend-probe", "e2e"} or not isinstance(raw, str):
+            raise ValueError
+        if inputs.get("mode") == "e2e" and any(inputs.get(name) for name in ("preparation_key", "prepared_run_id", "preparation_transport")):
             raise ValueError
         request = json.loads(raw)
         seed, ticket = request["seed"], request["ticket"]

@@ -39,7 +39,7 @@ def ready_producer(queue):
     return producer
 
 
-def test_explicit_same_owner_ready_seed_only_for_backend_probe(tmp_path):
+def test_explicit_same_owner_ready_seed_only_for_unprepared_supported_modes(tmp_path):
     queue = Queue(tmp_path / "logs/ci-coordinator/queue.sqlite3")
     seed = ready_producer(queue)
     job = queue.enqueue(
@@ -68,7 +68,11 @@ def test_explicit_same_owner_ready_seed_only_for_backend_probe(tmp_path):
         )
     with pytest.raises(ValueError):
         queue.enqueue(
-            "6d3f", "d" * 40, ["first.spec.ts"], "e2e", runtime_seed_job=seed["id"]
+            "6d3f",
+            "d" * 40,
+            ["first.spec.ts"],
+            "component",
+            runtime_seed_job=seed["id"],
         )
     with queue.connect() as db:
         db.execute("UPDATE jobs SET state='failure' WHERE id=?", (seed["id"],))
@@ -318,8 +322,168 @@ def test_workflow_seed_is_opt_in_backend_only_and_uses_existing_restore():
         for step in steps
         if step.get("name") == "Download exact private backend runtime seed"
     )
-    assert seed["if"] == "inputs.mode == 'backend-probe' && inputs.runtime_seed != ''"
+    assert "inputs.mode == 'backend-probe'" in seed["if"]
+    assert (
+        "inputs.mode == 'e2e' && inputs.preparation_key == '' && inputs.prepared_run_id == ''"
+        in seed["if"]
+    )
     assert seed["timeout-minutes"] == 4
     images = next(step for step in steps if step.get("id") == "images")
     assert "--manifest test-results/ci-runtime-seed/manifest.json" in images["run"]
     assert "download-runtime" in seed["run"]
+
+
+def test_e2e_seed_requires_opt_out_before_any_preparation_is_enqueued(tmp_path):
+    queue = Queue(tmp_path / "logs/ci-coordinator/queue.sqlite3")
+    seed = ready_producer(queue)
+    with pytest.raises(ValueError, match="no-prepared-builds"):
+        enqueue_submission(
+            queue,
+            "6d3f",
+            "d" * 40,
+            ["cli-recovery-discovery.spec.ts"],
+            "e2e",
+            runtime_seed_job=seed["id"],
+            prepared_builds=True,
+            source_root=tmp_path,
+        )
+    assert len(queue.status()) == 1
+    job = enqueue_submission(
+        queue,
+        "6d3f",
+        "d" * 40,
+        ["cli-recovery-discovery.spec.ts"],
+        "e2e",
+        runtime_seed_job=seed["id"],
+        prepared_builds=False,
+    )[0]
+    assert job["preparation_key"] == "" and job["prepared_run_id"] is None
+    assert len(queue.status()) == 2
+    assert json.loads(job["runtime_seed"])["producer_id"] == seed["id"]
+    with pytest.raises(ValueError):
+        queue.enqueue(
+            "6d3f",
+            "d" * 40,
+            ["cli-recovery-discovery.spec.ts"],
+            "e2e",
+            preparation={
+                "key": KEY,
+                "harness_commit": "c" * 40,
+                "cli": True,
+                "upload": False,
+            },
+            runtime_seed_job=seed["id"],
+        )
+    for mode in ["prepare", "component", "visual-smoke", "pytest"]:
+        with pytest.raises(ValueError):
+            enqueue_submission(
+                queue,
+                "6d3f",
+                "d" * 40,
+                ["first.spec.ts"],
+                mode,
+                runtime_seed_job=seed["id"],
+            )
+
+
+@pytest.mark.parametrize(
+    "prepared_field", ["preparation_key", "prepared_run_id", "preparation_transport"]
+)
+def test_e2e_seed_runner_rejects_mixed_compiled_build_transport(
+    tmp_path, prepared_field
+):
+    ticket, seed = ticket_and_seed(tmp_path)
+    event = tmp_path / "event.json"
+    event.write_text(
+        json.dumps(
+            {
+                "inputs": {
+                    "mode": "e2e",
+                    prepared_field: "not-empty",
+                    "runtime_seed": json.dumps({"seed": seed, "ticket": ticket}),
+                }
+            }
+        )
+    )
+    with pytest.raises(transport.PreparationTransportError):
+        transport.runtime_seed_event(event_path=event, mask=lambda _: None, now=NOW)
+
+
+def test_e2e_seed_dispatch_builds_cli_and_does_not_set_compiled_preparation(
+    tmp_path, monkeypatch
+):
+    queue = Queue(tmp_path / "logs/ci-coordinator/queue.sqlite3")
+    producer = ready_producer(queue)
+    job = enqueue_submission(
+        queue,
+        "6d3f",
+        "d" * 40,
+        ["cli-recovery-discovery.spec.ts"],
+        "e2e",
+        runtime_seed_job=producer["id"],
+        prepared_builds=False,
+    )[0]
+    monkeypatch.setattr(transport, "dispatch_ticket", lambda *_, **__: "{}")
+    github = object.__new__(GitHub)
+    github.root, github.repo = tmp_path, "owner/repository"
+    calls = []
+    github.request = lambda path, data: calls.append(data)
+    github.dispatch(job)
+    inputs = calls[0]["inputs"]
+    assert inputs["prepare_cli"] == "true"
+    assert inputs["source_commit"] == "d" * 40
+    assert inputs["runtime_seed"]
+    assert "preparation_key" not in inputs and "prepared_run_id" not in inputs
+
+
+def test_current_candidate_web_cli_builds_and_auth_setup_are_preserved():
+    workflow = Path(__file__).parents[2] / ".github/workflows/isolated-tests.yml"
+    data = yaml.safe_load(workflow.read_text())
+    steps = data["jobs"]["test"]["steps"]
+    web = next(step for step in steps if step.get("name") == "Build local web app")
+    cli = next(
+        step
+        for step in steps
+        if step.get("name") == "Build local CLI only when consumed"
+    )
+    assert "steps.artifacts.outputs.web" in web["if"] and "vite build" in web["run"]
+    assert (
+        "steps.artifacts.outputs.cli" in cli["if"]
+        and "inputs.prepare_cli == 'true'" in cli["if"]
+    )
+    assert cli["run"] == "pnpm --filter openmates build"
+    seed = next(
+        step
+        for step in steps
+        if step.get("name") == "Download exact private backend runtime seed"
+    )
+    assert seed["timeout-minutes"] == 4
+    images = next(step for step in steps if step.get("id") == "images")
+    seeded_branch = images["run"].split("elif")[0]
+    assert "--manifest test-results/ci-runtime-seed/manifest.json" in seeded_branch
+    assert (
+        "if ! python3" not in seeded_branch and "runtime-fallback" not in seeded_branch
+    )
+
+
+def test_e2e_seed_event_accepts_old_producer_without_compiled_bytes(tmp_path):
+    ticket, seed = ticket_and_seed(tmp_path)
+    event = tmp_path / "event.json"
+    event.write_text(
+        json.dumps(
+            {
+                "inputs": {
+                    "mode": "e2e",
+                    "source_commit": "d" * 40,
+                    "preparation_key": "",
+                    "prepared_run_id": "",
+                    "preparation_transport": "",
+                    "runtime_seed": json.dumps({"seed": seed, "ticket": ticket}),
+                }
+            }
+        )
+    )
+    actual_ticket, actual_seed = transport.runtime_seed_event(
+        event_path=event, mask=lambda _: None, now=NOW
+    )
+    assert actual_ticket == ticket and actual_seed == seed
