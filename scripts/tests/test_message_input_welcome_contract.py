@@ -1,9 +1,9 @@
 """Message input workspace-focus contract guards.
 
-The approved composer behavior keeps the workspace measurable at full opacity
-and disables background interaction except for reachable queued controls. Only
-recording, map and attachment overlays suppress welcome content. Isolated
-Playwright coverage verifies rendered focus and dismissal transitions.
+The approved composer behavior fades new-chat welcome content without changing
+its layout measurements. Existing transcripts remain at full opacity, with
+queued controls reachable. Isolated Playwright coverage verifies rendered
+focus and dismissal transitions.
 """
 
 from __future__ import annotations
@@ -32,13 +32,13 @@ def test_focused_workspace_preserves_reachable_queued_controls() -> None:
     assert overlay, "Welcome suppression must have a distinct overlay predicate"
     predicate = re.sub(r"\s+", "", overlay.group(1))
     assert predicate == "messageInputFocused&&(messageInputMapsOpen||anonymousFileAttachmentPending||$recordingState.showRecordAudioUI)", (
-        "Ordinary composer focus must keep welcome content visible; special overlays suppress it"
+        "Special overlay suppression must remain independent of ordinary welcome focus"
     )
     assert "inert={messageInputFocused && !hasQueuedFollowUpActions}" in workspace.group(1), (
         "Focus must disable the normal workspace for all users while leaving queued controls reachable"
     )
-    assert "const hideWelcomeForKeyboard = false;" in source, (
-        "Focus must preserve welcome layout measurements while hiding its content"
+    assert "let hideWelcomeForKeyboard = $derived(messageInputFocused && showWelcome);" in source, (
+        "Ordinary focus must hide new-chat welcome content without affecting established chats"
     )
     assert not re.search(r"opacity\s*:\s*0\.15\s*;", source), "Existing transcripts must stay at full opacity"
     welcome_rule = re.search(r"\.composer-welcome-hidden\s*\{([^}]*)\}", source, re.S)
@@ -47,6 +47,10 @@ def test_focused_workspace_preserves_reachable_queued_controls() -> None:
     assert "opacity:0;" in welcome
     assert "visibility:hidden;" in welcome
     assert "display:none;" not in welcome
+    for region in ("daily-inspiration-area", "center-content", "guest-interest-tags-overlay", "top-buttons"):
+        assert f".{region}.welcome-hiding" in source
+    assert 'class:welcome-hiding={hideWelcomeForKeyboard}' in source
+    assert 'inert={hideWelcomeForKeyboard}' in source
 
 
 # contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated,landing-onboarding.uses-real-chat-shell

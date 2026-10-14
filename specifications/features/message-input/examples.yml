@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.message-input@5
+specification: feature.message-input@6
 parent_state:
 - id: focus-and-text-update-parent
   given:
@@ -23,10 +23,10 @@ parent_state:
     parent_isMapsOpen: true
     new_chat_suggestions_visible: false
 focus_visibility:
-- id: logged-out-focus-keeps-welcome-visible
+- id: logged-out-focus-hides-welcome
   given: A logged-out user sees the welcome cards, Daily Inspiration and example links in the web app on a desktop or phone.
   when: The user focuses the message editor to write a text draft.
-  then: The welcome content remains visible at full opacity with no gray focus backdrop, its controls are inert, and the editor remains mounted and usable.
+  then: The welcome content fades completely out without changing its layout measurements, its controls are inert, and the editor remains mounted and usable. Dismissing focus restores the welcome content.
   assertion_ids:
   - message-input.focus.guest-welcome-suppression
 - id: recording-overlay-hides-welcome-ui
@@ -43,9 +43,9 @@ workspace_focus_visibility:
   assertion_ids:
   - message-input.focus.workspace-suppression
 - id: outside-dismissal-preserves-draft-without-backdrop
-  given: The focused web composer contains an unsent text draft above an existing chat transcript or workspace.
+  given: The focused web composer contains an unsent text draft in a new chat whose welcome cards and Daily Inspiration have faded out.
   when: The user taps outside the composer or presses Cancel.
-  then: The composer releases focus and restores the normal layout without losing the draft; a minimized sendable draft retains its round orange up-arrow Send control.
+  then: The composer releases focus and restores the welcome content without losing the draft; a minimized sendable draft retains its round orange up-arrow Send control.
   assertion_ids:
   - message-input.focus.workspace-suppression
 action_controls:

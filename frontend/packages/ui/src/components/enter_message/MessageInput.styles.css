@@ -167,7 +167,6 @@
 /* Focus reveals a multiline canvas without replacing the mounted editor. */
 .message-field.focused:not(.fullscreen-expanded):not(.recording-active):not(.maps-open) {
   min-height: 180px;
-  background-color: var(--color-grey-0);
 }
 
 .minimized-send-button {

@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.message-input
-version: 5
+version: 6
 status: draft
 title: Message Input
 summary: 'The OpenMates chat composer owns user text, embeds, draft state, focus-driven background interaction gating,
@@ -13,7 +13,7 @@ scope:
   - First-party chat composer behavior in the web ActiveChat and MessageInput surfaces.
   - Focus, blur, content, map-open, height, and anonymous-file pending state propagated from MessageInput to its
     parent shell.
-  - Logged-out welcome composer behavior, keeping guest welcome content visible and inert during ordinary focus,
+  - Logged-out welcome composer behavior, fading guest welcome content out during ordinary focus while preserving layout,
     with suppression for recording, map and anonymous-attachment overlays.
   - Focus and expansion interaction gating of surrounding Chat, Project, Task and Workflow creation/editor workspace content,
     without dimming or a gray backdrop, with Cancel and outside-tap restoration.
@@ -87,7 +87,7 @@ models:
       type: visual_and_interaction_state
       required: true
       constraints:
-        ordinary_composer_focus_opacity: 1
+        ordinary_composer_focus_opacity: 0
         special_overlay_opacity_zero: true
         inert_or_pointer_disabled: true
         message_input_remains_mounted: true
@@ -253,10 +253,10 @@ assertions:
   - examples.parent_state
 - id: message-input.focus.guest-welcome-suppression
   type: behavior
-  must: In the logged-out new-chat welcome surface, ordinary composer focus keeps the surrounding welcome UI,
-    including Daily Inspiration, top buttons, prompts, interest tags, example cards and links, visible at full
-    opacity while disabling background interaction. Recording, map and anonymous-attachment overlays retain
-    their separate welcome suppression. The message input stays mounted and usable.
+  must: In the logged-out new-chat welcome surface, ordinary composer focus fades out and disables the surrounding
+    welcome UI, including Daily Inspiration, top buttons, prompts, interest tags, example cards and links, while
+    preserving its layout measurements. Dismissing focus restores the welcome UI. Recording, map and anonymous-attachment
+    overlays retain their separate welcome suppression. The message input stays mounted and usable.
   depends_on:
   - models.WelcomeSuppressionState
   - models.RecordingState.overlay
@@ -267,8 +267,8 @@ assertions:
     existing surrounding workspace content visible at full opacity while disabling background interaction and
     keeping the composer usable. An established chat transcript likewise stays visible at full opacity. Composer
     focus or expansion adds no gray or translucent backdrop and does not fade or dim existing content. Ordinary
-    empty-chat welcome content remains visible and inert; special recording, map and attachment overlays retain
-    their separate suppression.
+    empty-chat welcome content fades completely out and becomes inert while preserving its layout measurements;
+    special recording, map and attachment overlays retain their separate suppression.
     Cancel or an outside tap collapses expansion, dismisses keyboard focus and restores the default workspace layout
     without discarding text or attachment drafts. Whenever shown, the microphone remains in the bottom right action
     group in empty, focused and expanded composer states.

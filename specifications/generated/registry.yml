@@ -533,10 +533,10 @@ specifications:
     required_applies_to:
     - gui.web
   feature.message-input:
-    version: 5
+    version: 6
     status: draft
     path: features/message-input
-    fingerprint: 1438d89e594851e75b2a3b4409e5345a8c7f158db9785e927974b24e55a81b68
+    fingerprint: 575a2d06999f04e8e25f9ea8f43bc65ae6730e8de99a3f7793a2b9621ab57bcf
     required_applies_to:
     - gui.web
     - gui.apple
@@ -6904,7 +6904,7 @@ assertions:
     required_applies_to:
     - gui.web
   message-input.focus.parent-state:
-    specification: feature.message-input@5
+    specification: feature.message-input@6
     specification_id: feature.message-input
     type: behavior
     fingerprint: c9cd7e910c210b6e430cc4fe09f4a85755a5473346cc017e97991f63af76886b
@@ -6912,23 +6912,23 @@ assertions:
     - gui.web
     - gui.apple
   message-input.focus.guest-welcome-suppression:
-    specification: feature.message-input@5
+    specification: feature.message-input@6
     specification_id: feature.message-input
     type: behavior
-    fingerprint: 8959dc26948a81e9410eabc6f01075b7cb1ce6e12f5451f7890cc45c8c27877f
+    fingerprint: c933fbea8f93821c45a3a877c156d7d6b06d85ae4f4091f423d967748a818df3
     required_applies_to:
     - gui.web
     - gui.apple
   message-input.focus.workspace-suppression:
-    specification: feature.message-input@5
+    specification: feature.message-input@6
     specification_id: feature.message-input
     type: behavior
-    fingerprint: a498fedfd1a0e71d2eee65e10358eeb7d6e1918b77e18c5cdd5e3ac6b6453b6d
+    fingerprint: c7a2ea4163b551346229632a481846960f46511195a333b32d02edf473ddeec0
     required_applies_to:
     - gui.web
     - gui.apple
   message-input.actions.visibility:
-    specification: feature.message-input@5
+    specification: feature.message-input@6
     specification_id: feature.message-input
     type: behavior
     fingerprint: 5c8d4b857988f7d4ea4b2d12b52a224fa96539dba11fcf7344322a1a525af091
@@ -6936,7 +6936,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.drafts.preview-persistence:
-    specification: feature.message-input@5
+    specification: feature.message-input@6
     specification_id: feature.message-input
     type: behavior
     fingerprint: a3f26a82f400ea4d23e90bb8676f9f2e8790f48705ab90b1c55c553df301f193
@@ -6944,7 +6944,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.embeds.gated-send:
-    specification: feature.message-input@5
+    specification: feature.message-input@6
     specification_id: feature.message-input
     type: invariant
     fingerprint: 46746526a0af42d964d369b9828526da2d2a2b4886cb1ffad657501051bf286c
@@ -6952,7 +6952,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.recording.lifecycle:
-    specification: feature.message-input@5
+    specification: feature.message-input@6
     specification_id: feature.message-input
     type: behavior
     fingerprint: a99d1b3caf3da1402241c05a50c4cae5b301a1d7e987d697bee7df788183da30
@@ -6960,7 +6960,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestions.contextual:
-    specification: feature.message-input@5
+    specification: feature.message-input@6
     specification_id: feature.message-input
     type: behavior
     fingerprint: 6b709d86954867371423b3d9bcffa3109e43e87a23f926e6d46e5cbfefec812a
@@ -6968,7 +6968,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.send.ownership:
-    specification: feature.message-input@5
+    specification: feature.message-input@6
     specification_id: feature.message-input
     type: behavior
     fingerprint: 0cdd07a0825a9fb6e20341f6ff15595b61d95c56f3e86cda879453e569d4e00a
@@ -6976,7 +6976,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.privacy-context:
-    specification: feature.message-input@5
+    specification: feature.message-input@6
     specification_id: feature.message-input
     type: privacy
     fingerprint: a6363726e6972b6b724d69949955b29fa8102aee8078564594afad46372502f1
@@ -6984,7 +6984,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.layout.responsive-parity:
-    specification: feature.message-input@5
+    specification: feature.message-input@6
     specification_id: feature.message-input
     type: parity
     fingerprint: 117f6e729e0b3e86a1cc5e2913c1a4b7a27021ad306c19c983ca3fbd03e8d872
@@ -6992,7 +6992,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.audio.editable-transcript:
-    specification: feature.message-input@5
+    specification: feature.message-input@6
     specification_id: feature.message-input
     type: behavior
     fingerprint: 0f8a3a92cf81f20dd560dc3757edb6b291128531f4237be20325ba5f9196a22a
@@ -7000,7 +7000,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestion.editable-acceptance:
-    specification: feature.message-input@5
+    specification: feature.message-input@6
     specification_id: feature.message-input
     type: behavior
     fingerprint: 6d9b131cf10f3eade559e3dc78557e5c7312793796661c81072f45999df37028
@@ -7008,7 +7008,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestion.keyboard-ownership:
-    specification: feature.message-input@5
+    specification: feature.message-input@6
     specification_id: feature.message-input
     type: behavior
     fingerprint: 5ba10c97b4bf3796634e80c21584fc3e9b3f8c41b7d3e4cd8ca9244321107249
@@ -7016,7 +7016,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestion.dismissal:
-    specification: feature.message-input@5
+    specification: feature.message-input@6
     specification_id: feature.message-input
     type: behavior
     fingerprint: 2ff79519a5de3f85c64b88c777ef871115b196d61ee0d4be231b4c70644a91ce
@@ -7024,7 +7024,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestion.draft-priority:
-    specification: feature.message-input@5
+    specification: feature.message-input@6
     specification_id: feature.message-input
     type: behavior
     fingerprint: 13a8c2b349bbc566be559a348bf09719a8a4bb1fd6d9d887c6a87318bedf312f
@@ -7032,7 +7032,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestion.touch-acceptance:
-    specification: feature.message-input@5
+    specification: feature.message-input@6
     specification_id: feature.message-input
     type: behavior
     fingerprint: 22eff2e48adf2c7e7c8b90598c9e977918672097d84e43d4f23ccbc562c53ab2

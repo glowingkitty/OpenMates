@@ -75,7 +75,7 @@ test.describe('Chat composer focus and draft preservation', () => {
     await field.click();
     await expect(page.getByTestId('composer-send-button')).toBeVisible();
     await expect(page.getByTestId('composer-send-button')).toHaveText('Send');
-    await expect(field).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+    await expect(field).toHaveCSS('background-color', 'rgb(230, 234, 255)');
     await expect.poll(async () => {
       const [sendBox, micBox] = await Promise.all([page.getByTestId('composer-send-button').boundingBox(), page.getByTestId('record-audio-button').boundingBox()]);
       return micBox!.x - (sendBox!.x + sendBox!.width);
@@ -208,11 +208,15 @@ test.describe('Chat composer focus and draft preservation', () => {
     await expect(page.getByTestId('chat-header-provisional-title')).toHaveCount(0);
   });
 
-  for (const width of [390, 1280]) {
-  // contract-test: direct surface=gui.web assertions=message-input.actions.visibility,message-input.layout.responsive-parity
-  test(`deep-link prefill hides the empty-chat workspace and outside/Cancel restores it at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
-    await page.goto(preview('ActiveChatFocusFixture', Math.min(width, 1100), undefined, width === 390 ? 'dark' : 'light'));
+  for (const { width, height, theme, color } of [
+    { width: 390, height: 844, theme: 'dark', color: 'rgb(45, 47, 53)' },
+    { width: 1280, height: 900, theme: 'light', color: 'rgb(230, 234, 255)' },
+    { width: 1280, height: 400, theme: 'dark', color: 'rgb(45, 47, 53)' },
+  ]) {
+  // contract-test: direct surface=gui.web assertions=message-input.focus.guest-welcome-suppression,message-input.focus.workspace-suppression,message-input.actions.visibility,message-input.layout.responsive-parity
+  test(`focus and deep-link prefill hide welcome, preserve its layout and restore drafts at ${width}x${height}`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto(preview('ActiveChatFocusFixture', Math.min(width, 1100), undefined, theme));
     await waitForComponentPreview(page);
     const side = page.getByTestId('chat-side');
     const field = page.getByTestId('message-field');
@@ -222,13 +226,31 @@ test.describe('Chat composer focus and draft preservation', () => {
     await expect(page.locator('.chat-wrapper.landing-intro-content-covered')).toHaveCount(0);
     await expect(page.getByTestId('message-input-wrapper')).toHaveCSS('opacity', '1');
     await expect(field).toBeVisible();
+    await expect(field).toHaveCSS('background-color', color);
+    const welcomeArea = page.locator('.daily-inspiration-area');
+    const welcomeHeight = await welcomeArea.evaluate((element) => element.getBoundingClientRect().height);
+    // Ordinary pointer focus must hide the welcome before any prefill or overlay.
+    await field.click();
+    await expect(page.getByTestId('daily-inspiration-banner')).toBeHidden();
+    await expect(page.locator('.daily-inspiration-area')).toHaveCSS('opacity', '0');
+    await expect(page.locator('.daily-inspiration-area')).toHaveAttribute('inert', '');
+    await expect(page.getByTestId('welcome-content')).toBeHidden();
+    await expect(page.getByTestId('welcome-content')).toHaveAttribute('inert', '');
+    await expect.poll(() => welcomeArea.evaluate((element) => element.getBoundingClientRect().height)).toBe(welcomeHeight);
+    await expect(field).toHaveCSS('background-color', color);
+    await page.getByTestId('input-dismiss-button').click();
+    await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('docsMessagePrefill', { detail: { text: 'Unsent deep link\nKeep this second line', autoSend: false } })));
     await expect(field).toHaveAttribute('data-focused', 'true');
     await expect(side).toHaveAttribute('inert', '');
     await expect(side).toHaveCSS('opacity', '1');
     await expect(side).toHaveCSS('visibility', 'visible');
-    await expect(side).toBeVisible();
-    await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+    // The empty flex background may shrink to zero in a keyboard-sized viewport;
+    // the hidden welcome remains measured and the composer must stay reachable.
+    await expect.poll(() => welcomeArea.evaluate((element) => element.getBoundingClientRect().height)).toBe(welcomeHeight);
+    await expect(field).toBeInViewport({ ratio: 1 });
+    await expect(page.getByTestId('daily-inspiration-banner')).toBeHidden();
+    await expect(page.getByTestId('welcome-content')).toBeHidden();
     await expect(page.getByTestId('chat-welcome-suggestions')).toHaveCSS('opacity', '0');
     await expect(page.getByTestId('chat-welcome-suggestions')).toHaveAttribute('inert', '');
     await expect(page.getByTestId('new-chat-suggestion-card').first()).toBeHidden();
@@ -236,26 +258,33 @@ test.describe('Chat composer focus and draft preservation', () => {
     await expect(page.getByTestId('input-dismiss-button')).toHaveText('Cancel');
     const cancel = page.getByTestId('input-dismiss-button');
     await expect(cancel).toHaveCSS('border-top-width', '1px');
+    await expect(cancel).toBeInViewport({ ratio: 1 });
     await expect.poll(() => page.evaluate(() => {
       const field = document.querySelector('[data-testid="message-field"]')!.getBoundingClientRect();
       const cancel = document.querySelector('[data-testid="input-dismiss-button"]')!.getBoundingClientRect();
       return Math.max(Math.abs(cancel.width - field.width), Math.abs(cancel.x - field.x));
     })).toBeLessThanOrEqual(1);
     await expect(page.getByTestId('chat-composer-focus-backdrop')).toHaveCount(0);
-    await page.screenshot({ path: test.info().outputPath(`chat-welcome-focused-${width}.png`) });
+    await page.screenshot({ path: test.info().outputPath(`chat-welcome-focused-${width}x${height}.png`) });
     // The document capture listener dismisses on the touch gesture itself.
     await page.getByTestId('chat-side').dispatchEvent('pointerdown', { pointerType: 'touch', button: 0 });
     await expect(field).toHaveAttribute('data-focused', 'false');
     await expect(side).not.toHaveAttribute('inert', '');
+    await expect(page.getByTestId('welcome-content')).not.toHaveAttribute('inert', '');
+    await expect(page.getByTestId('welcome-content')).toHaveCSS('opacity', '1');
+    await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+    await expect(field).toHaveCSS('background-color', color);
     await expect(side).toHaveCSS('opacity', '1');
     await expect(side).toBeVisible();
     await expect(page.getByTestId('message-input-wrapper')).toHaveCSS('opacity', '1');
-    await page.screenshot({ path: test.info().outputPath(`chat-welcome-restored-${width}.png`) });
+    await page.screenshot({ path: test.info().outputPath(`chat-welcome-restored-${width}x${height}.png`) });
     await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toContainText('Keep this second line');
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('docsMessagePrefill', { detail: { text: 'Unsent deep link\nKeep this second line', autoSend: false } })));
     await page.getByTestId('input-dismiss-button').click();
     await expect(field).toHaveAttribute('data-focused', 'false');
     await expect(page.getByTestId('message-editor').locator('.ProseMirror')).not.toBeFocused();
+    await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+    await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toContainText('Keep this second line');
   });
   }
 });

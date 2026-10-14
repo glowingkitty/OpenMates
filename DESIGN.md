@@ -336,11 +336,11 @@ Create a new settings element only when the pattern appears in at least three se
 
 Chat should remain familiar and readable.
 
-Composer focus follows the same layout across chat, task creation, workflow
-creation, and workflow editing. Empty-chat welcome content and non-chat workspace
-content fade completely out while keeping their layout measurements; disable
-their controls immediately with `inert`. An established chat transcript remains
-visible at reduced opacity (`0.15`) while its composer is focused. Dismissal
+Empty-chat welcome content fades completely out during composer focus while
+keeping its layout measurements; disable its controls immediately with `inert`.
+The message field keeps its theme-aware blue-grey surface when focused. Existing
+chat transcripts and Project, Task and Workflow workspace content retain full
+opacity during ordinary focus, with background interaction gated. Dismissal
 restores the previous layout and preserves unsent content.
 
 Cancel sits below the message field as a full-width pill: grey-10 surface,

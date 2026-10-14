@@ -5440,9 +5440,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     // This is used for container-based responsive behavior instead of viewport-based
     let isEffectivelyNarrow = $derived(isNarrow || showSideBySideLayout);
 
-    // Preserve welcome layout during composer focus. The whole chat-side
-    // workspace fades and becomes inert until focus is dismissed.
-    const hideWelcomeForKeyboard = false;
+    // Fade welcome surfaces without unmounting them or changing their measured
+    // layout. Established chat transcripts retain their current focus behavior.
+    let hideWelcomeForKeyboard = $derived(messageInputFocused && showWelcome);
 
     // Effective chat width: The actual width of the chat area
     // In side-by-side mode, the chat is constrained to 400px regardless of container width

@@ -34,14 +34,18 @@ async function expectBalancedPanelGutters(page: Page, surface: 'chat' | 'tasks' 
       left: panelBox.left - parentBox.left,
       right: parentBox.right - panelBox.right,
       bottom: parentBox.bottom - panelBox.bottom,
+      paddingLeft: Number.parseFloat(style.paddingLeft),
+      paddingRight: Number.parseFloat(style.paddingRight),
       paddingBottom: Number.parseFloat(style.paddingBottom),
       viewportBottom: window.innerHeight - parentBox.bottom,
     };
   }, { panelSelector, parentSelector });
   await expect(panel).toBeVisible();
   await expect(parent).toBeVisible();
-  expect(Math.abs(geometry.left - 10)).toBeLessThanOrEqual(1);
-  expect(Math.abs(geometry.right - 10)).toBeLessThanOrEqual(1);
+  // Desktop chat has extra inline-end padding; compare physical bounds so
+  // the same check also follows that spacing in RTL layouts.
+  expect(Math.abs(geometry.left - geometry.paddingLeft)).toBeLessThanOrEqual(1);
+  expect(Math.abs(geometry.right - geometry.paddingRight)).toBeLessThanOrEqual(1);
   expect(geometry.bottom).toBeLessThanOrEqual(Math.max(geometry.left, geometry.right) + 1);
   expect(Math.abs(geometry.bottom - geometry.paddingBottom)).toBeLessThanOrEqual(1);
   expect(Math.abs(geometry.viewportBottom)).toBeLessThanOrEqual(1);
@@ -110,16 +114,60 @@ async function checkFocusedLayout(page: Page, surface: 'tasks' | 'workflows' | '
 }
 
 test.describe('Actual workspace composer layout', () => {
+  for (const { height, theme, color } of [
+    { height: 800, theme: 'light', color: 'rgb(230, 234, 255)' },
+    { height: 400, theme: 'dark', color: 'rgb(45, 47, 53)' },
+  ]) {
+    // contract-test: direct surface=gui.web assertions=message-input.focus.guest-welcome-suppression,message-input.focus.workspace-suppression,message-input.layout.responsive-parity
+    test(`guest new chat restores its welcome and preserves a draft at 1280x${height}`, async ({ page }: { page: Page }) => {
+      await page.setViewportSize({ width: 1280, height });
+      await page.addInitScript((theme) => localStorage.setItem('theme_mode', theme), theme);
+      await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+      const field = page.getByTestId('message-field');
+      const editor = page.getByTestId('message-editor').locator('.ProseMirror');
+      const welcome = page.getByTestId('daily-inspiration-area');
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      await expect(welcome).toBeVisible({ timeout: 30000 });
+      await expect(field).toHaveCSS('background-color', color);
+      const welcomeHeight = await welcome.evaluate((element) => element.getBoundingClientRect().height);
+      const draft = 'Keep this new-chat draft\nKeep its second line';
+      await field.click();
+      await editor.fill(draft);
+      await expect(field).toHaveAttribute('data-focused', 'true');
+      await expect(field).toHaveCSS('background-color', color);
+      await expect(welcome).toBeHidden();
+      await expect(welcome).toHaveAttribute('inert', '');
+      await expect(page.getByTestId('welcome-content')).toBeHidden();
+      await expect.poll(() => welcome.evaluate((element) => element.getBoundingClientRect().height)).toBe(welcomeHeight);
+      await expect(field).toBeInViewport({ ratio: 1 });
+      const cancel = page.getByTestId('input-dismiss-button');
+      await expect(cancel).toBeInViewport({ ratio: 1 });
+      await cancel.click();
+      await expect(field).toHaveAttribute('data-focused', 'false');
+      await expect(welcome).toBeVisible();
+      await expect(welcome).not.toHaveAttribute('inert', '');
+      await expect(editor).toContainText('Keep its second line');
+      await field.click();
+      await expect(welcome).toBeHidden();
+      // Use a real outside pointer event, including when the empty chat-side has no height.
+      await page.mouse.click(5, 5);
+      await expect(field).toHaveAttribute('data-focused', 'false');
+      await expect(welcome).toBeVisible();
+      await expect(editor).not.toBeFocused();
+      await expect(editor).toContainText('Keep its second line');
+    });
+  }
+
   // contract-test: direct surface=gui.web assertions=message-input.actions.visibility,public-example-chats.transcript.safe-rendering,workspace-shell.start.chat-visual-parity
-  test('empty chat hides welcome on focus while a public example keeps its transcript faintly visible', async ({ page }: { page: Page }) => {
+  test('empty chat hides welcome on focus while a public example keeps its transcript fully visible', async ({ page }: { page: Page }) => {
     test.setTimeout(180000);
     test.skip(!getTestAccount().email, 'Test account credentials required.');
     await page.addInitScript(() => localStorage.setItem('theme_mode', 'dark'));
     await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
     await loginToTestAccount(page, () => {}, async () => {});
 
-    for (const height of [844, 400]) {
-      await page.setViewportSize({ width: 390, height });
+    for (const { width, height } of [{ width: 390, height: 844 }, { width: 390, height: 400 }, { width: 1280, height: 800 }]) {
+      await page.setViewportSize({ width, height });
       await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
       const chat = page.getByTestId('active-chat-container');
       const background = page.getByTestId('chat-side');
@@ -133,16 +181,19 @@ test.describe('Actual workspace composer layout', () => {
       await expect(background).toHaveAttribute('inert', '');
       await expect(background).toHaveCSS('opacity', '1');
       await expect(background).toHaveCSS('visibility', 'visible');
-      await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+      await expect(page.getByTestId('daily-inspiration-banner')).toBeHidden();
+      await expect(page.getByTestId('welcome-content')).toBeHidden();
+      await expect(field).toHaveCSS('background-color', 'rgb(45, 47, 53)');
       await expect(page.getByTestId('chat-welcome-suggestions')).toHaveCSS('visibility', 'hidden');
       await expect(page.getByTestId('chat-welcome-suggestions')).toHaveAttribute('inert', '');
       await expect(page.getByTestId('new-chat-suggestion-card').first()).toBeHidden();
-      await page.screenshot({ path: test.info().outputPath(`chat-welcome-focused-390x${height}.png`), fullPage: true });
+      await page.screenshot({ path: test.info().outputPath(`chat-welcome-focused-${width}x${height}.png`), fullPage: true });
       // Outside touch dismisses through the document capture listener, even
       // when Safari does not synthesize a subsequent click.
       await page.getByTestId('chat-side').dispatchEvent('pointerdown', { pointerType: 'touch', button: 0 });
       await expect(field).toHaveAttribute('data-focused', 'false');
       await expect(background).not.toHaveAttribute('inert', '');
+      await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
       await expect(background).toHaveCSS('opacity', '1');
       await expect(background).toHaveCSS('visibility', 'visible');
       await expectBalancedPanelGutters(page, 'chat');
@@ -161,14 +212,14 @@ test.describe('Actual workspace composer layout', () => {
       await expect(background).toHaveCSS('opacity', '1');
       await expect(background).toHaveCSS('visibility', 'visible');
       await expect(transcript).toBeVisible();
-      await page.screenshot({ path: test.info().outputPath(`chat-example-focused-390x${height}.png`), fullPage: true });
+      await page.screenshot({ path: test.info().outputPath(`chat-example-focused-${width}x${height}.png`), fullPage: true });
       await page.getByTestId('chat-side').dispatchEvent('pointerdown', { pointerType: 'touch', button: 0 });
       await expect(background).not.toHaveAttribute('inert', '');
       await expect(background).toHaveCSS('opacity', '1');
       await expect(background).toHaveCSS('visibility', 'visible');
       await expect(transcript).toBeVisible();
       await expectBalancedPanelGutters(page, 'chat');
-      await page.screenshot({ path: test.info().outputPath(`chat-example-restored-390x${height}.png`), fullPage: true });
+      await page.screenshot({ path: test.info().outputPath(`chat-example-restored-${width}x${height}.png`), fullPage: true });
     }
   });
 
